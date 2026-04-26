@@ -2147,7 +2147,7 @@ class SkillVersionStampTests(unittest.TestCase):
     def test_skill_version_matches_release_constant(self) -> None:
         from bin import benchmark_lib as lib
         detected = lib.detect_skill_version()
-        self.assertEqual(detected, "1.5.2")  # update this constant per release
+        self.assertEqual(detected, lib.RELEASE_VERSION)
 
 
 if __name__ == "__main__":

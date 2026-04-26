@@ -16,6 +16,13 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 QPB_DIR = SCRIPT_DIR.parent
 DEFAULT_MODEL = os.environ.get("QPB_MODEL", "gpt-5.4")
 
+# Single source of truth for the current release version. Compared against
+# `detect_skill_version()` in `bin/tests/test_run_playbook.py::SkillVersionStampTests`
+# so a future SKILL.md bump that forgets to update this constant fails the
+# test suite during release prep instead of after tag. Update both this
+# constant AND the SKILL.md `version:` stamp(s) when bumping the release.
+RELEASE_VERSION = "1.5.2"
+
 FUNCTIONAL_TEST_PATTERNS = (
     "test_functional.*",
     "functional.test.*",
