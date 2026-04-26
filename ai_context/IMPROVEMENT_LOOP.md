@@ -88,7 +88,7 @@ The criterion for "is this a real lever?" — pulling it should produce a change
 
 ### Lever 6 — Categorization tier policy
 
-**Home:** Not yet built. Planned for v1.5.3 — `references/categorization.md` for the prompt-side rules, plus a tagging step at the end of synthesis.
+**Home:** Not yet built. Lands in v1.5.3 — `references/categorization.md` for the prompt-side rules, plus a tagging step at the end of synthesis.
 
 **What it will control:** The standout/confirmed/probable/candidate evidentiary tiers — what a finding has to demonstrate to earn each, including the `standout_justification` field for promotions to the standout tier.
 
@@ -107,7 +107,7 @@ The methodology that makes improvement levers concrete. To validate that a lever
 
 This gives a clean, decoupled improvement signal. It isolates a specific class of bug behind a specific lever, separates "pulling a lever" from "side effects on unrelated levers," and produces an empirical record of which lever solved which class of miss. The output of a regression replay is a one-line entry in the lever's "Exercised in" list above.
 
-Used informally during v1.5.x development. Not yet automated. Future work in v1.6.0 may add `bin/regression_replay.py` taking a benchmark + bug ID + lever-under-test and running the playbook against the pre-fix commit, recording the before/after recall delta to a structured log under `metrics/`.
+Used informally during v1.5.x development. **Automation is the v1.5.4 theme** — see `Quality Playbook/Reviews/QPB_v1.5.4_Plan.md`. The v1.5.4 deliverable is `bin/regression_replay.py` plus a structured schema at `metrics/regression_replay/SCHEMA.md` and 3-5 worked lever-calibration cycles documented in `Quality Playbook/Reviews/Lever_Calibration_Log.md`. Once the automation lands, every change in v1.5.5+ carries a before/after recall delta on the regression-replay set.
 
 ## Pinned benchmarks
 
@@ -131,20 +131,26 @@ Docs-only changes to orientation files use the **Toolkit Test Protocol** (`TOOLK
 
 ## v1.5.3 work items
 
-Three changes planned for v1.5.3:
+Three changes planned for v1.5.3, in landing order:
 
-### Bug categorization tagging
+1. **C13.11 cleanup pass** — Round 8 non-blocking hardening, lands first against the simplest baseline. Brief at `Quality Playbook/Reviews/QPB_v1.5.3_C13_11_Brief.md`.
+2. **Mechanical extraction lever cleanup** — Lever 5 decoupling. No new behavior; refactor only.
+3. **Bug categorization tagging** — Lever 6 (new). The most consequential v1.5.3 change for adopters.
 
-A new tagging pass at the end of synthesis annotates each confirmed bug along a confidence/material dimension. The tagging is not a new gate — it does not gate-fail a run that has zero standouts, and it does not block a release if the distribution is unusual. Adopters use the tags to prioritize which findings to triage first.
+The regression-replay automation that previously lived here as an "optional, may slip" item has been pulled forward into v1.5.4 as that release's theme (see `Quality Playbook/Reviews/QPB_v1.5.4_Plan.md`). The benchmark replicate harness now lives in `repos/replicate/` as benchmark material, not a v1.5.x work item.
 
-The four tiers, in descending evidentiary strength:
+### C13.11 cleanup pass — Round 8 non-blocking hardening
 
-- **standout** — bugs an experienced engineer would describe as "huh, didn't see that." Earned, not required in every run. Most valuable for open-source upstream submissions and showcase findings. A run can ship with zero standouts; a run cannot promote a finding to standout without explicit justification in the bug record (the `standout_justification` field, required for any standout-tagged bug). The test: what would a senior maintainer of this project say if shown this finding? Surprise plus actionable specificity is the bar.
-- **confirmed** — solid evidence, normal severity, the run's reliable findings. The default tier for bugs that pass the standard evidentiary bar.
-- **probable** — code-path trace supports the finding but evidence is partial; an experienced reviewer would likely accept after a closer look. Worth surfacing but not load-bearing.
-- **candidate** — adversarial-iteration findings with the lower evidentiary bar; flagged as worth review but not promoted. Often correct, but the "is this actually wrong or is it a design choice?" question is genuinely open.
+The Round 8 Council review (`Quality Playbook/Reviews/QPB_v1.5.2_Council_Round8_Synthesis.md`) cleared v1.5.2 to ship (8 of 9 panelists Ship/Merge, 1 Block on a structural test-discipline issue). It surfaced six small hardening items that didn't block the tag but cluster naturally into a single C13.11 cleanup commit during v1.5.3 release-prep. Full brief at `Quality Playbook/Reviews/QPB_v1.5.3_C13_11_Brief.md`. Six fixes:
 
-The standout tier is the most consequential change for adopters who plan to submit upstream PRs. The new lever (Lever 6 above) sits behind this work item.
+1. **Centralize release version constant** in `bin/benchmark_lib.py` and route the version-stamp test through it (closes the codex/Panel-3 Round 8 Block).
+2. **`detect_repo_skill_version()` coverage** in `bin/tests/test_run_playbook.py` to catch root↔installed-copy stamp drift in CI.
+3. **`_mark_iterations_explicit` audit comment** at `bin/run_playbook.py:420` documenting the hardcoded prefix tuple.
+4. **Mutation-integration scenario** for `bin/tests/test_citation_stale.py` — exercise the actual mutation→hash-divergence path, not just the round-trip.
+5. **`sys.path` cleanup** in `test_citation_stale.py:36-39` — replace manipulation with proper test-import mechanism.
+6. **Phase 6 verdict-matrix completion** — add the `(pass, gate_passed=False, no warn)` → `"fail"` cell test to `bin/tests/test_finalizer.py`.
+
+These are intentionally batched as one cleanup commit set rather than scattered fixes. None affects shipped behavior; all improve maintainability or test discipline. Lands first so the categorization-tagging and mechanical-extraction work goes in against a clean baseline.
 
 ### Mechanical extraction lever cleanup
 
@@ -160,13 +166,30 @@ Outcome: a future change to mechanical extraction (e.g., adding a new extraction
 
 The cleanup is scoped as a refactor — no new behavior, no new gate, no recall-relevant changes. The verification dimensions check that nothing regressed: process compliance is unchanged on benchmark replay, outcome recall is unchanged on benchmark replay.
 
-### Regression replay automation (optional, may slip to v1.6.0)
+### Bug categorization tagging
 
-Build `bin/regression_replay.py` that takes a benchmark repository, a bug ID, and an optional `--lever-under-test` flag, then runs the playbook against the commit immediately before the bug's fix landed. Output is a structured record under `metrics/regression_replay/<timestamp>/` with the recall delta and the diagnosed lever (if the bug was missed). Promotes regression replay from "thing the maintainer does informally" to a tracked metric.
+A new tagging pass at the end of synthesis annotates each confirmed bug along a confidence/material dimension. The tagging is not a new gate — it does not gate-fail a run that has zero standouts, and it does not block a release if the distribution is unusual. Adopters use the tags to prioritize which findings to triage first.
 
-If v1.5.3 ends up too crowded, this slips to v1.6.0 and the lever-under-test loop continues to run informally.
+The four tiers, in descending evidentiary strength:
 
-### Benchmark replicate harness
+- **standout** — bugs an experienced engineer would describe as "huh, didn't see that." Earned, not required in every run. Most valuable for open-source upstream submissions and showcase findings. A run can ship with zero standouts; a run cannot promote a finding to standout without explicit justification in the bug record (the `standout_justification` field, required for any standout-tagged bug). The test: what would a senior maintainer of this project say if shown this finding? Surprise plus actionable specificity is the bar.
+- **confirmed** — solid evidence, normal severity, the run's reliable findings. The default tier for bugs that pass the standard evidentiary bar.
+- **probable** — code-path trace supports the finding but evidence is partial; an experienced reviewer would likely accept after a closer look. Worth surfacing but not load-bearing.
+- **candidate** — adversarial-iteration findings with the lower evidentiary bar; flagged as worth review but not promoted. Often correct, but the "is this actually wrong or is it a design choice?" question is genuinely open.
+
+The standout tier is the most consequential change for adopters who plan to submit upstream PRs. The new lever (Lever 6 above) sits behind this work item.
+
+## v1.5.4 theme
+
+**Improvement-protocol shakedown via historical regression replay.** Full plan at `Quality Playbook/Reviews/QPB_v1.5.4_Plan.md`. Three deliverables: `bin/regression_replay.py`, `metrics/regression_replay/SCHEMA.md`, and 3-5 worked lever-calibration cycles in `Quality Playbook/Reviews/Lever_Calibration_Log.md`. After v1.5.4, every release carries an empirical before/after recall measurement on a defined regression set.
+
+## v1.5.5 theme
+
+**Naive-review phase.** Full plan at `Quality Playbook/Reviews/QPB_v1.5.5_Plan.md`. Adds Phase 7 (one-shot naive code review running after the iteration strategies) and writes its findings to a separate `quality/NAIVE_FINDINGS.md` artifact (Option B in the plan; reconciliation into BUGS.md is deferred to v1.6.x). Empirical motivation: cross-target naive review found 33-57% of QPB's bug count, with non-trivial overlap and a few genuine novel finds — partial complementarity that becomes a built-in feature of the playbook in v1.5.5.
+
+Both v1.5.4 and v1.5.5 are downstream of v1.5.3's lever cleanup and categorization vocabulary; do not start them until v1.5.3 has tagged.
+
+## Benchmark replicate harness
 
 A 24/7-capable batch driver at `repos/replicate/` runs each (qpb_version, pinned_benchmark) cell N times with disciplined operational definitions, producing the variance data that "moving toward statistical control" needs. The harness is benchmark material under `repos/`, not QPB source; plan files at `repos/replicate/plans/*.json` declare which (version, target, N) tuples to run; per-replicate run dirs carry a `quality/replicate_intent.json` marker so future analysis can distinguish deliberate replicates from fix-and-rerun pollution.
 
@@ -180,19 +203,6 @@ Initial plans:
 The harness is recoverable across machine reboots — state lives in `state/runs.jsonl` (append-only), and resumption is "count completed events per (plan, target) and continue from the next pending replicate." Pacing between runs is configurable per plan to avoid LLM rate limits.
 
 The harness produces the empirical floor that the "Measurement and statistical control" section's σ claims need. Once `v1.5.2_pinned_variance` completes, the σ estimates land in that section as the data backing the "within-version variance is large" public-facing language.
-
-### C13.11 cleanup pass — Round 8 non-blocking hardening
-
-The Round 8 Council review (`Quality Playbook/Reviews/QPB_v1.5.2_Council_Round8_Synthesis.md`) cleared v1.5.2 to ship (8 of 9 panelists Ship/Merge, 1 Block on a structural test-discipline issue). It also surfaced six small hardening items that didn't block the tag but cluster naturally into a single C13.11 cleanup commit during v1.5.3 release-prep:
-
-1. **Centralize release version constant.** Add `RELEASE_VERSION = "1.5.3"` (or wherever the next bump lands) to `bin/benchmark_lib.py`. Change `SkillVersionStampTests.test_skill_version_matches_release_constant` to assert `lib.detect_skill_version() == lib.RELEASE_VERSION` instead of an inline literal. Eliminates the lockstep-update-two-places risk that 5 of 9 Round 8 panelists flagged. The codex/Panel-3 Block verdict in Round 8 was specifically on this item.
-2. **`detect_repo_skill_version()` coverage.** The new release-stamp guard at `bin/tests/test_run_playbook.py:2147-2150` exercises only `detect_skill_version()` against the root `SKILL.md`. Extend to also exercise `detect_repo_skill_version()` (the installed-copy reader path at `bin/benchmark_lib.py:137-143`) so a future divergence between root and installed-copy version stamps is caught in CI.
-3. **`_mark_iterations_explicit` audit comment.** Add an inline comment at `bin/run_playbook.py:420` documenting that the `explicit_prefixes` tuple is hardcoded to `("--iterations", "--strategy")` and must be re-audited if new CLI flags with similar prefixes are added — preventing a future maintainer from generalizing the prefix check in a way that reintroduces false positives.
-4. **Mutation-integration test for `test_citation_stale.py`.** The current round-trip test injects a deliberately stale hash; add a complementary scenario that mutates the source file post-ingest and verifies the gate detects the staleness through the actual mutation→hash-divergence path. Stronger end-to-end coverage of invariant #3.
-5. **`sys.path` cleanup in `test_citation_stale.py:36-39`.** Replace the `sys.path` manipulation with a proper test import mechanism (relative import or test-package conftest). Code hygiene; not behavior-changing.
-6. **Phase 6 verdict matrix completion.** The Finding B regression test covers the critical `(fail, *, warn)` cell. Add a complementary `(pass, gate_passed=False, no warn)` → `"fail"` test to `bin/tests/test_finalizer.py` to round out the truth-table coverage. The cell is correctly implemented; only the test is missing.
-
-These are intentionally batched as one cleanup commit rather than scattered fixes. None affects shipped behavior; all improve maintainability or test discipline. Land before the categorization-tagging or mechanical-extraction work begins so the C13.11 cleanup goes in against the simplest baseline.
 
 ## Measurement and statistical control
 
@@ -210,9 +220,10 @@ What this does NOT mean today:
 
 The trajectory:
 
-- **v1.5.x–v1.6.x:** Add `metrics/` directory; emit per-run JSON records with operational definitions of each metric; build a trend dashboard. Regression-replay records (above) plug into this.
-- **v1.5.3:** Within-version variance estimation begins via the benchmark replicate harness (`repos/replicate/`). Initial target is N=5 per (v1.5.2, pinned-benchmark) cell. When operator compute is plentiful, this happens earlier than the original v1.6.x–v1.7.x plan; when compute is constrained, it slips back. Either way, the trajectory is "variance estimates land before control charts."
-- **v1.6.x–v1.7.x:** Build control charts on top of the v1.5.3 variance estimates as additional data accumulates. Evaluate whether any metric has sufficient statistical power to be declared in control.
+- **v1.5.3:** Lever cleanup (mechanical extraction) + categorization vocabulary (standout/confirmed/probable/candidate). Within-version variance estimation continues running in the background via `repos/replicate/`; first σ data lands as `v1.5.2_pinned_variance` completes. Initial target is N=5 per (v1.5.2, pinned-benchmark) cell.
+- **v1.5.4:** Regression-replay automation. `bin/regression_replay.py` plus `metrics/regression_replay/SCHEMA.md` plus 3-5 worked calibration cycles. The improvement protocol stops being a methodology claim and starts being a procedure with empirical backing.
+- **v1.5.5:** Naive-review phase added as Phase 7. Empirically validated against the regression-replay set built in v1.5.4 (does the new phase improve recall, and at what false-positive cost?).
+- **v1.6.x:** Categorization-promoted reconciliation between BUGS.md and NAIVE_FINDINGS.md (Option C from the v1.5.5 plan). Build control charts on top of accumulated variance data. Evaluate whether any metric has sufficient statistical power to be declared in control.
 - **v1.7+:** Once 6-12 months of consistent data have accumulated, evaluate whether control charts on key metrics (bugs per benchmark per strategy, gate pass rate, false-positive rate, recall against ground truth) have sufficient statistical power to be meaningful.
 
 The discipline is inspired by Watts Humphrey's PSP/TSP work at SEI and the CMMI level 4 ("quantitatively managed") definition. That discipline took years for SEI to instrument and is rare even at large software organizations that explicitly target it. The honest framing for QPB today is "moving toward statistical control" with a multi-year horizon. Overclaiming today undermines the credibility of the eventual claim.
