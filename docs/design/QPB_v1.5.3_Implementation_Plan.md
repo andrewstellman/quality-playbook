@@ -1,36 +1,38 @@
 # Quality Playbook v1.5.3 — Implementation Plan
 
 *Companion to: `QPB_v1.5.3_Design.md`*
-*Status: draft — **renumbered from v1.5.2 on 2026-04-22 and needs a currency refresh before implementation begins***
-*Depends on: v1.5.0 complete (schemas.md, tier system, citation verification, disposition field); v1.5.1 complete (Phase 5 writeup hardening, ordering bugs, disposition-gate fixes); v1.5.2 complete (bug-family amplification, operational polish)*
+*Status: refreshed 2026-04-26 — ready for implementation on the fresh 1.5.3 branch (post-misfire reset). Phase 0 reconciled to actual v1.5.1 + v1.5.2 deliverables.*
+*Depends on: v1.5.0 complete (schemas.md, tier system, citation verification, disposition field); v1.5.1 complete (Phase 5 writeup hardening, challenge-gate reinforcement, enforce-writeup gate); v1.5.2 complete (bug-family amplification, operational polish, finalizer robustness, INDEX verdict mapping)*
 
-> **Scope-revision note (2026-04-22):** This plan was originally drafted as v1.5.2 when v1.5.1 was still scoped as an operator-flow + observability + Phase 4 benchmark release. v1.5.1 actually shipped as Phase 5 writeup-hardening (enforce-writeup gate, challenge-gate reinforcement, benchmark re-runs) without the standalone "Phase 4 benchmark validation" phase this document references. The new v1.5.2 (bug-family amplification + operational polish) now sits between v1.5.1 and this plan. Before this plan is acted on, walk it end-to-end and replace every "v1.5.1 Phase 4 / operator-flow / observability" reference with the actual v1.5.1 + v1.5.2 reality. Do not treat the Phase 0 gating conditions, baseline-capture paths, or pacing-signal references below as authoritative until that pass is done.
+> **Currency-refresh note (2026-04-26):** The earlier draft of this plan was renumbered from v1.5.2 on 2026-04-22 and carried stale Phase 0 references to a v1.5.1 "Phase 4 benchmark validation" surface that did not ship as named. v1.5.1 actually shipped as Phase 5 writeup-hardening (enforce-writeup gate, challenge-gate reinforcement, benchmark re-runs); v1.5.2 then shipped between v1.5.1 and this plan, delivering bug-family amplification, operational polish (challenge-gate iteration coverage, citation-stale invariant #3, finalizer robustness, Phase 6 INDEX verdict mapping). This refresh reconciles Phase 0 to that actual reality and makes the prerequisite state implementable from the fresh branch. Phases 1-8 below are unchanged from the original v1.5.3 design and remain authoritative.
 
-This plan is deliberately more provisional than the v1.5.0 plan. v1.5.0's implementation surfaced the schema and citation-gate constraints v1.5.3 builds on; v1.5.1 and v1.5.2 together surface the writeup-discipline, bug-family, and pacing characteristics of real end-to-end runs, which in turn inform how aggressive the per-pass progress machinery in Phase 3 of this plan needs to be. This document captures the intended shape; it should be revisited and refined once v1.5.2 is stable and its benchmarks have been reviewed.
+This plan is deliberately more provisional than the v1.5.0 plan. v1.5.0's implementation surfaced the schema and citation-gate constraints v1.5.3 builds on; v1.5.1 and v1.5.2 together surface the writeup-discipline, bug-family, finalizer-robustness, and pacing characteristics of real end-to-end runs, which in turn inform how aggressive the per-pass progress machinery in Phase 3 of this plan needs to be.
 
 ---
 
 ## Operating Principles
 
-- v1.5.3 builds on v1.5.0 and v1.5.1, doesn't replace them. The code-project path remains primary; skill-project handling is additive.
+- v1.5.3 builds on v1.5.0, v1.5.1, and v1.5.2, doesn't replace them. The code-project path remains primary; skill-project handling is additive.
+- v1.5.3 is the final feature release in the QC half of QPB's quality-engineering arc. After v1.5.3 ships, QPB has a complete operational methodology for both code projects and AI-skill projects. v1.5.4 then builds the QI measurement infrastructure (regression replay machinery), and v1.6.0 begins continuous improvement using that infrastructure. See `IMPROVEMENT_LOOP.md` for the QC/QI distinction.
 - Every phase produces a concrete deliverable that can be committed and benchmarked independently.
-- The Haiku-generated REQUIREMENTS.md is the success benchmark throughout. At every phase, compare QPB's self-audit output against it.
+- The Haiku-generated REQUIREMENTS.md is the success benchmark throughout. At every phase, compare QPB's self-audit output against it. The benchmark is preserved at `~/Documents/AI-Driven Development/Haiku QPB requirements analysis/REQUIREMENTS.md` (2,129 lines, 95 REQ references, 10 use cases).
 - No regression on code projects. The five code benchmark repos must continue to work.
 - **Disk is the source of truth for every LLM-driven pass.** Any pass that generates requirements, extracts citations, or audits coverage writes its output incrementally to a persistent artifact and advances a cursor in a progress file before moving on. Passes are resumable: killing one mid-run and restarting it continues from the last cursor position, not from scratch. Pass prompts include explicit compaction-recovery instructions (re-read the pass spec, read the progress file, verify continuity against disk, resume from cursor) so that auto-compaction is routine rather than catastrophic. See Phase 3 "Per-pass execution protocol" for the mechanics. This principle is a correctness invariant for skill projects, whose SKILL.md inputs are long enough that single-shot generation degrades under context pressure.
 
 ---
 
-## Phase 0 — v1.5.2 Stabilization and Benchmark Confirmation
+## Phase 0 — v1.5.0 / v1.5.1 / v1.5.2 Stabilization Confirmation
 
-Goal: v1.5.1 is shipped, tagged, and validated against the full code-project benchmark suite. v1.5.0's divergence model, tier system, and citation schema are in place; v1.5.1's operator-flow fixes, observability stack, invocation flexibility, challenge-gate invariant, and self-audit are complete. Benchmark yields from v1.5.1's Phase 4 are documented as the v1.5.3 baseline (replacing the earlier v1.5.0 baseline).
+Goal: confirm that v1.5.0, v1.5.1, and v1.5.2 are shipped, tagged, and validated against the code-project benchmark suite. v1.5.0's divergence model, tier system, and citation schema are in place; v1.5.1's Phase 5 writeup-hardening + challenge-gate reinforcement are in place; v1.5.2's bug-family amplification + finalizer robustness + INDEX verdict mapping are in place. Benchmark yields from the most recent runs of v1.5.2 against the pinned benchmarks are documented as the v1.5.3 baseline.
 
 Work items:
-- All v1.5.0 and v1.5.1 phases complete per their respective implementation plans
-- v1.5.1 tagged and released
-- Benchmark baselines captured under `previous_runs/v1.5.1/` (per the v1.5.1 Phase 4 comparison report) — these are the regression baseline v1.5.3 code-project runs compare against
-- Observability data from v1.5.1 Phase 4 reviewed (silent-gap frequency, pacing behavior under real LLM load) — feeds the Phase 3 per-pass progress design in this plan
+- All v1.5.0, v1.5.1, and v1.5.2 phases complete per their respective implementation plans
+- v1.5.0, v1.5.1, and v1.5.2 tagged and released to origin (`v1.5.0`, `v1.5.1`, `v1.5.2` tags exist on origin)
+- Benchmark baselines captured under `previous_runs/v1.5.2/` for chi-1.5.1, virtio-1.5.1, express-1.5.1 — these are the regression baseline v1.5.3 code-project runs compare against
+- Variance estimation runs accumulating in the background under `repos/replicate/` (the `v1.5.2_pinned_variance` plan with N=5 per pinned benchmark cell is the first σ data target; not blocking for v1.5.3 implementation but referenced by `IMPROVEMENT_LOOP.md` Stage A)
+- The 1.5.3 branch on origin has been reset from main (post-2026-04-26 misfire) with no in-flight v1.5.3 commits beyond what this implementation plan authorizes
 
-Gate to Phase 1: v1.5.1 self-audit passes cleanly; Phase 4 comparison report signed off with PASS or PASS_WITH_CAVEATS; no pending v1.5.0 or v1.5.1 bugs without dispositions.
+Gate to Phase 1: v1.5.2 tag exists on origin; chi/virtio/express benchmarks at v1.5.2 produce yields within ±10% of their v1.5.0 baseline; no pending v1.5.0/v1.5.1/v1.5.2 bugs without dispositions; `1.5.3` branch is fresh from main.
 
 ---
 

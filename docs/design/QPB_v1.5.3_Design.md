@@ -1,9 +1,11 @@
 # Quality Playbook v1.5.3 — Design Document
 
-*Status: design captured, awaiting v1.5.0 completion before implementation*
-*Authored: April 2026*
+*Status: design captured; v1.5.0/v1.5.1/v1.5.2 shipped; ready for implementation on the fresh 1.5.3 branch (post-misfire reset 2026-04-26).*
+*Authored: April 2026 (status refreshed 2026-04-26)*
 *Owner: Andrew Stellman*
 *Depends on: `QPB_v1.5.0_Design.md` (divergence model, tier system, citation schema, disposition field), `QPB_v1.5.1_Design.md` (Phase 5 writeup hardening), `QPB_v1.5.2_Design.md` (bug-family amplification, operational polish)*
+
+> **Where v1.5.3 sits in the arc.** v1.5.3 is the final feature release in the *quality control* half of QPB's quality-engineering project — after v1.5.3 ships, QPB can audit AI skills with the same operational rigor it audits code with. The next two releases (v1.5.4 + v1.6.0) shift to the *quality improvement* half: v1.5.4 builds the regression-replay measurement machinery, v1.6.0 begins continuous lever-pull improvement using that machinery. The QC/QI distinction and the SEI/Humphrey lineage are documented in `ai_context/IMPROVEMENT_LOOP.md`.
 
 ---
 
