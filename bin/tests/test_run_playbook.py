@@ -2149,6 +2149,21 @@ class SkillVersionStampTests(unittest.TestCase):
         detected = lib.detect_skill_version()
         self.assertEqual(detected, lib.RELEASE_VERSION)
 
+    def test_repo_skill_version_matches_release_constant(self) -> None:
+        """The installed-copy reader must report the same version as the root.
+
+        `detect_repo_skill_version()` walks `SKILL_INSTALL_LOCATIONS` and
+        returns the first match. The root QPB checkout has SKILL.md at the
+        repo root, so the function should find it via the `Path("SKILL.md")`
+        fallback location. If the four install locations ever drift from
+        each other (e.g., a packaging change adds a new SKILL.md without
+        updating the version stamp), this test fails loudly during release
+        prep instead of letting the drift ship.
+        """
+        from bin import benchmark_lib as lib
+        detected = lib.detect_repo_skill_version(lib.QPB_DIR)
+        self.assertEqual(detected, lib.RELEASE_VERSION)
+
 
 if __name__ == "__main__":
     unittest.main()
