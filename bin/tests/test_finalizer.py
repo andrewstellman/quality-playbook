@@ -328,6 +328,26 @@ class FinalizerCallSiteIntegrationTests(unittest.TestCase):
             "fail",
         )
 
+    # ---- Round 8 Finding 6: truth-table cell (pass, gate_passed=False, no warn) ----
+    def test_phase6_pass_with_gate_failure_no_warn_maps_to_fail(self):
+        """Round 8 truth-table completion: (pass, gate_passed=False, no warn) → fail.
+
+        The Round 7 Finding B fix guarded the warn-substring demotion to require
+        finalizer_status == "pass". The orthogonal cell — finalizer reports
+        "pass" but the gate log shows a hard failure with no warn substring —
+        must fall through to the else branch and produce "fail". This cell
+        is correctly implemented at bin/run_playbook.py:2165 but had no
+        explicit test before this commit; a future refactor could regress
+        it silently."""
+        self.assertEqual(
+            _run_phase6("pass", "RESULT: GATE FAILED — 3 check(s) must be fixed\n"),
+            "fail",
+        )
+        self.assertEqual(
+            _run_phase6("pass", "FAIL: quality/BUGS.md: heading missing\n"),
+            "fail",
+        )
+
     # ---- Test 14a: run_one_singlepass iteration branch success (site 3) ----
     def test_run_one_singlepass_iteration_branch_calls_finalizer_on_success(self):
         """The rev-1-missed call site. --next-iteration --strategy adversarial
