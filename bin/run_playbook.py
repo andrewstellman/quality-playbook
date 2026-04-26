@@ -417,6 +417,18 @@ def _mark_iterations_explicit(argv: Sequence[str]) -> bool:
     flag is True, the strategy dispatcher must NOT apply the zero-gain
     early-stop — the user asked for every strategy in their list to run.
     """
+    # The explicit_prefixes tuple is hardcoded by intent. v1.5.2 C13.10
+    # Finding F was a false-negative caused by a set-intersection check
+    # that missed the argparse `--flag=value` combined-token form. The
+    # current implementation matches only the two flags below, in both
+    # split (`--strategy adversarial`) and combined (`--strategy=adversarial`)
+    # forms. If a NEW flag is added that should also force explicit-iteration
+    # mode, append it to this tuple and add coverage in
+    # `bin/tests/test_iterations_explicit.py` for both shapes plus the
+    # `--full-run` override case. Do NOT generalize this to a substring
+    # match against argparse internals — that path reintroduces the
+    # false-positive class on tokens like `--strategy-foo` (a hypothetical
+    # future flag whose name shares the prefix but should NOT trigger).
     explicit_prefixes = ("--iterations", "--strategy")
     has_explicit = any(
         t == prefix or t.startswith(prefix + "=")
