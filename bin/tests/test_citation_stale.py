@@ -162,6 +162,79 @@ class CitationStaleRoundTrip(unittest.TestCase):
             self.assertNotIn("citation_stale", out)
             self.assertNotIn("invariant #3", out)
 
+    def test_post_ingest_source_mutation_triggers_citation_stale(self):
+        """Production failure mode: ingest, then mutate the source file.
+
+        Models the real-world scenario where a spec gets updated upstream but
+        nobody re-runs `reference_docs_ingest`. The producer's stored hash
+        (frozen at ingest time) must diverge from the now-mutated source's
+        hash, and the gate must emit citation_stale on the next run.
+        """
+        with tempfile.TemporaryDirectory() as d:
+            root = _scaffold(Path(d))
+            cite = root / "reference_docs" / "cite"
+            cite.mkdir(parents=True)
+            spec_path = cite / "spec.md"
+            original_body = "# Spec\n\n## Section A\n\nOriginal body line one.\n"
+            spec_path.write_text(original_body, encoding="utf-8")
+            rdi.ingest(root)
+
+            # Capture the producer hash AT INGEST TIME — this is what the
+            # citation in the requirements manifest will quote.
+            fd_manifest_path = root / "quality" / "formal_docs_manifest.json"
+            fd_rec = json.loads(fd_manifest_path.read_text(encoding="utf-8"))["records"][0]
+            ingest_time_hash = fd_rec["document_sha256"]
+            source_path = fd_rec["source_path"]
+
+            # Build a requirements manifest using the ingest-time hash.
+            # This is the citation that was correct at the moment it was authored.
+            req_manifest = {
+                "schema_version": "1.5.2",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "records": [
+                    {
+                        "id": "REQ-001",
+                        "tier": 1,
+                        "functional_section": "test",
+                        "citation": {
+                            "document": source_path,
+                            "section": "Section A",
+                            "citation_excerpt": "Original body line one.",
+                            "document_sha256": ingest_time_hash,
+                        },
+                    }
+                ],
+            }
+            (root / "quality" / "requirements_manifest.json").write_text(
+                json.dumps(req_manifest), encoding="utf-8"
+            )
+
+            # NOW mutate the source document AFTER ingest, simulating an
+            # upstream edit that nobody propagated through re-ingest.
+            spec_path.write_text(
+                "# Spec\n\n## Section A\n\nMUTATED body line one.\n",
+                encoding="utf-8",
+            )
+
+            # Re-run ingest so the formal_docs_manifest reflects the new
+            # source hash — but the requirements manifest still quotes the
+            # OLD ingest-time hash. This is the divergence the gate must catch.
+            rdi.ingest(root)
+
+            new_fd_rec = json.loads(fd_manifest_path.read_text(encoding="utf-8"))["records"][0]
+            post_mutation_hash = new_fd_rec["document_sha256"]
+            self.assertNotEqual(ingest_time_hash, post_mutation_hash,
+                                "Test setup error: mutation did not change the hash")
+
+            fails, _, out = _run_check(
+                quality_gate.check_v1_5_0_requirements_manifest, root, root / "quality"
+            )
+            self.assertGreaterEqual(fails, 1)
+            self.assertIn("citation.document_sha256 does not match FORMAL_DOC", out)
+            self.assertIn("invariant #3", out)
+            self.assertIn("citation_stale", out)
+            self.assertIn("record_id=REQ-001", out)
+
 
 if __name__ == "__main__":
     unittest.main()
