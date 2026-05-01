@@ -584,6 +584,109 @@ class InvokeRunnerExitCodeTests(unittest.TestCase):
             self.assertFalse(list(output_dir.rglob("*.json")))
 
 
+class ReplayModeOrderOfOperationsTests(unittest.TestCase):
+    """Phase 6 prep / F-N regression pin: in replay mode, the
+    historical baseline must be parsed BEFORE _invoke_runner is
+    called, never after.
+
+    Failure mode: when --historical-bugs points at the target's own
+    pre-existing BUGS.md (the natural case for an archive that IS
+    its own ground truth — every chi-1.3.x cycle works this way),
+    the runner's startup archives target/quality/ → previous_runs/.
+    A read AFTER the runner finds the file moved out from under it
+    and raises FileNotFoundError, aborting the cell write before
+    measurement is captured.
+
+    Mutation contract: swapping the parse_bugs_md(historical) call
+    back below the _invoke_runner call trips this test."""
+
+    def test_historical_parsed_before_runner_archives_target(self) -> None:
+        """Pin that the historical baseline carries the PRE-RUN
+        match key, not the POST-RUN match key.
+
+        The fixture sets up a divergent recall scenario:
+        - Pre-run BUGS.md: BUG-001 / REQ-001 / foo.go  (the truth)
+        - Post-run BUGS.md (what the mocked runner writes): BUG-042 /
+          REQ-099 / unrelated.go  (current run found something else)
+
+        With the fix in place (historical parsed BEFORE invoke):
+        recall = 0/1 (the current run did not recover REQ-001/foo.go).
+        Without the fix (historical parsed AFTER invoke): recall =
+        1/1 because the apparatus reads the same post-runner file as
+        BOTH historical and current — silent 100%-recall false
+        positive that would corrupt every calibration cycle's data."""
+        from unittest import mock
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp) / "target"
+            quality = target / "quality"
+            quality.mkdir(parents=True)
+            historical = quality / "BUGS.md"
+            _write(
+                historical,
+                "### BUG-001: pre-run truth\n"
+                "- **Requirement:** REQ-001\n"
+                "- **File:** `foo.go:1-2`\n",
+            )
+            output_dir = Path(tmp) / "out"
+
+            archived_dir = quality / "previous_runs" / "20260501T000000Z"
+            archived_dir.mkdir(parents=True)
+            archived_bugs = archived_dir / "quality" / "BUGS.md"
+            archived_bugs.parent.mkdir(parents=True)
+
+            def fake_invoke(target_dir, phase_scope, runner, model):
+                # Simulate the runner's Phase 0 archive: the original
+                # historical file moves to previous_runs/, and a
+                # fresh BUGS.md (with DIFFERENT match key) is written
+                # at the target's quality/BUGS.md path.
+                historical.rename(archived_bugs)
+                _write(
+                    historical,
+                    "### BUG-042: post-run finding (different match key)\n"
+                    "- **Requirement:** REQ-099\n"
+                    "- **File:** `unrelated.go:50-55`\n",
+                )
+                return rr.RunnerInvocationResult(
+                    returncode=0, wall_clock_seconds=1
+                )
+
+            with mock.patch.object(rr, "_invoke_runner", side_effect=fake_invoke):
+                rc = rr.main([
+                    "--benchmark", "test",
+                    "--historical-version", "1.0.0",
+                    "--historical-bugs", str(historical),
+                    "--target-dir", str(target),
+                    "--invoke-runner",
+                    "--output-dir", str(output_dir),
+                    "--run-timestamp", "20260501T000001Z",
+                ])
+            self.assertEqual(rc, 0)
+            cell_path = output_dir / "20260501T000001Z" / "test-1.0.0-all.json"
+            self.assertTrue(cell_path.is_file())
+            cell = json.loads(cell_path.read_text(encoding="utf-8"))
+            # Mutation contract: with the fix in place, recall must
+            # be 0.0 (historical = REQ-001/foo.go captured pre-run;
+            # current = REQ-099/unrelated.go from the post-run file
+            # — they don't match). If the order-of-operations
+            # regression is reintroduced, both reads pull from the
+            # post-run file and recall hits 1.0 — this assertion
+            # trips with `1.0 != 0.0`.
+            self.assertEqual(
+                cell["recall_against_historical"], 0.0,
+                "Recall must be 0.0 — the historical baseline must be "
+                "captured BEFORE the runner archives the target's "
+                "quality/BUGS.md. If recall is 1.0, the apparatus is "
+                "reading the post-run file as BOTH historical and "
+                "current (silent false-positive). The fix is "
+                "`historical = parse_bugs_md(args.historical_bugs)` "
+                "BEFORE `_invoke_runner`, never after."
+            )
+            # Sanity: the historical bug ID landed in missed_bug_ids.
+            self.assertEqual(cell["missed_bug_ids"], ["BUG-001"])
+            # Sanity: the post-run finding landed in spurious_bug_ids.
+            self.assertEqual(cell["spurious_bug_ids"], ["BUG-042"])
+
+
 class QpbVersionFieldSourceTests(unittest.TestCase):
     """Council 2026-04-30 P2-1: qpb_version_under_test must come from
     bin/benchmark_lib.RELEASE_VERSION per SCHEMA.md, not from

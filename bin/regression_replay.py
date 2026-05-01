@@ -526,6 +526,18 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     qpb_dir = _qpb_dir()
 
+    # Phase 6 cycle 1 fix (apparatus order-of-operations): in replay
+    # mode, the runner archives the target's pre-existing quality/
+    # tree to quality/previous_runs/<TS>/ before producing fresh
+    # artifacts. If the operator points --historical-bugs at the
+    # target's own BUGS.md (the natural case when an archive IS its
+    # own ground truth — every chi-1.3.x cycle works this way), the
+    # historical file gets moved out from under us. Read the
+    # historical baseline into memory BEFORE invoking the runner,
+    # never after. Measurement-only mode is unaffected (no
+    # invocation, no archival).
+    historical = parse_bugs_md(args.historical_bugs)
+
     wall_clock = 0
     if args.invoke_runner:
         if args.target_dir is None:
@@ -562,7 +574,6 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             return 2
         current_bugs = args.current_bugs
 
-    historical = parse_bugs_md(args.historical_bugs)
     current = parse_bugs_md(current_bugs)
     measurement = measure_recall(historical, current)
 
