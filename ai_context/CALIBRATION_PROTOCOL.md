@@ -27,12 +27,34 @@ The protocol involves four distinct roles. Keeping them straight is critical for
 
 The protocol supports two modes, selected by whether `<runner>` is specified in Inputs:
 
-- **Mode 1: AI-orchestrated (default; no `<runner>` specified).** The executing AI walks Phases 1-3 of the playbook inline using its own reasoning loop. It reads the canonical phase prompts (`~/Documents/QPB/phase_prompts/phase1.md`, `phase2.md`, `phase3.md`), executes each phase against `<target>`'s source, and writes the resulting artifacts (`<target>/quality/EXPLORATION.md`, `BUGS.md`, etc.) directly. No subprocess invocation. May spawn sub-agents for parallelism (e.g., concurrent pinned-benchmark validation in Step 9). Cost lives in the executing AI's session token budget.
-- **Mode 2: Runner-driven (`<runner>` specified).** The executing AI surfaces a `python3 -m bin.run_playbook --<runner> ...` command for the operator to run; the operator pastes back exit code and log path on completion; the executing AI proceeds. This is the right mode for headless automation (benchmark sweeps; adopter usage where the operator wants the orchestrator off the critical path) and for cases where the executing AI's tool environment can't drive Phases 1-3 inline.
+- **Mode 1: Fully autonomous (default; no `<runner>` specified).** The executing AI runs the entire cycle without operator intervention between Steps 1-12. It walks Phases 1-3 of the playbook inline (reading canonical phase prompts from `~/Documents/QPB/phase_prompts/phase1.md`, `phase2.md`, `phase3.md`), spawns sub-agents for the Council review (Step 7), runs validation and cross-benchmark checks via inline phase execution or sub-agent fan-out, and reports a terminal-state outcome to the operator. Sub-agents are the executing AI's environment-specific mechanism for parallel independent work (Cowork's Agent tool; claude CLI invocations spawned from bash; the equivalent in any AI tool). Operator's role: provide initial inputs, review the terminal-state report, approve the ship (or direct dead-end remediation). Cost lives in the executing AI's session token budget.
+- **Mode 2: Runner-driven, operator-in-the-loop (`<runner>` specified).** The executing AI surfaces commands for the operator to run, including `python3 -m bin.run_playbook --<runner> ...` for playbook runs and `gh copilot --prompt ...` for Council. Operator runs subprocess commands, pastes back results. Right mode when the executing AI's environment can't drive Phases 1-3 inline (e.g., a UI tool with no bash access) or when the operator wants the orchestrator off the critical path (debugging; cost containment in their separate billing account).
 
-**Default to Mode 1** unless the operator explicitly specifies `<runner>`. Mode 1 is simpler architecturally (one agent doing the whole cycle) and matches the v1.6.x activation criterion (any AI tool can run the protocol from canonical docs alone).
+**Default to Mode 1.** Mode 1 is the v1.6.x activation criterion: an AI tool given just the protocol + target + expected-bug list can autonomously run the full improvement loop and converge on a ship-or-dead-end verdict. Mode 2 is documented as an alternative for environments that can't support Mode 1 fully.
 
 The steps below describe Mode 1 as canonical with Mode 2 noted at each step where the mechanics differ.
+
+## Autonomous-loop convergence and circuit-breakers
+
+Mode 1 runs to terminal state without operator intervention. Terminal states:
+
+**Success:**
+- Council Ship verdict (Step 7) → validation passes (Step 8) → cross-benchmark check clean (Step 9) → calibration log + cell.json written (Steps 10-11) → reported to operator (Step 12). Operator approves ship.
+
+**Dead end (lever pull doesn't work):**
+- Council Block verdict (Step 7), or
+- Validation `recall_after - recall_before <= noise_floor_threshold` (Step 8), or
+- Cross-benchmark regression beyond noise_floor_threshold (Step 9).
+
+In any dead-end case, the executing AI auto-reverts the lever change (working-tree edits discarded), writes the dead end to the calibration log + cell.json with the disposition recorded, and reports to the operator.
+
+**Iteration limit reached:**
+- Step 6 revision count hits 5 (default; configurable) → executing AI halts, surfaces all iterations to operator, reports the loop didn't converge.
+
+**Operator interrupt:**
+- The executing AI's environment is interruptible at every turn-boundary; the operator can stop the loop at any time and direct.
+
+The autonomous loop runs until one terminal state is reached. The executing AI does NOT poll for operator input mid-loop; the only operator interactions are (a) initial inputs, (b) terminal-state report, (c) any operator-initiated interrupt.
 
 ## When to use this protocol
 
@@ -261,42 +283,52 @@ The `audit.md` running log has sections: Inputs, Pre-flight results, Step 1-12 r
 
 At v1.5.4 ship (or the next release boundary), the cycle directory migrates to `~/Documents/QPB/docs/process/QPB_v<X.Y.Z>_Calibration_Cycle_<benchmark>-<version>/` per the versioned-historical-artifact pattern in `DEVELOPMENT_PROCESS.md`.
 
-**7.1 — Final draft check (self-review).** Before drafting the Council prompt, the executing AI surfaces its draft for a final operator-or-self-review pass:
+**7.1 — Final draft check (self-review).** Before launching the Council, the executing AI does a quick self-review:
 
 - `git diff` — the exact change as a unified diff
 - The diagnosis from Step 4 + lever hypothesis from Step 5 + recall measurement from Step 3
 - The audit trail of any iterations that produced this final draft
 
-In Mode 1, the executing AI may also be the orchestrator (Cowork driving its own cycle); in Mode 2 the orchestrator is a separate role. Either way, the gate before Council is: is this draft ready for the more rigorous review? If not — return to Step 6 with feedback (counts toward the iteration limit). If yes — proceed to 7.2.
+If the executing AI's own pass surfaces issues, return to Step 6 with feedback (counts toward iteration limit). Otherwise proceed to 7.2.
 
-**7.2 — Draft the Council prompt.** Write the prompt file at `~/Documents/AI-Driven Development/Quality Playbook/Calibration Cycles/<...>/council_prompt.md`. The first line MUST be the nested-panel header verbatim:
+**7.2 — Draft the Council prompt.** Write the prompt file at `~/Documents/AI-Driven Development/Quality Playbook/Calibration Cycles/<...>/council_prompt.md`. The prompt body covers: the diagnosis, the lever hypothesis, the recall measurement, the diff, and explicit review questions:
 
-```
-**Reviewers requested:** `gpt-5.4`, `gpt-5.3-codex`, `claude-sonnet-4.6` (each outer model spawns its own three-reviewer panel internally).
-```
+- Is the diagnosis sound (does the missed-bug class characterization match the missed bugs)?
+- Does the lever change actually address the missed-bug class (would Phase 1, applied with this updated reference, find the missed bugs)?
+- Is the prose consistent with the home file's existing style and structure?
+- Does the change risk regression elsewhere (does it shift Phase 1's attention away from things it currently catches)?
 
-The prompt body covers: the diagnosis, the lever hypothesis, the recall measurement, the diff, and explicit review questions ("is the diagnosis sound? does the lever change address the missed-bug class? is the prose consistent with the home file? does the change risk regression elsewhere?").
+**7.3 — Run the Council.** The executing AI conducts the Council itself. Mechanics depend on the mode:
 
-**7.3 — Operator runs `gh copilot` from three terminals.** Surface three commands for the operator to run (this is the only operator-blocking sub-step in Step 7):
+**Mode 1 (autonomous):** the executing AI spawns three parallel sub-agents with orthogonal review lenses. The sub-agent mechanism is environment-specific:
 
-```bash
-cd ~/Documents/QPB && gh copilot --model gpt-5.4 --prompt "$(cat '/Users/.../council_prompt.md')" | tee '/Users/.../council_response_gpt-5.4.md'
-cd ~/Documents/QPB && gh copilot --model gpt-5.3-codex --prompt "$(cat '/Users/.../council_prompt.md')" | tee '/Users/.../council_response_gpt-5.3-codex.md'
-cd ~/Documents/QPB && gh copilot --model claude-sonnet-4.6 --prompt "$(cat '/Users/.../council_prompt.md')" | tee '/Users/.../council_response_claude-sonnet-4.6.md'
-```
+- In Cowork: use the Agent tool (`general-purpose` subagent_type, three parallel calls in one message) with prompts directing each agent to review the draft from a specific lens (correctness/diagnosis-soundness; scope/style/regression-risk; integration/cross-pattern-consistency).
+- In claude CLI from bash: spawn three `claude --print` subprocess invocations in parallel, each with a different lens prompt.
+- In any environment with sub-agent capability: equivalent parallel fan-out with three independent perspectives.
 
-The `cd ~/Documents/QPB &&` prefix is mandatory (per workspace CLAUDE.md's Council protocol — without it the Copilot sandbox can only see the cwd and will fabricate verdicts from whatever it finds there). The operator pastes back the response file paths when all three runs complete.
+The three lenses by default (the executing AI may adapt per cycle):
+1. **Diagnosis correctness** — does the lever change actually address the missed-bug class? Is the missed-bug class characterization right?
+2. **Scope and style** — is the change minimal and focused? Is the prose consistent with the home file's existing patterns? Does it stay within the home file?
+3. **Regression risk** — would this change harm Phase 1's coverage of bugs it currently catches? Does it overspecify and crowd out other patterns?
 
-**7.4 — Synthesize.** The executing AI reads all three response files, treats the output as 9 perspectives (3 outer models × 3 inner panelists per nested-panel), labels each verdict `<outer>/<inner>` (e.g. `gpt-5.4/claude-sonnet-4.6`), and writes a `council_synthesis.md` with:
+Each sub-agent reads the canonical docs (CALIBRATION_PROTOCOL.md, IMPROVEMENT_LOOP.md, the home file at HEAD, the draft diff, the chi-1.3.45 / target's BUGS.md history) and produces an independent verdict and finding list. Sub-agents do NOT see each other's output — independence is the point.
 
-- Per-finding analysis (which findings appear across multiple perspectives — high-confidence; which appear in only one — possible self-doubt bias)
+**Mode 2 (operator-in-the-loop):** the executing AI surfaces three `gh copilot --prompt --model <X>` commands for the operator to run from three terminals (per workspace CLAUDE.md's nested-panel Council protocol). The operator pastes back the response file paths.
+
+In either mode, three independent perspectives are produced. Cowork's parallel-Agent fan-out is NOT a fully nested 9-perspective Council (each Agent is a single perspective, not an Agent that itself spawns three reviewers). For most calibration cycles three independent perspectives are sufficient; if a cycle is high-stakes (e.g., a foundational architectural change, not a typical lever pull), the executing AI may choose to fan out further or escalate to Mode 2 for the full nested 9-perspective gh-copilot Council.
+
+**7.4 — Synthesize.** The executing AI reads all three sub-agent responses (or operator-pasted Council outputs in Mode 2), produces a `council_synthesis.md` with:
+
+- Per-finding analysis (which findings appear across multiple perspectives — high-confidence; which appear in only one — possible bias or per-lens artifact)
 - Composite verdict: **Ship**, **Hold-with-fixes**, or **Block**
 
 **7.5 — Apply the verdict.**
 
-- **Ship** — proceed to Step 8
+- **Ship** — proceed to Step 8 (autonomous in Mode 1; operator-approval-blocking in Mode 2 if you set that gate)
 - **Hold-with-fixes** — return to Step 6 with Council findings; revise; re-review (counts toward iteration limit)
-- **Block** — fundamental issue with the diagnosis or lever choice; STOP and reassess (this is a real halt point per the failure-modes table)
+- **Block** — fundamental issue with the diagnosis or lever choice; halt and report to operator (this is a real terminal state per the convergence section above)
+
+In Mode 1, Ship → Step 8 happens autonomously without operator confirmation. Mode 1's gate IS the Council; once the executing AI's own multi-perspective review ships, the cycle proceeds to validation. Operator visibility into the Ship verdict happens at Step 12's terminal-state report.
 
 Do NOT proceed past this step without an explicit Council Ship verdict.
 
