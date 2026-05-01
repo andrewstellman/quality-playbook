@@ -498,7 +498,7 @@ When no `quality/runs/` directory exists but sibling versioned directories do, l
 ## Phase 1: Explore the Codebase (Write As You Go)
 
 > **Required references for this phase** — read these before proceeding:
-> - `references/exploration_patterns.md` — six bug-finding patterns to apply after open exploration
+> - `references/exploration_patterns.md` — seven bug-finding patterns to apply after open exploration
 
 **First action: create run metadata.** Before any exploration, create the run metadata file:
 
@@ -562,7 +562,7 @@ Spend the first phase understanding the project. The quality playbook must be gr
 
    **What this stage must NOT produce:** A section that lists defensive patterns the code already has (things the code does RIGHT) is not a risk analysis. A section that lists risky modules without specific failure scenarios is not a risk analysis. A section that concludes "this is a mature, well-tested library so basic bugs are unlikely" is actively harmful — mature libraries have the most subtle bugs, precisely because the obvious ones were found years ago. The test: could a code reviewer read each scenario and immediately know what to check? If not, the scenario is too abstract.
 
-3. **Pattern-driven exploration (selected, not exhaustive).** After open exploration and domain-risk analysis are written to disk, evaluate all six analysis patterns from `exploration_patterns.md` using a pattern applicability matrix. For each pattern, assess whether it applies to this codebase and what it would target. Then select 3 to 4 patterns for deep-dive treatment — the highest-yield patterns for this specific codebase. The remaining patterns get a brief "not applicable" or "deferred" note with codebase-specific rationale. Do not produce deep sections for all six patterns — depth on 3–4 beats shallow coverage of 6. Select 4 when a fourth pattern has clear applicability and would cover code areas not reached by the other three; default to 3 when in doubt.
+3. **Pattern-driven exploration (selected, not exhaustive).** After open exploration and domain-risk analysis are written to disk, evaluate all seven analysis patterns from `exploration_patterns.md` using a pattern applicability matrix. For each pattern, assess whether it applies to this codebase and what it would target. Then select 3 to 4 patterns for deep-dive treatment — the highest-yield patterns for this specific codebase. The remaining patterns get a brief "not applicable" or "deferred" note with codebase-specific rationale. Do not produce deep sections for all seven patterns — depth on 3–4 beats shallow coverage of 7. Select 4 when a fourth pattern has clear applicability and would cover code areas not reached by the other three; default to 3 when in doubt.
 
    For each selected pattern deep dive, use the output format from the reference file and trace code paths across 2+ functions. The deep dives should pressure-test, refine, or extend the findings from the open exploration and risk analysis — not repeat them.
 
