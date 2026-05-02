@@ -327,10 +327,10 @@ class ReferenceFileIterationTests(unittest.TestCase):
             docs = [s.document for s in secs]
             self.assertNotIn("references/ignore.txt", docs)
 
-    def test_qpb_references_dir_iterates_14_files(self) -> None:
-        """Phase 3b A.2 acceptance: QPB has 14 reference files in
-        references/. enumerate_skill_and_references should chain them
-        all with SKILL.md."""
+    def test_qpb_references_dir_iterates_15_files(self) -> None:
+        """Phase 3b A.2 acceptance: QPB has 15 reference files in
+        references/ (14 from v1.5.4 + run_state_schema.md added in v1.5.5).
+        enumerate_skill_and_references should chain them all with SKILL.md."""
         repo = Path(__file__).resolve().parents[2]
         if not (repo / "SKILL.md").is_file():
             self.skipTest("QPB SKILL.md not at expected location")
@@ -341,8 +341,8 @@ class ReferenceFileIterationTests(unittest.TestCase):
         ref_docs = [d for d in documents if d.startswith("references/")]
         self.assertEqual(
             len(ref_docs),
-            14,
-            f"Expected 14 reference files; got {len(ref_docs)}: {ref_docs}",
+            15,
+            f"Expected 15 reference files; got {len(ref_docs)}: {ref_docs}",
         )
 
 
