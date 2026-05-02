@@ -57,3 +57,6 @@ council-reviews/
 pattern-discovery/
 qpb-bootstrap-iter-remaining.log
 qpb-*.log
+
+# Local cycle helper scripts (one-off serial runners; not part of the skill)
+run-serial.sh
