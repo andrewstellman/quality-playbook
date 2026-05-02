@@ -575,6 +575,8 @@ When no `quality/runs/` directory exists but sibling versioned directories do, l
 
 ## Phase 1: Explore the Codebase (Write As You Go)
 
+**v1.5.5 instrumentation:** Append `phase_start phase=1` to `quality/run_state.jsonl` now. After walking each exploration pattern, append `pattern_walked phase=1 pattern=N findings_count=K`. At phase end, cross-validate (`quality/EXPLORATION.md` ≥ 200 bytes with finding sections) then append `phase_end phase=1`. See "Run-state instrumentation" above.
+
 > **Required references for this phase** — read these before proceeding:
 > - `references/exploration_patterns.md` — seven bug-finding patterns to apply after open exploration
 
@@ -1030,17 +1032,21 @@ For each category, check whether the requirements contain specific conditions co
 
 Record all requirements in a structured format. These feed directly into the code review protocol's verification and consistency passes.
 
-### Checkpoint: Initialize PROGRESS.md
+### Checkpoint: Update PROGRESS.md after Phase 1
 
-After completing Phase 1 exploration, create `quality/PROGRESS.md`. This file is the skill's external memory — it persists state across phases so that context is never lost, even if the session is interrupted and resumed. It also serves as an audit trail for debugging and improvement.
+**v1.5.5 update — PROGRESS.md is now initialized at run start, not after Phase 1.** Per the "Run-state instrumentation" section earlier in this file, `quality/PROGRESS.md` and `quality/run_state.jsonl` are written before any phase work begins. By this point in Phase 1, both files already exist. This checkpoint is the **Phase 1 completion update** to PROGRESS.md, not the initialization.
 
-**Why this exists:** In single-session runs, the agent holds context in memory. But context degrades over long sessions — findings from Phase 1 are forgotten by Phase 6, BUG counts drift, spec-audit bugs get orphaned because the closure check never saw them. PROGRESS.md solves this by making every phase write its state to disk. The agent reads it back before each phase, so it always has an accurate picture of what happened so far. As a side benefit, it makes the skill work correctly even if the run is split across multiple sessions.
+The PROGRESS.md format combines the run-state header (Started / Benchmark / Lever / Runner / Playbook version), the phase checklist (now driven by `phase_start` / `phase_end` events from `quality/run_state.jsonl`), and the legacy content sections below (Run metadata, Artifact inventory, Cumulative BUG tracker, etc.) — they are complementary, not competing.
 
-**Checkpoint discipline for long runs:** After each requirements-pipeline phase (Contracts, Requirements, Coverage Matrix, Completeness, Narrative), update `quality/PROGRESS.md` with: completed phase, artifact paths, current scoped subsystems, remaining work, and exact resume point. This ensures a resumed session can continue from the last completed checkpoint without redoing work.
+**Phase 1 completion action:** Mark Phase 1 as `[x]` in the phase checklist with summary stats (findings count, patterns walked); add the Phase 1 artifacts (EXPLORATION.md and any sub-artifacts) to the Artifact inventory. Append a `phase_end phase=1` event to `run_state.jsonl` per the cross-validation rules in the Run-state instrumentation section.
+
+**Why PROGRESS.md exists:** In single-session runs, the agent holds context in memory. But context degrades over long sessions — findings from Phase 1 are forgotten by Phase 6, BUG counts drift, spec-audit bugs get orphaned because the closure check never saw them. PROGRESS.md solves this by making every phase write its state to disk. The agent reads it back before each phase, so it always has an accurate picture of what happened so far. As a side benefit, it makes the skill work correctly even if the run is split across multiple sessions.
+
+**Checkpoint discipline for long runs:** After each requirements-pipeline phase (Contracts, Requirements, Coverage Matrix, Completeness, Narrative), update `quality/PROGRESS.md` with: completed phase, artifact paths, current scoped subsystems, remaining work, and exact resume point. This ensures a resumed session can continue from the last completed checkpoint without redoing work. Per v1.5.5, also append the corresponding `pass_started` / `pass_ended` events to `run_state.jsonl`.
 
 **Timestamp discipline:** Write each phase completion entry to PROGRESS.md immediately when you finish that phase, before starting the next phase. Do not batch-write or back-fill timestamps after the fact. The timestamps are an audit trail — if Phase 2 shows a completion time earlier than Phase 1, a reviewer cannot verify that phases ran in the correct sequence. If you realize you forgot to write a checkpoint, write it now with an honest timestamp and a note explaining the gap.
 
-Write the initial PROGRESS.md:
+The full PROGRESS.md format the v1.5.5-initialized file will have populated by Phase 1 completion includes the sections below (the legacy template, retained because Phase 5+ depend on its Cumulative BUG tracker and Terminal Gate Verification sections):
 
 ```markdown
 # Quality Playbook Progress
@@ -1234,6 +1240,8 @@ Or say "keep going" to continue automatically.
 ---
 
 ## Phase 2: Generate the Quality Playbook
+
+**v1.5.5 instrumentation:** Append `phase_start phase=2` to `quality/run_state.jsonl` now. At phase end, cross-validate (a triage artifact exists, non-empty) then append `phase_end phase=2`.
 
 > **Required references for this phase** — read these before proceeding:
 > - `quality/EXPLORATION.md` — your Phase 1 findings (architecture, requirements, use cases, pattern analysis)
@@ -1916,6 +1924,8 @@ Or say "keep going" to continue automatically.
 
 ## Phase 3: Code Review and Regression Tests
 
+**v1.5.5 instrumentation:** Append `phase_start phase=3` to `quality/run_state.jsonl` now. At phase end, cross-validate (`quality/RUN_CODE_REVIEW.md` exists; one writeup per identified bug) then append `phase_end phase=3`.
+
 > **Required references for this phase:**
 > - `quality/REQUIREMENTS.md` — target list for the code review
 > - `references/review_protocols.md` — three-pass protocol and regression test conventions
@@ -1944,6 +1954,8 @@ Or say "keep going" to continue automatically.
 ---
 
 ## Phase 4: Spec Audit and Triage
+
+**v1.5.5 instrumentation:** Append `phase_start phase=4` now. For each pass A/B/C/D, append `pass_started phase=4 pass=X` and `pass_ended phase=4 pass=X`. At phase end, cross-validate (`quality/REQUIREMENTS.md` non-empty AND `quality/COVERAGE_MATRIX.md` exists) then append `phase_end phase=4`.
 
 > **Required references for this phase:**
 > - `references/spec_audit.md` — Council of Three protocol, triage process, verification probes
@@ -2008,6 +2020,8 @@ Or say "keep going" to continue automatically.
 ---
 
 ## Phase 5: Post-Review Reconciliation and Closure Verification
+
+**v1.5.5 instrumentation:** Append `phase_start phase=5` now. For each gate check, append `gate_check gate_name=X verdict=pass|fail|warn|skip`. At phase end, cross-validate (`quality/results/quality-gate.log` non-empty) then append `phase_end phase=5`.
 
 > **Required references for this phase:**
 > - `quality/PROGRESS.md` — cumulative BUG tracker (authoritative finding list)
@@ -2152,6 +2166,8 @@ Or say "keep going" to continue automatically.
 ---
 
 ## Phase 6: Verify
+
+**v1.5.5 instrumentation:** Append `phase_start phase=6` now. At phase end, cross-validate (`quality/BUGS.md` non-empty with `^## BUG-` sections AND `quality/INDEX.md` updated with `gate_verdict` field) then append `phase_end phase=6`. After Phase 6 closes, append `run_end status=success` (or `aborted` / `failed` if applicable).
 
 > **Required references for this phase:**
 > - `references/verification.md` — 45 self-check benchmarks

@@ -93,9 +93,13 @@ For each benchmark in `<benchmarks>`:
 1. Append `benchmark_start`: `{"event":"benchmark_start","ts":"<now>","benchmark":"<bench>","lever_state":"pre-lever"}`.
 2. Verify or restore the canonical pre-lever state of the QPB working tree (the lever change must NOT yet be applied at this point).
 3. Reset the benchmark's `quality/` to a known-empty state: `cp -r repos/archive/<bench>/quality/previous_runs/<latest>/ /tmp/save-<bench>/ && rm -rf repos/archive/<bench>/quality/* && cp -r /tmp/save-<bench>/quality/* repos/archive/<bench>/quality/previous_runs/` (or equivalent — the goal is a fresh `quality/` tree with prior_runs preserved).
-4. Spawn the playbook. Two options depending on your tool environment:
-   - **Synchronous subprocess:** `python3 -m bin.run_playbook --claude --phase 1,2,3 repos/archive/<bench>` and block on completion. ~30 minutes per benchmark.
-   - **Background spawn + polling:** if your tool can't block long enough, launch in background and poll `repos/archive/<bench>/quality/run_state.jsonl` for `run_end` event. Sleep ~5 minutes between polls.
+4. Spawn the playbook. The realistic mechanism for AI-session-driven cycles is **spawn + resume on re-invocation**:
+   - Launch the playbook in the background with output redirected to a log file: `nohup python3 -m bin.run_playbook --claude --phase 1,2,3 repos/archive/<bench> > <bench>-playbook.log 2>&1 &`. Capture the PID.
+   - Append a `benchmark_start` event with the PID and log path so a resumed orchestrator can find them.
+   - Return control to the operator (or to the calling shell). The orchestrator session ends; the playbook continues running.
+   - The operator (or a watchdog) re-invokes the orchestrator periodically (e.g., every 30-60 minutes). On each re-invocation, the orchestrator reads its cycle's `run_state.jsonl`, finds the in-flight benchmark, and checks `repos/archive/<bench>/quality/run_state.jsonl` for `run_end`. If complete: parse BUGS.md, compute recall, append `benchmark_end`, advance to next benchmark (or next cycle step). If incomplete and the playbook PID is still alive: re-launch the orchestrator later. If incomplete and the PID is dead: the playbook crashed; clean and re-spawn.
+   - **Why not synchronous block:** AI sessions (Claude Code, Cowork sub-agents) don't reliably block for 30-minute subprocess durations across 8 benchmarks (~4 hours total). The session would time out, drop network, or be ended by the operator. Spawn + resume is the only pattern that survives realistic session lifetimes.
+   - **Watchdog timeout:** if a benchmark's playbook hasn't produced a `run_end` event after 90 minutes wall-clock, treat it as hung. Kill the PID, clean the benchmark's `quality/`, append `error recoverable:true`, and re-spawn. After 3 hung-and-restart cycles on the same benchmark, halt with `cycle_end verdict:"halt-playbook-hang"`.
 5. When the playbook reports complete: read `repos/archive/<bench>/quality/BUGS.md`. Compute recall: count of bug IDs in the new BUGS.md that match (by file:line or canonical bug name) any bug ID in `repos/archive/<bench>/quality/previous_runs/<latest>/quality/BUGS.md`. Recall = `|found ∩ baseline| / |baseline|`.
 6. Append `benchmark_end`: `{"event":"benchmark_end","ts":"<now>","benchmark":"<bench>","lever_state":"pre-lever","recall":<r>,"bugs_found":[...],"bugs_missed":[...],"historical_baseline_path":"<path>"}`.
 
@@ -118,21 +122,26 @@ After each `benchmark_end`, copy the post-lever BUGS.md aside into `Calibration 
 2. Check the cross-benchmark invariant: NO benchmark should regress beyond `noise_floor_threshold` (0.05). If `delta < -0.05` on any benchmark, the lever pull caused a regression there — this is a Block condition.
 3. Build the cell.json output: write to `metrics/regression_replay/<cycle-timestamp>/<lever-bench>-all.json` per the cell.json schema. Include `lever_under_test`, `benchmarks`, `recall_before`, `recall_after`, `delta`, `regression_check.status` (clean/regression), `noise_floor_threshold:0.05`.
 
-### Step 6: Council review (Mode 1: sub-agent fan-out)
+### Step 6: Council review (Mode 1: sub-agent fan-out, three lenses)
 
-Per `CALIBRATION_PROTOCOL.md` Step 7. Spawn three parallel sub-agents using your tool's parallel-agent mechanism (Cowork's Agent tool with `general-purpose` subagent_type, parallel `claude` CLI invocations from bash, etc.). Each sub-agent gets:
+Per `CALIBRATION_PROTOCOL.md` Step 7. Spawn three parallel sub-agents using your tool's parallel-agent mechanism (Cowork's Agent tool with `general-purpose` subagent_type, parallel `claude` CLI invocations from bash, etc.). **Three flat lenses, not nested 9-perspective** — Mode 1's autonomous Council is intentionally lighter than the operator-driven nested Council in `CALIBRATION_PROTOCOL.md`'s Mode 2. The full 9-perspective nested panel requires `gh copilot` invocations the orchestrator can't run.
 
-- The cycle's hypothesis, lever change, before/after recall numbers.
-- A focused review lens: (a) "Is the lever change well-targeted at the symptom?" (b) "Are the recall numbers honest given the run conditions?" (c) "Does the cycle's outcome justify the verdict?"
+Each of the three sub-agents gets:
 
-Synthesize the three responses into a Council verdict (Ship / Block / Iterate). Mode 1 default: 9-perspective nested panel (each outer sub-agent spawns three inner reviewers); for fast cycles, 3-perspective flat is acceptable but document the choice.
+- The cycle's hypothesis, lever change diff, pre/post recall numbers per benchmark, regression check status.
+- A focused review lens, one per sub-agent:
+  - **Sub-agent 1 (Diagnosis lens):** "Is the lever change well-targeted at the diagnosed symptom?" Reads the cycle's hypothesis and the lever-change diff. Verdict: targets the symptom / doesn't / partial.
+  - **Sub-agent 2 (Scope lens):** "Are the recall numbers honest given run conditions?" Reads the per-benchmark `benchmark_end` events and the underlying BUGS.md files. Verdict: numbers reflect reality / numbers may be artifact of run conditions / inconclusive.
+  - **Sub-agent 3 (Regression-risk lens):** "Does any benchmark regress beyond the noise floor? Are wins on one benchmark coming at the cost of losses elsewhere?" Verdict: clean / regression-detected / partial-recovery.
+
+Synthesize into a Council verdict: Ship (all three positive or two-of-three positive with no Block), Block (any sub-agent issues a Block, or two-of-three negative), Iterate (Council surfaces a clearly-better sub-lever). Document each sub-agent's verdict in the cycle audit.
 
 ### Step 7: Decide verdict
 
 Based on Council outcome + measurement results:
 
 - **Ship:** Council Ship + delta > noise floor + cross-benchmark check clean. Lever change stays committed; cycle closes with `verdict:"ship"`.
-- **Revert:** Council Block + delta ≤ noise floor OR cross-benchmark regression. Revert the lever change commit (`git revert <sha>` or `git reset --hard HEAD~1` if no other commits depend on it). Cycle closes with `verdict:"revert"`.
+- **Revert:** Council Block + delta ≤ noise floor OR cross-benchmark regression. Revert the lever change with a NEW commit: `git revert <sha>`. Do NOT use `git reset --hard` — that destroys history on shared branches and will break any in-flight work or downstream clones (the safety hole the workspace verify-before-claiming rule is built to catch). The revert commit becomes part of the cycle's audit trail. Cycle closes with `verdict:"revert"`.
 - **Iterate:** Council suggests a different sub-lever, or measurement results are ambiguous. If `<iteration> < <iterate_cap>`: relaunch yourself with `<iteration> + 1` and a new sub-lever description. If `<iteration> >= <iterate_cap>`: halt with `verdict:"halt-iterate-cap"` — you've exhausted iterations without convergence.
 
 ### Step 8: Write cycle audit
