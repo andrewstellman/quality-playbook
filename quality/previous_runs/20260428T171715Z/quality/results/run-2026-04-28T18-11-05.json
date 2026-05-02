@@ -1,0 +1,23 @@
+{
+  "schema_version": "1.0",
+  "skill_version": "1.5.3",
+  "project": "quality-playbook",
+  "model": "gpt-5.4",
+  "model_provider": "openai",
+  "runner": "copilot-cli",
+  "start_time": "2026-04-28T18:11:05Z",
+  "end_time": "2026-04-28T18:54:01Z",
+  "duration_minutes": 43,
+  "phases_completed": ["Phase 1", "Phase 2", "Phase 3", "Phase 4", "Phase 5", "Phase 6"],
+  "iterations_completed": ["gap"],
+  "bug_count": 10,
+  "bug_severity": {
+    "HIGH": 2,
+    "MEDIUM": 7,
+    "LOW": 1
+  },
+  "gate_result": "PASS",
+  "gate_fail_count": 0,
+  "gate_warn_count": 1,
+  "notes": "Bootstrap self-audit baseline completed through Phase 6, then the gap iteration added BUG-008 through BUG-010 around install-location fallback fidelity. TDD verified BUG-001, BUG-002, BUG-004, and BUG-006; BUG-003, BUG-005, and BUG-007 still have failing green receipts; BUG-008 through BUG-010 remain confirmed open with red receipts and no fix patches."
+}

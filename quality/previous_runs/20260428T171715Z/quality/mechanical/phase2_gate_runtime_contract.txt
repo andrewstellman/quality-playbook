@@ -1,0 +1,8 @@
+if phase == "2":
+        exploration = quality_dir / "EXPLORATION.md"
+        if not exploration.is_file():
+            return GateCheck(ok=False, messages=["GATE FAIL Phase 2: quality/EXPLORATION.md missing - run Phase 1 first"])
+        line_count = count_lines(exploration)
+        if line_count < 120:
+            return GateCheck(ok=False, messages=[f"GATE FAIL Phase 2: EXPLORATION.md is only {line_count} lines (expected 120+)"])
+        return GateCheck(ok=True, messages=messages)

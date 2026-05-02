@@ -1,0 +1,18 @@
+The adversarial iteration is complete. Here's a summary:
+
+## Adversarial iteration — complete
+
+**Strategy outcomes:**
+- Re-investigated 12 candidates (A-1 through A-12) from iterations 3 and 4 that had been "pending Phase 2 promotion" but never reached `quality/BUGS.md`. All confirmed with fresh code traces.
+- Re-checked all 7 formal Demoted Candidates (DC-001 through DC-007) — all sustained as FALSE POSITIVE.
+- Challenged the only Pass 2 SATISFIED verdict (REQ-001) — sustained with caveats; logged as DC-008.
+
+**One bug promoted to confirmed status:**
+- **BUG-011** (HIGH): `verify_citation()` allows path traversal outside the repo root (`bin/citation_verifier.py:244-266`). Reduced reproduction shows `result.ok=True` with populated excerpt against an out-of-root absolute-path source. Promoted from a 3-iteration pending candidate that the orchestrator's Phase 2-5 cycles never confirmed.
+
+**Artifacts touched:**
+- New: `quality/EXPLORATION_ITER5.md`, `quality/writeups/BUG-011.md`, `quality/challenge/BUG-011-challenge.md`, `quality/results/BUG-011.red.log`, `quality/patches/BUG-011-regression-test.patch`
+- Updated: `REQUIREMENTS.md` (+REQ-011, +UC-10), `requirements_manifest.json`, `use_cases_manifest.json`, `bugs_manifest.json`, `BUGS.md`, `test_regression.py`, `test_functional.py`, `tdd-results.json`, `TDD_TRACEABILITY.md`, `COVERAGE_MATRIX.md`, `COMPLETENESS_REPORT.md`, `EXPLORATION_MERGED.md`, `ITERATION_PLAN.md`, `PROGRESS.md`
+- Untouched: existing phase tracker checkboxes; `## Iteration: <strategy> started/complete` heartbeat blocks (orchestrator-owned).
+
+**Gate state:** `1 FAIL, 1 WARN` — same posture as before the adversarial iteration. The remaining FAIL is the pre-existing `reference_docs/cite/.gitkeep` extension issue from the parity iteration finalization. No new gate failures introduced. 11 confirmed bugs total, 11 regression tests, 7 fix patches, 11 writeups.

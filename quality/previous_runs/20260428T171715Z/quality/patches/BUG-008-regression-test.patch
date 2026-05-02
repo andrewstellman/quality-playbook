@@ -1,0 +1,16 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@
++    @unittest.expectedFailure
++    def test_bug_008_later_phase_prompts_use_documented_fallback_list(self) -> None:
++        for prompt in (
++            run_playbook.phase2_prompt(),
++            run_playbook.phase3_prompt(),
++            run_playbook.phase4_prompt(),
++            run_playbook.phase5_prompt(),
++            run_playbook.phase6_prompt(),
++        ):
++            self.assertIn("SKILL.md, .claude/skills/quality-playbook/SKILL.md", prompt)
++            self.assertIn(".github/skills/SKILL.md, .github/skills/quality-playbook/SKILL.md", prompt)
++            self.assertNotIn(".github/skills/references/", prompt)

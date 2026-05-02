@@ -1,0 +1,49 @@
+FF
+======================================================================
+FAIL: test_req_002_reference_docs_is_authoritative_for_phase1 (quality.test_functional.SpecRequirementTests.test_req_002_reference_docs_is_authoritative_for_phase1)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/andrewstellman/Documents/QPB/quality/test_functional.py", line 148, in test_req_002_reference_docs_is_authoritative_for_phase1
+    self.assert_req_002_reference_docs_is_authoritative_for_phase1()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/andrewstellman/Documents/QPB/quality/test_functional.py", line 55, in assert_req_002_reference_docs_is_authoritative_for_phase1
+    self.assertTrue(
+    ~~~~~~~~~~~~~~~^
+        run_playbook.docs_present(repo),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        "a populated reference_docs/ tree should count as docs-present input on a modern install",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+AssertionError: False is not true : a populated reference_docs/ tree should count as docs-present input on a modern install
+
+======================================================================
+FAIL: test_req_008_direct_and_harness_bootstrap_share_docs_surface (quality.test_functional.SpecRequirementTests.test_req_008_direct_and_harness_bootstrap_share_docs_surface)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/andrewstellman/Documents/QPB/quality/test_functional.py", line 166, in test_req_008_direct_and_harness_bootstrap_share_docs_surface
+    self.assert_req_008_direct_and_harness_bootstrap_share_docs_surface()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/andrewstellman/Documents/QPB/quality/test_functional.py", line 136, in assert_req_008_direct_and_harness_bootstrap_share_docs_surface
+    self.assertEqual(
+    ~~~~~~~~~~~~~~~~^
+        docs_gathered_files,
+        ^^^^^^^^^^^^^^^^^^^^
+        reference_docs_files,
+        ^^^^^^^^^^^^^^^^^^^^^
+        "repo-root self-audit should expose the same effective docs surface that the harness mirrors into reference_docs/",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+AssertionError: Lists differ: ['01_README_project.md', '02_AGENTS.md', '[597 chars].md'] != []
+
+First list contains 22 additional elements.
+First extra element 0:
+'01_README_project.md'
+
+Diff is 715 characters long. Set self.maxDiff to None to see it. : repo-root self-audit should expose the same effective docs surface that the harness mirrors into reference_docs/
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.002s
+
+FAILED (failures=2)

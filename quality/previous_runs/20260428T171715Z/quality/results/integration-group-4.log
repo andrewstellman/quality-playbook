@@ -1,0 +1,20 @@
+F
+======================================================================
+FAIL: test_req_005_cleanup_without_pid_files_stays_run_scoped (quality.test_functional.SpecRequirementTests.test_req_005_cleanup_without_pid_files_stays_run_scoped)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/andrewstellman/Documents/QPB/quality/test_functional.py", line 157, in test_req_005_cleanup_without_pid_files_stays_run_scoped
+    self.assert_req_005_cleanup_without_pid_files_stays_run_scoped()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/andrewstellman/Documents/QPB/quality/test_functional.py", line 95, in assert_req_005_cleanup_without_pid_files_stays_run_scoped
+    fallback.assert_not_called()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/mock.py", line 938, in assert_not_called
+    raise AssertionError(msg)
+AssertionError: Expected '_pkill_fallback' to not have been called. Called 1 times.
+Calls: [call()].
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+FAILED (failures=1)

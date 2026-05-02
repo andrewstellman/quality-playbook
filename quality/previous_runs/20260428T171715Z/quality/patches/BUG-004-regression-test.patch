@@ -1,0 +1,23 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+new file mode 100644
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,18 @@
++import unittest
++from unittest import mock
++
++from bin import run_playbook
++
++
++class CodeReviewRegressionTests(unittest.TestCase):
++    @unittest.expectedFailure
++    def test_bug_004_cleanup_without_pid_files_stays_run_scoped(self):
++        with mock.patch.object(run_playbook, "discover_pid_files", return_value=[]), mock.patch.object(
++            run_playbook, "_pkill_fallback"
++        ) as fallback:
++            run_playbook.kill_recorded_processes()
++            fallback.assert_not_called()
++
++
++if __name__ == "__main__":
++    unittest.main()

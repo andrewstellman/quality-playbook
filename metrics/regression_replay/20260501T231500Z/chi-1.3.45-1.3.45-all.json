@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.5.4-pre",
+  "benchmark": "chi",
+  "historical_version": "1.3.45",
+  "historical_qpb_version": "1.3.45",
+  "qpb_version_under_test": "1.5.4",
+  "run_timestamp": "2026-05-01T23:15:00Z",
+  "historical_bug_id": "all",
+
+  "historical_bug_count": 10,
+  "recovered_bug_ids": ["BUG-001", "BUG-005", "BUG-006", "BUG-010"],
+  "missed_bug_ids": ["BUG-002", "BUG-003", "BUG-004", "BUG-007", "BUG-008", "BUG-009"],
+  "recall_against_historical": 0.40,
+
+  "lever_under_test": "lever-1-exploration-breadth-depth",
+  "lever_change_summary": "Added Pattern 7 (Composition and Mount-Context Awareness) to references/exploration_patterns.md. Direction-agnostic pattern (read+write) directing Phase 1 to enumerate functions that read or write state that can be canonical-vs-raw under composition (mounted routers, nested transactions, scoped loggers, locale contexts, impersonation). 5 cross-domain examples; budget cap (3-5 highest-impact seams); Pattern 4 disambiguation rule.",
+  "lever_home_file": "references/exploration_patterns.md",
+
+  "regression_check": {
+    "status": "clean",
+    "checked_cells": [
+      "metrics/regression_replay/20260501T231500Z/chi-1.5.1-1.5.1-all.json",
+      "metrics/regression_replay/20260501T231500Z/virtio-1.5.1-1.5.1-all.json"
+    ],
+    "regressed_cells": [],
+    "noise_floor_threshold": 0.05
+  },
+
+  "apparatus": {
+    "qpb_commit_sha": "99f65c7",
+    "target_commit_sha": "unknown",
+    "runner": "claude",
+    "runner_model": "default",
+    "wall_clock_seconds": null
+  },
+
+  "noise_floor_source": "Argument-based validation (not empirical apparatus run): walked Pattern 7's How-to-apply procedure against each missed bug's source file (heartbeat.go, page_route.go, clean_path.go, strip.go); 4/4 mount-context bugs flagged. Projected recall_after = 8/10 = 0.80; delta = +0.40, dominates 0.05 noise floor. Production v1.6.x cycles in environments supporting long-running subprocesses do empirical apparatus runs; this v1.5.4 first-cycle is argument-based due to Cowork environment constraints.",
+
+  "notes": "First calibration cycle exercised end-to-end against CALIBRATION_PROTOCOL.md. Mode 1 autonomous (Cowork as executing AI; Council via parallel-Agent sub-agent fan-out, 2 iterations). recall_after = 0.80 is projected from argument-based Step 8.4 walkthrough, NOT empirical measurement. SCHEMA.md is stale on a few fields: (a) Lever 6 (skill-derivation pipeline) added in v1.5.3 but SCHEMA.md only enumerates Lever 1-5; (b) calibration-log canonical path was Quality Playbook/Reviews/ in SCHEMA.md, has been moved to docs/process/Lever_Calibration_Log.md per DEVELOPMENT_PROCESS.md; (c) recall matching method described as 'mechanical matcher' in SCHEMA.md but this protocol uses AI-orchestrated semantic matching. SCHEMA additive update tracked as Cycle Finding for follow-on. Cross-benchmark cells for chi-1.5.1 / virtio-1.5.1 are referenced but not yet emitted (argument-based check, no separate cells produced). express-1.5.1 not in archive (Cycle Finding C-2)."
+}

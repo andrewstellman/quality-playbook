@@ -1,0 +1,29 @@
+    # Install skill files
+    mkdir -p "${dst}/.github/skills/references"
+    cp "${QPB_DIR}/SKILL.md" "${dst}/.github/skills/SKILL.md"
+    cp "${QPB_DIR}/references/"* "${dst}/.github/skills/references/" 2>/dev/null || true
+    cp "${QPB_DIR}/LICENSE.txt" "${dst}/.github/skills/LICENSE.txt" 2>/dev/null || true
+    cp "${QPB_DIR}/.github/skills/quality_gate/quality_gate.py" "${dst}/.github/skills/quality_gate.py" 2>/dev/null || true
+
+    # v1.5.2+: reference_docs/ is the canonical documentation location read
+    # by Phase 1's reference_docs_ingest. The legacy docs_gathered/ path
+    # populated above is preserved for backward compat with pre-v1.5.2 QPB
+    # versions (cross-version benchmark harness still runs older versions).
+    #
+    # Mirror docs_gathered/ → reference_docs/ so the v1.5.2+ playbook actually
+    # finds and ingests the curated documentation. Without this mirror, the
+    # gathered docs sit in docs_gathered/ where the modern playbook doesn't
+    # look, and Phase 1 falls back to Tier 3 (source-only) review.
+    #
+    # Adopters can also drop their own plaintext into reference_docs/ (Tier 4)
+    # or reference_docs/cite/ (Tier 1/2 citable) — the cp below preserves any
+    # such adopter-supplied files because cp -R OVER an existing directory
+    # only overwrites same-named files, not the whole tree.
+    mkdir -p "${dst}/reference_docs/cite"
+    if [ -d "${dst}/docs_gathered" ] && [ -n "$(ls -A "${dst}/docs_gathered" 2>/dev/null)" ]; then
+        cp -R "${dst}/docs_gathered/." "${dst}/reference_docs/"
+        ref_count=$(find "${dst}/reference_docs" -type f | wc -l | tr -d ' ')
+        log "  reference_docs: ${ref_count} files (mirrored from docs_gathered/)"
+    fi
+
+    log "  ✓ ${short}-${VERSION} ready"

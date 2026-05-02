@@ -1,0 +1,27 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+new file mode 100644
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,24 @@
++import unittest
++from pathlib import Path
++
++from bin import run_playbook
++
++
++REPO_ROOT = Path(__file__).resolve().parents[1]
++
++
++class CodeReviewRegressionTests(unittest.TestCase):
++    @unittest.expectedFailure
++    def test_bug_007_direct_root_and_harness_docs_surfaces_match(self):
++        expected = sorted(
++            path.name for path in (REPO_ROOT / 'docs_gathered').iterdir()
++            if path.is_file() and path.suffix.lower() in {'.md', '.txt'} and path.name != 'README.md'
++        )
++        actual = sorted(path.relative_to(REPO_ROOT / 'reference_docs').as_posix() for path in run_playbook._reference_docs_plaintext(REPO_ROOT / 'reference_docs'))
++        self.assertEqual(actual, expected)
++
++
++if __name__ == '__main__':
++    unittest.main()

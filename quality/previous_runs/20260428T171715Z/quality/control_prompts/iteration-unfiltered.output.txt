@@ -1,0 +1,100 @@
+● Todo added 3 items
+  │ Inspect repo and playbook state
+  │ Run unfiltered iteration
+  └ Validate updated artifacts
+
+● Search (glob)
+  │ "**/quality/PROGRESS.md"
+  └ 4 files found
+
+● Search (glob)
+  │ "{SKILL.md,.claude/skills/quality-playbook/SKILL.md,.github/skills/SKILL.md,
+  │ .github/skills/quality-playbook/SKILL.md}"
+  └ 1 file found
+
+● Inspect git status and playbook files (shell)
+  │ git --no-pager status --short && printf '\n---\n' && find . -maxdepth 3 \(
+  │ -path './.git' -o -path './.venv' \) -prune -o \( -name 'PROGRESS.md' -o
+  │ -name 'SKILL.md' \) -print | sort
+  └ 296 lines...
+
+I found an active playbook run in `quality/` with substantial uncommitted artifacts, so I’m treating that as the target and being careful not to disturb the existing phase tracker lines while I figure out the next iteration surface.
+
+● Todo started inspect-state
+
+● Read SKILL.md
+  └ L1:260 (243 lines read)
+
+● Read SKILL.md
+  │ .github/skills/SKILL.md
+  └ L1:260 (243 lines read)
+
+● Read iteration.md
+  │ references/iteration.md
+  └ L1:260 (185 lines read)
+
+● Read PROGRESS.md
+  │ quality/PROGRESS.md
+  └ L1:260 (166 lines read)
+
+● Read iteration.md
+  │ .github/skills/references/iteration.md
+  └ L1:260 (185 lines read)
+
+● Read RUN_INDEX.md
+  │ quality/RUN_INDEX.md
+  └ L1:260 (13 lines read)
+
+● Read ITERATION_PLAN.md
+  │ quality/ITERATION_PLAN.md
+  └ L1:260 (46 lines read)
+
+I’ve confirmed the run is already through Phase 6 plus a completed gap iteration, and the unfiltered iteration has only been marked as started so far. Next I’m checking the repo’s own runner/orchestrator path to finish that iteration instead of hand-editing artifacts inconsistently.
+
+● Read run_playbook.py
+  │ bin/run_playbook.py
+  └ L520:1150 (375 lines read)
+
+● Read run_playbook.py
+  │ bin/run_playbook.py
+  └ L1500:2010 (511 lines read)
+
+● Search (grep)
+  │ "def (iteration_|phase[1-6]_prompt|resolve_target_dirs|archive_run)|class
+  │ .*Iteration|ITERATION_PLAN" in *.py (bin)
+  └ 14 lines found
+
+● Search (grep)
+  │ "next-iteration|unfiltered|ITERATION_PLAN|EXPLORATION_ITER|Iteration:" in
+  │ *.{py,md,sh} (bin, agents, quality)
+  └ 6 lines found
+
+The runner already embeds the exact fallback-list language you asked for, so I’m narrowing down whether its built-in `--next-iteration --strategy unfiltered` flow is safe to use on this live tree or whether it would archive/replace the current artifacts.
+
+● Read run_playbook.py
+  │ bin/run_playbook.py
+  └ L1120:1285 (166 lines read)
+
+● Read run_playbook.py
+  │ bin/run_playbook.py
+  └ L2008:2365 (358 lines read)
+
+● Read run_playbook.py
+  │ bin/run_playbook.py
+  └ L2366:2725 (360 lines read)
+
+● Show run_playbook help (shell)
+  │ python3 bin/run_playbook.py --help | sed -n '1,240p'
+  └ 41 lines...
+
+I’ve got enough context now: the repo’s own runner/orchestrator can do this, but because the tree is already mid-iteration and dirty, I’m delegating the actual unfiltered pass to the specialized quality-playbook agent with explicit guardrails so it finishes the live run without clobbering unrelated artifacts.
+
+● Quality-playbook Run unfiltered iteration
+  └ Agent started in background with agent_id: unfiltered-iteration. You'll ...
+
+I’ve handed the live `quality/` tree to the specialized playbook agent with the fallback-order and `PROGRESS.md` checkbox constraints pinned, and I’m waiting on it to finish the unfiltered iteration end-to-end.
+
+
+Changes   +0 -0
+Requests  1 Premium (11m 18s)
+Tokens    ↑ 4.8m • ↓ 28.3k • 4.5m (cached) • 3.1k (reasoning)
