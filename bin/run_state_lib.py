@@ -235,6 +235,124 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
     return (True, "")
 
 
+def validate_no_source_edits(
+    target_dir: Path,
+    allowed_prefixes: tuple[str, ...] = ("quality/",),
+) -> tuple[bool, list[str]]:
+    """Verify that no files outside the allowed prefixes were modified
+    during the run.
+
+    The Codex bootstrap run on 2026-05-02 went off-rails in Phase 5,
+    editing five source files outside ``quality/`` before being killed.
+    Phase 5's job is to write proposed-fix patches to
+    ``quality/patches/<BUG-NNN>-fix.patch`` — never to apply them. This
+    helper is the run-end post-condition that catches any drift: it
+    shells out to ``git status --porcelain`` in ``target_dir`` and
+    flags any tracked or untracked path whose final destination is not
+    under one of ``allowed_prefixes``.
+
+    Returns:
+        ``(True, [])`` if every change is inside an allowed prefix (or
+        ``target_dir`` is not a git repo, or has no changes at all).
+        ``(False, [violations])`` if any non-allowed paths are dirty;
+        ``violations`` lists the offending repo-relative paths in the
+        order ``git status`` reports them, deduplicated.
+
+    Notes:
+        - Renames count by their new path (``R  old -> new`` flags
+          ``new`` only — what matters is where content lands, not where
+          it came from).
+        - Untracked files (``?? path``) count as violations if they're
+          outside the allowed prefixes; Phase 5 producing a stray
+          ``patch.rej`` at the repo root is the kind of drift this
+          catches.
+        - If ``target_dir`` is not under git control (no ``.git``
+          parent), the helper returns ``(True, [])`` — there is no
+          source tree to protect.
+        - The default allowed prefix is ``quality/``. Callers can pass
+          additional prefixes (e.g. operator-allowed scratch dirs) via
+          ``allowed_prefixes``; entries should be repo-relative paths
+          ending in ``/``.
+    """
+    import subprocess
+
+    if not target_dir.is_dir():
+        raise FileNotFoundError(f"target_dir does not exist: {target_dir}")
+
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain", "-z"],
+            cwd=str(target_dir),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError:
+        # git not installed — treat as "no source tree to protect."
+        return (True, [])
+
+    if result.returncode != 0:
+        # Most likely "not a git repository" — no source tree to
+        # protect. stderr is preserved for debugging via the run-state
+        # error event the caller writes.
+        return (True, [])
+
+    # -z output is NUL-terminated entries; renames pack two paths into
+    # one entry separated by a NUL (XY old\0new\0), so we walk the
+    # raw stream rather than splitlines().
+    raw = result.stdout
+    if not raw:
+        return (True, [])
+
+    violations: list[str] = []
+    seen: set[str] = set()
+    parts = raw.split("\x00")
+    i = 0
+    while i < len(parts):
+        entry = parts[i]
+        if not entry:
+            i += 1
+            continue
+        # Each entry is "XY path"; X and Y are status chars, then space,
+        # then the path. For renames/copies (X in {R, C}), the next NUL-
+        # delimited field is the OLD path. The destination is what we
+        # care about.
+        if len(entry) < 3:
+            i += 1
+            continue
+        status = entry[:2]
+        path = entry[3:]
+        is_rename_or_copy = status[0] in ("R", "C") or status[1] in ("R", "C")
+        if is_rename_or_copy and i + 1 < len(parts):
+            # path is the new (destination); the next part is the old
+            # source — skip it for the violation check.
+            i += 2
+        else:
+            i += 1
+        if not _path_under_allowed_prefix(path, allowed_prefixes):
+            if path not in seen:
+                violations.append(path)
+                seen.add(path)
+
+    return (not violations, violations)
+
+
+def _path_under_allowed_prefix(
+    path: str, allowed_prefixes: tuple[str, ...]
+) -> bool:
+    """Return True iff ``path`` (repo-relative, slash-separated) starts
+    with any of ``allowed_prefixes``. A trailing-slash convention is
+    enforced on the prefixes so e.g. ``quality_other/`` does not match
+    ``quality/``."""
+    for prefix in allowed_prefixes:
+        # Be strict: caller-supplied prefixes are expected to end in "/"
+        # but we tolerate the missing slash for ergonomics.
+        normalized = prefix if prefix.endswith("/") else prefix + "/"
+        if path.startswith(normalized):
+            return True
+    return False
+
+
 def validate_run_state_file(
     jsonl_path: Path,
 ) -> tuple[bool, list[str]]:

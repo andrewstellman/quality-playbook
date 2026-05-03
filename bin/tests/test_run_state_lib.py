@@ -446,5 +446,225 @@ class AppendEventTests(unittest.TestCase):
                 lib.append_event(path, {"ts": "2026-05-15T14:00:00Z"})
 
 
+class ValidateNoSourceEditsTests(unittest.TestCase):
+    """v1.5.5 Item B: ``validate_no_source_edits`` is the run-end
+    post-condition that catches Phase 5 going off-rails and editing
+    files outside ``quality/``.
+
+    Tests stage a real git repo in a tempdir so the helper's
+    ``git status --porcelain`` shell-out runs against actual git
+    plumbing rather than a mock — the bug class this guards against
+    surfaced precisely because mocking the repo state lets a buggy
+    parser pass tests that real ``git status`` output would fail.
+    """
+
+    def _init_repo(self, root: Path) -> None:
+        """Create a tiny git repo with a quality/ tree and a few
+        source-tree files committed."""
+        import subprocess
+
+        def run(*args: str) -> None:
+            subprocess.run(
+                ["git", *args],
+                cwd=str(root),
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        run("init", "-q")
+        run("config", "user.email", "test@example.com")
+        run("config", "user.name", "Test")
+        run("config", "commit.gpgsign", "false")
+        (root / "src").mkdir()
+        (root / "quality").mkdir()
+        (root / "src" / "code.py").write_text("print('hi')\n", encoding="utf-8")
+        (root / "README.md").write_text("# Test repo\n", encoding="utf-8")
+        (root / "quality" / "BUGS.md").write_text(
+            "# Bugs\n", encoding="utf-8"
+        )
+        run("add", ".")
+        run("commit", "-q", "-m", "initial")
+
+    def test_clean_repo_returns_true(self) -> None:
+        """A repo with no modifications is trivially clean."""
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_repo(root)
+            ok, violations = lib.validate_no_source_edits(root)
+            self.assertTrue(ok)
+            self.assertEqual(violations, [])
+
+    def test_quality_only_modifications_are_allowed(self) -> None:
+        """The clean case — only files inside quality/ are dirty."""
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_repo(root)
+            (root / "quality" / "BUGS.md").write_text(
+                "# Bugs\n## BUG-001\n", encoding="utf-8"
+            )
+            (root / "quality" / "patches").mkdir()
+            (root / "quality" / "patches" / "BUG-001-fix.patch").write_text(
+                "--- a/x\n+++ b/x\n", encoding="utf-8"
+            )
+            ok, violations = lib.validate_no_source_edits(root)
+            self.assertTrue(ok, f"unexpected violations: {violations}")
+            self.assertEqual(violations, [])
+
+    def test_source_file_modification_is_a_violation(self) -> None:
+        """The defect case — Phase 5 mutated a source file."""
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_repo(root)
+            (root / "src" / "code.py").write_text(
+                "print('phase 5 went off the rails')\n", encoding="utf-8"
+            )
+            ok, violations = lib.validate_no_source_edits(root)
+            self.assertFalse(ok)
+            self.assertEqual(violations, ["src/code.py"])
+
+    def test_untracked_source_file_is_a_violation(self) -> None:
+        """An untracked file outside quality/ also flags — Phase 5
+        producing a stray ``patch.rej`` at the repo root counts."""
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_repo(root)
+            (root / "patch.rej").write_text("conflict\n", encoding="utf-8")
+            ok, violations = lib.validate_no_source_edits(root)
+            self.assertFalse(ok)
+            self.assertEqual(violations, ["patch.rej"])
+
+    def test_untracked_quality_file_is_allowed(self) -> None:
+        """Untracked files INSIDE quality/ are normal Phase 5 output."""
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_repo(root)
+            (root / "quality" / "REQUIREMENTS.md").write_text(
+                "# REQs\n", encoding="utf-8"
+            )
+            ok, violations = lib.validate_no_source_edits(root)
+            self.assertTrue(ok, f"unexpected violations: {violations}")
+
+    def test_mixed_dirty_state_lists_only_violations(self) -> None:
+        """Quality changes + source changes: only the source paths get
+        flagged, with quality changes silently allowed."""
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_repo(root)
+            (root / "quality" / "BUGS.md").write_text(
+                "# Bugs\n## BUG-001\n", encoding="utf-8"
+            )
+            (root / "src" / "code.py").write_text(
+                "edited\n", encoding="utf-8"
+            )
+            (root / "README.md").write_text(
+                "# Edited\n", encoding="utf-8"
+            )
+            ok, violations = lib.validate_no_source_edits(root)
+            self.assertFalse(ok)
+            self.assertEqual(sorted(violations), ["README.md", "src/code.py"])
+
+    def test_rename_into_quality_is_allowed(self) -> None:
+        """A rename whose destination is in quality/ should be allowed
+        even though the source path is outside quality/. Tests the
+        ``-z`` rename-pair handling."""
+        import subprocess
+
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_repo(root)
+            # Stage a rename that takes a file FROM the source tree
+            # INTO quality/. Use git mv so the rename is actually
+            # detected (git status -z reports rename pairs only when
+            # the operation is structurally a rename).
+            subprocess.run(
+                ["git", "mv", "README.md", "quality/README.md"],
+                cwd=str(root),
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            ok, violations = lib.validate_no_source_edits(root)
+            self.assertTrue(
+                ok,
+                f"rename into quality/ should be allowed; got {violations}",
+            )
+
+    def test_rename_out_of_quality_is_a_violation(self) -> None:
+        """Conversely, a rename whose destination is OUTSIDE quality/
+        is a violation — the destination is what matters."""
+        import subprocess
+
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_repo(root)
+            subprocess.run(
+                ["git", "mv", "quality/BUGS.md", "BUGS_at_root.md"],
+                cwd=str(root),
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            ok, violations = lib.validate_no_source_edits(root)
+            self.assertFalse(ok)
+            self.assertIn("BUGS_at_root.md", violations)
+
+    def test_non_git_directory_returns_clean(self) -> None:
+        """If target_dir isn't a git repo, there's no source tree to
+        protect — return clean rather than crashing the run."""
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "anything.py").write_text("ok\n", encoding="utf-8")
+            ok, violations = lib.validate_no_source_edits(root)
+            self.assertTrue(ok)
+            self.assertEqual(violations, [])
+
+    def test_missing_target_dir_raises(self) -> None:
+        """A non-existent target_dir is a programming error, not a
+        runtime condition — surface it loudly."""
+        with self.assertRaises(FileNotFoundError):
+            lib.validate_no_source_edits(Path("/no/such/dir/qpb-test"))
+
+    def test_custom_allowed_prefix_extends_allowlist(self) -> None:
+        """Operators can pass extra allowed prefixes (e.g. a scratch
+        dir). Files under those prefixes are not violations.
+
+        Note: ``git status --porcelain`` reports an untracked directory
+        as ``scratch/`` (not the individual files), so the violation
+        path matches the directory entry git emits."""
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_repo(root)
+            (root / "scratch").mkdir()
+            (root / "scratch" / "experiment.txt").write_text(
+                "ok\n", encoding="utf-8"
+            )
+            # Default allowlist flags it.
+            ok, violations = lib.validate_no_source_edits(root)
+            self.assertFalse(ok)
+            self.assertIn("scratch/", violations)
+            # Extended allowlist allows it.
+            ok, violations = lib.validate_no_source_edits(
+                root, allowed_prefixes=("quality/", "scratch/")
+            )
+            self.assertTrue(ok, f"unexpected violations: {violations}")
+
+    def test_prefix_without_trailing_slash_is_normalized(self) -> None:
+        """Convenience — a prefix passed without a trailing slash is
+        treated as if it had one. ``quality`` matches ``quality/foo``
+        but not ``quality_other/foo``."""
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            self._init_repo(root)
+            (root / "quality_other").mkdir()
+            (root / "quality_other" / "f.txt").write_text("x\n", encoding="utf-8")
+            ok, violations = lib.validate_no_source_edits(
+                root, allowed_prefixes=("quality",)
+            )
+            self.assertFalse(ok)
+            # Untracked directory is emitted as 'quality_other/' by git.
+            self.assertIn("quality_other/", violations)
+
+
 if __name__ == "__main__":
     unittest.main()

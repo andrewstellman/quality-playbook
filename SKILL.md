@@ -2023,6 +2023,8 @@ Or say "keep going" to continue automatically.
 
 **v1.5.5 instrumentation:** Append `phase_start phase=5` now. For each gate check, append `gate_check gate_name=X verdict=pass|fail|warn|skip`. At phase end, cross-validate (`quality/results/quality-gate.log` non-empty) then append `phase_end phase=5`.
 
+**Source-edit guardrail (mandatory).** Phase 5 produces *proposed* fixes as patch artifacts at `quality/patches/<BUG-NNN>-fix.patch` and `quality/patches/<BUG-NNN>-regression-test.patch`. Phase 5 must NOT apply those patches to source files outside `quality/`. A self-audit run that mutates the target's source tree is a defect, not legitimate Phase 5 output — the operator chooses when to apply patches in a separate, supervised step. At run end the playbook calls `bin.run_state_lib.validate_no_source_edits(target_dir)`; if that helper reports any non-`quality/` paths dirty, append an `error recoverable:false` event citing the violations and end the run with `run_end status=aborted`. This rule was added in v1.5.5 after the Codex bootstrap run on 2026-05-02 went off-rails in Phase 5 and edited five source files outside `quality/` before being killed.
+
 > **Required references for this phase:**
 > - `quality/PROGRESS.md` — cumulative BUG tracker (authoritative finding list)
 > - `references/challenge_gate.md` — two-round challenge protocol for false-positive detection
