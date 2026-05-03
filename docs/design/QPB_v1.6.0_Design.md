@@ -1,11 +1,17 @@
 # Quality Playbook v1.6.0 — Design Document
 
-*Status: design captured 2026-04-26; implementation begins after v1.5.4 ships.*
-*Authored: April 2026*
+*Status: scope reframed 2026-05-03 to match the v1.6.x Requirements Review proposal (`QPB_v1.6.x_Requirements_Review_Proposal.md`). The prior framing — "first iterative-improvement release shipping a single lever pull" — has been superseded by the requirements-review-and-management UX scope. The v1.5.4 calibration infrastructure shipped on schedule; the autonomous improvement loop shipped in v1.5.5 and runs Pattern 7 displacement-recovery in v1.5.6, which means the "demonstrate the iterative-improvement workflow" goal that originally drove v1.6.0 is satisfied by the v1.5.5/v1.5.6 work. v1.6.0's actual scope is now the Requirements Review feature. The pre-2026-05-03 narrative below is preserved as historical context but is no longer canonical.*
+*Originally authored: April 2026. Reframed: 2026-05-03.*
 *Owner: Andrew Stellman*
-*Depends on: `QPB_v1.5.4_Design.md` (regression replay machinery and calibration log shipping in v1.5.4); v1.5.0/v1.5.1/v1.5.2/v1.5.3 complete*
+*Depends on: v1.5.5 (autonomous improvement-loop infrastructure) and v1.5.6 (Pattern 7 displacement-recovery cycle plus adopter-facing distribution work).*
 
-> **Where v1.6.0 sits in the arc.** v1.6.0 is the **transition release** — the moment QPB stops being a feature-development project and starts being an iterative-improvement project. With v1.5.4's regression-replay machinery operational, every change from v1.6.0 forward is a lever-pull motivated by missed-bug observation, with a documented recall delta and a cross-benchmark regression check. The methodology described prospectively in `IMPROVEMENT_LOOP.md` becomes the actual workflow at v1.6.0.
+> **Where v1.6.0 sits in the arc (current framing).** v1.6.0 is the **Requirements review and management UX release**. Operator-facing system for reviewing the requirements QPB derives from a target — walks the operator through each requirement (Wiegers quality attributes), surfaces evidence from formal docs / informal sources / exploration findings, and helps validate or refine requirements. Includes targeted playbook runs that check specific requirements against the code (re-derive REQ-007 against updated source, verify a logging requirement against `bin/audit_log.py`, etc.). Closes the QI loop: defect data from review sessions feeds back into Phase 1/2 prompt-tuning calibration cycles. **Canonical scope lives at `QPB_v1.6.x_Requirements_Review_Proposal.md`.** The text below this banner is the original v1.6.0 framing from April 2026, preserved for historical reference.
+
+---
+
+## ⚠️ Original v1.6.0 framing (superseded — see banner above)
+
+The sections below were written before the Requirements Review scope was added. They describe v1.6.0 as the "first iterative-improvement release with one lever pull." That goal has been absorbed by v1.5.5 (run-state instrumentation + autonomous orchestrator) and v1.5.6 (Pattern 7 displacement-recovery cycle as the first production-shape lever pull). Read for historical context only.
 
 ---
 
