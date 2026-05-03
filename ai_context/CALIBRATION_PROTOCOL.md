@@ -2,9 +2,18 @@
 
 *Self-contained operational protocol. Designed to be paste-able to any AI agent (Cowork, Claude Code, codex, claude CLI, Cursor agent, etc.) that has read access to a QPB repository. The AI executes the steps below as the **executing AI**; the **operator** (Andrew) provides inputs, runs subprocesses the AI cannot run, and gates the STOP boundaries; a **Council of Three** review gates the final lever change.*
 
+*Last updated: 2026-05-03 (v1.5.5 currency pass — the v1.5.5 orchestration substrate referenced throughout is now in-tree at `agents/calibration_orchestrator.md`, `bin/run_state_lib.py`, `references/run_state_schema.md`, and `bin/visualize_calibration.py`).*
+
 *Methodology context (read first if unfamiliar): `~/Documents/QPB/ai_context/IMPROVEMENT_LOOP.md` describes WHY the lever inventory exists and WHAT each lever controls. This protocol describes HOW to actually run a calibration cycle.*
 
 *Schema for the structured cell.json output: `~/Documents/QPB/metrics/regression_replay/SCHEMA.md`. NOTE: SCHEMA.md was authored before this protocol and has known discrepancies (it documents a `bin/regression_replay.py` apparatus that this protocol supersedes; it lists Lever 1-5 but `IMPROVEMENT_LOOP.md` carries Lever 1-6; it specifies a "mechanical matcher" by spec basis where this protocol uses AI-orchestrated semantic matching). The discrepancies are tracked for an additive SCHEMA update; until then, this protocol is the canonical operational guide.*
+
+*v1.5.5 substrate (referenced from multiple steps below; collected here for orientation):*
+- *`agents/calibration_orchestrator.md` — the spawn-and-resume orchestrator template that wraps Steps 1-12 in an autonomous-loop driver.*
+- *`references/run_state_schema.md` — event taxonomy for the per-cycle `quality/run_state.jsonl` log, including phase boundaries, validation results, and format invariants.*
+- *`bin/run_state_lib.py` — read/parse/validate helpers (`read_events`, `last_in_progress_phase`, `validate_run_state_file`, `validate_phase_artifacts`, `validate_no_source_edits`) plus writers (`append_event`, `write_progress_md`).*
+- *`bin/visualize_calibration.py` — emits four cycle charts: per-bug × cycle heatmap, lever × benchmark heatmap, recall trajectory, and a Mermaid lever-interaction graph.*
+- *`validate_no_source_edits` is wired into `bin/run_playbook.py:_finalize_iteration` as a mechanical Phase 5 source-edit guardrail — any file modification outside `<target>/quality/` during finalization is recorded as a `validation_result` event with `status="fail"` and tainted runs should be re-run from a clean checkout.*
 
 *Discipline shared with the rest of QPB development: `~/Documents/QPB/ai_context/DEVELOPMENT_PROCESS.md` (Council protocol, mutation-test discipline, calibrated reporting, AI-identity discipline).*
 
@@ -30,7 +39,7 @@ The protocol supports two modes, selected by whether `<runner>` is specified in 
 - **Mode 1: Fully autonomous (default; no `<runner>` specified).** The executing AI runs the entire cycle without operator intervention between Steps 1-12. It walks Phases 1-3 of the playbook inline (reading canonical phase prompts from `~/Documents/QPB/phase_prompts/phase1.md`, `phase2.md`, `phase3.md`), spawns sub-agents for the Council review (Step 7), runs validation and cross-benchmark checks via inline phase execution or sub-agent fan-out, and reports a terminal-state outcome to the operator. Sub-agents are the executing AI's environment-specific mechanism for parallel independent work (Cowork's Agent tool; claude CLI invocations spawned from bash; the equivalent in any AI tool). Operator's role: provide initial inputs, review the terminal-state report, approve the ship (or direct dead-end remediation). Cost lives in the executing AI's session token budget.
 - **Mode 2: Runner-driven, operator-in-the-loop (`<runner>` specified).** The executing AI surfaces commands for the operator to run, including `python3 -m bin.run_playbook --<runner> ...` for playbook runs and `gh copilot --prompt ...` for Council. Operator runs subprocess commands, pastes back results. Right mode when the executing AI's environment can't drive Phases 1-3 inline (e.g., a UI tool with no bash access) or when the operator wants the orchestrator off the critical path (debugging; cost containment in their separate billing account).
 
-**Default to Mode 1.** Mode 1 is the v1.6.x activation criterion: an AI tool given just the protocol + target + expected-bug list can autonomously run the full improvement loop and converge on a ship-or-dead-end verdict. Mode 2 is documented as an alternative for environments that can't support Mode 1 fully.
+**Default to Mode 1.** Mode 1 is the v1.5.5 activation criterion (now satisfied): an AI tool given just the protocol + target + expected-bug list can autonomously run the full improvement loop and converge on a ship-or-dead-end verdict, using `agents/calibration_orchestrator.md` as the spawn-and-resume template. Mode 2 is documented as an alternative for environments that can't support Mode 1 fully.
 
 The steps below describe Mode 1 as canonical with Mode 2 noted at each step where the mechanics differ.
 
@@ -281,7 +290,9 @@ This step is **continuous work for the executing AI**, not a halt. The AI drafts
 
 The `audit.md` running log has sections: Inputs, Pre-flight results, Step 1-12 results (filled as we go), Iteration history, Council outcome, Cycle verdict.
 
-At v1.5.4 ship (or the next release boundary), the cycle directory migrates to `~/Documents/QPB/docs/process/QPB_v<X.Y.Z>_Calibration_Cycle_<benchmark>-<version>/` per the versioned-historical-artifact pattern in `DEVELOPMENT_PROCESS.md`.
+In addition to the human-readable `audit.md`, the v1.5.5 substrate emits a structured per-cycle `<target>/quality/run_state.jsonl` event log (event taxonomy in `references/run_state_schema.md`). The orchestrator (`agents/calibration_orchestrator.md`) appends one event per phase boundary plus one `validation_result` event per post-condition check (`validate_phase_artifacts` at each phase boundary; `validate_no_source_edits` at Phase 5 finalization). Use the helpers in `bin/run_state_lib.py` to read/append events rather than parsing the JSONL by hand.
+
+At a release boundary (v1.5.6 or later), the cycle directory migrates to `~/Documents/QPB/docs/process/QPB_v<X.Y.Z>_Calibration_Cycle_<benchmark>-<version>/` per the versioned-historical-artifact pattern in `DEVELOPMENT_PROCESS.md`. The first cycle directory under this convention — `~/Documents/AI-Driven Development/Quality Playbook/Calibration Cycles/2026-05-02-pattern7-displacement-recovery/` (Pattern 7 displacement-recovery, deferred to v1.5.6 per the published Roadmap) — exists with the lever description and audit-trail scaffolding in place; the lever-pull execution lands in v1.5.6.
 
 **7.1 — Final draft check (self-review).** Before launching the Council, the executing AI does a quick self-review:
 
@@ -453,7 +464,7 @@ Required top-level fields per SCHEMA.md (read SCHEMA.md before this step for the
 - `noise_floor_source` — describes how this cell's recall measurement should be interpreted in noise terms (e.g., `"single-run point estimate; matched semantically by executing AI"`)
 - `notes` — any relevant caveats, including the "Lever 6 / SCHEMA additive update needed" note if applicable, and any drift between Step 3 and Step 8.3 measurements
 
-**Validation:** there is no JSON Schema validator CLI as of v1.5.4. The executing AI does a manual field-by-field check against SCHEMA.md before declaring the cell written.
+**Validation:** there is no JSON Schema validator CLI as of v1.5.5. The executing AI does a manual field-by-field check against SCHEMA.md before declaring the cell written. (The v1.5.5 substrate validates the *event log* shape via `bin/run_state_lib.py:validate_run_state_file`, but the cell.json schema validator is separate work and not yet shipped.)
 
 If the cycle was a dead end (Step 8 failure or Step 9 regression), still emit the cell with the dead-end disposition recorded — set `recall_against_historical` to `recall_after`, set `regression_check.status` to `regressed` (with the regressing pinned cell paths), and put the verdict explanation in `notes`.
 
@@ -482,7 +493,9 @@ A successful cycle produces:
 - **Updated lever home file** — committed via the committing agent (Claude Code session)
 - **Calibration log entry** — appended to `~/Documents/QPB/docs/process/Lever_Calibration_Log.md`
 - **Cell.json** — written to `~/Documents/QPB/metrics/regression_replay/<TIMESTAMP>/<benchmark>-<version>-all.json`, plus one cell.json per pinned benchmark in the cross-regression check
+- **Per-cycle event log** — `<target>/quality/run_state.jsonl` (v1.5.5+), one event per phase boundary plus per-post-condition `validation_result` events; format invariants in `references/run_state_schema.md`
 - **Audit trail** — workspace-side directory `~/Documents/AI-Driven Development/Quality Playbook/Calibration Cycles/<YYYY-MM-DD>-<benchmark>-<version>/`; migrates to `docs/process/QPB_v<X.Y.Z>_Calibration_Cycle_*` at next version ship
+- **Cycle visualization charts (optional, post-cycle)** — `bin/visualize_calibration.py` reads accumulated cycle data and emits four charts (per-bug × cycle heatmap, lever × benchmark heatmap, recall trajectory, Mermaid lever-interaction graph). Useful for cross-cycle review at release boundaries.
 
 A dead-end cycle produces the same artifacts with the dead-end disposition recorded and the lever change reverted (revert commit on record).
 
@@ -525,8 +538,14 @@ The executing AI must NEVER:
 ## Cross-references
 
 - **`~/Documents/QPB/ai_context/IMPROVEMENT_LOOP.md`** — methodology context: why levers exist, what each lever controls, the lever inventory (1-6)
-- **`~/Documents/QPB/metrics/regression_replay/SCHEMA.md`** — cell.json schema and the calibration-log entry template (with the discrepancies noted at top of this document; the SCHEMA additive update is tracked for v1.5.4 ship work)
+- **`~/Documents/QPB/metrics/regression_replay/SCHEMA.md`** — cell.json schema and the calibration-log entry template (with the discrepancies noted at top of this document; the SCHEMA additive update remains tracked)
+- **`~/Documents/QPB/references/run_state_schema.md`** — v1.5.5 event taxonomy for the per-cycle `quality/run_state.jsonl` log: event kinds (`phase_started` / `phase_completed` / `phase_aborted` / `validation_result`), required fields, and cross-validation rules at phase boundaries
+- **`~/Documents/QPB/agents/calibration_orchestrator.md`** — v1.5.5 spawn-and-resume orchestrator template that operationalizes Mode 1 (autonomous) execution of this protocol
+- **`~/Documents/QPB/bin/run_state_lib.py`** — v1.5.5 read/parse/validate helpers + writers for the event log; use these rather than hand-parsing the JSONL
+- **`~/Documents/QPB/bin/visualize_calibration.py`** — v1.5.5 cycle visualization (four charts: per-bug × cycle heatmap, lever × benchmark heatmap, recall trajectory, Mermaid lever-interaction graph)
 - **`~/Documents/QPB/ai_context/DEVELOPMENT_PROCESS.md`** — Council protocol invocation, mutation-test discipline, calibrated reporting, AI-identity discipline, fresh-Claude-Code-session-for-canonical-commit
 - **`~/Documents/AI-Driven Development/CLAUDE.md`** — Council protocol mechanics (the actual `gh copilot` invocation discipline, cd-into-repo requirement, nested-panel header), source-edit lanes, verify-before-claiming
 - **`~/Documents/QPB/docs/process/Lever_Calibration_Log.md`** — the historical record of all cycles; canonical home (workspace `Quality Playbook/Reviews/Lever_Calibration_Log.md` is a replica per DEVELOPMENT_PROCESS.md)
-- **`~/Documents/QPB/docs/design/QPB_v1.6.0_Design.md`** and **`QPB_v1.6.0_Implementation_Plan.md`** — canonical home for v1.6.x release planning; this protocol implements the operational infrastructure they describe
+- **`~/Documents/QPB/docs/design/QPB_v1.5.5_Design.md`** and **`QPB_v1.5.5_Implementation_Plan.md`** — canonical home for the v1.5.5 orchestration substrate that this protocol uses
+- **`~/Documents/QPB/docs/design/QPB_v1.6.x_Requirements_Review_Proposal.md`** — canonical scope for v1.6.0 (Requirements Review feature; the prior "first iterative-improvement release" framing is now satisfied by v1.5.5 + v1.5.6)
+- **`~/Documents/QPB/docs/design/QPB_v1.7.0_Design.md`** and **`QPB_v1.7.0_Implementation_Plan.md`** — Statistical Process Control machinery: Shewhart control limits applied to both the improvement loop and QPB's own SDLC; the long-horizon target for accumulated calibration-cycle data

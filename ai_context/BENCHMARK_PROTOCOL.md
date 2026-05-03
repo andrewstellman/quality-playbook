@@ -1,6 +1,6 @@
 # Benchmark Protocol
 
-Last updated: 2026-04-27 (v1.5.3 release — added skill-target guidance below)
+Last updated: 2026-05-03 (v1.5.5 currency pass — added run_state.jsonl format + cross-validation rules below)
 
 The playbook tunes against real repos. For tuning signals to be honest, each benchmark run has to start from the same blank slate — no prior findings, no sibling runs, no pre-existing `quality/` artifacts to anchor on. This file is the checklist.
 
@@ -39,6 +39,18 @@ Before kicking off any benchmark run:
 - Capture stdout/stderr to `run.log` in the run directory.
 - Do not add files to the run directory while the agent is working. Let it own the space.
 - If the run hits a rate limit or other interruption, record that in `NOTES.md` — it's signal for capacity planning, not just a nuisance.
+
+## Run-state instrumentation (v1.5.5+)
+
+Starting in v1.5.5, the runner emits an append-only `quality/run_state.jsonl` event log alongside the existing artifacts. Each phase boundary writes a `phase_started` / `phase_completed` (or `phase_aborted`) event with timestamp, qpb version, runner, and exit code; phase-5 finalization additionally emits a `validation_result` event for each post-condition check the orchestrator ran. The full event taxonomy and field-presence invariants live at `references/run_state_schema.md`.
+
+For benchmark consumers, the relevant cross-validation rules are:
+
+- **Phase-artifact post-conditions.** `bin/run_state_lib.py:validate_phase_artifacts` is invoked at each phase boundary; a `phase_completed` event whose `validation_result.status` is `fail` means the phase produced an event but the artifact set was incomplete (e.g., a Phase 3 completion with no `BUGS.md`). For benchmark scoring, treat such cells as malformed and exclude from recall comparisons.
+- **Source-edit guardrail (Phase 5).** `validate_no_source_edits` is wired into `bin/run_playbook.py:_finalize_iteration`; a `validation_result` event with `check="no_source_edits"` and `status="fail"` indicates the run modified files outside the per-target `quality/` tree during finalization. Such runs are tainted from a recall-comparison standpoint and should be re-run from a clean checkout.
+- **Format invariants.** Every line in `run_state.jsonl` is a single JSON object with `event`, `phase`, `iso_ts`, and (where relevant) `qpb_version` / `runner` keys; readers should be tolerant of additional optional keys (forward compatibility) but reject lines missing the four required keys.
+
+`bin/run_state_lib.py` ships read/parse helpers (`read_events`, `last_in_progress_phase`, `validate_run_state_file`) plus the writer side (`append_event`, `write_progress_md`); benchmark tooling that needs to consume the log should use these helpers rather than re-implementing the parser.
 
 ## After the run
 

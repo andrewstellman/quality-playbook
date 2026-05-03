@@ -2,6 +2,8 @@
 
 > Release-gate review for `TOOLKIT.md` and the orientation docs that reference it. Applies the same empirical-loop discipline that `IMPROVEMENT_LOOP.md` describes for the playbook itself, but to the documentation: surface problems through a panel of independent readers, fix them, re-test until convergence.
 
+*Last updated: 2026-05-03 (v1.5.5 currency pass).*
+
 ## Purpose
 
 Documentation, like code, can drift. Claims become stale, vocabulary diverges from what's actually in the codebase, and overclaims accumulate when no one is checking. This protocol verifies that TOOLKIT.md accurately communicates what the Quality Playbook does and does not do — through panels of LLM sub-agents reading the doc as different reader personas, with a structured rubric for evaluating their responses.
@@ -70,7 +72,7 @@ Tests: NOT_RUN-as-acknowledgment-not-verification distinction.
 
 > How do you know the Quality Playbook works? What evidence supports the claim that it finds real bugs? What's your validation method?
 
-Tests: empirical-loop awareness; benchmark recovery framing; honest "moving toward statistical control" framing rather than overclaiming.
+Tests: empirical-loop awareness; benchmark recovery framing; honest "moving toward statistical control" framing rather than overclaiming. A v1.5.5+ correct answer also names where the trajectory is heading (v1.7.0 SPC machinery per `docs/design/QPB_v1.7.0_Design.md` — Shewhart control limits applied to both the improvement loop and QPB's own SDLC) rather than leaving the destination as a generic "multi-year horizon."
 
 ### Persona 9 — The vocabulary trap
 
@@ -149,6 +151,12 @@ Tests: PR-pipeline workflow guidance; standout-tier-as-submission-criterion clar
 Tests: recognition of root-cause vs. symptom; whether the doc distinguishes BUGS.md as "individual reports" vs. "a list of distinct defects"; awareness that maintainers prefer one consolidated PR for a defect family over nine individual ones; whether the iteration-strategy taxonomy (gap, unfiltered, parity, adversarial) admits the possibility that multiple iterations re-find the same underlying defect.
 
 (Personas 14 and 17 added at the v1.5.2 release-gate, sourced from the 2026-04-25 cross-repo analysis. Persona 19 added at the v1.5.3 release-gate to test skill-as-code awareness. Personas 15, 16, and 18 from the v1.5.2 source remain queued for later release-gates: P15 deferred to v1.5.4+ (within-version variance language did not land in v1.5.3 — it requires the regression-replay machinery scheduled for v1.5.4); P16 and P18 for v1.6.x once replicate data accumulates and a HIGH-severity operational definition exists.)
+
+### Persona 20 — The calibration-cycle orchestrator (v1.5.5)
+
+> I want to drive a QPB calibration cycle on a benchmark target. The docs mention a `calibration_orchestrator.md` template, a per-cycle `quality/run_state.jsonl` event log, and post-condition checks at each phase boundary. Walk me through what these are, when they fire, and what an executing AI does when one fails.
+
+Tests: awareness of the v1.5.5 orchestration substrate — the `agents/calibration_orchestrator.md` spawn-and-resume template; the per-cycle `run_state.jsonl` event log (event taxonomy in `references/run_state_schema.md`); the post-condition helpers in `bin/run_state_lib.py` (`validate_phase_artifacts` at each phase boundary; `validate_no_source_edits` wired into `bin/run_playbook.py:_finalize_iteration` as the Phase 5 source-edit guardrail); the four cycle visualization charts emitted by `bin/visualize_calibration.py` (per-bug × cycle heatmap, lever × benchmark heatmap, recall trajectory, Mermaid lever-interaction graph). A correct answer also notes the scope limit — the substrate is Mode-1-autonomous orchestration plumbing; it does not itself decide which lever to pull (that's the executing AI's diagnosis per `CALIBRATION_PROTOCOL.md` Steps 4-5).
 
 ## Rubric
 
