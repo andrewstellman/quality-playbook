@@ -308,5 +308,113 @@ class ProgressMonitorHeartbeatTests(unittest.TestCase):
             self.assertIn("Pacing: 42s before next prompt…", emitted)
 
 
+class TranscriptByteOffsetTests(unittest.TestCase):
+    """v1.5.5 BUG-002: _poll_transcript must keep byte offsets consistent.
+
+    The previous implementation opened the transcript in text mode, seeked
+    by a byte offset (from path.stat().st_size), read characters, then
+    re-encoded with len(chunk.encode("utf-8")) to advance the offset. On
+    any non-ASCII content the text-mode decode-with-errors='replace' and
+    the byte-vs-char seek interpretation drift apart, skipping or
+    repeating lines on subsequent polls. The fix opens in binary mode and
+    keeps every offset on this path as bytes throughout.
+    """
+
+    def _no_thread_monitor(self, tmp: Path):
+        emitted: list[str] = []
+        monitor = progress_monitor.ProgressMonitor(
+            progress_path=tmp / "PROGRESS.md",
+            log_file=tmp / "log.txt",
+            emit=lambda _lf, msg: emitted.append(msg),
+            interval=0.05,
+        )
+        return monitor, emitted
+
+    def test_tailing_handles_utf8_multibyte_content(self) -> None:
+        """A UTF-8 multi-byte character split across two writes must not
+        desync the offset, and complete lines on either side must be
+        emitted intact. Reproduces BUG-002."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            transcript = tmp / "phase.output.txt"
+            # First write ends in the middle of a 3-byte em-dash
+            # (U+2014 = e2 80 94 — only the first two bytes flushed).
+            first_chunk = (
+                "line1 ✓ checkmark\nline2 partial ".encode("utf-8") + b"\xe2\x80"
+            )
+            transcript.write_bytes(first_chunk)
+
+            monitor, emitted = self._no_thread_monitor(tmp)
+            monitor.set_transcript_path(transcript)
+            monitor._poll_transcript()
+
+            # First complete line must surface intact.
+            self.assertIn("line1 ✓ checkmark", emitted)
+            # Offset MUST equal actual byte size — no drift from the
+            # trailing partial multi-byte. Old code produced a replacement
+            # char from the 2 orphan bytes and re-encoded it as 3 bytes,
+            # drifting +1 per partial.
+            self.assertEqual(
+                monitor._transcript_offset,
+                len(first_chunk),
+                f"byte offset desynced from file size: monitor at "
+                f"{monitor._transcript_offset}, file at {len(first_chunk)} "
+                f"bytes (BUG-002 — text-mode read with errors='replace' "
+                f"re-encodes orphan bytes as full 3-byte replacement chars)",
+            )
+
+            # Complete the em-dash and append a clean third line.
+            rest = b"\x94 finished\nline3 done\n"
+            with transcript.open("ab") as handle:
+                handle.write(rest)
+
+            emitted.clear()
+            monitor._poll_transcript()
+
+            # Third line must surface — proves no bytes were skipped.
+            self.assertIn("line3 done", emitted)
+            # Offset still pinned to actual file size.
+            self.assertEqual(
+                monitor._transcript_offset,
+                len(first_chunk) + len(rest),
+                "second-poll byte offset diverged from file size",
+            )
+
+    def test_offset_increment_is_byte_count(self) -> None:
+        """Static guard: a future edit must not change the increment to a
+        character count. The fix keeps offsets in bytes everywhere on the
+        transcript-tailing path."""
+        import inspect
+        import re
+
+        source = inspect.getsource(progress_monitor.ProgressMonitor._poll_transcript)
+
+        # Forbid `new_offset = offset + len(chunk)` where chunk is a str:
+        # that would count characters, not bytes.
+        forbidden = re.compile(r"new_offset\s*=\s*offset\s*\+\s*len\(\s*chunk\s*\)")
+        self.assertIsNone(
+            forbidden.search(source),
+            "_poll_transcript must NOT increment offset by len(chunk) — "
+            "chunk is a decoded str and len(chunk) counts characters, not "
+            "bytes (BUG-002 regression).",
+        )
+
+        # And require some byte-aware increment to exist (fix uses len(raw)
+        # on the bytes object; alternative would be chunk.encode('utf-8')).
+        self.assertTrue(
+            "len(raw)" in source or 'encode("utf-8"' in source or "encode('utf-8'" in source,
+            "_poll_transcript must increment offset using a byte-length "
+            "source (len(raw) on bytes, or chunk.encode('utf-8')).",
+        )
+
+        # And the file must be opened in binary mode on this path.
+        self.assertIn(
+            '"rb"',
+            source,
+            "_poll_transcript must open the transcript in binary mode "
+            "(\"rb\") so seek() uses byte offsets (BUG-002 fix).",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

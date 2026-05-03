@@ -256,12 +256,17 @@ class ProgressMonitor:
                         self._transcript_offset = 0
             return
         try:
-            with path.open("r", encoding="utf-8", errors="replace") as handle:
+            # Binary mode keeps every offset on this path in bytes:
+            # stat().st_size is bytes, but text-mode seek() expects char
+            # positions, which desync on UTF-8 multi-byte content (em-dash,
+            # ✓, emoji, accented chars) and cause skipped/repeated lines.
+            with path.open("rb") as handle:
                 handle.seek(offset)
-                chunk = handle.read()
+                raw = handle.read()
         except OSError:
             return
-        new_offset = offset + len(chunk.encode("utf-8", errors="replace"))
+        chunk = raw.decode("utf-8", errors="replace")
+        new_offset = offset + len(raw)
         with self._transcript_lock:
             # Only commit the offset if the path is still the one we read.
             if self._transcript_path == path:
