@@ -8,9 +8,26 @@ Most AI code review can only find structural issues: null dereferences, resource
 
 The playbook closes that gap. It reads your codebase, derives behavioral requirements from every source it can find (code, docs, specs, comments, defensive patterns, community documentation), and uses those requirements to drive review. The result is a quality system grounded in intent, not just structure. For a deeper look at this problem, see the O'Reilly Radar article [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/).
 
+## Need help? Just ask your AI
+
+The rest of this README has detailed instructions for installing and running the playbook — commands, prompts, screenshots, the whole walkthrough. But the easiest way to get started is to skip the documentation entirely: **download one file, upload it to your favorite AI chatbot, and ask it for help.**
+
+The file is [`ai_context/TOOLKIT.md`](https://github.com/andrewstellman/quality-playbook/blob/main/ai_context/TOOLKIT.md). It's a single Markdown document that explains everything about the Quality Playbook in a format designed for AI assistants to read and answer questions from.
+
+Open a chat in whatever AI tool you use — Claude, ChatGPT, Cursor, GitHub Copilot, Gemini — attach `TOOLKIT.md`, and tell it:
+
+> "Read TOOLKIT.md. Now you're an expert in the Quality Playbook."
+
+<a href="https://chatgpt.com/share/69f78fc3-186c-83ea-9be6-70866b88db82"><img src="images/chatgpt-toolkit.png" alt="ChatGPT with TOOLKIT.md attached" width="1000"></a>
+
+Then ask it anything: How do I set this up? What does Phase 3 actually do? How does it find bugs that structural code review misses? What's the difference between gap and adversarial iteration? Why did my run only find one bug? Your AI assistant will walk you through setup, running, interpreting results, and improving your next run.
+
+[Here's what that conversation looks like in ChatGPT](https://chatgpt.com/share/69f78fc3-186c-83ea-9be6-70866b88db82) — it works the same in any other AI tool.
+
+If you'd rather read the docs yourself, the rest of this README has the same information at higher resolution.
+
 ## Contents
 
-- [Need help? Just ask your AI](#need-help-just-ask-your-ai)
 - [How to use the Quality Playbook to find bugs in your code](#how-to-use-the-quality-playbook-to-find-bugs-in-your-code)
 - [Running the playbook: phases, iterations, and macros](#running-the-playbook-phases-iterations-and-macros)
 - [Rate limits and run budgets](#rate-limits-and-run-budgets)
@@ -25,24 +42,6 @@ The playbook closes that gap. It reads your codebase, derives behavioral require
 - [Context](#context)
 - [License](#license)
 - [Patent notice](#patent-notice)
-
-## Need help? Just ask your AI
-
-The rest of this README has detailed instructions for installing and running the playbook — commands, prompts, screenshots, the whole walkthrough. But the easiest way to get started is to skip the documentation entirely: **download one file, upload it to your favorite AI chatbot, and ask it for help.**
-
-The file is [`ai_context/TOOLKIT.md`](https://github.com/andrewstellman/quality-playbook/blob/main/ai_context/TOOLKIT.md). It's a single Markdown document that explains everything about the Quality Playbook in a format designed for AI assistants to read and answer questions from.
-
-Open a chat in whatever AI tool you use — Claude, ChatGPT, Cursor, GitHub Copilot, Gemini — attach `TOOLKIT.md`, and tell it:
-
-> "Read TOOLKIT.md. Now you're an expert in the Quality Playbook."
-
-<a href="https://chatgpt.com/share/69f78fc3-186c-83ea-9be6-70866b88db82"><img src="images/chatgpt-toolkit.jpg" alt="ChatGPT with TOOLKIT.md attached" width="1000"></a>
-
-Then ask it anything: How do I set this up? What does Phase 3 actually do? How does it find bugs that structural code review misses? What's the difference between gap and adversarial iteration? Why did my run only find one bug? Your AI assistant will walk you through setup, running, interpreting results, and improving your next run.
-
-[Here's what that conversation looks like in ChatGPT](https://chatgpt.com/share/69f78fc3-186c-83ea-9be6-70866b88db82) — it works the same in any other AI tool.
-
-If you'd rather read the docs yourself, the rest of this README has the same information at higher resolution.
 
 ## How to use the Quality Playbook to find bugs in your code
 
