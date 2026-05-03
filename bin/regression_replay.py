@@ -89,6 +89,12 @@ _FILE_FIELD_RES = (
     # variant. Without this, primary_file remained None even after
     # the heading regex fix recognized the records.
     re.compile(r"^-\s+\*\*File:Line:\*\*\s+`([^`]+)`", re.MULTILINE),
+    # v1.5.5 item D (corpus-extension): chi-1.5.1 records grew from 9
+    # to 16 and the new entries use bold-key `**Citation:**` for the
+    # file location instead of `**File:**` / `**Location:**`. Without
+    # this regex, every chi-1.5.1 record's primary_file was None and
+    # match_key derivation collapsed across the whole archive.
+    re.compile(r"^-\s+\*\*Citation:\*\*\s+`([^`]+)`", re.MULTILINE),
     re.compile(r"^-\s+File:line:\s+`([^`]+)`", re.MULTILINE),
     re.compile(r"^-\s+File:\s+`([^`]+)`", re.MULTILINE),
     re.compile(r"^-\s+Location:\s+`?([^`\n]+?)`?\s*$", re.MULTILINE),
