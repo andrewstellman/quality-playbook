@@ -51,6 +51,7 @@ Versioned historical artifacts (per-release retrospectives, Council syntheses, B
 - **No per-phase briefs.** The canonical design and implementation-plan docs are the spec. Generating per-phase briefs is over-engineering — it pre-decomposes the work in ways that often diverge from what's actually in the canonical docs, creating drift and dropped requirements.
 - **Don't pre-decompose for the implementing AI.** It runs the same model class as the orchestrating agent; it can decompose during execution. The orchestrator's job is scope + STOP boundaries + canonical-doc pointers, not work breakdown.
 - **STOP-and-ask boundaries** are few and explicit. Typical: end of a phase that requires Andrew's diagnostic input (calibration cycle diagnoses); pre-tag mechanical commit; any encountered bug in QPB source mid-run that's outside the in-scope finding set.
+- **Multi-session coordination via shared directory.** For coordinating two AI sessions through a shared directory (a chat-side orchestrator and a coding-side worker exchanging instruction and output files), see `AI_ORCHESTRATION_PATTERNS.md`. This is the file-level realization of the diagnosis-then-Claude-Code-lane rule and the default execution mode for v1.5.6+ work that spans multiple sessions.
 
 ### Council protocol
 

@@ -6,6 +6,8 @@
 
 *Schema for cycle-level events: `references/run_state_schema.md`.*
 
+*Compare with `ai_context/AI_ORCHESTRATION_PATTERNS.md`. That document describes a **multi-session** orchestrator/worker pattern in which a chat-driving AI session controls a separate coding AI session via files in a shared directory. This template, by contrast, is **single-session**: one Claude Code session reads this prompt, drives the cycle end-to-end, and resumes itself across crashes via `quality/run_state.jsonl`. Use this template for coordinated cycles one session can drive; use the orchestrator/worker pattern when chat-side planning and coding-side execution need to be separate sessions.*
+
 ---
 
 ## Role
