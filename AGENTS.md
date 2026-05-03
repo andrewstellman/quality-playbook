@@ -53,6 +53,22 @@ Then tell your AI tool:
 Run the quality playbook on this project.
 ```
 
+## Installing the Quality Playbook into a target repo (AI-agent-driven)
+
+This is the canonical install procedure when an AI coding agent (Claude Code, Cursor, etc.) is doing the install on the operator's behalf. Use it instead of the manual `cp` commands above unless the operator asks for the manual flow.
+
+1. Confirm the operator's target repo (e.g., `~/Documents/myrepo`) and which AI tool they use. The script auto-detects `.claude/` → `.claude/skills/quality-playbook/`, `.github/` → `.github/skills/quality-playbook/`, `.cursor/` → `.cursor/skills/quality-playbook/`, `.continue/` → `.continue/skills/quality-playbook/`.
+2. Confirm a clone of QPB is available locally. If not, instruct the operator to clone `https://github.com/andrewstellman/quality-playbook` and tell you the clone path. The script needs `bin/install_skill.py` accessible.
+3. From inside the QPB clone, run `python -m bin.install_skill` (auto-detect from the target repo's working directory). Alternative invocations:
+   - `python -m bin.install_skill --target /path/to/install` — explicit install path; overrides auto-detection.
+   - `python -m bin.install_skill --verbose` — emits human-prose lines alongside the structured output.
+   - Default behavior (no `--force`) preserves operator-edited files as `<file>.operator-backup-<UTC-timestamp>` on re-install. Use `--force` only if the operator explicitly wants to discard prior edits.
+4. Parse the structured output. Each line is `event=<name>(\s+key=value)*`. Surface any `event=smoke_check status=failed` lines to the operator with the `detail=` field intact.
+5. On success (`event=install_complete status=success`), report to the operator: the install location (from the earlier `event=detected_env` or `event=target_explicit` line); the next step (point at the installed `SKILL.md` and the README's "How to use the Quality Playbook" section); any `status=backed_up` files so the operator can review their preserved edits.
+6. On failure (`event=install_complete status=failed` or `status=partial`, or a non-zero exit code), report the failing event line and the suggested remediation. Do not retry without operator confirmation — re-running over a partial install can mask the original failure.
+
+For the underlying script's full options, see `bin/install_skill.py --help`.
+
 ## Repository layout
 
 ```
