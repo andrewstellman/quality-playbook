@@ -48,8 +48,8 @@ Look for SKILL.md in these locations, in order:
 
 1. `SKILL.md`
 2. `.claude/skills/quality-playbook/SKILL.md`
-3. `.github/skills/quality-playbook/SKILL.md`
-4. `.github/skills/SKILL.md`
+3. `.github/skills/SKILL.md` (Copilot, flat layout)
+4. `.github/skills/quality-playbook/SKILL.md` (Copilot, nested layout)
 
 Also check for a `references/` directory alongside SKILL.md.
 
