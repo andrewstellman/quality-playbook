@@ -269,7 +269,7 @@ The AI verifies these conditions before appending a `phase_end` event. If any ch
 | 1 | `quality/EXPLORATION.md` exists, file size ≥ 200 bytes, contains at least one finding section (regex `## Finding` or numbered `### N.` or similar) |
 | 2 | At least one of `quality/EXPLORATION_MERGED.md` / `quality/triage/triage.md` / equivalent triage artifact exists, non-empty |
 | 3 | `quality/RUN_CODE_REVIEW.md` exists; if `bugs_identified > 0`, then `quality/writeups/BUG-*.md` count ≥ `bugs_identified` |
-| 4 | `quality/REQUIREMENTS.md` exists, non-empty; `quality/COVERAGE_MATRIX.md` exists; pass artifacts (Pass A/B/C/D outputs in `quality/skill_derivation/` or equivalent) all present |
+| 4 | `quality/REQUIREMENTS.md` exists, non-empty; `quality/COVERAGE_MATRIX.md` exists. If the four-pass skill-derivation pipeline ran (i.e., `quality/phase3/` exists), then the per-pass artifacts under `quality/phase3/` (`pass_a_drafts.jsonl`, `pass_b_citations.jsonl`, `pass_c_formal.jsonl`, and the Pass D inbox) must all exist and be non-empty. (Spec/Code projects that skip skill-derivation produce no `quality/phase3/` directory; the per-pass requirement is conditional on its presence.) |
 | 5 | `quality/results/quality-gate.log` exists, non-empty |
 | 6 | `quality/BUGS.md` exists, non-empty, contains at least one BUG entry (regex `^## BUG-`); `quality/INDEX.md` updated with `gate_verdict` field |
 

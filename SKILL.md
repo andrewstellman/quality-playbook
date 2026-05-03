@@ -501,7 +501,7 @@ Verify the corresponding artifacts before writing each `phase_end` event:
 | 1 | `quality/EXPLORATION.md` exists, ≥ 200 bytes, contains finding sections (regex `^##\s+(Finding|\d+\.)`) |
 | 2 | At least one of `quality/EXPLORATION_MERGED.md` / `quality/triage/triage.md` / `quality/triage.md` exists, non-empty |
 | 3 | `quality/RUN_CODE_REVIEW.md` exists |
-| 4 | `quality/REQUIREMENTS.md` non-empty AND `quality/COVERAGE_MATRIX.md` exists |
+| 4 | `quality/REQUIREMENTS.md` non-empty AND `quality/COVERAGE_MATRIX.md` exists. If the four-pass skill-derivation pipeline ran (i.e., `quality/phase3/` exists), then `quality/phase3/pass_a_drafts.jsonl`, `quality/phase3/pass_b_citations.jsonl`, `quality/phase3/pass_c_formal.jsonl`, and the Pass D inbox under `quality/phase3/` must all exist and be non-empty. |
 | 5 | `quality/results/quality-gate.log` exists, non-empty |
 | 6 | `quality/BUGS.md` non-empty with `^##\s+BUG-` sections AND `quality/INDEX.md` updated with `gate_verdict` field |
 

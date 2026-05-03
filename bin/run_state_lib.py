@@ -207,6 +207,24 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
             return (False, f"{requirements} is empty")
         if not coverage.is_file():
             return (False, f"missing artifact: {coverage}")
+        # v1.5.5 Council R2 P1.3: if the four-pass skill-derivation
+        # pipeline ran (quality/phase3/ exists), each pass's canonical
+        # output must be present and non-empty. Spec/Code projects that
+        # skip skill-derivation produce no quality/phase3/ directory;
+        # the conditional preserves backward compatibility for those.
+        phase3_dir = quality_dir / "phase3"
+        if phase3_dir.is_dir():
+            pass_artifacts = (
+                phase3_dir / "pass_a_drafts.jsonl",
+                phase3_dir / "pass_b_citations.jsonl",
+                phase3_dir / "pass_c_formal.jsonl",
+                phase3_dir / "pass_d_council_inbox.json",
+            )
+            for artifact in pass_artifacts:
+                if not artifact.is_file():
+                    return (False, f"missing artifact: {artifact}")
+                if artifact.stat().st_size == 0:
+                    return (False, f"{artifact} is empty")
         return (True, "")
 
     if phase == 5:

@@ -225,6 +225,58 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
             ok, _ = lib.validate_phase_artifacts(quality, 4)
             self.assertTrue(ok)
 
+    def test_validate_phase_artifacts_phase4_requires_pass_artifacts_when_phase3_exists(self) -> None:
+        """v1.5.5 Council R2 P1.3: if the four-pass skill-derivation
+        pipeline ran (quality/phase3/ exists), every per-pass output
+        must be present and non-empty. Without phase3/, only the legacy
+        REQUIREMENTS.md + COVERAGE_MATRIX.md check applies (backward
+        compatibility for Spec/Code projects that skip skill-derivation).
+        """
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            (quality / "REQUIREMENTS.md").write_text("REQ\n", encoding="utf-8")
+            (quality / "COVERAGE_MATRIX.md").write_text("m\n", encoding="utf-8")
+
+            # No phase3/ — legacy behavior, OK.
+            ok, _ = lib.validate_phase_artifacts(quality, 4)
+            self.assertTrue(ok)
+
+            # Add phase3/ but no pass artifacts — fails.
+            (quality / "phase3").mkdir()
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertFalse(ok)
+            self.assertIn("pass_a_drafts.jsonl", reason)
+
+            # Add pass A only — still fails on B.
+            (quality / "phase3" / "pass_a_drafts.jsonl").write_text(
+                '{"x":1}\n', encoding="utf-8"
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertFalse(ok)
+            self.assertIn("pass_b_citations.jsonl", reason)
+
+            # Stage B + C + D — passes.
+            (quality / "phase3" / "pass_b_citations.jsonl").write_text(
+                '{"x":1}\n', encoding="utf-8"
+            )
+            (quality / "phase3" / "pass_c_formal.jsonl").write_text(
+                '{"x":1}\n', encoding="utf-8"
+            )
+            (quality / "phase3" / "pass_d_council_inbox.json").write_text(
+                '{"x":1}\n', encoding="utf-8"
+            )
+            ok, _ = lib.validate_phase_artifacts(quality, 4)
+            self.assertTrue(ok)
+
+            # Empty file fails the "non-empty" check.
+            (quality / "phase3" / "pass_d_council_inbox.json").write_text(
+                "", encoding="utf-8"
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertFalse(ok)
+            self.assertIn("pass_d_council_inbox.json", reason)
+            self.assertIn("empty", reason)
+
     def test_validate_phase_artifacts_phase6_empty_bugs(self) -> None:
         with TemporaryDirectory() as temp_dir:
             quality = Path(temp_dir)
