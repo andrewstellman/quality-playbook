@@ -100,7 +100,8 @@ class CopilotRunner:
         start = time.monotonic()
         try:
             result = subprocess.run(
-                ["gh", "copilot", "--prompt", prompt, "--model", self.model],
+                ["gh", "copilot", "--prompt", "--model", self.model],
+                input=prompt,
                 capture_output=True,
                 text=True,
                 timeout=self.timeout_seconds,
