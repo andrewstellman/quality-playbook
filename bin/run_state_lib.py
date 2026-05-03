@@ -261,18 +261,49 @@ def validate_no_source_edits(
     Notes:
         - Renames count by their new path (``R  old -> new`` flags
           ``new`` only — what matters is where content lands, not where
-          it came from).
+          it came from). In ``-z`` output the destination appears
+          first in the entry; the source is the next NUL-delimited
+          field. The parser counts the destination only.
         - Untracked files (``?? path``) count as violations if they're
           outside the allowed prefixes; Phase 5 producing a stray
           ``patch.rej`` at the repo root is the kind of drift this
           catches.
-        - If ``target_dir`` is not under git control (no ``.git``
-          parent), the helper returns ``(True, [])`` — there is no
-          source tree to protect.
         - The default allowed prefix is ``quality/``. Callers can pass
           additional prefixes (e.g. operator-allowed scratch dirs) via
           ``allowed_prefixes``; entries should be repo-relative paths
           ending in ``/``.
+
+    Limitations (deliberate trade-offs — caller is responsible for
+    defense-in-depth if these matter):
+
+        - **Gitignored files silently pass.** ``git status --porcelain``
+          honors ``.gitignore``, so a Phase 5 that drops a file matched
+          by an ignore rule (e.g. ``*.log``, ``*.rej`` at the repo
+          root) won't be flagged. We do NOT pass
+          ``--ignored=traditional`` because the QPB repo's own
+          ``.gitignore`` excludes ``repos/`` and other large trees,
+          which would flood the violations list with non-actionable
+          entries during self-audit. If a caller needs to catch
+          ignored-file drift, run ``git ls-files --others --ignored
+          --exclude-standard`` separately and treat results outside
+          allowed prefixes as violations.
+        - **Silent pass when ``git`` is missing or ``target_dir`` is
+          not a git repo.** In both cases the helper returns
+          ``(True, [])`` — the contract is "no source tree to protect"
+          rather than "verified clean." For QPB self-audit this should
+          be impossible (QPB is always a git repo and ``git`` is
+          always installed), so the silent pass is acceptable for the
+          intended use case. Callers that need to distinguish
+          "verified clean" from "could not verify" should check
+          ``(target_dir / '.git').exists()`` and ``shutil.which('git')``
+          before calling.
+        - **Non-UTF-8 filenames will raise UnicodeDecodeError.**
+          ``subprocess.run(text=True)`` decodes ``git status`` output
+          via the system encoding. Filenames containing latin-1 bytes
+          (rare but possible on archived corpora) will crash the
+          helper rather than be flagged. Acceptable for the QPB
+          self-audit case; callers operating on arbitrary archives
+          should wrap the call.
     """
     import subprocess
 

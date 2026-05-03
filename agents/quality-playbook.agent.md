@@ -68,9 +68,9 @@ Then stop and wait for the user to install it.
 
 ## Pre-flight checks
 
-1. **Check for documentation.** Look for a `docs/`, `docs_gathered/`, or `documentation/` directory. If none exists, give a prominent warning:
+1. **Check for documentation.** Look for a `docs/`, `reference_docs/`, or `documentation/` directory. If none exists, give a prominent warning:
 
-   > **Documentation improves results significantly.** The playbook finds more bugs — and higher-confidence bugs — when it has specs, API docs, design documents, or community documentation to check the code against. Consider adding documentation to `docs_gathered/` before running. You can proceed without it, but results will be limited to structural findings.
+   > **Documentation improves results significantly.** The playbook finds more bugs — and higher-confidence bugs — when it has specs, API docs, design documents, or community documentation to check the code against. Consider adding documentation to `reference_docs/` before running. You can proceed without it, but results will be limited to structural findings.
 
 2. **Ask about scope.** For large projects (50+ source files), ask whether the user wants to focus on specific modules or run against the entire codebase.
 

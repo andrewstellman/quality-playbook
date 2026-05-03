@@ -63,28 +63,96 @@ class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
 
 
 class SkillReferenceDocsRoutingTests(unittest.TestCase):
-    """BUG-006: SKILL.md must route operators to `reference_docs/`,
-    not `docs_gathered/`, because that is what
-    `bin/reference_docs_ingest.py` actually reads."""
+    """BUG-006: every operator-facing surface must route operators to
+    `reference_docs/`, not `docs_gathered/`, because that is what
+    `bin/reference_docs_ingest.py` actually reads.
 
-    def test_skill_md_does_not_route_to_docs_gathered(self) -> None:
-        skill = (REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertNotIn(
-            "docs_gathered",
-            skill,
-            "SKILL.md still mentions `docs_gathered/` somewhere; the "
-            "ingest implementation only reads `reference_docs/`. Update "
-            "all operator-facing references to `reference_docs/`.",
+    v1.5.5 Council finding (Lens 1): the original BUG-006 fix only
+    covered SKILL.md, but the same routing prose lives in agents/,
+    references/, and bin/run_playbook.py operator-facing WARN
+    messages. The test below scans all of them so a future addition
+    to any of those surfaces can't reintroduce the misroute.
+    """
+
+    # Operator-facing surfaces. Any new file documenting operator
+    # workflow goes here. NOT included on purpose:
+    # - bin/benchmark_lib.py / tests — `docs_gathered/` is on the
+    #   protected-paths list for benchmark archive curation. That's
+    #   internal, not operator-routing.
+    # - quality/* — these are QPB's own self-audit artifacts. Updating
+    #   them would rewrite history; the regen on the next run will
+    #   pick up the corrected prose.
+    # - CHANGELOG.md — historical mention of `docs_gathered/01_...md`
+    #   as a real file path in the bootstrap snapshot. Real path,
+    #   stays.
+    OPERATOR_SURFACES = (
+        "SKILL.md",
+        "agents/quality-playbook.agent.md",
+        "agents/quality-playbook-claude.agent.md",
+        "references/spec_audit.md",
+        "references/review_protocols.md",
+    )
+
+    def test_operator_surfaces_do_not_route_to_docs_gathered(self) -> None:
+        """No operator-facing prose surface may instruct adding docs to
+        `docs_gathered/`. Scans every file in OPERATOR_SURFACES."""
+        offenders: list[str] = []
+        for rel in self.OPERATOR_SURFACES:
+            path = REPO_ROOT / rel
+            if not path.is_file():
+                self.fail(f"OPERATOR_SURFACES references missing file: {rel}")
+            text = path.read_text(encoding="utf-8")
+            if "docs_gathered" in text:
+                offenders.append(rel)
+        self.assertEqual(
+            offenders,
+            [],
+            "Operator-facing surface(s) still route operators to "
+            "`docs_gathered/` instead of `reference_docs/`: "
+            f"{offenders}. The ingest module only reads "
+            "`reference_docs/`, so any operator following these "
+            "surfaces would hit the original BUG-006 failure mode.",
         )
 
-    def test_skill_md_routes_to_reference_docs(self) -> None:
-        skill = (REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")
-        self.assertIn(
-            "reference_docs/",
-            skill,
-            "SKILL.md must route operators to `reference_docs/` "
-            "(the directory `bin/reference_docs_ingest.py` actually reads).",
+    def test_operator_surfaces_route_to_reference_docs(self) -> None:
+        """Each operator-facing surface that mentioned `docs_gathered/`
+        must now mention `reference_docs/`. (SKILL.md and the agent
+        files all describe a docs-discovery step; spec_audit.md and
+        review_protocols.md mention the docs directory in their
+        protocol prose.)"""
+        for rel in self.OPERATOR_SURFACES:
+            with self.subTest(file=rel):
+                path = REPO_ROOT / rel
+                text = path.read_text(encoding="utf-8")
+                self.assertIn(
+                    "reference_docs",
+                    text,
+                    f"{rel} must mention `reference_docs/` (BUG-006).",
+                )
+
+    def test_run_playbook_warn_messages_use_reference_docs(self) -> None:
+        """The operator-facing WARN messages emitted by
+        bin/run_playbook.py when no docs are present must mention
+        `reference_docs/` so the operator knows where to put files
+        the next time around. The legacy `docs_gathered/` may still
+        appear as a parenthetical fallback — the load-bearing
+        constraint is that `reference_docs/` is named."""
+        runner = (REPO_ROOT / "bin" / "run_playbook.py").read_text(encoding="utf-8")
+        # Count WARN messages about missing docs.
+        warn_lines = [
+            line for line in runner.splitlines()
+            if "WARN:" in line and "code-only analysis" in line
+        ]
+        self.assertGreater(
+            len(warn_lines), 0,
+            "expected at least one operator-facing missing-docs WARN message",
         )
+        for line in warn_lines:
+            self.assertIn(
+                "reference_docs",
+                line,
+                f"WARN message routes operator to wrong dir: {line!r}",
+            )
 
     def test_ingest_module_is_unchanged(self) -> None:
         """Sanity: confirm the ingest module is still the source of truth
@@ -97,7 +165,7 @@ class SkillReferenceDocsRoutingTests(unittest.TestCase):
             reference_docs_ingest.REFERENCE_DIR_NAME,
             "reference_docs",
             "If the ingest module's read directory changes, SKILL.md "
-            "needs to follow.",
+            "and the other operator-facing surfaces need to follow.",
         )
 
 

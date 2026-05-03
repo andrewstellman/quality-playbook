@@ -1326,13 +1326,21 @@ def ensure_runner_available(runner: str) -> bool:
 
 
 def docs_present(repo_dir: Path) -> bool:
-    docs_dir = repo_dir / "docs_gathered"
-    if not docs_dir.is_dir():
-        return False
-    return any(
-        f for f in docs_dir.iterdir()
-        if f.is_file() and not f.name.startswith(".") and f.stat().st_size > 0
-    )
+    # v1.5.5 BUG-006 follow-up: the canonical operator-supplied docs
+    # directory is `reference_docs/` (this is what
+    # bin/reference_docs_ingest.py reads). The pre-v1.5.2 layout used
+    # `docs_gathered/`, which is still recognized as a fallback so
+    # archived benchmarks with that layout don't suddenly report
+    # "code-only" — but operator-facing prose now routes new users to
+    # `reference_docs/` exclusively.
+    for name in ("reference_docs", "docs_gathered"):
+        docs_dir = repo_dir / name
+        if not docs_dir.is_dir():
+            continue
+        for f in docs_dir.iterdir():
+            if f.is_file() and not f.name.startswith(".") and f.stat().st_size > 0:
+                return True
+    return False
 
 
 # v1.5.2: pre-run reference_docs guard.
@@ -2754,7 +2762,7 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
     )
     print_startup_banner(repo_dir, log_file, args)
     if not docs_present(repo_dir):
-        print(lib.log(f"WARN: {repo_dir.name} - docs_gathered/ is missing or empty; proceeding with code-only analysis"))
+        print(lib.log(f"WARN: {repo_dir.name} - reference_docs/ (and legacy docs_gathered/) missing or empty; proceeding with code-only analysis"))
     if not getattr(args, "no_formal_docs", False):
         banner = formal_docs_guard_banner(repo_dir)
         if banner is not None:
@@ -2827,7 +2835,7 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
     )
     print_startup_banner(repo_dir, log_file, args)
     if not docs_present(repo_dir):
-        print(lib.log(f"WARN: {repo_dir.name} - docs_gathered/ is missing or empty; proceeding with code-only analysis"))
+        print(lib.log(f"WARN: {repo_dir.name} - reference_docs/ (and legacy docs_gathered/) missing or empty; proceeding with code-only analysis"))
     if not getattr(args, "no_formal_docs", False):
         banner = formal_docs_guard_banner(repo_dir)
         if banner is not None:
@@ -3129,7 +3137,7 @@ def run_one_iterations(
         )
         print_startup_banner(repo_dir, log_file, args)
         if not docs_present(repo_dir):
-            print(lib.log(f"WARN: {repo_dir.name} - docs_gathered/ is missing or empty; proceeding with code-only analysis"))
+            print(lib.log(f"WARN: {repo_dir.name} - reference_docs/ (and legacy docs_gathered/) missing or empty; proceeding with code-only analysis"))
         if not getattr(args, "no_formal_docs", False):
             banner = formal_docs_guard_banner(repo_dir)
             if banner is not None:

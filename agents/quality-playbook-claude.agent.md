@@ -57,7 +57,7 @@ Also check for a `references/` directory alongside SKILL.md.
 
 ## Pre-flight checks
 
-1. **Check for documentation.** Look for `docs/`, `docs_gathered/`, or `documentation/`. If missing, warn prominently that documentation significantly improves results, and suggest adding specs or API docs to `docs_gathered/`.
+1. **Check for documentation.** Look for `docs/`, `reference_docs/`, or `documentation/`. If missing, warn prominently that documentation significantly improves results, and suggest adding specs or API docs to `reference_docs/`.
 
 2. **Ask about scope.** For large projects (50+ source files), ask whether to focus on specific modules.
 
