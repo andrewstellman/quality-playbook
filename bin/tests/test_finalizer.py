@@ -78,6 +78,25 @@ def _run_phase6(finalizer_status, gate_log_text):
 
 class FinalizerUnitTests(unittest.TestCase):
 
+    def setUp(self) -> None:
+        # v1.5.5 Council R2 P1.1: _finalize_iteration now calls
+        # bin.run_state_lib.validate_no_source_edits, which shells
+        # out via subprocess.run. The existing finalizer tests mock
+        # bin.run_playbook.subprocess.run, which (because that
+        # attribute IS the global subprocess module) also intercepts
+        # the validate_no_source_edits call and returns whatever
+        # _FakeCompleted yields — usually a stdout string the parser
+        # treats as a violation, falsely flipping the run to aborted.
+        # Patch validate_no_source_edits to a fixed (True, []) for
+        # the lifetime of each test so the finalizer's gate-status
+        # behavior is exercised without spurious source-edit aborts.
+        patcher = mock.patch(
+            "bin.run_state_lib.validate_no_source_edits",
+            return_value=(True, []),
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     # ---- Test 1 ----
     def test_finalizer_writes_log_on_clean_gate_run(self):
         with tempfile.TemporaryDirectory() as d:

@@ -3064,6 +3064,48 @@ def _finalize_iteration(
             gate_status = "fail"
         receipt_note = "quality/results/quality-gate.log"
 
+    # v1.5.5 item B + Council R2 P1.1: mechanical source-edit guardrail.
+    # The Codex bootstrap on 2026-05-02 went off-rails in Phase 5 and
+    # edited five source files outside quality/ before being killed.
+    # Phase 5's job is to write proposed-fix patches to quality/patches/,
+    # never to apply them. This block checks the post-condition; if any
+    # non-quality/ file was modified during the run, the iteration is
+    # downgraded to ABORTED with the violations recorded in both the
+    # gate log and PROGRESS.md so the failure is auditable.
+    source_edit_violations: list[str] = []
+    try:
+        from bin.run_state_lib import validate_no_source_edits
+
+        ok, source_edit_violations = validate_no_source_edits(repo_dir)
+        if not ok:
+            try:
+                with gate_log_path.open("a", encoding="utf-8") as handle:
+                    handle.write(
+                        "\n=== source-edit guardrail (validate_no_source_edits) ===\n"
+                        "Non-quality/ files were modified during this run; Phase 5 must "
+                        "produce proposed-fix patches in quality/patches/, not apply them. "
+                        "Violations:\n"
+                    )
+                    for path in source_edit_violations:
+                        handle.write(f"  - {path}\n")
+            except OSError:
+                pass
+    except Exception as exc:  # noqa: BLE001 — guardrail failure must not crash the run
+        try:
+            lib.logboth(
+                log_file,
+                lib.log(f"[finalizer:{label}] source-edit guardrail failed: {type(exc).__name__}: {exc}"),
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+    if source_edit_violations:
+        aborted = True
+        joined = ", ".join(source_edit_violations[:5])
+        if len(source_edit_violations) > 5:
+            joined += f" ... (+{len(source_edit_violations) - 5} more)"
+        abort_reason = f"source_edit_violations: {joined}"
+
     final_status = "aborted" if aborted else gate_status
 
     # Edge case 6: BUGS.md may not exist; count_bug_writeups handles that.
@@ -3081,6 +3123,11 @@ def _finalize_iteration(
         f"- Gate status: {final_status.upper()}",
         f"- Receipt: {receipt_note}",
     ]
+    if source_edit_violations:
+        block_lines.append(
+            f"- Source-edit violations: {len(source_edit_violations)} "
+            f"(see {receipt_note} for details)"
+        )
     if aborted:
         block_lines.append(f"- Abort reason: {abort_reason}")
     block_lines.append("")

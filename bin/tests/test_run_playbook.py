@@ -3360,5 +3360,97 @@ class Phase38WorkerInvocationTests(unittest.TestCase):
         )
 
 
+class FinalizerSourceEditGuardrailTests(unittest.TestCase):
+    """v1.5.5 Council R2 P1.1: bin.run_state_lib.validate_no_source_edits
+    must be wired into the production finalization path. Without this,
+    item B's guardrail is advisory (only SKILL.md prose tells the AI
+    to call it) instead of mechanical.
+
+    Static-analysis test: read the source of _finalize_iteration and
+    assert it imports + invokes validate_no_source_edits. A future
+    refactor can move the call site (or rename the wrapper) but it
+    must keep the call.
+
+    Behavioral test: run _finalize_iteration against a tempdir that
+    has both a clean quality/ tree and a dirty source file. Confirm
+    the finalizer downgrades final_status to "aborted", appends the
+    violation to the gate log, and surfaces it in PROGRESS.md.
+    """
+
+    def test_finalizer_imports_and_calls_validate_no_source_edits(self) -> None:
+        import inspect
+
+        source = inspect.getsource(run_playbook._finalize_iteration)
+        self.assertIn(
+            "validate_no_source_edits",
+            source,
+            "_finalize_iteration must call validate_no_source_edits "
+            "(item B's source-edit guardrail must fire mechanically, "
+            "not just advisorily via SKILL.md prose).",
+        )
+        self.assertIn(
+            "from bin.run_state_lib import validate_no_source_edits",
+            source,
+            "_finalize_iteration must import validate_no_source_edits "
+            "from bin.run_state_lib (the canonical location).",
+        )
+
+    def test_finalizer_aborts_when_source_edits_present(self) -> None:
+        """End-to-end: stage a fake target repo with a dirty source
+        file, invoke _finalize_iteration, confirm it returns 'aborted'
+        and surfaces the violation in PROGRESS.md."""
+        import subprocess as _subprocess
+
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+
+            def run_git(*args: str) -> None:
+                _subprocess.run(
+                    ["git", *args], cwd=str(tmp),
+                    check=True, capture_output=True, text=True,
+                )
+
+            run_git("init", "-q")
+            run_git("config", "user.email", "test@example.com")
+            run_git("config", "user.name", "Test")
+            run_git("config", "commit.gpgsign", "false")
+            (tmp / "src").mkdir()
+            (tmp / "src" / "code.py").write_text("print('orig')\n", encoding="utf-8")
+            (tmp / "quality").mkdir()
+            (tmp / "quality" / "BUGS.md").write_text("# Bugs\n", encoding="utf-8")
+            run_git("add", ".")
+            run_git("commit", "-q", "-m", "initial")
+
+            # Mutate a source file outside quality/. The exact scenario
+            # the guardrail catches.
+            (tmp / "src" / "code.py").write_text(
+                "print('phase 5 went off-rails')\n", encoding="utf-8"
+            )
+
+            log_file = tmp / "run.log"
+            log_file.touch()
+
+            status = run_playbook._finalize_iteration(
+                tmp, label="post-test", log_file=log_file,
+            )
+
+            self.assertEqual(
+                status, "aborted",
+                "Finalizer must downgrade to 'aborted' when source "
+                "edits are detected outside quality/.",
+            )
+
+            progress = (tmp / "quality" / "PROGRESS.md").read_text(encoding="utf-8")
+            self.assertIn("Source-edit violations:", progress)
+            self.assertIn("source_edit_violations", progress)
+            self.assertIn("src/code.py", progress)
+
+            gate_log = tmp / "quality" / "results" / "quality-gate.log"
+            if gate_log.is_file():
+                gate_text = gate_log.read_text(encoding="utf-8")
+                self.assertIn("source-edit guardrail", gate_text)
+                self.assertIn("src/code.py", gate_text)
+
+
 if __name__ == "__main__":
     unittest.main()
