@@ -1,7 +1,5 @@
 # Quality Playbook
 
-Point an AI coding tool at any codebase. Get a complete quality engineering infrastructure: requirements derived from the actual intent of the code, functional tests traced to those requirements, a three-pass code review protocol, and a multi-model spec audit that catches bugs no single reviewer can find alone.
-
 **Version:** 1.5.5 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
 
 ## Find the 35% of bugs that code review misses
@@ -9,6 +7,24 @@ Point an AI coding tool at any codebase. Get a complete quality engineering infr
 Most AI code review can only find structural issues: null dereferences, resource leaks, race conditions. That catches about 65% of real defects. The other 35% are intent violations -- bugs that can only be found if you know what the code is *supposed* to do. A function that silently returns null instead of throwing, a duplicate-key check that passes when the first value is null, a sanitization step that runs after the branch decision it was supposed to guard. These bugs look correct to any reviewer that doesn't know the spec.
 
 The playbook closes that gap. It reads your codebase, derives behavioral requirements from every source it can find (code, docs, specs, comments, defensive patterns, community documentation), and uses those requirements to drive review. The result is a quality system grounded in intent, not just structure. For a deeper look at this problem, see the O'Reilly Radar article [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/).
+
+## Contents
+
+- [How to use the Quality Playbook to find bugs in your code](#how-to-use-the-quality-playbook-to-find-bugs-in-your-code)
+- [Running the playbook: phases, iterations, and macros](#running-the-playbook-phases-iterations-and-macros)
+- [Rate limits and run budgets](#rate-limits-and-run-budgets)
+- [Need help? Just ask your AI](#need-help-just-ask-your-ai)
+- [What the playbook produces](#what-the-playbook-produces)
+- [How it works](#how-it-works)
+- [Roadmap](#roadmap)
+- [Validation](#validation)
+- [Setting up automation scripts](#setting-up-automation-scripts)
+- [Repository structure](#repository-structure)
+- [Example output](#example-output)
+- [How we improve the playbook](#how-we-improve-the-playbook)
+- [Context](#context)
+- [License](#license)
+- [Patent notice](#patent-notice)
 
 ## How to use the Quality Playbook to find bugs in your code
 
