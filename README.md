@@ -10,10 +10,10 @@ The playbook closes that gap. It reads your codebase, derives behavioral require
 
 ## Contents
 
+- [Need help? Just ask your AI](#need-help-just-ask-your-ai)
 - [How to use the Quality Playbook to find bugs in your code](#how-to-use-the-quality-playbook-to-find-bugs-in-your-code)
 - [Running the playbook: phases, iterations, and macros](#running-the-playbook-phases-iterations-and-macros)
 - [Rate limits and run budgets](#rate-limits-and-run-budgets)
-- [Need help? Just ask your AI](#need-help-just-ask-your-ai)
 - [What the playbook produces](#what-the-playbook-produces)
 - [How it works](#how-it-works)
 - [Roadmap](#roadmap)
@@ -25,6 +25,24 @@ The playbook closes that gap. It reads your codebase, derives behavioral require
 - [Context](#context)
 - [License](#license)
 - [Patent notice](#patent-notice)
+
+## Need help? Just ask your AI
+
+The rest of this README has detailed instructions for installing and running the playbook — commands, prompts, screenshots, the whole walkthrough. But the easiest way to get started is to skip the documentation entirely: **download one file, upload it to your favorite AI chatbot, and ask it for help.**
+
+The file is [`ai_context/TOOLKIT.md`](https://github.com/andrewstellman/quality-playbook/blob/main/ai_context/TOOLKIT.md). It's a single Markdown document that explains everything about the Quality Playbook in a format designed for AI assistants to read and answer questions from.
+
+Open a chat in whatever AI tool you use — Claude, ChatGPT, Cursor, GitHub Copilot, Gemini — attach `TOOLKIT.md`, and tell it:
+
+> "Read TOOLKIT.md. Now you're an expert in the Quality Playbook."
+
+<a href="https://chatgpt.com/share/69dee323-1f34-832f-aa98-06e606aff1d0"><img src="images/chatgpt-toolkit.png" alt="ChatGPT with TOOLKIT.md attached" width="1000"></a>
+
+Then ask it anything: How do I set this up? What does Phase 3 actually do? How does it find bugs that structural code review misses? What's the difference between gap and adversarial iteration? Why did my run only find one bug? Your AI assistant will walk you through setup, running, interpreting results, and improving your next run.
+
+[Here's what that conversation looks like in ChatGPT](https://chatgpt.com/share/69dee323-1f34-832f-aa98-06e606aff1d0) — it works the same in any other AI tool.
+
+If you'd rather read the docs yourself, the rest of this README has the same information at higher resolution.
 
 ## How to use the Quality Playbook to find bugs in your code
 
@@ -224,20 +242,6 @@ Use Mode 2 when you want to force all four strategies to run even if early-stop 
 ### Why phases?
 
 The playbook runs each phase in a separate context window on purpose. A single-session approach runs out of context partway through Phase 3 on most projects, which means shallow analysis and missed bugs. The phase-by-phase design gives each phase the full context budget for deep investigation. The tradeoff is saying "keep going" a few times — or use the autonomous mode above to skip the manual steps entirely.
-
-## Need help? Just ask your AI
-
-You don't need to read the documentation to use the Quality Playbook — your AI coding tool can read it for you. The [`ai_context/TOOLKIT.md`](https://github.com/andrewstellman/quality-playbook/blob/main/ai_context/TOOLKIT.md) file explains everything about the playbook in a format designed for AI assistants to read and answer questions about.
-
-Open a chat in any AI tool — Claude Code, Cursor, GitHub Copilot, ChatGPT, Gemini, whatever you use — attach [`ai_context/TOOLKIT.md`](https://github.com/andrewstellman/quality-playbook/blob/main/ai_context/TOOLKIT.md) and tell it:
-
-> "Read TOOLKIT.md. Now you're an expert in the Quality Playbook."
-
-<a href="https://chatgpt.com/share/69dee323-1f34-832f-aa98-06e606aff1d0"><img src="images/chatgpt-toolkit.png" alt="ChatGPT with TOOLKIT.md attached" width="1000"></a>
-
-Then ask it anything you want. How do I set this up? What does Phase 3 actually do? How does it find bugs that structural code review misses? What's the difference between gap and adversarial iteration? Why did my run only find one bug? Ask as many questions as you want — the toolkit has detailed explanations of every technique, every phase, and every iteration strategy. Your AI assistant will walk you through setup, running, interpreting results, and improving your next run.
-
-[Here's what that conversation looks like in ChatGPT](https://chatgpt.com/share/69dee323-1f34-832f-aa98-06e606aff1d0) — it works just as well in Claude, Copilot, Gemini, or any other AI coding tool.
 
 ## What the playbook produces
 
