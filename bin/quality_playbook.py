@@ -7,7 +7,7 @@ Usage:
 Subcommands:
 
     archive [--status=success|failed|partial] [--timestamp=<ts>] [<repo>]
-        Archive the live quality/ tree into quality/runs/<ts>[-SUFFIX]/.
+        Archive the live quality/ tree into quality/previous_runs/<ts>[-SUFFIX]/.
         Dispatches to bin.archive_lib.main. Used operator-side to preserve
         a failed or partial run before the next run's overwrite; the
         orchestrator auto-invokes the success path at end of Phase 6.

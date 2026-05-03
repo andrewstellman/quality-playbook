@@ -112,7 +112,7 @@ Add `--dangerously-skip-permissions` to skip file-write approval prompts.
 
 **OpenAI Codex CLI:**
 ```bash
-python3 bin/run_playbook.py --codex ./my-project
+python -m bin.run_playbook --codex ./my-project
 ```
 This invokes `codex exec --full-auto` (sandboxed automatic execution; the codex equivalent of `gh copilot --yolo`) for each playbook phase. Codex picks its model from `~/.codex/config.toml` unless you pass `--model gpt-5-codex` (or another model name in your codex config).
 
@@ -157,7 +157,7 @@ claude --agent agents/quality-playbook-claude.agent.md --dangerously-skip-permis
 
 To capture the output to a log file, add `2>&1 | tee playbook-run.log` to the end.
 
-**Via `bin/run_playbook.py` (any runner):** the Python orchestrator at `bin/run_playbook.py` accepts a runner-selection flag — pick one of `--claude` / `--copilot` (default) / `--codex`. Example: `python3 bin/run_playbook.py --codex ./my-project` runs all six phases via `codex exec --full-auto`. Use `--model <name>` to override the runner's default model (codex picks from `~/.codex/config.toml` when no `--model` is passed).
+**Via `bin/run_playbook.py` (any runner):** the Python orchestrator at `bin/run_playbook.py` accepts a runner-selection flag — pick one of `--claude` / `--copilot` (default) / `--codex`. Example: `python -m bin.run_playbook --codex ./my-project` runs all six phases via `codex exec --full-auto`. Use `--model <name>` to override the runner's default model (codex picks from `~/.codex/config.toml` when no `--model` is passed).
 
 This uses the orchestrator agent (`quality-playbook-claude.agent.md`), which spawns a separate sub-agent for each of the six phases and each of the four iteration strategies. Each sub-agent gets its own context window, communicates with the others through files on disk (`quality/PROGRESS.md`, `quality/BUGS.md`, etc.), and exits when its phase is complete. The orchestrator reads the results and launches the next sub-agent.
 
@@ -181,19 +181,19 @@ After fixing the bugs from BUGS.md, say *"recheck"* to verify your fixes. Rechec
 
 **Mode 1 — Single baseline run (default):**
 
-    python3 bin/run_playbook.py ./my-project
+    python -m bin.run_playbook ./my-project
 
 Runs Phase 1 through Phase 6 in sequence on one target.
 
 **Mode 2 — Explicit iteration list:**
 
-    python3 bin/run_playbook.py --iterations gap,unfiltered,parity,adversarial ./my-project
+    python -m bin.run_playbook --iterations gap,unfiltered,parity,adversarial ./my-project
 
 Runs baseline + the listed iteration strategies in order. **Early-stop is disabled** when `--iterations` is explicit — every strategy in the list runs regardless of prior yields.
 
 **Mode 3 — `--full-run` macro:**
 
-    python3 bin/run_playbook.py --full-run ./my-project
+    python -m bin.run_playbook --full-run ./my-project
 
 Equivalent to baseline + all four iteration strategies (`gap`, `unfiltered`, `parity`, `adversarial`) in order, **with early-stop enabled.** If yields drop below the threshold, remaining iterations are skipped.
 
@@ -381,21 +381,23 @@ The repository includes a standard-library Python runner at `bin/run_playbook.py
 
 Positional arguments are **directory paths** (relative or absolute). Omit positional args to run against the current directory. One convenience applies only to **bare names** (no path separators, no leading `.` / `..` / `~`): if `chi` isn't a directory, the runner retries `chi-<version>` using the `version:` line from `SKILL.md` at the QPB root. Path-like inputs (`./chi`, `/abs/chi`) are taken literally — no fallback.
 
+The runner uses package-relative imports, so always invoke it as a package module (`python -m bin.run_playbook`) from the quality-playbook repo root.
+
 ```bash
-cd my-project
-python3 /path/to/quality-playbook/bin/run_playbook.py                      # run on cwd
-python3 /path/to/quality-playbook/bin/run_playbook.py --phase all          # phase-by-phase on cwd
-python3 /path/to/quality-playbook/bin/run_playbook.py ./project1 ./project2  # multiple targets
-python3 /path/to/quality-playbook/bin/run_playbook.py --claude --model opus --phase all ./project1
-python3 /path/to/quality-playbook/bin/run_playbook.py --next-iteration --strategy gap ./project1
+cd /path/to/quality-playbook
+python -m bin.run_playbook /path/to/my-project                          # single target
+python -m bin.run_playbook --phase all /path/to/my-project              # phase-by-phase
+python -m bin.run_playbook ./project1 ./project2                        # multiple targets
+python -m bin.run_playbook --claude --model opus --phase all ./project1
+python -m bin.run_playbook --next-iteration --strategy gap ./project1
 ```
 
-For benchmark use, run from the `repos/` folder so relative paths resolve to the versioned working copies produced by `setup_repos.sh`:
+For benchmark use, run from the QPB repo root so the bare-name convenience (`chi` → `chi-<version>`) resolves against `SKILL.md`'s version line:
 
 ```bash
-cd repos
-python3 ../bin/run_playbook.py --phase all --sequential chi-1.4.6
-python3 ../bin/run_playbook.py chi     # resolves to chi-1.4.6 via SKILL.md version
+cd /path/to/quality-playbook
+python -m bin.run_playbook --phase all --sequential repos/chi-1.4.6
+python -m bin.run_playbook chi     # resolves to chi-1.4.6 via SKILL.md version
 ```
 
 **Rate limit warning:** Running multiple targets in parallel with single-prompt mode (no `--phase`) sends long autonomous prompts that consume large amounts of API quota. In testing, running 8 targets in parallel single-prompt mode triggered a 54-hour Copilot rate limit. Use `--phase all` instead — it runs each phase as a separate, shorter prompt with exit gates between phases. This uses less quota per prompt, produces better results (each phase gets a full context window), and is easier to resume if interrupted. For the same reason, prefer `--sequential` over `--parallel` unless you're confident in your rate limit headroom.

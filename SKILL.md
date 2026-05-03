@@ -386,13 +386,13 @@ Every playbook run creates a timestamped metadata file at `quality/results/run-Y
 
 ### Documentation warning
 
-**At the start of Phase 1, before exploring any code, check for documentation.** Look for directories named `docs/`, `docs_gathered/`, `doc/`, `documentation/`, or any gathered documentation files. Also check if the user mentioned documentation in their prompt.
+**At the start of Phase 1, before exploring any code, check for documentation.** Look for directories named `docs/`, `reference_docs/`, `doc/`, `documentation/`, or any gathered documentation files. Also check if the user mentioned documentation in their prompt.
 
 **If no documentation is found, print this warning immediately (before proceeding):**
 
 > **Important: No project documentation found.** The quality playbook works without documentation, but it finds significantly more bugs — and higher-confidence bugs — when you provide specs, API docs, design documents, or community documentation. In controlled experiments, documentation-enriched runs found different and better bugs than code-only baselines.
 >
-> If you have documentation available, you can add it to a `docs_gathered/` directory and re-run Phase 1. Otherwise, I'll proceed with code-only analysis.
+> If you have documentation available, you can add it to a `reference_docs/` directory and re-run Phase 1. Otherwise, I'll proceed with code-only analysis.
 
 Then proceed with Phase 1 — don't block on this, just make sure the user sees the warning.
 
@@ -718,7 +718,7 @@ Use this exact tag format in QUALITY.md scenarios, functional test documentation
 
 ### Step 1b: Evaluate Documentation Depth
 
-If `docs_gathered/` exists, read every file in it before deciding which subsystems to focus on. For each document, classify its depth:
+If `reference_docs/` exists, read every file in it before deciding which subsystems to focus on. For each document, classify its depth:
 
 - **Deep** — contains internal contracts, safety invariants, concurrency models, defensive patterns, error handling details, or line-number-level source references. Suitable for deriving requirements.
 - **Moderate** — covers architecture and API surface with some implementation detail. Useful for orientation but insufficient alone for requirement derivation.
@@ -732,16 +732,16 @@ When documentation is shallow for a high-risk area:
 2. Derive requirements from source code directly (doc comments, safety annotations, defensive patterns, existing tests) and tag them as `[Req: inferred — from source]`.
 3. Flag the area for deeper documentation gathering in the completeness report.
 
-Record the depth classification for each `docs_gathered/` file in PROGRESS.md so reviewers can assess whether the documentation influenced the scope appropriately.
+Record the depth classification for each `reference_docs/` file in PROGRESS.md so reviewers can assess whether the documentation influenced the scope appropriately.
 
-**Coverage commitment table:** After classifying all `docs_gathered/` documents, produce this table in PROGRESS.md under the `## Documentation depth assessment` section:
+**Coverage commitment table:** After classifying all `reference_docs/` documents, produce this table in PROGRESS.md under the `## Documentation depth assessment` section:
 
 | Document | Depth | Subsystem | Requirements commitment | If excluded: justification |
 |----------|-------|-----------|------------------------|---------------------------|
 
 For every **deep** document, map it to the subsystem it covers, then either commit to deriving requirements from it ("will cover in Phase 2") or provide a specific justification that names the tradeoff. A sentence like "out of scope for this run" is not sufficient — the justification must say *why*, e.g., "interpreter JIT is excluded because this run focuses on the parser/compiler/GC pipeline; separate run recommended."
 
-**Gate:** A high-risk subsystem documented deeply in `docs_gathered/` must not silently disappear from the requirements set. If a deep document has a "will cover" commitment but produces zero requirements by the end of Step 7, the requirements pipeline is incomplete — go back and derive requirements for the gap before proceeding to Phase 2 artifact generation.
+**Gate:** A high-risk subsystem documented deeply in `reference_docs/` must not silently disappear from the requirements set. If a deep document has a "will cover" commitment but produces zero requirements by the end of Step 7, the requirements pipeline is incomplete — go back and derive requirements for the gap before proceeding to Phase 2 artifact generation.
 
 ### Step 2: Map the Architecture
 
@@ -1128,7 +1128,7 @@ After initializing PROGRESS.md, write your full exploration findings to `quality
 [Test framework, test count, coverage areas, gaps]
 
 ## Specifications
-[What docs_gathered/ contains, key spec sections, behavioral rules]
+[What reference_docs/ contains, key spec sections, behavioral rules]
 
 ## Open Exploration Findings
 [At least 8 concrete findings from domain-driven investigation.
@@ -1759,7 +1759,7 @@ The generated protocol must include:
 
 1. **Spec-grounded test requirements.** For each bug in `quality/BUGS.md`, the protocol instructs the agent to:
    - Read the bug's **spec basis** field to identify the documentation passage that defines the expected behavior
-   - Read the gathered doc (from `docs_gathered/` or the project's own docs) at the cited section
+   - Read the gathered doc (from `reference_docs/` or the project's own docs) at the cited section
    - Write test assertions using **language from the spec** — variable names, constants, function names, and assertion messages should echo the spec's terminology, not the code's internal naming
    - Include a comment block in each test citing: the requirement ID (from REQUIREMENTS.md), the bug ID (from BUGS.md), and the spec passage (doc name, section, and a ≤15-word quote of the behavioral contract)
 
@@ -1960,7 +1960,7 @@ Or say "keep going" to continue automatically.
 > **Required references for this phase:**
 > - `references/spec_audit.md` — Council of Three protocol, triage process, verification probes
 
-Run the spec audit protocol as described in File 5. The triage report **must** include a `## Pre-audit docs validation` section (see `references/spec_audit.md` for the full template). This section is required even if `docs_gathered/` is empty — in that case, note what baseline the auditors used instead. Every verification probe in the triage must produce executable evidence (test assertions with line-number citations) per the "Verification probes must produce executable evidence" rule above. After triage, categorize each confirmed finding.
+Run the spec audit protocol as described in File 5. The triage report **must** include a `## Pre-audit docs validation` section (see `references/spec_audit.md` for the full template). This section is required even if `reference_docs/` is empty — in that case, note what baseline the auditors used instead. Every verification probe in the triage must produce executable evidence (test assertions with line-number citations) per the "Verification probes must produce executable evidence" rule above. After triage, categorize each confirmed finding.
 
 **Effective council gating for enumeration checks.** If the effective council is less than 3/3 (fewer than three auditors returned usable reports) and the run includes any whitelist/enumeration/dispatch-function checks or any carried-forward seed checks, the audit may not conclude "no confirmed defects" for those checks without executed mechanical proof artifacts. An incomplete council with mechanical verification is acceptable. An incomplete council relying on prose-only validation for code-presence claims is not — escalate to "NEEDS VERIFICATION" and run the mechanical check before closing.
 
@@ -2097,7 +2097,7 @@ If the tracker entry count does not equal M + L, stop and reconcile — a BUG wa
 
 **Regression test function-name verification:** For each BUG tracker entry that references a regression test, grep for the test function name in the regression test file and confirm it exists. An agent can write a test name in the tracker without actually creating the test. If any referenced test function does not exist, write it now before passing the gate.
 
-3. Verify the `With docs` metadata field in PROGRESS.md matches reality: if `docs_gathered/` exists and contains files, it should say `yes`; otherwise `no`. Fix it if wrong.
+3. Verify the `With docs` metadata field in PROGRESS.md matches reality: if `reference_docs/` exists and contains files, it should say `yes`; otherwise `no`. Fix it if wrong.
 
 **Artifact file-existence gate (mandatory before marking Phase 5 complete).** Before writing the Phase 5 completion checkbox, verify that every required artifact exists as a file on disk — not just mentioned in PROGRESS.md. Run these checks (use `ls` or equivalent):
 
@@ -2268,7 +2268,7 @@ If any batch fails, fix the issue immediately before proceeding to the next batc
 
 Read `quality/PROGRESS.md` (just the metadata and artifact inventory sections). Then spot-check:
 - The requirement count is consistent across REQUIREMENTS.md header, PROGRESS.md artifact inventory, and COVERAGE_MATRIX.md header. All three must state the same number.
-- The `With docs` field accurately reflects whether `docs_gathered/` exists
+- The `With docs` field accurately reflects whether `reference_docs/` exists
 - The Terminal Gate Verification section is present and filled in
 
 Then read `quality/COMPLETENESS_REPORT.md` (just the verdict section). Verify no stale pre-reconciliation text remains — if both a `## Verdict` and an `## Updated verdict` (or `## Post-Review Reconciliation`) section exist, **delete the original `## Verdict` section entirely**. The final document must have exactly one `## Verdict` heading.
