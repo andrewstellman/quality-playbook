@@ -17,7 +17,7 @@ By the end of v1.5.4, QPB has accumulated everything it needs to do continuous q
 
 - **Quality control infrastructure** (v1.5.0–v1.5.3): the divergence model, tier system, citation schema, Phase 5 writeup hardening, bug-family amplification, finalizer robustness, INDEX verdict mapping, the project-type classifier, the four-pass skill-derivation pipeline, the skill-divergence taxonomy. QPB can audit code projects, AI-skill projects, and hybrid projects with operational rigor.
 - **Quality improvement infrastructure** (v1.5.4): `bin/regression_replay.py`, the `metrics/regression_replay/` schema, the calibration log, the cross-benchmark regression check, the noise-floor handling. QPB can measure whether a proposed change actually improves recall, against a documented baseline, with cross-benchmark side-effect detection.
-- **Measurement substrate** (the benchmark replicate harness in `repos/replicate/`): accumulating within-version σ data so that future "is this metric in statistical control?" questions have an empirical floor to test against.
+- **Measurement infrastructure** (the benchmark replicate harness in `repos/replicate/`): accumulating within-version σ data so that future "is this metric in statistical control?" questions have an empirical floor to test against.
 
 There's no QC capability left to add for the foreseeable future. There's no QI apparatus left to build. v1.6.0's job is to start *using* what was built.
 
@@ -43,7 +43,7 @@ A reasonable expectation: 2-4 v1.6.x point releases per month once the workflow 
 
 The improvement loop is genuinely open-ended. Each release pulls one lever; there are five levers; there might be more lever-pull opportunities than fit in any reasonable release schedule. There also might be diminishing returns — early lever pulls capture the most-obvious calibration deltas, later pulls deliver smaller and noisier improvements until the lever-pull recall delta drops below σ and the apparatus can no longer distinguish "real improvement" from "lucky single run."
 
-That convergence point — when lever-pull deltas drop below the noise floor — is when QPB approaches "in statistical control" territory under SEI / Humphrey definitions. It's the multi-year horizon. v1.6.0 starts the journey; v1.7+ probably reaches it (or honestly falsifies the expectation that LLM-driven processes can reach it under our current measurement substrate).
+That convergence point — when lever-pull deltas drop below the noise floor — is when QPB approaches "in statistical control" territory under SEI / Humphrey definitions. It's the multi-year horizon. v1.6.0 starts the journey; v1.7+ probably reaches it (or honestly falsifies the expectation that LLM-driven processes can reach it under our current measurement infrastructure).
 
 ---
 
@@ -93,7 +93,7 @@ v1.6.0 is successful if:
 
 The CMMI level 4 ("quantitatively managed") definition: process performance is quantitatively understood, statistical and other quantitative techniques are used to control the process, special causes of variation are identified and addressed. v1.6.0 begins the move toward that state. Each release pulls a lever based on quantitative evidence; cross-benchmark regression checks identify special causes; the calibration log accumulates the historical record.
 
-The CMMI level 5 ("optimizing") definition extends level 4 with continuous improvement. v1.6.0 is on the trajectory to level 5; whether the methodology actually reaches it (and whether the LLM substrate cooperates with statistical-control assumptions) is the open empirical question that the v1.6.x release stream answers over time.
+The CMMI level 5 ("optimizing") definition extends level 4 with continuous improvement. v1.6.0 is on the trajectory to level 5; whether the methodology actually reaches it (and whether LLM-driven processes cooperate with statistical-control assumptions) is the open empirical question that the v1.6.x release stream answers over time.
 
 ### The framing comes from prior conversation
 
@@ -101,7 +101,7 @@ v1.6.0 was scoped during the 2026-04-26 conversation that recovered from the v1.
 
 - v1.5.x is feature work. v1.5.3 is the skill-as-code feature. v1.5.4 is the QI machinery. After v1.5.4, QPB is feature-complete.
 - v1.6.0 is the transition release. From v1.6.0 onward, every release is a lever pull motivated by missed-bug observation.
-- The methodology is in the Shewhart / Deming / Humphrey / SEI lineage, with the honest caveat that LLM-driven processes are a novel substrate for SPC.
+- The methodology is in the Shewhart / Deming / Humphrey / SEI lineage, with the honest caveat that LLM-driven processes are a novel application domain for SPC.
 - v1.5.5 (originally planned as a naive-review-phase feature) is NOT happening as a feature release. If naive-review framing has methodological value, it's a candidate v1.6.x lever-pull experiment (use replay to measure whether adding a naive phase improves recall against the calibration set), not a separate feature release.
 
 The conversation log is preserved in the AI Chat History export.

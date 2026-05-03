@@ -219,7 +219,7 @@ Deliverables:
 - Inspection metrics flow into `metrics/regression_replay/<timestamp>/cell.json`.
 - The QI loop closes: session → defect data → pattern extraction → calibration cycle → Phase 1/2 prompt tuning → next session measures effect.
 
-This slice depends on v1.6.0's regression-replay machinery being shipped (it's the substrate for the lessons-learned data). Naturally sequences after v1.6.0 even if Slices 1 and 2 ship earlier.
+This slice depends on v1.6.0's regression-replay machinery being shipped (it's the infrastructure for the lessons-learned data). Naturally sequences after v1.6.0 even if Slices 1 and 2 ship earlier.
 
 ---
 

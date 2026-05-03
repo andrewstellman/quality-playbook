@@ -87,7 +87,7 @@ Part 1 is validated by re-running the v1.5.3 wide-test plus three new pure-Markd
 
 ## Motivation
 
-### The improvement loop is methodology without a measurement substrate
+### The improvement loop is methodology without measurement infrastructure
 
 `IMPROVEMENT_LOOP.md` describes the methodology QPB uses to improve itself: pull an improvement lever based on a missed-bug observation, measure the recall delta on the same benchmark target, ship the change if recall improves and process compliance holds, otherwise iterate or revert. The methodology is in the SEI / Humphrey / CMMI level 4-5 tradition — quantitative process management, statistical control, continuous improvement.
 
@@ -111,11 +111,11 @@ A 2026-04-25 cross-repo analysis (preserved at `~/Documents/AI-Driven Developmen
 
 Each of these is a candidate calibration cycle for v1.5.4. The trend tables alone establish "something in QPB's process changed between these versions, in a direction that hurt recall" — the calibration cycle's job is to diagnose *which lever* changed and verify pulling it back recovers the missed bugs without harming recall elsewhere.
 
-### Honest framing: the substrate may not cooperate
+### Honest framing: LLM-driven processes may not cooperate
 
 `IMPROVEMENT_LOOP.md` flags an open empirical question: SPC was developed for manufacturing processes with stable underlying causes of variation. Whether LLM-driven processes produce statistically stable variation is unsettled. v1.5.4 doesn't presume the answer — it builds the apparatus that lets the question be answered honestly over time.
 
-If the calibration cycles consistently show that pulling a lever produces measurable, replicable recall improvements, QPB is on the SPC trajectory. If they show that lever pulls produce inconsistent results, or that the benchmark variance dominates the lever effect, that's also a finding — it tells us the substrate isn't statistically stable enough for the SEI/Humphrey methodology to apply directly, and we either need (a) tighter measurement (more replicates per cell), (b) different levers (the current inventory may not be granular enough), or (c) a different methodology entirely.
+If the calibration cycles consistently show that pulling a lever produces measurable, replicable recall improvements, QPB is on the SPC trajectory. If they show that lever pulls produce inconsistent results, or that the benchmark variance dominates the lever effect, that's also a finding — it tells us the underlying procedure isn't statistically stable enough for the SEI/Humphrey methodology to apply directly, and we either need (a) tighter measurement (more replicates per cell), (b) different levers (the current inventory may not be granular enough), or (c) a different methodology entirely.
 
 v1.5.4's success is the apparatus, not a particular outcome from running it. The cycles might validate the methodology; they might falsify it; they might leave it ambiguous and require more data. Any of those is a real result.
 

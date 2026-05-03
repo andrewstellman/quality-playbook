@@ -119,7 +119,7 @@ Gate to Phase 3: cross-validation + resume semantics committed; Council ship ver
 
 ## Phase 3 — Autonomous Orchestrator
 
-Goal: write the prompt template that lets one Claude Code session run a full calibration cycle end-to-end, using the Phase 1+2 substrate.
+Goal: write the prompt template that lets one Claude Code session run a full calibration cycle end-to-end, using the Phase 1+2 infrastructure.
 
 Work items:
 - **Create `agents/calibration_orchestrator.md`** as the prompt template. Sections:
@@ -186,7 +186,7 @@ Gate to Phase 5: visualizations committed; Council ship verdict; unit tests pass
 
 ## Phase 5 — First Calibration Cycle (Pattern 7 Displacement Recovery)
 
-Goal: run the first end-to-end autonomous cycle using the v1.5.5 substrate. The cycle's purpose: recover Pattern 7's two displacement regressions (PathRewrite, AllowContentEncoding on chi-1.3.45) without losing Pattern 7's mount-context wins. This cycle simultaneously validates v1.5.5's substrate AND advances QPB's quality.
+Goal: run the first end-to-end autonomous cycle using the v1.5.5 infrastructure. The cycle's purpose: recover Pattern 7's two displacement regressions (PathRewrite, AllowContentEncoding on chi-1.3.45) without losing Pattern 7's mount-context wins. This cycle simultaneously validates v1.5.5's infrastructure AND advances QPB's quality.
 
 Work items:
 - **Cycle setup:** create `Calibration Cycles/2026-05-XX-pattern7-displacement-recovery/` directory; write `cycle_start` event with hypothesis "Pattern 7's budget allocation displaces attention from patterns 1-6, missing PathRewrite + AllowContentEncoding bugs that v1.5.3 caught. Tuning the budget cap or pattern ordering should recover both losses without sacrificing mount-context wins."
@@ -208,7 +208,7 @@ Council review: 3×3 panel on the cycle's verdict. Lenses:
 - Are the cross-benchmark numbers honest? (challenge: are we comparing apples to apples — same lever_state, same runner, same RELEASE_VERSION?)
 - Does the cycle's verdict accurately reflect the data? (challenge: confirmation bias on a cycle whose explicit goal is to find a recovery)
 
-Gate to Phase 6: cycle audit landed; Council ship verdict on the cycle's outcome; v1.5.5 substrate validated end-to-end.
+Gate to Phase 6: cycle audit landed; Council ship verdict on the cycle's outcome; v1.5.5 infrastructure validated end-to-end.
 
 ---
 
@@ -219,7 +219,7 @@ Goal: ship v1.5.5.
 Work items:
 - Bump `RELEASE_VERSION` to `1.5.5`.
 - Update README version stamp + add "What's new in v1.5.5" section.
-- Update `ai_context/IMPROVEMENT_LOOP.md` with v1.5.5's autonomous-loop substrate (orchestrator template, run-state instrumentation, visualization pipeline).
+- Update `ai_context/IMPROVEMENT_LOOP.md` with v1.5.5's autonomous-loop infrastructure (orchestrator template, run-state instrumentation, visualization pipeline).
 - Final test suite run.
 - Commit, push, tag, push tag.
 - Fast-forward main to v1.5.5 (analogous to v1.5.4's main fast-forward).
@@ -236,7 +236,7 @@ Gate to v1.6.0: all of the above verified; v1.5.5 release notes published.
 ## Risks and Mitigations
 
 - **The orchestrator session times out.** Cowork's Agent tool has a long but finite session lifetime; Claude Code sessions can be longer but are still bounded. Mitigation: the resume-from-state design ensures partial progress isn't lost; a session that times out partway through gets resumed by the next session.
-- **The first cycle finds no recovering sub-lever.** Honest outcome; document and defer. The substrate's success is independent of the cycle's outcome.
+- **The first cycle finds no recovering sub-lever.** Honest outcome; document and defer. The infrastructure's success is independent of the cycle's outcome.
 - **Cross-validation rejects valid completions.** If a phase produces an artifact in a non-canonical location, cross-validation fails the run incorrectly. Mitigation: Phase 1's smoke tests + Phase 2's integration tests catch this before Phase 5.
 - **Schema gaps surface during orchestrator implementation.** Likely; document and bump schema_version mid-development. The schema versioning convention from Phase 1 protects against breaking changes.
 - **Mermaid CLI not available during cycle runs.** Lever-interaction graph emits source-only. Document; don't make it a hard dependency. Operators can render manually if needed.

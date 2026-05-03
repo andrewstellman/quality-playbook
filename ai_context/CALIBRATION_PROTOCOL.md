@@ -529,4 +529,4 @@ The executing AI must NEVER:
 - **`~/Documents/QPB/ai_context/DEVELOPMENT_PROCESS.md`** — Council protocol invocation, mutation-test discipline, calibrated reporting, AI-identity discipline, fresh-Claude-Code-session-for-canonical-commit
 - **`~/Documents/AI-Driven Development/CLAUDE.md`** — Council protocol mechanics (the actual `gh copilot` invocation discipline, cd-into-repo requirement, nested-panel header), source-edit lanes, verify-before-claiming
 - **`~/Documents/QPB/docs/process/Lever_Calibration_Log.md`** — the historical record of all cycles; canonical home (workspace `Quality Playbook/Reviews/Lever_Calibration_Log.md` is a replica per DEVELOPMENT_PROCESS.md)
-- **`~/Documents/QPB/docs/design/QPB_v1.6.0_Design.md`** and **`QPB_v1.6.0_Implementation_Plan.md`** — canonical home for v1.6.x release planning; this protocol implements the operational substrate they describe
+- **`~/Documents/QPB/docs/design/QPB_v1.6.0_Design.md`** and **`QPB_v1.6.0_Implementation_Plan.md`** — canonical home for v1.6.x release planning; this protocol implements the operational infrastructure they describe

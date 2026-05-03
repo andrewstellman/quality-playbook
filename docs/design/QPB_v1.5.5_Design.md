@@ -5,7 +5,7 @@
 *Owner: Andrew Stellman*
 *Depends on: v1.5.4 shipped (role map + Phase 5 regression-replay apparatus + Pattern 7 + ai_context/CALIBRATION_PROTOCOL.md + ai_context/DEVELOPMENT_PROCESS.md + docs/process/Lever_Calibration_Log.md)*
 
-> **Where v1.5.5 sits in the arc.** v1.5.4 shipped the *measurement substrate* for continuous improvement (cell.json schema, recall computation, calibration protocol, first cycle). It also surfaced that the *orchestration substrate* — what actually runs a calibration cycle from end to end — is missing. The v1.5.4 cycle 1 was executed by a human-in-the-loop Cowork session with substantial manual coordination, and the autonomous-loop attempt halted on Cowork's sandbox runtime constraints (state-file UID locking, host-only paths, subprocess survival). v1.5.5 closes that gap. After v1.5.5, a single AI session can run a full calibration cycle — pre-lever baselines, lever change, post-lever measurement, cross-benchmark check, audit and log writeup — without operator intervention beyond the initial kickoff. v1.6.0 then begins on the QI-half feature work (Requirements Review) on top of an automated improvement loop substrate.
+> **Where v1.5.5 sits in the arc.** v1.5.4 shipped the *measurement infrastructure* for continuous improvement (cell.json schema, recall computation, calibration protocol, first cycle). It also surfaced that the *orchestration infrastructure* — what actually runs a calibration cycle from end to end — is missing. The v1.5.4 cycle 1 was executed by a human-in-the-loop Cowork session with substantial manual coordination, and the autonomous-loop attempt halted on Cowork's sandbox runtime constraints (state-file UID locking, host-only paths, subprocess survival). v1.5.5 closes that gap. After v1.5.5, a single AI session can run a full calibration cycle — pre-lever baselines, lever change, post-lever measurement, cross-benchmark check, audit and log writeup — without operator intervention beyond the initial kickoff. v1.6.0 then begins on the QI-half feature work (Requirements Review) on top of an automated improvement-loop infrastructure.
 
 ---
 
@@ -46,9 +46,9 @@ Both principles are enabled by the file-tool layer the AI uses: `quality/` is in
 
 Three reasons v1.5.5 stands alone:
 
-1. **The orchestration substrate is itself a deliverable.** Run-state instrumentation, cross-validation rules, resume semantics, and the orchestrator prompt are enough engineering work to deserve their own design, implementation, Council review, and tag. Bundling them into v1.6.0 alongside Requirements Review feature work would conflate substrate-building with substrate-using.
-2. **v1.6.0's calibration cycles need this.** Requirements Review (the v1.6.0 headline feature) generates per-session defect data that feeds back into Phase 1/2 prompt-tuning calibration cycles. Those cycles need the autonomous orchestration v1.5.5 builds. Shipping v1.5.5 first means v1.6.0's calibration cycles run on a tested substrate rather than co-developed with one.
-3. **The first test is sitting there.** v1.5.4's Pattern 7 cycle has a real, named open question — recover the PathRewrite + AllowContentEncoding displacement losses while preserving Pattern 7's wins. That's exactly the shape of test the autonomous loop is built for, and running it validates the v1.5.5 substrate on a target where the answer space is known.
+1. **The orchestration infrastructure is itself a deliverable.** Run-state instrumentation, cross-validation rules, resume semantics, and the orchestrator prompt are enough engineering work to deserve their own design, implementation, Council review, and tag. Bundling them into v1.6.0 alongside Requirements Review feature work would conflate building the infrastructure with using it.
+2. **v1.6.0's calibration cycles need this.** Requirements Review (the v1.6.0 headline feature) generates per-session defect data that feeds back into Phase 1/2 prompt-tuning calibration cycles. Those cycles need the autonomous orchestration v1.5.5 builds. Shipping v1.5.5 first means v1.6.0's calibration cycles run on tested infrastructure rather than co-developed with one.
+3. **The first test is sitting there.** v1.5.4's Pattern 7 cycle has a real, named open question — recover the PathRewrite + AllowContentEncoding displacement losses while preserving Pattern 7's wins. That's exactly the shape of test the autonomous loop is built for, and running it validates the v1.5.5 infrastructure on a target where the answer space is known.
 
 ---
 
@@ -209,7 +209,7 @@ The cycle that validates v1.5.5 on real work:
 - **Cycle structure:** pre-lever benchmark runs on chi-1.3.45 (current Pattern 7 setup); apply lever change; post-lever runs on chi-1.3.45 + chi-1.5.1 + virtio-1.5.1 + express-1.3.50. Compute deltas. Verify both PathRewrite and AllowContentEncoding return to "found" status while Pattern 7's mount-context wins (BUG-004, BUG-007, BUG-008, BUG-009) remain.
 - **Iterate if needed.** If the first lever pull doesn't recover both losses without sacrificing Pattern 7 wins, the autonomous orchestrator iterates: try a different sub-lever, run again. Up to 3 iterations before manual intervention.
 
-This cycle is the first real test of the v1.5.5 substrate. Success looks like: the orchestrator runs end-to-end without operator intervention, produces a cycle audit + calibration-log entry + visualizations, and either (a) ships a sub-lever that recovers displacement losses, or (b) reports that the substrate worked but no sub-lever recovered the losses (a real finding worth documenting).
+This cycle is the first real test of the v1.5.5 infrastructure. Success looks like: the orchestrator runs end-to-end without operator intervention, produces a cycle audit + calibration-log entry + visualizations, and either (a) ships a sub-lever that recovers displacement losses, or (b) reports that the infrastructure worked but no sub-lever recovered the losses (a real finding worth documenting).
 
 ---
 
@@ -231,13 +231,13 @@ This cycle is the first real test of the v1.5.5 substrate. Success looks like: t
 
 v1.5.5 is validated by the first calibration cycle running end-to-end:
 
-1. **Substrate works.** The orchestrator session starts, runs all benchmarks, applies the lever change, computes deltas, writes the cycle audit and calibration-log entry, generates visualizations. No operator intervention. No scheduled-task halts.
+1. **Infrastructure works.** The orchestrator session starts, runs all benchmarks, applies the lever change, computes deltas, writes the cycle audit and calibration-log entry, generates visualizations. No operator intervention. No scheduled-task halts.
 2. **Resume works.** A deliberate mid-cycle kill of the orchestrator session is recovered cleanly by the next session reading run_state.jsonl.
 3. **Cross-validation works.** A deliberately incomplete `phase_end` (artifact missing) triggers the validation failure and re-run.
 4. **Visualizations render.** All four PNGs produced from real cycle data; the per-bug × cycle heatmap shows the Pattern 7 displacement story visually.
-5. **Test cycle ships or reverts honestly.** Pattern 7 displacement recovery either succeeds (sub-lever ships) or fails (substrate worked, no sub-lever found — that's also a real finding).
+5. **Test cycle ships or reverts honestly.** Pattern 7 displacement recovery either succeeds (sub-lever ships) or fails (infrastructure worked, no sub-lever found — that's also a real finding).
 
-v1.5.5's success is the substrate, not a particular outcome from the test cycle.
+v1.5.5's success is the infrastructure, not a particular outcome from the test cycle.
 
 ---
 
