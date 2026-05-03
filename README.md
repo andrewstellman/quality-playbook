@@ -45,7 +45,31 @@ If you'd rather read the docs yourself, the rest of this README has the same inf
 
 ## How to use the Quality Playbook to find bugs in your code
 
-### Step 1: Provide documentation (strongly recommended)
+### Step 1: Install the skill
+
+The playbook ships as a small set of files (`SKILL.md`, `quality_gate.py`, and the `references/` tree) that need to land in a directory your AI coding tool reads as a skill. The recommended path is to have your AI tool do the install for you.
+
+**Recommended: have your AI tool install it.** Open a chat with Claude Code, Cursor, GitHub Copilot, or another AI coding assistant inside your target repo. Ask it:
+
+> *"Read AGENTS.md from the Quality Playbook repo and follow the install procedure to set up the skill in this project."*
+
+The AI agent reads [`AGENTS.md`](AGENTS.md), runs `python -m bin.install_skill` against the target, parses the structured output, and reports back. This is the default mode the install path is designed for.
+
+**Alternative: run the script directly.** From your local QPB clone:
+
+```bash
+python -m bin.install_skill                          # auto-detect from cwd
+python -m bin.install_skill --target /path/to/repo   # explicit target
+python -m bin.install_skill --verbose                # human-readable output
+```
+
+Auto-detect picks the install location based on which AI-tool marker directory is present in the target (`.claude/`, `.github/`, `.cursor/`, or `.continue/`).
+
+**Already manually copied SKILL.md to your skills directory?** Skip this step. The manual install paths described in Step 3 below continue to work — `bin/install_skill.py` is additive, not a replacement.
+
+**What the install does:** copies `SKILL.md`, `quality_gate.py`, and `references/*.md` into the chosen install location. Runs a smoke check at the end (verifies `quality_gate.py` is loadable Python, `SKILL.md` parses with the expected frontmatter, `references/exploration_patterns.md` loads). Reports any failures in the structured output. Re-installs preserve operator-edited files as `<file>.operator-backup-<UTC-timestamp>` so your local edits aren't silently overwritten.
+
+### Step 2: Provide documentation (strongly recommended)
 
 The playbook produces better requirements, fewer false positives, and more specific
 bugs when it has written documentation to work from. Plaintext files only —
@@ -91,9 +115,9 @@ requirements. The results are weaker but valid.
 - Anything private or sensitive that should not be read by an LLM — `reference_docs/`
   contents are loaded into Phase 1 prompts
 
-### Step 2: Install the skill
+### Step 3: Install the skill (manual flow — fallback)
 
-Copy the skill files into your project:
+If you prefer to do the install by hand instead of using `bin/install_skill.py` from Step 1, copy the skill files into your project directly:
 
 **Claude Code:**
 ```bash
@@ -131,9 +155,9 @@ cat skill-template.gitignore >> .gitignore
 
 **Cursor, Windsurf, other tools:** Use any of the locations above, or put `SKILL.md` and `references/` in your project root. The runner, gate, and orchestrator agents check all four locations — repo-root `SKILL.md`, Claude's `.claude/skills/quality-playbook/`, and both Copilot layouts.
 
-**OpenAI Codex CLI:** v1.5.3 adds the standalone [codex CLI](https://github.com/openai/codex) (codex-cli 0.125+) as a third runner alongside claude and copilot. No separate skill-install layout — codex runs the playbook from any of the locations above. To use it via `bin/run_playbook.py`, pass `--codex` (see Step 3 + the "Running everything autonomously" section below).
+**OpenAI Codex CLI:** v1.5.3 adds the standalone [codex CLI](https://github.com/openai/codex) (codex-cli 0.125+) as a third runner alongside claude and copilot. No separate skill-install layout — codex runs the playbook from any of the locations above. To use it via `bin/run_playbook.py`, pass `--codex` (see Step 4 + the "Running everything autonomously" section below).
 
-### Step 3: Run the playbook
+### Step 4: Run the playbook
 
 **Claude Code:**
 ```bash
@@ -171,7 +195,7 @@ The playbook runs in six phases. Each phase gets its own context window — this
 
 The six phases: **Explore** (read code + docs, find candidates) → **Generate** (requirements, tests, protocols) → **Code Review** (three-pass: structural, requirement verification, cross-requirement consistency) → **Spec Audit** (three independent auditors check code against requirements) → **Reconciliation** (every bug tracked, regression-tested, TDD-verified) → **Verify** (45 self-check benchmarks). The full cycle takes 15-90 minutes depending on project size and works with any language.
 
-### Step 4: Run iterations
+### Step 5: Run iterations
 
 After the baseline, the playbook suggests iteration strategies that find different classes of bugs — typically 40-60% more on top of the baseline. Say *"Run the next iteration using the gap strategy"* to start, then follow the suggested order: gap → unfiltered → parity → adversarial.
 
@@ -204,7 +228,7 @@ Three things in the prompt matter:
 
 The full autonomous run takes 60-180 minutes depending on codebase size and model. Add `--model sonnet` or `--model opus` to choose a specific model.
 
-### Step 5: Fix bugs, then recheck
+### Step 6: Fix bugs, then recheck
 
 After fixing the bugs from BUGS.md, say *"recheck"* to verify your fixes. Recheck mode reads the existing bug report, checks each bug against the current source (reverse-applying patches, inspecting cited lines), and reports which bugs are fixed vs. still open. Takes 2-10 minutes instead of re-running the full pipeline.
 
@@ -307,6 +331,8 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
 - **v1.3 — Mechanical verification + iterative convergence.** Mechanical artifacts with integrity check: extraction commands (awk/grep) produce per-function evidence files, append themselves to `quality/mechanical/verify.sh`, and Phase 6 re-runs the script and diffs against saved files (catches the failure mode where the model executes the right command but writes fabricated output). Contradiction gate compares executed evidence (mechanical artifacts, regression-test results, TDD red-phase failures) against prose artifacts; if they contradict, the executed result wins. Self-contained iterative convergence: Phase 0 builds a seed list from prior runs, mechanically re-checks each seed; runs iterate up to 5 times until net-new bugs = 0. Tag [`v1.3.50`](https://github.com/andrewstellman/quality-playbook/releases/tag/v1.3.50) (most recent v1.3.x). Design across multiple incremental files: [`docs/design/QPB_v1.3.0_Design.md`](docs/design/QPB_v1.3.0_Design.md), [`docs/design/QPB_v1.3.7_Design.md`](docs/design/QPB_v1.3.7_Design.md), [`docs/design/QPB_v1.3.21_Design.md`](docs/design/QPB_v1.3.21_Design.md), [`docs/design/QPB_v1.3.35_Design.md`](docs/design/QPB_v1.3.35_Design.md), [`docs/design/QPB_v1.3.50_Design.md`](docs/design/QPB_v1.3.50_Design.md), and others — each captures the design state at that increment.
 
 - **v1.2 — Initial public release.** First tagged version of the playbook with the inspection-style workflow (deskcheck → walkthrough → inspection) and the bug-finding-as-divergence-detection methodology. Tag [`v1.2.16`](https://github.com/andrewstellman/quality-playbook/releases/tag/v1.2.16) (most recent v1.2.x). Design at [`docs/design/QPB_v1.2.15_Design.md`](docs/design/QPB_v1.2.15_Design.md).
+
+<!-- What's new in v1.5.6 — drafted in Phase 5 of v1.5.6 implementation -->
 
 ### What's new in v1.5.5
 
