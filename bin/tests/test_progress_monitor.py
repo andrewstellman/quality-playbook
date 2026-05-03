@@ -416,5 +416,113 @@ class TranscriptByteOffsetTests(unittest.TestCase):
         )
 
 
+class HeaderSetThreadSafetyTests(unittest.TestCase):
+    """v1.5.5 BUG-003: _printed_headers must be guarded against
+    concurrent access in _extract_new_headers.
+
+    In production today, _extract_new_headers runs only on the monitor
+    thread — but the same method is also called directly from the main
+    thread by tests and helpers, and there's nothing preventing two
+    callers from racing. The Codex bootstrap patch tried to "fix" this
+    by removing cross-call deduplication entirely, which would have
+    broken test_does_not_reprint_existing_headers (every poll would
+    re-emit every header). The actual fix: keep the dedup semantics,
+    add a lock around the read+write so the check-then-add is atomic.
+    """
+
+    def _no_thread_monitor(self, tmp: Path) -> progress_monitor.ProgressMonitor:
+        return progress_monitor.ProgressMonitor(
+            progress_path=tmp / "PROGRESS.md",
+            log_file=tmp / "log.txt",
+            emit=lambda _lf, _msg: None,
+            interval=0.05,
+        )
+
+    def test_extract_new_headers_holds_lock_during_check_and_add(self) -> None:
+        """Static guard: the read+write in _extract_new_headers must be
+        bracketed by self._header_lock so a future edit can't reintroduce
+        the unsynchronized check-then-add (BUG-003)."""
+        import inspect
+
+        source = inspect.getsource(
+            progress_monitor.ProgressMonitor._extract_new_headers
+        )
+        self.assertIn(
+            "with self._header_lock:",
+            source,
+            "_extract_new_headers must hold self._header_lock around the "
+            "_printed_headers check-and-add (BUG-003).",
+        )
+
+    def test_concurrent_extracts_emit_each_header_exactly_once(self) -> None:
+        """Spawn N threads that each call _extract_new_headers on the
+        same content. Across all threads, every header must surface
+        exactly once — no duplicates (lost-update race) and no drops
+        (returned-but-already-added race).
+
+        Without the lock: thread A checks "## Foo not in set" → True;
+        thread B checks the same → True; both add and both return
+        "## Foo" — the set has it once, but the union of returned lists
+        has it twice. With the lock: only one thread can be inside the
+        critical section, so only one returns it.
+        """
+        import threading as _threading
+
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            monitor = self._no_thread_monitor(tmp)
+
+            # 30 unique headers, each repeated to make the per-thread
+            # work non-trivial.
+            content = "".join(f"## Header {i}\n" for i in range(30))
+
+            n_threads = 16
+            barrier = _threading.Barrier(n_threads)
+            results: list[list[str]] = [[] for _ in range(n_threads)]
+            exceptions: list[BaseException] = []
+
+            def worker(idx: int) -> None:
+                try:
+                    barrier.wait()  # release all threads simultaneously
+                    results[idx] = monitor._extract_new_headers(content)
+                except BaseException as exc:  # noqa: BLE001
+                    exceptions.append(exc)
+
+            threads = [
+                _threading.Thread(target=worker, args=(i,))
+                for i in range(n_threads)
+            ]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join(timeout=5.0)
+                self.assertFalse(t.is_alive(), "worker thread hung")
+
+            self.assertEqual(exceptions, [], "extraction raised under contention")
+
+            # Union of all returned lists: each header appears exactly once.
+            combined = [h for sublist in results for h in sublist]
+            self.assertEqual(
+                sorted(combined),
+                sorted(f"## Header {i}" for i in range(30)),
+                "concurrent _extract_new_headers calls must collectively "
+                "emit each unique header exactly once (BUG-003 race would "
+                "produce duplicates from interleaved check-then-add).",
+            )
+
+    def test_dedup_semantics_preserved_across_calls(self) -> None:
+        """Belt-and-braces: confirm the lock didn't accidentally change
+        the cross-call dedup behavior. Calling twice with the same
+        content must return the headers on the first call and an empty
+        list on the second."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            monitor = self._no_thread_monitor(tmp)
+            first = monitor._extract_new_headers("# A\n## B\n")
+            second = monitor._extract_new_headers("# A\n## B\n")
+            self.assertEqual(first, ["# A", "## B"])
+            self.assertEqual(second, [])
+
+
 if __name__ == "__main__":
     unittest.main()

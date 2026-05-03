@@ -85,6 +85,11 @@ class ProgressMonitor:
 
         # State tracked across poll cycles.
         self._last_progress_mtime: float = 0.0
+        # Guard the printed-headers set: _extract_new_headers runs on the
+        # monitor thread but can also be called directly from the main
+        # thread (tests, helpers). Without the lock, the read/write pair
+        # on the set races (BUG-003).
+        self._header_lock = threading.Lock()
         self._printed_headers: set[str] = set()
 
         # Shared transcript-path state: main thread writes on phase
@@ -224,16 +229,21 @@ class ProgressMonitor:
 
     def _extract_new_headers(self, content: str) -> List[str]:
         headers: List[str] = []
-        for line in content.splitlines():
-            stripped = line.rstrip()
-            if not stripped:
-                continue
-            if not _HEADER_RE.match(stripped):
-                continue
-            if stripped in self._printed_headers:
-                continue
-            self._printed_headers.add(stripped)
-            headers.append(stripped)
+        with self._header_lock:
+            # Hold the lock for the full read+update so a concurrent
+            # call can't observe a header as "unseen" between our check
+            # and our add (BUG-003: previously, the check at line N and
+            # the add at line N+2 were independent operations).
+            for line in content.splitlines():
+                stripped = line.rstrip()
+                if not stripped:
+                    continue
+                if not _HEADER_RE.match(stripped):
+                    continue
+                if stripped in self._printed_headers:
+                    continue
+                self._printed_headers.add(stripped)
+                headers.append(stripped)
         return headers
 
     def _poll_transcript(self) -> None:
