@@ -36,11 +36,11 @@ Open a chat in whatever AI tool you use — Claude, ChatGPT, Cursor, GitHub Copi
 
 > "Read TOOLKIT.md. Now you're an expert in the Quality Playbook."
 
-<a href="https://chatgpt.com/share/69dee323-1f34-832f-aa98-06e606aff1d0"><img src="images/chatgpt-toolkit.png" alt="ChatGPT with TOOLKIT.md attached" width="1000"></a>
+<a href="https://chatgpt.com/share/69f78fc3-186c-83ea-9be6-70866b88db82"><img src="images/chatgpt-toolkit.jpg" alt="ChatGPT with TOOLKIT.md attached" width="1000"></a>
 
 Then ask it anything: How do I set this up? What does Phase 3 actually do? How does it find bugs that structural code review misses? What's the difference between gap and adversarial iteration? Why did my run only find one bug? Your AI assistant will walk you through setup, running, interpreting results, and improving your next run.
 
-[Here's what that conversation looks like in ChatGPT](https://chatgpt.com/share/69dee323-1f34-832f-aa98-06e606aff1d0) — it works the same in any other AI tool.
+[Here's what that conversation looks like in ChatGPT](https://chatgpt.com/share/69f78fc3-186c-83ea-9be6-70866b88db82) — it works the same in any other AI tool.
 
 If you'd rather read the docs yourself, the rest of this README has the same information at higher resolution.
 
