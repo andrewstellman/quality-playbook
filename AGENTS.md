@@ -23,29 +23,29 @@ The Quality Playbook is a skill for AI coding agents that explores any codebase 
 
 ## Installing the skill
 
-Copy the skill into your AI coding tool's skill directory in the target repo:
+Copy the skill into your AI coding tool's skill directory in the target repo. Run these commands from your target repo root, with `$QPB` pointing at your local quality-playbook clone (`export QPB=/path/to/quality-playbook`).
 
 **GitHub Copilot:**
 ```bash
 mkdir -p .github/skills/references
-cp SKILL.md .github/skills/SKILL.md
-cp quality_gate.py .github/skills/quality_gate.py
-cp references/* .github/skills/references/
+cp "$QPB"/SKILL.md .github/skills/SKILL.md
+cp "$QPB"/.github/skills/quality_gate.py .github/skills/quality_gate.py
+cp "$QPB"/references/* .github/skills/references/
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 # Optional: append suggested .gitignore rules for adopters.
-cat skill-template.gitignore >> .gitignore
+cat "$QPB"/skill-template.gitignore >> .gitignore
 ```
 
 **Claude Code:**
 ```bash
 mkdir -p .claude/skills/quality-playbook/references
-cp SKILL.md .claude/skills/quality-playbook/SKILL.md
-cp quality_gate.py .claude/skills/quality-playbook/quality_gate.py
-cp references/* .claude/skills/quality-playbook/references/
+cp "$QPB"/SKILL.md .claude/skills/quality-playbook/SKILL.md
+cp "$QPB"/.github/skills/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
+cp "$QPB"/references/* .claude/skills/quality-playbook/references/
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
-cat skill-template.gitignore >> .gitignore
+cat "$QPB"/skill-template.gitignore >> .gitignore
 ```
 
 Then tell your AI tool:
