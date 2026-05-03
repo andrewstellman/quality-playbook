@@ -1,6 +1,6 @@
 # QPB Development Process
 
-*Last updated: 2026-04-30. Single source of truth for how the Quality Playbook project is developed. Read at session start by any AI agent (Cowork, Claude Code, codex, etc.) orchestrating QPB development.*
+*Last updated: 2026-05-03 (v1.5.5 currency pass — adds run-state instrumentation + Phase 5 source-edit guardrail to the mechanical procedures and updates the dev-process measurement direction now that the v1.5.5 substrate exists). Single source of truth for how the Quality Playbook project is developed. Read at session start by any AI agent (Cowork, Claude Code, codex, etc.) orchestrating QPB development.*
 
 This document covers **how QPB is developed** — the mechanical procedures, the rationale behind them, and the open directions for evolving the process itself. It is the parallel for QPB-the-project of what `IMPROVEMENT_LOOP.md` is for QPB-the-skill: the methodology doc.
 
@@ -74,6 +74,17 @@ For every regression-pin test (a test that exists specifically to prevent a know
 4. Re-run; confirm the test passes again
 
 Cite the mutation result in the commit message. Without mutation verification, "regression tests" don't actually pin anything — they could be tautological assertions that pass regardless of the source. Mutation testing is the proof that the test would catch reintroduction.
+
+### Run-state instrumentation and the Phase 5 source-edit guardrail (v1.5.5+)
+
+QPB runs (both adopter-facing and bootstrap/calibration) emit an append-only `quality/run_state.jsonl` event log. The format invariants and event taxonomy live in `references/run_state_schema.md`; the read/parse/write helpers ship at `bin/run_state_lib.py` (`read_events`, `last_in_progress_phase`, `validate_run_state_file`, `validate_phase_artifacts`, `validate_no_source_edits`, `append_event`, `write_progress_md`).
+
+Two post-condition checks are wired in mechanically and matter for development discipline:
+
+- **`validate_phase_artifacts`** fires at each phase boundary; a `phase_completed` event with a failing validation result indicates the phase produced an event but the artifact set was incomplete. Treat such states as malformed runs — diagnose the gap before progressing.
+- **`validate_no_source_edits`** is wired into `bin/run_playbook.py:_finalize_iteration` as a mechanical Phase 5 source-edit guardrail. Any file modification outside `<target>/quality/` during finalization is recorded as a `validation_result` event with `status="fail"` and the run is tainted from a recall-comparison standpoint. **Implication for development sessions:** if you're hand-editing QPB source while a calibration cycle is running against the same checkout, the guardrail will fire on the cycle's Phase 5; use `git worktree add` to give each cycle its own checkout per `CALIBRATION_PROTOCOL.md` Pre-flight check #8.
+
+The v1.5.5 substrate also includes the `agents/calibration_orchestrator.md` spawn-and-resume template (the Mode 1 autonomous-loop driver for cycles per `CALIBRATION_PROTOCOL.md`) and `bin/visualize_calibration.py` (four cycle charts: per-bug × cycle heatmap, lever × benchmark heatmap, recall trajectory, Mermaid lever-interaction graph). These are operational deliverables, not just docs — treat them as canonical when working on any cycle-related code.
 
 ### Calibrated reporting
 
@@ -185,9 +196,9 @@ This section captures directions the development process *might* evolve in. Noth
 
 ### Bringing the development process under statistical control
 
-QPB-the-skill has `IMPROVEMENT_LOOP.md` documenting the QC/QI methodology for *artifacts under audit*: regression replay measures bug-recall on benchmark targets, calibration cycles diagnose missed-bug classes, lever pulls move recall numbers, the calibration log accumulates evidence over time. That methodology is operational as of v1.5.4.
+QPB-the-skill has `IMPROVEMENT_LOOP.md` documenting the QC/QI methodology for *artifacts under audit*: regression replay measures bug-recall on benchmark targets, calibration cycles diagnose missed-bug classes, lever pulls move recall numbers, the calibration log accumulates evidence over time. That methodology is operational as of v1.5.4 (apparatus) + v1.5.5 (orchestration substrate: per-cycle event log, orchestrator template, post-condition checks, cycle visualization). The protocol that drives a cycle end-to-end lives in `ai_context/CALIBRATION_PROTOCOL.md`.
 
-QPB-the-project (this document's subject — how the project itself is developed) has no parallel measurement apparatus. The development process produces qualitative findings (Council syntheses, retrospectives, scope audits) but no quantitative time series that could be tracked release-over-release and brought under statistical control under the SEI / Humphrey lineage.
+QPB-the-project (this document's subject — how the project itself is developed) has no parallel measurement apparatus. The development process produces qualitative findings (Council syntheses, retrospectives, scope audits) but no quantitative time series that could be tracked release-over-release and brought under statistical control under the SEI / Humphrey lineage. **The v1.7.0 design (`docs/design/QPB_v1.7.0_Design.md` + `QPB_v1.7.0_Implementation_Plan.md`) closes this gap directly:** it scopes Shewhart control limits applied to **both** the improvement loop (calibration cycles) and the SDLC for QPB itself. The questions in this section that ask "should the dev process be SPC-able at all?" are answered affirmatively in the v1.7.0 design — the trigger has fired.
 
 Candidate metrics if such an apparatus were built:
 
@@ -217,7 +228,7 @@ These are real questions, not rhetorical:
 
 ### Disposition
 
-These questions don't need answers in v1.5.4 or v1.6.x. They're flagged here so a future Cowork session — or Andrew himself, picking up after a long break — has the framing already in place if/when the conversation comes up. The natural trigger would be: a v1.6.x or v1.7.x release where retrospective lessons feel like they should be measurable but aren't, and the manual review process feels like it's surfacing patterns that empirical measurement would diagnose more cleanly.
+The natural trigger anticipated when this section was written — a release where retrospective lessons feel like they should be measurable but aren't — has fired. The v1.7.0 design (`docs/design/QPB_v1.7.0_Design.md` + `QPB_v1.7.0_Implementation_Plan.md`) scopes the SPC machinery for both the improvement loop and QPB-the-project's SDLC. The questions in this section remain useful as the design context that the v1.7.0 plan answers; treat this section as the historical framing rather than open work.
 
 ---
 
@@ -244,6 +255,9 @@ Docs that inform or are informed by the development process. This is not a navig
 - **`TOOLKIT.md`** — adopter-facing toolkit-installation and bare-invocation guide.
 - **`TOOLKIT_TEST_PROTOCOL.md`** — release-gate review protocol for orientation docs (the orientation-doc analog of Council-of-Three).
 - **`DEVELOPMENT_CONTEXT.md`** — context-gathering recipes and "baseline runs" guidance for development sessions. Operational counterpart to this `DEVELOPMENT_PROCESS.md` (which is the durable conventions doc; `DEVELOPMENT_CONTEXT.md` is the per-session-context doc).
+- **`CALIBRATION_PROTOCOL.md`** — the 12-step Mode 1 (autonomous) / Mode 2 (operator-driven) protocol for driving a QPB calibration cycle on a benchmark target. Read when working on any lever-pull release.
+- **`IMPROVEMENT_LOOP.md`** — methodology context for the calibration cycles: WHY the lever inventory exists and WHAT each lever controls.
+- **`BENCHMARK_PROTOCOL.md`** — clean-folder run protocol for contamination-free benchmarks; v1.5.5+ also documents the `quality/run_state.jsonl` event format and cross-validation rules.
 
 ### Top-level orientation
 

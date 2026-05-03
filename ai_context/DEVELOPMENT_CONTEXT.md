@@ -6,6 +6,8 @@
 >
 > The project accompanies the O'Reilly Radar article [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/).
 > The README was coauthored with Claude Cowork.
+>
+> *Last updated: 2026-05-03 (v1.5.5 currency pass).*
 
 ## Project structure
 
@@ -16,11 +18,14 @@ quality-playbook/
 ├── LICENSE.txt                        ← License terms
 ├── agents/                            ← Orchestrator agent files for autonomous runs
 │   ├── quality-playbook-claude.agent.md   ← Claude Code orchestrator (single-level sub-agent model)
-│   └── quality-playbook.agent.md          ← Copilot / generic orchestrator
+│   ├── quality-playbook.agent.md          ← Copilot / generic orchestrator
+│   └── calibration_orchestrator.md        ← v1.5.5 spawn-and-resume orchestrator template for calibration cycles (Mode 1 autonomous driver per ai_context/CALIBRATION_PROTOCOL.md)
 ├── bin/                               ← Standard-library benchmark automation package
 │   ├── __init__.py                    ← Package marker
 │   ├── benchmark_lib.py               ← Shared helpers (versioned from repos/_benchmark_lib.sh)
-│   ├── run_playbook.py                ← Main runner — positional args are target directories (python3 bin/run_playbook.py)
+│   ├── run_playbook.py                ← Main runner — positional args are target directories (python3 bin/run_playbook.py); v1.5.5 wires validate_no_source_edits into _finalize_iteration as the Phase 5 source-edit guardrail
+│   ├── run_state_lib.py               ← v1.5.5 run-state instrumentation: read/parse/validate helpers (read_events, last_in_progress_phase, validate_run_state_file, validate_phase_artifacts, validate_no_source_edits) plus writers (append_event, write_progress_md)
+│   ├── visualize_calibration.py       ← v1.5.5 four-chart cycle visualization (per-bug × cycle heatmap, lever × benchmark heatmap, recall trajectory, Mermaid lever-interaction graph)
 │   ├── classify_project.py            ← v1.5.3 Phase 0 project-type classifier (Code / Skill / Hybrid)
 │   ├── citation_verifier.py           ← v1.5.0 byte-deterministic citation excerpt extractor
 │   ├── skill_derivation/              ← v1.5.3 Skill / Hybrid four-pass derivation + divergence detection
@@ -49,6 +54,7 @@ quality-playbook/
 │   ├── requirements_refinement.md     ← Coverage / completeness refinement pass
 │   ├── requirements_review.md         ← Pre-finalization requirements review
 │   ├── review_protocols.md            ← Three-pass code review protocol and regression test conventions
+│   ├── run_state_schema.md            ← v1.5.5 event taxonomy + cross-validation rules + format invariants for the per-cycle quality/run_state.jsonl event log
 │   ├── schema_mapping.md              ← tdd-results.json / recheck-results.json schema reference
 │   ├── spec_audit.md                  ← Council of Three spec audit protocol
 │   └── verification.md                ← 45 self-check benchmarks for Phase 6
@@ -68,7 +74,11 @@ quality-playbook/
 ├── ai_context/                        ← AI-readable context files
 │   ├── TOOLKIT.md                     ← For users' AI assistants (setup, run, interpret, recheck)
 │   ├── DEVELOPMENT_CONTEXT.md         ← For maintainers' AI assistants (this file)
-│   └── BENCHMARK_PROTOCOL.md          ← Clean-folder run protocol for contamination-free benchmarks
+│   ├── DEVELOPMENT_PROCESS.md         ← How the QPB project itself is developed (mechanical procedures, rationale, open directions)
+│   ├── IMPROVEMENT_LOOP.md            ← Methodology doc: how QPB applies QE to itself (verification dimensions, lever inventory, regression replay, SPC trajectory)
+│   ├── CALIBRATION_PROTOCOL.md        ← 12-step Mode 1 (autonomous) / Mode 2 (operator-driven) protocol for driving a calibration cycle
+│   ├── TOOLKIT_TEST_PROTOCOL.md       ← Release-gate review protocol for orientation docs (orientation-doc analog of Council-of-Three)
+│   └── BENCHMARK_PROTOCOL.md          ← Clean-folder run protocol for contamination-free benchmarks; v1.5.5+ documents run_state.jsonl format and cross-validation rules
 ├── repos/                             ← Benchmark repos and setup tooling
 │   ├── setup_repos.sh                 ← Copies skill files into target repos
 │   ├── _benchmark_lib.sh              ← Shell helpers shared by setup_repos.sh, run_tdd.sh, etc.
@@ -82,11 +92,11 @@ quality-playbook/
 **Running the tests:**
 
 ```
-# Benchmark runner + skill-derivation modules (662 tests at v1.5.3)
+# Benchmark runner + skill-derivation modules + run-state lib (1017+ tests at v1.5.5)
 python3 -m unittest discover bin/tests
 python3 -m pytest bin/tests/                                     # works under both runners
 
-# Quality gate package (221 tests at v1.5.3 — 215 in test_quality_gate.py + 6 in test_req_pattern.py)
+# Quality gate package (221 tests at v1.5.3 — 215 in test_quality_gate.py + 6 in test_req_pattern.py; v1.5.4+ adds gate-side tests for the regression-replay surface)
 python3 -m unittest discover -s .github/skills/quality_gate/tests/ -p 'test_*.py'
 ```
 
@@ -272,6 +282,15 @@ Council review artifacts go in `council-reviews/`. Each review has:
     - **Eight Council-of-Three rounds** drove v1.5.3 development end-to-end (Phase 3a foundations through Phase 4 Round 8 + Round 7 follow-up + Phase 5 release-readiness). Synthesis docs at `Quality Playbook/Reviews/QPB_v1.5.3_Round{1..8}_Synthesis.md`.
     - **Five items deferred to v1.5.3.1 patch** per the brief's wall-clock-budget allowance: full playbook regression sweep on 5 code targets (Stage 4A), cross-model second backend opus run (Stage 4D), optional v1.4.5 cross-version cell (Stage 4E), categorization tagging surface, orientation-doc release-cadence review. Full backlog at `Quality Playbook/Reviews/v1.5.4_backlog.md` (14 items B-1 through B-14).
     - **Post-tag — codex CLI runner added (commit `b6b31f2`).** OpenAI's standalone codex CLI (`https://github.com/openai/codex`, codex-cli 0.125+) joins claude (`claude --print`) and copilot (`gh copilot --prompt`) as a third LLM backend. `bin/skill_derivation/runners.py` ships a `CodexRunner` dataclass alongside `ClaudeRunner` and `CopilotRunner`; the runner factory `make_runner(name, *, model=None)` routes `name="codex"` to `CodexRunner`. CLI plumbing extended in `bin/run_playbook.py` (new `--codex` flag in the runner mutex group; nine dispatch sites updated for three-way runner choice; `ensure_runner_available` checks `shutil.which("codex")`; install hint points at the codex GitHub repo) and `bin/skill_derivation/__main__.py` (`--runner` choices extended to `{claude, copilot, codex}`). Codex's non-interactive mode is `codex exec --full-auto` — sandboxed automatic execution, the codex equivalent of `gh copilot --yolo`. The runner pipes the playbook prompt on stdin (codex `exec` reads stdin when no positional prompt is given), avoiding shell command-line length limits. Default model is empty (codex picks from `~/.codex/config.toml`); `--model gpt-5-codex` (or any model in the user's codex config) overrides. 7 new tests added (3 in `TestSkillDerivationMainArgs` + 3 in `MakeRunnerModelOverrideTests` + 2 in new `CodexRunnerArgvTests` class); bin/tests/ count is now 669 (was 662).
+- **v1.5.4:** Regression-replay machinery and cell.json schema. The apparatus that makes the improvement loop quantitative landed: `metrics/regression_replay/SCHEMA.md` defines the per-cycle cell.json format (top-level identity, bug measurement, lever attribution, cross-benchmark regression check, apparatus reproducibility); the lever inventory in `IMPROVEMENT_LOOP.md` carries Lever 1-6; the cycle workflow is operator-driven through the `bin/regression_replay.py` apparatus described in SCHEMA.md (subsequently superseded by the v1.5.5 orchestration substrate per the discrepancies note in `CALIBRATION_PROTOCOL.md`). Canonical design and implementation plan at `docs/design/QPB_v1.5.4_Design.md` and `docs/design/QPB_v1.5.4_Implementation_Plan.md`.
+- **v1.5.5:** Calibration-cycle orchestration substrate. Operationalizes the v1.5.4 regression-replay machinery as an autonomous-loop driver. Canonical design and implementation plan at `docs/design/QPB_v1.5.5_Design.md` and `docs/design/QPB_v1.5.5_Implementation_Plan.md`. Deliverables:
+    - **Run-state instrumentation** (`bin/run_state_lib.py` + `references/run_state_schema.md`). Append-only `quality/run_state.jsonl` event log. Event taxonomy: `phase_started`, `phase_completed`, `phase_aborted`, `validation_result`. Read/parse helpers (`read_events`, `last_in_progress_phase`, `validate_run_state_file`); post-condition helpers (`validate_phase_artifacts`, `validate_no_source_edits`); writers (`append_event`, `write_progress_md`). Format invariants and cross-validation rules at phase boundaries documented in the schema reference.
+    - **Calibration orchestrator template** (`agents/calibration_orchestrator.md`). The Mode 1 (autonomous) spawn-and-resume driver for `ai_context/CALIBRATION_PROTOCOL.md`'s 12-step workflow. Reads the per-cycle event log on resume, identifies the last-in-progress phase, continues from that boundary.
+    - **Phase 5 source-edit guardrail.** `validate_no_source_edits` is wired into `bin/run_playbook.py:_finalize_iteration` as a mechanical post-condition. Any file modification outside `<target>/quality/` during Phase 5 finalization fires a `validation_result` event with `status="fail"`. The run is tainted from a recall-comparison standpoint and should be re-run from a clean checkout.
+    - **Cycle visualization** (`bin/visualize_calibration.py`). Four charts emitted from accumulated cycle data: per-bug × cycle heatmap, lever × benchmark heatmap, recall trajectory, Mermaid lever-interaction graph. Used at release boundaries for cross-cycle review.
+    - **Council Round 1 fixes** (commit `c33cc3c`). Five P0 findings closed before tag.
+    - **Pattern 7 displacement-recovery cycle directory** at `~/Documents/AI-Driven Development/Quality Playbook/Calibration Cycles/2026-05-02-pattern7-displacement-recovery/`. Cycle scaffolding + lever description in place; lever-pull execution deferred to v1.5.6 per the published Roadmap (item G from the v1.5.5 spec).
+    - **Test count.** `bin/tests/` reaches 1017 tests / 0 failures / 3 skipped at v1.5.5 ship.
 
 ## Current known issues
 
