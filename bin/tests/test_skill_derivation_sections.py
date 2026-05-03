@@ -327,22 +327,38 @@ class ReferenceFileIterationTests(unittest.TestCase):
             docs = [s.document for s in secs]
             self.assertNotIn("references/ignore.txt", docs)
 
-    def test_qpb_references_dir_iterates_15_files(self) -> None:
-        """Phase 3b A.2 acceptance: QPB has 15 reference files in
-        references/ (14 from v1.5.4 + run_state_schema.md added in v1.5.5).
-        enumerate_skill_and_references should chain them all with SKILL.md."""
+    def test_qpb_references_dir_iterates_all_files(self) -> None:
+        """Phase 3b A.2 acceptance: ``enumerate_skill_and_references``
+        chains every file under ``references/`` along with SKILL.md.
+
+        v1.5.6 update: count now derives from the actual filesystem
+        rather than a hardcoded literal. The historical baseline is
+        14 (v1.5.4) + run_state_schema.md (v1.5.5) = 15; v1.5.6 added
+        code-only-mode.md, so a fresh checkout reads 16. New reference
+        files added in later releases bump the expected count
+        automatically. The load-bearing claim is that every .md file
+        in references/ enumerates."""
         repo = Path(__file__).resolve().parents[2]
         if not (repo / "SKILL.md").is_file():
             self.skipTest("QPB SKILL.md not at expected location")
+        expected = sorted(p.name for p in (repo / "references").glob("*.md"))
         secs = sections.enumerate_skill_and_references(
             repo / "SKILL.md", repo / "references", repo
         )
         documents = sorted(set(s.document for s in secs))
-        ref_docs = [d for d in documents if d.startswith("references/")]
+        ref_docs = sorted(
+            d.split("/", 1)[1] for d in documents if d.startswith("references/")
+        )
         self.assertEqual(
-            len(ref_docs),
-            15,
-            f"Expected 15 reference files; got {len(ref_docs)}: {ref_docs}",
+            ref_docs, expected,
+            f"Expected references/ enumeration to match filesystem; "
+            f"missing={set(expected) - set(ref_docs)}, "
+            f"extra={set(ref_docs) - set(expected)}",
+        )
+        self.assertGreaterEqual(
+            len(ref_docs), 15,
+            "v1.5.4 baseline of 14 + v1.5.5's run_state_schema.md = 15 "
+            "must continue to enumerate.",
         )
 
 

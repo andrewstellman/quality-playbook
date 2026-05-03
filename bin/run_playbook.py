@@ -1406,6 +1406,125 @@ def formal_docs_guard_banner(repo_dir: Path) -> Optional[str]:
     return "\n".join(banner)
 
 
+# v1.5.6 P3: code-only-mode downgrade.
+#
+# When `reference_docs/` (and `reference_docs/cite/`) carry no plaintext
+# content for a given run, the playbook proceeds in "code-only mode"
+# rather than silently producing a low-quality run. The downgrade is
+# observable via:
+#   - a `documentation_state` event in `quality/run_state.jsonl`
+#   - an opening section in `quality/EXPLORATION.md` pointing at
+#     `references/code-only-mode.md`
+#   - a "Documentation state: code_only" line in `quality/PROGRESS.md`
+#
+# These helpers are pure (testable in isolation against TemporaryDirectory).
+# `run_one_phase` invokes them at phase=="1" entry (state evaluation +
+# event + PROGRESS line) and after successful Phase 1 completion
+# (EXPLORATION.md prepend, idempotent).
+
+_CODE_ONLY_MARKER = "## Documentation status: code-only mode"
+_CODE_ONLY_PROGRESS_LINE = "Documentation state: code_only"
+
+
+def _evaluate_documentation_state(repo_dir: Path) -> str:
+    """Return ``"code_only"`` if neither ``reference_docs/`` nor
+    ``reference_docs/cite/`` contains any recognized plaintext file
+    (under `_REFERENCE_DOCS_PLAINTEXT_EXTS`); ``"with_docs"`` otherwise.
+    """
+    refs = repo_dir / "reference_docs"
+    if _reference_docs_plaintext(refs):
+        return "with_docs"
+    return "code_only"
+
+
+def _emit_documentation_state_event(
+    repo_dir: Path, state: str, reason: str
+) -> Optional[Path]:
+    """Append a ``documentation_state`` event to
+    ``<repo_dir>/quality/run_state.jsonl``. Returns the path of the
+    file that was written, or None if the write failed (the runner
+    must not crash on a logging failure)."""
+    try:
+        from bin.run_state_lib import append_event
+    except ImportError:
+        return None
+    jsonl_path = repo_dir / "quality" / "run_state.jsonl"
+    try:
+        jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+        append_event(
+            jsonl_path,
+            {
+                "event": "documentation_state",
+                "ts": _iso_utc_now(),
+                "state": state,
+                "reason": reason,
+            },
+        )
+        return jsonl_path
+    except (OSError, ValueError):
+        return None
+
+
+def _add_documentation_state_to_progress(
+    progress_md_path: Path, state: str
+) -> bool:
+    """Append a 'Documentation state: <state>' line to PROGRESS.md if
+    the line isn't already present. Returns True if the line was added
+    (or already present), False on write failure. Idempotent."""
+    try:
+        progress_md_path.parent.mkdir(parents=True, exist_ok=True)
+        existing = ""
+        if progress_md_path.is_file():
+            existing = progress_md_path.read_text(encoding="utf-8", errors="replace")
+        line = f"Documentation state: {state}"
+        if line in existing:
+            return True
+        with progress_md_path.open("a", encoding="utf-8") as handle:
+            if existing and not existing.endswith("\n"):
+                handle.write("\n")
+            handle.write(f"{line}\n")
+        return True
+    except OSError:
+        return False
+
+
+def _inject_code_only_section_into_exploration(exploration_md_path: Path) -> bool:
+    """Prepend the code-only-mode section to EXPLORATION.md if not
+    already present. Idempotent — calling twice produces the same
+    file as calling once.
+
+    Returns True on success or no-op (already present); False on
+    write failure or missing source file."""
+    if not exploration_md_path.is_file():
+        return False
+    try:
+        original = exploration_md_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    if _CODE_ONLY_MARKER in original:
+        return True
+    section = (
+        f"{_CODE_ONLY_MARKER}\n"
+        "\n"
+        "No `reference_docs/` content was found for this run. The playbook "
+        "is operating in **code-only mode** — requirements are derived from "
+        "code, comments, defensive patterns, tests, and any inline "
+        "documentation. This typically produces fewer requirements and "
+        "fewer findings than a run with `reference_docs/` content.\n"
+        "\n"
+        "See [`references/code-only-mode.md`](../../references/code-only-mode.md) "
+        "for details and how to provide documentation for the next run.\n"
+        "\n"
+        "---\n"
+        "\n"
+    )
+    try:
+        exploration_md_path.write_text(section + original, encoding="utf-8")
+        return True
+    except OSError:
+        return False
+
+
 def _clear_live_quality(quality_dir: Path) -> None:
     """Remove every live child of quality/ except the archive subtrees
     and RUN_INDEX.md (the append-only history).
@@ -1995,6 +2114,20 @@ def run_one_phase(
     if not gate.ok:
         return False
 
+    # v1.5.6 P3: code-only-mode downgrade. Detect at Phase 1 entry so
+    # the run state log captures it before any LLM work, and so the
+    # post-Phase-1 EXPLORATION.md prepend has a flag to key off.
+    documentation_state: Optional[str] = None
+    if phase == "1":
+        documentation_state = _evaluate_documentation_state(repo_dir)
+        if documentation_state == "code_only":
+            _emit_documentation_state_event(
+                repo_dir, "code_only", "reference_docs/ empty"
+            )
+            _add_documentation_state_to_progress(
+                repo_dir / "quality" / "PROGRESS.md", "code_only"
+            )
+
     if phase == "3":
         skip_reason = _code_review_should_skip(repo_dir)
         if skip_reason is not None:
@@ -2036,6 +2169,17 @@ def run_one_phase(
         return False
 
     _log_phase_completion(repo_dir, phase, log_file, args, timestamp)
+
+    # v1.5.6 P3: after Phase 1 completes successfully under code-only
+    # mode, prepend the documented section to EXPLORATION.md so a
+    # reviewer reading the artifact sees the downgrade on first read.
+    # Idempotent — re-runs against an already-prepended file are a
+    # no-op.
+    if phase == "1" and documentation_state == "code_only":
+        _inject_code_only_section_into_exploration(
+            repo_dir / "quality" / "EXPLORATION.md"
+        )
+
     return True
 
 

@@ -166,6 +166,19 @@ Records an error during the run.
 | `message` | string | yes | Human-readable description |
 | `recoverable` | boolean | yes | If true, the run will retry the affected phase; if false, the run is aborting |
 
+### `documentation_state`
+
+v1.5.6+. Records the documentation-availability state at Phase 1 entry. Currently the only emitted state is `"code_only"`, indicating that `reference_docs/` and `reference_docs/cite/` carry no recognized plaintext content (`.md` or `.txt`) and Phase 1 is proceeding in code-only mode (see `references/code-only-mode.md`). A `"with_docs"` value is reserved for future explicit emission; today the absence of a `documentation_state` event implies docs were present.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `event` | string | yes | `"documentation_state"` |
+| `ts` | string | yes | |
+| `state` | string | yes | Currently `"code_only"`. Future values may include `"with_docs"`. |
+| `reason` | string | yes | Free-form (e.g. `"reference_docs/ empty"`) |
+
+When `documentation_state state="code_only"` is emitted, the playbook also prepends a "Documentation status: code-only mode" section to `quality/EXPLORATION.md` and adds a "Documentation state: code_only" line to `quality/PROGRESS.md` so the downgrade is visible to anyone reading either artifact. New runs adding the `documentation_state` event must include it in the `_index.event_types` list.
+
 ### `run_end`
 
 Marks the end of the playbook run.
