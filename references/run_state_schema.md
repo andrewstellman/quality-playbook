@@ -1,4 +1,4 @@
-# Run-State Schema (v1.5.5)
+# Run-State Schema (v1.5.6)
 
 *Authoritative schema for `quality/run_state.jsonl`, `quality/PROGRESS.md`, and `Calibration Cycles/<cycle>/run_state.jsonl`. The playbook AI writes these files directly via the file-tool layer; the orchestrator AI reads them to drive multi-benchmark calibration cycles.*
 
@@ -18,7 +18,7 @@ All three live in the bind-mounted workspace owned by the user. The AI writes vi
 
 ## Schema versioning
 
-Every `run_state.jsonl` opens with an `_index` event recording `schema_version`. Current version: `"1.5.5"`. Schema bumps preserve backward compatibility — older files remain readable by newer parsers. Breaking schema changes bump the major number.
+Every `run_state.jsonl` opens with an `_index` event recording `schema_version`. Current version: `"1.5.6"`. Schema bumps preserve backward compatibility — older files remain readable by newer parsers. Breaking schema changes bump the major number.
 
 ---
 
@@ -43,7 +43,7 @@ ALWAYS the first line. Records schema metadata.
 |---|---|---|---|
 | `event` | string | yes | Always `"_index"` |
 | `ts` | string | yes | ISO 8601 UTC |
-| `schema_version` | string | yes | `"1.5.5"` |
+| `schema_version` | string | yes | `"1.5.6"` |
 | `event_types` | array of string | yes | Every event type this file uses |
 | `benchmark` | string | yes | E.g. `"chi-1.3.45"`, `"virtio-1.5.1"` |
 | `lever_state` | string | yes | E.g. `"pre-pattern7"`, `"post-pattern7"`, `"baseline"` |
@@ -58,7 +58,7 @@ Marks the beginning of a playbook run.
 | `event` | string | yes | `"run_start"` |
 | `ts` | string | yes | |
 | `runner` | string | yes | One of `"claude"`, `"codex"`, `"copilot"`, `"cursor"` |
-| `playbook_version` | string | yes | E.g. `"1.5.5-pre"`, `"1.5.5"` (matches `bin.benchmark_lib.RELEASE_VERSION`) |
+| `playbook_version` | string | yes | E.g. `"1.5.6-pre"`, `"1.5.6"` (matches `bin.benchmark_lib.RELEASE_VERSION`) |
 | `target_path` | string | yes | Relative path to benchmark target |
 
 ### `phase_start`
@@ -201,7 +201,7 @@ Marks the end of the playbook run.
 |---|---|---|---|
 | `event` | string | yes | `"_index"` |
 | `ts` | string | yes | |
-| `schema_version` | string | yes | `"1.5.5"` |
+| `schema_version` | string | yes | `"1.5.6"` |
 | `event_types` | array of string | yes | |
 | `cycle_name` | string | yes | E.g. `"2026-05-15-pattern7-displacement-recovery"` |
 | `lever_under_test` | string | yes | E.g. `"lever-1-exploration-breadth-depth"` |
@@ -313,7 +313,7 @@ Atomically rewritten on every event. Markdown.
 # QPB Run Progress
 
 **Started:** 2026-05-15T14:32:01Z  **Benchmark:** chi-1.5.1  **Lever:** post-pattern7
-**Runner:** claude  **Playbook version:** 1.5.5
+**Runner:** claude  **Playbook version:** 1.5.6
 
 ## Phases
 

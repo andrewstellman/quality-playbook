@@ -1,8 +1,8 @@
-# Calibration Orchestrator — autonomous cycle prompt template (v1.5.5)
+# Calibration Orchestrator — autonomous cycle prompt template (v1.5.6)
 
 *Prompt template for the AI session driving an end-to-end QPB calibration cycle. One AI session reads this prompt, executes Steps 1-12 from `ai_context/CALIBRATION_PROTOCOL.md`, and writes the cycle audit + Lever Calibration Log entry. Designed for Claude Code sessions but will work in any tool with bash + file tools.*
 
-*This prompt builds on `ai_context/CALIBRATION_PROTOCOL.md` Mode 1 (autonomous). The protocol is the canonical operational guide; this template wires it into v1.5.5's run-state instrumentation so the cycle is fully observable, resumable, and recoverable.*
+*This prompt builds on `ai_context/CALIBRATION_PROTOCOL.md` Mode 1 (autonomous). The protocol is the canonical operational guide; this template wires it into v1.5.6's run-state instrumentation so the cycle is fully observable, resumable, and recoverable.*
 
 *Schema for cycle-level events: `references/run_state_schema.md`.*
 
@@ -42,7 +42,7 @@ Files you produce:
 - `run_state.jsonl` — cycle-level event log (your own append-only output). Schema: `references/run_state_schema.md` "Cycle-level events" section.
 - `audit.md` — human-readable cycle audit. Written at cycle close.
 - `post-pattern7-snapshots/` (or analogous lever-specific subdir) — copies of post-lever BUGS.md per benchmark, in case canonical paths get overwritten.
-- `visualizations/` — populated by `bin/visualize_calibration.py` (Phase 4 of v1.5.5; may not exist yet during early cycles).
+- `visualizations/` — populated by `bin/visualize_calibration.py` (available in current releases; may not exist yet during early cycles).
 
 Files you write to elsewhere:
 - `metrics/regression_replay/<timestamp>/<bench>-<bench>-all.json` — per-benchmark cell.json (one per pre/post pair).
@@ -73,7 +73,7 @@ If fresh cycle:
 
 1. Create `Calibration Cycles/<cycle_name>/` directory if absent.
 2. Write `run_state.jsonl` with two events:
-   - `_index`: `{"event":"_index","ts":"<now>","schema_version":"1.5.5","event_types":["_index","cycle_start","benchmark_start","benchmark_end","lever_change_applied","lever_change_reverted","cycle_end"],"cycle_name":"<cycle_name>","lever_under_test":"<lever_id>","benchmarks":[<benchmarks>],"iteration":<iteration>}`
+   - `_index`: `{"event":"_index","ts":"<now>","schema_version":"1.5.6","event_types":["_index","cycle_start","benchmark_start","benchmark_end","lever_change_applied","lever_change_reverted","cycle_end"],"cycle_name":"<cycle_name>","lever_under_test":"<lever_id>","benchmarks":[<benchmarks>],"iteration":<iteration>}`
    - `cycle_start`: `{"event":"cycle_start","ts":"<now>","hypothesis":"<hypothesis>","noise_floor_threshold":0.05}`
 
 ### Step 1: Pre-flight
@@ -81,7 +81,7 @@ If fresh cycle:
 Verify environment per `CALIBRATION_PROTOCOL.md` Step 1 checks:
 
 - `git status --porcelain` clean (or only contains expected scratch files; document any).
-- Current branch is `1.5.5` (or whichever development branch you're on); record the HEAD SHA.
+- Current branch is `1.5.6` (or whichever development branch you're on); record the HEAD SHA.
 - `bin/run_playbook.py --help` runs cleanly.
 - `claude --version` (or whichever runner you're using) reports a usable version.
 - For each benchmark in `<benchmarks>`: verify `repos/archive/<bench>/` exists; verify `repos/archive/<bench>/quality/previous_runs/<latest>/quality/BUGS.md` exists (this is the historical baseline used for recall computation).
@@ -108,7 +108,7 @@ For each benchmark in `<benchmarks>`:
 ### Step 3: Apply lever change
 
 1. Edit the file(s) per `<lever_change_description>`. Example for the Pattern 7 displacement recovery cycle: edit `references/exploration_patterns.md` Pattern 7 budget-cap line.
-2. Commit to the working branch (1.5.5 or current development branch): `git add <files> && git commit -m "v1.5.5 lever pull (<lever_id>): <change description>\n\nCycle: <cycle_name>\nIteration: <iteration>\nHypothesis: <hypothesis>"`.
+2. Commit to the working branch (1.5.6 or current development branch): `git add <files> && git commit -m "v1.5.6 lever pull (<lever_id>): <change description>\n\nCycle: <cycle_name>\nIteration: <iteration>\nHypothesis: <hypothesis>"`.
 3. Capture the commit SHA.
 4. Append `lever_change_applied`: `{"event":"lever_change_applied","ts":"<now>","lever_id":"<lever_id>","files_changed":[<files>],"commit_sha":"<sha>","description":"<lever_change_description>"}`.
 
@@ -167,7 +167,7 @@ At `~/Documents/QPB/docs/process/Lever_Calibration_Log.md`. Format follows the e
 
 ### Step 10: Generate visualizations (if `bin/visualize_calibration.py` exists)
 
-Run `python3 -m bin.visualize_calibration <cycle-dir>`. Produces 4 PNGs into `Calibration Cycles/<cycle_name>/visualizations/`. If the script doesn't exist yet (Phase 4 of v1.5.5 not implemented), skip with a note in the audit.
+Run `python3 -m bin.visualize_calibration <cycle-dir>`. Produces 4 PNGs into `Calibration Cycles/<cycle_name>/visualizations/`. If the script is unavailable in the checkout you're using, skip with a note in the audit.
 
 ### Step 11: Write `cycle_end` event
 
@@ -213,5 +213,5 @@ Print a summary block to stdout:
 ## Out of scope for this orchestrator
 
 - Designing the lever change. The operator provides `<lever_change_description>`; you apply it, you don't invent it.
-- Modifying the playbook prose (SKILL.md, references/exploration_patterns.md beyond the documented lever change). If the cycle reveals a non-lever defect (e.g., the runner-side "Phase 1 archived as complete with 0-line EXPLORATION.md" finding), document it in the audit's "Cycle Findings" section but don't auto-fix it; that's a separate cycle or a v1.5.5 cleanup item.
-- Promoting a Ship verdict to a release tag. The cycle's commit ships the lever change; the release happens separately when v1.5.5 (or whichever version) is ready to ship.
+- Modifying the playbook prose (SKILL.md, references/exploration_patterns.md beyond the documented lever change). If the cycle reveals a non-lever defect (e.g., the runner-side "Phase 1 archived as complete with 0-line EXPLORATION.md" finding), document it in the audit's "Cycle Findings" section but don't auto-fix it; that's a separate cycle or a v1.5.7 cleanup item.
+- Promoting a Ship verdict to a release tag. The cycle's commit ships the lever change; the release happens separately when v1.5.6 (or whichever version) is ready to ship.

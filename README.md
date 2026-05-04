@@ -1,6 +1,6 @@
 # Quality Playbook
 
-**Version:** 1.5.5 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
+**Version:** 1.5.6 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
 
 ## Find the 35% of bugs that code review misses
 
@@ -315,7 +315,7 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
 
 - **v1.6 — Requirements review and management UX.** Operator-facing system for reviewing and managing the requirements QPB derives from a target. The UX walks the operator through each requirement (Wiegers quality attributes — clarity, completeness, consistency, testability, necessity, feasibility, verifiability), surfaces evidence from formal docs, informal sources (chat archives, design notes), and exploration findings, and helps validate or refine the REQ set. Includes **targeted playbook runs that check specific requirements against the code** — e.g., re-derive REQ-007 against the updated source, verify a logging requirement against `bin/audit_log.py`, compare the current REQ-set against a prior run for drift detection. Closes the QI loop: defect data from review sessions feeds back into Phase 1/2 prompt-tuning calibration cycles. Design at [`docs/design/QPB_v1.6.0_Design.md`](docs/design/QPB_v1.6.0_Design.md), spec at [`docs/design/QPB_v1.6.0_Implementation_Plan.md`](docs/design/QPB_v1.6.0_Implementation_Plan.md), feature proposal at [`docs/design/QPB_v1.6.x_Requirements_Review_Proposal.md`](docs/design/QPB_v1.6.x_Requirements_Review_Proposal.md).
 
-- **v1.5.6 — Adopter-facing distribution + Pattern 7 displacement-recovery cycle.** Streamlines the path from "operator wants to try QPB" to "operator gets useful output" — turnkey install, opinionated defaults, less assumed familiarity with QPB internals. Plus the v1.5.5-deferred Pattern 7 calibration cycle: tuning Pattern 7's budget cap to recover the PathRewrite and AllowContentEncoding bugs that v1.5.4 stopped catching, validating the v1.5.5 autonomous-loop infrastructure on a real end-to-end lever pull. Design forthcoming.
+- **v1.5.6 — Adopter-facing distribution + Pattern 7 displacement-recovery cycle.** Shipped turnkey install/distribution (`bin/install_skill.py`, AGENTS-driven setup, multi-environment auto-detection), code-only-mode documentation/instrumentation for empty `reference_docs/`, and adopter-grade AI orchestration patterns documentation; the Pattern 7 displacement-recovery cycle also shipped with a documented revert, keeping the budget cap at `3-5`. Tag [`v1.5.6`](https://github.com/andrewstellman/quality-playbook/releases/tag/v1.5.6). Design at [`docs/design/QPB_v1.5.6_Design.md`](docs/design/QPB_v1.5.6_Design.md), spec at [`docs/design/QPB_v1.5.6_Implementation_Plan.md`](docs/design/QPB_v1.5.6_Implementation_Plan.md).
 
 - **v1.5.5 — Autonomous improvement-loop infrastructure.** Run-state instrumentation (`quality/run_state.jsonl`, `quality/PROGRESS.md`), phase-boundary cross-validation (catches the failure mode where a phase reports "complete" with empty artifacts), Phase 5 source-edit guardrail, calibration-cycle orchestrator template, four matplotlib visualization charts, plus seven v1.5.4 self-audit defect fixes and four inherited regression-replay test failures cleared. Tag: in flight (HEAD on the `1.5.5` branch; not yet tagged). Design at [`docs/design/QPB_v1.5.5_Design.md`](docs/design/QPB_v1.5.5_Design.md), spec at [`docs/design/QPB_v1.5.5_Implementation_Plan.md`](docs/design/QPB_v1.5.5_Implementation_Plan.md).
 
@@ -335,7 +335,63 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
 
 - **v1.2 — Initial public release.** First tagged version of the playbook with the inspection-style workflow (deskcheck → walkthrough → inspection) and the bug-finding-as-divergence-detection methodology. Tag [`v1.2.16`](https://github.com/andrewstellman/quality-playbook/releases/tag/v1.2.16) (most recent v1.2.x). Design at [`docs/design/QPB_v1.2.15_Design.md`](docs/design/QPB_v1.2.15_Design.md).
 
-<!-- What's new in v1.5.6 — drafted in Phase 5 of v1.5.6 implementation -->
+### What's new in v1.5.6
+
+- **Adopter-facing distribution is now the default path.**
+  QPB now ships a turnkey AI-agent-driven installer at
+  [`bin/install_skill.py`](bin/install_skill.py), and the README quickstart is
+  restructured so install is Step 1 instead of an afterthought.
+- **The installer works in multiple environments without repo-specific hand edits.**
+  It auto-detects `.claude/`, `.github/`, `.cursor/`, and `.continue/` targets,
+  and it also supports explicit `--into <target-repo>` and `--target <path>`
+  flags when the operator wants to pin the destination.
+- **Cross-platform support is part of the release contract.**
+  The install path is written for Windows, macOS, and Linux via `pathlib`-style
+  path handling. Windows was asserted in code and tests, but not directly
+  exercised in this release environment.
+- **Re-installs are idempotent and preserve operator edits.**
+  Existing files are not silently clobbered; operator-modified copies are
+  preserved via timestamped backup handling so install automation does not erase
+  local customization.
+- **`AGENTS.md` now carries an install-procedure section meant for the AI itself.**
+  An adopter can point Claude Code, Cursor, Copilot, or another coding agent at
+  [`AGENTS.md`](AGENTS.md), ask it to follow the install procedure, and let the
+  agent drive the setup using the script's structured output.
+- **Missing-documentation runs now downgrade cleanly instead of feeling half-broken.**
+  When `reference_docs/` is empty, the playbook proceeds in explicit code-only
+  mode rather than implying docs should have been there.
+- **That downgrade is visible in both artifacts and telemetry.**
+  Phase 1 opens `quality/EXPLORATION.md` with code-only framing,
+  `quality/run_state.jsonl` records a `documentation_state` event, and adopters
+  now have [`references/code-only-mode.md`](references/code-only-mode.md)
+  explaining the weaker evidence posture and how to upgrade later by adding docs.
+- **AI orchestration patterns are documented for adopters, not just maintainers.**
+  New [`ai_context/AI_ORCHESTRATION_PATTERNS.md`](ai_context/AI_ORCHESTRATION_PATTERNS.md)
+  explains the orchestrator/worker pattern at adoption depth, with worked
+  examples that cite the v1.5.5 ai_context-refresh runner and cross-links from
+  [`ai_context/DEVELOPMENT_PROCESS.md`](ai_context/DEVELOPMENT_PROCESS.md) and
+  [`agents/calibration_orchestrator.md`](agents/calibration_orchestrator.md).
+- **The Pattern 7 displacement-recovery cycle completed, and the honest verdict is revert.**
+  The cycle ran to completion on two benchmarks with substantive before/after
+  recall (`chi-1.3.45`, `virtio-1.5.1`) plus an express pre-lever run used for
+  context. Lowering Pattern 7's budget cap to `2-3` did recover
+  `AllowContentEncoding`, but it did not recover `PathRewrite`, did not preserve
+  the mount-context findings on chi, and left the load-bearing benchmark worse
+  overall, so the cap stays at `3-5`.
+- **The release keeps the evidence trail rather than smoothing it over.**
+  The cycle audit at `~/Documents/AI-Driven Development/Quality Playbook/Calibration Cycles/2026-05-02-pattern7-displacement-recovery/audit.md`
+  and the corresponding `Lever_Calibration_Log` entry are preserved as shipped
+  deliverables, including the surfaced REQ-ID instability finding: replay
+  matching by `(REQ_id, file)` is still noisy across runs at roughly 50%
+  file-basename overlap and needs methodology work in the v1.7 SPC arc.
+- **Two cycle-scope deferrals remain explicit.**
+  Express post-lever orchestration was interrupted at the weekly API limit, and
+  `chi-1.5.1` was dropped on time-budget grounds. Both follow-up questions move
+  to v1.5.7 rather than being treated as silent omissions.
+- **Known limitations remain in the release notes instead of being buried in validation output.**
+  Windows install behavior remains untested in this environment, and the reused
+  `chi-1.3.45` evidence available in Phase 4 validation is code-only rather than
+  a fresh docs-backed validation run.
 
 ### What's new in v1.5.5
 
