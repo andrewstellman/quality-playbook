@@ -16,13 +16,13 @@ agent can parse results without natural-language interpretation. Pass
 
 Usage:
 
-    python -m bin.install_skill                            # auto-detect from cwd
-    python -m bin.install_skill --into /path/to/target    # scan target repo
-    python -m bin.install_skill --target /path/to/skill   # explicit target
-    python -m bin.install_skill --source /qpb-clone       # explicit source root
-    python -m bin.install_skill --no-smoke                # skip smoke check
-    python -m bin.install_skill --force                   # overwrite without backup
-    python -m bin.install_skill --verbose                 # human prose alongside
+    python3 -m bin.install_skill                            # auto-detect from cwd
+    python3 -m bin.install_skill --into /path/to/target    # scan target repo
+    python3 -m bin.install_skill --target /path/to/skill   # explicit target
+    python3 -m bin.install_skill --source /qpb-clone       # explicit source root
+    python3 -m bin.install_skill --no-smoke                # skip smoke check
+    python3 -m bin.install_skill --force                   # overwrite without backup
+    python3 -m bin.install_skill --verbose                 # human prose alongside
 
 Exit codes: 0 on success; 64 (EX_USAGE) on bad invocation or refusal;
 65 (EX_DATAERR) on smoke-check failure or downgrade refusal.
@@ -229,9 +229,9 @@ def smoke_check_quality_gate(target: Path, emitter: Emitter) -> bool:
     The instruction asked for "python <target>/quality_gate.py --help (or
     equivalent help-only call)". The current quality_gate.py does NOT
     recognize --help (its argparse-free CLI treats --help as a repo
-    name and exits 1). We use the equivalent: py_compile, which proves
-    the file is syntactically valid Python and importable, without
-    executing any top-level code.
+    name and exits 1). We use the equivalent: compile the source text
+    in a subprocess. This keeps the smoke check side-effect free;
+    py_compile would leave __pycache__/ behind in the install tree.
     """
     gate = target / "quality_gate.py"
     if not gate.is_file():
@@ -243,13 +243,22 @@ def smoke_check_quality_gate(target: Path, emitter: Emitter) -> bool:
         return False
     try:
         result = subprocess.run(
-            [sys.executable, "-m", "py_compile", str(gate)],
+            [
+                sys.executable,
+                "-c",
+                (
+                    "from pathlib import Path; import sys; "
+                    "source = Path(sys.argv[1]).read_text(encoding='utf-8', errors='replace'); "
+                    "compile(source, sys.argv[1], 'exec')"
+                ),
+                str(gate),
+            ],
             capture_output=True, text=True, timeout=30, check=False,
         )
         if result.returncode != 0:
             emitter.emit(
                 "smoke_check", check="quality_gate_help", status="failed",
-                detail=f"py_compile-exit-{result.returncode}",
+                detail=f"compile-exit-{result.returncode}",
                 prose=f"quality_gate.py syntax check failed: {result.stderr.strip()}",
             )
             return False
@@ -262,7 +271,7 @@ def smoke_check_quality_gate(target: Path, emitter: Emitter) -> bool:
         return False
     emitter.emit(
         "smoke_check", check="quality_gate_help", status="passed",
-        prose="quality_gate.py loads as valid Python (py_compile OK)",
+        prose="quality_gate.py loads as valid Python (compile OK)",
     )
     return True
 

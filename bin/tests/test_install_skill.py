@@ -284,7 +284,7 @@ class SmokeCheckTests(unittest.TestCase):
                 f"expected smoke check to fail; output: {output}",
             )
             self.assertIn("status=failed", output)
-            self.assertIn("py_compile", output)
+            self.assertIn("compile-exit-", output)
 
 
 class StructuredOutputTests(unittest.TestCase):
