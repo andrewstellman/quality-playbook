@@ -1,6 +1,6 @@
 # AI Orchestration Patterns
 
-*Last updated: 2026-05-03 (v1.5.6 Phase 1 — initial publication).*
+*Last updated: 2026-05-03 (v1.5.6 currency pass — initial publication in v1.5.6 Phase 1; this pass adds a "Lessons from v1.5.6 use" section reflecting the first end-to-end use of the pattern through a release).*
 
 > This document describes a reusable pattern for coordinating two AI sessions through a shared directory: a chat-driving **orchestrator** session writes instructions into a folder, and a long-lived coding **worker** session polls the folder, executes each instruction, and writes results back. The two sessions never share memory; the directory is the canonical record of what was instructed and what happened.
 
@@ -320,6 +320,19 @@ Each instruction had a matching output file at `outputs/NNN-<same-name>.md.out.m
 **Cross-running with other work.** The Cowork orchestrator was simultaneously doing other work in chat (drafting the v1.6.0 reframing, the v1.7.0 design, README rewrites that didn't touch QPB source). The runner folder was the boundary: anything that needed source edits went through `v1.5.5_runner/`; anything else stayed in chat. This is the diagnosis-then-Claude-Code-lane rule operationalized at the file level.
 
 **Additional runners can coexist.** Beyond `v1.5.5_runner/` and `v1.5.6_runner/`, QPB plans a `model-comparison_runner/` for benchmark sweeps across `gh copilot --model` IDs (operating on `repos/model-comparison/` subfolders and using v1.5.5's tagged state rather than an in-flight branch). The pattern accommodates this naturally: each runner has its own folder, its own worker instance, its own scope, and no cross-talk with the others. The only coordination concern is that two workers shouldn't make conflicting source edits to the same files concurrently — for QPB that's handled by branch convention (each runner has a designated branch) and by some runners not editing QPB source at all.
+
+---
+
+## 9.5. Lessons from v1.5.6 use
+
+v1.5.6 was the first release implemented end-to-end through the orchestrator/worker pattern documented in this file. The release covered Pattern 7 cycle execution (a multi-day calibration cycle across three benchmarks), the `bin/install_skill.py` adopter install script, and the v1.5.6 currency pass on this orientation-doc surface. Lessons that are worth surfacing for adopters considering the pattern for similarly-shaped work:
+
+- **The autonomous worker correctly self-halted at the long-running cycle instruction.** When the v1.5.6 cycle instruction told the worker to drive the Pattern 7 cycle end-to-end through the v1.5.5 orchestration machinery, the worker began the cycle and reached a natural halt boundary (per-benchmark playbook run completion) rather than spinning indefinitely on an unbounded task. The worker's halt-and-report behavior at boundaries kept the audit trail clean and let the orchestrator decide whether to issue a follow-up instruction. **Lesson:** instructions should name a clear halt boundary even when the work is long-running; the worker will self-halt at the boundary and report.
+- **Cowork-style orchestration handed off cleanly to Codex when the Anthropic budget became constrained.** Mid-release, the orchestrator hit the Anthropic API budget limit. The runner-folder pattern made the handoff to a Codex-backed worker trivial: switch the worker backend, point Codex at the same instruction file the previous worker had been processing, let Codex pick up from where the previous worker had logged its last output. **Lesson:** the file-based instruction/output protocol is backend-agnostic by construction; switching workers across LLM backends mid-release is straightforward when the protocol is followed.
+- **The runner folder pattern proved robust under multi-day, multi-tool execution.** v1.5.6 spanned three calendar days, two LLM backends (Claude Code + Codex), and at least three distinct work surfaces (cycle execution, install-script implementation, orientation-doc currency pass). The runner folder remained the canonical record across all of it; no chat scrollback was needed to reconstruct what happened. **Lesson:** the pattern scales across multi-day windows and tool switches without modification; the file boundary is the contract.
+- **Be explicit about the polling loop pattern in the worker brief.** The original `until` polling loop the worker chose for v1.5.5 was a one-shot construct (check once, exit if no instruction found) rather than a continuous loop. This worked for the v1.5.5 instruction sequence because the orchestrator dropped instructions in immediately-readable batches, but it would have failed on a workflow that required the worker to wait for an instruction to appear later. **Lesson:** the worker brief should specify "loop forever, polling at <interval>, until STOP" rather than leaving the loop pattern implicit. Section 8's adopter-facing brief now spells this out explicitly; for QPB's own runners this was an undocumented assumption that happened to work.
+
+These lessons are operational; the pattern itself is unchanged. If you're adopting the pattern for your own project, the section 8 brief incorporates the explicit-loop guidance; the cycle and multi-day evidence above are the empirical case for the pattern's robustness.
 
 ---
 

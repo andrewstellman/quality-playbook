@@ -7,7 +7,7 @@
 >
 > Background: [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/) (O'Reilly Radar)
 >
-> *Last updated: 2026-05-03 (v1.5.5 currency pass).*
+> *Last updated: 2026-05-03 (v1.5.6 currency pass — adopter install path now centers on `bin/install_skill.py`; AGENTS.md install-procedure section is the canonical procedure for AI-agent-driven installs; manual file-copy paths remain documented as alternatives).*
 
 ## How to respond when the user opens this file with you
 
@@ -37,14 +37,25 @@ The skill file is `SKILL.md`. The iteration reference is `references/iteration.m
 
 The user wants to run the quality playbook on a codebase. Here's what to do:
 
-1. **Copy skill files into the repo.** The playbook expects its files in one of four documented install locations, and every component (runner, gate, orchestrator agents) checks all four in order:
+1. **Install skill files into the repo.** The recommended path for an AI-agent-driven install is `bin/install_skill.py` with `--into <target-repo>`. The script auto-detects the target's AI-tool environment (`.claude`, `.github`, `.cursor`, `.continue`) and installs to the matching skill subdirectory:
+
+   ```bash
+   # From inside a QPB clone:
+   python3 -m bin.install_skill --into /path/to/target-repo
+   ```
+
+   The canonical procedure for AI-agent-driven installs lives in the `AGENTS.md` install-procedure section — when an AI coding agent (Claude Code, Cursor, etc.) is doing the install on the operator's behalf, follow that section step by step rather than the manual file-copy commands below. Alternative invocations include `--target /path/to/install` for a literal install path, `--force` to skip the operator-edit-preservation backup, `--no-smoke` to skip the post-install smoke check, and `--verbose` for human-prose alongside the structured event output. Cross-platform: the script is Python 3.8+ standard library only, so it runs unchanged on macOS, Linux, and Windows (PowerShell or WSL).
+
+   **Code-only mode (a runtime behavior, not an install flag).** When a target repo's `reference_docs/` is empty or absent, Phase 1 emits a `documentation_state state=code_only` event into `quality/run_state.jsonl`, prepends a "Documentation status: code-only mode" section to `quality/EXPLORATION.md`, and writes a `Documentation state: code_only` line to `quality/PROGRESS.md`. The playbook proceeds — it does not abort — but every requirement it derives leans entirely on code evidence (Tier 3+). See `references/code-only-mode.md` for what to expect from a code-only run and how to upgrade to a full-documentation run for the next pass.
+
+   The playbook expects its files in one of four documented install locations, and every component (runner, gate, orchestrator agents) checks all four in order — the install script picks one based on the detected environment, but manual installs can target any of them:
 
    1. **Repo root (source checkout):** `SKILL.md`, `references/`, `quality_gate.py` at the project root. Useful when running the playbook out of the quality-playbook checkout itself.
    2. **Claude Code:** `.claude/skills/quality-playbook/SKILL.md`, `.claude/skills/quality-playbook/references/`, `.claude/skills/quality-playbook/quality_gate.py`.
    3. **GitHub Copilot (flat):** `.github/skills/SKILL.md`, `.github/skills/references/`, `.github/skills/quality_gate.py`.
    4. **GitHub Copilot (nested):** `.github/skills/quality-playbook/SKILL.md`, `.github/skills/quality-playbook/references/`, `.github/skills/quality-playbook/quality_gate.py`.
 
-   Create the directories if they don't exist. Copy from wherever the user has the playbook files. The source tree has the gate script inside a package directory with tests (`.github/skills/quality_gate/quality_gate.py` plus a `tests/` subdirectory) — target repos only need the standalone `quality_gate.py` file itself, not the package. `repos/setup_repos.sh` handles this automatically: it copies just the module file into each target's `.github/skills/quality_gate.py`.
+   Manual install path (alternative when `bin/install_skill.py` is not available or the operator wants direct control): create the directories if they don't exist and copy from wherever the user has the playbook files. The source tree has the gate script inside a package directory with tests (`.github/skills/quality_gate/quality_gate.py` plus a `tests/` subdirectory) — target repos only need the standalone `quality_gate.py` file itself, not the package. `repos/setup_repos.sh` handles this automatically for benchmarking: it copies just the module file into each target's `.github/skills/quality_gate.py`.
 
 2. **Add documentation (strongly recommended).**
 

@@ -2,7 +2,7 @@
 
 > Release-gate review for `TOOLKIT.md` and the orientation docs that reference it. Applies the same empirical-loop discipline that `IMPROVEMENT_LOOP.md` describes for the playbook itself, but to the documentation: surface problems through a panel of independent readers, fix them, re-test until convergence.
 
-*Last updated: 2026-05-03 (v1.5.5 currency pass).*
+*Last updated: 2026-05-03 (v1.5.6 currency pass — adds `bin/install_skill.py` AI-agent-driven install path as the new default install mode in TOOLKIT.md; Persona 19 skill-as-code deep work moves forward to v1.5.7).*
 
 ## Purpose
 
@@ -138,6 +138,13 @@ OpenAI codex CLI as a third LLM backend (alongside `claude
 codex CLI can drive the pipeline via `--runner codex` without
 giving up access to the skill-as-code surface.
 
+(Persona 19 deep work moves forward to v1.5.7. v1.5.6 shipped
+Pattern 7 cycle execution and adopter-facing install work; the
+skill-as-code adopter persona — what an adopter holding a
+SKILL.md plus references/ actually does step-by-step to get a
+useful run, beyond knowing the surface exists — is the next
+major surface to deepen.)
+
 ### Persona 14 — The PR-submitter walkthrough
 
 > I just finished a Quality Playbook run and got a `quality/BUGS.md` with 15 bugs. I want to submit some of them as upstream PRs. Walk me through the workflow: which bugs should I submit first, what evidence do I package with each PR, what do I do with the regression-test patches that QPB already generated, and what's an honest framing of "QPB found this" that a maintainer won't push back on?
@@ -151,6 +158,12 @@ Tests: PR-pipeline workflow guidance; standout-tier-as-submission-criterion clar
 Tests: recognition of root-cause vs. symptom; whether the doc distinguishes BUGS.md as "individual reports" vs. "a list of distinct defects"; awareness that maintainers prefer one consolidated PR for a defect family over nine individual ones; whether the iteration-strategy taxonomy (gap, unfiltered, parity, adversarial) admits the possibility that multiple iterations re-find the same underlying defect.
 
 (Personas 14 and 17 added at the v1.5.2 release-gate, sourced from the 2026-04-25 cross-repo analysis. Persona 19 added at the v1.5.3 release-gate to test skill-as-code awareness. Personas 15, 16, and 18 from the v1.5.2 source remain queued for later release-gates: P15 deferred to v1.5.4+ (within-version variance language did not land in v1.5.3 — it requires the regression-replay machinery scheduled for v1.5.4); P16 and P18 for v1.6.x once replicate data accumulates and a HIGH-severity operational definition exists.)
+
+### Persona 21 — The AI-agent installer (v1.5.6)
+
+> I want my AI coding agent (Claude Code, Cursor, etc.) to install the Quality Playbook into my repo. Walk me through what the agent should do — what tool to invoke, what arguments to pass, and what to do if my repo doesn't have one of the recognized AI-tool markers.
+
+Tests: awareness of the v1.5.6 `bin/install_skill.py` adopter install script as the new default mode for AI-agent-driven installs; the `--into <target>` argument shape; environment auto-detection via `.claude` / `.github` / `.cursor` / `.continue` markers; the canonical AGENTS.md install-procedure section as the step-by-step procedure; idempotent re-install behavior (operator-edit preservation as `<file>.operator-backup-<UTC-ts>` unless `--force`); cross-platform support (macOS/Linux/Windows). A correct answer also surfaces that manual file-copy install paths remain documented as alternatives in TOOLKIT.md's "Quick start" section for cases where the script can't run or the operator wants direct control, and that "code-only mode" (when `reference_docs/` is empty) is a runtime behavior of the playbook rather than an install-script flag.
 
 ### Persona 20 — The calibration-cycle orchestrator (v1.5.5)
 

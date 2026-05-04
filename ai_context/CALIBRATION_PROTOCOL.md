@@ -2,7 +2,7 @@
 
 *Self-contained operational protocol. Designed to be paste-able to any AI agent (Cowork, Claude Code, codex, claude CLI, Cursor agent, etc.) that has read access to a QPB repository. The AI executes the steps below as the **executing AI**; the **operator** (Andrew) provides inputs, runs subprocesses the AI cannot run, and gates the STOP boundaries; a **Council of Three** review gates the final lever change.*
 
-*Last updated: 2026-05-03 (v1.5.5 currency pass — the v1.5.5 orchestration substrate referenced throughout is now in-tree at `agents/calibration_orchestrator.md`, `bin/run_state_lib.py`, `references/run_state_schema.md`, and `bin/visualize_calibration.py`).*
+*Last updated: 2026-05-03 (v1.5.6 currency pass — the v1.5.6 Pattern 7 displacement-recovery cycle exercised this protocol end-to-end and surfaced lessons about session-lifetime constraints, API budget as a binding constraint on express post-lever orchestration, and REQ-ID instability across runs. The protocol itself did not change; the lessons inform scheduling and budgeting future cycle work).*
 
 *Methodology context (read first if unfamiliar): `~/Documents/QPB/ai_context/IMPROVEMENT_LOOP.md` describes WHY the lever inventory exists and WHAT each lever controls. This protocol describes HOW to actually run a calibration cycle.*
 
@@ -18,6 +18,18 @@
 *Discipline shared with the rest of QPB development: `~/Documents/QPB/ai_context/DEVELOPMENT_PROCESS.md` (Council protocol, mutation-test discipline, calibrated reporting, AI-identity discipline).*
 
 *Edit lane: this is a QPB orientation doc per the workspace `~/Documents/AI-Driven Development/CLAUDE.md` orientation-doc carve-out. Direct edits by Cowork are permitted; release-gate review is the Toolkit Test Protocol, not Council-of-Three.*
+
+---
+
+## Lessons from v1.5.6 use
+
+The v1.5.6 Pattern 7 displacement-recovery cycle was the first cycle to drive this protocol end-to-end through the v1.5.5 orchestration machinery. It produced a REVERT verdict (lever pull did not recover the targeted displacement bugs without losing others), but more importantly it surfaced operational lessons that don't change Mode 1 itself but do inform how future cycles should be scheduled and budgeted:
+
+- **Session lifetime is a binding constraint on multi-day cycles.** The v1.5.6 cycle ran across 2026-05-02 through 2026-05-04 and could not be driven from a single continuous executing-AI session. Instead, the cycle was structured as per-benchmark instructions issued through a runner folder (`v1.5.6_runner/`) using the orchestrator/worker pattern documented in `ai_context/AI_ORCHESTRATION_PATTERNS.md`. Each instruction was self-contained enough that a fresh worker session could resume from the runner folder's state without losing cycle context. The protocol's Mode 1 description still applies — autonomous loop, no operator intervention between Steps 1-12 — but for a multi-day cycle in practice, "Mode 1" maps onto a sequence of worker sessions coordinated through a runner folder, not one continuous session.
+- **API budget can become a binding constraint that interrupts cycle work.** The v1.5.6 cycle's express-1.3.50 post-lever orchestration was interrupted at the API budget limit before producing a replayable cell snapshot. Express therefore appeared in the audit only as pre-lever context, not as a completed before/after replay cell, and the cycle ran on a 2-of-3 reduced scope (chi-1.3.45 + virtio-1.5.1 post-lever). When budgeting future cycles, plan for the possibility that API budget may exhaust mid-cycle on a benchmark; the orchestrator/worker pattern lets a follow-up cycle pick up the interrupted benchmark cleanly without redoing the unaffected ones.
+- **REQ-ID instability across runs requires substantive matching.** Recall measurement assumes a stable match key between historical and fresh BUGS.md. In the v1.5.6 cycle, REQ-IDs were renumbered per Phase 4 run, so the file-basename overlap between pre/post-lever runs was around 50% and the `(REQ_id, file)` mechanical replay key did not produce a clean comparison. The audit fell back to substantive file-path and description-content matching (per Step 3's "match identification is the executing AI's qualitative judgment" guidance). This worked, but it means the executing AI cannot rely on REQ-ID stability when computing recall — Step 3's instruction to use semantic equivalence is required, not optional.
+
+These lessons live here for future cycle planners; the protocol's 12-step structure is unchanged.
 
 ---
 

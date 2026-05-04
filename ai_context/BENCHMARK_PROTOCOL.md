@@ -1,6 +1,6 @@
 # Benchmark Protocol
 
-Last updated: 2026-05-03 (v1.5.5 currency pass — added run_state.jsonl format + cross-validation rules below)
+Last updated: 2026-05-03 (v1.5.6 currency pass — clarifies the canonical 3 (or 4 with chi-1.5.1) calibration benchmarks for cycle work; notes the v1.5.6 cycle ran a 2-of-3 reduced scope)
 
 The playbook tunes against real repos. For tuning signals to be honest, each benchmark run has to start from the same blank slate — no prior findings, no sibling runs, no pre-existing `quality/` artifacts to anchor on. This file is the checklist.
 
@@ -66,6 +66,12 @@ Capture friction in `NOTES.md` or in a dedicated `RUN_SUMMARY.md` inside `qualit
 ## Cross-agent runs
 
 When running the same target in multiple agents (e.g., httpx in Codex while chi runs in Copilot), each agent gets its own run directory. Never share a run directory across agents — their artifact conventions differ, and one agent reading another's in-progress work is the worst kind of contamination.
+
+## Calibration-cycle benchmark set
+
+For calibration-cycle work (per `ai_context/CALIBRATION_PROTOCOL.md`), the canonical pinned-benchmark set is **chi**, **virtio**, and **express** — three repos with substantively different failure modes (Go HTTP routing, kernel-C transport variants, JavaScript parser laxity) so a regression that only manifests in one ecosystem is still observable. With **chi-1.5.1** added the canonical set extends to four (chi at both the v1.3.45 historical pin and the v1.5.1 modern pin). Each pinned benchmark has a documented historical bug count from a known QPB version that serves as the recall floor.
+
+The v1.5.6 Pattern 7 displacement-recovery cycle ran on a **2-of-3 reduced scope**: chi-1.3.45 + virtio-1.5.1 produced complete pre/post-lever cells; express-1.3.50 post-lever orchestration was interrupted at the API budget limit before producing a replayable cell snapshot (express remains pre-lever context only in the audit, not a completed before/after cell); chi-1.5.1 was dropped for time budget. The reduced scope did not weaken the cycle's REVERT verdict because the displacement-recovery story was concentrated on chi-1.3.45 and that benchmark produced a negative result. Closing the express + chi-1.5.1 gaps is v1.5.7 follow-up cycle work.
 
 ## Current benchmark set
 
