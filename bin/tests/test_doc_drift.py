@@ -47,7 +47,7 @@ class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
             [],
             "README.md still contains script-style run_playbook.py "
             "invocations that the runner rejects with EX_USAGE=64. Use "
-            "`python -m bin.run_playbook ...` instead. Found: " + repr(bad),
+            "`python3 -m bin.run_playbook ...` instead. Found: " + repr(bad),
         )
 
     def test_module_form_is_documented(self) -> None:
@@ -55,10 +55,10 @@ class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
         adopters can copy a working command."""
         readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
         self.assertIn(
-            "python -m bin.run_playbook",
+            "python3 -m bin.run_playbook",
             readme,
             "README.md must document the canonical "
-            "`python -m bin.run_playbook` invocation form.",
+            "`python3 -m bin.run_playbook` invocation form.",
         )
 
 

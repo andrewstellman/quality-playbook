@@ -53,14 +53,14 @@ The playbook ships as a small set of files (`SKILL.md`, `quality_gate.py`, and t
 
 > *"Read AGENTS.md from the Quality Playbook repo and follow the install procedure to set up the skill in this project."*
 
-The AI agent reads [`AGENTS.md`](AGENTS.md), runs `python -m bin.install_skill` against the target, parses the structured output, and reports back. This is the default mode the install path is designed for.
+The AI agent reads [`AGENTS.md`](AGENTS.md), runs `python3 -m bin.install_skill` against the target, parses the structured output, and reports back. This is the default mode the install path is designed for.
 
 **Alternative: run the script directly.** From your local QPB clone:
 
 ```bash
-python -m bin.install_skill                          # auto-detect from cwd
-python -m bin.install_skill --target /path/to/repo   # explicit target
-python -m bin.install_skill --verbose                # human-readable output
+python3 -m bin.install_skill                          # auto-detect from cwd
+python3 -m bin.install_skill --target /path/to/repo   # explicit target
+python3 -m bin.install_skill --verbose                # human-readable output
 ```
 
 Auto-detect picks the install location based on which AI-tool marker directory is present in the target (`.claude/`, `.github/`, `.cursor/`, or `.continue/`).
@@ -172,7 +172,7 @@ Add `--dangerously-skip-permissions` to skip file-write approval prompts.
 
 **OpenAI Codex CLI:**
 ```bash
-python -m bin.run_playbook --codex ./my-project
+python3 -m bin.run_playbook --codex ./my-project
 ```
 This invokes `codex exec --full-auto` (sandboxed automatic execution; the codex equivalent of `gh copilot --yolo`) for each playbook phase. Codex picks its model from `~/.codex/config.toml` unless you pass `--model gpt-5-codex` (or another model name in your codex config).
 
@@ -217,7 +217,7 @@ claude --agent agents/quality-playbook-claude.agent.md --dangerously-skip-permis
 
 To capture the output to a log file, add `2>&1 | tee playbook-run.log` to the end.
 
-**Via `bin/run_playbook.py` (any runner):** the Python orchestrator at `bin/run_playbook.py` accepts a runner-selection flag — pick one of `--claude` / `--copilot` (default) / `--codex`. Example: `python -m bin.run_playbook --codex ./my-project` runs all six phases via `codex exec --full-auto`. Use `--model <name>` to override the runner's default model (codex picks from `~/.codex/config.toml` when no `--model` is passed).
+**Via `bin/run_playbook.py` (any runner):** the Python orchestrator at `bin/run_playbook.py` accepts a runner-selection flag — pick one of `--claude` / `--copilot` (default) / `--codex`. Example: `python3 -m bin.run_playbook --codex ./my-project` runs all six phases via `codex exec --full-auto`. Use `--model <name>` to override the runner's default model (codex picks from `~/.codex/config.toml` when no `--model` is passed).
 
 This uses the orchestrator agent (`quality-playbook-claude.agent.md`), which spawns a separate sub-agent for each of the six phases and each of the four iteration strategies. Each sub-agent gets its own context window, communicates with the others through files on disk (`quality/PROGRESS.md`, `quality/BUGS.md`, etc.), and exits when its phase is complete. The orchestrator reads the results and launches the next sub-agent.
 
@@ -241,19 +241,19 @@ After fixing the bugs from BUGS.md, say *"recheck"* to verify your fixes. Rechec
 
 **Mode 1 — Single baseline run (default):**
 
-    python -m bin.run_playbook ./my-project
+    python3 -m bin.run_playbook ./my-project
 
 Runs Phase 1 through Phase 6 in sequence on one target.
 
 **Mode 2 — Explicit iteration list:**
 
-    python -m bin.run_playbook --iterations gap,unfiltered,parity,adversarial ./my-project
+    python3 -m bin.run_playbook --iterations gap,unfiltered,parity,adversarial ./my-project
 
 Runs baseline + the listed iteration strategies in order. **Early-stop is disabled** when `--iterations` is explicit — every strategy in the list runs regardless of prior yields.
 
 **Mode 3 — `--full-run` macro:**
 
-    python -m bin.run_playbook --full-run ./my-project
+    python3 -m bin.run_playbook --full-run ./my-project
 
 Equivalent to baseline + all four iteration strategies (`gap`, `unfiltered`, `parity`, `adversarial`) in order, **with early-stop enabled.** If yields drop below the threshold, remaining iterations are skipped.
 
@@ -345,7 +345,7 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
 - **Phase 5 source-edit guardrail.** The Codex bootstrap on 2026-05-02 went off-rails in Phase 5 and edited five source files outside `quality/` before being killed. v1.5.5 mechanizes the rule: `bin/run_state_lib.validate_no_source_edits()` shells out to `git status --porcelain -z` at run end and flags any non-`quality/` path as a violation. `_finalize_iteration()` calls it in production; on violation, the run is downgraded to `aborted`, the violations are recorded in `quality/results/quality-gate.log` and `quality/PROGRESS.md`, and the iteration is non-shippable.
 - **Calibration-cycle orchestrator.** [`agents/calibration_orchestrator.md`](agents/calibration_orchestrator.md) documents the spawn-and-resume procedure for autonomous calibration cycles — one Claude Code session reads the prompt, runs the cycle's benchmark list end-to-end, applies lever changes between pre/post-lever runs, and writes the cycle audit + `Lever_Calibration_Log.md` entry. Runs as long-lived but stateless across crashes (state IS the filesystem).
 - **Calibration visualizations.** [`bin/visualize_calibration.py`](bin/visualize_calibration.py) produces four artifacts per cycle into `<cycle-dir>/visualizations/`: per-bug × cycle heatmap (the displacement story made visible), lever × benchmark heatmap (recall delta on a red↔green diverging map), recall trajectory chart (per-benchmark line plot with lever-pull annotations), and a Mermaid lever-interaction graph. matplotlib + numpy required (install in the QPB venv).
-- **Seven v1.5.4 self-audit defects fixed.** BUG-001 (CopilotRunner now transports the prompt via stdin instead of argv — silent failure for prompts > ARG_MAX); BUG-002 (`progress_monitor` opens transcripts in binary mode and keeps every offset in bytes — UTF-8 multi-byte content no longer desyncs the monitor); BUG-003 (`_printed_headers` set guarded by a lock); BUG-004 (Claude agent's skill-resolution order corrected to match `bin/run_playbook.py:SKILL_FALLBACK_GUIDE`); BUG-005 (every README invocation example uses the package-module form `python -m bin.run_playbook`, since the runner exits `EX_USAGE=64` on script-style invocation); BUG-006 (every operator-facing surface — SKILL.md, agents/, references/, runner WARN messages — routes operators to `reference_docs/` instead of `docs_gathered/`); BUG-007 (`bin/quality_playbook.py` help text matches the actual `archive_lib.ARCHIVE_DIRNAME`). Each landed with a regression test under `bin/tests/`.
+- **Seven v1.5.4 self-audit defects fixed.** BUG-001 (CopilotRunner now transports the prompt via stdin instead of argv — silent failure for prompts > ARG_MAX); BUG-002 (`progress_monitor` opens transcripts in binary mode and keeps every offset in bytes — UTF-8 multi-byte content no longer desyncs the monitor); BUG-003 (`_printed_headers` set guarded by a lock); BUG-004 (Claude agent's skill-resolution order corrected to match `bin/run_playbook.py:SKILL_FALLBACK_GUIDE`); BUG-005 (every README invocation example uses the package-module form `python3 -m bin.run_playbook`, since the runner exits `EX_USAGE=64` on script-style invocation); BUG-006 (every operator-facing surface — SKILL.md, agents/, references/, runner WARN messages — routes operators to `reference_docs/` instead of `docs_gathered/`); BUG-007 (`bin/quality_playbook.py` help text matches the actual `archive_lib.ARCHIVE_DIRNAME`). Each landed with a regression test under `bin/tests/`.
 - **Pre-existing `test_regression_replay` failures resolved.** A new `**Citation:**` field regex extends `bin/regression_replay.py`'s parser to recognize chi-1.5.1's bold-key file-citation form (the v1.5-era variant — without it, every chi-1.5.1 record's `match_key` collapsed to None). The four fixture-count assertions now derive their expected counts from the actual fixture files at runtime so future archive growth doesn't re-stale the tests. Suite goes from 980 tests / 4 failures (inherited from v1.5.4) to 1017 tests / 0 failures.
 
 ### What's new in v1.5.4 (Part 1: Classification Redesign)
@@ -470,23 +470,23 @@ The repository includes a standard-library Python runner at `bin/run_playbook.py
 
 Positional arguments are **directory paths** (relative or absolute). Omit positional args to run against the current directory. One convenience applies only to **bare names** (no path separators, no leading `.` / `..` / `~`): if `chi` isn't a directory, the runner retries `chi-<version>` using the `version:` line from `SKILL.md` at the QPB root. Path-like inputs (`./chi`, `/abs/chi`) are taken literally — no fallback.
 
-The runner uses package-relative imports, so always invoke it as a package module (`python -m bin.run_playbook`) from the quality-playbook repo root.
+The runner uses package-relative imports, so always invoke it as a package module (`python3 -m bin.run_playbook`) from the quality-playbook repo root.
 
 ```bash
 cd /path/to/quality-playbook
-python -m bin.run_playbook /path/to/my-project                          # single target
-python -m bin.run_playbook --phase all /path/to/my-project              # phase-by-phase
-python -m bin.run_playbook ./project1 ./project2                        # multiple targets
-python -m bin.run_playbook --claude --model opus --phase all ./project1
-python -m bin.run_playbook --next-iteration --strategy gap ./project1
+python3 -m bin.run_playbook /path/to/my-project                          # single target
+python3 -m bin.run_playbook --phase all /path/to/my-project              # phase-by-phase
+python3 -m bin.run_playbook ./project1 ./project2                        # multiple targets
+python3 -m bin.run_playbook --claude --model opus --phase all ./project1
+python3 -m bin.run_playbook --next-iteration --strategy gap ./project1
 ```
 
 For benchmark use, run from the QPB repo root so the bare-name convenience (`chi` → `chi-<version>`) resolves against `SKILL.md`'s version line:
 
 ```bash
 cd /path/to/quality-playbook
-python -m bin.run_playbook --phase all --sequential repos/chi-1.4.6
-python -m bin.run_playbook chi     # resolves to chi-1.4.6 via SKILL.md version
+python3 -m bin.run_playbook --phase all --sequential repos/chi-1.4.6
+python3 -m bin.run_playbook chi     # resolves to chi-1.4.6 via SKILL.md version
 ```
 
 **Rate limit warning:** Running multiple targets in parallel with single-prompt mode (no `--phase`) sends long autonomous prompts that consume large amounts of API quota. In testing, running 8 targets in parallel single-prompt mode triggered a 54-hour Copilot rate limit. Use `--phase all` instead — it runs each phase as a separate, shorter prompt with exit gates between phases. This uses less quota per prompt, produces better results (each phase gets a full context window), and is easier to resume if interrupted. For the same reason, prefer `--sequential` over `--parallel` unless you're confident in your rate limit headroom.
