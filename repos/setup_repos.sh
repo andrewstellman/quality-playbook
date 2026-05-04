@@ -198,6 +198,11 @@ for short in "${REPOS[@]}"; do
     cp "${QPB_DIR}/references/"* "${dst}/.github/skills/references/" 2>/dev/null || true
     cp "${QPB_DIR}/LICENSE.txt" "${dst}/.github/skills/LICENSE.txt" 2>/dev/null || true
     cp "${QPB_DIR}/.github/skills/quality_gate/quality_gate.py" "${dst}/.github/skills/quality_gate.py" 2>/dev/null || true
+    cp "${QPB_DIR}/AGENTS.md" "${dst}/AGENTS.md" 2>/dev/null || true
+    mkdir -p "${dst}/bin"
+    cp "${QPB_DIR}/bin/install_skill.py" "${dst}/bin/install_skill.py" 2>/dev/null || true
+    mkdir -p "${dst}/ai_context"
+    cp "${QPB_DIR}/ai_context/AI_ORCHESTRATION_PATTERNS.md" "${dst}/ai_context/AI_ORCHESTRATION_PATTERNS.md" 2>/dev/null || true
 
     # v1.5.2+: reference_docs/ is the canonical documentation location read
     # by Phase 1's reference_docs_ingest. The legacy docs_gathered/ path
