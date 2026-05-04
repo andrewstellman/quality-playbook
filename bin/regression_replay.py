@@ -89,6 +89,12 @@ _FILE_FIELD_RES = (
     # variant. Without this, primary_file remained None even after
     # the heading regex fix recognized the records.
     re.compile(r"^-\s+\*\*File:Line:\*\*\s+`([^`]+)`", re.MULTILINE),
+    # v1.5.6 (corpus-extension): chi-1.3.45 post-lever records use
+    # bold-lowercase `**File:line:**` (lowercase l) variant. Without
+    # this regex, every post-lever chi-1.3.45 record's primary_file
+    # was None during cycle execution; cycle file-overlap analysis
+    # collapsed.
+    re.compile(r"^-\s+\*\*File:line:\*\*\s+`([^`]+)`", re.MULTILINE),
     # v1.5.5 item D (corpus-extension): chi-1.5.1 records grew from 9
     # to 16 and the new entries use bold-key `**Citation:**` for the
     # file location instead of `**File:**` / `**Location:**`. Without
