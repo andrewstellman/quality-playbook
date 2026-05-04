@@ -123,6 +123,7 @@ If you prefer to do the install by hand instead of using `bin/install_skill.py` 
 ```bash
 mkdir -p .claude/skills/quality-playbook/references
 cp SKILL.md .claude/skills/quality-playbook/SKILL.md
+cp .github/skills/quality_gate/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
 cp references/* .claude/skills/quality-playbook/references/
 # v1.5.2: single reference_docs/ tree at the target repo root.
 # No README ships — cite/ contents are adopter-provided plaintext.
@@ -137,6 +138,7 @@ cat skill-template.gitignore >> .gitignore
 ```bash
 mkdir -p .github/skills/references
 cp SKILL.md .github/skills/SKILL.md
+cp .github/skills/quality_gate/quality_gate.py .github/skills/quality_gate.py
 cp references/* .github/skills/references/
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
@@ -147,13 +149,14 @@ cat skill-template.gitignore >> .gitignore
 ```bash
 mkdir -p .github/skills/quality-playbook/references
 cp SKILL.md .github/skills/quality-playbook/SKILL.md
+cp .github/skills/quality_gate/quality_gate.py .github/skills/quality-playbook/quality_gate.py
 cp references/* .github/skills/quality-playbook/references/
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 cat skill-template.gitignore >> .gitignore
 ```
 
-**Cursor, Windsurf, other tools:** Use any of the locations above, or put `SKILL.md` and `references/` in your project root. The runner, gate, and orchestrator agents check all four locations — repo-root `SKILL.md`, Claude's `.claude/skills/quality-playbook/`, and both Copilot layouts.
+**Cursor, Windsurf, other tools:** Use any of the locations above, or put `SKILL.md`, `quality_gate.py`, and `references/` in your project root. The runner, gate, and orchestrator agents check all four locations — repo-root `SKILL.md`, Claude's `.claude/skills/quality-playbook/`, and both Copilot layouts.
 
 **OpenAI Codex CLI:** v1.5.3 adds the standalone [codex CLI](https://github.com/openai/codex) (codex-cli 0.125+) as a third runner alongside claude and copilot. No separate skill-install layout — codex runs the playbook from any of the locations above. To use it via `bin/run_playbook.py`, pass `--codex` (see Step 4 + the "Running everything autonomously" section below).
 

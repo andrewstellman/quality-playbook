@@ -11,7 +11,7 @@ The playbook's normal Phase 1 derivation reads two kinds of evidence:
 - **Code evidence (Tier 3+)** — the source tree itself, plus inline comments, defensive patterns, tests, and any inline documentation co-located with the code.
 - **Documentation evidence (Tier 1/2)** — plaintext files the operator drops into `reference_docs/` (free-form notes, design docs, retrospectives, AI chats) and `reference_docs/cite/` (project specs, RFCs, API contracts that requirements should be traceable back to).
 
-Code-only mode is the run state where no documentation evidence is available. The playbook proceeds — it does not abort — but every requirement it derives leans entirely on code evidence. The Phase 1 EXPLORATION.md gets a "Documentation status: code-only mode" opening section that surfaces the downgrade so reviewers see it on first read.
+Code-only mode is the run state where no documentation evidence is available. The playbook proceeds — it does not abort — but every requirement it derives leans entirely on code evidence. The Phase 1 EXPLORATION.md gets a "Documentation status: code-only mode" opening section that surfaces the mode so reviewers see it on first read.
 
 ## What to expect from a code-only run
 
