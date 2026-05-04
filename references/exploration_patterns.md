@@ -293,7 +293,7 @@ Identify every function or component that reads or writes state that *can be can
 
 **Disambiguation from Pattern 4.** Pattern 4 (Enumeration and Representation Completeness) is about closed sets of values: the bug is "value missing from the recognizer's closed set." Pattern 7 is about choice of state variable: the bug is "function reads or writes the wrong representation of state under composition." If both frames seem to apply, prefer the one whose REQ is more testable. The two patterns rarely overlap on the same defect; when they do, the canonical-vs-raw framing usually points more directly at the fix.
 
-**Budget.** Cap candidates at 2-3 highest-impact composition seams per pass. If more than 10 candidates emerge from this pattern alone, the net is too wide and the pattern is being over-applied — revisit Step 1 with a tighter "what does this framework actually maintain canonically under composition" filter.
+**Budget.** Cap candidates at 3-5 highest-impact composition seams per pass. If more than 10 candidates emerge from this pattern alone, the net is too wide and the pattern is being over-applied — revisit Step 1 with a tighter "what does this framework actually maintain canonically under composition" filter.
 
 For each candidate found:
 

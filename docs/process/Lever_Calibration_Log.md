@@ -45,3 +45,49 @@
 - **C-2: Pinned-benchmarks default doesn't match archive.** Protocol's default `<pinned_benchmarks>` lists `chi-1.5.1`, `virtio-1.5.1`, `express-1.5.1` but `express-1.5.1` isn't in `repos/archive/` — closest is `express-1.3.15`. Default needs reconciling with actual archive state.
 - **C-3: SKILL.md template update is required follow-on.** Per `references/exploration_patterns.md`'s "Extending This List" step 5, adding Pattern 7 requires a corresponding update to SKILL.md's EXPLORATION.md template. This is QPB source (not orientation-doc carve-out). Tracked as separate commit.
 - **C-4: Argument-based vs empirical validation.** Cowork environment can't block on ~30-min playbook subprocess; autonomous cycle in this environment converges on argument-based validation. Production v1.6.x cycles run by AIs with subprocess-management capability would do empirical validation. Protocol should explicitly support both, with cell.json's `noise_floor_source` field distinguishing.
+
+---
+
+## Cycle: 2026-05-02 to 2026-05-04 — pattern7-displacement-recovery
+
+**Symptom:** v1.5.4 cycle 1 said Pattern 7 recovered four mount-context bugs on chi-1.3.45 but displaced two others (`PathRewrite`, `AllowContentEncoding`). This follow-up cycle tested whether tightening Pattern 7's budget cap from `3-5` to `2-3` highest-impact composition seams would recover the displaced bugs without giving back the mount-context wins.
+
+**Diagnosis:** On the load-bearing benchmark (chi-1.3.45), the tighter cap recovered **AllowContentEncoding** but LOST **PathRewrite**, and substantive historical recall worsened from **5/10 to 4/10**. The four mount-context findings Pattern 7 was supposed to preserve — BUG-004, BUG-007, BUG-008, BUG-009 from cycle 1 — were present in neither the pre-lever nor post-lever v1.5.6 runs, so mount-context preservation on chi-1.3.45 is **0/4 = 0%**. That means the cycle never established an empirical case for keeping the tighter cap.
+
+**Lever pulled:** Lever 1 (Exploration breadth/depth). Home: `references/exploration_patterns.md`. Tested a tighter Pattern 7 budget cap — `3-5` -> `2-3` highest-impact composition seams per pass. Lever-application commit: `83f812a`.
+
+**Mode:** 1 (autonomous).
+
+**Runner:** Empirical six-run cycle completed in the v1.5.6 runner workspace. Precondition note from the operator handoff said express post-lever finalization was interrupted, but the final cycle artifacts now include the post-lever express `benchmark_end` event and cell JSON, so the audit treated express as completed.
+
+**Before (cap 3-5):**
+- chi-1.3.45 substantive recall: **0.50** (5/10 historical bugs by file/content overlap)
+- virtio-1.5.1 substantive recall: **0.80** (4/5 historical-file overlap)
+- express-1.3.50 substantive recall: **n/a** (bug count 8; historical overlap unavailable)
+
+**After (cap 2-3):**
+- chi-1.3.45 substantive recall: **0.40** (4/10)
+- virtio-1.5.1 substantive recall: **0.80** (4/5)
+- express-1.3.50 substantive recall: **n/a** (bug count 12; historical overlap unavailable)
+
+**Recall delta:**
+- chi-1.3.45: **-0.10**
+- virtio-1.5.1: **+0.00**
+- express-1.3.50: **n/a** substantive recall; **+4 bugs** in raw bug count
+
+**Cross-benchmark:**
+- chi-1.3.45: recovered `AllowContentEncoding`, lost `PathRewrite`, preserved **0/4** of the cycle-1 mount-context set. This is the load-bearing negative result.
+- virtio-1.5.1: no significant regression. Historical overlap held at 4/5; the run traded one `virtio_ring.c`-anchored finding for one `virtio_pci_legacy.c` finding.
+- express-1.3.50: post-lever bug count rose from 8 to 12, but recall against the historical baseline remained uncomputable because express BUGS.md formatting still prevents stable per-bug overlap matching.
+
+**Verdict:** **Revert.**
+
+**Audit:** `~/Documents/AI-Driven Development/Quality Playbook/Calibration Cycles/2026-05-02-pattern7-displacement-recovery/audit.md`
+
+**Cycle artifacts:**
+- Visualizations: `~/Documents/AI-Driven Development/Quality Playbook/Calibration Cycles/2026-05-02-pattern7-displacement-recovery/visualizations/`
+- Runner output: `~/Documents/AI-Driven Development/Quality Playbook/v1.5.6_runner/outputs/015-pattern7-cycle-analysis-and-audit.md`
+
+**Reduced scope:** Cycle ran on 3 of 4 originally-scoped benchmarks; chi-1.5.1 was deferred for time budget. That gap should be closed in v1.5.7, but it does not change the terminal verdict because the displacement-recovery story was concentrated on chi-1.3.45 and chi produced a negative result.
+
+**Methodology note:** Per worker output 008, REQ IDs were unstable across runs, so this cycle's recall numbers use substantive file-path and bug-description matching rather than the mechanical `(REQ_id, file)` key.
