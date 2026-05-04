@@ -95,6 +95,12 @@ _FILE_FIELD_RES = (
     # was None during cycle execution; cycle file-overlap analysis
     # collapsed.
     re.compile(r"^-\s+\*\*File:line:\*\*\s+`([^`]+)`", re.MULTILINE),
+    # v1.5.6 (corpus-extension): virtio-1.5.1 post-lever records use
+    # `**File:line:**` (lowercase l) WITHOUT backticks around the
+    # path, with optional trailing prose like " (compensator);". The
+    # regex captures up to the first whitespace, semicolon, comma, or
+    # paren so trailing prose doesn't leak into primary_file.
+    re.compile(r"^-\s+\*\*File:line:\*\*\s+([^\s`;,()]+)", re.MULTILINE),
     # v1.5.5 item D (corpus-extension): chi-1.5.1 records grew from 9
     # to 16 and the new entries use bold-key `**Citation:**` for the
     # file location instead of `**File:**` / `**Location:**`. Without
