@@ -29,7 +29,7 @@ Copy the skill into your AI coding tool's skill directory in the target repo. Ru
 ```bash
 mkdir -p .github/skills/references
 cp "$QPB"/SKILL.md .github/skills/SKILL.md
-cp "$QPB"/.github/skills/quality_gate.py .github/skills/quality_gate.py
+cp "$QPB"/.github/skills/quality_gate/quality_gate.py .github/skills/quality_gate.py
 cp "$QPB"/references/* .github/skills/references/
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
@@ -41,7 +41,7 @@ cat "$QPB"/skill-template.gitignore >> .gitignore
 ```bash
 mkdir -p .claude/skills/quality-playbook/references
 cp "$QPB"/SKILL.md .claude/skills/quality-playbook/SKILL.md
-cp "$QPB"/.github/skills/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
+cp "$QPB"/.github/skills/quality_gate/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
 cp "$QPB"/references/* .claude/skills/quality-playbook/references/
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
@@ -55,16 +55,16 @@ Run the quality playbook on this project.
 
 ## Installing the Quality Playbook into a target repo (AI-agent-driven)
 
-This is the canonical install procedure when an AI coding agent (Claude Code, Cursor, etc.) is doing the install on the operator's behalf. Use it instead of the manual `cp` commands above unless the operator asks for the manual flow.
+This is the canonical install procedure when an AI coding agent (Claude Code, Cursor, etc.) is doing the install on the operator's behalf. Use it instead of the manual `cp` commands above unless the operator asks for the manual flow. For AI-agent installs, prefer `--into <target-repo>` so the script scans the operator's repo rather than the QPB clone. For operator-direct installs, either run with `--into <target-repo>` from the QPB clone or run with no flag from inside the target repo root and let cwd auto-detection resolve the install path.
 
 1. Confirm the operator's target repo (e.g., `~/Documents/myrepo`) and which AI tool they use. The script auto-detects `.claude/` → `.claude/skills/quality-playbook/`, `.github/` → `.github/skills/quality-playbook/`, `.cursor/` → `.cursor/skills/quality-playbook/`, `.continue/` → `.continue/skills/quality-playbook/`.
 2. Confirm a clone of QPB is available locally. If not, instruct the operator to clone `https://github.com/andrewstellman/quality-playbook` and tell you the clone path. The script needs `bin/install_skill.py` accessible.
-3. From inside the QPB clone, run `python -m bin.install_skill` (auto-detect from the target repo's working directory). Alternative invocations:
-   - `python -m bin.install_skill --target /path/to/install` — explicit install path; overrides auto-detection.
+3. From inside the QPB clone, run `python -m bin.install_skill --into <path-to-target-repo>`. Replace `<path-to-target-repo>` with the operator's target. The script scans that path for known AI-tool markers (`.claude`, `.github`, `.cursor`, `.continue`) and installs to the matching skill subdirectory. Alternative invocations:
+   - `python -m bin.install_skill --target /path/to/install` — explicit literal install path; use only when the operator wants a custom location.
    - `python -m bin.install_skill --verbose` — emits human-prose lines alongside the structured output.
    - Default behavior (no `--force`) preserves operator-edited files as `<file>.operator-backup-<UTC-timestamp>` on re-install. Use `--force` only if the operator explicitly wants to discard prior edits.
-4. Parse the structured output. Each line is `event=<name>(\s+key=value)*`. Surface any `event=smoke_check status=failed` lines to the operator with the `detail=` field intact.
-5. On success (`event=install_complete status=success`), report to the operator: the install location (from the earlier `event=detected_env` or `event=target_explicit` line); the next step (point at the installed `SKILL.md` and the README's "How to use the Quality Playbook" section); any `status=backed_up` files so the operator can review their preserved edits.
+4. Parse the structured output. Each line is `event=<name>(\s+key=value)*`. For `--into`, the environment-resolution line is `event=detected_env_inside_target target=<target> env=.cursor install_path=<full-path>` (with the actual env and resolved install path). Surface any `event=smoke_check status=failed` lines to the operator with the `detail=` field intact.
+5. On success (`event=install_complete status=success`), report to the operator: the install location (from the earlier `event=detected_env_inside_target`, `event=detected_env`, or `event=target_explicit` line); the next step (point at the installed `SKILL.md` and the README's "How to use the Quality Playbook" section); any `status=backed_up` files so the operator can review their preserved edits.
 6. On failure (`event=install_complete status=failed` or `status=partial`, or a non-zero exit code), report the failing event line and the suggested remediation. Do not retry without operator confirmation — re-running over a partial install can mask the original failure.
 
 For the underlying script's full options, see `bin/install_skill.py --help`.
