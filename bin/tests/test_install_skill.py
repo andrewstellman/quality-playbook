@@ -16,6 +16,7 @@ import io
 import re
 import shutil
 import unittest
+from contextlib import redirect_stderr
 from pathlib import Path, PureWindowsPath
 from tempfile import TemporaryDirectory
 
@@ -158,6 +159,75 @@ class IdempotencyAndForceTests(unittest.TestCase):
             self.assertEqual(backups, [])
             self.assertNotIn("operator notes", skill.read_text(encoding="utf-8"))
             self.assertIn("status=overwritten", out)
+
+
+class IntoFlagTests(unittest.TestCase):
+    """`--into` scans the target repo and resolves the install path from
+    the detected AI-tool marker inside that repo."""
+
+    def test_into_flag_detects_claude_in_target(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str).resolve()
+            _write_minimal_env(tmp, ".claude")
+            rc, out = _capture_install(into=tmp, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            install_path = tmp / ".claude" / "skills" / "quality-playbook"
+            self.assertIn("event=detected_env_inside_target", out)
+            self.assertIn(f"target={tmp}", out)
+            self.assertIn("env=.claude", out)
+            self.assertIn(f"install_path={install_path}", out)
+            self.assertTrue((install_path / "SKILL.md").is_file())
+
+    def test_into_flag_detects_cursor_in_target(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str).resolve()
+            _write_minimal_env(tmp, ".cursor")
+            rc, out = _capture_install(into=tmp, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            install_path = tmp / ".cursor" / "skills" / "quality-playbook"
+            self.assertIn("event=detected_env_inside_target", out)
+            self.assertIn(f"target={tmp}", out)
+            self.assertIn("env=.cursor", out)
+            self.assertIn(f"install_path={install_path}", out)
+            self.assertTrue((install_path / "SKILL.md").is_file())
+
+    def test_into_flag_detects_github_in_target(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str).resolve()
+            _write_minimal_env(tmp, ".github")
+            rc, out = _capture_install(into=tmp, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            install_path = tmp / ".github" / "skills" / "quality-playbook"
+            self.assertIn("event=detected_env_inside_target", out)
+            self.assertIn(f"target={tmp}", out)
+            self.assertIn("env=.github", out)
+            self.assertIn(f"install_path={install_path}", out)
+            self.assertTrue((install_path / "SKILL.md").is_file())
+
+    def test_into_flag_no_env_in_target_refuses(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str).resolve()
+            (tmp / "src").mkdir()
+            rc, out = _capture_install(into=tmp, source_root=REPO_ROOT)
+            self.assertEqual(rc, 64, out)
+            self.assertIn("event=refuse", out)
+            self.assertIn("reason=no-environment-detected-in-target", out)
+            self.assertIn(f"target={tmp}", out)
+
+    def test_target_and_into_mutually_exclusive(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            err = io.StringIO()
+            with redirect_stderr(err):
+                with self.assertRaises(SystemExit) as raised:
+                    install_skill.main(
+                        [
+                            "--target", str(tmp / "install"),
+                            "--into", str(tmp),
+                        ]
+                    )
+            self.assertEqual(raised.exception.code, 2)
+            self.assertIn("not allowed with argument", err.getvalue())
 
 
 class SmokeCheckTests(unittest.TestCase):

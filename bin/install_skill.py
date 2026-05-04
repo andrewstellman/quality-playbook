@@ -3,7 +3,8 @@
 Copies SKILL.md, quality_gate.py, and the references/ subtree from a QPB
 checkout into a target AI-tool skills directory. Auto-detects known tool
 environments (.claude, .github, .cursor, .continue) in the working
-directory; falls back to --target <path> for arbitrary install locations.
+directory, or scans a target repo via --into <target-repo>; falls back
+to --target <path> for arbitrary install locations.
 Cross-platform (macOS / Linux / Windows) via pathlib + explicit utf-8
 encoding + explicit newline handling.
 
@@ -15,12 +16,13 @@ agent can parse results without natural-language interpretation. Pass
 
 Usage:
 
-    python -m bin.install_skill                          # auto-detect from cwd
-    python -m bin.install_skill --target /path/to/skill  # explicit target
-    python -m bin.install_skill --source /qpb-clone     # explicit source root
-    python -m bin.install_skill --no-smoke              # skip smoke check
-    python -m bin.install_skill --force                  # overwrite without backup
-    python -m bin.install_skill --verbose                # human prose alongside
+    python -m bin.install_skill                            # auto-detect from cwd
+    python -m bin.install_skill --into /path/to/target    # scan target repo
+    python -m bin.install_skill --target /path/to/skill   # explicit target
+    python -m bin.install_skill --source /qpb-clone       # explicit source root
+    python -m bin.install_skill --no-smoke                # skip smoke check
+    python -m bin.install_skill --force                   # overwrite without backup
+    python -m bin.install_skill --verbose                 # human prose alongside
 
 Exit codes: 0 on success; 64 (EX_USAGE) on bad invocation or refusal;
 65 (EX_DATAERR) on smoke-check failure or downgrade refusal.
@@ -405,6 +407,7 @@ def _is_downgrade(installed: str, incoming: str) -> bool:
 def install(
     *,
     target: Optional[Path] = None,
+    into: Optional[Path] = None,
     source_root: Optional[Path] = None,
     cwd: Optional[Path] = None,
     force: bool = False,
@@ -420,7 +423,41 @@ def install(
         source_root.resolve() if source_root is not None
         else find_source_root(Path(__file__))
     )
-    if target is None:
+    if target is not None and into is not None:
+        emitter.emit(
+            "refuse",
+            reason="target-and-into-mutually-exclusive",
+            target=str(target),
+            into=str(into),
+            prose="--target and --into cannot be used together",
+        )
+        return 64
+    if into is not None:
+        into = into.resolve()
+        detected = detect_environment(into)
+        if detected is None:
+            envs = ", ".join(name for name, _ in KNOWN_ENVIRONMENTS)
+            emitter.emit(
+                "refuse",
+                reason="no-environment-detected-in-target",
+                target=str(into),
+                known_envs=envs,
+                prose=(
+                    f"No known AI-tool environment found inside target repo {into}. "
+                    f"Known environments: {envs}. "
+                    f"Pass --target <path> to install to a custom location."
+                ),
+            )
+            return 64
+        env_name, target = detected
+        emitter.emit(
+            "detected_env_inside_target",
+            target=str(into),
+            env=env_name,
+            install_path=str(target),
+            prose=f"detected {env_name}/ inside target repo; install path {target}",
+        )
+    elif target is None:
         detected = detect_environment(cwd)
         if detected is None:
             envs = ", ".join(name for name, _ in KNOWN_ENVIRONMENTS)
@@ -430,7 +467,8 @@ def install(
                 prose=(
                     f"No known AI-tool environment found in {cwd}. "
                     f"Known environments: {envs}. "
-                    f"Pass --target <path> to install to a custom location."
+                    f"Run from the target repo root, or pass --into <target-repo> "
+                    f"or --target <path>."
                 ),
             )
             return 64
@@ -507,9 +545,17 @@ def main(argv: Optional[list[str]] = None) -> int:
         prog="install_skill",
         description=__doc__,
     )
-    parser.add_argument(
+    location_group = parser.add_mutually_exclusive_group()
+    location_group.add_argument(
         "--target", type=Path, default=None,
         help="Explicit install path; overrides auto-detection.",
+    )
+    location_group.add_argument(
+        "--into", type=Path, default=None,
+        help=(
+            "Target repo root to scan for AI-tool markers; installs into the "
+            "matching skill path inside that repo."
+        ),
     )
     parser.add_argument(
         "--source", type=Path, default=None,
@@ -530,6 +576,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = parser.parse_args(argv)
     return install(
         target=args.target,
+        into=args.into,
         source_root=args.source,
         force=args.force,
         no_smoke=args.no_smoke,
