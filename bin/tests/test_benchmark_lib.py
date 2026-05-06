@@ -40,13 +40,47 @@ class BenchmarkLibTests(unittest.TestCase):
             self.assertEqual(lib.detect_repo_skill_version(Path(temp_dir)), "")
 
     def test_find_installed_skill_returns_first_hit(self) -> None:
+        """v1.5.6 BUG-002: SKILL_INSTALL_LOCATIONS now leads with the
+        repo-root SKILL.md to match the runtime canonical order
+        (matches CANONICAL_ORDER in test_skill_resolution_order.py).
+        Pre-fix the helper started with .github/skills/SKILL.md and
+        could pick a different installed copy than the runtime."""
+        with TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            root_skill = temp_path / "SKILL.md"
+            gh_skill = temp_path / ".github" / "skills" / "SKILL.md"
+            write(root_skill, "version: 2.0.0\n")
+            write(gh_skill, "version: 1.0.0\n")
+            # Root SKILL.md is searched first (canonical order).
+            self.assertEqual(lib.find_installed_skill(temp_path), root_skill)
+
+    def test_find_installed_skill_falls_through_to_github_when_root_absent(self) -> None:
+        """When root SKILL.md is absent, the next canonical hit
+        (.claude/skills/quality-playbook/SKILL.md) takes over; absent
+        that, .github/skills/SKILL.md (flat Copilot)."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             gh_skill = temp_path / ".github" / "skills" / "SKILL.md"
             write(gh_skill, "version: 1.0.0\n")
-            write(temp_path / "SKILL.md", "version: 2.0.0\n")
-            # .github/skills/SKILL.md is searched first.
+            # No root SKILL.md, no .claude install — flat Copilot wins.
             self.assertEqual(lib.find_installed_skill(temp_path), gh_skill)
+
+    def test_find_installed_skill_resolves_cursor_install(self) -> None:
+        """v1.5.6 BUG-008: Cursor adopters install to
+        .cursor/skills/quality-playbook/SKILL.md; the helper must find it."""
+        with TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            cursor_skill = temp_path / ".cursor" / "skills" / "quality-playbook" / "SKILL.md"
+            write(cursor_skill, "version: 1.5.6\n")
+            self.assertEqual(lib.find_installed_skill(temp_path), cursor_skill)
+
+    def test_find_installed_skill_resolves_continue_install(self) -> None:
+        """v1.5.6 BUG-008: same guarantee for Continue."""
+        with TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            cont_skill = temp_path / ".continue" / "skills" / "quality-playbook" / "SKILL.md"
+            write(cont_skill, "version: 1.5.6\n")
+            self.assertEqual(lib.find_installed_skill(temp_path), cont_skill)
 
     def test_find_installed_skill_returns_none_when_absent(self) -> None:
         with TemporaryDirectory() as temp_dir:

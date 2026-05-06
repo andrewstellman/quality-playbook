@@ -40,10 +40,21 @@ EXCLUDED_PARTS = {"target", "node_modules", "__pycache__"}
 EXCLUDED_SUFFIXES = {".class", ".pyc"}
 VERSION_PATTERN = re.compile(r"^\s*(?:version:|\*\*Version:\*\*)\s*([0-9]+(?:\.[0-9]+)+)\b", re.IGNORECASE)
 
+# v1.5.6 BUG-002: this list previously diverged in order from the
+# canonical resolution sequence shipped in
+# bin/run_playbook.SKILL_FALLBACK_GUIDE — helper code could pick a
+# different installed copy than the runtime. The order below now
+# matches CANONICAL_ORDER in bin/tests/test_skill_resolution_order.py
+# and the runtime fallback guide. v1.5.6 BUG-008 added
+# .cursor/skills/quality-playbook/SKILL.md and
+# .continue/skills/quality-playbook/SKILL.md so adopters using those
+# AI tools resolve the installed skill correctly.
 SKILL_INSTALL_LOCATIONS = (
-    Path(".github") / "skills" / "SKILL.md",
-    Path(".claude") / "skills" / "quality-playbook" / "SKILL.md",
     Path("SKILL.md"),
+    Path(".claude") / "skills" / "quality-playbook" / "SKILL.md",
+    Path(".github") / "skills" / "SKILL.md",
+    Path(".cursor") / "skills" / "quality-playbook" / "SKILL.md",
+    Path(".continue") / "skills" / "quality-playbook" / "SKILL.md",
     Path(".github") / "skills" / "quality-playbook" / "SKILL.md",
 )
 

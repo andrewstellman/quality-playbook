@@ -166,12 +166,16 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         "phase4":                ( 3031, "93f2cb5d8eebfc2b52371866c10c7e0b176dc5203c8b75c6552a4a71e168c978"),
         "phase5":                (10185, "ff1d676111b1c026e80450a6c8bf11ce3236e3335ce8abef52ded023f81b9248"),
         "phase6":                ( 1217, "33f65c1831c49b6c3dabc5ec61d792056bd505dd4bcd22e2d8012aa7fa3862a7"),
-        "single_pass_True":      (  371, "d80c2210b0b0ccce35675dfc5ef9c39085a299068ab7530395da571f047e4743"),
-        "single_pass_False":     (  316, "a9c9d87fbcf61e9c81f2ddf95decf1a2037d1868d14230c40733d108e7ab3643"),
-        "iteration_gap":         (  618, "9502722ac76cf16e20251fee8e44c8c1ec0bff71444c3c6a97c8edd66fdd6087"),
-        "iteration_unfiltered":  (  625, "53c3645790dcef586db5a495304822d42b77f0834ca21fbb0fadbb728b626343"),
-        "iteration_parity":      (  621, "89f3d44558f05741db352804d6474d30b321b08d70b8669e2470514a4519712a"),
-        "iteration_adversarial": (  626, "a4be96b7c4cab429a8ccdd26b8432ec8ad4c9a45f6efdd8dabf21801ae776c65"),
+        # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
+        # documented install paths (added .cursor + .continue), so
+        # every prompt that interpolates the guide grows by ~86 bytes.
+        # Hashes recomputed against the v1.5.6 guide.
+        "single_pass_True":      (  457, "77830f3ad7cb4d0bac165afc555c54c48866af1756b01a24f4bfd2e80a940b7a"),
+        "single_pass_False":     (  402, "89b9ad80cb42e8b4562926e0d54c86fc272a94e53e061856994646174041116d"),
+        "iteration_gap":         (  704, "3c64de3996bfa8e6eadc2dd5772a20420021f5d435a6717b3f95e01fbd536322"),
+        "iteration_unfiltered":  (  711, "295a26150c49ab3f3a8095966121f2023a9234d4bf98a07fb2bcc26f6ced8ade"),
+        "iteration_parity":      (  707, "75a915adb8a5f2b5cbbad623ddf3c5b62738fd1c443444a48b5be59d461b0491"),
+        "iteration_adversarial": (  712, "fd98cc78b4e1864f5932d824318d43fecfa53fe624cb30a3bab6094d6d739220"),
     }
 
     def _render(self, label: str) -> str:

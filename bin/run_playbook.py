@@ -718,7 +718,9 @@ def phase_label(phase: str) -> str:
 SKILL_FALLBACK_GUIDE = (
     "Read the quality playbook skill using the documented install-location fallback list: "
     "SKILL.md, .claude/skills/quality-playbook/SKILL.md, "
-    ".github/skills/SKILL.md, .github/skills/quality-playbook/SKILL.md. "
+    ".github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, "
+    ".continue/skills/quality-playbook/SKILL.md, "
+    ".github/skills/quality-playbook/SKILL.md. "
     "Resolve reference files using the same documented fallback order."
 )
 
@@ -3092,13 +3094,21 @@ def _iso_utc_now() -> str:
 
 
 # v1.5.2 (C13.9) — orchestrator-side post-iteration finalization.
-# The four canonical install locations TOOLKIT.md documents for the gate
-# script. Order matters: repo-root checkout is fastest to find for a
-# source-tree run; the others mirror Claude Code / GitHub Copilot installs.
+# The six canonical install locations the v1.5.6+ resolver supports
+# for the gate script. Order matches SKILL_FALLBACK_GUIDE and
+# benchmark_lib.SKILL_INSTALL_LOCATIONS so a single test pins all
+# three to the same canonical sequence. v1.5.6 BUG-013 added
+# .cursor/skills/quality-playbook/quality_gate.py and
+# .continue/skills/quality-playbook/quality_gate.py: the installer
+# already supported those AI-tool environments, but the finalizer's
+# resolver couldn't find the gate script there, so post-iteration
+# verification silently fell through to "gate script not found."
 _GATE_INSTALL_LOCATIONS = (
     "quality_gate.py",
     ".claude/skills/quality-playbook/quality_gate.py",
     ".github/skills/quality_gate.py",
+    ".cursor/skills/quality-playbook/quality_gate.py",
+    ".continue/skills/quality-playbook/quality_gate.py",
     ".github/skills/quality-playbook/quality_gate.py",
 )
 

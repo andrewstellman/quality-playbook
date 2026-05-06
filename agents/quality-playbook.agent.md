@@ -39,7 +39,9 @@ Check that the quality playbook skill is installed. Look for SKILL.md in these l
 1. `SKILL.md` (source checkout / repo root)
 2. `.claude/skills/quality-playbook/SKILL.md` (Claude Code)
 3. `.github/skills/SKILL.md` (Copilot, flat layout)
-4. `.github/skills/quality-playbook/SKILL.md` (Copilot, nested layout)
+4. `.cursor/skills/quality-playbook/SKILL.md` (Cursor)
+5. `.continue/skills/quality-playbook/SKILL.md` (Continue)
+6. `.github/skills/quality-playbook/SKILL.md` (Copilot, nested layout)
 
 Also check for a `references/` directory alongside SKILL.md. It should contain .md files (the full set includes iteration.md, review_protocols.md, spec_audit.md, verification.md, requirements_pipeline.md, exploration_patterns.md, defensive_patterns.md, schema_mapping.md, constitution.md, functional_tests.md, orchestrator_protocol.md, and others). Verify the directory exists and has at least 6 .md files.
 
