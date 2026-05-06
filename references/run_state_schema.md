@@ -179,6 +179,18 @@ v1.5.6+. Records the documentation-availability state at Phase 1 entry. Currentl
 
 When `documentation_state state="code_only"` is emitted, the playbook also prepends a "Documentation status: code-only mode" section to `quality/EXPLORATION.md` and adds a "Documentation state: code_only" line to `quality/PROGRESS.md` so the downgrade is visible to anyone reading either artifact. New runs adding the `documentation_state` event must include it in the `_index.event_types` list.
 
+### `aborted_missing_docs`
+
+v1.5.6+. Records that the run aborted at Phase 1 entry because `--require-docs` was set and `reference_docs/` was empty. Mutually exclusive with `documentation_state state="code_only"` for the same Phase 1 entry — `--require-docs` is the opt-IN abort path; the absence of the flag preserves the documented code-only-mode downgrade. After this event the runner returns non-zero without invoking any LLM work, so no `phase_start phase=1` is recorded.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `event` | string | yes | `"aborted_missing_docs"` |
+| `ts` | string | yes | |
+| `reason` | string | yes | Free-form (e.g. `"reference_docs/ empty and --require-docs set"`) |
+
+When `aborted_missing_docs` is emitted, the playbook also writes an `ERROR: aborted_missing_docs — <reason>` block to `quality/PROGRESS.md` so the abort is visible without reading the JSONL. New runs that pass `--require-docs` against an empty `reference_docs/` must include `aborted_missing_docs` in the `_index.event_types` list.
+
 ### `run_end`
 
 Marks the end of the playbook run.

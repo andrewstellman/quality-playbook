@@ -375,6 +375,25 @@ def build_parser() -> argparse.ArgumentParser:
             "compatibility with v1.5.1 wrappers.)"
         ),
     )
+    # v1.5.6 cluster C (Resolved Question 2 carry-forward): operators
+    # who want a hard fail for missing docs can opt in. Default off —
+    # code-only mode is still the documented default behavior. Mutually
+    # informative with --no-formal-docs (which suppresses the WARN
+    # banner for the same code-only-mode case): --require-docs is the
+    # opt-IN counterpart to --no-formal-docs's opt-OUT.
+    parser.add_argument(
+        "--require-docs",
+        dest="require_docs",
+        action="store_true",
+        help=(
+            "Abort the run with an `aborted_missing_docs` event when "
+            "reference_docs/ is empty at Phase 1 entry, instead of "
+            "proceeding in code-only mode (the default). Use for "
+            "compliance/policy contexts where docs are mandatory and "
+            "a quiet downgrade would mask a process gap. See "
+            "references/code-only-mode.md for the trade-off."
+        ),
+    )
     parser.add_argument(
         "--no-stdout-echo",
         dest="no_stdout_echo",
@@ -1487,6 +1506,74 @@ def _emit_documentation_state_event(
         return None
 
 
+def _emit_aborted_missing_docs_event(
+    repo_dir: Path, reason: str
+) -> Optional[Path]:
+    """Append an ``aborted_missing_docs`` event to
+    ``<repo_dir>/quality/run_state.jsonl``. Used when ``--require-docs``
+    forces an abort instead of the code-only-mode downgrade. Same
+    defensive error-handling shape as
+    ``_emit_documentation_state_event``: a logging failure must not
+    crash the runner before it has a chance to write the
+    operator-facing PROGRESS.md error line.
+    """
+    try:
+        from bin.run_state_lib import append_event
+    except ImportError:
+        return None
+    jsonl_path = repo_dir / "quality" / "run_state.jsonl"
+    try:
+        jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+        append_event(
+            jsonl_path,
+            {
+                "event": "aborted_missing_docs",
+                "ts": _iso_utc_now(),
+                "reason": reason,
+            },
+        )
+        return jsonl_path
+    except (OSError, ValueError):
+        return None
+
+
+_REQUIRE_DOCS_PROGRESS_MARKER = "ERROR: aborted_missing_docs"
+
+
+def _add_aborted_missing_docs_to_progress(
+    progress_md_path: Path, reason: str
+) -> bool:
+    """Append a clear ``ERROR: aborted_missing_docs`` block to
+    PROGRESS.md so the abort is visible to anyone reading the artifact.
+    Idempotent — re-runs against an already-marked file are a no-op.
+    Returns True on success or no-op; False on write failure.
+    """
+    try:
+        progress_md_path.parent.mkdir(parents=True, exist_ok=True)
+        existing = ""
+        if progress_md_path.is_file():
+            existing = progress_md_path.read_text(
+                encoding="utf-8", errors="replace"
+            )
+        if _REQUIRE_DOCS_PROGRESS_MARKER in existing:
+            return True
+        block = (
+            f"{_REQUIRE_DOCS_PROGRESS_MARKER} — {reason}\n"
+            f"  --require-docs is set but reference_docs/ is empty. "
+            f"Either populate reference_docs/ with plaintext "
+            f"documentation (.md or .txt) or remove --require-docs "
+            f"to fall back to code-only mode "
+            f"(see references/code-only-mode.md)."
+        )
+        with progress_md_path.open("a", encoding="utf-8") as handle:
+            if existing and not existing.endswith("\n"):
+                handle.write("\n")
+            handle.write(f"{block}\n")
+        return True
+    except OSError:
+        return False
+
+
 def _add_documentation_state_to_progress(
     progress_md_path: Path, state: str
 ) -> bool:
@@ -2147,6 +2234,27 @@ def run_one_phase(
     if phase == "1":
         documentation_state = _evaluate_documentation_state(repo_dir)
         if documentation_state == "code_only":
+            # v1.5.6 cluster C: --require-docs short-circuits the
+            # downgrade. Operators who passed the flag want a hard
+            # fail, not a quiet code-only-mode run. Log the abort
+            # event + write the operator-facing PROGRESS.md error,
+            # then return False (the caller treats it like a gate
+            # fail and stops the run before any LLM work).
+            if getattr(args, "require_docs", False):
+                _emit_aborted_missing_docs_event(
+                    repo_dir,
+                    "reference_docs/ empty and --require-docs set",
+                )
+                _add_aborted_missing_docs_to_progress(
+                    repo_dir / "quality" / "PROGRESS.md",
+                    "reference_docs/ empty and --require-docs set",
+                )
+                lib.logboth(log_file, lib.log(
+                    "  ABORT Phase 1: --require-docs is set but "
+                    "reference_docs/ is empty (see "
+                    "references/code-only-mode.md)."
+                ))
+                return False
             _emit_documentation_state_event(
                 repo_dir, "code_only", "reference_docs/ empty"
             )

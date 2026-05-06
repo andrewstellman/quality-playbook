@@ -41,6 +41,16 @@ Files at the top level of `reference_docs/` count as informal context (Tier 4). 
 
 After dropping in documentation, re-run the playbook. Phase 1 will detect the populated `reference_docs/` and skip the code-only-mode downgrade. The new run's EXPLORATION.md, REQUIREMENTS.md, and BUGS.md will reflect the richer evidence base.
 
+## Opt-out: `--require-docs`
+
+Operators who want runs to abort instead of proceeding in code-only mode can pass `--require-docs` to `python3 -m bin.run_playbook` (v1.5.6+). When `--require-docs` is set and `reference_docs/` is empty at Phase 1 entry, the playbook:
+
+1. Appends an `aborted_missing_docs` event to `quality/run_state.jsonl` (event type registered in `references/run_state_schema.md`).
+2. Writes a clear `ERROR: aborted_missing_docs — reference_docs/ empty and --require-docs set` block to `quality/PROGRESS.md`.
+3. Aborts before any LLM work (exit non-zero, same as a gate-fail).
+
+The flag is off by default. Use it for compliance/policy contexts where a quiet code-only-mode downgrade would mask a real process gap (e.g., "every release run must cite a spec; no spec means the run shouldn't have started"). The flag is the opt-IN counterpart to `--no-formal-docs`'s opt-OUT (which suppresses the WARN banner for the same code-only-mode case but allows the run to continue).
+
 ## Cross-references
 
 - **README** — Step 1 of "How to use the Quality Playbook" describes documentation as the first thing to provide.
