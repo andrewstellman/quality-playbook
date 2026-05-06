@@ -3968,13 +3968,19 @@ def print_suggested_next_command(args: argparse.Namespace, failures_occurred: bo
         return
     runner_flag = {
         "claude": " --claude",
+        "copilot": " --copilot",
         "codex": " --codex",
         "cursor": " --cursor",  # v1.5.4 F-1: Cursor CLI runner.
     }.get(args.runner, "")
     model_flag = f" --model {shlex.quote(args.model)}" if getattr(args, "model", None) else ""
-    interpreter = os.path.basename(sys.executable) if sys.executable else "python"
-    script_path = sys.argv[0] if sys.argv and sys.argv[0] else "bin/run_playbook.py"
-    invocation = f"{interpreter} {shlex.quote(script_path)}"
+    interpreter = os.path.basename(sys.executable) if sys.executable else "python3"
+    # v1.5.6 cluster 044 fix: always emit the canonical
+    # `python3 -m bin.run_playbook` form. The script-style invocation
+    # (`<interpreter> <script_path>`) is rejected by the
+    # package-module guard at the bottom of this file with EX_USAGE=64
+    # — emitting it here contradicts the runner's own contract and
+    # breaks copy-paste workflows. (Bug A.)
+    invocation = f"{interpreter} -m bin.run_playbook"
     prefix = f"{invocation}{runner_flag}{model_flag}"
     target_args = " ".join(shlex.quote(name) for name in args.targets)
     print("-" * 56)

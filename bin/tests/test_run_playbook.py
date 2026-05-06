@@ -587,7 +587,13 @@ class RunPlaybookTests(unittest.TestCase):
             run_playbook.sys.executable = original_executable
 
         output = buf.getvalue()
-        self.assertIn("python3 ../bin/run_playbook.py", output)
+        # v1.5.6 cluster 044: assertion updated from the pre-fix
+        # `python3 ../bin/run_playbook.py` (script-path form) to the
+        # canonical `-m bin.run_playbook` form. The script-path form
+        # is rejected by the package-module guard at the bottom of
+        # bin/run_playbook.py with EX_USAGE=64 — emitting it in the
+        # suggestion was Bug A.
+        self.assertIn("python3 -m bin.run_playbook", output)
         self.assertIn("--claude", output)
         self.assertIn("--model sonnet", output)
         self.assertIn("--next-iteration --strategy gap", output)
@@ -1020,6 +1026,135 @@ class RunPlaybookTests(unittest.TestCase):
         self.assertIn("To start fresh", output)
         # Should NOT suggest --next-iteration anywhere (cycle is done).
         self.assertNotIn("--next-iteration", output)
+
+    # --- v1.5.6 cluster 044: --next-iteration suggestion bugs A + B ---
+
+    def test_print_suggested_next_command_uses_canonical_m_form(self) -> None:
+        """Bug A regression: the suggestion line MUST emit the
+        canonical `python3 -m bin.run_playbook` form, NOT the
+        `<interpreter> <script_path>` form. The latter is rejected
+        by the runner's own guard at the package-module check
+        (sys.exit(64) EX_USAGE), so emitting it here would be
+        self-contradictory and break copy-paste workflows.
+
+        Verify across all four prefix-consuming call sites:
+        --phase partial-coverage, --next-iteration with strategy,
+        --next-iteration without strategy (cycle complete), and
+        the no-iteration default-suggestion branch."""
+        import io
+        from contextlib import redirect_stdout
+
+        scenarios = [
+            # (description, args dict)
+            ("partial-phase remaining", dict(
+                runner="claude", next_iteration=False, strategy=["gap"],
+                model="sonnet", targets=["chi-1.4.5"], phase="1,2",
+            )),
+            ("--next-iteration with strategy", dict(
+                runner="claude", next_iteration=True, strategy=["gap"],
+                model=None, targets=["chi-1.4.5"], phase="all",
+            )),
+            ("--next-iteration cycle complete", dict(
+                runner="claude", next_iteration=True,
+                strategy=["parity", "adversarial"],
+                model=None, targets=["chi-1.4.5"], phase="all",
+            )),
+            ("default no-iteration", dict(
+                runner="claude", next_iteration=False, strategy=["gap"],
+                model=None, targets=["chi-1.4.5"], phase=None,
+            )),
+        ]
+
+        for description, kwargs in scenarios:
+            with self.subTest(scenario=description):
+                args = run_playbook.argparse.Namespace(**kwargs)
+                original_argv = run_playbook.sys.argv
+                try:
+                    # Set sys.argv to a script-path form to confirm the
+                    # output does NOT echo it back. Pre-fix, the prefix
+                    # was f"{interpreter} {sys.argv[0]}" which would
+                    # leak this path into the output.
+                    run_playbook.sys.argv = ["/full/path/to/bin/run_playbook.py"]
+                    buf = io.StringIO()
+                    with redirect_stdout(buf):
+                        run_playbook.print_suggested_next_command(args)
+                finally:
+                    run_playbook.sys.argv = original_argv
+
+                output = buf.getvalue()
+                self.assertIn(
+                    "-m bin.run_playbook", output,
+                    f"[{description}] suggestion must emit the "
+                    f"canonical `-m bin.run_playbook` form. Output: "
+                    f"{output!r}",
+                )
+                # The pre-fix script-path form would appear as
+                # `bin/run_playbook.py` (or the absolute path); both
+                # are rejected by the runner's package-module guard.
+                self.assertNotIn(
+                    "/bin/run_playbook.py", output,
+                    f"[{description}] suggestion must NOT emit the "
+                    f"`<script-path>` form — the runner's own guard "
+                    f"rejects it with EX_USAGE=64. Output: {output!r}",
+                )
+                self.assertNotIn(
+                    " bin/run_playbook.py", output,
+                    f"[{description}] same — relative-path script "
+                    f"form is also rejected. Output: {output!r}",
+                )
+
+    def test_print_suggested_next_command_runner_flag_per_runner(self) -> None:
+        """Bug B regression: the runner_flag dict must include
+        `copilot`. Pre-fix the dict had only claude/codex/cursor;
+        when the user invoked with --copilot, the suggestion silently
+        dropped the flag and copy-paste switched the user to default
+        --claude (since --claude is the new default per
+        bin/run_playbook.py argparse).
+
+        Parametric across all four supported runners. Each runner
+        name must produce a `--<runner>` flag in the suggestion."""
+        import io
+        from contextlib import redirect_stdout
+
+        for runner in ("claude", "copilot", "codex", "cursor"):
+            with self.subTest(runner=runner):
+                args = run_playbook.argparse.Namespace(
+                    runner=runner,
+                    next_iteration=False,
+                    strategy=["gap"],
+                    model=None,
+                    targets=["chi-1.4.5"],
+                    phase=None,
+                )
+                original_argv = run_playbook.sys.argv
+                try:
+                    run_playbook.sys.argv = ["bin/run_playbook.py"]
+                    buf = io.StringIO()
+                    with redirect_stdout(buf):
+                        run_playbook.print_suggested_next_command(args)
+                finally:
+                    run_playbook.sys.argv = original_argv
+
+                output = buf.getvalue()
+                self.assertIn(
+                    f"--{runner}", output,
+                    f"--{runner} must appear in the suggestion when "
+                    f"args.runner={runner!r}. Pre-fix the runner_flag "
+                    f"dict was missing `copilot`, silently dropping "
+                    f"the flag for copilot users. Output: {output!r}",
+                )
+                # And no other runner flag should appear (this catches
+                # an inverse regression where runner_flag is hard-coded
+                # to a single value).
+                for other in ("claude", "copilot", "codex", "cursor"):
+                    if other == runner:
+                        continue
+                    self.assertNotIn(
+                        f"--{other}", output,
+                        f"--{other} must NOT appear when "
+                        f"args.runner={runner!r}. The suggestion is "
+                        f"leaking a wrong runner flag. Output: {output!r}",
+                    )
 
     # --- PID file (per-parent) cleanup (Issue 3) ---
 
