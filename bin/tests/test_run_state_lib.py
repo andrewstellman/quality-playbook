@@ -168,10 +168,13 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
     def test_validate_phase_artifacts_phase1_present(self) -> None:
         with TemporaryDirectory() as temp_dir:
             quality = Path(temp_dir)
+            # v1.5.6 BUG-005: Phase 1 validator now requires ≥120 lines
+            # (aligned with Phase 2 startup gate); pad with ≥120 lines.
+            body_lines = ["filler line " + str(i) for i in range(150)]
             content = (
                 "# Exploration\n\n"
                 "## Finding 1: something interesting\n\n"
-                + ("filler text " * 50)
+                + "\n".join(body_lines)
                 + "\n"
             )
             (quality / "EXPLORATION.md").write_text(
@@ -181,7 +184,34 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
             self.assertTrue(ok, msg=reason)
             self.assertEqual(reason, "")
 
+    def test_validate_phase_artifacts_phase1_open_exploration_findings_heading(self) -> None:
+        """v1.5.6 BUG-004: the SKILL.md-prescribed exact heading
+        ``## Open Exploration Findings`` (SKILL.md:1133, 1209, 1260)
+        was rejected by the pre-fix regex. After the fix it must be
+        accepted."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            body_lines = ["finding entry " + str(i) for i in range(150)]
+            content = (
+                "# Exploration\n\n"
+                "## Open Exploration Findings\n\n"
+                + "\n".join(body_lines)
+                + "\n"
+            )
+            (quality / "EXPLORATION.md").write_text(
+                content, encoding="utf-8"
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertTrue(
+                ok,
+                msg=f"BUG-004 regression: '## Open Exploration Findings' "
+                f"rejected as invalid Phase 1 finding section. reason={reason!r}",
+            )
+
     def test_validate_phase_artifacts_phase1_too_short(self) -> None:
+        """v1.5.6 BUG-005: short EXPLORATION.md fails on the 120-line
+        threshold (was 200-byte pre-fix). The reason string must
+        mention the line-count threshold so operators can fix it."""
         with TemporaryDirectory() as temp_dir:
             quality = Path(temp_dir)
             (quality / "EXPLORATION.md").write_text(
@@ -189,26 +219,144 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
             )
             ok, reason = lib.validate_phase_artifacts(quality, 1)
             self.assertFalse(ok)
-            self.assertIn("200-byte", reason)
+            self.assertIn("120", reason)
+            self.assertIn("lines", reason)
+
+    def test_validate_phase_artifacts_phase1_threshold_matches_phase2_gate(self) -> None:
+        """v1.5.6 BUG-005: Phase 1 validator and Phase 2 startup gate
+        share a single threshold (120 lines). A 119-line EXPLORATION.md
+        with a finding section must FAIL the Phase 1 validator (so it
+        cannot pass Phase 1 and then immediately fail Phase 2 startup)
+        — and a 120-line EXPLORATION.md must PASS."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            # Build a 119-line EXPLORATION.md with a valid finding heading.
+            body_119 = ["## Finding 1\n"] + ["x\n"] * 117 + ["x"]
+            self.assertEqual(len("".join(body_119).splitlines()), 119)
+            (quality / "EXPLORATION.md").write_text(
+                "".join(body_119), encoding="utf-8"
+            )
+            ok_119, reason_119 = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(
+                ok_119,
+                "Phase 1 validator must reject a 119-line "
+                "EXPLORATION.md; Phase 2 startup gate would also "
+                "reject it. (BUG-005 alignment.)"
+            )
+
+            # 120-line file passes.
+            body_120 = ["## Finding 1\n"] + ["x\n"] * 118 + ["x"]
+            self.assertEqual(len("".join(body_120).splitlines()), 120)
+            (quality / "EXPLORATION.md").write_text(
+                "".join(body_120), encoding="utf-8"
+            )
+            ok_120, reason_120 = lib.validate_phase_artifacts(quality, 1)
+            self.assertTrue(
+                ok_120,
+                f"Phase 1 validator must accept a 120-line "
+                f"EXPLORATION.md (matches Phase 2 startup gate). "
+                f"reason={reason_120!r}"
+            )
 
     def test_validate_phase_artifacts_phase1_no_finding_section(self) -> None:
         with TemporaryDirectory() as temp_dir:
             quality = Path(temp_dir)
+            # ≥120 lines but no finding section — must fail on the
+            # heading-regex check, not the line-count check.
+            body_lines = ["filler line " + str(i) for i in range(150)]
             (quality / "EXPLORATION.md").write_text(
-                ("filler " * 100) + "\n", encoding="utf-8",
+                "\n".join(body_lines) + "\n", encoding="utf-8",
             )
             ok, reason = lib.validate_phase_artifacts(quality, 1)
             self.assertFalse(ok)
             self.assertIn("finding section", reason)
 
-    def test_validate_phase_artifacts_phase2_present(self) -> None:
+    def test_validate_phase_artifacts_phase2_generate_contract(self) -> None:
+        """v1.5.6 BUG-014 (Conclusion C): Phase 2 validator must check
+        the shipped Generate contract — REQUIREMENTS.md, QUALITY.md,
+        CONTRACTS.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md,
+        RUN_CODE_REVIEW.md, RUN_INTEGRATION_TESTS.md, RUN_SPEC_AUDIT.md,
+        RUN_TDD_TESTS.md, plus one test_functional.<ext> file. The
+        pre-fix validator checked the v1.5.5-design triage artifacts
+        (EXPLORATION_MERGED.md, triage.md) which were never adopted
+        in the shipped SKILL.md."""
         with TemporaryDirectory() as temp_dir:
             quality = Path(temp_dir)
-            (quality / "EXPLORATION_MERGED.md").write_text(
-                "merged\n", encoding="utf-8",
+
+            # Empty quality_dir — must fail with the first missing artifact.
+            ok, reason = lib.validate_phase_artifacts(quality, 2)
+            self.assertFalse(ok)
+            self.assertIn("REQUIREMENTS.md", reason)
+
+            # Stage all nine fixed-name Generate-contract artifacts as
+            # non-empty files.
+            for name in (
+                "REQUIREMENTS.md", "QUALITY.md", "CONTRACTS.md",
+                "COVERAGE_MATRIX.md", "COMPLETENESS_REPORT.md",
+                "RUN_CODE_REVIEW.md", "RUN_INTEGRATION_TESTS.md",
+                "RUN_SPEC_AUDIT.md", "RUN_TDD_TESTS.md",
+            ):
+                (quality / name).write_text("body\n", encoding="utf-8")
+
+            # Still missing test_functional.<ext> — must fail.
+            ok, reason = lib.validate_phase_artifacts(quality, 2)
+            self.assertFalse(ok)
+            self.assertIn("test_functional", reason)
+
+            # Add a Python test_functional file — passes.
+            (quality / "test_functional.py").write_text(
+                "def test_x(): pass\n", encoding="utf-8",
             )
-            ok, _ = lib.validate_phase_artifacts(quality, 2)
-            self.assertTrue(ok)
+            ok, reason = lib.validate_phase_artifacts(quality, 2)
+            self.assertTrue(ok, msg=reason)
+
+    def test_validate_phase_artifacts_phase2_rejects_empty_artifact(self) -> None:
+        """An empty artifact (zero bytes) must fail with an 'empty'
+        diagnostic so operators know the file exists but has no
+        content."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            for name in (
+                "REQUIREMENTS.md", "QUALITY.md", "CONTRACTS.md",
+                "COVERAGE_MATRIX.md", "COMPLETENESS_REPORT.md",
+                "RUN_CODE_REVIEW.md", "RUN_INTEGRATION_TESTS.md",
+                "RUN_SPEC_AUDIT.md", "RUN_TDD_TESTS.md",
+            ):
+                (quality / name).write_text("body\n", encoding="utf-8")
+            # CONTRACTS.md exists but is empty.
+            (quality / "CONTRACTS.md").write_text("", encoding="utf-8")
+            (quality / "test_functional.py").write_text(
+                "def test_x(): pass\n", encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 2)
+            self.assertFalse(ok)
+            self.assertIn("CONTRACTS.md", reason)
+            self.assertIn("empty", reason)
+
+    def test_validate_phase_artifacts_phase2_accepts_polyglot_test_functional(self) -> None:
+        """A target with multiple test_functional.* files (e.g. a
+        polyglot repo with .py + .go) passes as long as at least one
+        is non-empty. The contract is "one functional-test file
+        exists per project"; the validator is permissive about
+        multiple."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            for name in (
+                "REQUIREMENTS.md", "QUALITY.md", "CONTRACTS.md",
+                "COVERAGE_MATRIX.md", "COMPLETENESS_REPORT.md",
+                "RUN_CODE_REVIEW.md", "RUN_INTEGRATION_TESTS.md",
+                "RUN_SPEC_AUDIT.md", "RUN_TDD_TESTS.md",
+            ):
+                (quality / name).write_text("body\n", encoding="utf-8")
+            # Empty .py file but a non-empty .go file — still passes
+            # because the validator's contract is "at least one
+            # non-empty test_functional.*".
+            (quality / "test_functional.py").write_text("", encoding="utf-8")
+            (quality / "test_functional.go").write_text(
+                "func TestX(t *testing.T) {}\n", encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 2)
+            self.assertTrue(ok, msg=reason)
 
     def test_validate_phase_artifacts_phase4_requires_both(self) -> None:
         with TemporaryDirectory() as temp_dir:

@@ -279,8 +279,8 @@ The AI verifies these conditions before appending a `phase_end` event. If any ch
 
 | Phase | Required conditions |
 |---|---|
-| 1 | `quality/EXPLORATION.md` exists, file size ≥ 200 bytes, contains at least one finding section (regex `## Finding` or numbered `### N.` or similar) |
-| 2 | At least one of `quality/EXPLORATION_MERGED.md` / `quality/triage/triage.md` / equivalent triage artifact exists, non-empty |
+| 1 | `quality/EXPLORATION.md` exists, ≥ 120 lines (aligned with the Phase 2 startup gate in `bin/run_playbook.check_phase_gate`), contains at least one finding section (regex `^##\s+(Finding\|Open Exploration Findings\|\d+\.)` — accepts `## Finding ...`, the SKILL-prescribed exact heading `## Open Exploration Findings`, and numbered `## N.` headings) |
+| 2 | All nine fixed-name Generate-contract artifacts exist non-empty under `quality/`: `REQUIREMENTS.md`, `QUALITY.md`, `CONTRACTS.md`, `COVERAGE_MATRIX.md`, `COMPLETENESS_REPORT.md`, `RUN_CODE_REVIEW.md`, `RUN_INTEGRATION_TESTS.md`, `RUN_SPEC_AUDIT.md`, `RUN_TDD_TESTS.md`. Plus at least one non-empty `quality/test_functional.<ext>` (extension varies by primary language). Pre-v1.5.6 this row described the v1.5.5-design triage model (`EXPLORATION_MERGED.md` / `triage.md`); that mapping was never adopted by shipped SKILL.md / orchestrator_protocol.md / agent files, which always documented Phase 2 as Generate. |
 | 3 | `quality/RUN_CODE_REVIEW.md` exists; if `bugs_identified > 0`, then `quality/writeups/BUG-*.md` count ≥ `bugs_identified` |
 | 4 | `quality/REQUIREMENTS.md` exists, non-empty; `quality/COVERAGE_MATRIX.md` exists. If the four-pass skill-derivation pipeline ran (i.e., `quality/phase3/` exists), then the per-pass artifacts under `quality/phase3/` (`pass_a_drafts.jsonl`, `pass_b_citations.jsonl`, `pass_c_formal.jsonl`, and the Pass D inbox) must all exist and be non-empty. (Spec/Code projects that skip skill-derivation produce no `quality/phase3/` directory; the per-pass requirement is conditional on its presence.) |
 | 5 | `quality/results/quality-gate.log` exists, non-empty |

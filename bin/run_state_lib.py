@@ -45,9 +45,19 @@ _REQUIRED_FIELDS: tuple[str, ...] = ("ts", "event")
 _VALID_PHASES: frozenset[int] = frozenset({1, 2, 3, 4, 5, 6})
 
 # Regex used by Phase 1's artifact validator to detect a finding section
-# header. Matches ``## Finding ...`` or ``## 1. ...`` style markers — the
-# schema doc allows either form.
-_FINDING_SECTION_RE = re.compile(r"^##\s+(Finding|\d+\.)", re.MULTILINE)
+# header. Matches:
+#   - ``## Finding ...`` (or ``## Findings ...`` — substring match)
+#   - ``## Open Exploration Findings`` (the SKILL.md-prescribed exact
+#     heading at SKILL.md:1133, 1209, 1260)
+#   - ``## N.`` for any digit-prefixed numbered heading
+# v1.5.6 BUG-004: pre-fix the regex rejected ``## Open Exploration Findings``,
+# the heading SKILL.md tells Phase 1 to write. EXPLORATION.md files
+# produced by SKILL-conformant runs were marked invalid by this validator
+# even though they matched the documented Phase 1 contract.
+_FINDING_SECTION_RE = re.compile(
+    r"^##\s+(Finding|Open Exploration Findings|\d+\.)",
+    re.MULTILINE,
+)
 
 # Regex used by Phase 6's artifact validator to detect a ``BUG-`` entry
 # header in BUGS.md.
@@ -162,35 +172,77 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
         path = quality_dir / "EXPLORATION.md"
         if not path.is_file():
             return (False, f"missing artifact: {path}")
-        size = path.stat().st_size
-        if size < 200:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        # v1.5.6 BUG-005: align Phase 1 completion threshold with the
+        # Phase 2 startup gate (run_playbook.check_phase_gate phase=2,
+        # which requires EXPLORATION.md ≥120 lines). The pre-v1.5.6
+        # 200-byte threshold was strictly weaker — a Phase-1-complete
+        # artifact could pass this validator yet immediately fail the
+        # Phase 2 startup check, leaving the run wedged in a
+        # "phase 1 done, phase 2 won't start" state. The same
+        # 120-line threshold now applies to both gates.
+        line_count = len(text.splitlines())
+        if line_count < 120:
             return (
                 False,
-                f"{path} is below the 200-byte minimum (got {size})",
+                f"{path} has {line_count} lines; Phase 2 startup gate "
+                f"requires at least 120",
             )
-        text = path.read_text(encoding="utf-8", errors="ignore")
         if not _FINDING_SECTION_RE.search(text):
             return (
                 False,
                 f"{path} contains no finding section header "
-                f"(expected '## Finding' or '## N.')",
+                f"(expected '## Finding', '## Open Exploration Findings', "
+                f"or '## N.')",
             )
         return (True, "")
 
     if phase == 2:
-        candidates = (
-            quality_dir / "EXPLORATION_MERGED.md",
-            quality_dir / "triage" / "triage.md",
-            quality_dir / "triage.md",
+        # v1.5.6 BUG-014 (Conclusion C from instruction-019 investigation):
+        # the v1.5.5 design's triage model (EXPLORATION_MERGED.md,
+        # triage.md) was never adopted by the shipped SKILL.md /
+        # orchestrator_protocol.md / agent files — they document Phase 2
+        # as Generate, producing a 9-artifact contract plus one
+        # functional-test file. Validate the shipped Generate contract
+        # so a successful Phase 2 cannot fail this validator. The
+        # canonical Generate contract is documented in
+        # references/orchestrator_protocol.md (Phase 2 row, fixed by
+        # cluster 3 / commit 7ab8ef4) and SKILL.md Phase 2 prose.
+        required_fixed = (
+            "REQUIREMENTS.md",
+            "QUALITY.md",
+            "CONTRACTS.md",
+            "COVERAGE_MATRIX.md",
+            "COMPLETENESS_REPORT.md",
+            "RUN_CODE_REVIEW.md",
+            "RUN_INTEGRATION_TESTS.md",
+            "RUN_SPEC_AUDIT.md",
+            "RUN_TDD_TESTS.md",
         )
-        for candidate in candidates:
-            if candidate.is_file() and candidate.stat().st_size > 0:
-                return (True, "")
-        return (
-            False,
-            "no non-empty triage artifact found among "
-            "EXPLORATION_MERGED.md, triage/triage.md, triage.md",
-        )
+        for name in required_fixed:
+            candidate = quality_dir / name
+            if not candidate.is_file():
+                return (False, f"missing artifact: {candidate}")
+            if candidate.stat().st_size == 0:
+                return (False, f"{candidate} is empty")
+        # test_functional.<ext> — the extension varies by the target's
+        # primary language (e.g. .py, .js, .go, .rb), so we glob for
+        # any test_functional.* file. At least one must exist and be
+        # non-empty; multiple is fine (a polyglot project may emit
+        # several).
+        functional_tests = sorted(quality_dir.glob("test_functional.*"))
+        if not functional_tests:
+            return (
+                False,
+                f"missing artifact: {quality_dir}/test_functional.<ext> "
+                f"(no test_functional.* file found)",
+            )
+        if not any(p.stat().st_size > 0 for p in functional_tests):
+            return (
+                False,
+                f"all test_functional.* files under {quality_dir} are empty",
+            )
+        return (True, "")
 
     if phase == 3:
         path = quality_dir / "RUN_CODE_REVIEW.md"

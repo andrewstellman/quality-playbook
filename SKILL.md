@@ -498,8 +498,8 @@ Verify the corresponding artifacts before writing each `phase_end` event:
 
 | Phase | Required |
 |---|---|
-| 1 | `quality/EXPLORATION.md` exists, ≥ 200 bytes, contains finding sections (regex `^##\s+(Finding|\d+\.)`) |
-| 2 | At least one of `quality/EXPLORATION_MERGED.md` / `quality/triage/triage.md` / `quality/triage.md` exists, non-empty |
+| 1 | `quality/EXPLORATION.md` exists, ≥ 120 lines (aligned with the Phase 2 startup gate), contains finding sections (regex `^##\s+(Finding\|Open Exploration Findings\|\d+\.)` — accepts the SKILL-prescribed exact heading `## Open Exploration Findings` plus the legacy `## Finding ...` and `## N.` forms) |
+| 2 | All nine Generate-contract artifacts exist non-empty under `quality/`: `REQUIREMENTS.md`, `QUALITY.md`, `CONTRACTS.md`, `COVERAGE_MATRIX.md`, `COMPLETENESS_REPORT.md`, `RUN_CODE_REVIEW.md`, `RUN_INTEGRATION_TESTS.md`, `RUN_SPEC_AUDIT.md`, `RUN_TDD_TESTS.md`. Plus at least one non-empty `quality/test_functional.<ext>` (extension varies by language). |
 | 3 | `quality/RUN_CODE_REVIEW.md` exists |
 | 4 | `quality/REQUIREMENTS.md` non-empty AND `quality/COVERAGE_MATRIX.md` exists. If the four-pass skill-derivation pipeline ran (i.e., `quality/phase3/` exists), then `quality/phase3/pass_a_drafts.jsonl`, `quality/phase3/pass_b_citations.jsonl`, `quality/phase3/pass_c_formal.jsonl`, and the Pass D inbox under `quality/phase3/` must all exist and be non-empty. |
 | 5 | `quality/results/quality-gate.log` exists, non-empty |
@@ -1241,7 +1241,7 @@ Or say "keep going" to continue automatically.
 
 ## Phase 2: Generate the Quality Playbook
 
-**v1.5.6 instrumentation:** Append `phase_start phase=2` to `quality/run_state.jsonl` now. At phase end, cross-validate (a triage artifact exists, non-empty) then append `phase_end phase=2`.
+**v1.5.6 instrumentation:** Append `phase_start phase=2` to `quality/run_state.jsonl` now. At phase end, cross-validate by calling `bin/run_state_lib.validate_phase_artifacts(quality_dir, 2)` — it checks the full Generate contract (REQUIREMENTS.md, QUALITY.md, CONTRACTS.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, RUN_CODE_REVIEW.md, RUN_INTEGRATION_TESTS.md, RUN_SPEC_AUDIT.md, RUN_TDD_TESTS.md, plus one non-empty `quality/test_functional.<ext>`). If validation passes, append `phase_end phase=2`. If it fails, append an `error` event with `recoverable: true` and re-run the missing artifact generation. (BUG-014 fix: pre-v1.5.6 this note referenced the v1.5.5-design triage model that never shipped.)
 
 > **Required references for this phase** — read these before proceeding:
 > - `quality/EXPLORATION.md` — your Phase 1 findings (architecture, requirements, use cases, pattern analysis)

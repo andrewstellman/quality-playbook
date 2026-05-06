@@ -328,6 +328,23 @@ Gate to v1.6.0 work: all of the above verified.
 
 ---
 
+## Reconciliation: v1.5.5 design's triage model vs. shipped Generate model
+
+The v1.5.5 Design and Implementation Plan documents specify a Phase 2 model in which Phase 2 is "Triage" — it consumes EXPLORATION.md and writes EXPLORATION_MERGED.md (or `quality/triage/triage.md`) before Phase 3's investigation. Run-state instrumentation (`references/run_state_schema.md`'s cross-validation rule for Phase 2, the SKILL.md cross-validation table, and `bin/run_state_lib.validate_phase_artifacts`) was built against that triage model in v1.5.5 Phase 1.
+
+The shipped SKILL.md, the agent files (`agents/quality-playbook.agent.md`, `agents/quality-playbook-claude.agent.md`), `references/orchestrator_protocol.md`, and `ai_context/DEVELOPMENT_CONTEXT.md` always documented Phase 2 as **Generate** — produces a 9-artifact contract (REQUIREMENTS.md, QUALITY.md, CONTRACTS.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, RUN_CODE_REVIEW.md, RUN_INTEGRATION_TESTS.md, RUN_SPEC_AUDIT.md, RUN_TDD_TESTS.md) plus one `quality/test_functional.<ext>`. The Triage model was never adopted in the live playbook prose; only the v1.5.5 design docs and the validator carried it.
+
+**v1.5.6 reconciliation (BUG-009, BUG-014, BUG-019).** The shipped Generate model is the canonical Phase 2 contract. v1.5.6 brings the historically inconsistent surfaces into agreement with it:
+
+- Cluster 3 (BUG-009/019, commit `7ab8ef4`) corrected `references/orchestrator_protocol.md`, `agents/quality-playbook.agent.md`, and `ai_context/DEVELOPMENT_CONTEXT.md` to match the Generate contract.
+- Cluster 6 (BUG-014, this commit) replaces `bin/run_state_lib.validate_phase_artifacts` Phase 2 branch with a Generate-contract check, updates `references/run_state_schema.md` and `SKILL.md`'s cross-validation tables, and updates the SKILL.md Phase 2 instrumentation note. (Investigation conclusion C from instruction-019 — both code and doc fix needed.)
+
+**Historical preservation.** The v1.5.5 Design and Implementation Plan documents are intentionally NOT touched. They are historical record describing what was designed in v1.5.5; the design's Phase 2 model is documented as the v1.5.5 intent regardless of what shipped. Future archeology should consult both the v1.5.5 design (for the original intent) and this reconciliation paragraph (for the v1.5.6 outcome).
+
+**Phase 3-6 of `validate_phase_artifacts`.** The remaining branches of the validator (Phase 3 = `RUN_CODE_REVIEW.md` only, Phase 4 = `REQUIREMENTS.md` + `COVERAGE_MATRIX.md`, Phase 5 = `quality-gate.log`, Phase 6 = `BUGS.md` + `INDEX.md`) also reflect the v1.5.5 design's mapping rather than the shipped pipeline (Phase 3 = Code Review, Phase 4 = Spec Audit, Phase 5 = Reconciliation, Phase 6 = Verify). Cluster 6's scope is limited to the three named bugs (BUG-004/005/014); the broader Phase 3-6 mapping mismatch is filed as a follow-up. Same for `bin/run_state_lib._summarize_event` / `write_progress_md`'s `phase_names` dict, which carries the v1.5.5 names ("Triage", "Investigation", "Skill-derivation", "Release readiness") and renders PROGRESS.md with stale phase names.
+
+---
+
 ## Out-of-band carry-forward to v1.5.7 / v1.6.0
 
 Anything that surfaces during v1.5.6 development pointing toward a future release goes into a carry-forward note, not absorbed into v1.5.6 scope:
