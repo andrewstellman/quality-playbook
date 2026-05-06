@@ -396,9 +396,103 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
   `chi-1.5.1` was dropped on time-budget grounds. Both follow-up questions move
   to v1.5.7 rather than being treated as silent omissions.
 - **Known limitations remain in the release notes instead of being buried in validation output.**
-  Windows install behavior remains untested in this environment, and the reused
-  `chi-1.3.45` evidence available in Phase 4 validation is code-only rather than
-  a fresh docs-backed validation run.
+  Windows install behavior is `untested-infrastructure-blocked-pathlib-coverage-extended`
+  (no Windows machine, no Wine, no Windows container in the validation
+  sandbox; cluster D extended `PureWindowsPath` coverage in the install-skill
+  test surface in lieu of a direct run). The reused `chi-1.3.45` Phase 4
+  evidence is still code-only rather than a fresh docs-backed validation run
+  (cluster E diagnostic-only this release; the docs-backed re-run is a
+  v1.5.7 calibration-session item).
+- **Bootstrap self-audit fix-up: 22 named issues closed across 8 clusters.**
+  v1.5.6's self-bootstrap run on 2026-05-02 surfaced 20 named bugs plus 2
+  quality-gate self-consistency failures. All 22 are fixed in clusters 1-8
+  (commits `aa24405` through `e2b6998`). GitHub
+  [issue #1](https://github.com/andrewstellman/quality-playbook/issues/1)
+  (Kevin McMahon, opened against v1.4.4) is fully closed: concerns 1-3 and
+  5 by clusters 1, 2, 3, 5, 7 plus the v1.4.5 retirement of `quality_gate.sh`;
+  concern 4 (the README Step 4 `claude --agent agents/...` invocation gap)
+  by cluster A. Bootstrap fix-up summary at
+  [`Reviews/QPB_v1.5.6_Bootstrap_Fixup_Verification.md`](https://github.com/andrewstellman/quality-playbook/tree/1.5.6).
+- **`bin/install_skill.py` now bundles `agents/` alongside `references/` and `phase_prompts/`.**
+  Cluster A (commit `161d923`). Adopters who follow the AGENTS.md install
+  procedure now have `agents/quality-playbook.agent.md` and
+  `agents/quality-playbook-claude.agent.md` at the install destination —
+  the README Step 4 `claude --agent agents/...` invocation resolves from
+  the target repo, not just from inside the QPB clone. Two regression
+  tests (`test_agents_bundled_in_install`,
+  `test_agents_bundled_via_target_override`) pin the bundle parity.
+- **`.github/skills/quality_gate.py` is now a working Python shim instead of a broken symlink stub.**
+  Cluster A (commit `161d923`). Pre-fix it was a git symlink that didn't
+  materialize as a symlink on filesystems with `core.symlinks=false`,
+  leaving a 28-byte text stub that crashed when invoked as Python. The
+  new shim adds `quality_gate/` to `sys.path` and dispatches to its
+  `main()`. Adopters never see the shim; `bin/install_skill.py` copies
+  the canonical script directly to `<install_root>/quality_gate.py`.
+- **Phase 2 = Generate, not Triage — across every surface.**
+  Clusters 3 (commit `7ab8ef4`) and 6 (`54380f7`) reconciled the v1.5.5
+  design's never-shipped triage model with the actually-shipped Generate
+  contract: `references/orchestrator_protocol.md`, the agent files,
+  `ai_context/DEVELOPMENT_CONTEXT.md`, and now
+  `bin/run_state_lib.validate_phase_artifacts` Phase 2 + `SKILL.md` Phase 2
+  instrumentation prose all describe the same 9-artifact contract
+  (`REQUIREMENTS.md`, `QUALITY.md`, `CONTRACTS.md`, `COVERAGE_MATRIX.md`,
+  `COMPLETENESS_REPORT.md`, four `RUN_*.md` files) plus a non-empty
+  `quality/test_functional.<ext>`.
+- **Phase prompts are now layout-agnostic.**
+  Clusters 5 (commit `45880cb`) and B (`6a185c4`) replaced hardcoded
+  `.github/skills/` paths in `phase_prompts/phase{1..6}.md` with the
+  `{skill_fallback_guide}` placeholder that interpolates the canonical
+  six-layout fallback list. Adopters using `.claude/`, `.cursor/`, or
+  `.continue/` install layouts now get phase prompts that point at
+  their actual install locations. The phase-prompt regression test
+  surface (`PhasePromptHardcodedPathRegressionTests`) covers all six
+  phases per-line; future single-layout hardcodes trip a clear failure.
+- **`validate_phase_artifacts` validators match the shipped pipeline for every phase.**
+  Cluster B (commit `6a185c4`) reconciled the Phase 3-6 validators against
+  the shipped pipeline (Phase 3 = Code Review's `quality/code_reviews/`
+  + conditional regression patches; Phase 4 = Spec Audit's
+  `quality/spec_audits/` triage + auditor files; Phase 5 = Reconciliation's
+  per-bug writeups + red-phase logs + `tdd-results.json`; Phase 6 = Verify's
+  `quality-gate.log` + `Terminal Gate Verification` section). The
+  `phase_names` dict in `write_progress_md` now uses shipped pipeline
+  labels (Explore / Generate / Code Review / Spec Audit / Reconciliation /
+  Verify) instead of the v1.5.5-design Triage-model labels.
+- **`--require-docs` opt-out flag for missing-documentation runs.**
+  Cluster C (commit `a3b94eb`). Operators who want a hard fail when
+  `reference_docs/` is empty can pass `--require-docs` to
+  `python3 -m bin.run_playbook` — the run aborts at Phase 1 entry with
+  an `aborted_missing_docs` event in `quality/run_state.jsonl` and a
+  clear `ERROR: aborted_missing_docs` block in `quality/PROGRESS.md`,
+  before any LLM work. Default behavior unchanged: code-only mode is
+  still the default downgrade. The flag is for compliance/policy
+  contexts where a quiet code-only-mode run would mask a process gap.
+- **`load_historical_bugs` returns `None`, not silent `[]`, on missing archives.**
+  Cluster 8 (commit `e2b6998`). `bin/visualize_calibration.load_historical_bugs`
+  now distinguishes "archive missing" (returns `None` and logs a WARNING
+  with the missing path) from "archive present but contains zero bug
+  headings" (returns `[]`, no log). Pre-fix the missing-archive case
+  silently returned `[]`, masking it as "archive present but empty" —
+  cycle replay charts couldn't tell the operator the baseline wasn't
+  staged.
+- **Calibration cycle protocol learned from execution.**
+  Cluster F.1 (commit `ba64584`) folded three lessons from the 2026-05-02
+  Pattern 7 cycle into `agents/calibration_orchestrator.md`:
+  API-budget-exhausted recovery (the express post-lever case), the
+  reduced-scope option's three preconditions (named in audit, flagged
+  for follow-up, NOT the benchmark most directly tied to the
+  hypothesis), and the mid-benchmark post-lever interruption failure
+  mode.
+- **Two follow-on items deferred to a v1.5.7 calibration session.**
+  Cluster E (chi-1.3.45 docs-backed validation re-run) and cluster F.2-F.4
+  (chi-1.5.1 follow-up cycle, express post-lever completion, audit
+  refresh) require multi-hour LLM playbook subprocess executions per
+  the calibration_orchestrator.md Mode 1 spawn-and-resume pattern —
+  outside a coding-worker session's scope. Diagnostic findings for both
+  are captured in
+  [`v1.5.6_runner/outputs/032`](https://github.com/andrewstellman/quality-playbook/tree/1.5.6)
+  and `034`. The 2026-05-02 cycle's `revert` verdict on Pattern 7
+  budget-cap stands; cluster F.2-F.4 would close the original
+  4-benchmark scope but won't change the verdict.
 
 ### What's new in v1.5.5
 

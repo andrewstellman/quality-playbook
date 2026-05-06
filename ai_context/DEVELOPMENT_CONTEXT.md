@@ -7,7 +7,7 @@
 > The project accompanies the O'Reilly Radar article [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/).
 > The README was coauthored with Claude Cowork.
 >
-> *Last updated: 2026-05-03 (v1.5.6 currency pass — v1.5.6 shipped with the Pattern 7 displacement-recovery cycle execution and the `bin/install_skill.py` adopter install script; v1.5.7 opens for follow-up cycle work and skill-as-code adopter-persona deepening; v1.6 remains the next major release with Requirements Review).*
+> *Last updated: 2026-05-06 (v1.5.6 cluster G refresh — v1.5.6 shipped with the Pattern 7 displacement-recovery cycle execution + the `bin/install_skill.py` adopter install script + a complete bootstrap-fixup cycle (clusters 1-8 closed 22 named bugs + 2 quality-gate self-consistency failures) + audit-discovered backlog clusters A, B, C, D, F.1 (install polish, validator mapping reconciliation, `--require-docs` flag, cross-platform validation evidence, calibration_orchestrator.md cycle clarifications). GitHub issue #1 fully closed. Test suite: 1091 pass / 0 fail / 5 skip. v1.5.7 opens for follow-up cycle work (chi-1.5.1 + express post-lever + audit refresh — clusters E and F.2-F.4 deferred from v1.5.6 as calibration-session work) and skill-as-code adopter-persona deepening; v1.6 remains the next major release with Requirements Review).*
 
 ## Project structure
 

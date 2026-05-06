@@ -2,7 +2,7 @@
 
 > This document describes **how the Quality Playbook is improved over time** — the methodology QPB uses to find and fix process defects in itself, in the same way `SKILL.md` describes how QPB finds defects in code under review. It is meta. Release-specific scope and work items live in `docs/design/QPB_v<X.Y.Z>_Design.md` and `docs/design/QPB_v<X.Y.Z>_Implementation_Plan.md`, not here.
 
-*Last updated: 2026-05-03 (v1.5.6 currency pass — the v1.5.6 Pattern 7 displacement-recovery cycle ran end-to-end and produced a REVERT verdict; the cap stayed at `3-5`. REQ-ID instability across runs surfaced as a methodology asterisk for v1.7's SPC machinery).*
+*Last updated: 2026-05-06 (v1.5.6 cluster G refresh — the v1.5.6 Pattern 7 displacement-recovery cycle produced a REVERT verdict on a 3-of-4-benchmark reduced scope (chi-1.3.45 + virtio-1.5.1 post-lever clean; express-1.3.50 post-lever interrupted at API budget; chi-1.5.1 deferred for time budget). The cap stayed at `3-5`. v1.5.6's self-bootstrap surfaced 20 named bugs + 2 quality-gate self-consistency failures — all 22 closed across bootstrap-fixup clusters 1-8 (commits `aa24405`..`e2b6998`) plus the audit-discovered backlog clusters A-D + F.1 (commits `161d923`, `6a185c4`, `a3b94eb`, `60cb734`, `ba64584`). GitHub issue #1 fully closed. Cluster E (chi-1.3.45 docs-backed validation re-run) and F.2-F.4 (chi-1.5.1 + express post-lever + audit refresh) deferred to a v1.5.7 calibration session. REQ-ID instability across runs surfaced as a methodology asterisk for v1.7's SPC machinery).*
 
 ## QPB applies quality engineering to itself
 

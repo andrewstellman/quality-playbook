@@ -2,7 +2,7 @@
 
 > Release-gate review for `TOOLKIT.md` and the orientation docs that reference it. Applies the same empirical-loop discipline that `IMPROVEMENT_LOOP.md` describes for the playbook itself, but to the documentation: surface problems through a panel of independent readers, fix them, re-test until convergence.
 
-*Last updated: 2026-05-03 (v1.5.6 currency pass — adds `bin/install_skill.py` AI-agent-driven install path as the new default install mode in TOOLKIT.md; Persona 19 skill-as-code deep work moves forward to v1.5.7).*
+*Last updated: 2026-05-06 (v1.5.6 cluster G refresh — adds `bin/install_skill.py` AI-agent-driven install path as the new default install mode in TOOLKIT.md; cluster A bundles `agents/` + replaces the broken `quality_gate.py` symlink stub with a working Python shim; cluster C adds the `--require-docs` opt-out flag; cluster D acknowledges Windows install validation as `untested-infrastructure-blocked-pathlib-coverage-extended`; Persona 19 skill-as-code deep work confirmed current — the cluster A audit found no v1.5.6-specific gaps beyond the existing v1.5.7 deferral).*
 
 ## Purpose
 

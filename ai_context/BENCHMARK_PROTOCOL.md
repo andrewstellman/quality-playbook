@@ -1,6 +1,6 @@
 # Benchmark Protocol
 
-Last updated: 2026-05-03 (v1.5.6 currency pass — clarifies the canonical 3 (or 4 with chi-1.5.1) calibration benchmarks for cycle work; notes the v1.5.6 cycle ran a 2-of-3 reduced scope)
+Last updated: 2026-05-06 (v1.5.6 cluster G refresh — clarifies the canonical 3 (or 4 with chi-1.5.1) calibration benchmarks for cycle work; the v1.5.6 cycle ran a 3-of-4 reduced scope (chi-1.3.45 + virtio-1.5.1 post-lever clean; express-1.3.50 post-lever interrupted at API budget; chi-1.5.1 deferred for time budget) and produced a REVERT verdict. chi-1.5.1 + express post-lever follow-up runs deferred to a v1.5.7 calibration session per cluster F.2-F.4. Cluster F.1 commit `ba64584` folded the 2026-05-02 cycle's operational learnings into `agents/calibration_orchestrator.md` — see that template's failure-modes section for the API-budget-exhausted recovery path, the reduced-scope option's three preconditions, and the mid-benchmark post-lever interruption failure mode.)
 
 The playbook tunes against real repos. For tuning signals to be honest, each benchmark run has to start from the same blank slate — no prior findings, no sibling runs, no pre-existing `quality/` artifacts to anchor on. This file is the checklist.
 
