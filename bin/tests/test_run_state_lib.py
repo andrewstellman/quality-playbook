@@ -358,81 +358,276 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
             ok, reason = lib.validate_phase_artifacts(quality, 2)
             self.assertTrue(ok, msg=reason)
 
-    def test_validate_phase_artifacts_phase4_requires_both(self) -> None:
+    # v1.5.6 cluster B: Phase 3 = Code Review per shipped pipeline.
+    # Required artifacts: quality/code_reviews/ has ≥1 review file.
+    # Conditional: if BUGS.md has confirmed bugs, every confirmed bug
+    # has a regression-test patch under quality/patches/. The
+    # pre-cluster-B Phase 3 check (RUN_CODE_REVIEW.md alone) was the
+    # v1.5.5 design's Phase 2-side mapping; that file is actually a
+    # Phase 2 Generate output (the protocol document), not a Phase 3
+    # review result.
+
+    def test_validate_phase_artifacts_phase3_requires_code_reviews_dir(self) -> None:
+        """Phase 3 must produce at least one review file under
+        quality/code_reviews/."""
         with TemporaryDirectory() as temp_dir:
             quality = Path(temp_dir)
-            (quality / "REQUIREMENTS.md").write_text(
-                "REQ-001 ...\n", encoding="utf-8",
+            ok, reason = lib.validate_phase_artifacts(quality, 3)
+            self.assertFalse(ok)
+            self.assertIn("code_reviews", reason)
+            (quality / "code_reviews").mkdir()
+            ok, reason = lib.validate_phase_artifacts(quality, 3)
+            self.assertFalse(ok)
+            self.assertIn("no review files", reason)
+            (quality / "code_reviews" / "2026-05-06-review.md").write_text(
+                "# Review\n", encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 3)
+            self.assertTrue(ok, msg=reason)
+
+    def test_validate_phase_artifacts_phase3_conditional_regression_patches(self) -> None:
+        """If BUGS.md has confirmed BUG entries, Phase 3 also requires
+        regression-test patches under quality/patches/. With no BUGS.md
+        or empty BUGS.md, the patch check is skipped."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            (quality / "code_reviews").mkdir()
+            (quality / "code_reviews" / "review.md").write_text(
+                "# r\n", encoding="utf-8",
+            )
+            # No BUGS.md → passes (no bugs to track).
+            ok, _ = lib.validate_phase_artifacts(quality, 3)
+            self.assertTrue(ok)
+            # BUGS.md with no entries → still passes.
+            (quality / "BUGS.md").write_text(
+                "# BUGS\n\nNo bugs yet.\n", encoding="utf-8",
+            )
+            ok, _ = lib.validate_phase_artifacts(quality, 3)
+            self.assertTrue(ok)
+            # BUGS.md with a confirmed bug + no patches/ → fails.
+            (quality / "BUGS.md").write_text(
+                "# BUGS\n\n### BUG-001: example\n\nbody\n",
+                encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 3)
+            self.assertFalse(ok)
+            self.assertIn("patches", reason)
+            # patches/ exists but no regression-test patch → fails.
+            (quality / "patches").mkdir()
+            ok, reason = lib.validate_phase_artifacts(quality, 3)
+            self.assertFalse(ok)
+            self.assertIn("regression-test", reason)
+            # Regression-test patch present → passes.
+            (quality / "patches" / "BUG-001-regression-test.patch").write_text(
+                "diff --git ...\n", encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 3)
+            self.assertTrue(ok, msg=reason)
+
+    def test_validate_phase_artifacts_phase4_spec_audit_contract(self) -> None:
+        """Phase 4 = Spec Audit. quality/spec_audits/ must contain at
+        least one triage file AND at least one auditor file (per the
+        orchestrator_protocol.md naming convention). Pre-cluster-B
+        this branch checked REQUIREMENTS.md + COVERAGE_MATRIX.md —
+        those are Phase 2 Generate outputs, not Phase 4 outputs."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertFalse(ok)
+            self.assertIn("spec_audits", reason)
+            (quality / "spec_audits").mkdir()
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertFalse(ok)
+            self.assertIn("no .md files", reason)
+            # Only auditor file → fails (triage missing).
+            (quality / "spec_audits" / "2026-05-06-auditor-1.md").write_text(
+                "# auditor\n", encoding="utf-8",
             )
             ok, reason = lib.validate_phase_artifacts(quality, 4)
             self.assertFalse(ok)
-            self.assertIn("COVERAGE_MATRIX.md", reason)
-            (quality / "COVERAGE_MATRIX.md").write_text(
-                "matrix\n", encoding="utf-8",
+            self.assertIn("triage", reason)
+            # Both file types → passes.
+            (quality / "spec_audits" / "2026-05-06-triage.md").write_text(
+                "# triage\n", encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertTrue(ok, msg=reason)
+
+    def test_validate_phase_artifacts_phase4_fallback_two_files_when_no_naming_convention(self) -> None:
+        """When the spec_audits/ files don't use the canonical
+        triage/auditor naming, the validator falls back to a weaker
+        '≥2 files' check + a hint to use the canonical names. This
+        keeps backward-compat with older bootstrap runs."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            (quality / "spec_audits").mkdir()
+            # One arbitrarily-named file → fails.
+            (quality / "spec_audits" / "report-a.md").write_text(
+                "# a\n", encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertFalse(ok)
+            self.assertIn("fewer than 2", reason)
+            self.assertIn("naming convention", reason)
+            # Two arbitrarily-named files → passes (fallback).
+            (quality / "spec_audits" / "report-b.md").write_text(
+                "# b\n", encoding="utf-8",
             )
             ok, _ = lib.validate_phase_artifacts(quality, 4)
             self.assertTrue(ok)
 
-    def test_validate_phase_artifacts_phase4_requires_pass_artifacts_when_phase3_exists(self) -> None:
-        """v1.5.5 Council R2 P1.3: if the four-pass skill-derivation
-        pipeline ran (quality/phase3/ exists), every per-pass output
-        must be present and non-empty. Without phase3/, only the legacy
-        REQUIREMENTS.md + COVERAGE_MATRIX.md check applies (backward
-        compatibility for Spec/Code projects that skip skill-derivation).
-        """
+    def test_validate_phase_artifacts_phase5_no_bugs_passes(self) -> None:
+        """Phase 5 = Reconciliation, conditional on confirmed bugs.
+        With no BUGS.md or empty BUGS.md, the validator passes (the
+        contract says "if bugs were confirmed, then ...")."""
         with TemporaryDirectory() as temp_dir:
             quality = Path(temp_dir)
-            (quality / "REQUIREMENTS.md").write_text("REQ\n", encoding="utf-8")
-            (quality / "COVERAGE_MATRIX.md").write_text("m\n", encoding="utf-8")
-
-            # No phase3/ — legacy behavior, OK.
-            ok, _ = lib.validate_phase_artifacts(quality, 4)
+            # No BUGS.md → passes.
+            ok, _ = lib.validate_phase_artifacts(quality, 5)
+            self.assertTrue(ok)
+            # BUGS.md with no entries → passes.
+            (quality / "BUGS.md").write_text(
+                "# BUGS\n\nNo bugs yet.\n", encoding="utf-8",
+            )
+            ok, _ = lib.validate_phase_artifacts(quality, 5)
             self.assertTrue(ok)
 
-            # Add phase3/ but no pass artifacts — fails.
-            (quality / "phase3").mkdir()
-            ok, reason = lib.validate_phase_artifacts(quality, 4)
-            self.assertFalse(ok)
-            self.assertIn("pass_a_drafts.jsonl", reason)
-
-            # Add pass A only — still fails on B.
-            (quality / "phase3" / "pass_a_drafts.jsonl").write_text(
-                '{"x":1}\n', encoding="utf-8"
-            )
-            ok, reason = lib.validate_phase_artifacts(quality, 4)
-            self.assertFalse(ok)
-            self.assertIn("pass_b_citations.jsonl", reason)
-
-            # Stage B + C + D — passes.
-            (quality / "phase3" / "pass_b_citations.jsonl").write_text(
-                '{"x":1}\n', encoding="utf-8"
-            )
-            (quality / "phase3" / "pass_c_formal.jsonl").write_text(
-                '{"x":1}\n', encoding="utf-8"
-            )
-            (quality / "phase3" / "pass_d_council_inbox.json").write_text(
-                '{"x":1}\n', encoding="utf-8"
-            )
-            ok, _ = lib.validate_phase_artifacts(quality, 4)
-            self.assertTrue(ok)
-
-            # Empty file fails the "non-empty" check.
-            (quality / "phase3" / "pass_d_council_inbox.json").write_text(
-                "", encoding="utf-8"
-            )
-            ok, reason = lib.validate_phase_artifacts(quality, 4)
-            self.assertFalse(ok)
-            self.assertIn("pass_d_council_inbox.json", reason)
-            self.assertIn("empty", reason)
-
-    def test_validate_phase_artifacts_phase6_empty_bugs(self) -> None:
+    def test_validate_phase_artifacts_phase5_requires_writeups_and_red_logs(self) -> None:
+        """When BUGS.md has confirmed bugs, Phase 5 requires
+        tdd-results.json AND a writeup AND a red-phase log per bug."""
         with TemporaryDirectory() as temp_dir:
             quality = Path(temp_dir)
-            (quality / "BUGS.md").write_text("", encoding="utf-8")
-            (quality / "INDEX.md").write_text("ok\n", encoding="utf-8")
+            (quality / "BUGS.md").write_text(
+                "# BUGS\n\n### BUG-001: example\n\nbody\n"
+                "### BUG-002: another\n\nbody\n",
+                encoding="utf-8",
+            )
+            # No tdd-results.json → fails.
+            ok, reason = lib.validate_phase_artifacts(quality, 5)
+            self.assertFalse(ok)
+            self.assertIn("tdd-results.json", reason)
+            (quality / "results").mkdir()
+            (quality / "results" / "tdd-results.json").write_text(
+                '{"bugs":[]}\n', encoding="utf-8",
+            )
+            # Missing writeup → fails.
+            ok, reason = lib.validate_phase_artifacts(quality, 5)
+            self.assertFalse(ok)
+            self.assertIn("writeup", reason)
+            self.assertIn("BUG-001", reason)
+            (quality / "writeups").mkdir()
+            (quality / "writeups" / "BUG-001.md").write_text(
+                "# w1\n", encoding="utf-8",
+            )
+            (quality / "writeups" / "BUG-002.md").write_text(
+                "# w2\n", encoding="utf-8",
+            )
+            # Missing red-phase log → fails.
+            ok, reason = lib.validate_phase_artifacts(quality, 5)
+            self.assertFalse(ok)
+            self.assertIn("red", reason)
+            self.assertIn("BUG-001", reason)
+            (quality / "results" / "BUG-001.red.log").write_text(
+                "RED\n", encoding="utf-8",
+            )
+            (quality / "results" / "BUG-002.red.log").write_text(
+                "RED\n", encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 5)
+            self.assertTrue(ok, msg=reason)
+
+    def test_phase_names_dict_matches_shipped_pipeline(self) -> None:
+        """v1.5.6 cluster B: pin the phase_names dict in
+        write_progress_md against the shipped pipeline labels documented
+        in references/orchestrator_protocol.md and SKILL.md
+        (1=Explore / 2=Generate / 3=Code Review / 4=Spec Audit /
+        5=Reconciliation / 6=Verify). A future drift back to the
+        v1.5.5 design's Triage-model labels (the BUG-014 / BUG-009
+        regression shape) trips this test."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            events = [
+                lib.Event(
+                    ts="2026-05-15T14:32:01Z",
+                    event="_index",
+                    fields={
+                        "started_at": "2026-05-15T14:32:01Z",
+                        "benchmark": "fake-bench",
+                        "lever_state": "baseline",
+                    },
+                ),
+            ]
+            # Render with no current phase so every phase shows as
+            # `- [ ] Phase N — <name>` for label parity check.
+            lib.write_progress_md(quality, events, current_phase=None)
+            text = (quality / "PROGRESS.md").read_text(encoding="utf-8")
+            for n, name in (
+                (1, "Explore"),
+                (2, "Generate"),
+                (3, "Code Review"),
+                (4, "Spec Audit"),
+                (5, "Reconciliation"),
+                (6, "Verify"),
+            ):
+                self.assertIn(
+                    f"- [ ] Phase {n} — {name}", text,
+                    f"PROGRESS.md missing shipped-pipeline label for "
+                    f"phase {n}: expected {name!r}. The phase_names "
+                    f"dict in bin/run_state_lib.write_progress_md must "
+                    f"match the shipped pipeline documented in "
+                    f"references/orchestrator_protocol.md.",
+                )
+            # Forbid the v1.5.5 design's Triage-model labels — drift
+            # back to those is the BUG-009/014/019 regression shape.
+            for stale in (
+                "Phase 2 — Triage",
+                "Phase 3 — Investigation",
+                "Phase 4 — Skill-derivation",
+                "Phase 6 — Release readiness",
+            ):
+                self.assertNotIn(
+                    stale, text,
+                    f"PROGRESS.md contains stale v1.5.5-design label "
+                    f"{stale!r} — phase_names dict drifted back to the "
+                    f"never-shipped Triage-model mapping.",
+                )
+
+    def test_validate_phase_artifacts_phase6_verify_contract(self) -> None:
+        """Phase 6 = Verify. Required: quality-gate.log non-empty AND
+        PROGRESS.md contains a 'Terminal Gate Verification' section.
+        Pre-cluster-B this branch required BUGS.md + INDEX.md, which
+        was the v1.5.5 design's mapping (BUGS.md is a Phase 3
+        output; INDEX.md was never adopted in the shipped contract)."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
             ok, reason = lib.validate_phase_artifacts(quality, 6)
             self.assertFalse(ok)
-            self.assertIn("BUGS.md", reason)
+            self.assertIn("quality-gate.log", reason)
+            (quality / "results").mkdir()
+            (quality / "results" / "quality-gate.log").write_text(
+                "", encoding="utf-8"
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 6)
+            self.assertFalse(ok)
+            self.assertIn("empty", reason)
+            (quality / "results" / "quality-gate.log").write_text(
+                "GATE PASSED\n", encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 6)
+            self.assertFalse(ok)
+            self.assertIn("PROGRESS.md", reason)
+            (quality / "PROGRESS.md").write_text(
+                "# Progress\n\n[x] Phase 6 done\n", encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 6)
+            self.assertFalse(ok)
+            self.assertIn("Terminal Gate Verification", reason)
+            (quality / "PROGRESS.md").write_text(
+                "# Progress\n\n## Terminal Gate Verification\n\nPASSED\n",
+                encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 6)
+            self.assertTrue(ok, msg=reason)
 
 
 class ValidateRunStateFileTests(unittest.TestCase):
@@ -593,15 +788,19 @@ class WriteProgressMdTests(unittest.TestCase):
             self.assertIn("**Benchmark:** chi-1.5.1", text)
             self.assertIn("**Runner:** claude", text)
             self.assertIn("**Playbook version:** 1.5.5", text)
-            self.assertIn("- [x] Phase 1 — Exploration", text)
+            # v1.5.6 cluster B: phase_names matches shipped pipeline
+            # (Explore / Generate / Code Review / Spec Audit /
+            # Reconciliation / Verify) — pre-cluster-B labels were
+            # the v1.5.5 design's never-shipped Triage-model names.
+            self.assertIn("- [x] Phase 1 — Explore", text)
             self.assertIn("findings_total=12", text)
             self.assertIn("patterns_walked=7", text)
             self.assertIn(
-                "- [ ] Phase 5 — Verification "
+                "- [ ] Phase 5 — Reconciliation "
                 "*(in progress, started 2026-05-15T14:58:31Z)*",
                 text,
             )
-            self.assertIn("- [ ] Phase 6 — Release readiness", text)
+            self.assertIn("- [ ] Phase 6 — Verify", text)
             self.assertIn("## Recent events (last 10)", text)
             self.assertIn("## Artifacts produced", text)
             self.assertIn("quality/EXPLORATION.md (12,034 bytes)", text)

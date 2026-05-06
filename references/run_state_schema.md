@@ -293,10 +293,10 @@ The AI verifies these conditions before appending a `phase_end` event. If any ch
 |---|---|
 | 1 | `quality/EXPLORATION.md` exists, ≥ 120 lines (aligned with the Phase 2 startup gate in `bin/run_playbook.check_phase_gate`), contains at least one finding section (regex `^##\s+(Finding\|Open Exploration Findings\|\d+\.)` — accepts `## Finding ...`, the SKILL-prescribed exact heading `## Open Exploration Findings`, and numbered `## N.` headings) |
 | 2 | All nine fixed-name Generate-contract artifacts exist non-empty under `quality/`: `REQUIREMENTS.md`, `QUALITY.md`, `CONTRACTS.md`, `COVERAGE_MATRIX.md`, `COMPLETENESS_REPORT.md`, `RUN_CODE_REVIEW.md`, `RUN_INTEGRATION_TESTS.md`, `RUN_SPEC_AUDIT.md`, `RUN_TDD_TESTS.md`. Plus at least one non-empty `quality/test_functional.<ext>` (extension varies by primary language). Pre-v1.5.6 this row described the v1.5.5-design triage model (`EXPLORATION_MERGED.md` / `triage.md`); that mapping was never adopted by shipped SKILL.md / orchestrator_protocol.md / agent files, which always documented Phase 2 as Generate. |
-| 3 | `quality/RUN_CODE_REVIEW.md` exists; if `bugs_identified > 0`, then `quality/writeups/BUG-*.md` count ≥ `bugs_identified` |
-| 4 | `quality/REQUIREMENTS.md` exists, non-empty; `quality/COVERAGE_MATRIX.md` exists. If the four-pass skill-derivation pipeline ran (i.e., `quality/phase3/` exists), then the per-pass artifacts under `quality/phase3/` (`pass_a_drafts.jsonl`, `pass_b_citations.jsonl`, `pass_c_formal.jsonl`, and the Pass D inbox) must all exist and be non-empty. (Spec/Code projects that skip skill-derivation produce no `quality/phase3/` directory; the per-pass requirement is conditional on its presence.) |
-| 5 | `quality/results/quality-gate.log` exists, non-empty |
-| 6 | `quality/BUGS.md` exists, non-empty, contains at least one BUG entry (regex `^## BUG-`); `quality/INDEX.md` updated with `gate_verdict` field |
+| 3 | `quality/code_reviews/` directory contains at least one review file. If `quality/BUGS.md` has any `### BUG-` heading, `quality/patches/` contains at least one `BUG-*-regression-test.patch` file. Pre-v1.5.6 this row checked `quality/RUN_CODE_REVIEW.md` (a Phase 2 Generate output, not a Phase 3 review result) — same v1.5.5-design / shipped-Generate drift class as the Phase 2 row. Cluster B reconciled. |
+| 4 | `quality/spec_audits/` directory contains at least one `*-triage.md` file AND at least one `*-auditor-*.md` file (per orchestrator_protocol.md naming convention). When neither name pattern matches, the validator falls back to a weaker "≥2 files" check — older bootstrap runs with arbitrary `.md` names still pass; the gate at Phase 6 enforces deeper conformance. Pre-v1.5.6 this row checked `quality/REQUIREMENTS.md` + `COVERAGE_MATRIX.md` (Phase 2 outputs) — same v1.5.5-design drift class. Cluster B reconciled. |
+| 5 | If `quality/BUGS.md` has confirmed `### BUG-` entries: `quality/results/tdd-results.json` exists non-empty; for every confirmed bug, `quality/writeups/BUG-NNN.md` exists AND `quality/results/BUG-NNN.red.log` exists. With no confirmed bugs the row is vacuously satisfied. Pre-v1.5.6 this row checked `quality/results/quality-gate.log` (a Phase 6 output) — same v1.5.5-design drift class. Cluster B reconciled. |
+| 6 | `quality/results/quality-gate.log` exists non-empty AND `quality/PROGRESS.md` contains a `Terminal Gate Verification` section (the orchestrator-protocol marker that Phase 6 ran the script-verified gate to completion). Pre-v1.5.6 this row checked `quality/BUGS.md` + `quality/INDEX.md` — BUGS.md is a Phase 3 output, INDEX.md was never adopted in the shipped contract. Same v1.5.5-design drift class. Cluster B reconciled. |
 
 The `run_end` event additionally requires: all 6 `phase_end` events present in the log; the final BUGS.md count matches `phase_end phase=6 key_counts.bugs_md_count`.
 
@@ -329,12 +329,12 @@ Atomically rewritten on every event. Markdown.
 
 ## Phases
 
-- [x] Phase 1 — Exploration (10:10, 12 findings, patterns 1-7 walked)
-- [x] Phase 2 — Triage (0:42, 8 findings promoted)
-- [x] Phase 3 — Investigation (15:31, 6 bugs identified)
-- [x] Phase 4 — Skill-derivation (4 passes, 89 REQs produced)
-- [ ] Phase 5 — Verification *(in progress, started 14:58:31Z)*
-- [ ] Phase 6 — Release readiness
+- [x] Phase 1 — Explore (10:10, 12 findings, patterns 1-7 walked)
+- [x] Phase 2 — Generate (0:42, 9 artifacts produced)
+- [x] Phase 3 — Code Review (15:31, 6 bugs identified)
+- [x] Phase 4 — Spec Audit (3 auditors, 1 triage)
+- [ ] Phase 5 — Reconciliation *(in progress, started 14:58:31Z)*
+- [ ] Phase 6 — Verify
 
 ## Recent events (last 10)
 

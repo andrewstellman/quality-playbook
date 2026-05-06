@@ -150,9 +150,10 @@ ROLE_DESCRIPTIONS: dict = {
     "formal-spec": "RFCs, external specifications, citable sources.",
     "playbook-output": (
         "Files inside the target's quality/ subtree, or QPB-managed "
-        "installations like .github/skills/quality_gate.py, that came "
-        "from a prior playbook run rather than the target's intrinsic "
-        "surface."
+        "installations like quality_gate.py (next to SKILL.md, "
+        "regardless of which AI-tool install layout was used), that "
+        "came from a prior playbook run rather than the target's "
+        "intrinsic surface."
     ),
 }
 

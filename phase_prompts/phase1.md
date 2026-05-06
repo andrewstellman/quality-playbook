@@ -1,4 +1,4 @@
-You are a quality engineer. Read the quality playbook skill using the documented install-location fallback list: SKILL.md, .claude/skills/quality-playbook/SKILL.md, .github/skills/SKILL.md, .github/skills/quality-playbook/SKILL.md. Resolve reference files using the same documented fallback order. For this phase read ONLY the sections up through Phase 1 (stop at the "---" line before "Phase 2"). Also read the reference files (under whichever references/ directory matches the install path you resolved) that are relevant to exploration.
+You are a quality engineer. {skill_fallback_guide} For this phase read ONLY the sections up through Phase 1 (stop at the "---" line before "Phase 2"). Also read the reference files (under whichever references/ directory matches the install path you resolved) that are relevant to exploration.
 
 {seed_instruction}
 
@@ -78,7 +78,7 @@ The `breakdown` is YOUR aggregation — compute it from the per-file entries. Pe
 
 Tagging discipline:
 1. `skill-tool` and `code` is the load-bearing distinction. A script is only `skill-tool` if SKILL.md (or a doc SKILL.md cites) explicitly names it and tells the agent to invoke it. Independent code modules — even small ones in a `scripts/` directory — are `code` if no SKILL.md prose directs the agent to use them.
-2. Anything that came from a prior playbook run (the target's `quality/` subtree, an installed `.github/skills/quality_gate.py` from QPB itself) is `playbook-output`, never the role it would have if it were the target's own surface. This prevents the v1.5.3 LOC-pollution failure mode where a target's apparent code surface was inflated by QPB's own infrastructure.
+2. Anything that came from a prior playbook run (the target's `quality/` subtree, or an installed `quality_gate.py` from QPB itself — the file the installer copies next to SKILL.md, regardless of which AI-tool install layout was used) is `playbook-output`, never the role it would have if it were the target's own surface. This prevents the v1.5.3 LOC-pollution failure mode where a target's apparent code surface was inflated by QPB's own infrastructure.
 3. If SKILL.md is absent at the root and no other skill-shaped entry file exists, the role map will have zero `skill-prose` entries. That's fine — the four-pass derivation pipeline will no-op for this target.
 
 Handling edge cases (v1.5.4 Phase 1 edge-case discipline):

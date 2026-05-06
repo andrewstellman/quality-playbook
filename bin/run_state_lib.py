@@ -245,63 +245,193 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
         return (True, "")
 
     if phase == 3:
-        path = quality_dir / "RUN_CODE_REVIEW.md"
-        if not path.is_file():
-            return (False, f"missing artifact: {path}")
+        # v1.5.6 cluster B: shipped Phase 3 = Code Review per
+        # references/orchestrator_protocol.md (cluster 3 fixed prose)
+        # and SKILL.md. Required artifact: quality/code_reviews/
+        # contains at least one review file. The pre-cluster-B check
+        # for RUN_CODE_REVIEW.md was the v1.5.5 design's Phase 2-side
+        # mapping — RUN_CODE_REVIEW.md is actually a Phase 2 Generate
+        # output (the protocol document), not the Phase 3 review
+        # results. The reviews live under code_reviews/.
+        code_reviews_dir = quality_dir / "code_reviews"
+        if not code_reviews_dir.is_dir():
+            return (
+                False,
+                f"missing artifact: {code_reviews_dir}/ "
+                f"(Phase 3 must produce at least one review file in "
+                f"code_reviews/)",
+            )
+        review_files = [p for p in code_reviews_dir.glob("*") if p.is_file()]
+        if not review_files:
+            return (
+                False,
+                f"{code_reviews_dir}/ exists but contains no review "
+                f"files (Phase 3 must produce at least one)",
+            )
+        # Conditional: if BUGS.md exists with confirmed bugs, every
+        # confirmed bug must have a regression-test patch under
+        # quality/patches/. The orchestrator_protocol.md contract
+        # says "if bugs were confirmed", so we only enforce when
+        # BUGS.md has at least one ### BUG- heading.
+        bugs_md = quality_dir / "BUGS.md"
+        if bugs_md.is_file():
+            bugs_text = bugs_md.read_text(encoding="utf-8", errors="ignore")
+            if re.search(r"^###\s+BUG-", bugs_text, re.MULTILINE):
+                patches_dir = quality_dir / "patches"
+                if not patches_dir.is_dir():
+                    return (
+                        False,
+                        f"BUGS.md has confirmed BUG entries but "
+                        f"{patches_dir}/ is missing (every confirmed "
+                        f"bug needs a regression-test patch)",
+                    )
+                # Look for at least one regression-test patch — an
+                # absent patches/ dir or one with only fix patches
+                # (no -regression-test.patch) means the gate would
+                # fail anyway, but we surface the issue here too.
+                regression_patches = list(
+                    patches_dir.glob("BUG-*-regression-test.patch")
+                )
+                if not regression_patches:
+                    return (
+                        False,
+                        f"{patches_dir}/ contains no "
+                        f"BUG-*-regression-test.patch files "
+                        f"(every confirmed BUG needs one)",
+                    )
         return (True, "")
 
     if phase == 4:
-        requirements = quality_dir / "REQUIREMENTS.md"
-        coverage = quality_dir / "COVERAGE_MATRIX.md"
-        if not requirements.is_file():
-            return (False, f"missing artifact: {requirements}")
-        if requirements.stat().st_size == 0:
-            return (False, f"{requirements} is empty")
-        if not coverage.is_file():
-            return (False, f"missing artifact: {coverage}")
-        # v1.5.5 Council R2 P1.3: if the four-pass skill-derivation
-        # pipeline ran (quality/phase3/ exists), each pass's canonical
-        # output must be present and non-empty. Spec/Code projects that
-        # skip skill-derivation produce no quality/phase3/ directory;
-        # the conditional preserves backward compatibility for those.
-        phase3_dir = quality_dir / "phase3"
-        if phase3_dir.is_dir():
-            pass_artifacts = (
-                phase3_dir / "pass_a_drafts.jsonl",
-                phase3_dir / "pass_b_citations.jsonl",
-                phase3_dir / "pass_c_formal.jsonl",
-                phase3_dir / "pass_d_council_inbox.json",
+        # v1.5.6 cluster B: shipped Phase 4 = Spec Audit per
+        # references/orchestrator_protocol.md and SKILL.md.
+        # Required artifact: quality/spec_audits/ contains at least
+        # one triage file AND at least one individual auditor file.
+        # Mechanical limitation: from filenames alone we can't always
+        # tell a triage file from an auditor file — both are typically
+        # YYYY-MM-DD-<name>.md. The orchestrator_protocol.md contract
+        # uses the convention "...-triage.md" for the triage file and
+        # "...-auditor-N.md" for the per-auditor files, so we look
+        # for both name patterns. Falling back to ≥2 files when
+        # neither pattern matches keeps backward-compat with older
+        # bootstrap runs that used different naming conventions; the
+        # quality_gate.py at Phase 6 enforces deeper conformance.
+        spec_audits_dir = quality_dir / "spec_audits"
+        if not spec_audits_dir.is_dir():
+            return (
+                False,
+                f"missing artifact: {spec_audits_dir}/ "
+                f"(Phase 4 must produce at least one triage file "
+                f"and at least one auditor file)",
             )
-            for artifact in pass_artifacts:
-                if not artifact.is_file():
-                    return (False, f"missing artifact: {artifact}")
-                if artifact.stat().st_size == 0:
-                    return (False, f"{artifact} is empty")
+        spec_files = [p for p in spec_audits_dir.glob("*.md") if p.is_file()]
+        if not spec_files:
+            return (
+                False,
+                f"{spec_audits_dir}/ exists but contains no .md files "
+                f"(Phase 4 must produce at least one triage + one "
+                f"auditor file)",
+            )
+        triage_files = [p for p in spec_files if "triage" in p.name.lower()]
+        auditor_files = [p for p in spec_files if "auditor" in p.name.lower()]
+        # If neither naming convention is used, fall back to the
+        # weaker "≥2 files" check. orchestrator_protocol.md mandates
+        # both file types; quality_gate.py at Phase 6 enforces deeper
+        # conformance.
+        if not triage_files and not auditor_files:
+            if len(spec_files) < 2:
+                return (
+                    False,
+                    f"{spec_audits_dir}/ has fewer than 2 .md files "
+                    f"(Phase 4 must produce at least one triage + "
+                    f"one auditor file). Use the "
+                    f"YYYY-MM-DD-triage.md / YYYY-MM-DD-auditor-N.md "
+                    f"naming convention so the validator can recognize "
+                    f"them.",
+                )
+        elif not triage_files:
+            return (
+                False,
+                f"{spec_audits_dir}/ contains auditor files but no "
+                f"triage file (look for *-triage.md)",
+            )
+        elif not auditor_files:
+            return (
+                False,
+                f"{spec_audits_dir}/ contains a triage file but no "
+                f"auditor files (look for *-auditor-*.md)",
+            )
         return (True, "")
 
     if phase == 5:
-        path = quality_dir / "results" / "quality-gate.log"
-        if not path.is_file():
-            return (False, f"missing artifact: {path}")
-        if path.stat().st_size == 0:
-            return (False, f"{path} is empty")
+        # v1.5.6 cluster B: shipped Phase 5 = Reconciliation per
+        # references/orchestrator_protocol.md and SKILL.md. Required
+        # artifacts (conditional on confirmed bugs):
+        #   - quality/results/tdd-results.json exists.
+        #   - quality/writeups/BUG-NNN.md exists per confirmed bug.
+        #   - quality/results/BUG-NNN.red.log exists per confirmed bug.
+        # The pre-cluster-B Phase 5 check (quality-gate.log) was the
+        # v1.5.5 design's Phase 6-side mapping; that artifact is now
+        # tracked at Phase 6 instead.
+        bugs_md = quality_dir / "BUGS.md"
+        if not bugs_md.is_file():
+            # No BUGS.md → nothing for Phase 5 to reconcile. This
+            # matches the contract's "if bugs were confirmed" caveat.
+            return (True, "")
+        bugs_text = bugs_md.read_text(encoding="utf-8", errors="ignore")
+        bug_ids = [
+            m.group(1)
+            for m in re.finditer(r"^###\s+(BUG-[A-Z0-9-]+)", bugs_text, re.MULTILINE)
+        ]
+        if not bug_ids:
+            # BUGS.md exists but contains no confirmed bugs.
+            return (True, "")
+        # tdd-results.json — required at Phase 5 when bugs are confirmed.
+        tdd_path = quality_dir / "results" / "tdd-results.json"
+        if not tdd_path.is_file():
+            return (False, f"missing artifact: {tdd_path}")
+        if tdd_path.stat().st_size == 0:
+            return (False, f"{tdd_path} is empty")
+        # Per-bug writeups + red-phase logs — required at Phase 5
+        # for every confirmed bug.
+        for bug_id in bug_ids:
+            writeup = quality_dir / "writeups" / f"{bug_id}.md"
+            if not writeup.is_file():
+                return (
+                    False,
+                    f"missing writeup for {bug_id}: {writeup}",
+                )
+            red_log = quality_dir / "results" / f"{bug_id}.red.log"
+            if not red_log.is_file():
+                return (
+                    False,
+                    f"missing red-phase log for {bug_id}: {red_log}",
+                )
         return (True, "")
 
     # phase == 6
-    bugs = quality_dir / "BUGS.md"
-    index = quality_dir / "INDEX.md"
-    if not bugs.is_file():
-        return (False, f"missing artifact: {bugs}")
-    if bugs.stat().st_size == 0:
-        return (False, f"{bugs} is empty")
-    bugs_text = bugs.read_text(encoding="utf-8", errors="ignore")
-    if not _BUG_ENTRY_RE.search(bugs_text):
+    # v1.5.6 cluster B: shipped Phase 6 = Verify per
+    # references/orchestrator_protocol.md and SKILL.md. Required
+    # artifacts: quality/results/quality-gate.log exists non-empty;
+    # quality/PROGRESS.md marks Phase 6 complete with a Terminal
+    # Gate Verification section. The pre-cluster-B Phase 6 check
+    # (BUGS.md + INDEX.md) was the v1.5.5 design's mapping —
+    # BUGS.md is a Phase 3 output and INDEX.md was never adopted
+    # in the shipped contract.
+    gate_log = quality_dir / "results" / "quality-gate.log"
+    if not gate_log.is_file():
+        return (False, f"missing artifact: {gate_log}")
+    if gate_log.stat().st_size == 0:
+        return (False, f"{gate_log} is empty")
+    progress = quality_dir / "PROGRESS.md"
+    if not progress.is_file():
+        return (False, f"missing artifact: {progress}")
+    progress_text = progress.read_text(encoding="utf-8", errors="ignore")
+    if "Terminal Gate Verification" not in progress_text:
         return (
             False,
-            f"{bugs} contains no '## BUG-' entry header",
+            f"{progress} does not contain a 'Terminal Gate Verification' "
+            f"section (required at Phase 6 completion)",
         )
-    if not index.is_file():
-        return (False, f"missing artifact: {index}")
     return (True, "")
 
 
@@ -657,13 +787,20 @@ def write_progress_md(
         elif event.event == "phase_end":
             phase_ends[phase] = event
 
+    # v1.5.6 cluster B: phase_names matches the shipped pipeline
+    # documented in SKILL.md and references/orchestrator_protocol.md
+    # (Phase 1=Explore / 2=Generate / 3=Code Review / 4=Spec Audit /
+    # 5=Reconciliation / 6=Verify). The pre-cluster-B labels were
+    # the v1.5.5 design's never-shipped Triage-model names — same
+    # drift class as BUG-014 (validator) and BUG-009/019 (orchestrator
+    # docs), now reconciled.
     phase_names = {
-        1: "Exploration",
-        2: "Triage",
-        3: "Investigation",
-        4: "Skill-derivation",
-        5: "Verification",
-        6: "Release readiness",
+        1: "Explore",
+        2: "Generate",
+        3: "Code Review",
+        4: "Spec Audit",
+        5: "Reconciliation",
+        6: "Verify",
     }
 
     for phase in range(1, 7):

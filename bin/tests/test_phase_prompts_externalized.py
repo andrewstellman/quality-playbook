@@ -112,7 +112,7 @@ class LoaderContractTests(unittest.TestCase):
         phase3 / phase5 JSON code blocks can keep using single ``{``
         / ``}`` braces. This test pins the no-substitution contract:
         the loader without any kwargs returns the file verbatim."""
-        for n in range(2, 7):
+        for n in range(1, 7):
             text = run_playbook._load_phase_prompt(f"phase{n}")
             on_disk = (PHASE_PROMPTS_DIR / f"phase{n}.md").read_text(
                 encoding="utf-8"
@@ -181,8 +181,14 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
     parity, adversarial)."""
 
     EXPECTED_HASHES = {
-        "phase1_no_seeds_True":  (17081, "5b79a14bae8b11e03e80edf32ea34e457db029e8d41692647247e5725c39cf4e"),
-        "phase1_no_seeds_False": (16884, "78f026bcc0c9f39a6225534f191fa1cbc837a9b5a0720ef717ae8160f99ddeb8"),
+        # v1.5.6 cluster B: phase1.md replaced its hardcoded 4-path
+        # fallback list with the {skill_fallback_guide} placeholder
+        # for parity with cluster 5's phase{2..6} work. The substituted
+        # guide is the same six-path SKILL_FALLBACK_GUIDE constant used
+        # by single_pass / iteration / phase{2..6}; phase1's body grew
+        # by ~86 bytes (six-path guide minus the old four-path literal).
+        "phase1_no_seeds_True":  (17314, "cd480d23ff09568c7bd93c281854e189d28f750dccb1de4a0b57350925bbce94"),
+        "phase1_no_seeds_False": (17117, "3bb036e5e38693aad0eafa633404651f3d5e2c6db07979ba8449a55e25214ea3"),
         # v1.5.6 BUG-011/012: phase{2..6}.md previously hardcoded
         # `.github/skills/` paths; the fix prepends {skill_fallback_guide}
         # (the same SKILL_FALLBACK_GUIDE constant the iteration/single_pass
@@ -303,18 +309,31 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
         ".github/skills/quality-playbook/quality_gate.py",
     )
 
+    @staticmethod
+    def _render_phase_prompt(n: int) -> str:
+        """phase1_prompt requires a no_seeds kwarg; phase{2..6} take
+        no args. v1.5.6 cluster B: phase1 was widened to use the
+        {skill_fallback_guide} placeholder so this test surface now
+        covers all six phase prompts. Centralize the phase-1 special
+        case here."""
+        from bin import run_playbook
+        if n == 1:
+            return run_playbook.phase1_prompt(no_seeds=True)
+        return getattr(run_playbook, f"phase{n}_prompt")()
+
     def test_phase_prompts_substitute_full_fallback_guide(self) -> None:
-        """Every phase{2..6}_prompt() output must contain the verbatim
+        """Every phase{1..6}_prompt() output must contain the verbatim
         SKILL_FALLBACK_GUIDE string — i.e., the prompt drops the
         runtime-canonical fallback list into the LLM's context as a
         single block. Without this substitution, the prompt's bare
         references to ``SKILL.md`` and ``references/`` would be
-        ambiguous to the LLM."""
+        ambiguous to the LLM. Cluster 5 widened phase{2..6}; cluster
+        B widened phase1 for parity."""
         from bin import run_playbook
 
-        for n in range(2, 7):
+        for n in range(1, 7):
             with self.subTest(phase=n):
-                body = getattr(run_playbook, f"phase{n}_prompt")()
+                body = self._render_phase_prompt(n)
                 self.assertIn(
                     run_playbook.SKILL_FALLBACK_GUIDE, body,
                     f"phase{n}_prompt() did not substitute "
@@ -354,9 +373,9 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
             ".continue/skills/quality-playbook/",
             ".github/skills/quality-playbook/",
         )
-        for n in range(2, 7):
+        for n in range(1, 7):
             with self.subTest(phase=n):
-                body = getattr(run_playbook, f"phase{n}_prompt")()
+                body = self._render_phase_prompt(n)
                 # Strip the SKILL_FALLBACK_GUIDE block from analysis —
                 # it's the canonical six-layout enumeration and is
                 # supposed to mention `.github/skills/`. Any remaining
@@ -384,9 +403,9 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
         `.cursor/`) is caught here."""
         from bin import run_playbook
 
-        for n in range(2, 7):
+        for n in range(1, 7):
             with self.subTest(phase=n):
-                body = getattr(run_playbook, f"phase{n}_prompt")()
+                body = self._render_phase_prompt(n)
                 for layout in self.SIX_CANONICAL_LAYOUTS:
                     self.assertIn(
                         layout, body,
@@ -424,9 +443,9 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
         Pin that the brittle ``sys.path.insert`` pattern is gone."""
         from bin import run_playbook
 
-        for n in range(2, 7):
+        for n in range(1, 7):
             with self.subTest(phase=n):
-                body = getattr(run_playbook, f"phase{n}_prompt")()
+                body = self._render_phase_prompt(n)
                 self.assertNotIn(
                     "sys.path.insert(0, '.github/skills/quality_gate')",
                     body,

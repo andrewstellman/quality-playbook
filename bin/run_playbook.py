@@ -807,6 +807,7 @@ def phase1_prompt(no_seeds: bool) -> str:
         seed_instruction = "Skip Phase 0 and Phase 0b entirely - do not look for quality/previous_runs/ (or the legacy quality/runs/) or sibling versioned directories. This is a clean benchmark run. Start directly at Phase 1."
     return _load_phase_prompt(
         "phase1",
+        skill_fallback_guide=SKILL_FALLBACK_GUIDE,
         seed_instruction=seed_instruction,
         role_taxonomy=_role_taxonomy_block(),
     )
