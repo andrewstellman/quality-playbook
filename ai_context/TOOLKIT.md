@@ -237,7 +237,7 @@ The playbook works with any AI coding agent that can read files and execute shel
 
 ```bash
 cd /path/to/repo
-claude -p "Read the quality playbook skill at .github/skills/SKILL.md and execute the quality playbook for this project." --dangerously-skip-permissions
+claude -p "Read the quality playbook skill — locate SKILL.md using the documented install-location fallback list (SKILL.md, .claude/skills/quality-playbook/SKILL.md, .github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, .continue/skills/quality-playbook/SKILL.md, .github/skills/quality-playbook/SKILL.md) and resolve reference files using the same fallback. Execute the quality playbook for this project." --dangerously-skip-permissions
 ```
 
 - `--dangerously-skip-permissions` lets it run shell commands without prompting (needed for test execution, mechanical verification, etc.)
@@ -251,7 +251,7 @@ claude -p "Read the quality playbook skill at .github/skills/SKILL.md and execut
 
 ```bash
 cd /path/to/repo
-gh copilot -p "Read the quality playbook skill at .github/skills/SKILL.md and execute the quality playbook for this project." --model gpt-5.4 --yolo
+gh copilot -p "Read the quality playbook skill — locate SKILL.md using the documented install-location fallback list (SKILL.md, .claude/skills/quality-playbook/SKILL.md, .github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, .continue/skills/quality-playbook/SKILL.md, .github/skills/quality-playbook/SKILL.md) and resolve reference files using the same fallback. Execute the quality playbook for this project." --model gpt-5.4 --yolo
 ```
 
 - `--yolo` is Copilot's equivalent of skip-permissions
@@ -496,10 +496,10 @@ git apply quality/patches/BUG-NNN-fix.patch
 
 ### quality_gate.py
 
-The gate script validates all artifacts mechanically. It is the sole mechanical gate — the legacy `quality_gate.sh` was retired in v1.4.5. Target repos install the standalone module at `.github/skills/quality_gate.py` (in the source tree this is a symlink into the `.github/skills/quality_gate/` package, which also ships the 171-test unit-test suite in `quality_gate/tests/`). Run it after the playbook completes:
+The gate script validates all artifacts mechanically. It is the sole mechanical gate — the legacy `quality_gate.sh` was retired in v1.4.5. Target repos install the standalone module next to `SKILL.md` in whichever install layout the AI tool requires; locate it via the same six-layout fallback list used for `SKILL.md`: `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`. (In the QPB source tree, `.github/skills/quality_gate.py` is a 28-byte stub pointing at the real script under the `.github/skills/quality_gate/` package, which also ships the unit-test suite in `quality_gate/tests/`; the installer overwrites the stub with the real script when adopting into a target repo.) Run it after the playbook completes:
 
 ```bash
-python3 .github/skills/quality_gate.py .
+python3 <resolved_quality_gate_path> .
 ```
 
 If it reports FAIL results, the most common causes:
@@ -649,13 +649,13 @@ If no docs exist, the playbook derives requirements from the code itself — com
 
 **Zero bugs found on a non-trivial codebase:**
 - Check which model the agent used. Code-generation models (Codex, small/fast variants) lack the reasoning depth for exploration. Switch to Claude Opus, Claude Sonnet, or GPT-5.4.
-- Check that `.github/skills/SKILL.md` exists and was read. Some agents skip reading referenced files.
+- Check that SKILL.md was actually located and read by the agent. The skill ships in any of six install layouts (`SKILL.md` at the root, `.claude/skills/quality-playbook/SKILL.md`, `.github/skills/SKILL.md`, `.cursor/skills/quality-playbook/SKILL.md`, `.continue/skills/quality-playbook/SKILL.md`, `.github/skills/quality-playbook/SKILL.md`); confirm at least one exists in the target repo and that the agent actually opened it. Some agents skip reading referenced files.
 - Try the unfiltered iteration strategy — it removes structural constraints that can over-constrain weaker models.
 
 **Agent found bugs but no TDD log files:**
 - This is a known issue with Copilot and Cursor (see "Agent reference"). The agent wrote "TDD verified" in the JSON without actually running the tests.
 - Run the TDD cycle manually using the bash template in the "TDD verification" section above.
-- Or ask the agent in a follow-up prompt: "Read the TDD execution enforcement section in .github/skills/SKILL.md and execute the red/green TDD cycle for every confirmed bug."
+- Or ask the agent in a follow-up prompt: "Locate SKILL.md via the documented install-location fallback (SKILL.md, .claude/skills/quality-playbook/SKILL.md, .github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, .continue/skills/quality-playbook/SKILL.md, .github/skills/quality-playbook/SKILL.md), read its TDD execution enforcement section, and execute the red/green TDD cycle for every confirmed bug."
 
 **Rate limited (Copilot 54-hour cooldown):**
 - Wait for the cooldown to clear. Reduce parallelism on the next batch.

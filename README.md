@@ -58,12 +58,13 @@ The AI agent reads [`AGENTS.md`](AGENTS.md), runs `python3 -m bin.install_skill`
 **Alternative: run the script directly.** From your local QPB clone:
 
 ```bash
-python3 -m bin.install_skill                          # auto-detect from cwd
-python3 -m bin.install_skill --target /path/to/repo   # explicit target
-python3 -m bin.install_skill --verbose                # human-readable output
+python3 -m bin.install_skill                                  # auto-detect from cwd
+python3 -m bin.install_skill --into /path/to/target-repo      # scan a target repo, auto-detect AI tool inside it
+python3 -m bin.install_skill --target /path/to/install-root   # literal install path (skip AI-tool auto-detect)
+python3 -m bin.install_skill --verbose                        # human-readable output alongside structured events
 ```
 
-Auto-detect picks the install location based on which AI-tool marker directory is present in the target (`.claude/`, `.github/`, `.cursor/`, or `.continue/`).
+`--into` and `--target` are different on purpose: `--into <target-repo>` walks INTO the named repo and auto-detects which AI-tool subdirectory to install into (`.claude/skills/quality-playbook/`, `.github/skills/`, `.cursor/skills/quality-playbook/`, or `.continue/skills/quality-playbook/`). `--target <path>` treats the path as the literal install root and writes `SKILL.md`, `quality_gate.py`, and `references/` directly there. The AI-agent-driven flow that AGENTS.md documents always uses `--into`; `--target` is for operators with a non-standard install location. They are mutually exclusive — `install_skill.py` errors if both are passed.
 
 **Already manually copied SKILL.md to your skills directory?** Skip this step. The manual install paths described in Step 3 below continue to work — `bin/install_skill.py` is additive, not a replacement.
 
