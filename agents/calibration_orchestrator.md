@@ -157,7 +157,8 @@ At `Calibration Cycles/<cycle_name>/audit.md`. Sections:
 - Post-lever results (per-benchmark recall, deltas, regression check).
 - Council synthesis.
 - Verdict + rationale.
-- Cycle Findings (anything notable that surfaced — protocol gaps, runtime quirks, follow-on work).
+- Reduced-scope acknowledgment (if any benchmark was dropped from the original cycle scope — name the benchmark, the reason, and the follow-up cycle that will close it. Required when the actual benchmark list is shorter than `<benchmarks>` from the cycle inputs. v1.5.6 finding: 2026-05-02 cycle dropped chi-1.5.1 for time budget; the audit explicitly documented the reduced scope and pointed at a follow-up cycle.).
+- Cycle Findings (anything notable that surfaced — protocol gaps, runtime quirks, follow-on work). **Required even if empty — write `(none)` rather than omitting the section.** v1.5.6 finding: the 2026-05-02 cycle audit did not include this section despite the protocol calling for it; future cycles must include it explicitly so the file's structure is grep-able.
 
 Use the Cycle 1 (chi-1.3.45) audit at `Calibration Cycles/2026-05-01-chi-1.3.45/audit.md` as the template format.
 
@@ -197,6 +198,8 @@ Print a summary block to stdout:
 - **Iterate cap reached:** halt with `verdict:"halt-iterate-cap"`. Don't keep trying — surface to operator that the lever space hasn't yielded a fix in `<iterate_cap>` attempts.
 - **Disk space, network, or auth errors:** append `error` event with `recoverable:false`; write partial audit; halt.
 - **You realize mid-cycle that a step assumption is wrong (e.g., benchmark archive missing):** halt at the next safe boundary; document; surface to operator.
+- **Orchestrator-side API budget exhausted mid-cycle (v1.5.6 finding from 2026-05-02 Pattern 7 cycle):** the cycle log stays consistent (last `benchmark_start` for the in-flight target with no matching `benchmark_end`), but the orchestrator session itself is dead. **Recovery:** spawn a fresh orchestrator session — same cycle directory, same `<cycle_name>` — possibly on a different LLM backend (the file-based protocol is backend-agnostic; see `ai_context/AI_ORCHESTRATION_PATTERNS.md` §9.5). The new session reads `run_state.jsonl`, finds the in-flight benchmark, checks its `quality/run_state.jsonl` for `run_end`, and either (a) finalizes that benchmark (compute recall, append `benchmark_end`) if the playbook completed during the orchestrator outage, or (b) treats the benchmark as needing a clean re-spawn. **Reduced-scope option:** if budget pressure makes completing the original benchmark list infeasible, the cycle MAY drop a benchmark and ship a reduced-scope verdict — but the dropped benchmark MUST be (i) named explicitly in audit.md's "Reduced-scope acknowledgment" section, (ii) flagged for a follow-up single-benchmark cycle in the next release window, and (iii) chosen so the cycle's load-bearing benchmark (the one most directly tied to the hypothesis) is NOT the one dropped. The 2026-05-02 cycle exemplified this — chi-1.5.1 was dropped on time-budget grounds, and the displacement-recovery story was concentrated on chi-1.3.45 (which was completed); chi-1.5.1 is closed by a follow-up single-benchmark cycle in the next release window.
+- **Express-style mid-benchmark interruption (post-lever drop):** if a benchmark's pre-lever cell completed but the post-lever run was interrupted before producing a replayable cell snapshot (e.g., the express-1.3.50 case in 2026-05-02), audit.md MUST acknowledge it as `n/a` for that benchmark's delta — do NOT extrapolate from the pre-lever data alone. A follow-up post-lever-only run (with the lever applied to recreate the post-lever state) closes the gap.
 
 ---
 
