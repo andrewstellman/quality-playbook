@@ -736,16 +736,36 @@ PHASE_PROMPTS_DIR = Path(__file__).resolve().parents[1] / "phase_prompts"
 
 
 def _load_phase_prompt(name: str, **substitutions: str) -> str:
-    """Load ``phase_prompts/<name>.md`` and apply optional .format() substitutions.
+    """Load ``phase_prompts/<name>.md`` and apply optional substitutions.
 
-    When ``substitutions`` is empty the file is returned verbatim, so
-    pure-literal prompts (phase2..phase6) do NOT need to escape ``{``
-    and ``}`` characters in JSON code blocks. Files that DO take
-    substitutions (phase1, single_pass, iteration) must double-escape
-    literal braces as ``{{`` / ``}}`` per Python's format-string
-    rules.
+    Two substitution mechanisms apply, in this order:
+
+    1. ``skill_fallback_guide`` — substituted via ``str.replace()`` so
+       the surrounding prompt does NOT need to double-escape every
+       literal brace. v1.5.6 BUG-011/012: phase{2..6}.md hardcoded
+       ``.github/skills/`` paths; the fix replaces those with a single
+       ``{skill_fallback_guide}`` placeholder at the top of each file
+       so the runtime-canonical fallback list (six install layouts) is
+       the single source of truth. Phase 3 and Phase 5 contain JSON
+       code blocks with single ``{`` / ``}`` braces; using
+       ``str.replace`` for this placeholder lets those JSON blocks
+       remain readable instead of being littered with ``{{``/``}}``.
+
+    2. Remaining substitutions — applied via ``str.format(**...)`` for
+       backward compatibility with phase1, single_pass, and iteration
+       prompts that use ``{seed_instruction}``, ``{role_taxonomy}``,
+       and ``{strategy}`` placeholders. Files that DO go through
+       ``.format()`` must double-escape literal braces as ``{{`` /
+       ``}}`` per Python's format-string rules. Phase{2..6} go ONLY
+       through the ``str.replace`` path, so their JSON code blocks
+       continue to use single ``{`` / ``}`` directly.
+
+    When no substitutions are supplied the file is returned verbatim.
     """
     text = (PHASE_PROMPTS_DIR / f"{name}.md").read_text(encoding="utf-8")
+    fallback = substitutions.pop("skill_fallback_guide", None)
+    if fallback is not None:
+        text = text.replace("{skill_fallback_guide}", fallback)
     if substitutions:
         text = text.format(**substitutions)
     return text
@@ -774,23 +794,23 @@ def phase1_prompt(no_seeds: bool) -> str:
 
 
 def phase2_prompt() -> str:
-    return _load_phase_prompt("phase2")
+    return _load_phase_prompt("phase2", skill_fallback_guide=SKILL_FALLBACK_GUIDE)
 
 
 def phase3_prompt() -> str:
-    return _load_phase_prompt("phase3")
+    return _load_phase_prompt("phase3", skill_fallback_guide=SKILL_FALLBACK_GUIDE)
 
 
 def phase4_prompt() -> str:
-    return _load_phase_prompt("phase4")
+    return _load_phase_prompt("phase4", skill_fallback_guide=SKILL_FALLBACK_GUIDE)
 
 
 def phase5_prompt() -> str:
-    return _load_phase_prompt("phase5")
+    return _load_phase_prompt("phase5", skill_fallback_guide=SKILL_FALLBACK_GUIDE)
 
 
 def phase6_prompt() -> str:
-    return _load_phase_prompt("phase6")
+    return _load_phase_prompt("phase6", skill_fallback_guide=SKILL_FALLBACK_GUIDE)
 
 
 def _apply_prompt_prefix(body: str, prefix: str) -> str:

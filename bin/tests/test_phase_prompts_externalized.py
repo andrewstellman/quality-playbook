@@ -105,25 +105,44 @@ class LoaderContractTests(unittest.TestCase):
             run_playbook._load_phase_prompt("does_not_exist")
 
     def test_loader_pure_literal_phase_files_have_no_unescaped_braces(self) -> None:
-        """Pure-literal phase files (phase2..phase6) skip .format() so
-        their JSON code blocks can use single { without escaping. This
-        test pins that they are NOT mistakenly run through .format()
-        — if a future loader change introduces unconditional
-        formatting, the JSON braces would explode."""
+        """Phase files phase2..phase6 must remain readable as-is when
+        the loader is called with NO substitutions. v1.5.6 BUG-011/012
+        added a `{skill_fallback_guide}` placeholder substituted via
+        ``str.replace()`` (NOT ``str.format()``) precisely so that
+        phase3 / phase5 JSON code blocks can keep using single ``{``
+        / ``}`` braces. This test pins the no-substitution contract:
+        the loader without any kwargs returns the file verbatim."""
         for n in range(2, 7):
             text = run_playbook._load_phase_prompt(f"phase{n}")
-            # The loader returns the file unchanged. We re-check by
-            # reading the file directly and confirming equality.
             on_disk = (PHASE_PROMPTS_DIR / f"phase{n}.md").read_text(
                 encoding="utf-8"
             )
             self.assertEqual(text, on_disk, f"phase{n} loader drift")
 
+    def test_loader_fallback_guide_uses_replace_not_format(self) -> None:
+        """v1.5.6 BUG-011/012: the {skill_fallback_guide} placeholder
+        is substituted via ``str.replace()``, BEFORE ``.format()`` is
+        invoked, so files that carry it (phase{2..6}) are NOT exposed
+        to .format()'s brace-escaping rules. Pin the path: load
+        phase3 (which has single-brace JSON code blocks) with ONLY
+        the fallback-guide substitution and confirm the JSON braces
+        survive unescaped."""
+        text = run_playbook._load_phase_prompt(
+            "phase3",
+            skill_fallback_guide="GUIDE",
+        )
+        # The replacement happened.
+        self.assertIn("GUIDE", text)
+        self.assertNotIn("{skill_fallback_guide}", text)
+        # And the single-brace JSON survived.
+        self.assertIn('{\n  "schema_version": "1.5.2"', text)
+
 
 class FormatStringEscapingTests(unittest.TestCase):
     """Files that go through .format() must double-escape literal
-    braces. Pure-literal files must NOT — otherwise their JSON code
-    blocks would render with double braces in the output."""
+    braces. Files that go through ONLY str.replace() must NOT —
+    otherwise their JSON code blocks would render with double braces
+    in the output."""
 
     def test_phase1_uses_double_braces_for_json(self) -> None:
         """phase1.md goes through .format(); JSON code blocks must use
@@ -134,8 +153,11 @@ class FormatStringEscapingTests(unittest.TestCase):
         self.assertIn('{{\n  "schema_version"', raw)
 
     def test_phase3_uses_single_braces_for_json(self) -> None:
-        """phase3.md is pure-literal (no substitutions); JSON code
-        blocks use single { directly."""
+        """phase3.md goes through str.replace() only (no .format()),
+        so JSON code blocks use single { directly. v1.5.6 BUG-011/012:
+        adding the {skill_fallback_guide} placeholder did NOT switch
+        phase3 onto the .format() path — the loader's replace-then-
+        format ordering keeps phase{2..6} JSON readable."""
         raw = (PHASE_PROMPTS_DIR / "phase3.md").read_text(encoding="utf-8")
         # The compensation-grid schema JSON in phase3.md uses single
         # braces because we never call .format() on it.
@@ -161,11 +183,17 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
     EXPECTED_HASHES = {
         "phase1_no_seeds_True":  (17081, "5b79a14bae8b11e03e80edf32ea34e457db029e8d41692647247e5725c39cf4e"),
         "phase1_no_seeds_False": (16884, "78f026bcc0c9f39a6225534f191fa1cbc837a9b5a0720ef717ae8160f99ddeb8"),
-        "phase2":                ( 2593, "38b3001831f960079a357b3852cc235b5fc6c930c19b2f2ff165d078eb4341b7"),
-        "phase3":                ( 8464, "59749f49d2379ce8fd2efdf7a23015a71216cd6041be0360fddbcc167ab1e128"),
-        "phase4":                ( 3031, "93f2cb5d8eebfc2b52371866c10c7e0b176dc5203c8b75c6552a4a71e168c978"),
-        "phase5":                (10185, "ff1d676111b1c026e80450a6c8bf11ce3236e3335ce8abef52ded023f81b9248"),
-        "phase6":                ( 1217, "33f65c1831c49b6c3dabc5ec61d792056bd505dd4bcd22e2d8012aa7fa3862a7"),
+        # v1.5.6 BUG-011/012: phase{2..6}.md previously hardcoded
+        # `.github/skills/` paths; the fix prepends {skill_fallback_guide}
+        # (the same SKILL_FALLBACK_GUIDE constant the iteration/single_pass
+        # prompts already substitute) and replaces every hardcoded reference
+        # with a layout-agnostic instruction. Hashes recomputed to reflect
+        # both the fallback-guide preamble and the rewritten body.
+        "phase2":                ( 3192, "137973e5753d28cbaead0e218c65f5ca1057fd27bb1e400f8154f93c723f6f5d"),
+        "phase3":                ( 8919, "b834435ceb550ac425ab13df9edc0ac0b5c5c81f5b4f634673d67fc29331127c"),
+        "phase4":                ( 3486, "cc775b20c9310fbbeff840fcc0a9fc7490f86f3a0468477229d86bbe9811da50"),
+        "phase5":                (11257, "e8cea54c07817ce8dc0ff0a1f7508ce8b9dd40b139ee7c09eb4590308657a890"),
+        "phase6":                ( 2070, "b53a124a4451cfa08bd5ac5ee26fc0793c6834a05438f3b1f01d78e8a1becb5a"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.
@@ -234,6 +262,180 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
             f"iteration strategy rotation {rotation} differs from "
             f"hash-pinned set {covered}"
         )
+
+
+class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
+    """v1.5.6 BUG-011/012: phase{2..6}.md previously hardcoded
+    ``.github/skills/SKILL.md``, ``.github/skills/references/...``,
+    ``.github/skills/quality_gate.py``, and
+    ``.github/skills/quality_gate/`` paths. Adopters who installed to
+    ``.claude/skills/quality-playbook/``, ``.cursor/skills/quality-playbook/``,
+    or ``.continue/skills/quality-playbook/`` got prompts whose Read /
+    invoke commands pointed nowhere, breaking phases 2-6 silently.
+
+    The fix substitutes ``{skill_fallback_guide}`` (the same six-layout
+    fallback prose used by single_pass / iteration prompts) and rewrites
+    every hardcoded reference to either layout-agnostic prose or an
+    enumeration of all six canonical layouts.
+
+    These tests guard against regression in two directions: any future
+    edit reintroducing a single-layout hardcode (e.g.
+    ``.github/skills/SKILL.md``) trips ``test_no_phase_prompt_hardcodes_single_layout``,
+    and any future edit that drops the substitution wiring trips
+    ``test_phase_prompts_substitute_full_fallback_guide``.
+    """
+
+    SIX_CANONICAL_LAYOUTS = (
+        "SKILL.md",
+        ".claude/skills/quality-playbook/SKILL.md",
+        ".github/skills/SKILL.md",
+        ".cursor/skills/quality-playbook/SKILL.md",
+        ".continue/skills/quality-playbook/SKILL.md",
+        ".github/skills/quality-playbook/SKILL.md",
+    )
+
+    SIX_GATE_LAYOUTS = (
+        "quality_gate.py",
+        ".claude/skills/quality-playbook/quality_gate.py",
+        ".github/skills/quality_gate.py",
+        ".cursor/skills/quality-playbook/quality_gate.py",
+        ".continue/skills/quality-playbook/quality_gate.py",
+        ".github/skills/quality-playbook/quality_gate.py",
+    )
+
+    def test_phase_prompts_substitute_full_fallback_guide(self) -> None:
+        """Every phase{2..6}_prompt() output must contain the verbatim
+        SKILL_FALLBACK_GUIDE string — i.e., the prompt drops the
+        runtime-canonical fallback list into the LLM's context as a
+        single block. Without this substitution, the prompt's bare
+        references to ``SKILL.md`` and ``references/`` would be
+        ambiguous to the LLM."""
+        from bin import run_playbook
+
+        for n in range(2, 7):
+            with self.subTest(phase=n):
+                body = getattr(run_playbook, f"phase{n}_prompt")()
+                self.assertIn(
+                    run_playbook.SKILL_FALLBACK_GUIDE, body,
+                    f"phase{n}_prompt() did not substitute "
+                    f"SKILL_FALLBACK_GUIDE. The {{skill_fallback_guide}} "
+                    f"placeholder must appear at the top of phase{n}.md "
+                    f"and phase{n}_prompt() must pass "
+                    f"skill_fallback_guide=SKILL_FALLBACK_GUIDE to the "
+                    f"loader. (BUG-011/012 regression.)"
+                )
+                # Placeholder must NOT survive into the rendered prompt.
+                self.assertNotIn(
+                    "{skill_fallback_guide}", body,
+                    f"phase{n}_prompt() left the literal "
+                    f"{{skill_fallback_guide}} placeholder unsubstituted "
+                    f"— the loader/wiring is broken."
+                )
+
+    def test_no_phase_prompt_hardcodes_single_layout(self) -> None:
+        """No phase{2..6}_prompt() body may contain a single-layout
+        ``.github/skills/`` path that does NOT also enumerate the
+        five other canonical layouts in the same prose neighborhood.
+
+        We enforce this with a per-line check: every line containing
+        ``.github/skills/`` must ALSO contain at least three of the
+        other five canonical layout markers. The fallback-guide
+        sentence and the gate-resolution prose both list all six —
+        any future single-layout hardcode (one ``.github/skills/SKILL.md``
+        on a line with no other layout) trips this test."""
+        from bin import run_playbook
+
+        # All non-`.github/skills/` layout markers — at least 3 of these
+        # must co-occur with `.github/skills/` for the line to be a
+        # legitimate fallback-list enumeration rather than a hardcode.
+        peer_layouts = (
+            ".claude/skills/quality-playbook/",
+            ".cursor/skills/quality-playbook/",
+            ".continue/skills/quality-playbook/",
+            ".github/skills/quality-playbook/",
+        )
+        for n in range(2, 7):
+            with self.subTest(phase=n):
+                body = getattr(run_playbook, f"phase{n}_prompt")()
+                # Strip the SKILL_FALLBACK_GUIDE block from analysis —
+                # it's the canonical six-layout enumeration and is
+                # supposed to mention `.github/skills/`. Any remaining
+                # `.github/skills/` reference must itself be an
+                # enumeration of all six layouts.
+                stripped = body.replace(run_playbook.SKILL_FALLBACK_GUIDE, "")
+                for line_no, line in enumerate(stripped.splitlines(), start=1):
+                    if ".github/skills/" not in line:
+                        continue
+                    peer_hits = sum(1 for marker in peer_layouts if marker in line)
+                    self.assertGreaterEqual(
+                        peer_hits, 3,
+                        f"phase{n}_prompt() line {line_no} contains a "
+                        f"`.github/skills/` reference without enumerating "
+                        f"≥3 other canonical layouts. This looks like a "
+                        f"single-layout hardcode (BUG-011/012 regression). "
+                        f"Line: {line!r}"
+                    )
+
+    def test_phase_prompts_enumerate_all_six_skill_layouts(self) -> None:
+        """The substituted fallback guide must enumerate all six
+        canonical SKILL.md install layouts. Pin them by string match
+        against phase{2..6}_prompt() outputs. A future edit that
+        accidentally narrows SKILL_FALLBACK_GUIDE (e.g., dropping
+        `.cursor/`) is caught here."""
+        from bin import run_playbook
+
+        for n in range(2, 7):
+            with self.subTest(phase=n):
+                body = getattr(run_playbook, f"phase{n}_prompt")()
+                for layout in self.SIX_CANONICAL_LAYOUTS:
+                    self.assertIn(
+                        layout, body,
+                        f"phase{n}_prompt() does not mention the "
+                        f"{layout!r} install layout. The fallback "
+                        f"guide must enumerate all six adopter layouts."
+                    )
+
+    def test_phase5_and_phase6_enumerate_all_six_gate_layouts(self) -> None:
+        """Phase 5 (cardinality gate) and Phase 6 (full gate) both
+        instruct the LLM to invoke quality_gate.py. The instruction
+        must enumerate all six canonical gate-script locations so
+        the LLM can resolve the gate from any install layout, not
+        just `.github/skills/`."""
+        from bin import run_playbook
+
+        for n in (5, 6):
+            with self.subTest(phase=n):
+                body = getattr(run_playbook, f"phase{n}_prompt")()
+                for layout in self.SIX_GATE_LAYOUTS:
+                    self.assertIn(
+                        layout, body,
+                        f"phase{n}_prompt() does not mention the "
+                        f"{layout!r} gate-script location. Phase 5/6 "
+                        f"prompts must enumerate all six canonical "
+                        f"quality_gate.py locations."
+                    )
+
+    def test_phase_prompts_drop_old_invocation_pattern(self) -> None:
+        """The pre-fix Phase 5 prompt invoked the cardinality gate via
+        ``sys.path.insert(0, '.github/skills/quality_gate')``. The
+        post-fix prompt invokes ``python3 <resolved_quality_gate_path> .``
+        instead — running the gate as a script naturally executes
+        the cardinality check (it's part of the standard pass).
+        Pin that the brittle ``sys.path.insert`` pattern is gone."""
+        from bin import run_playbook
+
+        for n in range(2, 7):
+            with self.subTest(phase=n):
+                body = getattr(run_playbook, f"phase{n}_prompt")()
+                self.assertNotIn(
+                    "sys.path.insert(0, '.github/skills/quality_gate')",
+                    body,
+                    f"phase{n}_prompt() still uses the brittle "
+                    f"`sys.path.insert(0, '.github/skills/quality_gate')` "
+                    f"pattern. It must be replaced with the layout-"
+                    f"agnostic `python3 <resolved_quality_gate_path> .` "
+                    f"invocation."
+                )
 
 
 class CursorRunnerStdinPipingTests(unittest.TestCase):

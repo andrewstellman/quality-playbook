@@ -1,16 +1,18 @@
+{skill_fallback_guide}
+
 You are a quality engineer continuing a phase-by-phase quality playbook run. Phases 1-4 are complete.
 
 Read these files to get context:
 1. quality/PROGRESS.md - run metadata, phase status, cumulative BUG tracker
 2. quality/BUGS.md - all confirmed bugs from code review and spec audit
 3. quality/REQUIREMENTS.md - derived requirements
-4. .github/skills/SKILL.md - read the Phase 5 section ("Phase 5: Post-Review Reconciliation and Closure Verification"). Also read .github/skills/references/requirements_pipeline.md, .github/skills/references/review_protocols.md, and .github/skills/references/spec_audit.md.
+4. SKILL.md - read the Phase 5 section ("Phase 5: Post-Review Reconciliation and Closure Verification"). Also read references/requirements_pipeline.md, references/review_protocols.md, and references/spec_audit.md. Resolve SKILL.md and the references/ directory via the documented fallback list above; do NOT assume any single install layout.
 
 Execute Phase 5: Reconciliation + TDD + Closure.
 
 1. Run the Post-Review Reconciliation per references/requirements_pipeline.md. Update COMPLETENESS_REPORT.md.
 2. Run closure verification: every BUG in the tracker must have either a regression test or an explicit exemption.
-3. Write bug writeups at quality/writeups/BUG-NNN.md for EVERY confirmed bug. The canonical template is the "Bug writeup generation" section of .github/skills/SKILL.md — read that section before writing. Use the exact field headings listed there: **Summary, Spec reference, The code, Observable consequence, Depth judgment, The fix, The test, Related issues**. Sections 1–4, 6, 7 are required in every writeup; section 5 (Depth judgment) fires only when the consequence isn't self-evident from the immediate code; section 8 (Related issues) is included only when related bugs exist. Do NOT introduce fields that aren't in the template (no "Minimal reproduction" as a top-level field, no "Patch path:" as a top-level field — those belong inside Spec reference and The test respectively).
+3. Write bug writeups at quality/writeups/BUG-NNN.md for EVERY confirmed bug. The canonical template is the "Bug writeup generation" section of SKILL.md (resolve via the fallback list above) — read that section before writing. Use the exact field headings listed there: **Summary, Spec reference, The code, Observable consequence, Depth judgment, The fix, The test, Related issues**. Sections 1–4, 6, 7 are required in every writeup; section 5 (Depth judgment) fires only when the consequence isn't self-evident from the immediate code; section 8 (Related issues) is included only when related bugs exist. Do NOT introduce fields that aren't in the template (no "Minimal reproduction" as a top-level field, no "Patch path:" as a top-level field — those belong inside Spec reference and The test respectively).
 
    **MANDATORY HYDRATION STEP.** Before writing a writeup, re-open quality/BUGS.md and locate the `### BUG-NNN:` entry for the bug you are about to write up. Every confirmed bug in BUGS.md already has the content you need — your job is to copy it into the writeup's sections, not to invent it. If a field is missing from BUGS.md, that is a reconciliation error to surface in PROGRESS.md, not a field to fabricate. Use this field map:
 
@@ -96,11 +98,13 @@ Execute Phase 5: Reconciliation + TDD + Closure.
 
 ### MANDATORY CARDINALITY GATE (Lever 3, v1.5.2)
 
-Before finalizing this phase, run the cardinality reconciliation gate against the current repo state:
+Before finalizing this phase, run the cardinality reconciliation gate against the current repo state. Locate `quality_gate.py` via the same fallback list used for SKILL.md (it sits in the same directory as SKILL.md in every install layout), then invoke it as a script — `quality_gate.py` runs `check_v1_5_2_cardinality_gate(repo_dir)` as part of its standard pass:
 
-    python3 -c "import sys; sys.path.insert(0, '.github/skills/quality_gate'); import quality_gate; failures = quality_gate.validate_cardinality_gate('.'); sys.exit(1 if failures else 0)"
+    python3 <resolved_quality_gate_path> .
 
-If the gate reports uncovered cells, malformed cell IDs, missing consolidation rationale on multi-cell Covers, or malformed downgrade records, STOP. Fix the BUGS.md entries or the `compensation_grid_downgrades.json` file. Do NOT proceed to completion until the gate returns clean.
+Where `<resolved_quality_gate_path>` is the first hit when walking the documented install-location fallback list, with `SKILL.md` swapped for `quality_gate.py` (e.g., `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`).
+
+If the gate output contains any line beginning with `cardinality gate:`, or reports uncovered cells, malformed cell IDs, missing consolidation rationale on multi-cell Covers, or malformed downgrade records, STOP. Fix the BUGS.md entries or the `compensation_grid_downgrades.json` file. Do NOT proceed to completion until those failure lines no longer appear.
 
 For every pattern-tagged REQ, the Phase 5 contract is:
 - Every grid cell with `"present": false` appears in either a BUG's `Covers:` list or a downgrade record.

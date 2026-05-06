@@ -1,10 +1,12 @@
+{skill_fallback_guide}
+
 You are a quality engineer doing the verification phase of a quality playbook run. Phases 1-5 are complete.
 
-Read .github/skills/SKILL.md - the Phase 6 section ("Phase 6: Verify"). Follow the incremental verification steps (6.1 through 6.5).
+Read SKILL.md - the Phase 6 section ("Phase 6: Verify"). Resolve SKILL.md via the documented fallback list above; do NOT assume any single install layout. Follow the incremental verification steps (6.1 through 6.5).
 
 Step 6.1: If quality/mechanical/verify.sh exists, run it. Record exit code.
-Step 6.2: Run quality_gate.py:
-  python3 .github/skills/quality_gate.py .
+Step 6.2: Run quality_gate.py. Locate it via the same fallback list used for SKILL.md (`quality_gate.py` sits in the same directory as SKILL.md in every install layout — e.g., `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`). Then run:
+  python3 <resolved_quality_gate_path> .
 Read the output carefully. For every FAIL result, fix the issue:
 - Missing regression-test patches: generate quality/patches/BUG-NNN-regression-test.patch
 - Missing inline diffs in writeups: add a ```diff block
