@@ -2,7 +2,7 @@
 
 > Release-gate review for `TOOLKIT.md` and the orientation docs that reference it. Applies the same empirical-loop discipline that `IMPROVEMENT_LOOP.md` describes for the playbook itself, but to the documentation: surface problems through a panel of independent readers, fix them, re-test until convergence.
 
-*Last updated: 2026-05-06 (v1.5.6 cluster G refresh — adds `bin/install_skill.py` AI-agent-driven install path as the new default install mode in TOOLKIT.md; cluster A bundles `agents/` + replaces the broken `quality_gate.py` symlink stub with a working Python shim; cluster C adds the `--require-docs` opt-out flag; cluster D acknowledges Windows install validation as `untested-infrastructure-blocked-pathlib-coverage-extended`; Persona 19 skill-as-code deep work confirmed current — the cluster A audit found no v1.5.6-specific gaps beyond the existing v1.5.7 deferral).*
+*Last updated: 2026-05-06 (v1.5.6 cluster G refresh + cluster F.4 instruction-041-part-3 revision — adds `bin/install_skill.py` AI-agent-driven install path as the new default install mode in TOOLKIT.md; cluster A bundles `agents/` + replaces the broken `quality_gate.py` symlink stub with a working Python shim; cluster C adds the `--require-docs` opt-out flag; cluster D acknowledges Windows install validation as `untested-infrastructure-blocked-pathlib-coverage-extended`; Persona 19 skill-as-code deep work confirmed current — the cluster A audit found no v1.5.6-specific gaps. Persona 19's deeper "what an adopter holding SKILL.md plus references/ actually does step-by-step" work is queued as a future-release item without a pinned version number).*
 
 ## Purpose
 
@@ -138,20 +138,22 @@ OpenAI codex CLI as a third LLM backend (alongside `claude
 codex CLI can drive the pipeline via `--runner codex` without
 giving up access to the skill-as-code surface.
 
-(Persona 19 deep work moves forward to v1.5.7. v1.5.6 shipped
-Pattern 7 cycle execution and adopter-facing install work; the
-skill-as-code adopter persona — what an adopter holding a
-SKILL.md plus references/ actually does step-by-step to get a
-useful run, beyond knowing the surface exists — is the next
-major surface to deepen. v1.5.6 cluster A audit confirmed: the
+(Persona 19's "what an adopter holding SKILL.md plus
+references/ actually does step-by-step" deep work is queued
+as a future-release item without a pinned version number.
+v1.5.6 shipped Pattern 7 cycle execution and adopter-facing
+install work; the skill-as-code adopter persona is the next
+major surface to deepen, but the right release window for it
+hasn't been chosen yet. v1.5.6 cluster A audit confirmed: the
 adopter walkthrough did NOT surface skill-as-code-specific
-gaps beyond what was already deferred. The adopter-facing
-install + invocation work in v1.5.6 (`bin/install_skill.py`
-turnkey installer, six-layout fallback resolution across
-runtime + docs, layout-agnostic phase prompts, agents/ now
-bundled in the install) benefits skill-as-code adopters the
-same way it benefits code-targeting adopters; the depth gap
-is the same v1.5.7 deferral noted at v1.5.3.)
+gaps. The adopter-facing install + invocation work in v1.5.6
+(`bin/install_skill.py` turnkey installer, six-layout
+fallback resolution across runtime + docs, layout-agnostic
+phase prompts, agents/ now bundled in the install) benefits
+skill-as-code adopters the same way it benefits
+code-targeting adopters; the depth gap is the same one
+noted at v1.5.3 — neither closed nor pinned to a specific
+release.)
 
 ### Persona 14 — The PR-submitter walkthrough
 
