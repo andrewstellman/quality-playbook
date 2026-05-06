@@ -1676,6 +1676,13 @@ _V153_VALID_SOURCE_TYPES = (
     "skill-section",
     "reference-file",
     "execution-observation",
+    # v1.5.6 (QG-fail-2 from the v1.5.6 self-bootstrap): REQs derived from
+    # operator-supplied informal documentation under the target repo's
+    # `reference_docs/` tree. Distinct from `reference-file`, which
+    # schemas.md §3.7 ties to QPB-shipped reference files under
+    # `references/`. The Phase 2 LLM disambiguates the two evidence
+    # sources by name; the schema and gate now match.
+    "docs-derived",
 )
 _V153_VALID_DIVERGENCE_TYPES = (
     "code-spec",
@@ -1763,6 +1770,13 @@ def check_v1_5_0_cite_extensions(repo_dir):
         if path.name == "README.md":
             continue
         if path.name.endswith(".meta.json"):
+            continue
+        # v1.5.6 (QG-fail-1 from the v1.5.6 self-bootstrap): `.gitkeep`
+        # is the documented sentinel that pins `reference_docs/cite/`
+        # in version control even when adopters have no citable
+        # plaintext yet. The pre-flight expects it to exist; the gate
+        # must not reject it.
+        if path.name == ".gitkeep":
             continue
         ext = path.suffix.lower()
         if ext not in _V150_SUPPORTED_EXTENSIONS:

@@ -287,7 +287,8 @@ produced the REQ.
 |------------------------|------------------------------------------------------------------------------------------------------|
 | `code-derived`         | REQ extracted from observable code behavior; the historical default for Code projects.               |
 | `skill-section`        | REQ derived from a section of SKILL.md prose. Populates `REQ.skill_section`.                          |
-| `reference-file`       | REQ derived from a reference file (e.g., `references/exploration_patterns.md`).                       |
+| `reference-file`       | REQ derived from a QPB-shipped reference file (i.e., a file under `references/` such as `references/exploration_patterns.md`). |
+| `docs-derived`         | v1.5.6+. REQ derived from operator-supplied informal documentation under the target repo's `reference_docs/` tree (Tier 4 context — AI chats, design notes, retrospectives — or Tier 1/2 citable material under `reference_docs/cite/`). Distinct from `reference-file`, which names QPB-shipped reference files; `docs-derived` names target-repo reference docs. |
 | `execution-observation`| REQ inferred from observed run-time behavior captured in archived runs (Phase 5; reserved for forward-compat). |
 
 ### 3.8 `bug_divergence_type` — kind of divergence a BUG records (v1.5.3+)

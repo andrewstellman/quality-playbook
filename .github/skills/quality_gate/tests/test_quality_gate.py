@@ -3147,5 +3147,107 @@ class TestCheckRoleMapConsistency(_Phase4FixtureBase):
         self.assertIn("skip", out)
 
 
+# v1.5.6 (QG-fail-1, QG-fail-2): two self-consistency failures the
+# v1.5.6 self-bootstrap surfaced.
+#   - QG-fail-1: `.gitkeep` is the documented sentinel for
+#     `reference_docs/cite/` but the gate rejected it as
+#     "unsupported extension."
+#   - QG-fail-2: REQs with `source_type=docs-derived` (REQs derived
+#     from operator-supplied target-repo `reference_docs/`) were
+#     rejected by §10 invariant #21 because the allowlist didn't
+#     include the value, even though shipped Phase 2 LLM output
+#     emits it.
+class TestV156SelfConsistencyGitkeep(V150FixtureBase):
+
+    def _cite(self):
+        c = self.repo / "reference_docs" / "cite"
+        c.mkdir(parents=True)
+        return c
+
+    def test_gitkeep_in_cite_is_accepted(self):
+        """QG-fail-1: `.gitkeep` in reference_docs/cite/ must not
+        trigger the unsupported-extension fail."""
+        cite = self._cite()
+        (cite / ".gitkeep").write_text("", encoding="utf-8")
+        fails, out = _capture_fail_output(
+            quality_gate.check_v1_5_0_cite_extensions, self.repo
+        )
+        self.assertEqual(
+            fails, 0,
+            f".gitkeep should not trigger unsupported-extension fail; "
+            f"output: {out}",
+        )
+        self.assertNotIn("unsupported extension", out)
+
+    def test_gitkeep_alongside_real_doc_still_passes(self):
+        """`.gitkeep` plus a real .md citable doc both pass — the
+        sentinel is silent and the real doc takes the PASS line."""
+        cite = self._cite()
+        (cite / ".gitkeep").write_text("", encoding="utf-8")
+        (cite / "spec.md").write_text("# spec\n", encoding="utf-8")
+        fails, out = _capture_fail_output(
+            quality_gate.check_v1_5_0_cite_extensions, self.repo
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertIn("supported extensions", out)
+
+    def test_unsupported_extension_alongside_gitkeep_still_fails(self):
+        """`.gitkeep` exempt status MUST NOT mask other unsupported
+        files. A `.docx` next to `.gitkeep` still trips the gate."""
+        cite = self._cite()
+        (cite / ".gitkeep").write_text("", encoding="utf-8")
+        (cite / "stale.docx").write_bytes(b"PK\x03\x04binary\n")
+        fails, out = _capture_fail_output(
+            quality_gate.check_v1_5_0_cite_extensions, self.repo
+        )
+        self.assertGreaterEqual(fails, 1)
+        self.assertIn("stale.docx", out)
+        self.assertIn("unsupported extension", out)
+
+
+class TestV156SelfConsistencyDocsDerived(V150FixtureBase):
+
+    def test_docs_derived_in_allowlist(self):
+        """QG-fail-2: source_type=docs-derived must appear in the
+        v1.5.3 source_type allowlist constant."""
+        self.assertIn(
+            "docs-derived",
+            quality_gate._V153_VALID_SOURCE_TYPES,
+            "docs-derived must be in the v1.5.3 source_type allowlist "
+            "(QG-fail-2 from v1.5.6 self-bootstrap).",
+        )
+
+    def test_docs_derived_req_passes_invariant_21(self):
+        """End-to-end on a real REQ record: a v1.5.3-shaped requirements
+        manifest containing a REQ with source_type=docs-derived must
+        pass check_v1_5_3_source_type_validation. Mirrors the
+        bootstrap's REQ-015..REQ-018 records."""
+        self.write_manifest(
+            "requirements_manifest.json",
+            "records",
+            [
+                {
+                    "id": "REQ-001",
+                    "summary": "Code-derived requirement",
+                    "source_type": "code-derived",
+                },
+                {
+                    "id": "REQ-015",
+                    "summary": "Derived from target repo's reference_docs/",
+                    "source_type": "docs-derived",
+                },
+            ],
+        )
+        fails, out = _capture_fail_output(
+            quality_gate.check_v1_5_3_source_type_validation, self.q
+        )
+        self.assertEqual(
+            fails, 0,
+            f"docs-derived must pass invariant #21 source_type check; "
+            f"output: {out}",
+        )
+        self.assertIn("source_type validation complete", out)
+
+
 if __name__ == "__main__":
     unittest.main()
