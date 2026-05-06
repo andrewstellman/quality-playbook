@@ -37,13 +37,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import re
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
+
+
+_LOG = logging.getLogger(__name__)
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -192,14 +196,44 @@ def _extract_recall(text: str) -> float | None:
     return None
 
 
-def load_historical_bugs(repos_archive: Path, benchmark_version: str) -> list[str]:
+def load_historical_bugs(
+    repos_archive: Path, benchmark_version: str
+) -> Optional[list[str]]:
     """Read the BUGS.md for ``benchmark_version`` (e.g. ``chi-1.3.45``)
-    and return the list of historical bug IDs in source order. Empty
-    list if the archive isn't present or no bug headings parse.
+    and return the list of historical bug IDs in source order.
+
+    Returns:
+        - ``None`` when the archive is missing — either
+          ``repos_archive/<benchmark_version>/`` does not exist or its
+          ``quality/BUGS.md`` is missing. A WARNING-level log line is
+          emitted with the missing path so the caller can see the
+          gap. v1.5.6 BUG-006: pre-fix this case returned an empty
+          list, silently merging "archive missing" into "archive
+          present but contains zero bugs", which made it impossible
+          for callers (e.g. the per-bug heatmap renderer) to
+          distinguish "the operator hasn't staged the historical
+          baseline" from "the historical baseline really does have
+          no bugs."
+        - ``[]`` when ``BUGS.md`` exists but contains zero bug
+          headings (a real "archive present but empty" state — rare
+          but legitimate for a baseline that was set up before any
+          bugs were tracked).
+        - ``[bug_id, ...]`` in source order otherwise.
+
+    Callers MUST handle ``None`` explicitly. Iterating ``for x in
+    load_historical_bugs(...)`` directly will raise ``TypeError`` on
+    a missing archive — the type signature is now ``Optional`` to
+    surface this at call sites.
     """
     bugs_md = repos_archive / benchmark_version / "quality" / "BUGS.md"
     if not bugs_md.is_file():
-        return []
+        _LOG.warning(
+            "load_historical_bugs: missing archive %s — "
+            "returning None so caller can distinguish 'archive missing' "
+            "from 'archive present but empty'.",
+            bugs_md,
+        )
+        return None
     text = bugs_md.read_text(encoding="utf-8")
     return [m.group(1) for m in re.finditer(r"^###\s+(BUG-[A-Z0-9-]+)", text, re.MULTILINE)]
 
@@ -232,9 +266,16 @@ def render_per_bug_cycle_heatmap(
             bench_versions.append(key)
 
     # Row index = (benchmark, version, bug_id); column index = cycle ordinal.
+    # v1.5.6 BUG-006: load_historical_bugs returns None when the
+    # archive is missing (logged at WARNING level inside the helper);
+    # treat that as "no rows from this archive" — the fallback below
+    # rebuilds rows from the cells' own bug lists.
     rows: list[tuple[str, str, str]] = []
     for bench, version in bench_versions:
-        for bug_id in load_historical_bugs(repos_archive, f"{bench}-{version}"):
+        bug_ids = load_historical_bugs(repos_archive, f"{bench}-{version}")
+        if bug_ids is None:
+            continue
+        for bug_id in bug_ids:
             rows.append((bench, version, bug_id))
 
     # If no historical bugs found anywhere, fall back to the union of

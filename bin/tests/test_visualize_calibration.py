@@ -70,13 +70,102 @@ class HelperParserTests(unittest.TestCase):
         self.assertIn("Pattern 7", first.get("lever_pulled") or "")
 
     def test_load_historical_bugs_reads_chi_1_3_45_baseline(self) -> None:
-        """Spot-check the BUGS.md reader against a real archive."""
+        """Spot-check the BUGS.md reader against a real archive.
+
+        v1.5.6 BUG-006: skip cleanly when the chi-1.3.45 archive isn't
+        staged in this environment (e.g., a fresh QPB clone where
+        setup_repos.sh hasn't been run yet). Pre-fix this test
+        intermittently failed because load_historical_bugs() returned
+        ``[]`` for a missing archive — `len([]) >= 10` was always
+        false. Post-fix the function returns ``None`` for a missing
+        archive (caught by the explicit skip below); when the archive
+        IS present the assertions still hold."""
         from bin import visualize_calibration as vc
 
-        bugs = vc.load_historical_bugs(REPO_ROOT / "repos" / "archive", "chi-1.3.45")
+        archive_dir = REPO_ROOT / "repos" / "archive"
+        baseline_bugs_md = archive_dir / "chi-1.3.45" / "quality" / "BUGS.md"
+        if not baseline_bugs_md.is_file():
+            self.skipTest(
+                f"chi-1.3.45 baseline archive not present at "
+                f"{baseline_bugs_md} — run setup_repos.sh to stage it"
+            )
+
+        bugs = vc.load_historical_bugs(archive_dir, "chi-1.3.45")
+        # Archive present → returns a list (NOT None).
+        self.assertIsNotNone(
+            bugs,
+            "load_historical_bugs returned None despite the archive "
+            "BUGS.md existing on disk — the missing-archive path is "
+            "incorrectly triggering."
+        )
         # Archive has at least 10 ### BUG- entries (the v1.3.45 baseline).
         self.assertGreaterEqual(len(bugs), 10)
         self.assertIn("BUG-001", bugs)
+
+    def test_load_historical_bugs_returns_none_on_missing_archive(self) -> None:
+        """v1.5.6 BUG-006: a missing archive must return None (not [])
+        AND emit a WARNING-level log line so the caller can see the
+        gap. Pre-fix this case returned an empty list, masking
+        'archive missing' as 'archive present but empty'."""
+        import logging
+        from bin import visualize_calibration as vc
+
+        with TemporaryDirectory() as temp_dir:
+            empty_archive = Path(temp_dir)
+            with self.assertLogs("bin.visualize_calibration", level=logging.WARNING) as cm:
+                result = vc.load_historical_bugs(
+                    empty_archive, "definitely-not-a-real-baseline"
+                )
+            self.assertIsNone(
+                result,
+                "load_historical_bugs must return None on missing "
+                "archive so callers can distinguish 'archive missing' "
+                "from 'archive present but empty'."
+            )
+            joined = "\n".join(cm.output)
+            self.assertIn(
+                "missing archive", joined,
+                "missing-archive case must log a WARNING with the "
+                "missing path so operators can see the gap.",
+            )
+            self.assertIn(
+                "definitely-not-a-real-baseline", joined,
+                "missing-archive log line must include the failed path "
+                "for diagnosability.",
+            )
+
+    def test_load_historical_bugs_returns_empty_list_when_bugs_md_has_no_headings(self) -> None:
+        """v1.5.6 BUG-006: when the archive IS present but BUGS.md
+        contains zero parseable BUG- headings (a real "archive
+        present but empty" state), the function returns ``[]``
+        WITHOUT logging a warning — this is a legitimate state
+        distinct from "archive missing"."""
+        import logging
+        from bin import visualize_calibration as vc
+
+        with TemporaryDirectory() as temp_dir:
+            archive = Path(temp_dir)
+            bugs_md = archive / "fake-1.0.0" / "quality" / "BUGS.md"
+            bugs_md.parent.mkdir(parents=True)
+            bugs_md.write_text(
+                "# BUGS\n\nNo bugs tracked yet for this baseline.\n",
+                encoding="utf-8",
+            )
+            # No log line should fire for this case.
+            logger = logging.getLogger("bin.visualize_calibration")
+            previous_level = logger.level
+            try:
+                logger.setLevel(logging.WARNING)
+                with self.assertNoLogs("bin.visualize_calibration", level=logging.WARNING):
+                    result = vc.load_historical_bugs(archive, "fake-1.0.0")
+            finally:
+                logger.setLevel(previous_level)
+            self.assertEqual(
+                result, [],
+                "An archive present with no BUG- headings must return "
+                "[] (NOT None) — the empty list is a real state, "
+                "not a missing-archive marker."
+            )
 
 
 @unittest.skipUnless(_HAS_MATPLOTLIB, "matplotlib + numpy not installed")
