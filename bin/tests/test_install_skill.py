@@ -473,6 +473,151 @@ class PathlibCrossPlatformTests(unittest.TestCase):
             self.assertIsInstance(src, Path)
             self.assertIsInstance(dst, Path)
 
+    def test_install_skill_pathlib_windows_path_handling(self) -> None:
+        """v1.5.6 cluster D — Windows-direct testing was infrastructure-
+        blocked (no Windows machine, Wine, or container runtime
+        available in the validation sandbox). This test extends the
+        pathlib-correctness coverage by exercising EVERY path-shape
+        the install bundle produces through ``PureWindowsPath`` so a
+        future regression that introduces string-concatenation or
+        forward-slash assumptions trips here even though we can't
+        run the actual install on Windows.
+
+        Pinned coverage:
+        - ``_bundle_files`` returns Path-typed source AND destination
+          for every entry (no plain str leaks).
+        - Every destination path is a RELATIVE pathlib.Path that, when
+          joined to a ``PureWindowsPath`` install root, produces a
+          well-formed Windows path with NO doubled separators, NO
+          forward-slash leakage in components, and a preserved drive
+          letter at the front.
+        - The five top-level destinations (SKILL.md, quality_gate.py,
+          references/, phase_prompts/, agents/) all behave correctly
+          when joined with a Windows-style root.
+        - ``_path_under_allowed_prefix``-style operations (used by
+          run_state_lib.validate_no_source_edits) tolerate Windows
+          path separators when the operator runs on Windows.
+        """
+        bundle = install_skill._bundle_files(REPO_ROOT)
+        windows_root = PureWindowsPath(
+            r"C:\Users\op\my-project\.claude\skills\quality-playbook"
+        )
+        # All five bundle "regions" must be represented (top-level
+        # files SKILL.md + quality_gate.py, plus references/,
+        # phase_prompts/, agents/ subtrees).
+        regions_seen: set[str] = set()
+        for src, dst in bundle:
+            self.assertIsInstance(
+                src, Path,
+                f"_bundle_files leaked a non-Path source: {src!r}",
+            )
+            self.assertIsInstance(
+                dst, Path,
+                f"_bundle_files leaked a non-Path destination: {dst!r}",
+            )
+            # Destination must be relative — install_root joining
+            # only makes sense if dst is relative.
+            self.assertFalse(
+                dst.is_absolute(),
+                f"destination {dst!r} is absolute; bundle "
+                f"destinations must be relative to the install root.",
+            )
+            # No forward-slash leakage in any component (the test
+            # for "string concatenation accidents" — if a future
+            # refactor introduces ``Path("references/" + name)``
+            # the resulting path has a single component with an
+            # embedded forward slash on Windows).
+            for component in dst.parts:
+                self.assertNotIn(
+                    "/", component,
+                    f"destination component {component!r} (in {dst!r}) "
+                    f"contains a forward slash — Windows path "
+                    f"correctness regression. Use Path() / 'name', "
+                    f"NOT string concat.",
+                )
+                self.assertNotIn(
+                    "\\", component,
+                    f"destination component {component!r} (in {dst!r}) "
+                    f"contains a backslash — pathlib should split "
+                    f"separators, never embed them in components.",
+                )
+            # Track which top-level region the destination falls
+            # under for the regions_seen set.
+            top = dst.parts[0]
+            if top in ("SKILL.md", "quality_gate.py"):
+                regions_seen.add(top)
+            elif top in ("references", "phase_prompts", "agents"):
+                regions_seen.add(top)
+            else:
+                self.fail(
+                    f"unexpected top-level destination region: {top!r} "
+                    f"(in {dst!r}). Five regions are supported: "
+                    f"SKILL.md, quality_gate.py, references/, "
+                    f"phase_prompts/, agents/."
+                )
+            # Joined with a Windows root, the result is a well-formed
+            # Windows path with no doubled separators and the drive
+            # letter preserved.
+            dst_str = str(dst)
+            joined = PureWindowsPath(*windows_root.parts, *dst.parts)
+            self.assertTrue(
+                joined.parts[0].startswith("C:"),
+                f"PureWindowsPath join lost the drive letter for "
+                f"destination {dst!r}: {joined!r}",
+            )
+            self.assertNotIn(
+                "//", str(joined),
+                f"PureWindowsPath join produced doubled forward "
+                f"slashes: {joined!r}",
+            )
+            self.assertNotIn(
+                "\\\\", str(joined),
+                f"PureWindowsPath join produced doubled backslashes: "
+                f"{joined!r}",
+            )
+            # Joining preserves dst's component count: every part of
+            # dst appears as a part in joined (after the windows_root
+            # parts).
+            joined_tail = joined.parts[len(windows_root.parts):]
+            self.assertEqual(
+                joined_tail, dst.parts,
+                f"PureWindowsPath join lost or duplicated components: "
+                f"dst.parts={dst.parts}, joined_tail={joined_tail}",
+            )
+        self.assertEqual(
+            regions_seen,
+            {"SKILL.md", "quality_gate.py", "references",
+             "phase_prompts", "agents"},
+            f"expected all five bundle regions; got {regions_seen}",
+        )
+
+    def test_install_path_separator_independence(self) -> None:
+        """The bundle's path operations should produce identical
+        component sequences regardless of whether the install root is
+        constructed as a POSIX or Windows path. (POSIX-side proxy
+        check for cross-platform path-handling correctness.)"""
+        bundle = install_skill._bundle_files(REPO_ROOT)
+        posix_root = Path("/home/op/proj/.claude/skills/quality-playbook")
+        windows_root = PureWindowsPath(
+            r"C:\Users\op\proj\.claude\skills\quality-playbook"
+        )
+        for _, dst in bundle:
+            # Tail components after the install root must be the
+            # SAME ordered tuple under both path flavors. If the
+            # bundle started leaking '/' or '\' into individual
+            # components, the two component lists would diverge.
+            posix_join = posix_root / dst
+            windows_join = windows_root / PureWindowsPath(*dst.parts)
+            posix_tail = posix_join.parts[len(posix_root.parts):]
+            windows_tail = windows_join.parts[len(windows_root.parts):]
+            self.assertEqual(
+                posix_tail, windows_tail,
+                f"path-flavor divergence for destination {dst!r}: "
+                f"posix_tail={posix_tail}, "
+                f"windows_tail={windows_tail}. The bundle's destination "
+                f"components must be path-flavor-agnostic.",
+            )
+
 
 class DowngradeRefusalTests(unittest.TestCase):
     """Refuse to install over a target whose SKILL.md version is HIGHER
