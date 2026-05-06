@@ -76,6 +76,58 @@ class EnvironmentDetectionTests(unittest.TestCase):
                 (tmp / ".cursor" / "skills" / "quality-playbook" / "SKILL.md").is_file()
             )
 
+    def test_phase_prompts_bundled_in_cursor_install(self) -> None:
+        """v1.5.6 BUG-001/015/017: phase_prompts/*.md must land at the
+        install destination so Mode A walkthroughs can resolve
+        phase{N}.md at runtime. The installer's bundle is the only
+        load-bearing surface here — without it, installed Mode A
+        breaks at the first phase boundary."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            _write_minimal_env(tmp, ".cursor")
+            rc, out = _capture_install(cwd=tmp, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            install_dir = tmp / ".cursor" / "skills" / "quality-playbook"
+            phase_dir = install_dir / "phase_prompts"
+            self.assertTrue(
+                phase_dir.is_dir(),
+                f"phase_prompts/ subtree missing at install destination "
+                f"({phase_dir}); installed Mode A will fail at the first "
+                f"phase boundary. Output: {out}",
+            )
+            # Every phase{N}.md present in the source must be at the
+            # destination — exact set so an additive change to
+            # phase_prompts/ in source doesn't silently bypass the
+            # install bundle.
+            src_prompts = sorted(p.name for p in (REPO_ROOT / "phase_prompts").glob("*.md"))
+            installed = sorted(p.name for p in phase_dir.glob("*.md"))
+            self.assertEqual(
+                installed, src_prompts,
+                f"phase_prompts/*.md mismatch — source: {src_prompts}, "
+                f"installed: {installed}",
+            )
+            # Structured-output check: at least one event=copy line
+            # names a phase_prompts/ destination.
+            self.assertIn(
+                "phase_prompts/", out,
+                "expected at least one event=copy file=...phase_prompts/... "
+                "line in installer output",
+            )
+
+    def test_phase_prompts_bundled_via_target_override(self) -> None:
+        """Same guarantee under --target (literal install path), since
+        adopters using --target get the same bundle."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            target = tmp / "explicit-install"
+            rc, out = _capture_install(target=target, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            phase_dir = target / "phase_prompts"
+            self.assertTrue(phase_dir.is_dir(), out)
+            installed = sorted(p.name for p in phase_dir.glob("*.md"))
+            src_prompts = sorted(p.name for p in (REPO_ROOT / "phase_prompts").glob("*.md"))
+            self.assertEqual(installed, src_prompts)
+
     def test_target_override(self) -> None:
         """--target wins even when an environment is detectable."""
         with TemporaryDirectory() as tmp_str:

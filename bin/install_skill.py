@@ -71,6 +71,16 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     if refs_src.is_dir():
         for f in sorted(refs_src.glob("*.md")):
             files.append((f, Path("references") / f.name))
+    # v1.5.6 BUG-001: phase_prompts/ are loaded at runtime by both Mode A
+    # walkthroughs (per SKILL.md Mode A description, around line 62) and
+    # Mode B's `bin/run_playbook.py::_load_phase_prompt`. The installer
+    # MUST bundle them — installs that omit phase_prompts/ produce a
+    # bundle that looks complete but breaks Mode A on the first phase
+    # boundary because phase{N}.md cannot be resolved.
+    phase_prompts_src = source_root / "phase_prompts"
+    if phase_prompts_src.is_dir():
+        for f in sorted(phase_prompts_src.glob("*.md")):
+            files.append((f, Path("phase_prompts") / f.name))
     return files
 
 

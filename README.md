@@ -122,9 +122,11 @@ If you prefer to do the install by hand instead of using `bin/install_skill.py` 
 **Claude Code:**
 ```bash
 mkdir -p .claude/skills/quality-playbook/references
+mkdir -p .claude/skills/quality-playbook/phase_prompts
 cp SKILL.md .claude/skills/quality-playbook/SKILL.md
 cp .github/skills/quality_gate/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
 cp references/* .claude/skills/quality-playbook/references/
+cp phase_prompts/*.md .claude/skills/quality-playbook/phase_prompts/
 # v1.5.2: single reference_docs/ tree at the target repo root.
 # No README ships — cite/ contents are adopter-provided plaintext.
 mkdir -p reference_docs reference_docs/cite
@@ -137,9 +139,11 @@ cat skill-template.gitignore >> .gitignore
 **GitHub Copilot (flat layout):**
 ```bash
 mkdir -p .github/skills/references
+mkdir -p .github/skills/phase_prompts
 cp SKILL.md .github/skills/SKILL.md
 cp .github/skills/quality_gate/quality_gate.py .github/skills/quality_gate.py
 cp references/* .github/skills/references/
+cp phase_prompts/*.md .github/skills/phase_prompts/
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 cat skill-template.gitignore >> .gitignore
@@ -148,9 +152,11 @@ cat skill-template.gitignore >> .gitignore
 **GitHub Copilot (nested layout):**
 ```bash
 mkdir -p .github/skills/quality-playbook/references
+mkdir -p .github/skills/quality-playbook/phase_prompts
 cp SKILL.md .github/skills/quality-playbook/SKILL.md
 cp .github/skills/quality_gate/quality_gate.py .github/skills/quality-playbook/quality_gate.py
 cp references/* .github/skills/quality-playbook/references/
+cp phase_prompts/*.md .github/skills/quality-playbook/phase_prompts/
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 cat skill-template.gitignore >> .gitignore
