@@ -81,6 +81,18 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     if phase_prompts_src.is_dir():
         for f in sorted(phase_prompts_src.glob("*.md")):
             files.append((f, Path("phase_prompts") / f.name))
+    # v1.5.6 cluster A (issue #1 concern 4): bundle agents/ alongside
+    # references/ and phase_prompts/ so README Step 4's
+    # `claude --agent agents/quality-playbook.agent.md` invocation
+    # resolves at the install destination, not just inside the QPB
+    # clone. Pre-fix the relative path only worked from the QPB
+    # source tree — adopters running the documented invocation from
+    # their own target repo got "agent file not found" because the
+    # installer never copied the agents/ directory.
+    agents_src = source_root / "agents"
+    if agents_src.is_dir():
+        for f in sorted(agents_src.glob("*.md")):
+            files.append((f, Path("agents") / f.name))
     return files
 
 

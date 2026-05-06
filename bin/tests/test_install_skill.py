@@ -128,6 +128,74 @@ class EnvironmentDetectionTests(unittest.TestCase):
             src_prompts = sorted(p.name for p in (REPO_ROOT / "phase_prompts").glob("*.md"))
             self.assertEqual(installed, src_prompts)
 
+    def test_agents_bundled_in_install(self) -> None:
+        """v1.5.6 cluster A (closes issue #1 concern 4): agents/*.md
+        must land at the install destination so README Step 4's
+        ``claude --agent agents/quality-playbook.agent.md`` invocation
+        resolves at the install destination. Pre-fix the relative path
+        only worked from the QPB clone — adopters running the
+        documented invocation from their target repo got "agent file
+        not found" because install_skill.py never copied agents/."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            _write_minimal_env(tmp, ".cursor")
+            rc, out = _capture_install(cwd=tmp, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            install_dir = tmp / ".cursor" / "skills" / "quality-playbook"
+            agents_dir = install_dir / "agents"
+            self.assertTrue(
+                agents_dir.is_dir(),
+                f"agents/ subtree missing at install destination "
+                f"({agents_dir}); README Step 4's relative-path "
+                f"`claude --agent agents/...` invocation will fail. "
+                f"Output: {out}",
+            )
+            # Bundle-set parity: every agents/*.md in source must
+            # land at the destination. Exact-set match so an additive
+            # change to agents/ doesn't silently bypass the install
+            # bundle.
+            src_agents = sorted(p.name for p in (REPO_ROOT / "agents").glob("*.md"))
+            installed = sorted(p.name for p in agents_dir.glob("*.md"))
+            self.assertEqual(
+                installed, src_agents,
+                f"agents/*.md mismatch — source: {src_agents}, "
+                f"installed: {installed}",
+            )
+            # The two adopter-facing orchestrator agents MUST be in
+            # the bundle (the calibration_orchestrator is QPB-internal
+            # tooling and ships alongside as a no-cost convenience).
+            self.assertIn(
+                "quality-playbook.agent.md", installed,
+                "general orchestrator agent must be bundled — it's "
+                "the v1.5.6 README Step 4 reference.",
+            )
+            self.assertIn(
+                "quality-playbook-claude.agent.md", installed,
+                "Claude Code orchestrator agent must be bundled — "
+                "it's the README Step 4 'autonomous mode' reference.",
+            )
+            # Structured-output check: at least one event=copy line
+            # names an agents/ destination.
+            self.assertIn(
+                "agents/", out,
+                "expected at least one event=copy file=...agents/... "
+                "line in installer output",
+            )
+
+    def test_agents_bundled_via_target_override(self) -> None:
+        """Same agents/ bundle guarantee under --target, parallel to
+        the phase_prompts/ --target test."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            target = tmp / "explicit-install"
+            rc, out = _capture_install(target=target, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            agents_dir = target / "agents"
+            self.assertTrue(agents_dir.is_dir(), out)
+            installed = sorted(p.name for p in agents_dir.glob("*.md"))
+            src_agents = sorted(p.name for p in (REPO_ROOT / "agents").glob("*.md"))
+            self.assertEqual(installed, src_agents)
+
     def test_target_override(self) -> None:
         """--target wins even when an environment is detectable."""
         with TemporaryDirectory() as tmp_str:

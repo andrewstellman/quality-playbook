@@ -143,7 +143,15 @@ Pattern 7 cycle execution and adopter-facing install work; the
 skill-as-code adopter persona — what an adopter holding a
 SKILL.md plus references/ actually does step-by-step to get a
 useful run, beyond knowing the surface exists — is the next
-major surface to deepen.)
+major surface to deepen. v1.5.6 cluster A audit confirmed: the
+adopter walkthrough did NOT surface skill-as-code-specific
+gaps beyond what was already deferred. The adopter-facing
+install + invocation work in v1.5.6 (`bin/install_skill.py`
+turnkey installer, six-layout fallback resolution across
+runtime + docs, layout-agnostic phase prompts, agents/ now
+bundled in the install) benefits skill-as-code adopters the
+same way it benefits code-targeting adopters; the depth gap
+is the same v1.5.7 deferral noted at v1.5.3.)
 
 ### Persona 14 — The PR-submitter walkthrough
 
