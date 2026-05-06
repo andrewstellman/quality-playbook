@@ -139,7 +139,7 @@ Iterations typically add 40-60% more confirmed bugs on top of the baseline.
 ## The six phases
 
 1. **Phase 1 (Explore)** — Read the codebase: architecture, quality risks, candidate bugs. Output: `quality/EXPLORATION.md`
-2. **Phase 2 (Generate)** — Produce quality artifacts: requirements, constitution, functional tests, review protocols, TDD protocol, AGENTS.md. Output: nine files in `quality/`
+2. **Phase 2 (Generate)** — Produce quality artifacts: requirements, constitution, contracts, coverage matrix, completeness report, four review/execution protocols, functional test file. Output: nine files in `quality/` (REQUIREMENTS.md, QUALITY.md, CONTRACTS.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, RUN_CODE_REVIEW.md, RUN_INTEGRATION_TESTS.md, RUN_SPEC_AUDIT.md, RUN_TDD_TESTS.md) plus a `quality/test_functional.<ext>` functional test file. **AGENTS.md is generated post-Phase-6 by the orchestrator, NOT by Phase 2** — writing AGENTS.md in Phase 2 trips the source-edit guardrail and aborts the run.
 3. **Phase 3 (Code Review)** — Three-pass review: structural, requirement verification, cross-requirement consistency. Regression tests for every confirmed bug. Output: `quality/code_reviews/`, patches
 4. **Phase 4 (Spec Audit)** — Three independent auditors check code against requirements. Triage with verification probes. Output: `quality/spec_audits/`, additional regression tests
 5. **Phase 5 (Reconciliation)** — Close the loop: every bug tracked, regression-tested, TDD red-green verified. Output: `quality/BUGS.md`, TDD logs, completeness report
