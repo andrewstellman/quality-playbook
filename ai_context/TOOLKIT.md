@@ -156,21 +156,25 @@ Users often want to run the playbook across multiple repositories or automate th
 
 Positional arguments are directory paths (relative or absolute). No version resolution, no benchmark-folder lookups — every argument is taken literally. Omit positional args to run against the current directory.
 
+The runner must be invoked as the `bin.run_playbook` package module, not as a script — the package-module guard rejects `python3 /path/to/run_playbook.py` with `EX_USAGE=64`. Run from inside the QPB checkout (or set `PYTHONPATH=/path/to/quality-playbook`) and pass the target repo as a positional path:
+
 ```bash
-cd my-project
-python3 /path/to/quality-playbook/bin/run_playbook.py                      # run on cwd
-python3 /path/to/quality-playbook/bin/run_playbook.py --phase all          # phase-by-phase on cwd
-python3 /path/to/quality-playbook/bin/run_playbook.py ./project1 ./project2  # multiple targets
-python3 /path/to/quality-playbook/bin/run_playbook.py --claude --model sonnet ./project1
-python3 /path/to/quality-playbook/bin/run_playbook.py --codex ./project1                  # v1.5.3 codex CLI runner
-python3 /path/to/quality-playbook/bin/run_playbook.py --next-iteration --strategy parity ./project1
+cd /path/to/quality-playbook                                                           # required: bin/ must be on sys.path
+python3 -m bin.run_playbook /path/to/my-project                                        # baseline run
+python3 -m bin.run_playbook --phase all /path/to/my-project                            # phase-by-phase
+python3 -m bin.run_playbook /path/to/project1 /path/to/project2                        # multiple targets
+python3 -m bin.run_playbook --claude --model sonnet /path/to/my-project
+python3 -m bin.run_playbook --codex /path/to/my-project                                # v1.5.3 codex CLI runner
+python3 -m bin.run_playbook --next-iteration --strategy parity /path/to/my-project
 ```
 
-For benchmark use, run from the `repos/` folder so relative paths work naturally:
+Omit positional args to run against the current directory (useful for the QPB self-bootstrap; the runner's CWD must still be the QPB checkout root).
+
+For benchmark use, run from the `repos/` folder; the parent QPB checkout puts `bin/` on `sys.path`:
 
 ```bash
-cd repos
-python3 ../bin/run_playbook.py --phase all --sequential chi-1.4.6
+cd /path/to/quality-playbook/repos
+python3 -m bin.run_playbook --phase all --sequential chi-1.4.6
 ```
 
 Key properties:
@@ -267,10 +271,10 @@ gh copilot -p "Read the quality playbook skill — locate SKILL.md using the doc
 **Third runner, added in v1.5.3 (codex-cli 0.125+).** The standalone codex CLI (`https://github.com/openai/codex`) is distinct from `gh copilot` — it's OpenAI's own non-interactive coding assistant, not a GitHub-CLI extension. The runner wraps `codex exec --full-auto`, codex's sandboxed automatic-execution mode (the codex equivalent of `gh copilot --yolo`).
 
 ```bash
-cd /path/to/repo
-python3 /path/to/quality-playbook/bin/run_playbook.py --codex .
+cd /path/to/quality-playbook                                                 # required: bin/ on sys.path
+python3 -m bin.run_playbook --codex /path/to/repo
 # or via the skill_derivation entry-point for Skill / Hybrid targets:
-python3 -m bin.skill_derivation --runner codex --pass all .
+python3 -m bin.skill_derivation --runner codex --pass all /path/to/repo
 ```
 
 - The runner pipes the playbook's prompt to codex on stdin (codex `exec` reads from stdin when no positional prompt is given), so long phase prompts don't hit shell command-line length limits

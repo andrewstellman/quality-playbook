@@ -1,12 +1,14 @@
 # Calibration Orchestrator — autonomous cycle prompt template (v1.5.6)
 
-*Prompt template for the AI session driving an end-to-end QPB calibration cycle. One AI session reads this prompt, executes Steps 1-12 from `ai_context/CALIBRATION_PROTOCOL.md`, and writes the cycle audit + Lever Calibration Log entry. Designed for Claude Code sessions but will work in any tool with bash + file tools.*
+*Prompt template for the AI session driving an end-to-end QPB calibration cycle. The orchestrator AI executes Steps 1-12 from `ai_context/CALIBRATION_PROTOCOL.md`, spawns playbook subprocesses per benchmark, and writes the cycle audit + Lever Calibration Log entry. Designed for Claude Code sessions but will work in any tool with bash + file tools.*
 
 *This prompt builds on `ai_context/CALIBRATION_PROTOCOL.md` Mode 1 (autonomous). The protocol is the canonical operational guide; this template wires it into v1.5.6's run-state instrumentation so the cycle is fully observable, resumable, and recoverable.*
 
 *Schema for cycle-level events: `references/run_state_schema.md`.*
 
-*Compare with `ai_context/AI_ORCHESTRATION_PATTERNS.md`. That document describes a **multi-session** orchestrator/worker pattern in which a chat-driving AI session controls a separate coding AI session via files in a shared directory. This template, by contrast, is **single-session**: one Claude Code session reads this prompt, drives the cycle end-to-end, and resumes itself across crashes via `quality/run_state.jsonl`. Use this template for coordinated cycles one session can drive; use the orchestrator/worker pattern when chat-side planning and coding-side execution need to be separate sessions.*
+*Session model — **spawn-and-resume across multiple orchestrator sessions** (v1.5.6 cluster F.1 finding from the 2026-05-02 Pattern 7 cycle). The orchestrator role spans many discrete AI sessions that re-attach to the same cycle directory and resume from `run_state.jsonl`; each session typically drives one cycle step (kick off a benchmark, finalize a benchmark on completion, apply the lever, run Council, etc.) and exits. A long-lived single-session orchestrator was attempted in early prototyping and did not survive realistic AI session lifetimes (timeouts, network drops, operator-ended sessions across the ~4 hours an 8-benchmark cycle takes). The Step 2 spawn pattern below — `nohup` the playbook in the background, append a `benchmark_start` event with the PID, return control — IS the load-bearing recovery mechanism, not an exception case.*
+
+*Compare with `ai_context/AI_ORCHESTRATION_PATTERNS.md`. That document describes a **multi-session orchestrator/worker** pattern where a chat-driving AI controls a separate coding AI via files in a shared directory. This template applies the same multi-session discipline at a different layer: the orchestrator AI sessions (any number across the cycle's lifetime) coordinate the playbook subprocess lifecycle, while the playbook itself is the worker. Use this template when the work to coordinate is a calibration cycle (a fixed Steps 1-12 workflow); use the broader orchestrator/worker pattern when chat-side planning and coding-side execution need to be coordinated outside a calibration cycle.*
 
 ---
 

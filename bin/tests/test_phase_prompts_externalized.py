@@ -192,8 +192,11 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # summary; runner does it via normalize_role_map_for_gate
         # before the Phase 2 entry-gate. Schema example collapsed
         # from full role_map to files+provenance. Hashes recomputed.
-        "phase1_no_seeds_True":  (16643, "1120d6099291bb3405b1d803d4b400058148658eb8ae2c0a18e7d2bc6cf3c47c"),
-        "phase1_no_seeds_False": (16446, "fc8ae7fd7d9cea2b05387c480e905e204cf58a3bf98568b470db6db32791eb70"),
+        # v1.5.6 fix-up 056: phase1.md:69 stale "compute breakdown"
+        # instruction reconciled against cluster 047's runner-owned
+        # normalize_role_map_for_gate. Hashes recomputed.
+        "phase1_no_seeds_True":  (16736, "f18931a5327c99b21b54110f1c83bbaa3bc8c8a7bf2db961ae1cf11602caec26"),
+        "phase1_no_seeds_False": (16539, "5a55a5b8414b8b9e170f6339aa098fa3257e8b1e2ca76cff761d441990bdd5d4"),
         # v1.5.6 BUG-011/012: phase{2..6}.md previously hardcoded
         # `.github/skills/` paths; the fix prepends {skill_fallback_guide}
         # (the same SKILL_FALLBACK_GUIDE constant the iteration/single_pass
