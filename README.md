@@ -391,26 +391,29 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
   deliverables, including the surfaced REQ-ID instability finding: replay
   matching by `(REQ_id, file)` is still noisy across runs at roughly 50%
   file-basename overlap and needs methodology work in the v1.7 SPC arc.
-- **The original 2026-05-02 cycle scope was 3-of-4 benchmarks; the chi-1.5.1 follow-on cycle is in-progress at v1.5.6 cluster F.2.**
-  chi-1.3.45 + virtio-1.5.1 + express-1.3.50 produced complete pre/post-lever
-  cells in the original cycle (instruction 041 part 1 confirmed the
-  express-1.3.50 post-lever cell.json + cycle subdir DO exist — the audit
-  prose claiming "interrupted before producing a replayable cell snapshot"
-  is stale, not the data). chi-1.5.1 was the original time-budget deferral;
-  its follow-on pre-lever playbook subprocess was spawned 2026-05-06 per the
-  spawn-and-resume pattern in `agents/calibration_orchestrator.md`. Cluster
-  F.4 audit refresh consolidates the now-4-benchmark scope when the runs
-  land. The original REVERT verdict on Pattern 7 budget-cap reduction
-  stands.
+- **The cycle is closed at 3 of 4 benchmarks.**
+  The original 2026-05-02 cycle ran on chi-1.3.45 + virtio-1.5.1 + express-1.3.50
+  with complete pre/post-lever cells (instruction 041 part 1 confirmed the
+  express-1.3.50 cell.json files at `metrics/regression_replay/20260502T155324Z/`
+  and the cycle subdirs DO exist — the audit prose claiming "interrupted before
+  producing a replayable cell snapshot" was stale, not the data; the prose was
+  reconciled in v1.5.6 fix-up 055). chi-1.5.1 was the original time-budget
+  deferral; the v1.5.6 cluster F.2a follow-on pre-lever run with claude-opus-4-7
+  produced 9/16 = 0.5625 substantive recall against the v1.5.1 baseline, and is
+  documented separately below — it informs the historical baseline understanding
+  but does not change the cycle's REVERT verdict, which was always concentrated
+  on chi-1.3.45. The cycle is closed at 3 of 4 benchmarks; chi-1.5.1 is not a
+  4th cell in the per-benchmark recall table.
 - **Known limitations remain in the release notes instead of being buried in validation output.**
   Windows install behavior is `untested-infrastructure-blocked-pathlib-coverage-extended`
   (no Windows machine, no Wine, no Windows container in the validation
   sandbox; cluster D extended `PureWindowsPath` coverage in the install-skill
   test surface in lieu of a direct run). The reused `chi-1.3.45` Phase 4
-  evidence's docs-backed re-run is in-progress at v1.5.6 cluster E
-  (playbook subprocess spawned 2026-05-06); the validation report's
-  `pass-with-known-limitations` disposition holds until the run lands and
-  the report is updated in cluster F.4's audit-refresh step.
+  evidence remains code-only-mode reuse; the docs-backed re-validation was
+  dropped in favor of the v1.5.6 cluster 047 architectural fix that closes
+  the underlying defect class (see "Role_map architectural fix lands as the
+  substantive Cluster E deliverable" below). The validation report's
+  `pass-with-known-limitations` disposition stands.
 - **Bootstrap self-audit fix-up: 22 named issues closed across 8 clusters.**
   v1.5.6's self-bootstrap run on 2026-05-02 surfaced 20 named bugs plus 2
   quality-gate self-consistency failures. All 22 are fixed in clusters 1-8
