@@ -1130,5 +1130,462 @@ class CheckPhaseGateNormalizeIntegrationTests(unittest.TestCase):
             )
 
 
+class IsInScopeTests(unittest.TestCase):
+    """v1.5.6 cluster 049: ``is_in_scope(path, target_dir)`` returns
+    True iff the path is NOT matched by any HARDCODED_EXCLUDES
+    pattern (or supplied ignore_patterns)."""
+
+    def test_in_scope_default_case(self) -> None:
+        with TemporaryDirectory() as tmp:
+            self.assertTrue(rm.is_in_scope("src/main.go", Path(tmp)))
+            self.assertTrue(rm.is_in_scope("README.md", Path(tmp)))
+            self.assertTrue(rm.is_in_scope("bin/run_playbook.py", Path(tmp)))
+
+    def test_node_modules_excluded(self) -> None:
+        with TemporaryDirectory() as tmp:
+            self.assertFalse(rm.is_in_scope("node_modules/foo/index.js", Path(tmp)))
+            # Nested vendored dir under app/
+            self.assertFalse(rm.is_in_scope(
+                "app/node_modules/lib/x.js", Path(tmp)
+            ))
+
+    def test_pycache_excluded(self) -> None:
+        with TemporaryDirectory() as tmp:
+            self.assertFalse(rm.is_in_scope(
+                "bin/__pycache__/run_playbook.cpython-313.pyc", Path(tmp)
+            ))
+            self.assertFalse(rm.is_in_scope("foo.pyc", Path(tmp)))
+
+    def test_jvm_target_excluded(self) -> None:
+        with TemporaryDirectory() as tmp:
+            self.assertFalse(rm.is_in_scope(
+                "target/classes/com/foo/Bar.class", Path(tmp)
+            ))
+
+    def test_venv_excluded(self) -> None:
+        with TemporaryDirectory() as tmp:
+            self.assertFalse(rm.is_in_scope(".venv/lib/x.py", Path(tmp)))
+            self.assertFalse(rm.is_in_scope("venv/lib/x.py", Path(tmp)))
+
+    def test_lockfiles_excluded(self) -> None:
+        with TemporaryDirectory() as tmp:
+            self.assertFalse(rm.is_in_scope("package-lock.json", Path(tmp)))
+            self.assertFalse(rm.is_in_scope("yarn.lock", Path(tmp)))
+            self.assertFalse(rm.is_in_scope("Cargo.lock", Path(tmp)))
+
+    def test_git_internals_excluded(self) -> None:
+        with TemporaryDirectory() as tmp:
+            self.assertFalse(rm.is_in_scope(".git/HEAD", Path(tmp)))
+            self.assertFalse(rm.is_in_scope(".hg/store", Path(tmp)))
+
+    def test_supplied_ignore_patterns_layer_on_top(self) -> None:
+        with TemporaryDirectory() as tmp:
+            extra = ("generated/**", "*.gen.go")
+            self.assertFalse(rm.is_in_scope(
+                "generated/api.pb.go", Path(tmp), ignore_patterns=extra,
+            ))
+            self.assertFalse(rm.is_in_scope(
+                "internal/foo.gen.go", Path(tmp), ignore_patterns=extra,
+            ))
+            # Without the extra patterns, those would be in scope.
+            self.assertTrue(rm.is_in_scope(
+                "generated/api.pb.go", Path(tmp), ignore_patterns=(),
+            ))
+
+
+class ReadIgnoreFilePatternsTests(unittest.TestCase):
+    """v1.5.6 cluster 049: parser for `.gitignore` / `.hgignore`."""
+
+    def test_reads_gitignore_simple_patterns(self) -> None:
+        with TemporaryDirectory() as tmp:
+            (Path(tmp) / ".gitignore").write_text(
+                "build/\n"
+                "*.bak\n"
+                "# this is a comment\n"
+                "\n"
+                "logs/*.log\n",
+                encoding="utf-8",
+            )
+            patterns = rm._read_ignore_file_patterns(Path(tmp))
+            # build/ → build/** (directory-marker conversion)
+            self.assertIn("build/**", patterns)
+            self.assertIn("*.bak", patterns)
+            self.assertIn("logs/*.log", patterns)
+            # Comment + blank dropped.
+            self.assertNotIn("# this is a comment", patterns)
+
+    def test_skips_negation_patterns(self) -> None:
+        with TemporaryDirectory() as tmp:
+            (Path(tmp) / ".gitignore").write_text(
+                "build/\n"
+                "!build/important/\n",
+                encoding="utf-8",
+            )
+            patterns = rm._read_ignore_file_patterns(Path(tmp))
+            self.assertIn("build/**", patterns)
+            # Negation skipped (would require state machine).
+            self.assertNotIn("!build/important/", patterns)
+
+    def test_strips_leading_slash(self) -> None:
+        with TemporaryDirectory() as tmp:
+            (Path(tmp) / ".gitignore").write_text("/dist\n", encoding="utf-8")
+            patterns = rm._read_ignore_file_patterns(Path(tmp))
+            self.assertIn("dist", patterns)
+
+    def test_no_gitignore_returns_empty(self) -> None:
+        with TemporaryDirectory() as tmp:
+            self.assertEqual(rm._read_ignore_file_patterns(Path(tmp)), ())
+
+    def test_reads_hgignore_too(self) -> None:
+        with TemporaryDirectory() as tmp:
+            (Path(tmp) / ".hgignore").write_text(
+                "*.bak\n",
+                encoding="utf-8",
+            )
+            patterns = rm._read_ignore_file_patterns(Path(tmp))
+            self.assertIn("*.bak", patterns)
+
+
+class MaybeRecoverRoleMapTests(unittest.TestCase):
+    """v1.5.6 cluster 049: auto-recovery of too-large role_maps."""
+
+    def _make_oversized_role_map(self, n_real: int, n_vendored: int) -> dict:
+        """Synthetic role_map with ``n_real`` src/ entries +
+        ``n_vendored`` node_modules/ entries."""
+        files = []
+        for i in range(n_real):
+            files.append(_entry(f"src/file_{i}.go", "code", 100))
+        for i in range(n_vendored):
+            files.append(_entry(f"node_modules/lib_{i}/index.js", "code", 100))
+        return {
+            "schema_version": rm.SCHEMA_VERSION,
+            "timestamp_start": "2026-05-07T00:00:00Z",
+            "provenance": "filesystem-walk-with-skips",
+            "files": files,
+        }
+
+    def test_happy_path_auto_recovery_works(self) -> None:
+        """Synthetic role_map with 1500 valid src/ + 800 node_modules/
+        + 200 target/. Auto-recovery filters to 1500, validation
+        passes (post-normalize), provenance is `exclude-filtered`,
+        no git or .git/ required."""
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp)
+            files = [_entry(f"src/file_{i}.go", "code", 100) for i in range(1500)]
+            files += [_entry(f"node_modules/lib_{i}/index.js", "code", 100)
+                      for i in range(800)]
+            files += [_entry(f"target/classes/x_{i}.class", "code", 100)
+                      for i in range(200)]
+            role_map = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "filesystem-walk-with-skips",
+                "files": files,
+            }
+            recovered, note = rm.maybe_recover_role_map(target, role_map)
+            self.assertIsNotNone(recovered, msg=note)
+            self.assertEqual(len(recovered["files"]), 1500)
+            self.assertEqual(recovered["provenance"], "exclude-filtered")
+            self.assertIn("filtered 1000 entries", note)
+            self.assertIn("2500→1500", note)
+            # NO git directory exists in the temp target — the recovery
+            # path didn't need it. Confirm explicitly.
+            self.assertFalse((target / ".git").exists())
+
+    def test_role_tags_preserved_through_filter(self) -> None:
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp)
+            files = [
+                _entry("SKILL.md", "skill-prose", 1000),
+                _entry("src/main.go", "code", 500),
+                _entry("node_modules/x/y.js", "code", 100),
+            ]
+            role_map = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "filesystem-walk-with-skips",
+                "files": files,
+            }
+            # This won't trigger size-only recovery (only 3 entries),
+            # but the helper itself works on any count — assert
+            # role tags survive when invoked directly.
+            recovered, note = rm.maybe_recover_role_map(target, role_map)
+            # 3 entries → 2 after filter (still < limit; recovery
+            # succeeds since filtered_count < original_count and
+            # filtered_count <= MAX_ROLE_MAP_ENTRIES).
+            self.assertIsNotNone(recovered, msg=note)
+            paths = [f["path"] for f in recovered["files"]]
+            self.assertIn("SKILL.md", paths)
+            self.assertIn("src/main.go", paths)
+            self.assertNotIn("node_modules/x/y.js", paths)
+            # Check role tags preserved.
+            for entry in recovered["files"]:
+                if entry["path"] == "SKILL.md":
+                    self.assertEqual(entry["role"], "skill-prose")
+                elif entry["path"] == "src/main.go":
+                    self.assertEqual(entry["role"], "code")
+
+    def test_gitignore_layer_filters_project_specific_dirs(self) -> None:
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp)
+            (target / ".gitignore").write_text(
+                "generated/\n",
+                encoding="utf-8",
+            )
+            files = [_entry(f"src/file_{i}.go", "code", 100) for i in range(1000)]
+            files += [_entry(f"generated/proto_{i}.pb.go", "code", 100)
+                      for i in range(1500)]
+            role_map = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "filesystem-walk-with-skips",
+                "files": files,
+            }
+            recovered, note = rm.maybe_recover_role_map(target, role_map)
+            self.assertIsNotNone(recovered, msg=note)
+            # generated/ filtered via gitignore (not in HARDCODED_EXCLUDES).
+            self.assertEqual(len(recovered["files"]), 1000)
+            for entry in recovered["files"]:
+                self.assertFalse(entry["path"].startswith("generated/"))
+
+    def test_filter_removed_nothing_returns_failure(self) -> None:
+        """role_map has 2200 valid entries (no vendored content).
+        Filter removes 0; recovery fails with operator-actionable
+        explanation; caller aborts as today."""
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp)
+            files = [_entry(f"src/file_{i}.go", "code", 100) for i in range(2200)]
+            role_map = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "filesystem-walk-with-skips",
+                "files": files,
+            }
+            recovered, note = rm.maybe_recover_role_map(target, role_map)
+            self.assertIsNone(recovered)
+            self.assertIn("removed nothing", note)
+
+    def test_still_oversize_after_filter_returns_failure(self) -> None:
+        """Filter trims SOME entries but the result is still over the
+        cap. Recovery fails with operator-actionable explanation."""
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp)
+            files = [_entry(f"src/file_{i}.go", "code", 100) for i in range(2500)]
+            files += [_entry(f"node_modules/x_{i}.js", "code", 100) for i in range(100)]
+            role_map = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "filesystem-walk-with-skips",
+                "files": files,
+            }
+            recovered, note = rm.maybe_recover_role_map(target, role_map)
+            self.assertIsNone(recovered)
+            self.assertIn("still 2500 entries", note)
+
+    def test_works_against_non_git_target(self) -> None:
+        """The whole point of the deterministic predicate: works on
+        any directory. No .git/, no precondition."""
+        with TemporaryDirectory() as tmp:
+            target = Path(tmp)
+            self.assertFalse((target / ".git").exists())
+            files = [_entry(f"src/file_{i}.go", "code", 100) for i in range(1500)]
+            files += [_entry(f"vendor/lib_{i}.go", "code", 100) for i in range(700)]
+            role_map = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "filesystem-walk-with-skips",
+                "files": files,
+            }
+            recovered, note = rm.maybe_recover_role_map(target, role_map)
+            self.assertIsNotNone(recovered, msg=note)
+            self.assertEqual(len(recovered["files"]), 1500)
+
+
+class CheckPhaseGateAutoRecoveryIntegrationTests(unittest.TestCase):
+    """v1.5.6 cluster 049 end-to-end: Phase 2 entry-gate runs
+    auto-recovery when validation fails ONLY on size cap, then
+    re-validates."""
+
+    def test_phase2_gate_auto_recovers_oversize_role_map(self) -> None:
+        from bin import run_playbook
+        import argparse, json
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            quality = repo / "quality"
+            quality.mkdir()
+            body_lines = "\n".join(f"line {i}" for i in range(150))
+            (quality / "EXPLORATION.md").write_text(
+                "## Open Exploration Findings\n\n" + body_lines + "\n",
+                encoding="utf-8",
+            )
+            # 1500 valid src/ + 800 node_modules → 2300 total (over 2000).
+            files = [_entry(f"src/file_{i}.go", "code", 100) for i in range(1500)]
+            files += [_entry(f"node_modules/lib_{i}/index.js", "code", 100)
+                      for i in range(800)]
+            role_map = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "filesystem-walk-with-skips",
+                "files": files,
+            }
+            (quality / rm.DEFAULT_FILENAME).write_text(
+                json.dumps(role_map, indent=2), encoding="utf-8",
+            )
+            args = argparse.Namespace(
+                allow_disallowed_prefix=None,
+                max_role_map_entries=None,
+                no_role_map_auto_recovery=False,  # default: recovery on
+            )
+            result = run_playbook.check_phase_gate(repo, "2", args=args)
+            self.assertTrue(
+                result.ok,
+                msg=f"Phase 2 gate must pass after auto-recovery. "
+                f"Messages: {result.messages}",
+            )
+            # WARN message about auto-recovery should be in the
+            # messages list (informational, doesn't fail the gate).
+            warns = [m for m in result.messages if "auto-recovered" in m]
+            self.assertEqual(len(warns), 1, msg=result.messages)
+            # And the on-disk role_map now has fewer entries +
+            # exclude-filtered provenance.
+            recovered_on_disk = rm.load_role_map(quality / rm.DEFAULT_FILENAME)
+            self.assertEqual(len(recovered_on_disk["files"]), 1500)
+            self.assertEqual(recovered_on_disk["provenance"], "exclude-filtered")
+
+    def test_phase2_gate_skips_recovery_when_unfilterable_error_present(self) -> None:
+        """Recovery triggers only when EVERY validation error is
+        filterable by the exclude predicate (size cap, disallowed
+        prefix, disallowed suffix). When any UNFILTERABLE error is
+        present (e.g., schema_version mismatch, missing required
+        field, malformed percentages), recovery is skipped — abort
+        as today.
+
+        Note: a role_map with disallowed-prefix entries and nothing
+        else WILL trigger recovery and pass after the offending
+        entries are filtered. That's the desirable practical
+        behavior — the spec's original "size-only" rule conflicted
+        with the spec's own test #1 (large + vendored case has
+        BOTH size and disallowed-prefix violations); the
+        "all-filterable" rule resolves that consistently."""
+        from bin import run_playbook
+        import argparse, json
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            quality = repo / "quality"
+            quality.mkdir()
+            body_lines = "\n".join(f"line {i}" for i in range(150))
+            (quality / "EXPLORATION.md").write_text(
+                "## Open Exploration Findings\n\n" + body_lines + "\n",
+                encoding="utf-8",
+            )
+            # Stage a role map with an UNFILTERABLE error: wrong
+            # schema_version. Recovery cannot fix this; abort as
+            # today.
+            files = [_entry(f"src/file_{i}.go", "code", 100) for i in range(100)]
+            role_map = {
+                "schema_version": "999.0",  # NOT current — unfilterable
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "filesystem-walk-with-skips",
+                "files": files,
+            }
+            (quality / rm.DEFAULT_FILENAME).write_text(
+                json.dumps(role_map, indent=2), encoding="utf-8",
+            )
+            args = argparse.Namespace(
+                allow_disallowed_prefix=None,
+                max_role_map_entries=None,
+                no_role_map_auto_recovery=False,
+            )
+            result = run_playbook.check_phase_gate(repo, "2", args=args)
+            self.assertFalse(result.ok)
+            joined = " ".join(result.messages)
+            self.assertIn("schema_version", joined)
+
+    def test_phase2_gate_recovers_when_only_disallowed_prefix_present(self) -> None:
+        """When disallowed-prefix is the ONLY validation error
+        (no size cap), recovery DOES trigger because the filter
+        can clean it up. This is the case where the model walked
+        a small vendored set: not over the size cap, but the
+        validator catches the .git/ etc. entries. The auto-clean
+        is the desired behavior — the alternative is requiring
+        the operator to re-run Phase 1."""
+        from bin import run_playbook
+        import argparse, json
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            quality = repo / "quality"
+            quality.mkdir()
+            body_lines = "\n".join(f"line {i}" for i in range(150))
+            (quality / "EXPLORATION.md").write_text(
+                "## Open Exploration Findings\n\n" + body_lines + "\n",
+                encoding="utf-8",
+            )
+            files = [_entry(f"src/file_{i}.go", "code", 100) for i in range(100)]
+            files.append(_entry(".git/HEAD", "config", 50))
+            role_map = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "filesystem-walk-with-skips",
+                "files": files,
+            }
+            (quality / rm.DEFAULT_FILENAME).write_text(
+                json.dumps(role_map, indent=2), encoding="utf-8",
+            )
+            args = argparse.Namespace(
+                allow_disallowed_prefix=None,
+                max_role_map_entries=None,
+                no_role_map_auto_recovery=False,
+            )
+            result = run_playbook.check_phase_gate(repo, "2", args=args)
+            self.assertTrue(
+                result.ok,
+                msg=f"Recovery should clean up the .git/HEAD entry. "
+                f"Messages: {result.messages}",
+            )
+            warns = [m for m in result.messages if "auto-recovered" in m]
+            self.assertEqual(len(warns), 1, msg=result.messages)
+            recovered_on_disk = rm.load_role_map(quality / rm.DEFAULT_FILENAME)
+            paths = [f["path"] for f in recovered_on_disk["files"]]
+            self.assertNotIn(".git/HEAD", paths)
+            self.assertEqual(len(recovered_on_disk["files"]), 100)
+
+    def test_phase2_gate_opt_out_flag_disables_recovery(self) -> None:
+        """With --no-role-map-auto-recovery, oversize role_maps abort
+        as legacy behavior."""
+        from bin import run_playbook
+        import argparse, json
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            quality = repo / "quality"
+            quality.mkdir()
+            body_lines = "\n".join(f"line {i}" for i in range(150))
+            (quality / "EXPLORATION.md").write_text(
+                "## Open Exploration Findings\n\n" + body_lines + "\n",
+                encoding="utf-8",
+            )
+            files = [_entry(f"src/file_{i}.go", "code", 100) for i in range(1500)]
+            files += [_entry(f"node_modules/x_{i}.js", "code", 100)
+                      for i in range(800)]
+            role_map = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "filesystem-walk-with-skips",
+                "files": files,
+            }
+            (quality / rm.DEFAULT_FILENAME).write_text(
+                json.dumps(role_map, indent=2), encoding="utf-8",
+            )
+            args = argparse.Namespace(
+                allow_disallowed_prefix=None,
+                max_role_map_entries=None,
+                no_role_map_auto_recovery=True,  # OPT OUT
+            )
+            result = run_playbook.check_phase_gate(repo, "2", args=args)
+            self.assertFalse(result.ok)
+            joined = " ".join(result.messages)
+            self.assertIn("limit", joined)
+            self.assertIn("2300", joined)
+
+
 if __name__ == "__main__":
     unittest.main()

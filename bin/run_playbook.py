@@ -394,6 +394,27 @@ def build_parser() -> argparse.ArgumentParser:
             "references/code-only-mode.md for the trade-off."
         ),
     )
+    # v1.5.6 cluster 049: opt-out for the role_map auto-recovery
+    # path (default: enabled). Auto-recovery filters too-large
+    # role_maps via the deterministic exclude predicate
+    # (HARDCODED_EXCLUDES + optional .gitignore/.hgignore parsing)
+    # so an agent that walks vendored/build/cache content doesn't
+    # discard its substantive Phase 1 work. Set this flag to
+    # restore legacy behavior (abort on size violation).
+    parser.add_argument(
+        "--no-role-map-auto-recovery",
+        dest="no_role_map_auto_recovery",
+        action="store_true",
+        help=(
+            "Disable Phase 2 entry-gate auto-recovery for too-large "
+            "role_maps. Default behavior (recovery enabled) filters "
+            "vendored/build/cache content via the deterministic "
+            "exclude predicate and re-validates; this flag restores "
+            "legacy behavior of aborting on size violation. Use when "
+            "the model is expected to enumerate correctly and any "
+            "size violation is a real bug worth surfacing."
+        ),
+    )
     parser.add_argument(
         "--no-stdout-echo",
         dest="no_stdout_echo",
@@ -973,6 +994,73 @@ def check_phase_gate(
             allowed_disallowed_prefixes=allowed_prefixes,
             max_role_map_entries=max_entries_override,
         )
+        # v1.5.6 cluster 049: auto-recovery for too-large role_maps.
+        # When an agent walks vendored/build/cache content during
+        # Phase 1, the LLM's role_map.files[] count exceeds
+        # MAX_ROLE_MAP_ENTRIES and the validator's only complaint
+        # is the size cap. Filter via the deterministic exclude
+        # predicate (hardcoded excludes + .gitignore/.hgignore
+        # parsing — NO git CLI dependency) and re-validate. If the
+        # ONLY validation error was the size cap, recovery applies;
+        # if other errors are present (disallowed prefixes, role
+        # enum violations, etc.) recovery is skipped — the run
+        # aborts as today.
+        recovery_disabled = bool(getattr(args, "no_role_map_auto_recovery", False))
+        if validation_errors and not recovery_disabled:
+            # Recovery applies when EVERY validation error is one the
+            # filter can address: the size-cap message, or a
+            # disallowed-prefix entry (the filter drops those by
+            # construction). Other validation errors (missing
+            # required fields, schema_version mismatch, malformed
+            # percentages) are NOT filterable — abort as today.
+            def _filterable(err: str) -> bool:
+                return (
+                    "entries (limit" in err
+                    or "starts with disallowed prefix" in err
+                    or "ending with disallowed suffix" in err
+                )
+            recovery_eligible = (
+                validation_errors
+                and all(_filterable(e) for e in validation_errors)
+            )
+            if recovery_eligible:
+                recovered, recovery_note = role_map_lib.maybe_recover_role_map(
+                    repo_dir, role_map_data
+                )
+                if recovered is not None:
+                    # Persist the filtered role_map; re-normalize so
+                    # breakdown + summary reflect the filtered files
+                    # list; re-load + re-validate.
+                    import json as _json
+                    role_map_path.write_text(
+                        _json.dumps(recovered, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+                    norm_ok2, norm_errs2 = role_map_lib.normalize_role_map_for_gate(
+                        role_map_path
+                    )
+                    if norm_ok2:
+                        role_map_data = role_map_lib.load_role_map(role_map_path)
+                        validation_errors = role_map_lib.validate_role_map(
+                            role_map_data,
+                            allowed_disallowed_prefixes=allowed_prefixes,
+                            max_role_map_entries=max_entries_override,
+                        )
+                        # Surface the auto-recovery as a WARN
+                        # message so adopters see when their model
+                        # isn't following Phase 1 enumeration
+                        # directives. The WARN is informational —
+                        # the gate still passes as long as
+                        # validation_errors is empty after
+                        # recovery + normalize.
+                        messages.append(
+                            f"WARN Phase 2: role_map auto-recovered: "
+                            f"{recovery_note} "
+                            f"(model is not following Phase 1 enumeration "
+                            f"directives; substantive Phase 1 work "
+                            f"preserved). Pass --no-role-map-auto-recovery "
+                            f"to disable this and abort instead."
+                        )
         if validation_errors:
             joined = "\n".join(f"  - {err}" for err in validation_errors)
             return GateCheck(

@@ -203,7 +203,48 @@ VALID_PROVENANCE = frozenset({
     "git-ls-files",
     "filesystem-walk-with-skips",
     "unknown",
+    # v1.5.6 cluster 049: emitted by maybe_recover_role_map() when the
+    # runner auto-recovers a too-large role_map by filtering out
+    # vendored/build/cache content via the deterministic exclude
+    # predicate (NOT git-tracking — works on any target).
+    "exclude-filtered",
 })
+
+
+# v1.5.6 cluster 049: hardcoded exclude patterns used by
+# maybe_recover_role_map() to filter vendored/build/cache content out
+# of role_maps produced by Phase 1 agents that walked too much. Glob
+# patterns matched via fnmatch against the role-map's relative path
+# AND each path component (so `node_modules/foo/bar.js` is dropped
+# whether you check it as the full path or as the `node_modules`
+# component). Tune over time; ship a sensible default for v1.5.6.
+HARDCODED_EXCLUDES: tuple[str, ...] = (
+    # Version control internals
+    ".git/**", ".hg/**", ".svn/**", ".bzr/**",
+    # Vendored / package-manager dependencies
+    "node_modules/**", "vendor/**", "bower_components/**",
+    "**/site-packages/**", "**/dist-packages/**",
+    # Python build / cache
+    "__pycache__/**", "*.pyc", "*.pyo", "*.egg-info/**",
+    ".pytest_cache/**", ".mypy_cache/**", ".ruff_cache/**",
+    ".tox/**", ".nox/**",
+    # Virtual environments
+    ".venv/**", "venv/**", "env/**", ".env/**",
+    # JS / TS build
+    "dist/**", "build/**", ".next/**", ".nuxt/**",
+    "coverage/**", ".nyc_output/**",
+    # JVM build
+    "target/**", ".gradle/**", "out/**",
+    # IDE / editor artifacts
+    ".idea/**", ".vscode/**", "*.swp", ".DS_Store",
+    # Lock files (typically large noise)
+    "package-lock.json", "yarn.lock", "Cargo.lock",
+    "poetry.lock", "pnpm-lock.yaml",
+    # Compiled artifacts
+    "*.class", "*.o", "*.so", "*.dylib", "*.dll",
+    # Logs and temp
+    "*.log", "tmp/**", ".tmp/**",
+)
 
 # Required top-level keys in a role map document. ``provenance`` and
 # ``summary`` were added in v1.5.4 Phase 3.6.1; older role maps that
@@ -517,6 +558,202 @@ def summarize_role_map(role_map: dict) -> dict:
         "percentages": dict(breakdown.get("percentages") or {}),
         "provenance": role_map.get("provenance", "unknown"),
     }
+
+
+def _read_ignore_file_patterns(target_dir: Path) -> tuple[str, ...]:
+    """v1.5.6 cluster 049: parse `.gitignore` and/or `.hgignore` in
+    ``target_dir`` for additional exclude patterns.
+
+    Returns a tuple of pattern strings (suitable for fnmatch). The
+    parser is intentionally simple — common patterns suffice; we do
+    not pull in pathspec as a runtime dependency. Edge cases the
+    parser does NOT handle:
+
+      - Negation patterns (``!path``) — silently skipped.
+      - Anchored patterns starting with ``/`` — leading slash stripped
+        (we treat them as relative-to-root which is the common case).
+      - Trailing-slash directory markers — kept and combined with
+        ``/**`` so the pattern matches contents.
+
+    These omissions are acceptable because the hardcoded excludes
+    catch the common vendored/build/cache cases independently; the
+    ignore-file layer is a bonus for project-specific patterns
+    (e.g., a custom ``generated/`` directory).
+    """
+    patterns: list[str] = []
+    for name in (".gitignore", ".hgignore"):
+        f = target_dir / name
+        if not f.is_file():
+            continue
+        try:
+            text = f.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for raw in text.splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith("!"):
+                # Negation patterns require a layered match-state
+                # machine; out of scope for the simple parser.
+                continue
+            # Strip leading slash (anchor) — treat as repo-relative.
+            if line.startswith("/"):
+                line = line[1:]
+            # If pattern ends with /, treat as directory: match contents.
+            if line.endswith("/"):
+                line = line + "**"
+            patterns.append(line)
+    return tuple(patterns)
+
+
+def is_in_scope(path: str, target_dir: Path,
+                ignore_patterns: tuple[str, ...] = ()) -> bool:
+    """v1.5.6 cluster 049: return True iff ``path`` (a role-map
+    file entry's relative path) is in scope for QPB analysis.
+
+    "In scope" is the inverse of "matches an exclude pattern." A
+    file is INCLUDED unless one of the following matches it:
+
+      1. A pattern in :data:`HARDCODED_EXCLUDES` (vendored / build /
+         cache / lockfile / compiled / VCS internals).
+      2. A pattern in ``ignore_patterns`` (typically read from
+         ``target_dir/.gitignore`` or ``.hgignore`` via
+         :func:`_read_ignore_file_patterns`).
+
+    Each pattern is checked via :func:`fnmatch.fnmatch` against:
+
+      - the full relative path (POSIX-style),
+      - and EACH path component individually,
+
+    so e.g. ``node_modules/**`` matches ``node_modules/foo`` AND
+    matches a deep-nested ``app/web/node_modules/x/y/z.js``.
+
+    The ``target_dir`` argument is currently unused in the matching
+    logic but is part of the signature for forward-compat with
+    target-relative pattern resolution.
+    """
+    import fnmatch
+    from posixpath import sep as POSIX_SEP
+
+    # Normalize to POSIX form (the role-map writes paths in POSIX
+    # form per the schema; defensive normalization for safety).
+    p = path.replace("\\", POSIX_SEP)
+    components = [c for c in p.split(POSIX_SEP) if c]
+
+    def _matches(pattern: str) -> bool:
+        if fnmatch.fnmatch(p, pattern):
+            return True
+        # Also match against each path component to catch patterns
+        # like "node_modules/**" against an entry whose path doesn't
+        # start with "node_modules" (e.g., nested vendored dirs at
+        # ``app/web/node_modules/x/y.js``).
+        head: Optional[str] = None
+        if "/" in pattern:
+            candidate = pattern.split("/", 1)[0]
+            # Only use the head as a literal directory match if it
+            # contains no wildcards. Wildcard heads (``**``, ``*``)
+            # would match any component name and over-filter.
+            if candidate and not any(ch in candidate for ch in "*?["):
+                head = candidate
+        for comp in components:
+            if fnmatch.fnmatch(comp, pattern):
+                return True
+            if head is not None and comp == head:
+                return True
+        return False
+
+    for pat in HARDCODED_EXCLUDES:
+        if _matches(pat):
+            return False
+    for pat in ignore_patterns:
+        if _matches(pat):
+            return False
+    return True
+
+
+def maybe_recover_role_map(
+    target_dir: Path, role_map: dict
+) -> tuple[Optional[dict], str]:
+    """v1.5.6 cluster 049: attempt auto-recovery for too-large role
+    maps via the deterministic exclude-list filter.
+
+    When a Phase 1 agent walks vendored/build/cache content (e.g.,
+    ``node_modules/``, ``target/classes/``, ``__pycache__/``) and
+    produces a role_map with > :data:`MAX_ROLE_MAP_ENTRIES` entries,
+    the Phase 2 entry-gate aborts the run, discarding the agent's
+    substantive Phase 1 work. This helper filters the role_map
+    against :func:`is_in_scope` (hardcoded excludes + optional
+    ``.gitignore``/``.hgignore`` parsing) and returns a recovered
+    role_map if the filtered entry count fits under the cap.
+
+    Architectural rationale (instruction 049): "what files are in
+    scope for QPB analysis" is a function of file properties and
+    paths, not of which VCS the target uses. Git tracking
+    correlates with "files the developer cares about" but the
+    correlation is incidental. This helper does NOT shell out to
+    git; it works against any target (git-tracked, hg-tracked, or
+    no VCS at all).
+
+    Returns ``(recovered_role_map, recovery_note)`` on success, or
+    ``(None, reason)`` on failure. Failure modes:
+
+      - Filtered count is still > MAX_ROLE_MAP_ENTRIES — the model
+        walked something the hardcoded excludes don't cover; abort.
+      - Filter removed nothing (filtered_count == original_count) —
+        the size violation isn't from vendored content; abort
+        (some other failure mode is at play).
+
+    Recovery sets ``provenance == "exclude-filtered"`` so downstream
+    consumers can distinguish auto-recovered role maps from clean
+    ones. Caller must subsequently call
+    :func:`normalize_role_map_for_gate` (or equivalent) to recompute
+    ``breakdown`` and ``summary`` from the filtered ``files`` list.
+    """
+    files = role_map.get("files")
+    if not isinstance(files, list):
+        return (None, "role_map.files is not a list; cannot filter")
+
+    ignore_patterns = _read_ignore_file_patterns(target_dir)
+    filtered = [
+        entry for entry in files
+        if isinstance(entry, dict)
+        and isinstance(entry.get("path"), str)
+        and is_in_scope(entry["path"], target_dir, ignore_patterns)
+    ]
+    original_count = len(files)
+    filtered_count = len(filtered)
+
+    if filtered_count == original_count:
+        return (None, (
+            f"exclude filter removed nothing ({original_count} entries); "
+            "the size violation isn't from vendored content. The original "
+            "failure was something else."
+        ))
+    if filtered_count > MAX_ROLE_MAP_ENTRIES:
+        return (None, (
+            f"even after exclude filter, still {filtered_count} entries "
+            f"(> {MAX_ROLE_MAP_ENTRIES} limit). The hardcoded excludes "
+            f"didn't cover the model's walk; consider widening the "
+            f"exclude list or constraining the model's enumeration."
+        ))
+
+    recovered = dict(role_map)
+    recovered["files"] = filtered
+    recovered["provenance"] = "exclude-filtered"
+    # breakdown + summary will be recomputed by
+    # normalize_role_map_for_gate when it runs next; we don't bother
+    # to set them here.
+    return (
+        recovered,
+        f"filtered {original_count - filtered_count} entries "
+        f"({original_count}→{filtered_count}) via deterministic "
+        f"in-scope predicate (hardcoded excludes + "
+        f"{len(ignore_patterns)} ignore-file patterns). "
+        f"The model walked vendored/build/cache content during "
+        f"Phase 1; the substantive work on the in-scope files is "
+        f"preserved."
+    )
 
 
 def normalize_role_map_for_gate(path: Path) -> tuple[bool, list[str]]:
