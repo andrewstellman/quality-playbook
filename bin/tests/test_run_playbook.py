@@ -3838,5 +3838,75 @@ class KillRecordedProcessesPkillSafetyTests(unittest.TestCase):
         self.assertTrue(args.allow_pkill_fallback)
 
 
+class BootstrapSelfAuditDocsMirrorTests(unittest.TestCase):
+    """v1.5.6 fix-up 059 — BUG-007 (MEDIUM) direct-root reference_docs/
+    must contain the curated bootstrap docs set so Phase 1 against the
+    QPB repo root doesn't fall into code-only mode unnecessarily.
+
+    The mirror is operator-local (reference_docs/ is gitignored by
+    security policy) and is produced by the bin.bootstrap_self_audit_docs
+    helper. This test pins the contract — if the helper output drifts
+    from docs_gathered/ the test fails.
+    """
+
+    REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+
+    def test_helper_produces_matching_mirror(self) -> None:
+        from bin import bootstrap_self_audit_docs as helper
+        # Run the helper (idempotent overwrite). Skip if docs_gathered/
+        # is empty — that means the operator hasn't populated the
+        # bootstrap source, which is a separate (operator-side) issue.
+        if not helper.SOURCE_DIR.is_dir():
+            self.skipTest(
+                f"docs_gathered/ source dir absent: {helper.SOURCE_DIR}; "
+                "operator must populate before this helper can mirror."
+            )
+        sources = [
+            p for p in helper.SOURCE_DIR.iterdir()
+            if p.is_file()
+            and p.suffix.lower() in helper.PLAINTEXT_EXTENSIONS
+            and p.name not in helper.EXCLUDED_NAMES
+        ]
+        if not sources:
+            self.skipTest("docs_gathered/ has no eligible plaintext files")
+        rc = helper.main()
+        self.assertEqual(rc, 0)
+        # Verify the mirror matches: every eligible source file has a
+        # same-named copy in reference_docs/ with identical content.
+        for src in sources:
+            dst = helper.DEST_DIR / src.name
+            self.assertTrue(dst.is_file(), f"missing mirror: {dst}")
+            self.assertEqual(
+                dst.read_bytes(), src.read_bytes(),
+                f"content drift: {dst} differs from {src}",
+            )
+
+    def test_bug_007_direct_root_and_harness_docs_surfaces_match(self) -> None:
+        """Ported from the codex-recheck regression test (BUG-007).
+
+        After bootstrap_self_audit_docs has run, _reference_docs_plaintext
+        on the QPB direct-root reference_docs/ should return the same
+        file set as docs_gathered/ (sans README.md)."""
+        docs_gathered = self.REPO_ROOT / "docs_gathered"
+        reference_docs = self.REPO_ROOT / "reference_docs"
+        if not docs_gathered.is_dir():
+            self.skipTest(f"docs_gathered/ source dir absent: {docs_gathered}")
+        # Run the helper to get to a known state.
+        from bin import bootstrap_self_audit_docs as helper
+        helper.main()
+        expected = sorted(
+            path.name
+            for path in docs_gathered.iterdir()
+            if path.is_file() and path.suffix.lower() in {".md", ".txt"} and path.name != "README.md"
+        )
+        if not expected:
+            self.skipTest("docs_gathered/ has no eligible plaintext files")
+        actual = sorted(
+            path.relative_to(reference_docs).as_posix()
+            for path in run_playbook._reference_docs_plaintext(reference_docs)
+        )
+        self.assertEqual(actual, expected)
+
+
 if __name__ == "__main__":
     unittest.main()
