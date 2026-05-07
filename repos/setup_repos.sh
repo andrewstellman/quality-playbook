@@ -201,6 +201,13 @@ for short in "${REPOS[@]}"; do
     cp "${QPB_DIR}/AGENTS.md" "${dst}/AGENTS.md" 2>/dev/null || true
     mkdir -p "${dst}/bin"
     cp "${QPB_DIR}/bin/install_skill.py" "${dst}/bin/install_skill.py" 2>/dev/null || true
+    # v1.5.6 BUG-005: bundle bin/citation_verifier.py so the installed
+    # quality_gate.py can run the v1.5.1 byte-equality citation check
+    # instead of silently falling back to the WARN path. Pre-fix the
+    # gate's soft-import resolved only against the QPB source clone,
+    # leaving harness-installed copies effectively without Layer-1
+    # protection.
+    cp "${QPB_DIR}/bin/citation_verifier.py" "${dst}/bin/citation_verifier.py" 2>/dev/null || true
     mkdir -p "${dst}/ai_context"
     cp "${QPB_DIR}/ai_context/AI_ORCHESTRATION_PATTERNS.md" "${dst}/ai_context/AI_ORCHESTRATION_PATTERNS.md" 2>/dev/null || true
 

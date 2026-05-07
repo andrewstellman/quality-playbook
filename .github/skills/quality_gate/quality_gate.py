@@ -30,18 +30,36 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 
 # Allow soft import of bin/citation_verifier for v1.5.1 byte-equality checks.
-# The gate lives at .github/skills/quality_gate/quality_gate.py inside the QPB
-# install; the repo root is three parents up. When the gate is installed
-# standalone into a target repo without bin/, the import fails silently and
-# byte-equality is skipped with a WARN rather than a hard FAIL.
+# The verifier may live at one of several locations depending on where the
+# gate was installed:
+#   1. <QPB-clone>/bin/citation_verifier.py — gate runs from the source tree
+#      (gate path: <clone>/.github/skills/quality_gate/quality_gate.py;
+#      bin/ is three parents up from SCRIPT_DIR).
+#   2. <install-root>/bin/citation_verifier.py — gate installed alongside
+#      bin/ at the install root (v1.5.6 BUG-005 fix; bin/install_skill.py
+#      and repos/setup_repos.sh both bundle bin/citation_verifier.py here).
+#   3. <install-root>/bin/citation_verifier.py via the nested-skills path
+#      (.github/skills/quality_gate.py — SCRIPT_DIR is .github/skills, and
+#      bin/ is two parents up).
+# When none of these resolve, byte-equality is skipped with a WARN rather
+# than a hard FAIL — the gate continues with reduced enforcement.
 _CITATION_VERIFIER = None
-try:
-    _QPB_ROOT = SCRIPT_DIR.parent.parent.parent
-    if str(_QPB_ROOT) not in sys.path:
-        sys.path.insert(0, str(_QPB_ROOT))
-    from bin import citation_verifier as _CITATION_VERIFIER  # noqa: E402
-except Exception:  # noqa: BLE001 — missing / misinstalled bin/ is tolerable
-    _CITATION_VERIFIER = None
+_VERIFIER_SEARCH_ROOTS = [
+    SCRIPT_DIR.parent.parent.parent,  # source-clone layout
+    SCRIPT_DIR,                       # gate + bin/ siblings (uncommon)
+    SCRIPT_DIR.parent.parent,         # nested-skills layout (.github/skills/quality_gate.py)
+]
+for _candidate_root in _VERIFIER_SEARCH_ROOTS:
+    _verifier_file = _candidate_root / "bin" / "citation_verifier.py"
+    if _verifier_file.is_file():
+        try:
+            if str(_candidate_root) not in sys.path:
+                sys.path.insert(0, str(_candidate_root))
+            from bin import citation_verifier as _CITATION_VERIFIER  # noqa: E402
+            break
+        except Exception:  # noqa: BLE001 — missing / misinstalled bin/ is tolerable
+            _CITATION_VERIFIER = None
+            continue
 
 # Global counters — reset per invocation via main(). Tests that call check_repo
 # directly should reset these in setUp.

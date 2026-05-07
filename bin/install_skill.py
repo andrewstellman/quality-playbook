@@ -93,6 +93,16 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     if agents_src.is_dir():
         for f in sorted(agents_src.glob("*.md")):
             files.append((f, Path("agents") / f.name))
+    # v1.5.6 BUG-005: bundle bin/citation_verifier.py so quality_gate.py's
+    # soft-import path resolves at the install destination instead of
+    # silently falling back to the WARN path. Pre-fix the v1.5.1 byte-
+    # equality citation check was effectively disabled in every
+    # installed copy because the only working import path was the QPB
+    # source clone itself. quality_gate.py's _VERIFIER_SEARCH_ROOTS
+    # picks up bin/citation_verifier.py from the install root.
+    citation_verifier_src = source_root / "bin" / "citation_verifier.py"
+    if citation_verifier_src.is_file():
+        files.append((citation_verifier_src, Path("bin") / "citation_verifier.py"))
     return files
 
 

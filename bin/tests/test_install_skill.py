@@ -13,8 +13,11 @@ the sandbox.
 from __future__ import annotations
 
 import io
+import os
 import re
 import shutil
+import subprocess
+import sys
 import unittest
 from contextlib import redirect_stderr
 from pathlib import Path, PureWindowsPath
@@ -195,6 +198,73 @@ class EnvironmentDetectionTests(unittest.TestCase):
             installed = sorted(p.name for p in agents_dir.glob("*.md"))
             src_agents = sorted(p.name for p in (REPO_ROOT / "agents").glob("*.md"))
             self.assertEqual(installed, src_agents)
+
+    def test_citation_verifier_bundled_in_install(self) -> None:
+        """v1.5.6 BUG-005: bin/citation_verifier.py must land at the
+        install destination so quality_gate.py's soft-import resolves
+        at install time and the v1.5.1 byte-equality citation check
+        actually runs. Pre-fix the verifier was never copied — every
+        installed gate fell back to the WARN path."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            target = tmp / "explicit-install"
+            rc, out = _capture_install(target=target, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            verifier_path = target / "bin" / "citation_verifier.py"
+            self.assertTrue(
+                verifier_path.is_file(),
+                f"bin/citation_verifier.py missing at install destination "
+                f"({verifier_path}); quality_gate.py's v1.5.1 byte-equality "
+                f"check will silently fall back to WARN. Output: {out}",
+            )
+            self.assertIn(
+                "bin/citation_verifier.py", out,
+                "expected event=copy file=...bin/citation_verifier.py line "
+                "in installer output",
+            )
+
+    def test_installed_gate_can_import_citation_verifier(self) -> None:
+        """v1.5.6 BUG-005: the installed gate must be able to soft-import
+        bin/citation_verifier without falling back to WARN. Confirms the
+        _VERIFIER_SEARCH_ROOTS scan in quality_gate.py picks up the
+        bundled verifier from the install destination."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            target = tmp / "explicit-install"
+            rc, out = _capture_install(target=target, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            gate_path = target / "quality_gate.py"
+            self.assertTrue(gate_path.is_file(), out)
+            probe = (
+                "import importlib.util, pathlib, sys; "
+                "p = pathlib.Path(sys.argv[1]); "
+                "spec = importlib.util.spec_from_file_location('installed_quality_gate', p); "
+                "mod = importlib.util.module_from_spec(spec); "
+                "spec.loader.exec_module(mod); "
+                "print('present' if mod._CITATION_VERIFIER is not None else 'missing')"
+            )
+            env = os.environ.copy()
+            # Remove PYTHONPATH so the source clone's bin/ doesn't satisfy
+            # the import — we want to verify the BUNDLED verifier resolves.
+            env.pop("PYTHONPATH", None)
+            result = subprocess.run(
+                [sys.executable, "-c", probe, str(gate_path)],
+                cwd=target,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertEqual(
+                result.returncode, 0,
+                f"probe failed: stdout={result.stdout!r} stderr={result.stderr!r}",
+            )
+            self.assertIn(
+                "present", result.stdout,
+                f"installed gate could not soft-import citation_verifier; "
+                f"_CITATION_VERIFIER stayed None. stdout={result.stdout!r} "
+                f"stderr={result.stderr!r}",
+            )
 
     def test_target_override(self) -> None:
         """--target wins even when an environment is detectable."""
@@ -546,14 +616,18 @@ class PathlibCrossPlatformTests(unittest.TestCase):
             top = dst.parts[0]
             if top in ("SKILL.md", "quality_gate.py"):
                 regions_seen.add(top)
-            elif top in ("references", "phase_prompts", "agents"):
+            elif top in ("references", "phase_prompts", "agents", "bin"):
+                # v1.5.6 BUG-005: bin/ joined the bundle to ship
+                # citation_verifier.py at the install destination so
+                # quality_gate.py's soft-import resolves there instead
+                # of falling back to WARN.
                 regions_seen.add(top)
             else:
                 self.fail(
                     f"unexpected top-level destination region: {top!r} "
-                    f"(in {dst!r}). Five regions are supported: "
+                    f"(in {dst!r}). Six regions are supported: "
                     f"SKILL.md, quality_gate.py, references/, "
-                    f"phase_prompts/, agents/."
+                    f"phase_prompts/, agents/, bin/."
                 )
             # Joined with a Windows root, the result is a well-formed
             # Windows path with no doubled separators and the drive
@@ -587,8 +661,8 @@ class PathlibCrossPlatformTests(unittest.TestCase):
         self.assertEqual(
             regions_seen,
             {"SKILL.md", "quality_gate.py", "references",
-             "phase_prompts", "agents"},
-            f"expected all five bundle regions; got {regions_seen}",
+             "phase_prompts", "agents", "bin"},
+            f"expected all six bundle regions; got {regions_seen}",
         )
 
     def test_install_path_separator_independence(self) -> None:
