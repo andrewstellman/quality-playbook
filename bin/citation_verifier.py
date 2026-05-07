@@ -32,6 +32,7 @@ ERROR_INVALID_UTF8 = "invalid_utf8"
 ERROR_UNSUPPORTED_EXTENSION = "unsupported_extension"
 ERROR_HASH_MISMATCH = "hash_mismatch"
 ERROR_DOCUMENT_NOT_FOUND = "document_not_found"
+ERROR_DOCUMENT_OUT_OF_ROOT = "document_out_of_root"
 ERROR_EXCERPT_MISMATCH = "excerpt_mismatch"
 
 
@@ -249,7 +250,28 @@ def verify_citation(
             error_message="citation has no 'document' field and formal_doc has no 'source_path'",
         )
 
-    doc_path = Path(root) / source_path
+    # BUG-011 (HIGH) from the v1.5.6 codex recheck: Path(root) / source_path
+    # silently discards root when source_path is absolute (Python's
+    # Path.__truediv__ semantics), and `../` traversal can escape root via
+    # otherwise-valid relative paths. A tampered manifest could turn this
+    # into an out-of-tree file-read primitive. Resolve both sides and
+    # confirm containment before reading bytes. .resolve() also follows
+    # symlinks, so symlink-escape is rejected here too.
+    root_resolved = Path(root).resolve()
+    doc_path_unresolved = Path(root) / source_path
+    doc_path = doc_path_unresolved.resolve()
+    try:
+        doc_path.relative_to(root_resolved)
+    except ValueError:
+        return VerificationResult(
+            ok=False,
+            error_code=ERROR_DOCUMENT_OUT_OF_ROOT,
+            error_message=(
+                f"document {source_path!r} resolves to {doc_path}, which is "
+                f"outside repository root {root_resolved}"
+            ),
+        )
+
     try:
         document_bytes = doc_path.read_bytes()
     except FileNotFoundError:

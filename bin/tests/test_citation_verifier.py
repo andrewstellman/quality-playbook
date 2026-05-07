@@ -377,5 +377,86 @@ class VerifyCitationTests(unittest.TestCase):
             self.assertIn("section", result.warnings[0])
 
 
+class VerifyCitationPathTraversalTests(unittest.TestCase):
+    """v1.5.6 fix-up 058 — BUG-011 (HIGH) path traversal in verify_citation.
+
+    Pre-fix: `Path(root) / source_path` silently let the right side win
+    when absolute, and `../` traversal escaped root. A tampered manifest
+    could turn this into an out-of-tree file-read primitive.
+    """
+
+    def _write_doc(self, root: Path, relative: str, text: str) -> Path:
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(text.encode("utf-8"))
+        return path
+
+    def test_absolute_path_outside_root_rejected(self) -> None:
+        with TemporaryDirectory() as tmp_root, TemporaryDirectory() as tmp_outside:
+            root = Path(tmp_root)
+            outside = Path(tmp_outside)
+            secret = self._write_doc(outside, "secret.txt", "out-of-root content")
+            formal_doc = {"source_path": str(secret), "document_sha256": "0" * 64, "tier": 2}
+            citation = {"document": str(secret), "document_sha256": "0" * 64, "line": 1}
+            result = cv.verify_citation(citation, formal_doc, root)
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error_code, cv.ERROR_DOCUMENT_OUT_OF_ROOT)
+            # The error message should NOT include the file's content (no read happened).
+            self.assertNotIn("out-of-root content", result.error_message or "")
+
+    def test_relative_traversal_outside_root_rejected(self) -> None:
+        with TemporaryDirectory() as tmp_parent:
+            parent = Path(tmp_parent)
+            root = parent / "root"
+            root.mkdir()
+            self._write_doc(parent, "secret.txt", "out-of-root content")
+            formal_doc = {"source_path": "../secret.txt", "document_sha256": "0" * 64, "tier": 2}
+            citation = {"document": "../secret.txt", "document_sha256": "0" * 64, "line": 1}
+            result = cv.verify_citation(citation, formal_doc, root)
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error_code, cv.ERROR_DOCUMENT_OUT_OF_ROOT)
+
+    def test_nested_traversal_outside_root_rejected(self) -> None:
+        with TemporaryDirectory() as tmp_parent:
+            parent = Path(tmp_parent)
+            root = parent / "root" / "deep"
+            root.mkdir(parents=True)
+            self._write_doc(parent, "secret.txt", "out-of-root content")
+            formal_doc = {"source_path": "../../secret.txt", "document_sha256": "0" * 64, "tier": 2}
+            citation = {"document": "../../secret.txt", "document_sha256": "0" * 64, "line": 1}
+            result = cv.verify_citation(citation, formal_doc, root)
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error_code, cv.ERROR_DOCUMENT_OUT_OF_ROOT)
+
+    def test_symlink_escape_rejected(self) -> None:
+        with TemporaryDirectory() as tmp_parent:
+            parent = Path(tmp_parent)
+            root = parent / "root"
+            root.mkdir()
+            outside_target = parent / "secret.txt"
+            outside_target.write_bytes(b"out-of-root content")
+            link_path = root / "link.txt"
+            try:
+                link_path.symlink_to(outside_target)
+            except (OSError, NotImplementedError) as exc:
+                self.skipTest(f"symlink not supported in this environment: {exc}")
+            formal_doc = {"source_path": "link.txt", "document_sha256": "0" * 64, "tier": 2}
+            citation = {"document": "link.txt", "document_sha256": "0" * 64, "line": 1}
+            result = cv.verify_citation(citation, formal_doc, root)
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error_code, cv.ERROR_DOCUMENT_OUT_OF_ROOT)
+
+    def test_in_root_path_still_accepted(self) -> None:
+        """Containment check must not regress the happy path."""
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            doc_path = self._write_doc(root, "formal_docs/x.txt", _FIXTURE_TXT)
+            sha = hashlib.sha256(doc_path.read_bytes()).hexdigest()
+            formal_doc = {"source_path": "formal_docs/x.txt", "document_sha256": sha, "tier": 2}
+            citation = {"document": "formal_docs/x.txt", "document_sha256": sha, "section": "2.4"}
+            result = cv.verify_citation(citation, formal_doc, root)
+            self.assertTrue(result.ok, result.error_message)
+
+
 if __name__ == "__main__":
     unittest.main()
