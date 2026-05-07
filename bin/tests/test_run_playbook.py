@@ -1,8 +1,11 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 import argparse
+import io
 import json
 import os
+import sys
 import unittest
 
 from bin import role_map, run_playbook
@@ -3776,6 +3779,63 @@ class FinalizerSourceEditGuardrailTests(unittest.TestCase):
                 gate_text = gate_log.read_text(encoding="utf-8")
                 self.assertIn("source-edit guardrail", gate_text)
                 self.assertIn("src/code.py", gate_text)
+
+
+class KillRecordedProcessesPkillSafetyTests(unittest.TestCase):
+    """v1.5.6 fix-up 057 — BUG-004 (HIGH) workstation-wide pkill safety.
+
+    The pre-fix `_pkill_fallback()` ran `pkill -f` against substrings like
+    `claude -p` and `gh copilot -p`, killing every interactive Claude or
+    Copilot session on the workstation when PID files were missing.
+    Default behavior is now manual-intervention guidance; legacy pkill
+    is preserved behind --allow-pkill-fallback for explicit opt-in.
+    """
+
+    def test_no_pid_files_default_does_not_invoke_pkill(self) -> None:
+        with mock.patch.object(run_playbook, "discover_pid_files", return_value=[]), \
+             mock.patch.object(run_playbook, "_pkill_fallback") as fallback, \
+             mock.patch("sys.stdout", new=io.StringIO()) as captured:
+            rc = run_playbook.kill_recorded_processes(allow_pkill_fallback=False)
+            self.assertEqual(rc, 0)
+            fallback.assert_not_called()
+            output = captured.getvalue()
+            self.assertIn("Refusing workstation-wide pkill cleanup", output)
+            self.assertIn("--allow-pkill-fallback", output)
+
+    def test_no_pid_files_with_flag_invokes_pkill(self) -> None:
+        with mock.patch.object(run_playbook, "discover_pid_files", return_value=[]), \
+             mock.patch.object(run_playbook, "_pkill_fallback") as fallback, \
+             mock.patch("sys.stdout", new=io.StringIO()):
+            rc = run_playbook.kill_recorded_processes(allow_pkill_fallback=True)
+            self.assertEqual(rc, 0)
+            fallback.assert_called_once()
+
+    def test_default_invocation_has_no_flag(self) -> None:
+        with mock.patch.object(run_playbook, "discover_pid_files", return_value=[]), \
+             mock.patch.object(run_playbook, "_pkill_fallback") as fallback, \
+             mock.patch("sys.stdout", new=io.StringIO()):
+            run_playbook.kill_recorded_processes()
+            fallback.assert_not_called()
+
+    def test_main_kill_without_flag_does_not_invoke_pkill(self) -> None:
+        with mock.patch.object(run_playbook, "discover_pid_files", return_value=[]), \
+             mock.patch.object(run_playbook, "_pkill_fallback") as fallback, \
+             mock.patch("sys.stdout", new=io.StringIO()):
+            run_playbook.main(["--kill"])
+            fallback.assert_not_called()
+
+    def test_main_kill_with_allow_pkill_fallback_invokes_pkill(self) -> None:
+        with mock.patch.object(run_playbook, "discover_pid_files", return_value=[]), \
+             mock.patch.object(run_playbook, "_pkill_fallback") as fallback, \
+             mock.patch("sys.stdout", new=io.StringIO()):
+            run_playbook.main(["--kill", "--allow-pkill-fallback"])
+            fallback.assert_called_once()
+
+    def test_argparse_default_off(self) -> None:
+        args = run_playbook.parse_args(["--kill"])
+        self.assertFalse(args.allow_pkill_fallback)
+        args = run_playbook.parse_args(["--kill", "--allow-pkill-fallback"])
+        self.assertTrue(args.allow_pkill_fallback)
 
 
 if __name__ == "__main__":

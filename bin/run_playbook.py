@@ -485,6 +485,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--kill", action="store_true", help="Kill processes from the current or last parallel run.")
     parser.add_argument(
+        "--allow-pkill-fallback",
+        action="store_true",
+        help=(
+            "When --kill cannot find PID files, fall back to a workstation-wide "
+            "pkill -f match against runner command-line substrings (claude -p, "
+            "gh copilot -p, etc.). DEFAULT OFF — opt in only when you're sure "
+            "no other interactive Claude or Copilot sessions are running on "
+            "this machine, since the substring match cannot distinguish them "
+            "from playbook workers (BUG-004 from the v1.5.6 codex recheck)."
+        ),
+    )
+    parser.add_argument(
         "targets",
         nargs="*",
         help="Target directories to run against (relative or absolute paths). Defaults to the current directory.",
@@ -3950,11 +3962,25 @@ def _pkill_fallback() -> None:
             print(f"  no processes matched: {pattern}")
 
 
-def kill_recorded_processes() -> int:
+def kill_recorded_processes(allow_pkill_fallback: bool = False) -> int:
     pid_files = discover_pid_files()
     if not pid_files:
-        print("No PID files found. Falling back to pkill:")
-        _pkill_fallback()
+        if allow_pkill_fallback:
+            print("No PID files found. --allow-pkill-fallback set; running pkill -f:")
+            _pkill_fallback()
+            return 0
+        # BUG-004 (HIGH) from the v1.5.6 codex recheck: pkill -f against
+        # substrings like "claude -p" matches every interactive Claude or
+        # Copilot session on the workstation, not just playbook workers.
+        # Default-off: print the manual-cleanup guidance instead.
+        pid_dir = pid_file_for_parent().parent
+        print("No PID files found. Refusing workstation-wide pkill cleanup.")
+        print("To find playbook workers manually, run:")
+        print("  ps -o pid,ppid,command -p $(pgrep -f bin/run_playbook) 2>/dev/null")
+        print("  ps -o pid,ppid,command | grep -E 'bin/run_playbook|claude -p|claude --model|gh copilot -p'")
+        print(f"PID-file directory: {pid_dir}")
+        print("If you're certain no other Claude or Copilot sessions are running on this")
+        print("machine, re-run with --kill --allow-pkill-fallback to invoke the legacy pkill path.")
         return 0
 
     total_killed = 0
@@ -4249,7 +4275,9 @@ def print_suggested_next_command(args: argparse.Namespace, failures_occurred: bo
 def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parse_args(argv)
     if args.kill:
-        return kill_recorded_processes()
+        return kill_recorded_processes(
+            allow_pkill_fallback=getattr(args, "allow_pkill_fallback", False)
+        )
 
     if not ensure_runner_available(args.runner):
         if args.runner == "copilot":
