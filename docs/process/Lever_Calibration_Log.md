@@ -88,6 +88,32 @@
 - Visualizations: `~/Documents/AI-Driven Development/Quality Playbook/Calibration Cycles/2026-05-02-pattern7-displacement-recovery/visualizations/`
 - Runner output: `~/Documents/AI-Driven Development/Quality Playbook/v1.5.6_runner/outputs/015-pattern7-cycle-analysis-and-audit.md`
 
-**Reduced scope:** Cycle ran on 3 of 4 originally-scoped benchmarks; chi-1.5.1 was deferred for time budget. That gap should be closed in v1.5.7, but it does not change the terminal verdict because the displacement-recovery story was concentrated on chi-1.3.45 and chi produced a negative result.
+**Final scope:** Cycle ran on 3 of 4 originally-scoped benchmarks; chi-1.5.1 dropped permanently from cycle scope. The reduction does not weaken the verdict because the displacement-recovery story was concentrated on chi-1.3.45 and chi produced a negative result on the load-bearing measurement. The cycle is closed.
 
-**Methodology note:** Per worker output 008, REQ IDs were unstable across runs, so this cycle's recall numbers use substantive file-path and bug-description matching rather than the mechanical `(REQ_id, file)` key.
+**Methodology note:** Per worker output 008, REQ IDs were unstable across runs, so this cycle's recall numbers use substantive file-path and bug-description matching rather than the mechanical `(REQ_id, file)` key. The mechanical-match-key gap is real planned scope for the v1.7 SPC arc.
+
+---
+
+## Final entry — 2026-05-07: Pattern 7 displacement-recovery cycle close + v1.5.6 architectural fix
+
+**Cycle name:** `2026-05-02-pattern7-displacement-recovery` (closed 2026-05-07)
+**Final scope:** 3 of 4 benchmarks (chi-1.3.45, virtio-1.5.1, express-1.3.50). chi-1.5.1 dropped permanently.
+**Verdict:** **revert** (Pattern 7 budget cap restored to `3-5` in commit `856e67f`).
+
+**v1.5.6 architectural deliverable from the Cluster E investigation:**
+
+Cluster E (the chi-1.3.45 docs-backed validation re-run originally scoped in the v1.5.6 fix-up backlog) was dropped after two sonnet-4-6 attempts demonstrated a real bug: the LLM-written `role_map.json` summary field contract drifted from `summarize_role_map()` validation (file_count off by 8 the first time, structurally wrong shape the second). Rather than re-running cluster E with opus-4-7 to chase a passing role_map gate, v1.5.6 instruction 047 landed the architectural fix in commit `a85aa7c`:
+
+- The LLM writes only `files[]` + `provenance`.
+- The runner-side helper `bin.role_map.normalize_role_map_for_gate(path)` recomputes `breakdown` and `summary` from the canonical helpers between Phase 1 LLM exit and the Phase 2 entry-gate.
+- The pre-cluster-047 contract ("LLM produces summary; validator enforces it equals `summarize_role_map(role_map)`") reliably failed for sonnet-class LLMs that reverted to intuitive summarization. v1.5.6 cluster 047 moved the deterministic computation runner-side; the failure mode is now unreachable.
+
+This is the substantive Cluster E deliverable. The chi-1.3.45 docs-backed re-run was dropped because the architectural fix is the load-bearing improvement; future cycle work won't fail at the role_map gate the way Cluster E did, regardless of which model is used.
+
+**chi-1.5.1 follow-on (cluster F.2a, opus-4-7, instruction 046):**
+
+Substantive recall: **9/16 = 0.5625** against the v1.5.1 baseline. Recovered: CleanPath, SupressNotFound (NPE half), matchAcceptEncoding, AllowContentEncoding, Recoverer, RegisterMethod, BasicAuth, RouteHeaders, RealIP (partial). Missed: GetHead, SupressNotFound mutate-live variant, Timeout, RequestID, Profiler, WrapResponseWriter, StripPrefix. Net-new findings: URLFormat dot-prefix, Mount collision probe, Sunset RFC-9745.
+
+This data informs the historical baseline understanding but does not change the cycle's revert verdict, so chi-1.5.1 is not a 4th cell in the cycle's per-benchmark recall table. Cell.json at `metrics/regression_replay/20260502T155324Z/chi-1.5.1-pre-lever.json`.
+
+**Audit:** `~/Documents/AI-Driven Development/Quality Playbook/Calibration Cycles/2026-05-02-pattern7-displacement-recovery/audit.md` (refreshed 2026-05-07; "Reduced-scope acknowledgment" section now reads "(final)" — cycle closed).

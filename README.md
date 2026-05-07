@@ -490,20 +490,59 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
   for follow-up, NOT the benchmark most directly tied to the
   hypothesis), and the mid-benchmark post-lever interruption failure
   mode.
-- **Cluster E and cluster F.2 use the spawn-and-resume pattern at v1.5.6.**
-  Cluster E (chi-1.3.45 docs-backed validation re-run) and cluster F.2
-  (chi-1.5.1 follow-on cycle) each require a multi-hour LLM playbook
-  subprocess execution. Both runs were spawned in the v1.5.6_runner on
-  2026-05-06 per the Mode 1 spawn-and-resume pattern documented in
-  `agents/calibration_orchestrator.md`; subsequent worker instructions
-  finalize artifacts (cell.json, audit refresh, validation-report
-  rewrite) when each `run_end` event lands. Cluster F.4 audit refresh
-  consolidates the 4-benchmark scope. The 2026-05-02 cycle's `revert`
-  verdict on Pattern 7 budget-cap stands; cluster F.2's chi-1.5.1
-  follow-on data refines but is not expected to reverse it.
-  Instruction-output trail at
-  [`v1.5.6_runner/outputs/036` and `037`](https://github.com/andrewstellman/quality-playbook/tree/1.5.6)
-  captures the spawn details + per-instruction follow-up checklists.
+- **chi-1.5.1 follow-on run lands; Pattern 7 cycle closes at 3 of 4 benchmarks.**
+  Cluster F.2a (commit followed by no-commit per the cycle's no-source-change
+  contract for benchmark replay) ran chi-1.5.1 pre-lever with claude-opus-4-7
+  on 2026-05-07; substantive recall against the v1.5.1 baseline was 9/16 =
+  0.5625 (recovered: CleanPath, SupressNotFound NPE, matchAcceptEncoding,
+  AllowContentEncoding, Recoverer, RegisterMethod, BasicAuth, RouteHeaders,
+  RealIP partial; missed: GetHead, the SupressNotFound mutate-live variant,
+  Timeout, RequestID, Profiler, WrapResponseWriter, StripPrefix; 3 net-new
+  findings: URLFormat dot-prefix, Mount collision probe, Sunset RFC-9745).
+  This run informs the historical baseline understanding but does not change
+  the original 2026-05-02 cycle's revert verdict — the displacement-recovery
+  story was always concentrated on chi-1.3.45 (which was in the original
+  3-of-4 scope and produced a negative result on the load-bearing measurement).
+  chi-1.5.1 is therefore NOT a 4th cell in the cycle's per-benchmark recall
+  table; the cycle is closed at 3 of 4 benchmarks. Audit at
+  [`Calibration Cycles/2026-05-02-pattern7-displacement-recovery/audit.md`](https://github.com/andrewstellman/quality-playbook/tree/1.5.6).
+- **Role_map architectural fix lands as the substantive Cluster E deliverable.**
+  Cluster E (chi-1.3.45 docs-backed validation re-run, originally scoped in
+  the v1.5.6 fix-up backlog) was dropped after two sonnet-4-6 attempts
+  demonstrated a real bug: the LLM-written `role_map.json` `summary` field
+  contract drifted from `summarize_role_map()` validation (file_count off
+  by 8 the first time, structurally wrong shape the second). v1.5.6
+  instruction 047 landed the architectural fix in commit `a85aa7c`: the LLM
+  writes only `files[]` and `provenance`; the runner-side helper
+  `bin.role_map.normalize_role_map_for_gate(path)` recomputes `breakdown`
+  and `summary` from the canonical helpers between Phase 1 LLM exit and the
+  Phase 2 entry-gate. Pre-cluster-047 the contract was "LLM produces summary;
+  validator enforces it equals `summarize_role_map(role_map)`," which
+  reliably failed for sonnet-class LLMs that reverted to intuitive
+  summarization regardless of prompt strength. The deterministic computation
+  is now runner-owned; the failure mode is unreachable for any future cycle
+  work. This is the load-bearing Cluster E improvement; the chi-1.3.45
+  docs-backed re-run itself was dropped because re-confirming what's already
+  documented adds no new evidence about the cycle while the architectural
+  fix removes a class of failures from all future cycles.
+- **chi-1.3.45 Phase 4 validation evidence remains code-only-mode reuse.**
+  The validation report at `Reviews/QPB_v1.5.6_Validation_Report.md` keeps
+  its `pass-with-known-limitations` disposition. The chi-1.3.45 evidence
+  there is the post-lever artifact set from the 2026-05-02 cycle, which
+  ran in code-only mode (chi-1.3.45's `reference_docs/` was empty). The
+  architectural fix from instruction 047 closes the underlying defect class
+  for future cycles, but did not re-validate this specific run.
+- **`--next-iteration` suggestion bug fixed (model-comparison sweep finding).**
+  Instruction 044 (commit `2230ff5`) closed two defects in
+  `bin/run_playbook.py`'s post-run "Next iteration suggestion" line:
+  (A) the suggestion emitted `<interpreter> <script_path>` form which the
+  runner's own package-module guard rejects with `EX_USAGE=64` —
+  self-contradictory, broke copy-paste workflows; (B) the `runner_flag`
+  dict was missing the `"copilot"` entry, so `--copilot` users got a
+  suggestion that silently dropped the flag and copy-pasted them into
+  default `--claude`. Reported during a model-comparison benchmark sweep
+  on a v1.5.5 branch; lands on `1.5.6`. Two new regression tests pin both
+  bugs.
 
 ### What's new in v1.5.5
 
