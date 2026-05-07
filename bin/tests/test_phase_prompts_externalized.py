@@ -187,8 +187,13 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # guide is the same six-path SKILL_FALLBACK_GUIDE constant used
         # by single_pass / iteration / phase{2..6}; phase1's body grew
         # by ~86 bytes (six-path guide minus the old four-path literal).
-        "phase1_no_seeds_True":  (17314, "cd480d23ff09568c7bd93c281854e189d28f750dccb1de4a0b57350925bbce94"),
-        "phase1_no_seeds_False": (17117, "3bb036e5e38693aad0eafa633404651f3d5e2c6db07979ba8449a55e25214ea3"),
+        # v1.5.6 cluster 047: phase1.md role_map prompt section
+        # rewritten — LLM no longer instructed to compute breakdown +
+        # summary; runner does it via normalize_role_map_for_gate
+        # before the Phase 2 entry-gate. Schema example collapsed
+        # from full role_map to files+provenance. Hashes recomputed.
+        "phase1_no_seeds_True":  (16643, "1120d6099291bb3405b1d803d4b400058148658eb8ae2c0a18e7d2bc6cf3c47c"),
+        "phase1_no_seeds_False": (16446, "fc8ae7fd7d9cea2b05387c480e905e204cf58a3bf98568b470db6db32791eb70"),
         # v1.5.6 BUG-011/012: phase{2..6}.md previously hardcoded
         # `.github/skills/` paths; the fix prepends {skill_fallback_guide}
         # (the same SKILL_FALLBACK_GUIDE constant the iteration/single_pass

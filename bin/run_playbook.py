@@ -931,6 +931,35 @@ def check_phase_gate(
                     "regenerate it."
                 ],
             )
+        # v1.5.6 cluster 047 architectural fix: normalize the LLM-
+        # written role_map's `breakdown` and `summary` fields by
+        # recomputing them from `files[]`. The LLM is responsible for
+        # the analytical work (file role tagging in `files[]`); the
+        # mechanically-derivable fields (`breakdown` per
+        # compute_breakdown, `summary` per summarize_role_map) are
+        # owned by the runner. Sonnet-4.6 reliably produced
+        # role_maps where the LLM-written summary/breakdown drifted
+        # from the strict mechanical contract; this normalization
+        # makes the Phase 2 entry-gate's self-consistency checks
+        # pass by construction. Backward compat: legacy role_maps
+        # already in the canonical shape recompute idempotently.
+        normalize_ok, normalize_errs = role_map_lib.normalize_role_map_for_gate(
+            role_map_path
+        )
+        if not normalize_ok:
+            joined = "\n".join(f"  - {err}" for err in normalize_errs)
+            return GateCheck(
+                ok=False,
+                messages=[
+                    "GATE FAIL Phase 2: quality/exploration_role_map.json "
+                    f"could not be normalized for the gate:\n{joined}\n"
+                    "  This typically means files[] is missing or malformed; "
+                    "re-run Phase 1 to regenerate the role map."
+                ],
+            )
+        # Re-load after normalize so the validator sees the canonical
+        # breakdown + summary the runner just wrote.
+        role_map_data = role_map_lib.load_role_map(role_map_path)
         # v1.5.4 Phase 3.6.1 Section A.1.a: honour operator overrides
         # for the disallowed-prefix list and the entry-count ceiling.
         allowed_prefixes = (

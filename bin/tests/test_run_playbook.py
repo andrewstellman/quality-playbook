@@ -174,20 +174,37 @@ class RunPlaybookTests(unittest.TestCase):
 
     def test_phase2_gate_fails_on_invalid_role_map(self) -> None:
         """Bubble validation errors up through the gate so the operator
-        knows what's wrong with the role map without grepping logs."""
+        knows what's wrong with the role map without grepping logs.
+
+        v1.5.6 cluster 047 changed the gate's failure mode for
+        role_maps missing 'files' (or with non-list 'files'): the
+        runner-side normalize step catches this BEFORE the validator
+        runs and emits a 'could not be normalized' message naming
+        the broken field. This test was previously asserting on
+        validate_role_map's error wording; updated to assert the
+        normalize-step's wording, which is now what operators see
+        for this failure mode. Other validate_role_map errors (e.g.
+        disallowed-path entries, role enum violations) still bubble
+        through with the 'failed validation' wording — exercised by
+        other tests in the role_map fixture surface."""
         import json
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             quality_dir = temp_path / "quality"
             write(quality_dir / "EXPLORATION.md", "x\n" * 200)
-            # Role map missing required keys.
+            # Role map missing required keys (no 'files' field).
             (quality_dir / "exploration_role_map.json").write_text(
                 json.dumps({"schema_version": role_map.SCHEMA_VERSION}),
                 encoding="utf-8",
             )
             gate = run_playbook.check_phase_gate(temp_path, "2")
             self.assertFalse(gate.ok)
-            self.assertIn("failed validation", gate.messages[0])
+            # The normalize step catches the missing 'files' field
+            # and emits an operator-actionable message.
+            self.assertIn(
+                "could not be normalized", gate.messages[0],
+                msg=f"Expected normalize-step error; got: {gate.messages[0]!r}",
+            )
             self.assertIn("files", gate.messages[0])
 
     def test_phase3_gate_requires_phase2_artifacts(self) -> None:

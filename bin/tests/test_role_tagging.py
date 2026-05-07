@@ -837,5 +837,298 @@ class Round8Fix5SummarySelfConsistencyTests(unittest.TestCase):
         )
 
 
+class NormalizeRoleMapForGateTests(unittest.TestCase):
+    """v1.5.6 cluster 047 architectural fix:
+    `normalize_role_map_for_gate(path)` recomputes ``breakdown`` and
+    ``summary`` from the LLM's ``files[]`` and writes the result back
+    to disk. The Phase 2 entry-gate's self-consistency checks then
+    pass by construction.
+
+    Pre-cluster-047 the LLM was instructed to produce both
+    ``breakdown`` and ``summary``; sonnet-4.6 reliably reverted to
+    intuitive summarization that drifted from the strict mechanical
+    contract (cluster E retries: 2 attempts, 2 different summary-shape
+    failures). Moving the deterministic computation runner-side
+    removes the failure mode entirely."""
+
+    def _well_formed_files(self) -> list[dict]:
+        return [
+            _entry("SKILL.md", "skill-prose", 6000),
+            _entry("references/foo.md", "skill-reference", 2000),
+            _entry("bin/main.py", "code", 1500),
+            _entry("bin/test_main.py", "test", 800),
+            _entry(
+                "scripts/run.py", "skill-tool", 500,
+                skill_prose_reference="SKILL.md:42",
+            ),
+        ]
+
+    def test_normalize_replaces_wrong_summary_with_canonical(self) -> None:
+        """The cluster E failure mode reproduces here: stage a role_map
+        with an LLM-style intuitive summary that drifts from
+        summarize_role_map(). After normalize, summary equals the
+        canonical derivation, NOT the LLM's hand-written version."""
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "exploration_role_map.json"
+            files = self._well_formed_files()
+            # Stage a role map with a deliberately-wrong summary
+            # (mimicking sonnet-4.6's drift: file_count off by N,
+            # role_breakdown counts that don't match files).
+            wrong_role_map = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "git-ls-files",
+                "files": files,
+                "breakdown": rm.compute_breakdown(files),
+                "summary": {
+                    "file_count": 999,  # wrong (should be 5)
+                    "role_breakdown": {"skill-prose": 99, "code": 99},  # wrong
+                    "percentages": {
+                        "skill_share": 0.99,
+                        "code_share": 0.01,
+                        "tool_share": 0.0,
+                        "other_share": 0.0,
+                    },  # wrong
+                    "provenance": "git-ls-files",
+                },
+            }
+            path.write_text(json.dumps(wrong_role_map, indent=2), encoding="utf-8")
+
+            ok, errs = rm.normalize_role_map_for_gate(path)
+            self.assertTrue(ok, msg=f"normalize failed: {errs}")
+            self.assertEqual(errs, [])
+
+            # The on-disk summary must now equal the canonical derivation.
+            normalized = rm.load_role_map(path)
+            self.assertIsNotNone(normalized)
+            expected = rm.summarize_role_map(normalized)
+            self.assertEqual(normalized["summary"], expected)
+            # And specifically the file_count is now correct (5, not 999).
+            self.assertEqual(normalized["summary"]["file_count"], 5)
+            # And the validator passes (this is what makes the Phase 2
+            # entry-gate's check succeed by construction).
+            validation_errors = rm.validate_role_map(normalized)
+            self.assertEqual(validation_errors, [])
+
+    def test_normalize_replaces_wrong_breakdown_with_canonical(self) -> None:
+        """Sonnet-4.6's second failure mode (cluster E retry) was a
+        wrong breakdown structure (descriptive note-style fields like
+        skill_share_pct instead of the required percentages dict).
+        Normalize must replace whatever the LLM wrote with the
+        canonical compute_breakdown() output."""
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "exploration_role_map.json"
+            files = self._well_formed_files()
+            wrong_role_map = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "git-ls-files",
+                "files": files,
+                # Sonnet-4.6 cluster-E-retry-style descriptive
+                # breakdown — wrong shape, wrong keys.
+                "breakdown": {
+                    "skill_share_pct": 88.0,
+                    "code_share_pct": 12.0,
+                    "skill_share_note": "skill prose / total",
+                    "key_risk_files": ["bin/main.py"],
+                },
+                # Summary doesn't matter — normalize recomputes it
+                # from the new breakdown.
+                "summary": {"file_count": 5, "role_breakdown": {}, "percentages": {}, "provenance": "git-ls-files"},
+            }
+            path.write_text(json.dumps(wrong_role_map, indent=2), encoding="utf-8")
+
+            ok, errs = rm.normalize_role_map_for_gate(path)
+            self.assertTrue(ok, msg=f"normalize failed: {errs}")
+
+            normalized = rm.load_role_map(path)
+            assert normalized is not None
+            # Breakdown now has the canonical shape.
+            self.assertIn("files_by_role", normalized["breakdown"])
+            self.assertIn("size_by_role", normalized["breakdown"])
+            self.assertIn("percentages", normalized["breakdown"])
+            # The descriptive sonnet-style fields are gone.
+            self.assertNotIn("skill_share_pct", normalized["breakdown"])
+            self.assertNotIn("key_risk_files", normalized["breakdown"])
+            # Validator passes.
+            self.assertEqual(rm.validate_role_map(normalized), [])
+
+    def test_normalize_idempotent_on_legacy_correct_role_map(self) -> None:
+        """Backward compat: a role_map that already has a correct
+        LLM-written breakdown + summary recomputes to the same values.
+        This is what existing previous_runs/ archives carry; the
+        normalize step must not corrupt them."""
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "exploration_role_map.json"
+            # _make_role_map produces a canonical role_map by definition.
+            role_map = _make_role_map(self._well_formed_files())
+            path.write_text(json.dumps(role_map, indent=2), encoding="utf-8")
+
+            ok, errs = rm.normalize_role_map_for_gate(path)
+            self.assertTrue(ok, msg=f"normalize failed: {errs}")
+
+            normalized = rm.load_role_map(path)
+            assert normalized is not None
+            # Files unchanged.
+            self.assertEqual(normalized["files"], role_map["files"])
+            # Breakdown + summary equal what was already there.
+            self.assertEqual(normalized["breakdown"], role_map["breakdown"])
+            self.assertEqual(normalized["summary"], role_map["summary"])
+
+    def test_normalize_handles_role_map_without_breakdown_at_all(self) -> None:
+        """The cluster 047 fix moves breakdown into the runner's
+        responsibility — the LLM may legitimately produce a role_map
+        with ONLY files[] and provenance (no breakdown, no summary)
+        once the post-cluster-047 phase1.md prompt is in use.
+        Normalize must produce a complete canonical role_map from
+        that minimal input."""
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "exploration_role_map.json"
+            files = self._well_formed_files()
+            # Minimal LLM output (post-cluster-047 prompt shape).
+            minimal = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "git-ls-files",
+                "files": files,
+            }
+            path.write_text(json.dumps(minimal, indent=2), encoding="utf-8")
+
+            ok, errs = rm.normalize_role_map_for_gate(path)
+            self.assertTrue(ok, msg=f"normalize failed: {errs}")
+
+            normalized = rm.load_role_map(path)
+            assert normalized is not None
+            self.assertIn("breakdown", normalized)
+            self.assertIn("summary", normalized)
+            # Validator now passes.
+            self.assertEqual(rm.validate_role_map(normalized), [])
+            # And the breakdown is correct.
+            self.assertEqual(
+                normalized["breakdown"]["files_by_role"]["code"], 1
+            )
+
+    def test_normalize_returns_false_on_unloadable_file(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "missing.json"
+            ok, errs = rm.normalize_role_map_for_gate(path)
+            self.assertFalse(ok)
+            self.assertTrue(errs)
+            self.assertTrue(any("could not load" in e for e in errs))
+
+    def test_normalize_returns_false_when_files_is_not_a_list(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "exploration_role_map.json"
+            broken = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "git-ls-files",
+                "files": "not-a-list",
+            }
+            path.write_text(json.dumps(broken), encoding="utf-8")
+            ok, errs = rm.normalize_role_map_for_gate(path)
+            self.assertFalse(ok)
+            self.assertTrue(any("'files' must be a list" in e for e in errs))
+
+
+class CheckPhaseGateNormalizeIntegrationTests(unittest.TestCase):
+    """v1.5.6 cluster 047: the Phase 2 entry-gate in
+    `bin.run_playbook.check_phase_gate(repo, '2', ...)` calls
+    `normalize_role_map_for_gate` before invoking
+    `validate_role_map`. The integration test stages a role_map with
+    drift-class wrong summary (the sonnet-4.6 failure mode), runs the
+    gate, and asserts it now PASSES — pre-cluster-047 it would fail
+    on the summary-mismatch check."""
+
+    def test_phase2_gate_passes_after_normalize_overwrites_wrong_summary(self) -> None:
+        from bin import run_playbook
+        import argparse
+        with TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir)
+            quality = repo / "quality"
+            quality.mkdir()
+            # 120-line EXPLORATION.md so the line-count check passes.
+            exploration = quality / "EXPLORATION.md"
+            body_lines = "\n".join(
+                f"line {i}" for i in range(150)
+            )
+            exploration.write_text(
+                "## Open Exploration Findings\n\n" + body_lines + "\n",
+                encoding="utf-8",
+            )
+            # Role map with a sonnet-style wrong summary.
+            files = [
+                _entry("SKILL.md", "skill-prose", 6000),
+                _entry("bin/main.py", "code", 1500),
+            ]
+            wrong_role_map = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "git-ls-files",
+                "files": files,
+                "breakdown": rm.compute_breakdown(files),
+                "summary": {
+                    "file_count": 9999,  # wrong
+                    "role_breakdown": {},
+                    "percentages": {
+                        "skill_share": 0.0, "code_share": 0.0,
+                        "tool_share": 0.0, "other_share": 0.0,
+                    },
+                    "provenance": "git-ls-files",
+                },
+            }
+            (quality / rm.DEFAULT_FILENAME).write_text(
+                json.dumps(wrong_role_map, indent=2), encoding="utf-8",
+            )
+            args = argparse.Namespace(
+                allow_disallowed_prefix=None,
+                max_role_map_entries=None,
+            )
+            result = run_playbook.check_phase_gate(repo, "2", args=args)
+            self.assertTrue(
+                result.ok,
+                msg=f"Phase 2 gate must pass after normalize. Messages: {result.messages}",
+            )
+
+    def test_phase2_gate_passes_with_minimal_post_cluster_047_role_map(self) -> None:
+        """The post-cluster-047 phase1.md prompt instructs the LLM to
+        produce only files[] + provenance (no breakdown, no summary).
+        The Phase 2 gate must still pass after the runner's normalize
+        step computes breakdown + summary."""
+        from bin import run_playbook
+        import argparse
+        with TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir)
+            quality = repo / "quality"
+            quality.mkdir()
+            body_lines = "\n".join(f"line {i}" for i in range(150))
+            (quality / "EXPLORATION.md").write_text(
+                "## Open Exploration Findings\n\n" + body_lines + "\n",
+                encoding="utf-8",
+            )
+            minimal = {
+                "schema_version": rm.SCHEMA_VERSION,
+                "timestamp_start": "2026-05-07T00:00:00Z",
+                "provenance": "git-ls-files",
+                "files": [
+                    _entry("SKILL.md", "skill-prose", 6000),
+                    _entry("bin/main.py", "code", 1500),
+                ],
+            }
+            (quality / rm.DEFAULT_FILENAME).write_text(
+                json.dumps(minimal, indent=2), encoding="utf-8",
+            )
+            args = argparse.Namespace(
+                allow_disallowed_prefix=None,
+                max_role_map_entries=None,
+            )
+            result = run_playbook.check_phase_gate(repo, "2", args=args)
+            self.assertTrue(
+                result.ok,
+                msg=f"Phase 2 gate must pass on minimal-LLM-output role map. "
+                f"Messages: {result.messages}",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

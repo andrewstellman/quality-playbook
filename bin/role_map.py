@@ -519,6 +519,88 @@ def summarize_role_map(role_map: dict) -> dict:
     }
 
 
+def normalize_role_map_for_gate(path: Path) -> tuple[bool, list[str]]:
+    """v1.5.6 cluster 047 architectural fix: between Phase 1 LLM exit
+    and Phase 2 entry-gate, recompute ``breakdown`` and ``summary``
+    from the LLM-produced ``files[]`` array, then write the
+    normalized role map back to disk. The Phase 2 entry-gate's
+    summary/breakdown self-consistency checks then pass by
+    construction.
+
+    Why: ``breakdown`` and ``summary`` are mechanically derivable
+    from ``files[]`` via :func:`compute_breakdown` and
+    :func:`summarize_role_map`. Asking the LLM to also produce
+    them creates a class of failure where the LLM reverts to
+    intuitive summarization that drifts from the strict
+    mechanical contract. Sonnet-4.6 demonstrated this reliably
+    during cluster E retries (2 attempts, 2 different summary-
+    shape failures, both at the Phase 2 entry-gate). Opus-4.7
+    happened to produce consistent output during cluster F.2a's
+    retry, but relying on model-quality to satisfy a deterministic
+    contract is fragile by construction. The runner taking
+    responsibility for these fields removes the failure mode
+    entirely.
+
+    Backward compat: legacy role_maps that already had a correct
+    LLM-written breakdown + summary recompute to the same values
+    (the operation is idempotent). Legacy role_maps with wrong
+    breakdown/summary get silently fixed — the LLM-written
+    fields are overwritten with the canonical computation.
+
+    Returns ``(True, [])`` on successful normalize. Returns
+    ``(False, [errors])`` if the file cannot be loaded or is
+    structurally broken in a way that prevents recomputation
+    (e.g., ``files`` is missing or not a list). The caller
+    typically invokes :func:`validate_role_map` after this
+    helper for the deeper schema checks.
+
+    The on-disk file is rewritten with sorted keys + 2-space
+    indent for diffability across runs (the LLM's writeout
+    formatting can vary; a stable canonical form helps audit).
+    """
+    p = Path(path)
+    role_map = load_role_map(p)
+    if role_map is None:
+        return (False, [f"could not load {p} as a JSON object"])
+    files = role_map.get("files")
+    if not isinstance(files, list):
+        return (False, [
+            f"{p}: 'files' must be a list to recompute breakdown + summary; "
+            f"got {type(files).__name__}"
+        ])
+
+    # Recompute breakdown from the LLM's files[] (the analytical
+    # part) — replacing whatever the LLM wrote there. compute_breakdown
+    # tolerates malformed entries (skips non-dict, unknown roles).
+    role_map["breakdown"] = compute_breakdown(files)
+
+    # Now that breakdown is canonical, summarize_role_map produces a
+    # canonical summary too.
+    role_map["summary"] = summarize_role_map(role_map)
+
+    # Atomic write-back via tempfile in the same dir, sort keys for
+    # diff stability.
+    import os as _os
+    import tempfile as _tempfile
+    p.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_str = _tempfile.mkstemp(
+        prefix=".role_map.", suffix=".json.tmp", dir=str(p.parent)
+    )
+    tmp = Path(tmp_str)
+    try:
+        with _os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(role_map, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+        _os.replace(tmp, p)
+    except BaseException:
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+        raise
+    return (True, [])
+
+
 def render_role_map_narrative(role_map: dict) -> str:
     """Render the EXPLORATION.md "File inventory" section from the
     role map summary. The Phase 1 prompt instructs the LLM to copy

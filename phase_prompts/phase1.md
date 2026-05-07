@@ -52,29 +52,11 @@ The output file `quality/exploration_role_map.json` MUST conform to this schema:
     // reference-file location that names this script (e.g., "SKILL.md:47"
     // or "references/forms.md:section-3"); the prose-to-code divergence
     // check in Phase 4 reads this back to find the cited prose.
-  ],
-  "breakdown": {{
-    "files_by_role": {{ "<role>": <count>, ... }},
-    "size_by_role":  {{ "<role>": <total bytes>, ... }},
-    "percentages": {{
-      "skill_share": <skill-prose + skill-reference share of total bytes>,
-      "code_share":  <code share of total bytes>,
-      "tool_share":  <skill-tool share of total bytes>,
-      "other_share": <remainder>
-    }}
-  }},
-  "summary": {{
-    "file_count": <int>,
-    "role_breakdown": {{ "<role>": <count>, ... }},
-    "percentages": {{ ... same four shares as above ... }},
-    "provenance": "git-ls-files"
-  }}
+  ]
 }}
 ```
 
-The `breakdown` is YOUR aggregation — compute it from the per-file entries. Percentages are floats in [0, 1] and must sum to ~1.0 when total size > 0. The four shares are: skill_share = (skill-prose + skill-reference) bytes / total; code_share = code bytes / total; tool_share = skill-tool bytes / total; other_share = the remainder (test, docs, config, fixture, formal-spec, playbook-output).
-
-**Cross-artifact agreement (v1.5.4 Phase 3.6.1, codex-prevention).** The `summary` field on the role map and EXPLORATION.md's "File inventory" section MUST agree because both render from the same helper, `bin.role_map.summarize_role_map()`. The role map's `summary` field is the helper's output verbatim. EXPLORATION.md's file-inventory section is the output of `bin.role_map.render_role_map_narrative()` (which itself reads `summarize_role_map`). Do NOT write narrative file counts or percentages by hand — copy from the helper. The validator and downstream consumers cross-check the two; disagreement is a defect.
+**You only produce `files[]` and `provenance`.** The two mechanically-derivable fields — `breakdown` and `summary` — are computed by the runner between Phase 1 LLM exit and the Phase 2 entry-gate (v1.5.6 cluster 047 architectural fix). The runner calls `bin.role_map.compute_breakdown(files)` and `bin.role_map.summarize_role_map(...)` and writes the canonical values into the on-disk file before validation. Don't include `breakdown` or `summary` in your output — even if you do, the runner will overwrite them. Your job is the analytical work (per-file role tagging in `files[]` plus `provenance`); the deterministic aggregations are runner-owned. (Pre-v1.5.6 the LLM was instructed to compute these too, which produced a class of failures where the LLM reverted to intuitive summarization that drifted from the strict mechanical contract; runner-side computation removes the failure mode.)
 
 Tagging discipline:
 1. `skill-tool` and `code` is the load-bearing distinction. A script is only `skill-tool` if SKILL.md (or a doc SKILL.md cites) explicitly names it and tells the agent to invoke it. Independent code modules — even small ones in a `scripts/` directory — are `code` if no SKILL.md prose directs the agent to use them.
