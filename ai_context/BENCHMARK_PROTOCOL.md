@@ -40,6 +40,14 @@ Before kicking off any benchmark run:
 - Do not add files to the run directory while the agent is working. Let it own the space.
 - If the run hits a rate limit or other interruption, record that in `NOTES.md` — it's signal for capacity planning, not just a nuisance.
 
+## Phase 4 Council multi-model contamination (model-comparison runs)
+
+**Phase 4 (Spec Audit) uses a fixed Council roster regardless of `--model`.** The Council members are defined in `bin/council_config.py` (currently `claude-opus-4.7`, `gpt-5.4`, `gemini-2.5-pro`) and audit each cell's artifacts independent of the runner's model selection. For model-comparison or model-evaluation studies, this means a `--copilot --model X` run that completes Phase 4 produces `BUGS.md` output that mixes X's Phase 1-3 findings with the Council's audit findings. Phases 5 (Reconciliation) and 6 (Verify) build on the contaminated Phase 4 output; iteration strategies (gap, unfiltered, parity, adversarial) build on Phase 5 output and are likewise contaminated.
+
+**For clean per-model cells, use `--benchmark-mode`** (v1.5.6 cluster 050+): constrains the run to phases 1-3 only, emits a clear banner at run start, and writes a `quality/RUN_MODE.md` marker so downstream tooling can filter for clean cells. The flag is mutually exclusive with `--full-run` / `--next-iteration` / `--strategy` / `--iterations` (those all consume Council-contaminated artifacts). Or pass `--phase 1,2,3` directly — same phase scope without the marker. Regardless of flag choice, the runner echoes the Council roster at Phase 4 entry as a defense-in-depth log signal so operators scanning logs see the model expansion explicitly.
+
+The contamination was discovered mid-v1.5.5 model-comparison sweep after ~150 cells of data were collected; the data was discarded and the sweep restarted with `--phase 1,2,3`. The doc warning + flag prevent that recurrence.
+
 ## Run-state instrumentation (v1.5.5+)
 
 Starting in v1.5.5, the runner emits an append-only `quality/run_state.jsonl` event log alongside the existing artifacts. Each phase boundary writes a `phase_started` / `phase_completed` (or `phase_aborted`) event with timestamp, qpb version, runner, and exit code; phase-5 finalization additionally emits a `validation_result` event for each post-condition check the orchestrator ran. The full event taxonomy and field-presence invariants live at `references/run_state_schema.md`.

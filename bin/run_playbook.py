@@ -415,6 +415,27 @@ def build_parser() -> argparse.ArgumentParser:
             "size violation is a real bug worth surfacing."
         ),
     )
+    # v1.5.6 cluster 050: benchmark-mode flag for model-comparison
+    # studies. Phase 4 uses a fixed Council roster (claude-opus-4.7,
+    # gpt-5.4, gemini-2.5-pro per bin/council_config.py) regardless
+    # of --model, so any --model X run that completes Phase 4
+    # produces BUGS.md output that mixes X's Phase 1-3 findings with
+    # the Council's audit. For SPC analysis or model comparison,
+    # phases 4 onward are a contamination confound.
+    parser.add_argument(
+        "--benchmark-mode",
+        dest="benchmark_mode",
+        action="store_true",
+        help=(
+            "Constrain run to phases 1-3 (single-model only). Skips "
+            "Phase 4 Council audit and Phase 5 reconciliation. Use "
+            "for model-comparison studies where you want clean "
+            "per-model output. Mutually exclusive with --full-run / "
+            "--next-iteration / --strategy / --iterations (all of "
+            "those rely on Council-contaminated artifacts). Forces "
+            "--phase 1,2,3."
+        ),
+    )
     parser.add_argument(
         "--no-stdout-echo",
         dest="no_stdout_echo",
@@ -590,6 +611,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         and phase_groups_raw is None
         and not args.next_iteration
         and args.iterations is None
+        # v1.5.6 cluster 050: --benchmark-mode is also an explicit
+        # phase-scope opt-in; the auto-full-run default must not
+        # override it. The mutex check below would catch this with
+        # a confusing error otherwise.
+        and not getattr(args, "benchmark_mode", False)
     ):
         args.full_run = True
         # v1.5.4 Phase 3.7 Fix 1 (Round 8 BLOCK): tag this Namespace
@@ -620,6 +646,41 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         parser.error("--full-run and --next-iteration are mutually exclusive. --full-run already chains all iterations after the main run.")
     if args.full_run and args.phase:
         parser.error("--full-run is not compatible with --phase. Full-run uses a single-prompt main run followed by all iterations.")
+    # v1.5.6 cluster 050: --benchmark-mode forces --phase 1,2,3 and
+    # is mutually exclusive with --full-run / --next-iteration /
+    # --strategy (non-default) / --iterations. The latter all rely
+    # on Council-contaminated artifacts.
+    if getattr(args, "benchmark_mode", False):
+        if args.phase and args.phase != "1,2,3":
+            parser.error(
+                "--benchmark-mode and --phase are mutually exclusive "
+                "(benchmark-mode forces phases 1,2,3 to skip the Council-"
+                "audited Phase 4 onward)."
+            )
+        if args.full_run:
+            parser.error(
+                "--benchmark-mode and --full-run are mutually exclusive. "
+                "--full-run uses Phase 4-onward Council artifacts; "
+                "--benchmark-mode skips Phase 4."
+            )
+        if args.next_iteration:
+            parser.error(
+                "--benchmark-mode and --next-iteration are mutually "
+                "exclusive. Iterations consume Phase 4-5 Council artifacts."
+            )
+        if args.iterations is not None:
+            parser.error(
+                "--benchmark-mode and --iterations are mutually exclusive. "
+                "Iterations consume Phase 4-5 Council artifacts."
+            )
+        if args.strategy != ["gap"]:
+            parser.error(
+                "--benchmark-mode and --strategy are mutually exclusive. "
+                "Strategy is for iterations which consume Phase 4-5 "
+                "Council artifacts."
+            )
+        # Force phase scope.
+        args.phase = "1,2,3"
     if args.phase:
         validate_phase_mode(args.phase, parser)
     if not args.next_iteration and not args.full_run and args.strategy != ["gap"]:
@@ -2408,6 +2469,41 @@ def run_one_phase(
     )
     output_file = repo_dir / "quality" / "control_prompts" / f"phase{phase}.output.txt"
     lib.logboth(log_file, lib.log(f"  Phase {phase_index}/{len(phase_list) or 1} ({phase_label(phase)}): {repo_dir.name}"))
+    # v1.5.6 cluster 050: surface Phase 4's multi-model expansion at
+    # phase entry. The Council roster is read programmatically from
+    # bin/council_config.py so it stays current if the roster ever
+    # changes; no hardcoded names. This banner fires for ALL runs
+    # that reach Phase 4 — including normal --full-run — so log
+    # readers see the model expansion explicitly.
+    if phase == "4":
+        try:
+            from bin import council_config as _council_config
+            roster = ", ".join(_council_config.council_members())
+        except (ImportError, AttributeError):
+            roster = "(unavailable — see bin/council_config.py)"
+        lib.logboth(log_file, lib.log(
+            "  ============================================================"
+        ))
+        lib.logboth(log_file, lib.log(
+            "  Phase 4 starting (Spec Audit / Council of Three)."
+        ))
+        lib.logboth(log_file, lib.log(
+            f"  Council roster (NOT --model): {roster}"
+        ))
+        lib.logboth(log_file, lib.log(
+            "  This phase contributes multi-model findings to BUGS.md "
+            "regardless"
+        ))
+        lib.logboth(log_file, lib.log(
+            "  of --model selection. For single-model runs, use "
+            "--benchmark-mode"
+        ))
+        lib.logboth(log_file, lib.log(
+            "  or --phase 1,2,3 to skip this phase."
+        ))
+        lib.logboth(log_file, lib.log(
+            "  ============================================================"
+        ))
     exit_code = run_prompt(repo_dir, prompt, f"phase{phase}", output_file, log_file, args.runner, args.model)
     if exit_code:
         lib.logboth(log_file, lib.log(f"  ABORT Phase {phase}: child runner exited {exit_code}"))
@@ -3743,6 +3839,19 @@ def execute_strategy_list(
 
 
 def display_run_header(args: argparse.Namespace, repo_dirs: Sequence[Path], display_version: str, phase_list: Sequence[str], timestamp: str) -> None:
+    # v1.5.6 cluster 050: surface --benchmark-mode at run start so
+    # operators of model-comparison sweeps can confirm the run is
+    # constrained to phases 1-3 (single-model only). This banner
+    # echoes BEFORE the standard header so it's the first thing in
+    # the log.
+    if getattr(args, "benchmark_mode", False):
+        model_name = args.model or "(default)"
+        print("============================================================")
+        print(f"BENCHMARK MODE — phases 1-3 only, single model: {model_name}")
+        print("Phase 4 Council audit, Phase 5 reconciliation, and iteration")
+        print("strategies are SKIPPED. Output is suitable for clean per-model")
+        print("comparison.")
+        print("============================================================")
     print("=== Quality Playbook - Artifact Generation ===")
     print(f"Version:  {display_version or 'unknown'}")
     print(f"Runner:   {args.runner}")
@@ -4167,7 +4276,53 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     display_version = lib.detect_repo_skill_version(repo_dirs[0])
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     display_run_header(args, repo_dirs, display_version, phase_list_from_mode(args.phase), timestamp)
+    # v1.5.6 cluster 050: write a per-target RUN_MODE.md marker so
+    # downstream model-comparison tooling can filter for clean
+    # benchmark cells without parsing the runner banner. Fires only
+    # for benchmark-mode runs to keep regular runs' quality/ tree
+    # clean.
+    if getattr(args, "benchmark_mode", False):
+        for repo_dir in repo_dirs:
+            try:
+                _write_run_mode_marker(repo_dir, args, timestamp)
+            except OSError:
+                pass  # marker is best-effort; runs continue regardless
     return execute_run(args, repo_dirs, timestamp=timestamp)
+
+
+def _write_run_mode_marker(
+    repo_dir: Path, args: argparse.Namespace, timestamp: str
+) -> None:
+    """v1.5.6 cluster 050: write quality/RUN_MODE.md identifying
+    the current run as benchmark-mode (single-model, phases 1-3
+    only). Downstream model-comparison tooling reads this to
+    confirm a cell is clean — i.e., not contaminated with Phase 4
+    Council audit findings."""
+    quality = repo_dir / "quality"
+    quality.mkdir(parents=True, exist_ok=True)
+    model = args.model or "(default)"
+    runner = args.runner or "(default)"
+    content = (
+        "# Run mode: benchmark\n"
+        "\n"
+        "This run was invoked with `--benchmark-mode`, constraining the\n"
+        "playbook to phases 1-3 only (Explore + Generate + Code Review).\n"
+        "Phase 4 (Spec Audit / Council of Three), Phase 5 (Reconciliation),\n"
+        "and iteration strategies are SKIPPED. The output is single-model\n"
+        "and suitable for model-comparison studies without Council\n"
+        "contamination.\n"
+        "\n"
+        f"- Run ID: `{timestamp}`\n"
+        f"- Runner: `{runner}`\n"
+        f"- Model:  `{model}`\n"
+        f"- Phase scope: 1,2,3\n"
+        f"- Council audit: SKIPPED\n"
+        f"- Iteration strategies: SKIPPED\n"
+        "\n"
+        "(Marker emitted by `bin.run_playbook._write_run_mode_marker`\n"
+        "per v1.5.6 cluster 050 design.)\n"
+    )
+    (quality / "RUN_MODE.md").write_text(content, encoding="utf-8")
 
 
 if __name__ == "__main__":

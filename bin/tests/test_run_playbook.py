@@ -1044,6 +1044,180 @@ class RunPlaybookTests(unittest.TestCase):
         # Should NOT suggest --next-iteration anywhere (cycle is done).
         self.assertNotIn("--next-iteration", output)
 
+    # --- v1.5.6 cluster 050: --benchmark-mode + Phase 4 Council banner ---
+
+    def test_benchmark_mode_forces_phase_1_2_3(self) -> None:
+        """`--benchmark-mode` forces args.phase = '1,2,3' regardless
+        of any other phase config."""
+        from bin import run_playbook
+        args = run_playbook.parse_args([
+            "--benchmark-mode", "--copilot", "--model", "haiku-4.5",
+            "/some/target",
+        ])
+        self.assertTrue(args.benchmark_mode)
+        self.assertEqual(args.phase, "1,2,3")
+
+    def test_benchmark_mode_mutex_with_full_run(self) -> None:
+        from bin import run_playbook
+        with self.assertRaises(SystemExit):
+            run_playbook.parse_args([
+                "--benchmark-mode", "--full-run", "/some/target",
+            ])
+
+    def test_benchmark_mode_mutex_with_next_iteration(self) -> None:
+        from bin import run_playbook
+        with self.assertRaises(SystemExit):
+            run_playbook.parse_args([
+                "--benchmark-mode", "--next-iteration", "/some/target",
+            ])
+
+    def test_benchmark_mode_mutex_with_iterations(self) -> None:
+        from bin import run_playbook
+        with self.assertRaises(SystemExit):
+            run_playbook.parse_args([
+                "--benchmark-mode", "--iterations", "gap,unfiltered",
+                "/some/target",
+            ])
+
+    def test_benchmark_mode_mutex_with_strategy(self) -> None:
+        from bin import run_playbook
+        with self.assertRaises(SystemExit):
+            run_playbook.parse_args([
+                "--benchmark-mode", "--strategy", "parity",
+                "/some/target",
+            ])
+
+    def test_benchmark_mode_mutex_with_phase_other_than_123(self) -> None:
+        from bin import run_playbook
+        with self.assertRaises(SystemExit):
+            run_playbook.parse_args([
+                "--benchmark-mode", "--phase", "1,2,3,4",
+                "/some/target",
+            ])
+
+    def test_benchmark_mode_phase_1_2_3_explicit_is_compatible(self) -> None:
+        """Passing --phase 1,2,3 alongside --benchmark-mode is fine
+        — they both express the same scope."""
+        from bin import run_playbook
+        args = run_playbook.parse_args([
+            "--benchmark-mode", "--phase", "1,2,3", "/some/target",
+        ])
+        self.assertTrue(args.benchmark_mode)
+        self.assertEqual(args.phase, "1,2,3")
+
+    def test_benchmark_mode_banner_emitted_in_run_header(self) -> None:
+        """display_run_header prints the BENCHMARK MODE banner before
+        the standard header when args.benchmark_mode is True."""
+        import io
+        from contextlib import redirect_stdout
+        from bin import run_playbook
+        args = run_playbook.argparse.Namespace(
+            benchmark_mode=True,
+            runner="copilot",
+            model="claude-haiku-4.5",
+            no_seeds=True,
+            no_formal_docs=False,
+            no_stdout_echo=False,
+            verbose=False,
+            quiet=False,
+            progress_interval=2,
+            parallel=False,
+            full_run=False,
+            next_iteration=False,
+            phase="1,2,3",
+            strategy=["gap"],
+        )
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            run_playbook.display_run_header(
+                args, [Path("/some/target")], "1.5.6", ["1", "2", "3"], "20260507-000000",
+            )
+        output = buf.getvalue()
+        self.assertIn("BENCHMARK MODE", output)
+        self.assertIn("claude-haiku-4.5", output)
+        self.assertIn("phases 1-3 only", output)
+        # And the standard header still appears below.
+        self.assertIn("=== Quality Playbook - Artifact Generation ===", output)
+
+    def test_no_benchmark_banner_without_benchmark_mode(self) -> None:
+        import io
+        from contextlib import redirect_stdout
+        from bin import run_playbook
+        args = run_playbook.argparse.Namespace(
+            benchmark_mode=False,
+            runner="copilot",
+            model="claude-haiku-4.5",
+            no_seeds=True,
+            no_formal_docs=False,
+            no_stdout_echo=False,
+            verbose=False,
+            quiet=False,
+            progress_interval=2,
+            parallel=False,
+            full_run=False,
+            next_iteration=False,
+            phase="all",
+            strategy=["gap"],
+        )
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            run_playbook.display_run_header(
+                args, [Path("/some/target")], "1.5.6",
+                ["1", "2", "3", "4", "5", "6"], "20260507-000000",
+            )
+        output = buf.getvalue()
+        self.assertNotIn("BENCHMARK MODE", output)
+
+    def test_run_mode_marker_written_for_benchmark_mode(self) -> None:
+        """quality/RUN_MODE.md is written when benchmark_mode is set."""
+        from bin import run_playbook
+        with TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir)
+            args = run_playbook.argparse.Namespace(
+                benchmark_mode=True,
+                runner="copilot",
+                model="haiku-4.5",
+            )
+            run_playbook._write_run_mode_marker(repo, args, "20260507-000000")
+            marker = repo / "quality" / "RUN_MODE.md"
+            self.assertTrue(marker.is_file())
+            text = marker.read_text(encoding="utf-8")
+            self.assertIn("benchmark", text)
+            self.assertIn("haiku-4.5", text)
+            self.assertIn("Phase scope: 1,2,3", text)
+            self.assertIn("Council audit: SKIPPED", text)
+
+    def test_phase4_council_banner_reads_roster_programmatically(self) -> None:
+        """Phase 4 Council banner is wired into run_one_phase via a
+        source-grep guard (the actual banner output is captured at
+        run-time when a real Phase 4 invocation happens; this test
+        pins the wiring so a future refactor can't silently drop it)."""
+        import inspect
+        from bin import run_playbook
+        source = inspect.getsource(run_playbook.run_one_phase)
+        # Pin: banner fires for phase=="4".
+        self.assertIn('if phase == "4":', source)
+        # Pin: roster is read programmatically from council_config.
+        self.assertIn("from bin import council_config", source)
+        self.assertIn("council_config.council_members()", source)
+        # Pin: banner content includes the Council-of-Three label.
+        self.assertIn("Council of Three", source)
+        # Pin: banner mentions --benchmark-mode for the alternative.
+        self.assertIn("--benchmark-mode", source)
+
+    def test_council_config_provides_council_members_helper(self) -> None:
+        """The cluster-050 banner reads the roster via
+        bin.council_config.council_members(); pin that the helper
+        exists and returns a non-empty tuple."""
+        from bin import council_config
+        roster = council_config.council_members()
+        self.assertIsInstance(roster, tuple)
+        self.assertGreater(len(roster), 0)
+        # Each entry is a non-empty string (model name).
+        for member in roster:
+            self.assertIsInstance(member, str)
+            self.assertTrue(member.strip())
+
     # --- v1.5.6 cluster 044: --next-iteration suggestion bugs A + B ---
 
     def test_print_suggested_next_command_uses_canonical_m_form(self) -> None:
