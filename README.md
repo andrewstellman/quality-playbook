@@ -8,6 +8,35 @@ Most AI code review can only find structural issues: null dereferences, resource
 
 The playbook closes that gap. It reads your codebase, derives behavioral requirements from every source it can find (code, docs, specs, comments, defensive patterns, community documentation), and uses those requirements to drive review. The result is a quality system grounded in intent, not just structure. For a deeper look at this problem, see the O'Reilly Radar article [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/).
 
+## How to install the Quality Playbook
+
+The recommended way to install the Quality Playbook into a project is to have your AI coding tool do it for you:
+
+1. **Download or clone this repo** somewhere on your machine — for example, `git clone https://github.com/andrewstellman/quality-playbook ~/quality-playbook`. You only need to do this once; the same clone can install the playbook into any number of target projects.
+
+2. **Open the QPB clone in your favorite AI coding tool** — Claude Code, Cursor, Windsurf, GitHub Copilot, or any other agent that can read files and run commands in its working directory. Opening the clone (rather than your target project) gives the AI direct access to [`AGENTS.md`](AGENTS.md) and the install script without needing to reach across workspaces.
+
+3. **Ask the AI to install it.** Something like:
+
+   > *"Install the Quality Playbook into `/path/to/your-target-project`."*
+
+   The AI agent reads [`AGENTS.md`](AGENTS.md), runs `python3 -m bin.install_skill --into /path/to/your-target-project`, and reports back. The installer auto-detects which AI tool your target project uses by scanning for the marker directory in priority order (`.claude/`, `.github/`, `.cursor/`, `.continue/`) and installs the skill into the matching subdirectory. As long as your target project has been opened by your AI tool at least once — so the marker directory exists — the installer will recognize it and put the files in the right place.
+
+**If auto-detection doesn't find a marker** (e.g., you've never opened the target in any AI tool), the installer refuses to run rather than guess. Tell your AI to pass `--target <absolute-path>` to install into a specific location instead — the AI reads `AGENTS.md` and knows how to handle this.
+
+**Alternative: open the target in your AI tool** instead of the QPB clone, and ask it to install QPB from the clone path. This works for AI tools with file-system access outside their workspace (Claude Code, Cursor, Windsurf, and most modern coding agents do). The recommended flow above is more robust because it doesn't depend on cross-workspace access — the AI only needs to read files in its current working directory.
+
+**Prerequisite:** Python 3.9 or later must be on your `PATH`. The installer is a Python module (`python3 -m bin.install_skill`) and uses standard-library features that require 3.9+. Check with `python3 --version`.
+
+If you'd rather skip the AI handoff entirely, run the installer directly from inside the QPB clone:
+
+```bash
+cd ~/quality-playbook
+python3 -m bin.install_skill --into /path/to/your-target-project
+```
+
+Or use the manual `cp` recipes in [Step 3 of the walkthrough below](#step-3-install-the-skill-manual-flow--fallback) to copy the skill files by hand without the script.
+
 ## Need help? Just ask your AI
 
 The rest of this README has detailed instructions for installing and running the playbook — commands, prompts, screenshots, the whole walkthrough. But the easiest way to get started is to skip the documentation entirely: **download one file, upload it to your favorite AI chatbot, and ask it for help.**
