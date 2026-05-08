@@ -1576,17 +1576,47 @@ _REFERENCE_DOCS_SKIPPED = frozenset({"README.md"})
 
 
 def _reference_docs_plaintext(reference_docs_dir: Path) -> List[Path]:
-    """Return plaintext files under reference_docs/ that ingest would consider."""
+    """Return plaintext files under reference_docs/ that ingest would consider.
+
+    v1.5.6 fix-up 070 NF-1: this function MUST mirror
+    bin/reference_docs_ingest._iter_candidates() in scope (top-level
+    files of reference_docs/ plus top-level files of
+    reference_docs/cite/), since docs_present(),
+    _evaluate_documentation_state(), and formal_docs_guard_banner() all
+    consult this function to classify the target's documentation state,
+    while ingest() / load_tier4_context() use _iter_candidates() /
+    iterdir() respectively. Pre-fix this used rglob('*'), which made
+    the three startup surfaces classify a nested-only reference_docs/
+    as 'with_docs' while ingest produced an empty manifest — exactly
+    the cross-surface coherence failure mode Council fix-up 067 C-6
+    was supposed to close. C-7's _iter_candidates() rewrite created
+    this asymmetry; 070 NF-1 closes it.
+    """
     if not reference_docs_dir.is_dir():
         return []
     files: List[Path] = []
-    for path in sorted(reference_docs_dir.rglob("*")):
+    # Top-level files of reference_docs/.
+    for path in sorted(reference_docs_dir.iterdir()):
         if not path.is_file():
+            continue
+        if path.name.startswith("."):
             continue
         if path.name in _REFERENCE_DOCS_SKIPPED:
             continue
         if path.suffix.lower() in _REFERENCE_DOCS_PLAINTEXT_EXTS:
             files.append(path)
+    # Top-level files of reference_docs/cite/.
+    cite_dir = reference_docs_dir / "cite"
+    if cite_dir.is_dir():
+        for path in sorted(cite_dir.iterdir()):
+            if not path.is_file():
+                continue
+            if path.name.startswith("."):
+                continue
+            if path.name in _REFERENCE_DOCS_SKIPPED:
+                continue
+            if path.suffix.lower() in _REFERENCE_DOCS_PLAINTEXT_EXTS:
+                files.append(path)
     return files
 
 

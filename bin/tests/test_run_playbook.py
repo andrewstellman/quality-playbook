@@ -4073,6 +4073,65 @@ class DocsGatheredFallbackParityTests(unittest.TestCase):
                 run_playbook._docs_gathered_has_plaintext(Path(tmp))
             )
 
+    def test_nested_only_reference_docs_consistent_across_surfaces(self) -> None:
+        """v1.5.6 fix-up 070 NF-1: a target with reference_docs/ files
+        ONLY in nested subdirectories must be reported as code-only by
+        every startup surface, matching ingest()/_iter_candidates()
+        which (post-C-7) considers only top-level + cite/ files. The
+        pre-fix _reference_docs_plaintext() used rglob('*'), which
+        made docs_present(), _evaluate_documentation_state(), and
+        formal_docs_guard_banner() all classify the repo as
+        'with_docs' even though ingest would produce an empty
+        manifest — Phase 1 silently ran code-only despite the warning
+        surfaces saying otherwise. Cross-surface coherence pin."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "reference_docs" / "nested").mkdir(parents=True)
+            (repo / "reference_docs" / "nested" / "spec.md").write_text(
+                "# Nested only\n", encoding="utf-8"
+            )
+            self.assertFalse(
+                run_playbook.docs_present(repo),
+                "docs_present must report False for nested-only repo "
+                "(matches _iter_candidates scope post-C-7)",
+            )
+            self.assertEqual(
+                run_playbook._evaluate_documentation_state(repo),
+                "code_only",
+                "_evaluate_documentation_state must agree (was 'with_docs' pre-fix)",
+            )
+            self.assertIsNotNone(
+                run_playbook.formal_docs_guard_banner(repo),
+                "formal_docs_guard_banner must trigger (was suppressed pre-fix)",
+            )
+
+    def test_cite_only_reference_docs_consistent_across_surfaces(self) -> None:
+        """v1.5.6 fix-up 070 NF-1 (positive-direction pin): a target
+        with cite-only reference_docs/ must be reported as docs-backed
+        by every startup surface. Closes the asymmetry in both
+        directions — the post-fix _reference_docs_plaintext correctly
+        recognizes cite/ subtree (top-level files of cite/ specifically)
+        as a valid docs source."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "reference_docs" / "cite").mkdir(parents=True)
+            (repo / "reference_docs" / "cite" / "spec.md").write_text(
+                "# Cite-only\n", encoding="utf-8"
+            )
+            self.assertTrue(
+                run_playbook.docs_present(repo),
+                "docs_present must report True for cite-only repo",
+            )
+            self.assertEqual(
+                run_playbook._evaluate_documentation_state(repo),
+                "with_docs",
+                "_evaluate_documentation_state must agree",
+            )
+            self.assertIsNone(
+                run_playbook.formal_docs_guard_banner(repo),
+                "formal_docs_guard_banner must NOT trigger when cite/ has plaintext",
+            )
+
 
 class InstallFallbackPinningTests(unittest.TestCase):
     """v1.5.6 fix-up 060 — codex recheck flagged BUG-008/009/010 as
