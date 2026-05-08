@@ -299,5 +299,53 @@ class ParseTierMarkerTests(unittest.TestCase):
             rdi._parse_tier_marker(text)
 
 
+class Tier4IngestScopeTests(unittest.TestCase):
+    """v1.5.6 codex bootstrap fix (065) — BUG-003 (HIGH).
+
+    load_tier4_context() pre-fix called _collect() which used
+    _iter_candidates() / rglob('*'), so a nested archive like
+    reference_docs/nested/archive/notes.md got ingested as Tier 4
+    despite REQ-003 saying only top-level plaintext + cite/ should
+    be ingested. Phase 1 context could be polluted by historical
+    archives sitting under reference_docs/ subdirectories.
+    """
+
+    def test_bug_003_tier4_context_excludes_nested_non_cite_archives(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            refs = repo / "reference_docs"
+            (refs / "cite").mkdir(parents=True)
+            (refs / "top.md").write_text("top\n", encoding="utf-8")
+            (refs / "nested" / "archive").mkdir(parents=True)
+            (refs / "nested" / "archive" / "notes.md").write_text(
+                "nested\n", encoding="utf-8"
+            )
+            self.assertEqual(
+                rdi.load_tier4_context(repo),
+                [("reference_docs/top.md", "top\n")],
+                "Tier 4 ingest must include only top-level plaintext; "
+                "cite/ files are formal-doc/Tier 1-2 territory handled "
+                "elsewhere; nested archives must NOT pollute Phase 1 context",
+            )
+
+    def test_bug_003_tier4_context_skips_readme_and_dotfiles(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            refs = repo / "reference_docs"
+            refs.mkdir()
+            (refs / "README.md").write_text("ignored\n", encoding="utf-8")
+            (refs / ".hidden.md").write_text("hidden\n", encoding="utf-8")
+            (refs / "design.md").write_text("# Design\n", encoding="utf-8")
+            self.assertEqual(
+                rdi.load_tier4_context(repo),
+                [("reference_docs/design.md", "# Design\n")],
+            )
+
+    def test_bug_003_tier4_context_returns_empty_when_no_reference_docs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            self.assertEqual(rdi.load_tier4_context(repo), [])
+
+
 if __name__ == "__main__":
     unittest.main()
