@@ -1,0 +1,4 @@
+Command: python3 -m unittest quality.test_functional.SpecRequirementTests.test_req_005_enforces_the_full_phase1_gate_mechanically quality.test_functional.SpecRequirementTests.test_req_007_normalizes_direct_phase1_role_maps -v
+Exit code: 1
+
+FAILED (failures=1)
