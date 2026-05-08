@@ -157,6 +157,113 @@ class LastInProgressPhaseTests(unittest.TestCase):
         self.assertIsNone(lib.last_in_progress_phase([]))
 
 
+def _canonical_phase1_exploration_md() -> str:
+    """Return a minimal EXPLORATION.md that satisfies all 13 SKILL.md
+    Phase 2 entry-gate checks (used by tests below to construct
+    fixtures and to mutate single sections for per-check rejection
+    tests)."""
+    findings: list[str] = []
+    # 8 numbered findings, each with 2+ file:line citations
+    # (satisfies checks 9 + 10).
+    for i in range(1, 9):
+        findings.append(
+            f"{i}. `bin/run_playbook.py:{1500 + i * 10}-{1500 + i * 10 + 5}` "
+            f"diverges from `bin/run_state_lib.py:{1660 + i}-{1670 + i}` on "
+            f"behavior X. Multi-location trace across both modules.\n"
+        )
+    findings_section = "## Open Exploration Findings\n\n" + "\n".join(findings)
+
+    risks_section = (
+        "## Quality Risks\n\n"
+        "1. **Highest risk** — risk one. `bin/run_playbook.py:100`.\n\n"
+        "2. **Second risk** — risk two. `bin/run_playbook.py:200`.\n"
+    )
+
+    # Pattern Applicability Matrix: 3 FULL rows (lower bound of 3-4
+    # inclusive), 2 SKIP rows.
+    matrix_section = (
+        "## Pattern Applicability Matrix\n\n"
+        "| Pattern | Decision (`FULL` / `SKIP`) | Target | Why |\n"
+        "|---|---|---|---|\n"
+        "| Fallback Parity | `FULL` | bin/ | Reason |\n"
+        "| Cross-Implementation | `FULL` | bin/ | Reason |\n"
+        "| API Surface | `FULL` | bin/ | Reason |\n"
+        "| Dispatch Returns | `SKIP` | CLI | Reason |\n"
+        "| Spec Parsing | `SKIP` | parsers | Reason |\n"
+    )
+
+    # 3 Pattern Deep Dive sections; 2 of them cite ≥2 distinct
+    # identifiers OR ≥2 distinct file:line refs (multi-function).
+    deep_dives = (
+        "## Pattern Deep Dive — Fallback Parity\n\n"
+        "- Cites `docs_present` and `_evaluate_documentation_state` "
+        "across `bin/run_playbook.py:1560-1575` and "
+        "`bin/run_playbook.py:1661-1669`.\n"
+        "\n"
+        "## Pattern Deep Dive — Cross-Implementation\n\n"
+        "- Cites `validate_phase_artifacts` and `check_phase_gate` "
+        "across `bin/run_state_lib.py:158-200` and "
+        "`bin/run_playbook.py:830-840`.\n"
+        "\n"
+        "## Pattern Deep Dive — API Surface\n\n"
+        "- Cites `_reference_docs_plaintext` and `formal_docs_guard_banner` "
+        "across `bin/run_playbook.py:1583-1595` and "
+        "`bin/run_playbook.py:1598-1621`.\n"
+    )
+
+    candidate_section = (
+        "## Candidate Bugs for Phase 2\n\n"
+        "1. **HIGH — first bug**\n"
+        "   - Stage: open exploration\n"
+        "   - Evidence: `bin/run_playbook.py:1560-1575`.\n"
+        "\n"
+        "2. **HIGH — second bug**\n"
+        "   - Stage: open exploration + Fallback Parity\n"
+        "   - Evidence: `bin/reference_docs_ingest.py:90-94`.\n"
+        "\n"
+        "3. **MEDIUM — third bug**\n"
+        "   - Stage: quality risks\n"
+        "   - Evidence: `bin/run_state_lib.py:171-198`.\n"
+    )
+
+    gate_section = (
+        "## Gate Self-Check\n\n"
+        "All 13 SKILL.md:1257-1273 checks satisfied.\n"
+    )
+
+    # Filler to clear 120 lines.
+    filler = "\n".join(f"<!-- filler {i} -->" for i in range(60)) + "\n"
+
+    return (
+        "# Exploration\n\n"
+        + findings_section + "\n"
+        + risks_section + "\n"
+        + matrix_section + "\n"
+        + deep_dives + "\n"
+        + candidate_section + "\n"
+        + gate_section + "\n"
+        + filler
+    )
+
+
+def _write_canonical_phase1_fixture(quality: Path, *,
+                                    skip_progress: bool = False) -> None:
+    """Write the minimal-canonical EXPLORATION.md + PROGRESS.md to
+    ``quality`` so all 13 phase-1 checks pass."""
+    quality.mkdir(parents=True, exist_ok=True)
+    (quality / "EXPLORATION.md").write_text(
+        _canonical_phase1_exploration_md(), encoding="utf-8",
+    )
+    if not skip_progress:
+        (quality / "PROGRESS.md").write_text(
+            "# Quality Playbook Progress\n\n"
+            "## Phase tracker\n\n"
+            "- [x] Phase 1 - Explore\n"
+            "- [ ] Phase 2 - Generate\n",
+            encoding="utf-8",
+        )
+
+
 class ValidatePhaseArtifactsTests(unittest.TestCase):
     def test_validate_phase_artifacts_phase1_missing_file(self) -> None:
         with TemporaryDirectory() as temp_dir:
@@ -165,53 +272,38 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
             self.assertFalse(ok)
             self.assertIn("EXPLORATION.md", reason)
 
-    def test_validate_phase_artifacts_phase1_present(self) -> None:
+    def test_validate_phase_artifacts_phase1_canonical_passes(self) -> None:
+        """v1.5.6 BUG-005 (codex bootstrap): the canonical-minimal
+        EXPLORATION.md + PROGRESS.md fixture (built to satisfy all 13
+        SKILL.md:1257-1273 checks) must pass."""
         with TemporaryDirectory() as temp_dir:
             quality = Path(temp_dir)
-            # v1.5.6 BUG-005: Phase 1 validator now requires ≥120 lines
-            # (aligned with Phase 2 startup gate); pad with ≥120 lines.
-            body_lines = ["filler line " + str(i) for i in range(150)]
-            content = (
-                "# Exploration\n\n"
-                "## Finding 1: something interesting\n\n"
-                + "\n".join(body_lines)
-                + "\n"
-            )
-            (quality / "EXPLORATION.md").write_text(
-                content, encoding="utf-8"
-            )
+            _write_canonical_phase1_fixture(quality)
             ok, reason = lib.validate_phase_artifacts(quality, 1)
             self.assertTrue(ok, msg=reason)
             self.assertEqual(reason, "")
 
-    def test_validate_phase_artifacts_phase1_open_exploration_findings_heading(self) -> None:
-        """v1.5.6 BUG-004: the SKILL.md-prescribed exact heading
-        ``## Open Exploration Findings`` (SKILL.md:1133, 1209, 1260)
-        was rejected by the pre-fix regex. After the fix it must be
-        accepted."""
-        with TemporaryDirectory() as temp_dir:
-            quality = Path(temp_dir)
-            body_lines = ["finding entry " + str(i) for i in range(150)]
-            content = (
-                "# Exploration\n\n"
-                "## Open Exploration Findings\n\n"
-                + "\n".join(body_lines)
-                + "\n"
+    def test_validate_phase_artifacts_phase1_actual_qpb_exploration_passes(self) -> None:
+        """Calibration sanity: the actual QPB-self-bootstrap
+        EXPLORATION.md from the 2026-05-08 codex run must pass.
+        If this fails, the validator is too strict OR the canonical
+        artifact has drifted (which would itself be a finding)."""
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        canonical_quality = repo_root / "quality"
+        if not (canonical_quality / "EXPLORATION.md").is_file():
+            self.skipTest(
+                f"canonical {canonical_quality}/EXPLORATION.md not present "
+                "in this checkout — skipping calibration test"
             )
-            (quality / "EXPLORATION.md").write_text(
-                content, encoding="utf-8"
-            )
-            ok, reason = lib.validate_phase_artifacts(quality, 1)
-            self.assertTrue(
-                ok,
-                msg=f"BUG-004 regression: '## Open Exploration Findings' "
-                f"rejected as invalid Phase 1 finding section. reason={reason!r}",
-            )
+        ok, reason = lib.validate_phase_artifacts(canonical_quality, 1)
+        self.assertTrue(
+            ok,
+            f"Validator rejected the canonical EXPLORATION.md from the "
+            f"codex bootstrap run: {reason!r}",
+        )
 
-    def test_validate_phase_artifacts_phase1_too_short(self) -> None:
-        """v1.5.6 BUG-005: short EXPLORATION.md fails on the 120-line
-        threshold (was 200-byte pre-fix). The reason string must
-        mention the line-count threshold so operators can fix it."""
+    def test_phase1_validator_rejects_too_short(self) -> None:
+        """Check 1: <120 lines fails."""
         with TemporaryDirectory() as temp_dir:
             quality = Path(temp_dir)
             (quality / "EXPLORATION.md").write_text(
@@ -219,57 +311,284 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
             )
             ok, reason = lib.validate_phase_artifacts(quality, 1)
             self.assertFalse(ok)
-            self.assertIn("120", reason)
-            self.assertIn("lines", reason)
+            self.assertIn("≥120", reason)
 
-    def test_validate_phase_artifacts_phase1_threshold_matches_phase2_gate(self) -> None:
-        """v1.5.6 BUG-005: Phase 1 validator and Phase 2 startup gate
-        share a single threshold (120 lines). A 119-line EXPLORATION.md
-        with a finding section must FAIL the Phase 1 validator (so it
-        cannot pass Phase 1 and then immediately fail Phase 2 startup)
-        — and a 120-line EXPLORATION.md must PASS."""
+    def test_phase1_validator_rejects_missing_open_exploration_findings(self) -> None:
+        """Check 2: missing ## Open Exploration Findings."""
         with TemporaryDirectory() as temp_dir:
             quality = Path(temp_dir)
-            # Build a 119-line EXPLORATION.md with a valid finding heading.
-            body_119 = ["## Finding 1\n"] + ["x\n"] * 117 + ["x"]
-            self.assertEqual(len("".join(body_119).splitlines()), 119)
-            (quality / "EXPLORATION.md").write_text(
-                "".join(body_119), encoding="utf-8"
-            )
-            ok_119, reason_119 = lib.validate_phase_artifacts(quality, 1)
-            self.assertFalse(
-                ok_119,
-                "Phase 1 validator must reject a 119-line "
-                "EXPLORATION.md; Phase 2 startup gate would also "
-                "reject it. (BUG-005 alignment.)"
-            )
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            text = text.replace("## Open Exploration Findings", "## Random Other")
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("Open Exploration Findings", reason)
 
-            # 120-line file passes.
-            body_120 = ["## Finding 1\n"] + ["x\n"] * 118 + ["x"]
-            self.assertEqual(len("".join(body_120).splitlines()), 120)
-            (quality / "EXPLORATION.md").write_text(
-                "".join(body_120), encoding="utf-8"
-            )
-            ok_120, reason_120 = lib.validate_phase_artifacts(quality, 1)
-            self.assertTrue(
-                ok_120,
-                f"Phase 1 validator must accept a 120-line "
-                f"EXPLORATION.md (matches Phase 2 startup gate). "
-                f"reason={reason_120!r}"
-            )
-
-    def test_validate_phase_artifacts_phase1_no_finding_section(self) -> None:
+    def test_phase1_validator_rejects_missing_quality_risks(self) -> None:
+        """Check 3: missing ## Quality Risks."""
         with TemporaryDirectory() as temp_dir:
             quality = Path(temp_dir)
-            # ≥120 lines but no finding section — must fail on the
-            # heading-regex check, not the line-count check.
-            body_lines = ["filler line " + str(i) for i in range(150)]
-            (quality / "EXPLORATION.md").write_text(
-                "\n".join(body_lines) + "\n", encoding="utf-8",
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            text = text.replace("## Quality Risks", "## Risks Renamed")
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("Quality Risks", reason)
+
+    def test_phase1_validator_rejects_missing_pattern_applicability_matrix(self) -> None:
+        """Check 4: missing ## Pattern Applicability Matrix."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            text = text.replace(
+                "## Pattern Applicability Matrix", "## Patterns Considered"
+            )
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("Pattern Applicability Matrix", reason)
+
+    def test_phase1_validator_rejects_under_3_pattern_deep_dives(self) -> None:
+        """Check 5: <3 ## Pattern Deep Dive — sections fails."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            # Drop two of the three deep dives.
+            text = text.replace("## Pattern Deep Dive — Cross-Implementation", "## Removed-A")
+            text = text.replace("## Pattern Deep Dive — API Surface", "## Removed-B")
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("pattern deep dives", reason)
+
+    def test_phase1_validator_rejects_missing_candidate_bugs(self) -> None:
+        """Check 6: missing ## Candidate Bugs for Phase 2."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            text = text.replace(
+                "## Candidate Bugs for Phase 2", "## Bugs Renamed"
+            )
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("Candidate Bugs for Phase 2", reason)
+
+    def test_phase1_validator_rejects_missing_gate_self_check(self) -> None:
+        """Check 7: missing ## Gate Self-Check."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            text = text.replace("## Gate Self-Check", "## Gate Renamed")
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("Gate Self-Check", reason)
+
+    def test_phase1_validator_rejects_progress_md_unmarked(self) -> None:
+        """Check 8: PROGRESS.md missing the [x] Phase 1 mark."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            (quality / "PROGRESS.md").write_text(
+                "# Quality Playbook Progress\n\n"
+                "## Phase tracker\n\n"
+                "- [ ] Phase 1 - Explore\n",
+                encoding="utf-8",
             )
             ok, reason = lib.validate_phase_artifacts(quality, 1)
             self.assertFalse(ok)
-            self.assertIn("finding section", reason)
+            self.assertIn("PROGRESS.md", reason)
+            self.assertIn("Phase 1", reason)
+
+    def test_phase1_validator_rejects_under_8_findings(self) -> None:
+        """Check 9: <8 numbered findings with file:line citations."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            # Strip the numbered findings block; replace with 4 entries.
+            findings = "\n".join(
+                f"{i}. `bin/run_playbook.py:{100 + i}-{105 + i}` and "
+                f"`bin/run_state_lib.py:{200 + i}-{205 + i}` finding {i}.\n"
+                for i in range(1, 5)
+            )
+            new_block = "## Open Exploration Findings\n\n" + findings + "\n"
+            old_block_start = text.index("## Open Exploration Findings")
+            old_block_end = text.index("## Quality Risks")
+            text = text[:old_block_start] + new_block + text[old_block_end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("≥8", reason)
+
+    def test_phase1_validator_rejects_under_3_multilocation_findings(self) -> None:
+        """Check 10: <3 findings citing ≥2 distinct file:line locations."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            # 8 findings but only 1 cites multiple locations.
+            findings_lines = [
+                "1. `bin/run_playbook.py:100-105` and `bin/run_state_lib.py:200-205` "
+                "multi-location finding 1.\n"
+            ]
+            for i in range(2, 9):
+                findings_lines.append(
+                    f"{i}. `bin/run_playbook.py:{200 + i}-{205 + i}` "
+                    f"single-location finding {i}.\n"
+                )
+            new_block = (
+                "## Open Exploration Findings\n\n" + "\n".join(findings_lines) + "\n"
+            )
+            old_block_start = text.index("## Open Exploration Findings")
+            old_block_end = text.index("## Quality Risks")
+            text = text[:old_block_start] + new_block + text[old_block_end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("multi-location", reason)
+
+    def test_phase1_validator_rejects_full_count_below_3(self) -> None:
+        """Check 11 lower bound: <3 FULL rows in matrix."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            # Replace 2 FULL rows with SKIP, leaving only 1 FULL.
+            text = text.replace(
+                "| Cross-Implementation | `FULL` | bin/ | Reason |",
+                "| Cross-Implementation | `SKIP` | bin/ | Reason |", 1,
+            )
+            text = text.replace(
+                "| API Surface | `FULL` | bin/ | Reason |",
+                "| API Surface | `SKIP` | bin/ | Reason |", 1,
+            )
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("FULL count", reason)
+            self.assertIn("too low", reason)
+
+    def test_phase1_validator_rejects_full_count_above_4(self) -> None:
+        """Check 11 upper bound: >4 FULL rows in matrix."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            # Convert both SKIP rows to FULL → 5 FULL total.
+            text = text.replace(
+                "| Dispatch Returns | `SKIP` | CLI | Reason |",
+                "| Dispatch Returns | `FULL` | CLI | Reason |", 1,
+            )
+            text = text.replace(
+                "| Spec Parsing | `SKIP` | parsers | Reason |",
+                "| Spec Parsing | `FULL` | parsers | Reason |", 1,
+            )
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("FULL count", reason)
+            self.assertIn("too high", reason)
+
+    def test_phase1_validator_rejects_under_2_multifunction_deep_dives(self) -> None:
+        """Check 12: <2 multi-function pattern deep dives."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            # Replace the deep-dive block with 3 single-function sections.
+            old_dives_start = text.index("## Pattern Deep Dive — Fallback Parity")
+            old_dives_end = text.index("## Candidate Bugs for Phase 2")
+            new_dives = (
+                "## Pattern Deep Dive — Fallback Parity\n\n"
+                "- Single function `docs_present` only.\n\n"
+                "## Pattern Deep Dive — Cross-Implementation\n\n"
+                "- Single function `check_phase_gate` only.\n\n"
+                "## Pattern Deep Dive — API Surface\n\n"
+                "- Single function `_reference_docs_plaintext` only.\n\n"
+            )
+            text = text[:old_dives_start] + new_dives + text[old_dives_end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("multi-function pattern deep dives", reason)
+
+    def test_phase1_validator_rejects_candidate_bugs_missing_deep_dive_source(self) -> None:
+        """Check 13b: Candidate Bugs all from exploration/risks, none from
+        pattern deep dive."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            old_block_start = text.index("## Candidate Bugs for Phase 2")
+            old_block_end = text.index("## Gate Self-Check")
+            new_block = (
+                "## Candidate Bugs for Phase 2\n\n"
+                "1. **HIGH — first**\n"
+                "   - Stage: open exploration\n\n"
+                "2. **HIGH — second**\n"
+                "   - Stage: open exploration\n\n"
+                "3. **MEDIUM — third**\n"
+                "   - Stage: quality risks\n\n"
+            )
+            text = text[:old_block_start] + new_block + text[old_block_end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("candidate bugs source mix", reason)
+
+    def test_phase1_validator_rejects_candidate_bugs_missing_exploration_source(self) -> None:
+        """Check 13a: Candidate Bugs all from pattern deep dive, none from
+        exploration/risks."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            old_block_start = text.index("## Candidate Bugs for Phase 2")
+            old_block_end = text.index("## Gate Self-Check")
+            new_block = (
+                "## Candidate Bugs for Phase 2\n\n"
+                "1. **HIGH — first**\n"
+                "   - Stage: API Surface Consistency\n\n"
+                "2. **HIGH — second**\n"
+                "   - Stage: Fallback Parity\n\n"
+                "3. **MEDIUM — third**\n"
+                "   - Stage: Cross-Implementation\n\n"
+            )
+            text = text[:old_block_start] + new_block + text[old_block_end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("candidate bugs source mix", reason)
+
+    def test_phase1_validator_aggregates_multiple_failures(self) -> None:
+        """Multiple failures must aggregate into a multi-line message
+        rather than short-circuiting on the first."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            (quality / "EXPLORATION.md").write_text(
+                "# Exploration\n\n"
+                "## Unrelated heading\n"
+                + "\n".join(f"line {i}" for i in range(150)),
+                encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            # At least 3 distinct failure messages should be present
+            # (missing headings, no findings, no matrix, etc.).
+            self.assertGreaterEqual(
+                len([line for line in reason.splitlines() if line.startswith("Phase 1 gate:")]),
+                3,
+                f"expected ≥3 aggregated 'Phase 1 gate:' failure lines, "
+                f"got: {reason!r}",
+            )
 
     def test_validate_phase_artifacts_phase2_generate_contract(self) -> None:
         """v1.5.6 BUG-014 (Conclusion C): Phase 2 validator must check

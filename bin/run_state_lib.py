@@ -44,19 +44,64 @@ _REQUIRED_FIELDS: tuple[str, ...] = ("ts", "event")
 # Per-schema-doc valid phase numbers.
 _VALID_PHASES: frozenset[int] = frozenset({1, 2, 3, 4, 5, 6})
 
-# Regex used by Phase 1's artifact validator to detect a finding section
-# header. Matches:
-#   - ``## Finding ...`` (or ``## Findings ...`` — substring match)
-#   - ``## Open Exploration Findings`` (the SKILL.md-prescribed exact
-#     heading at SKILL.md:1133, 1209, 1260)
-#   - ``## N.`` for any digit-prefixed numbered heading
-# v1.5.6 BUG-004: pre-fix the regex rejected ``## Open Exploration Findings``,
-# the heading SKILL.md tells Phase 1 to write. EXPLORATION.md files
-# produced by SKILL-conformant runs were marked invalid by this validator
-# even though they matched the documented Phase 1 contract.
-_FINDING_SECTION_RE = re.compile(
-    r"^##\s+(Finding|Open Exploration Findings|\d+\.)",
-    re.MULTILINE,
+# v1.5.6 BUG-005 (codex bootstrap, 2026-05-08): Phase 1 validator
+# enforces the full SKILL.md:1257-1273 entry gate (13 checks). The
+# old single-regex check covered approximately 1 of those 13 — a
+# 120-line placeholder with one ``## Open Exploration Findings``
+# heading and no analytical content passed validation, recreating
+# the v1.5.5-era "phase reported complete with shallow output"
+# failure mode the validator was added to catch.
+
+# Required exact section headings under EXPLORATION.md (checks 2-7).
+_REQUIRED_PHASE1_HEADINGS: tuple[str, ...] = (
+    "## Open Exploration Findings",
+    "## Quality Risks",
+    "## Pattern Applicability Matrix",
+    "## Candidate Bugs for Phase 2",
+    "## Gate Self-Check",
+)
+_PATTERN_DEEP_DIVE_PREFIX = "## Pattern Deep Dive — "
+_MIN_PATTERN_DEEP_DIVES = 3  # check 5
+
+# Per-section analytical minima (checks 9-13).
+_MIN_OPEN_EXPLORATION_FINDINGS = 8         # check 9
+_MIN_MULTILOCATION_FINDINGS = 3            # check 10
+_MIN_FULL_PATTERNS = 3                     # check 11 lower bound
+_MAX_FULL_PATTERNS = 4                     # check 11 upper bound
+_MIN_MULTIFUNCTION_DEEP_DIVES = 2          # check 12
+_MIN_CANDIDATE_BUGS_EXPLORATION_RISKS = 2  # check 13a
+_MIN_CANDIDATE_BUGS_DEEP_DIVE = 1          # check 13b
+
+# Regex catalog. Permissive on the file:line citation form so a wide
+# variety of canonical formats parse correctly:
+#   bin/run_playbook.py:1568-1574
+#   bin/run_playbook.py:1583
+#   .github/skills/quality_gate/quality_gate.py:118
+_FILE_LINE_CITATION_RE = re.compile(
+    r"\b([\w./\-]+\.[A-Za-z0-9]{1,8}):(\d+(?:[-,\d]*)?)"
+)
+# Numbered top-level entries in a section (e.g. ``1.``, ``2.`` at line
+# start). Used to slice a section into per-entry sub-sections for
+# checks 9, 10, and 13.
+_NUMBERED_ENTRY_RE = re.compile(r"^(\d+)\.\s", re.MULTILINE)
+# Backtick-quoted identifier-shaped tokens. Used by check 12 to detect
+# multi-function pattern deep dives.
+_IDENTIFIER_TOKEN_RE = re.compile(r"`([A-Za-z_][A-Za-z_0-9.]*)`")
+# Pattern Applicability Matrix is a Markdown table. Each data row's
+# decision column carries either ``FULL`` or ``SKIP``, optionally
+# wrapped in backticks. Match a standalone ``FULL`` token (word boundary)
+# inside a table cell — i.e., between pipes, optionally surrounded by
+# backticks/whitespace.
+_FULL_CELL_RE = re.compile(
+    r"\|\s*`?(FULL)`?\s*\|"
+)
+# PROGRESS.md Phase 1 line.
+_PROGRESS_PHASE1_DONE_RE = re.compile(
+    r"^-\s*\[x\]\s*Phase\s*1\b", re.MULTILINE
+)
+# Stage label inside a Candidate Bugs entry.
+_CANDIDATE_STAGE_RE = re.compile(
+    r"^\s*-\s*Stage\s*:\s*(.+)$", re.MULTILINE | re.IGNORECASE
 )
 
 # Regex used by Phase 6's artifact validator to detect a ``BUG-`` entry
@@ -155,6 +200,214 @@ def last_in_progress_phase(events: list[Event]) -> Optional[int]:
     return open_phases[-1]
 
 
+def _slice_h2_section(text: str, heading: str) -> str:
+    """Return the body of the ``## <heading>`` section, ending at the
+    next ``## `` heading (any sibling top-level section) or EOF.
+
+    Returns an empty string when the heading is absent.
+    """
+    pattern = re.compile(
+        rf"(?ms)^{re.escape(heading)}\s*$\n(.*?)(?=^## |\Z)"
+    )
+    m = pattern.search(text)
+    return m.group(1) if m else ""
+
+
+def _slice_h2_sections_by_prefix(text: str, prefix: str) -> list[tuple[str, str]]:
+    """Return a list of ``(full_heading, body)`` for every ``## `` section
+    whose heading starts with ``prefix``."""
+    pattern = re.compile(
+        rf"(?ms)^({re.escape(prefix)}.*?)\s*$\n(.*?)(?=^## |\Z)"
+    )
+    return [(m.group(1), m.group(2)) for m in pattern.finditer(text)]
+
+
+def _slice_numbered_entries(section_body: str) -> list[str]:
+    """Return per-entry sub-strings of a section that's structured as a
+    numbered list (``1.``, ``2.``, ... at line start). Each returned
+    string runs from one numbered entry to the next."""
+    matches = list(_NUMBERED_ENTRY_RE.finditer(section_body))
+    if not matches:
+        return []
+    entries: list[str] = []
+    for i, m in enumerate(matches):
+        start = m.start()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(section_body)
+        entries.append(section_body[start:end])
+    return entries
+
+
+def _distinct_file_line_citations(text: str) -> set[tuple[str, str]]:
+    """Return the set of ``(file, line-or-range)`` citations in ``text``."""
+    return {(m.group(1), m.group(2)) for m in _FILE_LINE_CITATION_RE.finditer(text)}
+
+
+def _validate_phase1(quality_dir: Path) -> tuple[bool, str]:
+    """v1.5.6 BUG-005 (codex bootstrap): enforce all 13 SKILL.md:1257-1273
+    Phase 2 entry-gate checks.
+
+    Aggregates failures into a multi-line message rather than
+    short-circuiting on the first one. The ``(bool, str)`` interface
+    is unchanged.
+    """
+    failures: list[str] = []
+
+    path = quality_dir / "EXPLORATION.md"
+    if not path.is_file():
+        return (False, f"missing artifact: {path}")
+
+    text = path.read_text(encoding="utf-8", errors="ignore")
+    lines = text.splitlines()
+
+    # Check 1: ≥120 lines.
+    if len(lines) < 120:
+        failures.append(
+            f"Phase 1 gate: EXPLORATION.md has {len(lines)} lines; "
+            f"required ≥120; see SKILL.md:1259."
+        )
+
+    # Checks 2-4, 6, 7: required exact headings (Open Exploration Findings,
+    # Quality Risks, Pattern Applicability Matrix, Candidate Bugs for Phase 2,
+    # Gate Self-Check). Pattern Deep Dive count is check 5 below.
+    for heading in _REQUIRED_PHASE1_HEADINGS:
+        if not re.search(rf"(?m)^{re.escape(heading)}\s*$", text):
+            failures.append(
+                f"Phase 1 gate: missing required heading '{heading}'; "
+                f"see SKILL.md:1260-1265."
+            )
+
+    # Check 5: ≥3 Pattern Deep Dive sections.
+    deep_dives = _slice_h2_sections_by_prefix(text, _PATTERN_DEEP_DIVE_PREFIX)
+    if len(deep_dives) < _MIN_PATTERN_DEEP_DIVES:
+        failures.append(
+            f"Phase 1 gate: pattern deep dives — required ≥{_MIN_PATTERN_DEEP_DIVES} "
+            f"'## Pattern Deep Dive — ' sections, found {len(deep_dives)}; "
+            f"see SKILL.md:1263."
+        )
+
+    # Check 8: PROGRESS.md exists and Phase 1 is marked [x].
+    progress_path = quality_dir / "PROGRESS.md"
+    if not progress_path.is_file():
+        failures.append(
+            f"Phase 1 gate: missing artifact: {progress_path}; "
+            f"see SKILL.md:1266."
+        )
+    else:
+        progress_text = progress_path.read_text(encoding="utf-8", errors="ignore")
+        if not _PROGRESS_PHASE1_DONE_RE.search(progress_text):
+            failures.append(
+                f"Phase 1 gate: PROGRESS.md does not have Phase 1 marked "
+                f"as completed (expected '- [x] Phase 1 ...'); "
+                f"see SKILL.md:1266."
+            )
+
+    # Check 9: ≥8 numbered findings with file:line citations under
+    # ## Open Exploration Findings.
+    open_findings_body = _slice_h2_section(text, "## Open Exploration Findings")
+    finding_entries = _slice_numbered_entries(open_findings_body)
+    findings_with_citations = [
+        e for e in finding_entries if _FILE_LINE_CITATION_RE.search(e)
+    ]
+    if len(findings_with_citations) < _MIN_OPEN_EXPLORATION_FINDINGS:
+        failures.append(
+            f"Phase 1 gate: open exploration findings — required "
+            f"≥{_MIN_OPEN_EXPLORATION_FINDINGS} with file:line citations, "
+            f"found {len(findings_with_citations)}; see SKILL.md:1267."
+        )
+
+    # Check 10: ≥3 of those findings cite ≥2 distinct file:line locations.
+    multilocation_findings = sum(
+        1 for e in findings_with_citations
+        if len(_distinct_file_line_citations(e)) >= 2
+    )
+    if multilocation_findings < _MIN_MULTILOCATION_FINDINGS:
+        failures.append(
+            f"Phase 1 gate: multi-location findings — required "
+            f"≥{_MIN_MULTILOCATION_FINDINGS} findings tracing ≥2 distinct "
+            f"file:line locations, found {multilocation_findings}; "
+            f"see SKILL.md:1268."
+        )
+
+    # Check 11: Pattern Applicability Matrix has 3-4 FULL rows (inclusive).
+    matrix_body = _slice_h2_section(text, "## Pattern Applicability Matrix")
+    full_count = len(_FULL_CELL_RE.findall(matrix_body))
+    if not (_MIN_FULL_PATTERNS <= full_count <= _MAX_FULL_PATTERNS):
+        if full_count < _MIN_FULL_PATTERNS:
+            qual = "too low — exploration didn't pick enough patterns"
+        else:
+            qual = "too high — exploration ran every pattern instead of selecting"
+        failures.append(
+            f"Phase 1 gate: pattern matrix FULL count — required "
+            f"{_MIN_FULL_PATTERNS}-{_MAX_FULL_PATTERNS} (inclusive), "
+            f"found {full_count} ({qual}); see SKILL.md:1269."
+        )
+
+    # Check 12: ≥2 Pattern Deep Dive sections cite ≥2 distinct identifier
+    # tokens (multi-function traces).
+    multifunction_deep_dives = 0
+    for _heading, body in deep_dives:
+        identifiers = {m.group(1) for m in _IDENTIFIER_TOKEN_RE.finditer(body)}
+        # Fall-back signal: distinct file:line citations also count
+        # toward the multi-function threshold (a deep dive that cites
+        # bin/run_playbook.py:1560-1575 and bin/run_playbook.py:1583-1595
+        # is tracing two distinct functions even if the body doesn't
+        # backtick-quote their names).
+        citations = _distinct_file_line_citations(body)
+        if len(identifiers) >= 2 or len(citations) >= 2:
+            multifunction_deep_dives += 1
+    if multifunction_deep_dives < _MIN_MULTIFUNCTION_DEEP_DIVES:
+        failures.append(
+            f"Phase 1 gate: multi-function pattern deep dives — required "
+            f"≥{_MIN_MULTIFUNCTION_DEEP_DIVES} sections citing ≥2 distinct "
+            f"identifiers or file:line refs, found {multifunction_deep_dives}; "
+            f"see SKILL.md:1270."
+        )
+
+    # Check 13: Candidate Bugs source mix — ≥2 from exploration/risks AND
+    # ≥1 from pattern deep dive.
+    candidate_body = _slice_h2_section(text, "## Candidate Bugs for Phase 2")
+    candidate_entries = _slice_numbered_entries(candidate_body)
+    n_exploration_risks = 0
+    n_deep_dive = 0
+    for entry in candidate_entries:
+        stage_match = _CANDIDATE_STAGE_RE.search(entry)
+        if not stage_match:
+            continue
+        stage = stage_match.group(1).lower()
+        from_exp_or_risks = (
+            "open exploration" in stage
+            or "quality risks" in stage
+            or "risks" in stage
+        )
+        # Treat anything with content beyond "open exploration" / "quality
+        # risks" / "risks" tokens as deep-dive-sourced. Combo entries
+        # like "open exploration + Pattern Name" count toward both
+        # buckets.
+        residual = stage
+        for token in ("open exploration", "quality risks", "risks", "+", ","):
+            residual = residual.replace(token, " ")
+        from_deep_dive = bool(residual.strip())
+        if from_exp_or_risks:
+            n_exploration_risks += 1
+        if from_deep_dive:
+            n_deep_dive += 1
+    if (
+        n_exploration_risks < _MIN_CANDIDATE_BUGS_EXPLORATION_RISKS
+        or n_deep_dive < _MIN_CANDIDATE_BUGS_DEEP_DIVE
+    ):
+        failures.append(
+            f"Phase 1 gate: candidate bugs source mix — required "
+            f"≥{_MIN_CANDIDATE_BUGS_EXPLORATION_RISKS} from exploration/risks "
+            f"AND ≥{_MIN_CANDIDATE_BUGS_DEEP_DIVE} from pattern deep dive, "
+            f"found {n_exploration_risks} from exploration/risks AND "
+            f"{n_deep_dive} from pattern deep dive; see SKILL.md:1271."
+        )
+
+    if failures:
+        return (False, "\n".join(failures))
+    return (True, "")
+
+
 def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
     """Verify that the per-phase expected artifacts are present and
     well-formed under ``quality_dir``.
@@ -169,33 +422,7 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
         return (False, f"phase {phase!r} is not in 1..6")
 
     if phase == 1:
-        path = quality_dir / "EXPLORATION.md"
-        if not path.is_file():
-            return (False, f"missing artifact: {path}")
-        text = path.read_text(encoding="utf-8", errors="ignore")
-        # v1.5.6 BUG-005: align Phase 1 completion threshold with the
-        # Phase 2 startup gate (run_playbook.check_phase_gate phase=2,
-        # which requires EXPLORATION.md ≥120 lines). The pre-v1.5.6
-        # 200-byte threshold was strictly weaker — a Phase-1-complete
-        # artifact could pass this validator yet immediately fail the
-        # Phase 2 startup check, leaving the run wedged in a
-        # "phase 1 done, phase 2 won't start" state. The same
-        # 120-line threshold now applies to both gates.
-        line_count = len(text.splitlines())
-        if line_count < 120:
-            return (
-                False,
-                f"{path} has {line_count} lines; Phase 2 startup gate "
-                f"requires at least 120",
-            )
-        if not _FINDING_SECTION_RE.search(text):
-            return (
-                False,
-                f"{path} contains no finding section header "
-                f"(expected '## Finding', '## Open Exploration Findings', "
-                f"or '## N.')",
-            )
-        return (True, "")
+        return _validate_phase1(quality_dir)
 
     if phase == 2:
         # v1.5.6 BUG-014 (Conclusion C from instruction-019 investigation):
