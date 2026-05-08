@@ -607,7 +607,8 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
             self.assertFalse(ok)
             self.assertIn("REQUIREMENTS.md", reason)
 
-            # Stage all nine fixed-name Generate-contract artifacts as
+            # Stage all nine fixed-name Generate-contract artifacts +
+            # the two JSON manifests (071 BUG-003 expansion) as
             # non-empty files.
             for name in (
                 "REQUIREMENTS.md", "QUALITY.md", "CONTRACTS.md",
@@ -616,6 +617,12 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
                 "RUN_SPEC_AUDIT.md", "RUN_TDD_TESTS.md",
             ):
                 (quality / name).write_text("body\n", encoding="utf-8")
+            (quality / "requirements_manifest.json").write_text(
+                "[]\n", encoding="utf-8",
+            )
+            (quality / "use_cases_manifest.json").write_text(
+                "[]\n", encoding="utf-8",
+            )
 
             # Still missing test_functional.<ext> — must fail.
             ok, reason = lib.validate_phase_artifacts(quality, 2)
@@ -667,6 +674,8 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
                 "RUN_SPEC_AUDIT.md", "RUN_TDD_TESTS.md",
             ):
                 (quality / name).write_text("body\n", encoding="utf-8")
+            (quality / "requirements_manifest.json").write_text("[]\n", encoding="utf-8")
+            (quality / "use_cases_manifest.json").write_text("[]\n", encoding="utf-8")
             # Empty .py file but a non-empty .go file — still passes
             # because the validator's contract is "at least one
             # non-empty test_functional.*".
@@ -765,9 +774,23 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
             ok, reason = lib.validate_phase_artifacts(quality, 4)
             self.assertFalse(ok)
             self.assertIn("triage", reason)
-            # Both file types → passes.
+            # Both file types but no triage_probes.sh → fails (071 BUG-005).
             (quality / "spec_audits" / "2026-05-06-triage.md").write_text(
                 "# triage\n", encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertFalse(ok)
+            self.assertIn("triage_probes.sh", reason)
+            # Add the probes file → fails on missing semantic-check (071 BUG-005).
+            (quality / "spec_audits" / "triage_probes.sh").write_text(
+                "#!/bin/sh\nexit 0\n", encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertFalse(ok)
+            self.assertIn("citation_semantic_check.json", reason)
+            # Add the semantic-check artifact → passes.
+            (quality / "citation_semantic_check.json").write_text(
+                "{}\n", encoding="utf-8",
             )
             ok, reason = lib.validate_phase_artifacts(quality, 4)
             self.assertTrue(ok, msg=reason)
@@ -788,9 +811,16 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
             self.assertFalse(ok)
             self.assertIn("fewer than 2", reason)
             self.assertIn("naming convention", reason)
-            # Two arbitrarily-named files → passes (fallback).
+            # Two arbitrarily-named files + 071 BUG-005 artifacts (probes
+            # + semantic-check) → passes (fallback path preserved).
             (quality / "spec_audits" / "report-b.md").write_text(
                 "# b\n", encoding="utf-8",
+            )
+            (quality / "spec_audits" / "triage_probes.sh").write_text(
+                "#!/bin/sh\nexit 0\n", encoding="utf-8",
+            )
+            (quality / "citation_semantic_check.json").write_text(
+                "{}\n", encoding="utf-8",
             )
             ok, _ = lib.validate_phase_artifacts(quality, 4)
             self.assertTrue(ok)
@@ -1382,6 +1412,271 @@ class ValidateNoSourceEditsTests(unittest.TestCase):
             self.assertFalse(ok)
             # Untracked directory is emitted as 'quality_other/' by git.
             self.assertIn("quality_other/", violations)
+
+
+class Phase2_5ValidatorExpansionTests(unittest.TestCase):
+    """v1.5.6 fix-up 071 BUG-003/004/005/006: phase 2-5 validators
+    expanded to enforce SKILL.md's full artifact contract at the
+    phase boundary, extending instruction 066's pattern from Phase 1.
+    Pre-fix the validators tolerated incomplete artifact sets and
+    deferred the failure to the Phase 6 final gate — recreating the
+    v1.5.4 'phase reported complete with shallow output' UX failure
+    mode the validator system was added to close.
+    """
+
+    def _stage_phase2_artifacts(self, quality: Path, *, include_manifests: bool = True) -> None:
+        for name in (
+            "REQUIREMENTS.md", "QUALITY.md", "CONTRACTS.md",
+            "COVERAGE_MATRIX.md", "COMPLETENESS_REPORT.md",
+            "RUN_CODE_REVIEW.md", "RUN_INTEGRATION_TESTS.md",
+            "RUN_SPEC_AUDIT.md", "RUN_TDD_TESTS.md",
+        ):
+            (quality / name).write_text("body\n", encoding="utf-8")
+        (quality / "test_functional.py").write_text("def t(): pass\n", encoding="utf-8")
+        if include_manifests:
+            (quality / "requirements_manifest.json").write_text("[]\n", encoding="utf-8")
+            (quality / "use_cases_manifest.json").write_text("[]\n", encoding="utf-8")
+
+    # --- BUG-003: Phase 2 manifest enforcement ----------------------
+
+    def test_phase2_validator_rejects_missing_requirements_manifest(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            self._stage_phase2_artifacts(quality, include_manifests=False)
+            (quality / "use_cases_manifest.json").write_text("[]\n", encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 2)
+            self.assertFalse(ok)
+            self.assertIn("requirements_manifest.json", reason)
+
+    def test_phase2_validator_rejects_missing_use_cases_manifest(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            self._stage_phase2_artifacts(quality, include_manifests=False)
+            (quality / "requirements_manifest.json").write_text("[]\n", encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 2)
+            self.assertFalse(ok)
+            self.assertIn("use_cases_manifest.json", reason)
+
+    def test_phase2_validator_rejects_empty_requirements_manifest(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            self._stage_phase2_artifacts(quality, include_manifests=False)
+            (quality / "requirements_manifest.json").write_text("", encoding="utf-8")
+            (quality / "use_cases_manifest.json").write_text("[]\n", encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 2)
+            self.assertFalse(ok)
+            self.assertIn("requirements_manifest.json", reason)
+            self.assertIn("empty", reason)
+
+    # --- BUG-004: Phase 3 per-bug regression-test patches -----------
+
+    def _stage_phase3_artifacts(self, quality: Path, *, bug_ids: list[str], patches_for: list[str]) -> None:
+        (quality / "code_reviews").mkdir(parents=True)
+        (quality / "code_reviews" / "review.md").write_text("# review\n", encoding="utf-8")
+        bugs_md = "# Bugs\n\n" + "\n".join(
+            f"### BUG-{bid}: Sample\n**Severity**: HIGH\n" for bid in bug_ids
+        ) + "\n"
+        (quality / "BUGS.md").write_text(bugs_md, encoding="utf-8")
+        patches = quality / "patches"
+        patches.mkdir(parents=True)
+        for bid in patches_for:
+            (patches / f"BUG-{bid}-regression-test.patch").write_text(
+                "diff --git a/x b/x\n--- a/x\n+++ b/x\n", encoding="utf-8",
+            )
+
+    def test_phase3_validator_requires_one_patch_per_bug(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            # 3 BUG entries, only 2 patches (BUG-002 missing).
+            self._stage_phase3_artifacts(
+                quality, bug_ids=["001", "002", "003"], patches_for=["001", "003"]
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 3)
+            self.assertFalse(ok)
+            self.assertIn("BUG-002", reason)
+            self.assertIn("regression-test", reason)
+
+    def test_phase3_validator_passes_with_full_patch_coverage(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            self._stage_phase3_artifacts(
+                quality, bug_ids=["001", "002", "003"],
+                patches_for=["001", "002", "003"],
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 3)
+            self.assertTrue(ok, msg=reason)
+
+    def test_phase3_validator_handles_titled_and_bare_bug_headings(self) -> None:
+        """Regex matches archive_lib._BUG_HEADING_PATTERN — titled
+        AND bare forms recognized."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            (quality / "code_reviews").mkdir(parents=True)
+            (quality / "code_reviews" / "r.md").write_text("# r\n", encoding="utf-8")
+            (quality / "BUGS.md").write_text(
+                "### BUG-001\n### BUG-002: Titled\n### BUG-001-fix-2: Suffix\n",
+                encoding="utf-8",
+            )
+            (quality / "patches").mkdir()
+            for bid in ("001", "002", "001-fix-2"):
+                (quality / "patches" / f"BUG-{bid}-regression-test.patch").write_text(
+                    "diff\n", encoding="utf-8",
+                )
+            ok, reason = lib.validate_phase_artifacts(quality, 3)
+            self.assertTrue(ok, msg=reason)
+
+    # --- BUG-005: Phase 4 triage probes + semantic check ------------
+
+    def _stage_phase4_artifacts(
+        self, quality: Path, *,
+        include_probes: bool = True,
+        include_semantic: bool = True,
+    ) -> None:
+        spec_audits = quality / "spec_audits"
+        spec_audits.mkdir(parents=True)
+        (spec_audits / "2026-05-08-triage.md").write_text("# triage\n", encoding="utf-8")
+        (spec_audits / "2026-05-08-auditor-1.md").write_text("# a\n", encoding="utf-8")
+        if include_probes:
+            (spec_audits / "triage_probes.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        if include_semantic:
+            (quality / "citation_semantic_check.json").write_text("{}\n", encoding="utf-8")
+
+    def test_phase4_validator_rejects_missing_triage_probes(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            self._stage_phase4_artifacts(quality, include_probes=False)
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertFalse(ok)
+            self.assertIn("triage_probes.sh", reason)
+
+    def test_phase4_validator_rejects_missing_citation_semantic_check(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            self._stage_phase4_artifacts(quality, include_semantic=False)
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertFalse(ok)
+            self.assertIn("citation_semantic_check.json", reason)
+
+    def test_phase4_validator_accepts_empty_citation_semantic_check(self) -> None:
+        """An empty {} JSON should pass the presence check —
+        Tier-3-only runs produce empty-but-valid semantic-check
+        artifacts. Content validation belongs to the final gate."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            self._stage_phase4_artifacts(quality, include_semantic=False)
+            (quality / "citation_semantic_check.json").write_text(
+                "{}\n", encoding="utf-8",
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertTrue(ok, msg=reason)
+
+    def test_phase4_validator_preserves_naming_convention_flexibility(self) -> None:
+        """Backward-compat — the existing triage-or-auditor-or-fallback
+        pattern still works alongside the new BUG-005 requirements."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            spec_audits = quality / "spec_audits"
+            spec_audits.mkdir()
+            # Arbitrary names (no triage/auditor in name) — fallback pattern.
+            (spec_audits / "report-a.md").write_text("# a\n", encoding="utf-8")
+            (spec_audits / "report-b.md").write_text("# b\n", encoding="utf-8")
+            (spec_audits / "triage_probes.sh").write_text("#!/bin/sh\n", encoding="utf-8")
+            (quality / "citation_semantic_check.json").write_text("{}\n", encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 4)
+            self.assertTrue(
+                ok,
+                msg=f"backward-compat fallback (≥2 .md files when neither "
+                    f"naming convention is used) must still pass when the "
+                    f"new BUG-005 artifacts are present. reason={reason!r}",
+            )
+
+    # --- BUG-006: Phase 5 green logs for fix-bearing bugs -----------
+
+    def _stage_phase5_artifacts(
+        self, quality: Path, *, bug_ids: list[str],
+        with_red: list[str], with_green: list[str],
+        with_fix_patch: list[str],
+    ) -> None:
+        (quality / "BUGS.md").write_text(
+            "\n".join(f"### BUG-{bid}: Sample\n" for bid in bug_ids),
+            encoding="utf-8",
+        )
+        (quality / "results").mkdir(parents=True)
+        (quality / "results" / "tdd-results.json").write_text(
+            '{"results":[]}\n', encoding="utf-8",
+        )
+        (quality / "writeups").mkdir(parents=True)
+        (quality / "patches").mkdir(parents=True)
+        for bid in bug_ids:
+            (quality / "writeups" / f"BUG-{bid}.md").write_text("# w\n", encoding="utf-8")
+        for bid in with_red:
+            (quality / "results" / f"BUG-{bid}.red.log").write_text("RED\n", encoding="utf-8")
+        for bid in with_green:
+            (quality / "results" / f"BUG-{bid}.green.log").write_text("GREEN\n", encoding="utf-8")
+        for bid in with_fix_patch:
+            (quality / "patches" / f"BUG-{bid}-fix.patch").write_text("diff\n", encoding="utf-8")
+
+    def test_phase5_validator_requires_green_log_for_fix_bearing_bug(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            # BUG-001: red + fix patch but no green log → fail.
+            self._stage_phase5_artifacts(
+                quality, bug_ids=["001"],
+                with_red=["001"], with_green=[],
+                with_fix_patch=["001"],
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 5)
+            self.assertFalse(ok)
+            self.assertIn("BUG-001", reason)
+            self.assertIn("green", reason.lower())
+
+    def test_phase5_validator_skips_green_check_for_red_only_bug(self) -> None:
+        """Code-review-only bug (no fix patch) — red-only is acceptable."""
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            self._stage_phase5_artifacts(
+                quality, bug_ids=["002"],
+                with_red=["002"], with_green=[],
+                with_fix_patch=[],  # no fix patch → no green required
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 5)
+            self.assertTrue(ok, msg=reason)
+
+    def test_phase5_validator_passes_with_full_red_green_coverage(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            self._stage_phase5_artifacts(
+                quality, bug_ids=["001", "002"],
+                with_red=["001", "002"],
+                with_green=["001", "002"],
+                with_fix_patch=["001", "002"],
+            )
+            ok, reason = lib.validate_phase_artifacts(quality, 5)
+            self.assertTrue(ok, msg=reason)
+
+    # --- Calibration sanity check (mandatory per spec) --------------
+
+    def test_phase_2_5_validators_accept_canonical_bootstrap_evidence(self) -> None:
+        """The new validators MUST accept the canonical 2026-05-08
+        codex bootstrap evidence at quality/previous_runs/20260508-codex-bootstrap/.
+        If any phase rejects, the validator is too strict (or the
+        canonical evidence has drifted, which would itself be a
+        finding). Required calibration sanity per instruction 071."""
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        canonical = repo_root / "quality" / "previous_runs" / "20260508-codex-bootstrap"
+        if not canonical.is_dir():
+            self.skipTest(
+                f"canonical bootstrap evidence absent: {canonical} "
+                "— skipping calibration test"
+            )
+        for phase in (2, 3, 4, 5):
+            with self.subTest(phase=phase):
+                ok, reason = lib.validate_phase_artifacts(canonical, phase)
+                self.assertTrue(
+                    ok,
+                    f"validator rejected canonical bootstrap evidence for "
+                    f"phase {phase}: {reason!r}",
+                )
 
 
 class EmptyEventTypesWhitelistTests(unittest.TestCase):

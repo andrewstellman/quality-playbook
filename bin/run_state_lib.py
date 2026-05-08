@@ -440,12 +440,18 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
         # the v1.5.5 design's triage model (EXPLORATION_MERGED.md,
         # triage.md) was never adopted by the shipped SKILL.md /
         # orchestrator_protocol.md / agent files — they document Phase 2
-        # as Generate, producing a 9-artifact contract plus one
-        # functional-test file. Validate the shipped Generate contract
-        # so a successful Phase 2 cannot fail this validator. The
-        # canonical Generate contract is documented in
-        # references/orchestrator_protocol.md (Phase 2 row, fixed by
-        # cluster 3 / commit 7ab8ef4) and SKILL.md Phase 2 prose.
+        # as Generate, producing a 9-markdown + 2-manifest + 1
+        # functional-test contract.
+        #
+        # v1.5.6 fix-up 071 BUG-003: extended to enforce the JSON
+        # manifests SKILL.md:1312-1322 and phase_prompts/phase2.md
+        # declare as Phase 2 outputs (requirements_manifest.json,
+        # use_cases_manifest.json). Pre-fix the validator silently
+        # tolerated a Phase 2 with the markdown deliverables but no
+        # manifests, deferring the failure to the Phase 6 final gate
+        # — the same UX failure mode instruction 066 closed at
+        # Phase 1. Same logic applies here: phase boundaries should
+        # reject incomplete artifact sets at the boundary, not defer.
         required_fixed = (
             "REQUIREMENTS.md",
             "QUALITY.md",
@@ -456,6 +462,8 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
             "RUN_INTEGRATION_TESTS.md",
             "RUN_SPEC_AUDIT.md",
             "RUN_TDD_TESTS.md",
+            "requirements_manifest.json",
+            "use_cases_manifest.json",
         )
         for name in required_fixed:
             candidate = quality_dir / name
@@ -511,10 +519,25 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
         # quality/patches/. The orchestrator_protocol.md contract
         # says "if bugs were confirmed", so we only enforce when
         # BUGS.md has at least one ### BUG- heading.
+        #
+        # v1.5.6 fix-up 071 BUG-004: enumerate the BUG IDs and require
+        # a per-bug regression-test patch (one BUG-NNN-regression-test.patch
+        # per BUG-NNN). Pre-fix the check only verified that AT LEAST
+        # ONE regression-test patch existed — a Phase 3 with N bugs
+        # and 1 patch passed the validator while the missing N-1
+        # patches were left for the final gate to catch.
         bugs_md = quality_dir / "BUGS.md"
         if bugs_md.is_file():
             bugs_text = bugs_md.read_text(encoding="utf-8", errors="ignore")
-            if re.search(r"^###\s+BUG-", bugs_text, re.MULTILINE):
+            # Match archive_lib._BUG_HEADING_PATTERN's titled-and-bare
+            # form so future BUG-NNN-suffix forms (e.g., BUG-001-fix-2)
+            # are handled consistently.
+            bug_id_re = re.compile(
+                r"^###\s+BUG-([A-Za-z0-9][A-Za-z0-9\-]*)(?::\s+.+)?\s*$",
+                re.MULTILINE,
+            )
+            bug_ids_p3 = sorted({m.group(1) for m in bug_id_re.finditer(bugs_text)})
+            if bug_ids_p3:
                 patches_dir = quality_dir / "patches"
                 if not patches_dir.is_dir():
                     return (
@@ -523,19 +546,18 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
                         f"{patches_dir}/ is missing (every confirmed "
                         f"bug needs a regression-test patch)",
                     )
-                # Look for at least one regression-test patch — an
-                # absent patches/ dir or one with only fix patches
-                # (no -regression-test.patch) means the gate would
-                # fail anyway, but we surface the issue here too.
-                regression_patches = list(
-                    patches_dir.glob("BUG-*-regression-test.patch")
-                )
-                if not regression_patches:
+                missing_patches: list[str] = []
+                for bug_id in bug_ids_p3:
+                    patch_path = patches_dir / f"BUG-{bug_id}-regression-test.patch"
+                    if not patch_path.is_file():
+                        missing_patches.append(f"BUG-{bug_id}")
+                if missing_patches:
                     return (
                         False,
-                        f"{patches_dir}/ contains no "
-                        f"BUG-*-regression-test.patch files "
-                        f"(every confirmed BUG needs one)",
+                        f"missing regression-test patches in "
+                        f"{patches_dir}/ for: {', '.join(missing_patches)} "
+                        f"(every confirmed BUG needs a "
+                        f"BUG-NNN-regression-test.patch)",
                     )
         return (True, "")
 
@@ -598,6 +620,27 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
                 f"{spec_audits_dir}/ contains a triage file but no "
                 f"auditor files (look for *-auditor-*.md)",
             )
+        # v1.5.6 fix-up 071 BUG-005: Phase 4 also produces executable
+        # triage probes + a semantic-check artifact. Required artifact
+        # presence (not content) — Tier-3-only runs still produce an
+        # empty-but-valid citation_semantic_check.json. Added AFTER
+        # the existing flexible triage/auditor file detection so the
+        # backward-compat naming-convention surface is preserved.
+        probes_path = spec_audits_dir / "triage_probes.sh"
+        if not probes_path.is_file():
+            return (
+                False,
+                f"missing artifact: {probes_path} "
+                f"(Phase 4 must produce executable triage probes)",
+            )
+        semantic_path = quality_dir / "citation_semantic_check.json"
+        if not semantic_path.is_file():
+            return (
+                False,
+                f"missing artifact: {semantic_path} "
+                f"(Phase 4 must produce a semantic-check artifact, "
+                f"even if empty for Tier-3-only runs)",
+            )
         return (True, "")
 
     if phase == 5:
@@ -616,10 +659,14 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
             # matches the contract's "if bugs were confirmed" caveat.
             return (True, "")
         bugs_text = bugs_md.read_text(encoding="utf-8", errors="ignore")
-        bug_ids = [
-            m.group(1)
-            for m in re.finditer(r"^###\s+(BUG-[A-Z0-9-]+)", bugs_text, re.MULTILINE)
-        ]
+        # v1.5.6 fix-up 071 BUG-006: match archive_lib._BUG_HEADING_PATTERN's
+        # titled-and-bare form for consistency (also handles future
+        # hyphenated suffix BUG IDs like BUG-001-fix-2).
+        bug_id_re = re.compile(
+            r"^###\s+BUG-([A-Za-z0-9][A-Za-z0-9\-]*)(?::\s+.+)?\s*$",
+            re.MULTILINE,
+        )
+        bug_ids = sorted({m.group(1) for m in bug_id_re.finditer(bugs_text)})
         if not bug_ids:
             # BUGS.md exists but contains no confirmed bugs.
             return (True, "")
@@ -631,19 +678,40 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
             return (False, f"{tdd_path} is empty")
         # Per-bug writeups + red-phase logs — required at Phase 5
         # for every confirmed bug.
+        patches_dir = quality_dir / "patches"
+        results_dir = quality_dir / "results"
+        missing_green: list[str] = []
         for bug_id in bug_ids:
-            writeup = quality_dir / "writeups" / f"{bug_id}.md"
+            writeup = quality_dir / "writeups" / f"BUG-{bug_id}.md"
             if not writeup.is_file():
                 return (
                     False,
-                    f"missing writeup for {bug_id}: {writeup}",
+                    f"missing writeup for BUG-{bug_id}: {writeup}",
                 )
-            red_log = quality_dir / "results" / f"{bug_id}.red.log"
+            red_log = results_dir / f"BUG-{bug_id}.red.log"
             if not red_log.is_file():
                 return (
                     False,
-                    f"missing red-phase log for {bug_id}: {red_log}",
+                    f"missing red-phase log for BUG-{bug_id}: {red_log}",
                 )
+            # v1.5.6 fix-up 071 BUG-006: green-log check per fix-bearing
+            # bug. If a BUG-NNN-fix.patch exists, the matching
+            # BUG-NNN.green.log MUST also exist (red+green receipts
+            # for the TDD reconciliation cycle). Red-only is acceptable
+            # for code-review-only bugs that don't propose a fix patch.
+            fix_patch = patches_dir / f"BUG-{bug_id}-fix.patch"
+            if fix_patch.is_file():
+                green_log = results_dir / f"BUG-{bug_id}.green.log"
+                if not green_log.is_file():
+                    missing_green.append(f"BUG-{bug_id}")
+        if missing_green:
+            return (
+                False,
+                f"missing green-phase logs for fix-bearing bugs: "
+                f"{', '.join(missing_green)} "
+                f"(Phase 5 reconciliation requires red AND green "
+                f"receipts when a fix patch exists)",
+            )
         return (True, "")
 
     # phase == 6
