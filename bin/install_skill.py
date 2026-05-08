@@ -50,6 +50,21 @@ KNOWN_ENVIRONMENTS: list[tuple[str, str]] = [
 ]
 
 
+# v1.5.6 instruction 064: explicit AI-tool selection map. Used by
+# --ai-tool <name>; bypasses marker-directory auto-detection so the
+# installer works even when the AI tool hasn't created its config
+# folder yet (notably Cursor and GitHub Copilot on first project open).
+# 'github' is an alias for 'copilot' — both map to .github/skills/.
+AI_TOOL_MAP: dict[str, tuple[str, str]] = {
+    "cursor": (".cursor", ".cursor/skills/quality-playbook"),
+    "claude": (".claude", ".claude/skills/quality-playbook"),
+    "copilot": (".github", ".github/skills/quality-playbook"),
+    "github": (".github", ".github/skills/quality-playbook"),
+    "continue": (".continue", ".continue/skills/quality-playbook"),
+}
+AI_TOOL_CHOICES: tuple[str, ...] = tuple(AI_TOOL_MAP.keys())
+
+
 # Bundle source paths, relative to the QPB clone root. Each tuple is
 # (source-relative-to-clone, dest-relative-to-target).
 def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
@@ -449,6 +464,7 @@ def install(
     *,
     target: Optional[Path] = None,
     into: Optional[Path] = None,
+    ai_tool: Optional[str] = None,
     source_root: Optional[Path] = None,
     cwd: Optional[Path] = None,
     force: bool = False,
@@ -457,13 +473,45 @@ def install(
     stream=None,
 ) -> int:
     """Run the install. Returns the exit code (0 success; 64 usage refusal;
-    65 smoke-check failure or downgrade refusal)."""
+    65 smoke-check failure or downgrade refusal).
+
+    Location resolution precedence:
+      1. ``target`` (literal install path) — if set, used directly.
+      2. ``ai_tool`` (canonical subdirectory) — if set, computes
+         ``<into or cwd>/<marker>/skills/quality-playbook`` and creates
+         the marker directory if missing.
+      3. ``into`` (target repo root) — auto-detect AI-tool marker dir.
+      4. cwd-based auto-detect — fallback for bare invocations.
+
+    ``target`` is mutually exclusive with ``into`` and with ``ai_tool``.
+    """
     emitter = Emitter(verbose=verbose, stream=stream)
     cwd = cwd or Path.cwd()
     source_root = (
         source_root.resolve() if source_root is not None
         else find_source_root(Path(__file__))
     )
+
+    # v1.5.6 instruction 064: install explainer message at run start.
+    # Brief explanation of what's happening + how to override detection.
+    intro_short = (
+        "skill bundle installs into a tool-specific subdirectory; "
+        "auto-detection scans for the marker (.cursor/, .claude/, "
+        ".github/, .continue/); pass --ai-tool <cursor|claude|copilot|continue> "
+        "to bypass detection"
+    )
+    intro_verbose = (
+        "Installing the Quality Playbook skill. The skill files (SKILL.md, "
+        "quality_gate.py, references/, phase_prompts/, agents/, "
+        "bin/citation_verifier.py) install into a subdirectory specific "
+        "to your AI coding tool — for example .cursor/skills/quality-playbook/ "
+        "for Cursor, .claude/skills/quality-playbook/ for Claude Code. The "
+        "installer detects which tool by looking for the marker directory in "
+        "your target. If detection fails, pass "
+        "--ai-tool <cursor|claude|copilot|continue> to specify explicitly."
+    )
+    emitter.emit("intro", prose=intro_verbose if verbose else intro_short)
+
     if target is not None and into is not None:
         emitter.emit(
             "refuse",
@@ -473,20 +521,73 @@ def install(
             prose="--target and --into cannot be used together",
         )
         return 64
-    if into is not None:
+    if target is not None and ai_tool is not None:
+        emitter.emit(
+            "refuse",
+            reason="target-and-ai-tool-mutually-exclusive",
+            target=str(target),
+            ai_tool=ai_tool,
+            prose=(
+                "--target and --ai-tool cannot be used together: --target "
+                "specifies a literal install path, --ai-tool specifies the "
+                "canonical subdirectory for a named tool. Pick one."
+            ),
+        )
+        return 64
+
+    # v1.5.6 instruction 064: explicit AI-tool selection (bypasses
+    # marker-directory auto-detection; creates the marker if missing).
+    if ai_tool is not None:
+        marker, dest_rel = AI_TOOL_MAP[ai_tool]
+        base = into.resolve() if into is not None else cwd
+        target = (base / dest_rel).resolve()
+        marker_dir = (base / marker).resolve()
+        marker_created = not marker_dir.exists()
+        marker_dir.mkdir(parents=True, exist_ok=True)
+        target.mkdir(parents=True, exist_ok=True)
+        emitter.emit(
+            "ai_tool_explicit",
+            ai_tool=ai_tool,
+            target=str(base),
+            marker=marker,
+            install_path=str(target),
+            marker_created="yes" if marker_created else "no",
+            prose=(
+                f"--ai-tool {ai_tool} → install path {target} "
+                f"(marker {marker} {'created' if marker_created else 'already present'})"
+            ),
+        )
+    elif into is not None:
         into = into.resolve()
         detected = detect_environment(into)
         if detected is None:
             envs = ", ".join(name for name, _ in KNOWN_ENVIRONMENTS)
             emitter.emit(
-                "refuse",
-                reason="no-environment-detected-in-target",
+                "detection_failed",
                 target=str(into),
-                known_envs=envs,
+                markers_searched=envs,
                 prose=(
-                    f"No known AI-tool environment found inside target repo {into}. "
-                    f"Known environments: {envs}. "
-                    f"Pass --target <path> to install to a custom location."
+                    f"no AI-tool marker directory found in {into}; "
+                    f"searched: {envs}"
+                ),
+            )
+            emitter.emit(
+                "install_complete",
+                status="failed",
+                reason="no_marker_directory_found",
+                prose=(
+                    f"No AI tool marker directory found in {into}. The "
+                    f"installer can't guess which AI tool you're using. To "
+                    f"proceed:\n"
+                    f"  (a) Pass --ai-tool <cursor|claude|copilot|continue> "
+                    f"to specify explicitly:\n"
+                    f"      python3 -m bin.install_skill --into {into} --ai-tool cursor\n"
+                    f"  (b) Pass --target <absolute-path> to install to a "
+                    f"specific path:\n"
+                    f"      python3 -m bin.install_skill --target {into}/.cursor/skills/quality-playbook\n"
+                    f"  (c) Open the target project in your AI tool first "
+                    f"(which creates the marker directory), then re-run "
+                    f"auto-detection."
                 ),
             )
             return 64
@@ -503,13 +604,31 @@ def install(
         if detected is None:
             envs = ", ".join(name for name, _ in KNOWN_ENVIRONMENTS)
             emitter.emit(
-                "refuse", reason="no-environment-detected",
-                known_envs=envs,
+                "detection_failed",
+                target=str(cwd),
+                markers_searched=envs,
                 prose=(
-                    f"No known AI-tool environment found in {cwd}. "
-                    f"Known environments: {envs}. "
-                    f"Run from the target repo root, or pass --into <target-repo> "
-                    f"or --target <path>."
+                    f"no AI-tool marker directory found in {cwd}; "
+                    f"searched: {envs}"
+                ),
+            )
+            emitter.emit(
+                "install_complete",
+                status="failed",
+                reason="no_marker_directory_found",
+                prose=(
+                    f"No AI tool marker directory found in {cwd}. The "
+                    f"installer can't guess which AI tool you're using. To "
+                    f"proceed:\n"
+                    f"  (a) Pass --ai-tool <cursor|claude|copilot|continue> "
+                    f"to specify explicitly:\n"
+                    f"      python3 -m bin.install_skill --ai-tool cursor\n"
+                    f"  (b) Pass --target <absolute-path> to install to a "
+                    f"specific path:\n"
+                    f"      python3 -m bin.install_skill --target {cwd}/.cursor/skills/quality-playbook\n"
+                    f"  (c) Open the target project in your AI tool first "
+                    f"(which creates the marker directory), then re-run "
+                    f"auto-detection."
                 ),
             )
             return 64
@@ -599,6 +718,23 @@ def main(argv: Optional[list[str]] = None) -> int:
         ),
     )
     parser.add_argument(
+        "--ai-tool",
+        choices=list(AI_TOOL_CHOICES),
+        metavar="<name>",
+        default=None,
+        help=(
+            "Explicitly select the target AI tool. Use when auto-detection "
+            "can't find a marker directory (e.g., the AI tool hasn't created "
+            "its config folder yet — common with Cursor and Copilot on first "
+            "project open). Mutually exclusive with --target. 'github' is an "
+            "alias for 'copilot'. Maps each tool to its canonical skill "
+            "subdirectory: cursor -> .cursor/skills/quality-playbook/; "
+            "claude -> .claude/skills/quality-playbook/; "
+            "copilot -> .github/skills/quality-playbook/; "
+            "continue -> .continue/skills/quality-playbook/."
+        ),
+    )
+    parser.add_argument(
         "--source", type=Path, default=None,
         help="QPB clone root to copy from (defaults to the parent of bin/install_skill.py).",
     )
@@ -618,6 +754,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     return install(
         target=args.target,
         into=args.into,
+        ai_tool=args.ai_tool,
         source_root=args.source,
         force=args.force,
         no_smoke=args.no_smoke,

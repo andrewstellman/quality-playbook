@@ -294,8 +294,13 @@ class EnvironmentDetectionTests(unittest.TestCase):
                 rc, 64,
                 f"expected EX_USAGE refusal; got {rc}. Output: {out}",
             )
-            self.assertIn("event=refuse", out)
-            self.assertIn("reason=no-environment-detected", out)
+            # v1.5.6 instruction 064: refusal shape changed from
+            # event=refuse reason=no-environment-detected to a
+            # two-event recovery-guidance pair.
+            self.assertIn("event=detection_failed", out)
+            self.assertIn("event=install_complete", out)
+            self.assertIn("status=failed", out)
+            self.assertIn("reason=no_marker_directory_found", out)
             # Helpful prose names the alternative.
             self.assertIn(".claude", out)
 
@@ -400,8 +405,12 @@ class IntoFlagTests(unittest.TestCase):
             (tmp / "src").mkdir()
             rc, out = _capture_install(into=tmp, source_root=REPO_ROOT)
             self.assertEqual(rc, 64, out)
-            self.assertIn("event=refuse", out)
-            self.assertIn("reason=no-environment-detected-in-target", out)
+            # v1.5.6 instruction 064: refusal shape changed; new events
+            # carry the same target= field but split into a detection
+            # failure + install_complete pair with recovery guidance.
+            self.assertIn("event=detection_failed", out)
+            self.assertIn("event=install_complete", out)
+            self.assertIn("reason=no_marker_directory_found", out)
             self.assertIn(f"target={tmp}", out)
 
     def test_target_and_into_mutually_exclusive(self) -> None:
@@ -722,6 +731,126 @@ class DowngradeRefusalTests(unittest.TestCase):
             self.assertIn("event=refuse reason=downgrade", out)
             # Target SKILL.md must NOT have been overwritten.
             self.assertIn("99.0.0", target_skill.read_text(encoding="utf-8"))
+
+
+class AiToolFlagTests(unittest.TestCase):
+    """v1.5.6 instruction 064: --ai-tool <name> flag bypasses
+    marker-directory auto-detection and installs to the canonical
+    subdirectory for the named tool. Created the marker directory
+    if it doesn't exist (Cursor and Copilot don't always create
+    their config folder on first project open)."""
+
+    def test_ai_tool_cursor_creates_marker_and_installs(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            self.assertFalse((tmp / ".cursor").exists(), "marker should not pre-exist")
+            rc, out = _capture_install(into=tmp, ai_tool="cursor", source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            self.assertTrue((tmp / ".cursor").is_dir(), "marker .cursor/ should be created")
+            install_dir = tmp / ".cursor" / "skills" / "quality-playbook"
+            self.assertTrue((install_dir / "SKILL.md").is_file())
+            self.assertIn("event=ai_tool_explicit", out)
+            self.assertIn("ai_tool=cursor", out)
+            self.assertIn("marker_created=yes", out)
+
+    def test_ai_tool_claude_creates_marker_and_installs(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            rc, out = _capture_install(into=tmp, ai_tool="claude", source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            self.assertTrue((tmp / ".claude" / "skills" / "quality-playbook" / "SKILL.md").is_file())
+            self.assertIn("ai_tool=claude", out)
+
+    def test_ai_tool_copilot_alias_maps_to_github(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            rc, out = _capture_install(into=tmp, ai_tool="copilot", source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            install_dir = tmp / ".github" / "skills" / "quality-playbook"
+            self.assertTrue((install_dir / "SKILL.md").is_file())
+            self.assertIn("ai_tool=copilot", out)
+            self.assertIn("marker=.github", out)
+
+        # Same with --ai-tool github (alias for copilot).
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            rc, out = _capture_install(into=tmp, ai_tool="github", source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            self.assertTrue((tmp / ".github" / "skills" / "quality-playbook" / "SKILL.md").is_file())
+            self.assertIn("ai_tool=github", out)
+            self.assertIn("marker=.github", out)
+
+    def test_ai_tool_continue_creates_marker_and_installs(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            rc, out = _capture_install(into=tmp, ai_tool="continue", source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            self.assertTrue((tmp / ".continue" / "skills" / "quality-playbook" / "SKILL.md").is_file())
+            self.assertIn("ai_tool=continue", out)
+            self.assertIn("marker=.continue", out)
+
+    def test_ai_tool_and_target_mutually_exclusive(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            rc, out = _capture_install(
+                target=tmp / "explicit-path",
+                ai_tool="cursor",
+                source_root=REPO_ROOT,
+            )
+            self.assertEqual(rc, 64)
+            self.assertIn("event=refuse", out)
+            self.assertIn("target-and-ai-tool-mutually-exclusive", out)
+
+    def test_no_marker_no_ai_tool_no_target_emits_recovery_guidance(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            # No markers, no flags — just --into a bare directory.
+            rc, out = _capture_install(into=tmp, source_root=REPO_ROOT)
+            self.assertEqual(rc, 64)
+            self.assertIn("event=detection_failed", out)
+            self.assertIn("event=install_complete", out)
+            self.assertIn("status=failed", out)
+            self.assertIn("reason=no_marker_directory_found", out)
+            # The verbose-prose recovery block should be available when
+            # verbose=True; here we use the default (non-verbose) path,
+            # so the structured events are what we assert on.
+
+    def test_intro_message_emitted_on_successful_install(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            rc, out = _capture_install(into=tmp, ai_tool="cursor", source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            # event=intro must be the FIRST emitted event.
+            first_event = next(
+                line for line in out.splitlines() if line.startswith("event=")
+            )
+            self.assertTrue(
+                first_event.startswith("event=intro"),
+                f"expected event=intro first, got: {first_event}",
+            )
+
+    def test_intro_message_emitted_on_detection_failure(self) -> None:
+        """The intro should still emit even when detection later fails —
+        helps adopters understand what happened before the refusal."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            rc, out = _capture_install(into=tmp, source_root=REPO_ROOT)
+            self.assertEqual(rc, 64)
+            self.assertIn("event=intro", out)
+            # And intro precedes detection_failed.
+            intro_pos = out.find("event=intro")
+            failed_pos = out.find("event=detection_failed")
+            self.assertGreater(intro_pos, -1)
+            self.assertGreater(failed_pos, -1)
+            self.assertLess(intro_pos, failed_pos)
+
+    def test_argparse_ai_tool_choices(self) -> None:
+        """argparse rejects bogus --ai-tool values."""
+        import io as _io
+        from contextlib import redirect_stderr
+        with redirect_stderr(_io.StringIO()):
+            with self.assertRaises(SystemExit):
+                install_skill.main(["--ai-tool", "bogus-tool"])
 
 
 if __name__ == "__main__":
