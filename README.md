@@ -124,10 +124,17 @@ If you prefer to do the install by hand instead of using `bin/install_skill.py` 
 ```bash
 mkdir -p .claude/skills/quality-playbook/references
 mkdir -p .claude/skills/quality-playbook/phase_prompts
+mkdir -p .claude/skills/quality-playbook/agents
+mkdir -p .claude/skills/quality-playbook/bin
 cp SKILL.md .claude/skills/quality-playbook/SKILL.md
 cp .github/skills/quality_gate/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
 cp references/* .claude/skills/quality-playbook/references/
 cp phase_prompts/*.md .claude/skills/quality-playbook/phase_prompts/
+# v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
+cp agents/*.md .claude/skills/quality-playbook/agents/
+# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
+# byte-equality citation check (without it, the gate falls back to a WARN path).
+cp bin/citation_verifier.py .claude/skills/quality-playbook/bin/citation_verifier.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 # No README ships — cite/ contents are adopter-provided plaintext.
 mkdir -p reference_docs reference_docs/cite
@@ -141,10 +148,17 @@ cat skill-template.gitignore >> .gitignore
 ```bash
 mkdir -p .github/skills/references
 mkdir -p .github/skills/phase_prompts
+mkdir -p .github/skills/agents
+mkdir -p .github/skills/bin
 cp SKILL.md .github/skills/SKILL.md
 cp .github/skills/quality_gate/quality_gate.py .github/skills/quality_gate.py
 cp references/* .github/skills/references/
 cp phase_prompts/*.md .github/skills/phase_prompts/
+# v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
+cp agents/*.md .github/skills/agents/
+# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
+# byte-equality citation check (without it, the gate falls back to a WARN path).
+cp bin/citation_verifier.py .github/skills/bin/citation_verifier.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 cat skill-template.gitignore >> .gitignore
@@ -154,10 +168,17 @@ cat skill-template.gitignore >> .gitignore
 ```bash
 mkdir -p .github/skills/quality-playbook/references
 mkdir -p .github/skills/quality-playbook/phase_prompts
+mkdir -p .github/skills/quality-playbook/agents
+mkdir -p .github/skills/quality-playbook/bin
 cp SKILL.md .github/skills/quality-playbook/SKILL.md
 cp .github/skills/quality_gate/quality_gate.py .github/skills/quality-playbook/quality_gate.py
 cp references/* .github/skills/quality-playbook/references/
 cp phase_prompts/*.md .github/skills/quality-playbook/phase_prompts/
+# v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
+cp agents/*.md .github/skills/quality-playbook/agents/
+# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
+# byte-equality citation check (without it, the gate falls back to a WARN path).
+cp bin/citation_verifier.py .github/skills/quality-playbook/bin/citation_verifier.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 cat skill-template.gitignore >> .gitignore

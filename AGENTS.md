@@ -29,10 +29,17 @@ Copy the skill into your AI coding tool's skill directory in the target repo. Ru
 ```bash
 mkdir -p .github/skills/references
 mkdir -p .github/skills/phase_prompts
+mkdir -p .github/skills/agents
+mkdir -p .github/skills/bin
 cp "$QPB"/SKILL.md .github/skills/SKILL.md
 cp "$QPB"/.github/skills/quality_gate/quality_gate.py .github/skills/quality_gate.py
 cp "$QPB"/references/* .github/skills/references/
 cp "$QPB"/phase_prompts/*.md .github/skills/phase_prompts/
+# v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
+cp "$QPB"/agents/*.md .github/skills/agents/
+# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
+# byte-equality citation check (without it, the gate falls back to a WARN path).
+cp "$QPB"/bin/citation_verifier.py .github/skills/bin/citation_verifier.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 # Optional: append suggested .gitignore rules for adopters.
@@ -43,10 +50,17 @@ cat "$QPB"/skill-template.gitignore >> .gitignore
 ```bash
 mkdir -p .claude/skills/quality-playbook/references
 mkdir -p .claude/skills/quality-playbook/phase_prompts
+mkdir -p .claude/skills/quality-playbook/agents
+mkdir -p .claude/skills/quality-playbook/bin
 cp "$QPB"/SKILL.md .claude/skills/quality-playbook/SKILL.md
 cp "$QPB"/.github/skills/quality_gate/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
 cp "$QPB"/references/* .claude/skills/quality-playbook/references/
 cp "$QPB"/phase_prompts/*.md .claude/skills/quality-playbook/phase_prompts/
+# v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
+cp "$QPB"/agents/*.md .claude/skills/quality-playbook/agents/
+# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
+# byte-equality citation check (without it, the gate falls back to a WARN path).
+cp "$QPB"/bin/citation_verifier.py .claude/skills/quality-playbook/bin/citation_verifier.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 cat "$QPB"/skill-template.gitignore >> .gitignore
