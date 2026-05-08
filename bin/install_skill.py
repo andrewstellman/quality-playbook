@@ -1,10 +1,11 @@
 """bin/install_skill.py — turnkey AI-agent-driven Quality Playbook installer.
 
-Copies SKILL.md, quality_gate.py, and the references/ subtree from a QPB
-checkout into a target AI-tool skills directory. Auto-detects known tool
-environments (.claude, .github, .cursor, .continue) in the working
-directory, or scans a target repo via --into <target-repo>; falls back
-to --target <path> for arbitrary install locations.
+Copies the skill files (SKILL.md, quality_gate.py, references/,
+phase_prompts/, agents/, and bin/citation_verifier.py) from a QPB
+checkout into a target AI-tool skills directory. Auto-detects known
+tool environments (.claude, .github, .cursor, .continue) in the
+working directory, or scans a target repo via --into <target-repo>;
+falls back to --target <path> for arbitrary install locations.
 Cross-platform (macOS / Linux / Windows) via pathlib + explicit utf-8
 encoding + explicit newline handling.
 

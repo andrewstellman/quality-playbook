@@ -118,9 +118,9 @@ substitute "equivalent" headings:
    count toward both buckets.
 
 6. `## Gate Self-Check` — proves you ran the Phase 1 gate. List each
-   of the 13 checks (six required headings + ≥3 Pattern Deep Dive
-   sections + PROGRESS.md mark + ≥8 findings with citations + ≥3
-   multi-location findings + 3-4 FULL pattern matrix rows + ≥2
+   of the 13 checks (≥120 lines + six required headings + ≥3 Pattern
+   Deep Dive sections + PROGRESS.md mark + ≥8 findings with citations
+   + ≥3 multi-location findings + 3-4 FULL pattern matrix rows + ≥2
    multi-function deep dives + candidate-bug source mix) and mark
    whether the artifact satisfies each.
 

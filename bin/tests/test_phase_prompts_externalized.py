@@ -192,17 +192,14 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # summary; runner does it via normalize_role_map_for_gate
         # before the Phase 2 entry-gate. Schema example collapsed
         # from full role_map to files+provenance. Hashes recomputed.
-        # v1.5.6 fix-up 067 C-3: phase1.md content-guidance block (lines
-        # 73-82) rewritten to teach the SIX exact gate-required section
-        # titles + per-section minima from SKILL.md:1257-1273 (the
-        # Phase 1 entry gate that bin/run_state_lib._validate_phase1
-        # enforces). Pre-fix the prompt taught descriptive categories
-        # ("Domain and stack", "Architecture map", "Quality risks
-        # identified", etc.) that didn't match the validator's
-        # required exact titles, creating a load-bearing prompt-vs-
-        # validator gap. Hashes recomputed.
-        "phase1_no_seeds_True":  (20039, "486e01978257d40876fc319a45695dc1d61abd85435d2d119c68242f75eaf583"),
-        "phase1_no_seeds_False": (19842, "97477e24d90728edb93e7bef66050ed42fe257a773df8ef3f3fce343eb4fa0e9"),
+        # v1.5.6 fix-up 070 NF-3: Gate Self-Check enumeration extended
+        # to include check 1 (≥120 lines) — the Council post-fixup
+        # review noticed the enumeration started at check 2.
+        # (Previous edit was 067 C-3: phase1.md content-guidance block
+        # rewritten to teach the SIX exact gate-required section titles
+        # + per-section minima from SKILL.md:1257-1273.) Hashes recomputed.
+        "phase1_no_seeds_True":  (20052, "206e4a027f85b403933321d84a5386ad04e9b904f0f7306c7b983750997ebc73"),
+        "phase1_no_seeds_False": (19855, "f2508f50b46ee568387110aa23b86b340a6155c30fb9f1a6e14861dd4d006ee3"),
         # v1.5.6 BUG-011/012: phase{2..6}.md previously hardcoded
         # `.github/skills/` paths; the fix prepends {skill_fallback_guide}
         # (the same SKILL_FALLBACK_GUIDE constant the iteration/single_pass

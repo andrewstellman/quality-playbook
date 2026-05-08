@@ -1,8 +1,12 @@
 """Read/write/validate helpers for the v1.5.6 run-state event log.
 
 This module implements the file-tool-driven "state IS the filesystem"
-substrate described in `docs/design/QPB_v1.5.5_Design.md` and specified
-in `references/run_state_schema.md`. It is consumed by the playbook AI
+substrate originally specified in `docs/design/QPB_v1.5.5_Design.md`
+(run-state schema + phase-boundary cross-validation rules) and
+expanded in `docs/design/QPB_v1.5.6_Design.md` (Phase 1 13-check gate
+per instruction 066, plus the post-fixup cross-surface coherence work
+in instruction 070). The schema is documented at
+`references/run_state_schema.md`. It is consumed by the playbook AI
 (append events as phases progress) and by the orchestrator AI (read
 events to drive resume semantics + cycle-level coordination).
 
