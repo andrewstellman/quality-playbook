@@ -70,16 +70,81 @@ Handling edge cases (v1.5.4 Phase 1 edge-case discipline):
 - **Ambiguous prose ("the helper script", "the validator").** Default to `code`. `skill-tool` requires an unambiguous citation: SKILL.md or a referenced doc must name the file (or a path-suffix that uniquely identifies it) AND direct the agent to invoke it. When in doubt, tag `code` and capture the ambiguity in `rationale` — it's better to under-tag `skill-tool` than to inflate the surface area Phase 4's prose-to-code check operates on.
 - **Generated files (build outputs, vendored dependencies, lockfiles).** Skip them at the ignore-rule layer; do not include them in the role map. If you can't tell whether a file is generated, look for a generation marker (header comment naming the generator, sibling `.generated` file, presence in `.gitignore`); if generated, omit from the role map.
 
-When Phase 1 is complete, write your full exploration findings to quality/EXPLORATION.md. This file must contain:
-- Domain and stack identification
-- Architecture map (key modules, entry points, data flow)
-- Existing test inventory
-- Specification summary (from reference_docs/ and any inline docs)
-- Quality risks identified
-- Skeleton/dispatch/state-machine analysis (if applicable)
-- Testable requirements derived (REQ-NNN format)
-- Use cases derived (UC-NN format)
-- A "File-role tagging" section that confirms `quality/exploration_role_map.json` was produced and summarizes the breakdown (the four `percentages` shares plus `files_by_role`). If you tagged any file with a role outside the documented taxonomy, list that file and explain why a new role was warranted.
+When Phase 1 is complete, write your full exploration findings to
+`quality/EXPLORATION.md`. The file MUST contain ALL of the following
+section titles VERBATIM (the Phase 1 gate at SKILL.md:1257-1273 enforces
+each mechanically; `bin/run_state_lib.validate_phase_artifacts(quality_dir, phase=1)`
+is the programmatic enforcer — your artifact has to pass it before
+Phase 2 will start). The exact titles are load-bearing — do NOT
+substitute "equivalent" headings:
+
+1. `## Open Exploration Findings` — at least 8 numbered entries
+   (`1.`, `2.`, ...). Each entry has at least one file:line citation
+   in the body (e.g., `bin/foo.py:120-135`). At least 3 of these
+   entries trace behavior across 2 or more distinct file:line
+   locations (multi-location traces — the entry cites two or more
+   different file:line ranges).
+
+2. `## Quality Risks` — domain-knowledge risk analysis. Numbered or
+   bulleted; cite file:line where risks are concretely visible in
+   code or docs.
+
+3. `## Pattern Applicability Matrix` — a Markdown table with one row
+   per exploration pattern from `references/exploration_patterns.md`.
+   Decision column values are `FULL` or `SKIP`. Between 3 and 4
+   patterns must be marked `FULL` (inclusive — the gate rejects
+   below 3 because exploration didn't pick enough patterns, and
+   above 4 because exploration ran every pattern instead of
+   selecting). Skipped patterns are still listed with `SKIP` and a
+   brief reason, so the matrix is exhaustive.
+
+4. `## Pattern Deep Dive — <pattern-name>` — at least 3 sections,
+   one per `FULL` pattern. Each deep dive enumerates concrete
+   findings with file:line citations. At least 2 of these sections
+   trace code paths across 2 or more distinct identifiers (e.g.,
+   backtick-quoted function or symbol names like `\`docs_present\``,
+   `\`_evaluate_documentation_state\``) OR across 2 or more distinct
+   file:line locations — that's how the gate detects "multi-function
+   trace" rather than a one-anchor finding.
+
+5. `## Candidate Bugs for Phase 2` — numbered list of bug
+   hypotheses promoted from the deep dives + open exploration. Each
+   entry has a `Stage:` line attributing the source (e.g., `Stage:
+   open exploration`, `Stage: quality risks`, or
+   `Stage: <Pattern Name>`). At least 2 entries must be sourced from
+   `open exploration` / `quality risks` AND at least 1 entry must be
+   sourced from a pattern deep dive. Combo stages
+   (`Stage: open exploration + Cross-Implementation Consistency`)
+   count toward both buckets.
+
+6. `## Gate Self-Check` — proves you ran the Phase 1 gate. List each
+   of the 13 checks (six required headings + ≥3 Pattern Deep Dive
+   sections + PROGRESS.md mark + ≥8 findings with citations + ≥3
+   multi-location findings + 3-4 FULL pattern matrix rows + ≥2
+   multi-function deep dives + candidate-bug source mix) and mark
+   whether the artifact satisfies each.
+
+In addition, ensure `quality/PROGRESS.md` exists and its Phase 1
+line is marked `[x]` (the gate's check 8) before declaring Phase 1
+complete.
+
+The exploration content the prior versions of this prompt asked for
+(domain and stack identification, architecture map, existing test
+inventory, specification summary, skeleton/dispatch analysis,
+derived requirements `REQ-NNN`, derived use cases `UC-NN`,
+file-role tagging summary) lives WITHIN these required sections —
+for example, the architecture map and module enumeration belong
+under `## Open Exploration Findings` as multi-location findings;
+the file-role tagging summary and the `exploration_role_map.json`
+breakdown summary belong under `## Open Exploration Findings` or
+`## Quality Risks` as analytical content; derived REQ-NNN and UC-NN
+sections may appear after `## Gate Self-Check` as additional
+analytical material the playbook downstream phases consume. Do NOT
+use these alternative names as TOP-level section titles — the gate
+requires the six exact titles above and the Pattern Deep Dive
+prefix; additional `## ` sections beyond these are tolerated for
+analytical extension but the six gate-required titles MUST appear
+verbatim.
 
 ### MANDATORY CARTESIAN UC RULE (Lever 1, v1.5.2)
 
