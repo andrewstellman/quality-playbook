@@ -98,11 +98,11 @@ python3 -m bin.install_skill --target /path/to/install-root   # literal install 
 python3 -m bin.install_skill --verbose                        # human-readable output alongside structured events
 ```
 
-`--into` and `--target` are different on purpose: `--into <target-repo>` walks INTO the named repo and auto-detects which AI-tool subdirectory to install into (`.claude/skills/quality-playbook/`, `.github/skills/`, `.cursor/skills/quality-playbook/`, or `.continue/skills/quality-playbook/`). `--target <path>` treats the path as the literal install root and writes `SKILL.md`, `quality_gate.py`, and `references/` directly there. The AI-agent-driven flow that AGENTS.md documents always uses `--into`; `--target` is for operators with a non-standard install location. They are mutually exclusive — `install_skill.py` errors if both are passed.
+`--into` and `--target` are different on purpose: `--into <target-repo>` walks INTO the named repo and auto-detects which AI-tool subdirectory to install into (`.claude/skills/quality-playbook/`, `.github/skills/`, `.cursor/skills/quality-playbook/`, or `.continue/skills/quality-playbook/`). `--target <path>` treats the path as the literal install root and writes the skill files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and `bin/citation_verifier.py`) directly there. The AI-agent-driven flow that AGENTS.md documents always uses `--into`; `--target` is for operators with a non-standard install location. They are mutually exclusive — `install_skill.py` errors if both are passed.
 
 **Already manually copied SKILL.md to your skills directory?** Skip this step. The manual install paths described in Step 3 below continue to work — `bin/install_skill.py` is additive, not a replacement.
 
-**What the install does:** copies `SKILL.md`, `quality_gate.py`, and `references/*.md` into the chosen install location. Runs a smoke check at the end (verifies `quality_gate.py` is loadable Python, `SKILL.md` parses with the expected frontmatter, `references/exploration_patterns.md` loads). Reports any failures in the structured output. Re-installs preserve operator-edited files as `<file>.operator-backup-<UTC-timestamp>` so your local edits aren't silently overwritten.
+**What the install does:** copies the skill files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and `bin/citation_verifier.py`) into the chosen install location. Runs a smoke check at the end (verifies `quality_gate.py` is loadable Python, `SKILL.md` parses with the expected frontmatter, `references/exploration_patterns.md` loads). Reports any failures in the structured output. Re-installs preserve operator-edited files as `<file>.operator-backup-<UTC-timestamp>` so your local edits aren't silently overwritten.
 
 ### Step 2: Provide documentation (strongly recommended)
 
@@ -218,7 +218,7 @@ mkdir -p reference_docs reference_docs/cite
 cat skill-template.gitignore >> .gitignore
 ```
 
-**Cursor, Windsurf, other tools:** Use any of the locations above, or put `SKILL.md`, `quality_gate.py`, and `references/` in your project root. The runner, gate, and orchestrator agents check all four locations — repo-root `SKILL.md`, Claude's `.claude/skills/quality-playbook/`, and both Copilot layouts.
+**Cursor, Windsurf, other tools:** Use any of the locations above, or put the skill files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and `bin/citation_verifier.py`) in your project root. The runner, gate, and orchestrator agents check all four locations — repo-root `SKILL.md`, Claude's `.claude/skills/quality-playbook/`, and both Copilot layouts.
 
 **OpenAI Codex CLI:** v1.5.3 adds the standalone [codex CLI](https://github.com/openai/codex) (codex-cli 0.125+) as a third runner alongside claude and copilot. No separate skill-install layout — codex runs the playbook from any of the locations above. To use it via `bin/run_playbook.py`, pass `--codex` (see Step 4 + the "Running everything autonomously" section below).
 
