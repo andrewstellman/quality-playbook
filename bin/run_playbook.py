@@ -1565,13 +1565,21 @@ def docs_present(repo_dir: Path) -> bool:
     # archived benchmarks with that layout don't suddenly report
     # "code-only" — but operator-facing prose now routes new users to
     # `reference_docs/` exclusively.
-    for name in ("reference_docs", "docs_gathered"):
-        docs_dir = repo_dir / name
-        if not docs_dir.is_dir():
+    if _reference_docs_plaintext(repo_dir / "reference_docs"):
+        return True
+
+    docs_dir = repo_dir / "docs_gathered"
+    if not docs_dir.is_dir():
+        return False
+    for f in sorted(docs_dir.iterdir()):
+        if not f.is_file() or f.name.startswith("."):
             continue
-        for f in docs_dir.iterdir():
-            if f.is_file() and not f.name.startswith(".") and f.stat().st_size > 0:
-                return True
+        if f.name in _REFERENCE_DOCS_SKIPPED:
+            continue
+        if f.suffix.lower() not in _REFERENCE_DOCS_PLAINTEXT_EXTS:
+            continue
+        if f.stat().st_size > 0:
+            return True
     return False
 
 

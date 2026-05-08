@@ -3998,5 +3998,54 @@ class InstallFallbackPinningTests(unittest.TestCase):
         )
 
 
+class DocsPresentRecognizedPlaintextPredicateTests(unittest.TestCase):
+    """v1.5.6 codex bootstrap fixes (065) — BUG-001 + BUG-002.
+
+    docs_present() must recognize the same set of files as
+    _reference_docs_plaintext(): top-level + cite/ subtree, .md or .txt
+    only, README.md excluded. Pre-fix it iterated only top-level files
+    of reference_docs/ and counted any non-dot file as docs (so a
+    cite-only repo returned False, and a README-only or binary-only
+    repo returned True — both wrong)."""
+
+    def test_bug_001_docs_present_recognizes_cite_only_docs(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            cite = repo / "reference_docs" / "cite"
+            cite.mkdir(parents=True)
+            (cite / "spec.md").write_text("# Spec\n", encoding="utf-8")
+            self.assertTrue(
+                run_playbook.docs_present(repo),
+                "docs_present() must return True for a cite-only docs-backed tree",
+            )
+
+    def test_bug_002_docs_present_rejects_readme_only_tree(self) -> None:
+        """README-only reference_docs/ should NOT count as docs-backed."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            refs = repo / "reference_docs"
+            refs.mkdir()
+            (refs / "README.md").write_text("ignored\n", encoding="utf-8")
+            self.assertFalse(run_playbook.docs_present(repo))
+
+    def test_bug_002_docs_present_rejects_binary_only_tree(self) -> None:
+        """Binary-only reference_docs/ should NOT count as docs-backed."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            refs = repo / "reference_docs"
+            refs.mkdir()
+            (refs / "spec.pdf").write_bytes(b"%PDF-1.4\n")
+            self.assertFalse(run_playbook.docs_present(repo))
+
+    def test_bug_002_docs_present_accepts_top_level_plaintext(self) -> None:
+        """Top-level .md (not README.md) should count as docs-backed."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            refs = repo / "reference_docs"
+            refs.mkdir()
+            (refs / "design.md").write_text("# Design\n", encoding="utf-8")
+            self.assertTrue(run_playbook.docs_present(repo))
+
+
 if __name__ == "__main__":
     unittest.main()
