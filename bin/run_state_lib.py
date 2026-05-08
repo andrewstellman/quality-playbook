@@ -1,4 +1,4 @@
-"""Read/write/validate helpers for the v1.5.5 run-state event log.
+"""Read/write/validate helpers for the v1.5.6 run-state event log.
 
 This module implements the file-tool-driven "state IS the filesystem"
 substrate described in `docs/design/QPB_v1.5.5_Design.md` and specified
@@ -103,11 +103,6 @@ _PROGRESS_PHASE1_DONE_RE = re.compile(
 _CANDIDATE_STAGE_RE = re.compile(
     r"^\s*-\s*Stage\s*:\s*(.+)$", re.MULTILINE | re.IGNORECASE
 )
-
-# Regex used by Phase 6's artifact validator to detect a ``BUG-`` entry
-# header in BUGS.md.
-_BUG_ENTRY_RE = re.compile(r"^##\s+BUG-", re.MULTILINE)
-
 
 @dataclass(frozen=True)
 class Event:
@@ -369,11 +364,17 @@ def _validate_phase1(quality_dir: Path) -> tuple[bool, str]:
     candidate_entries = _slice_numbered_entries(candidate_body)
     n_exploration_risks = 0
     n_deep_dive = 0
-    for entry in candidate_entries:
+    # v1.5.6 fix-up 067 PS-4: track per-entry stage labels so the
+    # failure message can name which entries are missing or
+    # malformed Stage: lines, not just the aggregate count.
+    per_entry_stages: list[tuple[int, str]] = []
+    for idx, entry in enumerate(candidate_entries, start=1):
         stage_match = _CANDIDATE_STAGE_RE.search(entry)
         if not stage_match:
+            per_entry_stages.append((idx, "<missing Stage: line>"))
             continue
         stage = stage_match.group(1).lower()
+        per_entry_stages.append((idx, stage_match.group(1).strip()))
         from_exp_or_risks = (
             "open exploration" in stage
             or "quality risks" in stage
@@ -395,12 +396,18 @@ def _validate_phase1(quality_dir: Path) -> tuple[bool, str]:
         n_exploration_risks < _MIN_CANDIDATE_BUGS_EXPLORATION_RISKS
         or n_deep_dive < _MIN_CANDIDATE_BUGS_DEEP_DIVE
     ):
+        per_entry_lines = "\n".join(
+            f"  Entry {idx}: {stage}" for idx, stage in per_entry_stages
+        )
+        if not per_entry_lines:
+            per_entry_lines = "  (no candidate-bug entries detected)"
         failures.append(
             f"Phase 1 gate: candidate bugs source mix — required "
             f"≥{_MIN_CANDIDATE_BUGS_EXPLORATION_RISKS} from exploration/risks "
             f"AND ≥{_MIN_CANDIDATE_BUGS_DEEP_DIVE} from pattern deep dive, "
             f"found {n_exploration_risks} from exploration/risks AND "
-            f"{n_deep_dive} from pattern deep dive; see SKILL.md:1271."
+            f"{n_deep_dive} from pattern deep dive; see SKILL.md:1271. "
+            f"Per-entry stages:\n{per_entry_lines}"
         )
 
     if failures:

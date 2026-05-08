@@ -499,6 +499,33 @@ class BugHeadingPatternTests(unittest.TestCase):
             self.assertEqual(counts["HIGH"], 2)
             self.assertEqual(counts["LOW"], 1)
 
+    def test_ps_6_archive_bug_count_accepts_hyphenated_suffix_bug_ids(self) -> None:
+        """v1.5.6 fix-up 067 PS-6: capture group widened from
+        [A-Za-z0-9]+ to [A-Za-z0-9][A-Za-z0-9\\-]* so suffixed BUG IDs
+        like BUG-001-fix-2 or BUG-001a match. Currently latent (no
+        BUG IDs use suffixes) but cheap to widen now."""
+        with TemporaryDirectory() as tmp:
+            run_folder = Path(tmp)
+            _write(
+                run_folder / "quality" / "BUGS.md",
+                "# Bugs\n\n"
+                "### BUG-001-fix-2: Title with hyphenated suffix\n\n"
+                "**Severity**: HIGH\n",
+            )
+            counts = al._extract_bug_counts(run_folder)
+            self.assertEqual(
+                counts["HIGH"], 1,
+                "regex must accept BUG-NNN-suffix form, not just bare BUG-NNN",
+            )
+
+        # And group 1 captures the whole hyphenated ID, not just the
+        # numeric prefix.
+        match = al._BUG_HEADING_PATTERN.search(
+            "### BUG-001-fix-2: Title\n"
+        )
+        self.assertIsNotNone(match)
+        self.assertEqual(match.group(1), "001-fix-2")
+
 
 if __name__ == "__main__":
     unittest.main()

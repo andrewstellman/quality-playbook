@@ -852,6 +852,24 @@ class AiToolFlagTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 install_skill.main(["--ai-tool", "bogus-tool"])
 
+    def test_install_function_target_ai_tool_mutex(self) -> None:
+        """v1.5.6 fix-up 067 PS-5: argparse-level mutex (--target AND
+        --ai-tool both passed via CLI) was tested at
+        test_ai_tool_and_target_mutually_exclusive. The function-level
+        mutex — calling install(target=X, ai_tool=Y, ...) directly —
+        was not, so a programmatic caller could bypass the CLI guard.
+        Pin the function-level mutex too."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            rc, out = _capture_install(
+                target=tmp / "explicit-path",
+                ai_tool="cursor",
+                source_root=REPO_ROOT,
+            )
+            self.assertEqual(rc, 64, out)
+            self.assertIn("event=refuse", out)
+            self.assertIn("target-and-ai-tool-mutually-exclusive", out)
+
 
 if __name__ == "__main__":
     unittest.main()
