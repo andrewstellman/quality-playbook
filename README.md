@@ -76,7 +76,7 @@ If you'd rather read the docs yourself, the rest of this README has the same inf
 
 ### Step 1: Install the skill
 
-The playbook ships as a small set of files (`SKILL.md`, `quality_gate.py`, and the `references/` tree) that need to land in a directory your AI coding tool reads as a skill. The recommended path is to have your AI tool do the install for you.
+The playbook ships as a set of files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and `bin/citation_verifier.py`) that need to land in a directory your AI coding tool reads as a skill. The recommended path is to have your AI tool do the install for you.
 
 **Recommended: have your AI tool install it.** Open a chat with Claude Code, Cursor, GitHub Copilot, or another AI coding assistant inside your target repo. Ask it:
 
@@ -87,13 +87,13 @@ The AI agent reads [`AGENTS.md`](AGENTS.md), runs `python3 -m bin.install_skill`
 **Alternative: run the script directly.** From your local QPB clone:
 
 ```bash
-python3 -m bin.install_skill                                  # auto-detect from cwd
-python3 -m bin.install_skill --into /path/to/target-repo      # scan a target repo, auto-detect AI tool inside it
-python3 -m bin.install_skill --target /path/to/install-root   # literal install path (skip AI-tool auto-detect)
-python3 -m bin.install_skill --verbose                        # human-readable output alongside structured events
+python3 -m bin.install_skill --into /path/to/target-repo --ai-tool cursor   # canonical: name the AI tool
+python3 -m bin.install_skill --into /path/to/target-repo                    # auto-detect via marker dir
+python3 -m bin.install_skill --target /path/to/install-root                 # literal install path
+python3 -m bin.install_skill --verbose                                      # human-readable output
 ```
 
-`--into` and `--target` are different on purpose: `--into <target-repo>` walks INTO the named repo and auto-detects which AI-tool subdirectory to install into (`.claude/skills/quality-playbook/`, `.github/skills/`, `.cursor/skills/quality-playbook/`, or `.continue/skills/quality-playbook/`). `--target <path>` treats the path as the literal install root and writes the skill files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and `bin/citation_verifier.py`) directly there. The AI-agent-driven flow that AGENTS.md documents always uses `--into`; `--target` is for operators with a non-standard install location. They are mutually exclusive — `install_skill.py` errors if both are passed.
+`--ai-tool <name>` is the canonical way to invoke when you know which tool will use the project; values are `cursor`, `claude`, `copilot` (alias `github`), or `continue`. The script creates the marker directory if it doesn't exist and installs into the canonical subdirectory (`.cursor/skills/quality-playbook/`, `.claude/skills/quality-playbook/`, `.github/skills/quality-playbook/`, or `.continue/skills/quality-playbook/`). Bare `--into <target-repo>` falls back to auto-detecting from a marker directory inside the target — which only works if the target has been opened by your AI tool at least once. `--target <path>` treats the path as the literal install root and writes the skill files directly there; useful for operators with a non-standard install location. `--target` is mutually exclusive with both `--into` and `--ai-tool`.
 
 **Already manually copied SKILL.md to your skills directory?** Skip this step. The manual install paths described in Step 3 below continue to work — `bin/install_skill.py` is additive, not a replacement.
 
@@ -637,16 +637,77 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
   and `--ai-tool` overrides if detection fails. Verbose mode adds a fuller
   prose explainer. When auto-detection fails AND no `--target` AND no
   `--ai-tool` are passed, the existing refusal-to-guess behavior is
-  preserved (script exits non-zero), but the failure event now emits a
-  three-option recovery block in prose: (a) re-run with `--ai-tool <name>`,
-  (b) re-run with `--target <absolute-path>`, or (c) open the target in
-  the AI tool first to create the marker directory and re-run.
-  AGENTS.md install-procedure section updated so the AI agent doing the
-  install knows to fall back to `--ai-tool` based on what the operator
-  told them, instead of giving up. 9 new tests in
-  `bin/tests/test_install_skill.py:AiToolFlagTests` covering all 5 choice
-  values, github→copilot alias, target/ai-tool mutex, recovery emission,
-  intro on success + on failure, and argparse rejection of bad values.
+  preserved (script exits non-zero), and the failure event emits a
+  structured recovery signal that AI agents reading the output can act on.
+  9 new tests in `bin/tests/test_install_skill.py:AiToolFlagTests` covering
+  all 5 choice values, github→copilot alias, target/ai-tool mutex, recovery
+  emission, intro on success + on failure, and argparse rejection of bad
+  values.
+- **Codex bootstrap fixes (instruction 065).** Self-bootstrap audit on
+  2026-05-08 with Codex GPT-5.4 Medium surfaced six bugs in QPB's own
+  documentation/ingest/reporting paths. All six fixed across four commits:
+  `docs_present()` and `_evaluate_documentation_state()` now share a
+  single recognized-plaintext predicate so cite-only / README-only /
+  binary-only trees classify consistently across all three startup
+  surfaces (BUG-001/002); Tier 4 ingest restricted to top-level
+  `reference_docs/` files (BUG-003); bootstrap mirror preserves the
+  `cite/` subtree instead of silently dropping it (BUG-004); archive
+  bug counter regex accepts the canonical `### BUG-NNN: Title` heading
+  form QPB itself produces (BUG-006). 13 new regression tests, each
+  bite-confirmed against unpatched code.
+- **Phase 1 validator enforces the full SKILL.md gate (instruction 066).**
+  Pre-fix the runtime validator at `bin/run_state_lib.validate_phase_artifacts()`
+  enforced approximately 1 of the 13 checks documented at SKILL.md:1257-1273
+  — file existence, ≥120 lines, and a generic findings-style heading regex.
+  A 120-line placeholder `quality/EXPLORATION.md` with one heading and no
+  analytical content passed the gate, recreating the v1.5.4 failure mode
+  (phase reported "complete" with shallow output). The new validator
+  enforces all 13 checks: six required headings (`## Open Exploration
+  Findings`, `## Quality Risks`, `## Pattern Applicability Matrix`, ≥3
+  `## Pattern Deep Dive — *`, `## Candidate Bugs for Phase 2`, `## Gate
+  Self-Check`); PROGRESS.md Phase 1 line marked `[x]`; ≥8 findings with
+  file:line citations; ≥3 multi-location findings; 3-4 FULL pattern
+  matrix rows; ≥2 multi-function pattern deep dives; candidate-bug
+  source mix (≥2 from exploration/risks AND ≥1 from pattern deep dive).
+  Failure messages name which minimum failed and the SKILL.md line number.
+  Calibrated against canonical EXPLORATION.md from the 2026-05-08 codex
+  bootstrap as regression sanity (the canonical artifact passes the new
+  validator). 14 new regression tests in `bin/tests/test_run_state_lib.py`.
+- **Council post-tag fix-up — 13 items (instruction 067).** Council-of-Three
+  review of post-tag work surfaced 13 findings; all closed in four
+  commits. README bundle inventory updated at three locations to match
+  the actual 31-file bundle. SKILL.md cross-validation rules table at
+  line 501 now describes the 13-check gate accurately. `phase_prompts/phase1.md`
+  rewritten to teach the six exact gate section titles + analytical
+  minima — agent reading the new prompt produces gate-passing
+  EXPLORATION.md. `bin/run_state_lib.py` empty-whitelist hole fixed
+  (the `and declared_types` short-circuit that silently skipped the
+  whitelist check is gone; empty whitelist now fails every subsequent
+  event as the comment intended). Design + Implementation_Plan docs
+  reconciled with shipped code (non-interactive structured-output,
+  compile-only smoke check, full event format with all five fields).
+  `docs_present()` / `_evaluate_documentation_state()` /
+  `formal_docs_guard_banner()` unified on the docs_gathered fallback
+  so legacy targets classify consistently. `bin/reference_docs_ingest.py`
+  `_iter_candidates()` is now top-level only (no rglob); nested non-cite
+  files no longer leak into ingest, and a nested non-cite `.pdf` no
+  longer aborts Phase 1 ingest with `unsupported_extension`.
+  `bin/bootstrap_self_audit_docs.py` mirror now cleans destination-only
+  stale files. Plus five post-ship items (dead `_BUG_ENTRY_RE` regex
+  level fix, module docstring v1.5.6, Check 13 per-entry diagnostic,
+  programmatic mutex test, archive bug counter regex widen for
+  hyphenated suffix BUG IDs).
+- **Agent-asks-not-guesses contract (commit `a2ffe71` + instruction 068).**
+  Original v1.5.6 README documented two recovery flags and their precedence
+  for the auto-detection-failure case. The right contract is "agent asks
+  the operator when it doesn't know which tool" — there's nothing the
+  user needs to know about a recovery path. README "How to install"
+  section simplified to a single sentence. AGENTS.md install-procedure
+  Step 1 teaches the agent to ASK if the operator didn't name a tool
+  in the original request; Step 4 detection-failure handling replaces
+  "fall back to --ai-tool with whatever the operator said" with "STOP
+  and ASK if you don't have the answer." Presence-check regression
+  test in `bin/tests/test_agents_md.py` pins the contract.
 
 ### What's new in v1.5.5
 
