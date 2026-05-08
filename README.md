@@ -601,6 +601,57 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
   default `--claude`. Reported during a model-comparison benchmark sweep
   on a v1.5.5 branch; lands on `1.5.6`. Two new regression tests pin both
   bugs.
+- **Manual install recipes match the auto-installer (post-original-tag, instruction 062).**
+  The auto-install via `python3 -m bin.install_skill` correctly bundles
+  `agents/*.md` and `bin/citation_verifier.py` (per cluster A and BUG-005),
+  but the manual `cp` recipes in README Step 3 (Claude Code, Copilot flat,
+  Copilot nested blocks) and AGENTS.md (Copilot flat, Claude Code blocks)
+  weren't updated to match. Adopters following the manual recipe verbatim
+  got a broken install — README Step 4's `claude --agent agents/...`
+  invocation found no `agents/` directory, and `quality_gate.py` fell back
+  to a warning path because `bin/citation_verifier.py` wasn't installed.
+  All five blocks now copy `agents/*.md` and `bin/citation_verifier.py`
+  alongside the existing bundle. Empirically verified: Claude Code manual
+  recipe against a tempdir target produces the same 31-file install as
+  auto-install. Closes the residual portion of GitHub issue #1.
+- **New "How to install the Quality Playbook" section in README (post-original-tag).**
+  Added a top-level section before "Need help? Just ask your AI" that
+  explains the recommended AI-driven install flow concisely (clone QPB →
+  open clone in AI tool → ask AI to install) plus the auto-detection
+  behavior, the `--ai-tool` and `--target` fallbacks when detection fails,
+  the Python 3.9+ prerequisite, and a link to the manual `cp` recipes for
+  operators who skip the AI handoff. First-time adopters now have a
+  90-second readable overview before the detailed walkthrough.
+- **`--ai-tool <name>` flag for explicit AI-tool selection (post-original-tag, instruction 064).**
+  `bin/install_skill.py` auto-detection requires the target's AI-tool
+  marker directory (`.cursor/`, `.claude/`, `.github/`, `.continue/`)
+  to already exist. Some AI tools — notably Cursor and GitHub Copilot —
+  don't reliably create that directory on first project open, so adopters
+  who explicitly told their AI agent which tool they're using would still
+  hit `event=detection_failed`. The new `--ai-tool <name>` flag accepts
+  `cursor`, `claude`, `copilot` (alias `github`), or `continue`, maps to
+  the canonical skill subdirectory, and creates the marker directory if
+  it doesn't exist. Mutually exclusive with `--target`. Emits a structured
+  event: `event=ai_tool_explicit ai_tool=<name> target=<base>
+  marker=<.cursor|.claude|.github|.continue> install_path=<resolved>
+  marker_created=<yes|no>`.
+- **Install explainer + detection-failure recovery messaging (instruction 064).**
+  The installer now emits an `event=intro` line at run start with a brief
+  explanation of what's about to happen — the skill installs into a
+  tool-specific subdirectory, detection looks for the marker directory,
+  and `--ai-tool` overrides if detection fails. Verbose mode adds a fuller
+  prose explainer. When auto-detection fails AND no `--target` AND no
+  `--ai-tool` are passed, the existing refusal-to-guess behavior is
+  preserved (script exits non-zero), but the failure event now emits a
+  three-option recovery block in prose: (a) re-run with `--ai-tool <name>`,
+  (b) re-run with `--target <absolute-path>`, or (c) open the target in
+  the AI tool first to create the marker directory and re-run.
+  AGENTS.md install-procedure section updated so the AI agent doing the
+  install knows to fall back to `--ai-tool` based on what the operator
+  told them, instead of giving up. 9 new tests in
+  `bin/tests/test_install_skill.py:AiToolFlagTests` covering all 5 choice
+  values, github→copilot alias, target/ai-tool mutex, recovery emission,
+  intro on success + on failure, and argparse rejection of bad values.
 
 ### What's new in v1.5.5
 
