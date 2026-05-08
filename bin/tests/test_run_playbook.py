@@ -3907,6 +3907,57 @@ class BootstrapSelfAuditDocsMirrorTests(unittest.TestCase):
         )
         self.assertEqual(actual, expected)
 
+    def test_bug_004_bootstrap_mirror_preserves_cite_subtree(self) -> None:
+        """v1.5.6 codex bootstrap fix (065) — BUG-004 (MEDIUM).
+
+        Pre-fix bootstrap_self_audit_docs.main() iterated only
+        SOURCE_DIR.iterdir() with `if not src.is_file(): continue`,
+        which silently skipped the cite/ subdirectory. Any
+        docs_gathered/cite/*.md files (formal-doc/Tier 1-2 sources
+        for the bootstrap self-audit) would be dropped during mirror.
+        The fix adds an explicit cite/ iteration loop after the
+        top-level loop, preserving the same plaintext/exclusion
+        filters.
+        """
+        from bin import bootstrap_self_audit_docs as helper
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "docs_gathered"
+            dest = root / "reference_docs"
+            (source / "cite").mkdir(parents=True)
+            (source / "notes.md").write_text("# Notes\n", encoding="utf-8")
+            (source / "cite" / "spec.md").write_text("# Spec\n", encoding="utf-8")
+            with mock.patch.object(helper, "SOURCE_DIR", source), \
+                 mock.patch.object(helper, "DEST_DIR", dest):
+                rc = helper.main()
+            self.assertEqual(rc, 0)
+            self.assertTrue((dest / "notes.md").is_file(),
+                            "top-level docs must still be mirrored")
+            self.assertTrue((dest / "cite" / "spec.md").is_file(),
+                            "cite/ files must be mirrored alongside top-level")
+
+    def test_bug_004_bootstrap_mirror_skips_nested_cite_subdirs(self) -> None:
+        """The fix should NOT recurse arbitrarily into cite/ subdirectories
+        — only top-level files of cite/ are valid (the cite/ contract is
+        flat citable docs)."""
+        from bin import bootstrap_self_audit_docs as helper
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "docs_gathered"
+            dest = root / "reference_docs"
+            (source / "cite" / "deep").mkdir(parents=True)
+            (source / "cite" / "spec.md").write_text("# Spec\n", encoding="utf-8")
+            (source / "cite" / "deep" / "nested.md").write_text("nested\n", encoding="utf-8")
+            with mock.patch.object(helper, "SOURCE_DIR", source), \
+                 mock.patch.object(helper, "DEST_DIR", dest):
+                helper.main()
+            self.assertTrue((dest / "cite" / "spec.md").is_file())
+            self.assertFalse(
+                (dest / "cite" / "deep" / "nested.md").exists(),
+                "cite/ mirror must be flat; nested subdirs in cite/ "
+                "should be skipped",
+            )
+
 
 class InstallFallbackPinningTests(unittest.TestCase):
     """v1.5.6 fix-up 060 — codex recheck flagged BUG-008/009/010 as

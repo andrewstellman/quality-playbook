@@ -48,7 +48,8 @@ def main() -> int:
         )
         return 1
     DEST_DIR.mkdir(parents=True, exist_ok=True)
-    (DEST_DIR / "cite").mkdir(parents=True, exist_ok=True)
+    dest_cite = DEST_DIR / "cite"
+    dest_cite.mkdir(parents=True, exist_ok=True)
     copied = 0
     for src in sorted(SOURCE_DIR.iterdir()):
         if not src.is_file():
@@ -59,6 +60,19 @@ def main() -> int:
             continue
         shutil.copyfile(src, DEST_DIR / src.name)
         copied += 1
+
+    source_cite = SOURCE_DIR / "cite"
+    if source_cite.is_dir():
+        for src in sorted(source_cite.iterdir()):
+            if not src.is_file():
+                continue
+            if src.suffix.lower() not in PLAINTEXT_EXTENSIONS:
+                continue
+            if src.name in EXCLUDED_NAMES:
+                continue
+            shutil.copyfile(src, dest_cite / src.name)
+            copied += 1
+
     print(f"event=mirror_complete source={SOURCE_DIR} dest={DEST_DIR} files_copied={copied}")
     return 0
 
