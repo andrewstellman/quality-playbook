@@ -14,17 +14,17 @@ The recommended way to install the Quality Playbook into a project is to have yo
 
 1. **Download or clone this repo** somewhere on your machine — for example, `git clone https://github.com/andrewstellman/quality-playbook ~/quality-playbook`. You only need to do this once; the same clone can install the playbook into any number of target projects.
 
-2. **Open the QPB clone in your favorite AI coding tool** — Claude Code, Cursor, Windsurf, GitHub Copilot, or any other agent that can read files and run commands in its working directory. Opening the clone (rather than your target project) gives the AI direct access to [`AGENTS.md`](AGENTS.md) and the install script without needing to reach across workspaces.
+2. **Open your target project** in your favorite AI coding tool — Claude Code, Cursor, GitHub Copilot, Windsurf, or any other agent that can read files at arbitrary paths and run commands. The QPB clone doesn't need to be open in the AI tool; the agent reads its files directly from the clone path you give it.
 
 3. **Ask the AI to install it.** Something like:
 
-   > *"Install the Quality Playbook into `/path/to/your-target-project`."*
+   > *"Install the Quality Playbook into this project from `~/quality-playbook`."*
 
-   The AI agent reads [`AGENTS.md`](AGENTS.md), runs `python3 -m bin.install_skill --into /path/to/your-target-project`, and reports back. The installer auto-detects which AI tool your target project uses by scanning for the marker directory in priority order (`.claude/`, `.github/`, `.cursor/`, `.continue/`) and installs the skill into the matching subdirectory. As long as your target project has been opened by your AI tool at least once — so the marker directory exists — the installer will recognize it and put the files in the right place.
+   The AI agent reads [`AGENTS.md`](AGENTS.md) from the QPB clone, figures out which AI tool to install for, runs `python3 -m bin.install_skill --into <this-project> --ai-tool <tool>`, and reports back. The skill files land in the canonical subdirectory for your AI tool (`.cursor/skills/quality-playbook/`, `.claude/skills/quality-playbook/`, `.github/skills/quality-playbook/`, or `.continue/skills/quality-playbook/`).
 
-If auto-detection can't find a marker (the target hasn't been opened by an AI tool yet, or its config folder isn't created), your AI agent will ask which tool you're using and proceed.
+   The agent determines which tool to install for using a three-tier priority order: (a) what you told it ("install for Cursor"), (b) its own identity if it can confidently self-identify (e.g., a Cursor agent installing inside a Cursor session — it will tell you it's making this inference so you can correct), or (c) asking you if neither (a) nor (b) applies.
 
-**Alternative: open the target in your AI tool** instead of the QPB clone, and ask it to install QPB from the clone path. This works for AI tools with file-system access outside their workspace (Claude Code, Cursor, Windsurf, and most modern coding agents do). The recommended flow above is more robust because it doesn't depend on cross-workspace access — the AI only needs to read files in its current working directory.
+**Currently supported tools:** Cursor, Claude Code, GitHub Copilot (`copilot` or `github` aliases), and Continue. Other AI coding tools work too, as long as they can read files at the QPB clone path and execute shell commands; they install via the explicit `--target <path>` flag if their canonical skills directory isn't yet recognized by `bin/install_skill.py`.
 
 **Prerequisite:** Python 3.9 or later must be on your `PATH`. The installer is a Python module (`python3 -m bin.install_skill`) and uses standard-library features that require 3.9+. Check with `python3 --version`.
 
@@ -32,7 +32,7 @@ If you'd rather skip the AI handoff entirely, run the installer directly from in
 
 ```bash
 cd ~/quality-playbook
-python3 -m bin.install_skill --into /path/to/your-target-project
+python3 -m bin.install_skill --into /path/to/your-target-project --ai-tool <cursor|claude|copilot|continue>
 ```
 
 Or use the manual `cp` recipes in [Step 3 of the walkthrough below](#step-3-install-the-skill-manual-flow--fallback) to copy the skill files by hand without the script.
