@@ -283,6 +283,16 @@ def _duration_seconds(start: str, end: str) -> int:
     b = _parse_iso(end)
     if a is None or b is None:
         return 0
+    # v1.5.6 fix-up 071: _parse_iso returns UTC-aware for ISO strings
+    # with a Z suffix or +HH:MM offset, but naive for bare ISO strings
+    # like "2026-05-08T12:34:56". Mixing naive and aware raises
+    # TypeError on subtraction. Normalize both to UTC-aware so
+    # downstream consumers (write_live_index_final, _resolve_bounds)
+    # don't crash on heterogeneous timestamp inputs.
+    if a.tzinfo is None:
+        a = a.replace(tzinfo=timezone.utc)
+    if b.tzinfo is None:
+        b = b.replace(tzinfo=timezone.utc)
     return max(int((b - a).total_seconds()), 0)
 
 

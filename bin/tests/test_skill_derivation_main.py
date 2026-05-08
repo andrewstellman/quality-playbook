@@ -592,5 +592,123 @@ class PassAllIntegrationTests(unittest.TestCase):
             self.assertIn("Pass C refused to start", str(cm.exception))
 
 
+class ExecutionDivergencePathResolutionTests(unittest.TestCase):
+    """v1.5.6 fix-up 071 BUG-002: bin/skill_derivation/__main__.py
+    Phase 4 Part B handler resolved `prev_runs` as
+    `target_dir / "previous_runs"` — a path archive_run() never
+    populates (archive_run writes to `target_dir/quality/previous_runs/`).
+    The execution-divergence loader silently passed `None` for every
+    legitimate archived run. Fix changed the path to
+    `target_dir / "quality" / "previous_runs"`.
+
+    These tests pin the path resolution by mocking
+    divergence_execution.run_divergence_execution and asserting the
+    config's previous_runs_dir is the quality/-prefixed path.
+    """
+
+    def _setup_minimal_phase4_target(self, tmp: Path) -> None:
+        """Build the minimum scaffold Phase 4 Part B needs to reach
+        the prev_runs computation: SKILL.md + a Pass-C output at
+        quality/phase3/pass_c_formal.jsonl + a sections file."""
+        (tmp / "SKILL.md").write_text(
+            "---\nname: q\nmetadata:\n  version: 1.5.6\n---\n",
+            encoding="utf-8",
+        )
+        p3 = tmp / "quality" / "phase3"
+        p3.mkdir(parents=True)
+        # Pass C output (the formal-doc manifest) — minimal valid file.
+        (p3 / "pass_c_formal.jsonl").write_text(
+            '{"req_id":"REQ-001","section_id":"s1","verbatim_quote":"x"}\n',
+            encoding="utf-8",
+        )
+        # Sections file — minimal valid.
+        (p3 / "pass_a_sections.jsonl").write_text(
+            '{"section_id":"s1","heading_path":["#"],"body":"x"}\n',
+            encoding="utf-8",
+        )
+        # Pass A draft + Pass B citations (Part B may consult).
+        (p3 / "pass_a_drafts.jsonl").write_text("", encoding="utf-8")
+        (p3 / "pass_b_citations.jsonl").write_text("", encoding="utf-8")
+
+    def test_execution_divergence_resolves_quality_previous_runs(self) -> None:
+        """Phase 4 Part B must resolve prev_runs as
+        target_dir/quality/previous_runs/, not target_dir/previous_runs/."""
+        from bin.skill_derivation import divergence_execution as de
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            self._setup_minimal_phase4_target(tmp)
+            # Populate the canonical archive path.
+            archive = tmp / "quality" / "previous_runs" / "20260101T000000Z" / "quality"
+            archive.mkdir(parents=True)
+            (archive / "BUGS.md").write_text(
+                "### BUG-001: Sample\n**File:Line**: a.py:10\n",
+                encoding="utf-8",
+            )
+            # The wrong-path location MUST NOT be created — pre-fix
+            # used target_dir/previous_runs/ (no quality/ prefix);
+            # this verifies the fix prefers the correct path.
+            captured: list[object] = []
+
+            def capture_run(cfg):
+                captured.append(cfg)
+                return {"divergences_emitted": 0}
+
+            with mock.patch.object(
+                de, "run_divergence_execution", side_effect=capture_run,
+            ):
+                main_mod._main([
+                    str(tmp), "--phase", "4", "--part", "b",
+                ])
+
+            self.assertEqual(
+                len(captured), 1,
+                "expected divergence_execution to be invoked exactly once",
+            )
+            cfg = captured[0]
+            self.assertIsNotNone(
+                cfg.previous_runs_dir,
+                "previous_runs_dir must NOT be None — pre-fix was None "
+                "because target_dir/previous_runs/ doesn't exist; "
+                "post-fix should resolve to target_dir/quality/previous_runs/",
+            )
+            # Resolve both for comparison — macOS symlinks /var→/private/var
+            # so the captured path may have a /private/ prefix that the
+            # expected path doesn't.
+            self.assertEqual(
+                cfg.previous_runs_dir.resolve(),
+                (tmp / "quality" / "previous_runs").resolve(),
+                "previous_runs_dir must be target_dir/quality/previous_runs/, "
+                "matching where archive_run() actually writes",
+            )
+
+    def test_execution_divergence_returns_none_when_archive_absent(self) -> None:
+        """When the canonical archive path doesn't exist, prev_runs
+        is correctly None (regression-protection — the fix must not
+        accidentally make a non-existent path look populated)."""
+        from bin.skill_derivation import divergence_execution as de
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            self._setup_minimal_phase4_target(tmp)
+            captured: list[object] = []
+
+            def capture_run(cfg):
+                captured.append(cfg)
+                return {"divergences_emitted": 0}
+
+            with mock.patch.object(
+                de, "run_divergence_execution", side_effect=capture_run,
+            ):
+                main_mod._main([
+                    str(tmp), "--phase", "4", "--part", "b",
+                ])
+
+            cfg = captured[0]
+            self.assertIsNone(
+                cfg.previous_runs_dir,
+                "previous_runs_dir must be None when "
+                "target/quality/previous_runs/ does not exist",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

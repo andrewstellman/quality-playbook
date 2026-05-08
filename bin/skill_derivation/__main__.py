@@ -483,7 +483,14 @@ def _run_phase4(args: argparse.Namespace, target_dir: Path) -> int:
                 "=== Phase 4 Part B: execution divergence ===",
                 file=sys.stderr,
             )
-            prev_runs = target_dir / "previous_runs"
+            # v1.5.6 fix-up 071 BUG-002: archive_run() writes to
+            # quality/previous_runs/, not target_dir/previous_runs/.
+            # Pre-fix this resolved to a directory archive_run never
+            # populates, so the execution-divergence loader silently
+            # passed None to the consumer for every legitimate
+            # archived run — hiding archived evidence from divergence
+            # analysis.
+            prev_runs = target_dir / "quality" / "previous_runs"
             cfg = divergence_execution.ExecutionDivergenceConfig(
                 formal_path=formal_path,
                 previous_runs_dir=prev_runs if prev_runs.is_dir() else None,

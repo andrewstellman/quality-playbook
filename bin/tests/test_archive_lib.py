@@ -499,6 +499,40 @@ class BugHeadingPatternTests(unittest.TestCase):
             self.assertEqual(counts["HIGH"], 2)
             self.assertEqual(counts["LOW"], 1)
 
+    def test_duration_seconds_handles_mixed_naive_aware_iso(self) -> None:
+        """v1.5.6 fix-up 071 carry-over: _parse_iso() returns
+        UTC-aware datetimes for ISO strings with a Z suffix or
+        +HH:MM offset, but NAIVE for bare strings like
+        '2026-05-08T12:34:56'. Pre-fix _duration_seconds() did
+        (b - a).total_seconds() directly, which raises TypeError on
+        mixed naive/aware inputs. Codex hit this on a fresh 2026-05-08
+        skill-direct bootstrap via write_live_index_final().
+        """
+        # Naive start, UTC-aware end.
+        start_naive = "2026-05-08T12:00:00"
+        end_aware_z = "2026-05-08T12:00:30Z"
+        # Must NOT raise TypeError; result is non-negative.
+        result = al._duration_seconds(start_naive, end_aware_z)
+        self.assertEqual(result, 30)
+
+        # UTC-aware start, naive end.
+        start_aware_z = "2026-05-08T12:00:00Z"
+        end_naive = "2026-05-08T12:00:45"
+        result = al._duration_seconds(start_aware_z, end_naive)
+        self.assertEqual(result, 45)
+
+        # Both naive (no Z, no offset) — must still work.
+        result = al._duration_seconds(
+            "2026-05-08T12:00:00", "2026-05-08T12:01:00"
+        )
+        self.assertEqual(result, 60)
+
+        # Both aware — must still work.
+        result = al._duration_seconds(
+            "2026-05-08T12:00:00+00:00", "2026-05-08T12:00:15+00:00"
+        )
+        self.assertEqual(result, 15)
+
     def test_ps_6_archive_bug_count_accepts_hyphenated_suffix_bug_ids(self) -> None:
         """v1.5.6 fix-up 067 PS-6: capture group widened from
         [A-Za-z0-9]+ to [A-Za-z0-9][A-Za-z0-9\\-]* so suffixed BUG IDs
