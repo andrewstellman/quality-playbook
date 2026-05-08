@@ -443,5 +443,62 @@ class LegacyArchiveLayoutCompatTests(unittest.TestCase):
         self.assertEqual(al.PARTIAL_SENTINEL_NAME, ".partial")
 
 
+class BugHeadingPatternTests(unittest.TestCase):
+    """v1.5.6 codex bootstrap fix (065) — BUG-006 (MEDIUM).
+
+    Pre-fix _BUG_HEADING_PATTERN matched only the bare form
+    `### BUG-NNN`, missing the canonical `### BUG-NNN: Title` form
+    that QPB itself produces. _extract_bug_counts() undercounted
+    severity totals when BUGS.md used the titled form.
+    """
+
+    def test_bug_006_archive_bug_count_accepts_titled_bug_headings(self) -> None:
+        """The regex must match `### BUG-NNN: Title` (with title suffix)
+        — that's the canonical form the playbook itself produces."""
+        with TemporaryDirectory() as tmp:
+            run_folder = Path(tmp)
+            _write(
+                run_folder / "quality" / "BUGS.md",
+                "# Bugs\n\n"
+                "### BUG-001: Cite-only docs trigger false code-only warning\n\n"
+                "**Severity**: HIGH\n",
+            )
+            counts = al._extract_bug_counts(run_folder)
+            self.assertEqual(
+                counts["HIGH"], 1,
+                "_extract_bug_counts must recognize the canonical "
+                "`### BUG-NNN: Title` heading form; pre-fix it only "
+                "matched bare `### BUG-NNN`",
+            )
+
+    def test_bug_006_archive_bug_count_still_accepts_bare_bug_headings(self) -> None:
+        """Backward compatibility: the bare form `### BUG-NNN` (no title)
+        must still match — some legacy archives use it."""
+        with TemporaryDirectory() as tmp:
+            run_folder = Path(tmp)
+            _write(
+                run_folder / "quality" / "BUGS.md",
+                "# Bugs\n\n### BUG-001\n\n**Severity**: MEDIUM\n",
+            )
+            counts = al._extract_bug_counts(run_folder)
+            self.assertEqual(counts["MEDIUM"], 1)
+
+    def test_bug_006_archive_bug_count_handles_mixed_bare_and_titled(self) -> None:
+        """A BUGS.md with both forms (some bare, some titled) must
+        count every entry exactly once."""
+        with TemporaryDirectory() as tmp:
+            run_folder = Path(tmp)
+            _write(
+                run_folder / "quality" / "BUGS.md",
+                "# Bugs\n\n"
+                "### BUG-001: First with title\n\n**Severity**: HIGH\n\n"
+                "### BUG-002\n\n**Severity**: HIGH\n\n"
+                "### BUG-003: Third with title\n\n**Severity**: LOW\n",
+            )
+            counts = al._extract_bug_counts(run_folder)
+            self.assertEqual(counts["HIGH"], 2)
+            self.assertEqual(counts["LOW"], 1)
+
+
 if __name__ == "__main__":
     unittest.main()
