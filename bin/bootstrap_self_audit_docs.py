@@ -50,6 +50,26 @@ def main() -> int:
     DEST_DIR.mkdir(parents=True, exist_ok=True)
     dest_cite = DEST_DIR / "cite"
     dest_cite.mkdir(parents=True, exist_ok=True)
+
+    # v1.5.6 fix-up 067 C-8: build the set of expected destination paths
+    # from the source first, so we can clean up destination-only stale
+    # plaintext files after the copy. Pre-fix the script only did
+    # forward shutil.copyfile() — if a source doc was renamed or
+    # removed, the stale destination copy persisted forever.
+    expected: set[Path] = set()
+    for src in sorted(SOURCE_DIR.iterdir()):
+        if (src.is_file()
+                and src.suffix.lower() in PLAINTEXT_EXTENSIONS
+                and src.name not in EXCLUDED_NAMES):
+            expected.add(DEST_DIR / src.name)
+    source_cite = SOURCE_DIR / "cite"
+    if source_cite.is_dir():
+        for src in sorted(source_cite.iterdir()):
+            if (src.is_file()
+                    and src.suffix.lower() in PLAINTEXT_EXTENSIONS
+                    and src.name not in EXCLUDED_NAMES):
+                expected.add(dest_cite / src.name)
+
     copied = 0
     for src in sorted(SOURCE_DIR.iterdir()):
         if not src.is_file():
@@ -61,7 +81,6 @@ def main() -> int:
         shutil.copyfile(src, DEST_DIR / src.name)
         copied += 1
 
-    source_cite = SOURCE_DIR / "cite"
     if source_cite.is_dir():
         for src in sorted(source_cite.iterdir()):
             if not src.is_file():
@@ -73,7 +92,35 @@ def main() -> int:
             shutil.copyfile(src, dest_cite / src.name)
             copied += 1
 
-    print(f"event=mirror_complete source={SOURCE_DIR} dest={DEST_DIR} files_copied={copied}")
+    # Cleanup pass: delete plaintext files in DEST_DIR / DEST_DIR/cite
+    # that are NOT in the expected set. Conservative: only touches
+    # files matching the script's plaintext extension/exclusion
+    # conventions (.md/.txt, README.md excluded, dotfiles preserved).
+    # Operator-added .gitkeep sentinels under reference_docs/cite/
+    # are preserved (dotfile-prefixed → skipped).
+    removed = 0
+    for dest_path in (DEST_DIR, dest_cite):
+        if not dest_path.is_dir():
+            continue
+        for p in sorted(dest_path.iterdir()):
+            if not p.is_file():
+                continue
+            if p.suffix.lower() not in PLAINTEXT_EXTENSIONS:
+                continue
+            if p.name in EXCLUDED_NAMES:
+                continue
+            if p.name.startswith("."):
+                continue
+            if p not in expected:
+                p.unlink()
+                removed += 1
+
+    print(
+        f"event=mirror_cleanup destination={DEST_DIR} files_removed={removed}"
+    )
+    print(
+        f"event=mirror_complete source={SOURCE_DIR} dest={DEST_DIR} files_copied={copied}"
+    )
     return 0
 
 

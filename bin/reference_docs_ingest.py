@@ -88,9 +88,37 @@ class _FileRecord:
 
 
 def _iter_candidates(root: Path) -> Iterable[Path]:
+    """Enumerate ingest candidates for a target's ``reference_docs/``.
+
+    v1.5.6 fix-up 067 C-7: broadened closure of BUG-003. Pre-fix this
+    used ``rglob("*")`` to recurse arbitrarily deep, so a nested
+    non-cite ``.pdf`` under ``reference_docs/<archive>/`` aborted
+    Phase 1 ingest with `unsupported_extension`, and nested non-cite
+    plaintext got loaded into memory and classified as Tier 4 even
+    though the documented contract says only top-level ``reference_docs/``
+    files are Tier 4 context. ``load_tier4_context()`` was patched in
+    instruction 065, but ``_iter_candidates()`` (used by ``_collect()``,
+    ``ingest()``, and ``collect_documents()``) still recursed.
+
+    The two-tier flat structure now enforced here: top-level files of
+    ``reference_docs/`` are Tier 3/4 context; top-level files of
+    ``reference_docs/cite/`` are the formal-doc surface (Tier 1/2).
+    Nested directories under either are out of scope.
+    """
     if not root.exists():
         return []
-    return sorted(p for p in root.rglob("*") if p.is_file())
+    candidates: List[Path] = []
+    # Top-level files of root/.
+    for p in sorted(root.iterdir()):
+        if p.is_file():
+            candidates.append(p)
+    # Top-level files of root/cite/.
+    cite_dir = root / CITE_DIR_NAME
+    if cite_dir.is_dir():
+        for p in sorted(cite_dir.iterdir()):
+            if p.is_file():
+                candidates.append(p)
+    return candidates
 
 
 def _rel(path: Path, target_repo: Path) -> str:

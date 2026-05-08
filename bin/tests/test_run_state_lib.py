@@ -1384,5 +1384,50 @@ class ValidateNoSourceEditsTests(unittest.TestCase):
             self.assertIn("quality_other/", violations)
 
 
+class EmptyEventTypesWhitelistTests(unittest.TestCase):
+    """v1.5.6 fix-up 067 C-4: pre-fix the whitelist check at
+    bin/run_state_lib.py:902 had ``and declared_types`` as a guard,
+    silently SKIPPING the check when ``_index.event_types`` was an
+    empty list. The comment said "every subsequent event will fail
+    invariant 4" — the code violated that contract. Council 2026-05-08
+    (gpt-5.4 panelist A) flagged. Fix dropped ``and declared_types``;
+    these tests pin the new behavior."""
+
+    def test_empty_event_types_fails_every_event(self) -> None:
+        with TemporaryDirectory() as temp_dir:
+            jsonl_path = Path(temp_dir) / "run_state.jsonl"
+            lines = [
+                # _index with empty event_types — structurally broken
+                # but should not silently bless every subsequent event.
+                '{"event":"_index","ts":"2026-05-08T12:00:00Z","schema_version":"1.5.6","event_types":[],"benchmark":"x","lever_state":"baseline","started_at":"2026-05-08T12:00:00Z"}',
+                '{"event":"phase_start","ts":"2026-05-08T12:00:01Z","phase":1}',
+                '{"event":"phase_end","ts":"2026-05-08T12:00:02Z","phase":1,"key_counts":{"findings_total":0,"patterns_walked":0},"artifacts_produced":[]}',
+            ]
+            jsonl_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            ok, violations = lib.validate_run_state_file(jsonl_path)
+            self.assertFalse(ok, msg=str(violations))
+            # Both non-_index events must trip the whitelist check.
+            joined = "\n".join(violations)
+            self.assertIn("phase_start", joined)
+            self.assertIn("phase_end", joined)
+            self.assertIn("not declared in _index.event_types", joined)
+
+    def test_populated_event_types_still_passes_listed_events(self) -> None:
+        """Regression check: the fix must not break the normal case."""
+        with TemporaryDirectory() as temp_dir:
+            jsonl_path = Path(temp_dir) / "run_state.jsonl"
+            lines = [
+                '{"event":"_index","ts":"2026-05-08T12:00:00Z","schema_version":"1.5.6","event_types":["_index","phase_start","phase_end"],"benchmark":"x","lever_state":"baseline","started_at":"2026-05-08T12:00:00Z"}',
+                '{"event":"phase_start","ts":"2026-05-08T12:00:01Z","phase":1}',
+                '{"event":"phase_end","ts":"2026-05-08T12:00:02Z","phase":1,"key_counts":{"findings_total":0,"patterns_walked":0},"artifacts_produced":[]}',
+            ]
+            jsonl_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            ok, violations = lib.validate_run_state_file(jsonl_path)
+            # No whitelist violations (other invariants might still
+            # fail — that's not what this test is pinning).
+            joined = "\n".join(violations)
+            self.assertNotIn("not declared in _index.event_types", joined)
+
+
 if __name__ == "__main__":
     unittest.main()

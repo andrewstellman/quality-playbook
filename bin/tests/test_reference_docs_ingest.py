@@ -346,6 +346,59 @@ class Tier4IngestScopeTests(unittest.TestCase):
             repo = Path(tmp)
             self.assertEqual(rdi.load_tier4_context(repo), [])
 
+    def test_ingest_does_not_touch_nested_non_cite_files(self) -> None:
+        """v1.5.6 fix-up 067 C-7: BUG-003 broader closure. Pre-fix
+        _iter_candidates() used rglob('*'), so a nested non-cite
+        .pdf aborted Phase 1 ingest with `unsupported_extension`,
+        and nested plaintext got loaded into memory and processed.
+        The fix scopes _iter_candidates to top-level files of
+        reference_docs/ AND top-level files of reference_docs/cite/
+        only — the two-tier flat structure documented at REQ-003.
+        """
+        # Need a SKILL.md so benchmark_lib.detect_skill_version
+        # resolves; ingest() reads version metadata from it.
+        with tempfile.TemporaryDirectory() as tmp:
+            repo = _scaffold(Path(tmp))
+            refs = repo / "reference_docs"
+            cite = refs / "cite"
+            cite.mkdir(parents=True)
+            (refs / "spec.md").write_text("# Top-level Tier 4\n", encoding="utf-8")
+            (cite / "formal.md").write_text(
+                "<!-- qpb-tier: 1 -->\n# Formal cite\n", encoding="utf-8"
+            )
+            # Nested non-cite content — must be IGNORED.
+            (refs / "nested" / "archive").mkdir(parents=True)
+            (refs / "nested" / "archive" / "skip.md").write_text(
+                "# Nested archive (should be ignored)\n", encoding="utf-8"
+            )
+            (refs / "nested" / "junk.pdf").write_bytes(b"%PDF-1.4 fake\n")
+
+            # ingest() must succeed (does NOT abort on the nested .pdf).
+            manifest = rdi.ingest(repo)
+            self.assertIsNotNone(manifest)
+            # Manifest records are limited to cite/formal.md (only
+            # cite/ records appear in the formal-doc manifest).
+            cite_paths = sorted(
+                rec.get("source_path", "")
+                for rec in manifest.get("records", [])
+            )
+            self.assertEqual(cite_paths, ["reference_docs/cite/formal.md"])
+
+            # collect_documents returns only the two top-level entries.
+            collected = rdi.collect_documents(repo)
+            collected_paths = sorted(rec.rel_path for rec in collected)
+            self.assertEqual(
+                collected_paths,
+                ["reference_docs/cite/formal.md", "reference_docs/spec.md"],
+                "_iter_candidates / collect_documents must NOT recurse into "
+                "nested/archive/ — that's the BUG-003 broader closure",
+            )
+
+            # load_tier4_context returns only the top-level non-cite file.
+            tier4 = rdi.load_tier4_context(repo)
+            tier4_paths = sorted(p for p, _ in tier4)
+            self.assertEqual(tier4_paths, ["reference_docs/spec.md"])
+
 
 if __name__ == "__main__":
     unittest.main()

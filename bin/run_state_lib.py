@@ -899,7 +899,15 @@ def validate_run_state_file(
         ev = obj.get("event")
         if not isinstance(ev, str):
             continue
-        if ev != "_index" and declared_types and ev not in declared_types:
+        # C-4 (Council 2026-05-08): pre-fix this had `and declared_types`,
+        # which short-circuited the whitelist check when declared_types
+        # was empty. The comment above (`every subsequent event will
+        # fail invariant 4`) documented the intent, but the code
+        # silently SKIPPED the check. A malformed run_state.jsonl with
+        # `_index.event_types: []` passed invariant 4 for every event.
+        # The check now runs unconditionally — empty whitelist correctly
+        # fails every subsequent non-_index event.
+        if ev != "_index" and ev not in declared_types:
             violations.append(
                 f"line {lineno}: event {ev!r} is not declared in "
                 f"_index.event_types"

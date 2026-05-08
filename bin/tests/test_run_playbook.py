@@ -1403,7 +1403,11 @@ class FormalDocsGuardTests(unittest.TestCase):
         with TemporaryDirectory() as temp_dir:
             banner = run_playbook.formal_docs_guard_banner(Path(temp_dir))
             self.assertIsNotNone(banner)
-            self.assertIn("reference_docs/ is missing", banner)
+            # v1.5.6 fix-up 067 C-6: banner now mentions both
+            # reference_docs/ AND docs_gathered/ since docs_gathered/
+            # is honored as a legacy fallback.
+            self.assertIn("reference_docs/", banner)
+            self.assertIn("docs_gathered/", banner)
             self.assertIn("--no-formal-docs", banner)
 
     def test_empty_directory_triggers_warning(self) -> None:
@@ -1412,7 +1416,10 @@ class FormalDocsGuardTests(unittest.TestCase):
             (repo / "reference_docs").mkdir()
             banner = run_playbook.formal_docs_guard_banner(repo)
             self.assertIsNotNone(banner)
-            self.assertIn("reference_docs/ is empty", banner)
+            # v1.5.6 fix-up 067 C-6: empty reference_docs/ + no
+            # docs_gathered/ → banner names both as missing.
+            self.assertIn("reference_docs/", banner)
+            self.assertIn("docs_gathered/", banner)
 
     def test_top_level_file_is_clean(self) -> None:
         with TemporaryDirectory() as temp_dir:
@@ -1438,7 +1445,10 @@ class FormalDocsGuardTests(unittest.TestCase):
             write(ref / "README.md", "folder readme\n")
             banner = run_playbook.formal_docs_guard_banner(repo)
             self.assertIsNotNone(banner)
-            self.assertIn("reference_docs/ is empty", banner)
+            # v1.5.6 fix-up 067 C-6: README-only reference_docs/ + no
+            # docs_gathered/ → banner names both as missing.
+            self.assertIn("reference_docs/", banner)
+            self.assertIn("docs_gathered/", banner)
 
     def test_parse_args_accepts_no_formal_docs(self) -> None:
         args = run_playbook.parse_args(["--no-formal-docs", "./somedir"])
@@ -3936,6 +3946,60 @@ class BootstrapSelfAuditDocsMirrorTests(unittest.TestCase):
             self.assertTrue((dest / "cite" / "spec.md").is_file(),
                             "cite/ files must be mirrored alongside top-level")
 
+    def test_mirror_removes_destination_only_stale_files(self) -> None:
+        """v1.5.6 fix-up 067 C-8: pre-fix bootstrap_self_audit_docs.main()
+        only did forward shutil.copyfile() — destination-only stale
+        files (renamed/removed sources) persisted forever. Fix adds a
+        cleanup pass that removes plaintext files in destination not
+        in the expected set built from source."""
+        from bin import bootstrap_self_audit_docs as helper
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "docs_gathered"
+            dest = root / "reference_docs"
+            source.mkdir()
+            (source / "spec.md").write_text("# Spec v1\n", encoding="utf-8")
+            with mock.patch.object(helper, "SOURCE_DIR", source), \
+                 mock.patch.object(helper, "DEST_DIR", dest):
+                helper.main()
+            self.assertTrue((dest / "spec.md").is_file())
+
+            # Now: rename spec.md → new.md in source. Re-run mirror.
+            (source / "spec.md").unlink()
+            (source / "new.md").write_text("# New name\n", encoding="utf-8")
+            with mock.patch.object(helper, "SOURCE_DIR", source), \
+                 mock.patch.object(helper, "DEST_DIR", dest):
+                helper.main()
+
+            self.assertTrue(
+                (dest / "new.md").is_file(),
+                "renamed source must be mirrored to destination",
+            )
+            self.assertFalse(
+                (dest / "spec.md").exists(),
+                "stale destination spec.md must be removed by cleanup pass",
+            )
+
+    def test_mirror_cleanup_preserves_dotfile_sentinels(self) -> None:
+        """Cleanup must NOT delete .gitkeep or other dotfile sentinels
+        — those are operator-managed scaffolding."""
+        from bin import bootstrap_self_audit_docs as helper
+        with TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "docs_gathered"
+            dest = root / "reference_docs"
+            source.mkdir()
+            (source / "spec.md").write_text("# Spec\n", encoding="utf-8")
+            dest.mkdir()
+            (dest / ".gitkeep").write_text("", encoding="utf-8")
+            (dest / "cite").mkdir()
+            (dest / "cite" / ".gitkeep").write_text("", encoding="utf-8")
+            with mock.patch.object(helper, "SOURCE_DIR", source), \
+                 mock.patch.object(helper, "DEST_DIR", dest):
+                helper.main()
+            self.assertTrue((dest / ".gitkeep").is_file())
+            self.assertTrue((dest / "cite" / ".gitkeep").is_file())
+
     def test_bug_004_bootstrap_mirror_skips_nested_cite_subdirs(self) -> None:
         """The fix should NOT recurse arbitrarily into cite/ subdirectories
         — only top-level files of cite/ are valid (the cite/ contract is
@@ -3956,6 +4020,57 @@ class BootstrapSelfAuditDocsMirrorTests(unittest.TestCase):
                 (dest / "cite" / "deep" / "nested.md").exists(),
                 "cite/ mirror must be flat; nested subdirs in cite/ "
                 "should be skipped",
+            )
+
+
+class DocsGatheredFallbackParityTests(unittest.TestCase):
+    """v1.5.6 fix-up 067 C-6: the legacy docs_gathered/ fallback was
+    honored by docs_present() but ignored by _evaluate_documentation_state()
+    and formal_docs_guard_banner(). Three surfaces, three answers
+    on the same input. This test pins post-fix parity."""
+
+    def test_docs_gathered_only_consistent_across_surfaces(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "docs_gathered").mkdir()
+            (repo / "docs_gathered" / "spec.md").write_text(
+                "# Spec\n", encoding="utf-8"
+            )
+            self.assertTrue(
+                run_playbook.docs_present(repo),
+                "docs_present must report True for docs_gathered/-only repo",
+            )
+            self.assertEqual(
+                run_playbook._evaluate_documentation_state(repo),
+                "with_docs",
+                "_evaluate_documentation_state must agree (was code_only pre-fix)",
+            )
+            self.assertIsNone(
+                run_playbook.formal_docs_guard_banner(repo),
+                "formal_docs_guard_banner must NOT emit a warning when "
+                "docs_gathered/ has plaintext (was emitting one pre-fix)",
+            )
+
+    def test_docs_gathered_with_only_readme_is_code_only(self) -> None:
+        """docs_gathered/ with only README.md must NOT trigger
+        docs-present in any surface (matches reference_docs/ predicate)."""
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "docs_gathered").mkdir()
+            (repo / "docs_gathered" / "README.md").write_text(
+                "ignored\n", encoding="utf-8"
+            )
+            self.assertFalse(run_playbook.docs_present(repo))
+            self.assertEqual(
+                run_playbook._evaluate_documentation_state(repo), "code_only"
+            )
+            self.assertIsNotNone(run_playbook.formal_docs_guard_banner(repo))
+
+    def test_docs_gathered_helper_handles_missing_dir(self) -> None:
+        """_docs_gathered_has_plaintext returns False when dir absent."""
+        with TemporaryDirectory() as tmp:
+            self.assertFalse(
+                run_playbook._docs_gathered_has_plaintext(Path(tmp))
             )
 
 

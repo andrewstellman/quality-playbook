@@ -1567,20 +1567,7 @@ def docs_present(repo_dir: Path) -> bool:
     # `reference_docs/` exclusively.
     if _reference_docs_plaintext(repo_dir / "reference_docs"):
         return True
-
-    docs_dir = repo_dir / "docs_gathered"
-    if not docs_dir.is_dir():
-        return False
-    for f in sorted(docs_dir.iterdir()):
-        if not f.is_file() or f.name.startswith("."):
-            continue
-        if f.name in _REFERENCE_DOCS_SKIPPED:
-            continue
-        if f.suffix.lower() not in _REFERENCE_DOCS_PLAINTEXT_EXTS:
-            continue
-        if f.stat().st_size > 0:
-            return True
-    return False
+    return _docs_gathered_has_plaintext(repo_dir)
 
 
 # v1.5.2: pre-run reference_docs guard.
@@ -1603,6 +1590,36 @@ def _reference_docs_plaintext(reference_docs_dir: Path) -> List[Path]:
     return files
 
 
+def _docs_gathered_has_plaintext(repo_dir: Path) -> bool:
+    """Return True if the legacy ``docs_gathered/`` directory has at
+    least one non-empty recognized-plaintext file (same predicate as
+    ``_reference_docs_plaintext`` — `.md`/`.txt` only, README.md and
+    dotfiles excluded).
+
+    v1.5.6 fix-up 067 C-6: pre-fix only ``docs_present()`` honored the
+    legacy ``docs_gathered/`` fallback; ``_evaluate_documentation_state()``
+    and ``formal_docs_guard_banner()`` checked only ``reference_docs/``.
+    A target with the legacy layout got contradictory startup messages
+    across the three surfaces. The fallback is preserved (per the
+    original comment in ``docs_present()``: "so archived benchmarks
+    with that layout don't suddenly report 'code-only'") and now
+    applied uniformly across all three surfaces.
+    """
+    docs_dir = repo_dir / "docs_gathered"
+    if not docs_dir.is_dir():
+        return False
+    for f in sorted(docs_dir.iterdir()):
+        if not f.is_file() or f.name.startswith("."):
+            continue
+        if f.name in _REFERENCE_DOCS_SKIPPED:
+            continue
+        if f.suffix.lower() not in _REFERENCE_DOCS_PLAINTEXT_EXTS:
+            continue
+        if f.stat().st_size > 0:
+            return True
+    return False
+
+
 def formal_docs_guard_banner(repo_dir: Path) -> Optional[str]:
     """Return a multi-line warning banner, or None if reference_docs/ is clean.
 
@@ -1619,12 +1636,19 @@ def formal_docs_guard_banner(repo_dir: Path) -> Optional[str]:
         "bootstrap / minimal-repo cases that legitimately have no reference docs."
     )
 
+    # v1.5.6 fix-up 067 C-6: honor the legacy docs_gathered/ fallback so
+    # this banner agrees with docs_present() and _evaluate_documentation_state().
+    legacy_has_docs = _docs_gathered_has_plaintext(repo_dir)
     if not reference_docs_dir.is_dir():
-        trigger = f"reference_docs/ is missing at {reference_docs_dir}"
+        if legacy_has_docs:
+            return None
+        trigger = f"neither reference_docs/ nor docs_gathered/ contains plaintext at {repo_dir}"
     else:
         plaintext = _reference_docs_plaintext(reference_docs_dir)
         if not plaintext:
-            trigger = f"reference_docs/ is empty at {reference_docs_dir}"
+            if legacy_has_docs:
+                return None
+            trigger = f"neither reference_docs/ nor docs_gathered/ contains plaintext at {repo_dir}"
         else:
             return None
 
@@ -1673,6 +1697,10 @@ def _evaluate_documentation_state(repo_dir: Path) -> str:
     """
     refs = repo_dir / "reference_docs"
     if _reference_docs_plaintext(refs):
+        return "with_docs"
+    # v1.5.6 fix-up 067 C-6: honor the legacy docs_gathered/ fallback so
+    # this surface agrees with docs_present() and formal_docs_guard_banner().
+    if _docs_gathered_has_plaintext(repo_dir):
         return "with_docs"
     return "code_only"
 
