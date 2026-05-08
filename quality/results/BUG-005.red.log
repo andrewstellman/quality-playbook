@@ -1,21 +1,11 @@
 RED
-Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_005_installed_gate_retains_citation_verifier
+Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_005_phase1_validator_enforces_the_written_gate
+Exit code: 1
 
-F
-======================================================================
-FAIL: test_bug_005_installed_gate_retains_citation_verifier (quality.test_regression.CodeReviewRegressionTests.test_bug_005_installed_gate_retains_citation_verifier)
-BUG-005: installed quality_gate.py should keep its Layer-1 verifier dependency.
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp6lkqsuub/work/quality/test_regression.py", line 100, in test_bug_005_installed_gate_retains_citation_verifier
-    self.assertEqual(result.stdout.strip(), "present")
-    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-AssertionError: 'missing' != 'present'
-- missing
-+ present
+Traceback excerpt:
+AssertionError: True is not false
 
-
-----------------------------------------------------------------------
-Ran 1 test in 0.061s
+Full test output:
+test_bug_005_phase1_validator_enforces_the_written_gate (quality.test_regression.CodeReviewRegressionTests.test_bug_005_phase1_validator_enforces_the_written_gate) ... FAIL
 
 FAILED (failures=1)

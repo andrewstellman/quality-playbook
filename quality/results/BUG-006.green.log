@@ -1,8 +1,9 @@
 GREEN
-Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_006_bootstrap_docs_match_live_release_framing (after patched code)
+Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_006_archive_bug_count_accepts_titled_bug_headings after git apply quality/patches/BUG-006-fix.patch
+Patch apply exit code: 0
+Exit code: 0
 
-.
-----------------------------------------------------------------------
-Ran 1 test in 0.001s
+Full test output:
+test_bug_006_archive_bug_count_accepts_titled_bug_headings (quality.test_regression.CodeReviewRegressionTests.test_bug_006_archive_bug_count_accepts_titled_bug_headings) ... ok
 
 OK

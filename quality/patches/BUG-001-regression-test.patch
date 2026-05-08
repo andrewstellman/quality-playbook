@@ -1,26 +1,20 @@
-diff --git a/quality/test_regression.py b/quality/test_regression.py
-new file mode 100644
---- /dev/null
+--- a/quality/test_regression.py
 +++ b/quality/test_regression.py
-@@ -0,0 +1,19 @@
-+from pathlib import Path
-+import tempfile
-+import unittest
-+
-+from bin import run_playbook
-+
-+
-+class CodeReviewRegressionTests(unittest.TestCase):
-+    @unittest.expectedFailure
-+    def test_bug_001_reference_docs_counts_as_docs_present(self):
-+        """BUG-001: reference_docs/ should count as docs-present input."""
-+        with tempfile.TemporaryDirectory() as tmp:
+@@ -35,3 +35,17 @@
+ 
+ 
+ class CodeReviewRegressionTests(unittest.TestCase):
++    @xfail(
++        reason=(
++            "BUG-001: docs_present() ignores cite-only docs-backed trees; "
++            "remove after applying quality/patches/BUG-001-fix.patch"
++        )
++    )
++    def test_bug_001_docs_present_recognizes_cite_only_docs(self) -> None:
++        with TemporaryDirectory() as tmp:
 +            repo = Path(tmp)
-+            (repo / "reference_docs").mkdir()
-+            (repo / "reference_docs" / "design-notes.md").write_text("# notes
-", encoding="utf-8")
++            cite = repo / "reference_docs" / "cite"
++            cite.mkdir(parents=True)
++            (cite / "spec.md").write_text("# Spec\n", encoding="utf-8")
 +            self.assertTrue(run_playbook.docs_present(repo))
 +
-+
-+if __name__ == "__main__":
-+    unittest.main()

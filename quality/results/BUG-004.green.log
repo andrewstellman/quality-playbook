@@ -1,9 +1,10 @@
 GREEN
-Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_004_cleanup_without_pid_files_stays_run_scoped (after patched code)
+Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_004_bootstrap_mirror_preserves_cite_subtree after git apply quality/patches/BUG-004-fix.patch
+Patch apply exit code: 0
+Exit code: 0
 
-No PID files found. Refusing broad cleanup; remove stale workers manually.
-.
-----------------------------------------------------------------------
-Ran 1 test in 0.000s
+Full test output:
+event=mirror_complete source=<temp>/docs_gathered dest=<temp>/reference_docs files_copied=2
+test_bug_004_bootstrap_mirror_preserves_cite_subtree (quality.test_regression.CodeReviewRegressionTests.test_bug_004_bootstrap_mirror_preserves_cite_subtree) ... ok
 
 OK

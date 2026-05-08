@@ -1,13 +1,28 @@
-diff --git a/repos/setup_repos.sh b/repos/setup_repos.sh
---- a/repos/setup_repos.sh
-+++ b/repos/setup_repos.sh
-@@ -194,7 +194,10 @@
-     # Install skill files
-     mkdir -p "${dst}/.github/skills/references"
-+    mkdir -p "${dst}/bin"
-     cp "${QPB_DIR}/SKILL.md" "${dst}/.github/skills/SKILL.md"
-     cp "${QPB_DIR}/references/"* "${dst}/.github/skills/references/" 2>/dev/null || true
-     cp "${QPB_DIR}/LICENSE.txt" "${dst}/.github/skills/LICENSE.txt" 2>/dev/null || true
-     cp "${QPB_DIR}/.github/skills/quality_gate/quality_gate.py" "${dst}/.github/skills/quality_gate.py" 2>/dev/null || true
-+    cp "${QPB_DIR}/bin/__init__.py" "${dst}/bin/__init__.py" 2>/dev/null || true
-+    cp "${QPB_DIR}/bin/citation_verifier.py" "${dst}/bin/citation_verifier.py" 2>/dev/null || true
+--- a/bin/run_state_lib.py
++++ b/bin/run_state_lib.py
+@@ -195,6 +195,25 @@
+                 f"(expected '## Finding', '## Open Exploration Findings', "
+                 f"or '## N.')",
+             )
++
++        required_headings = (
++            "## Open Exploration Findings",
++            "## Quality Risks",
++            "## Pattern Applicability Matrix",
++            "## Candidate Bugs for Phase 2",
++            "## Gate Self-Check",
++        )
++        for heading in required_headings:
++            if heading not in text:
++                return (False, f"{path} missing required Phase 1 heading: {heading}")
++        if len(re.findall(r"^## Pattern Deep Dive — ", text, re.MULTILINE)) < 3:
++            return (False, f"{path} must contain at least 3 '## Pattern Deep Dive — ' sections")
++
++        progress_path = quality_dir / "PROGRESS.md"
++        progress_text = progress_path.read_text(encoding="utf-8", errors="ignore") if progress_path.is_file() else ""
++        if not re.search(r"^- \[x\] Phase 1 - Explore$", progress_text, re.MULTILINE):
++            return (False, f"{progress_path} must mark Phase 1 complete before Phase 2 can proceed")
++
+         return (True, "")
+ 
+     if phase == 2:

@@ -1,8 +1,9 @@
 GREEN
-Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_001_reference_docs_counts_as_docs_present (after patched code)
+Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_001_docs_present_recognizes_cite_only_docs after git apply quality/patches/BUG-001-fix.patch
+Patch apply exit code: 0
+Exit code: 0
 
-.
-----------------------------------------------------------------------
-Ran 1 test in 0.002s
+Full test output:
+test_bug_001_docs_present_recognizes_cite_only_docs (quality.test_regression.CodeReviewRegressionTests.test_bug_001_docs_present_recognizes_cite_only_docs) ... ok
 
 OK

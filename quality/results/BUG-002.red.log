@@ -1,18 +1,11 @@
 RED
-Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_002_phase2_gate_enforces_written_contract
+Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_002_docs_present_uses_the_recognized_plaintext_predicate
+Exit code: 1
 
-F
-======================================================================
-FAIL: test_bug_002_phase2_gate_enforces_written_contract (quality.test_regression.CodeReviewRegressionTests.test_bug_002_phase2_gate_enforces_written_contract)
-BUG-002: long placeholders without the required headings must not pass Phase 2.
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmputm6zolp/work/quality/test_regression.py", line 45, in test_bug_002_phase2_gate_enforces_written_contract
-    self.assertFalse(gate.ok)
-    ~~~~~~~~~~~~~~~~^^^^^^^^^
+Traceback excerpt:
 AssertionError: True is not false
 
-----------------------------------------------------------------------
-Ran 1 test in 0.002s
+Full test output:
+test_bug_002_docs_present_uses_the_recognized_plaintext_predicate (quality.test_regression.CodeReviewRegressionTests.test_bug_002_docs_present_uses_the_recognized_plaintext_predicate) ... FAIL
 
 FAILED (failures=1)

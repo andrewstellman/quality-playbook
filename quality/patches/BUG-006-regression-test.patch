@@ -1,26 +1,21 @@
-diff --git a/quality/test_regression.py b/quality/test_regression.py
-new file mode 100644
---- /dev/null
+--- a/quality/test_regression.py
 +++ b/quality/test_regression.py
-@@ -0,0 +1,24 @@
-+import unittest
-+from pathlib import Path
-+
-+
-+REPO_ROOT = Path(__file__).resolve().parents[1]
-+
-+
-+class CodeReviewRegressionTests(unittest.TestCase):
-+    @unittest.expectedFailure
-+    def test_bug_006_bootstrap_docs_match_live_release_framing(self):
-+        skill_text = (REPO_ROOT / 'SKILL.md').read_text(encoding='utf-8')
-+        live_version = next(line.split(':', 1)[1].strip() for line in skill_text.splitlines() if line.startswith('  version:'))
-+        for path in (REPO_ROOT / 'docs_gathered' / '01_README_project.md', REPO_ROOT / 'docs_gathered' / '29_improvement_axes_and_version_history.md'):
-+            with self.subTest(path=path.name):
-+                text = path.read_text(encoding='utf-8')
-+                self.assertIn(live_version, text)
-+                self.assertIn('reference_docs', text)
-+
-+
-+if __name__ == '__main__':
-+    unittest.main()
+@@ -125,3 +125,18 @@
+             ok, _reason = run_state_lib.validate_phase_artifacts(quality, 1)
+             self.assertFalse(ok)
+ 
++    @xfail(
++        reason=(
++            "BUG-006: archive bug counting ignores canonical titled headings; "
++            "remove after applying quality/patches/BUG-006-fix.patch"
++        )
++    )
++    def test_bug_006_archive_bug_count_accepts_titled_bug_headings(self) -> None:
++        with TemporaryDirectory() as tmp:
++            run_folder = Path(tmp)
++            _write(
++                run_folder / "quality" / "BUGS.md",
++                "# Bugs\n\n### BUG-001: Cite-only docs trigger false code-only warning\n\n**Severity**: HIGH\n",
++            )
++            counts = archive_lib._extract_bug_counts(run_folder)
++            self.assertEqual(counts["HIGH"], 1)

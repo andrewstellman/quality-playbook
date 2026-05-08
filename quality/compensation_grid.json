@@ -4,506 +4,386 @@
     "REQ-001": {
       "pattern": "parity",
       "items": [
-        "REPO_ROOT_SKILL",
-        "INSTALLED_SKILL"
+        "CITE_PLAINTEXT"
       ],
       "sites": [
-        "GLOBAL"
+        "DOCUMENTATION_STATE",
+        "STARTUP_WARNING",
+        "FORMAL_DOCS_BANNER"
       ],
       "cells": [
         {
-          "cell_id": "REQ-001/cell-REPO_ROOT_SKILL-GLOBAL",
-          "item": "REPO_ROOT_SKILL",
-          "site": "GLOBAL",
+          "cell_id": "REQ-001/cell-CITE_PLAINTEXT-DOCUMENTATION_STATE",
+          "item": "CITE_PLAINTEXT",
+          "site": "DOCUMENTATION_STATE",
           "present": true,
-          "evidence": "quality/mechanical/skill_entry_hashes.txt:1"
+          "evidence": "bin/run_playbook.py:1661-1669"
         },
         {
-          "cell_id": "REQ-001/cell-INSTALLED_SKILL-GLOBAL",
-          "item": "INSTALLED_SKILL",
-          "site": "GLOBAL",
+          "cell_id": "REQ-001/cell-CITE_PLAINTEXT-STARTUP_WARNING",
+          "item": "CITE_PLAINTEXT",
+          "site": "STARTUP_WARNING",
+          "present": false,
+          "evidence": "bin/run_playbook.py:1568-1574"
+        },
+        {
+          "cell_id": "REQ-001/cell-CITE_PLAINTEXT-FORMAL_DOCS_BANNER",
+          "item": "CITE_PLAINTEXT",
+          "site": "FORMAL_DOCS_BANNER",
           "present": true,
-          "evidence": "quality/mechanical/skill_entry_hashes.txt:2"
+          "evidence": "bin/run_playbook.py:1614-1621"
         }
       ]
     },
     "REQ-002": {
       "pattern": "parity",
       "items": [
-        "REFERENCE_DOCS",
-        "DOCS_GATHERED"
+        "README_ONLY",
+        "BINARY_ONLY",
+        "CITE_ONLY",
+        "TOP_LEVEL_PLAINTEXT"
       ],
       "sites": [
-        "GLOBAL"
+        "DOCS_PRESENT",
+        "DOCUMENTATION_STATE",
+        "FORMAL_DOCS_BANNER"
       ],
       "cells": [
         {
-          "cell_id": "REQ-002/cell-REFERENCE_DOCS-GLOBAL",
-          "item": "REFERENCE_DOCS",
-          "site": "GLOBAL",
+          "cell_id": "REQ-002/cell-README_ONLY-DOCS_PRESENT",
+          "item": "README_ONLY",
+          "site": "DOCS_PRESENT",
           "present": false,
-          "evidence": "bin/run_playbook.py:1552-1559"
+          "evidence": "bin/run_playbook.py:1572-1574"
         },
         {
-          "cell_id": "REQ-002/cell-DOCS_GATHERED-GLOBAL",
-          "item": "DOCS_GATHERED",
-          "site": "GLOBAL",
+          "cell_id": "REQ-002/cell-README_ONLY-DOCUMENTATION_STATE",
+          "item": "README_ONLY",
+          "site": "DOCUMENTATION_STATE",
           "present": true,
-          "evidence": "bin/run_playbook.py:1552-1559"
+          "evidence": "bin/run_playbook.py:1666-1669"
+        },
+        {
+          "cell_id": "REQ-002/cell-README_ONLY-FORMAL_DOCS_BANNER",
+          "item": "README_ONLY",
+          "site": "FORMAL_DOCS_BANNER",
+          "present": true,
+          "evidence": "bin/run_playbook.py:1617-1621"
+        },
+        {
+          "cell_id": "REQ-002/cell-BINARY_ONLY-DOCS_PRESENT",
+          "item": "BINARY_ONLY",
+          "site": "DOCS_PRESENT",
+          "present": false,
+          "evidence": "bin/run_playbook.py:1572-1574"
+        },
+        {
+          "cell_id": "REQ-002/cell-BINARY_ONLY-DOCUMENTATION_STATE",
+          "item": "BINARY_ONLY",
+          "site": "DOCUMENTATION_STATE",
+          "present": true,
+          "evidence": "bin/run_playbook.py:1666-1669"
+        },
+        {
+          "cell_id": "REQ-002/cell-BINARY_ONLY-FORMAL_DOCS_BANNER",
+          "item": "BINARY_ONLY",
+          "site": "FORMAL_DOCS_BANNER",
+          "present": true,
+          "evidence": "bin/run_playbook.py:1617-1621"
+        },
+        {
+          "cell_id": "REQ-002/cell-CITE_ONLY-DOCS_PRESENT",
+          "item": "CITE_ONLY",
+          "site": "DOCS_PRESENT",
+          "present": false,
+          "evidence": "bin/run_playbook.py:1568-1574"
+        },
+        {
+          "cell_id": "REQ-002/cell-CITE_ONLY-DOCUMENTATION_STATE",
+          "item": "CITE_ONLY",
+          "site": "DOCUMENTATION_STATE",
+          "present": true,
+          "evidence": "bin/run_playbook.py:1666-1669"
+        },
+        {
+          "cell_id": "REQ-002/cell-CITE_ONLY-FORMAL_DOCS_BANNER",
+          "item": "CITE_ONLY",
+          "site": "FORMAL_DOCS_BANNER",
+          "present": true,
+          "evidence": "bin/run_playbook.py:1617-1621"
+        },
+        {
+          "cell_id": "REQ-002/cell-TOP_LEVEL_PLAINTEXT-DOCS_PRESENT",
+          "item": "TOP_LEVEL_PLAINTEXT",
+          "site": "DOCS_PRESENT",
+          "present": true,
+          "evidence": "bin/run_playbook.py:1572-1574"
+        },
+        {
+          "cell_id": "REQ-002/cell-TOP_LEVEL_PLAINTEXT-DOCUMENTATION_STATE",
+          "item": "TOP_LEVEL_PLAINTEXT",
+          "site": "DOCUMENTATION_STATE",
+          "present": true,
+          "evidence": "bin/run_playbook.py:1666-1669"
+        },
+        {
+          "cell_id": "REQ-002/cell-TOP_LEVEL_PLAINTEXT-FORMAL_DOCS_BANNER",
+          "item": "TOP_LEVEL_PLAINTEXT",
+          "site": "FORMAL_DOCS_BANNER",
+          "present": true,
+          "evidence": "bin/run_playbook.py:1617-1621"
         }
       ]
     },
     "REQ-003": {
       "pattern": "whitelist",
       "items": [
-        "MIN_120_LINES",
-        "OPEN_EXPLORATION_FINDINGS",
-        "QUALITY_RISKS",
-        "PATTERN_APPLICABILITY_MATRIX",
-        "CANDIDATE_BUGS_FOR_PHASE_2",
-        "GATE_SELF_CHECK",
-        "PHASE1_COMPLETE",
-        "CANDIDATE_STAGE_MIX"
+        "TOP_LEVEL_PLAINTEXT_ONLY_FILTER"
       ],
       "sites": [
-        "GLOBAL"
+        "TIER4_CONTEXT"
       ],
       "cells": [
         {
-          "cell_id": "REQ-003/cell-MIN_120_LINES-GLOBAL",
-          "item": "MIN_120_LINES",
-          "site": "GLOBAL",
-          "present": true,
-          "evidence": "bin/run_playbook.py:1162-1164"
-        },
-        {
-          "cell_id": "REQ-003/cell-OPEN_EXPLORATION_FINDINGS-GLOBAL",
-          "item": "OPEN_EXPLORATION_FINDINGS",
-          "site": "GLOBAL",
+          "cell_id": "REQ-003/cell-TOP_LEVEL_PLAINTEXT_ONLY_FILTER-TIER4_CONTEXT",
+          "item": "TOP_LEVEL_PLAINTEXT_ONLY_FILTER",
+          "site": "TIER4_CONTEXT",
           "present": false,
-          "evidence": "bin/run_playbook.py:1158-1165"
-        },
-        {
-          "cell_id": "REQ-003/cell-QUALITY_RISKS-GLOBAL",
-          "item": "QUALITY_RISKS",
-          "site": "GLOBAL",
-          "present": false,
-          "evidence": "bin/run_playbook.py:1158-1165"
-        },
-        {
-          "cell_id": "REQ-003/cell-PATTERN_APPLICABILITY_MATRIX-GLOBAL",
-          "item": "PATTERN_APPLICABILITY_MATRIX",
-          "site": "GLOBAL",
-          "present": false,
-          "evidence": "bin/run_playbook.py:1158-1165"
-        },
-        {
-          "cell_id": "REQ-003/cell-CANDIDATE_BUGS_FOR_PHASE_2-GLOBAL",
-          "item": "CANDIDATE_BUGS_FOR_PHASE_2",
-          "site": "GLOBAL",
-          "present": false,
-          "evidence": "bin/run_playbook.py:1158-1165"
-        },
-        {
-          "cell_id": "REQ-003/cell-GATE_SELF_CHECK-GLOBAL",
-          "item": "GATE_SELF_CHECK",
-          "site": "GLOBAL",
-          "present": false,
-          "evidence": "bin/run_playbook.py:1158-1165"
-        },
-        {
-          "cell_id": "REQ-003/cell-PHASE1_COMPLETE-GLOBAL",
-          "item": "PHASE1_COMPLETE",
-          "site": "GLOBAL",
-          "present": false,
-          "evidence": "bin/run_playbook.py:1158-1165"
-        },
-        {
-          "cell_id": "REQ-003/cell-CANDIDATE_STAGE_MIX-GLOBAL",
-          "item": "CANDIDATE_STAGE_MIX",
-          "site": "GLOBAL",
-          "present": false,
-          "evidence": "bin/run_playbook.py:1158-1165"
+          "evidence": "bin/reference_docs_ingest.py:90-93,194-227,263-276"
         }
       ]
     },
     "REQ-004": {
-      "pattern": "whitelist",
+      "pattern": "parity",
       "items": [
-        "CODE",
-        "SKILL",
-        "HYBRID"
+        "TOP_LEVEL_CONTEXT_DOCS",
+        "CITE_FORMAL_DOCS"
       ],
       "sites": [
-        "LIVE_INDEX"
+        "BOOTSTRAP_MIRROR"
       ],
       "cells": [
         {
-          "cell_id": "REQ-004/cell-CODE-LIVE_INDEX",
-          "item": "CODE",
-          "site": "LIVE_INDEX",
+          "cell_id": "REQ-004/cell-TOP_LEVEL_CONTEXT_DOCS-BOOTSTRAP_MIRROR",
+          "item": "TOP_LEVEL_CONTEXT_DOCS",
+          "site": "BOOTSTRAP_MIRROR",
           "present": true,
-          "evidence": "quality/mechanical/index_writer_project_type_literals.txt:1-2"
+          "evidence": "bin/bootstrap_self_audit_docs.py:53-61"
         },
         {
-          "cell_id": "REQ-004/cell-SKILL-LIVE_INDEX",
-          "item": "SKILL",
-          "site": "LIVE_INDEX",
+          "cell_id": "REQ-004/cell-CITE_FORMAL_DOCS-BOOTSTRAP_MIRROR",
+          "item": "CITE_FORMAL_DOCS",
+          "site": "BOOTSTRAP_MIRROR",
           "present": false,
-          "evidence": "quality/mechanical/index_writer_project_type_literals.txt:1-2"
+          "evidence": "bin/bootstrap_self_audit_docs.py:50-61"
+        }
+      ]
+    },
+    "REQ-005": {
+      "pattern": "whitelist",
+      "items": [
+        "MIN_120_LINES",
+        "OPEN_EXPLORATION_FINDINGS",
+        "QUALITY_RISKS",
+        "PATTERN_APPLICABILITY_MATRIX",
+        "PATTERN_DEEP_DIVE_COUNT",
+        "CANDIDATE_BUGS_FOR_PHASE_2",
+        "GATE_SELF_CHECK",
+        "PHASE1_COMPLETE",
+        "OPEN_FINDINGS_MIN_8",
+        "OPEN_FINDINGS_MULTI_LOCATION_MIN_3",
+        "FULL_PATTERN_COUNT_3_TO_4",
+        "DEEP_DIVE_MULTI_FUNCTION_MIN_2",
+        "CANDIDATE_SOURCE_MIX"
+      ],
+      "sites": [
+        "PHASE1_VALIDATOR"
+      ],
+      "cells": [
+        {
+          "cell_id": "REQ-005/cell-MIN_120_LINES-PHASE1_VALIDATOR",
+          "item": "MIN_120_LINES",
+          "site": "PHASE1_VALIDATOR",
+          "present": true,
+          "evidence": "bin/run_state_lib.py:184-190"
         },
         {
-          "cell_id": "REQ-004/cell-HYBRID-LIVE_INDEX",
-          "item": "HYBRID",
-          "site": "LIVE_INDEX",
+          "cell_id": "REQ-005/cell-OPEN_EXPLORATION_FINDINGS-PHASE1_VALIDATOR",
+          "item": "OPEN_EXPLORATION_FINDINGS",
+          "site": "PHASE1_VALIDATOR",
           "present": false,
-          "evidence": "quality/mechanical/index_writer_project_type_literals.txt:1-2"
+          "evidence": "bin/run_state_lib.py:191-198"
+        },
+        {
+          "cell_id": "REQ-005/cell-QUALITY_RISKS-PHASE1_VALIDATOR",
+          "item": "QUALITY_RISKS",
+          "site": "PHASE1_VALIDATOR",
+          "present": false,
+          "evidence": "bin/run_state_lib.py:191-198"
+        },
+        {
+          "cell_id": "REQ-005/cell-PATTERN_APPLICABILITY_MATRIX-PHASE1_VALIDATOR",
+          "item": "PATTERN_APPLICABILITY_MATRIX",
+          "site": "PHASE1_VALIDATOR",
+          "present": false,
+          "evidence": "bin/run_state_lib.py:191-198"
+        },
+        {
+          "cell_id": "REQ-005/cell-PATTERN_DEEP_DIVE_COUNT-PHASE1_VALIDATOR",
+          "item": "PATTERN_DEEP_DIVE_COUNT",
+          "site": "PHASE1_VALIDATOR",
+          "present": false,
+          "evidence": "bin/run_state_lib.py:191-198"
+        },
+        {
+          "cell_id": "REQ-005/cell-CANDIDATE_BUGS_FOR_PHASE_2-PHASE1_VALIDATOR",
+          "item": "CANDIDATE_BUGS_FOR_PHASE_2",
+          "site": "PHASE1_VALIDATOR",
+          "present": false,
+          "evidence": "bin/run_state_lib.py:191-198"
+        },
+        {
+          "cell_id": "REQ-005/cell-GATE_SELF_CHECK-PHASE1_VALIDATOR",
+          "item": "GATE_SELF_CHECK",
+          "site": "PHASE1_VALIDATOR",
+          "present": false,
+          "evidence": "bin/run_state_lib.py:191-198"
+        },
+        {
+          "cell_id": "REQ-005/cell-PHASE1_COMPLETE-PHASE1_VALIDATOR",
+          "item": "PHASE1_COMPLETE",
+          "site": "PHASE1_VALIDATOR",
+          "present": false,
+          "evidence": "bin/run_state_lib.py:171-198"
+        },
+        {
+          "cell_id": "REQ-005/cell-OPEN_FINDINGS_MIN_8-PHASE1_VALIDATOR",
+          "item": "OPEN_FINDINGS_MIN_8",
+          "site": "PHASE1_VALIDATOR",
+          "present": false,
+          "evidence": "bin/run_state_lib.py:191-198"
+        },
+        {
+          "cell_id": "REQ-005/cell-OPEN_FINDINGS_MULTI_LOCATION_MIN_3-PHASE1_VALIDATOR",
+          "item": "OPEN_FINDINGS_MULTI_LOCATION_MIN_3",
+          "site": "PHASE1_VALIDATOR",
+          "present": false,
+          "evidence": "bin/run_state_lib.py:191-198"
+        },
+        {
+          "cell_id": "REQ-005/cell-FULL_PATTERN_COUNT_3_TO_4-PHASE1_VALIDATOR",
+          "item": "FULL_PATTERN_COUNT_3_TO_4",
+          "site": "PHASE1_VALIDATOR",
+          "present": false,
+          "evidence": "bin/run_state_lib.py:191-198"
+        },
+        {
+          "cell_id": "REQ-005/cell-DEEP_DIVE_MULTI_FUNCTION_MIN_2-PHASE1_VALIDATOR",
+          "item": "DEEP_DIVE_MULTI_FUNCTION_MIN_2",
+          "site": "PHASE1_VALIDATOR",
+          "present": false,
+          "evidence": "bin/run_state_lib.py:191-198"
+        },
+        {
+          "cell_id": "REQ-005/cell-CANDIDATE_SOURCE_MIX-PHASE1_VALIDATOR",
+          "item": "CANDIDATE_SOURCE_MIX",
+          "site": "PHASE1_VALIDATOR",
+          "present": false,
+          "evidence": "bin/run_state_lib.py:191-198"
         }
       ]
     },
     "REQ-006": {
-      "pattern": "parity",
+      "pattern": "whitelist",
       "items": [
-        "QUALITY_GATE_INSTALL",
-        "BIN_CITATION_VERIFIER_IMPORT"
+        "TITLED_BUG_HEADING"
       ],
       "sites": [
-        "GLOBAL"
+        "ARCHIVE_BUG_COUNT"
       ],
       "cells": [
         {
-          "cell_id": "REQ-006/cell-QUALITY_GATE_INSTALL-GLOBAL",
-          "item": "QUALITY_GATE_INSTALL",
-          "site": "GLOBAL",
+          "cell_id": "REQ-006/cell-TITLED_BUG_HEADING-ARCHIVE_BUG_COUNT",
+          "item": "TITLED_BUG_HEADING",
+          "site": "ARCHIVE_BUG_COUNT",
+          "present": false,
+          "evidence": "bin/archive_lib.py:69,321-338"
+        }
+      ]
+    },
+    "REQ-007": {
+      "pattern": "parity",
+      "items": [
+        "RAW_ROLE_MAP"
+      ],
+      "sites": [
+        "NORMALIZE_PATH",
+        "VALIDATE_PATH"
+      ],
+      "cells": [
+        {
+          "cell_id": "REQ-007/cell-RAW_ROLE_MAP-NORMALIZE_PATH",
+          "item": "RAW_ROLE_MAP",
+          "site": "NORMALIZE_PATH",
           "present": true,
-          "evidence": "repos/setup_repos.sh:200"
+          "evidence": "bin/role_map.py:759-838"
         },
         {
-          "cell_id": "REQ-006/cell-BIN_CITATION_VERIFIER_IMPORT-GLOBAL",
-          "item": "BIN_CITATION_VERIFIER_IMPORT",
-          "site": "GLOBAL",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:195-200"
+          "cell_id": "REQ-007/cell-RAW_ROLE_MAP-VALIDATE_PATH",
+          "item": "RAW_ROLE_MAP",
+          "site": "VALIDATE_PATH",
+          "present": true,
+          "evidence": "bin/role_map.py:422-468"
         }
       ]
     },
     "REQ-008": {
-      "pattern": "parity",
-      "items": [
-        "DOC_01_README_PROJECT_MD",
-        "DOC_02_AGENTS_MD",
-        "DOC_03_DEVELOPMENT_CONTEXT_MD",
-        "DOC_04_BENCHMARK_PROTOCOL_MD",
-        "DOC_05_TOOLKIT_MD",
-        "DOC_20_DESIGN_INTENT_THE_35_PERCENT_GAP_MD",
-        "DOC_21_REQUIREMENTS_PIPELINE_MD",
-        "DOC_22_COUNCIL_OF_THREE_MD",
-        "DOC_23_ITERATION_STRATEGIES_MD",
-        "DOC_24_CHALLENGE_GATE_MD",
-        "DOC_25_ANTI_HALLUCINATION_INVARIANTS_MD",
-        "DOC_26_SIX_PHASE_ORCHESTRATION_MD",
-        "DOC_27_TDD_VERIFICATION_PROTOCOL_MD",
-        "DOC_28_RECHECK_MODE_MD",
-        "DOC_29_IMPROVEMENT_AXES_AND_VERSION_HISTORY_MD",
-        "DOC_30_BENCHMARK_PROTOCOL_AND_SELF_AUDIT_MD",
-        "DOC_31_KNOWN_LIMITATIONS_MD",
-        "DOC_50_QUALITY_PLAYBOOK_PATENT_REVIEW_MD",
-        "DOC_INDEX_MD",
-        "DOC_SOURCES_MD"
-      ],
-      "sites": [
-        "DIRECT_BOOTSTRAP"
-      ],
-      "cells": [
-        {
-          "cell_id": "REQ-008/cell-DOC_01_README_PROJECT_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_01_README_PROJECT_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_02_AGENTS_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_02_AGENTS_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_03_DEVELOPMENT_CONTEXT_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_03_DEVELOPMENT_CONTEXT_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_04_BENCHMARK_PROTOCOL_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_04_BENCHMARK_PROTOCOL_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_05_TOOLKIT_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_05_TOOLKIT_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_20_DESIGN_INTENT_THE_35_PERCENT_GAP_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_20_DESIGN_INTENT_THE_35_PERCENT_GAP_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_21_REQUIREMENTS_PIPELINE_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_21_REQUIREMENTS_PIPELINE_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_22_COUNCIL_OF_THREE_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_22_COUNCIL_OF_THREE_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_23_ITERATION_STRATEGIES_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_23_ITERATION_STRATEGIES_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_24_CHALLENGE_GATE_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_24_CHALLENGE_GATE_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_25_ANTI_HALLUCINATION_INVARIANTS_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_25_ANTI_HALLUCINATION_INVARIANTS_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_26_SIX_PHASE_ORCHESTRATION_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_26_SIX_PHASE_ORCHESTRATION_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_27_TDD_VERIFICATION_PROTOCOL_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_27_TDD_VERIFICATION_PROTOCOL_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_28_RECHECK_MODE_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_28_RECHECK_MODE_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_29_IMPROVEMENT_AXES_AND_VERSION_HISTORY_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_29_IMPROVEMENT_AXES_AND_VERSION_HISTORY_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_30_BENCHMARK_PROTOCOL_AND_SELF_AUDIT_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_30_BENCHMARK_PROTOCOL_AND_SELF_AUDIT_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_31_KNOWN_LIMITATIONS_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_31_KNOWN_LIMITATIONS_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_50_QUALITY_PLAYBOOK_PATENT_REVIEW_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_50_QUALITY_PLAYBOOK_PATENT_REVIEW_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_INDEX_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_INDEX_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        },
-        {
-          "cell_id": "REQ-008/cell-DOC_SOURCES_MD-DIRECT_BOOTSTRAP",
-          "item": "DOC_SOURCES_MD",
-          "site": "DIRECT_BOOTSTRAP",
-          "present": false,
-          "evidence": "repos/setup_repos.sh:217-220"
-        }
-      ]
-    },
-    "REQ-009": {
-      "pattern": "parity",
-      "items": [
-        "PHASE_2_PROMPT",
-        "PHASE_3_PROMPT",
-        "PHASE_4_PROMPT",
-        "PHASE_5_PROMPT",
-        "PHASE_6_PROMPT"
-      ],
-      "sites": [
-        "FALLBACK_GUIDE"
-      ],
-      "cells": [
-        {
-          "cell_id": "REQ-009/cell-PHASE_2_PROMPT-FALLBACK_GUIDE",
-          "item": "PHASE_2_PROMPT",
-          "site": "FALLBACK_GUIDE",
-          "present": false,
-          "evidence": "bin/run_playbook.py:726-752"
-        },
-        {
-          "cell_id": "REQ-009/cell-PHASE_3_PROMPT-FALLBACK_GUIDE",
-          "item": "PHASE_3_PROMPT",
-          "site": "FALLBACK_GUIDE",
-          "present": false,
-          "evidence": "bin/run_playbook.py:755-908"
-        },
-        {
-          "cell_id": "REQ-009/cell-PHASE_4_PROMPT-FALLBACK_GUIDE",
-          "item": "PHASE_4_PROMPT",
-          "site": "FALLBACK_GUIDE",
-          "present": false,
-          "evidence": "bin/run_playbook.py:911-964"
-        },
-        {
-          "cell_id": "REQ-009/cell-PHASE_5_PROMPT-FALLBACK_GUIDE",
-          "item": "PHASE_5_PROMPT",
-          "site": "FALLBACK_GUIDE",
-          "present": false,
-          "evidence": "bin/run_playbook.py:967-1088"
-        },
-        {
-          "cell_id": "REQ-009/cell-PHASE_6_PROMPT-FALLBACK_GUIDE",
-          "item": "PHASE_6_PROMPT",
-          "site": "FALLBACK_GUIDE",
-          "present": false,
-          "evidence": "bin/run_playbook.py:1089-1090"
-        }
-      ]
-    },
-    "REQ-010": {
       "pattern": "whitelist",
       "items": [
-        "SLOT_1_REPO_ROOT",
-        "SLOT_2_CLAUDE",
-        "SLOT_3_FLAT_COPILOT",
-        "SLOT_4_NESTED_COPILOT"
+        "PLAYBOOK_OUTPUT_ROLE",
+        "OTHER_SHARE_BUCKET",
+        "CODE_SHARE_ISOLATION",
+        "SKILL_SHARE_ISOLATION",
+        "TOOL_SHARE_ISOLATION"
       ],
       "sites": [
-        "HELPER_DISCOVERY_ORDER",
-        "WARNING_TEXT_ORDER",
-        "CLAUDE_AGENT_ORDER"
+        "COMPUTE_BREAKDOWN"
       ],
       "cells": [
         {
-          "cell_id": "REQ-010/cell-SLOT_1_REPO_ROOT-HELPER_DISCOVERY_ORDER",
-          "item": "SLOT_1_REPO_ROOT",
-          "site": "HELPER_DISCOVERY_ORDER",
-          "present": false,
-          "evidence": "bin/benchmark_lib.py:42-47"
-        },
-        {
-          "cell_id": "REQ-010/cell-SLOT_2_CLAUDE-HELPER_DISCOVERY_ORDER",
-          "item": "SLOT_2_CLAUDE",
-          "site": "HELPER_DISCOVERY_ORDER",
+          "cell_id": "REQ-008/cell-PLAYBOOK_OUTPUT_ROLE-COMPUTE_BREAKDOWN",
+          "item": "PLAYBOOK_OUTPUT_ROLE",
+          "site": "COMPUTE_BREAKDOWN",
           "present": true,
-          "evidence": "bin/benchmark_lib.py:42-47"
+          "evidence": "bin/role_map.py:162-501"
         },
         {
-          "cell_id": "REQ-010/cell-SLOT_3_FLAT_COPILOT-HELPER_DISCOVERY_ORDER",
-          "item": "SLOT_3_FLAT_COPILOT",
-          "site": "HELPER_DISCOVERY_ORDER",
-          "present": false,
-          "evidence": "bin/benchmark_lib.py:42-47"
-        },
-        {
-          "cell_id": "REQ-010/cell-SLOT_4_NESTED_COPILOT-HELPER_DISCOVERY_ORDER",
-          "item": "SLOT_4_NESTED_COPILOT",
-          "site": "HELPER_DISCOVERY_ORDER",
+          "cell_id": "REQ-008/cell-OTHER_SHARE_BUCKET-COMPUTE_BREAKDOWN",
+          "item": "OTHER_SHARE_BUCKET",
+          "site": "COMPUTE_BREAKDOWN",
           "present": true,
-          "evidence": "bin/benchmark_lib.py:42-47"
+          "evidence": "bin/role_map.py:474-501"
         },
         {
-          "cell_id": "REQ-010/cell-SLOT_1_REPO_ROOT-WARNING_TEXT_ORDER",
-          "item": "SLOT_1_REPO_ROOT",
-          "site": "WARNING_TEXT_ORDER",
-          "present": false,
-          "evidence": "bin/run_playbook.py:594-596"
-        },
-        {
-          "cell_id": "REQ-010/cell-SLOT_2_CLAUDE-WARNING_TEXT_ORDER",
-          "item": "SLOT_2_CLAUDE",
-          "site": "WARNING_TEXT_ORDER",
-          "present": false,
-          "evidence": "bin/run_playbook.py:594-596"
-        },
-        {
-          "cell_id": "REQ-010/cell-SLOT_3_FLAT_COPILOT-WARNING_TEXT_ORDER",
-          "item": "SLOT_3_FLAT_COPILOT",
-          "site": "WARNING_TEXT_ORDER",
-          "present": false,
-          "evidence": "bin/run_playbook.py:594-596"
-        },
-        {
-          "cell_id": "REQ-010/cell-SLOT_4_NESTED_COPILOT-WARNING_TEXT_ORDER",
-          "item": "SLOT_4_NESTED_COPILOT",
-          "site": "WARNING_TEXT_ORDER",
-          "present": false,
-          "evidence": "bin/run_playbook.py:594-596"
-        },
-        {
-          "cell_id": "REQ-010/cell-SLOT_1_REPO_ROOT-CLAUDE_AGENT_ORDER",
-          "item": "SLOT_1_REPO_ROOT",
-          "site": "CLAUDE_AGENT_ORDER",
+          "cell_id": "REQ-008/cell-CODE_SHARE_ISOLATION-COMPUTE_BREAKDOWN",
+          "item": "CODE_SHARE_ISOLATION",
+          "site": "COMPUTE_BREAKDOWN",
           "present": true,
-          "evidence": "agents/quality-playbook-claude.agent.md:49"
+          "evidence": "bin/role_map.py:489-501"
         },
         {
-          "cell_id": "REQ-010/cell-SLOT_2_CLAUDE-CLAUDE_AGENT_ORDER",
-          "item": "SLOT_2_CLAUDE",
-          "site": "CLAUDE_AGENT_ORDER",
+          "cell_id": "REQ-008/cell-SKILL_SHARE_ISOLATION-COMPUTE_BREAKDOWN",
+          "item": "SKILL_SHARE_ISOLATION",
+          "site": "COMPUTE_BREAKDOWN",
           "present": true,
-          "evidence": "agents/quality-playbook-claude.agent.md:50"
+          "evidence": "bin/role_map.py:489-501"
         },
         {
-          "cell_id": "REQ-010/cell-SLOT_3_FLAT_COPILOT-CLAUDE_AGENT_ORDER",
-          "item": "SLOT_3_FLAT_COPILOT",
-          "site": "CLAUDE_AGENT_ORDER",
-          "present": false,
-          "evidence": "agents/quality-playbook-claude.agent.md:51-52"
-        },
-        {
-          "cell_id": "REQ-010/cell-SLOT_4_NESTED_COPILOT-CLAUDE_AGENT_ORDER",
-          "item": "SLOT_4_NESTED_COPILOT",
-          "site": "CLAUDE_AGENT_ORDER",
-          "present": false,
-          "evidence": "agents/quality-playbook-claude.agent.md:51-52"
+          "cell_id": "REQ-008/cell-TOOL_SHARE_ISOLATION-COMPUTE_BREAKDOWN",
+          "item": "TOOL_SHARE_ISOLATION",
+          "site": "COMPUTE_BREAKDOWN",
+          "present": true,
+          "evidence": "bin/role_map.py:489-501"
         }
       ]
     }

@@ -1,22 +1,12 @@
 RED
-Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_004_cleanup_without_pid_files_stays_run_scoped
+Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_004_bootstrap_mirror_preserves_cite_subtree
+Exit code: 1
 
-No PID files found. Falling back to pkill:
-F
-======================================================================
-FAIL: test_bug_004_cleanup_without_pid_files_stays_run_scoped (quality.test_regression.CodeReviewRegressionTests.test_bug_004_cleanup_without_pid_files_stays_run_scoped)
-BUG-004: missing PID files should not trigger workstation-wide pkill fallback.
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp7sw5cka3/work/quality/test_regression.py", line 74, in test_bug_004_cleanup_without_pid_files_stays_run_scoped
-    fallback.assert_not_called()
-    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
-  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/mock.py", line 938, in assert_not_called
-    raise AssertionError(msg)
-AssertionError: Expected '_pkill_fallback' to not have been called. Called 1 times.
-Calls: [call()].
+Traceback excerpt:
+AssertionError: False is not true
 
-----------------------------------------------------------------------
-Ran 1 test in 0.002s
+Full test output:
+event=mirror_complete source=<temp>/docs_gathered dest=<temp>/reference_docs files_copied=1
+test_bug_004_bootstrap_mirror_preserves_cite_subtree (quality.test_regression.CodeReviewRegressionTests.test_bug_004_bootstrap_mirror_preserves_cite_subtree) ... FAIL
 
 FAILED (failures=1)

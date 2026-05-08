@@ -1,122 +1,109 @@
 {
   "schema_version": "1.5.3",
-  "generated_at": "2026-04-28T17:28:30Z",
+  "generated_at": "2026-05-08T02:21:08Z",
   "records": [
     {
       "id": "REQ-001",
-      "title": "Keep installed and repo-root skill entry points synchronized",
-      "description": "The repo-root SKILL.md and installed .github/skills/SKILL.md entry point must always resolve to the same instructions, version stamp, and reference-resolution guidance so fallback path selection never changes the operator brief.",
+      "title": "Treat cite-only docs as docs-backed input",
+      "description": "Any startup path that decides whether a run is docs-backed or code-only must treat plaintext files under reference_docs/cite/ as valid documentation input, so cite-only repos are not downgraded to code-only mode or warned as such.",
       "tier": 3,
-      "functional_section": "Packaging and Installed Surface Integrity",
-      "use_cases": ["UC-07"],
+      "functional_section": "Documentation State and Intake",
+      "use_cases": [
+        "UC-01"
+      ],
       "pattern": "parity",
       "source_type": "code-derived",
       "skill_section": null
     },
     {
       "id": "REQ-002",
-      "title": "Treat reference_docs as the authoritative Phase 1 docs input",
-      "description": "Modern installs that provide reference_docs must not be downgraded or warned as code-only because docs_gathered is absent; runner messaging and exploration behavior must align with the canonical reference_docs contract.",
+      "title": "Use one recognized-docs predicate for warnings and state evaluation",
+      "description": "Operator-visible warnings, documentation-state evaluation, and the formal-doc banner must share the same recognized-plaintext rules so README-only, binary-only, cite-only, and top-level plaintext trees produce one consistent classification.",
       "tier": 3,
-      "functional_section": "Packaging and Installed Surface Integrity",
-      "use_cases": ["UC-01", "UC-02"],
+      "functional_section": "Documentation State and Intake",
+      "use_cases": [
+        "UC-01",
+        "UC-02"
+      ],
       "pattern": "parity",
       "source_type": "code-derived",
       "skill_section": null
     },
     {
       "id": "REQ-003",
-      "title": "Enforce the full Phase 2 exploration-artifact gate",
-      "description": "A run must not advance beyond Phase 1 unless quality/EXPLORATION.md satisfies the exact heading and content checks named in the Phase 2 skill contract, not just a file-exists and line-count threshold.",
+      "title": "Limit Tier 4 ingest to the documented reference-docs surface",
+      "description": "Only top-level plaintext files under reference_docs/ may be treated as Tier 4 context unless the documented contract is explicitly widened; nested archival folders outside reference_docs/cite/ must not silently join Phase 1 context.",
       "tier": 3,
-      "functional_section": "Packaging and Installed Surface Integrity",
-      "use_cases": ["UC-01", "UC-03"],
+      "functional_section": "Documentation State and Intake",
+      "use_cases": [
+        "UC-03"
+      ],
       "pattern": "whitelist",
-      "source_type": "skill-section",
-      "skill_section": "Phase 2: Generate the Quality Playbook"
+      "source_type": "code-derived",
+      "skill_section": null
     },
     {
       "id": "REQ-004",
-      "title": "Preserve actual project classification in live run metadata",
-      "description": "Once a target is classified as Code, Skill, or Hybrid, that exact value must survive into live quality/INDEX.md metadata rather than collapsing to a default Code label.",
+      "title": "Preserve citable-vs-context placement during bootstrap mirroring",
+      "description": "The bootstrap self-audit helper must mirror both top-level context docs and cite/ formal docs into reference_docs/ while preserving their placement, so self-audit runs keep the same evidence tiers as the source bootstrap corpus.",
       "tier": 3,
-      "functional_section": "Packaging and Installed Surface Integrity",
-      "use_cases": ["UC-03", "UC-04"],
-      "pattern": "whitelist",
+      "functional_section": "Bootstrap and Install Parity",
+      "use_cases": [
+        "UC-04"
+      ],
+      "pattern": "parity",
       "source_type": "code-derived",
       "skill_section": null
     },
     {
       "id": "REQ-005",
-      "title": "Restrict cleanup to playbook-owned worker processes",
-      "description": "Operator cleanup must remain scoped to recorded run workers; missing PID files must not trigger workstation-wide pattern kills across unrelated Claude or Copilot sessions.",
+      "title": "Enforce the full Phase 1 exploration gate mechanically",
+      "description": "Phase 1 validation must reject quality/EXPLORATION.md files that omit the exact mandatory sections and minimum analytical content named by the playbook's Phase 2 gate, so later phases cannot proceed on structurally shallow exploration artifacts.",
       "tier": 3,
-      "functional_section": "Safety, Cleanup, and Documentation Fidelity",
-      "use_cases": ["UC-06"],
-      "source_type": "code-derived",
-      "skill_section": null
+      "functional_section": "Phase Gates and Role Map Integrity",
+      "use_cases": [
+        "UC-05"
+      ],
+      "pattern": "whitelist",
+      "source_type": "skill-section",
+      "skill_section": "Phase 2: Generate the Quality Playbook"
     },
     {
       "id": "REQ-006",
-      "title": "Retain byte-equality citation verification on installed targets",
-      "description": "If the repository advertises byte-verified citation excerpts for reference_docs/cite, installed targets must receive the verifier dependency needed for quality_gate.py to enforce that guarantee rather than downgrading it to a warning.",
+      "title": "Parse canonical titled BUG headings in archive summaries",
+      "description": "Archive and index rendering must count bugs from the canonical heading form `### BUG-NNN: Title`, so archived severity and disposition totals remain aligned with the BUGS.md format the rest of the playbook requires.",
       "tier": 3,
-      "functional_section": "Safety, Cleanup, and Documentation Fidelity",
-      "use_cases": ["UC-05"],
-      "pattern": "parity",
-      "source_type": "code-derived",
-      "skill_section": null
-    },
-    {
-      "id": "REQ-007",
-      "title": "Keep curated bootstrap docs current with the live release",
-      "description": "Curated bootstrap/self-audit docs may compress context, but they must not present an older current version or obsolete documentation path as the live product surface when describing the current release.",
-      "tier": 3,
-      "functional_section": "Safety, Cleanup, and Documentation Fidelity",
-      "use_cases": ["UC-02"],
-      "source_type": "code-derived",
-      "skill_section": null
-    },
-    {
-      "id": "REQ-008",
-      "title": "Expose the same documentation surface in direct and harness bootstrap modes",
-      "description": "Running the playbook directly at the repo root and running it through the benchmark harness must expose the same effective documentation tree to Phase 1 so self-audit and installed runs remain comparable.",
-      "tier": 3,
-      "functional_section": "Safety, Cleanup, and Documentation Fidelity",
-      "use_cases": ["UC-01", "UC-02"],
-      "pattern": "parity",
-      "source_type": "code-derived",
-      "skill_section": null
-    },
-    {
-      "id": "REQ-009",
-      "title": "Keep every runner-generated phase prompt portable across the documented install layouts",
-      "description": "Phase 2 through Phase 6 prompts must instruct child agents to resolve SKILL.md and reference files through the same documented fallback list that Phase 1, single-pass, and iteration prompts use.",
-      "tier": 3,
-      "functional_section": "Packaging and Installed Surface Integrity",
-      "use_cases": ["UC-08"],
-      "pattern": "parity",
-      "source_type": "code-derived",
-      "skill_section": null
-    },
-    {
-      "id": "REQ-010",
-      "title": "Use the documented four-path order for repository-side skill discovery",
-      "description": "Repository helper code, operator-facing warnings, and shipped orchestrator docs must enumerate repo-root, Claude, flat Copilot, and nested Copilot skill locations in the documented order before concluding that the playbook is absent.",
-      "tier": 3,
-      "functional_section": "Packaging and Installed Surface Integrity",
-      "use_cases": ["UC-09"],
+      "functional_section": "Archive and Reporting Integrity",
+      "use_cases": [
+        "UC-06"
+      ],
       "pattern": "whitelist",
       "source_type": "code-derived",
       "skill_section": null
     },
     {
-      "id": "REQ-011",
-      "title": "Enforce repository-root containment in citation verification",
-      "description": "verify_citation() must reject source_path values that resolve outside the supplied root (absolute paths, .. traversal, symlink escapes) before reading bytes, so a tampered manifest or auditor-supplied citation cannot be turned into an out-of-tree file-read primitive.",
+      "id": "REQ-007",
+      "title": "Normalize direct Phase 1 role maps before gate validation",
+      "description": "A freshly written Phase 1 role map must either validate directly or be normalized automatically on every execution path before validation runs, so direct skill-mode and runner-driven paths converge on the same canonical role-map schema.",
       "tier": 3,
-      "functional_section": "Safety, Cleanup, and Documentation Fidelity",
-      "use_cases": ["UC-10"],
+      "functional_section": "Phase Gates and Role Map Integrity",
+      "use_cases": [
+        "UC-07"
+      ],
+      "pattern": "parity",
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-008",
+      "title": "Keep historical playbook output out of intrinsic surface accounting",
+      "description": "Phase 1 inventory and downstream reasoning must continue to classify prior quality/ artifacts as playbook-output and bucket them into other_share, so historical output never inflates the repository's apparent code or skill surface.",
+      "tier": 3,
+      "functional_section": "Phase Gates and Role Map Integrity",
+      "use_cases": [
+        "UC-08"
+      ],
+      "pattern": "whitelist",
       "source_type": "code-derived",
       "skill_section": null
     }

@@ -1,18 +1,11 @@
 RED
-Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_001_reference_docs_counts_as_docs_present
+Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_001_docs_present_recognizes_cite_only_docs
+Exit code: 1
 
-F
-======================================================================
-FAIL: test_bug_001_reference_docs_counts_as_docs_present (quality.test_regression.CodeReviewRegressionTests.test_bug_001_reference_docs_counts_as_docs_present)
-BUG-001: reference_docs/ should suppress legacy code-only docs warnings.
-----------------------------------------------------------------------
-Traceback (most recent call last):
-  File "/private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp7osc_mbz/work/quality/test_regression.py", line 35, in test_bug_001_reference_docs_counts_as_docs_present
-    self.assertTrue(run_playbook.docs_present(repo))
-    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Traceback excerpt:
 AssertionError: False is not true
 
-----------------------------------------------------------------------
-Ran 1 test in 0.002s
+Full test output:
+test_bug_001_docs_present_recognizes_cite_only_docs (quality.test_regression.CodeReviewRegressionTests.test_bug_001_docs_present_recognizes_cite_only_docs) ... FAIL
 
 FAILED (failures=1)

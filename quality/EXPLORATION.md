@@ -1,301 +1,453 @@
-# Exploration - quality-playbook bootstrap self-audit
+# Exploration Findings
 
-Resolved skill path: `SKILL.md`
-Resolved references path: `references/`
-Date: 2026-04-28
+## Domain and Stack
 
-## Open Exploration Findings
+The repository is a hybrid product: a declarative AI skill (`SKILL.md`, `references/`, `phase_prompts/`, `agents/`) plus a standard-library Python tooling layer that installs, runs, validates, archives, and calibrates the playbook. The primary implementation language is Python 3.8+/3.9+ stdlib-only, with Markdown for skill/protocol content and a small amount of shell for benchmark setup.
 
-### Domain and stack identification
+The project’s primary output is not a library API; it is a repeatable quality-engineering workflow that emits artifacts into `quality/` and can also audit AI skills as “skill-as-code.” The runtime surfaces that matter most in this repo are:
 
-- This repository is a specification-first quality engineering product: the primary deliverable is the Quality Playbook skill and its reference protocol, with Python tooling that operationalizes the six-phase workflow for benchmark and self-audit runs (`README.md:1-11`, `ai_context/DEVELOPMENT_CONTEXT.md:20-27`, `ai_context/DEVELOPMENT_CONTEXT.md:108-120`).
-- The implementation stack is mostly Python 3.8+ standard library code under `bin/` and `.github/skills/quality_gate/`, plus Markdown skill/reference docs, shell setup helpers under `repos/`, and a local `pytest/` shim so tests can run without installing external packages (`ai_context/DEVELOPMENT_CONTEXT.md:20-27`, `ai_context/DEVELOPMENT_CONTEXT.md:80-106`).
-- The repo should be treated as a Hybrid project, not a plain Python utility: `bin/classify_project.py` explicitly classifies targets as `Code`, `Skill`, or `Hybrid`, and the v1.5.3 development context calls out the skill-derivation pipeline as a first-class subsystem (`ai_context/DEVELOPMENT_CONTEXT.md:24-37`, `bin/classify_project.py:261-286`).
-- `reference_docs/` is present but empty in this checkout, so the canonical formal-doc intake path contributed no usable documentation. Exploration therefore relied on Tier 3 source evidence plus supplemental bootstrap docs from `docs_gathered/` (`README.md:25-50`, `bin/reference_docs_ingest.py:270-300`, `docs_gathered/INDEX.md:1-37`).
+- `SKILL.md` and `phase_prompts/*.md` for the declarative execution contract.
+- `bin/run_playbook.py` for orchestration, prompt routing, gate sequencing, and iteration control.
+- `bin/reference_docs_ingest.py` for `reference_docs/` ingest and `quality/formal_docs_manifest.json`.
+- `bin/run_state_lib.py` for phase artifact validation and progress/run-state normalization.
+- `bin/role_map.py` for Phase 1 file-role tagging, normalization, and activation of the skill-derivation pipeline.
+- `bin/install_skill.py` for multi-environment installer behavior.
+- `bin/archive_lib.py` and `bin/quality_playbook.py` for archival/indexing and operator-facing subcommands.
+- `.github/skills/quality_gate/quality_gate.py` for the mechanical post-run gate.
+- `bin/skill_derivation/*.py` for the v1.5.3+ hybrid divergence pipeline.
 
-### Architecture map
+## Architecture
 
-- **Skill/spec surface:** `SKILL.md`, `references/`, `schemas.md`, `agents/`, and `ai_context/` define the protocol, artifacts, and user/operator guidance. This is the product's intent surface and the source of many later gates (`SKILL.md:1-20`, `schemas.md:592-763`, `ai_context/DEVELOPMENT_CONTEXT.md:10-78`).
-- **Runner/orchestration surface:** `bin/run_playbook.py` is the main dispatcher. It builds phase prompts, runs gate checks between phases, writes `quality/INDEX.md`, monitors `PROGRESS.md`, archives prior runs, and coordinates iteration strategies (`bin/run_playbook.py:621-723`, `bin/run_playbook.py:1152-1175`, `bin/run_playbook.py:1819-1905`, `bin/run_playbook.py:2235-2293`, `bin/run_playbook.py:2602-2698`).
-- **Documentation/citation pipeline:** `bin/reference_docs_ingest.py` walks `reference_docs/` and writes `quality/formal_docs_manifest.json`; `bin/citation_verifier.py` provides the deterministic excerpt extraction used by both ingest and the gate (`bin/reference_docs_ingest.py:254-316`, `bin/citation_verifier.py:1-14`, `bin/citation_verifier.py:122-220`).
-- **Project-type and skill-derivation surface:** `bin/classify_project.py` emits the Code/Skill/Hybrid classification record; `bin/skill_derivation/__main__.py` drives the v1.5.3 four-pass derivation and divergence workflow (`bin/classify_project.py:261-286`, `bin/tests/test_skill_derivation_main.py:1-18`).
-- **Mechanical validation surface:** `.github/skills/quality_gate/quality_gate.py` is the post-run gate, including REQ pattern parsing, semantic-check enforcement, project-type consistency checks, and index validation (`.github/skills/quality_gate/quality_gate.py:1-20`, `.github/skills/quality_gate/quality_gate.py:52-77`, `.github/skills/quality_gate/quality_gate.py:2036-2145`, `.github/skills/quality_gate/quality_gate.py:3037-3064`).
-- **Packaging/setup surface:** `repos/setup_repos.sh` copies the skill into benchmark targets, mirrors `docs_gathered/` into `reference_docs/`, and installs the top-level gate entry point. That script creates an important alternate install path from the direct bootstrap-at-repo-root flow (`repos/setup_repos.sh:195-220`, `docs_gathered/30_benchmark_protocol_and_self_audit.md:87-99`).
+### Primary declarative surface
 
-### Existing test inventory
+- `SKILL.md:24-36` defines the seven-phase contract and positions Phase 1 as the codebase-understanding step that drives everything downstream.
+- `SKILL.md:576-1240` is the operative Phase 1 contract: documentation ingest, exploration stages, role-map production, requirements/use-case derivation, and the phase-completion gate.
+- `phase_prompts/README.md:1-36` shows the runner/skill split: prompt bodies were externalized so UI-context and runner-driven modes share the same phase text.
+- `references/*.md` provide the phase-specific pattern libraries and protocols the skill names explicitly.
 
-- The development context documents two main test suites: `python3 -m unittest discover bin/tests` (runner + derivation modules) and `python3 -m unittest discover -s .github/skills/quality_gate/tests/ -p 'test_*.py'` (quality gate). The gate suite is explicitly documented as `unittest`-first because `pytest` has an import-shadowing issue there (`ai_context/DEVELOPMENT_CONTEXT.md:82-106`).
-- Representative runner tests cover prompt construction, phase gate behavior, archiving, and CLI parsing (`bin/tests/test_run_playbook.py:15-180`).
-- Representative ingest/citation tests cover empty-manifest behavior, tier markers, `reference_docs` top-level vs `cite/` semantics, and schema key correctness (`bin/tests/test_reference_docs_ingest.py:23-145`, `bin/tests/test_citation_verifier.py:54-173`).
-- Representative progress/monitoring tests cover `PROGRESS.md` header extraction and monitoring cadence (`bin/tests/test_progress_monitor.py:30-120`).
-- Representative skill-derivation tests cover CLI parsing and the four-pass orchestration path (`bin/tests/test_skill_derivation_main.py:36-140`).
-- Measured during exploration: the repo currently contains 35 `bin/tests/test_*.py` files and 2 gate test files under `.github/skills/quality_gate/tests/`, with the development context describing the total suite as 662 `bin/tests` tests plus 221 gate tests at v1.5.3 (`ai_context/DEVELOPMENT_CONTEXT.md:38-39`, `ai_context/DEVELOPMENT_CONTEXT.md:62-67`, `ai_context/DEVELOPMENT_CONTEXT.md:82-91`).
+### Orchestration and execution path
+
+- `bin/run_playbook.py:831-927` centralizes the six-path install-location fallback guide and loads the externalized phase prompts.
+- `bin/run_playbook.py:3254-3331` is the main phased runner path; it prints banners, warns about missing docs, archives previous runs, starts the progress monitor, and executes phase groups.
+- `bin/run_playbook.py:3334-3360` is the single-pass / iteration entry path using the same warning and banner logic.
+- `bin/quality_playbook.py:39-84` is the operator-facing subcommand dispatcher for archive, migrate, and semantic-check operations.
+
+### Documentation and evidence pipeline
+
+- `bin/reference_docs_ingest.py:189-309` walks `reference_docs/`, classifies top-level vs `cite/`, builds the formal-doc manifest, and exposes Tier 4 context through `load_tier4_context`.
+- `bin/bootstrap_self_audit_docs.py:32-62` mirrors bootstrap docs from operator-local `docs_gathered/` into the repo-root `reference_docs/` scaffold for self-audit runs.
+- `schemas.md` and `metrics/regression_replay/SCHEMA.md` act as schema contracts for the artifact layer and replay metrics.
+
+### Gate and state-control layer
+
+- `bin/run_state_lib.py:158-245` implements per-phase artifact validation and is the first mechanical backstop between phase transitions.
+- `bin/role_map.py:285-338` validates Phase 1 role maps; `bin/role_map.py:759-838` normalizes mechanically derived `breakdown` and `summary` fields before Phase 2.
+- `.github/skills/quality_gate.py:1-57` is the documented entrypoint script, while `.github/skills/quality_gate/quality_gate.py:32-62` soft-loads the citation verifier and implements the long mechanical gate.
+
+### Hybrid skill/code divergence pipeline
+
+- `bin/skill_derivation/__main__.py:78-174` is the CLI front door for Phase 3/4 derivation and divergence work.
+- `bin/skill_derivation/sections.py:1-61` defines section enumeration rules, execution-mode classification, and cross-reference detection for skill prose.
+- `bin/skill_derivation/runners.py:127-229` wraps Claude, Copilot, Codex, and Cursor subprocess runners for pass execution.
+
+### Data-flow summary
+
+1. The skill/prompt layer tells an AI agent what to do.
+2. `bin/run_playbook.py` converts that contract into phase prompts, quality tree setup, and phase-group execution.
+3. `bin/reference_docs_ingest.py`, `bin/role_map.py`, and `bin/run_state_lib.py` produce/validate the Phase 1 evidence substrate.
+4. Phase 2+ artifacts are later checked by `.github/skills/quality_gate/quality_gate.py`.
+5. `bin/archive_lib.py` snapshots the run and renders `INDEX.md` / `RUN_INDEX.md`.
+
+## Existing Tests
+
+The repo has a large stdlib-first automated test surface.
+
+- `bin/tests/` contains 75 tracked test modules covering the runner, docs ingest, install flow, role-map logic, run-state validation, derivation passes, replay tooling, and prompt externalization.
+- `.github/skills/quality_gate/tests/` contains the gate-specific suite plus challenge/fixture trees. The gate suite is documented as `unittest discover`-first because of the package/module import-shadowing constraint described in `.github/skills/quality_gate/tests/README.md`.
+- `pytest/__init__.py` and `pytest/__main__.py` are a local shim so `python3 -m pytest` works without third-party installation.
+- The tracked tree also contains 117 fixture/example files, including benchmark snapshots under `repos/` and gate/runner fixtures under `bin/tests/fixtures/` and `.github/skills/quality_gate/tests/fixtures/`.
+
+Coverage focus, by inspection:
+
+- Strong: install fallback order, prompt externalization, role-map normalization, reference-doc ingest edge cases, progress monitor races, runner argument handling, gate schema invariants.
+- Weaker or currently missing by direct evidence:
+  - Nested non-`cite/` subdirectories under `reference_docs/` as a Tier 4 ingest boundary.
+  - Consistency between `docs_present()` and `_evaluate_documentation_state()` for cite-only, README-only, or binary-only trees.
+  - Archive bug-count extraction against the canonical `### BUG-NNN: Title` heading form.
+  - Bootstrap mirroring of `docs_gathered/cite/` into `reference_docs/cite/`.
+  - Direct skill-mode validation of role maps before runner-side normalization.
+
+## Specifications
+
+### Reference docs used in this run
+
+`reference_docs/` is populated with a curated bootstrap/self-audit corpus. The citable subdirectory is empty except for `.gitkeep`, so this run uses rich Tier 4 context but no active Tier 1/2 citable file.
+
+Key Tier 4 inputs:
+
+- `reference_docs/01_README_project.md`, `02_AGENTS.md`, `05_TOOLKIT.md`: user-facing install/run contract and adopter expectations.
+- `reference_docs/03_DEVELOPMENT_CONTEXT.md`, `04_BENCHMARK_PROTOCOL.md`: maintainer architecture, benchmark methodology, and active constraints.
+- `reference_docs/20-31_*.md`: topical synthesis documents for the 35% intent-gap thesis, the requirements pipeline, Council-of-Three, anti-hallucination invariants, iteration strategies, six-phase orchestration, TDD protocol, recheck, benchmark protocol, and known limitations.
+- `reference_docs/50_Quality_Playbook_Patent_Review.md`: claims-level framing of the novel mechanisms.
+
+### Inline specification sources
+
+- `SKILL.md` is the primary behavioral spec for the playbook.
+- `phase_prompts/phase1.md` is the operational restatement of the current Phase 1 contract for runner-driven execution.
+- `schemas.md` is the formal schema contract for manifests, role maps, and downstream sidecars.
+- `references/*.md` are phase-scoped secondary specs.
 
 ### Specification summary
 
-- The core user-visible contract is that the playbook derives intent from source plus documentation, writes phase outputs to disk, and uses those artifacts to drive code review, multi-model audit, and TDD verification (`README.md:1-11`, `docs_gathered/20_design_intent_the_35_percent_gap.md:18-46`, `docs_gathered/26_six_phase_orchestration.md:5-23`).
-- The six-phase orchestration model depends on strict phase boundaries, artifact-based handoff, and non-negotiable gates between phases; Phase 1 exploration is the required input to every downstream artifact (`docs_gathered/26_six_phase_orchestration.md:5-23`, `docs_gathered/26_six_phase_orchestration.md:52-91`, `SKILL.md:1026-1044`).
-- The requirements pipeline is treated as the heart of the system: downstream phases consume requirements rather than rediscovering code intent ad hoc (`docs_gathered/21_requirements_pipeline.md:5-18`, `docs_gathered/21_requirements_pipeline.md:35-79`).
-- The anti-hallucination design is explicit: executed evidence outranks prose, byte-deterministic citation excerpts are reused between ingest and the gate, and source-inspection or mechanical artifacts are preferred to ungrounded reasoning (`docs_gathered/25_anti_hallucination_invariants.md:11-24`, `docs_gathered/25_anti_hallucination_invariants.md:39-63`, `bin/citation_verifier.py:1-14`).
-- The bootstrap/self-audit docs say the repo root should be a valid benchmark target in its own right, but they also describe bootstrap as a special case with self-reference, curated docs, and direct-root execution rather than `setup_repos.sh` installation (`docs_gathered/30_benchmark_protocol_and_self_audit.md:79-107`).
-- Documentation-state note for this run: the canonical `reference_docs/` path was empty, so there were no citable Tier 1/2 docs from that path. Supplemental `docs_gathered/` docs exist and are rich, but some are version-drifted compared with the current repo-root README/SKILL, so they are helpful context but not a clean authoritative spec (`docs_gathered/INDEX.md:1-37`, `docs_gathered/01_README_project.md:1-6`, `docs_gathered/29_improvement_axes_and_version_history.md:68-72`, `README.md:1-5`, `SKILL.md:1-13`).
+- The repo promises a docs-aware, multi-phase quality workflow that can run either directly from the skill prose or via `bin/run_playbook.py`.
+- Documentation handling is part of the product contract, not just a convenience: top-level `reference_docs/` files are Tier 4 context, `reference_docs/cite/` files are the citable formal-doc surface, and code-only mode is supposed to be observable and accurate.
+- Hybrid-mode correctness depends on cross-surface consistency: install fallback order, documentation-state detection, role-map normalization, and gate expectations must agree across prose, runner code, and validators.
 
-### Skeleton/dispatch/state-machine analysis
+## Open Exploration Findings
 
-- The dominant state machine is the phase lifecycle in `bin/run_playbook.py`: Phase 1 is the only unconditional entry; Phase 2 depends on `quality/EXPLORATION.md`; Phase 3 depends on the Phase 2 artifact set; later phases layer their own required-file checks or warnings (`bin/run_playbook.py:1152-1175`).
-- A second state machine is the live-run/iteration lifecycle: `run_one_phased()` starts monitoring, optionally archives prior output, writes an `INDEX.md` stub, then advances through phase groups; `run_one_iterations()` appends heartbeat headers to `PROGRESS.md`, logs bug deltas, and finalizes each iteration (`bin/run_playbook.py:2235-2293`, `bin/run_playbook.py:2602-2698`).
-- The citation pipeline is a deterministic decode -> locate -> excerpt -> verify state machine. `extract_excerpt()` enforces UTF-8 decoding, line/section locator rules, blank-anchor rejection, and byte-identical newline joining, while the gate re-runs extraction and compares the fresh excerpt to the stored one (`bin/citation_verifier.py:68-182`, `.github/skills/quality_gate/quality_gate.py:1818-1864`).
-- The project-type surface is another dispatch boundary: classifier output can be `Code`, `Skill`, or `Hybrid`, and later v1.5.3 logic is supposed to use that fact when deciding what cross-cutting requirements and divergence checks apply (`bin/classify_project.py:261-286`, `.github/skills/quality_gate/quality_gate.py:3030-3034`).
+1. `bin/run_playbook.py:1560-1575` (`docs_present`) disagrees with `bin/run_playbook.py:1661-1669` (`_evaluate_documentation_state`) on cite-only docs. A temp-tree repro with only `reference_docs/cite/spec.md` returns `docs_present == False` but `_evaluate_documentation_state == "with_docs"`, so the runner can emit a code-only warning even when Phase 1 correctly recognizes documentation.
 
-### Concrete bug hypotheses
+2. `bin/run_playbook.py:1568-1574` treats any non-dot top-level file in `reference_docs/` or `docs_gathered/` as “docs present,” while `bin/run_playbook.py:1583-1595` only recognizes plaintext `.md`/`.txt` files and skips `README.md`. A repro with `reference_docs/README.md` alone yields `docs_present == True` but `_evaluate_documentation_state == "code_only"`. A repro with `reference_docs/spec.pdf` yields `docs_present == True` while `formal_docs_guard_banner()` still reports the tree as empty of valid docs. That is contradictory operator signaling across the same startup path.
 
-1. `bin/run_playbook.py:621-630` tells Phase 1 to read `reference_docs/`, but `docs_present()` still defines "has docs" entirely in terms of `docs_gathered/` (`bin/run_playbook.py:1552-1559`), and that legacy warning is emitted from three execution paths (`bin/run_playbook.py:2241-2246`, `bin/run_playbook.py:2314-2319`, `bin/run_playbook.py:2611-2616`). A target with populated `reference_docs/` but no `docs_gathered/` will still be told it is doing "code-only analysis."
-2. The runner now has two competing documentation guards: a modern `reference_docs/` guard that correctly explains Tier 4 vs `cite/` semantics (`bin/run_playbook.py:1562-1622`) and the older `docs_gathered/` warning path (`bin/run_playbook.py:2241-2246`, `bin/run_playbook.py:2314-2319`, `bin/run_playbook.py:2611-2616`). This creates contradictory operator guidance on modern installs.
-3. `SKILL.md:1026-1042` says the Phase 2 entry gate must verify exact `EXPLORATION.md` section titles and content thresholds, but `check_phase_gate()` only verifies existence plus `>= 120` lines for Phase 2 (`bin/run_playbook.py:1158-1165`). A malformed exploration file can pass the runner gate even when it violates the written skill contract.
-4. The repo advertises Code/Skill/Hybrid classification as a v1.5.3 feature (`ai_context/DEVELOPMENT_CONTEXT.md:24-37`, `bin/classify_project.py:261-286`), but both `write_live_index_stub()` and `write_live_index_final()` still hardcode `target_project_type: "Code"` (`bin/run_playbook.py:1819-1831`, `bin/run_playbook.py:1888-1895`). This can poison `quality/INDEX.md` metadata for Skill or Hybrid targets.
-5. `kill_recorded_processes()` correctly prefers PID files, but when none exist it falls back to `_pkill_fallback()` with generic patterns like `bin/run_playbook.py`, `claude -p`, and `gh copilot -p` (`bin/run_playbook.py:2836-2865`). On a shared workstation that can kill unrelated agent sessions that happen to match the same command line.
-6. The curated bootstrap docs are drifted relative to the current shipping version: `docs_gathered/01_README_project.md:1-6` still says v1.5.0 and documents `docs_gathered/` as Step 1 input, while `docs_gathered/29_improvement_axes_and_version_history.md:68-72` still calls v1.5.1 current; the live root docs are v1.5.3 and reference `reference_docs/` instead (`README.md:15-50`, `SKILL.md:1-13`). A self-audit that trusts the curated pack over the live repo can derive stale requirements.
-7. The gate promises byte-equality checking only when `bin/citation_verifier` is importable; otherwise it emits a warning and skips the check (`.github/skills/quality_gate/quality_gate.py:32-44`, `.github/skills/quality_gate/quality_gate.py:1823-1864`). At the same time, benchmark setup currently copies only the top-level `quality_gate.py` entry point into targets (`repos/setup_repos.sh:195-200`). That packaging path can silently degrade the Layer-1 anti-hallucination guarantee that the README promises for `reference_docs/cite/` (`README.md:39-42`).
-8. The benchmark harness explicitly mirrors `docs_gathered/` into `reference_docs/` because the modern playbook no longer reads `docs_gathered/` directly (`repos/setup_repos.sh:202-220`), but the bootstrap protocol says the repo root itself is a direct benchmark target (`docs_gathered/30_benchmark_protocol_and_self_audit.md:87-99`). In this checkout, `docs_gathered/` is populated while `reference_docs/` is empty, so direct bootstrap and harness-installed bootstrap do not see the same documentation surface.
-9. The same repo contains both a symlinked installed skill entry point (`.github/skills/SKILL.md`) and the repo-root `SKILL.md`, and they currently resolve to the same file. That is correct today, but it is a packaging invariant worth protecting because downstream installers and fallback resolution depend on those copies staying aligned (`SKILL.md:1-20`, `.github/skills/SKILL.md:1-20`).
+3. `bin/reference_docs_ingest.py:90-94`, `189-227`, and `263-276` recurse the entire `reference_docs/` tree and classify every non-`cite/` file as Tier 4. A temp-tree repro with `reference_docs/nested/archive/notes.md` returns `[('reference_docs/nested/archive/notes.md', ...)]` from `load_tier4_context()`. The documented contract says top-level `reference_docs/<name>` files are Tier 4 context; nested archives should not silently join the prompt budget.
+
+4. `bin/bootstrap_self_audit_docs.py:50-61` mirrors only top-level plaintext files from `docs_gathered/` into `reference_docs/`. It creates `reference_docs/cite/` but never copies any source-side `docs_gathered/cite/` subtree, so bootstrap mirroring can preserve Tier 4 context while dropping the citable formal-doc surface entirely.
+
+5. `bin/run_state_lib.py:171-198` is much weaker than the Phase 1 completion contract in `SKILL.md:1204-1217`. A repro file with 120 lines, `## Domain and Stack`, and `## Open Exploration Findings` but no Quality Risks, no pattern matrix, and no candidate-bug section still returns `(True, "")` from `validate_phase_artifacts(..., 1)`. That means the mechanical phase boundary can advance after a structurally shallow exploration artifact.
+
+6. `bin/archive_lib.py:69` and `321-338` parse bug sections using `_BUG_HEADING_PATTERN = ^###\\s+BUG-...\\s*$`, which does not match the canonical `### BUG-001: Title` format enforced elsewhere. A repro `BUGS.md` with two titled bug headings returns zero counts for every severity/disposition bucket. This directly threatens `INDEX.md` / `RUN_INDEX.md` accuracy and any calibration logic derived from archived bug totals.
+
+7. `phase_prompts/phase1.md:59-69` explicitly tells Phase 1 writers to omit `breakdown` and `summary` from `quality/exploration_role_map.json`, while `bin/role_map.py:252` and `285-322` reject role maps missing those keys. The runner repairs this later via `bin/role_map.py:759-838`, but a direct skill-driven Phase 1 writeout is invalid until that runner-specific normalization step happens. That is a prose-to-code dependency leak.
+
+8. `bin/tests/test_reference_docs_ingest.py:67-77` and `152-164` pin only top-level Tier 4 behavior, while no direct regression test covers nested non-`cite/` directories despite the implementation’s recursive walk. The test surface is therefore aligned with the prose, but the implementation is aligned with a broader runtime behavior. That makes the nested-ingest drift easy to preserve accidentally.
 
 ## Quality Risks
 
-1. **Documentation-source drift can reduce bug yield without obvious failure.** If the runner warns about missing `docs_gathered/` on a modern `reference_docs/` install, operators may ignore the wrong problem or assume the run is weaker than it really is (`bin/run_playbook.py:1552-1622`, `README.md:15-50`).
-2. **Under-enforced Phase 2 gating can let malformed exploration propagate downstream.** Because the runner does not check for the exact required headings, later phases can consume incomplete analysis and still look superficially successful (`SKILL.md:1026-1042`, `bin/run_playbook.py:1158-1165`).
-3. **Incorrect project-type metadata can suppress Hybrid/Skill-specific enforcement.** If `quality/INDEX.md` says `Code` for a Skill or Hybrid target, later review, audit, and archive consumers can reason from the wrong project shape (`bin/classify_project.py:261-286`, `bin/run_playbook.py:1819-1831`, `bin/run_playbook.py:1888-1895`).
-4. **Soft-failing citation verification weakens the strongest anti-hallucination guarantee.** A WARN-only downgrade on missing `bin/citation_verifier` means a target can appear to support byte-verified citations while actually skipping the byte-equality check (`.github/skills/quality_gate/quality_gate.py:32-44`, `.github/skills/quality_gate/quality_gate.py:1823-1864`).
-5. **Pattern-based process killing is unsafe in shared environments.** Cleanup that kills by substring instead of recorded PID is acceptable only as a last resort and is not scoped to the current run (`bin/run_playbook.py:2836-2865`).
-6. **Bootstrap self-audit can bifurcate between direct-root and harness-installed runs.** One path sees `docs_gathered/`, the other sees mirrored `reference_docs/`, and the current root repo has only one of those populated (`repos/setup_repos.sh:202-220`, `docs_gathered/30_benchmark_protocol_and_self_audit.md:87-99`).
-7. **Curated bootstrap docs can become a stale spec source.** Because the self-audit pack is intentionally concise and independent, it can lag behind live README/SKILL changes and seed outdated requirements into future self-audits (`docs_gathered/INDEX.md:17-37`, `docs_gathered/01_README_project.md:1-6`, `docs_gathered/29_improvement_axes_and_version_history.md:68-72`, `README.md:1-5`).
+1. **Highest risk — documentation-state drift can mis-scope real runs.** Because `bin/run_playbook.py:1560-1575` and `1661-1669` use different predicates, a cite-only repo or a README/PDF-only repo can receive contradictory startup messages. In practice, an operator may believe the run is code-only when it is docs-backed, or docs-backed when it is actually code-only, which changes how they interpret requirements quality and bug confidence.
+
+2. **Nested Tier 4 ingestion can silently blow the prompt budget.** Because `bin/reference_docs_ingest.py:90-94` and `263-276` recurse arbitrary nested directories, a repo that parks `_raw/`, archived chats, or historical snapshots under `reference_docs/` will feed that material into Phase 1 even though the documented contract frames top-level files as the Tier 4 surface. The likely failure mode is context pollution, not a loud error.
+
+3. **The Phase 1 gate can certify shallow exploration.** Because `bin/run_state_lib.py:171-198` only checks file existence, line count, and one broad finding-header regex, a weak `EXPLORATION.md` can pass the mechanical phase boundary and poison every later phase with under-specified requirements and candidate bugs.
+
+4. **Archive metadata can under-report benchmark quality.** Because `bin/archive_lib.py:69` rejects titled bug headings, the archive summary path can record zero bugs for a run whose `BUGS.md` is otherwise canonical. This distorts longitudinal replay metrics and can produce false “regression” or false “improvement” signals in the maintenance loop.
+
+5. **Bootstrap self-audit may lose formal citations while appearing docs-backed.** Because `bin/bootstrap_self_audit_docs.py:50-61` mirrors only top-level files, bootstrap can end up with populated Tier 4 context and an empty `reference_docs/cite/`. That preserves narrative docs but downgrades the strongest citation-backed requirements the self-audit is supposed to exercise.
+
+## Skeletons and Dispatch
+
+The repo has several dispatch-heavy skeletons that are operationally important:
+
+- **Install-path fallback skeleton:** `bin/run_playbook.py:831-838` defines the canonical skill-resolution order; `bin/benchmark_lib.py:52-59` mirrors it for helper resolution; `bin/tests/test_skill_resolution_order.py:31-42` locks the six-path order in tests.
+- **Environment detection skeleton:** `bin/install_skill.py:43-64` maps AI-tool markers to install destinations; this is the installer’s primary state machine for environment selection.
+- **Phase validation dispatcher:** `bin/run_state_lib.py:158-245` switches on phase number and decides which artifact set is sufficient to advance the run.
+- **Archive summarization dispatcher:** `bin/archive_lib.py:321-373` routes archived content through bug counting, requirement tier counting, phase checklist extraction, and gate-verdict extraction.
+- **Runner factory:** `bin/skill_derivation/runners.py` plus `bin/skill_derivation/__main__.py:109-173` dispatch among Claude/Copilot/Codex/Cursor subprocess wrappers.
+- **Role taxonomy registry:** `bin/role_map.py:120-171` is the fixed taxonomy that activates or suppresses entire later-stage analyses.
+
+These skeletons are load-bearing because the repo’s failure modes are often “surface disagreement” bugs: two dispatch tables or two fallback predicates disagree about what the system should do with the same input.
 
 ## Pattern Applicability Matrix
 
-| Pattern | Status | Why it applies here |
-| --- | --- | --- |
-| Fallback and Degradation Path Parity | FULL | The repo maintains parallel documentation intake paths (`reference_docs/`, `docs_gathered/`, harness mirroring) and fallback cleanup paths (`PID` kill vs `pkill`). |
-| Dispatcher Return-Value Correctness | PARTIAL | There are some state/dispatch functions, but the highest-yield issues are not return-code bugs; they are contract and gating mismatches. |
-| Cross-Implementation Contract Consistency | FULL | The same logical contracts are implemented in multiple places: root docs vs installed docs, classifier output vs live index writing, skill text vs runner gates. |
-| Enumeration and Representation Completeness | FULL | The repo maintains closed sets of required phase headings, REQ pattern values, and project-type classifications; omissions here are mechanically important. |
-| API Surface Consistency | PARTIAL | There are multiple public surfaces (repo-root skill, installed skill, runner CLI, setup script), but the strongest issues collapse into cross-implementation parity rather than user-facing API argument drift. |
-| Defensive / State-Machine Analysis | PARTIAL | The repo has meaningful state machines (phase gates, progress monitor, iteration lifecycle), but the clearest bug signals are around policy drift, not missed lifecycle states. |
+| Pattern | Decision (`FULL` / `SKIP`) | Target modules | Why |
+|---|---|---|---|
+| Fallback and Degradation Path Parity | `FULL` | `bin/run_playbook.py`, `bin/reference_docs_ingest.py`, `bin/bootstrap_self_audit_docs.py` | The repo relies heavily on fallback behavior: cite vs top-level docs, code-only vs docs-backed mode, root vs installed skill resolution. Parity failures are already visible. |
+| Dispatcher Return-Value Correctness | `SKIP` | CLI entry points | There are CLI return-code paths, but they are lower-yield than the cross-surface contract drifts that dominate this repo. |
+| Cross-Implementation Consistency | `FULL` | `SKILL.md`, `phase_prompts/phase1.md`, `bin/run_playbook.py`, `bin/run_state_lib.py`, `bin/benchmark_lib.py` | The repo ships the same contract across prose, prompts, helpers, and validators; consistency failures are a primary bug class here. |
+| Enumeration and Representation Completeness | `FULL` | `bin/archive_lib.py`, `bin/role_map.py`, `bin/install_skill.py`, `bin/run_playbook.py` | Canonical lists and enum-like registries drive install fallback, role tags, bug parsing, and archive summaries. Missing or mismatched entries are high-value. |
+| API Surface Consistency | `FULL` | `bin/run_playbook.py`, `bin/reference_docs_ingest.py`, `bin/bootstrap_self_audit_docs.py` | The same logical concept is exposed through multiple helper APIs (`docs_present`, `_evaluate_documentation_state`, `formal_docs_guard_banner`, ingest/mirror helpers), and they already diverge. |
+| Spec-Structured Parsing Fidelity | `SKIP` | `bin/archive_lib.py`, schema parsers | Parsing bugs exist, but the core issue is not external grammar complexity; it is internal format drift and surface disagreement. |
 
 ## Pattern Deep Dive — Fallback and Degradation Path Parity
 
-### Documentation intake paths
+### Documentation-state startup path
+- **Primary path:** `bin/run_playbook.py:_evaluate_documentation_state()` at `1661-1669` uses `_reference_docs_plaintext()` at `1583-1595` to decide whether the run is `code_only` or `with_docs`.
+- **Fallback / adjacent path:** `bin/run_playbook.py:docs_present()` at `1560-1575` is used by `run_one_phased()` at `3268-3274`, `run_one_singlepass()` at `3341-3346`, and iteration startup at `3698-3703` to emit code-only warnings.
+- **Parity gap:** the primary path treats cite-only docs as real docs and ignores README/binary noise; the warning path does not.
+- **Candidate requirement:** REQ-001 and REQ-002 below.
 
-- **Primary path:** `reference_docs/` is the canonical Phase 1 documentation surface in the live README and prompt contract (`README.md:25-50`, `bin/run_playbook.py:621-630`).
-- **Fallback/legacy path:** `docs_present()` still treats `docs_gathered/` as the signal for whether a run has docs at all (`bin/run_playbook.py:1552-1559`), and that warning is emitted in phased, single-pass, and iteration flows (`bin/run_playbook.py:2241-2246`, `bin/run_playbook.py:2314-2319`, `bin/run_playbook.py:2611-2616`).
-- **Compensating harness path:** `repos/setup_repos.sh` explicitly mirrors `docs_gathered/` into `reference_docs/` because without that copy "the modern playbook doesn't look" at the curated docs (`repos/setup_repos.sh:202-220`).
-- **Parity gap:** direct bootstrap-at-root runs and harness-installed runs do not traverse the same doc-intake path, so they can explore the same repo with different evidence.
-- **Candidate requirements:** REQ-002 and REQ-008.
+### Bootstrap self-audit docs path
+- **Primary path:** `bin/reference_docs_ingest.py:189-309` expects a meaningful split between top-level Tier 4 and `cite/` formal docs.
+- **Fallback path:** `bin/bootstrap_self_audit_docs.py:50-61` mirrors only top-level files and creates an empty `cite/` directory.
+- **Parity gap:** the mirroring helper does not preserve the ingest contract’s citable-surface distinction.
+- **Candidate requirement:** REQ-004 below.
 
-### Cleanup paths
+## Pattern Deep Dive — Cross-Implementation Consistency
 
-- **Primary path:** `kill_recorded_processes()` prefers recorded PIDs from per-parent PID files (`bin/run_playbook.py:2807-2834`, `bin/run_playbook.py:2861-2875`).
-- **Fallback path:** `_pkill_fallback()` kills by command-line substring when PID files are absent (`bin/run_playbook.py:2836-2865`).
-- **Parity gap:** the primary path is run-scoped, but the fallback path is workstation-scoped.
-- **Candidate requirements:** REQ-005.
+### Phase 1 completion contract
+- **Declarative contract:** `SKILL.md:1204-1217` requires exact Phase 1 sections, minimum findings counts, pattern-matrix coverage, and candidate-bug balance before Phase 2.
+- **Runner prompt contract:** `phase_prompts/phase1.md:77-82` restates the required exploration payload and `phase_prompts/phase1.md:59-69` delegates `breakdown`/`summary` generation to the runner.
+- **Mechanical validator:** `bin/run_state_lib.py:171-198` only checks file existence, line count, and the presence of one finding-section pattern.
+- **Gap:** the execution boundary is materially weaker than the prose contract it is supposed to enforce.
+- **Candidate requirement:** REQ-005 and REQ-007 below.
 
-## Pattern Deep Dive — Cross-Implementation Contract Consistency
-
-### Project type as a cross-surface contract
-
-- **Classification implementation:** `bin/classify_project.py` produces a structured record with `classification`, `rationale`, and supporting evidence (`bin/classify_project.py:261-286`).
-- **Consumer implementation:** the gate runs project-type consistency checks for all projects (`.github/skills/quality_gate/quality_gate.py:3030-3034`).
-- **Metadata writer implementation:** `bin/run_playbook.py` still writes `"Code"` into the live run index stub and final render regardless of classifier output (`bin/run_playbook.py:1819-1831`, `bin/run_playbook.py:1888-1895`).
-- **Gap:** the repository has the concept of non-Code projects, but one of the main run metadata surfaces ignores it.
-- **Candidate requirements:** REQ-004.
-
-### Exploration gate as a cross-surface contract
-
-- **Spec implementation:** `SKILL.md` defines the Phase 2 entry gate in terms of exact headings and minimum content shape (`SKILL.md:1026-1042`).
-- **Runtime implementation:** `check_phase_gate()` only checks that `EXPLORATION.md` exists and is at least 120 lines long (`bin/run_playbook.py:1158-1165`).
-- **Test implementation:** runner tests cover the missing-file case, but there is no matching enforcement test for the required headings contract (`bin/tests/test_run_playbook.py:116-130`).
-- **Gap:** the written protocol and the executable gate are not enforcing the same artifact contract.
-- **Candidate requirements:** REQ-003.
-
-### Citation verification as a cross-surface contract
-
-- **Spec implementation:** the README says files in `reference_docs/cite/` produce citable `FORMAL_DOC` records whose excerpts `quality_gate.py` byte-verifies (`README.md:39-42`).
-- **Shared-library implementation:** `citation_verifier.py` is explicitly designed to be shared between ingest and the gate and promises byte-identical output (`bin/citation_verifier.py:1-14`).
-- **Installed-gate implementation:** the gate skips byte-equality if `bin/citation_verifier` is unavailable on the install (`.github/skills/quality_gate/quality_gate.py:32-44`, `.github/skills/quality_gate/quality_gate.py:1823-1864`).
-- **Gap:** the packaging story can break a cross-surface guarantee that the README presents as unconditional.
-- **Candidate requirements:** REQ-006.
+### Install / resolution order surface
+- **Runtime fallback prose:** `bin/run_playbook.py:831-838`
+- **Helper fallback list:** `bin/benchmark_lib.py:52-59`
+- **Test oracle:** `bin/tests/test_skill_resolution_order.py:31-42`
+- **Observation:** this surface is currently aligned and heavily tested, which makes it a good control example. The documentation-state and role-map surfaces are not held to the same level of cross-surface lockstep.
 
 ## Pattern Deep Dive — Enumeration and Representation Completeness
 
-### Phase 2 gate headings are a closed set
+### Bug-heading extraction
+- **Closed set / parser representation:** `bin/archive_lib.py:_BUG_HEADING_PATTERN` at `69`
+- **Consumer path:** `_split_by_heading()` at `313-318` and `_extract_bug_counts()` at `321-338`
+- **Authoritative source:** canonical BUG heading form used elsewhere, including `.github/skills/quality_gate/quality_gate.py:118` (`^###\\s+BUG-(\\d+):`) and the repo’s written protocols.
+- **Missing representation:** titled bug headings are absent from the archive parser’s accepted set.
+- **Candidate requirement:** REQ-006 below.
 
-- **Authoritative source:** `SKILL.md` enumerates the exact required headings for `quality/EXPLORATION.md` (`SKILL.md:1026-1042`).
-- **Runtime representation:** `check_phase_gate()` currently reduces that contract to one file-exists check plus one line-count threshold (`bin/run_playbook.py:1158-1165`).
-- **Missing entries:** the runtime gate does not represent the required headings `## Open Exploration Findings`, `## Quality Risks`, `## Pattern Applicability Matrix`, `## Candidate Bugs for Phase 2`, or `## Gate Self-Check` at all.
-- **Candidate requirements:** REQ-003.
+### Role-map schema surface
+- **Authoritative source:** `phase_prompts/phase1.md:59-69` says Phase 1 writers output only `files[]` and `provenance`.
+- **Validator expectation:** `bin/role_map.py:252` and `318-322` require `breakdown` and `summary` before validation.
+- **Gap:** the validator’s required top-level key set is incomplete relative to the prompt contract unless runner-side normalization is always in play.
+- **Candidate requirement:** REQ-007 below.
 
-### Project-type values are a closed set
+## Pattern Deep Dive — API Surface Consistency
 
-- **Authoritative source:** `bin/classify_project.py` and the development context describe `Code`, `Skill`, and `Hybrid` as supported classifications (`ai_context/DEVELOPMENT_CONTEXT.md:24-37`, `bin/classify_project.py:261-286`).
-- **Runtime representation:** `write_live_index_stub()` and `write_live_index_final()` only ever write `Code` (`bin/run_playbook.py:1819-1831`, `bin/run_playbook.py:1888-1895`).
-- **Missing entries:** `Skill` and `Hybrid` are absent from one of the core metadata emitters.
-- **Candidate requirements:** REQ-004.
+### Documentation APIs
+- **Surface A:** `docs_present()` at `bin/run_playbook.py:1560-1575`
+- **Surface B:** `_evaluate_documentation_state()` at `1661-1669`
+- **Surface C:** `formal_docs_guard_banner()` at `1598-1621`
+- **Divergence:** A cite-only tree produces `False` / `with_docs` / no banner respectively; a README-only or PDF-only tree produces `True` / `code_only` / warning banner. These three APIs describe the same repository state but do not agree on the answer.
+- **Candidate requirements:** REQ-001 and REQ-002 below.
 
-### Citation-verification install support is a closed set
-
-- **Authoritative source:** the README's `reference_docs/cite/` contract implies that every citable install should be able to byte-verify stored excerpts (`README.md:39-42`).
-- **Runtime representation:** the gate can only enforce that when `_CITATION_VERIFIER` imports successfully (`.github/skills/quality_gate/quality_gate.py:32-44`, `.github/skills/quality_gate/quality_gate.py:1823-1864`).
-- **Missing install artifact:** `repos/setup_repos.sh` installs `quality_gate.py` but not the shared verifier module (`repos/setup_repos.sh:195-200`).
-- **Candidate requirements:** REQ-006.
-
-## Testable Requirements Derived
-
-### REQ-001: Installed skill entry points must stay synchronized with the repo-root skill
-
-- Description: Packaging must not allow the repo-root `SKILL.md` and installed `.github/skills/SKILL.md` entry point to drift, because skill-path fallback resolution depends on both representing the same instructions and version.
-- References: `SKILL.md:1-20`; `.github/skills/SKILL.md:1-20`
-- Pattern: parity
-- Use cases: `UC-07`
-
-### REQ-002: The runner must treat `reference_docs/` as the authoritative documentation input for Phase 1
-
-- Description: Modern installs that provide `reference_docs/` should not receive "code-only" warnings just because `docs_gathered/` is absent; preflight messaging and exploration behavior must align with the canonical `reference_docs/` contract.
-- References: `README.md:25-50`; `bin/run_playbook.py:621-630`; `bin/run_playbook.py:1552-1622`; `bin/reference_docs_ingest.py:270-300`
-- Use cases: `UC-01`, `UC-02`
-
-### REQ-003: Phase 2 entry gating must enforce the full `EXPLORATION.md` section contract, not just file length
-
-- Description: A run must not advance beyond Phase 1 unless `quality/EXPLORATION.md` contains the exact headings and minimum content shape the skill requires, because later phases depend on those sections by name.
-- References: `SKILL.md:1026-1042`; `bin/run_playbook.py:1152-1165`; `bin/tests/test_run_playbook.py:116-130`
-- Use cases: `UC-01`, `UC-03`
-
-### REQ-004: Live run metadata must preserve the actual Code/Skill/Hybrid project classification
-
-- Description: Any run that computes project type must carry that value through to `quality/INDEX.md` and related metadata instead of defaulting every target to `Code`.
-- References: `ai_context/DEVELOPMENT_CONTEXT.md:24-37`; `bin/classify_project.py:261-286`; `bin/run_playbook.py:1819-1831`; `bin/run_playbook.py:1888-1895`
-- Use cases: `UC-03`, `UC-04`
-
-### REQ-005: Cleanup paths must only terminate playbook-owned processes
-
-- Description: Operator cleanup must remain scoped to recorded run workers; any fallback path must avoid killing unrelated Claude or Copilot processes on the same host.
-- References: `bin/run_playbook.py:2807-2875`
-- Use cases: `UC-06`
-
-### REQ-006: Every installed citable-doc workflow must retain byte-equality citation verification
-
-- Description: If the README advertises byte-verified citation excerpts for `reference_docs/cite/`, the installed gate package must include the verifier code needed to enforce that guarantee rather than downgrading it to a warning.
-- References: `README.md:39-42`; `bin/citation_verifier.py:1-14`; `.github/skills/quality_gate/quality_gate.py:32-44`; `.github/skills/quality_gate/quality_gate.py:1823-1864`; `repos/setup_repos.sh:195-200`
-- Use cases: `UC-05`
-
-### REQ-007: Bootstrap self-audit docs must remain current with the live skill version and terminology
-
-- Description: Curated bootstrap docs are allowed to compress context, but they must not describe an older current version or obsolete documentation path in a way that can mislead Phase 1 requirement derivation.
-- References: `docs_gathered/01_README_project.md:1-29`; `docs_gathered/29_improvement_axes_and_version_history.md:68-72`; `README.md:1-5`; `README.md:15-50`; `SKILL.md:1-13`
-- Use cases: `UC-02`
-
-### REQ-008: Direct bootstrap and harness-installed bootstrap must expose the same documentation surface
-
-- Description: Running the playbook against QPB at the repo root and running it through the benchmark harness should not change which documentation tree Phase 1 actually sees.
-- References: `repos/setup_repos.sh:202-220`; `docs_gathered/30_benchmark_protocol_and_self_audit.md:87-99`; `docs_gathered/INDEX.md:1-37`
-- Use cases: `UC-01`, `UC-02`
-
-## Use Cases Derived
-
-### UC-01: Operator explores a target with source-only evidence available
-
-- Actors: benchmark operator, playbook runner
-- Preconditions: the target has little or no usable `reference_docs/` content
-- Flow:
-  1. The operator runs Phase 1 against the target repository.
-  2. The runner inspects the documentation tree and falls back to Tier 3 source evidence.
-  3. The operator receives accurate messaging about the strength of the available evidence.
-- Postconditions: `EXPLORATION.md` reflects the missing-docs condition without misreporting a modern install as "code-only" when docs are actually present elsewhere.
-
-### UC-02: Maintainer runs the bootstrap self-audit against QPB itself
-
-- Actors: QPB maintainer, playbook runner
-- Preconditions: the repo root is the audit target and curated bootstrap docs exist
-- Flow:
-  1. The maintainer runs Phase 1 at the repo root.
-  2. Phase 1 reads the live skill plus the curated bootstrap context.
-  3. The maintainer expects the run to see the same documentation surface the harness-installed version would see.
-- Postconditions: the self-audit is not biased by direct-root versus harness-installed documentation differences.
-
-### UC-03: Runner initializes a phased run and hands off to later phases
-
-- Actors: playbook runner, later-phase agent
-- Preconditions: Phase 1 has started and later phases will read artifacts from disk
-- Flow:
-  1. The runner creates `quality/INDEX.md` and `quality/PROGRESS.md`.
-  2. Phase 1 writes `quality/EXPLORATION.md`.
-  3. Phase 2 reads the exploration artifact and enforces the required headings before generating downstream files.
-- Postconditions: later phases consume a structurally valid exploration artifact and accurate run metadata.
-
-### UC-04: Maintainer classifies a target as Code, Skill, or Hybrid
-
-- Actors: maintainer, classifier, run metadata writer
-- Preconditions: the target repo contains enough evidence for `bin/classify_project.py` to classify it
-- Flow:
-  1. The classifier emits a classification record.
-  2. The runner writes live index metadata.
-  3. Later tooling and the gate interpret the project according to that classification.
-- Postconditions: the recorded project type matches the classifier output instead of silently collapsing to `Code`.
-
-### UC-05: Auditor cites a `reference_docs/cite/` passage and expects byte-equal enforcement
-
-- Actors: auditor, gate
-- Preconditions: a REQ or BUG cites a `FORMAL_DOC` generated from `reference_docs/cite/`
-- Flow:
-  1. The ingest pipeline stores a deterministic citation excerpt.
-  2. The gate re-runs excerpt extraction against the on-disk document bytes.
-  3. The gate rejects any mismatch between stored excerpt and fresh extraction.
-- Postconditions: Layer-1 citation verification is actually enforced on the installed target.
-
-### UC-06: Operator terminates a stuck run safely
-
-- Actors: benchmark operator, playbook runner
-- Preconditions: a run is stuck or has left workers behind
-- Flow:
-  1. The operator invokes run cleanup.
-  2. The runner reads the per-parent PID file and terminates only the recorded workers.
-  3. Any fallback path remains scoped to the current run rather than generic agent command lines.
-- Postconditions: the stuck run stops without affecting unrelated sessions on the same host.
-
-### UC-07: Maintainer ships repo-root and installed skill copies together
-
-<!-- cluster: heterogeneous -->
-
-- Actors: skill maintainer, installer
-- Preconditions: the repository root contains the canonical skill and the installed path is used by fallback resolution
-- Flow:
-  1. The maintainer updates the canonical `SKILL.md`.
-  2. The installed `.github/skills/SKILL.md` resolves to the same content.
-  3. A downstream agent can read either fallback path and receive equivalent instructions.
-- Postconditions: packaging does not create version or instruction skew between canonical and installed skill entry points.
-
-## Cartesian UC rule confirmation
-
-1. For every REQ with `References`, I ran Gate 1 (path-suffix match).
-2. I ran Gate 2 for every REQ that passed Gate 1. Only REQ-001 passed Gate 1 because `SKILL.md` and `.github/skills/SKILL.md` share the same path-suffix role; Gate 2 failed because the cited ranges are document frontmatter/heading text, not comparable function bodies.
-3. No REQ passed both gates, so this exploration emitted no per-site `UC-N.a` / `UC-N.b` / `UC-N.c` records.
-4. REQ-001 passed only Gate 1, so I kept a single umbrella use case and marked `UC-07` with `<!-- cluster: heterogeneous -->`.
-5. REQ-002 through REQ-008 failed Gate 1, so I kept a single umbrella UC for each with no special Cartesian marking.
-6. REQ-001 is the only Gate 1 pattern cluster in this exploration, and it carries `Pattern: parity`.
+### Ingest vs bootstrap mirror
+- **Surface A:** `bin/reference_docs_ingest.py` expects a two-bucket reference-doc structure.
+- **Surface B:** `bin/bootstrap_self_audit_docs.py` flattens the source set to Tier 4.
+- **Divergence:** the helper that prepares bootstrap docs does not preserve the structure the ingest step expects.
+- **Candidate requirement:** REQ-004 below.
 
 ## Candidate Bugs for Phase 2
 
-1. **[Open exploration] Legacy docs-source warning drift** - `docs_present()` and three runner call sites still warn on missing `docs_gathered/` even though the live Phase 1 contract uses `reference_docs/` (`bin/run_playbook.py:1552-1559`, `bin/run_playbook.py:2241-2246`, `bin/run_playbook.py:2314-2319`, `bin/run_playbook.py:2611-2616`, `bin/run_playbook.py:621-630`).
-2. **[Open exploration] Phase 2 gate is under-enforced** - `check_phase_gate()` permits any `EXPLORATION.md` with at least 120 lines, ignoring the exact heading contract in `SKILL.md` (`SKILL.md:1026-1042`, `bin/run_playbook.py:1158-1165`).
-3. **[Open exploration] Live index hardcodes the wrong project type** - run metadata still writes `Code` even though classifier output supports `Skill` and `Hybrid` (`bin/classify_project.py:261-286`, `bin/run_playbook.py:1819-1831`, `bin/run_playbook.py:1888-1895`).
-4. **[Quality risk] Byte-equality citation verification can silently degrade on installed targets** - the gate warns and skips when `bin/citation_verifier` is absent, while setup currently installs only `quality_gate.py` into benchmark targets (`.github/skills/quality_gate/quality_gate.py:32-44`, `.github/skills/quality_gate/quality_gate.py:1823-1864`, `repos/setup_repos.sh:195-200`).
-5. **[Pattern deep dive: Fallback and Degradation Path Parity] Direct bootstrap versus harness-installed bootstrap sees different docs** - the harness mirrors `docs_gathered/` into `reference_docs/`, but direct-root bootstrap does not (`repos/setup_repos.sh:202-220`, `docs_gathered/30_benchmark_protocol_and_self_audit.md:87-99`).
-6. **[Quality risk] Cleanup fallback can kill unrelated sessions** - `_pkill_fallback()` is workstation-wide rather than run-scoped (`bin/run_playbook.py:2836-2865`).
-7. **[Quality risk] Curated bootstrap docs are stale enough to mis-seed future requirements** - the docs pack still frames older releases and older documentation paths as current (`docs_gathered/01_README_project.md:1-29`, `docs_gathered/29_improvement_axes_and_version_history.md:68-72`, `README.md:1-5`, `README.md:15-50`).
+1. **HIGH — cite-only docs trigger a false code-only warning**
+   - Stage: open exploration + API Surface Consistency
+   - Evidence: `bin/run_playbook.py:1560-1575`, `1583-1595`, `1661-1669`
+   - Why it matters: operator messaging and confidence-tier interpretation diverge.
+   - Review focus: unify `docs_present()` with the recognized-plaintext predicate used by `_evaluate_documentation_state()`.
+
+2. **HIGH — nested `reference_docs/` archives are ingested as live Tier 4 context**
+   - Stage: open exploration + Fallback Path Parity
+   - Evidence: `bin/reference_docs_ingest.py:90-94`, `189-227`, `263-276`
+   - Why it matters: historical/raw subtrees can pollute Phase 1 context and silently expand prompt budget.
+   - Review focus: restrict Tier 4 ingest to top-level files unless the spec explicitly widens the contract.
+
+3. **HIGH — Phase 1 gate can pass a structurally shallow exploration artifact**
+   - Stage: open exploration + Cross-Implementation Consistency
+   - Evidence: `SKILL.md:1204-1217`, `bin/run_state_lib.py:171-198`
+   - Why it matters: later phases can proceed on an invalid `EXPLORATION.md`, causing low-recall runs that still look mechanically complete.
+   - Review focus: strengthen `validate_phase_artifacts(..., 1)` to match the documented section/coverage contract.
+
+4. **MEDIUM — archive summaries can record zero bugs for canonical `BUGS.md` files**
+   - Stage: open exploration + Enumeration/Representation Completeness
+   - Evidence: `bin/archive_lib.py:69`, `313-338`
+   - Why it matters: benchmark/replay metrics and `INDEX.md` summaries become unreliable.
+   - Review focus: accept the canonical titled `### BUG-NNN: Title` heading form and add a direct regression test.
+
+5. **MEDIUM — bootstrap docs mirroring drops the citable doc bucket**
+   - Stage: quality risks + API Surface Consistency
+   - Evidence: `bin/bootstrap_self_audit_docs.py:50-61`, `bin/reference_docs_ingest.py:189-227`
+   - Why it matters: self-audit runs can look docs-backed while silently losing the formal citation surface.
+   - Review focus: mirror both top-level and `cite/` content with placement preserved.
+
+6. **MEDIUM — direct Phase 1 role-map output is invalid until a runner-only repair step runs**
+   - Stage: open exploration + Cross-Implementation Consistency
+   - Evidence: `phase_prompts/phase1.md:59-69`, `bin/role_map.py:252`, `285-322`, `759-838`
+   - Why it matters: the repo advertises both skill-direct and runner-driven execution modes, but this contract only works cleanly in the runner path.
+   - Review focus: either make validation accept pre-normalization maps or normalize in every direct-execution path before validation.
+
+## Derived Requirements
+
+### REQ-001: Cite-only documentation must count as docs-backed input
+- References: `bin/run_playbook.py:1560-1575`, `bin/run_playbook.py:1661-1669`
+- Requirement: Any startup path that decides whether a run is docs-backed or code-only must treat `reference_docs/cite/*.md|*.txt` as valid documentation.
+- Conditions of satisfaction:
+  - A repo with only `reference_docs/cite/spec.md` is reported as docs-backed consistently across warnings, progress metadata, and runtime state.
+  - No code-only warning is emitted for a cite-only documentation tree.
+
+### REQ-002: Documentation warnings must use the same recognized-plaintext predicate as documentation-state evaluation
+- References: `bin/run_playbook.py:1568-1574`, `bin/run_playbook.py:1583-1595`, `bin/run_playbook.py:1598-1621`
+- Requirement: The operator-visible startup warning path must classify documentation using the same `.md`/`.txt` and README-skipping rules used by the documentation-state evaluator and formal-doc banner logic.
+- Conditions of satisfaction:
+  - `reference_docs/README.md` alone does not suppress a code-only warning.
+  - `reference_docs/spec.pdf` alone does not count as docs present.
+  - The three helper surfaces agree on cite-only, README-only, binary-only, and plaintext-top-level cases.
+
+### REQ-003: Tier 4 ingest must be limited to the documented `reference_docs/` surface
+- References: `bin/reference_docs_ingest.py:90-94`, `bin/reference_docs_ingest.py:189-227`, `bin/reference_docs_ingest.py:263-276`
+- Requirement: Only top-level plaintext files under `reference_docs/` may be treated as Tier 4 context unless the documented contract is explicitly widened.
+- Conditions of satisfaction:
+  - Nested directories outside `reference_docs/cite/` are skipped or rejected deterministically.
+  - `load_tier4_context()` returns only the intended top-level Tier 4 files.
+
+### REQ-004: Bootstrap self-audit doc mirroring must preserve citable-vs-context placement
+- References: `bin/bootstrap_self_audit_docs.py:50-61`
+- Requirement: The bootstrap mirror helper must preserve the distinction between top-level Tier 4 files and `cite/` formal-doc files when copying source documentation into `reference_docs/`.
+- Conditions of satisfaction:
+  - A source-side citable doc lands in `reference_docs/cite/`, not flattened into the Tier 4 root.
+  - The helper preserves `cite/` content rather than leaving only scaffolding.
+
+### REQ-005: The Phase 1 mechanical gate must enforce the documented exploration structure
+- References: `bin/run_state_lib.py:171-198`
+- Requirement: Phase 1 artifact validation must reject `EXPLORATION.md` files that do not contain the documented mandatory sections and minimum analytical content for Open Exploration, Quality Risks, pattern analysis, and candidate bugs.
+- Conditions of satisfaction:
+  - A 120-line file with only one finding section is rejected.
+  - The validator checks for the mandatory Phase 1 sections, not just line count.
+
+### REQ-006: Archive bug counters must parse canonical BUG headings
+- References: `bin/archive_lib.py:69`, `bin/archive_lib.py:313-338`
+- Requirement: Archive/index summarization must count bugs from the canonical `### BUG-NNN: Title` heading form used by the rest of the playbook.
+- Conditions of satisfaction:
+  - `_extract_bug_counts()` recognizes titled bug headings.
+  - Severity/disposition counts in `INDEX.md` and `RUN_INDEX.md` reflect canonical bug files.
+
+### REQ-007: Role-map validation must not depend on a runner-only repair step
+- References: `bin/role_map.py:252`, `bin/role_map.py:285-322`, `bin/role_map.py:759-838`
+- Requirement: A freshly written Phase 1 role map must either validate directly or be normalized automatically on every execution path before validation occurs.
+- Conditions of satisfaction:
+  - Direct skill-mode outputs that omit `breakdown` and `summary` are normalized before validation, or the validator accepts the pre-normalized shape.
+  - The direct and runner-driven paths converge on the same final on-disk schema.
+
+### REQ-008: Role-map inventory must separate intrinsic source from prior playbook output
+- References: `bin/role_map.py:120-171`, `phase_prompts/phase1.md:18-36`
+- Requirement: Phase 1 inventory and downstream reasoning must continue to classify `quality/` and archived run artifacts as `playbook-output`, not intrinsic code or docs.
+- Conditions of satisfaction:
+  - Prior run artifacts do not inflate code/skill surface calculations.
+  - Exploration scope notes remain explicit when the tracked tree is dominated by historical outputs.
+
+## Derived Use Cases
+
+### UC-01: Cite-only docs-backed run
+- Actors: operator, `bin.run_playbook`
+- Trigger: the repo contains `reference_docs/cite/` docs but no top-level Tier 4 file
+- Preconditions: at least one plaintext file exists under `reference_docs/cite/`
+- Flow:
+  - Startup checks docs presence
+  - Documentation-state evaluation reports `with_docs`
+  - No code-only warning is emitted
+- Expected outcome: the run is treated consistently as docs-backed
+
+### UC-02: README-only or binary-only docs tree
+- Actors: operator, `bin.run_playbook`
+- Trigger: the repo contains only `reference_docs/README.md` or binary docs such as PDF
+- Preconditions: no recognized plaintext documentation exists
+- Flow:
+  - Startup checks docs presence
+  - Documentation-state evaluation reports `code_only`
+  - Warning and banner both communicate that the run lacks recognized docs
+- Expected outcome: operator-visible surfaces agree that the run is code-only
+
+### UC-03: Tier 4 ingest of reference docs
+- Actors: Phase 1 agent, `bin.reference_docs_ingest`
+- Trigger: Phase 1 loads Tier 4 context
+- Preconditions: `reference_docs/` contains top-level plaintext docs
+- Flow:
+  - Ingest enumerates the intended Tier 4 files
+  - `load_tier4_context()` returns only the documented surface
+- Expected outcome: nested archive folders do not silently enter the prompt
+
+### UC-04: Bootstrap self-audit doc mirroring
+- Actors: maintainer, `bin.bootstrap_self_audit_docs`
+- Trigger: maintainer prepares repo-root `reference_docs/` for a self-audit run
+- Preconditions: source bootstrap docs include both contextual and citable material
+- Flow:
+  - Helper mirrors both top-level docs and `cite/` docs
+  - Resulting `reference_docs/` matches the source structure
+- Expected outcome: self-audit preserves formal citation capability
+
+### UC-05: Phase 1 completion gate
+- Actors: runner, `bin.run_state_lib`
+- Trigger: Phase 1 finishes and the runner validates artifacts
+- Preconditions: `quality/EXPLORATION.md` exists
+- Flow:
+  - Validator checks mandatory sections and minimum analytical content
+  - Invalid artifacts are rejected before Phase 2
+- Expected outcome: only a structurally complete exploration can advance
+
+### UC-06: Archived bug-summary generation
+- Actors: `bin.archive_lib`, later auditors
+- Trigger: a run is archived and `INDEX.md` / `RUN_INDEX.md` are rendered
+- Preconditions: `BUGS.md` uses canonical bug headings
+- Flow:
+  - Archive parser extracts bug sections
+  - Severity/disposition totals are rendered into the index payload
+- Expected outcome: historical summaries match the actual bug file
+
+### UC-07: Direct Phase 1 role-map writeout
+- Actors: agent running the playbook directly, `bin.role_map`
+- Trigger: Phase 1 writes `quality/exploration_role_map.json` without runner mediation
+- Preconditions: the map contains `files[]` and `provenance`
+- Flow:
+  - Validation or normalization runs on the raw role map
+  - Canonical `breakdown` and `summary` are added deterministically if needed
+- Expected outcome: direct and runner-driven paths both produce valid role maps
+
+### UC-08: Historical-output-heavy repository inventory
+- Actors: Phase 1 agent, `bin.role_map`
+- Trigger: the tracked tree contains many prior `quality/` artifacts
+- Preconditions: `git ls-files` enumerates historical outputs alongside source
+- Flow:
+  - Phase 1 tags prior-run artifacts as `playbook-output`
+  - Exploration scope focuses on the intrinsic code/prose surface
+- Expected outcome: downstream analysis is not skewed by historical artifacts
+
+## File-role tagging
+
+`quality/exploration_role_map.json` was produced using `git ls-files` as the canonical enumeration source.
+
+- `files_by_role`
+  - `playbook-output`: 871
+  - `fixture`: 117
+  - `docs`: 60
+  - `test`: 53
+  - `code`: 41
+  - `skill-prose`: 16
+  - `skill-reference`: 16
+  - `config`: 5
+  - `skill-tool`: 2
+  - `formal-spec`: 2
+- `percentages`
+  - `skill_share`: 1.62%
+  - `code_share`: 2.17%
+  - `tool_share`: 0.04%
+  - `other_share`: 96.17%
+
+Interpretation:
+
+- By file count and by bytes, the tracked tree is dominated by prior playbook output and benchmark/example data rather than intrinsic source.
+- The intrinsic active surface is comparatively small: `SKILL.md`, `references/`, `phase_prompts/`, `agents/`, roughly 40 source files under `bin/` / gate / shim code, and the corresponding test suites.
+- No roles outside the documented taxonomy were needed.
+
+## Cartesian UC rule confirmation
+
+1. For every REQ with ≥2 References, I ran Gate 1 (path-suffix match).
+2. For every REQ that passed Gate 1, I ran Gate 2 (function-level similarity).
+3. Where both gates passed, I emitted per-site UCs (UC-N.a, UC-N.b, …).
+4. Where only Gate 1 passed, I marked the cluster `<!-- cluster: heterogeneous -->`.
+5. Where neither gate passed, I kept a single umbrella UC without marking.
+6. For each REQ with a pattern match in Gate 1, I added `Pattern: whitelist|parity|compensation` to the REQ block.
+
+Result for this run:
+
+- No REQ used ≥2 references in distinct files with a qualifying shared path-suffix/function-role match, so no per-site UC expansion was required.
+- All UCs remain single-site umbrella use cases.
+
+## Notes for Artifact Generation
+
+- Treat this repository as a hybrid target. The primary product is the skill/prose contract, but there is enough independent Python tooling that prose-to-code divergence is a first-class bug source.
+- Do not use the deleted/tracked `quality/` tree as exploration evidence in later phases; it is historical playbook output, not the clean-run baseline.
+- The highest-value Phase 2 artifact work should trace requirements around documentation-state handling, role-map normalization, archive/index accuracy, and Phase 1 gate enforcement.
+- Because `reference_docs/cite/` is empty in the active tree, any citation-backed requirements will need either new formal docs or an explicit Tier 3/4 classification.
 
 ## Gate Self-Check
 
-- `quality/EXPLORATION.md` has more than 120 lines.
-- Required exact headings present: `## Open Exploration Findings`, `## Quality Risks`, `## Pattern Applicability Matrix`, `## Candidate Bugs for Phase 2`, `## Gate Self-Check`.
-- Pattern deep dives present: 3 (`Fallback and Degradation Path Parity`, `Cross-Implementation Contract Consistency`, `Enumeration and Representation Completeness`).
-- Exactly 3 patterns are marked `FULL` in the applicability matrix.
-- `## Open Exploration Findings` contains 9 concrete bug hypotheses, and at least 3 of them trace across multiple files/functions (findings 1, 3, 4, 6, 7, and 8 do).
-- `## Candidate Bugs for Phase 2` includes multiple bugs from open exploration/risks and at least one sourced from a pattern deep dive.
-- User-requested content included: domain and stack identification, architecture map, test inventory, specification summary, quality risks, skeleton/dispatch/state-machine analysis, REQ blocks, UC blocks, and Cartesian UC confirmation.
+1. PASS — `quality/EXPLORATION.md` exists on disk and contains 438 lines of substantive content.
+2. PASS — `quality/PROGRESS.md` exists and marks `- [x] Phase 1 - Explore`.
+3. PASS — `## Derived Requirements` contains REQ-001 through REQ-008 with concrete file paths and functions such as `bin/run_playbook.py:docs_present()`, `_evaluate_documentation_state()`, and `bin/archive_lib.py:_extract_bug_counts()`.
+4. PASS — `## Open Exploration Findings` exists verbatim and contains 8 concrete file:line hypotheses spanning `bin/run_playbook.py`, `bin/reference_docs_ingest.py`, `bin/bootstrap_self_audit_docs.py`, `bin/run_state_lib.py`, `bin/archive_lib.py`, and `phase_prompts/phase1.md`.
+5. PASS — Open-exploration multi-location traces appear in findings 1, 2, 3, 4, 5, 6, and 7; each traces behavior across 2+ concrete code locations or functions.
+6. PASS — `## Quality Risks` exists verbatim and contains 5 ranked domain-driven failure scenarios with specific file:line citations and failure mechanisms.
+7. PASS — `## Pattern Applicability Matrix` exists verbatim and evaluates all 6 required patterns with explicit `FULL` or `SKIP` decisions, targets, and rationale.
+8. PASS — Exactly 4 patterns are marked `FULL`, which is within the required 3–4 range.
+9. PASS — There are 4 `## Pattern Deep Dive — ...` sections, matching the 4 `FULL` pattern selections.
+10. PASS — At least 2 pattern deep dives trace multi-function paths: Fallback and Degradation Path Parity and API Surface Consistency each compare multiple functions/surfaces, and Cross-Implementation Consistency traces the prose/prompt/validator path.
+11. PASS — `## Candidate Bugs for Phase 2` exists verbatim and contains 6 prioritized bug hypotheses with stage labels, file:line evidence, and review focus notes.
+12. PASS — Ensemble balance holds: candidate bugs 1, 2, 3, 4, and 6 originate from open exploration or quality risks, and bugs 1, 2, 3, 4, 5, and 6 are also materially strengthened by pattern deep dives.

@@ -1,34 +1,29 @@
-diff --git a/bin/run_playbook.py b/bin/run_playbook.py
---- a/bin/run_playbook.py
-+++ b/bin/run_playbook.py
-@@ -1775,6 +1775,18 @@
- def write_live_index_stub(
-     repo_dir: Path,
-     timestamp: str,
-@@
- ) -> None:
-+    project_type = "Code"
-+    project_type_path = repo_dir / "quality" / "project_type.json"
-+    if project_type_path.is_file():
-+        try:
-+            data = json.loads(project_type_path.read_text(encoding="utf-8"))
-+            project_type = data.get("classification") or project_type
-+        except Exception:
-+            pass
-@@ -1823,7 +1835,7 @@
-         "qpb_version": lib.detect_skill_version() or "unknown",
-         "target_repo_path": ".",
-         "target_repo_git_sha": archive_lib._git_head_sha(repo_dir),
--        "target_project_type": "Code",  # TODO(v1.5.2): Code/Skill/Hybrid detector.
-+        "target_project_type": project_type,
-         "phases_executed": [],
-@@ -1886,9 +1898,9 @@
-     payload = archive_lib.build_index_payload(
-         repo_dir,
-         quality_dir,
-         target_repo_path=".",
--        target_project_type="Code",
-+        target_project_type=project_type,
-         gate_verdict_override=gate_verdict,
-         invocation_flags=flags,
-     )
+--- a/bin/reference_docs_ingest.py
++++ b/bin/reference_docs_ingest.py
+@@ -267,13 +267,22 @@
+     Phase 1 prompts keep working unchanged.
+     """
+     target_repo = Path(target_repo)
++    ref_dir = target_repo / REFERENCE_DIR_NAME
+     try:
+-        records = _collect(target_repo)
++        tier4: List[Tuple[str, str]] = []
++        if not ref_dir.is_dir():
++            return tier4
++        for path in sorted(ref_dir.iterdir()):
++            if not path.is_file():
++                continue
++            if path.name.startswith(".") or path.name in SKIPPED_FILENAMES:
++                continue
++            if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
++                continue
++            tier4.append((_rel(path, target_repo), _read_text(path)))
++        return tier4
+     except IngestError as exc:
+         raise Tier4LoadError(str(exc)) from exc
+-    return sorted(
+-        (rec.rel_path, rec.text) for rec in records if not rec.is_cite
+-    )
+ 
+ 
+ def ingest(target_repo: Path) -> dict:
