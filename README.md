@@ -22,12 +22,7 @@ The recommended way to install the Quality Playbook into a project is to have yo
 
    The AI agent reads [`AGENTS.md`](AGENTS.md), runs `python3 -m bin.install_skill --into /path/to/your-target-project`, and reports back. The installer auto-detects which AI tool your target project uses by scanning for the marker directory in priority order (`.claude/`, `.github/`, `.cursor/`, `.continue/`) and installs the skill into the matching subdirectory. As long as your target project has been opened by your AI tool at least once — so the marker directory exists — the installer will recognize it and put the files in the right place.
 
-**If auto-detection doesn't find a marker** (e.g., you've opened the target in an AI tool but it hasn't created its config directory yet, or you haven't opened it at all), the installer refuses to run rather than guess. Two recovery paths:
-
-- **Tell the installer which AI tool you're using:** pass `--ai-tool <cursor|claude|copilot|continue>` (e.g., `python3 -m bin.install_skill --into /path/to/target --ai-tool cursor`). The installer creates the marker directory and installs into the canonical subdirectory for that tool. `github` is accepted as an alias for `copilot`.
-- **Specify the install path directly:** pass `--target <absolute-path>` to install into a specific location, bypassing AI-tool selection entirely.
-
-The AI agent reads `AGENTS.md` and knows how to use both flags when auto-detection fails.
+If auto-detection can't find a marker (the target hasn't been opened by an AI tool yet, or its config folder isn't created), your AI agent will ask which tool you're using and proceed.
 
 **Alternative: open the target in your AI tool** instead of the QPB clone, and ask it to install QPB from the clone path. This works for AI tools with file-system access outside their workspace (Claude Code, Cursor, Windsurf, and most modern coding agents do). The recommended flow above is more robust because it doesn't depend on cross-workspace access — the AI only needs to read files in its current working directory.
 
