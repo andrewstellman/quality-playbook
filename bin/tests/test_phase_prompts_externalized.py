@@ -206,7 +206,10 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # prompts already substitute) and replaces every hardcoded reference
         # with a layout-agnostic instruction. Hashes recomputed to reflect
         # both the fallback-guide preamble and the rewritten body.
-        "phase2":                ( 3192, "137973e5753d28cbaead0e218c65f5ca1057fd27bb1e400f8154f93c723f6f5d"),
+        # v1.5.7 Deliverable 2: cookbook-reference paragraph added to
+        # phase2.md after the "Read these files" block, pointing at
+        # references/role_map_queries.md. Hashes recomputed (+436 bytes).
+        "phase2":                ( 3628, "63d42af87a8e08460c7d75b6a776bcdd29e786bbe658ff51bbbb3060fc1684e4"),
         "phase3":                ( 8919, "b834435ceb550ac425ab13df9edc0ac0b5c5c81f5b4f634673d67fc29331127c"),
         "phase4":                ( 3486, "cc775b20c9310fbbeff840fcc0a9fc7490f86f3a0468477229d86bbe9811da50"),
         "phase5":                (11257, "e8cea54c07817ce8dc0ff0a1f7508ce8b9dd40b139ee7c09eb4590308657a890"),
