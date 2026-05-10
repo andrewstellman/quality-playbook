@@ -313,7 +313,7 @@ Five problems:
 
 Ship `metrics/README.md` documenting:
 
-- Top-level structure: `metrics/regression_replay/`, `metrics/calibration/`, `metrics/bootstrap_recall/`, `metrics/cross_version_recall/`. Each sub-directory has a `README.md` of its own describing the convention.
+- Top-level structure: `metrics/regression_replay/`, `metrics/calibration/`, `metrics/bootstrap_recall/`, `metrics/cross_version_trends/`, `metrics/sdlc_defects/`. Each sub-directory has a `README.md` of its own describing the convention. (`cross_version_trends/` matches v1.7's `bin/cross_version_trends.py` output naming; `sdlc_defects/` is a placeholder for v1.7's `bin/migrate_defect_baseline.py` output — v1.5.7 ships the directory + README only, v1.7 populates it.)
 - File format conventions per sub-directory (CSV vs JSONL, column/field names, UTC-timestamped ordering, immutable append-only vs mutable).
 - The relationship to `quality/run_state.jsonl` (`metrics/` is the cross-cell aggregate; `run_state.jsonl` is the per-cell event log) so v1.7 SPC machinery has unambiguous input.
 - The relationship to workspace-side calibration cycle artifacts (`Quality Playbook/Calibration Cycles/`) — workspace artifacts are working-state and not formal; once a cycle terminates, its summary lands in `metrics/calibration/` per the documented convention.
@@ -605,17 +605,19 @@ After all six deliverables pass Council and merge, a final integration Council r
 
 ## Open questions and conditional candidates
 
-### Open questions for operator review (decide during Phase 1 stabilization)
+### Open questions for operator review (resolved 2026-05-10 during Phase 1 stabilization)
 
-1. **`<run-id>` naming.** Compact UTC ISO-8601 (`20260509T184231Z`, 16 chars) vs separator-preserving (`2026-05-09T18-42-31Z`, 20 chars). Both sort identically. Recommendation: compact.
+All three resolved per the Design's pre-stated recommendations.
 
-2. **`quality.gate-failed-<ts>/` location.** Alongside `quality/` (current Deliverable 1 design) vs inside `quality/logs/` (architecturally cleaner — failed runs are still "log" artifacts; Deliverable 3 ergonomics favor it). Recommendation: alongside, with a TOOLKIT.md cross-reference. Reason: simpler `rm -rf quality.gate-failed-*` cleanup when the operator just wants to reset the cell, doesn't hide the preserved data inside a `logs/` tree the operator may not realize contains it.
+1. **`<run-id>` naming.** **DECISION: compact UTC ISO-8601** (`20260509T184231Z`, 16 chars). Sortable, reproducible, no local-time variation.
 
-3. **Cookbook file location.** Top-level `references/role_map_queries.md` (recommendation) vs section inside an existing reference file (e.g., `references/exploration_patterns.md`). Top-level is more discoverable; section is fewer files. Recommendation: top-level. Reason: the cookbook is queried by Phase 2; exploration patterns are queried by Phase 1; different consumers and different call paths warrant different files.
+2. **`quality.gate-failed-<ts>/` location.** **DECISION: alongside `quality/`** (sibling, not nested in `quality/logs/`). Reason: simpler `rm -rf quality.gate-failed-*` cleanup when the operator just wants to reset the cell, doesn't hide the preserved data inside a `logs/` tree the operator may not realize contains it. TOOLKIT.md cross-reference included in Phase 3 (Deliverable 1) work items.
+
+3. **Cookbook file location.** **DECISION: top-level `references/role_map_queries.md`** — not nested in another reference. Reason: the cookbook is queried by Phase 2; exploration patterns are queried by Phase 1; different consumers and different call paths warrant different files.
 
 ### Conditional candidates from v1.5.6 close-out carry-forward
 
-These were enumerated in `docs/design/QPB_v1.5.6_Implementation_Plan.md`'s "Out-of-band carry-forward to v1.5.7 / v1.6.0" section as items that would land in v1.5.7 IF a specific condition surfaced. The operator must decide whether each condition surfaced during Phase 1 stabilization and update this list to either commit or defer:
+These were enumerated in `docs/design/QPB_v1.5.6_Implementation_Plan.md`'s "Out-of-band carry-forward to v1.5.7 / v1.6.0" section as items that would land in v1.5.7 IF a specific condition surfaced. **All four deferred 2026-05-10 during Phase 1 stabilization** — none of the triggering conditions surfaced in v1.5.6 validation or post-ship reports. They remain candidates for a later release if evidence accumulates.
 
 - **`--require-docs` opt-out flag** — v1.5.6 ships missing-documentation downgrade behavior (proceed in code-only mode with explicit framing). The carry-forward says: "if missing-documentation downgrade confuses operators in validation, add to v1.5.7." **Operator decision: did v1.5.6's validation surface confusion?** If yes, commit to v1.5.7 as a seventh deliverable; if no, defer to a later release.
 
