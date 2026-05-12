@@ -429,7 +429,17 @@ def infer_qpb_version_for_cell_group(
         except (OSError, json.JSONDecodeError, UnicodeError):
             continue
 
-    # Source 3: benchmark-name pattern
+    # Source 3a: the benchmark IS quality-playbook itself (after the
+    # parse_cell_directory_name regex stripped the version into
+    # cell.version), so the QPB version equals cell.version.
+    for cell in cells:
+        if cell.benchmark in {"quality-playbook", "quality-playbook-bootstrap"}:
+            if cell.version:
+                return cell.version
+
+    # Source 3b: pre-strip naming pattern (e.g., archive cells whose
+    # `benchmark` is the raw directory name like
+    # `quality-playbook-1.5.4-bootstrap`).
     for cell in cells:
         m = QPB_VERSION_FROM_NAME_RE.search(cell.benchmark)
         if m:
