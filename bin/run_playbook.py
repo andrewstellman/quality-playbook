@@ -3620,6 +3620,36 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
         if banner is not None:
             lib.logboth(log_file, banner, echo=True)
 
+    # v1.5.7 Phase 5 / F-DEAD: emit a run_start event so downstream
+    # tooling can identify the run's log_layout (centralized vs flat)
+    # and resolve the run-id directory without recomputing it from
+    # paths. The schema documents run_start in references/
+    # run_state_schema.md; we emit additive fields run_id +
+    # log_layout per the v1.5.7 layout discriminator there. Defensive
+    # error handling: a logging failure must not crash the runner
+    # before it has a chance to run the playbook.
+    try:
+        from bin.run_state_lib import append_event
+        run_id = _compute_run_id(timestamp)
+        layout = _LOG_LAYOUT_FLAT if _logs_legacy_mode(args) else _LOG_LAYOUT_CENTRALIZED
+        jsonl_path = _run_state_jsonl_path(repo_dir, run_id, args=args)
+        append_event(
+            jsonl_path,
+            {
+                "event": "run_start",
+                "ts": _iso_utc_now(),
+                "runner": getattr(args, "runner", "") or "",
+                "playbook_version": lib.RELEASE_VERSION,
+                "target_path": str(repo_dir),
+                "run_id": run_id,
+                "log_layout": layout,
+            },
+        )
+    except (ImportError, OSError, ValueError):
+        # Logging failure → continue with the run. Operators can still
+        # inspect quality/PROGRESS.md + the playbook log directly.
+        pass
+
     flat_phases = [p for group in phase_groups for p in group]
     if "1" in flat_phases:
         archive_previous_run(repo_dir, timestamp)
@@ -3762,8 +3792,59 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         label=f"post-{finalize_label_base}",
         log_file=log_file,
     )
+    # v1.5.7 Phase 5 FS-4: update quality/logs/latest -> <run-id>
+    # symlink so operators can `cd quality/logs/latest` to inspect the
+    # most recent run. Tolerate symlink-update failure on filesystems
+    # that don't support symlinks; the resolver's most-recent-by-name
+    # fallback (Source 2 in resolve_run_state_path) covers them.
+    _update_latest_symlink(repo_dir, timestamp, args, log_file)
     lib.cleanup_repo(repo_dir)
     return 0
+
+
+def _update_latest_symlink(
+    repo_dir: Path,
+    timestamp: str,
+    args: argparse.Namespace,
+    log_file: Path,
+) -> None:
+    """v1.5.7 Phase 5 FS-4: update <repo>/quality/logs/latest →
+    <run-id> after a successful run. In legacy mode (--logs-flat /
+    QPB_LOGS_LEGACY=1) this is a no-op because the legacy layout
+    doesn't use the logs/ tree.
+
+    The symlink is RELATIVE (target_is_directory=True; target string
+    is just the run-id, not an absolute path) so the cell tree
+    remains relocatable. On filesystems that don't support symlinks
+    (or where the operation otherwise fails), a warning is logged
+    and the function returns — the resolver's most-recent-by-name
+    fallback covers operators who care about the "latest" semantics.
+    """
+    if _logs_legacy_mode(args):
+        return
+    run_id = _compute_run_id(timestamp)
+    logs_root = repo_dir / "quality" / "logs"
+    target = logs_root / "latest"
+    try:
+        if target.is_symlink() or target.exists():
+            try:
+                target.unlink()
+            except OSError:
+                # Pre-existing entry we can't remove (perhaps a real
+                # directory): bail out gracefully rather than try
+                # increasingly destructive removals.
+                lib.logboth(log_file, lib.log(
+                    f"  Could not update {target}: pre-existing entry "
+                    f"can't be removed. Centralized resolver falls "
+                    f"back to most-recent-by-name."
+                ))
+                return
+        target.symlink_to(run_id, target_is_directory=True)
+    except OSError as exc:
+        lib.logboth(log_file, lib.log(
+            f"  Could not update quality/logs/latest symlink: {exc}. "
+            f"Centralized resolver falls back to most-recent-by-name."
+        ))
 
 
 def _append_iteration_heartbeat(progress_path: Path, line: str) -> None:
