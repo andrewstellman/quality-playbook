@@ -43,9 +43,11 @@ class RunnersAndModelsDocTests(unittest.TestCase):
     def test_doc_covers_override_mechanisms(self) -> None:
         text = DOC_PATH.read_text(encoding="utf-8")
         # Must cross-reference the three override layers (CLI, config,
-        # built-in default).
+        # built-in default). v1.5.7 Phase 6c follow-on: config file
+        # format is JSON (stdlib-only), not YAML — per orchestrator's
+        # Path γ disposition.
         self.assertIn("--council-roster", text)
-        self.assertIn("~/.qpb/config.yaml", text)
+        self.assertIn("~/.qpb/config.json", text)
         self.assertIn("DEFAULT_COUNCIL_MEMBERS", text)
 
     def test_doc_does_not_contain_model_availability_matrix(self) -> None:

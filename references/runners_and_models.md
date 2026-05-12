@@ -123,19 +123,34 @@ QPB's default Council roster is defined at
 `bin/council_config.py::DEFAULT_COUNCIL_MEMBERS`. Three override
 mechanisms exist (in resolution order, most specific first):
 
-1. **CLI flag** (highest precedence): `--council-roster <m1,m2,m3>`
-   (planned for v1.5.7 Phase 6c — pending the config-file persistence
-   layer).
-2. **Per-operator config file** (`~/.qpb/config.yaml`,
-   `council_members:` field — planned for v1.5.7 Phase 6c).
+1. **CLI flag** (highest precedence): `--council-roster <m1,m2,m3>`.
+   Comma-separated; whitespace per entry is stripped. The CLI flag
+   wins over any config-file value.
+2. **Per-operator config file** (`~/.qpb/config.json`,
+   `council_members` field, list of strings). Resolution path:
+   `$XDG_CONFIG_HOME/qpb/config.json` first, then
+   `~/.qpb/config.json`. Manage via `python3 -m bin.qpb_config`:
+   ```
+   python3 -m bin.qpb_config show
+   python3 -m bin.qpb_config set-roster claude-opus-4.7,gpt-5.5,claude-sonnet-4.6
+   python3 -m bin.qpb_config set-runner cursor
+   python3 -m bin.qpb_config unset runner
+   ```
+   The config file is JSON (not YAML — v1.5.7 ships with stdlib-only
+   dependencies; an adopter who wants YAML can write a one-line shim
+   or wait for a future release).
 3. **Built-in default** (lowest precedence): the
    `DEFAULT_COUNCIL_MEMBERS` tuple in `bin/council_config.py`.
 
 Each override mechanism accepts a list of three model-identifier
 strings. The strings are opaque to QPB — the runner interprets them.
 Unknown identifiers (typos, models the runner doesn't support)
-produce a startup warning when v1.5.7 Phase 6c availability detection
-runs; the actual model probe happens at Phase 4 Council launch.
+produce a non-fatal startup warning at `--council-roster` parse
+time + at `qpb config set-roster` time; the actual model probe
+happens at Phase 4 Council launch. The validation list at
+`bin/qpb_config.KNOWN_MODEL_IDENTIFIERS` includes v1.5.6 roster
+strings (`gpt-5.4`, `gemini-2.5-pro`) so adopter configs pinned to
+the older roster don't trigger warnings.
 
 The runtime active roster is surfaced via the cluster-050 Phase 4
 banner: when Phase 4 starts, the runner emits a "Phase 4 — Council
@@ -144,24 +159,35 @@ programmatically from `council_config.council_members()`). Adopters
 should consult that banner to confirm the active roster at any given
 run.
 
-## Council resilience (Phase 6b — planned)
+## Council resilience (Phase 6b — deferred to v1.5.7.x)
 
-When the launch infrastructure detects that one Council member is
-unavailable (model identifier not recognized by the runner; auth
-failure; network timeout), Phase 6b will degrade gracefully to a
-2-of-2 vote rather than hard-failing the entire run. The remaining
-two reviewers are still cross-family per the rationale above; the
-2-of-2 path is documented as acceptable degradation. A
-`council_degraded` event is emitted to `run_state.jsonl` so
-downstream analysis can identify runs that ran with degraded
-composition.
+**Status**: deferred. v1.5.7's per-reviewer availability detection +
+2-of-2 graceful degradation + hard-fail-with-recovery-template
+mechanisms (Phase 6b + 6d in the design plan) carry forward to a
+v1.5.7.x patch.
 
-When TWO or THREE members are unavailable, Phase 4 hard-fails. The
-failure-recovery template (Phase 6d) is emitted to stderr + the
-runner log + a `council_failure_recovery.md` file under the run's
-log directory, giving the operator and downstream LLM the
-information they need to identify which runner / which model
-identifier was unrecognized, and how to override the roster.
+**Architectural finding** (per `HALT_phase6_partial.md` from
+v1.5.7's instruction 018): QPB's Council launches are currently
+agent-owned, not runner-owned. The agent (the LLM running the
+playbook) invokes each Council member via its own tool calls per
+the instructions in `phase_prompts/phase4.md:35-46`. The runner
+only READS the active roster via `council_config.council_members()`
+to print the cluster-050 Phase 4 banner. Per-reviewer error
+classification therefore requires either (a) moving Council
+launches from the agent to the runner (multi-instruction
+architectural refactor), or (b) rewriting `phase_prompts/phase4.md`
+to put the resilience logic into agent-LLM-judgment (harder to
+unit-test), or (c) a hybrid where the agent emits a structured
+launch-result JSON that the runner reads after Phase 4 completes
+and applies vote-tabulation / degradation rules to.
+
+Adopter workaround for v1.5.7: when a Council member becomes
+unavailable mid-run (typically gh copilot dropping a model
+identifier), the operator can re-run with `--council-roster
+<m1,m2,m3>` substituting a known-available model. The
+`KNOWN_MODEL_IDENTIFIERS` set at `bin/qpb_config.py` includes
+curated alternatives (`gpt-4.1`, `claude-sonnet-4.5`,
+`claude-haiku-4.5`) the operator can fall back to.
 
 This document is updated when Phase 6b lands.
 
