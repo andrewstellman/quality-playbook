@@ -1724,5 +1724,84 @@ class EmptyEventTypesWhitelistTests(unittest.TestCase):
             self.assertNotIn("not declared in _index.event_types", joined)
 
 
+class ResolveRunStatePathTests(unittest.TestCase):
+    """v1.5.7 Phase 5b: resolve_run_state_path returns the correct
+    location across the centralized + legacy layouts.
+
+    Resolution order:
+      1. quality/logs/latest/run_state.jsonl
+      2. quality/logs/<most-recent-by-name>/run_state.jsonl
+      3. quality/run_state.jsonl (v1.5.6 legacy)
+    """
+
+    def test_returns_none_when_no_run_state_anywhere(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "quality").mkdir()
+            self.assertIsNone(lib.resolve_run_state_path(repo))
+
+    def test_legacy_only_returns_legacy_path(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "quality").mkdir()
+            legacy = repo / "quality" / "run_state.jsonl"
+            legacy.write_text("", encoding="utf-8")
+            self.assertEqual(lib.resolve_run_state_path(repo), legacy)
+
+    def test_centralized_layout_wins_over_legacy(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "quality").mkdir()
+            # Plant both: legacy AND centralized. Centralized wins.
+            (repo / "quality" / "run_state.jsonl").write_text(
+                "legacy", encoding="utf-8"
+            )
+            run_dir = repo / "quality" / "logs" / "20260512T120000Z"
+            run_dir.mkdir(parents=True)
+            (run_dir / "run_state.jsonl").write_text(
+                "centralized", encoding="utf-8"
+            )
+            resolved = lib.resolve_run_state_path(repo)
+            self.assertEqual(resolved, run_dir / "run_state.jsonl")
+            self.assertEqual(resolved.read_text(encoding="utf-8"), "centralized")
+
+    def test_most_recent_run_id_wins_among_multiple(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for run_id in ("20260101T120000Z", "20260515T120000Z",
+                           "20260312T120000Z"):
+                run_dir = repo / "quality" / "logs" / run_id
+                run_dir.mkdir(parents=True)
+                (run_dir / "run_state.jsonl").write_text(
+                    run_id, encoding="utf-8"
+                )
+            resolved = lib.resolve_run_state_path(repo)
+            self.assertIsNotNone(resolved)
+            self.assertEqual(resolved.read_text(encoding="utf-8"),
+                             "20260515T120000Z")
+
+    def test_latest_symlink_wins_over_most_recent_dir(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for run_id in ("20260101T120000Z", "20260515T120000Z"):
+                run_dir = repo / "quality" / "logs" / run_id
+                run_dir.mkdir(parents=True)
+                (run_dir / "run_state.jsonl").write_text(
+                    run_id, encoding="utf-8"
+                )
+            # Lazily-updated "latest" symlink points at the OLDER run.
+            # resolve_run_state_path should still pick latest (the
+            # symlink semantics — operators trust "latest").
+            try:
+                (repo / "quality" / "logs" / "latest").symlink_to(
+                    "20260101T120000Z", target_is_directory=True
+                )
+            except (OSError, NotImplementedError):
+                self.skipTest("Filesystem doesn't support symlinks")
+            resolved = lib.resolve_run_state_path(repo)
+            self.assertEqual(resolved.read_text(encoding="utf-8"),
+                             "20260101T120000Z")
+
+
 if __name__ == "__main__":
     unittest.main()

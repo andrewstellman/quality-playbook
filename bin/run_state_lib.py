@@ -123,6 +123,55 @@ class Event:
     fields: dict[str, Any] = field(default_factory=dict)
 
 
+def resolve_run_state_path(repo_dir: Path) -> Optional[Path]:
+    """v1.5.7 Phase 5b: resolve the canonical run_state.jsonl path
+    for a given cell, honoring the centralized log layout (Phase 5a)
+    with a fallback to the v1.5.6 legacy location.
+
+    Resolution order (first existing wins):
+      1. ``<repo_dir>/quality/logs/latest/run_state.jsonl`` (the
+         "latest" symlink lazily-updated by the runner).
+      2. ``<repo_dir>/quality/logs/<most-recent-by-name>/run_state.jsonl``
+         (lexicographic max of the timestamped sub-directories under
+         ``quality/logs/``; the run-id format is sortable so the max
+         is also the most recent in time).
+      3. ``<repo_dir>/quality/run_state.jsonl`` (v1.5.6 legacy
+         location; written by the runner when --logs-flat or
+         QPB_LOGS_LEGACY=1 is in effect).
+
+    Returns the first existing path, or None if none exists. Callers
+    that need to read events should pass the result to
+    ``read_events``; callers that need a write target should NOT use
+    this helper — they should use the run-id-aware writers in
+    ``bin/run_playbook.py`` instead.
+    """
+    logs_dir = repo_dir / "quality" / "logs"
+    if logs_dir.is_dir():
+        # Source 1: latest symlink (or directory, if the filesystem
+        # doesn't support symlinks and the runner wrote a regular dir).
+        latest = logs_dir / "latest" / "run_state.jsonl"
+        if latest.is_file():
+            return latest
+        # Source 2: most-recent timestamped sub-directory by name
+        # (the run-id format YYYYMMDDTHHMMSSZ sorts lexicographically
+        # the same way it sorts chronologically). Skip the "latest"
+        # entry itself if it's a directory rather than a symlink.
+        candidates = sorted(
+            (p for p in logs_dir.iterdir()
+             if p.is_dir() and p.name != "latest"),
+            reverse=True,
+        )
+        for candidate in candidates:
+            rs = candidate / "run_state.jsonl"
+            if rs.is_file():
+                return rs
+    # Source 3: v1.5.6 legacy location.
+    legacy = repo_dir / "quality" / "run_state.jsonl"
+    if legacy.is_file():
+        return legacy
+    return None
+
+
 def read_events(jsonl_path: Path) -> list[Event]:
     """Read a ``run_state.jsonl`` file and return events in file order.
 
