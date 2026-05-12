@@ -910,7 +910,7 @@ instead of `records`:
 | Field      | Type   | Required | Notes                                                                  |
 |------------|--------|----------|------------------------------------------------------------------------|
 | `req_id`   | string | yes      | `REQ-NNN` matching an existing REQ in `requirements_manifest.json`. The REQ MUST have `tier ∈ {1, 2}`. |
-| `reviewer` | string | yes      | Identifier of the council member, e.g. `"claude-opus-4.7"`, `"gpt-5.4"`, `"gemini-2.5-pro"`. Free-form but stable across entries from the same reviewer. |
+| `reviewer` | string | yes      | Identifier of the council member, e.g. `"claude-opus-4.7"`, `"gpt-5.5"`, `"claude-sonnet-4.6"`. Free-form but stable across entries from the same reviewer. The canonical roster lives at `bin/council_config.DEFAULT_COUNCIL_MEMBERS`. |
 | `verdict`  | string | yes      | Member of the `verdict` enum (§3.5).                                   |
 | `notes`    | string | yes      | Reviewer's reasoning for the verdict. May be empty string. Not gate-enforced for content. |
 
@@ -929,13 +929,13 @@ instead of `records`:
     },
     {
       "req_id": "REQ-017",
-      "reviewer": "gpt-5.4",
+      "reviewer": "gpt-5.5",
       "verdict": "supports",
       "notes": "Clear match."
     },
     {
       "req_id": "REQ-017",
-      "reviewer": "gemini-2.5-pro",
+      "reviewer": "claude-sonnet-4.6",
       "verdict": "supports",
       "notes": ""
     }

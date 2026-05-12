@@ -416,11 +416,12 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     # v1.5.6 cluster 050: benchmark-mode flag for model-comparison
-    # studies. Phase 4 uses a fixed Council roster (claude-opus-4.7,
-    # gpt-5.4, gemini-2.5-pro per bin/council_config.py) regardless
-    # of --model, so any --model X run that completes Phase 4
-    # produces BUGS.md output that mixes X's Phase 1-3 findings with
-    # the Council's audit. For SPC analysis or model comparison,
+    # studies. Phase 4 uses a fixed Council roster (per
+    # bin/council_config.DEFAULT_COUNCIL_MEMBERS — at v1.5.7 ship:
+    # claude-opus-4.7, gpt-5.5, claude-sonnet-4.6) regardless of
+    # --model, so any --model X run that completes Phase 4 produces
+    # BUGS.md output that mixes X's Phase 1-3 findings with the
+    # Council's audit. For SPC analysis or model comparison,
     # phases 4 onward are a contamination confound.
     parser.add_argument(
         "--benchmark-mode",
