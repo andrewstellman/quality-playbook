@@ -8,11 +8,22 @@
 
 ## File locations and ownership
 
-- `<benchmark>/quality/run_state.jsonl` — per-run event log. Append-only. Written by the AI executing the playbook.
-- `<benchmark>/quality/PROGRESS.md` — human-readable run status. Atomically rewritten by the AI on each event.
+- `<benchmark>/quality/logs/<run-id>/run_state.jsonl` — **v1.5.7+ canonical** per-run event log location. Append-only. Written by the runner / AI executing the playbook. The `<run-id>` is the run's UTC ISO-8601 compact timestamp (`YYYYMMDDTHHMMSSZ`); files within a single run-id directory all belong to the same invocation.
+- `<benchmark>/quality/run_state.jsonl` — **v1.5.6 legacy** location. Still written when `--logs-flat` (CLI flag) or `QPB_LOGS_LEGACY=1` (env var) is set. Readers should fall back to this location when no centralized layout exists. The `resolve_run_state_path(repo_dir)` helper in `bin/run_state_lib.py` implements the canonical fallback chain.
+- `<benchmark>/quality/PROGRESS.md` — human-readable run status. Atomically rewritten by the AI on each event. (Not affected by v1.5.7 layout change.)
 - `Calibration Cycles/<cycle>/run_state.jsonl` — cycle-level event log. Append-only. Written by the orchestrator AI.
 
-All three live in the bind-mounted workspace owned by the user. The AI writes via Edit/Write file tools, never via shell redirection or `tee` (which routes through a different UID layer in some sandbox runtimes).
+All four live in the bind-mounted workspace owned by the user. The AI writes via Edit/Write file tools, never via shell redirection or `tee` (which routes through a different UID layer in some sandbox runtimes).
+
+### v1.5.7 layout discriminator
+
+The `cycle_start` event in `run_state.jsonl` MAY carry a `log_layout` field:
+
+- `"v1.5.7-centralized"` — the run is writing logs to `quality/logs/<run-id>/`.
+- `"v1.5.6-flat"` — the run is writing logs to the legacy locations (via `--logs-flat` / `QPB_LOGS_LEGACY=1`).
+- field absent — pre-v1.5.7 runs that predate the layout discriminator. Treat as `"v1.5.6-flat"` for resolver behavior.
+
+Readers that need to find the canonical `quality-gate.log` or `run_metadata.json` location for a run should consult this field; the `resolve_run_state_path` helper above handles the run-state-file resolution chain automatically.
 
 ---
 
