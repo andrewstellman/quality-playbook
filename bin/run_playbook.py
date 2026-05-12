@@ -2563,8 +2563,8 @@ def _preserve_quality_on_gate_failure(
         marker_body, encoding="utf-8"
     )
     lib.logboth(log_file, lib.log(
-        f"  Preserved Phase 1 evidence at {preserved.name}/. "
-        f"Next run will create a fresh quality/."
+        f"  Preserved quality/ at {preserved.name}/ for Phase 2 "
+        f"gate-failure diagnosis. Next run will create a fresh quality/."
     ))
     return preserved
 
@@ -2581,18 +2581,25 @@ def run_one_phase(
     for message in gate.messages:
         lib.logboth(log_file, lib.log(f"  {message}"))
     if not gate.ok:
-        # v1.5.7 Phase 3 / Deliverable 1: preserve quality/ as
-        # quality.gate-failed-<UTC-ts>/ so the agent's outputs survive
-        # for diagnostic inspection. Composes cleanly with cluster 049
-        # auto-recovery (which returns ok=True when it succeeds, so
-        # this branch only fires on actual gate failures).
-        _preserve_quality_on_gate_failure(
-            repo_dir,
-            phase_group=f"Phase {phase}",
-            gate_messages=gate.messages,
-            args=args,
-            log_file=log_file,
-        )
+        # v1.5.7 Phase 3 / Deliverable 1 (+ fix-up F1): preserve
+        # quality/ as quality.gate-failed-<UTC-ts>/ so the agent's
+        # outputs survive for diagnostic inspection. Scoped to Phase 2
+        # gate failures only — the marker text, directory naming, and
+        # TOOLKIT.md docs all assume Phase 2. Phase 3/4/5 gate failures
+        # do not produce a preservation directory; their post-mortem
+        # path is the next-run setup's archive_previous_run roll-up.
+        # Composes cleanly with cluster 049 auto-recovery (which
+        # returns ok=True when it succeeds, so this branch only fires
+        # on actual Phase 2 gate failures the runner cannot recover
+        # from).
+        if phase == "2":
+            _preserve_quality_on_gate_failure(
+                repo_dir,
+                phase_group=f"Phase {phase}",
+                gate_messages=gate.messages,
+                args=args,
+                log_file=log_file,
+            )
         return False
 
     # v1.5.6 P3: code-only-mode downgrade. Detect at Phase 1 entry so
@@ -2905,16 +2912,20 @@ def run_one_phase_group(
     for message in gate.messages:
         lib.logboth(log_file, lib.log(f"  {message}"))
     if not gate.ok:
-        # v1.5.7 Phase 3 / Deliverable 1: preserve quality/ on gate
-        # failure for the multi-phase group path. Same composition with
-        # cluster 049 auto-recovery as the single-phase path above.
-        _preserve_quality_on_gate_failure(
-            repo_dir,
-            phase_group=f"Phase group {'+'.join(group)}",
-            gate_messages=gate.messages,
-            args=args,
-            log_file=log_file,
-        )
+        # v1.5.7 Phase 3 / Deliverable 1 (+ fix-up F1): preserve
+        # quality/ on gate failure for the multi-phase group path.
+        # Scoped to Phase 2 gate failures only (i.e., the group's entry
+        # gate is the Phase 2 gate, group[0] == "2"). Same composition
+        # with cluster 049 auto-recovery as the single-phase path
+        # above.
+        if group[0] == "2":
+            _preserve_quality_on_gate_failure(
+                repo_dir,
+                phase_group=f"Phase group {'+'.join(group)}",
+                gate_messages=gate.messages,
+                args=args,
+                log_file=log_file,
+            )
         return False
 
     group_transcript = _group_transcript_path(repo_dir, group)
