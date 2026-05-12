@@ -12,7 +12,7 @@
 - **Cowork-orchestrator / Claude-Code-worker pattern is the default execution mode.** v1.5.7's QPB-source edits go through the worker pattern documented in `ai_context/AI_ORCHESTRATION_PATTERNS.md` (the v1.5.6 deliverable). Cowork drives planning and Council coordination; the Claude Code worker (in `Quality Playbook/v1.5.7_runner/`) does the QPB-source edits per the workspace `CLAUDE.md` "diagnosis-then-Claude-Code lane" rule.
 - **Orientation-doc edits use a different lane.** Per the workspace `CLAUDE.md` carve-out, edits to `ai_context/TOOLKIT.md`, `ai_context/BENCHMARK_PROTOCOL.md`, `ai_context/DEVELOPMENT_PROCESS.md`, `ai_context/IMPROVEMENT_LOOP.md`, `ai_context/CALIBRATION_PROTOCOL.md`, and `README.md` may be applied directly by Cowork (with diff-shown-first + operator-approval) and gate through the Toolkit Test Protocol, NOT Council-of-Three. Mixed commits (orientation doc + source) go through the Council/Claude-Code lane regardless.
 - **Six deliverables, six core phases, plus stabilization and ship.** Total 8 phases (Phase 1 stabilization, Phases 2–7 deliverables, Phase 8 ship). Each deliverable phase is independently revertable — a phase whose Council review fails ships in a later release without blocking the others.
-- **Deliverable ordering is smallest-and-safest first, with the highest-runtime-risk deliverable last.** Phase 2 is the cookbook (docs only, lowest risk). Phase 3 is abort preservation (small code change, single-file). Phase 4 is `metrics/` formalization (new directory tree + new script, no `SKILL.md` surface change). Phase 5 is log centralization (largest invasion of code call sites, but well-bounded with a `--logs-flat` legacy fallback). Phase 6 is Council roster modernization + availability resilience + override layer (touches Council invocation and adds a config-file persistence layer; bounded by per-Council-member fast-fail and the `~/.qpb/config.yaml` override hatch). Phase 7 is `SKILL.md` trim (highest runtime-behavior risk — every line of `SKILL.md` is potentially load-bearing for every QPB run going forward; sequenced last among source edits so a revert doesn't cascade into other phase work).
+- **Deliverable ordering is smallest-and-safest first.** Phase 2 is the cookbook (docs only, lowest risk). Phase 3 is abort preservation (small code change, single-file). Phase 4 is `metrics/` formalization (new directory tree + new script, no `SKILL.md` surface change). Phase 5 is log centralization (largest invasion of code call sites, but well-bounded with a `--logs-flat` legacy fallback). Phase 6 is Council roster modernization + availability resilience + override layer (touches Council invocation and adds a config-file persistence layer). Phase 7 is `SKILL.md` pure-move refactor (text-preserving; behavior verified by mechanical equivalence check — risk bounded by the equivalence-check gate, not by runtime regression). Phase 7's late placement is by historical convention rather than risk-ordering since the pure-move scoping makes the risk profile small.
 - **Each source-edit phase has a Council review.** Three flat lenses per CALIBRATION_PROTOCOL.md Mode 1 nested-panel rules from the workspace `CLAUDE.md`.
 - **Backward compatibility on log paths until v1.6.0.** The `--logs-flat` legacy flag preserves v1.5.6 paths for adopters whose tooling depends on them. Drop the flag in v1.6.0 (one-version deprecation window — v1.5.7 is planned as the last v1.5.x release).
 - **Don't touch v1.6 surfaces.** Requirements Review work is out of scope for every phase.
@@ -425,75 +425,71 @@ Gate to Phase 7: Council ratification + tests green + roster string test pinned 
 
 ---
 
-## Phase 7 — Deliverable 5: Trim `SKILL.md` by moving phase-specific content to `references/`
+## Phase 7 — Deliverable 5: Trim `SKILL.md` by pure-move of phase-specific content to `references/`
 
-Goal: reduce `SKILL.md` token count materially (target ~30K BPE tokens) by moving phase-specific reference-grade content into existing or new `references/*.md` files. Same one skill, same install, same adopter UX, same six phases with same gates and artifacts. Behavior preserved by regression-replay against pinned benchmarks before vs. after the trim. **This is the highest runtime-risk deliverable in v1.5.7; sequenced last among source-edit phases so a revert doesn't cascade into other phase work.**
+Goal: reduce `SKILL.md` token count materially (target ~30K BPE tokens) by moving phase-specific reference-grade content **verbatim** into existing or new `references/*.md` files. **Pure move only — text preserved exactly; no consolidation of duplicates, no rewording, no cleanup.** Same one skill, same install, same adopter UX, same six phases with same gates and artifacts. Behavior preserved by mechanical equivalence check: the union of (`SKILL.md` + loaded references) before vs. after must be byte-equivalent at each phase.
 
-Worker spin-up: `Quality Playbook/v1.5.7_runner/instructions/007a-skill-md-content-classification.md` (sub-phase 7a, the investigation memo) and `007b-skill-md-trim-execution.md` (sub-phase 7b, the moves themselves). Per workspace CLAUDE.md, `SKILL.md` is on the source-edit list — diagnosis-then-Claude-Code lane required.
+Worker spin-up: `Quality Playbook/v1.5.7_runner/instructions/007-skill-md-pure-move-refactor.md`. Per workspace CLAUDE.md, `SKILL.md` is on the source-edit list — diagnosis-then-Claude-Code lane required.
 
-### Sub-phase 7a — Content classification memo
+### Work items
 
-Work items:
+1. **Inventory and analyze.** Worker reads:
+   - `SKILL.md` end-to-end (2,738 lines as of v1.5.6 ship).
+   - Each `references/*.md` file (16 files as of v1.5.6 ship: `challenge_gate.md`, `code-only-mode.md`, `constitution.md`, `defensive_patterns.md`, `exploration_patterns.md`, `functional_tests.md`, `iteration.md`, `orchestrator_protocol.md`, `requirements_pipeline.md`, `requirements_refinement.md`, `requirements_review.md`, `review_protocols.md`, `run_state_schema.md`, `schema_mapping.md`, `spec_audit.md`, `verification.md`).
+   - Each `phase_prompts/*.md` to understand which references each phase currently loads.
 
-- Worker reads `SKILL.md` end-to-end (2,738 lines as of v1.5.6 ship).
-- Worker reads each `references/*.md` file (16 files as of v1.5.6 ship: `challenge_gate.md`, `code-only-mode.md`, `constitution.md`, `defensive_patterns.md`, `exploration_patterns.md`, `functional_tests.md`, `iteration.md`, `orchestrator_protocol.md`, `requirements_pipeline.md`, `requirements_refinement.md`, `requirements_review.md`, `review_protocols.md`, `run_state_schema.md`, `schema_mapping.md`, `spec_audit.md`, `verification.md`).
-- Worker reads each `phase_prompts/*.md` to understand which references each phase currently loads on demand.
-- Classify each section/paragraph of `SKILL.md`:
-  - **Orchestration-essential.** Phase ordering, gate criteria, run lifecycle, the thin glue that makes phases compose, anything cross-cutting that can't reasonably live in one phase's reference. MUST STAY.
-  - **Reference-grade.** Domain content that a specific phase needs (defensive pattern taxonomies, Council audit rules, iteration logic, verification taxonomies, etc.) but doesn't drive the orchestration itself. CAN MOVE.
-  - **Already-duplicated.** Content that exists both in `SKILL.md` and in a `references/*.md` file. Drift risk. CONSOLIDATE — keep the references/ version, remove from `SKILL.md`, replace with a pointer.
-- Produce a memo at `Quality Playbook/v1.5.7_runner/SKILL_md_content_classification_memo.md`:
-  - Per-section classification (orchestration-essential / reference-grade / already-duplicated).
-  - Rough token-impact estimate per move (using `tiktoken` or chars/4 approximation).
-  - Target `SKILL.md` size after trim. Default target: ~30K BPE tokens.
-  - Risk flags for any content that's borderline (e.g., paragraph that mentions multiple phases — could go in any of several reference files).
-  - Proposed move plan: per-section, source location → destination file/section.
-- Operator reviews memo. Either approves the move plan, asks for revisions, or formally defers Deliverable 5 to its own track. **Operator approval of the memo is the gate to sub-phase 7b.**
+2. **Classify each section/paragraph of `SKILL.md` into one of three categories:**
+   - **Orchestration-essential.** Phase ordering, gate criteria, run lifecycle, cross-cutting glue. MUST STAY.
+   - **Reference-grade, not yet in references.** Domain content that a specific phase needs but doesn't drive the orchestration AND isn't already in a `references/*.md` file. MOVE verbatim.
+   - **Reference-grade, already duplicated.** Content that exists in both `SKILL.md` and a `references/*.md` file. **LEAVE ALONE** — pure-move scoping forbids consolidation. The duplicate stays in both places for v1.5.7.
 
-Gate to 7b: operator approval.
+3. **Capture the pre-move baseline (for the mechanical equivalence check):**
+   - For each phase 1-6, compute the union of: (current `SKILL.md` content the phase loads) + (current `references/*.md` files the phase's prompt template references).
+   - Snapshot to `Quality Playbook/v1.5.7_runner/SKILL_md_pre_move_unions/phase<N>.txt` (concatenated content for byte-equivalence comparison; whitespace-normalized).
 
-### Sub-phase 7b — Capture pre-trim baseline + execute moves + verify
+4. **Apply the moves:**
+   - For each reference-grade block not already duplicated: cut from `SKILL.md`, paste verbatim into the matching `references/*.md` file (or create a new `references/*.md` file if no match exists), replace the `SKILL.md` location with a brief pointer (e.g., "See `references/<name>.md` for the full <topic> coverage.").
+   - **Text preservation is the load-bearing constraint.** Paste exactly — no rewording, no clarification, no merging similar paragraphs. If a `references/*.md` file already has a heading for the relevant section, append the new content as a sibling sub-section rather than merging into prose.
+   - For each new `references/*.md` file created: add to the install bundle's references list (the wildcard in `bin/install_skill.py` should pick it up automatically; verify).
 
-Work items:
+5. **Update phase prompts.** For each phase that previously implicitly relied on content now moved out of `SKILL.md`, update `phase_prompts/<phaseN>.md` to load the new reference explicitly. Worker traces phase prompt construction in `bin/run_playbook.py` to verify the runner's substitution logic still finds the references after the move.
 
-- **Pre-trim regression-replay baseline.** Before any `SKILL.md` edits:
-  - Run pinned benchmarks (chi-1.3.45, virtio-1.5.1, express-1.3.50, plus any others currently in `metrics/regression_replay/`) on the un-trimmed `SKILL.md`.
-  - Snapshot per-benchmark recall, gate verdict, BUGS.md heading content. Archive these snapshots in `Quality Playbook/v1.5.7_runner/SKILL_md_pre_trim_baseline/`.
-  - Use the same model and runner flags that the v1.5.6 baseline used (per `metrics/regression_replay/`'s convention).
-- **Apply the moves per the approved memo:**
-  - For reference-grade content with an existing target `references/*.md` file: move the prose, replace `SKILL.md` location with a brief pointer (e.g., "See `references/<name>.md` for the full <topic> taxonomy.").
-  - For reference-grade content without an existing target file: create a new `references/*.md` file with appropriate naming, move the prose, add to the v1.5.6 install bundle's references list (which the install_skill.py copies via wildcard).
-  - For already-duplicated content: remove the `SKILL.md` copy, keep the `references/` version, leave a pointer.
-- **Update phase prompts.** For each phase that previously implicitly relied on content now moved out of `SKILL.md`, update `phase_prompts/<phaseN>.md` to load the new reference explicitly. Worker traces phase prompt construction in `bin/run_playbook.py` to verify the runner's substitution logic still finds the references after the move.
-- **Bump `SKILL.md` version stamp** to v1.5.7. Per `SKILL.md`'s own version-bump comment: search for the old version string globally; one historical reference to v1.4.6 edgequake benchmarking is intentionally preserved and must NOT be bumped.
-- **Post-trim regression-replay.**
-  - Run the same benchmarks against the trimmed `SKILL.md` with the same model and flags.
-  - Compare per-benchmark recall, gate verdict, BUGS.md heading content to the pre-trim baseline.
-  - Tolerance: bug counts match within ±1, gate verdicts match exactly, BUGS.md headings overlap by >90%, no benchmark cell goes from PASS to FAIL on the gate.
-  - **If any benchmark shows material recall regression, halt** and either revert the offending move(s) and re-run benchmarks, or revise the move plan.
-- **Verify `SKILL.md` size below target.**
-  - Use BPE tokenizer (`tiktoken` with `cl100k_base` or equivalent) to measure `SKILL.md` total tokens.
-  - Document before/after counts in the commit message and in the v1.5.7 release notes.
-  - Assert size below 30K BPE tokens (or the agreed target from the memo).
-- **Add regression tests** in `bin/tests/`:
-  - **Token count test (`test_skill_md_size.py`):** parse `SKILL.md`, count BPE tokens, assert < target threshold. Test fails if a future edit re-bloats `SKILL.md`.
-  - **No-orphaned-pointer test:** for each `See \`references/X.md\`` pointer in `SKILL.md`, assert the target file exists.
-  - **Phase-prompt reference-load test:** for each `phase_prompts/<N>.md` that loads a reference, assert the reference file exists and contains the expected content anchor (heading or section name).
-- Worker commits in three logical commits:
-  1. "v1.5.7: classify `SKILL.md` content + author classification memo (sub-phase 7a)"
-  2. "v1.5.7: trim `SKILL.md` by moving phase-specific content to `references/` (sub-phase 7b core)"
-  3. "v1.5.7: regression tests for `SKILL.md` trim invariants (token count, no-orphaned-pointer, phase-prompt reference-load)"
+6. **Bump `SKILL.md` version stamp** to v1.5.7. Per `SKILL.md`'s own version-bump comment: search for the old version string globally; one historical reference to v1.4.6 edgequake benchmarking is intentionally preserved and must NOT be bumped.
 
-Council review (3 lenses):
-- **Classification correctness:** every "moved to references" line is genuinely reference-grade, not silently load-bearing. Council samples the moves and inspects.
-- **Behavioral preservation:** regression-replay before/after shows no material recall change on any pinned benchmark.
-- **Target met:** `SKILL.md` is materially smaller and below the agreed token threshold; phase prompts correctly load the references their phases now depend on.
+7. **Run the mechanical equivalence check:**
+   - For each phase 1-6, recompute the union of (post-trim `SKILL.md` content the phase loads) + (post-trim `references/*.md` files the phase's prompt loads).
+   - Diff each recomputed union against the pre-move baseline from step 3.
+   - Tolerance: byte-equivalent modulo whitespace cleanup at block boundaries (the same allowed diff that markdown trimming-on-paste might introduce). Any other diff is a defect — the move dropped content or reordered prose that changes meaning.
+   - **If any phase's union diff shows content drift, halt** and either revert the offending move(s) or revise.
 
-If Council surfaces a behavioral regression: revert the offending move(s) per the regression-replay diff, re-run benchmarks, iterate. If the entire deliverable surfaces unexpected regressions: revert all v1.5.7 `SKILL.md` changes, defer Deliverable 5 to a later release, ship v1.5.7 with Deliverables 1-4 only.
+8. **Verify `SKILL.md` size below target.**
+   - Use BPE tokenizer (`tiktoken` with `cl100k_base` or equivalent) to measure `SKILL.md` total tokens.
+   - Document before/after counts in the commit message and in the v1.5.7 release notes.
+   - Target: < 30K BPE tokens. If pure-move alone can't get below target (because too much content is already-duplicated and out of scope to consolidate), report the achievable floor honestly and let the operator decide whether to revise the target.
+
+9. **Add regression tests** in `bin/tests/`:
+   - **Token count test (`test_skill_md_size.py`):** parse `SKILL.md`, count BPE tokens, assert < target threshold (use the actual achieved threshold from step 8 + small headroom, not a hardcoded 30K — the test pins the achievable floor, not an aspirational ceiling). Test fails if a future edit re-bloats `SKILL.md`.
+   - **No-orphaned-pointer test:** for each `See \`references/X.md\`` pointer in `SKILL.md`, assert the target file exists.
+   - **Phase-prompt reference-load test:** for each `phase_prompts/<N>.md` that loads a reference, assert the reference file exists and contains the expected content anchor (heading or section name).
+   - **Phase-union-byte-equivalence test:** for each phase 1-6, recompute the loaded union and compare against a snapshot fixture captured at v1.5.7 ship. Test fails if a future edit changes the union (defensive against accidental content drift in subsequent releases).
+
+10. Worker commits in two logical commits:
+    1. "v1.5.7: pure-move `SKILL.md` phase-specific content into `references/*.md` (preserves text; mechanical equivalence verified)"
+    2. "v1.5.7: regression tests for `SKILL.md` trim invariants (token count, no-orphaned-pointer, phase-prompt reference-load, phase-union byte-equivalence)"
+
+### Council review (3 lenses)
+
+- **Move correctness:** every "moved to references" block is genuinely reference-grade, not silently load-bearing for the orchestration spine. Council samples the moves and inspects.
+- **Text preservation:** the moved prose matches the pre-trim version byte-for-byte (modulo whitespace cleanup at block boundaries). The pre-move union snapshots + post-move union diffs are the primary evidence.
+- **Target met:** `SKILL.md` is materially smaller and below the achievable threshold per the pure-move-only scoping; phase prompts correctly load the references their phases now depend on.
+
+If Council surfaces a content-drift defect: revert the offending move(s) per the union diff, re-run the equivalence check, iterate. If the entire deliverable surfaces unexpected drift that can't be cleanly localized: revert all v1.5.7 `SKILL.md` changes, defer Deliverable 5 to a later release, ship v1.5.7 with Deliverables 1-4 + 6.
 
 Council ratifies.
 
-Gate to Phase 8: Council ratification + tests green + token count below target + regression-replay clean.
+Gate to Phase 8: Council ratification + tests green + token count below achievable target + mechanical equivalence check clean (zero content drift across all six phases).
+
+**Phase 8 still runs the existing v1.5.5 + v1.5.6 benchmark recovery suite as an integration test for v1.5.7 as a whole** — that's a confidence-building exercise, not Phase 7's gate. With consolidation out of scope, Phase 7's gate is the equivalence check; the benchmark recovery is bonus reassurance.
 
 ---
 
@@ -508,7 +504,7 @@ Work items:
   - **Abort preservation:** trigger a synthetic abort (e.g., truncate the agent's EXPLORATION.md to 100 lines before the gate runs); `quality.gate-failed-<ts>/` exists with marker; subsequent run independence verified.
   - **`metrics/` formalization:** `metrics/README.md` and sub-directory READMEs ship; `bin/metrics_reconstruction.py` runs end-to-end against the cell roster and produces output matching the documented conventions.
   - **Log centralization:** all log artifacts under `quality/logs/<run-id>/`; `latest` symlink set; `--logs-flat` smoke test produces v1.5.6 paths; cluster-050 `RUN_MODE.md` lands under `quality/logs/<run-id>/`.
-  - **`SKILL.md` trim:** `SKILL.md` is below the size threshold; no-orphaned-pointer test passes; phase prompts load the right references; regression-replay shows no material recall change vs. pre-trim baseline.
+  - **`SKILL.md` pure-move refactor:** `SKILL.md` is below the achievable size threshold; no-orphaned-pointer test passes; phase prompts load the right references; mechanical equivalence check (per-phase union diff) shows zero content drift vs. pre-move baseline. Phase 8 then additionally runs the benchmark recovery suite for v1.5.7-as-a-whole confidence.
 - Run the full v1.5.7 test suite: `python3 -m unittest discover bin/tests`. All tests green.
 - Run the existing v1.5.5 + v1.5.6 benchmark recovery tests (if present in `metrics/regression_replay/`) to confirm v1.5.7 doesn't regress recall against pinned ground truth.
 - Update `CHANGELOG.md` with the v1.5.7 entry summarizing all six deliverables.
@@ -554,7 +550,7 @@ If any phase's Council review fails or surfaces an unanticipated regression:
 - **Phase 3 (abort preservation)** is a localized change to one disposal path. If the regression-tests-bite check fails or operator testing surfaces issues, revert the single source commit; preservation does not ship in v1.5.7. The disposal-mechanism trace from Phase 1/Phase 3 is preserved as reference material for the next release.
 - **Phase 4 (`metrics/` formalization)** is mostly additive. The documentation files can ship even if the reconstruction script needs revision; if reconstruction surfaces issues, ship the READMEs only and defer the script + Q1/Q2 data to a later release.
 - **Phase 5 (log centralization)** is the largest call-site invasion. If migration issues surface, the `--logs-flat` legacy flag becomes the operator's escape hatch. v1.5.7 ships with the flag defaulting to the new layout; if Council surfaces regressions, the default can flip to legacy until a later release.
-- **Phase 7 (`SKILL.md` trim)** is the highest runtime-behavior risk. Every line of `SKILL.md` is potentially load-bearing for every QPB run going forward. If regression-replay shows material recall regression on any pinned benchmark: revert the offending move(s) per the diff, re-run benchmarks, iterate. If the entire deliverable surfaces unexpected regressions that can't be cleanly localized: revert all v1.5.7 `SKILL.md` changes, defer Deliverable 5 to a later release, ship v1.5.7 with Deliverables 1-4 only. The investigation memo from sub-phase 7a is preserved either way as reference material for the next attempt.
+- **Phase 7 (`SKILL.md` pure-move refactor)** is text-preserving by scope; behavioral equivalence is verified mechanically (the union of `SKILL.md` + loaded references must be byte-equivalent before vs. after at each phase). If the mechanical equivalence check shows content drift on any phase: revert the offending move(s) per the union diff, re-run the equivalence check, iterate. If the deliverable surfaces drift that can't be cleanly localized: revert all v1.5.7 `SKILL.md` changes, defer Deliverable 5 to a later release, ship v1.5.7 with Deliverables 1-4 + 6. Phase 8 benchmark recovery testing additionally exercises the trimmed skill at runtime as a confidence check.
 
 Worst-case rollback: the entire `1.5.7` branch is abandoned. v1.5.6 remains the latest tagged release. Each deliverable's brief and code review notes are preserved as reference material for whichever release picks the work up next.
 
