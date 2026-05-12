@@ -138,8 +138,8 @@ class RunPlaybookTests(unittest.TestCase):
         self.assertIn("quality/citation_semantic_check.json", prompt)
         # Council member identifiers come from the config module.
         self.assertIn("claude-opus-4.7", prompt)
-        self.assertIn("gpt-5.4", prompt)
-        self.assertIn("gemini-2.5-pro", prompt)
+        self.assertIn("gpt-5.5", prompt)
+        self.assertIn("claude-sonnet-4.6", prompt)
         # Spec Gap path must be called out so the agent knows to skip
         # dispatch when there are no Tier 1/2 REQs.
         self.assertIn("Spec Gap", prompt)

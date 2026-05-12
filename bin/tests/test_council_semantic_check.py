@@ -293,9 +293,10 @@ class CouncilConfigTests(unittest.TestCase):
         self.assertEqual(len(DEFAULT_COUNCIL_MEMBERS), 3)
 
     def test_members_are_stable_strings(self) -> None:
+        # v1.5.7 Phase 6a roster: claude-opus-4.7, gpt-5.5, claude-sonnet-4.6.
         self.assertIn("claude-opus-4.7", DEFAULT_COUNCIL_MEMBERS)
-        self.assertIn("gpt-5.4", DEFAULT_COUNCIL_MEMBERS)
-        self.assertIn("gemini-2.5-pro", DEFAULT_COUNCIL_MEMBERS)
+        self.assertIn("gpt-5.5", DEFAULT_COUNCIL_MEMBERS)
+        self.assertIn("claude-sonnet-4.6", DEFAULT_COUNCIL_MEMBERS)
 
 
 class CLITests(unittest.TestCase):
@@ -332,8 +333,9 @@ class CLITests(unittest.TestCase):
             response.write_text(json.dumps([
                 {"req_id": "REQ-001", "verdict": "supports", "reasoning": ""},
             ]))
+            # v1.5.7 Phase 6a: use a current-roster member.
             rc = csc.main(["assemble", str(repo),
-                          "--member", "gpt-5.4", "--response", str(response)])
+                          "--member", "gpt-5.5", "--response", str(response)])
             self.assertEqual(rc, 0)
             self.assertTrue((repo / "quality" / "citation_semantic_check.json").is_file())
 
@@ -394,7 +396,8 @@ class CLITests(unittest.TestCase):
                     "--response", str(repo / "a.json"),
                     "--member", "claude-opus-4.7",  # duplicate
                     "--response", str(repo / "b.json"),
-                    "--member", "gemini-2.5-pro",
+                    # v1.5.7 Phase 6a roster: claude-sonnet-4.6.
+                    "--member", "claude-sonnet-4.6",
                     "--response", str(repo / "c.json"),
                 ])
             self.assertEqual(rc, 2)

@@ -26,9 +26,9 @@ vote on each Tier 1/2 REQ's citation_excerpt. Execute these steps:
      python3 -m bin.quality_playbook semantic-check plan .
    This writes one or more prompt files to
    quality/council_semantic_check_prompts/<member>.txt per member in the
-   Council roster (bin/council_config.py: claude-opus-4.7, gpt-5.4,
-   gemini-2.5-pro). For >15 Tier 1/2 REQs, prompts are split into batches
-   of 5 (<member>-batch<N>.txt).
+   Council roster (bin/council_config.py: claude-opus-4.7, gpt-5.5,
+   claude-sonnet-4.6). For >15 Tier 1/2 REQs, prompts are split into
+   batches of 5 (<member>-batch<N>.txt).
    If no Tier 1/2 REQs exist (Spec Gap run), this step writes an empty
    quality/citation_semantic_check.json directly — skip steps 2-4.
 
@@ -41,9 +41,9 @@ vote on each Tier 1/2 REQ's citation_excerpt. Execute these steps:
 
 3. Assemble the semantic-check output:
      python3 -m bin.quality_playbook semantic-check assemble . \
-       --member claude-opus-4.7 --response quality/council_semantic_check_responses/claude-opus-4.7.json \
-       --member gpt-5.4         --response quality/council_semantic_check_responses/gpt-5.4.json \
-       --member gemini-2.5-pro  --response quality/council_semantic_check_responses/gemini-2.5-pro.json
+       --member claude-opus-4.7  --response quality/council_semantic_check_responses/claude-opus-4.7.json \
+       --member gpt-5.5          --response quality/council_semantic_check_responses/gpt-5.5.json \
+       --member claude-sonnet-4.6 --response quality/council_semantic_check_responses/claude-sonnet-4.6.json
    This writes quality/citation_semantic_check.json per schemas.md §9.
 
 4. Verify the output file exists. Phase 6's gate invariant #17 requires

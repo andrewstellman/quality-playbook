@@ -211,7 +211,7 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # references/role_map_queries.md. Hashes recomputed (+436 bytes).
         "phase2":                ( 3628, "63d42af87a8e08460c7d75b6a776bcdd29e786bbe658ff51bbbb3060fc1684e4"),
         "phase3":                ( 8919, "b834435ceb550ac425ab13df9edc0ac0b5c5c81f5b4f634673d67fc29331127c"),
-        "phase4":                ( 3486, "cc775b20c9310fbbeff840fcc0a9fc7490f86f3a0468477229d86bbe9811da50"),
+        "phase4":                ( 3496, "bae1bcae7585fa4f0fc8f14281312074126f12b574b470dec76560a8b54bd4f0"),
         "phase5":                (11257, "e8cea54c07817ce8dc0ff0a1f7508ce8b9dd40b139ee7c09eb4590308657a890"),
         "phase6":                ( 2070, "b53a124a4451cfa08bd5ac5ee26fc0793c6834a05438f3b1f01d78e8a1becb5a"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
