@@ -15,10 +15,13 @@ detail causes the corresponding test to fail.
 
 from __future__ import annotations
 
+import io
 import json
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
 from bin import metrics_reconstruction as mr
 
@@ -282,7 +285,10 @@ class V17InputShapeCompatibilityTests(unittest.TestCase):
             self.assertTrue(trend_path.exists())
             data = json.loads(trend_path.read_text(encoding="utf-8"))
 
-            # Required top-level fields per the README schema.
+            # F-4: required top-level fields present (presence-only is
+            # weak — the value-validating coverage lives in
+            # test_qpb_version_is_populated_when_signal_is_available
+            # below).
             for field in ("schema_version", "reconstruction_timestamp",
                           "qpb_version_at_reconstruction", "benchmark",
                           "ground_truth", "versions_observed",
@@ -331,6 +337,290 @@ class V17InputShapeCompatibilityTests(unittest.TestCase):
                 self.assertIn(field, data,
                               f"Required field `{field}` missing from bootstrap_recall output")
             self.assertEqual(data["schema_version"], mr.SCHEMA_VERSION)
+
+
+class F4ContentValidatingAssertionsTests(unittest.TestCase):
+    """F-4 fix: assertions validate VALUES, not just field presence.
+
+    The original Phase 4 test for cross_version_trends checked that
+    the `qpb_version` field existed but not that it had a non-None
+    value when source data should have produced one. That presence-
+    only assertion let F-1 ship: hardcoded qpb_version=None passed
+    the original test silently.
+
+    These tests assert non-None / expected-range values for the
+    fields where None / out-of-range would indicate a regression.
+    """
+
+    def test_qpb_version_is_populated_when_signal_is_available(self) -> None:
+        # Fixture: quality-playbook-X.Y.Z-bootstrap matches the
+        # benchmark-naming source (Source 3) in
+        # infer_qpb_version_for_cell_group. Expect non-None.
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            cells_root = tmp / "repos"
+            cells_root.mkdir()
+            _make_cell(cells_root, "quality-playbook-bootstrap-1.5.6",
+                       ["BUG-001", "BUG-002"])
+            metrics = _make_metrics_tree(tmp)
+
+            rc = mr.main([
+                "--target", str(metrics),
+                "--cells-root", str(cells_root),
+                "--quarter", "both",
+                "--year", "2026",
+            ])
+            self.assertEqual(rc, 0)
+
+            trend_path = metrics / "cross_version_trends" / "quality-playbook-bootstrap.json"
+            self.assertTrue(trend_path.exists())
+            data = json.loads(trend_path.read_text(encoding="utf-8"))
+            self.assertEqual(len(data["versions_observed"]), 1)
+            vo = data["versions_observed"][0]
+            self.assertIsNotNone(
+                vo["qpb_version"],
+                f"qpb_version must be non-None when naming-pattern source "
+                f"matches the benchmark; got versions_observed={data['versions_observed']!r}",
+            )
+            self.assertEqual(vo["qpb_version"], "1.5.6")
+
+    def test_qpb_version_extracted_from_regression_replay_cell(self) -> None:
+        # Source 1: matching regression_replay cell.json with
+        # qpb_version_under_test.
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            cells_root = tmp / "repos"
+            cells_root.mkdir()
+            _make_cell(cells_root, "alpha-1.0", ["BUG-001"])
+            metrics = _make_metrics_tree(tmp)
+            # Plant a matching cell.json
+            rr_dir = metrics / "regression_replay" / "20260501T120000Z"
+            rr_dir.mkdir(parents=True)
+            (rr_dir / "alpha-1.0-all.json").write_text(json.dumps({
+                "benchmark": "alpha",
+                "historical_qpb_version": "1.0",
+                "qpb_version_under_test": "1.5.4",
+                "timestamp": "2026-05-01T12:00:00Z",
+            }), encoding="utf-8")
+
+            rc = mr.main([
+                "--target", str(metrics),
+                "--cells-root", str(cells_root),
+                "--quarter", "both",
+                "--year", "2026",
+            ])
+            self.assertEqual(rc, 0)
+            data = json.loads((metrics / "cross_version_trends" / "alpha.json")
+                              .read_text(encoding="utf-8"))
+            self.assertEqual(data["versions_observed"][0]["qpb_version"], "1.5.4")
+
+
+class F5SdlcDefectsSkipGuardTests(unittest.TestCase):
+    """F-5 fix: assert reconstruction script does NOT write to
+    metrics/sdlc_defects/ (that directory is v1.7-owned; v1.5.7's
+    script must skip it explicitly).
+
+    The original test suite had no negative coverage for the skip-
+    discipline. A future change that accidentally added sdlc_defects/
+    population would not have been caught.
+    """
+
+    def test_reconstruction_does_not_populate_sdlc_defects(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            cells_root = tmp / "repos"
+            cells_root.mkdir()
+            _make_cell(cells_root, "alpha-1.0", ["BUG-001", "BUG-002"])
+            metrics = _make_metrics_tree(tmp)
+            # Plant superficially "sdlc-looking" content in a cell to
+            # confirm the script doesn't surface it into sdlc_defects/.
+            (cells_root / "alpha-1.0" / "quality" / "BUGS.md").write_text(
+                (cells_root / "alpha-1.0" / "quality" / "BUGS.md")
+                .read_text(encoding="utf-8")
+                + "\n## SDLC Defect Notes\nThis cell has SDLC content.\n",
+                encoding="utf-8",
+            )
+
+            rc = mr.main([
+                "--target", str(metrics),
+                "--cells-root", str(cells_root),
+                "--quarter", "both",
+                "--year", "2026",
+            ])
+            self.assertEqual(rc, 0)
+
+            sdlc_dir = metrics / "sdlc_defects"
+            # Only README.md may exist (v1.5.7 ships the empty home +
+            # README); no .json files, no other content.
+            sdlc_files = sorted(p.name for p in sdlc_dir.iterdir())
+            non_readme = [n for n in sdlc_files if n != "README.md"]
+            self.assertEqual(
+                non_readme, [],
+                f"sdlc_defects/ must contain only README.md (v1.7 owns "
+                f"the population); found {non_readme}",
+            )
+
+
+class F6DryRunTests(unittest.TestCase):
+    """F-6 fix: --dry-run prints planned writes but writes nothing."""
+
+    def test_dry_run_writes_no_data_files(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            cells_root = tmp / "repos"
+            cells_root.mkdir()
+            _make_cell(cells_root, "alpha-1.0", ["BUG-001"])
+            metrics = _make_metrics_tree(tmp)
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = mr.main([
+                    "--target", str(metrics),
+                    "--cells-root", str(cells_root),
+                    "--quarter", "both",
+                    "--year", "2026",
+                    "--dry-run",
+                ])
+            self.assertEqual(rc, 0)
+
+            # No .json files written.
+            bs = list((metrics / "bootstrap_recall").glob("*.json"))
+            cv = list((metrics / "cross_version_trends").glob("*.json"))
+            self.assertEqual(bs, [], f"--dry-run wrote bootstrap files: {bs}")
+            self.assertEqual(cv, [], f"--dry-run wrote trend files: {cv}")
+            # No backup directories created.
+            backups = list((metrics / "bootstrap_recall").glob(".backup-*")) + \
+                      list((metrics / "cross_version_trends").glob(".backup-*"))
+            self.assertEqual(backups, [],
+                             f"--dry-run created backup directories: {backups}")
+            # Stdout reports "would write".
+            self.assertIn("would write", buf.getvalue())
+
+
+class F7SameSecondCollisionTests(unittest.TestCase):
+    """F-7 fix: backup directory collision in the same UTC second is
+    handled by subsecond precision (F-2) plus counter-suffix fallback.
+    """
+
+    def test_two_runs_in_same_second_produce_distinct_backups(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            cells_root = tmp / "repos"
+            cells_root.mkdir()
+            _make_cell(cells_root, "alpha-1.0", ["BUG-001"])
+            metrics = _make_metrics_tree(tmp)
+
+            # First run lays down baseline data.
+            mr.main([
+                "--target", str(metrics),
+                "--cells-root", str(cells_root),
+                "--quarter", "both", "--year", "2026",
+            ])
+            # Stash a couple of data files so the next runs have
+            # something to back up. (First run wrote them already.)
+
+            # Patch the subsecond timestamp source to return identical
+            # values on three successive calls (simulating same-
+            # microsecond collision). The counter-suffix fallback
+            # in backup_existing handles -1, -2, -3.
+            with mock.patch.object(
+                mr, "now_utc_compact_subsecond",
+                return_value="20260512T120000000000Z",
+            ):
+                mr.main([
+                    "--target", str(metrics),
+                    "--cells-root", str(cells_root),
+                    "--quarter", "both", "--year", "2026",
+                ])
+                mr.main([
+                    "--target", str(metrics),
+                    "--cells-root", str(cells_root),
+                    "--quarter", "both", "--year", "2026",
+                ])
+                mr.main([
+                    "--target", str(metrics),
+                    "--cells-root", str(cells_root),
+                    "--quarter", "both", "--year", "2026",
+                ])
+
+            bs_backups = sorted((metrics / "bootstrap_recall").glob(".backup-*"))
+            cv_backups = sorted((metrics / "cross_version_trends").glob(".backup-*"))
+            # 1 from the first uncoordinated run + 3 distinct from the
+            # patched-clock runs (the base name + -1 + -2 counter
+            # suffixes). The first run's backup may not exist if no
+            # data was present to back up; check there are AT LEAST 3
+            # in the patched set.
+            patched_bs = [p for p in bs_backups if p.name.startswith(".backup-20260512T120000")]
+            patched_cv = [p for p in cv_backups if p.name.startswith(".backup-20260512T120000")]
+            self.assertEqual(
+                len(patched_bs), 3,
+                f"Expected 3 distinct backup directories under same patched ts; "
+                f"got {[p.name for p in patched_bs]}",
+            )
+            self.assertEqual(
+                len(patched_cv), 3,
+                f"Expected 3 distinct trend backup directories under same patched ts; "
+                f"got {[p.name for p in patched_cv]}",
+            )
+
+
+class F8PerQuarterIsolationTests(unittest.TestCase):
+    """F-8 fix: skipped_cells in Q2 aggregate must NOT contain Q1 skip
+    records (and vice versa).
+    """
+
+    def test_skipped_cells_isolated_per_quarter(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            cells_root = tmp / "repos"
+            cells_root.mkdir()
+            _make_cell(cells_root, "alpha-1.0", ["BUG-001"])
+            metrics = _make_metrics_tree(tmp)
+
+            # Plant a Q1-bucket corrupted regression_replay cell
+            # (2026-01-15 → Q1) and a Q2-bucket corrupted one
+            # (2026-05-15 → Q2). The script's per-quarter scoping
+            # should put each in only its own quarter's skipped_cells.
+            q1_dir = metrics / "regression_replay" / "20260115T120000Z"
+            q1_dir.mkdir(parents=True)
+            (q1_dir / "q1-corrupted-1.0-all.json").write_text(
+                "{ not valid json", encoding="utf-8",
+            )
+            q2_dir = metrics / "regression_replay" / "20260515T120000Z"
+            q2_dir.mkdir(parents=True)
+            (q2_dir / "q2-corrupted-1.0-all.json").write_text(
+                "{ also not valid json", encoding="utf-8",
+            )
+
+            rc = mr.main([
+                "--target", str(metrics),
+                "--cells-root", str(cells_root),
+                "--quarter", "both",
+                "--year", "2026",
+            ])
+            self.assertEqual(rc, 0)
+
+            q1 = json.loads((metrics / "bootstrap_recall" / "2026-Q1.json")
+                            .read_text(encoding="utf-8"))
+            q2 = json.loads((metrics / "bootstrap_recall" / "2026-Q2.json")
+                            .read_text(encoding="utf-8"))
+            q1_paths = [s["path"] for s in q1["skipped_cells"]]
+            q2_paths = [s["path"] for s in q2["skipped_cells"]]
+
+            # Q1 sees only the Q1-bucket skip; Q2 sees only the
+            # Q2-bucket skip. No cross-contamination.
+            self.assertTrue(
+                all("q1-corrupted" in p for p in q1_paths),
+                f"Q1 aggregate contains non-Q1 skip records: {q1_paths}",
+            )
+            self.assertTrue(
+                all("q2-corrupted" in p for p in q2_paths),
+                f"Q2 aggregate contains non-Q2 skip records: {q2_paths}",
+            )
+            self.assertEqual(len(q1_paths), 1,
+                             f"Q1 should have 1 skip record; got {q1_paths}")
+            self.assertEqual(len(q2_paths), 1,
+                             f"Q2 should have 1 skip record; got {q2_paths}")
 
 
 if __name__ == "__main__":
