@@ -244,6 +244,15 @@ def now_utc_compact() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+def now_utc_compact_subsecond() -> str:
+    # F-2 fix: microsecond precision so two reconstruction runs in the
+    # same UTC second produce distinct backup directory names. Two
+    # runs colliding within a single microsecond is statistically
+    # negligible; if it ever happens, backup_existing() falls back to
+    # a counter suffix.
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+
+
 def now_utc_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
@@ -269,7 +278,23 @@ def backup_existing(target_dir: Path) -> Optional[Path]:
     ]
     if not movable:
         return None
-    backup_dir = target_dir / f".backup-{now_utc_compact()}"
+    # F-2 fix: subsecond timestamp + counter-suffix fallback. The
+    # subsecond timestamp alone covers the practical case (two runs
+    # within the same UTC second); the counter suffix is a belt-and-
+    # braces fallback for microsecond collisions (e.g., on filesystems
+    # whose mtime resolution drops microseconds, or in tests that mock
+    # the clock to return identical values).
+    base = f".backup-{now_utc_compact_subsecond()}"
+    backup_dir = target_dir / base
+    counter = 0
+    while backup_dir.exists():
+        counter += 1
+        backup_dir = target_dir / f"{base}-{counter}"
+        if counter > 999:
+            raise RuntimeError(
+                f"Could not find a free backup directory name under "
+                f"{target_dir} (tried {base}-0 through {base}-999)"
+            )
     backup_dir.mkdir(parents=True, exist_ok=False)
     for p in movable:
         shutil.move(str(p), str(backup_dir / p.name))
@@ -282,9 +307,14 @@ def build_bootstrap_recall_aggregates(
     cal_cycles: Sequence[Tuple[Path, dict]],
     quarters_in_scope: Sequence[str],
     fallback_quarter: str,
-    skipped: Sequence[Dict[str, str]],
+    skipped_by_quarter: Dict[str, List[Dict[str, str]]],
 ) -> Dict[str, dict]:
-    """Build {quarter: aggregate_dict} for the bootstrap_recall output."""
+    """Build {quarter: aggregate_dict} for the bootstrap_recall output.
+
+    F-3 fix: `skipped_by_quarter` is a per-quarter map (not a single
+    global list). Each quarter's aggregate carries only its own skip
+    records; `--quarter both` no longer cross-contaminates Q1 and Q2.
+    """
     by_quarter: Dict[str, List[CellObservation]] = {q: [] for q in quarters_in_scope}
     for obs in observations:
         q = determine_quarter_from_observation(obs, fallback_quarter)
@@ -340,9 +370,72 @@ def build_bootstrap_recall_aggregates(
             "per_benchmark": per_benchmark,
             "calibration_cycle_count": cal_count_by_quarter.get(q, 0),
             "regression_replay_cell_count": rr_count_by_quarter.get(q, 0),
-            "skipped_cells": list(skipped),
+            # F-3 fix: per-quarter skip list, not the global accumulator
+            "skipped_cells": list(skipped_by_quarter.get(q, [])),
         }
     return out
+
+
+QPB_VERSION_FROM_NAME_RE = re.compile(
+    r"quality-playbook(?:-bootstrap)?-(?P<v>\d+\.\d+(?:\.\d+)?)"
+)
+
+
+def infer_qpb_version_for_cell_group(
+    cells: Sequence[CellObservation],
+    rr_cells: Sequence[Tuple[Path, dict]],
+) -> Optional[str]:
+    """F-1 fix: best-effort QPB version inference for a (benchmark,
+    version) cell group.
+
+    Source order (most authoritative first):
+      1. matching regression_replay cell.json with
+         `qpb_version_under_test` set
+      2. `quality/run_state.jsonl` `_index` event's `schema_version`
+         field
+      3. benchmark name pattern `quality-playbook[-bootstrap]-X.Y.Z`
+         (where the QPB version is literally in the benchmark name)
+
+    Returns None when no signal is available — the caller logs this
+    as "qpb_version=unknown" rather than silently producing None.
+    """
+    if not cells:
+        return None
+    benchmark = cells[0].benchmark
+    version = cells[0].version
+
+    # Source 1: matching regression_replay cell.json
+    for _rr_path, rr_data in rr_cells:
+        rr_benchmark = rr_data.get("benchmark")
+        rr_version = rr_data.get("historical_qpb_version") or rr_data.get("historical_version")
+        if rr_benchmark == benchmark and rr_version == version:
+            v = rr_data.get("qpb_version_under_test")
+            if v:
+                return str(v)
+
+    # Source 2: run_state.jsonl _index.schema_version
+    for cell in cells:
+        rs = cell.cell_path / "quality" / "run_state.jsonl"
+        if not rs.is_file():
+            continue
+        try:
+            for line in rs.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                rec = json.loads(line)
+                if rec.get("event") == "_index" and rec.get("schema_version"):
+                    return str(rec["schema_version"])
+        except (OSError, json.JSONDecodeError, UnicodeError):
+            continue
+
+    # Source 3: benchmark-name pattern
+    for cell in cells:
+        m = QPB_VERSION_FROM_NAME_RE.search(cell.benchmark)
+        if m:
+            return m.group("v")
+
+    return None
 
 
 def compute_ground_truths(observations: Sequence[CellObservation]) -> Dict[str, CellObservation]:
@@ -368,8 +461,16 @@ def compute_ground_truths(observations: Sequence[CellObservation]) -> Dict[str, 
 def build_cross_version_trends(
     observations: Sequence[CellObservation],
     ground_truths: Dict[str, CellObservation],
+    rr_cells: Sequence[Tuple[Path, dict]] = (),
 ) -> Dict[str, dict]:
-    """Build {benchmark: trajectory_dict} for cross_version_trends output."""
+    """Build {benchmark: trajectory_dict} for cross_version_trends output.
+
+    F-1 fix: `qpb_version` per versions_observed[] record is now
+    populated by best-effort inference from regression_replay
+    cell.json + run_state.jsonl + benchmark-naming pattern (see
+    `infer_qpb_version_for_cell_group`). Leaves None only when no
+    signal is available, which the caller logs as "qpb_version=unknown".
+    """
     by_benchmark_version: Dict[Tuple[str, str], List[CellObservation]] = {}
     for obs in observations:
         if obs.is_archive:
@@ -391,9 +492,10 @@ def build_cross_version_trends(
             avg_bug_count = sum(c.bug_count for c in group) / cell_count if cell_count else 0
             recall = avg_bug_count / gt.bug_count if gt.bug_count > 0 else 0.0
             cells = sorted(str(c.cell_path / "quality" / "BUGS.md") for c in group)
+            qpb_version = infer_qpb_version_for_cell_group(group, rr_cells)
             versions_observed.append({
                 "version": version,
-                "qpb_version": None,
+                "qpb_version": qpb_version,
                 "cell_count": cell_count,
                 "bug_count_avg": round(avg_bug_count, 2),
                 "recall_against_ground_truth": round(recall, 4),
@@ -495,17 +597,42 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if fallback_quarter not in quarters_in_scope:
         quarters_in_scope.append(fallback_quarter)
 
+    # F-3 fix: per-quarter skip bucket from the start, so each
+    # quarter's aggregate sees only its own skips. The legacy global
+    # `skipped` list is kept for the script's stdout summary only.
     skipped: List[Dict[str, str]] = []
+    skipped_by_quarter: Dict[str, List[Dict[str, str]]] = {q: [] for q in quarters_in_scope}
+
     observations = walk_cells_root(cells_root, skipped)
     rr_cells = load_regression_replay_cells(target, skipped)
     cal_cycles = load_calibration_cycles(target, skipped)
 
+    # Bucket the global skip list by quarter (best-effort: cells whose
+    # path contains a regression_replay/<timestamp>/ segment get that
+    # timestamp's quarter; cell BUGS.md paths fall under the cell's
+    # detected quarter via determine_quarter_from_observation; if no
+    # signal, the fallback_quarter receives it).
+    for skip_record in skipped:
+        path = skip_record.get("path", "")
+        q = _quarter_for_skip_path(path, fallback_quarter)
+        if q in skipped_by_quarter:
+            skipped_by_quarter[q].append(skip_record)
+        else:
+            skipped_by_quarter.setdefault(fallback_quarter, []).append(skip_record)
+
     ground_truths = compute_ground_truths(observations)
     bootstrap = build_bootstrap_recall_aggregates(
         observations, rr_cells, cal_cycles,
-        quarters_in_scope, fallback_quarter, skipped,
+        quarters_in_scope, fallback_quarter, skipped_by_quarter,
     )
-    trends = build_cross_version_trends(observations, ground_truths)
+    trends = build_cross_version_trends(observations, ground_truths, rr_cells)
+
+    # F-1 logging: count cells whose qpb_version inference returned None
+    unknown_qpb_versions = 0
+    for trend in trends.values():
+        for vo in trend["versions_observed"]:
+            if vo.get("qpb_version") is None:
+                unknown_qpb_versions += 1
 
     actions = write_outputs(target, bootstrap, trends, args.dry_run)
 
@@ -517,12 +644,37 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     print(f"  calibration:      {len(cal_cycles)} cycles")
     print(f"  benchmarks:       {len(ground_truths)} (with ground-truth)")
     print(f"  quarters:         {quarters_in_scope}")
-    print(f"  skipped:          {len(skipped)}")
+    print(f"  skipped (global): {len(skipped)}")
+    if any(skipped_by_quarter.values()):
+        print(f"  skipped per-quarter:")
+        for q, items in skipped_by_quarter.items():
+            if items:
+                print(f"    {q}: {len(items)}")
+    if unknown_qpb_versions:
+        print(f"  qpb_version=unknown for {unknown_qpb_versions} (benchmark, version) rows "
+              f"in cross_version_trends (no signal in cell.json, run_state.jsonl, or naming)")
     if actions["backed_up_to"]:
         print(f"  backed up to:     {actions['backed_up_to']}")
     print(f"  wrote {len(actions['written'])} files" if not args.dry_run
           else f"  would write {len(actions['would_write'])} files")
     return 0
+
+
+def _quarter_for_skip_path(path_str: str, fallback_quarter: str) -> str:
+    """F-3 helper: derive a quarter for a skipped-cell path.
+
+    For paths under `metrics/regression_replay/<ts>/`, parse the
+    `<ts>` segment as a UTC timestamp and return its quarter. For
+    other paths (BUGS.md cells), there's no embedded date — return
+    the fallback. This is best-effort; the F-3 contract is "no
+    cross-quarter contamination", not "perfect quarter attribution".
+    """
+    m = re.search(r"metrics/regression_replay/(?P<ts>\d{8}T\d{6}Z)/", path_str)
+    if m:
+        q = quarter_for(m.group("ts"))
+        if q is not None:
+            return q
+    return fallback_quarter
 
 
 if __name__ == "__main__":
