@@ -1333,6 +1333,53 @@ def _run_log_dir(
     return target
 
 
+def _control_prompts_dir(
+    repo_dir: Path,
+    *,
+    args: Optional[argparse.Namespace] = None,
+    timestamp: Optional[str] = None,
+    create: bool = True,
+) -> Path:
+    """v1.5.7 Phase 5 FS-1: return the directory for control-prompt
+    transcripts (per-phase input/output txt files).
+
+    Centralized layout: `<repo_dir>/quality/logs/<run-id>/`. Legacy
+    layout (or no run_id available): `<repo_dir>/quality/control_prompts/`.
+
+    Callers WITH a timestamp in scope should pass it via `timestamp`.
+    Callers WITHOUT a timestamp (e.g., banner-render helpers that
+    run before the timestamp is in scope) fall back to the latest
+    existing run-id directory under `quality/logs/`; if none exists
+    yet, they fall back to the legacy path. This means a banner
+    rendered very early in a run may show the legacy path even in
+    centralized mode — that's acceptable for read-only display
+    purposes (the banner just tells operators where to tail logs).
+    """
+    if _logs_legacy_mode(args):
+        path = repo_dir / "quality" / "control_prompts"
+        if create:
+            path.mkdir(parents=True, exist_ok=True)
+        return path
+    if timestamp:
+        run_id = _compute_run_id(timestamp)
+        return _run_log_dir(repo_dir, run_id, args=args, create=create)
+    # No timestamp: best-effort find the most-recent run-id directory
+    logs_root = repo_dir / "quality" / "logs"
+    if logs_root.is_dir():
+        candidates = sorted(
+            (p for p in logs_root.iterdir()
+             if p.is_dir() and p.name != "latest"),
+            reverse=True,
+        )
+        if candidates:
+            return candidates[0]
+    # Fall back to legacy path
+    path = repo_dir / "quality" / "control_prompts"
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def _run_state_jsonl_path(
     repo_dir: Path,
     run_id: Optional[str] = None,
@@ -1525,6 +1572,7 @@ def build_startup_banner(
     *,
     qpb_version: Optional[str] = None,
     platform_name: Optional[str] = None,
+    args: Optional[argparse.Namespace] = None,
 ) -> str:
     """Assemble the startup-banner string for a run.
 
@@ -1539,7 +1587,13 @@ def build_startup_banner(
     """
     log_path = log_path.resolve()
     repo_dir = repo_dir.resolve()
-    transcript_dir = repo_dir / "quality" / "control_prompts"
+    # v1.5.7 Phase 5 FS-1: route through _control_prompts_dir so the
+    # banner shows the centralized layout path when active. Timestamp
+    # isn't available in scope here; the helper's fallback finds the
+    # most-recent run-id directory or returns the legacy path.
+    transcript_dir = _control_prompts_dir(
+        repo_dir, args=args, create=False,
+    )
     # First phase's transcript is a predictable, copy-paste-ready path.
     # When the run advances, operators update the N in phaseN.output.txt;
     # the banner's job is to give them a working starting point.
@@ -1627,6 +1681,7 @@ def print_startup_banner(
         log_path,
         _run_plan_entries(args),
         platform_name=platform_name,
+        args=args,
     )
     lib.logboth(log_path, banner)
 
@@ -2812,7 +2867,9 @@ def run_one_phase(
         phase, no_seeds=args.no_seeds,
         prefix=getattr(args, "prompt_prefix", "") or "",
     )
-    output_file = repo_dir / "quality" / "control_prompts" / f"phase{phase}.output.txt"
+    output_file = _control_prompts_dir(
+        repo_dir, args=args, timestamp=timestamp,
+    ) / f"phase{phase}.output.txt"
     lib.logboth(log_file, lib.log(f"  Phase {phase_index}/{len(phase_list) or 1} ({phase_label(phase)}): {repo_dir.name}"))
     # v1.5.6 cluster 050: surface Phase 4's multi-model expansion at
     # phase entry. The Council roster is read programmatically from
@@ -2960,12 +3017,26 @@ def _filter_group_for_code_review_skip(
     return filtered, reason
 
 
-def _group_transcript_path(repo_dir: Path, phases: Sequence[str]) -> Path:
+def _group_transcript_path(
+    repo_dir: Path,
+    phases: Sequence[str],
+    *,
+    args: Optional[argparse.Namespace] = None,
+    timestamp: Optional[str] = None,
+) -> Path:
     """Transcript file for a group. Single-phase groups reuse the
     legacy phaseN.output.txt name; multi-phase groups join with '-'
-    (e.g. phase3-4.output.txt)."""
+    (e.g. phase3-4.output.txt).
+
+    v1.5.7 Phase 5 FS-1: routes through _control_prompts_dir so the
+    new layout lands at quality/logs/<run-id>/. Legacy callers that
+    don't yet pass args+timestamp get the most-recent-existing
+    fallback (or the v1.5.6 path if no centralized run-id exists).
+    """
     suffix = "-".join(phases)
-    return repo_dir / "quality" / "control_prompts" / f"phase{suffix}.output.txt"
+    return _control_prompts_dir(
+        repo_dir, args=args, timestamp=timestamp,
+    ) / f"phase{suffix}.output.txt"
 
 
 def _group_pass_label(phases: Sequence[str]) -> str:
@@ -3045,7 +3116,9 @@ def run_one_phase_group(
             ]
         else:
             flat = [p for g in phase_groups for p in g]
-        monitor.set_transcript_path(_group_transcript_path(repo_dir, [phase]))
+        monitor.set_transcript_path(_group_transcript_path(
+            repo_dir, [phase], args=args, timestamp=timestamp,
+        ))
         return run_one_phase(repo_dir, phase, flat, args, log_file, timestamp)
 
     # Multi-phase group path.
@@ -3077,13 +3150,17 @@ def run_one_phase_group(
             )
         return False
 
-    group_transcript = _group_transcript_path(repo_dir, group)
+    group_transcript = _group_transcript_path(
+        repo_dir, group, args=args, timestamp=timestamp,
+    )
     group_transcript.parent.mkdir(parents=True, exist_ok=True)
     # Per-phase transcript stubs + monitor registration. Earlier phases
     # in the group get a small pointer file; the last phase reuses the
     # group transcript path directly so tail + grep keep working.
     for i, phase in enumerate(group):
-        per_phase_path = _group_transcript_path(repo_dir, [phase])
+        per_phase_path = _group_transcript_path(
+            repo_dir, [phase], args=args, timestamp=timestamp,
+        )
         monitor.set_transcript_path(per_phase_path)
         if i < len(group) - 1 and per_phase_path != group_transcript:
             per_phase_path.write_text(
@@ -3662,7 +3739,7 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
             **_index_flag_kwargs(args),
         )
 
-    (repo_dir / "quality" / "control_prompts").mkdir(parents=True, exist_ok=True)
+    _control_prompts_dir(repo_dir, args=args, timestamp=timestamp)
     plan_desc = _format_phase_groups(phase_groups)
     lib.logboth(log_file, lib.log(f"Starting playbook (phase groups: {plan_desc}): {repo_dir.name} (runner={args.runner})"))
 
@@ -3750,8 +3827,9 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         pass_label = "full"
         lib.logboth(log_file, lib.log(f"Starting playbook (single-pass): {repo_dir.name} (runner={args.runner})"))
 
-    control_prompts = repo_dir / "quality" / "control_prompts"
-    control_prompts.mkdir(parents=True, exist_ok=True)
+    control_prompts = _control_prompts_dir(
+        repo_dir, args=args, timestamp=timestamp,
+    )
     output_file = control_prompts / "playbook_run.output.txt"
     exit_code = run_prompt(repo_dir, prompt, pass_label, output_file, log_file, args.runner, args.model)
 
@@ -4166,7 +4244,9 @@ def run_one_iterations(
                 strategy, prefix=getattr(args, "prompt_prefix", "") or ""
             )
             pass_label = f"iteration-{strategy}"
-            output_file = repo_dir / "quality" / "control_prompts" / f"{pass_label}.output.txt"
+            output_file = _control_prompts_dir(
+                repo_dir, args=args, timestamp=timestamp,
+            ) / f"{pass_label}.output.txt"
             monitor.set_transcript_path(output_file)
             exit_code = run_prompt(
                 repo_dir, prompt, pass_label, output_file, log_file,
