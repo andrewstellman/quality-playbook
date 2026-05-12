@@ -19,7 +19,7 @@ import subprocess
 import sys
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
@@ -2470,6 +2470,105 @@ def _code_review_should_skip(repo_dir: Path) -> Optional[str]:
     )
 
 
+# v1.5.7 Phase 3 / Deliverable 1: Phase 2 gate-failure artifact
+# preservation. When the Phase 2 gate aborts a run (role-map size,
+# EXPLORATION.md too short, schema violation, etc.) the agent's
+# outputs in quality/ would otherwise be wiped on the NEXT run by
+# archive_previous_run() rolling them into previous_runs/<ts>/ as a
+# generic partial archive — losing the diagnostic information about
+# WHAT the agent produced just before the gate rejected it.
+#
+# Preservation runs at the gate-failure site (before the run returns),
+# renaming the live quality/ to quality.gate-failed-<UTC-timestamp>/
+# and dropping a GATE_FAILURE.md marker capturing the violation
+# message + phase group + cell + model + runner version.
+
+_GATE_FAILURE_MARKER_FILENAME = "GATE_FAILURE.md"
+_GATE_FAILURE_DIRNAME_PREFIX = "quality.gate-failed-"
+
+
+def _render_gate_failure_marker(
+    *,
+    phase_group: str,
+    cell_name: str,
+    timestamp: str,
+    runner_version: str,
+    model: Optional[str],
+    violation_message: str,
+) -> str:
+    """Return the GATE_FAILURE.md marker body documenting a preserved
+    Phase 2 gate failure. See v1.5.7 Design Deliverable 1 for the
+    canonical content shape."""
+    model_display = model if model else "(default)"
+    return (
+        "# Phase 2 gate failure — preserved evidence\n"
+        "\n"
+        "This directory is the contents of `quality/` at the time of a "
+        "Phase 2 gate abort. It is preserved as-is for diagnostic "
+        "purposes.\n"
+        "\n"
+        f"- **Phase group**: {phase_group}\n"
+        f"- **Cell**: {cell_name}\n"
+        f"- **Aborted at (UTC)**: {timestamp}\n"
+        f"- **Runner version**: {runner_version}\n"
+        f"- **Model**: {model_display}\n"
+        "\n"
+        "**Gate violation message:**\n"
+        "\n"
+        f"> {violation_message}\n"
+        "\n"
+        "The next run on this cell will create a fresh `quality/`. To "
+        "clean up this preserved set, simply remove this directory.\n"
+    )
+
+
+def _preserve_quality_on_gate_failure(
+    repo_dir: Path,
+    phase_group: str,
+    gate_messages: Sequence[str],
+    args: Optional[argparse.Namespace],
+    log_file: Path,
+) -> Optional[Path]:
+    """Rename `<repo_dir>/quality/` to
+    `<repo_dir>/quality.gate-failed-<UTC-ts>/` and drop a
+    GATE_FAILURE.md marker capturing the violation message + context.
+    Idempotent + safe on empty/missing quality/: returns None if
+    nothing was preserved (e.g., quality/ never created), else returns
+    the preserved directory path.
+
+    The UTC-timestamp suffix is compact ISO-8601 (``YYYYMMDDTHHMMSSZ``)
+    per Phase 1's open-question resolution: always UTC, always sortable
+    lexicographically, no local-time variation.
+
+    Composes cleanly with v1.5.6 cluster 049 auto-recovery: when
+    recovery succeeds inside check_phase_gate, the gate returns
+    ok=True and this preservation path never fires.
+    """
+    quality = repo_dir / "quality"
+    if not quality.exists() or not any(quality.iterdir()):
+        return None
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    preserved = repo_dir / f"{_GATE_FAILURE_DIRNAME_PREFIX}{ts}"
+    quality.rename(preserved)
+    violation_message = "\n> ".join(gate_messages) if gate_messages else "(no gate message captured)"
+    marker_body = _render_gate_failure_marker(
+        phase_group=phase_group,
+        cell_name=repo_dir.name,
+        timestamp=ts,
+        runner_version=f"v{lib.RELEASE_VERSION}",
+        model=getattr(args, "model", None) if args is not None else None,
+        violation_message=violation_message,
+    )
+    (preserved / _GATE_FAILURE_MARKER_FILENAME).write_text(
+        marker_body, encoding="utf-8"
+    )
+    lib.logboth(log_file, lib.log(
+        f"  Preserved Phase 1 evidence at {preserved.name}/. "
+        f"Next run will create a fresh quality/."
+    ))
+    return preserved
+
+
 def run_one_phase(
     repo_dir: Path,
     phase: str,
@@ -2482,6 +2581,18 @@ def run_one_phase(
     for message in gate.messages:
         lib.logboth(log_file, lib.log(f"  {message}"))
     if not gate.ok:
+        # v1.5.7 Phase 3 / Deliverable 1: preserve quality/ as
+        # quality.gate-failed-<UTC-ts>/ so the agent's outputs survive
+        # for diagnostic inspection. Composes cleanly with cluster 049
+        # auto-recovery (which returns ok=True when it succeeds, so
+        # this branch only fires on actual gate failures).
+        _preserve_quality_on_gate_failure(
+            repo_dir,
+            phase_group=f"Phase {phase}",
+            gate_messages=gate.messages,
+            args=args,
+            log_file=log_file,
+        )
         return False
 
     # v1.5.6 P3: code-only-mode downgrade. Detect at Phase 1 entry so
@@ -2794,6 +2905,16 @@ def run_one_phase_group(
     for message in gate.messages:
         lib.logboth(log_file, lib.log(f"  {message}"))
     if not gate.ok:
+        # v1.5.7 Phase 3 / Deliverable 1: preserve quality/ on gate
+        # failure for the multi-phase group path. Same composition with
+        # cluster 049 auto-recovery as the single-phase path above.
+        _preserve_quality_on_gate_failure(
+            repo_dir,
+            phase_group=f"Phase group {'+'.join(group)}",
+            gate_messages=gate.messages,
+            args=args,
+            log_file=log_file,
+        )
         return False
 
     group_transcript = _group_transcript_path(repo_dir, group)
