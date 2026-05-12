@@ -503,6 +503,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
 
+    # v1.5.7 Phase 5 / Deliverable 3: opt-out flag for the centralized
+    # quality/logs/<run-id>/ layout. With --logs-flat (or the
+    # equivalent QPB_LOGS_LEGACY=1 env var), runner-owned logs are
+    # written to the v1.5.6 paths byte-identically for adopters with
+    # downstream tooling that hasn't migrated. See ai_context/TOOLKIT.md
+    # for the migration timeline; the flag is documented but not
+    # advertised in --help.
+    parser.add_argument(
+        "--logs-flat",
+        dest="logs_flat",
+        action="store_true",
+        default=False,
+        help=argparse.SUPPRESS,
+    )
+
     # v1.5.4 Phase 3.6.1 Section A.1.a / A.3.a (codex-prevention):
     # operator overrides for the role-map validator and sentinel
     # pre-flight check. Use only when you know your target really
@@ -1247,12 +1262,126 @@ def append_file(source: Path, destination: Path) -> None:
         out_handle.write(source.read_text(encoding="utf-8", errors="ignore"))
 
 
-def log_file_for(repo_dir: Path, timestamp: str) -> Path:
+# v1.5.7 Phase 5 / Deliverable 3: centralized log emission. Runner-owned
+# log artifacts (playbook log, run_state.jsonl, RUN_MODE.md) now land at
+# quality/logs/<run-id>/ rather than scattered across the cell tree.
+# Adopters who need the old layout (e.g., tooling that reads
+# quality/run_state.jsonl directly without the resolve helper) can pass
+# --logs-flat or set QPB_LOGS_LEGACY=1 to restore v1.5.6-byte-identical
+# paths. The flag/env are also the safety hatch for partial-migration
+# scenarios (e.g., a downstream consumer not yet updated).
+_LOG_LAYOUT_CENTRALIZED = "v1.5.7-centralized"
+_LOG_LAYOUT_FLAT = "v1.5.6-flat"
+
+
+def _logs_legacy_mode(args: Optional[argparse.Namespace]) -> bool:
+    """Return True when this run should emit logs in the v1.5.6 flat
+    layout (quality/run_state.jsonl + scattered playbook logs) instead
+    of the v1.5.7 centralized quality/logs/<run-id>/ layout. CLI flag
+    --logs-flat (on args) wins over QPB_LOGS_LEGACY=1 env."""
+    if args is not None and getattr(args, "logs_flat", False):
+        return True
+    return os.environ.get("QPB_LOGS_LEGACY") == "1"
+
+
+def _compute_run_id(timestamp: str) -> str:
+    """Convert the runner's display timestamp (`YYYYMMDD-HHMMSS`) into
+    a sortable compact UTC ISO-8601 form (`YYYYMMDDTHHMMSSZ`).
+
+    The display timestamp is local-time per `datetime.now()`; we
+    re-render it in UTC compact form so the run-id directory sorts
+    chronologically across timezones and matches the convention used
+    everywhere else in the metrics tree (per
+    metrics/regression_replay/SCHEMA.md). For runs where the supplied
+    timestamp is already compact UTC (rare; only the regression-replay
+    apparatus does this currently), pass through unchanged.
+    """
+    # Already compact UTC form (YYYYMMDDTHHMMSSZ): pass through.
+    if len(timestamp) == 16 and timestamp.endswith("Z") and "T" in timestamp:
+        return timestamp
+    # Display form (YYYYMMDD-HHMMSS): re-render as UTC compact.
+    if len(timestamp) == 15 and timestamp[8] == "-":
+        return f"{timestamp[:8]}T{timestamp[9:]}Z"
+    # Anything else: best-effort — preserve the timestamp but warn
+    # readers via the unconventional shape. Should not occur in
+    # production; tests may pass synthetic timestamps.
+    return timestamp
+
+
+def _run_log_dir(
+    repo_dir: Path,
+    run_id: str,
+    *,
+    args: Optional[argparse.Namespace] = None,
+    create: bool = True,
+) -> Path:
+    """Return the centralized log directory for a given run.
+
+    New layout: `<repo_dir>/quality/logs/<run-id>/`. With the legacy
+    flag, returns `<repo_dir>/quality/` (so callers that append a
+    filename produce the v1.5.6-byte-identical path).
+
+    `create=True` (default) ensures the directory exists; pass False
+    for read-only callers (e.g., the gate reading via fallback chain).
+    """
+    if _logs_legacy_mode(args):
+        target = repo_dir / "quality"
+    else:
+        target = repo_dir / "quality" / "logs" / run_id
+    if create:
+        target.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+def _run_state_jsonl_path(
+    repo_dir: Path,
+    run_id: Optional[str] = None,
+    *,
+    args: Optional[argparse.Namespace] = None,
+    create: bool = True,
+) -> Path:
+    """Return the write-target path for run_state.jsonl.
+
+    In the centralized layout, the path is
+    `<repo_dir>/quality/logs/<run-id>/run_state.jsonl`. In legacy
+    layout (or when run_id is None and no other context is available),
+    falls back to `<repo_dir>/quality/run_state.jsonl`.
+    """
+    if _logs_legacy_mode(args) or run_id is None:
+        path = repo_dir / "quality" / "run_state.jsonl"
+        if create:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+    log_dir = _run_log_dir(repo_dir, run_id, args=args, create=create)
+    return log_dir / "run_state.jsonl"
+
+
+def log_file_for(
+    repo_dir: Path,
+    timestamp: str,
+    *,
+    args: Optional[argparse.Namespace] = None,
+) -> Path:
     """Return the log path for a given target directory.
 
-    Logs live next to the target: `{parent}/{name}-playbook-{ts}.log`.
+    v1.5.7 Phase 5: centralized layout puts the playbook log at
+    `<repo_dir>/quality/logs/<run-id>/runner.log`. Legacy layout (via
+    --logs-flat or QPB_LOGS_LEGACY=1) restores the v1.5.6 path:
+    `{parent}/{name}-playbook-{ts}.log` (sibling-of-cell, not nested).
+
+    The args argument is optional for backward compatibility with
+    callers that don't have an argparse Namespace handy (e.g., test
+    fixtures). Without args, the env var QPB_LOGS_LEGACY controls
+    layout selection.
     """
-    return repo_dir.parent / f"{repo_dir.name}-playbook-{timestamp}.log"
+    if _logs_legacy_mode(args):
+        return repo_dir.parent / f"{repo_dir.name}-playbook-{timestamp}.log"
+    run_id = _compute_run_id(timestamp)
+    # NB: pass create=False so log_file_for stays a pure path computation
+    # — callers (configure_logging, _execute_run) mkdir as needed at
+    # write time. Eager mkdir here would break tests that construct
+    # synthetic paths the filesystem can't accept.
+    return _run_log_dir(repo_dir, run_id, args=args, create=False) / "runner.log"
 
 
 # v1.5.1 Item 2.1: built-in logging + unbuffered stdout. The prior run
@@ -1267,6 +1396,7 @@ def configure_logging(
     *,
     no_stdout_echo: bool = False,
     stream: Optional[object] = None,
+    args: Optional[argparse.Namespace] = None,
 ) -> Path:
     """Compute the canonical log path, announce it on stdout, and install
     line-buffered stdout. Called exactly once per run entry point.
@@ -1289,7 +1419,7 @@ def configure_logging(
       without monkey-patching sys.stdout. Production callers leave it at
       None and inherit sys.stdout.
     """
-    log_path = log_file_for(repo_dir, timestamp).resolve()
+    log_path = log_file_for(repo_dir, timestamp, args=args).resolve()
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     lib.set_default_echo(not no_stdout_echo)
@@ -1736,17 +1866,28 @@ def _evaluate_documentation_state(repo_dir: Path) -> str:
 
 
 def _emit_documentation_state_event(
-    repo_dir: Path, state: str, reason: str
+    repo_dir: Path,
+    state: str,
+    reason: str,
+    *,
+    args: Optional[argparse.Namespace] = None,
+    timestamp: Optional[str] = None,
 ) -> Optional[Path]:
     """Append a ``documentation_state`` event to
-    ``<repo_dir>/quality/run_state.jsonl``. Returns the path of the
-    file that was written, or None if the write failed (the runner
-    must not crash on a logging failure)."""
+    ``<repo_dir>/quality/[logs/<run-id>/]run_state.jsonl``. Returns the
+    path of the file that was written, or None if the write failed
+    (the runner must not crash on a logging failure).
+
+    v1.5.7 Phase 5 / Deliverable 3: when args+timestamp are supplied
+    and legacy mode is off, writes to
+    ``quality/logs/<run-id>/run_state.jsonl``; otherwise (back-compat,
+    or --logs-flat) writes to ``quality/run_state.jsonl``."""
     try:
         from bin.run_state_lib import append_event
     except ImportError:
         return None
-    jsonl_path = repo_dir / "quality" / "run_state.jsonl"
+    run_id = _compute_run_id(timestamp) if timestamp else None
+    jsonl_path = _run_state_jsonl_path(repo_dir, run_id, args=args)
     try:
         jsonl_path.parent.mkdir(parents=True, exist_ok=True)
         append_event(
@@ -1764,12 +1905,16 @@ def _emit_documentation_state_event(
 
 
 def _emit_aborted_missing_docs_event(
-    repo_dir: Path, reason: str
+    repo_dir: Path,
+    reason: str,
+    *,
+    args: Optional[argparse.Namespace] = None,
+    timestamp: Optional[str] = None,
 ) -> Optional[Path]:
     """Append an ``aborted_missing_docs`` event to
-    ``<repo_dir>/quality/run_state.jsonl``. Used when ``--require-docs``
-    forces an abort instead of the code-only-mode downgrade. Same
-    defensive error-handling shape as
+    ``<repo_dir>/quality/[logs/<run-id>/]run_state.jsonl``. Used when
+    ``--require-docs`` forces an abort instead of the code-only-mode
+    downgrade. Same defensive error-handling shape as
     ``_emit_documentation_state_event``: a logging failure must not
     crash the runner before it has a chance to write the
     operator-facing PROGRESS.md error line.
@@ -1778,7 +1923,8 @@ def _emit_aborted_missing_docs_event(
         from bin.run_state_lib import append_event
     except ImportError:
         return None
-    jsonl_path = repo_dir / "quality" / "run_state.jsonl"
+    run_id = _compute_run_id(timestamp) if timestamp else None
+    jsonl_path = _run_state_jsonl_path(repo_dir, run_id, args=args)
     try:
         jsonl_path.parent.mkdir(parents=True, exist_ok=True)
         append_event(
@@ -2619,6 +2765,8 @@ def run_one_phase(
                 _emit_aborted_missing_docs_event(
                     repo_dir,
                     "reference_docs/ empty and --require-docs set",
+                    args=args,
+                    timestamp=timestamp,
                 )
                 _add_aborted_missing_docs_to_progress(
                     repo_dir / "quality" / "PROGRESS.md",
@@ -2631,7 +2779,8 @@ def run_one_phase(
                 ))
                 return False
             _emit_documentation_state_event(
-                repo_dir, "code_only", "reference_docs/ empty"
+                repo_dir, "code_only", "reference_docs/ empty",
+                args=args, timestamp=timestamp,
             )
             _add_documentation_state_to_progress(
                 repo_dir / "quality" / "PROGRESS.md", "code_only"
@@ -3461,6 +3610,7 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
         repo_dir,
         timestamp,
         no_stdout_echo=getattr(args, "no_stdout_echo", False),
+        args=args,
     )
     print_startup_banner(repo_dir, log_file, args)
     if not docs_present(repo_dir):
@@ -3534,6 +3684,7 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         repo_dir,
         timestamp,
         no_stdout_echo=getattr(args, "no_stdout_echo", False),
+        args=args,
     )
     print_startup_banner(repo_dir, log_file, args)
     if not docs_present(repo_dir):
@@ -3885,12 +4036,13 @@ def run_one_iterations(
     happened inside run_one_phased.
     """
     if phases_already_ran:
-        log_file = log_file_for(repo_dir, timestamp)
+        log_file = log_file_for(repo_dir, timestamp, args=args)
     else:
         log_file = configure_logging(
             repo_dir,
             timestamp,
             no_stdout_echo=getattr(args, "no_stdout_echo", False),
+            args=args,
         )
         print_startup_banner(repo_dir, log_file, args)
         if not docs_present(repo_dir):
@@ -4102,7 +4254,7 @@ def display_run_header(args: argparse.Namespace, repo_dirs: Sequence[Path], disp
     print("")
     print("=== Runner logs (one file per target) ===")
     for repo_dir in repo_dirs:
-        print(log_file_for(repo_dir, timestamp))
+        print(log_file_for(repo_dir, timestamp, args=args))
     print("")
 
 
@@ -4519,13 +4671,21 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 def _write_run_mode_marker(
     repo_dir: Path, args: argparse.Namespace, timestamp: str
 ) -> None:
-    """v1.5.6 cluster 050: write quality/RUN_MODE.md identifying
-    the current run as benchmark-mode (single-model, phases 1-3
-    only). Downstream model-comparison tooling reads this to
-    confirm a cell is clean — i.e., not contaminated with Phase 4
-    Council audit findings."""
-    quality = repo_dir / "quality"
-    quality.mkdir(parents=True, exist_ok=True)
+    """v1.5.6 cluster 050: write RUN_MODE.md identifying the current
+    run as benchmark-mode (single-model, phases 1-3 only). Downstream
+    model-comparison tooling reads this to confirm a cell is clean —
+    i.e., not contaminated with Phase 4 Council audit findings.
+
+    v1.5.7 Phase 5 / Deliverable 3: in the centralized layout the
+    marker lands at quality/logs/<run-id>/RUN_MODE.md; in the legacy
+    layout (--logs-flat / QPB_LOGS_LEGACY=1) it stays at
+    quality/RUN_MODE.md byte-identically."""
+    run_id = _compute_run_id(timestamp)
+    if _logs_legacy_mode(args):
+        out_dir = repo_dir / "quality"
+        out_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        out_dir = _run_log_dir(repo_dir, run_id, args=args)
     model = args.model or "(default)"
     runner = args.runner or "(default)"
     content = (
@@ -4548,7 +4708,7 @@ def _write_run_mode_marker(
         "(Marker emitted by `bin.run_playbook._write_run_mode_marker`\n"
         "per v1.5.6 cluster 050 design.)\n"
     )
-    (quality / "RUN_MODE.md").write_text(content, encoding="utf-8")
+    (out_dir / "RUN_MODE.md").write_text(content, encoding="utf-8")
 
 
 if __name__ == "__main__":

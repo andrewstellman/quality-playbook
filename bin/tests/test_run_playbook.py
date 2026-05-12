@@ -773,9 +773,21 @@ class RunPlaybookTests(unittest.TestCase):
             self.assertEqual(warnings, [])
             self.assertEqual(errors, [])
 
-    def test_log_file_for_places_log_beside_target(self) -> None:
+    def test_log_file_for_places_log_in_centralized_layout(self) -> None:
+        # v1.5.7 Phase 5 / Deliverable 3: log_file_for now returns the
+        # centralized location quality/logs/<run-id>/runner.log.
         target = Path("/tmp/my-project").resolve()
         log_path = run_playbook.log_file_for(target, "20260418-130000")
+        self.assertEqual(log_path.parent, target / "quality" / "logs" / "20260418T130000Z")
+        self.assertEqual(log_path.name, "runner.log")
+
+    def test_log_file_for_legacy_mode_restores_v1_5_6_path(self) -> None:
+        # v1.5.7 Phase 5: --logs-flat / QPB_LOGS_LEGACY=1 restores
+        # the v1.5.6 byte-identical path (cell-sibling .log).
+        target = Path("/tmp/my-project").resolve()
+        import argparse as _ap
+        args = _ap.Namespace(logs_flat=True)
+        log_path = run_playbook.log_file_for(target, "20260418-130000", args=args)
         self.assertEqual(log_path.parent, target.parent)
         self.assertEqual(log_path.name, f"{target.name}-playbook-20260418-130000.log")
 
@@ -1172,7 +1184,9 @@ class RunPlaybookTests(unittest.TestCase):
         self.assertNotIn("BENCHMARK MODE", output)
 
     def test_run_mode_marker_written_for_benchmark_mode(self) -> None:
-        """quality/RUN_MODE.md is written when benchmark_mode is set."""
+        """v1.5.7 Phase 5 / Deliverable 3: RUN_MODE.md is written
+        when benchmark_mode is set. Lands in centralized layout at
+        quality/logs/<run-id>/RUN_MODE.md."""
         from bin import run_playbook
         with TemporaryDirectory() as temp_dir:
             repo = Path(temp_dir)
@@ -1182,13 +1196,39 @@ class RunPlaybookTests(unittest.TestCase):
                 model="haiku-4.5",
             )
             run_playbook._write_run_mode_marker(repo, args, "20260507-000000")
-            marker = repo / "quality" / "RUN_MODE.md"
-            self.assertTrue(marker.is_file())
+            marker = repo / "quality" / "logs" / "20260507T000000Z" / "RUN_MODE.md"
+            self.assertTrue(marker.is_file(),
+                            f"Expected RUN_MODE.md at {marker}; "
+                            f"tree={list((repo / 'quality').rglob('*'))}")
             text = marker.read_text(encoding="utf-8")
             self.assertIn("benchmark", text)
             self.assertIn("haiku-4.5", text)
             self.assertIn("Phase scope: 1,2,3", text)
             self.assertIn("Council audit: SKIPPED", text)
+
+    def test_run_mode_marker_legacy_flag_writes_to_quality_root(self) -> None:
+        """v1.5.7 Phase 5 backward-compat: --logs-flat / QPB_LOGS_LEGACY=1
+        keeps RUN_MODE.md at quality/RUN_MODE.md byte-identically to
+        v1.5.6 layout."""
+        from bin import run_playbook
+        with TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir)
+            args = run_playbook.argparse.Namespace(
+                benchmark_mode=True,
+                runner="copilot",
+                model="haiku-4.5",
+                logs_flat=True,
+            )
+            run_playbook._write_run_mode_marker(repo, args, "20260507-000000")
+            marker = repo / "quality" / "RUN_MODE.md"
+            self.assertTrue(marker.is_file())
+            text = marker.read_text(encoding="utf-8")
+            self.assertIn("benchmark", text)
+            self.assertIn("haiku-4.5", text)
+            # Verify the centralized-layout path was NOT created.
+            self.assertFalse(
+                (repo / "quality" / "logs" / "20260507T000000Z" / "RUN_MODE.md").exists()
+            )
 
     def test_phase4_council_banner_reads_roster_programmatically(self) -> None:
         """Phase 4 Council banner is wired into run_one_phase via a
