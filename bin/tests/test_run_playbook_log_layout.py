@@ -274,6 +274,109 @@ class LogsLegacyModeDetectionTests(unittest.TestCase):
             self.assertTrue(run_playbook._logs_legacy_mode(_make_args(logs_flat=True)))
 
 
+class ControlPromptsDirTests(unittest.TestCase):
+    """FS-1: _control_prompts_dir returns the active transcript directory."""
+
+    def test_centralized_with_timestamp(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "cell"
+            repo.mkdir()
+            path = run_playbook._control_prompts_dir(
+                repo, args=_make_args(), timestamp="20260512-130000",
+            )
+            self.assertEqual(path, repo / "quality" / "logs" / "20260512T130000Z")
+            self.assertTrue(path.is_dir())
+
+    def test_legacy_under_logs_flat(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "cell"
+            repo.mkdir()
+            path = run_playbook._control_prompts_dir(
+                repo, args=_make_args(logs_flat=True), timestamp="20260512-130000",
+            )
+            self.assertEqual(path, repo / "quality" / "control_prompts")
+            self.assertTrue(path.is_dir())
+
+    def test_no_timestamp_falls_back_to_most_recent(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "cell"
+            repo.mkdir()
+            # Plant two run-id dirs; helper should pick the lexicographic max.
+            (repo / "quality" / "logs" / "20260101T000000Z").mkdir(parents=True)
+            (repo / "quality" / "logs" / "20260512T000000Z").mkdir(parents=True)
+            path = run_playbook._control_prompts_dir(
+                repo, args=_make_args(), create=False,
+            )
+            self.assertEqual(path, repo / "quality" / "logs" / "20260512T000000Z")
+
+    def test_no_timestamp_no_existing_dirs_falls_back_to_legacy(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "cell"
+            repo.mkdir()
+            path = run_playbook._control_prompts_dir(
+                repo, args=_make_args(), create=False,
+            )
+            self.assertEqual(path, repo / "quality" / "control_prompts")
+
+
+class UpdateLatestSymlinkTests(unittest.TestCase):
+    """FS-4: _update_latest_symlink creates quality/logs/latest → <run-id>."""
+
+    def test_creates_relative_symlink(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "cell"
+            repo.mkdir()
+            run_id = "20260512T130000Z"
+            (repo / "quality" / "logs" / run_id).mkdir(parents=True)
+            try:
+                run_playbook._update_latest_symlink(
+                    repo, "20260512-130000",
+                    _make_args(), repo / "playbook.log",
+                )
+            except OSError:
+                self.skipTest("Filesystem doesn't support symlinks")
+            symlink = repo / "quality" / "logs" / "latest"
+            if not symlink.is_symlink():
+                self.skipTest("Filesystem doesn't support symlinks")
+            # Relative target — operators can `cd quality/logs/latest`
+            # to inspect the most recent run.
+            self.assertEqual(os.readlink(symlink), run_id)
+            # Resolve through the symlink lands at the run-id dir.
+            self.assertEqual(symlink.resolve(), (repo / "quality" / "logs" / run_id).resolve())
+
+    def test_legacy_mode_is_noop(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "cell"
+            repo.mkdir()
+            log = repo / "playbook.log"
+            log.write_text("", encoding="utf-8")
+            args = _make_args(logs_flat=True)
+            run_playbook._update_latest_symlink(repo, "20260512-130000", args, log)
+            # No quality/logs/ created under legacy.
+            self.assertFalse((repo / "quality" / "logs").exists())
+
+    def test_replaces_pre_existing_symlink(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "cell"
+            repo.mkdir()
+            (repo / "quality" / "logs" / "20260101T000000Z").mkdir(parents=True)
+            (repo / "quality" / "logs" / "20260512T000000Z").mkdir(parents=True)
+            try:
+                (repo / "quality" / "logs" / "latest").symlink_to(
+                    "20260101T000000Z", target_is_directory=True
+                )
+            except (OSError, NotImplementedError):
+                self.skipTest("Filesystem doesn't support symlinks")
+            run_playbook._update_latest_symlink(
+                repo, "20260512-000000",
+                _make_args(), repo / "playbook.log",
+            )
+            self.assertEqual(
+                os.readlink(repo / "quality" / "logs" / "latest"),
+                "20260512T000000Z",
+            )
+
+
 class CLIFlagTests(unittest.TestCase):
     """argparse --logs-flat flag is recognized + defaults to False."""
 
