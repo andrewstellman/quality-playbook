@@ -91,14 +91,88 @@ class CookbookContentTests(unittest.TestCase):
     def test_cookbook_does_not_enumerate_role_taxonomy(self) -> None:
         """Deliberate non-content per the brief: the cookbook must NOT
         enumerate role taxonomy values inline, to avoid drift if
-        ``bin/role_map.py::ROLE_DESCRIPTIONS`` evolves. Spot-check by
-        confirming the cookbook points at ROLE_DESCRIPTIONS as the
-        canonical source."""
+        ``bin/role_map.py::ROLE_DESCRIPTIONS`` evolves.
+
+        Two sub-assertions:
+
+        (a) The cookbook points at ``ROLE_DESCRIPTIONS`` as the canonical
+            source (positive citation check).
+
+        (b) The cookbook's PROSE (text outside fenced code blocks and
+            outside lines that contain canonical jq query fragments)
+            contains fewer than 2 quoted role-identifier strings. The
+            <2 threshold allows a single contextual mention (e.g.,
+            "the implementation-code role is ``code``") but rejects an
+            inline taxonomy list. Counting outside code blocks AND
+            outside ``select(.role ==`` lines is the load-bearing
+            scoping decision: legitimate uses of role strings (canonical
+            queries, anti-pattern jq fragments) live in code/query
+            context and don't count toward the inline-enumeration
+            threshold.
+
+        Strengthened in v1.5.7 Phase 2 fix-up (5 of 7 Council
+        perspectives flagged that the pre-fix-up version only checked
+        sub-assertion (a) and would not bite if someone added an
+        inline role list alongside the citation).
+        """
+        from bin.role_map import ROLE_DESCRIPTIONS
+
+        # Sub-assertion (a): positive citation check (preserved from
+        # the pre-fix-up test).
         self.assertIn(
             "ROLE_DESCRIPTIONS", self.text,
             "cookbook must cite bin/role_map.py::ROLE_DESCRIPTIONS as "
             "the canonical role-taxonomy source instead of enumerating "
             "roles inline",
+        )
+
+        # Sub-assertion (b): inline-enumeration check.
+        # Strip fenced code blocks (```...```), then strip remaining
+        # lines that look like jq fragments (start with `jq `, are
+        # ≥4-space indented, or contain `select(.role ==`).
+        in_fence = False
+        prose_lines: list[str] = []
+        for raw in self.text.splitlines():
+            stripped = raw.lstrip()
+            if stripped.startswith("```"):
+                in_fence = not in_fence
+                continue
+            if in_fence:
+                continue
+            if stripped.startswith("jq "):
+                continue
+            # 4-space-indented lines are conventionally code blocks
+            # in Markdown; skip those too even when not fenced.
+            if raw.startswith("    "):
+                continue
+            if "select(.role ==" in raw:
+                continue
+            prose_lines.append(raw)
+        prose = "\n".join(prose_lines)
+
+        # Count quoted-string occurrences of each role identifier in
+        # the remaining prose. Match `"<role>"` exactly — single-quoted
+        # or backtick forms would have to use the role value directly
+        # and aren't the brief's concern; the failure mode is an
+        # inline list like '"code", "test", "docs", "fixture", ...'.
+        offenders: list[tuple[str, int]] = []
+        for role in sorted(ROLE_DESCRIPTIONS.keys()):
+            count = len(re.findall(rf'"{re.escape(role)}"', prose))
+            if count > 0:
+                offenders.append((role, count))
+        total = sum(c for _, c in offenders)
+        self.assertLess(
+            total, 2,
+            f"cookbook prose appears to enumerate role taxonomy "
+            f"values inline. Found {total} quoted role-identifier "
+            f"occurrences in non-code prose: {offenders!r}. The "
+            f"cookbook should cite "
+            f"bin/role_map.py::ROLE_DESCRIPTIONS as the canonical "
+            f"source instead of listing role values inline (they "
+            f"would drift if the taxonomy evolves). Legitimate uses "
+            f"of role strings (canonical queries, anti-pattern jq "
+            f"fragments) belong inside code blocks or `select(.role "
+            f"==` lines and don't count here.",
         )
 
 
