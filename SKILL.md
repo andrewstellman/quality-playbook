@@ -3,7 +3,7 @@ name: quality-playbook
 description: "Run a complete quality engineering audit on any codebase. Derives behavioral requirements from the code, generates spec-traced functional tests, runs a three-pass code review with regression tests, executes a multi-model spec audit (Council of Three), and produces a consolidated bug report with TDD-verified patches. Finds the 35% of real defects that structural code review alone cannot catch. Works with any language. Trigger on 'quality playbook', 'spec audit', 'Council of Three', 'fitness-to-purpose', or 'coverage theater'."
 license: Complete terms in LICENSE.txt
 metadata:
-  version: 1.5.6
+  version: 1.5.7
   # NOTE: Inline occurrences of the skill version exist throughout this file (frontmatter,
   # banner, version stamp template, sidecar JSON examples, run metadata, recheck template).
   # When bumping the version, update ALL occurrences — search for the old version string
@@ -41,7 +41,7 @@ Every bug found traces back to a requirement, and every requirement traces back 
 
 **MANDATORY FIRST ACTION:** After reading and understanding the plan above, print the following message to the user, then explain the plan in your own words — what you'll do, what each phase produces, and why the exploration phase matters most. Emphasize that exploration starts with open-ended domain-driven investigation, followed by domain-knowledge risk analysis that reasons about what goes wrong in systems like this, then supplemented by selected structured patterns. Do not copy the plan verbatim; paraphrase it to demonstrate understanding.
 
-> Quality Playbook v1.5.6 — by Andrew Stellman
+> Quality Playbook v1.5.7 — by Andrew Stellman
 > https://github.com/andrewstellman/quality-playbook
 
 Generate a complete quality system tailored to a specific codebase. Unlike test stub generators that work mechanically from source code, this skill explores the project first — understanding its domain, architecture, specifications, and failure history — then produces a quality playbook grounded in what it finds.
@@ -282,7 +282,7 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 ```json
 {
   "schema_version": "1.1",
-  "skill_version": "1.5.6",
+  "skill_version": "1.5.7",
   "date": "2026-04-12",
   "project": "repo-name",
   "bugs": [
@@ -309,7 +309,7 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 ```json
 {
   "schema_version": "1.1",
-  "skill_version": "1.5.6",
+  "skill_version": "1.5.7",
   "date": "2026-04-12",
   "project": "repo-name",
   "recommendation": "SHIP",
@@ -330,7 +330,7 @@ Every playbook run creates a timestamped metadata file at `quality/results/run-Y
 ```json
 {
   "schema_version": "1.0",
-  "skill_version": "1.5.6",
+  "skill_version": "1.5.7",
   "project": "repo-name",
   "model": "claude-sonnet-4-6",
   "model_provider": "anthropic",
@@ -452,7 +452,7 @@ The discipline of writing exploration findings to disk is what forces thorough a
 
 ---
 
-## Run-state instrumentation (v1.5.6 — write events as you go)
+## Run-state instrumentation (v1.5.7 — write events as you go)
 
 Two files in `quality/` track this run's state across the filesystem so the run is observable in flight, resumable across crashes, and auditable afterward. Maintain both throughout the run.
 
@@ -465,7 +465,7 @@ Two files in `quality/` track this run's state across the filesystem so the run 
 
 If `quality/run_state.jsonl` does not exist:
 1. Create `quality/` if absent.
-2. Append the `_index` event to `quality/run_state.jsonl`. Required fields: `event=_index`, `ts` (ISO 8601 UTC with `Z`), `schema_version="1.5.6"`, `event_types` (array listing all event types this run will use — at minimum `_index`, `run_start`, `phase_start`, `pattern_walked`, `pass_started`, `pass_ended`, `finding_logged`, `artifact_written`, `gate_check`, `phase_end`, `error`, `run_end`), `benchmark` (target name), `lever_state` (e.g. `"baseline"` for normal runs), `started_at`.
+2. Append the `_index` event to `quality/run_state.jsonl`. Required fields: `event=_index`, `ts` (ISO 8601 UTC with `Z`), `schema_version="1.5.7"`, `event_types` (array listing all event types this run will use — at minimum `_index`, `run_start`, `phase_start`, `pattern_walked`, `pass_started`, `pass_ended`, `finding_logged`, `artifact_written`, `gate_check`, `phase_end`, `error`, `run_end`), `benchmark` (target name), `lever_state` (e.g. `"baseline"` for normal runs), `started_at`.
 3. Append the `run_start` event. Required fields: `event=run_start`, `ts`, `runner` (one of `claude`/`codex`/`copilot`/`cursor`), `playbook_version` (read from SKILL.md frontmatter `version` field), `target_path`.
 4. Write `quality/PROGRESS.md` per the format spec in `references/run_state_schema.md`. Include header (Started / Benchmark / Lever / Runner / Playbook version), empty phase checklist with all six phases, empty Recent events / Artifacts produced sections.
 
@@ -505,7 +505,7 @@ Verify the corresponding artifacts before writing each `phase_end` event:
 | 5 | `quality/results/quality-gate.log` exists, non-empty |
 | 6 | `quality/BUGS.md` non-empty with `^##\s+BUG-` sections AND `quality/INDEX.md` updated with `gate_verdict` field |
 
-If a check fails, append the `error` event (recoverable=true) and re-run the phase. Do **not** write `phase_end` against missing artifacts — that's the failure mode v1.5.6 is built to catch.
+If a check fails, append the `error` event (recoverable=true) and re-run the phase. Do **not** write `phase_end` against missing artifacts — that's the failure mode v1.5.7 is built to catch.
 
 `bin/run_state_lib.validate_phase_artifacts(quality_dir, phase)` performs these checks programmatically — call it from inside the playbook session if available.
 
@@ -575,7 +575,7 @@ When no `quality/previous_runs/` directory exists but sibling versioned director
 
 ## Phase 1: Explore the Codebase (Write As You Go)
 
-**v1.5.6 instrumentation:** Append `phase_start phase=1` to `quality/run_state.jsonl` now. After walking each exploration pattern, append `pattern_walked phase=1 pattern=N findings_count=K`. At phase end, cross-validate (`quality/EXPLORATION.md` ≥ 200 bytes with finding sections) then append `phase_end phase=1`. See "Run-state instrumentation" above.
+**v1.5.7 instrumentation:** Append `phase_start phase=1` to `quality/run_state.jsonl` now. After walking each exploration pattern, append `pattern_walked phase=1 pattern=N findings_count=K`. At phase end, cross-validate (`quality/EXPLORATION.md` ≥ 200 bytes with finding sections) then append `phase_end phase=1`. See "Run-state instrumentation" above.
 
 > **Required references for this phase** — read these before proceeding:
 > - `references/exploration_patterns.md` — seven bug-finding patterns to apply after open exploration
@@ -587,7 +587,7 @@ mkdir -p quality/results
 cat > "quality/results/run-$(date -u +%Y-%m-%dT%H-%M-%S).json" <<'METADATA'
 {
   "schema_version": "1.0",
-  "skill_version": "1.5.6",
+  "skill_version": "1.5.7",
   "project": "<repo-name>",
   "model": "<model-string>",
   "model_provider": "<provider>",
@@ -1034,7 +1034,7 @@ Record all requirements in a structured format. These feed directly into the cod
 
 ### Checkpoint: Update PROGRESS.md after Phase 1
 
-**v1.5.6 update — PROGRESS.md is now initialized at run start, not after Phase 1.** Per the "Run-state instrumentation" section earlier in this file, `quality/PROGRESS.md` and `quality/run_state.jsonl` are written before any phase work begins. By this point in Phase 1, both files already exist. This checkpoint is the **Phase 1 completion update** to PROGRESS.md, not the initialization.
+**v1.5.7 update — PROGRESS.md is now initialized at run start, not after Phase 1.** Per the "Run-state instrumentation" section earlier in this file, `quality/PROGRESS.md` and `quality/run_state.jsonl` are written before any phase work begins. By this point in Phase 1, both files already exist. This checkpoint is the **Phase 1 completion update** to PROGRESS.md, not the initialization.
 
 The PROGRESS.md format combines the run-state header (Started / Benchmark / Lever / Runner / Playbook version), the phase checklist (now driven by `phase_start` / `phase_end` events from `quality/run_state.jsonl`), and the legacy content sections below (Run metadata, Artifact inventory, Cumulative BUG tracker, etc.) — they are complementary, not competing.
 
@@ -1042,11 +1042,11 @@ The PROGRESS.md format combines the run-state header (Started / Benchmark / Leve
 
 **Why PROGRESS.md exists:** In single-session runs, the agent holds context in memory. But context degrades over long sessions — findings from Phase 1 are forgotten by Phase 6, BUG counts drift, spec-audit bugs get orphaned because the closure check never saw them. PROGRESS.md solves this by making every phase write its state to disk. The agent reads it back before each phase, so it always has an accurate picture of what happened so far. As a side benefit, it makes the skill work correctly even if the run is split across multiple sessions.
 
-**Checkpoint discipline for long runs:** After each requirements-pipeline phase (Contracts, Requirements, Coverage Matrix, Completeness, Narrative), update `quality/PROGRESS.md` with: completed phase, artifact paths, current scoped subsystems, remaining work, and exact resume point. This ensures a resumed session can continue from the last completed checkpoint without redoing work. Per v1.5.6, also append the corresponding `pass_started` / `pass_ended` events to `run_state.jsonl`.
+**Checkpoint discipline for long runs:** After each requirements-pipeline phase (Contracts, Requirements, Coverage Matrix, Completeness, Narrative), update `quality/PROGRESS.md` with: completed phase, artifact paths, current scoped subsystems, remaining work, and exact resume point. This ensures a resumed session can continue from the last completed checkpoint without redoing work. Per v1.5.7, also append the corresponding `pass_started` / `pass_ended` events to `run_state.jsonl`.
 
 **Timestamp discipline:** Write each phase completion entry to PROGRESS.md immediately when you finish that phase, before starting the next phase. Do not batch-write or back-fill timestamps after the fact. The timestamps are an audit trail — if Phase 2 shows a completion time earlier than Phase 1, a reviewer cannot verify that phases ran in the correct sequence. If you realize you forgot to write a checkpoint, write it now with an honest timestamp and a note explaining the gap.
 
-The full PROGRESS.md format the v1.5.6-initialized file will have populated by Phase 1 completion includes the sections below (the legacy template, retained because Phase 5+ depend on its Cumulative BUG tracker and Terminal Gate Verification sections):
+The full PROGRESS.md format the v1.5.7-initialized file will have populated by Phase 1 completion includes the sections below (the legacy template, retained because Phase 5+ depend on its Cumulative BUG tracker and Terminal Gate Verification sections):
 
 ```markdown
 # Quality Playbook Progress
@@ -1241,7 +1241,7 @@ Or say "keep going" to continue automatically.
 
 ## Phase 2: Generate the Quality Playbook
 
-**v1.5.6 instrumentation:** Append `phase_start phase=2` to `quality/run_state.jsonl` now. At phase end, cross-validate by calling `bin/run_state_lib.validate_phase_artifacts(quality_dir, 2)` — it checks the full Generate contract (REQUIREMENTS.md, QUALITY.md, CONTRACTS.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, RUN_CODE_REVIEW.md, RUN_INTEGRATION_TESTS.md, RUN_SPEC_AUDIT.md, RUN_TDD_TESTS.md, plus one non-empty `quality/test_functional.<ext>`). If validation passes, append `phase_end phase=2`. If it fails, append an `error` event with `recoverable: true` and re-run the missing artifact generation. (BUG-014 fix: pre-v1.5.6 this note referenced the v1.5.5-design triage model that never shipped.)
+**v1.5.7 instrumentation:** Append `phase_start phase=2` to `quality/run_state.jsonl` now. At phase end, cross-validate by calling `bin/run_state_lib.validate_phase_artifacts(quality_dir, 2)` — it checks the full Generate contract (REQUIREMENTS.md, QUALITY.md, CONTRACTS.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, RUN_CODE_REVIEW.md, RUN_INTEGRATION_TESTS.md, RUN_SPEC_AUDIT.md, RUN_TDD_TESTS.md, plus one non-empty `quality/test_functional.<ext>`). If validation passes, append `phase_end phase=2`. If it fails, append an `error` event with `recoverable: true` and re-run the missing artifact generation. (BUG-014 fix: pre-v1.5.7 this note referenced the v1.5.5-design triage model that never shipped.)
 
 > **Required references for this phase** — read these before proceeding:
 > - `quality/EXPLORATION.md` — your Phase 1 findings (architecture, requirements, use cases, pattern analysis)
@@ -1286,7 +1286,7 @@ Now write the Phase 2 artifacts. The requirements pipeline above produced REQUIR
 Every generated code file (test files, scripts) must begin with a comment header:
 
 ```
-# Generated by Quality Playbook v1.5.6 — https://github.com/andrewstellman/quality-playbook
+# Generated by Quality Playbook v1.5.7 — https://github.com/andrewstellman/quality-playbook
 # Author: Andrew Stellman · Date: YYYY-MM-DD · Project: <project name>
 ```
 
@@ -1470,7 +1470,7 @@ This is an early filter that catches the most obvious false positives at confirm
 --- /dev/null
 +++ b/quality/test_regression_virtio.c
 @@ -0,0 +1,15 @@
-+// Generated by Quality Playbook v1.5.6
++// Generated by Quality Playbook v1.5.7
 +// Regression test for BUG-004: VIRTIO_F_RING_RESET missing from vring_transport_features()
 +#include <assert.h>
 +#include <string.h>
@@ -1924,7 +1924,7 @@ Or say "keep going" to continue automatically.
 
 ## Phase 3: Code Review and Regression Tests
 
-**v1.5.6 instrumentation:** Append `phase_start phase=3` to `quality/run_state.jsonl` now. At phase end, cross-validate (`quality/RUN_CODE_REVIEW.md` exists; one writeup per identified bug) then append `phase_end phase=3`.
+**v1.5.7 instrumentation:** Append `phase_start phase=3` to `quality/run_state.jsonl` now. At phase end, cross-validate (`quality/RUN_CODE_REVIEW.md` exists; one writeup per identified bug) then append `phase_end phase=3`.
 
 > **Required references for this phase:**
 > - `quality/REQUIREMENTS.md` — target list for the code review
@@ -1955,7 +1955,7 @@ Or say "keep going" to continue automatically.
 
 ## Phase 4: Spec Audit and Triage
 
-**v1.5.6 instrumentation:** Append `phase_start phase=4` now. For each pass A/B/C/D, append `pass_started phase=4 pass=X` and `pass_ended phase=4 pass=X`. At phase end, cross-validate (`quality/REQUIREMENTS.md` non-empty AND `quality/COVERAGE_MATRIX.md` exists) then append `phase_end phase=4`.
+**v1.5.7 instrumentation:** Append `phase_start phase=4` now. For each pass A/B/C/D, append `pass_started phase=4 pass=X` and `pass_ended phase=4 pass=X`. At phase end, cross-validate (`quality/REQUIREMENTS.md` non-empty AND `quality/COVERAGE_MATRIX.md` exists) then append `phase_end phase=4`.
 
 > **Required references for this phase:**
 > - `references/spec_audit.md` — Council of Three protocol, triage process, verification probes
@@ -2021,9 +2021,9 @@ Or say "keep going" to continue automatically.
 
 ## Phase 5: Post-Review Reconciliation and Closure Verification
 
-**v1.5.6 instrumentation:** Append `phase_start phase=5` now. For each gate check, append `gate_check gate_name=X verdict=pass|fail|warn|skip`. At phase end, cross-validate (`quality/results/quality-gate.log` non-empty) then append `phase_end phase=5`.
+**v1.5.7 instrumentation:** Append `phase_start phase=5` now. For each gate check, append `gate_check gate_name=X verdict=pass|fail|warn|skip`. At phase end, cross-validate (`quality/results/quality-gate.log` non-empty) then append `phase_end phase=5`.
 
-**Source-edit guardrail (mandatory).** Phase 5 produces *proposed* fixes as patch artifacts at `quality/patches/<BUG-NNN>-fix.patch` and `quality/patches/<BUG-NNN>-regression-test.patch`. Phase 5 must NOT apply those patches to source files outside `quality/`. A self-audit run that mutates the target's source tree is a defect, not legitimate Phase 5 output — the operator chooses when to apply patches in a separate, supervised step. At run end the playbook calls `bin.run_state_lib.validate_no_source_edits(target_dir)`; if that helper reports any non-`quality/` paths dirty, append an `error recoverable:false` event citing the violations and end the run with `run_end status=aborted`. This rule was reaffirmed in v1.5.6 after the Codex bootstrap run on 2026-05-02 went off-rails in Phase 5 and edited five source files outside `quality/` before being killed.
+**Source-edit guardrail (mandatory).** Phase 5 produces *proposed* fixes as patch artifacts at `quality/patches/<BUG-NNN>-fix.patch` and `quality/patches/<BUG-NNN>-regression-test.patch`. Phase 5 must NOT apply those patches to source files outside `quality/`. A self-audit run that mutates the target's source tree is a defect, not legitimate Phase 5 output — the operator chooses when to apply patches in a separate, supervised step. At run end the playbook calls `bin.run_state_lib.validate_no_source_edits(target_dir)`; if that helper reports any non-`quality/` paths dirty, append an `error recoverable:false` event citing the violations and end the run with `run_end status=aborted`. This rule was reaffirmed in v1.5.7 after the Codex bootstrap run on 2026-05-02 went off-rails in Phase 5 and edited five source files outside `quality/` before being killed.
 
 > **Required references for this phase:**
 > - `quality/PROGRESS.md` — cumulative BUG tracker (authoritative finding list)
@@ -2169,7 +2169,7 @@ Or say "keep going" to continue automatically.
 
 ## Phase 6: Verify
 
-**v1.5.6 instrumentation:** Append `phase_start phase=6` now. At phase end, cross-validate (`quality/BUGS.md` non-empty with `^## BUG-` sections AND `quality/INDEX.md` updated with `gate_verdict` field) then append `phase_end phase=6`. After Phase 6 closes, append `run_end status=success` (or `aborted` / `failed` if applicable).
+**v1.5.7 instrumentation:** Append `phase_start phase=6` now. At phase end, cross-validate (`quality/BUGS.md` non-empty with `^## BUG-` sections AND `quality/INDEX.md` updated with `gate_verdict` field) then append `phase_end phase=6`. After Phase 6 closes, append `run_end status=success` (or `aborted` / `failed` if applicable).
 
 > **Required references for this phase:**
 > - `references/verification.md` — 45 self-check benchmarks
@@ -2463,7 +2463,7 @@ Note: The recheck schema uses `"schema_version": "1.0"` (not `"1.1"`) because it
 ```json
 {
   "schema_version": "1.0",
-  "skill_version": "1.5.6",
+  "skill_version": "1.5.7",
   "date": "YYYY-MM-DD",
   "project": "<project name>",
   "source_run": {
