@@ -355,6 +355,35 @@ class UpdateLatestSymlinkTests(unittest.TestCase):
             # No quality/logs/ created under legacy.
             self.assertFalse((repo / "quality" / "logs").exists())
 
+    def test_oserror_during_symlink_logs_warning_and_continues(self) -> None:
+        # v1.5.7 Phase 5 fix-up follow-on (C1-c): mock Path.symlink_to
+        # to raise OSError, assert (a) the run continues without
+        # crashing, (b) a warning is logged via lib.logboth. Closes
+        # the test-coverage gap the Phase 5 fix-up mini-review flagged.
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "cell"
+            repo.mkdir()
+            run_id = "20260512T130000Z"
+            (repo / "quality" / "logs" / run_id).mkdir(parents=True)
+            log_file = repo / "playbook.log"
+            log_file.write_text("", encoding="utf-8")
+
+            with mock.patch.object(
+                Path, "symlink_to",
+                side_effect=OSError("simulated filesystem failure"),
+            ):
+                # Should NOT raise — the helper must tolerate OSError.
+                run_playbook._update_latest_symlink(
+                    repo, "20260512-130000", _make_args(), log_file,
+                )
+            # Warning logged to the log file.
+            log_text = log_file.read_text(encoding="utf-8")
+            self.assertIn("Could not update quality/logs/latest symlink", log_text)
+            self.assertIn("simulated filesystem failure", log_text)
+            # No symlink created (Path.symlink_to was patched to raise).
+            symlink = repo / "quality" / "logs" / "latest"
+            self.assertFalse(symlink.is_symlink())
+
     def test_replaces_pre_existing_symlink(self) -> None:
         with TemporaryDirectory() as tmp:
             repo = Path(tmp) / "cell"

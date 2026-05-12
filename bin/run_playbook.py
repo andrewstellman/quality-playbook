@@ -3782,6 +3782,11 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
         lib.logboth(log_file, lib.log(f"WARNING: Missing: {' '.join(missing)}"))
     else:
         lib.logboth(log_file, lib.log("All artifacts present"))
+    # v1.5.7 Phase 5 FS-4 (follow-on): mirror run_one_singlepass's
+    # symlink-update at the phased runner's successful-completion
+    # path. The original FS-4 wiring missed this site; reviewer
+    # caught it in the Phase 5 fix-up mini-review.
+    _update_latest_symlink(repo_dir, timestamp, args, log_file)
     lib.cleanup_repo(repo_dir)
     return 0
 
@@ -4727,7 +4732,7 @@ def execute_run(args: argparse.Namespace, repo_dirs: Sequence[Path], timestamp: 
 
 def print_suggested_next_command(args: argparse.Namespace, failures_occurred: bool = False) -> None:
     if failures_occurred:
-        print("  Run finished with errors — inspect quality/control_prompts/ and re-run with --phase <N>")
+        print("  Run finished with errors — inspect the cell's phase-prompt input/output (under quality/logs/<run-id>/ for v1.5.7+ centralized layout, quality/control_prompts/ for --logs-flat / pre-v1.5.7) and re-run with --phase <N>")
         return
     runner_flag = {
         "claude": " --claude",

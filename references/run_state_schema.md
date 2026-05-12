@@ -17,13 +17,15 @@ All four live in the bind-mounted workspace owned by the user. The AI writes via
 
 ### v1.5.7 layout discriminator
 
-The `cycle_start` event in `run_state.jsonl` MAY carry a `log_layout` field:
+The `run_start` event in `run_state.jsonl` MAY carry `run_id` and `log_layout` fields (additive in v1.5.7; not present in pre-v1.5.7 runs):
 
-- `"v1.5.7-centralized"` — the run is writing logs to `quality/logs/<run-id>/`.
-- `"v1.5.6-flat"` — the run is writing logs to the legacy locations (via `--logs-flat` / `QPB_LOGS_LEGACY=1`).
-- field absent — pre-v1.5.7 runs that predate the layout discriminator. Treat as `"v1.5.6-flat"` for resolver behavior.
+- `run_id`: compact UTC ISO-8601 timestamp (`YYYYMMDDTHHMMSSZ`) identifying the run's `quality/logs/<run-id>/` directory.
+- `log_layout`:
+  - `"v1.5.7-centralized"` — the run is writing logs to `quality/logs/<run-id>/`.
+  - `"v1.5.6-flat"` — the run is writing logs to the legacy locations (via `--logs-flat` / `QPB_LOGS_LEGACY=1`).
+  - field absent — pre-v1.5.7 runs that predate the layout discriminator. Treat as `"v1.5.6-flat"` for resolver behavior.
 
-Readers that need to find the canonical `quality-gate.log` or `run_metadata.json` location for a run should consult this field; the `resolve_run_state_path` helper above handles the run-state-file resolution chain automatically.
+Readers that need to find the canonical `quality-gate.log` or `run_metadata.json` location for a run should consult these fields on the latest `run_start` event; the `resolve_run_state_path` helper above handles the run-state-file resolution chain automatically.
 
 ---
 
@@ -71,6 +73,8 @@ Marks the beginning of a playbook run.
 | `runner` | string | yes | One of `"claude"`, `"codex"`, `"copilot"`, `"cursor"` |
 | `playbook_version` | string | yes | E.g. `"1.5.6-pre"`, `"1.5.6"` (matches `bin.benchmark_lib.RELEASE_VERSION`) |
 | `target_path` | string | yes | Relative path to benchmark target |
+| `run_id` | string | v1.5.7+ | Compact UTC ISO-8601 timestamp (`YYYYMMDDTHHMMSSZ`) identifying the run's `quality/logs/<run-id>/` directory. Absent in pre-v1.5.7 runs. |
+| `log_layout` | string | v1.5.7+ | One of `"v1.5.7-centralized"` or `"v1.5.6-flat"` per the v1.5.7 layout discriminator section above. Absent in pre-v1.5.7 runs (treat as `"v1.5.6-flat"`). |
 
 ### `phase_start`
 
