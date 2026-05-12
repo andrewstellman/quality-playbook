@@ -50,9 +50,11 @@ jq -r '.files | group_by(.role) | map({role: .[0].role, bytes: ([.[] | .size_byt
 
 ## Anti-patterns (DO NOT use)
 
-These are the wrong-guess paths agents have constructed when querying the role
-map from intuition rather than the schema. Each one returns silently empty
-output that downstream tooling consumes without noticing:
+These are the wrong-guess paths agents have constructed when querying the
+role map from intuition rather than the schema. Each one is wrong — they
+return empty results, or error depending on the jq invocation. The
+empty-result case is the dangerous one, because downstream tooling
+typically consumes the empty output without noticing:
 
 - `.roles.source[]` — `.roles` does not exist in the schema. The role map
   has a top-level `.files`, not a `.roles` keyed-by-role object.

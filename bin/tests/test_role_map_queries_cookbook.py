@@ -56,11 +56,25 @@ _COOKBOOK_PARAGRAPH_ANCHOR = "Role-map query cookbook"
 
 class CookbookContentTests(unittest.TestCase):
     """Work-item C test 1: cookbook file exists and contains the
-    required canonical queries + anti-patterns."""
+    required canonical queries + anti-patterns.
 
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.text = COOKBOOK_PATH.read_text(encoding="utf-8")
+    Cookbook reads happen per-test (lazy ``self._cookbook_text()``)
+    rather than in ``setUpClass``. Pre-fix-up the class used
+    ``setUpClass`` which raised ``FileNotFoundError`` if the cookbook
+    was missing, errored every test in the class during setup, and
+    obscured the ``test_cookbook_file_exists`` failure mode. With
+    the lazy read, deleting the cookbook fails ``test_cookbook_file_exists``
+    with a clean "file must exist" message and only the other three
+    tests error on read — better diagnostic surface for operators.
+    """
+
+    @property
+    def text(self) -> str:
+        """Read the cookbook on demand. Cached per-instance so the
+        three content-check tests don't pay multiple I/O passes."""
+        if not hasattr(self, "_cookbook_text"):
+            self._cookbook_text = COOKBOOK_PATH.read_text(encoding="utf-8")
+        return self._cookbook_text
 
     def test_cookbook_file_exists(self) -> None:
         self.assertTrue(
