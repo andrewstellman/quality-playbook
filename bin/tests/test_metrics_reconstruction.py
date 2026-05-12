@@ -384,6 +384,74 @@ class F4ContentValidatingAssertionsTests(unittest.TestCase):
             )
             self.assertEqual(vo["qpb_version"], "1.5.6")
 
+    def test_qpb_version_extracted_from_run_metadata_json(self) -> None:
+        # R-2 (round 2): the spec-documented Source 1.5 path. A cell
+        # whose directory naming doesn't encode a QPB version BUT whose
+        # `quality/run_metadata.json` carries a `qpb_version` (or
+        # `skill_version`) field must produce a non-None qpb_version
+        # in the trend output. The original F-4 strengthening exercised
+        # Sources 1 + 3a but did not exercise Source 1.5 — that gap
+        # let F-1 ship with Source 1.5 omitted entirely.
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            cells_root = tmp / "repos"
+            cells_root.mkdir()
+            cell = _make_cell(cells_root, "alpha-1.0", ["BUG-001"])
+            # Plant run_metadata.json with skill_version. Note the
+            # cell.benchmark="alpha", cell.version="1.0" — neither
+            # Source 1 (no matching cell.json) nor Source 3a/3b
+            # (benchmark name isn't quality-playbook) nor Source 2
+            # (no run_state.jsonl) provides a signal. Only Source 1.5
+            # can produce a value.
+            (cell / "quality" / "run_metadata.json").write_text(
+                json.dumps({"skill_version": "1.5.7", "other": "ignored"}),
+                encoding="utf-8",
+            )
+            metrics = _make_metrics_tree(tmp)
+
+            rc = mr.main([
+                "--target", str(metrics),
+                "--cells-root", str(cells_root),
+                "--quarter", "both",
+                "--year", "2026",
+            ])
+            self.assertEqual(rc, 0)
+
+            data = json.loads((metrics / "cross_version_trends" / "alpha.json")
+                              .read_text(encoding="utf-8"))
+            self.assertEqual(data["versions_observed"][0]["qpb_version"], "1.5.7",
+                             "Source 1.5 (run_metadata.json) must populate qpb_version "
+                             "when no other source has a signal")
+
+    def test_qpb_version_run_metadata_prefers_qpb_version_field_over_skill_version(self) -> None:
+        # The Source 1.5 field-preference order is qpb_version first,
+        # then skill_version, then schema_version, etc. A cell whose
+        # run_metadata.json has BOTH should yield the qpb_version
+        # value (more specific to this script's domain).
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            cells_root = tmp / "repos"
+            cells_root.mkdir()
+            cell = _make_cell(cells_root, "alpha-1.0", ["BUG-001"])
+            (cell / "quality" / "run_metadata.json").write_text(
+                json.dumps({
+                    "skill_version": "1.5.5",  # wrong (lower-priority field)
+                    "qpb_version": "1.5.7",     # right (higher-priority field)
+                }),
+                encoding="utf-8",
+            )
+            metrics = _make_metrics_tree(tmp)
+
+            mr.main([
+                "--target", str(metrics),
+                "--cells-root", str(cells_root),
+                "--quarter", "both",
+                "--year", "2026",
+            ])
+            data = json.loads((metrics / "cross_version_trends" / "alpha.json")
+                              .read_text(encoding="utf-8"))
+            self.assertEqual(data["versions_observed"][0]["qpb_version"], "1.5.7")
+
     def test_qpb_version_extracted_from_regression_replay_cell(self) -> None:
         # Source 1: matching regression_replay cell.json with
         # qpb_version_under_test.
@@ -462,7 +530,70 @@ class F5SdlcDefectsSkipGuardTests(unittest.TestCase):
 
 
 class F6DryRunTests(unittest.TestCase):
-    """F-6 fix: --dry-run prints planned writes but writes nothing."""
+    """F-6 fix: --dry-run prints planned writes but writes nothing.
+
+    Two methods: the original asserts a clean-tree --dry-run writes
+    nothing; the second (round 2) asserts pre-existing aggregate
+    files are NOT modified by --dry-run.
+    """
+
+    def test_dry_run_preserves_preexisting_aggregates(self) -> None:
+        # R-3 (round 2): seed pre-existing aggregate files in the
+        # target tree, run --dry-run, assert the files are byte-
+        # identical to their pre-run contents. Catches the regression
+        # where --dry-run accidentally touches or overwrites existing
+        # files (e.g., via a misplaced backup_existing call).
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            cells_root = tmp / "repos"
+            cells_root.mkdir()
+            _make_cell(cells_root, "alpha-1.0", ["BUG-001", "BUG-002"])
+            metrics = _make_metrics_tree(tmp)
+
+            # Seed pre-existing aggregates with unique contents the
+            # script would never produce (so post-run comparison
+            # detects any overwrite).
+            preexisting_bs = metrics / "bootstrap_recall" / "2026-Q2.json"
+            preexisting_bs.write_text(
+                '{"seeded": true, "content": "preexisting bootstrap"}\n',
+                encoding="utf-8",
+            )
+            preexisting_cv = metrics / "cross_version_trends" / "alpha.json"
+            preexisting_cv.write_text(
+                '{"seeded": true, "content": "preexisting trend"}\n',
+                encoding="utf-8",
+            )
+            bs_before = preexisting_bs.read_text(encoding="utf-8")
+            bs_mtime_before = preexisting_bs.stat().st_mtime_ns
+            cv_before = preexisting_cv.read_text(encoding="utf-8")
+            cv_mtime_before = preexisting_cv.stat().st_mtime_ns
+
+            rc = mr.main([
+                "--target", str(metrics),
+                "--cells-root", str(cells_root),
+                "--quarter", "both",
+                "--year", "2026",
+                "--dry-run",
+            ])
+            self.assertEqual(rc, 0)
+
+            # Files must be byte-identical to their pre-run state.
+            self.assertEqual(preexisting_bs.read_text(encoding="utf-8"), bs_before,
+                             "--dry-run must NOT modify pre-existing bootstrap_recall files")
+            self.assertEqual(preexisting_cv.read_text(encoding="utf-8"), cv_before,
+                             "--dry-run must NOT modify pre-existing cross_version_trends files")
+            # mtime preserved (i.e., the script didn't even touch the
+            # files, let alone rewrite them).
+            self.assertEqual(preexisting_bs.stat().st_mtime_ns, bs_mtime_before,
+                             "--dry-run must not modify pre-existing bootstrap mtime")
+            self.assertEqual(preexisting_cv.stat().st_mtime_ns, cv_mtime_before,
+                             "--dry-run must not modify pre-existing trend mtime")
+            # No backup directories created (would indicate
+            # backup_existing was incorrectly invoked under --dry-run).
+            backups = list((metrics / "bootstrap_recall").glob(".backup-*")) + \
+                      list((metrics / "cross_version_trends").glob(".backup-*"))
+            self.assertEqual(backups, [],
+                             f"--dry-run must not create backup directories: {backups}")
 
     def test_dry_run_writes_no_data_files(self) -> None:
         with TemporaryDirectory() as tmp_str:

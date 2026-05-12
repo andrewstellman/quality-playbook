@@ -385,12 +385,17 @@ def infer_qpb_version_for_cell_group(
     cells: Sequence[CellObservation],
     rr_cells: Sequence[Tuple[Path, dict]],
 ) -> Optional[str]:
-    """F-1 fix: best-effort QPB version inference for a (benchmark,
-    version) cell group.
+    """F-1 fix (round 2): best-effort QPB version inference for a
+    (benchmark, version) cell group.
 
     Source order (most authoritative first):
       1. matching regression_replay cell.json with
          `qpb_version_under_test` set
+      1.5 `quality/run_metadata.json` `skill_version` / `qpb_version`
+          field (the spec-documented per-cell metadata file; see
+          `docs/design/QPB_v1.5.7_Design.md` Deliverable 4 and
+          instruction 009's "Fallback source: read run_metadata.json
+          if the directory naming doesn't yield a version")
       2. `quality/run_state.jsonl` `_index` event's `schema_version`
          field
       3. benchmark name pattern `quality-playbook[-bootstrap]-X.Y.Z`
@@ -410,6 +415,28 @@ def infer_qpb_version_for_cell_group(
         rr_version = rr_data.get("historical_qpb_version") or rr_data.get("historical_version")
         if rr_benchmark == benchmark and rr_version == version:
             v = rr_data.get("qpb_version_under_test")
+            if v:
+                return str(v)
+
+    # Source 1.5: per-cell quality/run_metadata.json. The spec
+    # documents this as a primary fallback for cells whose directory
+    # naming doesn't encode a QPB version. Whether current cells have
+    # the file or not is irrelevant to whether the script must read
+    # it — adopters re-running reconstruction against their own
+    # cell roster may populate `quality/run_metadata.json` and expect
+    # the script to use it.
+    for cell in cells:
+        rm = cell.cell_path / "quality" / "run_metadata.json"
+        if not rm.is_file():
+            continue
+        try:
+            data = json.loads(rm.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError, UnicodeError):
+            continue
+        # Try common field names in order of preference:
+        for field in ("qpb_version", "skill_version", "schema_version",
+                      "qpb_version_under_test", "version"):
+            v = data.get(field)
             if v:
                 return str(v)
 
@@ -662,7 +689,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 print(f"    {q}: {len(items)}")
     if unknown_qpb_versions:
         print(f"  qpb_version=unknown for {unknown_qpb_versions} (benchmark, version) rows "
-              f"in cross_version_trends (no signal in cell.json, run_state.jsonl, or naming)")
+              f"in cross_version_trends (no signal in cell.json, run_metadata.json, "
+              f"run_state.jsonl, or naming)")
     if actions["backed_up_to"]:
         print(f"  backed up to:     {actions['backed_up_to']}")
     print(f"  wrote {len(actions['written'])} files" if not args.dry_run
