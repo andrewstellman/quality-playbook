@@ -288,11 +288,31 @@ def build_parser() -> argparse.ArgumentParser:
     parallel_group.add_argument("--parallel", dest="parallel", action="store_true", default=True, help="Run all targets concurrently (default).")
     parallel_group.add_argument("--sequential", dest="parallel", action="store_false", help="Run targets one after another.")
 
+    # v1.5.7 Phase 6c: runner default resolution chain:
+    #   1. Explicit CLI flag (--claude / --copilot / --codex / --cursor)
+    #   2. Per-operator config at ~/.qpb/config.json (key "runner")
+    #   3. Built-in default "copilot"
+    # The argparse default below is the built-in default; if no flag is
+    # passed AND the config file has a "runner" key, args.runner is
+    # post-processed in execute_run/main per the override layer.
     runner_group = parser.add_mutually_exclusive_group()
     runner_group.add_argument("--claude", dest="runner", action="store_const", const="claude", default="copilot", help="Use claude -p instead of gh copilot.")
     runner_group.add_argument("--copilot", dest="runner", action="store_const", const="copilot", help="Use gh copilot (default).")
     runner_group.add_argument("--codex", dest="runner", action="store_const", const="codex", help="Use codex exec --full-auto instead of gh copilot.")
     runner_group.add_argument("--cursor", dest="runner", action="store_const", const="cursor", help="Use cursor agent --print --force instead of gh copilot (cursor-cli 3.1+).")
+
+    # v1.5.7 Phase 6c: --council-roster override flag. Resolution order:
+    #   1. This CLI flag (comma-separated, e.g., "claude-opus-4.7,gpt-5.5,claude-sonnet-4.6")
+    #   2. ~/.qpb/config.json "council_members" key
+    #   3. bin/council_config.DEFAULT_COUNCIL_MEMBERS (built-in default)
+    # Help text intentionally SUPPRESSED — the flag is documented in
+    # references/runners_and_models.md; adopters discover it via the docs.
+    parser.add_argument(
+        "--council-roster",
+        dest="council_roster",
+        default=None,
+        help=argparse.SUPPRESS,
+    )
 
     seed_group = parser.add_mutually_exclusive_group()
     seed_group.add_argument("--no-seeds", dest="no_seeds", action="store_true", default=True, help="Skip Phase 0/0b seed injection (default).")
@@ -610,6 +630,71 @@ def _mark_iterations_explicit(argv: Sequence[str]) -> bool:
     return has_explicit and "--full-run" not in argv
 
 
+def _apply_qpb_config_overrides(
+    args: argparse.Namespace,
+    effective_argv: Sequence[str],
+) -> None:
+    """v1.5.7 Phase 6c: overlay ~/.qpb/config.json values onto args
+    for fields the CLI didn't explicitly set.
+
+    The argparse defaults always win when a flag IS explicitly
+    passed; the config file fills in fields the operator didn't
+    specify on the CLI. The built-in `DEFAULT_COUNCIL_MEMBERS`
+    tuple wins when neither CLI nor config-file specifies the
+    roster (resolution happens downstream via
+    `_active_council_roster()`).
+    """
+    try:
+        from bin import qpb_config
+    except ImportError:
+        return  # qpb_config module unavailable; argparse defaults stand
+    cfg = qpb_config.load_config()
+    if not cfg:
+        return
+
+    # Runner default override: only when no explicit --claude /
+    # --copilot / --codex / --cursor flag was on the CLI.
+    runner_flags = {"--claude", "--copilot", "--codex", "--cursor"}
+    if not any(flag in effective_argv for flag in runner_flags):
+        cfg_runner = cfg.get("runner")
+        if isinstance(cfg_runner, str) and cfg_runner in {"claude", "copilot", "codex", "cursor"}:
+            args.runner = cfg_runner
+
+    # Council roster override: only when --council-roster wasn't on
+    # the CLI. The resolved roster lives on args.council_roster as
+    # a comma-joined string OR a list[str]; downstream
+    # _active_council_roster() handles both.
+    if args.council_roster is None:
+        cfg_roster = cfg.get("council_members")
+        if isinstance(cfg_roster, list) and cfg_roster:
+            args.council_roster = ",".join(cfg_roster)
+
+
+def _active_council_roster(args: argparse.Namespace) -> tuple[str, ...]:
+    """v1.5.7 Phase 6c: resolve the active Council roster.
+
+    Resolution order (most specific first):
+      1. --council-roster CLI flag (parsed from args.council_roster).
+      2. Config file's `council_members` (overlaid onto args during
+         parse_args via _apply_qpb_config_overrides).
+      3. bin/council_config.DEFAULT_COUNCIL_MEMBERS (built-in default).
+    """
+    raw = getattr(args, "council_roster", None)
+    if raw:
+        members = [m.strip() for m in raw.split(",")]
+        members = [m for m in members if m]
+        if members:
+            try:
+                from bin import qpb_config
+                for warning in qpb_config.validate_roster(members):
+                    print(f"WARN: {warning}", file=sys.stderr)
+            except ImportError:
+                pass
+            return tuple(members)
+    from bin.council_config import DEFAULT_COUNCIL_MEMBERS
+    return DEFAULT_COUNCIL_MEMBERS
+
+
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -619,6 +704,13 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     # this to decide whether to honor the zero-gain early-stop.
     effective_argv = list(argv) if argv is not None else sys.argv[1:]
     args._iterations_explicit = _mark_iterations_explicit(effective_argv)
+
+    # v1.5.7 Phase 6c: per-operator config overlay (~/.qpb/config.json).
+    # Resolution order for fields not explicitly set on the CLI:
+    #   1. CLI flag (when explicitly present in effective_argv)
+    #   2. Config file value
+    #   3. argparse default
+    _apply_qpb_config_overrides(args, effective_argv)
 
     if not args.kill and not args.targets:
         args.targets = ["."]
