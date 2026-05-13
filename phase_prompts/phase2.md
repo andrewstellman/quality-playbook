@@ -25,6 +25,19 @@ Execute Phase 2: Generate all quality artifacts. Use the exploration findings in
 - quality/COMPLETENESS_REPORT.md (baseline, without verdict)
 - If dispatch/enumeration contracts exist: quality/mechanical/ with verify.sh and extraction artifacts. Run verify.sh immediately and save receipts.
 
+**Canonical artifact-location REQs (v1.5.7 fix F-4c).** REQUIREMENTS.md MUST include explicit location requirements for the canonical artifact paths so the gate has concrete REQs to enforce against. Add these REQs verbatim (renumber to slot into your existing REQ-NNN sequence; do not omit any):
+
+- `REQ-NNN: Per-bug writeups are placed at quality/writeups/BUG-<id>.md.`
+- `REQ-NNN: Fix patches are placed at quality/patches/BUG-<id>-fix.patch.`
+- `REQ-NNN: Regression-test patches are placed at quality/patches/BUG-<id>-regression-test.patch.`
+- `REQ-NNN: Code review output is placed at quality/code_reviews/.`
+- `REQ-NNN: Spec audit outputs (auditor reports + triage) are placed at quality/spec_audits/.`
+- `REQ-NNN: Sidecar JSON results (tdd-results.json, integration-results.json, recheck-results.json) are placed at quality/results/.`
+- `REQ-NNN: Mechanical-verification artifacts (verify.sh + *_cases.txt) are placed at quality/mechanical/.`
+- `REQ-NNN: quality/workspace/<name>/ is forbidden — top-level quality/<name>/ is the only canonical layout. Phase 6 gate check_no_workspace_dir fails any run with a populated quality/workspace/ tree.`
+
+These REQs convert artifact-location compliance from prose-only guidance into testable requirements. The Phase 6 gate's `check_no_workspace_dir` enforces the last one mechanically; the others give human reviewers concrete REQs to grep for in compliance audits.
+
 Update PROGRESS.md: mark Phase 2 complete (use the checkbox format `- [x] Phase 2 - Generate` — do NOT switch to a table), update artifact inventory.
 
 IMPORTANT: Do NOT proceed to Phase 3 (code review). Your job is artifact generation only. The next phase will execute the review protocols you generated.
