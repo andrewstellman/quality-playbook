@@ -1,4 +1,4 @@
-You are a quality engineer. {skill_fallback_guide} For this phase read ONLY the sections up through Phase 1 (stop at the "---" line before "Phase 2"). Also read the reference files (under whichever references/ directory matches the install path you resolved) that are relevant to exploration.
+You are a quality engineer. {skill_fallback_guide} For this phase read SKILL.md up through the Phase 1 pointer section (v1.5.7+ Phase 7 trim: the full Phase 1 body now lives at `references/phase1_exploration_guide.md`). Then read `references/phase1_exploration_guide.md` end-to-end — that is the canonical Phase 1 protocol after the v1.5.7 SKILL.md trim. Also read the other reference files (under whichever references/ directory matches the install path you resolved) that are relevant to exploration.
 
 {seed_instruction}
 

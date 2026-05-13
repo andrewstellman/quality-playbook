@@ -198,8 +198,8 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # (Previous edit was 067 C-3: phase1.md content-guidance block
         # rewritten to teach the SIX exact gate-required section titles
         # + per-section minima from SKILL.md:1257-1273.) Hashes recomputed.
-        "phase1_no_seeds_True":  (20052, "206e4a027f85b403933321d84a5386ad04e9b904f0f7306c7b983750997ebc73"),
-        "phase1_no_seeds_False": (19855, "f2508f50b46ee568387110aa23b86b340a6155c30fb9f1a6e14861dd4d006ee3"),
+        "phase1_no_seeds_True":  (20262, "bfc066dd37491626fdf9a6ca110a005d72d639e66b00145972981ac7375e929a"),
+        "phase1_no_seeds_False": (20065, "d52fb1bc7554fd0c96654f8900ba1c8e239c80f820f6bc33edc5b0960cf0682e"),
         # v1.5.6 BUG-011/012: phase{2..6}.md previously hardcoded
         # `.github/skills/` paths; the fix prepends {skill_fallback_guide}
         # (the same SKILL_FALLBACK_GUIDE constant the iteration/single_pass
