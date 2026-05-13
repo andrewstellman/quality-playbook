@@ -2,7 +2,7 @@
 
 You are a quality engineer doing the verification phase of a quality playbook run. Phases 1-5 are complete.
 
-Read SKILL.md - the Phase 6 section ("Phase 6: Verify"). Resolve SKILL.md via the documented fallback list above; do NOT assume any single install layout. Follow the incremental verification steps (6.1 through 6.5).
+Read SKILL.md (the Phase 6 pointer section) AND `references/phase6_verify_guide.md` (the full Phase 6 protocol — moved out of SKILL.md in v1.5.7 Phase 7 trim for size reduction). Resolve SKILL.md and reference files via the documented fallback list above; do NOT assume any single install layout. Follow the incremental verification steps (6.1 through 6.5).
 
 Step 6.1: If quality/mechanical/verify.sh exists, run it. Record exit code.
 Step 6.2: Run quality_gate.py. Locate it via the same fallback list used for SKILL.md (`quality_gate.py` sits in the same directory as SKILL.md in every install layout — e.g., `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`). Then run:
