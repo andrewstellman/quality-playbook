@@ -43,8 +43,19 @@ def _read_phase2_corpus() -> str:
     combined corpus (the agent reads both files at Phase 2 entry per
     `phase_prompts/phase2.md`)."""
     text = SKILL_MD.read_text(encoding="utf-8")
-    if PHASE2_GUIDE.is_file():
-        text += "\n" + PHASE2_GUIDE.read_text(encoding="utf-8")
+    # v1.5.7 Phase 7 FIXUP-1: after the trim, Phase 2 guardrail prose
+    # lives ONLY in references/phase2_generation_guide.md. The prior
+    # conditional `if PHASE2_GUIDE.is_file()` was correct during the
+    # move (when prose existed in both SKILL.md and the references
+    # file) but is a silent-failure vector now — deleting the
+    # references file would degrade 4 guard tests to vacuous passes.
+    # The assertion fails loudly instead.
+    assert PHASE2_GUIDE.is_file(), (
+        "references/phase2_generation_guide.md missing — Phase 7 trim "
+        "moved Phase 2 guardrail prose there; deletion silently "
+        "degrades 4 guard tests to vacuous passes"
+    )
+    text += "\n" + PHASE2_GUIDE.read_text(encoding="utf-8")
     return text
 
 
