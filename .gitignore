@@ -60,3 +60,9 @@ qpb-*.log
 
 # Local cycle helper scripts (one-off serial runners; not part of the skill)
 run-serial.sh
+
+# Metrics files 
+metrics/bootstrap_recall/
+metrics/cross_version_trends/
+metrics/*/.backup-*/
+
