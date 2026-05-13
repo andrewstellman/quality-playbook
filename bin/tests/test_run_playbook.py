@@ -3121,34 +3121,63 @@ class PromptPrefixTests(unittest.TestCase):
         self.assertEqual(cmd[idx + 1], "fwd-test")
 
 
-class CodexPreventionScriptInvocationGuardTests(unittest.TestCase):
-    """v1.5.4 Phase 3.6.1 Section A.2: refuse direct script-style
-    invocation. The module relies on relative imports that fail under
-    `python bin/run_playbook.py`; codex's 2026-04-29 self-audit
-    attempt hit this and proceeded to patch QPB source. Now we
-    refuse early with EX_USAGE (64)."""
+class RunnerThreeModeAccessibilityTests(unittest.TestCase):
+    """v1.5.7 fix F-5a: replaces the v1.5.4 CodexPreventionScriptInvocationGuardTests.
+    Pre-fix the runner refused script-style invocation with EX_USAGE=64
+    (relative imports broke; codex's 2026-04-29 self-audit hit this and
+    unilaterally patched archive_lib.py). v1.5.7 fixes the underlying
+    issue: sys.path injection at module top + absolute `from bin import ...`
+    imports make script-mode work natively. The __main__ guard is dropped
+    because the failure mode it caught no longer exists."""
 
-    def test_script_style_invocation_exits_64(self) -> None:
+    def test_script_mode_help_succeeds_from_anywhere(self) -> None:
+        """`python3 /path/to/QPB/bin/run_playbook.py --help` exits 0 from
+        any cwd (the canonical script-style invocation form). Bites
+        directly against the v1.5.4 codex-prevention guard if it ever
+        comes back, and against any future regression that breaks the
+        sys.path injection."""
         import subprocess
+        from tempfile import TemporaryDirectory
         repo_root = Path(__file__).resolve().parents[2]
         script = repo_root / "bin" / "run_playbook.py"
-        result = subprocess.run(
-            ["python3", str(script)],
-            capture_output=True, text=True, cwd=str(repo_root),
-        )
+        with TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            # Strip PYTHONPATH so we're verifying the in-script sys.path
+            # injection, not an externally-supplied path.
+            env.pop("PYTHONPATH", None)
+            result = subprocess.run(
+                ["python3", str(script), "--help"],
+                capture_output=True, text=True, cwd=tmp, env=env,
+                timeout=15,
+            )
         self.assertEqual(
-            result.returncode, 64,
-            f"expected EX_USAGE (64), got {result.returncode}; "
+            result.returncode, 0,
+            f"script-mode --help must exit 0; got {result.returncode}; "
             f"stderr={result.stderr!r}",
         )
         self.assertIn(
-            "package module", result.stderr,
-            f"stderr must explain the fix; got: {result.stderr!r}",
+            "usage:", result.stdout,
+            f"argparse --help banner missing; stdout={result.stdout!r}",
         )
-        self.assertIn(
-            "python -m bin.run_playbook", result.stderr,
-            "stderr must show the correct invocation form",
+
+    def test_package_module_mode_help_succeeds(self) -> None:
+        """`python3 -m bin.run_playbook --help` exits 0 from QPB root
+        (canonical package-module form). Regression coverage for the
+        F-5a refactor (now does `from bin import benchmark_lib as lib`
+        unconditionally instead of try/except)."""
+        import subprocess
+        repo_root = Path(__file__).resolve().parents[2]
+        result = subprocess.run(
+            ["python3", "-m", "bin.run_playbook", "--help"],
+            capture_output=True, text=True, cwd=str(repo_root),
+            timeout=15,
         )
+        self.assertEqual(
+            result.returncode, 0,
+            f"package-module --help must exit 0; got {result.returncode}; "
+            f"stderr={result.stderr!r}",
+        )
+        self.assertIn("usage:", result.stdout)
 
 
 class CodexPreventionSentinelTests(unittest.TestCase):

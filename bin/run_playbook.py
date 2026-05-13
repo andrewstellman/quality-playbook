@@ -4,9 +4,30 @@ Invoke with one or more target-directory paths (relative or absolute) or with
 no positional args to run against the current working directory. The runner
 does not resolve short names against a benchmark folder — every positional
 argument is treated literally as a directory path.
+
+Three invocation forms are supported (v1.5.7 fix F-5):
+
+* ``python -m bin.run_playbook <target>`` — package-module form (canonical).
+* ``python /path/to/QPB/bin/run_playbook.py <target>`` — direct script form
+  (e.g. ``python ../bin/run_playbook.py <target>`` from ``repos/``).
+* ``<target>/bin/run_playbook.sh [<target>]`` — wrapper installed into the
+  target by ``setup_repos.sh``; auto-discovers the QPB clone via walk-up
+  from the wrapper's location (with $QPB_HOME fallback).
 """
 
 from __future__ import annotations
+
+import sys
+from pathlib import Path as _Path
+
+# v1.5.7 fix F-5a: allow direct-script invocation
+# (`python /path/to/QPB/bin/run_playbook.py <target>`) by ensuring QPB
+# root is on sys.path before local imports. Without this, script-style
+# invocation hit ImportError on the relative `from . import benchmark_lib`
+# imports and the v1.5.4 __main__ guard refused the run. The injection
+# is a no-op under `python -m bin.run_playbook` because QPB root is
+# already on sys.path in that mode.
+sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
 
 import argparse
 import io
@@ -16,23 +37,16 @@ import shlex
 import shutil
 import signal
 import subprocess
-import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
-try:
-    from . import benchmark_lib as lib
-    from . import archive_lib
-    from . import progress_monitor
-    from . import role_map as role_map_lib
-except ImportError:
-    import benchmark_lib as lib
-    import archive_lib
-    import progress_monitor
-    import role_map as role_map_lib
+from bin import benchmark_lib as lib
+from bin import archive_lib
+from bin import progress_monitor
+from bin import role_map as role_map_lib
 
 
 ALL_STRATEGIES = ["gap", "unfiltered", "parity", "adversarial"]
@@ -4913,22 +4927,12 @@ def _write_run_mode_marker(
 
 
 if __name__ == "__main__":
-    # v1.5.4 Phase 3.6.1 Section A.2 (codex-prevention): refuse
-    # script-style invocation. The module uses relative imports
-    # (``from . import benchmark_lib as lib``) which fail with an
-    # ImportError when invoked as ``python bin/run_playbook.py``.
-    # Codex's 2026-04-29 self-audit attempt hit exactly this failure
-    # and unilaterally patched bin/archive_lib.py mid-run trying to
-    # work around it. Refuse early with a clear operator-actionable
-    # message instead. EX_USAGE (64) per sysexits.h avoids collision
-    # with argparse usage errors (which conventionally exit 2).
-    if __package__ is None or __package__ == "":
-        print(
-            "ERROR: bin/run_playbook.py must be invoked as a package module:\n"
-            "    python -m bin.run_playbook [args...]\n\n"
-            "Direct script-style invocation is not supported and will fail "
-            "with relative-import errors. Re-run with the -m flag.",
-            file=sys.stderr,
-        )
-        sys.exit(64)  # EX_USAGE per sysexits.h convention
+    # v1.5.7 fix F-5a: the v1.5.4 __main__ guard that refused
+    # script-style invocation is removed. The sys.path injection at
+    # module top now makes `python /path/to/QPB/bin/run_playbook.py`
+    # work via absolute `from bin import ...` imports. The codex
+    # incident the guard was added for (2026-04-29 self-audit hit
+    # ImportError on the old relative imports and unilaterally patched
+    # archive_lib.py) is addressed at the root cause: script-mode
+    # now works, so there's no failure mode for codex to "fix".
     raise SystemExit(main())

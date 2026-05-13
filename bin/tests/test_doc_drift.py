@@ -6,8 +6,11 @@ the operator to use one path/invocation but the implementation uses
 another. Bundled here because they share a shape: scan a doc/help
 string for the wrong token and assert it isn't present.
 
-- BUG-005: README.md documented `python3 bin/run_playbook.py` but the
-  runner exits EX_USAGE=64 on script-style invocation.
+- BUG-005: pre-v1.5.7, README.md documented `python3 bin/run_playbook.py`
+  but the runner exited EX_USAGE=64 on script-style invocation. v1.5.7
+  fix F-5a makes script-style work via sys.path injection, so the
+  ReadmeRunPlaybookInvocationTests check is inverted: at least one
+  module-form example must be documented, and both forms are valid.
 - BUG-006: SKILL.md routed operators to `docs_gathered/` but
   `bin/reference_docs_ingest.py` only reads `reference_docs/`.
 - BUG-007: `bin/quality_playbook.py` help text said `quality/runs/`
@@ -25,30 +28,11 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
-    """BUG-005: every `python ... bin/run_playbook.py ...` example in
-    README.md must use the package-module form, since the runner
-    exits EX_USAGE=64 on direct script-style invocation."""
-
-    def test_no_script_style_run_playbook_invocations(self) -> None:
-        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-        # Match any "python..." command that ends in run_playbook.py
-        # (with anything in the middle: paths, args, etc.). The single
-        # exception we tolerate is the exact phrase "bin/run_playbook.py"
-        # used as a file reference (not an invocation), which is
-        # historical context like "no bin/run_playbook.py changes shipped".
-        # We disambiguate by requiring "python" before the path.
-        pattern = re.compile(
-            r"python\d?\s+[^\n`]*bin/run_playbook\.py",
-            re.MULTILINE,
-        )
-        bad = pattern.findall(readme)
-        self.assertEqual(
-            bad,
-            [],
-            "README.md still contains script-style run_playbook.py "
-            "invocations that the runner rejects with EX_USAGE=64. Use "
-            "`python3 -m bin.run_playbook ...` instead. Found: " + repr(bad),
-        )
+    """BUG-005 (v1.5.7 fix F-5a update): both `python -m bin.run_playbook`
+    and `python /path/to/QPB/bin/run_playbook.py` are valid invocation
+    forms after F-5a. The pre-v1.5.7 ban on script-style invocations is
+    inverted: at least one module-form example must be documented (since
+    that's the canonical form), but script-style is no longer rejected."""
 
     def test_module_form_is_documented(self) -> None:
         """At least one example must show the package-module form so
