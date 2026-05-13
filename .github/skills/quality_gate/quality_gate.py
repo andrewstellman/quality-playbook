@@ -533,42 +533,42 @@ def count_per_bug_field(bugs_list, field):
 # --- File helpers ---
 
 
-# v1.5.4 Phase 3.6.4 (B-16): the end-of-run reorg moves intermediate
-# pipeline artifacts under quality/workspace/. The gate reads each of
-# those subdirectories at multiple sites; _resolve_artifact_path
-# centralises the dual-layout lookup so each site stays one-line.
-# Top-level wins (legacy / pre-reorg layout); workspace/ is the v1.5.4
-# canonical location after _finalize_quality_layout has run.
-_WORKSPACE_DIRS = (
-    "control_prompts",
-    "results",
-    "code_reviews",
-    "spec_audits",
-    "patches",
-    "writeups",
-    "mechanical",
-    "phase3",
-)
+# v1.5.7 fix F-4a: dropped the v1.5.4 dual-layout workspace tolerance.
+# Canonical artifact paths are top-level quality/<name>/ per README
+# spec. The companion check_no_workspace_dir below fails loudly if
+# workspace/ exists with content, so spec drift becomes visible.
 
 
 def _resolve_artifact_path(quality_dir, name):
-    """Return the live path for an intermediate artifact directory or
-    file under quality/. Tries top-level first (the legacy / current
-    in-flight layout), then quality/workspace/<name> (the v1.5.4
-    end-of-run reorg layout). Returns the top-level path even when
-    neither exists so callers that test ``.is_dir()`` / ``.is_file()``
-    get a False rather than an exception.
+    """Return the canonical path for an intermediate artifact directory
+    or file under quality/. Path is always top-level quality/<name>
+    per README spec. Returns the path even when it doesn't exist so
+    callers that test ``.is_dir()`` / ``.is_file()`` get a False
+    rather than an exception.
 
     ``name`` may be a single segment (``"results"``) or a path with
-    segments (``"results/tdd-results.json"``); both forms work
-    regardless of layout."""
-    top = quality_dir / name
-    if top.exists():
-        return top
-    workspace = quality_dir / "workspace" / name
-    if workspace.exists():
-        return workspace
-    return top
+    segments (``"results/tdd-results.json"``)."""
+    return quality_dir / name
+
+
+def check_no_workspace_dir(q):
+    """v1.5.7 fix F-4a (Phase 6 gate): artifacts must be at canonical
+    quality/<name>/ paths, NOT quality/workspace/<name>/. The
+    workspace/ layout was tolerated through v1.5.6 but is non-spec per
+    README; agents writing there are following stale prose. Fail
+    loudly so the spec drift becomes visible."""
+    print("[Workspace Drift]")
+    workspace = q / "workspace"
+    if workspace.exists() and workspace.is_dir() and any(workspace.iterdir()):
+        contents = sorted(p.name for p in workspace.iterdir())
+        fail(
+            "quality/workspace/",
+            f"contains {contents} — artifacts must be at canonical "
+            f"quality/<name>/ paths per README spec. Move contents "
+            f"to top-level quality/ and remove workspace/.",
+        )
+    else:
+        pass_("no non-canonical quality/workspace/ tree present")
 
 
 def has_file_matching(directory, patterns):
@@ -3289,6 +3289,7 @@ def check_repo(repo_dir, version_arg, strictness):
     check_mechanical(q)
     check_patches(q, bug_count, bug_ids, strictness)
     check_writeups(q, bug_count)
+    check_no_workspace_dir(q)
     skill_version = check_version_stamps(repo_dir, q)
     check_cross_run_contamination(repo_dir, q, version_arg, skill_version)
     check_run_metadata(q)

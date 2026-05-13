@@ -2922,11 +2922,13 @@ class AgentsMdGenerationTests(unittest.TestCase):
 
 
 class GateResolveArtifactPathTests(unittest.TestCase):
-    """v1.5.4 Phase 3.6.4 (B-16, M5 fix): the gate's
-    _resolve_artifact_path helper tries top-level first
-    (legacy / pre-reorg), then quality/workspace/<name>
-    (post-reorg). Imports the gate from its on-disk path since the
-    gate ships outside the bin/ package tree."""
+    """v1.5.7 fix F-4a: the gate's _resolve_artifact_path helper now
+    returns the canonical top-level path UNCONDITIONALLY. The v1.5.4
+    workspace/ fallback was removed because the runner-side
+    _finalize_quality_layout that produced workspace/ trees was dropped
+    in F-4z, and a new check_no_workspace_dir gate fails loudly when
+    workspace/ exists with content. Imports the gate from its on-disk
+    path since the gate ships outside the bin/ package tree."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -2942,7 +2944,10 @@ class GateResolveArtifactPathTests(unittest.TestCase):
         spec.loader.exec_module(module)
         cls.gate = module
 
-    def test_top_level_wins_when_present(self) -> None:
+    def test_top_level_wins_even_when_workspace_exists(self) -> None:
+        """If both top-level and workspace/ exist, top-level wins.
+        Pre-F-4a this was also the behavior (top-level checked first);
+        post-F-4a the function never even looks at workspace/."""
         with TemporaryDirectory() as tmp:
             q = Path(tmp)
             (q / "results").mkdir()
@@ -2954,13 +2959,19 @@ class GateResolveArtifactPathTests(unittest.TestCase):
             resolved = self.gate._resolve_artifact_path(q, "results/x.json")
             self.assertEqual(resolved.read_text(), "top")
 
-    def test_workspace_used_when_top_level_absent(self) -> None:
+    def test_workspace_is_NOT_resolved_post_F4a(self) -> None:
+        """Post-F-4a: a workspace/ tree alone does NOT satisfy
+        _resolve_artifact_path. The returned path is the canonical
+        top-level path (which doesn't exist here), so callers'
+        .is_file() returns False and downstream checks fail visibly."""
         with TemporaryDirectory() as tmp:
             q = Path(tmp)
             (q / "workspace" / "results").mkdir(parents=True)
             (q / "workspace" / "results" / "x.json").write_text("ws")
             resolved = self.gate._resolve_artifact_path(q, "results/x.json")
-            self.assertEqual(resolved.read_text(), "ws")
+            # Returns top-level path (which does NOT exist).
+            self.assertEqual(resolved, q / "results" / "x.json")
+            self.assertFalse(resolved.exists())
 
     def test_returns_top_level_when_neither_exists(self) -> None:
         """Callers test .is_file()/.is_dir() — return top-level so
@@ -2970,6 +2981,45 @@ class GateResolveArtifactPathTests(unittest.TestCase):
             resolved = self.gate._resolve_artifact_path(q, "results/x.json")
             self.assertEqual(resolved, q / "results" / "x.json")
             self.assertFalse(resolved.exists())
+
+    def test_check_no_workspace_dir_fails_on_populated_workspace(self) -> None:
+        """v1.5.7 fix F-4a Phase 6 gate: workspace/ with content fails.
+        Bites against the iter-N hallucination where the agent writes
+        new artifacts to quality/workspace/<name>/ instead of
+        canonical top-level."""
+        with TemporaryDirectory() as tmp:
+            q = Path(tmp)
+            (q / "workspace" / "writeups").mkdir(parents=True)
+            (q / "workspace" / "writeups" / "BUG-001.md").write_text(
+                "wrong location", encoding="utf-8",
+            )
+            self.gate._reset_counters()
+            self.gate.check_no_workspace_dir(q)
+            self.assertGreater(
+                self.gate.FAIL, 0,
+                "check_no_workspace_dir must FAIL when workspace/ has content",
+            )
+
+    def test_check_no_workspace_dir_passes_when_workspace_absent(self) -> None:
+        """check_no_workspace_dir passes when workspace/ doesn't exist
+        or is empty (canonical layout)."""
+        with TemporaryDirectory() as tmp:
+            q = Path(tmp)
+            # Case A: workspace/ doesn't exist.
+            self.gate._reset_counters()
+            self.gate.check_no_workspace_dir(q)
+            self.assertEqual(
+                self.gate.FAIL, 0,
+                "check_no_workspace_dir must PASS when workspace/ absent",
+            )
+            # Case B: workspace/ exists but empty.
+            (q / "workspace").mkdir()
+            self.gate._reset_counters()
+            self.gate.check_no_workspace_dir(q)
+            self.assertEqual(
+                self.gate.FAIL, 0,
+                "check_no_workspace_dir must PASS when workspace/ is empty",
+            )
 
 
 class B18aBareInvocationDefaultsToFullRunTests(unittest.TestCase):
