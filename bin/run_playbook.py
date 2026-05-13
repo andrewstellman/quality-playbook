@@ -2843,6 +2843,17 @@ def _preserve_quality_on_gate_failure(
         return None
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     preserved = repo_dir / f"{_GATE_FAILURE_DIRNAME_PREFIX}{ts}"
+    # v1.5.7 fix F-2: emit the "Preserved" log line BEFORE the rename so
+    # it lands in the about-to-be-renamed quality/logs/<id>/runner.log
+    # and therefore appears INSIDE the preserved directory after the
+    # rename. Pre-fix, this logboth() ran post-rename and recreated a
+    # shadow quality/logs/<id>/ hierarchy at the freshly-vacated path,
+    # routing the preservation evidence into a directory operators
+    # would never inspect.
+    lib.logboth(log_file, lib.log(
+        f"  Preserved quality/ at {preserved.name}/ for Phase 2 "
+        f"gate-failure diagnosis. Next run will create a fresh quality/."
+    ))
     quality.rename(preserved)
     violation_message = "\n> ".join(gate_messages) if gate_messages else "(no gate message captured)"
     marker_body = _render_gate_failure_marker(
@@ -2856,10 +2867,6 @@ def _preserve_quality_on_gate_failure(
     (preserved / _GATE_FAILURE_MARKER_FILENAME).write_text(
         marker_body, encoding="utf-8"
     )
-    lib.logboth(log_file, lib.log(
-        f"  Preserved quality/ at {preserved.name}/ for Phase 2 "
-        f"gate-failure diagnosis. Next run will create a fresh quality/."
-    ))
     return preserved
 
 

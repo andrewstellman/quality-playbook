@@ -306,6 +306,61 @@ class PreserveQualityOnGateFailureTests(unittest.TestCase):
     # assertions in test_preservation_happy_path_renames_quality_and_writes_marker.
     # No separate stub here.
 
+    def test_preservation_log_line_lands_in_preserved_logs_not_shadow_quality(self) -> None:
+        """v1.5.7 fix F-2: the "Preserved quality/ at ..." log line must
+        end up INSIDE the preserved directory (under
+        quality.gate-failed-<ts>/logs/<id>/runner.log), not in a shadow
+        quality/logs/<id>/runner.log recreated by lib.logboth() after
+        the rename. Pre-fix the logboth() call ran post-rename and
+        re-mkdir'd quality/logs/<id>/ at the freshly-vacated path,
+        routing preservation evidence to a directory operators never
+        inspect.
+
+        Test shape: place the log_file inside the live quality/ tree
+        (matching the v1.5.7 centralized log layout
+        quality/logs/<run-id>/runner.log) so the rename-vs-log
+        ordering matters. After preservation:
+          - preserved/logs/<run-id>/runner.log contains the
+            "Preserved quality/ at ..." line.
+          - No quality/ tree exists at the repo root (no shadow
+            recreation by logboth())."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            repo = self._make_repo_with_quality(tmp)
+            run_id = "20260513T084955Z"
+            log_file = repo / "quality" / "logs" / run_id / "runner.log"
+            log_file.parent.mkdir(parents=True)
+            log_file.write_text("", encoding="utf-8")
+            preserved = run_playbook._preserve_quality_on_gate_failure(
+                repo,
+                phase_group="Phase 2",
+                gate_messages=["GATE FAIL Phase 2"],
+                args=_make_args(),
+                log_file=log_file,
+            )
+            assert preserved is not None
+            preserved_log = preserved / "logs" / run_id / "runner.log"
+            self.assertTrue(
+                preserved_log.is_file(),
+                f"expected log file inside preserved directory at "
+                f"{preserved_log}, but it does not exist",
+            )
+            preserved_log_text = preserved_log.read_text(encoding="utf-8")
+            self.assertIn(
+                "Preserved quality/ at", preserved_log_text,
+                f"the 'Preserved' log line must land in the preserved "
+                f"directory's runner.log; got: {preserved_log_text!r}",
+            )
+            self.assertIn(
+                preserved.name, preserved_log_text,
+                "the 'Preserved' log line must name the preserved dir",
+            )
+            self.assertFalse(
+                (repo / "quality").exists(),
+                f"no shadow quality/ tree may exist at the repo root after "
+                f"preservation; if it does, lib.logboth() recreated it.",
+            )
+
     def test_marker_captures_multi_line_violation_message(self) -> None:
         """When the gate emits multiple message lines, the marker
         preserves them as a multi-line blockquote (each line prefixed
