@@ -4775,13 +4775,50 @@ def execute_run(args: argparse.Namespace, repo_dirs: Sequence[Path], timestamp: 
 
     print(lib.print_summary(repo_dirs))
     if not suppress_suggestion:
-        print_suggested_next_command(args, failures_occurred=overall_status > 0)
+        print_suggested_next_command(
+            args, failures_occurred=overall_status > 0, repo_dirs=repo_dirs,
+        )
     return overall_status
 
 
-def print_suggested_next_command(args: argparse.Namespace, failures_occurred: bool = False) -> None:
+def print_suggested_next_command(
+    args: argparse.Namespace,
+    failures_occurred: bool = False,
+    repo_dirs: Optional[Sequence[Path]] = None,
+) -> None:
     if failures_occurred:
-        print("  Run finished with errors — inspect the cell's phase-prompt input/output (under quality/logs/<run-id>/ for v1.5.7+ centralized layout, quality/control_prompts/ for --logs-flat / pre-v1.5.7) and re-run with --phase <N>")
+        # v1.5.7 fix F-6: when D1 gate-failure preservation has fired,
+        # point the operator at the preserved diagnostics directly
+        # instead of at the now-gone quality/ tree. Also drop the stale
+        # "cell's" wording (legacy benchmark-harness term — the
+        # operator-facing surface uses "repo").
+        preserved_hints = []
+        if repo_dirs:
+            for repo_dir in repo_dirs:
+                try:
+                    preserved = sorted(repo_dir.glob(f"{_GATE_FAILURE_DIRNAME_PREFIX}*"))
+                except OSError:
+                    preserved = []
+                if preserved:
+                    most_recent = preserved[-1]
+                    preserved_hints.append(
+                        f"{repo_dir.name}/{most_recent.name}/logs/<run-id>/"
+                    )
+        if preserved_hints:
+            joined = ", ".join(preserved_hints)
+            print(
+                "  Run finished with errors — gate-failure preservation "
+                "triggered. Inspect the preserved diagnostics under "
+                f"{joined} and re-run with --phase <N> after fixing the "
+                "cause."
+            )
+        else:
+            print(
+                "  Run finished with errors — inspect the repo's "
+                "phase-prompt input/output (under quality/logs/<run-id>/ "
+                "for v1.5.7+ centralized layout, quality/control_prompts/ "
+                "for --logs-flat / pre-v1.5.7) and re-run with --phase <N>"
+            )
         return
     runner_flag = {
         "claude": " --claude",

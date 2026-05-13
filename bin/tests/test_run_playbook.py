@@ -582,6 +582,61 @@ class RunPlaybookTests(unittest.TestCase):
         self.assertEqual(run_playbook.next_strategy("parity"), "adversarial")
         self.assertEqual(run_playbook.next_strategy("adversarial"), "")
 
+    def test_failure_hint_points_at_preserved_dir_when_present(self) -> None:
+        """v1.5.7 fix F-6: when a D1 gate-failure preservation dir
+        exists, the failure hint must point at it directly (not at the
+        now-gone quality/ tree). Also drops the legacy "cell's" wording
+        in favor of "repo's"."""
+        import io
+        from contextlib import redirect_stdout
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "express-1.5.7"
+            repo.mkdir()
+            preserved = repo / "quality.gate-failed-20260513T120000Z"
+            preserved.mkdir()
+            (preserved / "GATE_FAILURE.md").write_text("x", encoding="utf-8")
+            args = run_playbook.argparse.Namespace(
+                runner="copilot", next_iteration=False, strategy=["gap"],
+                model=None, targets=[str(repo)],
+            )
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                run_playbook.print_suggested_next_command(
+                    args, failures_occurred=True, repo_dirs=[repo],
+                )
+            output = buf.getvalue()
+        self.assertIn("gate-failure preservation", output)
+        self.assertIn("quality.gate-failed-20260513T120000Z", output)
+        self.assertIn("express-1.5.7", output)
+        # F-6 explicitly drops the legacy "cell's" wording.
+        self.assertNotIn("cell's", output)
+
+    def test_failure_hint_drops_cell_wording_when_no_preservation(self) -> None:
+        """v1.5.7 fix F-6: even when no preservation has fired, the
+        fallback hint drops "cell's" wording in favor of "repo's"."""
+        import io
+        from contextlib import redirect_stdout
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "express-1.5.7"
+            repo.mkdir()
+            # No quality.gate-failed-*/ sibling.
+            args = run_playbook.argparse.Namespace(
+                runner="copilot", next_iteration=False, strategy=["gap"],
+                model=None, targets=[str(repo)],
+            )
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                run_playbook.print_suggested_next_command(
+                    args, failures_occurred=True, repo_dirs=[repo],
+                )
+            output = buf.getvalue()
+        self.assertIn("Run finished with errors", output)
+        self.assertNotIn("cell's", output)
+        self.assertIn("repo's", output)
+        # Fallback hint still points at quality/logs/<run-id>/ as the
+        # general inspection path when no preserved dir exists.
+        self.assertIn("quality/logs/<run-id>/", output)
+
     def test_print_suggested_next_command_includes_model_and_runtime(self) -> None:
         import io
         from contextlib import redirect_stdout
