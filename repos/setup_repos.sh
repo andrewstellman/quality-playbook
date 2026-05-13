@@ -37,8 +37,10 @@
 #       (recognized by _benchmark_lib.sh; defaults to the parent of repos/)
 #
 # After setup, run (defaults: Copilot, gpt-5.4, parallel, single-pass, no seeds):
-#   python3 ../bin/run_playbook.py chi httpx        # bare names → version-append fallback
-#   python3 ../bin/run_playbook.py chi-1.4.5        # explicit versioned directory
+#   <repo>-<version>/bin/run_playbook.sh            # v1.5.7+ wrapper auto-discovers target
+#   <repo>-<version>/bin/run_playbook.sh <other>    # explicit target override
+#   python3 ../bin/run_playbook.py chi-1.5.7        # direct script form (v1.5.7+)
+#   python3 -m bin.run_playbook chi-1.5.7           # from QPB root (canonical package form)
 
 set -euo pipefail
 source "$(dirname "$0")/_benchmark_lib.sh"
@@ -225,6 +227,16 @@ for short in "${REPOS[@]}"; do
     # leaving harness-installed copies effectively without Layer-1
     # protection.
     cp "${QPB_DIR}/bin/citation_verifier.py" "${dst}/bin/citation_verifier.py" 2>/dev/null || true
+    # v1.5.7 fix F-5b: install the runner wrapper so adopters can
+    # invoke `<repo>-<version>/bin/run_playbook.sh` from anywhere and
+    # have it auto-discover the QPB clone via walk-up from its own
+    # location (with $QPB_HOME as a fallback). The wrapper invokes
+    # `python3 -m bin.run_playbook` against this repo as the target.
+    if [ -f "${SCRIPT_DIR}/bin/run_playbook.sh" ]; then
+        cp "${SCRIPT_DIR}/bin/run_playbook.sh" "${dst}/bin/run_playbook.sh"
+        chmod +x "${dst}/bin/run_playbook.sh"
+        log "  ✓ Installed runner wrapper at $(basename "$dst")/bin/run_playbook.sh"
+    fi
     mkdir -p "${dst}/ai_context"
     cp "${QPB_DIR}/ai_context/AI_ORCHESTRATION_PATTERNS.md" "${dst}/ai_context/AI_ORCHESTRATION_PATTERNS.md" 2>/dev/null || true
 
@@ -253,4 +265,4 @@ for short in "${REPOS[@]}"; do
     echo ""
 done
 
-echo "=== Setup complete. Next: python3 ../bin/run_playbook.py ${REPOS[*]} ==="
+echo "=== Setup complete. Next: $(echo "${REPOS[0]}-${VERSION}")/bin/run_playbook.sh ==="
