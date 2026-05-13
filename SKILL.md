@@ -147,7 +147,7 @@ What's new vs. v1.5.3, in pointer form (the canonical architecture lives in `doc
 - **`INDEX.md` uses `schema_version: "2.0"`** with a `target_role_breakdown` field carrying the per-role counts and percentages. The v1.5.3 `target_project_type` enum is retired (legacy archives stay readable).
 - **Pipelines activate from the role map, not from a project-type label.** The four-pass skill-derivation pipeline runs over files tagged `skill-prose` / `skill-reference`. The code-review pipeline runs over files tagged `code`. The prose-to-code divergence check runs over files tagged `skill-tool`. When the role map shows zero of a role, that pipeline no-ops cleanly. There is no Code/Skill/Hybrid trichotomy — both pipelines run when both surfaces are present (the "always-Hybrid downstream" model).
 - **Archive directory is `quality/previous_runs/`** (was `quality/runs/` in v1.5.3); legacy archives at the old path remain readable.
-- **End-of-Phase-6 reorganization** moves intermediate artifacts under `quality/workspace/` so the top-level `quality/` directory is dominated by canonical deliverables (REQUIREMENTS.md, BUGS.md, etc.). The gate's path resolver reads from both layouts.
+- **Canonical artifact layout is top-level `quality/<name>/`** (e.g., `quality/writeups/BUG-001.md`, `quality/patches/BUG-001-fix.patch`, `quality/code_reviews/`, `quality/spec_audits/`, `quality/results/`). The Phase 6 gate fails if `quality/workspace/` exists with content (v1.5.7 fix F-4a `check_no_workspace_dir`); writes there are spec drift.
 
 You don't need to re-derive any of this in your prompt-side reasoning; the orchestrator's prompts already encode it. If you encounter a phase prompt that conflicts with the architecture summarized here, follow the phase prompt — it's the canonical source for the per-phase contract.
 
@@ -185,7 +185,9 @@ A successful run produces this canonical set under the target's `quality/` direc
 | `quality/INDEX.md` | Run metadata + role breakdown + gate verdict. |
 | `quality/PROGRESS.md` | Phase-by-phase checkpoint log. |
 | `quality/previous_runs/<TIMESTAMP>/` | Archive of any prior run. |
-| `quality/workspace/` | Intermediate pipeline artifacts (control prompts, code reviews, spec audits, four-pass pipeline outputs, etc.). |
+| `quality/writeups/BUG-<id>.md` | Per-bug writeups. |
+| `quality/patches/` | Fix and regression-test patches (one per bug). |
+| `quality/code_reviews/`, `quality/spec_audits/`, `quality/results/`, `quality/control_prompts/`, `quality/mechanical/` | Intermediate pipeline artifacts. Top-level only — `quality/workspace/` is forbidden (gated by `check_no_workspace_dir`). |
 | `AGENTS.md` (target repo root) | Per-project orientation generated post-Phase-6. Carries a QPB sentinel marker so future runs detect QPB-managed copies. |
 
 The gate verdict in `quality/INDEX.md` (`pass` / `partial` / `fail`) is the operator-facing summary of how the run went. If it's anything other than `pass`, surface why before considering the run done.
