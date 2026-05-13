@@ -10,32 +10,62 @@ The playbook closes that gap. It reads your codebase, derives behavioral require
 
 ## How to install the Quality Playbook
 
-The recommended way to install the Quality Playbook into a project is to have your AI coding tool do it for you:
+The fastest way is to let your AI coding tool do it.
 
-1. **Download or clone this repo** somewhere on your machine — for example, `git clone https://github.com/andrewstellman/quality-playbook ~/quality-playbook`. You only need to do this once; the same clone can install the playbook into any number of target projects.
+1. **Clone this repo** somewhere on your machine — for example, `git clone https://github.com/andrewstellman/quality-playbook ~/quality-playbook`. One clone installs into any number of projects.
 
-2. **Open your target project** in your favorite AI coding tool — Claude Code, Cursor, GitHub Copilot, Windsurf, or any other agent that can read files at arbitrary paths and run commands. The QPB clone doesn't need to be open in the AI tool; the agent reads its files directly from the clone path you give it.
+2. **Open your target project** in Claude Code, Cursor, GitHub Copilot, Windsurf, Continue, or another AI coding tool.
 
 3. **Ask the AI to install it.** Something like:
 
    > *"Install the Quality Playbook into this project from `~/quality-playbook`."*
 
-   The AI agent reads [`AGENTS.md`](AGENTS.md) from the QPB clone, figures out which AI tool to install for, runs `python3 -m bin.install_skill --into <this-project> --ai-tool <tool>`, and reports back. The skill files land in the canonical subdirectory for your AI tool (`.cursor/skills/quality-playbook/`, `.claude/skills/quality-playbook/`, `.github/skills/quality-playbook/`, or `.continue/skills/quality-playbook/`).
+   The agent reads [`AGENTS.md`](AGENTS.md), figures out which install location your tool uses, and runs the installer. Done.
 
-   The agent determines which tool to install for using a three-tier priority order: (a) what you told it ("install for Cursor"), (b) its own identity if it can confidently self-identify (e.g., a Cursor agent installing inside a Cursor session — it will tell you it's making this inference so you can correct), or (c) asking you if neither (a) nor (b) applies.
+Prefer to install by hand or use the script directly? See [Step 1 of the walkthrough](#step-1-install-the-skill) for the script invocation and [Step 3](#step-3-install-the-skill-manual-flow--fallback) for the manual `cp` recipes.
 
-**Currently supported tools:** Cursor, Claude Code, GitHub Copilot (`copilot` or `github` aliases), and Continue. Other AI coding tools work too, as long as they can read files at the QPB clone path and execute shell commands; they install via the explicit `--target <path>` flag if their canonical skills directory isn't yet recognized by `bin/install_skill.py`.
+**Prerequisite:** Python 3.9 or later on your `PATH` (the installer uses standard-library features that require 3.9+).
 
-**Prerequisite:** Python 3.9 or later must be on your `PATH`. The installer is a Python module (`python3 -m bin.install_skill`) and uses standard-library features that require 3.9+. Check with `python3 --version`.
+**The more documentation you give it, the better it finds bugs.** The playbook reads written specs, design docs, GitHub or Jira issues from real users, chat history, and post-mortems — then derives what your code is *supposed* to do from those sources. Without documentation it still runs (from the source tree alone), but bug recall drops materially. See [Step 2: Provide documentation (strongly recommended)](#step-2-provide-documentation-strongly-recommended) for what to gather and the best ways to gather it.
 
-If you'd rather skip the AI handoff entirely, run the installer directly from inside the QPB clone:
+## How to run the Quality Playbook
 
-```bash
-cd ~/quality-playbook
-python3 -m bin.install_skill --into /path/to/your-target-project --ai-tool <cursor|claude|copilot|continue>
+Open your project in your AI coding tool (Claude Code, Cursor, GitHub Copilot, Windsurf, Continue, etc.) and tell the agent:
+
+> *"Run the Quality Playbook on this project."*
+
+The agent runs all six phases — explore, generate requirements + tests + protocols, code review, spec audit, reconcile findings, verify — and drops the results into a `quality/` folder in your project.
+
+A full six-phase run takes a while and uses a lot of tokens. To split it up across sessions (e.g., for daily token-budget management), tell the agent to run a subset:
+
+> *"Run phases 1 to 3 of the Quality Playbook on this project."*
+
+Then later:
+
+> *"Continue the Quality Playbook from phase 4."*
+
+When the run finishes, the `quality/` folder contains:
+
+```
+quality/
+├── BUGS.md                  ← consolidated bug report with spec basis (start here)
+├── REQUIREMENTS.md          ← behavioral requirements derived from your code + docs
+├── EXPLORATION.md           ← Phase 1 findings — patterns explored, files tagged
+├── QUALITY.md               ← quality constitution for your codebase
+├── CONTRACTS.md             ← extracted behavioral contracts
+├── COVERAGE_MATRIX.md       ← contract-to-requirement traceability
+├── COMPLETENESS_REPORT.md   ← final gate report with post-reconciliation verdict
+├── PROGRESS.md              ← phase checkpoint log + cumulative bug tracker
+├── test_functional.py       ← functional tests traced to requirements
+├── test_regression.py       ← regression tests for confirmed bugs
+├── writeups/                ← per-bug detailed writeups with patches (BUG-NNN.md)
+├── patches/                 ← fix and regression-test patches
+├── code_reviews/            ← three-pass code review output
+├── spec_audits/             ← Council of Three auditor reports + triage
+└── results/                 ← TDD red/green logs, integration results, gate log
 ```
 
-Or use the manual `cp` recipes in [Step 3 of the walkthrough below](#step-3-install-the-skill-manual-flow--fallback) to copy the skill files by hand without the script.
+Start with `BUGS.md` for the headline findings. Then read `REQUIREMENTS.md` to see what the playbook learned your code is supposed to do — including requirements derived from issues and docs that you may not have realized were there. The gap between what `REQUIREMENTS.md` says and what your code actually does is exactly the bug surface the playbook is built to find.
 
 ## Need help? Just ask your AI
 
@@ -101,9 +131,29 @@ python3 -m bin.install_skill --verbose                                      # hu
 
 ### Step 2: Provide documentation (strongly recommended)
 
-The playbook produces better requirements, fewer false positives, and more specific
-bugs when it has written documentation to work from. Plaintext files only —
-`.txt` and `.md`. Convert other formats first:
+The playbook produces better requirements, fewer false positives, and more specific bugs when it has written documentation to work from.
+
+**Where to find documentation worth providing.** The single biggest leverage is **issue trackers** — GitHub issues, Jira tickets, Linear, Shortcut. Bug reports and feature requests written by real users tell you what they expect the code to do, which is usually *not* fully captured in any spec you've written. Other high-value sources, in rough order of leverage:
+
+- **Issue trackers** — GitHub Issues, Jira, Linear, Shortcut. Filter for `bug` and `feature-request`; user words capture intent.
+- **Project specs and design docs** — RFCs, API contracts, architecture decision records (ADRs). Authoritative when they exist.
+- **Post-mortems and incident retrospectives** — capture intent that wasn't in the spec when the spec was written.
+- **Chat history** — Slack channels, Microsoft Teams, Discord. Especially design discussions, triage threads, and on-call rotation handoffs.
+- **AI chat logs** — Claude / ChatGPT / Cursor conversations where you reasoned through behavior.
+- **Public standards you cite** — RFCs, W3C specs, vendor API docs.
+
+**Tools that help gather these into plaintext.** Two open agent-driven tools fit this use case well:
+
+- **[Cowork](https://claude.ai/cowork)** — Anthropic's desktop tool for non-developers; can connect to GitHub, Jira, Slack, Google Drive, Notion, and similar sources via MCP connectors, search across them, and export results to files. Good fit if you're already in the Anthropic ecosystem and want a graphical workflow.
+- **[OpenClaw](https://openclaw.ai)** — open-source AI agent that runs as a local gateway connecting LLMs to your messaging platforms (Slack, Teams, Discord, IRC, plus 20+ others). Uses the same `SKILL.md`-based skills system QPB does, so you can give it tooling and ask it to traverse your channels and export the relevant threads. Good fit if your project's intent lives in chat history and you want self-hosted, open-source tooling.
+
+A useful prompt shape for either:
+
+> *"Search [GitHub issues / Jira / Slack #project-channel / your-doc-source] for everything related to this codebase. Export to Markdown files in `reference_docs/`. Prioritize user-reported bugs and feature requests — those tell us what users expected that we may not have documented."*
+
+After the playbook runs, **read `quality/REQUIREMENTS.md`** to see what it actually learned from those sources. The requirements there are what *the documentation says* your code is supposed to do — which is frequently not what you thought it did. That gap is the bug surface the playbook finds.
+
+**File format.** Plaintext only — `.txt` and `.md`. Convert other formats first:
 
 - `pdftotext spec.pdf spec.txt`
 - `pandoc -t plain spec.docx -o spec.txt`
