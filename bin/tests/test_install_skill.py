@@ -266,6 +266,70 @@ class EnvironmentDetectionTests(unittest.TestCase):
                 f"stderr={result.stderr!r}",
             )
 
+    def test_reference_docs_ingest_bundled_in_install(self) -> None:
+        """v1.5.7 fix F-1: bin/reference_docs_ingest.py must land at the
+        install destination so Phase 1's `python -m bin.reference_docs_ingest`
+        invocation resolves. Pre-fix every benchmark target hard-stopped at
+        Phase 1 with ModuleNotFoundError because the script lived only in
+        the QPB clone, not at the install root."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            target = tmp / "explicit-install"
+            rc, out = _capture_install(target=target, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            ingest_path = target / "bin" / "reference_docs_ingest.py"
+            self.assertTrue(
+                ingest_path.is_file(),
+                f"bin/reference_docs_ingest.py missing at install destination "
+                f"({ingest_path}); Phase 1 will hard-stop with "
+                f"ModuleNotFoundError. Output: {out}",
+            )
+            # benchmark_lib is a transitive dep (reference_docs_ingest
+            # imports it at module load) — both must be present or Phase 1
+            # fails at ImportError before it can run.
+            benchmark_lib_path = target / "bin" / "benchmark_lib.py"
+            self.assertTrue(
+                benchmark_lib_path.is_file(),
+                f"bin/benchmark_lib.py missing at install destination "
+                f"({benchmark_lib_path}); reference_docs_ingest module load "
+                f"will fail. Output: {out}",
+            )
+            self.assertIn(
+                "bin/reference_docs_ingest.py", out,
+                "expected event=copy file=...bin/reference_docs_ingest.py line "
+                "in installer output",
+            )
+
+    def test_installed_reference_docs_ingest_is_importable(self) -> None:
+        """v1.5.7 fix F-1: after install, the bundled
+        bin/reference_docs_ingest.py must load as a module
+        (`python -m bin.reference_docs_ingest --help`) from the install
+        destination. Catches the case where the module file lands but its
+        transitive imports (benchmark_lib) are missing."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            target = tmp / "explicit-install"
+            rc, out = _capture_install(target=target, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            env = os.environ.copy()
+            # Remove PYTHONPATH so the source clone's bin/ doesn't satisfy
+            # the import — we want to verify the BUNDLED module + its
+            # transitive deps resolve at the install destination.
+            env.pop("PYTHONPATH", None)
+            result = subprocess.run(
+                [sys.executable, "-m", "bin.reference_docs_ingest", "--help"],
+                cwd=target,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertEqual(
+                result.returncode, 0,
+                f"bin.reference_docs_ingest --help failed at install "
+                f"destination: stdout={result.stdout!r} stderr={result.stderr!r}",
+            )
+
     def test_target_override(self) -> None:
         """--target wins even when an environment is detectable."""
         with TemporaryDirectory() as tmp_str:

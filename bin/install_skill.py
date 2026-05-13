@@ -119,6 +119,23 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     citation_verifier_src = source_root / "bin" / "citation_verifier.py"
     if citation_verifier_src.is_file():
         files.append((citation_verifier_src, Path("bin") / "citation_verifier.py"))
+    # v1.5.7 fix F-1: bundle bin/reference_docs_ingest.py so Phase 1's
+    # `python -m bin.reference_docs_ingest` invocation resolves at the
+    # install destination. Pre-fix, every benchmark target hard-stopped
+    # at Phase 1 with ModuleNotFoundError because the script lived only
+    # in the QPB clone, not at the install root. The module imports
+    # `from bin import benchmark_lib`, so benchmark_lib.py must also be
+    # bundled (next entry).
+    reference_docs_ingest_src = source_root / "bin" / "reference_docs_ingest.py"
+    if reference_docs_ingest_src.is_file():
+        files.append((reference_docs_ingest_src, Path("bin") / "reference_docs_ingest.py"))
+    # v1.5.7 fix F-1 (transitive): bundle bin/benchmark_lib.py because
+    # reference_docs_ingest.py imports it at module load. benchmark_lib
+    # has no internal bin/ dependencies (stdlib-only) so the bundle
+    # closure terminates here.
+    benchmark_lib_src = source_root / "bin" / "benchmark_lib.py"
+    if benchmark_lib_src.is_file():
+        files.append((benchmark_lib_src, Path("bin") / "benchmark_lib.py"))
     return files
 
 
