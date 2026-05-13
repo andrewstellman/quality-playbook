@@ -2856,7 +2856,8 @@ class AgentsMdGenerationTests(unittest.TestCase):
                 "REQUIREMENTS.md",
                 "BUGS.md",
                 "exploration_role_map.json",
-                "workspace/",
+                "quality/writeups/BUG-",
+                "quality/patches/",
                 "previous_runs/",
             ):
                 self.assertIn(required, content)
@@ -2918,94 +2919,6 @@ class AgentsMdGenerationTests(unittest.TestCase):
             content_2 = run_playbook._generate_agents_md_content(repo)
             run_playbook._safe_write_agents_md(target, content_2)
             self.assertEqual(text_after_first, target.read_text())
-
-
-class FinalizeQualityLayoutTests(unittest.TestCase):
-    """v1.5.4 Phase 3.6.4 (B-16): _finalize_quality_layout moves
-    intermediate pipeline artifacts under quality/workspace/ at end
-    of Phase 6. Canonical deliverables stay at the top level so the
-    operator-facing quality/ tree is human-readable."""
-
-    def test_moves_workspace_dirs_to_workspace(self) -> None:
-        with TemporaryDirectory() as tmp:
-            repo = Path(tmp)
-            q = repo / "quality"
-            # Canonical (top-level after reorg).
-            write(q / "REQUIREMENTS.md", "reqs")
-            write(q / "BUGS.md", "bugs")
-            # Intermediate (move to workspace/).
-            write(q / "control_prompts" / "phase1.txt", "p1")
-            write(q / "results" / "tdd-results.json", "{}")
-            write(q / "code_reviews" / "review.md", "review")
-            write(q / "phase3" / "pass_c_formal.jsonl", "{}")
-            write(q / "EXPLORATION_ITER1.md", "iter1")
-            write(q / "EXPLORATION_MERGED.md", "merged")
-
-            run_playbook._finalize_quality_layout(repo)
-
-            # Canonical preserved at top-level.
-            self.assertTrue((q / "REQUIREMENTS.md").is_file())
-            self.assertTrue((q / "BUGS.md").is_file())
-            # Intermediates moved.
-            self.assertFalse((q / "control_prompts").exists())
-            self.assertFalse((q / "results").exists())
-            self.assertFalse((q / "code_reviews").exists())
-            self.assertFalse((q / "phase3").exists())
-            self.assertTrue(
-                (q / "workspace" / "control_prompts" / "phase1.txt").is_file()
-            )
-            self.assertTrue(
-                (q / "workspace" / "results" / "tdd-results.json").is_file()
-            )
-            self.assertTrue(
-                (q / "workspace" / "code_reviews" / "review.md").is_file()
-            )
-            self.assertTrue(
-                (q / "workspace" / "phase3" / "pass_c_formal.jsonl").is_file()
-            )
-            # ITER + MERGED files moved.
-            self.assertFalse((q / "EXPLORATION_ITER1.md").exists())
-            self.assertFalse((q / "EXPLORATION_MERGED.md").exists())
-            self.assertTrue((q / "workspace" / "EXPLORATION_ITER1.md").is_file())
-            self.assertTrue((q / "workspace" / "EXPLORATION_MERGED.md").is_file())
-
-    def test_idempotent_on_already_finalized_tree(self) -> None:
-        with TemporaryDirectory() as tmp:
-            repo = Path(tmp)
-            q = repo / "quality"
-            write(q / "BUGS.md", "bugs")
-            write(q / "workspace" / "results" / "x.json", "{}")
-            run_playbook._finalize_quality_layout(repo)
-            # Pre-existing workspace child preserved unchanged.
-            self.assertTrue((q / "workspace" / "results" / "x.json").is_file())
-            # Top-level canonical preserved.
-            self.assertTrue((q / "BUGS.md").is_file())
-
-    def test_no_overwrite_when_workspace_child_already_exists(self) -> None:
-        """If a re-run produces both top-level intermediates AND a
-        pre-existing workspace child, preserve workspace and leave
-        top-level alone (don't merge silently)."""
-        with TemporaryDirectory() as tmp:
-            repo = Path(tmp)
-            q = repo / "quality"
-            write(q / "control_prompts" / "phase1.txt", "live")
-            write(q / "workspace" / "control_prompts" / "phase1.txt", "old")
-            run_playbook._finalize_quality_layout(repo)
-            # Workspace preserved; top-level untouched (the rename
-            # would have overwritten workspace, which we explicitly
-            # avoid).
-            self.assertEqual(
-                (q / "workspace" / "control_prompts" / "phase1.txt").read_text(),
-                "old",
-            )
-            self.assertEqual(
-                (q / "control_prompts" / "phase1.txt").read_text(),
-                "live",
-            )
-
-    def test_no_op_when_quality_dir_missing(self) -> None:
-        with TemporaryDirectory() as tmp:
-            run_playbook._finalize_quality_layout(Path(tmp))
 
 
 class GateResolveArtifactPathTests(unittest.TestCase):

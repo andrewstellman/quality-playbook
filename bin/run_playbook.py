@@ -3390,17 +3390,13 @@ def _log_phase_completion(
         except Exception as exc:  # noqa: BLE001 — log and continue
             lib.logboth(log_file, lib.log(f"  WARN write_live_index_final skipped: {exc}"))
         if gate_passed:
-            # v1.5.4 Phase 3.6.4 (B-16): reorganize the live tree into
-            # canonical-top-level + workspace/intermediates BEFORE the
-            # archive snapshot, so the archived run carries the same
-            # structure the live tree does.
-            try:
-                _finalize_quality_layout(repo_dir)
-            except Exception as exc:  # noqa: BLE001 — log + continue
-                lib.logboth(
-                    log_file,
-                    lib.log(f"  WARN _finalize_quality_layout skipped: {exc}"),
-                )
+            # v1.5.7 fix F-4z: dropped the v1.5.4 Phase-3.6.4 reorg into
+            # quality/workspace/. The README's canonical layout is
+            # top-level quality/<name>/, and the reshape was training
+            # iter-N agents to write to non-canonical workspace/ paths
+            # by reshaping the tree they then learned from. The Phase 6
+            # gate now fails loudly if quality/workspace/ exists with
+            # content (see quality_gate.check_no_workspace_dir).
             # v1.5.4 Phase 3.6.5 (B-17): generate per-project AGENTS.md
             # for an agent dropped into the repo afterward. Operator-
             # authored AGENTS.md (no QPB sentinel) is preserved with a
@@ -3430,78 +3426,15 @@ def _log_phase_completion(
                 lib.logboth(log_file, lib.log(f"  WARN archive_run skipped: {exc}"))
 
 
-# v1.5.4 Phase 3.6.4 (B-16): canonical-vs-workspace layout for the
-# end-of-run quality/ tree. Canonical deliverables (REQUIREMENTS.md,
-# QUALITY.md, BUGS.md, etc.) stay at the top level; intermediate
-# pipeline artifacts (control_prompts/, results/, code_reviews/,
-# spec_audits/, patches/, writeups/, mechanical/, phase3/, plus
-# EXPLORATION_ITER*.md / EXPLORATION_MERGED.md) move into
-# quality/workspace/ for human-consumption hygiene. The gate's
-# _resolve_artifact_path helper reads from both layouts so consumers
-# don't have to track which side an artifact landed on.
-_WORKSPACE_DIRS = (
-    "control_prompts",
-    "results",
-    "code_reviews",
-    "spec_audits",
-    "patches",
-    "writeups",
-    "mechanical",
-    "phase3",
-)
-_WORKSPACE_FILE_GLOBS = (
-    "EXPLORATION_ITER*.md",
-    "EXPLORATION_MERGED.md",
-)
-
-
-def _finalize_quality_layout(repo_dir: Path) -> None:
-    """v1.5.4 Phase 3.6.4 (B-16): move intermediate artifacts under
-    quality/workspace/ so the top-level quality/ tree only carries
-    canonical deliverables. Called after the gate has run and BEFORE
-    archive_run so the archived snapshot captures the reorganized
-    layout. Idempotent: re-running on an already-organized tree
-    no-ops. Operator-friendly: pre-existing workspace/ children are
-    preserved (we only move tree → workspace, never overwrite)."""
-    quality_dir = repo_dir / "quality"
-    if not quality_dir.is_dir():
-        return
-    workspace = quality_dir / "workspace"
-    for name in _WORKSPACE_DIRS:
-        src = quality_dir / name
-        if not src.is_dir():
-            continue
-        # Avoid overwriting an existing workspace child — that would
-        # be a re-run state we don't expect; preserve and continue.
-        dst = workspace / name
-        if dst.exists():
-            continue
-        workspace.mkdir(parents=True, exist_ok=True)
-        try:
-            src.rename(dst)
-        except OSError:
-            # Fallback for cross-device or permission issues — copy
-            # then unlink piece by piece. Best-effort; if both fail
-            # the canonical files at top-level still work.
-            try:
-                shutil.move(str(src), str(dst))
-            except (shutil.Error, OSError):
-                pass
-    for pattern in _WORKSPACE_FILE_GLOBS:
-        for src in quality_dir.glob(pattern):
-            if not src.is_file():
-                continue
-            dst = workspace / src.name
-            if dst.exists():
-                continue
-            workspace.mkdir(parents=True, exist_ok=True)
-            try:
-                src.rename(dst)
-            except OSError:
-                try:
-                    shutil.move(str(src), str(dst))
-                except (shutil.Error, OSError):
-                    pass
+# v1.5.7 fix F-4z: removed _finalize_quality_layout, _WORKSPACE_DIRS,
+# and _WORKSPACE_FILE_GLOBS. The v1.5.4 Phase 3.6.4 reshape moved
+# intermediate artifacts under quality/workspace/, but the README's
+# canonical layout is top-level quality/<name>/, and the runner-side
+# reshape was training iter-N agents to write to non-canonical
+# workspace/ paths (the iter-1 agent wrote to top-level, the runner
+# reshaped, and the iter-2 agent then learned the workspace/ layout
+# from the reshaped tree). The Phase 6 gate now enforces top-level
+# canonical paths via check_no_workspace_dir.
 
 
 # v1.5.4 Phase 3.6.5 (B-17): per-project AGENTS.md generation. The
@@ -3725,7 +3658,9 @@ def _generate_agents_md_content(repo_dir: Path) -> str:
         "- `quality/exploration_role_map.json` — per-file role tagging "
         "that drives Phase 2 wiring."
     )
-    lines.append("- `quality/workspace/` — intermediate pipeline artifacts (control_prompts, results, code_reviews, etc.).")
+    lines.append("- `quality/writeups/BUG-<id>.md` — per-bug writeups.")
+    lines.append("- `quality/patches/` — fix and regression-test patches.")
+    lines.append("- `quality/code_reviews/`, `quality/spec_audits/`, `quality/results/`, `quality/control_prompts/`, `quality/mechanical/` — intermediate pipeline artifacts.")
     lines.append("- `quality/previous_runs/` — historical archives.")
     lines.append("")
     lines.append("## How to extend the review")

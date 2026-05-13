@@ -25,8 +25,7 @@ the four passes themselves did not move.
 Module naming note: this directory is ``bin/skill_derivation/`` rather
 than ``bin/phase3/`` to avoid collision with the Quality Playbook's
 own internal Phase 3 (Code Review and Regression Tests, per SKILL.md).
-The on-disk artifact directory remains ``quality/phase3/`` (or
-``quality/workspace/phase3/`` after v1.5.4 Phase 3.6.4 end-of-run
-reorganization) for parity with the Implementation Plan's literal
-text.
+The on-disk artifact directory is ``quality/phase3/`` (top-level
+canonical layout per README spec; v1.5.7 fix F-4z dropped the
+intermediate quality/workspace/ reshape).
 """
