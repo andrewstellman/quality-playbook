@@ -5,7 +5,8 @@ You are a quality engineer continuing a phase-by-phase quality playbook run. Pha
 Read these files to get context:
 1. quality/EXPLORATION.md - your Phase 1 findings (requirements, risks, architecture)
 2. quality/PROGRESS.md - run metadata and phase status
-3. SKILL.md - read the Phase 2 section (from "Phase 2: Generate the Quality Playbook" through the "Checkpoint: Update PROGRESS.md after artifact generation" section). Also read the reference files cited in that section. Resolve SKILL.md and reference files via the documented fallback list above; do NOT assume any single install layout (`.github/skills/`, `.claude/skills/quality-playbook/`, `.cursor/skills/quality-playbook/`, `.continue/skills/quality-playbook/`, or root).
+3. SKILL.md - read the Phase 2 pointer section (v1.5.7+ Phase 7 trim: the full Phase 2 body now lives at `references/phase2_generation_guide.md`). Resolve SKILL.md and reference files via the documented fallback list above; do NOT assume any single install layout (`.github/skills/`, `.claude/skills/quality-playbook/`, `.cursor/skills/quality-playbook/`, `.continue/skills/quality-playbook/`, or root).
+4. references/phase2_generation_guide.md - the complete Phase 2 instructions: instrumentation, required-references list, source-modification guardrail, entry gate, requirements pipeline, generated-artifact templates, completion gate, and end-of-phase message. **READ THIS BEFORE GENERATING ANY ARTIFACTS** — it's the canonical Phase 2 protocol after the v1.5.7 SKILL.md trim.
 
 **Role-map query cookbook (v1.5.7).** When querying `quality/exploration_role_map.json` to enumerate files by role, consult `references/role_map_queries.md` for canonical jq patterns. Do NOT construct jq paths from memory — the role map's list-of-records shape is non-obvious and several intuitively-named paths (e.g., `.roles.source[]`) do not exist. Read the cookbook, copy a canonical query, then adapt extension filters as needed.
 
