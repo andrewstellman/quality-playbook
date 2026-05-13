@@ -20,11 +20,14 @@
 #   --target-folder PATH  Override destination from default repos/<repo>-<version>/.
 #                         Requires exactly one positional repo argument. If PATH
 #                         already exists, --replace must also be given.
-#   --replace             Allow overwriting an existing --target-folder. (Default
-#                         behavior without --target-folder always replaces the
-#                         conventional repos/<repo>-<version>/ destination; this
-#                         flag is required only with --target-folder, to prevent
-#                         accidental overwrite of harness run directories.)
+#   --replace             Destructive: rm -rf an existing destination instead of
+#                         backing it up. Required with --target-folder when the
+#                         target path already exists. Without --target-folder
+#                         (the common case), the default is now backup-by-default:
+#                         existing repos/<repo>-<version>/ is renamed to
+#                         repos/<repo>-<version>.bak-<UTC-ts>/ before the fresh
+#                         install lands (v1.5.7 fix F-3, preserves prior repo
+#                         state including D1 gate-failure dirs).
 #
 # Prerequisites:
 #   ./create_clean_repos.sh       # Populate clean/ (one-time)
@@ -137,7 +140,21 @@ for short in "${REPOS[@]}"; do
         mkdir -p "$(dirname "$dst")"
     else
         dst="${SCRIPT_DIR}/${short}-${VERSION}"
-        [ -d "$dst" ] && log "EXISTS: removing ${dst}" && rm -rf "$dst"
+        if [ -d "$dst" ]; then
+            if [ "$REPLACE" = true ]; then
+                log "EXISTS: removing ${dst} (--replace opted in)"
+                rm -rf "$dst"
+            else
+                # v1.5.7 fix F-3: backup-by-default. Rename existing dst
+                # to a timestamped .bak-* sibling so any preserved D1
+                # gate-failure dirs (quality.gate-failed-<ts>/) survive a
+                # subsequent setup. Operators who genuinely want the
+                # destructive prior behavior can pass --replace.
+                backup_dir="${dst}.bak-$(date -u +%Y%m%dT%H%M%SZ)"
+                log "EXISTS: backing up ${dst} → $(basename "$backup_dir")/ (pass --replace to opt into destruction)"
+                mv "$dst" "$backup_dir"
+            fi
+        fi
     fi
 
     if [ "$FROM_PRIOR" = false ] && [ -d "${CLEAN_DIR}/${short}" ]; then
