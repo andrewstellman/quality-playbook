@@ -154,9 +154,9 @@ class SkillMdEmitsWhatJustHappenedContractTests(unittest.TestCase):
     section-presence + pointer + canonical-phrase checks were too
     shallow — they could pass even if the SKILL.md section lost
     `### What to do next`, "LAST visible output," or the full
-    eight-state coverage. This class now extracts the section body
-    and asserts the full contract surface inside it, not just the
-    header presence.
+    thirteen-state coverage. This class now extracts the section
+    body and asserts the full contract surface inside it, not just
+    the header presence.
     """
 
     REQUIRED_SECTION_HEADER = '## "What just happened" — required final block at every phase boundary'
