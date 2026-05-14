@@ -245,8 +245,14 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.
         # Hashes recomputed against the v1.5.6 guide.
-        "single_pass_True":      (  972, "07de21144950566bc058735fa75ad59a788bff8b1ef5a6349ef37a3d72142e06"),
-        "single_pass_False":     (  917, "772a3cb26eb3f9bbf63fba096c2b75fa990cf13058c89076aa30574960897fb3"),
+        # v1.5.7 instruction 038 codex review fix-up: single_pass.md
+        # State-C wording narrowed to "Phase 1 boundary only" so the
+        # single-pass run doesn't tell the agent to use State C at
+        # later boundaries in a code-only run. P2-P5 template names
+        # now explicit instead of "State P<N>" string. Hashes
+        # recomputed (codepoint length).
+        "single_pass_True":      ( 1248, "df98d084d02cbe54d40de7223ea2bc24188b324b7321d32b5aaf0900b44f408b"),
+        "single_pass_False":     ( 1193, "7a0153a1622b1f0cfa02ea0d208e638fab66abcbea6a07844e95c4d70bedeadb"),
         "iteration_gap":         ( 1622, "3c2cb1705de31819da87ed0e5748ec6628df3d6b41d354e0bf448ed71b7a8f2e"),
         "iteration_unfiltered":  ( 1650, "e2a52132d9bbd176a0a6529169d2d7dce60cbc63563fb3cf8cb5e924ce5182b8"),
         "iteration_parity":      ( 1634, "bf57423e865a01762a126e0b95b5925ac348b3fcedc34259e0199a9515003eae"),

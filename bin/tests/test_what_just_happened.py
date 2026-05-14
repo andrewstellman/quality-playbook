@@ -73,14 +73,21 @@ class WhatJustHappenedReferenceExistsTests(unittest.TestCase):
 
     def test_reference_file_includes_contract_and_do_not_sections(self) -> None:
         text = REFERENCE_PATH.read_text(encoding="utf-8")
-        for required_heading in ("## Contract", "## DO NOT"):
+        # v1.5.7 instruction 038 codex review fix-up: the contract
+        # section was renamed from "## Contract" to "## Scope and
+        # contract" so the load-bearing scope clarification (which
+        # boundaries are in-scope vs. out-of-scope per finding #5
+        # of the codex review) is visible from the heading itself.
+        for required_heading in ("## Scope and contract", "## DO NOT"):
             self.assertIn(
                 required_heading,
                 text,
                 f"references/what_just_happened.md must include the "
-                f"`{required_heading}` section. The Contract section "
-                f"establishes the mandatory emission rule; the DO NOT "
-                f"section enforces plain-English framing.",
+                f"`{required_heading}` section. The scope-and-contract "
+                f"section establishes both the mandatory emission rule "
+                f"AND the out-of-scope cases (aborted_missing_docs, "
+                f"SIGKILL/crash); the DO NOT section enforces plain-"
+                f"English framing.",
             )
 
 
