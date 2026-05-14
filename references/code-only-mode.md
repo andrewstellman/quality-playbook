@@ -69,4 +69,4 @@ Detection logic at phase end (mechanical, no judgment): Rule 8 of the `reference
 - **`SKILL.md`** — Phase 1 prose describes how documentation evidence is used during exploration.
 - **`bin/reference_docs_ingest.py`** — the implementation that ingests the `reference_docs/` tree.
 - **`references/run_state_schema.md`** — defines the `documentation_state` event the playbook emits when code-only mode triggers, so the downgrade is searchable in audit trails.
-- **`references/what_just_happened.md`** — defines State C (the code-only-mode end-of-Phase-1 template) and Rule 7 of the classifier (the mechanical detection logic).
+- **`references/what_just_happened.md`** — defines State C (the code-only-mode end-of-Phase-1 template) and Rule 8 of the classifier (the mechanical detection logic).
