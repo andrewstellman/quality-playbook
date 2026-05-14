@@ -639,13 +639,16 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
   Instruction 044 (commit `2230ff5`) closed two defects in
   `bin/run_playbook.py`'s post-run "Next iteration suggestion" line:
   (A) the suggestion emitted `<interpreter> <script_path>` form which the
-  runner's own package-module guard rejects with `EX_USAGE=64` —
-  self-contradictory, broke copy-paste workflows; (B) the `runner_flag`
-  dict was missing the `"copilot"` entry, so `--copilot` users got a
-  suggestion that silently dropped the flag and copy-pasted them into
-  default `--claude`. Reported during a model-comparison benchmark sweep
-  on a v1.5.5 branch; lands on `1.5.6`. Two new regression tests pin both
-  bugs.
+  v1.5.4-era package-module guard rejected with `EX_USAGE=64` at the time —
+  self-contradictory, broke copy-paste workflows. (v1.5.7 fix F-5a later
+  removed that guard via sys.path injection, so script-style invocation
+  now works alongside the module form; the suggestion still emits the
+  module form for shortness.)
+  (B) the `runner_flag` dict was missing the `"copilot"` entry, so
+  `--copilot` users got a suggestion that silently dropped the flag and
+  copy-pasted them into default `--claude`. Reported during a
+  model-comparison benchmark sweep on a v1.5.5 branch; lands on `1.5.6`.
+  Two new regression tests pin both bugs.
 - **Manual install recipes match the auto-installer (post-original-tag, instruction 062).**
   The auto-install via `python3 -m bin.install_skill` correctly bundles
   `agents/*.md` and `bin/citation_verifier.py` (per cluster A and BUG-005),

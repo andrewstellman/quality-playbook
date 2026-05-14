@@ -42,29 +42,47 @@ class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
     invoke script-style" prose in either surface trips the test."""
 
     # Operator-facing surfaces that document runner invocation.
+    # v1.5.7 instruction 032 NCF-12: TOOLKIT.md added — round-2 Council
+    # found stale script-ban prose there that Phase D's cleanup missed.
     INVOCATION_SURFACES = (
         "README.md",
         "SKILL.md",
+        "ai_context/TOOLKIT.md",
     )
 
-    # Present-tense claims that contradict the v1.5.7 three-mode
-    # contract at bin/run_playbook.py:8-15 (script-style works
-    # post-F-5a). Historical retrospectives describing the
-    # pre-F-5a EX_USAGE=64 guard's behavior are legitimate; what's
-    # NOT legitimate is current-tense prose saying the runner rejects
-    # script-style or that adopters must never invoke it that way.
+    # Hand-enumerated present-tense rejection phrases. v1.5.7 instruction
+    # 032 NCF-12/NCF-13 widened this to also include the
+    # _STALE_GUARD_VERB_PATTERN regex below — the hand list catches
+    # imperatives ("Never invoke") that the verb regex doesn't, and the
+    # regex catches "rejects with" / "refuses with" variants that the
+    # hand list missed. Both run.
     STALE_GUARD_PHRASES = (
         "Never invoke it script-style",
         "never invoke it script-style",
         "always invoke it as a package module",
         "always invoke it as a Python module",
-        # The grammatical present-tense rejection claims that pre-F-5a
-        # surfaces used: "exits with EX_USAGE=64", "exits EX_USAGE=64
-        # on script-style", etc. Past-tense ("exited", "the original
-        # guard is gone", "v1.5.7 fix F-5a removed the EX_USAGE=64
-        # guard") is fine.
-        "exits with `EX_USAGE=64`",
-        "exits EX_USAGE=64 on script-style",
+    )
+
+    # v1.5.7 instruction 032 NCF-13 (widening): regex over the verb
+    # family that present-tense rejection prose uses around the
+    # EX_USAGE=64 token, allowing intervening text within a sentence
+    # window. Catches:
+    #   - "exits with EX_USAGE=64"
+    #   - "rejects `python3 .../run_playbook.py` with `EX_USAGE=64`"
+    #   - "rejects with EX_USAGE=64"
+    #   - "refuses with EX_USAGE=64"
+    # Past-tense forms ("exited", "rejected", "refused") have an
+    # "ed" suffix the verb-stem `\b` boundary explicitly excludes, so
+    # legitimate historical retrospectives remain allowed.
+    # Sentence-window is "up to 80 same-line characters" between the
+    # verb and EX_USAGE=64 — long enough to absorb a single intervening
+    # backtick-quoted path (which may contain `.py`), short enough that
+    # cross-paragraph false positives are extremely unlikely. `.` in
+    # the regex doesn't match `\n` by default, so the window stays on
+    # a single line.
+    _STALE_GUARD_VERB_PATTERN = re.compile(
+        r"(reject|exit|refuse)s\b.{0,80}EX_USAGE=64",
+        re.IGNORECASE,
     )
 
     def test_module_form_is_documented(self) -> None:
@@ -79,20 +97,38 @@ class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
         )
 
     def test_no_operator_surface_claims_script_style_is_rejected(self) -> None:
-        """v1.5.7 instruction 031 Phase D consensus fixup. No operator-
-        facing surface may claim script-style invocation is rejected by
-        the runtime guard — the v1.5.4 EX_USAGE=64 guard was removed in
-        F-5a (commit 95f45eb) when sys.path injection made script-style
-        work natively. Stale `EX_USAGE=64` / `never invoke script-style`
-        prose contradicts the new positive contract documented in
-        `bin/run_playbook.py:8-15`."""
+        """v1.5.7 instruction 031 Phase D + instruction 032 NCF-12/NCF-13.
+        No operator-facing surface may claim script-style invocation is
+        rejected by the runtime guard — the v1.5.4 EX_USAGE=64 guard was
+        removed in F-5a (commit 95f45eb) when sys.path injection made
+        script-style work natively.
+
+        Two detection paths run together (instruction 032 NCF-13
+        widening):
+        - Hand-enumerated `STALE_GUARD_PHRASES` catches imperatives
+          like "Never invoke it script-style".
+        - `_STALE_GUARD_VERB_PATTERN` regex catches present-tense
+          rejection-verb-with-EX_USAGE=64 patterns ("rejects with",
+          "exits with", "refuses with"). Past-tense forms ("rejected",
+          "exited") are excluded by the verb-stem boundary, so
+          legitimate historical retrospectives remain allowed.
+
+        TOOLKIT.md was added to `INVOCATION_SURFACES` because the
+        Round-2 Council found stale prose there that Phase D's
+        README-only scan missed."""
         offenders: list[tuple[str, str]] = []
         for rel in self.INVOCATION_SURFACES:
             path = REPO_ROOT / rel
+            self.assertTrue(
+                path.is_file(),
+                f"INVOCATION_SURFACES references missing file: {rel}",
+            )
             text = path.read_text(encoding="utf-8")
             for phrase in self.STALE_GUARD_PHRASES:
                 if phrase in text:
                     offenders.append((rel, phrase))
+            for match in self._STALE_GUARD_VERB_PATTERN.finditer(text):
+                offenders.append((rel, match.group(0)))
         self.assertEqual(
             offenders,
             [],

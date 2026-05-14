@@ -156,7 +156,12 @@ Users often want to run the playbook across multiple repositories or automate th
 
 Positional arguments are directory paths (relative or absolute). No version resolution, no benchmark-folder lookups — every argument is taken literally. Omit positional args to run against the current directory.
 
-The runner must be invoked as the `bin.run_playbook` package module, not as a script — the package-module guard rejects `python3 /path/to/run_playbook.py` with `EX_USAGE=64`. Run from inside the QPB checkout (or set `PYTHONPATH=/path/to/quality-playbook`) and pass the target repo as a positional path:
+Two invocation forms are supported (v1.5.7 fix F-5a):
+
+- `python3 -m bin.run_playbook <target>` — canonical package-module form (recommended; works from inside the QPB checkout).
+- `python3 /path/to/QPB/bin/run_playbook.py <target>` — direct script form. The runner injects QPB root into `sys.path` before importing sibling modules, so package-relative imports resolve regardless of how it's invoked.
+
+Pass the target repo as a positional path:
 
 ```bash
 cd /path/to/quality-playbook                                                           # required: bin/ must be on sys.path
