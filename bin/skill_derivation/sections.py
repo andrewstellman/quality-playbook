@@ -375,7 +375,7 @@ def enumerate_skill_and_references(
     ``role_map_files`` routing (v1.5.4 Phase 3 Stage 3, finding B1-F6):
 
       - **``None``** — backward-compat path. The role map is absent or
-        unparseable. Enumeration falls back to the v1.5.3 behaviour:
+        unparsable. Enumeration falls back to the v1.5.3 behaviour:
         SKILL.md plus ``references_dir/*.md`` in sorted-by-name order.
         Pre-Phase-1 / pre-iteration targets land here.
       - **``[]``** (empty list) — role-map path with zero matches. The

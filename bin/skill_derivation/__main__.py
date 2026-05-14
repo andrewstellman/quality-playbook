@@ -194,7 +194,7 @@ def _role_map_skill_prose_files(
 
     Return values, by case:
 
-    - **``None``** — the role map is absent or unparseable. Callers
+    - **``None``** — the role map is absent or unparsable. Callers
       pass ``None`` through to ``sections.enumerate_skill_and_references``,
       which falls back to the v1.5.3 hardcoded enumeration (SKILL.md
       plus ``references/*.md``).
@@ -545,7 +545,7 @@ def _resolve_role_map_for_dispatch(args: argparse.Namespace, target_dir: Path):
     """Load the Phase-1 role map for dispatch-time activation decisions.
 
     Returns the parsed role-map dict, or ``None`` when the role map is
-    absent or unparseable. Pass-specific runners may still raise their
+    absent or unparsable. Pass-specific runners may still raise their
     own errors when they require the role map (Pass C does); this helper
     only services activation gates that need to short-circuit cleanly
     on empty-side targets.

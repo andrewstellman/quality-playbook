@@ -1207,7 +1207,7 @@ def check_tdd_sidecar(q, bug_count):
 
     data = load_json(json_path)
     if data is None:
-        # File exists but unparseable — fail all root key checks
+        # File exists but unparsable — fail all root key checks
         for key in ["schema_version", "skill_version", "date", "project",
                     "bugs", "summary"]:
             fail(f"missing root key '{key}'")
@@ -2033,7 +2033,7 @@ def _is_v1_5_3_shaped(manifest):
 
     Walks the records (or `reviews`) once. Presence of any key in
     _V153_FIELD_KEYS on any record toggles strict-mode validation per
-    schemas.md §3.10. Empty / unparseable manifests return False so
+    schemas.md §3.10. Empty / unparsable manifests return False so
     legacy fixtures stay on the soft-warn path.
 
     DQ-3 design note: the checked-key set is sourced from
@@ -3279,7 +3279,7 @@ def check_v1_5_3_council_inbox_validation(q):
 
 def _load_role_map(q):
     """Return the parsed exploration_role_map.json dict, or None when
-    absent / unparseable. v1.5.4 inline replacement for the prior
+    absent / unparsable. v1.5.4 inline replacement for the prior
     project_type.json reader."""
     return load_json(q / "exploration_role_map.json")
 
@@ -3299,7 +3299,7 @@ def _role_map_has_role(role_map, role_set):
 def _phase4_project_type(q):
     """Return the v1.5.3-equivalent classification string ('Code' /
     'Skill' / 'Hybrid') derived from the Phase-1 role map, or None
-    when the role map is absent / unparseable.
+    when the role map is absent / unparsable.
 
     Mapping (mirrors bin/role_map.derive_legacy_project_type):
       - has skill-prose AND has code  -> 'Hybrid'
@@ -3376,7 +3376,7 @@ def check_skill_section_req_coverage(repo_dir, q):
     if not isinstance(data, dict):
         info(
             "check_skill_section_req_coverage: skip "
-            "(pass_d_section_coverage.json missing or unparseable)"
+            "(pass_d_section_coverage.json missing or unparsable)"
         )
         return
     failures = 0
