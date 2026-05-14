@@ -28,11 +28,44 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
-    """BUG-005 (v1.5.7 fix F-5a update): both `python -m bin.run_playbook`
-    and `python /path/to/QPB/bin/run_playbook.py` are valid invocation
-    forms after F-5a. The pre-v1.5.7 ban on script-style invocations is
-    inverted: at least one module-form example must be documented (since
-    that's the canonical form), but script-style is no longer rejected."""
+    """BUG-005 (v1.5.7 fix F-5a update + instruction 031 Phase D consensus
+    fixup): both `python -m bin.run_playbook` and `python /path/to/QPB/
+    bin/run_playbook.py` are valid invocation forms after F-5a. The
+    pre-v1.5.7 ban on script-style invocations is inverted: at least one
+    module-form example must be documented (since that's the canonical
+    form), AND operator-facing surfaces must NOT claim script-style is
+    rejected with `EX_USAGE=64` (the v1.5.4 codex-prevention guard the
+    F-5a refactor removed).
+
+    Phase D consensus fixup widened the doc-drift coverage from
+    README-only to README + SKILL.md, so stale "EX_USAGE=64" / "never
+    invoke script-style" prose in either surface trips the test."""
+
+    # Operator-facing surfaces that document runner invocation.
+    INVOCATION_SURFACES = (
+        "README.md",
+        "SKILL.md",
+    )
+
+    # Present-tense claims that contradict the v1.5.7 three-mode
+    # contract at bin/run_playbook.py:8-15 (script-style works
+    # post-F-5a). Historical retrospectives describing the
+    # pre-F-5a EX_USAGE=64 guard's behavior are legitimate; what's
+    # NOT legitimate is current-tense prose saying the runner rejects
+    # script-style or that adopters must never invoke it that way.
+    STALE_GUARD_PHRASES = (
+        "Never invoke it script-style",
+        "never invoke it script-style",
+        "always invoke it as a package module",
+        "always invoke it as a Python module",
+        # The grammatical present-tense rejection claims that pre-F-5a
+        # surfaces used: "exits with EX_USAGE=64", "exits EX_USAGE=64
+        # on script-style", etc. Past-tense ("exited", "the original
+        # guard is gone", "v1.5.7 fix F-5a removed the EX_USAGE=64
+        # guard") is fine.
+        "exits with `EX_USAGE=64`",
+        "exits EX_USAGE=64 on script-style",
+    )
 
     def test_module_form_is_documented(self) -> None:
         """At least one example must show the package-module form so
@@ -43,6 +76,32 @@ class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
             readme,
             "README.md must document the canonical "
             "`python3 -m bin.run_playbook` invocation form.",
+        )
+
+    def test_no_operator_surface_claims_script_style_is_rejected(self) -> None:
+        """v1.5.7 instruction 031 Phase D consensus fixup. No operator-
+        facing surface may claim script-style invocation is rejected by
+        the runtime guard — the v1.5.4 EX_USAGE=64 guard was removed in
+        F-5a (commit 95f45eb) when sys.path injection made script-style
+        work natively. Stale `EX_USAGE=64` / `never invoke script-style`
+        prose contradicts the new positive contract documented in
+        `bin/run_playbook.py:8-15`."""
+        offenders: list[tuple[str, str]] = []
+        for rel in self.INVOCATION_SURFACES:
+            path = REPO_ROOT / rel
+            text = path.read_text(encoding="utf-8")
+            for phrase in self.STALE_GUARD_PHRASES:
+                if phrase in text:
+                    offenders.append((rel, phrase))
+        self.assertEqual(
+            offenders,
+            [],
+            "Operator-facing surface(s) still claim script-style "
+            "invocation is rejected by the v1.5.4 EX_USAGE=64 guard. "
+            "That guard was removed in v1.5.7 fix F-5a (commit "
+            "95f45eb); both `python3 -m bin.run_playbook` and "
+            "`python3 /path/to/QPB/bin/run_playbook.py` now work. "
+            f"Stale prose hits: {offenders}",
         )
 
 

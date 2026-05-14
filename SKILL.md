@@ -99,7 +99,12 @@ The orchestrator is the entry point. Always invoke it as a Python module:
 python3 -m bin.run_playbook <target>
 ```
 
-**Never invoke it script-style** (`python bin/run_playbook.py ...`). The runtime guard exits with `EX_USAGE=64` because relative imports require packaged execution.
+Two invocation forms are equivalent (v1.5.7 fix F-5a):
+
+- `python3 -m bin.run_playbook <target>` — canonical package-module form.
+- `python3 /path/to/QPB/bin/run_playbook.py <target>` — direct script form. Works from any cwd because the module injects QPB root into `sys.path` before importing sibling modules.
+
+The pre-v1.5.7 script-style refusal was removed when sys.path injection became the canonical way to bootstrap the runner.
 
 `<target>` is the path to the project to audit. For a bootstrap run (target IS the QPB repo), pass `.` from the repo root. For any other target, pass the path to that target's repo root.
 

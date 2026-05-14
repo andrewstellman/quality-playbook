@@ -4575,17 +4575,15 @@ def kill_recorded_processes(allow_pkill_fallback: bool = False) -> int:
 
 
 def build_worker_command(args: argparse.Namespace, target_path: str) -> List[str]:
-    # v1.5.4 Phase 3.8 (Round 9 carry-forward from Phase 3.7 finding):
-    # workers MUST invoke as ``python -m bin.run_playbook``, NOT as
-    # ``python /full/path/to/run_playbook.py``. The Phase 3.6.1 A.2
-    # invocation guard exits EX_USAGE=64 on script-style invocation
-    # (``__package__`` is None when invoked by absolute path); the
-    # ``-m`` form preserves ``__package__ == "bin"`` so the guard
-    # recognizes packaged execution and lets the worker proceed. The
-    # regression was latent for 10 commits because no parallel-mode
-    # test exercised this spawn path; the regression pin in
+    # Workers spawn as ``python -m bin.run_playbook``. v1.5.7 fix F-5a
+    # restored script-style invocation as a working form for adopters
+    # (via sys.path injection at the top of this module), but workers
+    # continue to use the ``-m`` form because it preserves
+    # ``__package__ == "bin"`` cleanly and keeps the spawn command
+    # uniform across all platforms. The regression pin in
     # bin/tests/test_run_playbook.py::Phase38WorkerInvocationTests
-    # catches the next reversion immediately.
+    # catches reversion to script-path spawning, which would also
+    # have worked post-F-5a but is gratuitously platform-fragile.
     command = [sys.executable, "-m", "bin.run_playbook", "--worker", "--sequential"]
     runner_flag = {
         "claude": "--claude",
@@ -4828,12 +4826,12 @@ def print_suggested_next_command(
     }.get(args.runner, "")
     model_flag = f" --model {shlex.quote(args.model)}" if getattr(args, "model", None) else ""
     interpreter = os.path.basename(sys.executable) if sys.executable else "python3"
-    # v1.5.6 cluster 044 fix: always emit the canonical
-    # `python3 -m bin.run_playbook` form. The script-style invocation
-    # (`<interpreter> <script_path>`) is rejected by the
-    # package-module guard at the bottom of this file with EX_USAGE=64
-    # — emitting it here contradicts the runner's own contract and
-    # breaks copy-paste workflows. (Bug A.)
+    # Emit the canonical `python3 -m bin.run_playbook` form in suggested
+    # next commands. v1.5.7 fix F-5a also restored the script-style
+    # form (`python3 /path/to/QPB/bin/run_playbook.py`) as a working
+    # invocation, but the package-module form is shorter and stays
+    # consistent with how workers spawn themselves (build_worker_command
+    # above). v1.5.6 cluster 044 originally pinned this to fix Bug A.
     invocation = f"{interpreter} -m bin.run_playbook"
     prefix = f"{invocation}{runner_flag}{model_flag}"
     target_args = " ".join(shlex.quote(name) for name in args.targets)
