@@ -183,9 +183,11 @@ cause and re-run from Phase 1.
 
 Phase <N> hit an unrecoverable error (`error recoverable=false` event in the run-state
 log). The run did NOT complete the phase, and downstream phases will not execute against
-the partial output. The error message is in the run-state log at
-`<repo_dir>/quality/logs/<run-id>/run_state.jsonl` (last `error` event) and any partial
-artifacts the agent wrote are still under `<repo_dir>/quality/`.
+the partial output. The error message is in the run-state log — `<repo_dir>/quality/logs/<run-id>/run_state.jsonl`
+canonical (v1.5.7 D3), or `<repo_dir>/quality/run_state.jsonl` legacy fallback if
+`--logs-flat` / `QPB_LOGS_LEGACY=1` was set; resolve via `bin/run_state_lib.resolve_run_state_path`
+per the "Where the run-state log lives" paragraph above. Read the last `error` event in
+that file. Any partial artifacts the agent wrote are still under `<repo_dir>/quality/`.
 
 ### What to do next
 
@@ -299,7 +301,7 @@ verify the fix). After the next fix batch, say `recheck` again.
 - **Do not** lead with QPB-internal phrasing. The first sentence of "What just happened" should make sense to an adopter reading their first run.
 - **Do not** write the "What to do next" sentence without a concrete next prompt or shell command. The whole purpose is to remove "what do I type now?" friction.
 - **Do not** rewrite this decision tree inline in SKILL.md or in any phase prompt. Single-source: SKILL.md and phase prompts point at this file; this file owns the templates.
-- **Do not** add new run states beyond the ten defined here (P1, P2, P3, P4, P5, C, G, E, S, B, I, F, R) without an instruction-authorized scope change. New states queue for v1.6.0+.
+- **Do not** add new run states beyond the thirteen defined here (P1, P2, P3, P4, P5, C, G, E, S, B, I, F, R) without an instruction-authorized scope change. New states queue for v1.6.0+.
 - **Do not** invoke this contract for the out-of-scope cases listed in "Scope and contract" above (`aborted_missing_docs` shell abort; SIGKILL; OS crash). Those terminals have no agent in the loop.
 
 ## Cross-references
