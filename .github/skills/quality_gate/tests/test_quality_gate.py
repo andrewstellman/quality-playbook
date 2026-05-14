@@ -3627,6 +3627,93 @@ class TestV156SelfConsistencyGitkeep(V150FixtureBase):
         self.assertIn("unsupported extension", out)
 
 
+class TestPhase4ProjectTypeArtifactShapeFallback(unittest.TestCase):
+    """v1.5.7 fix Q1/Q5 (option c): when the Phase-1 role map is
+    absent, `_phase4_project_type` falls back to artifact-shape
+    detection. Returns 'Code' when both skill-indicator paths are
+    absent (no root SKILL.md, no references/ directory); returns
+    None otherwise so the gate emits an honest "role map not yet
+    produced" SKIP rather than guessing Skill/Hybrid."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.repo = Path(self._tmp.name)
+        self.q = self.repo / "quality"
+        self.q.mkdir()
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_code_fixture_no_role_map_returns_code(self):
+        """Code project: no SKILL.md, no references/, role map absent.
+        Pre-fix this returned None and Phase 4 checks emitted
+        confusing "project_type=None" SKIP lines. Post-Q1/Q5 the
+        artifact-shape fallback returns 'Code' and the SKIP message
+        clearly says "not applicable for Code projects"."""
+        # Source files only — the realistic Code-project shape.
+        (self.repo / "src").mkdir()
+        (self.repo / "src" / "main.py").write_text("print('hi')\n", encoding="utf-8")
+        result = quality_gate._phase4_project_type(self.q)
+        self.assertEqual(
+            result, "Code",
+            "Code-shaped repo (no SKILL.md, no references/) with no role "
+            "map must derive 'Code' via artifact-shape fallback "
+            "(v1.5.7 Q1/Q5 option c)",
+        )
+
+    def test_hybrid_fixture_with_role_map_returns_hybrid(self):
+        """Hybrid project: SKILL.md + source files, role map present.
+        Role map takes precedence over artifact-shape fallback."""
+        (self.repo / "SKILL.md").write_text(
+            "---\nname: quality-playbook\n---\n", encoding="utf-8",
+        )
+        (self.repo / "src").mkdir()
+        (self.repo / "src" / "main.py").write_text("ok\n", encoding="utf-8")
+        # Role map with both skill-prose and code roles.
+        (self.q / "exploration_role_map.json").write_text(
+            json.dumps({
+                "files": [
+                    {"path": "SKILL.md", "role": "skill-prose"},
+                    {"path": "src/main.py", "role": "code"},
+                ],
+            }),
+            encoding="utf-8",
+        )
+        result = quality_gate._phase4_project_type(self.q)
+        self.assertEqual(result, "Hybrid")
+
+    def test_skill_fixture_with_role_map_returns_skill(self):
+        """Skill project: SKILL.md + references/, no code, role map
+        with skill-prose only."""
+        (self.repo / "SKILL.md").write_text(
+            "---\nname: quality-playbook\n---\n", encoding="utf-8",
+        )
+        (self.repo / "references").mkdir()
+        (self.q / "exploration_role_map.json").write_text(
+            json.dumps({
+                "files": [
+                    {"path": "SKILL.md", "role": "skill-prose"},
+                ],
+            }),
+            encoding="utf-8",
+        )
+        result = quality_gate._phase4_project_type(self.q)
+        self.assertEqual(result, "Skill")
+
+    def test_ambiguous_no_role_map_with_skill_md_returns_none(self):
+        """Ambiguous shape: SKILL.md present but no role map. The
+        artifact-shape fallback returns None (not 'Skill' — that
+        would be guessing); the gate then emits a "role map absent"
+        SKIP rather than a "Code project not applicable" one."""
+        (self.repo / "SKILL.md").write_text("---\nfoo: bar\n---\n", encoding="utf-8")
+        result = quality_gate._phase4_project_type(self.q)
+        self.assertIsNone(
+            result,
+            "with SKILL.md present and no role map, the fallback must "
+            "be conservative (return None, not guess Skill)",
+        )
+
+
 class TestV156SelfConsistencyDocsDerived(V150FixtureBase):
 
     def test_docs_derived_in_allowlist(self):

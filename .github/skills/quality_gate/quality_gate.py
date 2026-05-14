@@ -3262,10 +3262,20 @@ def _phase4_project_type(q):
       - has skill-prose AND has code  -> 'Hybrid'
       - has skill-prose, no code      -> 'Skill'
       - no skill-prose                -> 'Code'
+
+    v1.5.7 fix Q1/Q5 (option c): when the role map is absent, fall
+    back to artifact-shape detection rather than returning None
+    (which made Phase 4 skill-derivation gate checks emit
+    "skip (project_type=None)" INFO lines that LOOKED like missed
+    work). The fallback is conservative — it only returns 'Code'
+    when the absence-of-skill signal is strong (no SKILL.md at the
+    target root AND no references/ directory). Otherwise returns
+    None so the gate's skip diagnostic surfaces "role map not yet
+    produced" honestly rather than guessing Skill/Hybrid.
     """
     role_map = _load_role_map(q)
     if role_map is None:
-        return None
+        return _phase4_project_type_from_artifact_shape(q)
     skill = _role_map_has_role(role_map, ("skill-prose", "skill-reference"))
     code = _role_map_has_role(role_map, ("code",))
     if skill and code:
@@ -3273,6 +3283,26 @@ def _phase4_project_type(q):
     if skill:
         return "Skill"
     return "Code"
+
+
+def _phase4_project_type_from_artifact_shape(q):
+    """v1.5.7 Q1/Q5 (option c) fallback: derive a project-type from
+    target-repo shape when the Phase-1 role map is absent.
+
+    Conservative: returns 'Code' ONLY when both skill-indicator paths
+    are absent (no root SKILL.md, no references/ directory at the
+    repo root). Otherwise returns None — the gate then emits a
+    "role map not yet produced" SKIP rather than guessing.
+
+    The repo root is the parent of the quality/ directory (q itself
+    IS quality/).
+    """
+    repo_root = q.parent if q.name == "quality" else q
+    has_skill_md = (repo_root / "SKILL.md").is_file()
+    has_references = (repo_root / "references").is_dir()
+    if not has_skill_md and not has_references:
+        return "Code"
+    return None
 
 
 def check_skill_section_req_coverage(repo_dir, q):
@@ -3283,8 +3313,20 @@ def check_skill_section_req_coverage(repo_dir, q):
     SKIPS for Code projects."""
     print("[Phase 4: skill-section REQ coverage]")
     classification = _phase4_project_type(q)
+    if classification == "Code":
+        info(
+            "check_skill_section_req_coverage: skip — not applicable for "
+            "Code projects (skill-derivation Pass D only fires on Skill / "
+            "Hybrid targets)"
+        )
+        return
     if classification not in ("Skill", "Hybrid"):
-        info(f"check_skill_section_req_coverage: skip (project_type={classification!r})")
+        info(
+            "check_skill_section_req_coverage: skip — role map absent "
+            "and project shape is ambiguous (no clear Code signal); "
+            "run Phase 1 to produce exploration_role_map.json then "
+            "rerun the gate"
+        )
         return
     coverage_path = _resolve_artifact_path(q, "phase3/pass_d_section_coverage.json")
     data = load_json(coverage_path)
@@ -3325,8 +3367,17 @@ def check_reference_file_req_coverage(repo_dir, q):
     SKIPS for Code projects."""
     print("[Phase 4: reference-file REQ coverage]")
     classification = _phase4_project_type(q)
+    if classification == "Code":
+        info(
+            "check_reference_file_req_coverage: skip — not applicable "
+            "for Code projects (no references/ directory expected)"
+        )
+        return
     if classification not in ("Skill", "Hybrid"):
-        info(f"check_reference_file_req_coverage: skip (project_type={classification!r})")
+        info(
+            "check_reference_file_req_coverage: skip — role map absent "
+            "and project shape is ambiguous; run Phase 1 first"
+        )
         return
     references_dir = repo_dir / "references"
     if not references_dir.is_dir():
@@ -3380,8 +3431,25 @@ def check_hybrid_cross_cutting_reqs(repo_dir, q):
     SKIPS for Skill or Code projects."""
     print("[Phase 4: hybrid cross-cutting REQs]")
     classification = _phase4_project_type(q)
+    if classification == "Code":
+        info(
+            "check_hybrid_cross_cutting_reqs: skip — not applicable "
+            "for Code projects (cross-cutting triangulation requires "
+            "both skill-section and code-derived REQs)"
+        )
+        return
+    if classification == "Skill":
+        info(
+            "check_hybrid_cross_cutting_reqs: skip — not applicable "
+            "for Skill projects (no code-derived REQs to triangulate "
+            "against)"
+        )
+        return
     if classification != "Hybrid":
-        info(f"check_hybrid_cross_cutting_reqs: skip (project_type={classification!r})")
+        info(
+            "check_hybrid_cross_cutting_reqs: skip — role map absent "
+            "and project shape is ambiguous; run Phase 1 first"
+        )
         return
     formal_path = _resolve_artifact_path(q, "phase3/pass_c_formal.jsonl")
     if not formal_path.is_file():
