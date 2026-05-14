@@ -3137,7 +3137,12 @@ _V153_COUNCIL_INBOX_ITEM_TYPES = frozenset({
 
 
 def check_v1_5_3_council_inbox_validation(q):
-    """Phase 3b BLOCK-4 cross-reference + DQ-5 structural validation.
+    """Skill-derivation Pass D 3b BLOCK-4 cross-reference + DQ-5
+    structural validation (v1.5.7 fix Q4: this is the
+    skill-derivation four-pass pipeline's Pass D, NOT the playbook's
+    Phase 3 Code Review — naming kept as `phase3/` on disk for
+    historical v1.5.3 compatibility; the directory name pre-dates
+    the v1.5.4 phase rename).
 
     Validates quality/phase3/pass_d_council_inbox.json against the
     DQ-5 schema AND verifies that every Pass D rejection / Tier-5
@@ -3154,18 +3159,19 @@ def check_v1_5_3_council_inbox_validation(q):
          {rejected, demoted_to_tier_5} has no matching item in the
          inbox.
 
-    Phase 3 artifact set is at <repo>/quality/phase3/, NOT at the
-    top-level <repo>/quality/. The check returns silently if the
-    phase3 directory does not exist (the project is Code-only or
-    Phase 3 has not been run yet).
+    Skill-derivation artifact set is at <repo>/quality/phase3/, NOT
+    at the top-level <repo>/quality/. The check returns silently if
+    the phase3 directory does not exist (the project is Code-only
+    or the skill-derivation pipeline has not been run yet — this is
+    DIFFERENT from the playbook's Phase 3 not having run).
     """
     phase3_dir = _resolve_artifact_path(q, "phase3")
     if not phase3_dir.is_dir():
-        return  # phase 3 not run; not in scope for this manifest set
+        return  # skill-derivation pipeline not run; not in scope here
     inbox_path = phase3_dir / "pass_d_council_inbox.json"
     audit_path = phase3_dir / "pass_d_audit.json"
     if not inbox_path.is_file():
-        return  # phase 3 partially run; skip silently
+        return  # skill-derivation Pass D partially run; skip silently
 
     inbox_data = load_json(inbox_path)
     if not isinstance(inbox_data, dict):
@@ -3424,7 +3430,10 @@ def check_reference_file_req_coverage(repo_dir, q):
     if not formal_path.is_file():
         info(
             "check_reference_file_req_coverage: skip "
-            "(pass_c_formal.jsonl missing — Phase 3 not run yet)"
+            "(pass_c_formal.jsonl missing — skill-derivation Pass C "
+            "not run yet; this is the four-pass skill-derivation "
+            "pipeline's Pass C output, not the playbook's Phase 3 "
+            "Code Review output)"
         )
         return
     cited_documents = set()
@@ -3492,7 +3501,10 @@ def check_hybrid_cross_cutting_reqs(repo_dir, q):
     if not formal_path.is_file():
         info(
             "check_hybrid_cross_cutting_reqs: skip "
-            "(pass_c_formal.jsonl missing — Phase 3 not run yet)"
+            "(pass_c_formal.jsonl missing — skill-derivation Pass C "
+            "not run yet; this is the four-pass skill-derivation "
+            "pipeline's Pass C output, not the playbook's Phase 3 "
+            "Code Review output)"
         )
         return
     skill_section_reqs = []

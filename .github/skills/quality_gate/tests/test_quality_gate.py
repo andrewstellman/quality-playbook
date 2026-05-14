@@ -3483,6 +3483,38 @@ class TestCheckReferenceFileReqCoverage(_Phase4FixtureBase):
         self.assertEqual(fails, 0)
         self.assertIn("skip", out)
 
+    def test_missing_pass_c_diagnostic_distinguishes_pass_c_from_phase_3(self):
+        """v1.5.7 fix Q4: when `phase3/pass_c_formal.jsonl` is missing,
+        the diagnostic must say "skill-derivation Pass C not run yet"
+        (precise) and NOT just "Phase 3 not run yet" (ambiguous —
+        could mean the playbook's Phase 3 Code Review). The on-disk
+        directory is named `phase3/` for historical v1.5.3
+        compatibility; the canonical name in current prose is
+        skill-derivation Pass C."""
+        self._write_project_type("Skill")
+        self._make_references({"a.md": "# A\n"})
+        # Deliberately do NOT write pass_c_formal.jsonl — that's the
+        # condition we're testing.
+        fails, out = _capture_fail_output(
+            quality_gate.check_reference_file_req_coverage, self.repo, self.q
+        )
+        self.assertEqual(fails, 0)
+        # Diagnostic must name skill-derivation Pass C explicitly.
+        self.assertIn(
+            "skill-derivation Pass C not run yet", out,
+            f"Q4 diagnostic must distinguish skill-derivation Pass C "
+            f"from playbook Phase 3 Code Review. Got: {out!r}",
+        )
+        # Must NOT conflate by saying just "Phase 3 not run yet"
+        # without the skill-derivation qualifier. The new diagnostic
+        # explicitly contrasts the two so an operator looking at the
+        # output can tell which artifact is missing.
+        self.assertIn(
+            "not the playbook's Phase 3 Code Review", out,
+            "Q4 diagnostic must explicitly contrast skill-derivation "
+            "Pass C with playbook Phase 3 Code Review",
+        )
+
 
 class TestCheckHybridCrossCuttingReqs(_Phase4FixtureBase):
     """Phase 4 Part C check_hybrid_cross_cutting_reqs."""
