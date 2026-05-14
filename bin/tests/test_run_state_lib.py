@@ -1221,6 +1221,170 @@ class WriteProgressMdTests(unittest.TestCase):
                     f"to match the schema doc; got: {output!r}",
                 )
 
+    def test_progress_md_two_form_architecture_not_in_drift(self) -> None:
+        """v1.5.7 instruction 035 — closes claude council-of-two Lens 2
+        cleanliness note on instruction 034.
+
+        Combined assertion: both PROGRESS.md schemas are documented and
+        not in drift. Per v1.5.7 BUG-005 reframe (instruction 034
+        commit 71b7b13), PROGRESS.md has two distinct schema forms
+        targeting the same filename:
+
+          1. Automation snapshot form: produced by
+             `bin/run_state_lib.write_progress_md`; canonical schema
+             at `references/run_state_schema.md` § "PROGRESS.md format".
+          2. Agent-maintained deliverable form: filled in by the agent
+             across Phase 1-5; template at
+             `references/phase1_exploration_guide.md:483-538`;
+             invariants enforced by Phase 5/6 gate checks
+             (`check_terminal_gate`, `check_version_stamps`).
+
+        The granular bite test
+        `test_automation_form_matches_run_state_schema_md` enforces
+        the automation form against its schema doc. Per claude's
+        council-of-two observation: that coverage is adequate but a
+        single combined "schemas are NOT in drift" test surface is
+        cleaner. THIS test is the combined surface — the granular
+        test stays as-is.
+
+        Failure modes this test catches in one locatable place:
+          - `references/run_state_schema.md` is deleted / moved /
+            loses required section markers (automation-form drift).
+          - `references/phase1_exploration_guide.md` is deleted /
+            moved / loses the deliverable-form template sections.
+          - The two-form architecture preamble in
+            `phase1_exploration_guide.md` (BUG-005 reframe doc) is
+            deleted, which would re-open the apparent "drift" that
+            instruction 034 resolved as not-drift.
+          - `write_progress_md`'s output drifts from its schema doc
+            (caught here as well as in the granular test).
+        """
+        repo_root = Path(__file__).resolve().parents[2]
+
+        # --- Form 1 of 2: automation snapshot ---
+        automation_schema_doc = repo_root / "references" / "run_state_schema.md"
+        self.assertTrue(
+            automation_schema_doc.is_file(),
+            f"automation-form schema doc missing: {automation_schema_doc} "
+            "— `references/run_state_schema.md` is the canonical source "
+            "for the write_progress_md output shape (BUG-005 reframe).",
+        )
+        automation_schema_text = automation_schema_doc.read_text(
+            encoding="utf-8"
+        )
+        automation_required_markers = (
+            "# QPB Run Progress",
+            "## Phases",
+            "## Recent events (last 10)",
+            "## Artifacts produced",
+        )
+        for marker in automation_required_markers:
+            self.assertIn(
+                marker, automation_schema_text,
+                f"automation-form schema doc "
+                f"`references/run_state_schema.md` is missing required "
+                f"section marker {marker!r}. If the schema intentionally "
+                f"changed, update `write_progress_md` AND this test's "
+                f"marker tuple together.",
+            )
+
+        # Implementation-vs-schema sanity check for the automation form
+        # (minimal — the granular test
+        # `test_automation_form_matches_run_state_schema_md` does the
+        # full event-log fixture). This check verifies the markers
+        # appear in actual `write_progress_md` output from a minimal
+        # event log.
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir) / "quality"
+            quality.mkdir()
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            events = [
+                lib.Event(
+                    event="_index",
+                    ts=now,
+                    fields={"event_types": ["run_start"]},
+                ),
+                lib.Event(
+                    event="run_start",
+                    ts=now,
+                    fields={
+                        "runner": "claude",
+                        "playbook_version": "1.5.7",
+                        "target_path": "test-target",
+                    },
+                ),
+            ]
+            lib.write_progress_md(quality, events, current_phase=None)
+            automation_output = (
+                quality / "PROGRESS.md"
+            ).read_text(encoding="utf-8")
+        for marker in automation_required_markers:
+            self.assertIn(
+                marker, automation_output,
+                f"`write_progress_md` output is missing the {marker!r} "
+                f"marker — implementation drifted from the schema doc "
+                f"(BUG-005 regression).",
+            )
+
+        # --- Form 2 of 2: agent-maintained deliverable ---
+        deliverable_schema_doc = (
+            repo_root / "references" / "phase1_exploration_guide.md"
+        )
+        self.assertTrue(
+            deliverable_schema_doc.is_file(),
+            f"deliverable-form schema doc missing: {deliverable_schema_doc} "
+            "— `references/phase1_exploration_guide.md` is the canonical "
+            "source for the agent-maintained PROGRESS.md template "
+            "(BUG-005 reframe).",
+        )
+        deliverable_schema_text = deliverable_schema_doc.read_text(
+            encoding="utf-8"
+        )
+        deliverable_required_markers = (
+            "# Quality Playbook Progress",
+            "## Run metadata",
+            "## Phase completion",
+            "## Artifact inventory",
+            "## Cumulative BUG tracker",
+            "## Terminal Gate Verification",
+        )
+        for marker in deliverable_required_markers:
+            self.assertIn(
+                marker, deliverable_schema_text,
+                f"deliverable-form schema doc "
+                f"`references/phase1_exploration_guide.md` is missing "
+                f"required section marker {marker!r}. The Phase 5/6 "
+                f"gates (`check_terminal_gate`, `check_version_stamps`) "
+                f"depend on the agent producing the corresponding "
+                f"section; if the template doc drops it, the gate has "
+                f"nothing to enforce against.",
+            )
+
+        # --- Two-form architecture documentation invariant ---
+        # The BUG-005 reframe (instruction 034 commit 71b7b13) added
+        # explicit prose to phase1_exploration_guide.md naming both
+        # forms and explaining why they're not in drift. If that prose
+        # is deleted, BUG-005's "drift" question would re-open — a
+        # reader of the docs alone wouldn't see the two-form
+        # resolution. This invariant pins the documentation.
+        two_form_required_phrases = (
+            "Two PROGRESS.md schemas exist",
+            "not in drift",
+            "Agent-maintained deliverable form",
+            "Automation snapshot form",
+        )
+        for phrase in two_form_required_phrases:
+            self.assertIn(
+                phrase, deliverable_schema_text,
+                f"`references/phase1_exploration_guide.md` is missing "
+                f"the BUG-005-reframe phrase {phrase!r}. The two-form "
+                f"architecture documentation block (lines ~476-481) "
+                f"explains why the two PROGRESS.md schemas serve "
+                f"distinct purposes — without it, a reader of the docs "
+                f"alone would re-conclude the schemas are in drift.",
+            )
+
 
 class AppendEventTests(unittest.TestCase):
     def test_append_event_writes_single_line(self) -> None:
