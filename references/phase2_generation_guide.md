@@ -208,7 +208,9 @@ Do NOT demand "executed request-level evidence" or defer findings because "they 
 
 **Why this rule exists:** In v1.3.43 javalin benchmarking, the code review and triage both identified 4 legitimate candidate bugs with code-path traces and requirement violations, then demoted all of them because "the highest-confidence items still require executed request-level evidence." This produced zero confirmed bugs from a codebase where previous versions found 5. The evidentiary bar was set at runtime-proof-before-confirmation, which is backwards — the playbook's design is confirm-then-prove-with-TDD.
 
-**Severity calibration:** Credential leakage, authentication bypass, and injection-class bugs are always high severity regardless of assessed likelihood. Authorization header exposure across trust boundaries (e.g., cross-domain redirects) is credential leakage. When in doubt about security-relevant severity, default to high.
+**Severity calibration:** Credential leakage, authentication bypass, and injection-class bugs are always `HIGH` severity regardless of assessed likelihood. Authorization header exposure across trust boundaries (e.g., cross-domain redirects) is credential leakage. When in doubt about security-relevant severity, default to `HIGH`.
+
+**Severity case (v1.5.7 fix Q3):** Severity values are MANDATORILY uppercase per schemas.md §3.3 — exactly `HIGH` / `MEDIUM` / `LOW`. Do NOT emit `high`, `Medium`, `low`, or other case variants in BUGS.md, `bugs_manifest.json`, or anywhere else a severity appears. The Phase 6 gate emits a WARN with the offending record IDs when it detects non-canonical case; it auto-normalizes for downstream invariant checks but the raw drift accumulates across runs invisibly otherwise. Write the canonical case the first time.
 
 **Development-scaffolding exclusion (early filter before confirming any security-class finding).** The severity calibration rule above auto-escalates credential leakage and authentication bypass findings. Before confirming any such finding as a bug, apply this mechanical test:
 

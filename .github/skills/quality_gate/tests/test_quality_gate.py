@@ -2100,6 +2100,49 @@ class TestV150BugsManifest(V150FixtureBase):
         self.assertGreaterEqual(fails, 1)
         self.assertIn("disposition_rationale", out)
 
+    def test_lowercase_severity_warns_not_fails(self):
+        """v1.5.7 fix Q3 bite: BUG records with non-canonical-case
+        severity ('high', 'Medium', 'low') trigger a WARN, not a
+        FAIL. The canonical case per schemas.md §3.3 is uppercase
+        (HIGH/MEDIUM/LOW). The gate auto-normalizes for downstream
+        checks but surfaces the raw drift as WARN so adopters fix
+        the records at the source."""
+        self.write_manifest(
+            "bugs_manifest.json",
+            "records",
+            [
+                {
+                    "id": "BUG-005",
+                    "severity": "medium",  # non-canonical
+                    "disposition": "code-fix",
+                    "fix_type": "code",
+                    "disposition_rationale": "demonstrates Q3 WARN path",
+                },
+                {
+                    "id": "BUG-006",
+                    "severity": "HIGH",  # canonical (no WARN expected)
+                    "disposition": "code-fix",
+                    "fix_type": "code",
+                    "disposition_rationale": "canonical reference",
+                },
+            ],
+        )
+        fails, out = _capture_fail_output(quality_gate.check_v1_5_0_bugs_manifest, self.q)
+        # Non-canonical case must NOT fail the gate (Q3 decision: WARN, not FAIL).
+        self.assertEqual(
+            fails, 0,
+            f"non-canonical severity case must produce WARN, not FAIL; "
+            f"got fails={fails}; output: {out!r}",
+        )
+        # WARN message must name the offending bug ID + its raw value.
+        self.assertIn("non-canonical severity case", out)
+        self.assertIn("BUG-005", out)
+        self.assertIn("'medium'", out)
+        # The canonical record (BUG-006) must NOT appear in the drift list.
+        # The drift report uses `BUG-xxx='value'` form; BUG-006 should
+        # be absent from that pattern.
+        self.assertNotIn("BUG-006='HIGH'", out)
+
 
 class TestV150IndexMd(V150FixtureBase):
     def _valid_index(self):

@@ -2331,18 +2331,38 @@ def check_v1_5_0_requirements_manifest(repo_dir, q):
     pass_("requirements_manifest.json: v1.5.1 Layer-1 REQ checks complete")
 
 
+_V157_CANONICAL_SEVERITIES = ("HIGH", "MEDIUM", "LOW")
+
+
 def check_v1_5_0_bugs_manifest(q):
-    """§10 invariants #7, #12 — disposition completeness + legal fix_type × disposition."""
+    """§10 invariants #7, #12 — disposition completeness + legal fix_type × disposition.
+
+    v1.5.7 fix Q3: also emits a WARN per record whose `severity`
+    field is non-canonical case. The canonical case per schemas.md
+    §3.3 is uppercase (HIGH / MEDIUM / LOW). Non-canonical values
+    (`high`, `Medium`, `low`, etc.) are auto-normalized at read-time
+    elsewhere in the codebase but the raw record drift here is
+    surfaced as WARN — auto-normalize + warn is the operator-friendly
+    choice (tightening to FAIL would break adopters with legacy
+    lowercase entries; ignoring the drift lets it spread).
+    """
     data = _v150_manifest(q, "bugs_manifest.json")
     if data is None:
         return
     records = data.get("records")
     if not isinstance(records, list):
         return
+    severity_drift: list[tuple[str, str]] = []
     for idx, rec in enumerate(records):
         if not isinstance(rec, dict):
             continue
         bug_id = rec.get("id", f"<#{idx}>")
+        # v1.5.7 fix Q3: severity-case check (WARN, not FAIL).
+        sev_raw = rec.get("severity")
+        if isinstance(sev_raw, str) and sev_raw.strip():
+            sev_normalized = sev_raw.strip().upper()
+            if sev_normalized in _V157_CANONICAL_SEVERITIES and sev_raw.strip() != sev_normalized:
+                severity_drift.append((bug_id, sev_raw))
         disp = rec.get("disposition")
         if disp not in _V150_VALID_DISPOSITIONS:
             fail(
@@ -2372,6 +2392,23 @@ def check_v1_5_0_bugs_manifest(q):
                 f"record_id={bug_id}: illegal disposition × fix_type combination "
                 f"({disp}, {ft}) per schemas.md §3.4 / §10 invariant #12",
             )
+
+    if severity_drift:
+        # v1.5.7 fix Q3: surface non-canonical severity case as WARN so
+        # the drift is visible without breaking back-compat. Pre-Q3 the
+        # field went through `.upper()` silently for the challenge-gate
+        # check — drift accumulated invisibly across runs.
+        examples = ", ".join(
+            f"{bug_id}={sev!r}" for bug_id, sev in severity_drift[:5]
+        )
+        more = f" (+ {len(severity_drift) - 5} more)" if len(severity_drift) > 5 else ""
+        warn(
+            f"bugs_manifest.json: {len(severity_drift)} BUG record(s) "
+            f"have non-canonical severity case (schemas.md §3.3 mandates "
+            f"HIGH / MEDIUM / LOW uppercase): {examples}{more}. Auto-"
+            f"normalized for downstream checks; rewrite the records to "
+            f"the canonical case to silence the warning."
+        )
 
     pass_("bugs_manifest.json: v1.5.1 Layer-1 BUG checks complete")
 

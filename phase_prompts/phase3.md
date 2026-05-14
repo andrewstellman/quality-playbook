@@ -12,6 +12,7 @@ Read these files to get context:
 Execute Phase 3: Code Review + Regression Tests.
 Run the 3-pass code review per quality/RUN_CODE_REVIEW.md. For every confirmed bug:
 - Add to quality/BUGS.md with ### BUG-NNN heading format
+- Write the BUG record with `severity` exactly uppercase: `HIGH` / `MEDIUM` / `LOW` per schemas.md §3.3 (v1.5.7 fix Q3 mandate — Phase 6 gate WARN on case drift). Write `divergence_type` per schemas.md §3.8 (v1.5.7 fix Q2 mandate): `code-spec` / `internal-prose` / `cross-source`.
 - Write a regression test (xfail-marked)
 - Generate quality/patches/BUG-NNN-regression-test.patch (MANDATORY for every confirmed bug)
 - Generate quality/patches/BUG-NNN-fix.patch (strongly encouraged)

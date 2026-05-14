@@ -223,7 +223,7 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # from bin import run_playbook; b=run_playbook.phaseN_prompt();
         # print(len(b), hashlib.sha256(b.encode()).hexdigest())"`.
         "phase2":                ( 6300, "561dca066a51a64f268af0b3c9ff6ebb2c288bb8dc141b0ab137b1834ad4a081"),
-        "phase3":                ( 8919, "b834435ceb550ac425ab13df9edc0ac0b5c5c81f5b4f634673d67fc29331127c"),
+        "phase3":                ( 9200, "268a46fbe91f2025237dfc1e98cdad59e0f3eb6df916eda19eeda7ac900661d7"),
         "phase4":                ( 3496, "bae1bcae7585fa4f0fc8f14281312074126f12b574b470dec76560a8b54bd4f0"),
         "phase5":                (12853, "556f244ee72441176d4a64ddb0c009ed8670abe33e375246b1982018ebce2cea"),
         "phase6":                ( 2212, "026660cfff0a6bdcffdccf40d85a46359c5c7d4df7b82ac687454df30d475a01"),
