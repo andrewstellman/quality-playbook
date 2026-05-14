@@ -8,6 +8,29 @@ no dependency on any real repo's quality/ folder.
 Run from the QPB repo root with either:
     python3 -m pytest .github/skills/quality_gate/tests/test_quality_gate.py
     python3 -m unittest discover .github/skills/quality_gate/tests
+
+Test-architecture convention (v1.5.7 instruction 032 NCF-6):
+Most pure gate-logic tests live in this file — each `check_*`
+function in `quality_gate.py` has a corresponding `Test<Name>` class
+that constructs a synthetic `quality/` fixture and runs the gate as
+a subprocess. Two gate functions have their tests in
+`bin/tests/test_run_playbook.py::GateResolveArtifactPathTests`
+rather than here, by historical convention:
+
+- `check_no_workspace_dir` — exercised end-to-end via the runner's
+  Phase 6 flow; the runner-side tests construct the workspace/
+  directory state and call the function directly to assert the
+  FAIL counter increments correctly.
+- `_resolve_artifact_path` (helper, not a `check_*` gate function)
+  — tests verify it returns the canonical top-level path
+  unconditionally post-F-4a, which is a pure-helper assertion
+  better expressed via direct function call than gate subprocess.
+
+The split exists because those two gate behaviors are most
+naturally validated through the runner's invocation path rather
+than via the gate-script subprocess. See instruction 030's
+outputs/030-ship-readiness-fixes.md and instruction 032's
+outputs/032-final-report.md for the rationale and history.
 """
 
 import json

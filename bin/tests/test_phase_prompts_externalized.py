@@ -209,6 +209,19 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # v1.5.7 Deliverable 2: cookbook-reference paragraph added to
         # phase2.md after the "Read these files" block, pointing at
         # references/role_map_queries.md. Hashes recomputed (+436 bytes).
+        # v1.5.7 fix F-4c (instruction 030): 8 explicit artifact-location
+        # REQ directives added to phase2.md so REQUIREMENTS.md carries
+        # canonical-path REQs the gate can enforce against
+        # (quality/writeups/BUG-<id>.md, quality/patches/, etc.).
+        # Hash recomputed (3931 → 5345 bytes).
+        # v1.5.7 instruction 032 NCF-3/NCF-14 (the workspace REQ
+        # wording was updated from "populated quality/workspace/" to
+        # "quality/workspace/ tree present (populated OR empty)" so
+        # the REQ matches the F-4 amendment's empty-dir rejection).
+        # Hash recomputed (5345 → 5454 bytes). When updating phase
+        # prompts: recompute via `python3 -c "import hashlib;
+        # from bin import run_playbook; b=run_playbook.phaseN_prompt();
+        # print(len(b), hashlib.sha256(b.encode()).hexdigest())"`.
         "phase2":                ( 5454, "6de959a574928abaebe91c7499718483576871e0220ca147e1567c5889260a56"),
         "phase3":                ( 8919, "b834435ceb550ac425ab13df9edc0ac0b5c5c81f5b4f634673d67fc29331127c"),
         "phase4":                ( 3496, "bae1bcae7585fa4f0fc8f14281312074126f12b574b470dec76560a8b54bd4f0"),
