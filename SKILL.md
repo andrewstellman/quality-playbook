@@ -1149,6 +1149,30 @@ Examine existing test files to understand how they set up test data. Whatever pa
 
 ---
 
+## "What just happened" — required final block at every phase boundary
+
+After completing **any** phase (1, 2, 3, 4, 5, 6), a single-pass run, an iteration round (gap / unfiltered / parity / adversarial), or a recheck, emit a Markdown-rendered block in chat of this shape — as the **last** visible content of the phase, after any technical artifact summary:
+
+```
+## What just happened
+
+<1-3 sentences of plain English describing what was completed, what wasn't,
+and the honest interpretation of the result. NOT a copy of PROGRESS.md or
+BUGS.md — an interpretive layer over them.>
+
+### What to do next
+
+<1-3 sentences naming the logical next step, with the exact command or prompt to use.>
+```
+
+This block is **mandatory at every phase boundary**. The reason it exists: without it, adopters who hit failure modes like pass-process / fail-recall (where Phases 1-2 produce real artifacts but Phases 3-5 stub out and the gate passes with zero confirmed bugs) cannot see what went wrong without QPB-power-user knowledge of the gate verdicts. Surfacing the interpretive layer as plain English in chat scrollback fixes that.
+
+**Single source of truth:** the decision tree mapping run state → block content is in `references/what_just_happened.md`. Consult it before emitting — it covers eight run states (Phase 1 only / code-only mode / Phase 2 abort / pass-process-fail-recall / full baseline / iteration done / all iterations done / recheck done) with template prose for each, plus the mechanical 9-rule classifier for picking which state applies. Do NOT inline the decision tree here or in phase prompts — single-sourced in the reference file.
+
+**Plain-English contract.** No QPB-internal jargon without a parenthetical gloss. The first sentence of "What just happened" should make sense to an adopter reading their first run; the "What to do next" sentence must contain a concrete next prompt or shell command. See the DO NOT section of `references/what_just_happened.md` for full enforcement rules.
+
+---
+
 ## Reference Files
 
 Read these as you work through each phase:
@@ -1165,3 +1189,4 @@ Read these as you work through each phase:
 | `references/spec_audit.md` | File 5 (Council of Three) | Full audit protocol, triage process, fix execution |
 | `references/iteration.md` | Iterations (after Phase 6) | Four iteration strategies: gap, unfiltered, parity, adversarial |
 | `references/verification.md` | Phase 6 (verify) | Complete self-check checklist (45 benchmarks) including structured output, patch gate, skip guard validation, pre-flight discovery, version stamps, bug writeups, enumeration completeness, triage executable evidence, code-extracted enumeration lists, mechanical verification artifacts, source-inspection test execution, contradiction gate, seed check execution, convergence tracking, sidecar JSON schema validation, script-verified closure gate, canonical use case identifiers, and writeup inline fix diffs |
+| `references/what_just_happened.md` | Every phase boundary (1-6) + end-of-run + iterations + recheck | Mandatory `## What just happened` + `### What to do next` block contract; 9-rule run-state classifier; decision tree of eight templates (P1 / C / G / S / B / I / F / R) covering Mode A multi-pass, code-only mode, Phase 2 abort + D1 preservation, pass-process / fail-recall, full baseline, iteration done, all four iterations done, recheck done |
