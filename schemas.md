@@ -1237,47 +1237,53 @@ in `bin/run_playbook._code_review_should_skip`).
 
 ---
 
-## 11.2. End-of-Run Quality Folder Layout (v1.5.4 Phase 3.6.4)
+## 11.2. End-of-Run Quality Folder Layout (v1.5.4 Phase 3.6.4 — REMOVED in v1.5.7 F-4z)
 
-`bin/run_playbook._finalize_quality_layout` runs at the end of
-Phase 6 (after the gate, before `archive_run`) to organize
-`quality/` into canonical-deliverable + workspace-intermediate
-shape. The gate's `_resolve_artifact_path` reads from both
-top-level (legacy / pre-reorg) and `workspace/` (post-reorg) so
-consumers don't have to track which side an artifact landed on.
+**Status: the v1.5.4 Phase 3.6.4 `workspace/` reshape described below
+was removed in v1.5.7 F-4z. The gate now actively FAILS any run that
+emits a `workspace/` directory under `quality/` — see
+`check_no_workspace_dir` at
+`.github/skills/quality_gate/quality_gate.py`. The
+`_finalize_quality_layout` runner-side reshape function was deleted in
+the same fix; do not look for it in `bin/run_playbook.py`.**
 
-```
-quality/
-├── REQUIREMENTS.md          # canonical at top level
-├── QUALITY.md
-├── BUGS.md
-├── RUN_CODE_REVIEW.md
-├── RUN_SPEC_AUDIT.md
-├── RUN_INTEGRATION_TESTS.md
-├── RUN_TDD_TESTS.md
-├── EXPLORATION.md
-├── INDEX.md
-├── PROGRESS.md
-├── exploration_role_map.json
-├── previous_runs/           # archive subtree (B-19; legacy `runs/` also accepted)
-└── workspace/               # intermediate / pipeline artifacts
-    ├── control_prompts/
-    ├── results/
-    ├── code_reviews/
-    ├── spec_audits/
-    ├── patches/
-    ├── writeups/
-    ├── mechanical/
-    ├── phase3/              # four-pass pipeline outputs
-    ├── EXPLORATION_ITER*.md
-    └── EXPLORATION_MERGED.md
-```
+**Current canonical end-of-run layout (v1.5.7):**
 
-The reorganization is idempotent and operator-friendly: pre-existing
-`workspace/` children are preserved (we only move tree → workspace,
-never overwrite). Pre-Phase-3.6 archives that lack the `workspace/`
-sub-tree remain fully readable via the gate's path-resolver
-fallback.
+- **Phase artifacts** (REQUIREMENTS.md, QUALITY.md, BUGS.md, the four
+  `RUN_*.md` audits, EXPLORATION.md, INDEX.md, PROGRESS.md,
+  exploration_role_map.json) land at the top of the per-target
+  `quality/` tree. No `workspace/` subdirectory.
+- **Per-run logs** (playbook log, `run_state.jsonl`, RUN_MODE.md,
+  control_prompts transcripts) are centralized under
+  `quality/logs/<run-id>/` per the v1.5.7 D3 deliverable, with a
+  `quality/logs/latest` symlink updated at run completion. The
+  `--logs-flat` CLI flag (or `QPB_LOGS_LEGACY=1` env var) restores the
+  v1.5.6 scattered layout for adopter tooling that hasn't migrated.
+- **Phase 2 gate-failure preservation** (v1.5.7 D1): when the Phase 2
+  gate aborts, the failed `quality/` directory is preserved as
+  `quality.gate-failed-<UTC-timestamp>/` so operators can inspect the
+  rejected agent output. Implementation:
+  `bin/run_playbook.py::_preserve_quality_on_gate_failure` (invoked
+  from `run_one_phase()`).
+- **Archive subtree** at `quality/previous_runs/` (legacy `runs/` also
+  accepted) per B-19.
+
+**Cross-references for the current layout:**
+
+- `ai_context/BENCHMARK_PROTOCOL.md` — operator-facing description of
+  the v1.5.7 D1 + D3 layout.
+- `references/run_state_schema.md` — canonical schema for the
+  centralized run-state log, including the `run_id` / `log_layout`
+  discriminator fields on the `run_start` event.
+- `references/what_just_happened.md` — D1 preservation mechanics
+  cross-reference.
+
+The v1.5.4 Phase 3.6.4 section heading is preserved here so future
+readers searching for "workspace/" or "Phase 3.6.4" find the deletion
+record. The tree diagram and the "idempotent reorganization" prose
+that previously occupied this section are removed; consult the git
+history (`git log --all -- schemas.md`) for the pre-F-4z text if
+forensic context on the deprecated layout is needed.
 
 ---
 
