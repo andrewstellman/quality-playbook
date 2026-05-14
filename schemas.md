@@ -1,5 +1,18 @@
-> Quality Playbook v1.5.3 — Data Contract (`schemas.md`)
+> Quality Playbook v1.5.7 — Data Contract (`schemas.md`)
 > Versioned with the playbook skill. Do not edit per-run.
+>
+> v1.5.7 reaffirms the v1.5.3 data contract; no record-shape changes since v1.5.3.
+> Two v1.5.7 fixes reinforced existing rules via Phase 2/3 prompts (not new fields):
+> - Q3 (commit `16c3214`): the §3.3 `severity` enum is MANDATORILY uppercase
+>   (`HIGH` / `MEDIUM` / `LOW`). Phase 3 prompt + `phase2_generation_guide.md`
+>   explicitly require it; the gate WARNs on case drift (auto-normalizes for
+>   downstream invariant checks).
+> - Q2 (commit `c017f89`): `FORMAL_DOC.role` (§3.6) and `BUG.divergence_type`
+>   (§3.8) — both "conditional" per §3.10 — are now explicit mandates in the
+>   Phase 2/3 prompts. `bin/reference_docs_ingest.py` emits
+>   `role: "external-spec"` automatically; agents writing BUG records must
+>   include `divergence_type` per §3.8. The gate WARN-vs-FAIL choice is
+>   preserved (legacy back-compat); the prompt+ingest path is forward-only.
 
 # Quality Playbook Data Schemas
 
