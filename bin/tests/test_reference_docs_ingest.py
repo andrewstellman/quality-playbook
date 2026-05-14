@@ -42,6 +42,30 @@ class ReferenceDocsIngestTests(unittest.TestCase):
             self.assertEqual(rec["tier"], 1)
             self.assertTrue(rec["citation_excerpt"])
 
+    def test_record_carries_role_external_spec(self):
+        """v1.5.7 fix Q2 bite: every FORMAL_DOC record emitted by the
+        ingest module must carry `role: "external-spec"` per
+        schemas.md §3.6 (formal_doc_role enum). Reference_docs/cite/
+        contains operator-uploaded external plaintext specs by
+        definition — `external-spec` is the correct enum value.
+        Pre-Q2 the role field was absent, leaving the manifest
+        legacy-shaped (gate emitted soft WARN). Post-Q2 the manifest
+        is v1.5.3-shaped (per schemas.md §3.10 field-presence
+        detection)."""
+        with tempfile.TemporaryDirectory() as d:
+            root = _scaffold(Path(d))
+            cite = root / "reference_docs" / "cite"
+            cite.mkdir(parents=True)
+            (cite / "spec.md").write_text("# Spec\n\nBody.\n", encoding="utf-8")
+            manifest = rdi.ingest(root)
+            self.assertEqual(len(manifest["records"]), 1)
+            rec = manifest["records"][0]
+            self.assertEqual(
+                rec.get("role"), "external-spec",
+                f"FORMAL_DOC record must carry role: external-spec; "
+                f"got: {rec!r}",
+            )
+
     def test_html_tier_marker_upgrades_to_tier_2(self):
         with tempfile.TemporaryDirectory() as d:
             root = _scaffold(Path(d))

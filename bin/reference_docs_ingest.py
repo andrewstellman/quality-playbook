@@ -270,6 +270,17 @@ def _citation_excerpt(text: str, max_chars: int = 240) -> str:
 
 def _build_record(rec: _FileRecord, schema_version: str, generated_at: str) -> dict:
     digest = hashlib.sha256(rec.text.encode("utf-8")).hexdigest()
+    # v1.5.7 fix Q2: emit `role` per schemas.md §3.6 (formal_doc_role
+    # enum). All records from `reference_docs/cite/` are external
+    # plaintext specs uploaded by the operator — `external-spec` is
+    # the correct enum value. The other two enum values
+    # (`skill-self-spec`, `skill-reference`) only apply when the
+    # target IS a Skill/Hybrid project with its own SKILL.md /
+    # references/; those records are produced by Phase 1's skill-
+    # surface scanning code, not by this ingest module. Emitting
+    # `role` here promotes the manifest to v1.5.3-shaped (per
+    # schemas.md §3.10 field-presence detection), engaging the
+    # gate's strict-mode validation.
     return {
         "doc_id": f"FORMAL-{digest[:12]}",
         "source_path": rec.rel_path,
@@ -280,6 +291,7 @@ def _build_record(rec: _FileRecord, schema_version: str, generated_at: str) -> d
         "document_sha256": digest,
         "ingested_at": generated_at,
         "schema_version": schema_version,
+        "role": "external-spec",
     }
 
 

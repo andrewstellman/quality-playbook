@@ -36,6 +36,8 @@ Execute Phase 2: Generate all quality artifacts. Use the exploration findings in
 - `REQ-NNN: Mechanical-verification artifacts (verify.sh + *_cases.txt) are placed at quality/mechanical/.`
 - `REQ-NNN: quality/workspace/<name>/ is forbidden — top-level quality/<name>/ is the only canonical layout. Phase 6 gate check_no_workspace_dir fails any run with a quality/workspace/ tree present (populated OR empty — empty workspace/ trains future-iteration agents on the wrong layout and is rejected too).`
 
+**v1.5.7 fix Q2 — schemas.md §3.10 v1.5.3 field mandates.** Every BUG record written to `quality/bugs_manifest.json` MUST populate `divergence_type` per schemas.md §3.8 (`code-spec` | `internal-prose` | `cross-source`). Every FORMAL_DOC record in `quality/formal_docs_manifest.json` MUST populate `role` per schemas.md §3.6 (`external-spec` for records from `reference_docs/cite/`; `skill-self-spec` / `skill-reference` only for Skill/Hybrid targets' own documents). The Phase 6 gate (`check_v1_5_3_formal_doc_role_validation`, `check_v1_5_3_bug_divergence_type`) keeps WARN for back-compat with pre-v1.5.7 manifests that lack these fields, but every v1.5.7 run must produce v1.5.3-shaped output. `bin/reference_docs_ingest.py` emits `role: "external-spec"` automatically; BUG records the agent writes must include `divergence_type` explicitly.
+
 These REQs convert artifact-location compliance from prose-only guidance into testable requirements. The Phase 6 gate's `check_no_workspace_dir` enforces the last one mechanically; the others give human reviewers concrete REQs to grep for in compliance audits.
 
 Update PROGRESS.md: mark Phase 2 complete (use the checkbox format `- [x] Phase 2 - Generate` — do NOT switch to a table), update artifact inventory.
