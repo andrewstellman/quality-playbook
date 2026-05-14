@@ -571,6 +571,108 @@ def check_no_workspace_dir(q):
         pass_("no non-canonical quality/workspace/ tree present")
 
 
+_VERDICT_HEADING_RE = re.compile(r"^##\s+Verdict\s*$", re.MULTILINE)
+_VERDICT_PLACEHOLDER_PHRASES = (
+    "verdict is rendered",
+    "verdict will be",
+    "verdict will follow",
+    "placeholder",
+    "to be determined",
+    "TBD",
+    "tbd",
+)
+
+
+def check_verdict_shape(q):
+    """v1.5.7 Fix 8 (instruction 031): Phase 5 must end
+    COMPLETENESS_REPORT.md with the canonical verdict shape:
+
+        ## Verdict
+
+        PASS
+
+    or
+
+        ## Verdict
+
+        FAIL
+
+    Model-comparison evidence (instruction 031): verdict prose varies
+    wildly across models (`## Verdict`, `## Status`, `VERDICT: PASS`,
+    prose-only, placeholder text like "verdict is rendered after
+    Phase 6"). The strict shape gives operators a single grep target
+    and gives the gate something concrete to enforce.
+
+    FAIL outcomes:
+    - COMPLETENESS_REPORT.md missing entirely.
+    - `## Verdict` heading absent (e.g., agent wrote `## Status`).
+    - Next non-blank line after the heading is not exactly `PASS`
+      or `FAIL` (case-sensitive; `Passed`, `PASS!`, `**PASS**` all
+      fail).
+    - Next non-blank line contains a placeholder phrase ("verdict
+      is rendered", "TBD", "placeholder", etc.).
+    """
+    print("[Verdict Shape]")
+    cr = q / "COMPLETENESS_REPORT.md"
+    if not cr.is_file():
+        fail(
+            "quality/COMPLETENESS_REPORT.md",
+            "missing — Phase 5 must produce this file with a "
+            "canonical ## Verdict / PASS|FAIL section.",
+        )
+        return
+    try:
+        text = cr.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        fail("quality/COMPLETENESS_REPORT.md", "unreadable")
+        return
+    match = _VERDICT_HEADING_RE.search(text)
+    if not match:
+        fail(
+            "quality/COMPLETENESS_REPORT.md",
+            "missing the canonical `## Verdict` heading. Phase 5 "
+            "reconciliation must add it (exact form: `## Verdict` "
+            "on its own line, followed by a blank line and then "
+            "`PASS` or `FAIL`).",
+        )
+        return
+    # Find the next non-blank line after the heading.
+    after = text[match.end():]
+    next_line = ""
+    for line in after.splitlines():
+        if line.strip():
+            next_line = line.strip()
+            break
+    if not next_line:
+        fail(
+            "quality/COMPLETENESS_REPORT.md",
+            "has `## Verdict` heading but no verdict value follows. "
+            "Add `PASS` or `FAIL` on the next non-blank line.",
+        )
+        return
+    # Placeholder-phrase detection — case-insensitive across the
+    # whole next line, because agents sometimes embed the phrase in
+    # explanatory prose.
+    lowered = next_line.lower()
+    for phrase in _VERDICT_PLACEHOLDER_PHRASES:
+        if phrase.lower() in lowered:
+            fail(
+                "quality/COMPLETENESS_REPORT.md",
+                f"verdict line is a placeholder stub: "
+                f"{next_line!r}. Phase 5 must render an actual "
+                f"PASS or FAIL verdict, not deferred text.",
+            )
+            return
+    if next_line == "PASS" or next_line == "FAIL":
+        pass_(f"COMPLETENESS_REPORT.md verdict shape canonical ({next_line})")
+        return
+    fail(
+        "quality/COMPLETENESS_REPORT.md",
+        f"verdict line is {next_line!r} — must be exactly `PASS` "
+        f"or `FAIL` (uppercase, no surrounding text or emphasis).",
+    )
+
+
 def check_bugs_md_patches_consistency(q, bug_count, bug_ids):
     """v1.5.7 Fix 7 (instruction 031): the patches/ directory and
     BUGS.md must be consistent — patches without corresponding bug
@@ -3373,6 +3475,7 @@ def check_repo(repo_dir, version_arg, strictness):
     check_patches(q, bug_count, bug_ids, strictness)
     check_writeups(q, bug_count)
     check_bugs_md_patches_consistency(q, bug_count, bug_ids)
+    check_verdict_shape(q)
     check_no_workspace_dir(q)
     skill_version = check_version_stamps(repo_dir, q)
     check_cross_run_contamination(repo_dir, q, version_arg, skill_version)

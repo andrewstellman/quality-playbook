@@ -87,7 +87,11 @@ def minimal_zero_bug_tree(version="1.4.4"):
             "## Terminal Gate Verification\n"
         ),
         "quality/COVERAGE_MATRIX.md": "# Coverage\n",
-        "quality/COMPLETENESS_REPORT.md": "# Completeness\n",
+        "quality/COMPLETENESS_REPORT.md": (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "PASS\n"
+        ),
         "quality/CONTRACTS.md": "# Contracts\n",
         "quality/RUN_CODE_REVIEW.md": "# RCR\n",
         "quality/RUN_SPEC_AUDIT.md": "# RSA\n",
@@ -1144,6 +1148,110 @@ class TestWriteups(FixtureBase):
         self.assertIn(
             "PASS: No writeups contain unfilled template sentinels", stdout
         )
+
+
+class TestVerdictShape(FixtureBase):
+    """v1.5.7 Fix 8 (instruction 031): check_verdict_shape enforces
+    the canonical `## Verdict\\n\\nPASS|FAIL` shape in
+    COMPLETENESS_REPORT.md. Model-comparison evidence showed verdict
+    prose varying wildly across models — strict shape gives the gate
+    something concrete to enforce."""
+
+    def test_canonical_pass_verdict_passes(self):
+        """## Verdict / PASS — the canonical shape passes."""
+        tree = minimal_zero_bug_tree()
+        # Already PASS in the fixture default.
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn(
+            "PASS: COMPLETENESS_REPORT.md verdict shape canonical (PASS)",
+            stdout,
+        )
+
+    def test_canonical_fail_verdict_passes_shape_check(self):
+        """## Verdict / FAIL — shape is canonical even though the
+        verdict outcome is FAIL. The gate is checking shape, not
+        outcome."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "FAIL\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn(
+            "PASS: COMPLETENESS_REPORT.md verdict shape canonical (FAIL)",
+            stdout,
+        )
+
+    def test_status_heading_instead_of_verdict_fails(self):
+        """`## Status` instead of `## Verdict` → FAIL on missing
+        canonical heading."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Status\n\n"
+            "PASSED\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("missing the canonical `## Verdict` heading", stdout)
+
+    def test_passed_instead_of_PASS_fails(self):
+        """`Passed` (mixed case) instead of `PASS` → FAIL on
+        non-canonical verdict value."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "Passed\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("verdict line is 'Passed'", stdout)
+        self.assertIn("must be exactly `PASS` or `FAIL`", stdout)
+
+    def test_placeholder_phrase_fails(self):
+        """Stub-phrase detection: `verdict is rendered after Phase 6`
+        → FAIL with placeholder diagnostic."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "verdict is rendered after Phase 6 (TDD verification) "
+            "based on the receipts in...\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("placeholder stub", stdout)
+
+    def test_missing_completeness_report_fails(self):
+        """COMPLETENESS_REPORT.md missing entirely → FAIL."""
+        tree = minimal_zero_bug_tree()
+        del tree["quality/COMPLETENESS_REPORT.md"]
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("quality/COMPLETENESS_REPORT.md", stdout)
+        self.assertIn("missing", stdout)
+
+    def test_no_verdict_heading_at_all_fails(self):
+        """COMPLETENESS_REPORT.md exists but has no `## Verdict`
+        heading at all → FAIL on missing heading."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "Lots of prose but no verdict block.\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("missing the canonical `## Verdict` heading", stdout)
 
 
 class TestBugsMdPatchesConsistency(FixtureBase):

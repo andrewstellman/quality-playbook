@@ -11,6 +11,30 @@ Read these files to get context:
 Execute Phase 5: Reconciliation + TDD + Closure.
 
 1. Run the Post-Review Reconciliation per references/requirements_pipeline.md. Update COMPLETENESS_REPORT.md.
+
+   **Canonical verdict shape (v1.5.7 Fix 8, mandatory).** COMPLETENESS_REPORT.md must end with a canonical verdict block in exactly this shape — no variants:
+
+   ```markdown
+   ## Verdict
+
+   PASS
+   ```
+
+   or
+
+   ```markdown
+   ## Verdict
+
+   FAIL
+   ```
+
+   Rules:
+   - The heading must be exactly `## Verdict` (level-2 ATX heading, capital V, no trailing punctuation or qualifier).
+   - The next non-blank line must be exactly `PASS` or `FAIL` — uppercase, no markdown emphasis, no surrounding words ("Passed", "PASS!", "**PASS**" are all rejected by the gate).
+   - Optional explanatory prose may follow on subsequent lines, but the first non-blank line after the heading is the verdict.
+   - Do NOT leave placeholder text like "verdict is rendered after Phase 6" or "verdict will be determined later". The Phase 6 gate's `check_verdict_shape` fails on placeholder phrases and on any verdict line that isn't exactly `PASS` or `FAIL`.
+
+   This shape replaces the historical permissive variants (`## Status`, `VERDICT: PASS`, prose-only verdicts) that the gate tolerated through v1.5.6. The strict shape gives operators a single grep target and gives the gate something concrete to enforce.
 2. Run closure verification: every BUG in the tracker must have either a regression test or an explicit exemption.
 3. Write bug writeups at quality/writeups/BUG-NNN.md for EVERY confirmed bug. The canonical template is the "Bug writeup generation" section of SKILL.md (resolve via the fallback list above) — read that section before writing. Use the exact field headings listed there: **Summary, Spec reference, The code, Observable consequence, Depth judgment, The fix, The test, Related issues**. Sections 1–4, 6, 7 are required in every writeup; section 5 (Depth judgment) fires only when the consequence isn't self-evident from the immediate code; section 8 (Related issues) is included only when related bugs exist. Do NOT introduce fields that aren't in the template (no "Minimal reproduction" as a top-level field, no "Patch path:" as a top-level field — those belong inside Spec reference and The test respectively).
 
