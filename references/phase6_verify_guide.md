@@ -1,3 +1,5 @@
+<!-- D5 (v1.5.7): moved from SKILL.md (pure move; no semantic change). The text below is the same Phase 6 body the skill used to inline; the move is part of the v1.5.7 SKILL.md trim deliverable. -->
+
 ## Phase 6: Verify
 
 **v1.5.7 instrumentation:** Append `phase_start phase=6` now. At phase end, cross-validate (`quality/BUGS.md` non-empty with `^## BUG-` sections AND `quality/INDEX.md` updated with `gate_verdict` field) then append `phase_end phase=6`. After Phase 6 closes, append `run_end status=success` (or `aborted` / `failed` if applicable).

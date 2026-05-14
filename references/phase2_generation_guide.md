@@ -1,3 +1,5 @@
+<!-- D5 (v1.5.7): moved from SKILL.md (pure move; no semantic change). The text below is the same Phase 2 body the skill used to inline; the move is part of the v1.5.7 SKILL.md trim deliverable. -->
+
 ## Phase 2: Generate the Quality Playbook
 
 **v1.5.7 instrumentation:** Append `phase_start phase=2` to `quality/run_state.jsonl` now. At phase end, cross-validate by calling `bin/run_state_lib.validate_phase_artifacts(quality_dir, 2)` — it checks the full Generate contract (REQUIREMENTS.md, QUALITY.md, CONTRACTS.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, RUN_CODE_REVIEW.md, RUN_INTEGRATION_TESTS.md, RUN_SPEC_AUDIT.md, RUN_TDD_TESTS.md, plus one non-empty `quality/test_functional.<ext>`). If validation passes, append `phase_end phase=2`. If it fails, append an `error` event with `recoverable: true` and re-run the missing artifact generation. (BUG-014 fix: pre-v1.5.7 this note referenced the v1.5.5-design triage model that never shipped.)

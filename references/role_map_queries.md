@@ -1,5 +1,7 @@
 # Role-map query cookbook
 
+*Last updated: 2026-05-14 (v1.5.7 ship — D2 deliverable; query cookbook for the Phase 1 role map. Format and shape unchanged since first publication; this stamp is added for parity with other v1.5.7 references.)*
+
 The Phase 1 role map at `quality/exploration_role_map.json` has a top-level
 `files` array (NOT a `.roles` object). Each file record is `{path, role,
 size_bytes, rationale}`, plus `skill_prose_reference` for `skill-tool` entries.

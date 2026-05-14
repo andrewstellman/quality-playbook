@@ -1,3 +1,5 @@
+<!-- D5 (v1.5.7): moved from SKILL.md (pure move; no semantic change). The text below is the same Phase 1 body the skill used to inline; the move is part of the v1.5.7 SKILL.md trim deliverable. -->
+
 ## Phase 1: Explore the Codebase (Write As You Go)
 
 **v1.5.7 instrumentation:** Append `phase_start phase=1` to `quality/run_state.jsonl` now. After walking each exploration pattern, append `pattern_walked phase=1 pattern=N findings_count=K`. At phase end, cross-validate (`quality/EXPLORATION.md` ≥ 200 bytes with finding sections) then append `phase_end phase=1`. See "Run-state instrumentation" above.

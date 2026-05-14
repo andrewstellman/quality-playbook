@@ -1,8 +1,8 @@
-# Run-State Schema (v1.5.6)
+# Run-State Schema (v1.5.7)
 
 *Authoritative schema for `quality/run_state.jsonl`, `quality/PROGRESS.md`, and `Calibration Cycles/<cycle>/run_state.jsonl`. The playbook AI writes these files directly via the file-tool layer; the orchestrator AI reads them to drive multi-benchmark calibration cycles.*
 
-*Companion to: `docs/design/QPB_v1.5.5_Design.md` ("Design — Run-state event taxonomy" section).*
+*Companion to: `docs/design/QPB_v1.5.5_Design.md` ("Design — Run-state event taxonomy" section). v1.5.7 D3 added the centralized `quality/logs/<run-id>/` layout discriminator (`run_id` + `log_layout` fields on `run_start`); event taxonomy otherwise unchanged from v1.5.6.*
 
 ---
 
