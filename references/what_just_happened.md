@@ -311,7 +311,7 @@ verify the fix). After the next fix batch, say `recheck` again.
 - Iteration-prompt emission: `phase_prompts/iteration.md` tail line (loaded by `bin/run_playbook.py::iteration_prompt`).
 - Code-only-mode framing: `references/code-only-mode.md`.
 - Pass-process / fail-recall doc background: `ai_context/DEVELOPMENT_CONTEXT.md` → "Known agent behavior differences" + `ai_context/TOOLKIT.md` → "Why bug counts depend on agent quality."
-- D1 preservation mechanics: `bin/run_playbook.py::_finalize_quality_layout` + `ai_context/BENCHMARK_PROTOCOL.md` → "Phase 2 abort preservation (v1.5.7+)."
+- D1 preservation mechanics: `bin/run_playbook.py::_preserve_quality_on_gate_failure` (invoked from `run_one_phase()`) + `ai_context/BENCHMARK_PROTOCOL.md` → "Phase 2 abort preservation (v1.5.7+)."
 - D3 centralized log layout (canonical location of the run-state log): `references/run_state_schema.md` § "File locations and ownership" + `ai_context/TOOLKIT.md` → "Centralized run logs (v1.5.7+)."
 - Run-state event taxonomy (the events Rules 1-9 read against): `references/run_state_schema.md` § "Per-run events."
 - `aborted_missing_docs` shell-abort surface (out of scope here; PROGRESS.md ERROR block is the user surface): `references/code-only-mode.md` → "Opt-out: `--require-docs`" + `references/run_state_schema.md` § "`aborted_missing_docs`."
