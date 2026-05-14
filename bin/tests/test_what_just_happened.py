@@ -3,7 +3,7 @@
 
 Surfaces pinned:
 
-1. `references/what_just_happened.md` exists with the eight required
+1. `references/what_just_happened.md` exists with the thirteen required
    run-state rows in its decision-tree section.
 2. SKILL.md carries the cross-phase orientation-spine section
    establishing the contract (canonical phrasing) and pointing at the
@@ -35,9 +35,9 @@ PHASE_PROMPTS_DIR = REPO_ROOT / "phase_prompts"
 class WhatJustHappenedReferenceExistsTests(unittest.TestCase):
     """`references/what_just_happened.md` is the single source of
     truth for the decision tree. The test verifies it exists with the
-    eight required run-state rows. Bite-verified by renaming the file
-    aside (then the existence assertion fires); restoring makes the
-    test pass again.
+    thirteen required run-state rows. Bite-verified by renaming the
+    file aside (then the existence assertion fires); restoring makes
+    the test pass again.
     """
 
     REQUIRED_RUN_STATES = (
