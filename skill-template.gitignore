@@ -25,3 +25,10 @@ docs_gathered/
 # bulk.
 quality/runs/
 !quality/RUN_INDEX.md
+
+# v1.5.7 D3 centralized per-run logs (transcripts, control_prompts,
+# playbook log, run_state.jsonl, RUN_MODE.md). One subdirectory per run
+# at quality/logs/<run-id>/, plus a quality/logs/latest symlink. Per-run
+# log content is generally not version-control material for adopter
+# projects; QPB's own convention is to gitignore it.
+quality/logs/
