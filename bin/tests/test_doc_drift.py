@@ -261,6 +261,73 @@ class SkillReferenceDocsRoutingTests(unittest.TestCase):
         )
 
 
+class SixInstallLayoutsConsistencyTests(unittest.TestCase):
+    """v1.5.7 BUG-007: operator-facing surfaces must consistently name
+    the six canonical install layouts that SKILL_FALLBACK_GUIDE
+    documents. Pre-fix, surfaces variably listed 2, 3, or 4 layouts —
+    operators following one surface would miss layouts another surface
+    documents, leading to "I followed the docs but the skill isn't
+    finding itself" failures.
+
+    The 5 surfaces in scope (per instruction 034 BUG-007 brief):
+    - SKILL.md: fallback list under "Locating reference files"
+    - ai_context/TOOLKIT.md: SKILL_FALLBACK_GUIDE example block
+    - references/verification.md: SKILL.md-locator prose in Benchmark 26
+    - references/review_protocols.md: example gh copilot invocation
+    - references/challenge_gate.md: example challenge-gate prompt
+    """
+
+    # The six canonical install layouts the v1.5.6+ resolver supports,
+    # in the same order as SKILL_FALLBACK_GUIDE / SKILL_INSTALL_LOCATIONS.
+    SIX_LAYOUTS = (
+        ".claude/skills/quality-playbook/",
+        ".github/skills/",
+        ".cursor/skills/quality-playbook/",
+        ".continue/skills/quality-playbook/",
+        ".github/skills/quality-playbook/",
+    )
+    # Note: the root SKILL.md location (`SKILL.md` at target root) is
+    # ALSO one of the six but it's the bare-name string — checking for
+    # it as a substring would over-match unrelated mentions of
+    # "SKILL.md" in prose. The 5 nested forms above are unambiguous
+    # substrings to test on each surface.
+
+    OPERATOR_SURFACES = (
+        "SKILL.md",
+        "ai_context/TOOLKIT.md",
+        "references/verification.md",
+        "references/review_protocols.md",
+        "references/challenge_gate.md",
+    )
+
+    def test_every_surface_names_all_five_nested_layouts(self) -> None:
+        """Each of the 5 operator-facing surfaces must mention each of
+        the 5 nested install-layout substrings somewhere in the file.
+        The root `SKILL.md` location is the 6th canonical layout but
+        is not substring-checked here (see SIX_LAYOUTS comment)."""
+        misses: list[tuple[str, str]] = []
+        for rel in self.OPERATOR_SURFACES:
+            path = REPO_ROOT / rel
+            self.assertTrue(
+                path.is_file(),
+                f"OPERATOR_SURFACES references missing file: {rel}",
+            )
+            text = path.read_text(encoding="utf-8")
+            for layout in self.SIX_LAYOUTS:
+                if layout not in text:
+                    misses.append((rel, layout))
+        self.assertEqual(
+            misses,
+            [],
+            "Operator-facing surface(s) missing one or more of the 5 "
+            "nested canonical install-layout substrings (the 6th is "
+            "the bare-root SKILL.md location which we don't substring-"
+            "check). Pre-BUG-007 the surfaces variably listed 2-4 of "
+            f"6; the fix made all 5 surfaces enumerate all 5 nested "
+            f"forms (plus the root). Missing: {misses}",
+        )
+
+
 class QualityPlaybookHelpArchivePathTests(unittest.TestCase):
     """BUG-007: bin/quality_playbook.py help text must say
     `quality/previous_runs/`, matching `bin/archive_lib.py:ARCHIVE_DIRNAME`."""

@@ -227,11 +227,13 @@ Positional arguments are **directory paths**. Version-append fallback: if a bare
 
 The runner writes one log file per target next to the target directory (at `{parent}/{target-name}-playbook-{timestamp}.log`), archives prior `quality/` runs before fresh baselines, and enforces phase prerequisite gates.
 
-The iteration prompt is built from `SKILL_FALLBACK_GUIDE` in `bin/run_playbook.py`, so it advertises all four install locations instead of hardcoding one:
+The iteration prompt is built from `SKILL_FALLBACK_GUIDE` in `bin/run_playbook.py`, so it advertises all six canonical install layouts instead of hardcoding one:
 ```
 Read the quality playbook skill using the documented install-location fallback list:
 SKILL.md, .claude/skills/quality-playbook/SKILL.md,
-.github/skills/SKILL.md, .github/skills/quality-playbook/SKILL.md.
+.github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md,
+.continue/skills/quality-playbook/SKILL.md,
+.github/skills/quality-playbook/SKILL.md.
 Resolve reference files using the same documented fallback order.
 Run the next iteration using the <strategy> strategy.
 ```

@@ -560,7 +560,7 @@ cp -r path/to/skill/.github test-repo/.github
 
 # Run via CLI agent (adapt command to your agent)
 cd test-repo
-gh copilot -p "Read .github/skills/SKILL.md and its reference files. Execute the quality playbook for this project." \
+gh copilot -p "Read the quality-playbook SKILL.md and its reference files (walk the six canonical install-location fallback list: SKILL.md, .claude/skills/quality-playbook/SKILL.md, .github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, .continue/skills/quality-playbook/SKILL.md, .github/skills/quality-playbook/SKILL.md). Execute the quality playbook for this project." \
     --model gpt-5.4 --yolo > quality_run.output.txt 2>&1
 ```
 

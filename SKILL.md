@@ -193,12 +193,14 @@ The gate verdict in `quality/INDEX.md` (`pass` / `partial` / `fail`) is the oper
 
 ### Locating reference files
 
-This skill references files in a `references/` directory (e.g., `references/iteration.md`, `references/review_protocols.md`). The location depends on how the skill was installed. When a reference file is mentioned, resolve it by checking these paths in order and using the first one that exists:
+This skill references files in a `references/` directory (e.g., `references/iteration.md`, `references/review_protocols.md`). The location depends on how the skill was installed. When a reference file is mentioned, resolve it by checking these paths in order and using the first one that exists (the canonical six install layouts, v1.5.6+):
 
-1. `references/` (relative to SKILL.md — works when running from the skill directory)
+1. `references/` (relative to SKILL.md — works when running from the skill directory or self-bootstrap)
 2. `.claude/skills/quality-playbook/references/` (Claude Code installation)
 3. `.github/skills/references/` (GitHub Copilot flat installation)
-4. `.github/skills/quality-playbook/references/` (alternate Copilot installation)
+4. `.cursor/skills/quality-playbook/references/` (Cursor installation)
+5. `.continue/skills/quality-playbook/references/` (Continue installation)
+6. `.github/skills/quality-playbook/references/` (alternate Copilot installation, nested)
 
 All reference file mentions in this skill use the short form `references/filename.md`. If the relative path doesn't resolve, walk the fallback list above.
 

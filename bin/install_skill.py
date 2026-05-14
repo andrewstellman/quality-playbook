@@ -399,6 +399,60 @@ def smoke_check_exploration_patterns(target: Path, emitter: Emitter) -> bool:
     return True
 
 
+def smoke_check_bundle_presence(
+    target: Path, source_root: Path, emitter: Emitter,
+) -> bool:
+    """v1.5.7 BUG-003: assert every bundle member landed at the install
+    destination.
+
+    Pre-fix the smoke check covered only three specific files
+    (quality_gate.py, SKILL.md frontmatter, exploration_patterns.md
+    Pattern 7 anchor). A missing or corrupted bundle member elsewhere
+    (e.g., agents/quality-playbook.agent.md, phase_prompts/phase5.md,
+    bin/reference_docs_ingest.py, etc.) would slip through.
+
+    Uses `_bundle_files(source_root)` as the single source of truth for
+    "what should be installed" — the same list the installer's copy
+    loop uses. No duplication; bundle additions in `_bundle_files`
+    automatically expand this smoke check's surface.
+
+    Each destination file must be present AND non-empty (zero-byte
+    files indicate a truncated or failed copy). Python module bundle
+    members are not parsed beyond size-check here; the runtime import
+    in their first use will surface syntax errors.
+    """
+    missing: list[str] = []
+    empty: list[str] = []
+    for _src, dst_rel in _bundle_files(source_root):
+        dst = target / dst_rel
+        if not dst.is_file():
+            missing.append(str(dst_rel))
+            continue
+        try:
+            size = dst.stat().st_size
+        except OSError:
+            missing.append(str(dst_rel))
+            continue
+        if size == 0:
+            empty.append(str(dst_rel))
+    if missing or empty:
+        emitter.emit(
+            "smoke_check", check="bundle_presence", status="failed",
+            detail=f"missing={missing};empty={empty}",
+            prose=(
+                f"bundle smoke check found "
+                f"{len(missing)} missing + {len(empty)} empty file(s); "
+                f"missing={missing!r}, empty={empty!r}"
+            ),
+        )
+        return False
+    emitter.emit(
+        "smoke_check", check="bundle_presence", status="passed",
+        prose=f"all {len(list(_bundle_files(source_root)))} bundle file(s) present and non-empty",
+    )
+    return True
+
+
 def _parse_yaml_frontmatter(text: str) -> Optional[dict[str, str]]:
     """Lightweight YAML-frontmatter parser sufficient for the smoke check.
     Recognizes ``key: value`` pairs between leading ``---`` fences,
@@ -695,6 +749,8 @@ def install(
         if not smoke_check_skill_md_frontmatter(target, emitter):
             smoke_failed += 1
         if not smoke_check_exploration_patterns(target, emitter):
+            smoke_failed += 1
+        if not smoke_check_bundle_presence(target, source_root, emitter):
             smoke_failed += 1
 
     error_count = sum(1 for s in statuses if s == "error")

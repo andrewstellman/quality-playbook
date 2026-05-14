@@ -26,33 +26,85 @@ class BenchmarkLibTests(unittest.TestCase):
             self.assertEqual(lib.detect_repo_skill_version(temp_path), "1.4.2")
 
     def test_detect_repo_skill_version_falls_back_to_claude_and_root(self) -> None:
+        """v1.5.7 BUG-001/002: nested install layouts are unambiguous
+        QPB locations (no frontmatter check needed); the root SKILL.md
+        is the ambiguous case and requires `name: quality-playbook`
+        frontmatter for the helper to recognize it as QPB-installed."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
+            # Nested install layout: no frontmatter identity required.
             write(temp_path / ".claude" / "skills" / "quality-playbook" / "SKILL.md", "version: 2.0.0\n")
             self.assertEqual(lib.detect_repo_skill_version(temp_path), "2.0.0")
 
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            write(temp_path / "SKILL.md", "version: 3.0.0\n")
+            # Root SKILL.md MUST have `name: quality-playbook` frontmatter
+            # to qualify (v1.5.7 BUG-001/002 — pre-fix, ANY root SKILL.md
+            # was accepted, including a target project's own non-QPB
+            # skill).
+            write(
+                temp_path / "SKILL.md",
+                "---\nname: quality-playbook\nversion: 3.0.0\n---\n",
+            )
             self.assertEqual(lib.detect_repo_skill_version(temp_path), "3.0.0")
 
         with TemporaryDirectory() as temp_dir:
             self.assertEqual(lib.detect_repo_skill_version(Path(temp_dir)), "")
 
+    def test_detect_repo_skill_version_rejects_non_qpb_root_skill_md(self) -> None:
+        """v1.5.7 BUG-001/002 bite: a root SKILL.md without
+        `name: quality-playbook` frontmatter (i.e., a target project's
+        own skill that happens to share the filename) must NOT be
+        treated as QPB-installed. Pre-fix this returned the target's
+        version string spuriously."""
+        with TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            write(
+                temp_path / "SKILL.md",
+                "---\nname: target-project-skill\nversion: 9.9.9\n---\n",
+            )
+            self.assertEqual(
+                lib.detect_repo_skill_version(temp_path), "",
+                "non-QPB root SKILL.md must not be detected as installed",
+            )
+
     def test_find_installed_skill_returns_first_hit(self) -> None:
-        """v1.5.6 BUG-002: SKILL_INSTALL_LOCATIONS now leads with the
-        repo-root SKILL.md to match the runtime canonical order
-        (matches CANONICAL_ORDER in test_skill_resolution_order.py).
-        Pre-fix the helper started with .github/skills/SKILL.md and
-        could pick a different installed copy than the runtime."""
+        """v1.5.6 BUG-002 + v1.5.7 BUG-001/002:
+        SKILL_INSTALL_LOCATIONS leads with the repo-root SKILL.md to
+        match the runtime canonical order. The root SKILL.md case
+        requires `name: quality-playbook` frontmatter to qualify as
+        QPB-installed (v1.5.7 BUG-001/002 identity check)."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             root_skill = temp_path / "SKILL.md"
             gh_skill = temp_path / ".github" / "skills" / "SKILL.md"
-            write(root_skill, "version: 2.0.0\n")
+            write(
+                root_skill,
+                "---\nname: quality-playbook\nversion: 2.0.0\n---\n",
+            )
             write(gh_skill, "version: 1.0.0\n")
             # Root SKILL.md is searched first (canonical order).
             self.assertEqual(lib.find_installed_skill(temp_path), root_skill)
+
+    def test_find_installed_skill_skips_non_qpb_root_skill_md(self) -> None:
+        """v1.5.7 BUG-001/002 bite: when the root SKILL.md is a target's
+        own non-QPB skill, the helper must skip it and fall through to
+        the next canonical install layout. Pre-fix the root SKILL.md
+        won the lookup unconditionally and the runner treated the
+        target's own skill as if it were QPB-installed."""
+        with TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            root_skill = temp_path / "SKILL.md"
+            gh_skill = temp_path / ".github" / "skills" / "SKILL.md"
+            # Root SKILL.md is the target's own skill — NOT QPB's.
+            write(
+                root_skill,
+                "---\nname: target-project-skill\nversion: 2.0.0\n---\n",
+            )
+            # Nested install layout has the actual QPB skill.
+            write(gh_skill, "version: 1.0.0\n")
+            # Helper must skip the non-QPB root and pick the nested one.
+            self.assertEqual(lib.find_installed_skill(temp_path), gh_skill)
 
     def test_find_installed_skill_falls_through_to_github_when_root_absent(self) -> None:
         """When root SKILL.md is absent, the next canonical hit

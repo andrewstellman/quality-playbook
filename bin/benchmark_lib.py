@@ -156,22 +156,62 @@ def skill_version() -> Optional[str]:
 def detect_repo_skill_version(repo_dir: Path) -> str:
     """Read the `version:` value from an installed-copy SKILL.md for display."""
     for rel in SKILL_INSTALL_LOCATIONS:
-        version = _read_version(repo_dir / rel)
+        candidate = repo_dir / rel
+        if not _is_qpb_skill_md(candidate, rel):
+            continue
+        version = _read_version(candidate)
         if version:
             return version
     return ""
 
 
-def find_installed_skill(target_dir: Path) -> Optional[Path]:
-    """Return the first installed SKILL.md beneath `target_dir`, or None.
+_QPB_SKILL_NAME_RE = re.compile(
+    r"^\s*name:\s*[\"']?quality-playbook[\"']?\s*$",
+    re.MULTILINE,
+)
 
-    Searched in the same order as the skill's own fallback list:
-    `.github/skills/SKILL.md`, `.claude/skills/quality-playbook/SKILL.md`,
-    then a plain `SKILL.md` at the directory root.
+
+def _is_qpb_skill_md(candidate: Path, rel_path: Path) -> bool:
+    """Return True iff `candidate` is QPB's installed SKILL.md.
+
+    v1.5.7 BUG-001/BUG-002: differentiate between a QPB-installed
+    SKILL.md and an arbitrary target's own root SKILL.md (which could
+    be the target project's own skill, NOT QPB's). The five nested
+    install-layout paths (.claude/skills/quality-playbook/,
+    .github/skills/, .cursor/skills/quality-playbook/,
+    .continue/skills/quality-playbook/, .github/skills/quality-playbook/)
+    are unambiguous — only QPB installs there. The root `SKILL.md`
+    layout is the QPB self-bootstrap form and can collide with a
+    target project's own SKILL.md, so we verify frontmatter has
+    `name: quality-playbook` for that single ambiguous location.
+    """
+    if not candidate.is_file():
+        return False
+    # The 5 nested install layouts are unambiguous QPB locations.
+    if rel_path != Path("SKILL.md"):
+        return True
+    # Root SKILL.md — verify QPB identity via frontmatter `name:`.
+    try:
+        head = candidate.read_text(encoding="utf-8", errors="replace")[:4096]
+    except OSError:
+        return False
+    return bool(_QPB_SKILL_NAME_RE.search(head))
+
+
+def find_installed_skill(target_dir: Path) -> Optional[Path]:
+    """Return the first installed QPB SKILL.md beneath `target_dir`, or None.
+
+    Searched in the same order as the skill's own fallback list (the
+    six canonical install layouts; see SKILL_INSTALL_LOCATIONS).
+
+    v1.5.7 BUG-001/BUG-002: only returns a path when the candidate is
+    QPB's installed SKILL.md, not an arbitrary target's own SKILL.md.
+    The 5 nested install paths are unambiguous; the root SKILL.md
+    requires `name: quality-playbook` frontmatter to qualify.
     """
     for rel in SKILL_INSTALL_LOCATIONS:
         candidate = target_dir / rel
-        if candidate.is_file():
+        if _is_qpb_skill_md(candidate, rel):
             return candidate
     return None
 

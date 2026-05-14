@@ -781,8 +781,24 @@ class RunPlaybookTests(unittest.TestCase):
             self.assertEqual(resolved, [Path(temp_dir).resolve()])
             self.assertEqual(errors, [])
             # No skill installed -> warning about missing SKILL.md
+            # (v1.5.7 BUG-004: the warning lists all 6 canonical
+            # install layouts; pre-fix it listed only 3.)
             self.assertEqual(len(warnings), 1)
-            self.assertIn("No SKILL.md found", warnings[0])
+            self.assertIn("No QPB-installed SKILL.md found", warnings[0])
+            # All 6 canonical install layouts must be named in the warning.
+            for layout in (
+                "SKILL.md (root",
+                ".claude/skills/quality-playbook/SKILL.md",
+                ".github/skills/SKILL.md",
+                ".cursor/skills/quality-playbook/SKILL.md",
+                ".continue/skills/quality-playbook/SKILL.md",
+                ".github/skills/quality-playbook/SKILL.md",
+            ):
+                self.assertIn(
+                    layout, warnings[0],
+                    f"missing-install WARN must name {layout!r}; "
+                    f"got: {warnings[0]!r}",
+                )
 
     def test_resolve_target_dirs_relative_path_anchors_to_cwd(self) -> None:
         with TemporaryDirectory() as temp_dir:

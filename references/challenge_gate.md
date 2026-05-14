@@ -94,9 +94,12 @@ When invoked standalone (not during a playbook run), the challenge gate:
 
 Example prompt for standalone use:
 ```
-Read the quality playbook skill at .github/skills/SKILL.md and .github/skills/references/challenge_gate.md.
-Run the challenge gate on BUG-042 using the writeup at quality/writeups/BUG-042.md
-and the source code in this repo.
+Read the quality-playbook skill: walk the canonical six install-layout fallback list to locate SKILL.md
+(SKILL.md / .claude/skills/quality-playbook/SKILL.md / .github/skills/SKILL.md /
+.cursor/skills/quality-playbook/SKILL.md / .continue/skills/quality-playbook/SKILL.md /
+.github/skills/quality-playbook/SKILL.md), then load the adjacent references/challenge_gate.md
+using the same fallback order. Run the challenge gate on BUG-042 using the writeup at
+quality/writeups/BUG-042.md and the source code in this repo.
 ```
 
 ## Token budget

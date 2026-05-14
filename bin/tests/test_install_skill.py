@@ -507,11 +507,52 @@ class SmokeCheckTests(unittest.TestCase):
                 "quality_gate_help",
                 "skill_md_frontmatter",
                 "exploration_patterns_loaded",
+                "bundle_presence",  # v1.5.7 BUG-003
             ):
                 self.assertIn(
                     f"check={check} status=passed", out,
                     f"smoke check {check} did not pass; output: {out}",
                 )
+
+    def test_smoke_check_bundle_presence_catches_missing_member(self) -> None:
+        """v1.5.7 BUG-003 bite: if a bundle member is missing or empty
+        at the install destination, the new bundle-presence smoke check
+        fails with a diagnostic naming the missing file. Pre-fix the
+        smoke check covered only quality_gate.py + SKILL.md frontmatter
+        + exploration_patterns.md — silent gaps elsewhere in the bundle
+        slipped through."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            target = tmp / "install"
+            # Initial clean install (smoke skipped — we'll run it
+            # ourselves after sabotaging a bundle member).
+            rc, _ = _capture_install(
+                target=target, source_root=REPO_ROOT, no_smoke=True,
+            )
+            self.assertEqual(rc, 0)
+            # Sabotage a bundle member that the old smoke check would
+            # NOT have noticed (the old 3 checks don't touch
+            # agents/quality-playbook.agent.md).
+            sabotaged = target / "agents" / "quality-playbook.agent.md"
+            self.assertTrue(
+                sabotaged.is_file(),
+                "sabotage precondition: agents/quality-playbook.agent.md "
+                "must be in the install bundle",
+            )
+            sabotaged.unlink()
+            # Re-run JUST the bundle-presence smoke check.
+            buf = io.StringIO()
+            emitter = install_skill.Emitter(verbose=False, stream=buf)
+            ok = install_skill.smoke_check_bundle_presence(
+                target, REPO_ROOT, emitter,
+            )
+            output = buf.getvalue()
+            self.assertFalse(
+                ok,
+                f"expected bundle smoke check to fail; output: {output}",
+            )
+            self.assertIn("status=failed", output)
+            self.assertIn("agents/quality-playbook.agent.md", output)
 
     def test_smoke_check_catches_broken_quality_gate(self) -> None:
         """Install with --no-smoke, deliberately break quality_gate.py

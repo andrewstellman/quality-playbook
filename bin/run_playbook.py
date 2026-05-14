@@ -930,10 +930,20 @@ def resolve_target_dirs(paths: Sequence[str]) -> Tuple[List[Path], List[str], Li
                 continue
 
         if lib.find_installed_skill(candidate) is None:
+            # v1.5.7 BUG-004: list all 6 canonical install layouts
+            # (was 3 pre-fix). Order matches lib.SKILL_INSTALL_LOCATIONS
+            # which itself matches SKILL_FALLBACK_GUIDE.
             warnings.append(
-                f"WARN: No SKILL.md found for {candidate}. Expected at "
-                ".github/skills/SKILL.md, .claude/skills/quality-playbook/SKILL.md, or SKILL.md "
-                "at the target root — the playbook may not be installed there."
+                f"WARN: No QPB-installed SKILL.md found for {candidate}. "
+                "Expected at one of the canonical install layouts: "
+                "SKILL.md (root, bootstrap form — must have "
+                "`name: quality-playbook` frontmatter), "
+                ".claude/skills/quality-playbook/SKILL.md, "
+                ".github/skills/SKILL.md, "
+                ".cursor/skills/quality-playbook/SKILL.md, "
+                ".continue/skills/quality-playbook/SKILL.md, or "
+                ".github/skills/quality-playbook/SKILL.md — "
+                "the playbook may not be installed there."
             )
         resolved.append(candidate)
     return resolved, warnings, errors
