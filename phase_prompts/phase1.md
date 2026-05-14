@@ -227,3 +227,5 @@ Date: <YYYY-MM-DD>
 As each later phase completes it will flip its own `- [ ]` to `- [x]` — keep the line text (including the phase name after the dash) stable so substring matching in the Phase 5 gate and downstream tooling works.
 
 IMPORTANT: Do NOT proceed to Phase 2. Your only job is exploration and writing findings to disk. Write thorough, detailed findings - the next phase will read EXPLORATION.md to generate artifacts, so everything important must be captured in that file.
+
+After completing this phase, emit `## What just happened` + `### What to do next` as the LAST visible output in chat per the decision tree at `references/what_just_happened.md`. Use the State P1 template (or State C if you detected code-only mode — no `reference_docs/` present); the reference file's mechanical classifier picks the right state from the artifact tree.

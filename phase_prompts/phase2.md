@@ -43,3 +43,5 @@ These REQs convert artifact-location compliance from prose-only guidance into te
 Update PROGRESS.md: mark Phase 2 complete (use the checkbox format `- [x] Phase 2 - Generate` — do NOT switch to a table), update artifact inventory.
 
 IMPORTANT: Do NOT proceed to Phase 3 (code review). Your job is artifact generation only. The next phase will execute the review protocols you generated.
+
+After completing this phase, emit `## What just happened` + `### What to do next` as the LAST visible output in chat per the decision tree at `references/what_just_happened.md`. Use the State P2 template (Phase 2 just completed; next is Phase 3) — or State G if the gate aborted and a `<repo_dir>/quality.gate-failed-<UTC-timestamp>/` directory was preserved by D1.

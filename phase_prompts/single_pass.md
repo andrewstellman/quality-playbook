@@ -1,1 +1,3 @@
 {skill_fallback_guide} Execute the quality playbook for this project.{seed_instruction}
+
+At every phase boundary throughout this single-pass run AND at the end of the full run, emit `## What just happened` + `### What to do next` as the LAST visible output in chat per the decision tree at `references/what_just_happened.md`. Use the State P<N> templates between phases, State B / State S / State G at end-of-run depending on outcome (full baseline with bugs / pass-process-fail-recall / Phase 2 abort + D1 preservation), and State C if Phase 1 detected code-only mode (no `reference_docs/` directory).

@@ -21,3 +21,5 @@ Step 6.5: Metadata consistency check.
 
 Append each step's result to quality/results/phase6-verification.log.
 Mark Phase 6 complete in PROGRESS.md (use the checkbox format `- [x] Phase 6 - Verify` — do NOT switch to a table).
+
+After completing this phase, emit `## What just happened` + `### What to do next` as the LAST visible output in chat per the decision tree at `references/what_just_happened.md`. This is end-of-baseline — use State B if `quality/BUGS.md` has at least one `^### BUG-` heading, or State S if it has zero headings AND the gate verdict shows the "no BUG-NNN headings" WARN (the pass-process / fail-recall failure mode the contract was designed to surface).

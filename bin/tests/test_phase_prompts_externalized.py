@@ -222,21 +222,35 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # prompts: recompute via `python3 -c "import hashlib;
         # from bin import run_playbook; b=run_playbook.phaseN_prompt();
         # print(len(b), hashlib.sha256(b.encode()).hexdigest())"`.
-        "phase2":                ( 6300, "561dca066a51a64f268af0b3c9ff6ebb2c288bb8dc141b0ab137b1834ad4a081"),
-        "phase3":                ( 9200, "268a46fbe91f2025237dfc1e98cdad59e0f3eb6df916eda19eeda7ac900661d7"),
-        "phase4":                ( 3496, "bae1bcae7585fa4f0fc8f14281312074126f12b574b470dec76560a8b54bd4f0"),
-        "phase5":                (12853, "556f244ee72441176d4a64ddb0c009ed8670abe33e375246b1982018ebce2cea"),
-        "phase6":                ( 2212, "026660cfff0a6bdcffdccf40d85a46359c5c7d4df7b82ac687454df30d475a01"),
+        # v1.5.7 instruction 037 (UX defect closure): mandatory
+        # "## What just happened" + "### What to do next" tail
+        # appended to every phase prompt (phase1-6 + single_pass +
+        # iteration). Pointer to references/what_just_happened.md
+        # added; per-phase template hint (State P<N>, State C, State
+        # G, State S, State B, State I, State F) included so the
+        # agent picks the right decision-tree branch without inlining
+        # the tree. All hashes recomputed. Note: the `expected_len`
+        # column is the Unicode codepoint count (matches the test's
+        # `len(body)`), NOT the UTF-8 byte length — multi-byte
+        # characters like the em-dash `—` count as 1 codepoint but
+        # take 3 bytes in UTF-8.
+        "phase1_no_seeds_True":  (20632, "7e32930635d20c03a17157842dfe2f5c52f9fbfc7d09933e1d6a7e500668f364"),
+        "phase1_no_seeds_False": (20435, "d19f6893610c8ad7f0d68b5e0bf7347e24c08db29b5d70eb4e164a7a44ed36ec"),
+        "phase2":                ( 6667, "46b9ed0a21a68ffbe48f1b646c787a3507e638f3dc23f8303d66fd8557312d20"),
+        "phase3":                ( 9611, "ac74b34294ab4e77c8b199c31329dbeb3e35bf82e58a33c7edd9acd1bbbcf670"),
+        "phase4":                ( 3744, "0b142ae6a1856166599f4865defdcc2dc1b0f1da95f63608ad2a3a5c9620f5ee"),
+        "phase5":                (13101, "21751d82b572b88947ef3c301ffd2a9fb29e7304815e7255ba637447bc0f8add"),
+        "phase6":                ( 2665, "2889b43d0b673bd002e5a4c451f06096c1828141f92bac557038d72945a2ee55"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.
         # Hashes recomputed against the v1.5.6 guide.
-        "single_pass_True":      (  457, "77830f3ad7cb4d0bac165afc555c54c48866af1756b01a24f4bfd2e80a940b7a"),
-        "single_pass_False":     (  402, "89b9ad80cb42e8b4562926e0d54c86fc272a94e53e061856994646174041116d"),
-        "iteration_gap":         ( 1191, "e97b88dd3ba10ebf8293d2c508291169829cfd8183e7e76c3c82fafeed740d5b"),
-        "iteration_unfiltered":  ( 1212, "ceb77496da6746cc025f6542ae7c1f59ef609d102da09b329438d2b44821fd5e"),
-        "iteration_parity":      ( 1200, "cfe0882870bc8146efca67c2149e6f7d865c40d167da1de573c33c0cccc06502"),
-        "iteration_adversarial": ( 1215, "e53d9f18aa65a0d07110d9b8216c5c989c682ac03ebdf410b3953a1632896ba8"),
+        "single_pass_True":      (  972, "07de21144950566bc058735fa75ad59a788bff8b1ef5a6349ef37a3d72142e06"),
+        "single_pass_False":     (  917, "772a3cb26eb3f9bbf63fba096c2b75fa990cf13058c89076aa30574960897fb3"),
+        "iteration_gap":         ( 1622, "3c2cb1705de31819da87ed0e5748ec6628df3d6b41d354e0bf448ed71b7a8f2e"),
+        "iteration_unfiltered":  ( 1650, "e2a52132d9bbd176a0a6529169d2d7dce60cbc63563fb3cf8cb5e924ce5182b8"),
+        "iteration_parity":      ( 1634, "bf57423e865a01762a126e0b95b5925ac348b3fcedc34259e0199a9515003eae"),
+        "iteration_adversarial": ( 1654, "8f57a7a7bd517384887b06e5ad546dac75452b8c80a0f22b21484ccecaf27412"),
     }
 
     def _render(self, label: str) -> str:

@@ -153,3 +153,5 @@ Before writing the Phase 3 completion checkpoint to PROGRESS.md, confirm each it
 Mark Phase 3 (Code review + regression tests) complete in PROGRESS.md (use the checkbox format `- [x] Phase 3 - Code Review` — do NOT switch to a table).
 
 IMPORTANT: Do NOT proceed to Phase 4 (spec audit). The next phase will run the spec audit with a fresh context window.
+
+After completing this phase, emit `## What just happened` + `### What to do next` as the LAST visible output in chat per the decision tree at `references/what_just_happened.md`. Use the State P3 template (Phase 3 just completed; next is Phase 4) — the reference file's classifier handles edge cases like stubbed reviews (State S applies later, once Phases 3-5 collectively pass with zero `### BUG-` headings).
