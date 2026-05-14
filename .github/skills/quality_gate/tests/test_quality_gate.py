@@ -1339,6 +1339,77 @@ class TestBugsMdPatchesConsistency(FixtureBase):
         self.assertIn("missing entries for patch IDs", stdout)
         self.assertIn("BUG-007", stdout)
 
+    def test_hybrid_named_patch_not_double_counted(self):
+        """v1.5.7 instruction 032 NCF-4: a patch file whose name
+        matches BOTH `*-fix*.patch` AND `*-regression-test*.patch`
+        (e.g., `BUG-001-regression-test-fix.patch`) must be counted
+        ONCE, not twice. Pre-NCF-4 the two globs were summed via
+        len(a) + len(b), double-counting hybrid-named files."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/BUGS.md"] = (
+            "# Bugs\n\n"
+            "### BUG-001: first\n\n"
+            "body\n"
+        )
+        # File name contains both "-fix" and "-regression-test".
+        tree["quality/patches/BUG-001-regression-test-fix.patch"] = (
+            "--- a/f\n+++ b/f\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        # The diagnostic message should say "1 patch(es)", not "2".
+        self.assertIn(
+            "BUGS.md (1 bug(s)) and patches/ (1 patch(es)) are consistent",
+            stdout,
+            "hybrid-named patch file should be counted once via set "
+            "union, not double-counted by summing both glob lengths. "
+            f"Stdout: {stdout!r}",
+        )
+
+    def test_split_patch_workflow_passes(self):
+        """v1.5.7 instruction 032 NCF-7: dropped the
+        `patches_count <= bug_count * 2` upper bound. Legitimate
+        split-patch workflows (one bug fixed across multiple files)
+        produce more than 2 patches per bug. Construct a fixture
+        with 1 bug and 4 patches (3 fix + 1 regression test) — pre-
+        NCF-7 this failed with 'contains 4 patches but BUGS.md lists
+        only 1 bug(s)'; post-NCF-7 it passes the consistency
+        check (other gates may still complain about specifics)."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/BUGS.md"] = (
+            "# Bugs\n\n"
+            "### BUG-001: complex multi-file fix\n\n"
+            "body\n"
+        )
+        # 3 fix patches for the same bug (multi-file split workflow)
+        # + 1 regression-test patch.
+        tree["quality/patches/BUG-001-fix-server.patch"] = (
+            "--- a/server\n+++ b/server\n"
+        )
+        tree["quality/patches/BUG-001-fix-client.patch"] = (
+            "--- a/client\n+++ b/client\n"
+        )
+        tree["quality/patches/BUG-001-fix-shared.patch"] = (
+            "--- a/shared\n+++ b/shared\n"
+        )
+        tree["quality/patches/BUG-001-regression-test.patch"] = (
+            "--- /dev/null\n+++ b/test\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        # The consistency check itself passes (other gates may still
+        # complain about red/green logs, writeups, etc. — those
+        # aren't the concern of this NCF-7 test).
+        self.assertIn(
+            "BUGS.md (1 bug(s)) and patches/ (4 patch(es)) are consistent",
+            stdout,
+            "post-NCF-7: split-patch workflow with 4 patches for 1 "
+            "bug must pass the consistency check (upper bound "
+            "dropped). Stdout: " + repr(stdout),
+        )
+
 
 class TestVersionStamps(FixtureBase):
     def test_matching_versions_pass(self):

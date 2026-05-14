@@ -712,11 +712,23 @@ def check_bugs_md_patches_consistency(q, bug_count, bug_ids):
     patches while leaving BUGS.md empty.
 
     Hard fail: bugs_count == 0 AND patches_count > 0 (the model-
-    comparison failure mode). When BUGS.md has entries, allow
-    patches_count between bugs_count (fix-only is acceptable per
-    challenge_gate) and bugs_count * 2 (fix + regression).
-    patches_count > bugs_count * 2 is also a fail because that
-    implies patches exist for bugs not in BUGS.md.
+    comparison failure mode). When BUGS.md has entries, every patch
+    must have its bug ID in BUGS.md; orphan IDs fail. No upper bound
+    on per-bug patch count — multi-patch workflows (one bug requiring
+    multiple fix patches in different files) are legitimate.
+
+    v1.5.7 instruction 032 NCF-4: patch-file counting uses a set
+    union across the two globs so a file matching both
+    (`*-fix*.patch` AND `*-regression-test*.patch`) is counted once,
+    not twice. The intervening `*` wildcard in `*-fix*.patch` would
+    otherwise inflate the count for hybrid-named files.
+
+    v1.5.7 instruction 032 NCF-7: dropped the `patches_count <=
+    bug_count * 2` upper bound. The upper bound false-positives on
+    legitimate split-patch workflows (e.g., one bug requiring fixes
+    in 3 different files = 3 fix patches + 1 regression test = 4
+    patches for 1 bug). The orphan-ID check already detects patches
+    for bugs not in BUGS.md, which is the real defect signal.
     """
     print("[BUGS.md / patches consistency]")
     patches_dir = q / "patches"
@@ -725,17 +737,21 @@ def check_bugs_md_patches_consistency(q, bug_count, bug_ids):
         # complain if patches are missing for confirmed bugs.
         info("No patches/ directory — consistency check skipped")
         return
-    fix_patches = sorted(patches_dir.glob("*-fix*.patch"))
-    regr_patches = sorted(patches_dir.glob("*-regression-test*.patch"))
-    patches_count = len(fix_patches) + len(regr_patches)
+    # v1.5.7 instruction 032 NCF-4: set union deduplicates files
+    # matching both globs. The `*` in `*-fix*.patch` can match a
+    # file named `BUG-NNN-regression-test-fix.patch` (or any other
+    # file whose name happens to contain both "-fix" and
+    # "-regression-test"), which would otherwise be counted twice.
+    fix_patches = set(patches_dir.glob("*-fix*.patch"))
+    regr_patches = set(patches_dir.glob("*-regression-test*.patch"))
+    all_patches = sorted(fix_patches | regr_patches)
+    patches_count = len(all_patches)
     if patches_count == 0:
         info("No fix/regression patches present — consistency check skipped")
         return
     if bug_count == 0:
         # The model-comparison failure mode: patches without bugs.
-        patch_names = sorted(
-            p.name for p in list(fix_patches) + list(regr_patches)
-        )
+        patch_names = sorted(p.name for p in all_patches)
         fail(
             "quality/BUGS.md",
             f"lists 0 bug entries but quality/patches/ contains "
@@ -748,7 +764,7 @@ def check_bugs_md_patches_consistency(q, bug_count, bug_ids):
     # BUGS.md has entries — check patch IDs vs bug IDs.
     patch_ids = set()
     patch_re = re.compile(r"^(BUG-(?:[HML][0-9]+|[0-9]+))[-.]")
-    for p in list(fix_patches) + list(regr_patches):
+    for p in all_patches:
         m = patch_re.match(p.name)
         if m:
             patch_ids.add(m.group(1))
@@ -762,22 +778,10 @@ def check_bugs_md_patches_consistency(q, bug_count, bug_ids):
             f"confirmed bug must be reflected in BUGS.md.",
         )
         return
-    # Tolerance: between bugs_count (fix-only) and bugs_count * 2
-    # (fix + regression). Larger ranges of patches per bug are
-    # acceptable when the bug surface justifies them (e.g., a single
-    # bug producing both a fix and a regression-test patch counts
-    # as 2 patches).
-    upper_bound = bug_count * 2
-    if patches_count > upper_bound:
-        fail(
-            "quality/patches/",
-            f"contains {patches_count} patches but BUGS.md lists "
-            f"only {bug_count} bug(s). Expected at most "
-            f"{upper_bound} patches (1 fix + 1 regression per bug). "
-            f"Excess patches may indicate orphaned files from a "
-            f"prior run.",
-        )
-        return
+    # v1.5.7 instruction 032 NCF-7: upper bound dropped. Multi-patch
+    # workflows (one bug requiring several fix patches across files)
+    # are legitimate; the orphan-ID check already catches the real
+    # defect (patches for bugs not in BUGS.md).
     pass_(
         f"BUGS.md ({bug_count} bug(s)) and patches/ "
         f"({patches_count} patch(es)) are consistent"
