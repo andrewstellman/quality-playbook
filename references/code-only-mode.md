@@ -61,7 +61,7 @@ The reason this matters: State P1's "no bugs are confirmed yet — confirmation 
 
 The State C "What to do next" instruction then offers the adopter a concrete choice between (a) adding documentation and re-running, or (b) continuing with the limitation explicitly acknowledged in the downstream report.
 
-Detection logic at phase end (mechanical, no judgment): Rule 7 of the `references/what_just_happened.md` classifier fires when `quality/run_state.jsonl` shows `phase_end phase=1` AND a `documentation_state state=code_only` event AND no `phase_end phase=2` event yet. That's the same `documentation_state` event this file already documents — the v1.5.7 UX contract reuses the existing telemetry surface rather than adding a new one.
+Detection logic at phase end (mechanical, no judgment): Rule 8 of the `references/what_just_happened.md` classifier fires when the run-state log (resolved per the v1.5.7 D3 path — `<repo_dir>/quality/logs/<run-id>/run_state.jsonl` canonical, `quality/run_state.jsonl` legacy fallback for `--logs-flat` / `QPB_LOGS_LEGACY=1` runs) shows `phase_end phase=1` AND a `documentation_state state=code_only` event AND no `phase_end phase=2` event yet. That's the same `documentation_state` event this file already documents — the v1.5.7 UX contract reuses the existing telemetry surface rather than adding a new one.
 
 ## Cross-references
 

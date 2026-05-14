@@ -42,13 +42,40 @@ class WhatJustHappenedReferenceExistsTests(unittest.TestCase):
 
     REQUIRED_RUN_STATES = (
         "State P1",  # Phase 1 only completed (Mode A multi-pass)
+        "State P2",  # Phase 2 just completed (added in instr 038 fix-up)
+        "State P3",  # Phase 3 just completed (added in instr 038 fix-up)
+        "State P4",  # Phase 4 just completed (added in instr 038 fix-up)
+        "State P5",  # Phase 5 just completed (added in instr 038 fix-up)
         "State C",   # Phase 1 + code-only mode
         "State G",   # Phase 2 abort + D1 preservation
+        "State E",   # Agent-emitted unrecoverable error (added in instr 038 fix-up)
         "State S",   # pass-process / fail-recall (the v1.5.7 load-bearing case)
         "State B",   # Phases 1-6 baseline with N bugs
         "State I",   # One or more iteration strategies done
         "State F",   # All four iterations done
         "State R",   # Recheck done
+    )
+
+    # v1.5.7 instruction 038 round-2 fix-up: also pin that each state
+    # carries an explicit `### State <X> —` template heading in the
+    # reference file (not just a passing mention). A regression that
+    # deletes a template section's heading would still leave the state
+    # name in the rules-table row above, so checking the name alone
+    # isn't sufficient — pin the heading too.
+    REQUIRED_TEMPLATE_HEADINGS = (
+        "### State P1",
+        "### State P2",
+        "### State P3",
+        "### State P4",
+        "### State P5",
+        "### State C",
+        "### State G",
+        "### State E",
+        "### State S",
+        "### State B",
+        "### State I",
+        "### State F",
+        "### State R",
     )
 
     def test_reference_file_exists(self) -> None:
@@ -59,16 +86,40 @@ class WhatJustHappenedReferenceExistsTests(unittest.TestCase):
             f"truth file; SKILL.md and every phase prompt point at it.",
         )
 
-    def test_reference_file_lists_all_eight_run_states(self) -> None:
+    def test_reference_file_lists_all_thirteen_run_states(self) -> None:
+        """v1.5.7 instruction 038 round-2 fix-up: the state inventory
+        expanded from 8 (P1, C, G, S, B, I, F, R) to 13 after round-1
+        added P2/P3/P4/P5 + State E. This test now pins all 13."""
         text = REFERENCE_PATH.read_text(encoding="utf-8")
         for state_label in self.REQUIRED_RUN_STATES:
             self.assertIn(
                 state_label,
                 text,
                 f"references/what_just_happened.md must define the "
-                f"`{state_label}` run-state row. The eight states "
-                f"(P1, C, G, S, B, I, F, R) cover every terminal "
-                f"the v1.5.7 contract ships against.",
+                f"`{state_label}` run-state row. The 13 states "
+                f"(P1, P2, P3, P4, P5, C, G, E, S, B, I, F, R) cover "
+                f"every terminal the v1.5.7 contract ships against.",
+            )
+
+    def test_reference_file_has_explicit_template_for_every_state(self) -> None:
+        """v1.5.7 instruction 038 round-2 fix-up: each state must
+        carry a `### State <X> — …` template heading in the
+        decision-tree section. A regression that deleted, say, the
+        P4 template section would still leave 'State P4' in the
+        rules table above and pass the name-presence test — pinning
+        the heading too closes that gap."""
+        text = REFERENCE_PATH.read_text(encoding="utf-8")
+        for heading in self.REQUIRED_TEMPLATE_HEADINGS:
+            self.assertIn(
+                heading,
+                text,
+                f"references/what_just_happened.md must include the "
+                f"`{heading} — …` template heading. Each state needs "
+                f"its own per-template prose; substituting a phase "
+                f"number into a different template (as round-1's "
+                f"State Pn fallback did) produced factually wrong "
+                f"messages and was the load-bearing complaint that "
+                f"closed codex round-1 finding #3.",
             )
 
     def test_reference_file_includes_contract_and_do_not_sections(self) -> None:

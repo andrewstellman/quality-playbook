@@ -253,10 +253,16 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # recomputed (codepoint length).
         "single_pass_True":      ( 1248, "df98d084d02cbe54d40de7223ea2bc24188b324b7321d32b5aaf0900b44f408b"),
         "single_pass_False":     ( 1193, "7a0153a1622b1f0cfa02ea0d208e638fab66abcbea6a07844e95c4d70bedeadb"),
-        "iteration_gap":         ( 1622, "3c2cb1705de31819da87ed0e5748ec6628df3d6b41d354e0bf448ed71b7a8f2e"),
-        "iteration_unfiltered":  ( 1650, "e2a52132d9bbd176a0a6529169d2d7dce60cbc63563fb3cf8cb5e924ce5182b8"),
-        "iteration_parity":      ( 1634, "bf57423e865a01762a126e0b95b5925ac348b3fcedc34259e0199a9515003eae"),
-        "iteration_adversarial": ( 1654, "8f57a7a7bd517384887b06e5ad546dac75452b8c80a0f22b21484ccecaf27412"),
+        # v1.5.7 instruction 038 codex round-2 fix-up: iteration.md
+        # tail rewritten to point at PROGRESS.md `## Iteration:
+        # <strategy> complete` headings (and at Rules 4-5 of the
+        # decision-tree classifier) instead of the round-1 wording
+        # that still referenced non-existent `iteration_end` events
+        # in `quality/run_state.jsonl`. Hashes recomputed.
+        "iteration_gap":         ( 1766, "ea19816916398bea8d8b50f5f12106b01eadab10cbd6748f0d52bbba059e4d29"),
+        "iteration_unfiltered":  ( 1794, "5557e27a97d2d43aa289f0be13ba93069b28fe50b13cb243e3a744d9ce901519"),
+        "iteration_parity":      ( 1778, "a28cfae2e1d867c42406dad9709b6b3c55afc34b1448ae33c68e247e16aeb8f8"),
+        "iteration_adversarial": ( 1798, "d8dadea2c7325782b7793c917e543a7c15101c2b3fde302e238ff45e35523a32"),
     }
 
     def _render(self, label: str) -> str:

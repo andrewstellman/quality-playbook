@@ -112,10 +112,11 @@ Continue with Phase 4 (Spec Audit + Triage) by saying `keep going` or `run phase
 ```
 ## What just happened
 
-Phase 4 (Spec Audit + Triage) is done. The agent ran the Council-of-Three semantic audit on
-every Tier 1/2 citation in BUGS.md and wrote the per-bug citation-check verdicts to
-`quality/citation_semantic_check.json`. Any confirmed bugs have an audit trail; any
-unsupported claims were flagged for Phase 5 reconciliation.
+Phase 4 (Spec Audit + Triage) is done. The agent ran the Council-of-Three semantic
+audit on each Tier 1/2 REQ's `citation_excerpt` from `quality/requirements_manifest.json`
+and wrote per-REQ review verdicts (one row per Council member per REQ) to
+`quality/citation_semantic_check.json`. Any REQs whose `reviews[]` array is empty
+were flagged as Spec Gaps for Phase 5 reconciliation.
 
 ### What to do next
 
