@@ -3057,23 +3057,45 @@ class GateResolveArtifactPathTests(unittest.TestCase):
 
     def test_check_no_workspace_dir_passes_when_workspace_absent(self) -> None:
         """check_no_workspace_dir passes when workspace/ doesn't exist
-        or is empty (canonical layout)."""
+        at all (canonical layout). Note: instruction 031 F-4 amendment
+        flipped the empty-directory case to FAIL — see the separate
+        empty-dir test below."""
         with TemporaryDirectory() as tmp:
             q = Path(tmp)
-            # Case A: workspace/ doesn't exist.
             self.gate._reset_counters()
             self.gate.check_no_workspace_dir(q)
             self.assertEqual(
                 self.gate.FAIL, 0,
                 "check_no_workspace_dir must PASS when workspace/ absent",
             )
-            # Case B: workspace/ exists but empty.
+
+    def test_check_no_workspace_dir_fails_on_empty_workspace(self) -> None:
+        """v1.5.7 F-4 amendment (instruction 031): empty workspace/ is
+        also a failure mode. Pre-amendment the gate passed on empty
+        workspace/; the model-comparison evidence
+        (claude-opus-4.6/express) showed an empty workspace/ dir left
+        as a breadcrumb that trains future-iteration agents on the
+        wrong layout."""
+        with TemporaryDirectory() as tmp:
+            q = Path(tmp)
             (q / "workspace").mkdir()
             self.gate._reset_counters()
-            self.gate.check_no_workspace_dir(q)
-            self.assertEqual(
+            import io
+            from contextlib import redirect_stdout
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                self.gate.check_no_workspace_dir(q)
+            output = buf.getvalue()
+            self.assertGreater(
                 self.gate.FAIL, 0,
-                "check_no_workspace_dir must PASS when workspace/ is empty",
+                "check_no_workspace_dir must FAIL when workspace/ is "
+                "empty (F-4 amendment); got 0 fails. Output: "
+                f"{output!r}",
+            )
+            # Diagnostic must distinguish empty case from populated case.
+            self.assertIn(
+                "exists as an empty directory", output,
+                "diagnostic must name the empty-directory failure mode",
             )
 
 

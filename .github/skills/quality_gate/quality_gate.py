@@ -556,19 +556,42 @@ def check_no_workspace_dir(q):
     quality/<name>/ paths, NOT quality/workspace/<name>/. The
     workspace/ layout was tolerated through v1.5.6 but is non-spec per
     README; agents writing there are following stale prose. Fail
-    loudly so the spec drift becomes visible."""
+    loudly so the spec drift becomes visible.
+
+    v1.5.7 fix F-4 amendment (instruction 031): also fail when
+    quality/workspace/ exists as an empty directory. Model-comparison
+    evidence (claude-opus-4.6/express) showed an empty workspace/
+    directory left over from a runner pass with nothing to move.
+    Empty workspace/ is a breadcrumb that trains future-iteration
+    agents on the wrong layout even when nothing's there yet."""
     print("[Workspace Drift]")
     workspace = q / "workspace"
-    if workspace.exists() and workspace.is_dir() and any(workspace.iterdir()):
-        contents = sorted(p.name for p in workspace.iterdir())
+    if not workspace.exists():
+        pass_("no non-canonical quality/workspace/ tree present")
+        return
+    if not workspace.is_dir():
+        fail(
+            "quality/workspace",
+            f"exists but is not a directory: {workspace}",
+        )
+        return
+    children = list(workspace.iterdir())
+    if children:
+        contents = sorted(p.name for p in children)
         fail(
             "quality/workspace/",
             f"contains {contents} — artifacts must be at canonical "
             f"quality/<name>/ paths per README spec. Move contents "
             f"to top-level quality/ and remove workspace/.",
         )
-    else:
-        pass_("no non-canonical quality/workspace/ tree present")
+        return
+    # Empty workspace/ — breadcrumb that trains agents on wrong layout.
+    fail(
+        "quality/workspace/",
+        "exists as an empty directory. Empty workspace/ trains "
+        "agents to write artifacts there. Remove the directory "
+        "entirely.",
+    )
 
 
 _VERDICT_HEADING_RE = re.compile(r"^##\s+Verdict\s*$", re.MULTILINE)
