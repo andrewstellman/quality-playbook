@@ -186,7 +186,9 @@ A successful run produces this canonical set under the target's `quality/` direc
 | `quality/previous_runs/<TIMESTAMP>/` | Archive of any prior run. |
 | `quality/writeups/BUG-<id>.md` | Per-bug writeups. |
 | `quality/patches/` | Fix and regression-test patches (one per bug). |
-| `quality/code_reviews/`, `quality/spec_audits/`, `quality/results/`, `quality/control_prompts/`, `quality/mechanical/` | Intermediate pipeline artifacts. Top-level only — `quality/workspace/` is forbidden (gated by `check_no_workspace_dir`). |
+| `quality/code_reviews/`, `quality/spec_audits/`, `quality/results/`, `quality/mechanical/` | Intermediate pipeline artifacts. Top-level only — `quality/workspace/` is forbidden (gated by `check_no_workspace_dir`). |
+| `quality/logs/<run-id>/` | v1.5.7 D3 centralized per-run logs (transcripts, control prompts, etc.). `<run-id>` is the run's UTC ISO-8601 compact timestamp (`YYYYMMDDTHHMMSSZ`). Pass `--logs-flat` (or set `QPB_LOGS_LEGACY=1`) to preserve the v1.5.6 scattered layout (parent-dir log file + top-level `quality/control_prompts/`) for tooling that depends on the old paths. See `references/run_state_schema.md` for the `run_id` / `log_layout` discriminator fields on the `run_start` event. |
+| `<repo_dir>/quality.gate-failed-<UTC-ts>/` | v1.5.7 D1 — preserved on Phase 2 gate-failure: the failed `quality/` tree is renamed to this sibling directory and a fresh `quality/` is created. The preserved directory carries its own `logs/<run-id>/` subtree with the failure logs. Operators inspect it post-mortem; the next run starts clean. |
 | `AGENTS.md` (target repo root) | Per-project orientation generated post-Phase-6. Carries a QPB sentinel marker so future runs detect QPB-managed copies. |
 
 The gate verdict in `quality/INDEX.md` (`pass` / `partial` / `fail`) is the operator-facing summary of how the run went. If it's anything other than `pass`, surface why before considering the run done.
@@ -203,6 +205,10 @@ This skill references files in a `references/` directory (e.g., `references/iter
 6. `.github/skills/quality-playbook/references/` (alternate Copilot installation, nested)
 
 All reference file mentions in this skill use the short form `references/filename.md`. If the relative path doesn't resolve, walk the fallback list above.
+
+### Council roster + adopter override (v1.5.7 D6)
+
+The Phase 4 Council of Three runs against a default 3-member roster defined in `bin/council_config.py::DEFAULT_COUNCIL_MEMBERS` — `claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6`. Adopters override per-operator via `~/.qpb/config.json` (or `$XDG_CONFIG_HOME/qpb/config.json`); manage with `python3 -m bin.qpb_config show|set|unset <key>`. Per-run override via the `--council-roster <m1,m2,m3>` CLI flag takes highest precedence. See `references/runners_and_models.md` for the full override docs (precedence chain, model-availability behavior, falling back when a member is unavailable).
 
 ## Why This Exists
 
@@ -335,7 +341,7 @@ Every playbook run creates a timestamped metadata file at `quality/results/run-Y
   "schema_version": "1.0",
   "skill_version": "1.5.7",
   "project": "repo-name",
-  "model": "claude-sonnet-4-6",
+  "model": "claude-sonnet-4.6",
   "model_provider": "anthropic",
   "runner": "claude-code",
   "start_time": "2026-04-16T10:30:00Z",
@@ -352,7 +358,7 @@ Every playbook run creates a timestamped metadata file at `quality/results/run-Y
 }
 ```
 
-**Required fields:** `schema_version`, `skill_version`, `project`, `model`, `start_time`. All other fields are populated as the run progresses. `model` should be the exact model string (e.g., `"claude-sonnet-4-6"`, `"gpt-4.1"`, `"claude-opus-4-6"`). `runner` identifies the tool used to execute the playbook (e.g., `"claude-code"`, `"copilot-cli"`, `"cursor"`, `"cowork"`). `duration_minutes` is computed from `end_time - start_time`. If the model or runner cannot be determined, use `"unknown"`.
+**Required fields:** `schema_version`, `skill_version`, `project`, `model`, `start_time`. All other fields are populated as the run progresses. `model` should be the exact model string (e.g., `"claude-sonnet-4.6"`, `"gpt-5.4"`, `"claude-opus-4.7"` — v1.5.7 D6 default Council members; see `references/runners_and_models.md`). `runner` identifies the tool used to execute the playbook (e.g., `"claude-code"`, `"copilot-cli"`, `"cursor"`, `"cowork"`). `duration_minutes` is computed from `end_time - start_time`. If the model or runner cannot be determined, use `"unknown"`.
 
 ## How to Use
 
