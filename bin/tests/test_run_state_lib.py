@@ -1154,6 +1154,73 @@ class WriteProgressMdTests(unittest.TestCase):
             self.assertIn("## Artifacts produced", text)
             self.assertIn("quality/EXPLORATION.md (12,034 bytes)", text)
 
+    def test_automation_form_matches_run_state_schema_md(self) -> None:
+        """v1.5.7 BUG-005 bite: the `write_progress_md` output must
+        match the schema documented in `references/run_state_schema.md`
+        § "PROGRESS.md format". This test pins the four required
+        sections (top heading, `## Phases`, `## Recent events (last 10)`,
+        `## Artifacts produced`) against the actual output.
+
+        Note: the `phase1_exploration_guide.md` template documents a
+        DIFFERENT schema (agent-maintained deliverable form, with BUG
+        tracker + Terminal Gate Verification sections). The two
+        schemas serve different purposes — they are not in drift.
+        This test only enforces the automation-snapshot form against
+        its canonical schema doc (`run_state_schema.md`).
+        """
+        repo_root = Path(__file__).resolve().parents[2]
+        schema_md = repo_root / "references" / "run_state_schema.md"
+        self.assertTrue(
+            schema_md.is_file(),
+            "references/run_state_schema.md must exist as the canonical "
+            "schema source for the write_progress_md output form",
+        )
+        schema_text = schema_md.read_text(encoding="utf-8")
+        # The four required sections from run_state_schema.md § "PROGRESS.md format".
+        required_section_markers = (
+            "# QPB Run Progress",
+            "## Phases",
+            "## Recent events (last 10)",
+            "## Artifacts produced",
+        )
+        for marker in required_section_markers:
+            self.assertIn(
+                marker, schema_text,
+                f"run_state_schema.md must document the {marker!r} "
+                f"section header — if this fails, the canonical schema "
+                f"and the code are in drift again (BUG-005 regression).",
+            )
+        # Generate an actual PROGRESS.md and assert it carries all four markers.
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir) / "quality"
+            quality.mkdir()
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            events = [
+                lib.Event(
+                    event="_index",
+                    ts=now,
+                    fields={"event_types": ["run_start"]},
+                ),
+                lib.Event(
+                    event="run_start",
+                    ts=now,
+                    fields={
+                        "runner": "claude",
+                        "playbook_version": "1.5.7",
+                        "target_path": "test-target",
+                    },
+                ),
+            ]
+            lib.write_progress_md(quality, events, current_phase=None)
+            output = (quality / "PROGRESS.md").read_text(encoding="utf-8")
+            for marker in required_section_markers:
+                self.assertIn(
+                    marker, output,
+                    f"write_progress_md output must contain {marker!r} "
+                    f"to match the schema doc; got: {output!r}",
+                )
+
 
 class AppendEventTests(unittest.TestCase):
     def test_append_event_writes_single_line(self) -> None:

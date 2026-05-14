@@ -471,7 +471,14 @@ The PROGRESS.md format combines the run-state header (Started / Benchmark / Leve
 
 **Timestamp discipline:** Write each phase completion entry to PROGRESS.md immediately when you finish that phase, before starting the next phase. Do not batch-write or back-fill timestamps after the fact. The timestamps are an audit trail — if Phase 2 shows a completion time earlier than Phase 1, a reviewer cannot verify that phases ran in the correct sequence. If you realize you forgot to write a checkpoint, write it now with an honest timestamp and a note explaining the gap.
 
-The full PROGRESS.md format the v1.5.7-initialized file will have populated by Phase 1 completion includes the sections below (the legacy template, retained because Phase 5+ depend on its Cumulative BUG tracker and Terminal Gate Verification sections):
+The full PROGRESS.md format the v1.5.7-initialized file will have populated by Phase 1 completion includes the sections below (the agent-maintained deliverable template, retained because Phase 5+ gates depend on its Cumulative BUG tracker and Terminal Gate Verification sections):
+
+**Two PROGRESS.md schemas exist in v1.5.7 — they are distinct, not in drift (v1.5.7 BUG-005 resolution):**
+
+1. **Agent-maintained deliverable form** — the template below. The agent fills it in across Phase 1-5, and Phase 5 finalizes the `## Terminal Gate Verification` section. Phase 6's `check_terminal_gate` (`.github/skills/quality_gate/quality_gate.py`) and `check_version_stamps` enforce this form's sections (`## Terminal` heading, `Skill version:` field). This is the canonical final-deliverable schema.
+2. **Automation snapshot form** — produced by `bin/run_state_lib.write_progress_md(quality_dir, events, current_phase)`. Documented in `references/run_state_schema.md` § "PROGRESS.md format". This is a status snapshot the runner can regenerate from `quality/run_state.jsonl` between events (useful for live-status views and resume-from-crash). It is NOT a substitute for the deliverable form below — calling it overwrites the file, so an agent that wants both forms in the same file must merge them or maintain the deliverable form separately.
+
+Adopters using the canonical Mode-B runner (`bin/run_playbook.py`) maintain the deliverable form below. Adopters writing custom orchestrators that need a live status snapshot can additionally call `write_progress_md`, but must do so in a way that doesn't clobber the deliverable's BUG tracker + Terminal Gate sections (e.g., regenerate to a separate file like `quality/RUN_STATUS.md` instead).
 
 ```markdown
 # Quality Playbook Progress
