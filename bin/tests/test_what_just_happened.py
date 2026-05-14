@@ -167,10 +167,18 @@ class SkillMdEmitsWhatJustHappenedContractTests(unittest.TestCase):
     # carry both block headings, the "last visible content" rule,
     # and the single-source-of-truth pointer. Each phrase is a
     # load-bearing piece of the agent-prompt contract.
+    #
+    # v1.5.7 instruction 041 NC-sub-6 polish: the "last" pin was
+    # tightened to "**last** visible" so that a future edit that
+    # removed the load-bearing rule but kept any other use of "last"
+    # (e.g., "last 10 events" elsewhere in the body) cannot silently
+    # pass. The pin requires both the markdown-bold marker and the
+    # "visible" follow-on word from the canonical phrasing at
+    # SKILL.md:1154 ("as the **last** visible content of the phase").
     REQUIRED_SECTION_BODY_PHRASES = (
         "## What just happened",        # the literal block header
         "### What to do next",          # the literal second-half subheader
-        "last",                         # the "last visible content" rule
+        "**last** visible",             # the "last visible content" rule (tightened in instruction 041)
         "every phase boundary",         # the scope clause
         "Markdown",                     # the chat-rendering reason
         "Single source of truth",       # the no-inline-rewrite discipline (canonical capitalization in SKILL.md)
