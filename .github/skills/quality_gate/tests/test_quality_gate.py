@@ -1146,6 +1146,92 @@ class TestWriteups(FixtureBase):
         )
 
 
+class TestBugsMdPatchesConsistency(FixtureBase):
+    """v1.5.7 Fix 7 (instruction 031): check_bugs_md_patches_consistency
+    catches the model-comparison failure mode where Phase 3 finalization
+    produces patches without updating BUGS.md (claude-haiku-4.5/zod: 14
+    patches / 0 bugs; gpt-5.4-mini/axum: 6/0; etc.)."""
+
+    def test_one_bug_with_fix_and_regression_patches_passes(self):
+        """Canonical happy path: 1 bug, 2 patches (fix + regression).
+        Should pass consistency check."""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree)
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        self.assertIn(
+            "PASS: BUGS.md (1 bug(s)) and patches/ (2 patch(es)) are consistent",
+            stdout,
+        )
+
+    def test_patches_without_bugs_fails(self):
+        """The model-comparison failure mode: BUGS.md has zero entries
+        but quality/patches/ contains patches. Hard fail."""
+        tree = minimal_zero_bug_tree()
+        # BUGS.md stays zero-bug (the default from minimal_zero_bug_tree),
+        # but patches exist as if a bug had been processed.
+        tree["quality/patches/BUG-001-fix.patch"] = "--- a/f\n+++ b/f\n"
+        tree["quality/patches/BUG-001-regression-test.patch"] = (
+            "--- /dev/null\n+++ b/test\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        self.assertIn("quality/BUGS.md", stdout)
+        self.assertIn("lists 0 bug entries", stdout)
+        self.assertIn("2 patch file(s)", stdout)
+
+    def test_fix_only_no_regression_passes(self):
+        """Edge case allowed by the tolerance window: 3 bugs with only
+        fix patches (no regression-test patches). Should still pass
+        consistency because the regression-test gate is separate."""
+        tree = minimal_zero_bug_tree()
+        # 3 bug headings in BUGS.md.
+        tree["quality/BUGS.md"] = (
+            "# Bugs\n\n"
+            "### BUG-001: first\n\n"
+            "body\n\n"
+            "### BUG-002: second\n\n"
+            "body\n\n"
+            "### BUG-003: third\n\n"
+            "body\n"
+        )
+        # 3 fix patches only.
+        tree["quality/patches/BUG-001-fix.patch"] = "--- a/f\n+++ b/f\n"
+        tree["quality/patches/BUG-002-fix.patch"] = "--- a/f\n+++ b/f\n"
+        tree["quality/patches/BUG-003-fix.patch"] = "--- a/f\n+++ b/f\n"
+        # Other gates will complain about missing regression patches +
+        # missing writeups + missing red/green logs, but the
+        # consistency check itself should pass.
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        self.assertIn(
+            "PASS: BUGS.md (3 bug(s)) and patches/ (3 patch(es)) are consistent",
+            stdout,
+        )
+
+    def test_orphan_patch_id_fails(self):
+        """If BUGS.md has BUG-001 but patches/ has BUG-007-fix.patch,
+        the orphan patch ID must be named in the diagnostic."""
+        tree = minimal_zero_bug_tree()
+        # BUGS.md lists BUG-001 only.
+        tree["quality/BUGS.md"] = (
+            "# Bugs\n\n"
+            "### BUG-001: first\n\n"
+            "body\n"
+        )
+        # patches/ has BUG-001 fix + an orphan BUG-007 fix.
+        tree["quality/patches/BUG-001-fix.patch"] = "--- a/f\n+++ b/f\n"
+        tree["quality/patches/BUG-007-fix.patch"] = "--- a/f\n+++ b/f\n"
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        self.assertIn("missing entries for patch IDs", stdout)
+        self.assertIn("BUG-007", stdout)
+
+
 class TestVersionStamps(FixtureBase):
     def test_matching_versions_pass(self):
         tree = minimal_zero_bug_tree()

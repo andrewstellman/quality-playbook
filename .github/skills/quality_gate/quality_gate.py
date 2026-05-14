@@ -571,6 +571,89 @@ def check_no_workspace_dir(q):
         pass_("no non-canonical quality/workspace/ tree present")
 
 
+def check_bugs_md_patches_consistency(q, bug_count, bug_ids):
+    """v1.5.7 Fix 7 (instruction 031): the patches/ directory and
+    BUGS.md must be consistent — patches without corresponding bug
+    entries indicate Phase 3 finalization didn't update BUGS.md.
+
+    Model-comparison evidence (claude-haiku-4.5/zod: 14 patches / 0
+    bugs; claude-haiku-4.5/casbin: 16/0; gpt-5.4-mini/zod: 8/0;
+    gpt-5.4-mini/axum: 6/0) showed agents producing evidence-bearing
+    patches while leaving BUGS.md empty.
+
+    Hard fail: bugs_count == 0 AND patches_count > 0 (the model-
+    comparison failure mode). When BUGS.md has entries, allow
+    patches_count between bugs_count (fix-only is acceptable per
+    challenge_gate) and bugs_count * 2 (fix + regression).
+    patches_count > bugs_count * 2 is also a fail because that
+    implies patches exist for bugs not in BUGS.md.
+    """
+    print("[BUGS.md / patches consistency]")
+    patches_dir = q / "patches"
+    if not patches_dir.is_dir():
+        # No patches — no consistency to check. Other gates will
+        # complain if patches are missing for confirmed bugs.
+        info("No patches/ directory — consistency check skipped")
+        return
+    fix_patches = sorted(patches_dir.glob("*-fix*.patch"))
+    regr_patches = sorted(patches_dir.glob("*-regression-test*.patch"))
+    patches_count = len(fix_patches) + len(regr_patches)
+    if patches_count == 0:
+        info("No fix/regression patches present — consistency check skipped")
+        return
+    if bug_count == 0:
+        # The model-comparison failure mode: patches without bugs.
+        patch_names = sorted(
+            p.name for p in list(fix_patches) + list(regr_patches)
+        )
+        fail(
+            "quality/BUGS.md",
+            f"lists 0 bug entries but quality/patches/ contains "
+            f"{patches_count} patch file(s): {patch_names}. Each "
+            f"confirmed bug should produce at least 1 patch. "
+            f"Mismatch suggests Phase 3 finalization didn't update "
+            f"BUGS.md with the bugs that produced these patches.",
+        )
+        return
+    # BUGS.md has entries — check patch IDs vs bug IDs.
+    patch_ids = set()
+    patch_re = re.compile(r"^(BUG-(?:[HML][0-9]+|[0-9]+))[-.]")
+    for p in list(fix_patches) + list(regr_patches):
+        m = patch_re.match(p.name)
+        if m:
+            patch_ids.add(m.group(1))
+    orphan_patch_ids = sorted(patch_ids - set(bug_ids))
+    if orphan_patch_ids:
+        fail(
+            "quality/BUGS.md",
+            f"missing entries for patch IDs {orphan_patch_ids} — "
+            f"patches exist at quality/patches/ for these IDs but "
+            f"BUGS.md has no ### BUG-NNN heading for them. Each "
+            f"confirmed bug must be reflected in BUGS.md.",
+        )
+        return
+    # Tolerance: between bugs_count (fix-only) and bugs_count * 2
+    # (fix + regression). Larger ranges of patches per bug are
+    # acceptable when the bug surface justifies them (e.g., a single
+    # bug producing both a fix and a regression-test patch counts
+    # as 2 patches).
+    upper_bound = bug_count * 2
+    if patches_count > upper_bound:
+        fail(
+            "quality/patches/",
+            f"contains {patches_count} patches but BUGS.md lists "
+            f"only {bug_count} bug(s). Expected at most "
+            f"{upper_bound} patches (1 fix + 1 regression per bug). "
+            f"Excess patches may indicate orphaned files from a "
+            f"prior run.",
+        )
+        return
+    pass_(
+        f"BUGS.md ({bug_count} bug(s)) and patches/ "
+        f"({patches_count} patch(es)) are consistent"
+    )
+
+
 def has_file_matching(directory, patterns):
     """True if any file in `directory` (non-recursive) matches any glob pattern."""
     if not directory.is_dir():
@@ -3289,6 +3372,7 @@ def check_repo(repo_dir, version_arg, strictness):
     check_mechanical(q)
     check_patches(q, bug_count, bug_ids, strictness)
     check_writeups(q, bug_count)
+    check_bugs_md_patches_consistency(q, bug_count, bug_ids)
     check_no_workspace_dir(q)
     skill_version = check_version_stamps(repo_dir, q)
     check_cross_run_contamination(repo_dir, q, version_arg, skill_version)
