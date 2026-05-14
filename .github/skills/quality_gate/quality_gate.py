@@ -536,7 +536,12 @@ def count_per_bug_field(bugs_list, field):
 # v1.5.7 fix F-4a: dropped the v1.5.4 dual-layout workspace tolerance.
 # Canonical artifact paths are top-level quality/<name>/ per README
 # spec. The companion check_no_workspace_dir below fails loudly if
-# workspace/ exists with content, so spec drift becomes visible.
+# workspace/ exists at all (even empty), so spec drift becomes visible —
+# instruction 031 F-4 amendment extended the original "exists with
+# content" check to also fail on empty workspace/ directories
+# (claude-opus-4.6/express produced an empty workspace/ left over
+# from a runner pass with nothing to move, which still trained
+# subsequent iterations on the wrong layout via in-context retrieval).
 
 
 def _resolve_artifact_path(quality_dir, name):

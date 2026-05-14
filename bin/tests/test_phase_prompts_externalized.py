@@ -209,7 +209,7 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # v1.5.7 Deliverable 2: cookbook-reference paragraph added to
         # phase2.md after the "Read these files" block, pointing at
         # references/role_map_queries.md. Hashes recomputed (+436 bytes).
-        "phase2":                ( 5345, "fff417abb8c552578e773b37fa178f1e63a086b696d4be31c370eef425be2bab"),
+        "phase2":                ( 5454, "6de959a574928abaebe91c7499718483576871e0220ca147e1567c5889260a56"),
         "phase3":                ( 8919, "b834435ceb550ac425ab13df9edc0ac0b5c5c81f5b4f634673d67fc29331127c"),
         "phase4":                ( 3496, "bae1bcae7585fa4f0fc8f14281312074126f12b574b470dec76560a8b54bd4f0"),
         "phase5":                (12452, "9932913100331f38e8e136ff5b04bd1254b8edf6ade9bf7d4953f3d11c1b9da6"),

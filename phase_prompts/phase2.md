@@ -34,7 +34,7 @@ Execute Phase 2: Generate all quality artifacts. Use the exploration findings in
 - `REQ-NNN: Spec audit outputs (auditor reports + triage) are placed at quality/spec_audits/.`
 - `REQ-NNN: Sidecar JSON results (tdd-results.json, integration-results.json, recheck-results.json) are placed at quality/results/.`
 - `REQ-NNN: Mechanical-verification artifacts (verify.sh + *_cases.txt) are placed at quality/mechanical/.`
-- `REQ-NNN: quality/workspace/<name>/ is forbidden — top-level quality/<name>/ is the only canonical layout. Phase 6 gate check_no_workspace_dir fails any run with a populated quality/workspace/ tree.`
+- `REQ-NNN: quality/workspace/<name>/ is forbidden — top-level quality/<name>/ is the only canonical layout. Phase 6 gate check_no_workspace_dir fails any run with a quality/workspace/ tree present (populated OR empty — empty workspace/ trains future-iteration agents on the wrong layout and is rejected too).`
 
 These REQs convert artifact-location compliance from prose-only guidance into testable requirements. The Phase 6 gate's `check_no_workspace_dir` enforces the last one mechanically; the others give human reviewers concrete REQs to grep for in compliance audits.
 
