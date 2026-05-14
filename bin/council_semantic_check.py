@@ -47,9 +47,9 @@ Public surface:
 CLI (for operator re-assembly from captured per-member JSON files):
 
     python -m bin.council_semantic_check <repo_dir> \
-        --member claude-opus-4.7 --response path/to/claude.json \
-        --member gpt-5.4          --response path/to/gpt.json \
-        --member gemini-2.5-pro   --response path/to/gemini.json
+        --member claude-opus-4.7   --response path/to/opus.json \
+        --member gpt-5.5           --response path/to/gpt.json \
+        --member claude-sonnet-4.6 --response path/to/sonnet.json
 """
 
 from __future__ import annotations

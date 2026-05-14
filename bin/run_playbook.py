@@ -397,7 +397,7 @@ def build_parser() -> argparse.ArgumentParser:
             "default 0). Use to throttle against per-minute rate limits."
         ),
     )
-    parser.add_argument("--model", help="Runner model override (copilot: gpt-5.4, claude: sonnet/opus/etc, codex: gpt-5-codex/etc).")
+    parser.add_argument("--model", help="Runner model override (copilot: gpt-5.5, claude: sonnet/opus/etc, codex: gpt-5-codex/etc).")
     parser.add_argument(
         "--no-formal-docs",
         dest="no_formal_docs",

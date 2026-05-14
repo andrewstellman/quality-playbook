@@ -358,7 +358,7 @@ Every playbook run creates a timestamped metadata file at `quality/results/run-Y
 }
 ```
 
-**Required fields:** `schema_version`, `skill_version`, `project`, `model`, `start_time`. All other fields are populated as the run progresses. `model` should be the exact model string (e.g., `"claude-sonnet-4.6"`, `"gpt-5.4"`, `"claude-opus-4.7"` — v1.5.7 D6 default Council members; see `references/runners_and_models.md`). `runner` identifies the tool used to execute the playbook (e.g., `"claude-code"`, `"copilot-cli"`, `"cursor"`, `"cowork"`). `duration_minutes` is computed from `end_time - start_time`. If the model or runner cannot be determined, use `"unknown"`.
+**Required fields:** `schema_version`, `skill_version`, `project`, `model`, `start_time`. All other fields are populated as the run progresses. `model` should be the exact model string (e.g., `"claude-opus-4.7"`, `"gpt-5.5"`, `"claude-sonnet-4.6"` — v1.5.7 D6 default Council members; see `references/runners_and_models.md`). `runner` identifies the tool used to execute the playbook (e.g., `"claude-code"`, `"copilot-cli"`, `"cursor"`, `"cowork"`). `duration_minutes` is computed from `end_time - start_time`. If the model or runner cannot be determined, use `"unknown"`.
 
 ## How to Use
 
@@ -650,7 +650,7 @@ After the main spec audit triage, each Council member runs a per-REQ verdict aga
 
 3. **Batching threshold.** When a run produces more than 15 Tier 1/2 REQs, split into batches of up to 15 REQs per prompt per Council member. The same reviewer sees each batch sequentially; their response entries are concatenated into one `reviews[]` array under the same `reviewer` string.
 
-4. **Reviewer identifier stability.** Use fixed strings like `"claude-opus-4.7"`, `"gpt-5.4"`, `"gemini-2.5-pro"`. The majority computation in schemas.md §10 invariant #17 groups on this field — a typo silently becomes a fourth reviewer and breaks the 2-of-3 majority check.
+4. **Reviewer identifier stability.** Use fixed strings like `"claude-opus-4.7"`, `"gpt-5.5"`, `"claude-sonnet-4.6"` (the v1.5.7 D6 default Council roster). The majority computation in schemas.md §10 invariant #17 groups on this field — a typo silently becomes a fourth reviewer and breaks the 2-of-3 majority check.
 
 5. **Output.** Concatenate all Council members' responses into `quality/citation_semantic_check.json` using the §1.6 manifest wrapper, except the record array is named `reviews` rather than `records` (schemas.md §9.1). One file per run, regenerated on every audit pass.
 
