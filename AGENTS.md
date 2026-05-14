@@ -16,10 +16,18 @@ The Quality Playbook is a skill for AI coding agents that explores any codebase 
 | `references/*.md` | Phase-specific reference files (review protocols, spec audit, etc.) | During specific phases as directed by SKILL.md |
 | `bin/skill_derivation/` | Phase 3 four-pass derivation pipeline + Phase 4 divergence detection (Skill / Hybrid projects only) | When working on the v1.5.3 skill-as-code surface |
 | `bin/skill_derivation/runners.py` | LLM runner abstraction — four concrete runners: `ClaudeRunner` (`claude --print`), `CopilotRunner` (`gh copilot --prompt`), `CodexRunner` (`codex exec --full-auto`, codex-cli 0.125+), `CursorRunner` (`cursor agent --print --force`, cursor-cli 3.1.10+) | When adding a new LLM backend or tuning subprocess invocation |
+| `bin/council_config.py` | v1.5.7 D6 — Council roster defaults + override resolver. Default members: `claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6`. Override precedence: `--council-roster` CLI flag > `~/.qpb/config.json` (or `$XDG_CONFIG_HOME/qpb/config.json`) > defaults. See `references/runners_and_models.md` for adopter-facing override docs. | When adjusting the Council roster or debugging Council availability |
+| `bin/qpb_config.py` | v1.5.7 D6 — `python3 -m bin.qpb_config show|set|unset <key>` manages `~/.qpb/config.json`. | When showing/setting the adopter's Council override |
 | `ai_context/TOOLKIT.md` | User-facing interactive documentation | When helping a user set up or run the playbook |
 | `ai_context/DEVELOPMENT_CONTEXT.md` | Maintainer context (architecture, benchmarking, known issues) | When working on the skill itself |
 | `agents/quality-playbook.agent.md` | Orchestrator agent (Copilot / general format) | When setting up automated phase-by-phase execution |
 | `agents/quality-playbook-claude.agent.md` | Orchestrator agent (Claude Code format, uses sub-agents) | When running in Claude Code with automatic orchestration |
+
+### Where logs go (v1.5.7+ centralized layout)
+
+Per-run logs land under `<target>/quality/logs/<run-id>/` where `<run-id>` is the run's UTC ISO-8601 compact timestamp (`YYYYMMDDTHHMMSSZ`). This is the v1.5.7 D3 deliverable — replaces the v1.5.6 scattered layout (parent-dir log files + top-level `quality/control_prompts/`) with one centralized directory per run. Pass `--logs-flat` (or set `QPB_LOGS_LEGACY=1`) to preserve the v1.5.6 scattered layout for tooling that depends on the old paths. `references/run_state_schema.md` is the canonical schema doc for the centralized layout's `run_id` / `log_layout` discriminator fields on the `run_start` event.
+
+When a Phase 2 gate-failure preservation triggers (v1.5.7 D1), the entire failed `quality/` tree is renamed to `<repo_dir>/quality.gate-failed-<UTC-ts>/` and a fresh `quality/` is created. The preserved directory carries its own `logs/<run-id>/` subtree with the failure logs.
 
 ## Installing the skill
 
@@ -40,6 +48,11 @@ cp "$QPB"/agents/*.md .github/skills/agents/
 # v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
 # byte-equality citation check (without it, the gate falls back to a WARN path).
 cp "$QPB"/bin/citation_verifier.py .github/skills/bin/citation_verifier.py
+# v1.5.7 F-1: reference_docs_ingest.py + its dependency benchmark_lib.py are
+# now part of the bundle (without them, Phase 1's `python -m bin.reference_docs_ingest`
+# hits ModuleNotFoundError and the entire run hard-stops).
+cp "$QPB"/bin/reference_docs_ingest.py .github/skills/bin/reference_docs_ingest.py
+cp "$QPB"/bin/benchmark_lib.py .github/skills/bin/benchmark_lib.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 # Optional: append suggested .gitignore rules for adopters.
@@ -61,6 +74,11 @@ cp "$QPB"/agents/*.md .claude/skills/quality-playbook/agents/
 # v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
 # byte-equality citation check (without it, the gate falls back to a WARN path).
 cp "$QPB"/bin/citation_verifier.py .claude/skills/quality-playbook/bin/citation_verifier.py
+# v1.5.7 F-1: reference_docs_ingest.py + its dependency benchmark_lib.py are
+# now part of the bundle (without them, Phase 1's `python -m bin.reference_docs_ingest`
+# hits ModuleNotFoundError and the entire run hard-stops).
+cp "$QPB"/bin/reference_docs_ingest.py .claude/skills/quality-playbook/bin/reference_docs_ingest.py
+cp "$QPB"/bin/benchmark_lib.py .claude/skills/quality-playbook/bin/benchmark_lib.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 cat "$QPB"/skill-template.gitignore >> .gitignore
