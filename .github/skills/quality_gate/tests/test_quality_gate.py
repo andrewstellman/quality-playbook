@@ -1253,6 +1253,97 @@ class TestVerdictShape(FixtureBase):
         self.assertIn("[Verdict Shape]", stdout)
         self.assertIn("missing the canonical `## Verdict` heading", stdout)
 
+    def test_duplicate_verdict_heading_fails(self):
+        """v1.5.7 instruction 032 NCF-1: TWO `## Verdict` headings →
+        FAIL. Pre-NCF-1 hardening, the gate validated only the FIRST
+        `## Verdict` it found, so a stale earlier block could silently
+        contradict a later one."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "PASS\n\n"
+            "## Verdict\n\n"
+            "FAIL\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("2 `## Verdict` headings", stdout)
+        self.assertIn("duplicate headings can silently disagree", stdout)
+
+    def test_non_terminal_verdict_heading_fails(self):
+        """v1.5.7 instruction 032 NCF-1: `## Verdict` followed by
+        another `## ` heading (e.g., `## Postmortem`) → FAIL on
+        non-terminal position. The verdict block must be the last
+        section so an operator can grep the file's tail."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "PASS\n\n"
+            "## Postmortem\n\n"
+            "Trailing notes.\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("`## Verdict` is not the last level-2 heading", stdout)
+        self.assertIn("Postmortem", stdout)
+
+    def test_empty_body_after_verdict_heading_fails(self):
+        """v1.5.7 instruction 032 NCF-5: `## Verdict` with NO body
+        (heading present, file ends or next content is blank) → FAIL.
+        Pre-NCF-5 this branch was implemented but had no bite-test."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            # No verdict value follows — file ends here.
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("no verdict value follows", stdout)
+
+    def test_PASSED_uppercase_variant_fails(self):
+        """v1.5.7 instruction 032 NCF-8: `PASSED` (all-caps with
+        trailing D) → FAIL. The canonical verdict value is exactly
+        `PASS` or `FAIL` — `PASSED` is a near-miss the gate must
+        catch. Pre-NCF-8 test, the `PASSED` case relied on the
+        same code path as `Passed` (NCF test_passed_instead_of_PASS
+        _fails) but had no dedicated bite-test."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "PASSED\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("verdict line is 'PASSED'", stdout)
+        self.assertIn("must be exactly `PASS` or `FAIL`", stdout)
+
+    def test_markdown_emphasis_PASS_fails(self):
+        """v1.5.7 instruction 032 NCF-10: `**PASS**` (markdown
+        emphasis around PASS) → FAIL. The canonical value is the
+        BARE token `PASS` — the prompt explicitly forbids markdown
+        emphasis around it (phase_prompts/phase5.md). Pre-NCF-10,
+        the case-sensitive equality check at quality_gate.py:694
+        already rejected `**PASS**` but no bite-test pinned it."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "**PASS**\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("verdict line is '**PASS**'", stdout)
+        self.assertIn("must be exactly `PASS` or `FAIL`", stdout)
+
 
 class TestBugsMdPatchesConsistency(FixtureBase):
     """v1.5.7 Fix 7 (instruction 031): check_bugs_md_patches_consistency

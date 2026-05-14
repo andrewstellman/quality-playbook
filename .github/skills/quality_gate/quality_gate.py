@@ -600,20 +600,28 @@ def check_no_workspace_dir(q):
 
 
 _VERDICT_HEADING_RE = re.compile(r"^##\s+Verdict\s*$", re.MULTILINE)
+# v1.5.7 instruction 032 NCF-1: regex matching any level-2 `## ` heading
+# (any text after `## `). Used to find ALL level-2 headings so the
+# verdict-shape check can assert (a) exactly one `## Verdict` and
+# (b) `## Verdict` is the terminal `## ` heading (no other `## `
+# heading appears after it).
+_ANY_LEVEL2_HEADING_RE = re.compile(r"^##\s+\S.*$", re.MULTILINE)
+# v1.5.7 instruction 032 NCF-9: "TBD" removed — `phrase.lower()` is
+# called below before substring matching, so an uppercase "TBD" entry
+# was redundant with the lowercase "tbd" entry.
 _VERDICT_PLACEHOLDER_PHRASES = (
     "verdict is rendered",
     "verdict will be",
     "verdict will follow",
     "placeholder",
     "to be determined",
-    "TBD",
     "tbd",
 )
 
 
 def check_verdict_shape(q):
-    """v1.5.7 Fix 8 (instruction 031): Phase 5 must end
-    COMPLETENESS_REPORT.md with the canonical verdict shape:
+    """v1.5.7 Fix 8 (instruction 031) + instruction 032 NCF-1: Phase 5
+    must end COMPLETENESS_REPORT.md with the canonical verdict shape:
 
         ## Verdict
 
@@ -631,14 +639,26 @@ def check_verdict_shape(q):
     Phase 6"). The strict shape gives operators a single grep target
     and gives the gate something concrete to enforce.
 
+    Instruction 032 NCF-1: also require that `## Verdict` appears
+    EXACTLY ONCE and is the LAST level-2 heading in the file (terminal
+    position). Without this, a stale earlier `## Verdict\\n\\nPASS` block
+    silently passes even when a later `## Postmortem` (or another
+    `## Verdict`) heading contradicts it.
+
     FAIL outcomes:
     - COMPLETENESS_REPORT.md missing entirely.
     - `## Verdict` heading absent (e.g., agent wrote `## Status`).
+    - More than one `## Verdict` heading (NCF-1: duplicate-heading
+      rejection).
+    - A level-2 heading appears after the `## Verdict` heading
+      (NCF-1: non-terminal-position rejection).
     - Next non-blank line after the heading is not exactly `PASS`
-      or `FAIL` (case-sensitive; `Passed`, `PASS!`, `**PASS**` all
-      fail).
+      or `FAIL` (case-sensitive; `Passed`, `PASSED`, `PASS!`,
+      `**PASS**` all fail).
+    - Next non-blank line is empty (heading present, no value
+      follows — NCF-5: empty-body rejection).
     - Next non-blank line contains a placeholder phrase ("verdict
-      is rendered", "TBD", "placeholder", etc.).
+      is rendered", "tbd", "placeholder", etc.).
     """
     print("[Verdict Shape]")
     cr = q / "COMPLETENESS_REPORT.md"
@@ -654,8 +674,16 @@ def check_verdict_shape(q):
     except OSError:
         fail("quality/COMPLETENESS_REPORT.md", "unreadable")
         return
-    match = _VERDICT_HEADING_RE.search(text)
-    if not match:
+    # v1.5.7 instruction 032 NCF-1: enumerate ALL level-2 headings to
+    # enforce single-and-terminal position. The `_ANY_LEVEL2_HEADING_RE`
+    # pattern matches `## Anything`; the `_VERDICT_HEADING_RE` pattern
+    # matches `## Verdict` exactly.
+    all_headings = [
+        (m.start(), m.group(0))
+        for m in _ANY_LEVEL2_HEADING_RE.finditer(text)
+    ]
+    verdict_matches = list(_VERDICT_HEADING_RE.finditer(text))
+    if not verdict_matches:
         fail(
             "quality/COMPLETENESS_REPORT.md",
             "missing the canonical `## Verdict` heading. Phase 5 "
@@ -664,14 +692,45 @@ def check_verdict_shape(q):
             "`PASS` or `FAIL`).",
         )
         return
-    # Find the next non-blank line after the heading.
-    after = text[match.end():]
+    if len(verdict_matches) > 1:
+        positions = [m.start() for m in verdict_matches]
+        fail(
+            "quality/COMPLETENESS_REPORT.md",
+            f"contains {len(verdict_matches)} `## Verdict` headings "
+            f"(byte offsets {positions}). Phase 5 must emit exactly "
+            f"one canonical verdict block; duplicate headings can "
+            f"silently disagree.",
+        )
+        return
+    verdict_match = verdict_matches[0]
+    # Terminal-position check: the verdict heading must be the LAST
+    # `## ` heading in the file. Any `## Postmortem`, `## Followups`,
+    # `## Other` etc. heading after it shifts the verdict block away
+    # from its terminal position.
+    if all_headings and all_headings[-1][0] != verdict_match.start():
+        trailing_headings = [
+            h_text for h_start, h_text in all_headings
+            if h_start > verdict_match.start()
+        ]
+        fail(
+            "quality/COMPLETENESS_REPORT.md",
+            f"`## Verdict` is not the last level-2 heading. "
+            f"Headings appear after it: {trailing_headings}. The "
+            f"canonical shape requires the verdict block to be "
+            f"terminal so an operator can grep the file's tail for "
+            f"the verdict.",
+        )
+        return
+    # Find the next non-blank line after the verdict heading.
+    after = text[verdict_match.end():]
     next_line = ""
     for line in after.splitlines():
         if line.strip():
             next_line = line.strip()
             break
     if not next_line:
+        # v1.5.7 instruction 032 NCF-5: empty-body rejection now
+        # explicitly bite-tested.
         fail(
             "quality/COMPLETENESS_REPORT.md",
             "has `## Verdict` heading but no verdict value follows. "
