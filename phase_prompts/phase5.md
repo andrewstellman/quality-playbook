@@ -32,6 +32,7 @@ Execute Phase 5: Reconciliation + TDD + Closure.
    - The heading must be exactly `## Verdict` (level-2 ATX heading, capital V, no trailing punctuation or qualifier).
    - The next non-blank line must be exactly `PASS` or `FAIL` — uppercase, no markdown emphasis, no surrounding words ("Passed", "PASS!", "**PASS**" are all rejected by the gate).
    - Optional explanatory prose may follow on subsequent lines, but the first non-blank line after the heading is the verdict.
+   - `## Verdict` must be the LAST level-2 heading in the file. No `## Postmortem`, `## Appendix`, or other `## ` sections may follow it. The Phase 6 gate's `check_verdict_shape` enforces terminal position via instruction 032 NCF-1 hardening (`quality_gate.py` line range `678-723`); a trailing `## ` heading after the verdict block fails the gate with "`## Verdict` is not the last level-2 heading".
    - Do NOT leave placeholder text like "verdict is rendered after Phase 6" or "verdict will be determined later". The Phase 6 gate's `check_verdict_shape` fails on placeholder phrases and on any verdict line that isn't exactly `PASS` or `FAIL`.
 
    This shape replaces the historical permissive variants (`## Status`, `VERDICT: PASS`, prose-only verdicts) that the gate tolerated through v1.5.6. The strict shape gives operators a single grep target and gives the gate something concrete to enforce.

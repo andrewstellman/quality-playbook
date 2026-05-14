@@ -1277,10 +1277,12 @@ class TestVerdictShape(FixtureBase):
         self.assertIn("missing the canonical `## Verdict` heading", stdout)
 
     def test_duplicate_verdict_heading_fails(self):
-        """v1.5.7 instruction 032 NCF-1: TWO `## Verdict` headings →
-        FAIL. Pre-NCF-1 hardening, the gate validated only the FIRST
-        `## Verdict` it found, so a stale earlier block could silently
-        contradict a later one."""
+        """v1.5.7 instruction 032 NCF-1/NCF-2: TWO `## Verdict`
+        headings → FAIL. Pre-NCF-1 hardening, the gate validated only
+        the FIRST `## Verdict` it found, so a stale earlier block
+        could silently contradict a later one. NCF-2 specifically
+        names the duplicate-heading bite test as the regression pin
+        for that branch — this is that test."""
         tree = minimal_zero_bug_tree()
         tree["quality/COMPLETENESS_REPORT.md"] = (
             "# Completeness\n\n"
@@ -1522,6 +1524,47 @@ class TestBugsMdPatchesConsistency(FixtureBase):
             "post-NCF-7: split-patch workflow with 4 patches for 1 "
             "bug must pass the consistency check (upper bound "
             "dropped). Stdout: " + repr(stdout),
+        )
+
+    def test_malformed_patch_filename_excluded_and_warned(self):
+        """v1.5.7 instruction 033 Halt-5: a patch file matching the
+        glob but not the canonical `BUG-NNN` naming convention (e.g.,
+        `misc-cleanup-fix.patch`) is excluded from the count and
+        surfaced as a WARN, not silently accepted. Pre-Halt-5 the
+        malformed name was counted toward `patches_count` but skipped
+        by the orphan-ID regex, so it could pass-through alongside
+        proper BUG-NNN entries. Post-Halt-5 the filter promotes the
+        situation to a visible WARN."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/BUGS.md"] = (
+            "# Bugs\n\n"
+            "### BUG-001: real bug\n\n"
+            "body\n"
+        )
+        # One proper BUG-NNN patch + one malformed-name patch matching
+        # the glob.
+        tree["quality/patches/BUG-001-fix.patch"] = "--- a/f\n+++ b/f\n"
+        tree["quality/patches/misc-cleanup-fix.patch"] = (
+            "--- a/m\n+++ b/m\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        # WARN names the malformed file by name.
+        self.assertIn("misc-cleanup-fix.patch", stdout)
+        self.assertIn(
+            "not the canonical BUG-NNN naming convention", stdout,
+            "malformed-patch WARN message missing or wrong; got: "
+            + repr(stdout),
+        )
+        # Consistency check still runs on the well-named patch only:
+        # 1 bug + 1 well-formed fix patch.
+        self.assertIn(
+            "BUGS.md (1 bug(s)) and patches/ (1 patch(es)) are consistent",
+            stdout,
+            "malformed file should be excluded from the patches_count; "
+            "BUG-001 should still consistency-check cleanly. Stdout: "
+            + repr(stdout),
         )
 
 

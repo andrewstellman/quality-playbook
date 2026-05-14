@@ -674,10 +674,14 @@ def check_verdict_shape(q):
     except OSError:
         fail("quality/COMPLETENESS_REPORT.md", "unreadable")
         return
-    # v1.5.7 instruction 032 NCF-1: enumerate ALL level-2 headings to
-    # enforce single-and-terminal position. The `_ANY_LEVEL2_HEADING_RE`
+    # v1.5.7 instruction 032 NCF-1/NCF-2: enumerate ALL level-2
+    # headings to enforce single-and-terminal position (NCF-1) plus
+    # the bite tests that exercise the duplicate-heading and
+    # non-terminal-heading branches (NCF-2). The `_ANY_LEVEL2_HEADING_RE`
     # pattern matches `## Anything`; the `_VERDICT_HEADING_RE` pattern
-    # matches `## Verdict` exactly.
+    # matches `## Verdict` exactly. Together they let the function
+    # answer "is this the only `## Verdict`?" and "is it the last
+    # `## ` heading in the file?".
     all_headings = [
         (m.start(), m.group(0))
         for m in _ANY_LEVEL2_HEADING_RE.finditer(text)
@@ -803,7 +807,31 @@ def check_bugs_md_patches_consistency(q, bug_count, bug_ids):
     # "-regression-test"), which would otherwise be counted twice.
     fix_patches = set(patches_dir.glob("*-fix*.patch"))
     regr_patches = set(patches_dir.glob("*-regression-test*.patch"))
-    all_patches = sorted(fix_patches | regr_patches)
+    # v1.5.7 instruction 033 Halt-5: filter out malformed-name patches
+    # (files matching the glob but not starting with `BUG-NNN` / `BUG-HNN`
+    # / `BUG-MNN` / `BUG-LNN`) BEFORE counting and orphan-ID inference.
+    # Pre-Halt-5 a file like `misc-cleanup-fix.patch` was counted toward
+    # patches_count but silently skipped by the BUG-NNN regex below, so
+    # it could mask the consistency check. The filter promotes "stray
+    # malformed file present" to "consistency check skipped" rather than
+    # "silently accepted".
+    patch_re = re.compile(r"^(BUG-(?:[HML][0-9]+|[0-9]+))[-.]")
+    glob_matched = sorted(fix_patches | regr_patches)
+    all_patches = [p for p in glob_matched if patch_re.match(p.name)]
+    malformed_patches = sorted(
+        p.name for p in glob_matched if not patch_re.match(p.name)
+    )
+    if malformed_patches:
+        # Surface the malformed names as a WARN so operators can
+        # rename or remove them before the next run; the consistency
+        # check itself only considers BUG-NNN-named patches below.
+        warn(
+            f"quality/patches/ contains {len(malformed_patches)} "
+            f"file(s) matching the patch glob but not the canonical "
+            f"BUG-NNN naming convention: {malformed_patches}. The "
+            f"consistency check ignores them. Rename or remove them "
+            f"so the gate has unambiguous patch inventory."
+        )
     patches_count = len(all_patches)
     if patches_count == 0:
         info("No fix/regression patches present — consistency check skipped")
@@ -822,7 +850,6 @@ def check_bugs_md_patches_consistency(q, bug_count, bug_ids):
         return
     # BUGS.md has entries — check patch IDs vs bug IDs.
     patch_ids = set()
-    patch_re = re.compile(r"^(BUG-(?:[HML][0-9]+|[0-9]+))[-.]")
     for p in all_patches:
         m = patch_re.match(p.name)
         if m:

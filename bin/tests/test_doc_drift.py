@@ -56,11 +56,18 @@ class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
     # imperatives ("Never invoke") that the verb regex doesn't, and the
     # regex catches "rejects with" / "refuses with" variants that the
     # hand list missed. Both run.
+    #
+    # v1.5.7 instruction 033 Halt-4: the match loop now uses
+    # `phrase.lower() in text.lower()` so sentence-initial capital-letter
+    # variants ("Always invoke it...") match the same phrase entry as
+    # mid-sentence variants ("always invoke it..."). Pre-Halt-4 the
+    # SKILL.md:96 "Always invoke" prose evaded detection because the
+    # phrase list had only the lowercase form and `in` is case-sensitive.
+    # All entries are normalized to lowercase here.
     STALE_GUARD_PHRASES = (
-        "Never invoke it script-style",
         "never invoke it script-style",
         "always invoke it as a package module",
-        "always invoke it as a Python module",
+        "always invoke it as a python module",
     )
 
     # v1.5.7 instruction 032 NCF-13 (widening): regex over the verb
@@ -124,8 +131,14 @@ class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
                 f"INVOCATION_SURFACES references missing file: {rel}",
             )
             text = path.read_text(encoding="utf-8")
+            # v1.5.7 instruction 033 Halt-4: case-insensitive match
+            # so sentence-initial capitalized variants ("Always invoke
+            # it...") match the lowercase-normalized phrase entries.
+            # Mirrors the placeholder-phrase handling in
+            # `quality_gate.py::_VERDICT_PLACEHOLDER_PHRASES`.
+            lowered = text.lower()
             for phrase in self.STALE_GUARD_PHRASES:
-                if phrase in text:
+                if phrase in lowered:
                     offenders.append((rel, phrase))
             for match in self._STALE_GUARD_VERB_PATTERN.finditer(text):
                 offenders.append((rel, match.group(0)))

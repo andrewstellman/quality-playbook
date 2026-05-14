@@ -225,7 +225,7 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         "phase2":                ( 5454, "6de959a574928abaebe91c7499718483576871e0220ca147e1567c5889260a56"),
         "phase3":                ( 8919, "b834435ceb550ac425ab13df9edc0ac0b5c5c81f5b4f634673d67fc29331127c"),
         "phase4":                ( 3496, "bae1bcae7585fa4f0fc8f14281312074126f12b574b470dec76560a8b54bd4f0"),
-        "phase5":                (12452, "9932913100331f38e8e136ff5b04bd1254b8edf6ade9bf7d4953f3d11c1b9da6"),
+        "phase5":                (12853, "556f244ee72441176d4a64ddb0c009ed8670abe33e375246b1982018ebce2cea"),
         "phase6":                ( 2212, "026660cfff0a6bdcffdccf40d85a46359c5c7d4df7b82ac687454df30d475a01"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so

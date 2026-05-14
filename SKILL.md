@@ -93,13 +93,7 @@ The operator runs `python3 -m bin.run_playbook` themselves (typically because th
 
 #### Canonical invocation
 
-The orchestrator is the entry point. Always invoke it as a Python module:
-
-```
-python3 -m bin.run_playbook <target>
-```
-
-Two invocation forms are equivalent (v1.5.7 fix F-5a):
+The orchestrator is the entry point. Two invocation forms are supported (v1.5.7 fix F-5a):
 
 - `python3 -m bin.run_playbook <target>` — canonical package-module form.
 - `python3 /path/to/QPB/bin/run_playbook.py <target>` — direct script form. Works from any cwd because the module injects QPB root into `sys.path` before importing sibling modules.
@@ -152,7 +146,7 @@ What's new vs. v1.5.3, in pointer form (the canonical architecture lives in `doc
 - **`INDEX.md` uses `schema_version: "2.0"`** with a `target_role_breakdown` field carrying the per-role counts and percentages. The v1.5.3 `target_project_type` enum is retired (legacy archives stay readable).
 - **Pipelines activate from the role map, not from a project-type label.** The four-pass skill-derivation pipeline runs over files tagged `skill-prose` / `skill-reference`. The code-review pipeline runs over files tagged `code`. The prose-to-code divergence check runs over files tagged `skill-tool`. When the role map shows zero of a role, that pipeline no-ops cleanly. There is no Code/Skill/Hybrid trichotomy — both pipelines run when both surfaces are present (the "always-Hybrid downstream" model).
 - **Archive directory is `quality/previous_runs/`** (was `quality/runs/` in v1.5.3); legacy archives at the old path remain readable.
-- **Canonical artifact layout is top-level `quality/<name>/`** (e.g., `quality/writeups/BUG-001.md`, `quality/patches/BUG-001-fix.patch`, `quality/code_reviews/`, `quality/spec_audits/`, `quality/results/`). The Phase 6 gate fails if `quality/workspace/` exists with content (v1.5.7 fix F-4a `check_no_workspace_dir`); writes there are spec drift.
+- **Canonical artifact layout is top-level `quality/<name>/`** (e.g., `quality/writeups/BUG-001.md`, `quality/patches/BUG-001-fix.patch`, `quality/code_reviews/`, `quality/spec_audits/`, `quality/results/`). The Phase 6 gate fails if `quality/workspace/` exists at all (even empty) — v1.5.7 fix F-4/F-4a `check_no_workspace_dir`; writes there are spec drift, and an empty `quality/workspace/` directory still trains future-iteration agents on the wrong layout.
 
 You don't need to re-derive any of this in your prompt-side reasoning; the orchestrator's prompts already encode it. If you encounter a phase prompt that conflicts with the architecture summarized here, follow the phase prompt — it's the canonical source for the per-phase contract.
 
