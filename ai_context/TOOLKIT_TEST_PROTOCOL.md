@@ -2,7 +2,7 @@
 
 > Release-gate review for `TOOLKIT.md` and the orientation docs that reference it. Applies the same empirical-loop discipline that `IMPROVEMENT_LOOP.md` describes for the playbook itself, but to the documentation: surface problems through a panel of independent readers, fix them, re-test until convergence.
 
-*Last updated: 2026-05-06 (v1.5.6 cluster G refresh + cluster F.4 instruction-041-part-3 revision — adds `bin/install_skill.py` AI-agent-driven install path as the new default install mode in TOOLKIT.md; cluster A bundles `agents/` + replaces the broken `quality_gate.py` symlink stub with a working Python shim; cluster C adds the `--require-docs` opt-out flag; cluster D acknowledges Windows install validation as `untested-infrastructure-blocked-pathlib-coverage-extended`; Persona 19 skill-as-code deep work confirmed current — the cluster A audit found no v1.5.6-specific gaps. Persona 19's deeper "what an adopter holding SKILL.md plus references/ actually does step-by-step" work is queued as a future-release item without a pinned version number).*
+*Last updated: 2026-05-14 (v1.5.7 ship — rubric, convergence criterion, and orchestration mechanics unchanged from v1.5.6. v1.5.7 release-gate run added Persona 22 below (post-abort recovery walkthrough) to test v1.5.7 D1+D3+D6 awareness; existing personas confirmed current via the 5-persona TTP fanout in instruction 036 (10/12/20/21/22 all PASS with convergence; one DOC GAP at TOOLKIT.md F-5b mention closed via Cowork-direct).*
 
 ## Purpose
 
@@ -168,6 +168,12 @@ Tests: PR-pipeline workflow guidance; standout-tier-as-submission-criterion clar
 Tests: recognition of root-cause vs. symptom; whether the doc distinguishes BUGS.md as "individual reports" vs. "a list of distinct defects"; awareness that maintainers prefer one consolidated PR for a defect family over nine individual ones; whether the iteration-strategy taxonomy (gap, unfiltered, parity, adversarial) admits the possibility that multiple iterations re-find the same underlying defect.
 
 (Personas 14 and 17 added at the v1.5.2 release-gate, sourced from the 2026-04-25 cross-repo analysis. Persona 19 added at the v1.5.3 release-gate to test skill-as-code awareness. Personas 15, 16, and 18 from the v1.5.2 source remain queued for later release-gates: P15 deferred to v1.5.4+ (within-version variance language did not land in v1.5.3 — it requires the regression-replay machinery scheduled for v1.5.4); P16 and P18 for v1.6.x once replicate data accumulates and a HIGH-severity operational definition exists.)
+
+### Persona 22 — The v1.5.7 post-abort recovery walkthrough
+
+> I'm an adopter who just ran QPB v1.5.7 and the Phase 2 gate aborted on my project. I see a directory called `quality.gate-failed-2026-05-14T18-30-00Z/` next to where `quality/` would be. What's that? What should I do with it? Where do I look for the run logs that explain why the gate aborted? And if I want to retry, what configuration knobs are available to me — the docs mention a Council roster I can override?
+
+Tests: v1.5.7 D1 awareness (`quality.gate-failed-<UTC-ts>/` preservation directory), D3 awareness (`quality/logs/<run-id>/` centralized log layout + `--logs-flat` / `QPB_LOGS_LEGACY=1` legacy paths), D6 awareness (`~/.qpb/config.json` Council roster override path). A correct answer surfaces the preserved-artifact directory as the diagnostic starting point, the centralized log location for the gate's rejection rationale, and the config-file override as the no-source-edit retry knob. (Added at the v1.5.7 release-gate.)
 
 ### Persona 21 — The AI-agent installer (v1.5.6)
 

@@ -1,6 +1,6 @@
 # AI Orchestration Patterns
 
-*Last updated: 2026-05-06 (v1.5.6 cluster G refresh — initial publication in v1.5.6 Phase 1; the §9.5 "Lessons from v1.5.6 use" section now covers BOTH the original cycle execution AND the follow-on bootstrap-fixup + audit-discovered-backlog cycles (clusters 1-8 + A-G) that ran through the same runner pattern in 2026-05-06).*
+*Last updated: 2026-05-14 (v1.5.7 ship — pattern unchanged from v1.5.6 baseline. v1.5.7 used the orchestrator/worker pattern through `v1.5.7_runner/` for the full release arc: D1-D6 design deliverables + F-1 through F-8 ship-readiness fixes + NCF cleanup + self-audit closures. The §9.5 lessons remain accurate; per-release lessons-learned narrative is saved for v1.6.0).*
 
 > This document describes a reusable pattern for coordinating two AI sessions through a shared directory: a chat-driving **orchestrator** session writes instructions into a folder, and a long-lived coding **worker** session polls the folder, executes each instruction, and writes results back. The two sessions never share memory; the directory is the canonical record of what was instructed and what happened.
 

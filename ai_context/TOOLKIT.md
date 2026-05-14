@@ -7,7 +7,7 @@
 >
 > Background: [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/) (O'Reilly Radar)
 >
-> *Last updated: 2026-05-03 (v1.5.6 currency pass — adopter install path now centers on `bin/install_skill.py`; AGENTS.md install-procedure section is the canonical procedure for AI-agent-driven installs; manual file-copy paths remain documented as alternatives).*
+> *Last updated: 2026-05-14 (v1.5.7 currency pass — Phase 2 gate-failure artifact preservation lands at `quality.gate-failed-<UTC-timestamp>/`; centralized log emission moves to `quality/logs/<run-id>/` with `--logs-flat` legacy flag; new `references/role_map_queries.md` canonical jq patterns for Phase 2 agents; Council roster override via `~/.qpb/config.json` (or `$XDG_CONFIG_HOME/qpb/config.json`); SKILL.md trim via pure-move to `references/` (66,332 → 26,408 BPE tokens) with no behavioral change).*
 
 ## How to respond when the user opens this file with you
 
@@ -49,6 +49,16 @@ The user wants to run the quality playbook on a codebase. Here's what to do:
    **Code-only mode (a runtime behavior, not an install flag).** When a target repo's `reference_docs/` is empty or absent, Phase 1 emits a `documentation_state state=code_only` event into `quality/run_state.jsonl`, prepends a "Documentation status: code-only mode" section to `quality/EXPLORATION.md`, and writes a `Documentation state: code_only` line to `quality/PROGRESS.md`. The playbook proceeds — it does not abort — but every requirement it derives leans entirely on code evidence (Tier 3+). See `references/code-only-mode.md` for what to expect from a code-only run and how to upgrade to a full-documentation run for the next pass.
 
    **Opt-out: `--require-docs` (v1.5.6+).** Operators who want runs to abort instead of proceeding in code-only mode can pass `--require-docs` to `python3 -m bin.run_playbook`. With the flag set and `reference_docs/` empty at Phase 1 entry, the playbook appends an `aborted_missing_docs` event to `quality/run_state.jsonl`, writes an `ERROR: aborted_missing_docs` block to `quality/PROGRESS.md`, and exits non-zero before any LLM work. Default behavior unchanged. Use for compliance/policy contexts where a quiet code-only-mode downgrade would mask a process gap (every release run must cite a spec; no spec means the run shouldn't have started).
+
+   **Phase 2 abort preservation (v1.5.7+).** When the Phase 2 gate aborts before producing the full artifact set, the rejected `quality/` directory is preserved as `quality.gate-failed-<UTC-timestamp>/` rather than wiped. Inspect the timestamped directory to see the EXPLORATION.md, role map, and partial PROGRESS.md the agent produced before the abort. The runner emits a hint pointing at the preserved location at exit.
+
+   **Centralized run logs (v1.5.7+).** All log emission for a single run lands under `<target>/quality/logs/<run-id>/` inside the per-target `quality/` tree. The `quality/logs/` directory is included in the suggested `.gitignore` template so adopters don't accidentally commit megabytes of log data. Operators whose tooling depends on the v1.5.6 scattered layout can pass `--logs-flat` (or set `QPB_LOGS_LEGACY=1`) to preserve the old paths.
+
+   **Three invocation forms (v1.5.7 fix F-5b).** After install, an adopter can run the playbook three ways: `python3 -m bin.run_playbook <target>` (canonical package-module form from the QPB clone; preferred for development); `python3 path/to/QPB/bin/run_playbook.py <target>` (direct script form; v1.5.7 F-5a restored this after v1.5.4's `__main__` guard broke it); or `<target>/bin/run_playbook.sh [<target>]` (wrapper installed by `repos/setup_repos.sh` into each target repo — auto-discovers the QPB clone by walking up from its own location and falls back to `$QPB_HOME`; preferred for adopters who installed via `setup_repos.sh` because no QPB-path knowledge is needed at the invocation site).
+
+   **Council roster override (v1.5.7+).** Phase 4 Council members are configured at `bin/council_config.py` (current roster: `claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6`) but can be overridden per-adopter via `~/.qpb/config.json` (or `$XDG_CONFIG_HOME/qpb/config.json`). Use the override when an installed skill's roster decays (e.g., a runner silently drops support for a model). The Council does fast-fail availability detection at launch — when one member is unreachable, it degrades to 2-of-2; when two or more are unreachable, it hard-fails with a structured recovery template the orchestrating LLM fills in with current runner-specific model knowledge.
+
+   **Role-map query reference (v1.5.7+).** `references/role_map_queries.md` documents canonical `jq` patterns against `quality/exploration_role_map.json`. Phase 2 agents now load this reference automatically; if you're hand-querying the role map, the patterns there (e.g. `.files[] | select(.role == "code")`) are correct.
 
    The playbook expects its files in one of six documented install locations, and every component (runner, gate, orchestrator agents) checks all six in order — the install script picks one based on the detected environment, but manual installs can target any of them:
 
@@ -110,6 +120,8 @@ The user wants to run the quality playbook on a codebase. Here's what to do:
    Run the quality playbook on this project.
    ```
    The playbook starts with Phase 1 (Explore) and stops after that phase, showing the user what happened and what to say next. The user drives each phase forward by saying "keep going" or "run phase 2". Running phases separately gives much better results — each phase gets the full context window for deep analysis instead of competing with other phases.
+
+   **What you'll see at the end of every phase (v1.5.7+).** The playbook ends every phase with a Markdown block in chat that starts with `## What just happened` and `### What to do next`. The first part is a plain-English interpretation of what the agent just did (NOT a copy of `quality/PROGRESS.md` — an interpretive layer over it); the second part gives you the concrete next prompt or shell command. If your run completed Phases 1-2 but reports zero confirmed bugs and the block uses the **pass-process / fail-recall** framing, that's the documented signal that the model running this session wasn't powerful enough for real three-pass code review — switch to a more capable model and re-run rather than treating the empty `quality/BUGS.md` as "the playbook didn't find anything." Full decision tree at `references/what_just_happened.md`.
 
    If the user says "help" or "how does this work", the skill will explain itself. If the user says "what happened" or "what should I do next", the skill reads PROGRESS.md and gives a status update.
 

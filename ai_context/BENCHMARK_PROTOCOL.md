@@ -1,6 +1,6 @@
 # Benchmark Protocol
 
-Last updated: 2026-05-07 (v1.5.6 fix-up 055 — clarifies the canonical 3 (or 4 with chi-1.5.1) calibration benchmarks for cycle work. The original 2026-05-02 v1.5.6 cycle ran on chi-1.3.45 + virtio-1.5.1 + express-1.3.50 (verdict REVERT; express post-lever data preserved per cell.json + cycle subdir verified at instruction 041 part 1). The cycle is closed at 3 of 4 benchmarks; v1.5.6 cluster F.2a ran chi-1.5.1 pre-lever with claude-opus-4-7 producing 9/16 substantive recall against the v1.5.1 baseline, but chi-1.5.1 informs historical baseline understanding rather than contributing a 4th cell to the cycle's per-benchmark recall table. Cluster F.1 commit `ba64584` folded the 2026-05-02 cycle's operational learnings into `agents/calibration_orchestrator.md` — see that template's failure-modes section for the API-budget-exhausted recovery path, the reduced-scope option's three preconditions, and the mid-benchmark post-lever interruption failure mode.)
+Last updated: 2026-05-14 (v1.5.7 ship — log layout centralized under `quality/logs/<run-id>/` per the per-cell tree; `--logs-flat` legacy flag preserves the v1.5.6 scattered layout for tooling that needs it. Phase 2 gate-failure artifact preservation lands at `quality.gate-failed-<UTC-timestamp>/` — benchmark cells that abort at Phase 2 now preserve the failed artifact set rather than wiping. See "Centralized log emission" and "Phase 2 abort preservation" sections below. Calibration-cycle benchmark set unchanged from v1.5.6.)
 
 The playbook tunes against real repos. For tuning signals to be honest, each benchmark run has to start from the same blank slate — no prior findings, no sibling runs, no pre-existing `quality/` artifacts to anchor on. This file is the checklist.
 
@@ -59,6 +59,20 @@ For benchmark consumers, the relevant cross-validation rules are:
 - **Format invariants.** Every line in `run_state.jsonl` is a single JSON object with `event` and `ts` (ISO 8601 UTC with `Z` suffix) as required keys; per-event-type required keys are listed in `references/run_state_schema.md`. Readers should be tolerant of additional optional keys (forward compatibility) but reject lines missing the universal required keys.
 
 `bin/run_state_lib.py` ships read/parse helpers (`read_events`, `last_in_progress_phase`, `validate_run_state_file`) plus the writer side (`append_event`, `write_progress_md`); benchmark tooling that needs to consume the log should use these helpers rather than re-implementing the parser.
+
+## Centralized log emission (v1.5.7+)
+
+Starting in v1.5.7, all log emission for a single run lands under `<target>/quality/logs/<run-id>/` inside the per-target `quality/` tree. The per-cell directory is now the canonical "everything from this run" location: stdout/stderr, control prompts, run-state event log, gate output, finalization log. Benchmark cells become self-contained for archival purposes.
+
+For benchmark sweeps that need the v1.5.6 scattered layout (driver logs in `/tmp`, `<parent>/<cell>-playbook-<ts>.log`, etc.), pass `--logs-flat` to `bin/run_playbook.py`. The flag preserves the older paths; the centralized layout is the default and the recommended choice for new sweeps.
+
+`quality/logs/` is included in the suggested `.gitignore` template. Don't commit log content into the project repo — archive it alongside the cell instead.
+
+## Phase 2 abort preservation (v1.5.7+)
+
+When the Phase 2 gate aborts before producing the full artifact set, the rejected `quality/` directory is preserved as `quality.gate-failed-<UTC-timestamp>/` rather than wiped. For benchmark cells, this means an aborted Phase 2 cell still has the agent's outputs available for diagnostic inspection — the EXPLORATION.md, role map, and partial PROGRESS.md that triggered the abort are preserved.
+
+Benchmark consumers scoring cells should treat the presence of a `quality.gate-failed-*/` directory as a Phase-2-abort signal (and exclude the cell from recall comparisons), while still being able to read what the agent produced for the post-mortem.
 
 ## After the run
 
