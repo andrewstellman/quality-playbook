@@ -233,10 +233,10 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # Hashes recomputed against the v1.5.6 guide.
         "single_pass_True":      (  457, "77830f3ad7cb4d0bac165afc555c54c48866af1756b01a24f4bfd2e80a940b7a"),
         "single_pass_False":     (  402, "89b9ad80cb42e8b4562926e0d54c86fc272a94e53e061856994646174041116d"),
-        "iteration_gap":         (  704, "3c64de3996bfa8e6eadc2dd5772a20420021f5d435a6717b3f95e01fbd536322"),
-        "iteration_unfiltered":  (  711, "295a26150c49ab3f3a8095966121f2023a9234d4bf98a07fb2bcc26f6ced8ade"),
-        "iteration_parity":      (  707, "75a915adb8a5f2b5cbbad623ddf3c5b62738fd1c443444a48b5be59d461b0491"),
-        "iteration_adversarial": (  712, "fd98cc78b4e1864f5932d824318d43fecfa53fe624cb30a3bab6094d6d739220"),
+        "iteration_gap":         ( 1191, "e97b88dd3ba10ebf8293d2c508291169829cfd8183e7e76c3c82fafeed740d5b"),
+        "iteration_unfiltered":  ( 1212, "ceb77496da6746cc025f6542ae7c1f59ef609d102da09b329438d2b44821fd5e"),
+        "iteration_parity":      ( 1200, "cfe0882870bc8146efca67c2149e6f7d865c40d167da1de573c33c0cccc06502"),
+        "iteration_adversarial": ( 1215, "e53d9f18aa65a0d07110d9b8216c5c989c682ac03ebdf410b3953a1632896ba8"),
     }
 
     def _render(self, label: str) -> str:
@@ -295,6 +295,25 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
             f"iteration strategy rotation {rotation} differs from "
             f"hash-pinned set {covered}"
         )
+
+    def test_iteration_prompts_direct_agent_to_load_iteration_reference(self) -> None:
+        """v1.5.7 BUG-006 bite: every iteration prompt must direct the
+        agent to read `references/iteration.md` before running the
+        strategy. Pre-fix the iteration prompt only mentioned the
+        strategy name; an agent that hadn't already loaded the
+        iteration reference missed strategy-specific protocol
+        (which artifacts to consult, what to surface, what NOT to
+        touch). Each of the four strategy rotations must carry the
+        directive."""
+        from bin import run_playbook
+        for strategy in ("gap", "unfiltered", "parity", "adversarial"):
+            with self.subTest(strategy=strategy):
+                body = run_playbook.iteration_prompt(strategy)
+                self.assertIn(
+                    "references/iteration.md", body,
+                    f"iteration_{strategy} prompt must direct agent to "
+                    f"read references/iteration.md; got: {body!r}",
+                )
 
 
 class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
