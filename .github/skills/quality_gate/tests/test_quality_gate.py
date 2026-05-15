@@ -367,13 +367,32 @@ class TestCompensationAsymmetryPromotion(unittest.TestCase):
     """v1.5.7 instruction 047 Item 3 (A-5): WARN-only net for the
     Phase-1→Phase-2 asymmetry-promotion gap.
 
-    Mutation-test evidence (in-tree per
-    ai_context/DEVELOPMENT_PROCESS.md:152-160): removing the
-    `check_compensation_asymmetry_promotion(q)` call from
-    `check_repo` (or the `warn(...)` branch from the function) makes
-    `test_asymmetry_prose_without_pattern_tag_warns` fail (WARN stays
-    0); restoring it passes. Bite verified during instruction 047
-    development.
+    Coverage split (corrected per instruction 048, closing the
+    instruction-047 codex Task-4 finding that this docstring
+    previously overstated its mutation-verified scope):
+
+    - These tests exercise ``check_compensation_asymmetry_promotion``
+      via DIRECT calls. They pin the function's *logic*: the
+      compensation-prose regex, the zero-Pattern-tag → WARN branch,
+      the with-tag pass, the missing-EXPLORATION.md no-op, and the
+      WARN-only (never-FAIL) contract.
+      Mutation evidence for the logic (in-tree per
+      ai_context/DEVELOPMENT_PROCESS.md:152-160): neutering the
+      ``warn(...)`` branch inside
+      ``check_compensation_asymmetry_promotion`` makes
+      ``test_asymmetry_prose_without_pattern_tag_warns`` fail (WARN
+      stays 0); restoring it passes. Bite verified.
+    - The WIRING of the check INTO ``check_repo()`` (the path the
+      gate actually runs end-to-end) is pinned separately by
+      ``TestCompensationAsymmetryPromotionWiring`` below, which
+      invokes the gate as a subprocess. These direct-call tests do
+      NOT exercise the ``check_repo`` registration and make no claim
+      about it.
+
+    Together both surfaces give full mutation-verified coverage:
+    revert the function logic → these direct-call tests fail; remove
+    the ``check_repo`` registration → the wiring integration test
+    fails.
     """
 
     def setUp(self):
@@ -467,6 +486,110 @@ class TestCompensationAsymmetryPromotion(unittest.TestCase):
         self.assertEqual(
             quality_gate.FAIL, 0,
             "check_compensation_asymmetry_promotion must be WARN-only",
+        )
+
+
+class TestCompensationAsymmetryPromotionWiring(FixtureBase):
+    """v1.5.7 instruction 048 (closes the instruction-047 codex
+    Task-4 finding): pin the WIRING of
+    ``check_compensation_asymmetry_promotion`` INTO ``check_repo``.
+
+    The sibling ``TestCompensationAsymmetryPromotion`` tests call the
+    check function directly, so they do NOT detect a regression that
+    disconnects the check from ``check_repo``'s registered-checks
+    sequence. This test runs the gate END-TO-END (as a subprocess via
+    FixtureBase.gate(), which goes through main() → check_repo()) over
+    a synthetic repo whose EXPLORATION.md carries compensation-pattern
+    prose and whose REQUIREMENTS.md has zero ``- Pattern:`` tags, and
+    asserts the A-5 WARN surfaces in gate output — which can only
+    happen if the check is wired into check_repo.
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160): delete the
+    ``check_compensation_asymmetry_promotion(q)`` registration line
+    from ``check_repo`` in
+    ``.github/skills/quality_gate/quality_gate.py`` (the line
+    immediately after ``check_run_metadata(q)``). Expected failure:
+    ``test_warn_surfaces_through_check_repo`` fails at
+    ``assertIn("[Asymmetry promotion (A-5)]", stdout)`` /
+    ``assertIn(... "ZERO `Pattern:`-tagged REQs" ..., stdout)``
+    because the check no longer runs in the end-to-end path.
+    Restoration: re-add the registration line → test passes. Bite
+    verified during instruction 048 development. (Clearing
+    ``__pycache__`` before the post-restore re-verify is required —
+    a stale .pyc otherwise masks the restored state.)
+    """
+
+    def _asymmetry_tree(self):
+        tree = minimal_zero_bug_tree()
+        # Keep all five required EXPLORATION.md sections (so
+        # _check_exploration_sections still passes — no unrelated
+        # FAIL) and inject compensation-asymmetry prose into one.
+        tree["quality/EXPLORATION.md"] = (
+            "# Exploration\n\n"
+            "## Open Exploration Findings\n"
+            "Modern PCI compensates for VIRTIO_F_RING_RESET; MMIO and "
+            "vDPA rely entirely on vring_transport_features().\n\n"
+            "## Quality Risks\nstub\n\n"
+            "## Pattern Applicability Matrix\nstub\n\n"
+            "## Candidate Bugs for Phase 2\nstub\n\n"
+            "## Gate Self-Check\nstub\n"
+        )
+        # minimal_zero_bug_tree's REQUIREMENTS.md already has no
+        # `- Pattern:` lines — leave it; that's the WARN trigger.
+        return tree
+
+    def test_warn_surfaces_through_check_repo(self):
+        self.write(self._asymmetry_tree())
+        stdout, code = self.gate()
+        self.assertIn(
+            "[Asymmetry promotion (A-5)]", stdout,
+            "the A-5 check section header must appear in end-to-end "
+            "gate output — proves check_compensation_asymmetry_promotion "
+            "is wired into check_repo",
+        )
+        self.assertIn(
+            "ZERO `Pattern:`-tagged REQs", stdout,
+            "the A-5 WARN must fire end-to-end (asymmetry prose + "
+            "zero Pattern: tags) — pins the check_repo wiring, not "
+            "just the function logic",
+        )
+        self.assertEqual(
+            code, 0,
+            "the A-5 check is WARN-only; the otherwise-clean baseline "
+            "tree must still exit 0 (WARN does not FAIL the gate)",
+        )
+
+    def test_no_warn_when_pattern_tagged_through_check_repo(self):
+        """Negative control through the wiring: asymmetry prose WITH a
+        Pattern:-tagged REQ must NOT emit the A-5 WARN end-to-end —
+        the A-5 check instead emits its PASS line.
+
+        Note: exit code is intentionally NOT asserted here. Adding a
+        Pattern:-tagged REQ to the minimal tree legitimately trips the
+        UNRELATED v1.5.2 cardinality gate (pattern-tagged REQs require
+        quality/compensation_grid.json), so the gate exits 1 for a
+        reason orthogonal to A-5. The WARN-only / exit-0 contract for
+        the A-5 check is pinned by test_warn_surfaces_through_check_repo
+        (clean baseline) and the direct-call
+        TestCompensationAsymmetryPromotion.test_never_increments_fail.
+        This test pins only the A-5-specific end-to-end behavior:
+        section runs, no A-5 WARN when a Pattern tag is present."""
+        tree = self._asymmetry_tree()
+        tree["quality/REQUIREMENTS.md"] = (
+            "# Requirements\n\nUC-01 Foo\nUC-02 Bar\nUC-03 Baz\n\n"
+            "### REQ-010: cross-transport parity\n"
+            "- References: virtio_mmio.c, virtio_pci_modern.c\n"
+            "- Pattern: compensation\n"
+        )
+        self.write(tree)
+        stdout, _code = self.gate()
+        self.assertIn("[Asymmetry promotion (A-5)]", stdout)
+        self.assertNotIn("ZERO `Pattern:`-tagged REQs", stdout)
+        self.assertIn(
+            "asymmetry prose present and 1 Pattern:-tagged REQ", stdout,
+            "with a Pattern:-tagged REQ the A-5 check must emit its "
+            "PASS line, not the WARN — end-to-end through check_repo",
         )
 
 
