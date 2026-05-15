@@ -2390,25 +2390,92 @@ def _check_qpb_source_unchanged(
 def _verify_qpb_source_unchanged(
     qpb_dir: Path, baseline_sha: Optional[str]
 ) -> List[str]:
-    """Return list of QPB source paths modified since ``baseline_sha``,
-    or [] when none changed (or when there was no baseline to compare).
+    """Return list of QPB source paths *uncommittedly* modified since
+    ``baseline_sha``, or [] when none (or no baseline to compare).
 
     Checks ``bin/``, ``.github/skills/``, ``agents/``, ``references/``,
-    and ``SKILL.md``. Non-empty return signals an autonomous source
-    patch — the run must abort. v1.5.4 Phase 3.6.1 Section A.4.b.
+    ``SKILL.md``, ``schemas.md``, ``AGENTS.md``, ``phase_prompts/``.
+    Non-empty return signals an autonomous source patch — the run must
+    abort. v1.5.4 Phase 3.6.1 Section A.4.b.
+
+    v1.5.7 Issue 1 (chi-surfaced false-positive fix): the prior
+    implementation ran ``git diff --name-only <baseline_sha>`` which
+    diffs the baseline commit against the *working tree* — so a
+    legitimate commit that landed on the branch *during* a
+    long-running playbook (e.g. an orchestrator-driven fix committed
+    between phases) was flagged identically to an autonomous
+    uncommitted agent patch, aborting Phase 5 with a false positive.
+
+    The guardrail's true intent is "no *uncommitted* mid-run source
+    edits": an authorized mid-run commit went through the commit
+    discipline and is fine; an uncommitted working-tree edit to source
+    is the violation. Adapted detection (the actual function differs
+    from instruction 044's `validate_no_source_edits` pseudocode — it
+    is git-diff-based here, not mtime-based, so the per-file HEAD
+    filter is applied to the real candidate set, and untracked-file
+    detection is added explicitly because `git diff` never surfaces
+    untracked paths):
+
+      1. Candidate tracked files = ``git diff --name-only
+         <baseline_sha> -- <SOURCE_PATHS>`` (preserves the run-window
+         scope for tracked files).
+      2. For each candidate, ``git diff-index --quiet HEAD -- <f>``:
+         exit 0 ⇒ the file matches the committed HEAD state, i.e. the
+         change arrived via a tracked commit during the run — ALLOW.
+         Non-zero ⇒ staged/unstaged uncommitted modification, i.e. the
+         autonomous-agent-patch case — VIOLATION.
+      3. Brand-new untracked files under the source paths
+         (``git ls-files --others --exclude-standard``) are violations
+         unconditionally — an autonomous agent creating new source
+         files is exactly what the guardrail exists to catch
+         (conservative default per instruction 044 Task 1 edge case;
+         ``git diff-index`` does not report untracked paths so they
+         must be detected separately).
     """
     if baseline_sha is None:
         return []
-    cmd = ["git", "diff", "--name-only", baseline_sha, "--"] + list(_QPB_SOURCE_PATHS)
-    try:
-        result = subprocess.run(
-            cmd, cwd=qpb_dir, capture_output=True, text=True, check=False
-        )
-    except (OSError, FileNotFoundError):
+
+    def _git(args: List[str]) -> Optional[subprocess.CompletedProcess]:
+        try:
+            return subprocess.run(
+                ["git"] + args,
+                cwd=qpb_dir,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        except (OSError, FileNotFoundError):
+            return None
+
+    diff_res = _git(
+        ["diff", "--name-only", baseline_sha, "--"] + list(_QPB_SOURCE_PATHS)
+    )
+    if diff_res is None or diff_res.returncode != 0:
         return []
-    if result.returncode != 0:
-        return []
-    return [line for line in result.stdout.splitlines() if line.strip()]
+    candidates = [line for line in diff_res.stdout.splitlines() if line.strip()]
+
+    violations: List[str] = []
+    for f in candidates:
+        # Matches the committed HEAD state ⇒ change arrived via a
+        # tracked commit during the run (legitimate; commit discipline
+        # is enforced at review time, not by this guardrail). Only an
+        # uncommitted modification is an autonomous agent patch.
+        head_chk = _git(["diff-index", "--quiet", "HEAD", "--", f])
+        if head_chk is not None and head_chk.returncode == 0:
+            continue
+        if f not in violations:
+            violations.append(f)
+
+    others_res = _git(
+        ["ls-files", "--others", "--exclude-standard", "--"]
+        + list(_QPB_SOURCE_PATHS)
+    )
+    if others_res is not None and others_res.returncode == 0:
+        for f in others_res.stdout.splitlines():
+            if f.strip() and f not in violations:
+                violations.append(f)
+
+    return violations
 
 
 def _prior_run_id_from_live_index(quality_dir: Path) -> Optional[str]:

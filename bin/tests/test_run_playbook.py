@@ -3652,31 +3652,60 @@ class Round8Fix6SourcePathsCoverageTests(unittest.TestCase):
             self.assertIn(path, run_playbook._QPB_SOURCE_PATHS)
 
     def test_verifier_diffs_against_schemas_md_changes(self) -> None:
-        """Pin that the actual diff machinery treats schemas.md as a
-        watched path. Diff against a historical SHA that predates a
-        schemas.md change; the modified-list must include it."""
+        """Pin that the diff machinery treats schemas.md as a watched
+        path: an *uncommitted* modification to schemas.md must be
+        surfaced.
+
+        v1.5.7 Issue 1 (chi-surfaced) reworked
+        ``_verify_qpb_source_unchanged`` so a *committed* mid-run
+        change is correctly NOT flagged (it arrived via the commit
+        discipline). The prior version of this test diffed against a
+        historical SHA and asserted a committed schemas.md change was
+        flagged — that pinned the false-positive behavior Issue 1
+        fixes. It now pins watched-path coverage the way the guardrail
+        actually works: an uncommitted edit (the autonomous-agent
+        case) is flagged. Mutation contract preserved: removing
+        ``schemas.md`` from ``_QPB_SOURCE_PATHS`` makes the diff +
+        untracked filters exclude it and this assertion fails.
+        """
         import subprocess
-        qpb_dir = Path(__file__).resolve().parents[2]
-        # Find a historical commit before the most recent schemas.md edit.
-        result = subprocess.run(
-            ["git", "log", "--format=%H", "-n", "20", "--", "schemas.md"],
-            cwd=str(qpb_dir), capture_output=True, text=True, check=True,
-        )
-        commits = [c for c in result.stdout.splitlines() if c.strip()]
-        if len(commits) < 2:
-            self.skipTest(
-                "need at least 2 historical schemas.md commits to verify "
-                "the diff machinery sees the file"
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess.run(
+                ["git", "init"], cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
-        # commits[1] is a SHA before commits[0]'s schemas.md change.
-        modified = run_playbook._verify_qpb_source_unchanged(
-            qpb_dir, commits[1]
-        )
-        self.assertIn(
-            "schemas.md", modified,
-            "_verify_qpb_source_unchanged must surface schemas.md "
-            "modifications now that it's in _QPB_SOURCE_PATHS",
-        )
+            subprocess.run(
+                ["git", "config", "user.email", "t@example.com"],
+                cwd=repo, check=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "T"], cwd=repo, check=True
+            )
+            (repo / "schemas.md").write_text(
+                "# schemas v1 baseline\n", encoding="utf-8"
+            )
+            subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "baseline"], cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            baseline = run_playbook._qpb_source_baseline_sha(repo)
+            # Uncommitted mid-run modification to the watched path.
+            (repo / "schemas.md").write_text(
+                "# schemas v2 — uncommitted mid-run agent edit\n",
+                encoding="utf-8",
+            )
+            modified = run_playbook._verify_qpb_source_unchanged(
+                repo, baseline
+            )
+            self.assertIn(
+                "schemas.md", modified,
+                "_verify_qpb_source_unchanged must surface an "
+                "uncommitted schemas.md modification (schemas.md is in "
+                "_QPB_SOURCE_PATHS)",
+            )
 
 
 class CouncilRound2P04PhasePromptsSourcePathTests(unittest.TestCase):
@@ -3691,57 +3720,68 @@ class CouncilRound2P04PhasePromptsSourcePathTests(unittest.TestCase):
         self.assertIn("phase_prompts/", run_playbook._QPB_SOURCE_PATHS)
 
     def test_verifier_diffs_against_phase_prompts_changes(self) -> None:
-        """Pin that the actual diff machinery treats phase_prompts/
-        as a watched path. The phase_prompts/ directory was first
-        introduced in commit aee53c2 (F-1). Diffing from any pre-F-1
-        baseline must surface phase_prompts/ entries — but ONLY if
-        the path is in _QPB_SOURCE_PATHS (the diff is filtered by
-        the path list).
+        """Pin that the diff machinery treats phase_prompts/ as a
+        watched path: an *uncommitted* modification to a
+        phase_prompts/ file must be surfaced.
 
-        Mutation contract: removing 'phase_prompts/' from
-        _QPB_SOURCE_PATHS makes this test fail because the diff
-        filter no longer includes the directory and the modified
-        list comes back empty for phase_prompts/ entries."""
+        v1.5.7 Issue 1 (chi-surfaced) reworked
+        ``_verify_qpb_source_unchanged`` so a *committed* mid-run
+        change is correctly NOT flagged. The prior version of this
+        test diffed from a pre-F-1 historical SHA and asserted the
+        (committed) phase_prompts/ additions were flagged — that
+        pinned the false-positive behavior Issue 1 fixes (and skipped
+        nondeterministically when no pre-F-1 commit was in range). It
+        now pins watched-path coverage deterministically via an
+        uncommitted edit (the autonomous-agent case the guardrail
+        exists to catch).
+
+        Mutation contract preserved: removing 'phase_prompts/' from
+        _QPB_SOURCE_PATHS makes the diff + untracked filters exclude
+        the directory and this assertion fails.
+        """
         import subprocess
-        qpb_dir = Path(__file__).resolve().parents[2]
-        # Find a SHA from before phase_prompts/ was created. The
-        # introducing commit is aee53c2; any earlier commit works.
-        result = subprocess.run(
-            ["git", "log", "--format=%H", "-n", "30", "HEAD"],
-            cwd=str(qpb_dir), capture_output=True, text=True, check=True,
-        )
-        commits = [c for c in result.stdout.splitlines() if c.strip()]
-        # Walk the history looking for a commit where phase_prompts/
-        # didn't yet exist. The check `git ls-tree <sha> phase_prompts/`
-        # returns empty when the directory wasn't tracked yet.
-        pre_f1_sha = None
-        for sha in commits:
-            ls = subprocess.run(
-                ["git", "ls-tree", sha, "phase_prompts/"],
-                cwd=str(qpb_dir), capture_output=True, text=True, check=False,
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess.run(
+                ["git", "init"], cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
-            if not ls.stdout.strip():
-                pre_f1_sha = sha
-                break
-        if pre_f1_sha is None:
-            self.skipTest(
-                "no pre-F-1 commit available to diff against — git "
-                "history may have been rewritten or shallow-cloned"
+            subprocess.run(
+                ["git", "config", "user.email", "t@example.com"],
+                cwd=repo, check=True,
             )
-        modified = run_playbook._verify_qpb_source_unchanged(
-            qpb_dir, pre_f1_sha
-        )
-        phase_prompts_changes = [
-            m for m in modified if m.startswith("phase_prompts/")
-        ]
-        self.assertGreater(
-            len(phase_prompts_changes), 0,
-            "_verify_qpb_source_unchanged must surface phase_prompts/ "
-            "additions now that the directory is in _QPB_SOURCE_PATHS. "
-            "If this assertion fails after a code change, the most "
-            "likely cause is 'phase_prompts/' was removed from the "
-            "tuple — restore it.",
-        )
+            subprocess.run(
+                ["git", "config", "user.name", "T"], cwd=repo, check=True
+            )
+            pp = repo / "phase_prompts" / "phase1.md"
+            pp.parent.mkdir(parents=True, exist_ok=True)
+            pp.write_text("# phase1 prompt v1 baseline\n", encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "baseline"], cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            baseline = run_playbook._qpb_source_baseline_sha(repo)
+            # Uncommitted mid-run modification to the watched path.
+            pp.write_text(
+                "# phase1 prompt v2 — uncommitted mid-run agent edit\n",
+                encoding="utf-8",
+            )
+            modified = run_playbook._verify_qpb_source_unchanged(
+                repo, baseline
+            )
+            phase_prompts_changes = [
+                m for m in modified if m.startswith("phase_prompts/")
+            ]
+            self.assertGreater(
+                len(phase_prompts_changes), 0,
+                "_verify_qpb_source_unchanged must surface an "
+                "uncommitted phase_prompts/ modification now that the "
+                "directory is in _QPB_SOURCE_PATHS. If this fails after "
+                "a code change, the most likely cause is 'phase_prompts/' "
+                "was removed from the tuple — restore it.",
+            )
 
     def test_source_paths_preserves_prior_coverage_after_p04(self) -> None:
         """Negative control: P0-4's addition must not displace any
