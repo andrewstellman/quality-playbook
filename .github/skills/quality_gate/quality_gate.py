@@ -3686,6 +3686,73 @@ def check_v1_5_0_gate_invariants(repo_dir, q):
     check_role_map_consistency(repo_dir, q)
 
 
+# v1.5.7 instruction 047 Item 3 (A-5): mechanical net for the
+# Phase-1→Phase-2 asymmetry-promotion gap. Regex over EXPLORATION.md.
+_ASYMMETRY_PROSE_RE = re.compile(
+    r"compensates?\s+for"
+    r"|relies?\s+entirely\s+on"
+    r"|present\s+in\b.{0,80}?\bbut\s+not\s+in\b"
+    r"|implements?\b.{0,80}?\bbut\b.{0,40}?\b(?:do(?:es)?n.?t|lacks?)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def check_compensation_asymmetry_promotion(q):
+    """v1.5.7 instruction 047 Item 3 (A-5) — WARN-only net for the
+    Phase-1→Phase-2 promotion gap: an architectural asymmetry noticed
+    in EXPLORATION.md prose ("X compensates for Y", "Z relies
+    entirely on W", "present in … but not in …", "implements … but
+    … doesn't") that never became a `Pattern:`-tagged REQ has no
+    cells for the v1.5.2 compensation-grid BUG-default and silently
+    never produces BUGs in Phase 3 (the v1.5.1 RING_RESET /
+    v1.5.7 virtio gap).
+
+    Conservative + non-fatal: if EXPLORATION.md contains
+    compensation-asymmetry prose, REQUIREMENTS.md must carry at least
+    ONE `- Pattern:` line. WARN (never FAIL) — the prompt-side
+    Asymmetry-Promotion Rule is the primary fix; this is the
+    belt-and-suspenders mechanical signal so a silent escape is at
+    least visible at gate time.
+    """
+    print("[Asymmetry promotion (A-5)]")
+    expl = q / "EXPLORATION.md"
+    reqs = q / "REQUIREMENTS.md"
+    if not expl.is_file():
+        info("EXPLORATION.md absent — asymmetry-promotion check skipped")
+        return
+    try:
+        expl_text = expl.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        info(f"EXPLORATION.md unreadable ({exc}) — check skipped")
+        return
+    if not _ASYMMETRY_PROSE_RE.search(expl_text):
+        pass_("no compensation-asymmetry prose in EXPLORATION.md")
+        return
+    reqs_text = ""
+    if reqs.is_file():
+        try:
+            reqs_text = reqs.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            reqs_text = ""
+    pattern_tag_count = len(_REQ_PATTERN_RE.findall(reqs_text))
+    if pattern_tag_count == 0:
+        warn(
+            "EXPLORATION.md notes an architectural asymmetry "
+            "(compensation/parity framing) but REQUIREMENTS.md has "
+            "ZERO `Pattern:`-tagged REQs — the asymmetry was likely "
+            "demoted to prose instead of promoted to a multi-site "
+            "Pattern:-tagged REQ (A-5 / Phase-1 Asymmetry-Promotion "
+            "Rule). Without a pattern-tagged REQ the v1.5.2 "
+            "compensation-grid BUG-default has no cells and the "
+            "asymmetry never produces BUGs in Phase 3."
+        )
+    else:
+        pass_(
+            f"asymmetry prose present and {pattern_tag_count} "
+            f"Pattern:-tagged REQ(s) found in REQUIREMENTS.md"
+        )
+
+
 def check_repo(repo_dir, version_arg, strictness):
     """Run all checks for one repo. Writes output via pass_/fail_/warn/info."""
     repo_dir = Path(repo_dir)
@@ -3715,6 +3782,7 @@ def check_repo(repo_dir, version_arg, strictness):
     skill_version = check_version_stamps(repo_dir, q)
     check_cross_run_contamination(repo_dir, q, version_arg, skill_version)
     check_run_metadata(q)
+    check_compensation_asymmetry_promotion(q)
     check_v1_5_0_gate_invariants(repo_dir, q)
 
     print("")

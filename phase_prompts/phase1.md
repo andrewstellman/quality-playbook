@@ -146,6 +146,35 @@ prefix; additional `## ` sections beyond these are tolerated for
 analytical extension but the six gate-required titles MUST appear
 verbatim.
 
+### MANDATORY ASYMMETRY-PROMOTION RULE (A-5, v1.5.7 instruction 047)
+
+The Cartesian UC rule below only engages on requirements that ALREADY
+exist with a `References` field naming ≥2 files. A recurring
+upstream gap (v1.5.1 RING_RESET; the v1.5.7 codex-UI virtio run):
+Phase 1 *notices* an architectural asymmetry in EXPLORATION.md prose
+("modern PCI **compensates for** VIRTIO_F_SR_IOV / RING_RESET / ADMIN_VQ;
+MMIO and vDPA **rely entirely on** `vring_transport_features()`") but
+never derives a REQ for it — so the Cartesian rule has nothing to
+operate on, the v1.5.2 compensation-grid BUG-default has no cells,
+and the asymmetry never produces BUGs in Phase 3. The observation is
+demoted instead of escalated.
+
+**Rule:** for EVERY architectural asymmetry you note in EXPLORATION.md
+— any "X compensates for Y" / "A relies entirely on B" / "present in
+… but not in …" / "modern transport does this, legacy doesn't" /
+"implements … but … doesn't" framing — you MUST draft a
+corresponding requirement at the canonical multi-site shape:
+
+    ### REQ-NNN: <the parity/compensation invariant the asymmetry implies>
+    - References: <file-for-site-1>, <file-for-site-2>, <file-for-site-3>
+    - Pattern: compensation   (or `parity` / `whitelist` as fits)
+
+naming the ≥2 implementation sites the asymmetry spans. That REQ then
+flows into the Cartesian UC rule (per-site UCs) and the v1.5.2
+BUG-default machinery downstream. A noticed asymmetry with no
+corresponding multi-site `Pattern:`-tagged REQ is a Phase 1 defect —
+escalate, do not demote to prose.
+
 ### MANDATORY CARTESIAN UC RULE (Lever 1, v1.5.2)
 
 For every requirement with a `References` field naming ≥2 files (or ≥2 file:line ranges in distinct files), apply the **Cartesian eligibility check** before deciding whether to emit a single umbrella UC or per-site UCs:
@@ -203,6 +232,7 @@ Before completing Phase 1, confirm each item explicitly in EXPLORATION.md under 
 4. Where only Gate 1 passed, I marked the cluster `<!-- cluster: heterogeneous -->`.
 5. Where neither gate passed, I kept a single umbrella UC without marking.
 6. For each REQ with a pattern match in Gate 1, I added `Pattern: whitelist|parity|compensation` to the REQ block.
+7. For every architectural asymmetry I noted in EXPLORATION.md prose (any "X compensates for Y" / "relies entirely on" / "present in … but not in …" / "modern does this, legacy doesn't" framing), I drafted a corresponding multi-site `Pattern:`-tagged REQ per the Asymmetry-Promotion Rule — no noticed asymmetry was demoted to prose without a REQ.
 
 Also initialize quality/PROGRESS.md with the run metadata and the phase tracker in the EXACT checkbox format below. This format is a hard contract: the Phase 5 gate checks for the substring `- [x] Phase 4` before allowing reconciliation to start, and it only matches the checkbox form. Do NOT substitute a Markdown table, bulleted prose, or any other layout — table-format runs have aborted mid-pipeline because the gate does not see "Complete" in a table cell as equivalent.
 

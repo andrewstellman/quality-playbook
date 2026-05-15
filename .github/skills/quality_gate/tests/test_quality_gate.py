@@ -363,6 +363,113 @@ class TestFailHelperFormat(unittest.TestCase):
         self.assertEqual(offenders, [], f"unexpected FAIL: print in gate: {offenders}")
 
 
+class TestCompensationAsymmetryPromotion(unittest.TestCase):
+    """v1.5.7 instruction 047 Item 3 (A-5): WARN-only net for the
+    Phase-1→Phase-2 asymmetry-promotion gap.
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160): removing the
+    `check_compensation_asymmetry_promotion(q)` call from
+    `check_repo` (or the `warn(...)` branch from the function) makes
+    `test_asymmetry_prose_without_pattern_tag_warns` fail (WARN stays
+    0); restoring it passes. Bite verified during instruction 047
+    development.
+    """
+
+    def setUp(self):
+        quality_gate.WARN = 0
+        self._tmp = tempfile.TemporaryDirectory()
+        self.q = Path(self._tmp.name) / "quality"
+        self.q.mkdir(parents=True)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _run(self):
+        import io
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            quality_gate.check_compensation_asymmetry_promotion(self.q)
+        return buf.getvalue()
+
+    def _write(self, name, text):
+        (self.q / name).write_text(text, encoding="utf-8")
+
+    def test_asymmetry_prose_without_pattern_tag_warns(self):
+        self._write(
+            "EXPLORATION.md",
+            "## Quality Risks\nModern PCI compensates for "
+            "VIRTIO_F_RING_RESET; MMIO and vDPA rely entirely on "
+            "vring_transport_features().\n",
+        )
+        self._write(
+            "REQUIREMENTS.md",
+            "### REQ-001: something\n- References: a.c\nbody\n",
+        )
+        out = self._run()
+        self.assertEqual(
+            quality_gate.WARN, 1,
+            f"asymmetry prose + zero Pattern:-tagged REQs must WARN. "
+            f"Output:\n{out}",
+        )
+        self.assertIn("compensation-grid BUG-default", out)
+
+    def test_asymmetry_prose_with_pattern_tag_passes(self):
+        self._write(
+            "EXPLORATION.md",
+            "Modern PCI compensates for RING_RESET; MMIO relies "
+            "entirely on the generic path.\n",
+        )
+        self._write(
+            "REQUIREMENTS.md",
+            "### REQ-010: parity invariant\n"
+            "- References: virtio_mmio.c, virtio_pci_modern.c\n"
+            "- Pattern: compensation\n",
+        )
+        self._run()
+        self.assertEqual(
+            quality_gate.WARN, 0,
+            "a Pattern:-tagged REQ satisfies the asymmetry-promotion "
+            "net — no WARN",
+        )
+
+    def test_no_asymmetry_prose_passes(self):
+        self._write(
+            "EXPLORATION.md",
+            "## Quality Risks\nStraightforward single-site logic; no "
+            "cross-transport parity concerns here.\n",
+        )
+        self._write("REQUIREMENTS.md", "### REQ-001\nbody\n")
+        self._run()
+        self.assertEqual(
+            quality_gate.WARN, 0,
+            "no compensation-asymmetry prose → no WARN",
+        )
+
+    def test_missing_exploration_is_noop(self):
+        # No EXPLORATION.md written.
+        self._run()
+        self.assertEqual(
+            quality_gate.WARN, 0,
+            "absent EXPLORATION.md → skipped, never WARN/FAIL",
+        )
+
+    def test_never_increments_fail(self):
+        """WARN-only contract: this check must NEVER FAIL the gate."""
+        quality_gate.FAIL = 0
+        self._write(
+            "EXPLORATION.md",
+            "X compensates for Y; Z relies entirely on W.\n",
+        )
+        self._write("REQUIREMENTS.md", "### REQ-001\nno pattern\n")
+        self._run()
+        self.assertEqual(
+            quality_gate.FAIL, 0,
+            "check_compensation_asymmetry_promotion must be WARN-only",
+        )
+
+
 # --- Integration tests per check section ---
 
 

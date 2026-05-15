@@ -241,9 +241,14 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # gate-location enumeration which gained the 4 new
         # quality_gate.py paths. All hashes recomputed — this baseline
         # update IS the sanctioned change-acknowledgement signal.
-        "phase1_no_seeds_True":  (20799, "eabc59e4b413b43bd99ad16837d64bb6dbfc00cf920d4013ea9be1c860514722"),
-        "phase1_no_seeds_False": (20602, "acb98b5ff2064f98f2057c53dc9d70f783261ca865f3f1b87920098ad056bccd"),
-        "phase2":                ( 6834, "00c5b1ea4dfb1ccb5ac7f600d0fa290b479b4e91fb14f702bde21337ad4e184f"),
+        # v1.5.7 instruction 047 Item 3 (A-5): phase1.md gained the
+        # Asymmetry-Promotion Rule + confirmation-checklist item 7;
+        # phase2.md gained the asymmetry-promotion backstop paragraph.
+        # phase1/phase2 hashes recomputed; phase3-6 + single_pass +
+        # iteration unchanged (each prompt is its own file).
+        "phase1_no_seeds_True":  (22697, "923b7e62ecbacbae66d7ddf7717df235db768dc32f37f18a480ac16c96d4f951"),
+        "phase1_no_seeds_False": (22500, "23271fafaafd210ea66f83ea7fc86ab98bbc7e2ea8137840d1ae6d02578408c9"),
+        "phase2":                ( 7842, "d37aab06101d2be24ac82a00395830b95520d1ce19d9e8046ee79a5b4a6159cf"),
         "phase3":                ( 9778, "3232173110c93b465e00ef8a7c0aef226fd6d9a5bd90ed0854990e94ce0a5217"),
         "phase4":                ( 3911, "923e0198ca39182397e118f45452afcfde54731a46f5414bcd99431812af752f"),
         "phase5":                (13471, "4f5e852fb05730825ae041d4162c97f9dda8bc7dfdff50e6e4959e7ffd1173fa"),
@@ -544,6 +549,69 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
                     f"agnostic `python3 <resolved_quality_gate_path> .` "
                     f"invocation."
                 )
+
+
+class AsymmetryPromotionRuleTests(unittest.TestCase):
+    """v1.5.7 instruction 047 Item 3 (A-5): the Phase-1→Phase-2
+    promotion gap fix. A noticed architectural asymmetry in
+    EXPLORATION.md prose must become a multi-site `Pattern:`-tagged
+    REQ; otherwise the v1.5.2 compensation-grid BUG-default has no
+    cells and the asymmetry never produces BUGs in Phase 3 (the
+    v1.5.1 RING_RESET / v1.5.7 virtio gap)."""
+
+    def test_phase1_prompt_directs_asymmetry_to_REQ(self) -> None:
+        """Phase 1 prompt must carry the Asymmetry-Promotion Rule +
+        confirmation-checklist item bridging noticed-asymmetry prose
+        to a multi-site Pattern:-tagged REQ.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160): deleting the
+        'MANDATORY ASYMMETRY-PROMOTION RULE' heading block from
+        phase_prompts/phase1.md makes both assertions fire; restoring
+        it passes. Bite verified during instruction 047 development.
+        """
+        from bin import run_playbook
+        body = run_playbook.phase1_prompt(no_seeds=True)
+        self.assertIn(
+            "MANDATORY ASYMMETRY-PROMOTION RULE", body,
+            "phase1 prompt must carry the Asymmetry-Promotion Rule "
+            "heading (A-5)",
+        )
+        self.assertIn(
+            "escalate, do not demote to prose", body,
+            "phase1 prompt must direct noticed asymmetries to a "
+            "multi-site Pattern:-tagged REQ (escalate-not-demote rule)",
+        )
+        # Confirmation-checklist item 7 pins it for self-attestation.
+        self.assertIn(
+            "no noticed asymmetry was demoted to prose without a REQ",
+            body,
+            "phase1 confirmation checklist must include the "
+            "asymmetry-promotion attestation (item 7)",
+        )
+
+    def test_phase2_prompt_directs_pattern_tag_for_compensation(self) -> None:
+        """Phase 2 prompt must carry the asymmetry-promotion backstop
+        instructing a scan of EXPLORATION.md prose for un-promoted
+        compensation/parity asymmetries.
+
+        Mutation-test evidence: deleting the 'Asymmetry-promotion
+        backstop' paragraph from phase_prompts/phase2.md makes this
+        assertion fire; restoring it passes. Bite verified.
+        """
+        from bin import run_playbook
+        body = run_playbook.phase2_prompt()
+        self.assertIn(
+            "Asymmetry-promotion backstop", body,
+            "phase2 prompt must carry the asymmetry-promotion backstop "
+            "(A-5)",
+        )
+        self.assertIn(
+            "scan EXPLORATION.md prose for compensation/parity framing",
+            body,
+            "phase2 backstop must direct a prose scan for "
+            "un-promoted asymmetries",
+        )
 
 
 class CursorRunnerStdinPipingTests(unittest.TestCase):
