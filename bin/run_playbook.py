@@ -2491,11 +2491,33 @@ def archive_previous_run(repo_dir: Path, current_run_timestamp: str) -> None:
             status="partial",
             gate_verdict_override="partial",
         )
-    except archive_lib.ArchiveError:
-        # Archive target already exists — the prior attempt was
-        # already preserved (with a .partial sentinel inside per
-        # v1.5.4 Phase 3.6.2 B-19). Clear the live tree and continue.
-        pass
+    except archive_lib.ArchiveError as exc:
+        # v1.5.7 A-1 fix: an ArchiveError means the live tree was NOT
+        # successfully preserved (timestamp collision with a *different*
+        # run's archive, staging-dir collision, invalid status, missing
+        # quality/, ...). Preserving adopter data is more important than
+        # tidying up, so do NOT clear the live tree — surface the
+        # failure and bail. The next run may write into a non-empty
+        # quality/; the operator diagnoses and archives manually.
+        sys.stderr.write(
+            f"WARN: archive_previous_run could not archive the prior run "
+            f"(archive_ts={archive_ts}): {exc}. Live quality/ tree "
+            f"preserved at {quality_dir}; the next run may write into a "
+            f"non-empty directory. Diagnose and manually rename/archive "
+            f"before re-running.\n"
+        )
+        return  # IMPORTANT: do NOT fall through to _clear_live_quality
+    except Exception as exc:  # noqa: BLE001 — defensive: never destroy data
+        # v1.5.7 A-1 fix: any other failure also leaves the live tree
+        # intact. archive_run touches the filesystem + git; an
+        # unexpected OSError/shutil.Error/etc. must not cascade into
+        # data loss.
+        sys.stderr.write(
+            f"WARN: archive_previous_run raised unexpected "
+            f"{type(exc).__name__}: {exc}. Live quality/ tree preserved "
+            f"at {quality_dir}.\n"
+        )
+        return
     _clear_live_quality(quality_dir)
 
 
