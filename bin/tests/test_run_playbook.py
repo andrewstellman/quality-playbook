@@ -4350,14 +4350,19 @@ class InstallFallbackPinningTests(unittest.TestCase):
 
     REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
-    # Six documented install layouts (per ai_context/TOOLKIT.md and
-    # bin/benchmark_lib.py:SKILL_INSTALL_LOCATIONS, post-cluster-2):
+    # Ten documented install layouts (per
+    # bin/benchmark_lib.py:SKILL_INSTALL_LOCATIONS; v1.5.7 instruction
+    # 046 A-3 expanded 6 → 10):
     #   1. repo root SKILL.md
     #   2. .claude/skills/quality-playbook/
     #   3. .github/skills/SKILL.md (Copilot flat)
     #   4. .cursor/skills/quality-playbook/
     #   5. .continue/skills/quality-playbook/
     #   6. .github/skills/quality-playbook/SKILL.md (Copilot nested)
+    #   7. .codex/skills/quality-playbook/
+    #   8. .windsurf/skills/quality-playbook/
+    #   9. .cline/skills/quality-playbook/
+    #  10. .aider/skills/quality-playbook/
     EXPECTED_FALLBACK_PATHS = (
         "SKILL.md",
         ".claude/skills/quality-playbook/SKILL.md",
@@ -4365,6 +4370,10 @@ class InstallFallbackPinningTests(unittest.TestCase):
         ".cursor/skills/quality-playbook/SKILL.md",
         ".continue/skills/quality-playbook/SKILL.md",
         ".github/skills/quality-playbook/SKILL.md",
+        ".codex/skills/quality-playbook/SKILL.md",
+        ".windsurf/skills/quality-playbook/SKILL.md",
+        ".cline/skills/quality-playbook/SKILL.md",
+        ".aider/skills/quality-playbook/SKILL.md",
     )
 
     def test_bug_008_later_phase_prompts_use_placeholder(self) -> None:
@@ -4406,9 +4415,10 @@ class InstallFallbackPinningTests(unittest.TestCase):
 
     def test_bug_010_claude_orchestrator_agent_lists_canonical_order(self) -> None:
         """BUG-010: agents/quality-playbook-claude.agent.md must list
-        the same 6 paths as SKILL_INSTALL_LOCATIONS, in the same order.
+        the same paths as SKILL_INSTALL_LOCATIONS, in the same order.
         Pre-fix the Copilot flat/nested positions were reversed in the
-        agent file; cluster A reconciled."""
+        agent file; cluster A reconciled. v1.5.7 instruction 046 A-3
+        expanded the canonical list 6 → 10 (codex/windsurf/cline/aider)."""
         agent_text = (self.REPO_ROOT / "agents" / "quality-playbook-claude.agent.md").read_text(encoding="utf-8")
         # Find the "Look for SKILL.md in these locations" section's
         # numbered list and capture the order.
@@ -4420,7 +4430,9 @@ class InstallFallbackPinningTests(unittest.TestCase):
         marker = agent_text.find("Look for SKILL.md in these locations")
         self.assertGreater(marker, 0, "expected 'Look for SKILL.md' setup section")
         section = agent_text[marker:]
-        section_items = re.findall(r"^\d+\.\s+`([^`]+)`", section, re.MULTILINE)[:6]
+        section_items = re.findall(
+            r"^\d+\.\s+`([^`]+)`", section, re.MULTILINE
+        )[:len(self.EXPECTED_FALLBACK_PATHS)]
         self.assertEqual(
             tuple(section_items), self.EXPECTED_FALLBACK_PATHS,
             f"Claude orchestrator fallback order drifted — got {section_items}; "

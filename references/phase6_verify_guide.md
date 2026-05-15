@@ -36,7 +36,7 @@ Record in PROGRESS.md under `## Phase 6 Mechanical Closure` and append to `quali
 Run the mechanical validation gate:
 
 ```bash
-python3 quality_gate.py . > quality/results/quality-gate.log 2>&1  # locate via fallback (six canonical layouts, in order): quality_gate.py, .claude/skills/quality-playbook/quality_gate.py, .github/skills/quality_gate.py, .cursor/skills/quality-playbook/quality_gate.py, .continue/skills/quality-playbook/quality_gate.py, .github/skills/quality-playbook/quality_gate.py
+python3 quality_gate.py . > quality/results/quality-gate.log 2>&1  # locate via fallback (ten canonical layouts, in order): quality_gate.py, .claude/skills/quality-playbook/quality_gate.py, .github/skills/quality_gate.py, .cursor/skills/quality-playbook/quality_gate.py, .continue/skills/quality-playbook/quality_gate.py, .github/skills/quality-playbook/quality_gate.py, .codex/skills/quality-playbook/quality_gate.py, .windsurf/skills/quality-playbook/quality_gate.py, .cline/skills/quality-playbook/quality_gate.py, .aider/skills/quality-playbook/quality_gate.py
 echo $? >> quality/results/phase6-verification.log
 ```
 

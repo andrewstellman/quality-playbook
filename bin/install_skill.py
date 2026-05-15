@@ -48,6 +48,13 @@ KNOWN_ENVIRONMENTS: list[tuple[str, str]] = [
     (".github", ".github/skills/quality-playbook"),
     (".cursor", ".cursor/skills/quality-playbook"),
     (".continue", ".continue/skills/quality-playbook"),
+    # v1.5.7 instruction 046 (A-3) — expansion to the 10-layout
+    # fallback (was 6). New marker dirs auto-detected by
+    # detect_environment in the same order as SKILL_FALLBACK_GUIDE.
+    (".codex", ".codex/skills/quality-playbook"),
+    (".windsurf", ".windsurf/skills/quality-playbook"),
+    (".cline", ".cline/skills/quality-playbook"),
+    (".aider", ".aider/skills/quality-playbook"),
 ]
 
 
@@ -62,6 +69,14 @@ AI_TOOL_MAP: dict[str, tuple[str, str]] = {
     "copilot": (".github", ".github/skills/quality-playbook"),
     "github": (".github", ".github/skills/quality-playbook"),
     "continue": (".continue", ".continue/skills/quality-playbook"),
+    # v1.5.7 instruction 046 (A-3) — expansion to 10-layout fallback
+    # (was 6). 'github' remains an alias for 'copilot'. aider does NOT
+    # auto-discover from .aider/skills/ — see the aider footnote in
+    # ai_context/TOOLKIT.md (surfaced for Cowork-direct application).
+    "codex": (".codex", ".codex/skills/quality-playbook"),
+    "windsurf": (".windsurf", ".windsurf/skills/quality-playbook"),
+    "cline": (".cline", ".cline/skills/quality-playbook"),
+    "aider": (".aider", ".aider/skills/quality-playbook"),
 }
 AI_TOOL_CHOICES: tuple[str, ...] = tuple(AI_TOOL_MAP.keys())
 
@@ -569,7 +584,7 @@ def install(
     intro_short = (
         "skill bundle installs into a tool-specific subdirectory; "
         "auto-detection scans for the marker (.cursor/, .claude/, "
-        ".github/, .continue/); pass --ai-tool <cursor|claude|copilot|continue> "
+        ".github/, .continue/); pass --ai-tool <cursor|claude|copilot|continue|codex|windsurf|cline|aider> "
         "to bypass detection"
     )
     intro_verbose = (
@@ -580,7 +595,7 @@ def install(
         "for Cursor, .claude/skills/quality-playbook/ for Claude Code. The "
         "installer detects which tool by looking for the marker directory in "
         "your target. If detection fails, pass "
-        "--ai-tool <cursor|claude|copilot|continue> to specify explicitly."
+        "--ai-tool <cursor|claude|copilot|continue|codex|windsurf|cline|aider> to specify explicitly."
     )
     emitter.emit("intro", prose=intro_verbose if verbose else intro_short)
 
@@ -651,7 +666,7 @@ def install(
                     f"No AI tool marker directory found in {into}. The "
                     f"installer can't guess which AI tool you're using. To "
                     f"proceed:\n"
-                    f"  (a) Pass --ai-tool <cursor|claude|copilot|continue> "
+                    f"  (a) Pass --ai-tool <cursor|claude|copilot|continue|codex|windsurf|cline|aider> "
                     f"to specify explicitly:\n"
                     f"      python3 -m bin.install_skill --into {into} --ai-tool cursor\n"
                     f"  (b) Pass --target <absolute-path> to install to a "
@@ -692,7 +707,7 @@ def install(
                     f"No AI tool marker directory found in {cwd}. The "
                     f"installer can't guess which AI tool you're using. To "
                     f"proceed:\n"
-                    f"  (a) Pass --ai-tool <cursor|claude|copilot|continue> "
+                    f"  (a) Pass --ai-tool <cursor|claude|copilot|continue|codex|windsurf|cline|aider> "
                     f"to specify explicitly:\n"
                     f"      python3 -m bin.install_skill --ai-tool cursor\n"
                     f"  (b) Pass --target <absolute-path> to install to a "
@@ -805,7 +820,12 @@ def main(argv: Optional[list[str]] = None) -> int:
             "subdirectory: cursor -> .cursor/skills/quality-playbook/; "
             "claude -> .claude/skills/quality-playbook/; "
             "copilot -> .github/skills/quality-playbook/; "
-            "continue -> .continue/skills/quality-playbook/."
+            "continue -> .continue/skills/quality-playbook/; "
+            "codex -> .codex/skills/quality-playbook/; "
+            "windsurf -> .windsurf/skills/quality-playbook/; "
+            "cline -> .cline/skills/quality-playbook/; "
+            "aider -> .aider/skills/quality-playbook/ (aider does not "
+            "auto-discover — tell aider to read SKILL.md explicitly)."
         ),
     )
     parser.add_argument(

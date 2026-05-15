@@ -234,13 +234,20 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # `len(body)`), NOT the UTF-8 byte length — multi-byte
         # characters like the em-dash `—` count as 1 codepoint but
         # take 3 bytes in UTF-8.
-        "phase1_no_seeds_True":  (20632, "7e32930635d20c03a17157842dfe2f5c52f9fbfc7d09933e1d6a7e500668f364"),
-        "phase1_no_seeds_False": (20435, "d19f6893610c8ad7f0d68b5e0bf7347e24c08db29b5d70eb4e164a7a44ed36ec"),
-        "phase2":                ( 6667, "46b9ed0a21a68ffbe48f1b646c787a3507e638f3dc23f8303d66fd8557312d20"),
-        "phase3":                ( 9611, "ac74b34294ab4e77c8b199c31329dbeb3e35bf82e58a33c7edd9acd1bbbcf670"),
-        "phase4":                ( 3744, "0b142ae6a1856166599f4865defdcc2dc1b0f1da95f63608ad2a3a5c9620f5ee"),
-        "phase5":                (13101, "21751d82b572b88947ef3c301ffd2a9fb29e7304815e7255ba637447bc0f8add"),
-        "phase6":                ( 2665, "2889b43d0b673bd002e5a4c451f06096c1828141f92bac557038d72945a2ee55"),
+        # v1.5.7 instruction 046 (A-3): SKILL_FALLBACK_GUIDE expanded
+        # 6 → 10 install layouts (codex/windsurf/cline/aider). Every
+        # prompt that interpolates the guide grew by 167 codepoints;
+        # phase5/phase6 grew more (+370) because they ALSO carry the
+        # gate-location enumeration which gained the 4 new
+        # quality_gate.py paths. All hashes recomputed — this baseline
+        # update IS the sanctioned change-acknowledgement signal.
+        "phase1_no_seeds_True":  (20799, "eabc59e4b413b43bd99ad16837d64bb6dbfc00cf920d4013ea9be1c860514722"),
+        "phase1_no_seeds_False": (20602, "acb98b5ff2064f98f2057c53dc9d70f783261ca865f3f1b87920098ad056bccd"),
+        "phase2":                ( 6834, "00c5b1ea4dfb1ccb5ac7f600d0fa290b479b4e91fb14f702bde21337ad4e184f"),
+        "phase3":                ( 9778, "3232173110c93b465e00ef8a7c0aef226fd6d9a5bd90ed0854990e94ce0a5217"),
+        "phase4":                ( 3911, "923e0198ca39182397e118f45452afcfde54731a46f5414bcd99431812af752f"),
+        "phase5":                (13471, "4f5e852fb05730825ae041d4162c97f9dda8bc7dfdff50e6e4959e7ffd1173fa"),
+        "phase6":                ( 3035, "ff3b98db9f11912d2bd7d8b2a62c254c47dfa9ae31a39c2fdff1f05e7dedef1a"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.
@@ -251,18 +258,18 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # later boundaries in a code-only run. P2-P5 template names
         # now explicit instead of "State P<N>" string. Hashes
         # recomputed (codepoint length).
-        "single_pass_True":      ( 1248, "df98d084d02cbe54d40de7223ea2bc24188b324b7321d32b5aaf0900b44f408b"),
-        "single_pass_False":     ( 1193, "7a0153a1622b1f0cfa02ea0d208e638fab66abcbea6a07844e95c4d70bedeadb"),
+        "single_pass_True":      ( 1415, "8bb2dc58c3469238b46fe83586906ad7c1440e276c8d81740d94d33c673c0c7b"),
+        "single_pass_False":     ( 1360, "61d57056eb437c429efa7f397078bc3089165fb4f9db3a9fa51476367945e282"),
         # v1.5.7 instruction 038 codex round-2 fix-up: iteration.md
         # tail rewritten to point at PROGRESS.md `## Iteration:
         # <strategy> complete` headings (and at Rules 4-5 of the
         # decision-tree classifier) instead of the round-1 wording
         # that still referenced non-existent `iteration_end` events
         # in `quality/run_state.jsonl`. Hashes recomputed.
-        "iteration_gap":         ( 1766, "ea19816916398bea8d8b50f5f12106b01eadab10cbd6748f0d52bbba059e4d29"),
-        "iteration_unfiltered":  ( 1794, "5557e27a97d2d43aa289f0be13ba93069b28fe50b13cb243e3a744d9ce901519"),
-        "iteration_parity":      ( 1778, "a28cfae2e1d867c42406dad9709b6b3c55afc34b1448ae33c68e247e16aeb8f8"),
-        "iteration_adversarial": ( 1798, "d8dadea2c7325782b7793c917e543a7c15101c2b3fde302e238ff45e35523a32"),
+        "iteration_gap":         ( 1933, "47c649e392816795627242895350d49d652d3eca573a60b6b8f145b664a29582"),
+        "iteration_unfiltered":  ( 1961, "a027c3038927b2a202b97c82e168f660c0897ee3e3e945340d1bf3342f86bdc5"),
+        "iteration_parity":      ( 1945, "1062def6c280ebedfa9ff52df3b3ff6faa35b3526858aabe516852e0d25533b3"),
+        "iteration_adversarial": ( 1965, "f72e5363772322466111aeebc34354e4e37097ba69d373d622390f80a4159358"),
     }
 
     def _render(self, label: str) -> str:
@@ -351,10 +358,11 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
     or ``.continue/skills/quality-playbook/`` got prompts whose Read /
     invoke commands pointed nowhere, breaking phases 2-6 silently.
 
-    The fix substitutes ``{skill_fallback_guide}`` (the same six-layout
+    The fix substitutes ``{skill_fallback_guide}`` (the same ten-layout
     fallback prose used by single_pass / iteration prompts) and rewrites
     every hardcoded reference to either layout-agnostic prose or an
-    enumeration of all six canonical layouts.
+    enumeration of all ten canonical layouts (v1.5.7 instruction 046
+    A-3 expanded 6 → 10: codex / windsurf / cline / aider).
 
     These tests guard against regression in two directions: any future
     edit reintroducing a single-layout hardcode (e.g.
@@ -363,6 +371,7 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
     ``test_phase_prompts_substitute_full_fallback_guide``.
     """
 
+    # v1.5.7 instruction 046 (A-3): 6 → 10 canonical layouts.
     SIX_CANONICAL_LAYOUTS = (
         "SKILL.md",
         ".claude/skills/quality-playbook/SKILL.md",
@@ -370,6 +379,10 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
         ".cursor/skills/quality-playbook/SKILL.md",
         ".continue/skills/quality-playbook/SKILL.md",
         ".github/skills/quality-playbook/SKILL.md",
+        ".codex/skills/quality-playbook/SKILL.md",
+        ".windsurf/skills/quality-playbook/SKILL.md",
+        ".cline/skills/quality-playbook/SKILL.md",
+        ".aider/skills/quality-playbook/SKILL.md",
     )
 
     SIX_GATE_LAYOUTS = (
@@ -379,6 +392,10 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
         ".cursor/skills/quality-playbook/quality_gate.py",
         ".continue/skills/quality-playbook/quality_gate.py",
         ".github/skills/quality-playbook/quality_gate.py",
+        ".codex/skills/quality-playbook/quality_gate.py",
+        ".windsurf/skills/quality-playbook/quality_gate.py",
+        ".cline/skills/quality-playbook/quality_gate.py",
+        ".aider/skills/quality-playbook/quality_gate.py",
     )
 
     @staticmethod
@@ -431,7 +448,7 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
         We enforce this with a per-line check: every line containing
         ``.github/skills/`` must ALSO contain at least three of the
         other five canonical layout markers. The fallback-guide
-        sentence and the gate-resolution prose both list all six —
+        sentence and the gate-resolution prose both list all ten —
         any future single-layout hardcode (one ``.github/skills/SKILL.md``
         on a line with no other layout) trips this test."""
         from bin import run_playbook
@@ -449,10 +466,10 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
             with self.subTest(phase=n):
                 body = self._render_phase_prompt(n)
                 # Strip the SKILL_FALLBACK_GUIDE block from analysis —
-                # it's the canonical six-layout enumeration and is
+                # it's the canonical ten-layout enumeration and is
                 # supposed to mention `.github/skills/`. Any remaining
                 # `.github/skills/` reference must itself be an
-                # enumeration of all six layouts.
+                # enumeration of all ten layouts.
                 stripped = body.replace(run_playbook.SKILL_FALLBACK_GUIDE, "")
                 for line_no, line in enumerate(stripped.splitlines(), start=1):
                     if ".github/skills/" not in line:
@@ -467,8 +484,8 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
                         f"Line: {line!r}"
                     )
 
-    def test_phase_prompts_enumerate_all_six_skill_layouts(self) -> None:
-        """The substituted fallback guide must enumerate all six
+    def test_phase_prompts_enumerate_all_ten_skill_layouts(self) -> None:
+        """The substituted fallback guide must enumerate all ten
         canonical SKILL.md install layouts. Pin them by string match
         against phase{2..6}_prompt() outputs. A future edit that
         accidentally narrows SKILL_FALLBACK_GUIDE (e.g., dropping
@@ -483,13 +500,13 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
                         layout, body,
                         f"phase{n}_prompt() does not mention the "
                         f"{layout!r} install layout. The fallback "
-                        f"guide must enumerate all six adopter layouts."
+                        f"guide must enumerate all ten adopter layouts."
                     )
 
-    def test_phase5_and_phase6_enumerate_all_six_gate_layouts(self) -> None:
+    def test_phase5_and_phase6_enumerate_all_ten_gate_layouts(self) -> None:
         """Phase 5 (cardinality gate) and Phase 6 (full gate) both
         instruct the LLM to invoke quality_gate.py. The instruction
-        must enumerate all six canonical gate-script locations so
+        must enumerate all ten canonical gate-script locations so
         the LLM can resolve the gate from any install layout, not
         just `.github/skills/`."""
         from bin import run_playbook
@@ -502,7 +519,7 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
                         layout, body,
                         f"phase{n}_prompt() does not mention the "
                         f"{layout!r} gate-script location. Phase 5/6 "
-                        f"prompts must enumerate all six canonical "
+                        f"prompts must enumerate all ten canonical "
                         f"quality_gate.py locations."
                     )
 

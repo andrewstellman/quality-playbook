@@ -965,7 +965,12 @@ SKILL_FALLBACK_GUIDE = (
     "SKILL.md, .claude/skills/quality-playbook/SKILL.md, "
     ".github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, "
     ".continue/skills/quality-playbook/SKILL.md, "
-    ".github/skills/quality-playbook/SKILL.md. "
+    ".github/skills/quality-playbook/SKILL.md, "
+    # v1.5.7 instruction 046 (A-3): 6-layout → 10-layout fallback.
+    ".codex/skills/quality-playbook/SKILL.md, "
+    ".windsurf/skills/quality-playbook/SKILL.md, "
+    ".cline/skills/quality-playbook/SKILL.md, "
+    ".aider/skills/quality-playbook/SKILL.md. "
     "Resolve reference files using the same documented fallback order."
 )
 
@@ -990,8 +995,9 @@ def _load_phase_prompt(name: str, **substitutions: str) -> str:
        literal brace. v1.5.6 BUG-011/012: phase{2..6}.md hardcoded
        ``.github/skills/`` paths; the fix replaces those with a single
        ``{skill_fallback_guide}`` placeholder at the top of each file
-       so the runtime-canonical fallback list (six install layouts) is
-       the single source of truth. Phase 3 and Phase 5 contain JSON
+       so the runtime-canonical fallback list (ten install layouts as
+       of v1.5.7 instruction 046) is the single source of truth. Phase
+       3 and Phase 5 contain JSON
        code blocks with single ``{`` / ``}`` braces; using
        ``str.replace`` for this placeholder lets those JSON blocks
        remain readable instead of being littered with ``{{``/``}}``.
@@ -2496,7 +2502,7 @@ def _check_installed_bundle_freshness(
     prune files — so the caller emits a non-fatal WARN, never a gate.
 
     Detection uses :func:`benchmark_lib.find_installed_skill` (the
-    canonical six-layout resolver); the installed bundle directory is
+    canonical ten-layout resolver); the installed bundle directory is
     the parent of the resolved SKILL.md. When that parent resolves to
     the QPB source root itself (root-SKILL.md self-bootstrap layout),
     source and installed dirs coincide and nothing is reported.
@@ -4191,7 +4197,7 @@ def _iso_utc_now() -> str:
 
 
 # v1.5.2 (C13.9) — orchestrator-side post-iteration finalization.
-# The six canonical install locations the v1.5.6+ resolver supports
+# The ten canonical install locations the v1.5.7+ resolver supports
 # for the gate script. Order matches SKILL_FALLBACK_GUIDE and
 # benchmark_lib.SKILL_INSTALL_LOCATIONS so a single test pins all
 # three to the same canonical sequence. v1.5.6 BUG-013 added
@@ -4200,6 +4206,8 @@ def _iso_utc_now() -> str:
 # already supported those AI-tool environments, but the finalizer's
 # resolver couldn't find the gate script there, so post-iteration
 # verification silently fell through to "gate script not found."
+# v1.5.7 instruction 046 (A-3): 6 → 10 layouts (codex / windsurf /
+# cline / aider).
 _GATE_INSTALL_LOCATIONS = (
     "quality_gate.py",
     ".claude/skills/quality-playbook/quality_gate.py",
@@ -4207,6 +4215,10 @@ _GATE_INSTALL_LOCATIONS = (
     ".cursor/skills/quality-playbook/quality_gate.py",
     ".continue/skills/quality-playbook/quality_gate.py",
     ".github/skills/quality-playbook/quality_gate.py",
+    ".codex/skills/quality-playbook/quality_gate.py",
+    ".windsurf/skills/quality-playbook/quality_gate.py",
+    ".cline/skills/quality-playbook/quality_gate.py",
+    ".aider/skills/quality-playbook/quality_gate.py",
 )
 
 

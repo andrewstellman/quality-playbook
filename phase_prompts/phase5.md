@@ -127,7 +127,7 @@ Before finalizing this phase, run the cardinality reconciliation gate against th
 
     python3 <resolved_quality_gate_path> .
 
-Where `<resolved_quality_gate_path>` is the first hit when walking the documented install-location fallback list, with `SKILL.md` swapped for `quality_gate.py` (e.g., `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`).
+Where `<resolved_quality_gate_path>` is the first hit when walking the documented install-location fallback list, with `SKILL.md` swapped for `quality_gate.py` (e.g., `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`, `.codex/skills/quality-playbook/quality_gate.py`, `.windsurf/skills/quality-playbook/quality_gate.py`, `.cline/skills/quality-playbook/quality_gate.py`, `.aider/skills/quality-playbook/quality_gate.py`).
 
 If the gate output contains any line beginning with `cardinality gate:`, or reports uncovered cells, malformed cell IDs, missing consolidation rationale on multi-cell Covers, or malformed downgrade records, STOP. Fix the BUGS.md entries or the `compensation_grid_downgrades.json` file. Do NOT proceed to completion until those failure lines no longer appear.
 

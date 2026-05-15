@@ -52,6 +52,10 @@ Look for SKILL.md in these locations, in order:
 4. `.cursor/skills/quality-playbook/SKILL.md` (Cursor)
 5. `.continue/skills/quality-playbook/SKILL.md` (Continue)
 6. `.github/skills/quality-playbook/SKILL.md` (Copilot, nested layout)
+7. `.codex/skills/quality-playbook/SKILL.md` (Codex)
+8. `.windsurf/skills/quality-playbook/SKILL.md` (Windsurf)
+9. `.cline/skills/quality-playbook/SKILL.md` (Cline)
+10. `.aider/skills/quality-playbook/SKILL.md` (aider — does not auto-discover; read SKILL.md explicitly)
 
 Also check for a `references/` directory alongside SKILL.md.
 

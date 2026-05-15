@@ -56,6 +56,12 @@ SKILL_INSTALL_LOCATIONS = (
     Path(".cursor") / "skills" / "quality-playbook" / "SKILL.md",
     Path(".continue") / "skills" / "quality-playbook" / "SKILL.md",
     Path(".github") / "skills" / "quality-playbook" / "SKILL.md",
+    # v1.5.7 instruction 046 (A-3): 6 → 10 layouts. Order matches
+    # SKILL_FALLBACK_GUIDE + _GATE_INSTALL_LOCATIONS.
+    Path(".codex") / "skills" / "quality-playbook" / "SKILL.md",
+    Path(".windsurf") / "skills" / "quality-playbook" / "SKILL.md",
+    Path(".cline") / "skills" / "quality-playbook" / "SKILL.md",
+    Path(".aider") / "skills" / "quality-playbook" / "SKILL.md",
 )
 
 
@@ -202,7 +208,8 @@ def find_installed_skill(target_dir: Path) -> Optional[Path]:
     """Return the first installed QPB SKILL.md beneath `target_dir`, or None.
 
     Searched in the same order as the skill's own fallback list (the
-    six canonical install layouts; see SKILL_INSTALL_LOCATIONS).
+    ten canonical install layouts as of v1.5.7 instruction 046; see
+    SKILL_INSTALL_LOCATIONS).
 
     v1.5.7 BUG-001/BUG-002: only returns a path when the candidate is
     QPB's installed SKILL.md, not an arbitrary target's own SKILL.md.

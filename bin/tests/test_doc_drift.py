@@ -263,68 +263,101 @@ class SkillReferenceDocsRoutingTests(unittest.TestCase):
 
 class SixInstallLayoutsConsistencyTests(unittest.TestCase):
     """v1.5.7 BUG-007: operator-facing surfaces must consistently name
-    the six canonical install layouts that SKILL_FALLBACK_GUIDE
-    documents. Pre-fix, surfaces variably listed 2, 3, or 4 layouts —
-    operators following one surface would miss layouts another surface
-    documents, leading to "I followed the docs but the skill isn't
-    finding itself" failures.
+    the canonical install layouts that SKILL_FALLBACK_GUIDE documents.
+    Pre-fix, surfaces variably listed 2, 3, or 4 layouts — operators
+    following one surface would miss layouts another surface documents,
+    leading to "I followed the docs but the skill isn't finding
+    itself" failures.
 
-    The 5 surfaces in scope (per instruction 034 BUG-007 brief):
-    - SKILL.md: fallback list under "Locating reference files"
-    - ai_context/TOOLKIT.md: SKILL_FALLBACK_GUIDE example block
-    - references/verification.md: SKILL.md-locator prose in Benchmark 26
-    - references/review_protocols.md: example gh copilot invocation
-    - references/challenge_gate.md: example challenge-gate prompt
+    v1.5.7 instruction 046 (A-3): the canonical list expanded 6 → 10
+    (codex / windsurf / cline / aider added; 9 nested forms + the
+    bare-root SKILL.md). The four SOURCE-EDIT-lane surfaces are
+    updated to all 9 nested forms in this commit and asserted
+    strictly. ``ai_context/TOOLKIT.md`` is a Cowork-direct
+    orientation doc updated SEPARATELY by the orchestrator (per the
+    instruction-046 A-3.3/A-3.5 Cowork-direct recommendation), so it
+    is asserted against the original 5 nested forms only — a
+    deliberate transient relaxation. **TODO(instruction-046 Cowork
+    follow-up): once the orchestrator applies the TOOLKIT.md
+    ten-layout + aider-footnote update, move TOOLKIT.md into
+    SOURCE_EDIT_SURFACES so it is strictly checked against all 9
+    nested forms too.**
     """
 
-    # The six canonical install layouts the v1.5.6+ resolver supports,
-    # in the same order as SKILL_FALLBACK_GUIDE / SKILL_INSTALL_LOCATIONS.
-    SIX_LAYOUTS = (
+    # The 9 nested canonical install layouts the v1.5.7+ resolver
+    # supports, same order as SKILL_FALLBACK_GUIDE /
+    # SKILL_INSTALL_LOCATIONS / _GATE_INSTALL_LOCATIONS. The 10th is
+    # the bare-root `SKILL.md` location — not substring-checked
+    # (over-matches unrelated prose mentions of "SKILL.md").
+    NESTED_LAYOUTS = (
         ".claude/skills/quality-playbook/",
         ".github/skills/",
         ".cursor/skills/quality-playbook/",
         ".continue/skills/quality-playbook/",
         ".github/skills/quality-playbook/",
+        ".codex/skills/quality-playbook/",
+        ".windsurf/skills/quality-playbook/",
+        ".cline/skills/quality-playbook/",
+        ".aider/skills/quality-playbook/",
     )
-    # Note: the root SKILL.md location (`SKILL.md` at target root) is
-    # ALSO one of the six but it's the bare-name string — checking for
-    # it as a substring would over-match unrelated mentions of
-    # "SKILL.md" in prose. The 5 nested forms above are unambiguous
-    # substrings to test on each surface.
+    # The original 5 nested forms (pre-046). Used for the
+    # Cowork-deferred TOOLKIT.md surface until the orchestrator
+    # applies the ten-layout orientation-doc update.
+    LEGACY_NESTED_LAYOUTS = NESTED_LAYOUTS[:5]
 
-    OPERATOR_SURFACES = (
+    # Source-edit-lane surfaces — updated to all 9 nested forms in the
+    # instruction-046 A-3 commit; strictly asserted.
+    SOURCE_EDIT_SURFACES = (
         "SKILL.md",
-        "ai_context/TOOLKIT.md",
         "references/verification.md",
         "references/review_protocols.md",
         "references/challenge_gate.md",
     )
+    # Cowork-direct orientation doc — updated separately by the
+    # orchestrator; transiently checked against the legacy 5 forms.
+    COWORK_DEFERRED_SURFACE = "ai_context/TOOLKIT.md"
 
-    def test_every_surface_names_all_five_nested_layouts(self) -> None:
-        """Each of the 5 operator-facing surfaces must mention each of
-        the 5 nested install-layout substrings somewhere in the file.
-        The root `SKILL.md` location is the 6th canonical layout but
-        is not substring-checked here (see SIX_LAYOUTS comment)."""
+    def test_source_edit_surfaces_name_all_nine_nested_layouts(self) -> None:
+        """Each source-edit-lane operator surface must mention every
+        one of the 9 nested install-layout substrings (the 10th, the
+        bare-root SKILL.md, is not substring-checked). v1.5.7
+        instruction 046 expanded 5 → 9 nested forms."""
         misses: list[tuple[str, str]] = []
-        for rel in self.OPERATOR_SURFACES:
+        for rel in self.SOURCE_EDIT_SURFACES:
             path = REPO_ROOT / rel
             self.assertTrue(
                 path.is_file(),
-                f"OPERATOR_SURFACES references missing file: {rel}",
+                f"SOURCE_EDIT_SURFACES references missing file: {rel}",
             )
             text = path.read_text(encoding="utf-8")
-            for layout in self.SIX_LAYOUTS:
+            for layout in self.NESTED_LAYOUTS:
                 if layout not in text:
                     misses.append((rel, layout))
         self.assertEqual(
             misses,
             [],
-            "Operator-facing surface(s) missing one or more of the 5 "
-            "nested canonical install-layout substrings (the 6th is "
-            "the bare-root SKILL.md location which we don't substring-"
-            "check). Pre-BUG-007 the surfaces variably listed 2-4 of "
-            f"6; the fix made all 5 surfaces enumerate all 5 nested "
-            f"forms (plus the root). Missing: {misses}",
+            "Source-edit operator surface(s) missing one or more of "
+            "the 9 nested canonical install-layout substrings (the "
+            "10th is the bare-root SKILL.md location, not substring-"
+            f"checked). v1.5.7 instruction 046 A-3. Missing: {misses}",
+        )
+
+    def test_cowork_deferred_surface_at_least_legacy_layouts(self) -> None:
+        """ai_context/TOOLKIT.md is Cowork-direct; until the
+        orchestrator applies the instruction-046 ten-layout update it
+        must still consistently name AT LEAST the legacy 5 nested
+        forms (no regression). Tighten to NESTED_LAYOUTS once the
+        Cowork update lands (see class docstring TODO)."""
+        path = REPO_ROOT / self.COWORK_DEFERRED_SURFACE
+        self.assertTrue(path.is_file())
+        text = path.read_text(encoding="utf-8")
+        misses = [
+            lay for lay in self.LEGACY_NESTED_LAYOUTS if lay not in text
+        ]
+        self.assertEqual(
+            misses, [],
+            f"{self.COWORK_DEFERRED_SURFACE} regressed below the legacy "
+            f"5 nested layouts. Missing: {misses}",
         )
 
 

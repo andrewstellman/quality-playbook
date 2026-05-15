@@ -94,10 +94,12 @@ When invoked standalone (not during a playbook run), the challenge gate:
 
 Example prompt for standalone use:
 ```
-Read the quality-playbook skill: walk the canonical six install-layout fallback list to locate SKILL.md
+Read the quality-playbook skill: walk the canonical ten install-layout fallback list to locate SKILL.md
 (SKILL.md / .claude/skills/quality-playbook/SKILL.md / .github/skills/SKILL.md /
 .cursor/skills/quality-playbook/SKILL.md / .continue/skills/quality-playbook/SKILL.md /
-.github/skills/quality-playbook/SKILL.md), then load the adjacent references/challenge_gate.md
+.github/skills/quality-playbook/SKILL.md / .codex/skills/quality-playbook/SKILL.md /
+.windsurf/skills/quality-playbook/SKILL.md / .cline/skills/quality-playbook/SKILL.md /
+.aider/skills/quality-playbook/SKILL.md), then load the adjacent references/challenge_gate.md
 using the same fallback order. Run the challenge gate on BUG-042 using the writeup at
 quality/writeups/BUG-042.md and the source code in this repo.
 ```
