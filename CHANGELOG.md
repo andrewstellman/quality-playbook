@@ -5,9 +5,9 @@ All notable changes to the Quality Playbook will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.7] — 2026-05-13
+## [1.5.7] — 2026-05-14
 
-Research-grade hardening release. Last v1.5.x; next is v1.6.0 (Requirements Review).
+Research-grade hardening release. Last v1.5.x; next is v1.6.0 (Requirements Review — feature-complete).
 
 ### Six deliverables shipped
 
@@ -18,10 +18,61 @@ Research-grade hardening release. Last v1.5.x; next is v1.6.0 (Requirements Revi
 - **D5 — `SKILL.md` trim.** Pure-move of Phase 1, Phase 2, and Phase 6 body content from `SKILL.md` to new `references/phase1_exploration_guide.md`, `references/phase2_generation_guide.md`, `references/phase6_verify_guide.md`. `SKILL.md` falls from 66,332 BPE → 26,162 BPE (60.6% reduction; below the <30K target with 3,838 BPE margin). Body content preserved verbatim — no rewording, no consolidation. Phase prompts (`phase_prompts/phase[126].md`) updated to load the new reference files. 3 new regression tests pin the trim invariants (token-count under threshold, all pointers resolve, phase-prompt reference-load).
 - **D6 — Council resilience: roster, persistence, adopter doc.** Active Council roster updated to `(claude-opus-4.7, gpt-5.5, claude-sonnet-4.6)` (was `(claude-opus-4.7, gpt-5.4, gemini-2.5-pro)`; gemini-2.5-pro was silently dropped by `gh copilot` during the v1.5.6 sweep). New `bin/qpb_config.py` provides `~/.qpb/config.json` per-operator persistence (stdlib `json` — no PyYAML dep) with `qpb config show/set-runner/set-roster/unset` sub-commands. New `--council-roster` CLI flag with three-source resolution (CLI → config file → built-in default). New `references/runners_and_models.md` adopter doc explains the four runners, why the Council-of-Three exists, and how to override the roster. Council launch architecture refactor (resilience under runner-detected unavailability) deferred to v1.5.7.x as sub-phases 6b + 6d.
 
+### Ship-readiness fixes (F-1 through F-8)
+
+Surfaced by a Council-of-Three root-cause review on the D1-D6 surface; all 8 landed before tag-move:
+
+- **F-1** — Install/version detection now uses canonical six-layout markers (e.g., `.github/skills/SKILL.md`, `.claude/skills/quality-playbook/SKILL.md`) instead of accepting any root `SKILL.md` as proof of install. Closes the v1.5.6 bootstrap failure mode where an unrelated root SKILL.md hijacked install detection.
+- **F-2** — D1 abort-preservation log ordering: the preserved-location hint now fires AFTER the directory rename, not before, so operators see an actionable path.
+- **F-3** — `setup_repos.sh` archives existing target directories as `.tar.gz` with a `--replace` opt-in flag rather than silently deleting them. Adopters re-running setup no longer lose prior `quality.gate-failed-*/` directories or local edits.
+- **F-4 amendment** — `check_no_workspace_dir` gate check also fires on EMPTY `workspace/` directories (not just populated ones); closes a Phase 5 finalization gap.
+- **F-5b** — `run_playbook.sh` wrapper installed into each target repo via `setup_repos.sh`. Third invocation form alongside `python3 -m bin.run_playbook` and direct-script invocation; auto-discovers the QPB clone by walking up from its own location and falls back to `$QPB_HOME`. Adopters invoking from inside their target repo no longer need to know the QPB clone path.
+- **F-6** — Runner hint clarity on gate-failure-preservation state. When the preservation directory exists, the runner surfaces its path explicitly at exit.
+- **F-7** — Phase 3 BUGS.md / patches consistency gate check. Catches Phase 3 finalization where BUGS.md lists confirmed bugs without matching regression-test or fix patches.
+- **F-8** — Phase 5 prompt + gate enforce exact `## Verdict\n<PASS|FAIL>` shape. Closes a verdict-emission inconsistency observed in earlier benchmark runs.
+
+### "What just happened" UX contract (adopter-visible)
+
+New behavior at every phase boundary. The playbook now ends every phase (and every full run) with a Markdown-rendered chat block of this shape:
+
+```
+## What just happened
+
+<plain-English interpretation of what the agent just did — NOT a copy
+of quality/PROGRESS.md, but an interpretive layer over it>
+
+### What to do next
+
+<concrete next prompt or shell command>
+```
+
+The decision tree mapping run state → block content lives at `references/what_just_happened.md` (13 run states: Phase 1-5 individual, code-only, Phase 2 abort, error-state, pass-process / fail-recall, baseline complete, iteration N, all iterations, recheck). Adopters running on weak models (Cursor auto-mode, etc.) will see explicit "pass-process / fail-recall" framing surfacing the documented "your model is too weak for real three-pass review" failure mode in plain English, rather than having to derive that diagnosis from gate WARNs.
+
 ### Tests and infrastructure
 
-- Test suite: **1,324 tests OK** (up from 1,231 at v1.5.6, +93 net new across D1-D6).
-- New test files: `bin/tests/test_phase2_abort_preservation.py` (D1), `bin/tests/test_metrics_reconstruction.py` (D4), `bin/tests/test_run_playbook_log_layout.py` (D3), `bin/tests/test_council_config.py` (D6a), `bin/tests/test_runners_and_models_doc.py` (D6e), `bin/tests/test_qpb_config.py` (D6c), `bin/tests/test_skill_md_size.py` (D5).
+- Test suite: **1,359 tests OK** (up from 1,231 at v1.5.6, +128 net new across D1-D6 + F-fixes + "What just happened" contract + self-audit closures).
+- Gate tests: **257 OK** (unchanged from v1.5.6 baseline).
+- New test files: `bin/tests/test_phase2_abort_preservation.py` (D1), `bin/tests/test_metrics_reconstruction.py` (D4), `bin/tests/test_run_playbook_log_layout.py` (D3), `bin/tests/test_council_config.py` (D6a), `bin/tests/test_runners_and_models_doc.py` (D6e), `bin/tests/test_qpb_config.py` (D6c), `bin/tests/test_skill_md_size.py` (D5), `bin/tests/test_what_just_happened.py` (UX contract).
+- New combined-test surface: `test_progress_md_two_form_architecture_not_in_drift` gives both PROGRESS.md schemas (automation form via `write_progress_md`; deliverable form agent-maintained) a single shared test for future drift detection.
+
+### Self-audit closures (ship-validation)
+
+Three independent ship-validation runs (Codex bootstrap on a fresh clone of the post-D1-D6 `v1.5.7` tag + chi/cobra Copilot benchmarks) surfaced 12 self-defects; all 12 closed before final tag-move:
+
+- **BUG-001 + BUG-002**: install/version detection hijacked by unrelated root `SKILL.md` (closed by F-1 hardening).
+- **BUG-003**: installer smoke check ignored new bundle members (now mirrors the install-bundle list as a single source of truth).
+- **BUG-004**: missing-install warning omitted 3 of 6 canonical fallback locations (now lists all six).
+- **BUG-005**: `write_progress_md()` schema vs `references/phase1_exploration_guide.md` "drift" reframed as **two distinct schema forms** sharing the same filename (automation form vs. deliverable form) — closed via the combined two-form not-in-drift test.
+- **BUG-006**: iteration prompt omitted `references/iteration.md` load directive.
+- **BUG-007**: operator guidance inconsistently narrowed the six-layout fallback across SKILL.md / TOOLKIT.md / verification / review_protocols / challenge_gate (now consistent).
+- **Q1 + Q5**: gate now detects Code projects from artifact shape when role map absent; SKIP diagnostics distinguish "Code-not-applicable" from "role-map-missing".
+- **Q2**: Phase 2/3 prompts now explicitly require schemas.md §3.10 fields (`role`, `divergence_type`) in manifests.
+- **Q3**: severity case canonical (uppercase `HIGH` / `MEDIUM` / `LOW`); Phase 3 prompt + schema + gate now agree.
+- **Q4**: gate diagnostic distinguishes playbook phases from skill-derivation passes.
+
+### Integration Council validation
+
+Final release-gate review (instruction 040) substituted for the canonical Council-of-Three Council with three independent reviewers (Codex CLI + Cursor + Claude Code sub-agent) reviewing the cumulative `main..1.5.7` diff (84 commits, ~78 files, ~12K insertions). 2-of-3 reviewers completed (Cursor skipped by operator); strict-consensus floor adjusted to 2-of-2. 6 strict-consensus findings closed across orientation-doc currency (Cowork-direct), source-file fixups (instruction 041), and a P0 schemas.md §11.2 disclaimer removing the no-longer-canonical `workspace/` layout from the data contract. Synthesis at `Quality Playbook/v1.5.7_runner/outputs/040-integration-council.md`.
 
 ### v1.5.7.x carry-forwards (documented in phase synthesis docs)
 
