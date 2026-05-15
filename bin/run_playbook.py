@@ -4116,6 +4116,16 @@ def _update_latest_symlink(
     (same run-id → same relative symlink), so the retained
     completion-time call is a harmless defensive refresh.
 
+    Run-START callers — every entry point that creates a fresh
+    centralized run-id directory: ``run_one_phased`` (after run_start
+    emission), ``run_one_singlepass`` (after the startup banners),
+    and ``run_one_iterations`` (the standalone ``--iterations`` /
+    ``--next-iteration`` path, after configure_logging — added in
+    instruction 045 to close the codex-flagged 044 gap). The
+    ``run_one_iterations`` ``phases_already_ran`` branch is
+    deliberately NOT a run-start caller: it reuses the preceding
+    phased run's run-id, already refreshed by ``run_one_phased``.
+
     The symlink is RELATIVE (target_is_directory=True; target string
     is just the run-id, not an absolute path) so the cell tree
     remains relocatable. On filesystems that don't support symlinks
@@ -4435,6 +4445,17 @@ def run_one_iterations(
             banner = formal_docs_guard_banner(repo_dir)
             if banner is not None:
                 lib.logboth(log_file, banner, echo=True)
+        # v1.5.7 Issue 4 completion (instruction 045): the standalone
+        # --iterations path creates a FRESH run-id directory here via
+        # configure_logging() — same as run_one_phased /
+        # run_one_singlepass — so point quality/logs/latest at it at
+        # run-START, not only at completion. Without this an
+        # interrupted standalone iteration run leaves `latest` stale
+        # (the run_one_iterations gap codex flagged in 044). NOT added
+        # on the phases_already_ran branch: that path reuses the
+        # phased run's run-id, already refreshed by run_one_phased's
+        # run-start call (the helper is idempotent regardless).
+        _update_latest_symlink(repo_dir, timestamp, args, log_file)
 
     if not (repo_dir / "quality" / "EXPLORATION.md").is_file():
         lib.logboth(
