@@ -60,7 +60,7 @@ The user wants to run the quality playbook on a codebase. Here's what to do:
 
    **Role-map query reference (v1.5.7+).** `references/role_map_queries.md` documents canonical `jq` patterns against `quality/exploration_role_map.json`. Phase 2 agents now load this reference automatically; if you're hand-querying the role map, the patterns there (e.g. `.files[] | select(.role == "code")`) are correct.
 
-   The playbook expects its files in one of six documented install locations, and every component (runner, gate, orchestrator agents) checks all six in order — the install script picks one based on the detected environment, but manual installs can target any of them:
+   The playbook expects its files in one of ten documented install locations (v1.5.7 instruction 046 expanded the canonical list from six to ten by adding codex/windsurf/cline/aider), and every component (runner, gate, orchestrator agents) checks all ten in order — the install script picks one based on the detected environment, but manual installs can target any of them:
 
    1. **Repo root (source checkout):** `SKILL.md`, `references/`, `quality_gate.py`, `phase_prompts/`, `agents/` at the project root. Useful when running the playbook out of the quality-playbook checkout itself.
    2. **Claude Code:** `.claude/skills/quality-playbook/SKILL.md` plus the matching `references/`, `quality_gate.py`, `phase_prompts/`, `agents/` siblings.
@@ -68,6 +68,10 @@ The user wants to run the quality playbook on a codebase. Here's what to do:
    4. **Cursor:** `.cursor/skills/quality-playbook/SKILL.md` plus the matching siblings (v1.5.6+).
    5. **Continue:** `.continue/skills/quality-playbook/SKILL.md` plus the matching siblings (v1.5.6+).
    6. **GitHub Copilot (nested):** `.github/skills/quality-playbook/SKILL.md` plus the matching siblings.
+   7. **Codex CLI:** `.codex/skills/quality-playbook/SKILL.md` plus the matching siblings (v1.5.7+). Codex CLI doesn't auto-discover skills from a specific marker dir; this is QPB's canonical convention.
+   8. **Windsurf:** `.windsurf/skills/quality-playbook/SKILL.md` plus the matching siblings (v1.5.7+). Aligns with Windsurf's [Cascade Skills](https://docs.windsurf.com/windsurf/cascade/skills) convention.
+   9. **Cline:** `.cline/skills/quality-playbook/SKILL.md` plus the matching siblings (v1.5.7+). Note: distinct from Cline's `.clinerules/` directory (which holds always-on rules); QPB is a skill, not a rule.
+   10. **Aider:** `.aider/skills/quality-playbook/SKILL.md` plus the matching siblings (v1.5.7+). aider doesn't auto-discover skills from the file system the way other tools do. After installing into `.aider/skills/quality-playbook/`, tell aider explicitly: `aider .aider/skills/quality-playbook/SKILL.md` (or pass the path as a `--read` argument). The other 9 install layouts are picked up by their respective tools automatically; aider is the one that needs an explicit pointer.
 
    Manual install path (alternative when `bin/install_skill.py` is not available or the operator wants direct control): create the directories if they don't exist and copy from wherever the user has the playbook files. The source tree has the gate script inside a package directory with tests (`.github/skills/quality_gate/quality_gate.py` plus a `tests/` subdirectory) — target repos only need the standalone `quality_gate.py` file itself, not the package. `repos/setup_repos.sh` handles this automatically for benchmarking: it copies just the module file into each target's `.github/skills/quality_gate.py`.
 
@@ -240,13 +244,15 @@ Positional arguments are **directory paths**. Version-append fallback: if a bare
 
 The runner writes one log file per target next to the target directory (at `{parent}/{target-name}-playbook-{timestamp}.log`), archives prior `quality/` runs before fresh baselines, and enforces phase prerequisite gates.
 
-The iteration prompt is built from `SKILL_FALLBACK_GUIDE` in `bin/run_playbook.py`, so it advertises all six canonical install layouts instead of hardcoding one:
+The iteration prompt is built from `SKILL_FALLBACK_GUIDE` in `bin/run_playbook.py`, so it advertises all ten canonical install layouts instead of hardcoding one:
 ```
 Read the quality playbook skill using the documented install-location fallback list:
 SKILL.md, .claude/skills/quality-playbook/SKILL.md,
 .github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md,
 .continue/skills/quality-playbook/SKILL.md,
-.github/skills/quality-playbook/SKILL.md.
+.github/skills/quality-playbook/SKILL.md,
+.codex/skills/quality-playbook/SKILL.md, .windsurf/skills/quality-playbook/SKILL.md,
+.cline/skills/quality-playbook/SKILL.md, .aider/skills/quality-playbook/SKILL.md.
 Resolve reference files using the same documented fallback order.
 Run the next iteration using the <strategy> strategy.
 ```
@@ -530,7 +536,7 @@ git apply quality/patches/BUG-NNN-fix.patch
 
 ### quality_gate.py
 
-The gate script validates all artifacts mechanically. It is the sole mechanical gate — the legacy `quality_gate.sh` was retired in v1.4.5. Target repos install the standalone module next to `SKILL.md` in whichever install layout the AI tool requires; locate it via the same six-layout fallback list used for `SKILL.md`: `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`. (In the QPB source tree, `.github/skills/quality_gate.py` is a 28-byte stub pointing at the real script under the `.github/skills/quality_gate/` package, which also ships the unit-test suite in `quality_gate/tests/`; the installer overwrites the stub with the real script when adopting into a target repo.) Run it after the playbook completes:
+The gate script validates all artifacts mechanically. It is the sole mechanical gate — the legacy `quality_gate.sh` was retired in v1.4.5. Target repos install the standalone module next to `SKILL.md` in whichever install layout the AI tool requires; locate it via the same ten-layout fallback list used for `SKILL.md`: `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`, `.codex/skills/quality-playbook/quality_gate.py`, `.windsurf/skills/quality-playbook/quality_gate.py`, `.cline/skills/quality-playbook/quality_gate.py`, `.aider/skills/quality-playbook/quality_gate.py`. (In the QPB source tree, `.github/skills/quality_gate.py` is a 28-byte stub pointing at the real script under the `.github/skills/quality_gate/` package, which also ships the unit-test suite in `quality_gate/tests/`; the installer overwrites the stub with the real script when adopting into a target repo.) Run it after the playbook completes:
 
 ```bash
 python3 <resolved_quality_gate_path> .
@@ -683,13 +689,13 @@ If no docs exist, the playbook derives requirements from the code itself — com
 
 **Zero bugs found on a non-trivial codebase:**
 - Check which model the agent used. Code-generation models (Codex, small/fast variants) lack the reasoning depth for exploration. Switch to Claude Opus, Claude Sonnet, or GPT-5.4.
-- Check that SKILL.md was actually located and read by the agent. The skill ships in any of six install layouts (`SKILL.md` at the root, `.claude/skills/quality-playbook/SKILL.md`, `.github/skills/SKILL.md`, `.cursor/skills/quality-playbook/SKILL.md`, `.continue/skills/quality-playbook/SKILL.md`, `.github/skills/quality-playbook/SKILL.md`); confirm at least one exists in the target repo and that the agent actually opened it. Some agents skip reading referenced files.
+- Check that SKILL.md was actually located and read by the agent. The skill ships in any of ten install layouts (`SKILL.md` at the root, `.claude/skills/quality-playbook/SKILL.md`, `.github/skills/SKILL.md`, `.cursor/skills/quality-playbook/SKILL.md`, `.continue/skills/quality-playbook/SKILL.md`, `.github/skills/quality-playbook/SKILL.md`, `.codex/skills/quality-playbook/SKILL.md`, `.windsurf/skills/quality-playbook/SKILL.md`, `.cline/skills/quality-playbook/SKILL.md`, `.aider/skills/quality-playbook/SKILL.md`); confirm at least one exists in the target repo and that the agent actually opened it. Some agents skip reading referenced files.
 - Try the unfiltered iteration strategy — it removes structural constraints that can over-constrain weaker models.
 
 **Agent found bugs but no TDD log files:**
 - This is a known issue with Copilot and Cursor (see "Agent reference"). The agent wrote "TDD verified" in the JSON without actually running the tests.
 - Run the TDD cycle manually using the bash template in the "TDD verification" section above.
-- Or ask the agent in a follow-up prompt: "Locate SKILL.md via the documented install-location fallback (SKILL.md, .claude/skills/quality-playbook/SKILL.md, .github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, .continue/skills/quality-playbook/SKILL.md, .github/skills/quality-playbook/SKILL.md), read its TDD execution enforcement section, and execute the red/green TDD cycle for every confirmed bug."
+- Or ask the agent in a follow-up prompt: "Locate SKILL.md via the documented install-location fallback (SKILL.md, .claude/skills/quality-playbook/SKILL.md, .github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, .continue/skills/quality-playbook/SKILL.md, .github/skills/quality-playbook/SKILL.md, .codex/skills/quality-playbook/SKILL.md, .windsurf/skills/quality-playbook/SKILL.md, .cline/skills/quality-playbook/SKILL.md, .aider/skills/quality-playbook/SKILL.md), read its TDD execution enforcement section, and execute the red/green TDD cycle for every confirmed bug."
 
 **Rate limited (Copilot 54-hour cooldown):**
 - Wait for the cooldown to clear. Reduce parallelism on the next batch.
