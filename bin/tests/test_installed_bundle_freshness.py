@@ -205,6 +205,84 @@ class InstalledBundleFreshnessTests(unittest.TestCase):
             # md trees complete → no md-tree false positives.
             self.assertNotIn("references/what_just_happened.md", missing)
 
+    def _make_qpb_source_with_setup_repos(self, root: Path) -> None:
+        """QPB source incl. bundled bin/ modules AND a synthetic
+        repos/setup_repos.sh carrying the canonical
+        `cp "${QPB_DIR}/bin/<x>" "${dst}/bin/<x>"` lines — the
+        source of truth the freshness check parses for the
+        setup_repos.sh layout."""
+        self._make_qpb_source_with_bin(root)
+        sr = root / "repos" / "setup_repos.sh"
+        sr.parent.mkdir(parents=True, exist_ok=True)
+        sr.write_text(
+            "#!/usr/bin/env bash\n"
+            'cp "${QPB_DIR}/bin/install_skill.py" "${dst}/bin/install_skill.py" 2>/dev/null || true\n'
+            'cp "${QPB_DIR}/bin/citation_verifier.py" "${dst}/bin/citation_verifier.py" 2>/dev/null || true\n'
+            'cp "${QPB_DIR}/bin/reference_docs_ingest.py" "${dst}/bin/reference_docs_ingest.py" 2>/dev/null || true\n'
+            'cp "${QPB_DIR}/bin/benchmark_lib.py" "${dst}/bin/benchmark_lib.py" 2>/dev/null || true\n'
+            'cp "${SCRIPT_DIR}/bin/run_playbook.sh" "${dst}/bin/run_playbook.sh"\n',
+            encoding="utf-8",
+        )
+
+    def test_freshness_detects_missing_bin_in_setup_repos_layout(self) -> None:
+        """v1.5.7 instruction 049 A-2-recast-ext. setup_repos.sh
+        installs SKILL.md at target/.github/skills/SKILL.md and bin/
+        at target/bin/ (target root) — NOT bundle_dir/bin/. The
+        instruction-047 check only looked at bundle_dir/bin/, so it
+        missed (and would have false-positived on) setup_repos.sh
+        targets. The freshness check must now scan target/bin/ too and
+        report a module missing only if absent from BOTH locations.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160): replace the
+        `for cand in (bundle_bin, target_bin):` candidate-location
+        loop in _check_installed_bundle_freshness with
+        `for cand in (bundle_bin,):` (the pre-049 install_skill.py-only
+        behavior). Expected failure: this test's
+        assertNotIn("bin/citation_verifier.py", missing) fires —
+        citation_verifier.py (present at target/bin/ in the
+        setup_repos.sh layout) is wrongly reported missing because
+        only bundle_dir/bin/ was checked. Restore the two-location
+        loop → passes. Bite verified during instruction 049
+        development.
+        """
+        with TemporaryDirectory() as qtmp, TemporaryDirectory() as ttmp:
+            qpb_root = Path(qtmp)
+            target = Path(ttmp)
+            self._make_qpb_source_with_setup_repos(qpb_root)
+            # setup_repos.sh layout: SKILL.md under .github/skills/,
+            # bin/ at the TARGET ROOT (not under .github/skills/).
+            _write(
+                target / ".github" / "skills" / "SKILL.md",
+                "# installed snapshot (setup_repos.sh layout)\n",
+            )
+            # Stale target/bin/: citation_verifier present, the A-6
+            # modules MISSING (the exact setup_repos.sh-target A-6
+            # shape).
+            _write(target / "bin" / "citation_verifier.py")
+            _write(target / "bin" / "install_skill.py")
+            _write(target / "bin" / "run_playbook.sh")
+
+            missing = run_playbook._check_installed_bundle_freshness(
+                qpb_root, target
+            )
+
+            self.assertIn(
+                "bin/reference_docs_ingest.py", missing,
+                "setup_repos.sh-layout target missing the Phase-1 "
+                "ingest module at target/bin/ must be reported (A-6 / "
+                "A-2-recast-ext)",
+            )
+            self.assertIn("bin/benchmark_lib.py", missing)
+            self.assertNotIn(
+                "bin/citation_verifier.py", missing,
+                "citation_verifier.py is present at target/bin/ (the "
+                "setup_repos.sh location) — must NOT be reported; "
+                "pins the no-cross-layout-false-positive guarantee",
+            )
+            self.assertNotIn("bin/install_skill.py", missing)
+            self.assertNotIn("bin/run_playbook.sh", missing)
+
     def test_bin_check_noop_when_source_lacks_bundled_modules(self) -> None:
         """Defensive: if QPB source has no bundled bin/ modules
         (install_skill._bundle_files yields no bin/ entries), the bin/

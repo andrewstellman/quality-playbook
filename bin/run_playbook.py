@@ -2549,27 +2549,80 @@ def _check_installed_bundle_freshness(
             if not (installed_dir / sf.name).is_file():
                 missing.append(f"{subdir}/{sf.name}")
 
-    # v1.5.7 instruction 047 Item 2: bundled bin/ modules. The
-    # authoritative list is install_skill._bundle_files (the same
-    # source of truth the installer copies from) — filter its dest
-    # paths to the bin/ subtree. Skip on self-audit (source == bundle
-    # dir) and when the installer module can't be imported (defensive
-    # — never crash the runner over a freshness hint).
+    # v1.5.7 instruction 047 Item 2 + 049 A-2-recast-ext: bundled
+    # bin/ modules across BOTH install layouts.
+    #
+    #   - install_skill.py layout: bin/ sits at <bundle_dir>/bin/
+    #     (sibling of the resolved SKILL.md inside the
+    #     skills/quality-playbook tree). Source of truth for its
+    #     expected set: install_skill._bundle_files.
+    #   - setup_repos.sh layout: bin/ sits at <target>/bin/ (target
+    #     root); SKILL.md at <target>/.github/skills/SKILL.md so
+    #     bundle_dir resolves to .github/skills/ and <bundle_dir>/bin/
+    #     does NOT exist. Source of truth for its expected set: the
+    #     `cp "${...}/..." "${dst}/bin/<name>"` lines in
+    #     repos/setup_repos.sh.
+    #
+    # A bundled bin/ module is reported missing ONLY when absent from
+    # BOTH candidate locations (<bundle_dir>/bin/<m> AND
+    # <target>/bin/<m>). This is layout-agnostic — it avoids a
+    # cross-layout false positive where a setup_repos.sh-installed
+    # target (bin/ at target root) would otherwise be flagged by the
+    # install_skill.py-layout check (which only looked at
+    # bundle_dir/bin/). Self-audit short-circuits on either location;
+    # the whole block is defensively wrapped so a freshness hint can
+    # never crash the run.
     try:
         from bin import install_skill as _install_skill
-        bin_src_dir = qpb_root / "bin"
-        bin_installed_dir = bundle_dir / "bin"
-        same_tree = False
-        try:
-            same_tree = bin_src_dir.resolve() == bin_installed_dir.resolve()
-        except OSError:
-            same_tree = False
-        if not same_tree:
-            for _src, dest in _install_skill._bundle_files(qpb_root):
-                parts = dest.parts
-                if len(parts) == 2 and parts[0] == "bin":
-                    if not (bundle_dir / dest).is_file():
-                        missing.append(f"bin/{parts[1]}")
+
+        expected_bin: List[str] = []
+        for _src, dest in _install_skill._bundle_files(qpb_root):
+            parts = dest.parts
+            if len(parts) == 2 and parts[0] == "bin":
+                if parts[1] not in expected_bin:
+                    expected_bin.append(parts[1])
+        # setup_repos.sh source of truth: parse its `${dst}/bin/<name>`
+        # cp destinations (covers run_playbook.sh + A-6's
+        # reference_docs_ingest.py / benchmark_lib.py).
+        import re as _re  # run_playbook.py imports re locally per-function
+        setup_repos_sh = qpb_root / "repos" / "setup_repos.sh"
+        if setup_repos_sh.is_file():
+            try:
+                sr_text = setup_repos_sh.read_text(
+                    encoding="utf-8", errors="replace"
+                )
+                for m in _re.finditer(
+                    r'"\$\{dst\}/bin/([^"/]+)"', sr_text
+                ):
+                    name = m.group(1)
+                    if name not in expected_bin:
+                        expected_bin.append(name)
+            except OSError:
+                pass
+
+        bundle_bin = bundle_dir / "bin"
+        target_bin = Path(target) / "bin"
+        src_bin = qpb_root / "bin"
+
+        def _is_source_tree(p: Path) -> bool:
+            try:
+                return p.resolve() == src_bin.resolve()
+            except OSError:
+                return False
+
+        for name in expected_bin:
+            present = False
+            for cand in (bundle_bin, target_bin):
+                if _is_source_tree(cand):
+                    # Install IS the source tree (self-audit) — the
+                    # module is trivially present; not stale.
+                    present = True
+                    break
+                if (cand / name).is_file():
+                    present = True
+                    break
+            if not present and f"bin/{name}" not in missing:
+                missing.append(f"bin/{name}")
     except Exception:  # noqa: BLE001 — freshness hint must never crash the run
         pass
 
