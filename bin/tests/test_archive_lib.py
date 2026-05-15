@@ -561,5 +561,52 @@ class BugHeadingPatternTests(unittest.TestCase):
         self.assertEqual(match.group(1), "001-fix-2")
 
 
+class ExtractReqTierCountsTests(unittest.TestCase):
+    """v1.5.7 Issue 3 (chi-surfaced) — conceptually-equivalent
+    instance of the Artifact-Summary tier-count drift, in the
+    INDEX.md `summary.requirements` aggregator. The tier-label regex
+    must match the canonical `- **Tier:** N` REQ-record prose (colon
+    INSIDE the bold), not only the legacy `**Tier**: N` form.
+
+    Mutation contract: reverting the regex to
+    `\\*\\*Tier\\*\\*\\s*[:.-]\\s*([1-5])` makes
+    `test_canonical_tier_prose_is_counted` fail — the canonical-form
+    REQs all fall to the `unknown` bucket (the exact chi-1.5.1
+    16-Tier-3-as-unknown defect).
+    """
+
+    def test_canonical_tier_prose_is_counted(self) -> None:
+        with TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            _write(
+                run / "quality" / "REQUIREMENTS.md",
+                "# Requirements\n\n"
+                "### REQ-001: A\n- **Tier:** 1\nBody.\n\n"
+                "### REQ-002: B\n- **Tier:** 3\nBody.\n\n"
+                "### REQ-003: C\n- **Tier:** 3\nBody.\n",
+            )
+            counts = al._extract_req_tier_counts(run)
+            self.assertEqual(counts["1"], 1)
+            self.assertEqual(counts["3"], 2)
+            self.assertEqual(
+                counts["unknown"], 0,
+                "canonical `- **Tier:** N` prose must NOT fall to the "
+                "unknown bucket (chi-1.5.1 Issue 3 regression)",
+            )
+
+    def test_legacy_tier_prose_still_counted(self) -> None:
+        """Negative control: the broadened regex must still match the
+        legacy `**Tier**: N` form (colon outside the bold)."""
+        with TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            _write(
+                run / "quality" / "REQUIREMENTS.md",
+                "# Requirements\n\n### REQ-001\n\n**Tier**: 2\nBody.\n",
+            )
+            counts = al._extract_req_tier_counts(run)
+            self.assertEqual(counts["2"], 1)
+            self.assertEqual(counts["unknown"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -356,7 +356,19 @@ def _extract_req_tier_counts(run_folder: Path) -> Dict[str, int]:
     if not text:
         return counts
     for segment in _split_by_heading(text, _REQ_HEADING_PATTERN):
-        tier_match = re.search(r"\*\*Tier\*\*\s*[:.-]\s*([1-5])", segment, re.IGNORECASE)
+        # v1.5.7 Issue 3 (chi-surfaced) — conceptually-equivalent
+        # instance of the Artifact-Summary tier-count drift. The prior
+        # pattern `\*\*Tier\*\*\s*[:.-]\s*([1-5])` only matched the
+        # legacy `**Tier**: N` form (colon OUTSIDE the bold markers).
+        # The canonical REQ-record prose is `- **Tier:** N` (colon
+        # INSIDE the bold), so every record fell to the `unknown`
+        # bucket — chi-1.5.1's 16 Tier-3 REQs all counted as unknown
+        # in the INDEX.md `summary.requirements` payload. The `:?`
+        # before `\*\*` plus the optional `[:.-]?` tolerate both forms
+        # without a schema change.
+        tier_match = re.search(
+            r"\*\*Tier:?\*\*\s*[:.-]?\s*([1-5])", segment, re.IGNORECASE
+        )
         if tier_match:
             counts[tier_match.group(1)] += 1
         else:

@@ -285,6 +285,93 @@ class BenchmarkLibTests(unittest.TestCase):
             self.assertIn("chi-1.4.2", output)
             self.assertIn("=== Quality Checks ===", output)
 
+    def test_tier_counts_read_from_manifest_not_requirements_md(self) -> None:
+        """v1.5.7 Issue 3 (chi-surfaced) regression. The Artifact
+        Summary's T1/T2/T3 columns must come from
+        requirements_manifest.json's integer `tier` field, NOT a
+        `[Tier N]` substring regex over REQUIREMENTS.md prose (which
+        never matched the canonical `- **Tier:** N` record format, so
+        a 16-Tier-3 run printed 0 0 0).
+
+        Mutation contract: reverting build_summary_rows to
+        `count_matching_lines(requirements_file, r"\\[Tier N\\]")`
+        makes this fail — REQUIREMENTS.md here uses the real
+        `- **Tier:** N` prose and contains zero `[Tier N]` literals,
+        so the old regex yields 0/0/0 while the manifest says 1/2/3.
+        """
+        import json
+        with TemporaryDirectory() as temp_dir:
+            repo_dir = Path(temp_dir) / "chi-1.5.1"
+            # REQUIREMENTS.md in the *real* canonical prose format —
+            # the old [Tier N] regex finds nothing here.
+            write(
+                repo_dir / "quality" / "REQUIREMENTS.md",
+                "### REQ-001\n- **Tier:** 1\n\n### REQ-002\n- **Tier:** 2\n"
+                "\n### REQ-003\n- **Tier:** 2\n\n### REQ-004\n"
+                "- **Tier:** 3\n\n### REQ-005\n- **Tier:** 3\n\n"
+                "### REQ-006\n- **Tier:** 3\n",
+            )
+            write(
+                repo_dir / "quality" / "requirements_manifest.json",
+                json.dumps(
+                    {
+                        "schema_version": "1.5.3",
+                        "generated_at": "2026-05-15T00:00:00Z",
+                        "records": [
+                            {"id": "REQ-001", "tier": 1},
+                            {"id": "REQ-002", "tier": 2},
+                            {"id": "REQ-003", "tier": 2},
+                            {"id": "REQ-004", "tier": 3},
+                            {"id": "REQ-005", "tier": 3},
+                            {"id": "REQ-006", "tier": 3},
+                        ],
+                    }
+                ),
+            )
+
+            self.assertEqual(
+                lib._count_req_tiers_from_manifest(repo_dir / "quality"),
+                (1, 2, 3),
+                "tier counts must come from the manifest's integer "
+                "`tier` field",
+            )
+
+            rows = lib.build_summary_rows([repo_dir])
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(
+                (rows[0].tier1, rows[0].tier2, rows[0].tier3),
+                (1, 2, 3),
+                "build_summary_rows must surface the manifest tier "
+                "counts in the Artifact Summary row",
+            )
+
+            output = lib.print_summary([repo_dir])
+            self.assertIn("=== Artifact Summary ===", output)
+
+    def test_tier_counts_zero_when_manifest_absent_or_bad(self) -> None:
+        """Graceful fallback: no manifest, or unparseable manifest,
+        yields (0, 0, 0) rather than crashing the summary."""
+        import json
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir) / "quality"
+            # No manifest at all.
+            self.assertEqual(
+                lib._count_req_tiers_from_manifest(quality), (0, 0, 0)
+            )
+            # Unparseable manifest.
+            write(quality / "requirements_manifest.json", "{ not json")
+            self.assertEqual(
+                lib._count_req_tiers_from_manifest(quality), (0, 0, 0)
+            )
+            # Well-formed but no records list.
+            write(
+                quality / "requirements_manifest.json",
+                json.dumps({"schema_version": "1.5.3"}),
+            )
+            self.assertEqual(
+                lib._count_req_tiers_from_manifest(quality), (0, 0, 0)
+            )
+
     def test_log_and_logboth_format_and_write(self) -> None:
         message = lib.log("hello")
         self.assertRegex(message, r"^\d{2}:\d{2}:\d{2} hello$")

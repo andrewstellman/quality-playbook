@@ -11,7 +11,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence
+from typing import Iterable, List, Optional, Sequence, Tuple
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 QPB_DIR = SCRIPT_DIR.parent
@@ -388,6 +388,54 @@ def _count_use_cases(repo_dir: Path, requirements_file: Path) -> int:
     return count_matching_lines(requirements_file, r"### UC-")
 
 
+def _count_req_tiers_from_manifest(quality_dir: Path) -> Tuple[int, int, int]:
+    """Return ``(tier1, tier2, tier3)`` REQ counts from
+    ``quality/requirements_manifest.json``'s ``records[].tier``
+    integer field (schemas.md §1.6 manifest wrapper + the integer
+    ``tier`` REQ field). Returns ``(0, 0, 0)`` when the manifest is
+    absent or unparseable.
+
+    v1.5.7 Issue 3 (chi-surfaced): the Artifact Summary's T1/T2/T3
+    columns previously came from ``count_matching_lines(REQUIREMENTS
+    .md, r"\\[Tier N\\]")`` — a literal ``[Tier N]`` substring regex
+    that never matched the canonical REQ-record prose (``- **Tier:**
+    N``), so a run with 16 Tier-3 REQs reported ``0 0 0``. The
+    structured manifest carries an unambiguous integer ``tier`` per
+    record; read that instead of scraping prose.
+    """
+    manifest = quality_dir / "requirements_manifest.json"
+    if not manifest.is_file():
+        return (0, 0, 0)
+    try:
+        payload = json.loads(
+            manifest.read_text(encoding="utf-8", errors="ignore")
+        )
+    except (ValueError, OSError):
+        return (0, 0, 0)
+    records = (
+        payload.get("records") if isinstance(payload, dict) else payload
+    )
+    if not isinstance(records, list):
+        return (0, 0, 0)
+    t1 = t2 = t3 = 0
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        try:
+            # `tier` is an integer per schema, but tolerate "3"-style
+            # strings from older / hand-edited manifests.
+            tier_i = int(rec.get("tier"))
+        except (TypeError, ValueError):
+            continue
+        if tier_i == 1:
+            t1 += 1
+        elif tier_i == 2:
+            t2 += 1
+        elif tier_i == 3:
+            t3 += 1
+    return (t1, t2, t3)
+
+
 def _marker(path: Path, exists_marker: str = "Y", missing_marker: str = "N") -> str:
     return exists_marker if path.exists() else missing_marker
 
@@ -401,7 +449,9 @@ def build_summary_rows(repo_dirs: Sequence[Path]) -> List[SummaryRow]:
         integration = _marker(repo_dir / "quality" / "RUN_INTEGRATION_TESTS.md")
         functional = "Y" if find_functional_test(repo_dir) else "N"
         regression = "Y" if find_regression_test(repo_dir) else "."
-        requirements_file = repo_dir / "quality" / "REQUIREMENTS.md"
+        tier1, tier2, tier3 = _count_req_tiers_from_manifest(
+            repo_dir / "quality"
+        )
         rows.append(
             SummaryRow(
                 name=repo_dir.name,
@@ -411,9 +461,9 @@ def build_summary_rows(repo_dirs: Sequence[Path]) -> List[SummaryRow]:
                 integration=integration,
                 functional=functional,
                 regression=regression,
-                tier1=count_matching_lines(requirements_file, r"\[Tier 1\]"),
-                tier2=count_matching_lines(requirements_file, r"\[Tier 2\]"),
-                tier3=count_matching_lines(requirements_file, r"\[Tier 3\]"),
+                tier1=tier1,
+                tier2=tier2,
+                tier3=tier3,
             )
         )
     return rows
