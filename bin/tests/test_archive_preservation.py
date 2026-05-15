@@ -1,19 +1,103 @@
-"""Regression tests for the A-1 preservation invariant (v1.5.7
-ship-blocker, instruction 042).
+"""Regression tests pinning the v1.5.7 A-1 preservation invariant
+(ship-blocker, instruction 042).
 
-The defect: ``bin/run_playbook.archive_previous_run`` ran
-``_clear_live_quality()`` unconditionally — even when
-``archive_lib.archive_run()`` raised. On any archive failure
-(timestamp collision, staging error, disk full, ...) the live
-adopter artifact tree was destroyed without having been preserved.
+Background: instruction 042 fixed a destructive code path in
+``bin/run_playbook.py:archive_previous_run``. The ``try/except``
+around ``archive_lib.archive_run(...)`` swallowed ``ArchiveError``
+(``except ...: pass``) and then UNCONDITIONALLY invoked
+``_clear_live_quality()``. On any archive failure (timestamp
+collision with a *different* run, staging-dir collision, invalid
+status, disk full, or any unexpected exception) the live
+``quality/`` tree was destroyed without the data having been
+successfully archived. The fix restructures the error path so
+``_clear_live_quality()`` only runs after ``archive_run`` returns
+normally; the ``ArchiveError`` branch
+(``bin/run_playbook.py:2494``) and the defensive broad ``Exception``
+branch (``bin/run_playbook.py:2510``) both warn to stderr and
+``return`` early (``return`` at ``bin/run_playbook.py:2509``),
+*before* the success-only ``_clear_live_quality(quality_dir)`` at
+``bin/run_playbook.py:2521``.
 
-The invariant pinned here: **``_clear_live_quality()`` runs ONLY when
-the archive succeeded.** Any exception out of ``archive_run()`` —
-``ArchiveError`` or otherwise — must leave the live ``quality/`` tree
-intact and surface a warning.
+The invariant: **``_clear_live_quality()`` runs ONLY after a
+successful archive.** Any exception out of ``archive_run()`` —
+``ArchiveError`` or otherwise — leaves the live ``quality/`` tree
+intact and surfaces a stderr warning.
 
-Each test is mutation-verified (see the module-level note in the
-instruction-042 output report for the exact bite procedure + results).
+Mutation-test evidence (each bite was exercised during instruction
+042 development; each produced the stated red→green transition before
+the fix landed at commit ``b76de20``). This docstring is the
+self-contained in-tree record per
+``ai_context/DEVELOPMENT_PROCESS.md:152-160`` — a reader without the
+runner folder can re-derive each bite from the cited source lines +
+the test assertions below.
+
+1. ``test_archive_preserves_full_artifact_tree_happy_path`` — happy
+   path. Populates ``quality/`` with the full v1.5.7 artifact set
+   (BUGS.md, EXPLORATION.md, REQUIREMENTS.md, PROGRESS.md, INDEX.md,
+   role map, results/, writeups/, patches/, code_reviews/,
+   spec_audits/, mechanical/, test files, centralized logs), calls
+   ``archive_previous_run``, and asserts every source file appears at
+   the same relative path under ``<archive>/quality/``.
+
+   Mutation: in ``bin/archive_lib.py:archive_run`` replace the
+   ``shutil.copytree(quality_dir, staging_dir / "quality", ...)``
+   call (``bin/archive_lib.py:715``) with
+   ``(staging_dir / "quality").mkdir(parents=True)`` — i.e. produce
+   an empty archive folder, skipping the copy.
+   Expected failure: the per-file
+   ``self.assertTrue(archived.is_file(), ...)`` loop fires —
+   ``AssertionError: ... archived tree is missing BUGS.md — the full
+   artifact tree was NOT preserved (A-1 regression)``.
+   Restoration: reverting ``archive_lib.py`` (verified ``git diff
+   --stat`` empty) restores green. Bite verified.
+
+2. ``test_archive_preserves_data_when_archive_target_collision`` —
+   the original A-1 destructive path. Seeds a populated ``quality/``
+   with an INDEX.md carrying only ``run_timestamp_start`` (so
+   ``_prior_run_id_from_live_index`` returns None and the
+   line-2480 early-return branch is skipped — the buggy try/except is
+   the path exercised); forces a deterministic
+   ``compute_archive_timestamp`` via a fixed ``BUGS.md`` mtime; and
+   pre-creates the archive target directory at that timestamp with a
+   ``DO_NOT_TOUCH.txt`` sentinel. ``archive_run`` raises
+   ``ArchiveError`` because the target already exists
+   (``bin/archive_lib.py:706-710``). Asserts the collision target is
+   untouched AND the live ``quality/`` still has BUGS.md / etc.
+
+   Mutation: delete the ``return`` at ``bin/run_playbook.py:2509``
+   from the ``except archive_lib.ArchiveError`` branch — restoring
+   the pre-fix ``pass`` + fall-through to
+   ``_clear_live_quality(quality_dir)``.
+   Expected failure: the live-tree
+   ``self.assertTrue((repo / "quality" / name).is_file(), ...)`` loop
+   fires — ``AssertionError: ... live quality/BUGS.md was destroyed
+   on archive collision — A-1 regression (destructive-on-error)``.
+   This is exactly the pre-fix behavior: the test FAILED on the
+   pre-fix code and PASSED once the ``return`` was added. Bite
+   verified the regression-pin would catch the original A-1 defect.
+
+3. ``test_archive_preserves_data_on_unexpected_exception`` —
+   defensive coverage. Monkey-patches ``archive_lib.archive_run`` to
+   raise ``RuntimeError``. Asserts ``archive_previous_run`` does NOT
+   raise and the live ``quality/`` tree is intact afterward.
+
+   Mutation: remove the broad ``except Exception as exc:`` branch at
+   ``bin/run_playbook.py:2510-2520`` (or strip its ``return`` so it
+   falls through).
+   Expected failure: pre-fix, only ``except
+   archive_lib.ArchiveError`` existed, so the monkeypatched
+   ``RuntimeError`` propagated straight out of
+   ``archive_previous_run`` and the test ERRORED
+   (``RuntimeError: simulated archive failure``) rather than
+   asserting; with the branch present but ``return`` stripped, the
+   unguarded ``_clear_live_quality()`` runs and the live-tree
+   ``assertTrue`` fires instead. Either way the test goes red.
+   Restoration: the broad ``except ... return`` makes it pass. Bite
+   verified (red→green across the fix).
+
+Full runner-report evidence trail (workspace-relative paths, not
+git-tracked): ``Quality Playbook/v1.5.7_runner/
+outputs/042-preservation-bug-fix.md``.
 """
 
 from __future__ import annotations
