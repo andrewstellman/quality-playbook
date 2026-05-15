@@ -3924,6 +3924,13 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
         # inspect quality/PROGRESS.md + the playbook log directly.
         pass
 
+    # v1.5.7 Issue 4 (chi-surfaced): point quality/logs/latest at THIS
+    # run-id the moment its directory exists, not only at successful
+    # completion — otherwise an interrupted/aborted run leaves `latest`
+    # stale while a newer run-id dir exists. Idempotent with the
+    # completion-time call below.
+    _update_latest_symlink(repo_dir, timestamp, args, log_file)
+
     flat_phases = [p for group in phase_groups for p in group]
     if "1" in flat_phases:
         archive_previous_run(repo_dir, timestamp)
@@ -4002,6 +4009,13 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         banner = formal_docs_guard_banner(repo_dir)
         if banner is not None:
             lib.logboth(log_file, banner, echo=True)
+
+    # v1.5.7 Issue 4 (chi-surfaced): single-pass runner has no
+    # run_start event emission, so point quality/logs/latest at this
+    # run-id at run-START here (mirrors run_one_phased). Without this
+    # an interrupted single-pass run leaves `latest` stale. Idempotent
+    # with the completion-time call.
+    _update_latest_symlink(repo_dir, timestamp, args, log_file)
 
     if args.next_iteration:
         if not (repo_dir / "quality" / "EXPLORATION.md").is_file():
@@ -4089,9 +4103,18 @@ def _update_latest_symlink(
     log_file: Path,
 ) -> None:
     """v1.5.7 Phase 5 FS-4: update <repo>/quality/logs/latest →
-    <run-id> after a successful run. In legacy mode (--logs-flat /
-    QPB_LOGS_LEGACY=1) this is a no-op because the legacy layout
-    doesn't use the logs/ tree.
+    <run-id>. In legacy mode (--logs-flat / QPB_LOGS_LEGACY=1) this is
+    a no-op because the legacy layout doesn't use the logs/ tree.
+
+    v1.5.7 Issue 4 (chi-surfaced): this now fires at run-START (right
+    after the new run-id directory is created / run_start is emitted)
+    as well as at successful completion. Pre-fix it ran ONLY at
+    successful completion, so a run interrupted before completion
+    (e.g. the chi-1.5.1 Anthropic-outage interruption + the abandoned
+    resume attempt) left `latest` pointing at a stale prior run-id
+    while a newer run-id directory existed. The call is idempotent
+    (same run-id → same relative symlink), so the retained
+    completion-time call is a harmless defensive refresh.
 
     The symlink is RELATIVE (target_is_directory=True; target string
     is just the run-id, not an absolute path) so the cell tree
