@@ -3420,33 +3420,74 @@ class CodexPreventionSourceBackstopTests(unittest.TestCase):
             [],
         )
 
-    def test_verify_detects_committed_modification(self) -> None:
-        """Construct a synthetic 'baseline' SHA that predates the
-        latest commit touching bin/; the diff must include some
-        bin/ file that changed since then. This proves the detector
-        actually fires on non-empty diffs (the regression pin)."""
+    def test_verify_detects_uncommitted_modification_not_committed(self) -> None:
+        """The detector must fire on a non-empty diff — but v1.5.7
+        Issue 1 (chi-surfaced) redefined what counts: an *uncommitted*
+        source modification fires; a *committed* mid-run change does
+        NOT (it went through the commit discipline).
+
+        The prior version of this test diffed the real QPB repo
+        against a historical bin/ SHA and asserted the (committed)
+        deltas were surfaced — that pinned the exact false-positive
+        Issue 1 fixes, and only ever "passed" when the dev tree
+        happened to be dirty. Reworked to a deterministic temp-repo
+        test that pins both halves of the corrected invariant:
+        uncommitted bin/ edit -> detected; same edit committed ->
+        NOT detected. (Sibling to the two reworked verifier-coverage
+        tests landed in the Issue 1 commit 55a7c0f.)
+        """
         import subprocess
-        qpb_dir = Path(__file__).resolve().parents[2]
-        # Find a SHA from before the most recent bin/ commit.
-        result = subprocess.run(
-            ["git", "log", "--format=%H", "-n", "20", "--", "bin/"],
-            cwd=str(qpb_dir), capture_output=True, text=True, check=True,
-        )
-        commits = [c for c in result.stdout.splitlines() if c.strip()]
-        if len(commits) < 2:
-            self.skipTest(
-                "need at least 2 historical bin/ commits for diff test"
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess.run(
+                ["git", "init"], cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
-        # commits[0] is HEAD-most-recent for bin/; commits[1] is older.
-        old_sha = commits[1]
-        modified = run_playbook._verify_qpb_source_unchanged(
-            qpb_dir, old_sha
-        )
-        self.assertGreater(
-            len(modified), 0,
-            f"diff against {old_sha[:7]} must surface at least one "
-            f"bin/ change (or this test fixture needs updating)",
-        )
+            subprocess.run(
+                ["git", "config", "user.email", "t@example.com"],
+                cwd=repo, check=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "T"], cwd=repo, check=True
+            )
+            src = repo / "bin" / "sample.py"
+            src.parent.mkdir(parents=True, exist_ok=True)
+            src.write_text("# v1 baseline\n", encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "baseline"], cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            baseline = run_playbook._qpb_source_baseline_sha(repo)
+
+            # Uncommitted mid-run modification -> detector FIRES.
+            src.write_text("# v2 uncommitted agent edit\n", encoding="utf-8")
+            modified = run_playbook._verify_qpb_source_unchanged(
+                repo, baseline
+            )
+            self.assertIn(
+                "bin/sample.py", modified,
+                "an uncommitted bin/ modification must be detected "
+                "(the detector still fires on non-empty diffs)",
+            )
+
+            # Same change, now committed -> detector does NOT fire
+            # (Issue 1: committed mid-run changes are legitimate).
+            subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "authorized mid-run fix"],
+                cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            modified_after_commit = run_playbook._verify_qpb_source_unchanged(
+                repo, baseline
+            )
+            self.assertEqual(
+                modified_after_commit, [],
+                "a committed mid-run change must NOT be flagged "
+                "(Issue 1 false-positive fix)",
+            )
 
 
 class Round8Fix1HelpAndBannerTests(unittest.TestCase):
