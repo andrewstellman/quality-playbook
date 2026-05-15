@@ -2478,6 +2478,55 @@ def _verify_qpb_source_unchanged(
     return violations
 
 
+def _check_installed_bundle_freshness(
+    qpb_root: Path, target: Path
+) -> List[str]:
+    """Return ``"<subdir>/<name>"`` entries present in QPB source's
+    ``references/`` / ``phase_prompts/`` / ``agents/`` but missing
+    from ``target``'s installed skill bundle. Empty when fresh, when
+    there is no separately-installed bundle, or when the install IS
+    the QPB source tree itself (self-audit).
+
+    v1.5.7 Issue 2 (chi-surfaced): a target installed via
+    ``setup_repos.sh`` / ``bin.install_skill`` is a point-in-time
+    snapshot. A later QPB source addition (e.g.
+    ``references/what_just_happened.md``, added in instruction 037)
+    does not propagate, so the agent reports the file "isn't present
+    in the repo." This is a soft signal — adopters may deliberately
+    prune files — so the caller emits a non-fatal WARN, never a gate.
+
+    Detection uses :func:`benchmark_lib.find_installed_skill` (the
+    canonical six-layout resolver); the installed bundle directory is
+    the parent of the resolved SKILL.md. When that parent resolves to
+    the QPB source root itself (root-SKILL.md self-bootstrap layout),
+    source and installed dirs coincide and nothing is reported.
+    """
+    installed_skill = lib.find_installed_skill(target)
+    if installed_skill is None:
+        return []
+    bundle_dir = installed_skill.parent
+    missing: List[str] = []
+    for subdir in ("references", "phase_prompts", "agents"):
+        source_dir = qpb_root / subdir
+        installed_dir = bundle_dir / subdir
+        if not source_dir.is_dir():
+            continue
+        try:
+            if source_dir.resolve() == installed_dir.resolve():
+                # Install IS the source tree (self-audit) — not stale.
+                continue
+        except OSError:
+            pass
+        source_files = sorted(source_dir.glob("*.md"))
+        if not installed_dir.is_dir():
+            missing.extend(f"{subdir}/{sf.name}" for sf in source_files)
+            continue
+        for sf in source_files:
+            if not (installed_dir / sf.name).is_file():
+                missing.append(f"{subdir}/{sf.name}")
+    return missing
+
+
 def _prior_run_id_from_live_index(quality_dir: Path) -> Optional[str]:
     """Return the prior run's compact archive timestamp from
     quality/INDEX.md, or None.
@@ -4796,6 +4845,27 @@ def execute_run(args: argparse.Namespace, repo_dirs: Sequence[Path], timestamp: 
                     file=sys.stderr,
                 )
     args._qpb_source_baseline_sha = _qpb_source_baseline_sha(qpb_dir)
+
+    # v1.5.7 Issue 2 (chi-surfaced): warn (non-fatally) when a
+    # target's installed skill bundle is missing files the current
+    # QPB source carries (stale snapshot from an older setup_repos.sh
+    # / install_skill). Adopters who deliberately prune a subset get
+    # noise they can ignore — this is never a gate.
+    for repo_dir in repo_dirs:
+        stale = _check_installed_bundle_freshness(qpb_dir, repo_dir)
+        if stale:
+            bundle = lib.find_installed_skill(repo_dir)
+            bundle_loc = bundle.parent if bundle is not None else repo_dir
+            target_name = Path(repo_dir).name
+            print(
+                f"WARN: installed bundle stale at {bundle_loc}/.\n"
+                f"  Missing: {', '.join(stale)}\n"
+                f"  To refresh, run: cd repos && ./setup_repos.sh "
+                f"{target_name}\n"
+                f"  Or: python3 -m bin.install_skill --into {repo_dir} "
+                f"--ai-tool <name>",
+                file=sys.stderr,
+            )
 
     # v1.5.4 Phase 3.7 Fix 1 (Round 8 BLOCK): bare-invocation banner.
     # When the auto-default-to-full-run fired (operator typed no
