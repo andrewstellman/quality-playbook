@@ -2487,11 +2487,12 @@ def _verify_qpb_source_unchanged(
 def _check_installed_bundle_freshness(
     qpb_root: Path, target: Path
 ) -> List[str]:
-    """Return ``"<subdir>/<name>"`` entries present in QPB source's
-    ``references/`` / ``phase_prompts/`` / ``agents/`` but missing
-    from ``target``'s installed skill bundle. Empty when fresh, when
-    there is no separately-installed bundle, or when the install IS
-    the QPB source tree itself (self-audit).
+    """Return ``"<subdir>/<name>"`` entries present in QPB source but
+    missing from ``target``'s installed skill bundle. Covers the
+    ``references/`` / ``phase_prompts/`` / ``agents/`` markdown trees
+    AND the bundled ``bin/`` modules. Empty when fresh, when there is
+    no separately-installed bundle, or when the install IS the QPB
+    source tree itself (self-audit).
 
     v1.5.7 Issue 2 (chi-surfaced): a target installed via
     ``setup_repos.sh`` / ``bin.install_skill`` is a point-in-time
@@ -2500,6 +2501,23 @@ def _check_installed_bundle_freshness(
     does not propagate, so the agent reports the file "isn't present
     in the repo." This is a soft signal — adopters may deliberately
     prune files — so the caller emits a non-fatal WARN, never a gate.
+
+    v1.5.7 instruction 047 Item 2 (A-2-recast): instruction 046
+    conclusively diagnosed the "codex Phase 1 failure" (A-2) as a
+    stale install missing ``bin/reference_docs_ingest.py`` — Phase 1's
+    mandatory ingest step ``python -m bin.reference_docs_ingest``
+    ModuleNotFound'd, codex correctly stopped per the skill's
+    stop-on-install-defect protocol, and no EXPLORATION.md was
+    written. Runner-agnostic (claude/copilot/cursor fail identically).
+    The freshness check only covered the markdown trees, so its WARN
+    under-reported (it flagged stale references/ but NOT the missing
+    bin/ module that actually broke the run). The ``bin/`` coverage
+    below makes that failure self-diagnosing at run-start. The
+    authoritative list of which ``bin/`` modules belong in an installed
+    bundle is :func:`bin.install_skill._bundle_files` (NOT every
+    ``*.py`` in QPB's ``bin/`` — only the 2-3 modules the playbook
+    agent invokes during phases), so this reads that as the source of
+    truth and stays drift-free if the bundle definition changes.
 
     Detection uses :func:`benchmark_lib.find_installed_skill` (the
     canonical ten-layout resolver); the installed bundle directory is
@@ -2530,6 +2548,31 @@ def _check_installed_bundle_freshness(
         for sf in source_files:
             if not (installed_dir / sf.name).is_file():
                 missing.append(f"{subdir}/{sf.name}")
+
+    # v1.5.7 instruction 047 Item 2: bundled bin/ modules. The
+    # authoritative list is install_skill._bundle_files (the same
+    # source of truth the installer copies from) — filter its dest
+    # paths to the bin/ subtree. Skip on self-audit (source == bundle
+    # dir) and when the installer module can't be imported (defensive
+    # — never crash the runner over a freshness hint).
+    try:
+        from bin import install_skill as _install_skill
+        bin_src_dir = qpb_root / "bin"
+        bin_installed_dir = bundle_dir / "bin"
+        same_tree = False
+        try:
+            same_tree = bin_src_dir.resolve() == bin_installed_dir.resolve()
+        except OSError:
+            same_tree = False
+        if not same_tree:
+            for _src, dest in _install_skill._bundle_files(qpb_root):
+                parts = dest.parts
+                if len(parts) == 2 and parts[0] == "bin":
+                    if not (bundle_dir / dest).is_file():
+                        missing.append(f"bin/{parts[1]}")
+    except Exception:  # noqa: BLE001 — freshness hint must never crash the run
+        pass
+
     return missing
 
 

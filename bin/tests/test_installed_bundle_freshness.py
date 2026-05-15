@@ -133,6 +133,102 @@ class InstalledBundleFreshnessTests(unittest.TestCase):
                 [],
             )
 
+    def _make_qpb_source_with_bin(self, root: Path) -> None:
+        """QPB source incl. the bundled bin/ modules
+        install_skill._bundle_files copies (citation_verifier.py,
+        reference_docs_ingest.py, benchmark_lib.py). SKILL.md +
+        quality_gate.py are unconditional _bundle_files entries."""
+        self._make_qpb_source(root)
+        _write(root / "SKILL.md", "name: quality-playbook\n")
+        _write(
+            root / ".github" / "skills" / "quality_gate"
+            / "quality_gate.py",
+            "# gate\n",
+        )
+        _write(root / "bin" / "citation_verifier.py", "# cv\n")
+        _write(root / "bin" / "reference_docs_ingest.py", "# ingest\n")
+        _write(root / "bin" / "benchmark_lib.py", "# bench\n")
+
+    def test_installed_bundle_freshness_warns_on_missing_bin_module(self) -> None:
+        """v1.5.7 instruction 047 Item 2 (A-2-recast). A stale install
+        missing bin/reference_docs_ingest.py (the actual root cause of
+        the original A-2 codex Phase-1 failure) must now be reported
+        by the freshness check, sourced from
+        install_skill._bundle_files (NOT every *.py in QPB bin/).
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160): with the
+        instruction-047 bin/ block deleted from
+        _check_installed_bundle_freshness, this assertion fires
+        (bin/reference_docs_ingest.py not in the returned list);
+        restoring the block makes it pass. Bite verified during
+        instruction 047 development.
+        """
+        with TemporaryDirectory() as qtmp, TemporaryDirectory() as ttmp:
+            qpb_root = Path(qtmp)
+            target = Path(ttmp)
+            self._make_qpb_source_with_bin(qpb_root)
+            skill_dir = target / ".github" / "skills"
+            _write(skill_dir / "SKILL.md", "# installed snapshot\n")
+            # Complete md trees so only the bin/ gap is exercised.
+            for rel in (
+                "references/what_just_happened.md",
+                "references/verification.md",
+                "phase_prompts/phase1.md",
+                "agents/quality-playbook.agent.md",
+            ):
+                _write(skill_dir / rel)
+            # Stale bin/: citation_verifier present, but the
+            # instruction-046-diagnosed reference_docs_ingest.py +
+            # benchmark_lib.py are MISSING (the exact A-2 shape).
+            _write(skill_dir / "bin" / "citation_verifier.py")
+
+            missing = run_playbook._check_installed_bundle_freshness(
+                qpb_root, target
+            )
+
+            self.assertIn(
+                "bin/reference_docs_ingest.py", missing,
+                "the stale bundle is missing the Phase-1 ingest module "
+                "(the A-2 root cause); freshness check must report it",
+            )
+            self.assertIn(
+                "bin/benchmark_lib.py", missing,
+                "reference_docs_ingest.py imports benchmark_lib; the "
+                "missing transitive dep must also be reported",
+            )
+            self.assertNotIn(
+                "bin/citation_verifier.py", missing,
+                "a bin/ module present in the bundle must NOT be "
+                "reported",
+            )
+            # md trees complete → no md-tree false positives.
+            self.assertNotIn("references/what_just_happened.md", missing)
+
+    def test_bin_check_noop_when_source_lacks_bundled_modules(self) -> None:
+        """Defensive: if QPB source has no bundled bin/ modules
+        (install_skill._bundle_files yields no bin/ entries), the bin/
+        check is a no-op — no false positives, no crash."""
+        with TemporaryDirectory() as qtmp, TemporaryDirectory() as ttmp:
+            qpb_root = Path(qtmp)
+            target = Path(ttmp)
+            self._make_qpb_source(qpb_root)  # no bin/ modules
+            self._make_target_bundle(
+                target,
+                include={
+                    "references/what_just_happened.md",
+                    "references/verification.md",
+                    "phase_prompts/phase1.md",
+                    "agents/quality-playbook.agent.md",
+                },
+            )
+            self.assertEqual(
+                run_playbook._check_installed_bundle_freshness(
+                    qpb_root, target
+                ),
+                [],
+            )
+
 
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
