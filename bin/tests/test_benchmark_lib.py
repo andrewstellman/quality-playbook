@@ -348,6 +348,90 @@ class BenchmarkLibTests(unittest.TestCase):
             output = lib.print_summary([repo_dir])
             self.assertIn("=== Artifact Summary ===", output)
 
+    def test_artifact_summary_tdd_verified_count_matches_results_json(self) -> None:
+        """v1.5.7 instruction 046 (A-4, chi-surfaced) regression. The
+        Quality Checks `tdd(verified=N failed=M)` count must come from
+        quality/results/tdd-results.json's summary block, NOT a
+        `TDD verified` substring count over TDD_TRACEABILITY.md (which
+        reported verified=1 on chi-1.5.1 while the JSON summary said
+        9).
+
+        Mutation contract: reverting print_summary to
+        `count_matching_lines(TDD_TRACEABILITY.md, r"TDD verified")`
+        makes this fail — the TDD_TRACEABILITY.md written here contains
+        zero literal `TDD verified` lines, so the old regex yields
+        verified=0 while the JSON summary says 9.
+        """
+        import json
+        with TemporaryDirectory() as temp_dir:
+            repo_dir = Path(temp_dir) / "chi-1.5.1"
+            write(
+                repo_dir / "quality" / "REQUIREMENTS.md",
+                "### REQ-001\n- **Tier:** 3\n",
+            )
+            # Prose file deliberately WITHOUT the literal "TDD verified"
+            # phrasing the old regex matched — proves the count now
+            # comes from the JSON, not this file.
+            write(
+                repo_dir / "quality" / "TDD_TRACEABILITY.md",
+                "# TDD Traceability\n\nAll nine bugs reproduced and "
+                "closed; see results JSON for the authoritative tally.\n",
+            )
+            write(
+                repo_dir / "quality" / "results" / "tdd-results.json",
+                json.dumps(
+                    {
+                        "schema_version": "1.5.2",
+                        "skill_version": "1.5.7",
+                        "summary": {
+                            "total": 9,
+                            "verified": 9,
+                            "confirmed_open": 0,
+                            "red_failed": 0,
+                            "green_failed": 0,
+                            "deferred": 0,
+                        },
+                    }
+                ),
+            )
+
+            self.assertEqual(
+                lib._tdd_counts_from_results_json(repo_dir / "quality"),
+                (9, 0),
+                "TDD counts must come from tdd-results.json summary",
+            )
+
+            output = lib.print_summary([repo_dir])
+            self.assertIn(
+                "tdd(verified=9 failed=0)", output,
+                "the Quality Checks line must reflect the JSON summary "
+                "verified count (9), not the TDD_TRACEABILITY.md prose",
+            )
+
+    def test_tdd_counts_failed_sums_red_and_green(self) -> None:
+        """failed = red_failed + green_failed; graceful (0,0) when the
+        results file is absent or unparseable."""
+        import json
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir) / "quality"
+            self.assertEqual(
+                lib._tdd_counts_from_results_json(quality), (0, 0)
+            )
+            write(quality / "results" / "tdd-results.json", "{ not json")
+            self.assertEqual(
+                lib._tdd_counts_from_results_json(quality), (0, 0)
+            )
+            write(
+                quality / "results" / "tdd-results.json",
+                json.dumps(
+                    {"summary": {"verified": 4, "red_failed": 2,
+                                 "green_failed": 3}}
+                ),
+            )
+            self.assertEqual(
+                lib._tdd_counts_from_results_json(quality), (4, 5)
+            )
+
     def test_tier_counts_zero_when_manifest_absent_or_bad(self) -> None:
         """Graceful fallback: no manifest, or unparseable manifest,
         yields (0, 0, 0) rather than crashing the summary."""

@@ -443,6 +443,50 @@ def _count_req_tiers_from_manifest(quality_dir: Path) -> Tuple[int, int, int]:
     return (t1, t2, t3)
 
 
+def _tdd_counts_from_results_json(quality_dir: Path) -> Tuple[int, int]:
+    """Return ``(verified, failed)`` TDD counts from
+    ``quality/results/tdd-results.json``'s ``summary`` block.
+    ``verified`` = ``summary.verified``; ``failed`` =
+    ``summary.red_failed + summary.green_failed``. Returns ``(0, 0)``
+    when the file is absent or unparseable (e.g. a run with no
+    confirmed bugs never writes tdd-results.json — matches the prior
+    behavior where the missing TDD_TRACEABILITY.md yielded 0/0).
+
+    v1.5.7 instruction 046 (A-4, chi-surfaced): the Quality Checks
+    line previously did
+    ``count_matching_lines(TDD_TRACEABILITY.md, r"TDD verified")`` —
+    a prose-substring count over a markdown file. chi-1.5.1 showed
+    ``tdd(verified=1 failed=0)`` while tdd-results.json correctly
+    recorded ``summary.verified == 9`` (the markdown phrasing didn't
+    line up 1:1 with the regex). The structured JSON is the
+    authoritative tally; read it instead of scraping prose.
+    """
+    results = quality_dir / "results" / "tdd-results.json"
+    if not results.is_file():
+        return (0, 0)
+    try:
+        payload = json.loads(
+            results.read_text(encoding="utf-8", errors="ignore")
+        )
+    except (ValueError, OSError):
+        return (0, 0)
+    summary = (
+        payload.get("summary") if isinstance(payload, dict) else None
+    )
+    if not isinstance(summary, dict):
+        return (0, 0)
+
+    def _int(key: str) -> int:
+        try:
+            return int(summary.get(key) or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    verified = _int("verified")
+    failed = _int("red_failed") + _int("green_failed")
+    return (verified, failed)
+
+
 def _marker(path: Path, exists_marker: str = "Y", missing_marker: str = "N") -> str:
     return exists_marker if path.exists() else missing_marker
 
@@ -492,14 +536,18 @@ def print_summary(repo_dirs: Sequence[Path]) -> str:
         if not requirements_file.is_file():
             continue
         integration_file = repo_dir / "quality" / "RUN_INTEGRATION_TESTS.md"
-        tdd_file = repo_dir / "quality" / "TDD_TRACEABILITY.md"
         ag = count_matching_lines(requirements_file, r"architectural-guidance")
         req = count_matching_lines(requirements_file, r"### REQ-")
         uc = _count_use_cases(repo_dir, requirements_file)
         uc_int = count_matching_lines(integration_file, r"UC-")
         infra_int = count_matching_lines(integration_file, r"\[Infrastructure\]")
-        tdd_verified = count_matching_lines(tdd_file, r"TDD verified")
-        tdd_failed = count_matching_lines(tdd_file, r"Green failed|Red failed")
+        # v1.5.7 instruction 046 (A-4): read the authoritative tally
+        # from quality/results/tdd-results.json's summary block, not a
+        # prose-substring count over TDD_TRACEABILITY.md (chi-surfaced:
+        # markdown said verified=1 while the JSON summary said 9).
+        tdd_verified, tdd_failed = _tdd_counts_from_results_json(
+            repo_dir / "quality"
+        )
         flags = []
         if ag > 3:
             flags.append("WARN:arch-guidance>3")
