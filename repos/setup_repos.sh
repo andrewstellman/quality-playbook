@@ -227,6 +227,18 @@ for short in "${REPOS[@]}"; do
     # leaving harness-installed copies effectively without Layer-1
     # protection.
     cp "${QPB_DIR}/bin/citation_verifier.py" "${dst}/bin/citation_verifier.py" 2>/dev/null || true
+    # v1.5.7 instruction 049 A-6: bundle bin/reference_docs_ingest.py so
+    # Phase 1's mandatory ingest step (python3 -m bin.reference_docs_ingest .)
+    # resolves. Without this, codex CLI runs against setup_repos.sh-installed
+    # targets fail at Phase 1 with "No module named bin.reference_docs_ingest"
+    # (codex correctly stops per the skill's stop-on-install-defect protocol;
+    # Phase 2 gate then aborts on missing EXPLORATION.md). This was the
+    # root cause of the May 14/15 codex CLI virtio Phase-1 failures.
+    cp "${QPB_DIR}/bin/reference_docs_ingest.py" "${dst}/bin/reference_docs_ingest.py" 2>/dev/null || true
+    # reference_docs_ingest.py imports `from bin import benchmark_lib`
+    # at module load (version detection); benchmark_lib is stdlib-only
+    # (no internal bin/ deps) so the closure is exactly these two.
+    cp "${QPB_DIR}/bin/benchmark_lib.py" "${dst}/bin/benchmark_lib.py" 2>/dev/null || true
     # v1.5.7 fix F-5b: install the runner wrapper so adopters can
     # invoke `<repo>-<version>/bin/run_playbook.sh` from anywhere and
     # have it auto-discover the QPB clone via walk-up from its own

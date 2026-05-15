@@ -44,6 +44,13 @@ def _build_minimal_fixture(qpb_root: Path, short: str = "dummytest", version: st
     (qpb_root / "bin").mkdir(exist_ok=True)
     (qpb_root / "bin" / "install_skill.py").write_text("# stub\n", encoding="utf-8")
     (qpb_root / "bin" / "citation_verifier.py").write_text("# stub\n", encoding="utf-8")
+    # v1.5.7 instruction 049 A-6: source stubs so setup_repos.sh's
+    # reference_docs_ingest/benchmark_lib cp lines have something to
+    # copy (the cp uses `2>/dev/null || true`, so a missing source is
+    # silently skipped — the stubs make the end-to-end bundle test
+    # able to distinguish "fix present" from "fix absent").
+    (qpb_root / "bin" / "reference_docs_ingest.py").write_text("# stub\n", encoding="utf-8")
+    (qpb_root / "bin" / "benchmark_lib.py").write_text("# stub\n", encoding="utf-8")
     repos = qpb_root / "repos"
     repos.mkdir()
     # Copy the real scripts so the test exercises the actual code.
@@ -232,6 +239,62 @@ class SetupReposRunnerWrapperTests(unittest.TestCase):
                 f"stderr={result2.stderr!r}",
             )
             self.assertIn("usage:", result2.stdout)
+
+
+class SetupReposBinBundleTests(unittest.TestCase):
+    """v1.5.7 instruction 049 A-6: setup_repos.sh must bundle
+    bin/reference_docs_ingest.py (+ its stdlib-only transitive dep
+    bin/benchmark_lib.py) into the target's bin/. Without this,
+    codex/claude/copilot/cursor runs against a setup_repos.sh-installed
+    target fail at Phase 1's mandatory
+    `python3 -m bin.reference_docs_ingest .` ingest step with
+    "No module named bin.reference_docs_ingest" — the agent then
+    correctly stops per the skill's stop-on-install-defect protocol
+    and the Phase 2 gate aborts on missing EXPLORATION.md. This was
+    the root cause of the May 14/15 codex CLI virtio Phase-1 failures
+    (previously mis-attributed; conclusively traced in instruction
+    046 and root-fixed here).
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160): delete the
+    `cp "${QPB_DIR}/bin/reference_docs_ingest.py" ...` line from
+    repos/setup_repos.sh. Expected failure:
+    test_setup_repos_bundles_reference_docs_ingest fails at
+    `assertTrue((dst / "bin" / "reference_docs_ingest.py").is_file())`
+    because the module is no longer copied into the target. Restore
+    the line → test passes. Bite verified during instruction 049
+    development.
+    """
+
+    def test_setup_repos_bundles_reference_docs_ingest(self) -> None:
+        with TemporaryDirectory() as tmp_str:
+            qpb_root = Path(tmp_str) / "qpb"
+            qpb_root.mkdir()
+            script, dst = _build_minimal_fixture(qpb_root)
+            result = _run_setup(script, ["dummytest"])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            ingest = dst / "bin" / "reference_docs_ingest.py"
+            self.assertTrue(
+                ingest.is_file(),
+                f"reference_docs_ingest.py not bundled at {ingest}; "
+                f"Phase 1 ingest would fail on this target. "
+                f"output={result.stdout!r}",
+            )
+            bench = dst / "bin" / "benchmark_lib.py"
+            self.assertTrue(
+                bench.is_file(),
+                f"benchmark_lib.py (reference_docs_ingest's "
+                f"transitive dep) not bundled at {bench}; the ingest "
+                f"import `from bin import benchmark_lib` would fail. "
+                f"output={result.stdout!r}",
+            )
+            # Negative control: the prior bundle members still land
+            # (the A-6 additions must not displace existing copies).
+            self.assertTrue(
+                (dst / "bin" / "citation_verifier.py").is_file(),
+                "A-6 additions displaced the pre-existing "
+                "citation_verifier.py bundle",
+            )
 
 
 if __name__ == "__main__":
