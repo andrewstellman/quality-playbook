@@ -1371,19 +1371,13 @@ class RunPlaybookTests(unittest.TestCase):
         self.assertIn("Council of Three", src)
         self.assertIn("--benchmark-mode", src)
 
-    def test_council_config_provides_council_members_helper(self) -> None:
-        """council_config.council_members() is the canonical roster
-        helper that `_active_council_roster` (and thus the Phase 4
-        banner) routes through for the config-file + default tiers;
-        pin that the helper exists and returns a non-empty tuple."""
-        from bin import council_config
-        roster = council_config.council_members()
-        self.assertIsInstance(roster, tuple)
-        self.assertGreater(len(roster), 0)
-        # Each entry is a non-empty string (model name).
-        for member in roster:
-            self.assertIsInstance(member, str)
-            self.assertTrue(member.strip())
+    # NOTE: test_council_config_provides_council_members_helper was
+    # moved to ActiveCouncilRosterResolutionTests (v1.5.7 instruction
+    # 053b F2 / codex-053 finding 2) so it inherits the
+    # $HOME/$XDG/Path.home isolation harness AND asserts
+    # == DEFAULT_COUNCIL_MEMBERS under isolation (the prior
+    # un-isolated weak-assertion form read a real adopter config and
+    # only checked "non-empty tuple").
 
     # --- v1.5.6 cluster 044: --next-iteration suggestion bugs A + B ---
 
@@ -4681,6 +4675,37 @@ class ActiveCouncilRosterResolutionTests(unittest.TestCase):
         # this exercises the real CLI→args→resolver path.
         args = run_playbook.parse_args(argv)
         return run_playbook._active_council_roster(args)
+
+    def test_council_config_provides_council_members_helper(self) -> None:
+        """council_config.council_members() is the canonical roster
+        helper that `_active_council_roster` (and thus the Phase 4
+        banner) routes through for the config-file + default tiers.
+
+        v1.5.7 instruction 053b F2 (codex-053 finding 2): moved here
+        from RunPlaybookTests so it inherits this class's
+        $HOME/$XDG/Path.home isolation, AND the assertion is
+        STRENGTHENED from "non-empty tuple of non-empty strings" (weak
+        — passed even when a real adopter ~/.qpb/config.json resolved
+        the helper to a custom roster) to exact equality with
+        DEFAULT_COUNCIL_MEMBERS. Under this class's isolation NO
+        config file exists on the resolution chain, so the post-052/
+        post-053 3-tier resolver MUST return the canonical default —
+        that is the testable invariant. Truthifies 053's "durable to
+        adopter pollution" claim for this last un-isolated helper
+        test.
+        """
+        from bin.council_config import DEFAULT_COUNCIL_MEMBERS, council_members
+
+        roster = council_members()
+        # Strengthened invariant: under isolation (no config), the
+        # 3-tier resolver returns the canonical default exactly.
+        self.assertEqual(roster, DEFAULT_COUNCIL_MEMBERS)
+        # Retained shape checks (belt-and-suspenders).
+        self.assertIsInstance(roster, tuple)
+        self.assertGreater(len(roster), 0)
+        for member in roster:
+            self.assertIsInstance(member, str)
+            self.assertTrue(member.strip())
 
     def test_council_roster_cli_flag_overrides_config(self) -> None:
         """Tier 1 wins: --council-roster beats a different config-file

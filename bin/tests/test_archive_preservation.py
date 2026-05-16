@@ -11,12 +11,14 @@ status, disk full, or any unexpected exception) the live
 ``quality/`` tree was destroyed without the data having been
 successfully archived. The fix restructures the error path so
 ``_clear_live_quality()`` only runs after ``archive_run`` returns
-normally; the ``ArchiveError`` branch
-(``bin/run_playbook.py:2494``) and the defensive broad ``Exception``
-branch (``bin/run_playbook.py:2510``) both warn to stderr and
-``return`` early (``return`` at ``bin/run_playbook.py:2509``),
-*before* the success-only ``_clear_live_quality(quality_dir)`` at
-``bin/run_playbook.py:2521``.
+normally; in ``bin/run_playbook.py:archive_previous_run`` the
+``except archive_lib.ArchiveError`` branch and the defensive broad
+``except Exception`` branch both warn to stderr and ``return`` early
+(the ``return`` inside the ``ArchiveError`` branch), *before* the
+success-only ``_clear_live_quality(quality_dir)`` call in
+``archive_previous_run``. (Stable function/branch references — not
+line numbers: cumulative run_playbook.py edits drifted the original
+:2494 / :2509 / :2510 / :2521 citations; instruction-053b F3.2.)
 
 The invariant: **``_clear_live_quality()`` runs ONLY after a
 successful archive.** Any exception out of ``archive_run()`` —
@@ -55,7 +57,7 @@ the test assertions below.
    the original A-1 destructive path. Seeds a populated ``quality/``
    with an INDEX.md carrying only ``run_timestamp_start`` (so
    ``_prior_run_id_from_live_index`` returns None and the
-   line-2480 early-return branch is skipped — the buggy try/except is
+   prior-run-id early-return branch is skipped — the buggy try/except is
    the path exercised); forces a deterministic
    ``compute_archive_timestamp`` via a fixed ``BUGS.md`` mtime; and
    pre-creates the archive target directory at that timestamp with a
@@ -64,10 +66,10 @@ the test assertions below.
    (``bin/archive_lib.py:706-710``). Asserts the collision target is
    untouched AND the live ``quality/`` still has BUGS.md / etc.
 
-   Mutation: delete the ``return`` at ``bin/run_playbook.py:2509``
-   from the ``except archive_lib.ArchiveError`` branch — restoring
-   the pre-fix ``pass`` + fall-through to
-   ``_clear_live_quality(quality_dir)``.
+   Mutation: delete the ``return`` from
+   ``archive_previous_run``'s ``except archive_lib.ArchiveError``
+   branch (``bin/run_playbook.py``) — restoring the pre-fix ``pass``
+   + fall-through to ``_clear_live_quality(quality_dir)``.
    Expected failure: the live-tree
    ``self.assertTrue((repo / "quality" / name).is_file(), ...)`` loop
    fires — ``AssertionError: ... live quality/BUGS.md was destroyed
@@ -81,9 +83,9 @@ the test assertions below.
    raise ``RuntimeError``. Asserts ``archive_previous_run`` does NOT
    raise and the live ``quality/`` tree is intact afterward.
 
-   Mutation: remove the broad ``except Exception as exc:`` branch at
-   ``bin/run_playbook.py:2510-2520`` (or strip its ``return`` so it
-   falls through).
+   Mutation: remove the broad ``except Exception as exc:`` branch in
+   ``bin/run_playbook.py:archive_previous_run`` (or strip its
+   ``return`` so it falls through).
    Expected failure: pre-fix, only ``except
    archive_lib.ArchiveError`` existed, so the monkeypatched
    ``RuntimeError`` propagated straight out of
@@ -177,8 +179,9 @@ _INDEX_WITH_END = (
 )
 
 # Legacy-stub INDEX.md: only run_timestamp_start. _prior_run_id_from_live_index
-# returns None (it requires _end), so the early-return branch at
-# run_playbook.py:2480 is skipped and the archive_run() try/except path
+# returns None (it requires _end), so the prior-run-id early-return
+# branch in archive_previous_run is skipped and the archive_run()
+# try/except path
 # (the one carrying the bug) is exercised.
 _INDEX_START_ONLY = (
     "# Run Index\n\n```json\n"

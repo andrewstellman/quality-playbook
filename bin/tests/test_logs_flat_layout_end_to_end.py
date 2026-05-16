@@ -18,13 +18,15 @@ on-disk tests are the integration backstop.)
 WHY THIS SUBPROCESS TEST ACTUALLY TRAVERSES THE BYPASS (instruction
 053 / 051 Option B — making the traversal self-evident to a static
 reviewer): `parse_args` defaults `args.parallel = True` for every
-non-`--worker` invocation (bin/run_playbook.py:732 sets
-`args.parallel = False` ONLY `if args.worker:`). This subprocess test
-invokes the real CLI WITHOUT `--worker`, so `args.parallel` is True →
-the parent enters the `if args.parallel:` worker-spawn branch
-(bin/run_playbook.py:5081) → it calls `build_worker_command`
-(bin/run_playbook.py:5088) — and `build_worker_command` is the ONLY
-call site of the A-8 bypass. Therefore deleting the `--logs-flat`
+non-`--worker` invocation — see `parse_args`'s worker-branch
+(`if args.worker: args.parallel = False`) in `bin/run_playbook.py`.
+This subprocess test invokes the real CLI WITHOUT `--worker`, so
+`args.parallel` is True → the parent enters the `if args.parallel:`
+worker-spawn branch in `execute_run` and calls `build_worker_command`
+— and `build_worker_command` is the ONLY call site of the A-8
+bypass. (Stable function-name references used here, not line numbers:
+cumulative run_playbook.py edits in 053/054/055 drifted the original
+:732 / :5081 / :5088 citations — instruction-053b F3.) Therefore deleting the `--logs-flat`
 propagation block inside `build_worker_command` MUST flip this test
 from PASS to FAIL. A static reviewer does not need to know the
 `parse_args` default to see this: `test_logs_flat_writes_legacy_paths_only`
@@ -164,7 +166,7 @@ class LogsFlatEndToEndTests(unittest.TestCase):
     def test_qpb_logs_legacy_env_writes_legacy_paths_only(self) -> None:
         """Task 5: same assertions, env-driven (QPB_LOGS_LEGACY=1, no
         --logs-flat flag). Pins the flag/env equivalence in
-        _logs_legacy_mode (bin/run_playbook.py:1405-1407). This path
+        `bin/run_playbook.py`'s `_logs_legacy_mode`. This path
         was NOT broken by the A-8 bug (env vars inherit into the
         re-spawned worker subprocess) — the test guards against a
         future regression and pins that both knobs reach the same
