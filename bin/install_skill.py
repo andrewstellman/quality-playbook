@@ -814,6 +814,37 @@ def install(
             ),
         )
         return 65 if smoke_failed > 0 else 64
+    # v1.5.7 instruction 058 A-11.2: teach the layout-aware Phase 1
+    # ingest invocation. `bin/reference_docs_ingest.py` does
+    # `from bin import benchmark_lib` at import, so `-m
+    # bin.reference_docs_ingest` resolves only when `bin/` is a
+    # reachable top-level package. For an install_skill.py-layout
+    # adopter the bundled bin/ lives at <install_root>/bin/, NOT at
+    # the target repo root — so the canonical bare invocation fails
+    # with ModuleNotFoundError unless PYTHONPATH points at the
+    # install root. Emitting the exact command here means an agent
+    # (or human) reading the install output learns the correct form
+    # even if SKILL.md is read inconsistently. The ABSOLUTE
+    # install-root path is used (unambiguous + cwd-independent +
+    # branch-independent — `target` is in scope on every success
+    # path).
+    # The full command (spaces) goes in `prose` (verbose-only),
+    # NOT a structured field — the structured-output contract
+    # (test_install_skill.StructuredOutputTests) requires
+    # whitespace-free `key=value` fields in non-verbose mode.
+    # `installed_at` is a single-token path (same convention as
+    # ai_tool_explicit's install_path=).
+    emitter.emit(
+        "phase1_ingest_invocation_hint",
+        installed_at=str(target),
+        prose=(
+            "Phase 1 invocation — from your target repo root, run:\n"
+            f"  PYTHONPATH={target} python3 -m bin.reference_docs_ingest .\n"
+            "(the bundled bin/ closure lives under the install root, "
+            "not at the target repo root; the PYTHONPATH= prefix makes "
+            "`-m bin.reference_docs_ingest` resolve)"
+        ),
+    )
     emitter.emit(
         "install_complete", status="success",
         errors=0, smoke_failed=0,
