@@ -213,6 +213,22 @@ running this session wasn't powerful enough to do real three-pass code review an
 multi-model spec audit. The gate caught it as a WARN ("No ### BUG-NNN headings found in
 BUGS.md", emitted to `quality/results/quality-gate.log`) — that WARN is the signal.
 
+**Gate witness (REQUIRED — do not omit, do not paraphrase):** paste the
+final two lines of `quality/results/quality-gate.log` verbatim:
+
+    Total: N FAIL, M WARN
+    RESULT: GATE PASSED            (or: RESULT: GATE FAILED — N check(s) must be fixed)
+
+In this State S case the gate typically shows `0 FAIL` with `M≥1 WARN`
+and `RESULT: GATE PASSED` — but a GATE PASSED here does NOT mean a
+successful bug-finding run: the no-`### BUG-NNN`-headings WARN is the
+pass-process / fail-recall signal. You may NOT report this run as a
+successful "complete" / "PASS" baseline. If the `RESULT:` line shows
+`GATE FAILED` with `N>0` FAILs, the verdict is FAIL — list the failing
+checks. If `quality/results/quality-gate.log` is empty or missing
+these two lines the gate never ran — re-run it before emitting this
+block.
+
 ### What to do next
 
 Switch to a more capable model. From a Quality Playbook clone, run
@@ -231,6 +247,19 @@ Substitute the actual bug count `N` from `quality/BUGS.md` (count `^### BUG-` he
 
 Full baseline run complete. Found N confirmed bugs (writeups in `quality/writeups/`,
 patches in `quality/patches/`, TDD verification in `quality/results/`).
+
+**Gate witness (REQUIRED — do not omit, do not paraphrase):** paste the
+final two lines of `quality/results/quality-gate.log` verbatim:
+
+    Total: N FAIL, M WARN
+    RESULT: GATE PASSED            (or: RESULT: GATE FAILED — N check(s) must be fixed)
+
+If the gate output above does not show `RESULT: GATE PASSED` with `N=0`
+FAILs, the run's verdict is **FAIL** (regardless of how many bugs you
+confirmed) — say so explicitly and list the failing checks. You may
+NOT claim PASS, "complete", or "no remaining work" without `N=0`. If
+`quality/results/quality-gate.log` is empty or missing these two
+lines the gate never ran — re-run it before emitting this block.
 
 ### What to do next
 

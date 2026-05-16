@@ -246,13 +246,20 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # phase2.md gained the asymmetry-promotion backstop paragraph.
         # phase1/phase2 hashes recomputed; phase3-6 + single_pass +
         # iteration unchanged (each prompt is its own file).
+        # v1.5.7 instruction 057 (A-13): phase6.md Step 6.2 gained the
+        # MANDATORY gate-verdict-witness + "No PASS without N=0 FAILs"
+        # contract (the credibility-defect closure — agent must quote
+        # the gate's Total:/RESULT: lines verbatim). phase6 hash
+        # recomputed (3035 → 4495 codepoints); phase1-5 + single_pass
+        # + iteration unchanged. This baseline update IS the sanctioned
+        # change-acknowledgement signal.
         "phase1_no_seeds_True":  (22697, "923b7e62ecbacbae66d7ddf7717df235db768dc32f37f18a480ac16c96d4f951"),
         "phase1_no_seeds_False": (22500, "23271fafaafd210ea66f83ea7fc86ab98bbc7e2ea8137840d1ae6d02578408c9"),
         "phase2":                ( 7842, "d37aab06101d2be24ac82a00395830b95520d1ce19d9e8046ee79a5b4a6159cf"),
         "phase3":                ( 9778, "3232173110c93b465e00ef8a7c0aef226fd6d9a5bd90ed0854990e94ce0a5217"),
         "phase4":                ( 3911, "923e0198ca39182397e118f45452afcfde54731a46f5414bcd99431812af752f"),
         "phase5":                (13471, "4f5e852fb05730825ae041d4162c97f9dda8bc7dfdff50e6e4959e7ffd1173fa"),
-        "phase6":                ( 3035, "ff3b98db9f11912d2bd7d8b2a62c254c47dfa9ae31a39c2fdff1f05e7dedef1a"),
+        "phase6":                ( 4495, "a432092f9c1cc97f7fe4aa883e25ae5b55d361b77d9a5c39bf4a243190029ad1"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.

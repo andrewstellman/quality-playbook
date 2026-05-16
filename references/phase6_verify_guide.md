@@ -42,6 +42,17 @@ echo $? >> quality/results/phase6-verification.log
 
 Read `quality/results/quality-gate.log`. If it reports any FAIL results, fix each failing check before proceeding. The most common FAILs are: (1) missing `quality/patches/BUG-NNN-regression-test.patch` files, (2) non-canonical JSON field names like `bug_id` instead of `id`, (3) missing `confirmed_open` in the TDD summary, (4) writeups without inline fix diffs, (5) missing TDD red/green log files. Do not proceed until `quality_gate.py` exits 0.
 
+**MANDATORY gate-verdict witness (v1.5.7 A-13).** This is the same contract stated in `phase_prompts/phase6.md` Step 6.2 — keep the two coherent. Your State P6 "What just happened" chat emit MUST quote the gate's final verdict verbatim. The gate prints exactly these two lines (from quality_gate.py):
+
+```
+Total: N FAIL, M WARN
+RESULT: GATE PASSED            (or: RESULT: GATE FAILED — N check(s) must be fixed)
+```
+
+Both MUST appear verbatim in the emit (use the State B / State S gate-witness block in `references/what_just_happened.md`). If `quality/results/quality-gate.log` is empty or lacks these two lines, the gate did not run successfully (never invoked, or output not captured) — re-run it before emitting anything.
+
+**No PASS claim without N=0 FAILs (v1.5.7 A-13).** The end-of-Phase-6 verdict — in PROGRESS.md AND the State P6 chat emit — is PASS ONLY when the quoted `RESULT:` line is `RESULT: GATE PASSED` with `N=0` FAILs in the `Total:` line. If the gate reports any FAILs the verdict is FAIL: list the FAIL count and failing checks; do NOT report PASS, "complete", or "no remaining work". Fabricating a PASS claim against a failing or never-run gate is the credibility defect this witness contract closes — it makes non-compliance detectable by any adopter reading the chat output.
+
 Append to `quality/results/phase6-verification.log`:
 ```
 [Step 6.2] quality_gate.py: PASS (exit 0) — N checks passed, 0 FAIL, 0 WARN

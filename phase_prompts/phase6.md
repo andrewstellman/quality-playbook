@@ -15,6 +15,33 @@ Read the output carefully. For every FAIL result, fix the issue:
 After fixing all FAILs, run quality_gate.py again. Repeat until 0 FAIL.
 Save final output to quality/results/quality-gate.log.
 
+**MANDATORY gate-verdict witness (v1.5.7 A-13).** Your State P6 "What
+just happened" chat emit MUST quote the gate's final verdict verbatim.
+After running `python3 <resolved_quality_gate_path> .` and saving
+output to `quality/results/quality-gate.log`, extract its literal last
+two lines and paste them into your emit. The gate prints exactly these
+two lines (from quality_gate.py):
+
+    Total: N FAIL, M WARN
+    RESULT: GATE PASSED            (or: RESULT: GATE FAILED — N check(s) must be fixed)
+
+Both lines MUST appear verbatim in your "What just happened" emit (use
+the State B / State S template's gate-witness block). If
+`quality/results/quality-gate.log` is empty or does not contain these
+two lines, the gate did not run successfully — it was never invoked
+or its output was not captured; re-run it before emitting anything.
+
+**No PASS claim without N=0 FAILs (v1.5.7 A-13).** Your end-of-Phase-6
+verdict — in PROGRESS.md AND the State P6 chat emit — is PASS ONLY
+when the quoted `RESULT:` line says `RESULT: GATE PASSED` with `N=0`
+FAILs in the `Total:` line. If the gate reports any FAILs, your
+verdict is FAIL: list the gate's FAIL count and the failing checks;
+do NOT report PASS, "complete", or "no remaining work". Fabricating a
+PASS claim against a failing (or never-run) gate is the exact
+credibility defect this witness contract closes — an adopter reading
+your chat output can verify the gate verdict line is present and
+matches your claim.
+
 Step 6.3: Run functional tests if a test runner is available.
 Step 6.4: File-by-file verification checklist (read one file at a time, check, move on).
 Step 6.5: Metadata consistency check.
