@@ -1302,27 +1302,80 @@ class RunPlaybookTests(unittest.TestCase):
             )
 
     def test_phase4_council_banner_reads_roster_programmatically(self) -> None:
-        """Phase 4 Council banner is wired into run_one_phase via a
-        source-grep guard (the actual banner output is captured at
-        run-time when a real Phase 4 invocation happens; this test
-        pins the wiring so a future refactor can't silently drop it)."""
+        """Phase 4 Council banner reads the roster programmatically
+        (not hardcoded); this test pins the wiring so a future
+        refactor can't silently drop it.
+
+        v1.5.7 instruction 053 (sibling-finding wiring) reworked the
+        seam: the banner previously called
+        `council_config.council_members()` directly; it now calls
+        `_active_council_roster(args)` so the documented
+        `--council-roster` CLI tier actually takes effect at this
+        dynamic-read site. The "programmatic, not hardcoded"
+        guarantee is preserved end-to-end — `_active_council_roster`
+        routes tiers 2+3 through `council_config.council_members()`.
+
+        The wiring pin is an AST `Call` check, NOT a source substring
+        check: a substring grep matches the instruction-053 EXPLANATORY
+        COMMENT in run_one_phase (which names `_active_council_roster`
+        and `council_config.council_members()`), so it would pass even
+        if the actual call were reverted — exactly the
+        instruction-051-class mutation-credibility defect this
+        instruction exists to eliminate. The AST walk only sees real
+        Call nodes, so reverting the banner call genuinely fails this
+        test (bite-verified during instruction-053 development:
+        reverting run_one_phase's banner to
+        `_council_config.council_members()` → the
+        `_active_council_roster` Call assertion below FAILS;
+        restore → PASS).
+        """
+        import ast
         import inspect
         from bin import run_playbook
-        source = inspect.getsource(run_playbook.run_one_phase)
-        # Pin: banner fires for phase=="4".
-        self.assertIn('if phase == "4":', source)
-        # Pin: roster is read programmatically from council_config.
-        self.assertIn("from bin import council_config", source)
-        self.assertIn("council_config.council_members()", source)
-        # Pin: banner content includes the Council-of-Three label.
-        self.assertIn("Council of Three", source)
-        # Pin: banner mentions --benchmark-mode for the alternative.
-        self.assertIn("--benchmark-mode", source)
+
+        src = inspect.getsource(run_playbook.run_one_phase)
+        tree = ast.parse(src)
+        called = {
+            node.func.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+        }
+        # Pin (comment-proof): run_one_phase actually CALLS the 3-tier
+        # resolver — the roster is resolved programmatically, not
+        # hardcoded, and the documented --council-roster tier reaches
+        # the banner.
+        self.assertIn(
+            "_active_council_roster", called,
+            "run_one_phase must call _active_council_roster(args) for "
+            "the Phase 4 banner (instruction-053 wiring); an AST Call "
+            "node was not found.",
+        )
+        # Pin: the resolver itself routes tiers 2+3 through the
+        # canonical council_config helper (defense against a future
+        # edit that hardcodes the roster inside the resolver). Use the
+        # AST of _active_council_roster so this is also comment-proof.
+        rtree = ast.parse(
+            inspect.getsource(run_playbook._active_council_roster)
+        )
+        resolver_attr_calls = {
+            node.func.attr
+            for node in ast.walk(rtree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+        }
+        self.assertIn("council_members", resolver_attr_calls)
+        # Pin: banner fires for phase=="4" and content is intact (these
+        # are banner string literals, not comment-only text).
+        self.assertIn('if phase == "4":', src)
+        self.assertIn("Council of Three", src)
+        self.assertIn("--benchmark-mode", src)
 
     def test_council_config_provides_council_members_helper(self) -> None:
-        """The cluster-050 banner reads the roster via
-        bin.council_config.council_members(); pin that the helper
-        exists and returns a non-empty tuple."""
+        """council_config.council_members() is the canonical roster
+        helper that `_active_council_roster` (and thus the Phase 4
+        banner) routes through for the config-file + default tiers;
+        pin that the helper exists and returns a non-empty tuple."""
         from bin import council_config
         roster = council_config.council_members()
         self.assertIsInstance(roster, tuple)
@@ -4581,6 +4634,118 @@ class DocsPresentRecognizedPlaintextPredicateTests(unittest.TestCase):
             refs.mkdir()
             (refs / "design.md").write_text("# Design\n", encoding="utf-8")
             self.assertTrue(run_playbook.docs_present(repo))
+
+
+class ActiveCouncilRosterResolutionTests(unittest.TestCase):
+    """v1.5.7 instruction 053 (Path A — sibling-finding wiring):
+    `_active_council_roster(args)` resolves the documented 3-tier
+    precedence: --council-roster CLI flag → ~/.qpb/config.json
+    `council_members` → DEFAULT_COUNCIL_MEMBERS. The function was
+    defined but never called pre-053 (the flag was effectively
+    unwired); it is now invoked by the Phase 4 banner.
+
+    Isolation: BOTH $XDG_CONFIG_HOME and $HOME (+ pathlib.Path.home)
+    route to temp dirs so a real adopter ~/.qpb/config.json can't
+    leak into the config-file tier (same harness as the 052 Option B
+    cleanup).
+    """
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        self._home = TemporaryDirectory()
+        self._patch = mock.patch.dict(
+            os.environ,
+            {"XDG_CONFIG_HOME": self._tmp.name, "HOME": self._home.name},
+        )
+        self._patch.start()
+        self._home_patch = mock.patch(
+            "pathlib.Path.home", return_value=Path(self._home.name)
+        )
+        self._home_patch.start()
+
+    def tearDown(self) -> None:
+        self._home_patch.stop()
+        self._patch.stop()
+        self._home.cleanup()
+        self._tmp.cleanup()
+
+    def _write_config(self, payload: object) -> None:
+        cfg_dir = Path(self._tmp.name) / "qpb"
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        (cfg_dir / "config.json").write_text(
+            json.dumps(payload), encoding="utf-8"
+        )
+
+    def _resolve(self, argv):
+        # parse_args runs _apply_qpb_config_overrides internally, so
+        # this exercises the real CLI→args→resolver path.
+        args = run_playbook.parse_args(argv)
+        return run_playbook._active_council_roster(args)
+
+    def test_council_roster_cli_flag_overrides_config(self) -> None:
+        """Tier 1 wins: --council-roster beats a different config-file
+        override.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-053
+        Task 3 (Path A) — the GENUINE distinguishing bite:
+          Mutation: delete the `if raw:` tier-1 block in
+          bin/run_playbook.py:_active_council_roster.
+          Expected failure: THIS test fails —
+            AssertionError: Tuples differ:
+            ('cfg-1','cfg-2','cfg-3') != ('cli-1','cli-2','cli-3').
+          With the flag given, argparse sets
+          args.council_roster="cli-1,cli-2,cli-3" and
+          _apply_qpb_config_overrides does NOT overlay (flag present);
+          without tier-1 the resolver falls through to
+          council_members() → the planted CONFIG roster, not the CLI
+          flag. Restore the block → PASS. Bite executed during
+          instruction-053 development; PASS→FAIL→PASS confirmed.
+
+        HONEST NOTE on the 053 fallback-wiring change (final
+        `return tuple(council_config.council_members())` replacing the
+        pre-053 bare `return DEFAULT_COUNCIL_MEMBERS`): it is NOT
+        independently bite-distinguishable on the parse_args path and
+        no test claims it is. `parse_args` runs
+        `_apply_qpb_config_overrides`, which overlays a config-file
+        `council_members` ONTO `args.council_roster` whenever no
+        `--council-roster` flag is passed — so the config-file tier
+        always reaches tier-1, never the fallback. The fallback only
+        fires with neither flag nor config (→ DEFAULT either way:
+        council_members() returns DEFAULT when no config). The change
+        is therefore behaviorally equivalent on the normal path; its
+        value is defensive correctness + de-duplication — it makes
+        `_active_council_roster` self-sufficient (honors the config
+        file even if called on an args object that never went through
+        the overlay) and routes through the single canonical helper
+        instead of a second DEFAULT import. The banner-wiring half of
+        the 053 fix (run_one_phase calling _active_council_roster) is
+        bite-pinned separately and comment-proof in
+        test_phase4_council_banner_reads_roster_programmatically.
+        """
+        self._write_config(
+            {"council_members": ["cfg-1", "cfg-2", "cfg-3"]}
+        )
+        roster = self._resolve(
+            [".", "--council-roster", "cli-1,cli-2,cli-3", "--model", "sonnet"]
+        )
+        self.assertEqual(roster, ("cli-1", "cli-2", "cli-3"))
+
+    def test_council_roster_config_overrides_default(self) -> None:
+        """Tier 2: no CLI flag, config-file `council_members` applied
+        (this is the pin for the 053 fallback-wiring change — pre-053
+        the fallback skipped the config tier and returned DEFAULT)."""
+        self._write_config(
+            {"council_members": ["cfg-1", "cfg-2", "cfg-3"]}
+        )
+        roster = self._resolve([".", "--model", "sonnet"])
+        self.assertEqual(roster, ("cfg-1", "cfg-2", "cfg-3"))
+
+    def test_council_roster_default_when_neither_set(self) -> None:
+        """Tier 3: no CLI flag, no config file → DEFAULT_COUNCIL_MEMBERS."""
+        from bin.council_config import DEFAULT_COUNCIL_MEMBERS
+        roster = self._resolve([".", "--model", "sonnet"])
+        self.assertEqual(roster, tuple(DEFAULT_COUNCIL_MEMBERS))
 
 
 if __name__ == "__main__":

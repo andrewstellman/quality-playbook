@@ -3,13 +3,76 @@
 from __future__ import annotations
 
 import json
+import os
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
 from bin import council_semantic_check as csc
 from bin.council_config import DEFAULT_COUNCIL_MEMBERS
+
+
+class _IsolatedEnvTestCase(unittest.TestCase):
+    """Routes BOTH config-path resolution legs ($XDG_CONFIG_HOME and
+    $HOME / pathlib.Path.home()) to fresh temp dirs so a real adopter
+    ~/.qpb/config.json can never leak into these tests.
+
+    v1.5.7 instruction 053 (052 Option B). The instruction-052 A-9
+    fix made council_config.council_members() honor
+    ~/.qpb/config.json. council_semantic_check's CLI typo-validation
+    (council_semantic_check.py:593) and plan/assemble paths call
+    council_members(); these CLITests + PlanModeTests were NOT
+    isolated from the real config, so with a stray D6 config present
+    they resolved the `custom-reviewer-*` roster and failed (the 7
+    failures instruction 052 surfaced). This base class is the
+    durable close-out.
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-053
+    Task 2.2 bite:
+      Mutation: make CLITests / PlanModeTests inherit
+        `unittest.TestCase` again (remove this base's
+        $HOME/$XDG/Path.home isolation) AND plant
+        ``{"council_members": ["custom-reviewer-1","custom-reviewer-2",
+        "custom-reviewer-3"]}`` at ``$HOME/.qpb/config.json``.
+      Expected failure: the 7 env-sensitive tests
+        (CLITests.test_assemble_rejects_duplicate_member_identifiers /
+        _rejects_typo_in_member_identifier / test_explicit_assemble_
+        subcommand / test_main_assembles_from_response_files;
+        PlanModeTests.test_plan_cli_subcommand /
+        _plan_prompts_clears_prior_batch_files_on_unbatched_rerun /
+        _plan_writes_one_file_per_member_under_threshold) FAIL because
+        council_members() resolves the planted custom roster — prompt
+        files / validation use `custom-reviewer-*` instead of
+        DEFAULT_COUNCIL_MEMBERS.
+      Restoration: re-parent to this base; with the same planted
+        config the 7 PASS (isolation routes config_path() to the temp
+        dir; council_members() returns DEFAULT).
+      Bite executed during instruction-053 development:
+        no-isolation+planted -> 7 FAIL; isolation+planted -> 7 PASS,
+        confirmed.
+    """
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        self._home = TemporaryDirectory()
+        self._patch = mock.patch.dict(
+            os.environ,
+            {"XDG_CONFIG_HOME": self._tmp.name, "HOME": self._home.name},
+        )
+        self._patch.start()
+        self._home_patch = mock.patch(
+            "pathlib.Path.home", return_value=Path(self._home.name)
+        )
+        self._home_patch.start()
+
+    def tearDown(self) -> None:
+        self._home_patch.stop()
+        self._patch.stop()
+        self._home.cleanup()
+        self._tmp.cleanup()
 
 
 def _write(path: Path, content: str) -> None:
@@ -299,7 +362,7 @@ class CouncilConfigTests(unittest.TestCase):
         self.assertIn("claude-sonnet-4.6", DEFAULT_COUNCIL_MEMBERS)
 
 
-class CLITests(unittest.TestCase):
+class CLITests(_IsolatedEnvTestCase):
     def test_main_exits_2_on_unbalanced_args(self) -> None:
         self.assertEqual(csc.main(["some-repo", "--member", "x"]), 2)
 
@@ -406,7 +469,7 @@ class CLITests(unittest.TestCase):
             self.assertIn("claude-opus-4.7", err)
 
 
-class PlanModeTests(unittest.TestCase):
+class PlanModeTests(_IsolatedEnvTestCase):
     """Phase 7 r1: `semantic-check plan` emits per-member prompt files."""
 
     def test_plan_writes_one_file_per_member_under_threshold(self) -> None:

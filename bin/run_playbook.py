@@ -685,13 +685,28 @@ def _apply_qpb_config_overrides(
 
 
 def _active_council_roster(args: argparse.Namespace) -> tuple[str, ...]:
-    """v1.5.7 Phase 6c: resolve the active Council roster.
+    """v1.5.7 Phase 6c: resolve the active Council roster — the
+    documented 3-tier precedence (references/runners_and_models.md,
+    QPB_v1.5.7_Design.md:439/551, Implementation_Plan.md:363).
 
     Resolution order (most specific first):
       1. --council-roster CLI flag (parsed from args.council_roster).
-      2. Config file's `council_members` (overlaid onto args during
-         parse_args via _apply_qpb_config_overrides).
+      2. Config file's `council_members` (~/.qpb/config.json).
       3. bin/council_config.DEFAULT_COUNCIL_MEMBERS (built-in default).
+
+    v1.5.7 instruction 053 (sibling-finding wiring): tiers 2+3 now
+    route through `council_config.council_members()` (which since the
+    instruction-052 A-9 fix resolves config-file → DEFAULT itself).
+    Previously this fallback returned DEFAULT_COUNCIL_MEMBERS directly
+    and SKIPPED the config-file tier, and this function was never
+    called anywhere — so the documented `--council-roster` CLI tier
+    was effectively unwired. The Phase 4 banner (run_one_phase) now
+    calls this resolver so the flag actually takes effect at the
+    documented dynamic-read site (Design.md:409). Tier 1 still wins
+    over config/default; when no flag is set (args.council_roster is
+    None — incl. the config value `_apply_qpb_config_overrides` may
+    have overlaid onto it), council_members() applies the config →
+    default fallback. Both paths yield the same roster; no divergence.
     """
     raw = getattr(args, "council_roster", None)
     if raw:
@@ -705,8 +720,8 @@ def _active_council_roster(args: argparse.Namespace) -> tuple[str, ...]:
             except ImportError:
                 pass
             return tuple(members)
-    from bin.council_config import DEFAULT_COUNCIL_MEMBERS
-    return DEFAULT_COUNCIL_MEMBERS
+    from bin import council_config
+    return tuple(council_config.council_members())
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
@@ -3242,9 +3257,16 @@ def run_one_phase(
     # that reach Phase 4 — including normal --full-run — so log
     # readers see the model expansion explicitly.
     if phase == "4":
+        # v1.5.7 instruction 053 (sibling-finding wiring): read the
+        # roster via _active_council_roster(args) so the documented
+        # 3-tier precedence (--council-roster flag → ~/.qpb/config.json
+        # → DEFAULT) actually takes effect at this dynamic-read site
+        # (Design.md:409). Previously this called
+        # council_config.council_members() directly, which honored the
+        # config-file + default tiers (post-052) but NOT the
+        # --council-roster CLI flag.
         try:
-            from bin import council_config as _council_config
-            roster = ", ".join(_council_config.council_members())
+            roster = ", ".join(_active_council_roster(args))
         except (ImportError, AttributeError):
             roster = "(unavailable — see bin/council_config.py)"
         lib.logboth(log_file, lib.log(

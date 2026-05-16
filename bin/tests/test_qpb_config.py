@@ -31,15 +31,38 @@ from bin import qpb_config
 
 
 class _XdgTestCase(unittest.TestCase):
-    """Base: every test uses a fresh temp dir as $XDG_CONFIG_HOME."""
+    """Base: every test routes BOTH config-path resolution legs to
+    fresh temp dirs so an adopter's real config can never leak in.
+
+    v1.5.7 instruction 053 (052 Option B) retrofit: patching only
+    `$XDG_CONFIG_HOME` was insufficient. `qpb_config.config_path()`
+    falls through to `Path.home() / ".qpb" / "config.json"`
+    (qpb_config.py:97) when the XDG path has no file — and
+    `Path.home()` reads the real `$HOME`. With a stray/real
+    `~/.qpb/config.json` present, `test_no_config_file_returns_none`
+    and `test_round_trip` then failed (the 2 long-known env failures
+    the orchestrator carried since instruction 050). We now ALSO
+    patch `$HOME` (env) AND `pathlib.Path.home()` so both resolution
+    legs land in the temp dir regardless of the host environment.
+    """
 
     def setUp(self) -> None:
         self._tmp = TemporaryDirectory()
-        self._patch = mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": self._tmp.name})
+        self._home = TemporaryDirectory()
+        self._patch = mock.patch.dict(
+            os.environ,
+            {"XDG_CONFIG_HOME": self._tmp.name, "HOME": self._home.name},
+        )
         self._patch.start()
+        self._home_patch = mock.patch(
+            "pathlib.Path.home", return_value=Path(self._home.name)
+        )
+        self._home_patch.start()
 
     def tearDown(self) -> None:
+        self._home_patch.stop()
         self._patch.stop()
+        self._home.cleanup()
         self._tmp.cleanup()
 
 

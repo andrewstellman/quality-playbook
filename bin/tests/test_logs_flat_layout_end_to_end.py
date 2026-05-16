@@ -15,6 +15,26 @@ deterministic complement that pins the precise bypass-site fix lives
 in test_run_playbook.py::*build_worker_command*logs_flat* — these
 on-disk tests are the integration backstop.)
 
+WHY THIS SUBPROCESS TEST ACTUALLY TRAVERSES THE BYPASS (instruction
+053 / 051 Option B — making the traversal self-evident to a static
+reviewer): `parse_args` defaults `args.parallel = True` for every
+non-`--worker` invocation (bin/run_playbook.py:732 sets
+`args.parallel = False` ONLY `if args.worker:`). This subprocess test
+invokes the real CLI WITHOUT `--worker`, so `args.parallel` is True →
+the parent enters the `if args.parallel:` worker-spawn branch
+(bin/run_playbook.py:5081) → it calls `build_worker_command`
+(bin/run_playbook.py:5088) — and `build_worker_command` is the ONLY
+call site of the A-8 bypass. Therefore deleting the `--logs-flat`
+propagation block inside `build_worker_command` MUST flip this test
+from PASS to FAIL. A static reviewer does not need to know the
+`parse_args` default to see this: `test_logs_flat_writes_legacy_paths_only`
+now passes `--parallel` explicitly (redundant with the default, but
+it pins traversal unmistakably and defends against a future change to
+the parallel default), and `test_logs_flat_spans_parse_args_through_
+worker_to_disk` asserts the full chain
+(parse_args → build_worker_command-contains-`--logs-flat` → spawned
+worker → on-disk legacy layout) in one reviewer-checkable place.
+
 Mutation-test evidence (in-tree per
 ai_context/DEVELOPMENT_PROCESS.md:152-160): delete the instruction-051
 A-8 `if getattr(args, "logs_flat", False): command.append(
@@ -23,11 +43,16 @@ bin/run_playbook.py:build_worker_command. Expected failure:
 test_logs_flat_writes_legacy_paths_only fails at
 `assertFalse(centralized_run_id_dirs(...))` because the worker
 subprocess, parsed without --logs-flat, writes the CENTRALIZED
-quality/logs/<run-id>/ tree (the original bug). Restore the block →
-passes. Bite verified during instruction 051 development. (The env
-twin test was NOT broken pre-fix — env vars inherit into the
-subprocess so QPB_LOGS_LEGACY=1 always propagated; it pins the
-flag/env equivalence and guards future regressions.)
+quality/logs/<run-id>/ tree (the original bug); AND
+test_logs_flat_spans_parse_args_through_worker_to_disk fails even
+earlier — at its in-process `assertIn("--logs-flat",
+build_worker_command(args, "."))` assertion, before any subprocess
+runs (the deterministic, no-subprocess proof that traversal is real).
+Restore the block → both pass. Bite verified during instruction 051
+development (subprocess test) and instruction 053 development
+(spanning test). (The env twin test was NOT broken pre-fix — env vars
+inherit into the subprocess so QPB_LOGS_LEGACY=1 always propagated;
+it pins the flag/env equivalence and guards future regressions.)
 """
 
 from __future__ import annotations
@@ -39,6 +64,8 @@ import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+
+from bin import run_playbook
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 RUN_PLAYBOOK = REPO_ROOT / "bin" / "run_playbook.py"
@@ -122,9 +149,16 @@ class LogsFlatEndToEndTests(unittest.TestCase):
         )
 
     def test_logs_flat_writes_legacy_paths_only(self) -> None:
+        # `--parallel` is redundant with the parse_args default
+        # (args.parallel=True for non-`--worker` runs) but is passed
+        # explicitly here (instruction 053 / 051 Option B) to pin the
+        # worker-spawn traversal unmistakably and defend against a
+        # future change to the parallel default.
         with TemporaryDirectory() as tmp:
             wd = Path(tmp)
-            out = _run_until_layout(wd, extra_args=["--logs-flat"])
+            out = _run_until_layout(
+                wd, extra_args=["--logs-flat", "--parallel"]
+            )
             self._assert_legacy_layout(wd, out)
 
     def test_qpb_logs_legacy_env_writes_legacy_paths_only(self) -> None:
@@ -139,6 +173,54 @@ class LogsFlatEndToEndTests(unittest.TestCase):
             wd = Path(tmp)
             out = _run_until_layout(
                 wd, extra_args=[], env_extra={"QPB_LOGS_LEGACY": "1"}
+            )
+            self._assert_legacy_layout(wd, out)
+
+    def test_logs_flat_spans_parse_args_through_worker_to_disk(self) -> None:
+        """Instruction 053 / 051 Option B: ONE reviewer-checkable
+        artifact spanning the entire A-8 chain — real CLI args →
+        parsed namespace → worker-argv reconstruction → spawned worker
+        → on-disk legacy layout. This is the single test codex's
+        instruction-051 Q4 was asking for; a static reviewer can
+        follow steps 1→2 without running anything to see the bypass is
+        traversed.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160): delete the
+        instruction-051 A-8 propagation block
+        (`if getattr(args, "logs_flat", False):
+        command.append("--logs-flat")`) from
+        bin/run_playbook.py:build_worker_command. Expected failure:
+        THIS test fails at step 2's
+        `self.assertIn("--logs-flat", cmd)` — BEFORE any subprocess is
+        spawned (deterministic, fast, no-subprocess proof that the
+        worker-argv reconstruction is the bypass and that this test
+        traverses it). Restore the block → passes. Bite executed
+        during instruction 053 development; PASS→FAIL on mutation,
+        FAIL→PASS on restore, confirmed.
+        """
+        with TemporaryDirectory() as tmp:
+            wd = Path(tmp)
+            # Step 1: real CLI args → parsed namespace. No `--worker`,
+            # so parse_args defaults args.parallel=True (the property
+            # that makes the parent re-spawn a worker via
+            # build_worker_command — the only A-8 bypass site).
+            args = run_playbook.parse_args([
+                str(wd), "--model", "sonnet", "--logs-flat", "--phase", "1",
+            ])
+            self.assertIs(args.parallel, True)
+            self.assertIs(args.logs_flat, True)
+
+            # Step 2: worker-argv reconstruction propagates --logs-flat
+            # (the A-8 fix). Fails here, pre-subprocess, if the
+            # propagation block is reverted.
+            cmd = run_playbook.build_worker_command(args, str(wd))
+            self.assertIn("--logs-flat", cmd)
+
+            # Step 3: the real CLI subprocess writes the legacy layout
+            # only — no centralized quality/logs/<run-id>/.
+            out = _run_until_layout(
+                wd, extra_args=["--logs-flat", "--parallel"]
             )
             self._assert_legacy_layout(wd, out)
 
