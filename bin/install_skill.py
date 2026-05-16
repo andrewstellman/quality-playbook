@@ -151,6 +151,40 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     benchmark_lib_src = source_root / "bin" / "benchmark_lib.py"
     if benchmark_lib_src.is_file():
         files.append((benchmark_lib_src, Path("bin") / "benchmark_lib.py"))
+    # v1.5.7 instruction 050 A-6.2: bundle the quality_playbook
+    # closure so adopter Mode-A runs hitting Phase 4's
+    # `python3 -m bin.quality_playbook semantic-check plan|assemble .`
+    # invocation (per phase_prompts/phase4.md:26,43) resolve at the
+    # install destination. Self-bootstrap masked this (cwd is the QPB
+    # clone); an adopter Mode-A run against a non-Spec-Gap target with
+    # Tier 1/2 REQs would hit ModuleNotFoundError at Phase 4.
+    #
+    # Closure traced (AST) from quality_playbook.py's imports + each
+    # module's transitive `from .` imports:
+    #   quality_playbook -> archive_lib, council_semantic_check,
+    #                       migrate_v1_5_0_layout
+    #   archive_lib      -> role_map
+    #   council_semantic_check -> archive_lib, benchmark_lib,
+    #                             council_config
+    #   migrate_v1_5_0_layout  -> archive_lib
+    #   role_map / council_config -> (no internal bin. imports)
+    # benchmark_lib was bundled in 049 (A-6.1); the remaining 6 land
+    # here. __init__.py is required for the `from .` package syntax
+    # to resolve at the install root.
+    qpb_init_src = source_root / "bin" / "__init__.py"
+    if qpb_init_src.is_file():
+        files.append((qpb_init_src, Path("bin") / "__init__.py"))
+    for _mod_name in (
+        "quality_playbook.py",
+        "archive_lib.py",
+        "council_semantic_check.py",
+        "migrate_v1_5_0_layout.py",
+        "role_map.py",
+        "council_config.py",
+    ):
+        _mod_src = source_root / "bin" / _mod_name
+        if _mod_src.is_file():
+            files.append((_mod_src, Path("bin") / _mod_name))
     return files
 
 

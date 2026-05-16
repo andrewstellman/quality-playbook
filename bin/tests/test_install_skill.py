@@ -976,5 +976,72 @@ class AiToolFlagTests(unittest.TestCase):
             self.assertIn("target-and-ai-tool-mutually-exclusive", out)
 
 
+class BundleManifestClosureTests(unittest.TestCase):
+    """v1.5.7 instruction 050 A-6.2: install_skill._bundle_files()
+    must bundle the full quality_playbook closure so an adopter
+    Mode-A run hitting Phase 4's `python3 -m bin.quality_playbook
+    semantic-check ...` (phase_prompts/phase4.md:26,43) resolves at
+    the install destination instead of ModuleNotFoundError
+    (self-bootstrap masked this — cwd is the QPB clone).
+
+    Closure traced (AST) from quality_playbook.py's imports + each
+    module's transitive `from .` imports; benchmark_lib was bundled
+    in 049 (A-6.1).
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160): delete the
+    instruction-050 A-6.2 closure block from
+    bin/install_skill.py:_bundle_files() (the `qpb_init_src` +
+    `for _mod_name in (...)` loop after the benchmark_lib_src block).
+    Expected failure: this test fails listing every missing closure
+    dest (bin/__init__.py + the six bin/<module>.py). Restore the
+    block → passes. Bite verified during instruction 050 development.
+
+    The expected set is a LIST (not a hardcoded count) so a future
+    closure addition is added here without a brittle count assertion.
+    """
+
+    # 6 modules + __init__.py. benchmark_lib.py is intentionally NOT
+    # listed — it is bundled by the separate 049 A-6.1 block; this
+    # test pins ONLY the instruction-050 closure additions.
+    EXPECTED_CLOSURE_DESTS = (
+        "bin/__init__.py",
+        "bin/quality_playbook.py",
+        "bin/archive_lib.py",
+        "bin/council_semantic_check.py",
+        "bin/migrate_v1_5_0_layout.py",
+        "bin/role_map.py",
+        "bin/council_config.py",
+    )
+
+    def test_bundle_includes_quality_playbook_closure(self) -> None:
+        manifest = install_skill._bundle_files(REPO_ROOT)
+        dests = {str(dest) for _src, dest in manifest}
+        missing = [
+            d for d in self.EXPECTED_CLOSURE_DESTS if d not in dests
+        ]
+        self.assertEqual(
+            missing, [],
+            "install_skill._bundle_files() is missing quality_playbook "
+            f"closure entries: {missing}. Adopter Mode-A Phase-4 "
+            "semantic-check would ModuleNotFoundError. (A-6.2)",
+        )
+
+    def test_closure_src_paths_resolve_in_real_qpb_tree(self) -> None:
+        """Each bundled closure entry's source path must exist in the
+        QPB tree — _bundle_files only appends when src.is_file(), so a
+        present manifest entry implies a real source; pin that for
+        the closure."""
+        manifest = install_skill._bundle_files(REPO_ROOT)
+        by_dest = {str(d): s for s, d in manifest}
+        for dest in self.EXPECTED_CLOSURE_DESTS:
+            self.assertIn(dest, by_dest)
+            self.assertTrue(
+                Path(by_dest[dest]).is_file(),
+                f"closure manifest entry {dest} points at missing "
+                f"source {by_dest[dest]}",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

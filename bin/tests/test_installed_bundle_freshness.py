@@ -224,6 +224,106 @@ class InstalledBundleFreshnessTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def _make_qpb_source_050(self, root: Path) -> None:
+        """instruction-050 superset: 049's setup_repos.sh source +
+        the A-6.2 quality_playbook closure modules + __init__.py in
+        bin/, phase_prompts/ + agents/ source, AND a synthetic
+        setup_repos.sh whose cp lines include the closure (so the
+        freshness check's two sources of truth — _bundle_files +
+        parsed setup_repos.sh — both yield the closure as expected)."""
+        self._make_qpb_source_with_setup_repos(root)
+        for _m in (
+            "__init__.py", "quality_playbook.py", "archive_lib.py",
+            "council_semantic_check.py", "migrate_v1_5_0_layout.py",
+            "role_map.py", "council_config.py",
+        ):
+            _write(root / "bin" / _m)
+        _write(root / "phase_prompts" / "phase1.md")
+        _write(root / "phase_prompts" / "phase2.md")
+        _write(root / "agents" / "quality-playbook.agent.md")
+        sr = root / "repos" / "setup_repos.sh"
+        sr.write_text(
+            sr.read_text(encoding="utf-8")
+            + 'cp "${QPB_DIR}/bin/__init__.py" "${dst}/bin/__init__.py" 2>/dev/null || true\n'
+            'cp "${QPB_DIR}/bin/quality_playbook.py" "${dst}/bin/quality_playbook.py" 2>/dev/null || true\n'
+            'cp "${QPB_DIR}/bin/archive_lib.py" "${dst}/bin/archive_lib.py" 2>/dev/null || true\n'
+            'cp "${QPB_DIR}/bin/council_semantic_check.py" "${dst}/bin/council_semantic_check.py" 2>/dev/null || true\n'
+            'cp "${QPB_DIR}/bin/migrate_v1_5_0_layout.py" "${dst}/bin/migrate_v1_5_0_layout.py" 2>/dev/null || true\n'
+            'cp "${QPB_DIR}/bin/role_map.py" "${dst}/bin/role_map.py" 2>/dev/null || true\n'
+            'cp "${QPB_DIR}/bin/council_config.py" "${dst}/bin/council_config.py" 2>/dev/null || true\n',
+            encoding="utf-8",
+        )
+
+    def test_freshness_auto_covers_closure_and_phase_prompts_050(self) -> None:
+        """v1.5.7 instruction 050 A-7.3 + A-6.2.4. NO freshness-check
+        code change was needed: the instruction-049 layout-agnostic
+        design already (a) checks references/phase_prompts/agents at
+        bundle_dir/<subdir> — which == target/.github/skills/<subdir>
+        for a setup_repos.sh target, and (b) derives the expected
+        bin/ set from install_skill._bundle_files + the parsed
+        setup_repos.sh cp lines. Extending those two sources of truth
+        (A-6.2.1 / A-6.2.2) automatically extends freshness coverage.
+        This test PINS that auto-coverage so a future regression that
+        narrows it is caught.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160): revert the
+        instruction-050 A-6.2 closure block in
+        install_skill._bundle_files() AND the closure cp lines in the
+        synthetic setup_repos.sh (i.e. simulate the closure not being
+        a bundle source of truth). Expected failure: this test's
+        closure assertIns fire (the closure modules are no longer in
+        the freshness expected set). Restore → passes. Bite verified
+        during instruction 050 development.
+        """
+        with TemporaryDirectory() as qtmp, TemporaryDirectory() as ttmp:
+            qpb_root = Path(qtmp)
+            target = Path(ttmp)
+            self._make_qpb_source_050(qpb_root)
+            # setup_repos.sh-layout target: SKILL.md under
+            # .github/skills/; bin/ at target root. Closure +
+            # phase_prompts + agents ALL MISSING; only
+            # citation_verifier present at target/bin/.
+            _write(
+                target / ".github" / "skills" / "SKILL.md",
+                "# installed snapshot (setup_repos.sh layout)\n",
+            )
+            _write(target / "bin" / "citation_verifier.py")
+
+            missing = run_playbook._check_installed_bundle_freshness(
+                qpb_root, target
+            )
+
+            # A-6.2.4: closure modules reported (bin/ block; union of
+            # _bundle_files + parsed setup_repos.sh; checked at
+            # target/bin/ for the setup_repos.sh layout).
+            for mod in (
+                "bin/quality_playbook.py",
+                "bin/archive_lib.py",
+                "bin/council_semantic_check.py",
+                "bin/migrate_v1_5_0_layout.py",
+                "bin/role_map.py",
+                "bin/council_config.py",
+                "bin/__init__.py",
+            ):
+                self.assertIn(
+                    mod, missing,
+                    f"{mod} (quality_playbook closure) absent from a "
+                    f"setup_repos.sh target must be reported (A-6.2.4 "
+                    f"auto-coverage)",
+                )
+            # A-7.3: phase_prompts/ + agents/ reported (md-loop;
+            # bundle_dir == target/.github/skills/ for setup_repos.sh).
+            self.assertIn("phase_prompts/phase1.md", missing)
+            self.assertIn(
+                "agents/quality-playbook.agent.md", missing,
+                "A-7.3: phase_prompts/agents absent from a "
+                "setup_repos.sh target's .github/skills/ must be "
+                "reported",
+            )
+            # No false positive on the one module that IS present.
+            self.assertNotIn("bin/citation_verifier.py", missing)
+
     def test_freshness_detects_missing_bin_in_setup_repos_layout(self) -> None:
         """v1.5.7 instruction 049 A-2-recast-ext. setup_repos.sh
         installs SKILL.md at target/.github/skills/SKILL.md and bin/

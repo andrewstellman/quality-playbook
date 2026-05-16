@@ -215,6 +215,25 @@ for short in "${REPOS[@]}"; do
     mkdir -p "${dst}/.github/skills/references"
     cp "${QPB_DIR}/SKILL.md" "${dst}/.github/skills/SKILL.md"
     cp "${QPB_DIR}/references/"* "${dst}/.github/skills/references/" 2>/dev/null || true
+    # v1.5.7 instruction 050 A-7: bundle phase_prompts/ and agents/.
+    # install_skill.py._bundle_files() already bundles these (lines
+    # ~105-126); setup_repos.sh diverged when v1.5.6 added them
+    # (phase_prompts BUG-001, agents cluster A). Without them a Mode A
+    # agent reading the installed SKILL.md cannot resolve
+    # phase_prompts/phaseN.md or the canonical agent file and produces
+    # a 0-line EXPLORATION.md at Phase 1 (the post-049 codex UI virtio
+    # symptom). Destination matches the setup_repos.sh .github/skills/
+    # flat layout (same as SKILL.md line 216 + references/ line 217);
+    # SKILL.md:72 resolves phase_prompts via the same fallback list as
+    # references/, so .github/skills/phase_prompts/ is correct.
+    # TODO(v1.5.7.x): consolidate this + the bin/ cp block below with
+    # install_skill.py._bundle_files() so the two install lanes share
+    # one bundle source of truth (instruction 050 chose the additive
+    # option to keep this ship-blocker fix low-risk).
+    mkdir -p "${dst}/.github/skills/phase_prompts"
+    cp "${QPB_DIR}/phase_prompts/"*.md "${dst}/.github/skills/phase_prompts/" 2>/dev/null || true
+    mkdir -p "${dst}/.github/skills/agents"
+    cp "${QPB_DIR}/agents/"*.md "${dst}/.github/skills/agents/" 2>/dev/null || true
     cp "${QPB_DIR}/LICENSE.txt" "${dst}/.github/skills/LICENSE.txt" 2>/dev/null || true
     cp "${QPB_DIR}/.github/skills/quality_gate/quality_gate.py" "${dst}/.github/skills/quality_gate.py" 2>/dev/null || true
     cp "${QPB_DIR}/AGENTS.md" "${dst}/AGENTS.md" 2>/dev/null || true
@@ -239,6 +258,25 @@ for short in "${REPOS[@]}"; do
     # at module load (version detection); benchmark_lib is stdlib-only
     # (no internal bin/ deps) so the closure is exactly these two.
     cp "${QPB_DIR}/bin/benchmark_lib.py" "${dst}/bin/benchmark_lib.py" 2>/dev/null || true
+    # v1.5.7 instruction 050 A-6.2: bundle the quality_playbook
+    # closure so a Mode-A run hitting Phase 4's `python3 -m
+    # bin.quality_playbook semantic-check ...` (phase_prompts/phase4.md
+    # :26,43) resolves at target/bin/. install_skill.py._bundle_files()
+    # bundles the SAME closure (canonical source of truth); this is
+    # the additive mirror for the setup_repos.sh lane.
+    # TODO(v1.5.7.x): consolidate — emit this list from
+    # install_skill._bundle_files() so both install lanes share one
+    # bundle source (instruction 050 chose additive cp to keep this
+    # ship-blocker low-risk; the duplication is intentional + tracked).
+    # __init__.py is required for the `from .` package syntax to
+    # resolve at target/bin/.
+    cp "${QPB_DIR}/bin/__init__.py" "${dst}/bin/__init__.py" 2>/dev/null || true
+    cp "${QPB_DIR}/bin/quality_playbook.py" "${dst}/bin/quality_playbook.py" 2>/dev/null || true
+    cp "${QPB_DIR}/bin/archive_lib.py" "${dst}/bin/archive_lib.py" 2>/dev/null || true
+    cp "${QPB_DIR}/bin/council_semantic_check.py" "${dst}/bin/council_semantic_check.py" 2>/dev/null || true
+    cp "${QPB_DIR}/bin/migrate_v1_5_0_layout.py" "${dst}/bin/migrate_v1_5_0_layout.py" 2>/dev/null || true
+    cp "${QPB_DIR}/bin/role_map.py" "${dst}/bin/role_map.py" 2>/dev/null || true
+    cp "${QPB_DIR}/bin/council_config.py" "${dst}/bin/council_config.py" 2>/dev/null || true
     # v1.5.7 fix F-5b: install the runner wrapper so adopters can
     # invoke `<repo>-<version>/bin/run_playbook.sh` from anywhere and
     # have it auto-discover the QPB clone via walk-up from its own

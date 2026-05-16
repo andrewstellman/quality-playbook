@@ -51,6 +51,27 @@ def _build_minimal_fixture(qpb_root: Path, short: str = "dummytest", version: st
     # able to distinguish "fix present" from "fix absent").
     (qpb_root / "bin" / "reference_docs_ingest.py").write_text("# stub\n", encoding="utf-8")
     (qpb_root / "bin" / "benchmark_lib.py").write_text("# stub\n", encoding="utf-8")
+    # v1.5.7 instruction 050 A-7: source phase_prompts/ + agents/ so
+    # setup_repos.sh's new A-7 cp lines have something to copy.
+    (qpb_root / "phase_prompts").mkdir(exist_ok=True)
+    for _pp in ("phase1.md", "phase2.md", "iteration.md", "single_pass.md"):
+        (qpb_root / "phase_prompts" / _pp).write_text("# pp stub\n", encoding="utf-8")
+    (qpb_root / "agents").mkdir(exist_ok=True)
+    (qpb_root / "agents" / "quality-playbook.agent.md").write_text(
+        "# agent stub\n", encoding="utf-8",
+    )
+    # v1.5.7 instruction 050 A-6.2: source closure stubs + __init__.py
+    # so setup_repos.sh's A-6.2 closure cp lines have something to
+    # copy (cp uses `2>/dev/null || true` — missing source silently
+    # skipped, so the stubs let the end-to-end test distinguish
+    # "fix present" from "fix absent").
+    (qpb_root / "bin" / "__init__.py").write_text("# pkg\n", encoding="utf-8")
+    for _m in (
+        "quality_playbook.py", "archive_lib.py",
+        "council_semantic_check.py", "migrate_v1_5_0_layout.py",
+        "role_map.py", "council_config.py",
+    ):
+        (qpb_root / "bin" / _m).write_text("# stub\n", encoding="utf-8")
     repos = qpb_root / "repos"
     repos.mkdir()
     # Copy the real scripts so the test exercises the actual code.
@@ -295,6 +316,81 @@ class SetupReposBinBundleTests(unittest.TestCase):
                 "A-6 additions displaced the pre-existing "
                 "citation_verifier.py bundle",
             )
+
+    def test_setup_repos_bundles_phase_prompts_and_agents(self) -> None:
+        """v1.5.7 instruction 050 A-7: setup_repos.sh must bundle
+        phase_prompts/*.md → target/.github/skills/phase_prompts/ and
+        agents/*.md → target/.github/skills/agents/. Without them a
+        Mode-A agent reading the installed SKILL.md cannot resolve
+        phase_prompts/phaseN.md (SKILL.md:72 resolves them via the
+        same fallback list as references/) and produces a 0-line
+        EXPLORATION.md at Phase 1 (the post-049 codex UI virtio
+        symptom).
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160): delete the A-7
+        `cp "${QPB_DIR}/phase_prompts/"*.md ...` line from
+        repos/setup_repos.sh. Expected failure: this test fails at
+        the phase_prompts assertion (the dir is empty / absent).
+        Restore → passes. Bite verified during instruction 050
+        development.
+        """
+        with TemporaryDirectory() as tmp_str:
+            qpb_root = Path(tmp_str) / "qpb"
+            qpb_root.mkdir()
+            script, dst = _build_minimal_fixture(qpb_root)
+            result = _run_setup(script, ["dummytest"])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            pp = dst / ".github" / "skills" / "phase_prompts"
+            self.assertTrue(
+                (pp / "phase1.md").is_file(),
+                f"phase_prompts not bundled at {pp}; Mode-A Phase 1 "
+                f"would produce a 0-line EXPLORATION.md. "
+                f"output={result.stdout!r}",
+            )
+            self.assertTrue((pp / "phase2.md").is_file())
+            ag = dst / ".github" / "skills" / "agents"
+            self.assertTrue(
+                (ag / "quality-playbook.agent.md").is_file(),
+                f"agents/ not bundled at {ag}",
+            )
+
+    def test_setup_repos_bundles_quality_playbook_closure(self) -> None:
+        """v1.5.7 instruction 050 A-6.2: setup_repos.sh must bundle
+        the quality_playbook closure (6 modules + __init__.py) into
+        target/bin/ so a Mode-A run hitting Phase 4's
+        `python3 -m bin.quality_playbook semantic-check ...`
+        (phase_prompts/phase4.md:26,43) resolves instead of
+        ModuleNotFoundError.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160): delete the A-6.2
+        `cp "${QPB_DIR}/bin/quality_playbook.py" ...` line from
+        repos/setup_repos.sh. Expected failure: this test fails at
+        the quality_playbook.py assertion. Restore → passes. Bite
+        verified during instruction 050 development.
+        """
+        with TemporaryDirectory() as tmp_str:
+            qpb_root = Path(tmp_str) / "qpb"
+            qpb_root.mkdir()
+            script, dst = _build_minimal_fixture(qpb_root)
+            result = _run_setup(script, ["dummytest"])
+            self.assertEqual(result.returncode, 0, result.stderr)
+            for mod in (
+                "__init__.py",
+                "quality_playbook.py",
+                "archive_lib.py",
+                "council_semantic_check.py",
+                "migrate_v1_5_0_layout.py",
+                "role_map.py",
+                "council_config.py",
+            ):
+                self.assertTrue(
+                    (dst / "bin" / mod).is_file(),
+                    f"closure module bin/{mod} not bundled by "
+                    f"setup_repos.sh; Mode-A Phase-4 semantic-check "
+                    f"would ModuleNotFoundError. output={result.stdout!r}",
+                )
 
 
 if __name__ == "__main__":
