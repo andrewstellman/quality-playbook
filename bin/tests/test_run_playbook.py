@@ -1608,6 +1608,99 @@ class FormalDocsGuardTests(unittest.TestCase):
         command = run_playbook.build_worker_command(args, "/abs/target")
         self.assertNotIn("--no-formal-docs", command)
 
+    def test_build_worker_command_propagates_logs_flat(self) -> None:
+        """v1.5.7 instruction 051 A-8: --logs-flat MUST be propagated
+        to the spawned worker. This is the precise bypass-site pin:
+        the parent parsed args.logs_flat=True, but pre-fix
+        build_worker_command reconstructed the worker argv flag-by-flag
+        and OMITTED --logs-flat, so the worker subprocess parsed
+        logs_flat=False and _logs_legacy_mode (env not set) fell
+        through to the centralized layout — the flag was silently
+        no-op for runner-owned logs/run_state writes end-to-end.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160): delete the
+        instruction-051 A-8 propagation block from
+        bin/run_playbook.py:build_worker_command (the
+        `if getattr(args, "logs_flat", False): command.append(
+        "--logs-flat")` lines, between the --no-formal-docs and
+        --no-stdout-echo blocks). Expected failure: this test fails at
+        `assertIn("--logs-flat", command)` because the worker argv no
+        longer carries it. Restore the block → passes. Bite verified
+        during instruction 051 development.
+        """
+        args = run_playbook.argparse.Namespace(
+            parallel=False,
+            runner="claude",
+            no_seeds=False,
+            phase="1",
+            next_iteration=False,
+            full_run=False,
+            strategy=["gap"],
+            model="sonnet",
+            no_formal_docs=False,
+            logs_flat=True,
+            kill=False,
+            targets=["./project-a"],
+            worker=False,
+        )
+        command = run_playbook.build_worker_command(args, "/abs/target")
+        self.assertIn(
+            "--logs-flat", command,
+            "build_worker_command must propagate --logs-flat to the "
+            "worker (A-8 bypass-site fix)",
+        )
+        # Flag appears before the positional target (argparse needs
+        # optionals before the positional in the worker invocation).
+        self.assertLess(
+            command.index("--logs-flat"), command.index("/abs/target")
+        )
+
+    def test_build_worker_command_omits_logs_flat_when_unset(self) -> None:
+        args = run_playbook.argparse.Namespace(
+            parallel=False,
+            runner="claude",
+            no_seeds=False,
+            phase="1",
+            next_iteration=False,
+            full_run=False,
+            strategy=["gap"],
+            model="sonnet",
+            no_formal_docs=False,
+            logs_flat=False,
+            kill=False,
+            targets=["./project-a"],
+            worker=False,
+        )
+        command = run_playbook.build_worker_command(args, "/abs/target")
+        self.assertNotIn("--logs-flat", command)
+
+    def test_logs_flat_round_trip_cli_args_to_worker_command(self) -> None:
+        """End-to-end through the REAL entry point: parse a CLI argv
+        containing --logs-flat via run_playbook.parse_args (the actual
+        wrapper, incl. the ~/.qpb/config.json overlay), then feed the
+        resulting Namespace to build_worker_command. The full
+        CLI-arg → parent-dispatch path (where the A-8 bug lived) must
+        preserve --logs-flat. Pre-fix this round-trip dropped it; this
+        is the integration the existing direct-helper logs-layout
+        tests do NOT cover (they exercise _run_log_dir/log_file_for in
+        isolation, which always worked — that is exactly why the bug
+        went undetected)."""
+        args = run_playbook.parse_args(
+            [".", "--model", "sonnet", "--logs-flat", "--phase", "1"]
+        )
+        self.assertTrue(
+            getattr(args, "logs_flat", False),
+            "parse_args must set logs_flat=True for --logs-flat "
+            "(predicate side is correct; the bug was downstream)",
+        )
+        command = run_playbook.build_worker_command(args, "/abs/target")
+        self.assertIn(
+            "--logs-flat", command,
+            "the CLI-args → worker-command round-trip must preserve "
+            "--logs-flat end-to-end (A-8)",
+        )
+
 
 class InvocationFlagsPersistenceTests(unittest.TestCase):
     """v1.5.1 Phase 1 rev (Council — gpt-5.4 blocker 2): the --no-formal-docs

@@ -4910,6 +4910,17 @@ def build_worker_command(args: argparse.Namespace, target_path: str) -> List[str
         command.extend(["--model", args.model])
     if getattr(args, "no_formal_docs", False):
         command.append("--no-formal-docs")
+    # v1.5.7 instruction 051 A-8: propagate --logs-flat to the worker.
+    # Pre-fix this was the bypass site: the parent parsed
+    # args.logs_flat=True but build_worker_command reconstructed the
+    # worker argv flag-by-flag and omitted --logs-flat, so the worker
+    # subprocess parsed logs_flat=False and _logs_legacy_mode(args)
+    # (env not set) fell through to the centralized layout — the flag
+    # was silently no-op for runner-owned logs/run_state writes. (The
+    # QPB_LOGS_LEGACY=1 env twin was unaffected: env vars inherit into
+    # the subprocess; only the flag was dropped here.)
+    if getattr(args, "logs_flat", False):
+        command.append("--logs-flat")
     if getattr(args, "no_stdout_echo", False):
         command.append("--no-stdout-echo")
     if getattr(args, "verbose", False):
