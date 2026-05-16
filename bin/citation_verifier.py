@@ -37,7 +37,17 @@ ERROR_EXCERPT_MISMATCH = "excerpt_mismatch"
 
 
 _BOM_BYTES = b"\xef\xbb\xbf"
-_SUPPORTED_EXTENSIONS = frozenset({".md", ".txt"})
+# v1.5.7 instruction 060 (A-12): `.rst` added. reStructuredText is the
+# canonical Linux-kernel / Python-ecosystem doc format (e.g. the VIRTIO
+# 1.2 spec virtio.rst); rejecting it forced kernel-adjacent adopters to
+# Tier-4-only. `.rst` is treated as PLAINTEXT for §5.5 section
+# resolution (the `else` branch in resolve_section, same lstrip+literal
+# pattern as `.txt`) — `.rst` underline headings (`Title` over
+# `=====`/`-----`) resolve via the title TEXT line, ignoring the
+# underline row; line locators (always valid per schemas.md §5.1)
+# remain the precise alternative. Byte-equality (§5.4) is
+# format-agnostic, so this is correct semantics with no .rst parser.
+_SUPPORTED_EXTENSIONS = frozenset({".md", ".txt", ".rst"})
 
 
 class CitationResolutionError(Exception):
@@ -61,7 +71,7 @@ def _normalize_extension(extension: str) -> str:
     if ext not in _SUPPORTED_EXTENSIONS:
         raise CitationResolutionError(
             ERROR_UNSUPPORTED_EXTENSION,
-            f"extension {extension!r} is not supported; expected one of .md, .txt",
+            f"extension {extension!r} is not supported; expected one of .md, .txt, .rst",
         )
     return ext
 
@@ -92,7 +102,12 @@ def resolve_section(lines: List[str], extension: str, section: str) -> int:
         pattern = re.compile(r"^#{1,6}[ \t]+" + escaped + r"(?:[ \t]|$)")
         def _match(line: str) -> bool:
             return pattern.match(line) is not None
-    else:  # ".txt"
+    else:  # ".txt" or ".rst" — plaintext match (instruction 060 A-12).
+        # `.rst` underline headings are `Title` on one line + an
+        # `=====`/`-----` row beneath; this matches the TEXT line
+        # (the underline row never matches `^<section>`), giving
+        # weaker-but-correct section resolution. Line locators stay
+        # the precise alternative (schemas.md §5.1).
         pattern = re.compile(r"^" + escaped + r"(?:[ \t]|$)")
         def _match(line: str) -> bool:
             return pattern.match(line.lstrip()) is not None

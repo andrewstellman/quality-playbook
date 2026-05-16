@@ -458,5 +458,100 @@ class VerifyCitationPathTraversalTests(unittest.TestCase):
             self.assertTrue(result.ok, result.error_message)
 
 
+class RstSupportTests(unittest.TestCase):
+    """v1.5.7 instruction 060 (A-12): `.rst` is a supported plaintext
+    extension end-to-end. reStructuredText (Linux-kernel / Python
+    ecosystem; e.g. the VIRTIO 1.2 spec virtio.rst) is treated as
+    plaintext — no `.rst` parser. Byte-equality (§5.4) is
+    format-agnostic; section resolution (§5.5) uses the plaintext
+    branch (matches the title TEXT line, ignoring `=====`/`-----`
+    underline rows)."""
+
+    _RST = (
+        b"Test Spec\n"
+        b"=========\n"
+        b"\n"
+        b"Section content goes here.\n"
+        b"\n"
+        b"Sub Heading\n"
+        b"-----------\n"
+        b"\n"
+        b"More body text.\n"
+    )
+
+    def test_rst_extension_normalized(self) -> None:
+        """`_normalize_extension('.rst')` returns '.rst' WITHOUT
+        raising (pre-060 it hard-raised unsupported_extension —
+        codex 058 halt-condition #2).
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-060
+        A-12:
+          Mutation: revert bin/citation_verifier.py:_SUPPORTED_EXTENSIONS
+          to `frozenset({".md", ".txt"})` (remove '.rst').
+          Expected failure: THIS test fails — `_normalize_extension`
+          raises CitationResolutionError(ERROR_UNSUPPORTED_EXTENSION,
+          "extension '.rst' is not supported; expected one of .md,
+          .txt, .rst"), so the assertEqual is never reached (the
+          call raises). The
+          test_rst_section_resolution_plaintext_match /
+          _line_locator / _underline_not_required tests fail too
+          (resolve_section's section path also calls
+          _normalize_extension).
+          Restoration: re-add '.rst'; all RstSupportTests pass.
+          Bite executed during instruction-060 development;
+          PASS→FAIL→PASS confirmed (__pycache__ purged between
+          mutate and restore).
+        """
+        self.assertEqual(cv._normalize_extension(".rst"), ".rst")
+        self.assertEqual(cv._normalize_extension("RST"), ".rst")
+        # Unsupported extensions still hard-reject (allow-list intact).
+        with self.assertRaises(cv.CitationResolutionError) as ctx:
+            cv._normalize_extension(".pdf")
+        self.assertEqual(ctx.exception.code, cv.ERROR_UNSUPPORTED_EXTENSION)
+
+    def test_rst_section_resolution_plaintext_match(self) -> None:
+        """`resolve_section` finds an `.rst` section by matching the
+        title TEXT line via the plaintext branch (same lstrip+literal
+        pattern as `.txt`)."""
+        lines = self._RST.decode("utf-8").splitlines()
+        self.assertEqual(cv.resolve_section(lines, ".rst", "Test Spec"), 1)
+        self.assertEqual(
+            cv.resolve_section(lines, ".rst", "Sub Heading"), 6
+        )
+
+    def test_rst_line_locator_extracts_excerpt(self) -> None:
+        """A `line` locator into a `.rst` doc extracts identically to
+        `.txt`/`.md` (the extract_excerpt line path is
+        format-agnostic and never calls _normalize_extension)."""
+        self.assertEqual(
+            cv.extract_excerpt(self._RST, ".rst", None, 4),
+            "Section content goes here.",
+        )
+        self.assertEqual(
+            cv.extract_excerpt(self._RST, ".rst", None, 9),
+            "More body text.",
+        )
+
+    def test_rst_section_underline_not_required(self) -> None:
+        """Citing an `.rst` section by its TITLE resolves to the
+        title TEXT line — the `=====`/`-----` underline below it is
+        NOT required for, and does not interfere with, resolution
+        (the documented weaker-but-correct `.rst` section semantics,
+        schemas.md §5.5). The adopter cites the human-readable title
+        ("Test Spec"), exactly as they would for `.md`/`.txt`."""
+        lines = self._RST.decode("utf-8").splitlines()
+        anchor = cv.resolve_section(lines, ".rst", "Test Spec")
+        self.assertEqual(anchor, 1)
+        self.assertEqual(lines[anchor - 1], "Test Spec")     # title line
+        self.assertEqual(lines[anchor], "=========")         # underline below it
+        # A title with no underline at all still resolves (the
+        # underline is decorative, not load-bearing for resolution).
+        no_underline = ["Intro", "", "Plain body, no === row.", ""]
+        self.assertEqual(
+            cv.resolve_section(no_underline, ".rst", "Intro"), 1
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

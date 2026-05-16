@@ -154,6 +154,7 @@ authoritative; ingest rejects anything not listed.
 |-----------|-------------------------------------------------------------|
 | `.txt`    | Plain UTF-8 text. Preferred for spec excerpts from PDF.     |
 | `.md`     | CommonMark-ish Markdown. Allowed for spec bodies and notes. |
+| `.rst`    | reStructuredText (Linux-kernel / Python ecosystem; e.g. the VIRTIO 1.2 spec `virtio.rst`). Treated as **plaintext** — no `.rst` parser. Byte-equality (§5.4) is format-agnostic; section resolution (§5.5) uses the plaintext branch, matching the title text line and ignoring `=====`/`-----` underline rows (weaker than `.md` `#` headings — prefer an explicit `line` locator for precise `.rst` citations). Added v1.5.7 instruction 060 (A-12). |
 
 Common extensions that are **deliberately excluded** and will fail ingest:
 
@@ -576,7 +577,7 @@ This matches ATX-style headings (`# 2.4`, `## 2.4 Device reset`, up through
 `######`). The regex is applied to each raw line (no stripping). The first
 line that matches is the anchor; `L` is that line's 1-based index.
 
-**Plaintext sources (`.txt`).** For section string `S`:
+**Plaintext sources (`.txt`, `.rst`).** For section string `S`:
 
 ```
 ^<re.escape(S)>(?:[ \t]|$)
@@ -584,6 +585,12 @@ line that matches is the anchor; `L` is that line's 1-based index.
 
 Applied to each line after `lstrip()` (removing leading whitespace only).
 The first line whose left-stripped content matches is the anchor.
+`.rst` uses this same plaintext branch (v1.5.7 instruction 060, A-12):
+a reStructuredText underline heading is the title text on one line
+followed by an `=====`/`-----` row, so `S` matches the **title text
+line** (the underline row never matches `^<S>`). This is weaker than
+`.md` ATX-heading detection — for precise `.rst` citations prefer an
+explicit `line` locator (always valid per §5.1).
 
 **Resolution rules.**
 

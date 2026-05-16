@@ -103,7 +103,29 @@ class Phase6GateWitnessContractTests(unittest.TestCase):
 
     def test_what_just_happened_state_b_requires_gate_witness(self) -> None:
         """The State B template MANDATES quoting the gate's Total: +
-        RESULT: lines and forbids a PASS claim without N=0 FAILs."""
+        RESULT: lines and forbids a PASS claim without N=0 FAILs.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-060
+        Q4 (closing the codex-057 Q4 finding — pre-060 this test
+        lacked the discipline-required docstring):
+          Mutation: in references/what_just_happened.md, revert the
+          State B template — remove the "Gate witness (REQUIRED — do
+          not omit, do not paraphrase)" block + the
+          "You may\\nNOT claim PASS … without N=0" sentence.
+          Expected failure: THIS test fails at
+            assertIn(_TEMPLATE_WITNESS, state_b) →
+            AssertionError: State B template missing the gate-witness
+            block
+          (and the subsequent Total:/RESULT:/N=0 assertions would
+          also fail).
+          Restoration: re-add the gate-witness block; test passes.
+          Bite EXECUTED during instruction-060 development (Q4.2):
+          PASS→FAIL on mutation, FAIL→PASS on restore, confirmed
+          (the State B block was the bite target; __pycache__ purged
+          between mutate and restore so a stale .pyc could not mask
+          the result).
+        """
         wjh = _WJH.read_text(encoding="utf-8")
         state_b = _section(
             wjh, "### State B — Phases 1-6 baseline complete"
@@ -118,7 +140,31 @@ class Phase6GateWitnessContractTests(unittest.TestCase):
     def test_what_just_happened_state_s_requires_gate_witness(self) -> None:
         """The State S template (pass-process / fail-recall) MANDATES
         quoting the gate's Total: + RESULT: lines and states a GATE
-        PASSED there is NOT a successful run."""
+        PASSED there is NOT a successful run.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-060
+        Q4 (closing the codex-057 Q4 finding — pre-060 this test
+        lacked the discipline-required docstring):
+          Mutation: in references/what_just_happened.md, revert the
+          State S template — remove the "Gate witness (REQUIRED — do
+          not omit, do not paraphrase)" block + the "pass-process /
+          fail-recall signal" sentence.
+          Expected failure: THIS test fails at
+            assertIn(_TEMPLATE_WITNESS, state_s) →
+            AssertionError: State S template missing the gate-witness
+            block
+          (and the Total:/RESULT:/pass-process-fail-recall
+          assertions would also fail).
+          Restoration: re-add the gate-witness block; test passes.
+          The bite for the equivalent State-B test
+          (test_what_just_happened_state_b_requires_gate_witness) was
+          EXECUTED during instruction-060 development (Q4.2);
+          PASS→FAIL→PASS confirmed. State S is structurally identical
+          (same `_section`-scoped `assertIn(_TEMPLATE_WITNESS, …)`
+          shape on the adjacent template) — the State-B bite
+          establishes the family.
+        """
         wjh = _WJH.read_text(encoding="utf-8")
         state_s = _section(
             wjh, "### State S — Phases 1-6 all ran"

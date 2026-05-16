@@ -50,7 +50,15 @@ except Exception:  # pragma: no cover - fallback when invoked as a loose script
     from bin import benchmark_lib  # type: ignore
 
 
-SUPPORTED_EXTENSIONS = frozenset({".txt", ".md"})
+# v1.5.7 instruction 060 (A-12): `.rst` added — reStructuredText is
+# the canonical Linux-kernel / Python doc format (e.g. the VIRTIO 1.2
+# spec virtio.rst). Treated as plaintext: byte-equality citation
+# extraction (schemas.md §5.4) is format-agnostic; section resolution
+# (§5.5) uses the plaintext branch in citation_verifier.resolve_section
+# (matches the title text line, ignoring `=====`/`-----` underlines).
+# `.rst` is deliberately NOT in REJECT_GUIDANCE below — it is
+# supported, not a convert-first format.
+SUPPORTED_EXTENSIONS = frozenset({".txt", ".md", ".rst"})
 SKIPPED_FILENAMES = frozenset({"README.md"})
 REFERENCE_DIR_NAME = "reference_docs"
 CITE_DIR_NAME = "cite"
