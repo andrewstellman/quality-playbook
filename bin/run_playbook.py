@@ -4705,6 +4705,21 @@ def run_one_iterations(
         # run-start call (the helper is idempotent regardless).
         _update_latest_symlink(repo_dir, timestamp, args, log_file)
 
+        # v1.5.7 instruction 055 F2: the STANDALONE --iterations
+        # dispatch (run_playbook dispatch → run_one_iterations WITHOUT
+        # phases_already_ran) must capture the installed-skill
+        # baseline so the A-10b SHA guardrail can verify mid-run
+        # mutations at _finalize_iteration boundaries. run_one_phased
+        # and run_one_singlepass already capture at their run-start;
+        # this standalone branch was the remaining bypass (codex 054
+        # Task-4 finding 2). NOT placed on the phases_already_ran
+        # branch: run_one_phased already captured at its run-start,
+        # and _capture_installed_skill_baseline is idempotent (a
+        # re-snapshot of the unchanged installed tree yields identical
+        # SHAs) — gating on this branch is cleaner and avoids
+        # re-capturing post-phase state.
+        _capture_installed_skill_baseline(repo_dir, log_file)
+
     if not (repo_dir / "quality" / "EXPLORATION.md").is_file():
         lib.logboth(
             log_file,

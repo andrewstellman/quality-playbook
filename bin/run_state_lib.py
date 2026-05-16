@@ -936,6 +936,39 @@ _INSTALL_MARKER_DIRS = (
     ".codex", ".windsurf", ".cline", ".aider",
 )
 
+# v1.5.7 instruction 055 F1: hardcoded bundled-bin closure for the
+# setup_repos.sh FLAT-layout guardrail snapshot. install_skill.py is
+# NOT itself in the bundled bin/ closure (per
+# install_skill._bundle_files — verified), so on a real deployed
+# flat target `from bin import install_skill` raises ImportError and
+# the snapshot would silently miss target/bin/*.py (codex 054 Task-4
+# F1). This constant mirrors _bundle_files's bin/ dest basenames so
+# the flat-layout snapshot is SELF-SUFFICIENT (no runtime
+# install_skill dependency) — the same additive precedent as A-10's
+# _INSTALL_MARKER_DIRS. Kept in sync with _bundle_files manually;
+# test_flat_layout_closure_matches_bundle_manifest pins it against
+# the canonical bundle so future drift fails the suite.
+# TODO(v1.5.7.x): consolidate the duplicated bundle/marker constants
+# behind one shared constants module.
+_FLAT_LAYOUT_BUNDLED_BIN_FILES = frozenset({
+    "__init__.py",
+    "archive_lib.py",
+    "benchmark_lib.py",
+    "citation_verifier.py",
+    "council_config.py",
+    "council_semantic_check.py",
+    "migrate_v1_5_0_layout.py",
+    "quality_playbook.py",
+    "reference_docs_ingest.py",
+    "role_map.py",
+})
+
+# QPB-owned top-level subtrees/files in the flat (setup_repos.sh /
+# install_skill.py flat-root) layout. None of these ever contain
+# adopter source, so they are snapshotted wholesale.
+_FLAT_LAYOUT_QPB_SUBDIRS = ("references", "phase_prompts", "agents")
+_FLAT_LAYOUT_QPB_ROOT_FILES = ("SKILL.md", "quality_gate.py", "AGENTS.md")
+
 
 def _sha256_file(path: Path) -> str:
     """SHA-256 of a file's bytes (streamed; binary-safe)."""
@@ -1003,30 +1036,35 @@ def snapshot_installed_skill_shas(target_dir: Path) -> dict[str, str]:
                 for name in names:
                     _add(Path(root) / name)
 
-    # Layout 2: setup_repos.sh flat layout. The flat marker is
-    # ``target/.github/skills/SKILL.md`` (setup_repos.sh's convention;
-    # note install_skill.py's flat dest for SKILL.md is the target
-    # ROOT instead — the two installers differ here, so we cover
-    # both). ``.github/skills/`` is QPB-owned in the flat layout
-    # (SKILL.md, quality_gate stub, references/, phase_prompts/,
-    # agents/), so it is walked WHOLESALE; the precise
-    # ``install_skill._bundle_files`` dests additionally cover the
-    # root-level flat footprint (quality_gate.py, bin/ closure,
-    # references/ ...). Adopter source never lives under
-    # ``.github/skills/`` and the bundled-dest list is precise, so no
-    # adopter file is hashed.
+    # Layout 2: setup_repos.sh flat layout. SELF-SUFFICIENT — no
+    # install_skill import (v1.5.7 instruction 055 F1: install_skill.py
+    # is not bundled, so a soft-import silently fails on real deployed
+    # targets and would miss target/bin/*.py — codex 054 Task-4 F1).
+    # The flat marker is ``target/.github/skills/SKILL.md``
+    # (setup_repos.sh's convention; install_skill.py's flat dest for
+    # SKILL.md is the target ROOT — both covered below). ``.github/
+    # skills/`` and the QPB-owned subtrees/files are walked WHOLESALE
+    # (never contain adopter source); the bundled bin/ closure is
+    # snapshotted by its precise hardcoded basename list so no adopter
+    # bin/ file is hashed.
     if (target / ".github" / "skills" / "SKILL.md").is_file():
         gh_skills = target / ".github" / "skills"
         if gh_skills.is_dir():
             for root, _dirs, names in os.walk(gh_skills):
                 for name in names:
                     _add(Path(root) / name)
-        try:
-            from bin import install_skill  # soft — not bundled at runtime
-            for _src, dest in install_skill._bundle_files(target):
-                _add(target / Path(dest))
-        except Exception:  # noqa: BLE001 — wholesale walk above still covers .github/skills/
-            _add(target / "quality_gate.py")
+        for subdir in _FLAT_LAYOUT_QPB_SUBDIRS:
+            sub = target / subdir
+            if sub.is_dir():
+                for root, _dirs, names in os.walk(sub):
+                    for name in names:
+                        _add(Path(root) / name)
+        for root_file in _FLAT_LAYOUT_QPB_ROOT_FILES:
+            _add(target / root_file)
+        bin_dir = target / "bin"
+        if bin_dir.is_dir():
+            for name in _FLAT_LAYOUT_BUNDLED_BIN_FILES:
+                _add(bin_dir / name)
 
     return snapshot
 
