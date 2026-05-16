@@ -983,6 +983,31 @@ def read_skill_value_line(path, prefix):
     return ""
 
 
+# v1.5.7 instruction 054 (A-10): adopter install marker dirs + the
+# bundled bin/. QPB installs its own skill tree (incl. post-050 Python
+# closure modules) under one of these markers; both file-tree walkers
+# below MUST skip them or QPB's own .py files poison language
+# detection / source counts in non-Python adopter projects — the gson
+# opus-4.6 Mode-A reproduction, 2026-05-16 (detect_project_language
+# returned "py" for a Java project because Python is checked before
+# Java and QPB's bundled bin/*.py were found first).
+#
+# Canonical source of the marker list is
+# bin/install_skill.AI_TOOL_MAP.values(); intentionally DUPLICATED
+# here (Option B, additive — per the instruction-053 precedent)
+# because quality_gate.py is deployed STANDALONE into an adopter's
+# .github/skills/quality_gate/ and CANNOT import bin/install_skill.py
+# (the installer is not part of the bundled gate).
+# TODO(v1.5.7.x): consolidate the three exclusion-set copies (this,
+# count_source_files below, and classify_project.DEFAULT_IGNORE_DIRS)
+# behind one shared constant once a gate-standalone-safe shared
+# module exists.
+_INSTALL_MARKER_DIRS = frozenset({
+    ".claude", ".cursor", ".github", ".continue",
+    ".codex", ".windsurf", ".cline", ".aider", "bin",
+})
+
+
 def detect_project_language(repo_dir):
     """Walk up to 3 dirs deep, return first language whose extension is present.
 
@@ -1000,7 +1025,7 @@ def detect_project_language(repo_dir):
         ("c", ".c"),
         ("agc", ".agc"),
     ]
-    excluded = {"vendor", "node_modules", ".git", "quality", "repos"}
+    excluded = {"vendor", "node_modules", ".git", "quality", "repos"} | _INSTALL_MARKER_DIRS
 
     def present(base, target_ext):
         stack = [(Path(base), 1)]
@@ -1032,7 +1057,13 @@ def count_source_files(repo_dir):
     src_count = 0
     exts = {".go", ".py", ".java", ".kt", ".rs", ".ts", ".js", ".scala",
             ".c", ".h", ".agc"}
-    excluded = {"vendor", "node_modules", ".git", "quality"}
+    # v1.5.7 instruction 054 (A-10): `repos` added here for parity
+    # with detect_project_language (it had `repos`, this walker did
+    # not — the slight pre-existing inconsistency the instruction
+    # called out). `repos/` is QPB's benchmark-targets dir, never
+    # adopter source. _INSTALL_MARKER_DIRS skips QPB's own install
+    # tree so its bundled .py files are not counted as adopter source.
+    excluded = {"vendor", "node_modules", ".git", "quality", "repos"} | _INSTALL_MARKER_DIRS
 
     def walk(base, current_depth, max_depth):
         nonlocal src_count

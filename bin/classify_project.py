@@ -212,10 +212,40 @@ CODE_EXTENSIONS = frozenset(EXTENSION_LANGUAGE.keys())
 # Conventional ignore directories for filesystem walk (used when target_dir
 # is not a git repo). git ls-files takes precedence when available because
 # it already respects .gitignore.
+# v1.5.7 instruction 054 (A-10): the trailing block (.claude … .aider)
+# are the 8 adopter install marker dirs. QPB installs its own skill
+# tree (incl. post-050 Python closure modules) under one of these
+# markers; classify_project's walker would otherwise descend and
+# miscount QPB's own files when classifying Code/Skill/Hybrid.
+# Canonical source is bin/install_skill.AI_TOOL_MAP.values();
+# intentionally DUPLICATED (Option B, additive — instruction-053
+# precedent) for parity with the two quality_gate.py walkers, which
+# cannot import install_skill (standalone-deployed gate).
+#
+# DELIBERATE DEVIATION FROM THE INSTRUCTION (verify-before-claim):
+# the instruction directs adding ``"bin"`` to ALL THREE sites, but
+# ``"bin"`` is NOT added HERE. classify_project's purpose is to
+# *count adopter source* to classify Code/Skill/Hybrid; adopter
+# projects legitimately keep source in a top-level ``bin/`` —
+# excluding it misclassifies them (proven: the in-tree
+# ``hybrid_fixture`` keeps its Python in ``bin/`` and a blanket
+# ``"bin"`` exclusion regressed it Hybrid → Skill). The two
+# quality_gate.py walkers DO exclude ``"bin"`` because the gson A-10
+# ship-blocker is specifically language *detection* (a first-match
+# heuristic) returning "py" from QPB's flat-layout ``target/bin/*.py``
+# — a different role with a different trade-off. The 8 markers fully
+# cover the dominant install_skill.py layout AND the flat
+# ``.github/skills/`` tree; the only residual is the flat-layout
+# root-level ``target/bin/*.py`` (setup_repos), an accepted minor
+# under-exclusion here vs. breaking every ``bin/``-using adopter.
+# TODO(v1.5.7.x): consolidate the exclusion-set copies behind a
+# single gate-standalone-safe shared constant.
 DEFAULT_IGNORE_DIRS = frozenset({
     ".git", "node_modules", "__pycache__", ".venv", "venv", "env",
     "target", "build", "dist", ".idea", ".vscode", ".pytest_cache",
     ".mypy_cache", ".tox", ".eggs", "vendor",
+    ".claude", ".cursor", ".github", ".continue",
+    ".codex", ".windsurf", ".cline", ".aider",
 })
 
 

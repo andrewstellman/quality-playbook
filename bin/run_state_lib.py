@@ -33,6 +33,7 @@ raise; there are no print statements and no logging integration.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -921,6 +922,131 @@ def validate_no_source_edits(
                 seen.add(path)
 
     return (not violations, violations)
+
+
+# v1.5.7 instruction 054 (A-10b): adopter install marker dirs.
+# Canonical source is bin/install_skill.AI_TOOL_MAP.values();
+# intentionally DUPLICATED here (Option B, additive — the
+# instruction-053/054 precedent) so this helper has no hard import
+# dependency on install_skill (which is not part of the bundled
+# runtime). TODO(v1.5.7.x): consolidate the exclusion/marker-set
+# copies behind one gate-standalone-safe shared constant.
+_INSTALL_MARKER_DIRS = (
+    ".claude", ".cursor", ".github", ".continue",
+    ".codex", ".windsurf", ".cline", ".aider",
+)
+
+
+def _sha256_file(path: Path) -> str:
+    """SHA-256 of a file's bytes (streamed; binary-safe)."""
+    h = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def snapshot_installed_skill_shas(target_dir: Path) -> dict[str, str]:
+    """Return ``{target-relative-path: sha256}`` for every file in the
+    QPB skill tree installed under ``target_dir``.
+
+    v1.5.7 instruction 054 (A-10b). The git-based
+    ``validate_no_source_edits`` silently passes on non-git targets
+    (the common ``setup_repos.sh`` benchmark case) and may not cover
+    the installed skill tree even on git targets. This helper is the
+    additive companion: it watches the *installed skill copy* by
+    content hash so a mid-run mutation of e.g.
+    ``target/.claude/skills/quality-playbook/quality_gate.py`` (the
+    gson opus-4.6 Mode-A witness, 2026-05-16) is caught regardless of
+    git state.
+
+    Two install layouts are covered; the UNION of every detected
+    footprint is snapshotted (more robust than "first existing one":
+    it guards all of them and makes the
+    "both-layouts-present" edge case a non-issue rather than a
+    halt-worthy ambiguity):
+
+      1. ``install_skill.py`` layout — a self-contained QPB subtree at
+         ``target/<marker>/skills/quality-playbook/`` for any of the 8
+         markers. Snapshotted WHOLESALE (the whole subtree is
+         QPB-owned; no adopter files live there).
+      2. ``setup_repos.sh`` flat layout — QPB files intermixed with
+         adopter files at the target root. Here a wholesale walk would
+         hash adopter source, so the PRECISE bundled-dest list from
+         ``install_skill._bundle_files`` is used (soft-imported).
+         Fallback when install_skill is unavailable: the unambiguous
+         flat QPB footprint (``.github/skills/`` subtree +
+         root ``quality_gate.py``).
+
+    Returns ``{}`` when no install footprint is found — the contract
+    is "no installed skill tree to protect" (mirrors
+    ``validate_no_source_edits``'s "no source tree" silent-pass
+    contract); the caller treats an empty baseline as nothing to
+    guard.
+    """
+    target = Path(target_dir)
+    snapshot: dict[str, str] = {}
+
+    def _add(file_path: Path) -> None:
+        try:
+            if file_path.is_file() and not file_path.is_symlink():
+                rel = file_path.relative_to(target).as_posix()
+                snapshot[rel] = _sha256_file(file_path)
+        except (OSError, ValueError):
+            pass
+
+    # Layout 1: install_skill.py marker subtrees (wholesale).
+    for marker in _INSTALL_MARKER_DIRS:
+        skill_root = target / marker / "skills" / "quality-playbook"
+        if skill_root.is_dir():
+            for root, _dirs, names in os.walk(skill_root):
+                for name in names:
+                    _add(Path(root) / name)
+
+    # Layout 2: setup_repos.sh flat layout. The flat marker is
+    # ``target/.github/skills/SKILL.md`` (setup_repos.sh's convention;
+    # note install_skill.py's flat dest for SKILL.md is the target
+    # ROOT instead — the two installers differ here, so we cover
+    # both). ``.github/skills/`` is QPB-owned in the flat layout
+    # (SKILL.md, quality_gate stub, references/, phase_prompts/,
+    # agents/), so it is walked WHOLESALE; the precise
+    # ``install_skill._bundle_files`` dests additionally cover the
+    # root-level flat footprint (quality_gate.py, bin/ closure,
+    # references/ ...). Adopter source never lives under
+    # ``.github/skills/`` and the bundled-dest list is precise, so no
+    # adopter file is hashed.
+    if (target / ".github" / "skills" / "SKILL.md").is_file():
+        gh_skills = target / ".github" / "skills"
+        if gh_skills.is_dir():
+            for root, _dirs, names in os.walk(gh_skills):
+                for name in names:
+                    _add(Path(root) / name)
+        try:
+            from bin import install_skill  # soft — not bundled at runtime
+            for _src, dest in install_skill._bundle_files(target):
+                _add(target / Path(dest))
+        except Exception:  # noqa: BLE001 — wholesale walk above still covers .github/skills/
+            _add(target / "quality_gate.py")
+
+    return snapshot
+
+
+def diff_installed_skill_shas(
+    baseline: dict[str, str], current: dict[str, str]
+) -> list[str]:
+    """Return the sorted list of target-relative paths whose installed
+    skill content changed (modified, added, or removed) between the
+    run-start ``baseline`` snapshot and a later ``current`` snapshot.
+    Empty list == the installed skill tree is byte-identical.
+    """
+    changed: set[str] = set()
+    for path, sha in baseline.items():
+        if current.get(path) != sha:
+            changed.add(path)
+    for path in current:
+        if path not in baseline:
+            changed.add(path)
+    return sorted(changed)
 
 
 def _path_under_allowed_prefix(

@@ -3996,6 +3996,51 @@ def _gate_pass(gate_result_line: str, quality_dir: Path) -> bool:
     return False
 
 
+def _capture_installed_skill_baseline(repo_dir: Path, log_file: Path) -> None:
+    """v1.5.7 instruction 054 (A-10b): write the run-start SHA
+    snapshot of the installed QPB skill tree to
+    ``quality/.installed_skill_baseline.json`` so ``_finalize_iteration``
+    can detect mid-run mutation of installed skill files at every
+    phase/iteration boundary (the companion to the git-based
+    ``validate_no_source_edits``, which silently passes on the
+    non-git ``setup_repos.sh`` benchmark targets).
+
+    Called at run-start AFTER ``quality/`` is established (post
+    archive_previous_run rotation) so the baseline lands in the
+    fresh run's ``quality/`` and is not rotated away. The baseline
+    file is under ``quality/`` so ``validate_no_source_edits``'s
+    ``quality/`` allowed-prefix does not flag it; it is a dotfile so
+    it does not affect the gate / INDEX. All errors are caught and
+    logged — a guardrail-setup failure must never crash the run
+    (mirrors the run_start-emission and validate_no_source_edits
+    defensive patterns).
+    """
+    try:
+        import json as _json
+        from bin.run_state_lib import snapshot_installed_skill_shas
+
+        snapshot = snapshot_installed_skill_shas(repo_dir)
+        if not snapshot:
+            return  # no installed skill tree to protect (contract)
+        quality_dir = repo_dir / "quality"
+        quality_dir.mkdir(parents=True, exist_ok=True)
+        (quality_dir / ".installed_skill_baseline.json").write_text(
+            _json.dumps(snapshot, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    except Exception as exc:  # noqa: BLE001 — must not crash the run
+        try:
+            lib.logboth(
+                log_file,
+                lib.log(
+                    f"installed-skill baseline capture failed: "
+                    f"{type(exc).__name__}: {exc}"
+                ),
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: argparse.Namespace, timestamp: str) -> int:
     """Execute one or more phase groups for a single target repo.
 
@@ -4066,6 +4111,12 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
             timestamp,
             **_index_flag_kwargs(args),
         )
+
+    # v1.5.7 instruction 054 (A-10b): snapshot the installed skill
+    # tree now (run-start, quality/ established post-archive, before
+    # any phase work) so _finalize_iteration can detect mid-run
+    # mutation of installed skill files.
+    _capture_installed_skill_baseline(repo_dir, log_file)
 
     _control_prompts_dir(repo_dir, args=args, timestamp=timestamp)
     plan_desc = _format_phase_groups(phase_groups)
@@ -4166,6 +4217,12 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         )
         pass_label = "full"
         lib.logboth(log_file, lib.log(f"Starting playbook (single-pass): {repo_dir.name} (runner={args.runner})"))
+
+    # v1.5.7 instruction 054 (A-10b): snapshot the installed skill
+    # tree now (run-start, quality/ established by the archive/stub
+    # branch above or pre-existing on --next-iteration, before the
+    # agent runs) so _finalize_iteration can detect mid-run mutation.
+    _capture_installed_skill_baseline(repo_dir, log_file)
 
     control_prompts = _control_prompts_dir(
         repo_dir, args=args, timestamp=timestamp,
@@ -4480,6 +4537,67 @@ def _finalize_iteration(
             lib.logboth(
                 log_file,
                 lib.log(f"[finalizer:{label}] source-edit guardrail failed: {type(exc).__name__}: {exc}"),
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+    # v1.5.7 instruction 054 (A-10b): installed-skill SHA guardrail.
+    # validate_no_source_edits (above) is git-based and SILENTLY
+    # passes on non-git targets — the common setup_repos.sh benchmark
+    # case — and may not cover the installed skill tree even on git
+    # targets. This additive check compares the run-start SHA snapshot
+    # of the installed skill copy (quality/.installed_skill_baseline.json,
+    # written by _capture_installed_skill_baseline at run-start)
+    # against a fresh snapshot; any drift is folded into
+    # source_edit_violations so the EXISTING abort + gate-log +
+    # PROGRESS.md machinery (below) handles it — zero schema impact,
+    # no new event. The gson opus-4.6 Mode-A run (2026-05-16) mutated
+    # target/.claude/skills/quality-playbook/quality_gate.py mid-run
+    # and the git-based guardrail did not fire; this closes that gap.
+    # Both guardrails run together at every finalize (= every
+    # phase/iteration boundary: post-phase-6, post-{strategy},
+    # singlepass).
+    try:
+        import json as _json
+        from bin.run_state_lib import (
+            snapshot_installed_skill_shas,
+            diff_installed_skill_shas,
+        )
+
+        _baseline_path = repo_dir / "quality" / ".installed_skill_baseline.json"
+        if _baseline_path.is_file():
+            _baseline = _json.loads(
+                _baseline_path.read_text(encoding="utf-8")
+            )
+            _skill_changed = diff_installed_skill_shas(
+                _baseline, snapshot_installed_skill_shas(repo_dir)
+            )
+            if _skill_changed:
+                source_edit_violations = list(source_edit_violations) + [
+                    p for p in _skill_changed
+                    if p not in source_edit_violations
+                ]
+                try:
+                    with gate_log_path.open("a", encoding="utf-8") as handle:
+                        handle.write(
+                            "\n=== installed-skill guardrail "
+                            "(snapshot_installed_skill_shas) ===\n"
+                            "The installed QPB skill tree was modified "
+                            "during this run; agents must never edit "
+                            "installed skill files. Changed:\n"
+                        )
+                        for path in _skill_changed:
+                            handle.write(f"  - {path}\n")
+                except OSError:
+                    pass
+    except Exception as exc:  # noqa: BLE001 — guardrail failure must not crash the run
+        try:
+            lib.logboth(
+                log_file,
+                lib.log(
+                    f"[finalizer:{label}] installed-skill guardrail "
+                    f"failed: {type(exc).__name__}: {exc}"
+                ),
             )
         except Exception:  # noqa: BLE001
             pass
