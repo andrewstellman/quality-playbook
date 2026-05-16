@@ -242,7 +242,7 @@ def _collect(target_repo: Path) -> List[_FileRecord]:
         ext = path.suffix.lower()
         if ext not in SUPPORTED_EXTENSIONS:
             hint = REJECT_GUIDANCE.get(
-                ext, "Only .txt and .md are ingested — convert to plaintext first."
+                ext, "Only .txt, .md, and .rst are ingested — convert to plaintext first."
             )
             raise IngestError(f"{_rel(path, target_repo)}: unsupported extension '{ext}'. {hint}")
         text = _read_text(path)

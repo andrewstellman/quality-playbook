@@ -1,13 +1,20 @@
-"""v1.5.7 Phase 7: pin SKILL.md size below the achieved threshold.
+"""v1.5.7 Phase 7: pin SKILL.md size below the <30K design target.
 
 Acceptance criteria from instruction 025: SKILL.md BPE token count
-below 30K. Achieved at commit 7-pass-3: 26,162 BPE (cl100k_base).
-This test pins below achieved + ~1500 token headroom (28,000) so a
-future edit that re-bloats SKILL.md fails the test.
+below 30K. Phase 7 trim achieved 26,162 BPE (cl100k_base). Instruction
+058 (A-11) then added the layout-aware `PYTHONPATH=<install_root>`
+Phase 1 invocation guidance to SKILL.md, re-growing it to **27,943
+BPE** post-trim. Instruction 062 widened the ceiling 28,000 → 29,000
+BPE: the prior 28,000 pin left only ~57 BPE of live headroom (any
+incremental SKILL.md prose edit would have reddened the suite — the
+instruction-061 Council Lens-1 fragility finding); 29,000 restores
+~1,057 BPE of headroom while still hard-blocking any change that
+would breach the <30K design target.
 
-If a future SKILL.md edit legitimately grows the file (new
-orchestration content), update the pin AND the no-orphaned-pointer
-test below to match.
+If a future SKILL.md edit legitimately grows the file past 29,000
+(new orchestration content), update the pin AND the no-orphaned-
+pointer test below to match — and re-check references/*.md for
+further trim opportunities rather than only widening the ceiling.
 """
 
 from __future__ import annotations
@@ -23,6 +30,28 @@ REFERENCES_DIR = Path(__file__).resolve().parents[2] / "references"
 
 class SkillMdSizeTests(unittest.TestCase):
     def test_skill_md_bpe_token_count_under_threshold(self) -> None:
+        """SKILL.md stays under the 29,000 BPE (cl100k_base) ceiling
+        — well below the <30K design target.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-062
+        (closing the instruction-061 Council Lens-1 test-fragility
+        finding):
+          Mutation: drop the ceiling below the live SKILL.md size —
+          set the `assertLess` bound to `27500` (live SKILL.md is
+          27,943 BPE post-A-11).
+          Expected failure: THIS test fails with
+            AssertionError: SKILL.md is 27943 BPE tokens — exceeds
+            the v1.5.7 size ceiling (27500). ...
+          (dropping back to 28,000 is NOT a useful bite — 27,943 <
+          28,000 so it would still pass; the bite must use a bound
+          below the live size to actually flip the test).
+          Restoration: re-set the ceiling to 29,000; test passes
+          (27,943 < 29,000, ~1,057 BPE headroom).
+          Bite executed during instruction-062 development;
+          PASS→FAIL→PASS confirmed (__pycache__ purged between
+          mutate and restore).
+        """
         try:
             import tiktoken
         except ImportError:
@@ -30,16 +59,20 @@ class SkillMdSizeTests(unittest.TestCase):
         enc = tiktoken.get_encoding("cl100k_base")
         text = SKILL_MD.read_text(encoding="utf-8")
         token_count = len(enc.encode(text))
-        # v1.5.7 Phase 7 trim achieved 26,162 BPE; pin below 28,000
-        # so future edits that add ~1800 BPE worth of content still
-        # pass (headroom for legitimate orchestration additions),
-        # but a re-bloat to ~35K+ fails.
+        # Phase 7 trim achieved 26,162 BPE; instruction 058 (A-11)
+        # re-grew SKILL.md to 27,943 BPE post-trim (layout-aware
+        # Phase 1 invocation guidance). Instruction 062 widened this
+        # ceiling 28,000 → 29,000: the old 28,000 pin left only ~57
+        # BPE live headroom (Council-061 Lens-1 fragility finding);
+        # 29,000 restores ~1,057 BPE while still hard-blocking any
+        # change that would breach the <30K design target.
         self.assertLess(
-            token_count, 28000,
+            token_count, 29000,
             f"SKILL.md is {token_count} BPE tokens — exceeds the "
-            f"v1.5.7 Phase 7 trim threshold (28000). If this growth "
-            f"is intentional, update this test's pin AND re-check "
-            f"the references/*.md tree for further trim opportunities."
+            f"v1.5.7 size ceiling (29000; <30K design target). If "
+            f"this growth is intentional, update this test's pin AND "
+            f"re-check the references/*.md tree for further trim "
+            f"opportunities rather than only widening the ceiling."
         )
 
 

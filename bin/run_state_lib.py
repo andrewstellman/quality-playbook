@@ -1005,11 +1005,21 @@ def snapshot_installed_skill_shas(target_dir: Path) -> dict[str, str]:
          QPB-owned; no adopter files live there).
       2. ``setup_repos.sh`` flat layout — QPB files intermixed with
          adopter files at the target root. Here a wholesale walk would
-         hash adopter source, so the PRECISE bundled-dest list from
-         ``install_skill._bundle_files`` is used (soft-imported).
-         Fallback when install_skill is unavailable: the unambiguous
-         flat QPB footprint (``.github/skills/`` subtree +
-         root ``quality_gate.py``).
+         hash adopter source, so the PRECISE flat QPB footprint is
+         snapshotted. SELF-SUFFICIENT (instruction 055 A-10c F1): the
+         bundled bin/ closure is enumerated from the hardcoded
+         ``_FLAT_LAYOUT_BUNDLED_BIN_FILES`` constant (pinned against
+         ``install_skill._bundle_files`` by the
+         ``test_flat_layout_closure_matches_bundle_manifest``
+         drift-guard test) — NOT a runtime ``from bin import
+         install_skill`` soft-import. install_skill.py is not part of
+         the bundled bin/ closure, so on a real deployed
+         setup_repos.sh-layout target the import would raise
+         ImportError; the hardcoded list makes the guardrail work
+         there. The flat QPB footprint is the ``.github/skills/``
+         subtree + the bundled root files (``quality_gate.py``,
+         ``SKILL.md``, ``references/``/``phase_prompts/``/``agents/``,
+         the bin/ closure).
 
     Returns ``{}`` when no install footprint is found — the contract
     is "no installed skill tree to protect" (mirrors
