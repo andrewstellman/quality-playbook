@@ -1147,21 +1147,60 @@ class TestMechanicalVerification(FixtureBase):
         stdout, _ = self.gate()
         self.assertIn("INFO: No mechanical/ directory", stdout)
 
-    def test_dir_without_verify_sh_fails(self):
+    def test_dir_without_verifier_fails(self):
+        # v1.5.7 instruction 080b (F1): W4 makes verify.py the
+        # canonical verifier; an empty mechanical/ (no verify.py,
+        # no verify.sh, no *_cases.txt) now fails naming verify.py.
         tree = minimal_zero_bug_tree()
         tree["quality/mechanical/placeholder"] = ""
         self.write(tree)
         stdout, _ = self.gate()
-        self.assertIn("mechanical/ exists but verify.sh missing", stdout)
+        self.assertIn("mechanical/ exists but verify.py missing", stdout)
 
-    def test_verify_sh_with_exit_0_passes(self):
+    def test_cases_txt_without_verifier_fails_with_sharpened_message(self):
+        # 080b (F1): *_cases.txt present but no verifier → the
+        # sharpened "cannot be integrity-checked" error.
+        tree = minimal_zero_bug_tree()
+        tree["quality/mechanical/foo_cases.txt"] = "case 1:\n"
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("cannot be integrity-checked", stdout)
+
+    def test_verify_py_preferred_path(self):
+        # 080b (F1): W4-compliant run emits verify.py — the gate
+        # must accept it (the exact end-to-end gap codex flagged).
+        tree = minimal_zero_bug_tree()
+        tree["quality/mechanical/verify.py"] = "#!/usr/bin/env python3\n"
+        tree["quality/results/mechanical-verify.log"] = "Mechanical verification OK\n"
+        tree["quality/results/mechanical-verify.exit"] = "0\n"
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("PASS: verify.py exists", stdout)
+        self.assertIn("PASS: mechanical-verify.exit is 0", stdout)
+
+    def test_both_present_prefers_verify_py(self):
+        # 080b (F1): if both exist, verify.py wins (single verifier
+        # — avoid divergent results). verify.sh's back-compat line
+        # must NOT appear when verify.py is present.
+        tree = minimal_zero_bug_tree()
+        tree["quality/mechanical/verify.py"] = "#!/usr/bin/env python3\n"
+        tree["quality/mechanical/verify.sh"] = "#!/bin/bash\n"
+        tree["quality/results/mechanical-verify.log"] = "output\n"
+        tree["quality/results/mechanical-verify.exit"] = "0\n"
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("PASS: verify.py exists", stdout)
+        self.assertNotIn("verify.sh exists (pre-W4 back-compat)", stdout)
+
+    def test_verify_sh_back_compat_with_exit_0_passes(self):
+        # 080b (F1): pre-W4 runs (verify.sh only) still validate.
         tree = minimal_zero_bug_tree()
         tree["quality/mechanical/verify.sh"] = "#!/bin/bash\n"
         tree["quality/results/mechanical-verify.log"] = "output\n"
         tree["quality/results/mechanical-verify.exit"] = "0\n"
         self.write(tree)
         stdout, _ = self.gate()
-        self.assertIn("PASS: verify.sh exists", stdout)
+        self.assertIn("PASS: verify.sh exists (pre-W4 back-compat)", stdout)
         self.assertIn("PASS: mechanical-verify.exit is 0", stdout)
 
     def test_verify_sh_with_exit_nonzero_fails(self):

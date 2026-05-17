@@ -1148,10 +1148,16 @@ def check_file_existence(repo_dir, q, strictness):
                 pass_("triage_probes.sh exists (executable triage evidence)")
             elif (_resolve_artifact_path(q, "mechanical/verify.sh")).is_file() and \
                  file_contains(_resolve_artifact_path(q, "mechanical/verify.sh"), r"probe|triage|auditor"):
+                # Pre-W4 back-compat only: older runs appended probe
+                # assertions to the bash verify.sh. W4 (080) makes
+                # verify.py a fixed-purpose extraction orchestrator —
+                # NOT a host for ad-hoc probe assertions — so the
+                # canonical location is spec_audits/triage_probes.sh
+                # (see references/phase2_generation_guide.md).
                 has_probes = True
-                pass_("verify.sh contains triage probe assertions")
+                pass_("verify.sh contains triage probe assertions (pre-W4 back-compat)")
             if not has_probes:
-                msg = "No executable triage evidence found (expected spec_audits/triage_probes.sh or probe assertions in mechanical/verify.sh)"
+                msg = "No executable triage evidence found (expected spec_audits/triage_probes.sh; pre-W4 runs may carry probe assertions in mechanical/verify.sh)"
                 if strictness == "benchmark":
                     fail(msg)
                 else:
@@ -1671,11 +1677,30 @@ def check_mechanical(q):
     if not mech_dir.is_dir():
         info("No mechanical/ directory")
         return
+    # v1.5.7 instruction 080b (closes 080 codex F1). W4 (§6) makes
+    # quality/mechanical/verify.py the canonical mechanical verifier
+    # (a Python orchestrator that subprocesses the ORIGINAL shell
+    # extraction pipeline). Prefer verify.py; if both verify.py and
+    # verify.sh exist, verify.py wins (a single verifier — avoid
+    # divergent results). verify.sh remains a back-compat fallback for
+    # pre-W4 runs that predate the rewrite. If neither exists, the
+    # mechanical/ directory is non-conformant (per the Phase-1 guide's
+    # "do not create an empty mechanical/ directory" rule); the error
+    # is sharpened when *_cases.txt extraction artifacts are present.
+    verify_py = mech_dir / "verify.py"
     verify_sh = mech_dir / "verify.sh"
-    if not verify_sh.is_file():
-        fail("mechanical/ exists but verify.sh missing")
+    if verify_py.is_file():
+        pass_("verify.py exists")
+    elif verify_sh.is_file():
+        pass_("verify.sh exists (pre-W4 back-compat)")
+    else:
+        if list(mech_dir.glob("*_cases.txt")):
+            fail("mechanical/ has *_cases.txt extraction artifacts but "
+                 "no verify.py (W4) or verify.sh — they cannot be "
+                 "integrity-checked")
+        else:
+            fail("mechanical/ exists but verify.py missing")
         return
-    pass_("verify.sh exists")
 
     mv_log = _resolve_artifact_path(q, "results/mechanical-verify.log")
     mv_exit = _resolve_artifact_path(q, "results/mechanical-verify.exit")
