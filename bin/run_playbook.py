@@ -1348,13 +1348,36 @@ def check_phase_gate(
     raise ValueError(f"Unknown phase: {phase}")
 
 
+def _resolve_runner_command(argv: List[str]) -> List[str]:
+    """Resolve a bare-name AI CLI invocation to its full path (W2,
+    addendum r3 §4.2).
+
+    On Windows, AI CLIs are typically `.cmd`/`.bat` shims;
+    `subprocess.run` without `shell=True` raises FileNotFoundError
+    because CreateProcess only auto-resolves `.exe`. `shutil.which`
+    walks PATHEXT, so it returns the shim's full path. On Unix this is
+    effectively a no-op (which returns the full path of any
+    PATH-resolvable executable; subprocess accepts either form). If
+    the name is unresolvable, fall back to the bare argv so the
+    existing FileNotFoundError surface to the operator is preserved.
+    Resolution-only — does NOT address stdin-through-`.cmd` (addendum
+    §4.3 / §8 Windows smoke test).
+    """
+    if not argv:
+        return argv
+    resolved = shutil.which(argv[0])
+    if resolved is None:
+        return argv
+    return [resolved] + list(argv[1:])
+
+
 def command_for_runner(runner: str, prompt: str, model: Optional[str]) -> List[str]:
     if runner == "claude":
         command = ["claude"]
         if model:
             command.extend(["--model", model])
         command.extend(["-p", prompt, "--dangerously-skip-permissions"])
-        return command
+        return _resolve_runner_command(command)
     if runner == "codex":
         # `codex exec --full-auto` reads instructions from stdin when
         # no positional prompt is given (codex-cli 0.125+). Putting
@@ -1366,7 +1389,7 @@ def command_for_runner(runner: str, prompt: str, model: Optional[str]) -> List[s
         if model:
             command.extend(["-m", model])
         command.append("-")
-        return command
+        return _resolve_runner_command(command)
     if runner == "cursor":
         # v1.5.4 F-1 (corrected post-bootstrap): `cursor agent
         # --print` reads the prompt on stdin ONLY when no positional
@@ -1384,9 +1407,10 @@ def command_for_runner(runner: str, prompt: str, model: Optional[str]) -> List[s
         command = ["cursor", "agent", "--print", "--force"]
         if model:
             command.extend(["--model", model])
-        return command
+        return _resolve_runner_command(command)
     copilot_model = model or lib.DEFAULT_MODEL
-    return ["gh", "copilot", "-p", prompt, "--model", copilot_model, "--yolo"]
+    return _resolve_runner_command(
+        ["gh", "copilot", "-p", prompt, "--model", copilot_model, "--yolo"])
 
 
 def command_preview(command: Sequence[str]) -> str:

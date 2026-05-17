@@ -408,7 +408,14 @@ class RunPlaybookTests(unittest.TestCase):
 
             self.assertEqual(run_playbook.final_artifact_gaps(repo_dir), [])
 
-    def test_command_for_runner_builds_claude_and_copilot_variants(self) -> None:
+    @mock.patch("bin.run_playbook.shutil.which", return_value=None)
+    def test_command_for_runner_builds_claude_and_copilot_variants(self, _which) -> None:
+        # v1.5.7 instruction 078 (W2): command_for_runner now routes
+        # argv[0] through _resolve_runner_command/shutil.which. Mock
+        # which->None so the resolver is a pure pass-through and the
+        # exact-argv contract below stays host-PATH-independent
+        # (addendum r3 §4.2: "existing test mocks patch(
+        # 'bin.run_playbook.shutil.which') continue to work").
         claude_default = run_playbook.command_for_runner("claude", "prompt text", None)
         self.assertEqual(claude_default, ["claude", "-p", "prompt text", "--dangerously-skip-permissions"])
 
@@ -443,7 +450,8 @@ class RunPlaybookTests(unittest.TestCase):
         self.assertIn("--cursor", command)
         self.assertNotIn("--copilot", command)
 
-    def test_command_for_runner_builds_cursor_variants(self) -> None:
+    @mock.patch("bin.run_playbook.shutil.which", return_value=None)
+    def test_command_for_runner_builds_cursor_variants(self, _which) -> None:
         """v1.5.4 F-1 (post-bootstrap fix): cursor runner builds
         `cursor agent --print --force [--model <model>]` with NO
         positional argument. The prompt is piped on stdin via

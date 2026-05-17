@@ -305,26 +305,41 @@ class ModeAInstallStepContractTests(unittest.TestCase):
     include the install step. The 2026-05-17 httpx run skipped
     install_skill entirely → validators/gate unreachable."""
 
-    def test_skill_md_mode_a_has_phase_0_install_step(self) -> None:
-        """SKILL.md Mode A intro carries the tight Phase-0 install
-        pointer (header + install_skill mention + AGENTS.md "Mode A
-        entry sequence" reference).
+    def test_skill_md_mode_a_has_phase_0_validator_step(self) -> None:
+        """SKILL.md Mode A intro carries the tight Phase-0 pointer.
+        v1.5.7 instruction 078 (launch-prompt collapse, addendum r3
+        §3.5) makes the **validator** the single Phase-0 entry point
+        — the pointer now names `qpb_validate` + the
+        `event=validation_complete status=ok` gate instead of the raw
+        `install_skill` command (the validator's
+        `event=remediation_suggestion` emits the platform-correct
+        install when needed; 077b F2). The load-bearing CONTRACT is
+        unchanged and still pinned: a MANDATORY Phase-0 first action +
+        the AGENTS.md "Mode A entry sequence" anchor (+ the httpx
+        failure-origin citation, pinned by the sibling test). Only
+        the mechanism identity shifts install_skill→qpb_validate,
+        which is the entire deliberate point of 078; per
+        instruction-078 Task 4.2 the assertion is updated to track
+        the new canonical form.
 
         Mutation-test evidence (in-tree per
-        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-073
-        Item-3 A-18 — BITE EXECUTED during instruction-073
-        development:
-          Mutation: delete the "**Phase 0 (MANDATORY first action):
-          install the skill.** …" pointer paragraph from SKILL.md's
-          Mode A intro.
-          Observed failure: THIS test fails at the first assertion
-            self.assertIn("Phase 0 (MANDATORY first action)", mode_a)
-          → AssertionError (the scoped Mode A intro no longer
-          contains the Phase-0 pointer).
-          Restoration: re-add the pointer; test passes.
-          Bite EXECUTED PASS→FAIL→PASS, __pycache__ purged between
-          mutate and restore (feedback_mutation_bite_pycache); the
-          restore also re-confirms SKILL.md stays < 29,000 BPE.
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-078 —
+        BITE EXECUTED during instruction-078 development:
+          Mutation: in SKILL.md:77 change
+          `python3 bin/qpb_validate.py <target-repo>` to
+          `python3 bin/OTHER.py <target-repo>` (remove the
+          `qpb_validate` token from the Phase-0 pointer).
+          Observed failure (purged __pycache__ first):
+            FAIL: test_skill_md_mode_a_has_phase_0_validator_step
+            AssertionError: 'qpb_validate' not found in '<the scoped
+            ### Mode A — skill-direct walkthrough slice, now with
+            `python3 bin/OTHER.py <target-repo>` in the Phase-0
+            pointer>' : the Phase-0 pointer must name the
+            qpb_validate entry point (078 §3.5 launch-prompt
+            collapse)
+          Restoration: token restored; PASS again. rp + SKILL.md
+          byte-restored from pristine snapshot; SKILL.md re-
+          confirmed at 28,976 BPE (< 29,000) post-restore.
         """
         mode_a = _slice(
             _SKILL_MD.read_text(encoding="utf-8"),
@@ -334,18 +349,24 @@ class ModeAInstallStepContractTests(unittest.TestCase):
         self.assertIn(
             "Phase 0 (MANDATORY first action)", mode_a,
             "SKILL.md Mode A intro must carry the MANDATORY Phase-0 "
-            "install-step pointer (072/073 A-18)",
+            "pointer (072/073 A-18; 078 validator-first)",
         )
         self.assertIn(
-            "install_skill", mode_a,
-            "the Phase-0 pointer must name install_skill (A-18)",
+            "qpb_validate", mode_a,
+            "the Phase-0 pointer must name the qpb_validate entry "
+            "point (078 §3.5 launch-prompt collapse)",
+        )
+        self.assertIn(
+            "event=validation_complete status=ok", mode_a,
+            "the Phase-0 pointer must carry the do-not-proceed-until "
+            "status=ok gate (078 §3.5)",
         )
         self.assertIn("AGENTS.md", mode_a)
         self.assertIn(
             '"Mode A entry sequence"', mode_a,
             "the tight SKILL.md pointer must reference the canonical "
             "AGENTS.md 'Mode A entry sequence' full protocol (073 "
-            "A-18 re-scope)",
+            "A-18 re-scope; 078 retains the anchor)",
         )
 
     def test_skill_md_mode_a_cites_httpx_failure_mode(self) -> None:
@@ -389,24 +410,38 @@ class ModeAInstallStepContractTests(unittest.TestCase):
         self.assertIn("install the skill into your target",
                       seq.lower())
 
-    def test_readme_claude_code_subsection_has_install_step_in_prompt(self) -> None:
-        """README Step 4's Claude Code launch prompt includes the
-        explicit install step (Install the Quality Playbook +
-        install_skill command) — closes the httpx bad-launch-prompt
-        root cause (A-18)."""
+    def test_readme_claude_code_subsection_has_validator_step_in_prompt(self) -> None:
+        """README Step 4's Claude Code launch prompt is validator-
+        first (v1.5.7 instruction 078, addendum r3 §3.5): it invokes
+        `qpb_validate.py`, carries the do-not-proceed-until
+        `event=validation_complete status=ok` gate, and still
+        references the canonical `install_skill` command as the
+        validator's remediation. Same load-bearing contract as the
+        pre-078 pin (the CC launch prompt names the deterministic
+        MANDATORY Phase-0 action that closes the 2026-05-17 httpx
+        bad-launch-prompt root cause) — only the mechanism shifts to
+        the validator, per instruction-078 Task 4.2."""
         readme = (_QPB_ROOT / "README.md").read_text(encoding="utf-8")
         step4 = _slice(readme, "### Step 4: Run the playbook",
                         "\n### ", "\n## ")
         cc = _slice(step4, "**Claude Code:**", "\n**")
         self.assertIn(
-            "Install the Quality Playbook", cc,
-            "README Claude Code launch prompt must include the "
-            "explicit install step (A-18)",
+            "qpb_validate", cc,
+            "README Claude Code launch prompt must invoke the "
+            "qpb_validate entry point (078 §3.5 launch-prompt "
+            "collapse)",
+        )
+        self.assertIn(
+            "event=validation_complete status=ok", cc,
+            "README Claude Code launch prompt must carry the "
+            "do-not-proceed-until status=ok Phase-0 gate (078 §3.5)",
         )
         self.assertIn(
             "install_skill", cc,
-            "README Claude Code launch prompt must name the "
-            "install_skill command (A-18)",
+            "README Claude Code launch prompt must still reference "
+            "the canonical install_skill command as the validator's "
+            "remediation (078 — validator emits the platform-correct "
+            "install when status=remediable)",
         )
 
 

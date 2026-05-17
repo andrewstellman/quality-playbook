@@ -20,9 +20,37 @@ env-var scheme.
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 from dataclasses import dataclass
 from typing import Protocol
+
+
+def _resolve_runner_command(argv: "list[str]") -> "list[str]":
+    """Resolve a bare-name AI CLI invocation to its full path (W2,
+    addendum r3 §4.2).
+
+    Deliberate copy of bin/run_playbook.py:_resolve_runner_command
+    (instruction-078 Task 3 explicitly sanctions a local copy over a
+    cross-module import: importing the large run_playbook module from
+    this lightweight runners module is awkward and import-order
+    fragile). Keep the two byte-identical in body; both are pinned by
+    bin/tests/test_runner_command_shim_resolution.py.
+
+    On Windows, AI CLIs are typically `.cmd`/`.bat` shims;
+    `subprocess.run` without `shell=True` raises FileNotFoundError
+    because CreateProcess only auto-resolves `.exe`. `shutil.which`
+    walks PATHEXT, so it returns the shim's full path. On Unix this is
+    effectively a no-op. Unresolvable -> bare argv (preserves the
+    existing FileNotFoundError surface). Resolution-only — does NOT
+    address stdin-through-`.cmd` (addendum §4.3 / §8 smoke test).
+    """
+    if not argv:
+        return argv
+    resolved = shutil.which(argv[0])
+    if resolved is None:
+        return argv
+    return [resolved] + list(argv[1:])
 
 
 @dataclass
@@ -60,7 +88,8 @@ class ClaudeRunner:
         start = time.monotonic()
         try:
             result = subprocess.run(
-                ["claude", "--print", "--model", self.model],
+                _resolve_runner_command(
+                    ["claude", "--print", "--model", self.model]),
                 input=prompt,
                 capture_output=True,
                 text=True,
@@ -100,7 +129,8 @@ class CopilotRunner:
         start = time.monotonic()
         try:
             result = subprocess.run(
-                ["gh", "copilot", "--prompt", "--model", self.model],
+                _resolve_runner_command(
+                    ["gh", "copilot", "--prompt", "--model", self.model]),
                 input=prompt,
                 capture_output=True,
                 text=True,
@@ -146,7 +176,7 @@ class CodexRunner:
 
     def run(self, prompt: str) -> RunnerResult:
         import time
-        argv = ["codex", "exec", "--full-auto"]
+        argv = _resolve_runner_command(["codex", "exec", "--full-auto"])
         if self.model:
             argv.extend(["-m", self.model])
         start = time.monotonic()
@@ -207,7 +237,8 @@ class CursorRunner:
 
     def run(self, prompt: str) -> RunnerResult:
         import time
-        argv = ["cursor", "agent", "--print", "--force"]
+        argv = _resolve_runner_command(
+            ["cursor", "agent", "--print", "--force"])
         if self.model:
             argv.extend(["--model", self.model])
         start = time.monotonic()
