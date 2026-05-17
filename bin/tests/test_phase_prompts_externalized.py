@@ -253,13 +253,28 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # recomputed (3035 → 4495 codepoints); phase1-5 + single_pass
         # + iteration unchanged. This baseline update IS the sanctioned
         # change-acknowledgement signal.
-        "phase1_no_seeds_True":  (22697, "923b7e62ecbacbae66d7ddf7717df235db768dc32f37f18a480ac16c96d4f951"),
-        "phase1_no_seeds_False": (22500, "23271fafaafd210ea66f83ea7fc86ab98bbc7e2ea8137840d1ae6d02578408c9"),
-        "phase2":                ( 7842, "d37aab06101d2be24ac82a00395830b95520d1ce19d9e8046ee79a5b4a6159cf"),
+        # v1.5.7 instruction 065 (A-14 + A-15 + A-16): the
+        # phase-boundary artifact-contract validator
+        # (bin/validate_phase_artifacts.py) MANDATE was wired into
+        # the phase prompts. phase1.md gained the Mode-A
+        # normalize_role_map_for_gate + --phase 1 validator-witness
+        # block (A-16 — Mode A has no runner to normalize breakdown);
+        # phase2.md gained the --phase 2 MANDATORY validation block
+        # (A-14 manifest §1.6 wrappers); phase5.md gained the
+        # explicit "Write quality/INDEX.md" §11 emission STEP +
+        # --phase 5 validator (A-15 — Mode A has no runner to emit
+        # INDEX.md); phase6.md gained the --phase 6 re-validation +
+        # gate_verdict-value witness. phase3/phase4/single_pass/
+        # iteration were NOT edited (their hashes are unchanged).
+        # Hashes recomputed — this baseline update IS the sanctioned
+        # change-acknowledgement signal.
+        "phase1_no_seeds_True":  (24472, "70c0c69b70f6b3dd0e46c4f5adc867cfdf015de50a0be466472916d5bde00510"),
+        "phase1_no_seeds_False": (24275, "a8b3e45887b9fc84d8e7cba9e89a4e9ef2e5b1dab8e65a0ee78309e8fba53ded"),
+        "phase2":                ( 8914, "a6a3aa23caec875be9a9567a6ad209fcf1f542e9e5e7349a74dbbb176b4f6651"),
         "phase3":                ( 9778, "3232173110c93b465e00ef8a7c0aef226fd6d9a5bd90ed0854990e94ce0a5217"),
         "phase4":                ( 3911, "923e0198ca39182397e118f45452afcfde54731a46f5414bcd99431812af752f"),
-        "phase5":                (13471, "4f5e852fb05730825ae041d4162c97f9dda8bc7dfdff50e6e4959e7ffd1173fa"),
-        "phase6":                ( 4495, "a432092f9c1cc97f7fe4aa883e25ae5b55d361b77d9a5c39bf4a243190029ad1"),
+        "phase5":                (15833, "f6b0c09e61a994874255f78b1343a5a39a2df013d54b089b4d06699726e70984"),
+        "phase6":                ( 5500, "cd4256af7a81aa7db47996e40c80138a922ca3a6a3ff710dac8c764e214c1539"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.

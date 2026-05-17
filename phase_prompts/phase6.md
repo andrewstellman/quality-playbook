@@ -47,6 +47,12 @@ Step 6.4: File-by-file verification checklist (read one file at a time, check, m
 Step 6.5: Metadata consistency check.
 
 Append each step's result to quality/results/phase6-verification.log.
+**MANDATORY artifact-contract validation (v1.5.7 A-15).** Before completing Phase 6, re-validate the run index and quote the validator's final exit-code line verbatim in your chat output:
+
+    python3 -m bin.validate_phase_artifacts . --phase 6
+
+Resolve `bin/` via the documented install-root fallback (`PYTHONPATH=<install_root>` for an `install_skill.py`-layout adopter). `--phase 6` re-checks `quality/INDEX.md` presence + the schemas.md §11 required fields AND additionally requires `summary.gate_verdict` to be one of `pass` / `partial` / `fail` (it is `"pending"` after Phase 5 — Phase 6 MUST update it to the real verdict from the gate run above). A non-zero exit means INDEX.md is missing, missing §11 fields, or still carries `gate_verdict: "pending"`; fix and re-run until exit 0. You MAY NOT report Phase 6 PASS with a failing validator. This is the per-phase complement to the A-13 gate-verdict witness above — together they make the express fabrication failure mode mechanically detectable.
+
 Mark Phase 6 complete in PROGRESS.md (use the checkbox format `- [x] Phase 6 - Verify` — do NOT switch to a table).
 
 After completing this phase, emit `## What just happened` + `### What to do next` as the LAST visible output in chat per the decision tree at `references/what_just_happened.md`. This is end-of-baseline — use State B if `quality/BUGS.md` has at least one `^### BUG-` heading, or State S if it has zero headings AND the gate verdict shows the "no BUG-NNN headings" WARN (the pass-process / fail-recall failure mode the contract was designed to surface).

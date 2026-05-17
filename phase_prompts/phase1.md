@@ -70,6 +70,16 @@ Handling edge cases (v1.5.4 Phase 1 edge-case discipline):
 - **Ambiguous prose ("the helper script", "the validator").** Default to `code`. `skill-tool` requires an unambiguous citation: SKILL.md or a referenced doc must name the file (or a path-suffix that uniquely identifies it) AND direct the agent to invoke it. When in doubt, tag `code` and capture the ambiguity in `rationale` — it's better to under-tag `skill-tool` than to inflate the surface area Phase 4's prose-to-code check operates on.
 - **Generated files (build outputs, vendored dependencies, lockfiles).** Skip them at the ignore-rule layer; do not include them in the role map. If you can't tell whether a file is generated, look for a generation marker (header comment naming the generator, sibling `.generated` file, presence in `.gitignore`); if generated, omit from the role map.
 
+**MANDATORY — Mode A breakdown/summary normalization + validator witness (v1.5.7 A-16).** The paragraph above ("You only produce `files[]` and `provenance`") describes the **Mode B (runner-driven)** contract: the runner calls `bin.role_map.normalize_role_map_for_gate(...)` for you between Phase 1 exit and the Phase 2 entry-gate. **In Mode A (skill-direct — you are driving the phases yourself, there is no runner) nothing does this for you**, so YOU must run the runner's normalization step yourself after writing `files[]`/`provenance`. Do NOT hand-author `breakdown`/`summary` (that is exactly the cluster-047 drift failure mode); invoke the canonical helper the runner uses:
+
+    python3 -c "import sys; sys.path.insert(0, 'bin'); import role_map; ok, errs = role_map.normalize_role_map_for_gate('quality/exploration_role_map.json'); print('role_map normalized' if ok else 'NORMALIZE FAILED: ' + repr(errs)); sys.exit(0 if ok else 1)"
+
+Then run the Phase 1 artifact-contract validator and quote its final exit-code line verbatim in your chat output:
+
+    python3 -m bin.validate_phase_artifacts . --phase 1
+
+Resolve `bin/` via the documented install-root fallback — for an `install_skill.py`-layout adopter use `PYTHONPATH=<install_root> python3 -m bin.validate_phase_artifacts . --phase 1` (the same layout-aware form Phase 1's `reference_docs_ingest` step uses). If the validator exits non-zero your `breakdown` is not the canonical object — re-run the normalization above until it exits 0. You MAY NOT proceed to Phase 2 with a failing validator. This closes the 2026-05-16 express opus-4.6 Mode-A defect: the agent left `"breakdown": null` (no runner normalized it — Mode A), the gate FAILED with "'breakdown' is not an object", and the agent reported PASS anyway.
+
 When Phase 1 is complete, write your full exploration findings to
 `quality/EXPLORATION.md`. The file MUST contain ALL of the following
 section titles VERBATIM (the Phase 1 gate at SKILL.md:1257-1273 enforces

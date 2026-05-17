@@ -139,6 +139,29 @@ For every pattern-tagged REQ, the Phase 5 contract is:
 
 The cardinality gate is blocking. It is intentionally stricter than the Phase 3 advisory self-check; the advisory check is meant to surface problems early, but Phase 5 is where they become fatal.
 
+### STEP — Write quality/INDEX.md (v1.5.7 A-15)
+
+`quality/INDEX.md` is required on every run (schemas.md §10 invariant #10 / §11). In **Mode B** the runner/orchestrator emits it (it alone tracks phase timing + model assignments). In **Mode A** there is no runner — YOU must write it now, in Phase 5, before closing the phase. Write `quality/INDEX.md` as markdown containing a single fenced ` ```json ` block carrying the schemas.md §11 fields:
+
+- `schema_version`: `"2.0"` (new runs MUST emit `"2.0"` — `"1.0"`/absent is the archived-legacy read path only).
+- `run_timestamp_start`, `run_timestamp_end`: ISO 8601 with explicit timezone (Z preferred) — the run's actual start (when Phase 1 began) and now.
+- `duration_seconds`: integer, end − start.
+- `qpb_version`: from SKILL.md `metadata.version`.
+- `target_repo_path`: the target repo path. `target_repo_git_sha`: `git rev-parse HEAD` (or `"unknown"` for non-git targets).
+- `target_role_breakdown`: do NOT hand-author — derive from the normalized role map via the canonical helper:
+
+      python3 -c "import sys, json; sys.path.insert(0, 'bin'); import role_map; rm = role_map.load_role_map('quality/exploration_role_map.json'); print(json.dumps(role_map.role_breakdown_for_index(rm)))"
+
+- `phases_executed`: array of `{phase_id, model, start, end, exit_status}` — one entry per phase you ran (`model` = the model you are; `exit_status` = `"success"`).
+- `summary`: object with `requirements` (counts by tier), `bugs` (counts by severity/disposition), and `gate_verdict` (`"pending"` now — Phase 6 updates it to `pass`/`partial`/`fail`).
+- `artifacts`: array of the relative artifact paths produced this run.
+
+Compute fields with Python where possible; do NOT hand-write counts. After writing INDEX.md, run the Phase 5 artifact-contract validator and quote its final exit-code line verbatim in your chat output:
+
+    python3 -m bin.validate_phase_artifacts . --phase 5
+
+Resolve `bin/` via the documented install-root fallback (`PYTHONPATH=<install_root>` for an `install_skill.py`-layout adopter). Exit 0 is required to proceed; a non-zero exit means INDEX.md is missing or missing required §11 fields — fix and re-run. This closes the 2026-05-16 express opus-4.6 Mode-A defect where INDEX.md was never written (no runner — Mode A), the gate FAILED on §10 invariant #10, and the agent reported PASS anyway.
+
 Mark Phase 5 complete in PROGRESS.md (use the checkbox format `- [x] Phase 5 - Reconciliation` — do NOT switch to a table).
 
 IMPORTANT: quality_gate.py will FAIL Phase 5 if any writeup is missing a non-empty ```diff block or contains any of these sentinel phrases verbatim: "is a confirmed code bug in ``", "The affected implementation lives at ``", "Patch path: ``", "- Regression test: ``", "- Regression patch: ``". Those two checks are the hard gate. Skipping the BUGS.md hydration step above is not gate-enforced but will produce writeups that read as unpopulated stubs and fail a human review — do not skip it.

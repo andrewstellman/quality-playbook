@@ -42,6 +42,12 @@ Execute Phase 2: Generate all quality artifacts. Use the exploration findings in
 
 These REQs convert artifact-location compliance from prose-only guidance into testable requirements. The Phase 6 gate's `check_no_workspace_dir` enforces the last one mechanically; the others give human reviewers concrete REQs to grep for in compliance audits.
 
+**MANDATORY artifact-contract validation (v1.5.7 A-14).** Before completing Phase 2, run the phase-boundary validator and quote its final exit-code line verbatim in your chat output:
+
+    python3 -m bin.validate_phase_artifacts . --phase 2
+
+Resolve `bin/` via the documented install-root fallback — for an `install_skill.py`-layout adopter use `PYTHONPATH=<install_root> python3 -m bin.validate_phase_artifacts . --phase 2`. If the exit code is non-zero your manifests violate schemas.md §1.6: use a top-level `records` array (NOT `requirements`/`bugs`/`use_cases`) and populate `generated_at` with `datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")` (NOT `null`). `citation_semantic_check.json` is the documented §9.1 exception — it uses `reviews`, not `records`. Fix and re-run until the validator exits 0. You MAY NOT proceed to Phase 3 with a failing validator. This closes the 2026-05-16 express opus-4.6 defect where `bugs_manifest.json` used the `bugs` key + `generated_at: null`, the gate FAILED, and the agent reported PASS anyway.
+
 Update PROGRESS.md: mark Phase 2 complete (use the checkbox format `- [x] Phase 2 - Generate` — do NOT switch to a table), update artifact inventory.
 
 IMPORTANT: Do NOT proceed to Phase 3 (code review). Your job is artifact generation only. The next phase will execute the review protocols you generated.
