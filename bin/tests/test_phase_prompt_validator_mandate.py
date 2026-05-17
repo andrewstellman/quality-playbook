@@ -4,8 +4,11 @@ validator-mandate contract pins.
 A-14/A-15/A-16 are "agent ignores documented contract" defects:
 prose-level guidance already existed and opus ignored it. The
 structural fix is bin/validate_phase_artifacts.py PLUS a MANDATORY
-"run the validator, quote its exit code" mandate wired into the
-phase prompts (the A-13 witness pattern, per-phase). These tests pin
+"run the validator, quote its final `RESULT:` line" mandate wired
+into the phase prompts (the A-13 witness pattern, per-phase;
+instruction 067 F2 superseded the pre-067 unsatisfiable "quote its
+exit code" wording — the validator now emits a self-authenticating
+`RESULT: VALIDATION PASSED|FAILED|ERROR` line). These tests pin
 that mandate language in every phase prompt + the two reference
 guides so a future edit cannot silently drop it (drift between the
 phase prompt and its reference guide is the specific regression
@@ -37,7 +40,7 @@ class PhasePromptValidatorMandateTests(unittest.TestCase):
 
     def test_phase1_prompt_mandates_validator(self) -> None:
         """phase_prompts/phase1.md MANDATES the --phase 1 validator +
-        quote-exit-code witness AND the Mode-A
+        quote-`RESULT:`-line witness AND the Mode-A
         normalize_role_map_for_gate step (the A-16 fix — Mode A has
         no runner to normalize breakdown)."""
         t = _read(_PP / "phase1.md")

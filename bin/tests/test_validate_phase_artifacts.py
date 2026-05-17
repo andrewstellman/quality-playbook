@@ -7,10 +7,12 @@ ai_context/DEVELOPMENT_PROCESS.md:152-160; the A-16 bite was
 EXECUTED during instruction-065 development (PASS→FAIL→PASS,
 __pycache__ purged between mutate and restore).
 
-The validator's exit-code contract is what the phase prompts depend
-on ("quote its exit code"), so the tests assert the integer return
-of `main(argv)` (0 = clean, 1 = violation, 2 = usage), not just the
-internal fail list.
+The validator's self-authenticating final `RESULT:` line is what
+the phase prompts depend on (introduced in instruction 067 F2 —
+`RESULT: VALIDATION PASSED|FAILED|ERROR`). The exit code is
+unchanged (0 = clean, 1 = violation, 2 = usage); the tests assert
+both the integer return of `main(argv)` and the emitted `RESULT:`
+line, not just the internal fail list.
 """
 
 from __future__ import annotations
@@ -406,6 +408,54 @@ class VerdictLineTests(unittest.TestCase):
                 f"usage error must still end with a RESULT line; "
                 f"got:\n{out}",
             )
+
+
+class ModuleDocstringCurrencyTests(unittest.TestCase):
+    """v1.5.7 instruction 069 (closing 068-SA's non-blocking note):
+    the bin.validate_phase_artifacts module docstring must document
+    BOTH the exit-code contract AND the post-067-F2
+    self-authenticating `RESULT:` line (the validator's primary
+    witness deliverable). Pins the prose so it cannot silently drift
+    back to documenting only exit codes."""
+
+    def test_validate_phase_artifacts_module_docstring_documents_result_line(self) -> None:
+        """The module docstring mentions the exit codes AND the
+        RESULT verdict line AND cites instruction 067 F2.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-069 —
+        BITE EXECUTED during instruction-069 development:
+          Mutation: in bin/validate_phase_artifacts.py delete the 069
+          "Final verdict line (instruction 067 F2): …" paragraph from
+          the module docstring (revert to the pre-069
+          Exit-codes-only docstring).
+          Observed failure: THIS test fails at
+            self.assertIn("RESULT: VALIDATION", doc) →
+            AssertionError: 'RESULT: VALIDATION' not found in <the
+            Exit-codes-only docstring> : module docstring must
+            document the post-067-F2 self-authenticating RESULT
+            verdict line (069 / 068-SA note)
+          Restoration: re-add the paragraph; test passes.
+          Bite EXECUTED PASS→FAIL→PASS, __pycache__ purged between
+          mutate and restore (feedback_mutation_bite_pycache — a
+          stale .pyc could mask the restored-clean state).
+        """
+        doc = vpa.__doc__ or ""
+        self.assertIn(
+            "Exit codes:", doc,
+            "module docstring must still document the exit codes",
+        )
+        self.assertIn(
+            "RESULT: VALIDATION", doc,
+            "module docstring must document the post-067-F2 "
+            "self-authenticating RESULT verdict line (069 / 068-SA "
+            "note)",
+        )
+        self.assertIn(
+            "067 F2", doc,
+            "module docstring must cite instruction 067 F2 as the "
+            "introducer of the RESULT line",
+        )
 
 
 if __name__ == "__main__":

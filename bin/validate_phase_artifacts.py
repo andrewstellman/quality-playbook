@@ -54,6 +54,15 @@ Exit codes:
     0  all validations passed for the requested phase
     1  at least one violation (each FAIL line written to stdout)
     2  invalid usage / missing target
+
+Final verdict line (instruction 067 F2): the LAST stdout line on
+every exit path is a self-authenticating verdict mirroring
+quality_gate.py's A-13 `RESULT: GATE PASSED|FAILED` shape —
+`RESULT: VALIDATION PASSED (phase N)` (exit 0),
+`RESULT: VALIDATION FAILED (phase N — X FAIL, Y PASS)` (exit 1), or
+`RESULT: VALIDATION ERROR (phase N — usage; exit 2)` (exit 2). The
+phase prompts mandate quoting this line verbatim so a static
+reviewer can verify the validator actually ran and its verdict.
 """
 
 from __future__ import annotations
