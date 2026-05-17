@@ -47,7 +47,7 @@ Step 6.4: File-by-file verification checklist (read one file at a time, check, m
 Step 6.5: Metadata consistency check.
 
 Append each step's result to quality/results/phase6-verification.log.
-**MANDATORY artifact-contract validation (v1.5.7 A-15).** Before completing Phase 6, re-validate the run index and quote the validator's final exit-code line verbatim in your chat output:
+**MANDATORY artifact-contract validation (v1.5.7 A-15).** Before completing Phase 6, re-validate the run index and quote the validator's final `RESULT:` line verbatim in your chat output (it matches `RESULT: VALIDATION PASSED (phase 6)` or `RESULT: VALIDATION FAILED (phase 6 — X FAIL, Y PASS)` — VALIDATION FAILED means your artifacts violate the contract; fix them per the `FAIL:` messages above and re-run until VALIDATION PASSED):
 
     python3 -m bin.validate_phase_artifacts . --phase 6
 

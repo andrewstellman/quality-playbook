@@ -156,7 +156,7 @@ The cardinality gate is blocking. It is intentionally stricter than the Phase 3 
 - `summary`: object with `requirements` (counts by tier), `bugs` (counts by severity/disposition), and `gate_verdict` (`"pending"` now — Phase 6 updates it to `pass`/`partial`/`fail`).
 - `artifacts`: array of the relative artifact paths produced this run.
 
-Compute fields with Python where possible; do NOT hand-write counts. After writing INDEX.md, run the Phase 5 artifact-contract validator and quote its final exit-code line verbatim in your chat output:
+Compute fields with Python where possible; do NOT hand-write counts. After writing INDEX.md, run the Phase 5 artifact-contract validator and quote its final `RESULT:` line verbatim in your chat output (it matches `RESULT: VALIDATION PASSED (phase 5)` or `RESULT: VALIDATION FAILED (phase 5 — X FAIL, Y PASS)` — VALIDATION FAILED means your artifacts violate the contract; fix them per the `FAIL:` messages above and re-run until VALIDATION PASSED):
 
     python3 -m bin.validate_phase_artifacts . --phase 5
 

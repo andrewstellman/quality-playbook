@@ -42,7 +42,7 @@ Execute Phase 2: Generate all quality artifacts. Use the exploration findings in
 
 These REQs convert artifact-location compliance from prose-only guidance into testable requirements. The Phase 6 gate's `check_no_workspace_dir` enforces the last one mechanically; the others give human reviewers concrete REQs to grep for in compliance audits.
 
-**MANDATORY artifact-contract validation (v1.5.7 A-14).** Before completing Phase 2, run the phase-boundary validator and quote its final exit-code line verbatim in your chat output:
+**MANDATORY artifact-contract validation (v1.5.7 A-14).** Before completing Phase 2, run the phase-boundary validator and quote its final `RESULT:` line verbatim in your chat output (it matches `RESULT: VALIDATION PASSED (phase 2)` or `RESULT: VALIDATION FAILED (phase 2 — X FAIL, Y PASS)` — VALIDATION FAILED means your artifacts violate the contract; fix them per the `FAIL:` messages above and re-run until VALIDATION PASSED):
 
     python3 -m bin.validate_phase_artifacts . --phase 2
 

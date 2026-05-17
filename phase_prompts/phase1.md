@@ -74,7 +74,7 @@ Handling edge cases (v1.5.4 Phase 1 edge-case discipline):
 
     python3 -c "import sys; sys.path.insert(0, 'bin'); import role_map; ok, errs = role_map.normalize_role_map_for_gate('quality/exploration_role_map.json'); print('role_map normalized' if ok else 'NORMALIZE FAILED: ' + repr(errs)); sys.exit(0 if ok else 1)"
 
-Then run the Phase 1 artifact-contract validator and quote its final exit-code line verbatim in your chat output:
+Then run the Phase 1 artifact-contract validator and quote its final `RESULT:` line verbatim in your chat output (it matches `RESULT: VALIDATION PASSED (phase 1)` or `RESULT: VALIDATION FAILED (phase 1 — X FAIL, Y PASS)` — VALIDATION FAILED means your artifacts violate the contract; fix them per the `FAIL:` messages above and re-run until VALIDATION PASSED):
 
     python3 -m bin.validate_phase_artifacts . --phase 1
 

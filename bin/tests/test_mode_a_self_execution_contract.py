@@ -243,5 +243,67 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
             )
 
 
+    def test_readme_step_4_claude_code_uses_interactive_pattern(self) -> None:
+        """v1.5.7 instruction 067 F1 (closing 066 SA1): README Step 4's
+        Claude Code subsection must use the interactive pattern
+        (mirroring Cursor/Windsurf: "Read SKILL.md and run the
+        quality playbook"), NOT `claude --agent
+        agents/quality-playbook.agent.md` as the PRIMARY invocation.
+        The orchestrator-agent path is AUTOMATION ONLY (064) — it may
+        appear ONLY in the explicit automation parenthetical.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-067
+        F1 — BITE EXECUTED during instruction-067 development:
+          Mutation: revert README Step 4's Claude Code subsection to
+          the pre-067 form (a ```bash fence whose body is
+          `claude --agent agents/quality-playbook.agent.md` as the
+          primary instruction, no interactive sentence, no
+          automation parenthetical).
+          Observed failure (exactly as run): the pre-parenthetical
+          primary slice now contains `--agent agents/quality-playbook`
+          AND no longer contains "Read SKILL.md", so BOTH assertions
+          below fire (AssertionError on the interactive-pattern
+          assertIn first).
+          Restoration: re-apply the 067 F1.1 interactive form;
+          test passes.
+          Bite EXECUTED: clean PASS → mutate → __pycache__ purged →
+          this test FAILED → restore (byte-identical, empty git
+          diff) → __pycache__ purged → PASS again
+          (feedback_mutation_bite_pycache discipline).
+        """
+        readme = (_QPB_ROOT / "README.md").read_text(encoding="utf-8")
+        step4 = _slice(readme, "### Step 4: Run the playbook",
+                        "\n### ", "\n## ")
+        cc = _slice(step4, "**Claude Code:**", "\n**")
+        # Interactive pattern present (mirrors Cursor/Windsurf).
+        self.assertIn(
+            "Read SKILL.md", cc,
+            "README Step 4 Claude Code subsection must use the "
+            "interactive 'Read SKILL.md and run the quality "
+            "playbook' pattern (067 F1 / 066 SA1)",
+        )
+        # The orchestrator-agent path must NOT be the primary
+        # instruction — only allowed inside the automation
+        # parenthetical that starts with "(For automated batch".
+        split = cc.split("(For automated batch invocation", 1)
+        primary = split[0]
+        self.assertNotIn(
+            "--agent agents/quality-playbook", primary,
+            "README Step 4 Claude Code PRIMARY instruction still "
+            "routes interactive sessions into the AUTOMATION-ONLY "
+            "orchestrator agent (the exact A-17 path 064 forbids) — "
+            "066 SA1 finding must stay closed",
+        )
+        # The automation parenthetical itself is retained (the
+        # automation path has legitimate use — reframed, not removed).
+        self.assertEqual(
+            len(split), 2,
+            "the automation-only parenthetical (orchestrator-agent "
+            "path for headless/CI) must be retained, not deleted "
+            "(067: reframe, not removal)",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -364,11 +364,15 @@ def main(argv: list[str] | None = None) -> int:
     if not target.is_dir():
         print(f"USAGE ERROR: target {args.target!r} is not a directory",
               file=sys.stderr)
+        print(f"RESULT: VALIDATION ERROR (phase {args.phase} — usage; "
+              "exit 2)")
         return 2
     if not (target / "quality").is_dir():
         print(f"USAGE ERROR: {args.target!r} has no quality/ directory "
               "(run from the target repo root, after the phase ran)",
               file=sys.stderr)
+        print(f"RESULT: VALIDATION ERROR (phase {args.phase} — usage; "
+              "exit 2)")
         return 2
 
     passes, fails = validate(target, args.phase)
@@ -378,7 +382,18 @@ def main(argv: list[str] | None = None) -> int:
         print(line)
     print(f"--- phase {args.phase}: {len(passes)} PASS, "
           f"{len(fails)} FAIL ---")
-    return 1 if fails else 0
+    # Self-authenticating final verdict line (A-13-shaped — mirrors
+    # quality_gate.py's `RESULT: GATE PASSED|FAILED` so the agent has
+    # a familiar, quoteable, statically-verifiable witness; instruction
+    # 067 F2 closing the 065 codex HALT). ALWAYS the last stdout line,
+    # on every exit path (0/1/2), so a static reviewer reading the
+    # agent's chat can verify the validator actually ran + its verdict.
+    if fails:
+        print(f"RESULT: VALIDATION FAILED (phase {args.phase} — "
+              f"{len(fails)} FAIL, {len(passes)} PASS)")
+        return 1
+    print(f"RESULT: VALIDATION PASSED (phase {args.phase})")
+    return 0
 
 
 if __name__ == "__main__":

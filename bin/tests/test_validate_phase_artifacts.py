@@ -324,5 +324,89 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(rc, 2)
 
 
+class VerdictLineTests(unittest.TestCase):
+    """v1.5.7 instruction 067 F2 (closing the 065 codex HALT): the
+    validator MUST emit a self-authenticating final `RESULT:` line
+    (A-13-shaped) so the phase-prompt "quote the validator's final
+    RESULT line verbatim" mandate is mechanically satisfiable and a
+    static reviewer can verify compliance."""
+
+    @staticmethod
+    def _last_line(out: str) -> str:
+        lines = [ln for ln in out.splitlines() if ln.strip()]
+        return lines[-1] if lines else ""
+
+    def test_validator_emits_passed_verdict_line_on_clean_artifacts(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write(q / "bugs_manifest.json",
+                   {"schema_version": "1.5.7", "generated_at": _ISO,
+                    "records": []})
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 0, out)
+            self.assertEqual(
+                self._last_line(out),
+                "RESULT: VALIDATION PASSED (phase 2)",
+                f"clean Phase-2 artifacts must end with the PASSED "
+                f"verdict line; got:\n{out}",
+            )
+
+    def test_validator_emits_failed_verdict_line_with_counts_on_violations(self) -> None:
+        """Failing artifacts end with `RESULT: VALIDATION FAILED
+        (phase N — X FAIL, Y PASS)` carrying concrete counts.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-067
+        F2 — BITE EXECUTED during instruction-067 development:
+          Mutation: in bin/validate_phase_artifacts.py main(),
+          delete the post-summary verdict-line block (the
+          `if fails: print("RESULT: VALIDATION FAILED ...")` /
+          `print("RESULT: VALIDATION PASSED ...")` pair), leaving
+          only the `--- phase N: X PASS, Y FAIL ---` summary.
+          Observed failure (exactly as run): the last non-empty
+          stdout line becomes `--- phase 2: 0 PASS, 2 FAIL ---`,
+          so `self.assertTrue(last.startswith("RESULT: VALIDATION
+          FAILED"))` FAILS — and
+          test_validator_emits_passed_verdict_line_on_clean_artifacts
+          also FAILS (its assertEqual no longer matches). 2 tests
+          FAIL.
+          Restoration: restore the verdict-line block; tests pass.
+          Bite EXECUTED: clean PASS → mutate → __pycache__ purged →
+          these tests FAILED → restore → __pycache__ purged → PASS
+          again (feedback_mutation_bite_pycache discipline — a
+          stale .pyc could mask the restored-clean state).
+        """
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write(q / "bugs_manifest.json",
+                   {"schema_version": "1.5.7",
+                    "bugs": [{"id": "BUG-001"}]})
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            last = self._last_line(out)
+            self.assertTrue(
+                last.startswith("RESULT: VALIDATION FAILED (phase 2 — "),
+                f"failing Phase-2 artifacts must end with the FAILED "
+                f"verdict line; got last line: {last!r}",
+            )
+            # Concrete counts present (X FAIL, Y PASS).
+            self.assertRegex(last, r"VALIDATION FAILED \(phase 2 — \d+ FAIL, \d+ PASS\)")
+
+    def test_validator_emits_error_verdict_line_on_usage_error(self) -> None:
+        """Even the exit-2 usage path emits a final RESULT line so
+        there is ALWAYS a quoteable witness (no exit path leaves a
+        stale prior line as the apparent verdict)."""
+        with TemporaryDirectory() as tmp:
+            # tmp has no quality/ dir → usage error, exit 2.
+            rc, out = _run(Path(tmp), 5)
+            self.assertEqual(rc, 2)
+            self.assertEqual(
+                self._last_line(out),
+                "RESULT: VALIDATION ERROR (phase 5 — usage; exit 2)",
+                f"usage error must still end with a RESULT line; "
+                f"got:\n{out}",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

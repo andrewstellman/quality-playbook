@@ -42,14 +42,14 @@ class PhasePromptValidatorMandateTests(unittest.TestCase):
         no runner to normalize breakdown)."""
         t = _read(_PP / "phase1.md")
         self.assertIn("bin.validate_phase_artifacts . --phase 1", t)
-        self.assertIn("quote its final exit-code line verbatim", t)
+        self.assertIn("quote its final `RESULT:` line verbatim", t)
         self.assertIn("normalize_role_map_for_gate", t)
         self.assertIn("A-16", t)
 
     def test_phase2_prompt_mandates_validator(self) -> None:
         t = _read(_PP / "phase2.md")
         self.assertIn("bin.validate_phase_artifacts . --phase 2", t)
-        self.assertIn("quote its final exit-code line verbatim", t)
+        self.assertIn("quote its final `RESULT:` line verbatim", t)
         self.assertIn("A-14", t)
         self.assertIn("MAY NOT proceed to Phase 3", t)
 
@@ -92,6 +92,52 @@ class PhasePromptValidatorMandateTests(unittest.TestCase):
         self.assertIn("bin.validate_phase_artifacts . --phase 6", verify)
         self.assertIn("keep the two coherent", verify)
         self.assertIn("A-15", verify)
+
+
+    def test_all_phase_prompts_demand_result_verdict_line_pattern(self) -> None:
+        """v1.5.7 instruction 067 F2.4 (closing the 065 codex HALT):
+        each phase prompt must demand quoting the validator's
+        self-authenticating `RESULT:` line by its literal pattern —
+        not the old generic "exit-code line" wording the validator
+        could not actually emit. Pins the corrected witness contract
+        so a future edit can't silently revert to an unsatisfiable
+        mandate."""
+        for n in (1, 2, 5, 6):
+            with self.subTest(phase=n):
+                t = _read(_PP / f"phase{n}.md")
+                self.assertIn(
+                    "final `RESULT:` line verbatim", t,
+                    f"phase{n}.md must demand quoting the validator's "
+                    f"final RESULT line verbatim (067 F2)",
+                )
+                self.assertIn(
+                    f"RESULT: VALIDATION PASSED (phase {n})", t,
+                    f"phase{n}.md must show the literal quoteable "
+                    f"PASSED pattern for phase {n} (067 F2)",
+                )
+                self.assertIn(
+                    f"RESULT: VALIDATION FAILED (phase {n} —", t,
+                    f"phase{n}.md must show the literal quoteable "
+                    f"FAILED pattern for phase {n} (067 F2)",
+                )
+                # The stale "exit-code line" wording must be gone.
+                self.assertNotIn(
+                    "final exit-code line verbatim", t,
+                    f"phase{n}.md still carries the pre-067 "
+                    f"'final exit-code line verbatim' wording the "
+                    f"validator never emitted (065 codex HALT)",
+                )
+
+    def test_reference_guides_demand_result_verdict_line_pattern(self) -> None:
+        """The two reference guides carry the same corrected
+        RESULT-line mandate (no prompt/guide drift — 067 F2)."""
+        for name in ("phase2_generation_guide.md",
+                     "phase6_verify_guide.md"):
+            with self.subTest(guide=name):
+                t = _read(_REF / name)
+                self.assertIn("final `RESULT:` line verbatim", t)
+                self.assertIn("RESULT: VALIDATION PASSED (phase", t)
+                self.assertNotIn("final exit-code line verbatim", t)
 
 
 if __name__ == "__main__":

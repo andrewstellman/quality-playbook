@@ -269,11 +269,11 @@ cat skill-template.gitignore >> .gitignore
 
 ### Step 4: Run the playbook
 
-**Claude Code:**
-```bash
-claude --agent agents/quality-playbook.agent.md
-```
-Add `--dangerously-skip-permissions` to skip file-write approval prompts.
+**Claude Code:** Open Claude Code in your project directory and say: *"Read SKILL.md and run the quality playbook on this project."*
+
+Add `--dangerously-skip-permissions` when launching `claude` to skip file-write approval prompts during execution.
+
+(For automated batch invocation — headless CI, scripted runs — use the orchestrator agent file via `claude --agent agents/quality-playbook.agent.md`. The orchestrator-agent path spawns sub-agents per phase and hides per-step output from operator chat, which is appropriate for unattended automation but NOT for interactive sessions where the operator monitors output. See `agents/quality-playbook.agent.md`'s "When to use this file" header for the full constraint.)
 
 **GitHub Copilot:** Open the chat panel in VS Code, IntelliJ, or any IDE with Copilot support and say: *"Run the quality playbook on this project."* For the CLI, use `copilot-cli` with `--yolo` to skip prompts.
 
