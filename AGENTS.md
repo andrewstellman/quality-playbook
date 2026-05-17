@@ -20,8 +20,8 @@ The Quality Playbook is a skill for AI coding agents that explores any codebase 
 | `bin/qpb_config.py` | v1.5.7 D6 — `python3 -m bin.qpb_config show|set|unset <key>` manages `~/.qpb/config.json`. | When showing/setting the adopter's Council override |
 | `ai_context/TOOLKIT.md` | User-facing interactive documentation | When helping a user set up or run the playbook |
 | `ai_context/DEVELOPMENT_CONTEXT.md` | Maintainer context (architecture, benchmarking, known issues) | When working on the skill itself |
-| `agents/quality-playbook.agent.md` | Orchestrator agent (Copilot / general format) | When setting up automated phase-by-phase execution |
-| `agents/quality-playbook-claude.agent.md` | Orchestrator agent (Claude Code format, uses sub-agents) | When running in Claude Code with automatic orchestration |
+| `agents/quality-playbook.agent.md` | Orchestrator agent (Copilot / general format). **AUTOMATION ONLY — NOT for interactive sessions.** Spawns a sub-agent per phase, hiding per-step output from the operator's chat. Use only for headless CI / batch contexts where per-phase context-window isolation is necessary. For interactive coding sessions (Claude Code, Cursor, Copilot UI, Codex desktop), do NOT read this file — read `SKILL.md` and execute Mode A directly; your chat IS the witness trail. | Automated batch invocation only — never for an operator-watched interactive session |
+| `agents/quality-playbook-claude.agent.md` | Orchestrator agent (Claude Code format). **AUTOMATION ONLY — NOT for interactive sessions.** Same automation-only constraint as the row above. The 2026-05-16 express opus-4.6 Mode-A run reproduced the failure mode this constraint prevents: an interactive Claude Code session spawned this orchestrator, the sub-skill hid the gate invocation from the parent's witness chat, and a PASS verdict was fabricated against an actual 14-FAIL gate. For interactive sessions: read `SKILL.md`, execute Mode A in your own context. | Automated batch invocation only — never for an operator-watched interactive session |
 
 ### Where logs go (v1.5.7+ centralized layout)
 

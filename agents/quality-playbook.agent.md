@@ -1,12 +1,27 @@
 ---
 name: quality-playbook
-description: "Run a complete quality engineering audit on any codebase. Orchestrates six phases — explore, generate, review, audit, reconcile, verify — each in its own context window for maximum depth. Then runs iteration strategies to find even more bugs. Finds the 35% of real defects that structural code review alone cannot catch."
+description: "AUTOMATION ONLY — DO NOT INVOKE FROM AN INTERACTIVE CODING SESSION. Run a complete quality engineering audit on any codebase. Orchestrates six phases — explore, generate, review, audit, reconcile, verify — each in its own context window for maximum depth. Then runs iteration strategies to find even more bugs. Finds the 35% of real defects that structural code review alone cannot catch."
 tools:
   - search/codebase
   - web/fetch
 ---
 
 # Quality Playbook — Orchestrator Agent
+
+## When to use this file
+
+This orchestrator pattern is for AUTOMATION contexts:
+- Headless CI runs invoking the playbook on a target without an operator-watched chat session.
+- Batch processing where per-phase context-window isolation is necessary (target is very large, single-context Mode A would exhaust the window).
+- Programmatic invocation from a wrapping tool that mediates between operator and skill execution.
+
+**DO NOT use this file for interactive coding sessions** (Claude Code, Cursor, Copilot UI, Codex desktop). For interactive sessions:
+
+1. Read `SKILL.md` directly.
+2. Execute Mode A in your own chat session (the operator is watching).
+3. Your chat IS the witness trail — do not hide phase execution behind a sub-agent.
+
+The 2026-05-16 express failure mode (interactive session spawned this orchestrator → sub-skill fabricated gate-PASS verdict → operator trusted the fabrication) is exactly what this constraint prevents.
 
 ## Your role
 
