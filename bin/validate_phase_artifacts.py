@@ -238,32 +238,70 @@ def _validate_manifest_wrapper(
     return passes, fails
 
 
+def _has_tier12_reqs(quality: Path) -> bool:
+    """True iff requirements_manifest.json exists and carries at least
+    one record with ``tier`` in (1, 2) — the schemas.md §9.1 condition
+    under which citation_semantic_check.json becomes required.
+    Defensive: any load/shape problem → False (the absent-manifest
+    FAIL for requirements_manifest.json itself covers that case)."""
+    obj, err = _load_json(quality / "requirements_manifest.json")
+    if err is not None or not isinstance(obj, dict):
+        return False
+    recs = obj.get("records")
+    if not isinstance(recs, list):
+        return False
+    for r in recs:
+        if isinstance(r, dict):
+            t = r.get("tier")
+            if t in (1, 2) and not isinstance(t, bool):
+                return True
+    return False
+
+
 def _validate_phase2(quality: Path) -> tuple[list[str], list[str]]:
     passes: list[str] = []
     fails: list[str] = []
-    seen_any = False
+    # A-19 (instruction 072/073): every record-shaped manifest is
+    # UNCONDITIONALLY required for Phase 2. File ABSENCE is a defect in
+    # its own right — the 2026-05-17 httpx run skipped manifest
+    # generation entirely (not merely wrong-shape per A-14), reached
+    # Phase 6, and self-reported pass. Absent → explicit FAIL; present
+    # → the existing schemas.md §1.6 shape check.
     for name in _RECORD_SHAPED_MANIFESTS:
-        if (quality / name).is_file():
-            seen_any = True
+        if not (quality / name).is_file():
+            fails.append(
+                f"FAIL: required Phase 2 manifest absent: quality/{name} "
+                "(schemas.md §1.6 requires this manifest to be present; "
+                "the 2026-05-17 httpx run skipped manifest generation "
+                "entirely — write it per schemas.md §6/§7/§8)"
+            )
+            continue
         p, f = _validate_manifest_wrapper(
             quality, name, array_key="records", other_key="reviews"
         )
         passes += p
         fails += f
+    # citation_semantic_check.json is CONDITIONALLY required per
+    # schemas.md §9.1 — only when requirements_manifest.json carries a
+    # Tier 1/2 REQ. When present it must use the `reviews` array.
     if (quality / _SEMANTIC_CHECK_MANIFEST).is_file():
-        seen_any = True
         p, f = _validate_manifest_wrapper(
             quality, _SEMANTIC_CHECK_MANIFEST,
             array_key="reviews", other_key="records",
         )
         passes += p
         fails += f
-    if not seen_any:
+    elif _has_tier12_reqs(quality):
         fails.append(
-            "FAIL: no Phase 2 manifests found in quality/ "
-            "(expected at least one of "
-            f"{list(_RECORD_SHAPED_MANIFESTS)}) — Phase 2 produced "
-            "nothing to validate"
+            "FAIL: required Phase 2 manifest absent: "
+            f"quality/{_SEMANTIC_CHECK_MANIFEST} (schemas.md §9.1 "
+            "requires it when requirements_manifest.json has Tier 1/2 "
+            "REQs)"
+        )
+    else:
+        passes.append(
+            f"PASS: {_SEMANTIC_CHECK_MANIFEST} not required — no Tier "
+            "1/2 REQs (schemas.md §9.1 vacuous case)"
         )
     return passes, fails
 

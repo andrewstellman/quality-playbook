@@ -49,6 +49,25 @@ def _write(path: Path, obj) -> None:
     path.write_text(json.dumps(obj), encoding="utf-8")
 
 
+# v1.5.7 instruction 072/073 A-19: --phase 2 now requires ALL four
+# record-shaped manifests to be PRESENT (absence is a defect, not
+# just wrong-shape). Tests that previously wrote a single manifest
+# and expected exit 0 must now establish the full canonical baseline
+# first, then mutate the one manifest under test.
+def _write_all_required_manifests(q: Path) -> None:
+    """Write the four unconditionally-required Phase-2
+    record-shaped manifests in canonical §1.6 shape (no Tier 1/2
+    REQ, so citation_semantic_check.json stays the §9.1 vacuous
+    case)."""
+    for name in ("formal_docs_manifest.json",
+                 "requirements_manifest.json",
+                 "use_cases_manifest.json",
+                 "bugs_manifest.json"):
+        _write(q / name,
+               {"schema_version": "1.5.7", "generated_at": _ISO,
+                "records": []})
+
+
 def _valid_index_payload(gate_verdict: str = "pending") -> dict:
     return {
         "schema_version": "2.0",
@@ -132,8 +151,12 @@ class Phase2ManifestWrapperTests(unittest.TestCase):
             self.assertIn("not ISO 8601", out)
 
     def test_phase2_accepts_canonical_records_array(self) -> None:
+        # v1.5.7 A-19 (073): all four required manifests must be
+        # present; write the full canonical baseline (bugs carries a
+        # record) → exit 0.
         with TemporaryDirectory() as tmp:
             q = _quality(tmp)
+            _write_all_required_manifests(q)
             _write(q / "bugs_manifest.json",
                    {"schema_version": "1.5.7", "generated_at": _ISO,
                     "records": [{"id": "BUG-1"}]})
@@ -143,9 +166,13 @@ class Phase2ManifestWrapperTests(unittest.TestCase):
 
     def test_phase2_citation_semantic_check_reviews_exception(self) -> None:
         """citation_semantic_check.json MUST use `reviews` (§9.1) —
-        accepted with `reviews`, rejected if it carries `records`."""
+        accepted with `reviews`, rejected if it carries `records`.
+        (v1.5.7 A-19/073: the four record-shaped manifests are now
+        required-present, so establish the canonical baseline first;
+        this isolates the citation_semantic_check shape check.)"""
         with TemporaryDirectory() as tmp:
             q = _quality(tmp)
+            _write_all_required_manifests(q)
             _write(q / "citation_semantic_check.json",
                    {"schema_version": "1.5.7", "generated_at": _ISO,
                     "reviews": []})
@@ -341,9 +368,7 @@ class VerdictLineTests(unittest.TestCase):
     def test_validator_emits_passed_verdict_line_on_clean_artifacts(self) -> None:
         with TemporaryDirectory() as tmp:
             q = _quality(tmp)
-            _write(q / "bugs_manifest.json",
-                   {"schema_version": "1.5.7", "generated_at": _ISO,
-                    "records": []})
+            _write_all_required_manifests(q)  # v1.5.7 A-19 (073): full baseline
             rc, out = _run(Path(tmp), 2)
             self.assertEqual(rc, 0, out)
             self.assertEqual(
@@ -456,6 +481,95 @@ class ModuleDocstringCurrencyTests(unittest.TestCase):
             "module docstring must cite instruction 067 F2 as the "
             "introducer of the RESULT line",
         )
+
+
+class Phase2ManifestPresenceTests(unittest.TestCase):
+    """v1.5.7 instruction 072/073 A-19: --phase 2 must FAIL on
+    ABSENT required manifest files, not only wrong-shape ones. The
+    2026-05-17 httpx run skipped Phase 2 manifest generation
+    entirely and self-reported pass; the pre-A-19 validator silently
+    skipped absent files."""
+
+    def test_phase2_validator_rejects_missing_requirements_manifest(self) -> None:
+        """Absent requirements_manifest.json → FAIL "required Phase 2
+        manifest absent" + exit 1.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-073
+        A-19 — BITE EXECUTED during instruction-073 development:
+          Mutation: in bin/validate_phase_artifacts.py
+          _validate_phase2, change the absent-file guard
+          `if not (quality / name).is_file():` to `if False:`
+          (restore the pre-A-19 silent-skip behavior).
+          Observed failure: with the absent-file FAIL dead, the
+          validator no longer flags the missing requirements
+          manifest; for the all-but-one-present fixture the run
+          yields 3 PASS / 0 FAIL → exit 0, so THIS test fails at
+          `self.assertEqual(rc, 1, out)` (AssertionError: 0 != 1)
+          and the `assertIn("requirements_manifest.json", out)` /
+          "absent" assertions also fail.
+          Restoration: restore the `is_file()` guard; test passes.
+          Bite EXECUTED PASS→FAIL→PASS, __pycache__ purged between
+          mutate and restore (feedback_mutation_bite_pycache).
+        """
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            (q / "requirements_manifest.json").unlink()
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("required Phase 2 manifest absent", out)
+            self.assertIn("requirements_manifest.json", out)
+
+    def test_phase2_validator_rejects_missing_bugs_manifest(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            (q / "bugs_manifest.json").unlink()
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("required Phase 2 manifest absent", out)
+            self.assertIn("bugs_manifest.json", out)
+
+    def test_phase2_validator_rejects_missing_use_cases_manifest(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            (q / "use_cases_manifest.json").unlink()
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("required Phase 2 manifest absent", out)
+            self.assertIn("use_cases_manifest.json", out)
+
+    def test_phase2_validator_rejects_missing_formal_docs_manifest(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            (q / "formal_docs_manifest.json").unlink()
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("required Phase 2 manifest absent", out)
+            self.assertIn("formal_docs_manifest.json", out)
+
+    def test_phase2_validator_handles_citation_semantic_check_conditionally(self) -> None:
+        """citation_semantic_check.json is required ONLY when
+        requirements_manifest.json carries a Tier 1/2 REQ
+        (schemas.md §9.1). No Tier 1/2 + file absent → vacuous PASS;
+        Tier 1/2 present + file absent → FAIL."""
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)  # requirements has [] records → no Tier 1/2
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 0, out)
+            self.assertIn("not required", out)  # §9.1 vacuous case
+            # Add a Tier-1 REQ → citation_semantic_check now required.
+            _write(q / "requirements_manifest.json",
+                   {"schema_version": "1.5.7", "generated_at": _ISO,
+                    "records": [{"id": "REQ-001", "tier": 1}]})
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("citation_semantic_check.json", out)
+            self.assertIn("§9.1", out)
 
 
 if __name__ == "__main__":

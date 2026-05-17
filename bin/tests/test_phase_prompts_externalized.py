@@ -281,7 +281,13 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # change-acknowledgement signal.
         "phase1_no_seeds_True":  (24719, "778df327fcbcd64e45119cdb6e6cc90f2767ca2fbdbee7e7d4003d8954c8fa37"),
         "phase1_no_seeds_False": (24522, "f7150215bdd061ed39dc853fe471fd8bb97b1d9c66b692bcc5f704eb308eef19"),
-        "phase2":                ( 9161, "46615a610f8df1531488e6b3905eaf1460e2592cd3337bc13bf56b02f3421247"),
+        # v1.5.7 instruction 073 Item-4 (A-19): phase2.md gained the
+        # httpx-2026-05-17 missing-manifests warning (validator now
+        # FAILs on ABSENT manifests, not just wrong-shape; agent must
+        # WRITE missing manifests per schemas.md §6/§7/§8). Hash
+        # recomputed. phase1/phase5/phase3/phase4/single_pass/
+        # iteration UNCHANGED.
+        "phase2":                ( 9910, "d720e415777fc27f6d053e7fc49b14ef2b4ea4d0cc903c796bb13163d51aedd1"),
         "phase3":                ( 9778, "3232173110c93b465e00ef8a7c0aef226fd6d9a5bd90ed0854990e94ce0a5217"),
         "phase4":                ( 3911, "923e0198ca39182397e118f45452afcfde54731a46f5414bcd99431812af752f"),
         "phase5":                (16080, "423d971ec146e2fd8c5342e48866d7d5314b29e907e9783f4b405cfd52408d6f"),
@@ -299,7 +305,14 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # single_pass/iteration are UNCHANGED. Hash recomputed —
         # this baseline update IS the sanctioned
         # change-acknowledgement signal.
-        "phase6":                ( 5411, "f5740b135689433b522177d944a86eed7a0bca1b2b3228243bded16712104bf8"),
+        # v1.5.7 instruction 073 Item-2 (071 codex F2 fix): phase6.md
+        # gained an explicit environment-based Mode A vs Mode B
+        # branch BEFORE the STRUCTURAL sub-agent mandate — a Mode B
+        # per-phase CLI subprocess is already an isolated fresh
+        # context and executes verification directly (no nested
+        # sub-agent), so the 071 mandate no longer leaks into Mode B.
+        # Hash recomputed (071 value 5411 → 6795).
+        "phase6":                ( 6795, "c533b72407ffffa6eb9357af9f6ed7f97db26bfde957f9c7a95997e034974375"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.

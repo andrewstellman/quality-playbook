@@ -244,44 +244,36 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
 
 
     def test_readme_step_4_claude_code_uses_interactive_pattern(self) -> None:
-        """v1.5.7 instruction 067 F1 (closing 066 SA1): README Step 4's
-        Claude Code subsection must use the interactive pattern
-        (mirroring Cursor/Windsurf: "Read SKILL.md and run the
-        quality playbook"), NOT `claude --agent
-        agents/quality-playbook.agent.md` as the PRIMARY invocation.
-        The orchestrator-agent path is AUTOMATION ONLY (064) — it may
-        appear ONLY in the explicit automation parenthetical.
-
-        Mutation-test evidence (in-tree per
-        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-067
-        F1 — BITE EXECUTED during instruction-067 development:
-          Mutation: revert README Step 4's Claude Code subsection to
-          the pre-067 form (a ```bash fence whose body is
-          `claude --agent agents/quality-playbook.agent.md` as the
-          primary instruction, no interactive sentence, no
-          automation parenthetical).
-          Observed failure (exactly as run): the pre-parenthetical
-          primary slice now contains `--agent agents/quality-playbook`
-          AND no longer contains "Read SKILL.md", so BOTH assertions
-          below fire (AssertionError on the interactive-pattern
-          assertIn first).
-          Restoration: re-apply the 067 F1.1 interactive form;
-          test passes.
-          Bite EXECUTED: clean PASS → mutate → __pycache__ purged →
-          this test FAILED → restore (byte-identical, empty git
-          diff) → __pycache__ purged → PASS again
-          (feedback_mutation_bite_pycache discipline).
+        """v1.5.7 instruction 067 F1 (closing 066 SA1), updated by
+        instruction 073 Item-3 (A-18 re-scoped): README Step 4's
+        Claude Code subsection must use the interactive
+        read-the-skill pattern, NOT `claude --agent
+        agents/quality-playbook.agent.md` as the PRIMARY invocation
+        (the orchestrator-agent path is AUTOMATION ONLY per 064 — it
+        may appear ONLY in the explicit automation parenthetical).
+        073 Item-3 further mandates the prompt be INSTALL-FIRST
+        ("install … then read the installed SKILL.md and run the
+        playbook"), so the literal pre-073 "Read SKILL.md" string
+        was superseded by "read the installed SKILL.md"; the 067
+        guarantees (no orchestrator-agent primary; automation
+        parenthetical retained) are unchanged and still pinned
+        below. Pin updated in-commit per the 067 precedent for
+        instruction-directed prompt changes; the 067 bite was
+        executed at 067 (the contract, not the literal string, is
+        what's load-bearing).
         """
         readme = (_QPB_ROOT / "README.md").read_text(encoding="utf-8")
         step4 = _slice(readme, "### Step 4: Run the playbook",
                         "\n### ", "\n## ")
         cc = _slice(step4, "**Claude Code:**", "\n**")
-        # Interactive pattern present (mirrors Cursor/Windsurf).
+        # Interactive read-the-skill pattern present (073: the
+        # installed skill, install-first).
         self.assertIn(
-            "Read SKILL.md", cc,
-            "README Step 4 Claude Code subsection must use the "
-            "interactive 'Read SKILL.md and run the quality "
-            "playbook' pattern (067 F1 / 066 SA1)",
+            "installed SKILL.md", cc,
+            "README Step 4 Claude Code subsection must direct the "
+            "agent to read the INSTALLED SKILL.md (interactive "
+            "read-the-skill pattern, install-first — 067 F1 / 066 "
+            "SA1 / 073 Item-3 A-18)",
         )
         # The orchestrator-agent path must NOT be the primary
         # instruction — only allowed inside the automation
@@ -302,6 +294,119 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
             "the automation-only parenthetical (orchestrator-agent "
             "path for headless/CI) must be retained, not deleted "
             "(067: reframe, not removal)",
+        )
+
+
+class ModeAInstallStepContractTests(unittest.TestCase):
+    """v1.5.7 instruction 072/073 A-18 (re-scoped): Mode A's
+    MANDATORY Phase-0 install step. SKILL.md carries a tight
+    pointer (size-ceiling constrained); AGENTS.md "Mode A entry
+    sequence" is the canonical full protocol; README launch prompts
+    include the install step. The 2026-05-17 httpx run skipped
+    install_skill entirely → validators/gate unreachable."""
+
+    def test_skill_md_mode_a_has_phase_0_install_step(self) -> None:
+        """SKILL.md Mode A intro carries the tight Phase-0 install
+        pointer (header + install_skill mention + AGENTS.md "Mode A
+        entry sequence" reference).
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-073
+        Item-3 A-18 — BITE EXECUTED during instruction-073
+        development:
+          Mutation: delete the "**Phase 0 (MANDATORY first action):
+          install the skill.** …" pointer paragraph from SKILL.md's
+          Mode A intro.
+          Observed failure: THIS test fails at the first assertion
+            self.assertIn("Phase 0 (MANDATORY first action)", mode_a)
+          → AssertionError (the scoped Mode A intro no longer
+          contains the Phase-0 pointer).
+          Restoration: re-add the pointer; test passes.
+          Bite EXECUTED PASS→FAIL→PASS, __pycache__ purged between
+          mutate and restore (feedback_mutation_bite_pycache); the
+          restore also re-confirms SKILL.md stays < 29,000 BPE.
+        """
+        mode_a = _slice(
+            _SKILL_MD.read_text(encoding="utf-8"),
+            "### Mode A — skill-direct walkthrough (UI-context)",
+            "\n### Mode B —",
+        )
+        self.assertIn(
+            "Phase 0 (MANDATORY first action)", mode_a,
+            "SKILL.md Mode A intro must carry the MANDATORY Phase-0 "
+            "install-step pointer (072/073 A-18)",
+        )
+        self.assertIn(
+            "install_skill", mode_a,
+            "the Phase-0 pointer must name install_skill (A-18)",
+        )
+        self.assertIn("AGENTS.md", mode_a)
+        self.assertIn(
+            '"Mode A entry sequence"', mode_a,
+            "the tight SKILL.md pointer must reference the canonical "
+            "AGENTS.md 'Mode A entry sequence' full protocol (073 "
+            "A-18 re-scope)",
+        )
+
+    def test_skill_md_mode_a_cites_httpx_failure_mode(self) -> None:
+        mode_a = _slice(
+            _SKILL_MD.read_text(encoding="utf-8"),
+            "### Mode A — skill-direct walkthrough (UI-context)",
+            "\n### Mode B —",
+        )
+        self.assertIn(
+            "2026-05-17 httpx", mode_a,
+            "the Phase-0 pointer must cite the 2026-05-17 httpx "
+            "skipped-install failure as rationale (A-18)",
+        )
+
+    def test_agents_md_has_mode_a_entry_sequence_full_protocol(self) -> None:
+        """AGENTS.md carries the canonical full 'Mode A entry
+        sequence' section (the 4-step list + install_skill
+        invocation pattern + the httpx citation) — the home of the
+        A-18 install protocol after the 073 re-scope."""
+        agents = _AGENTS_MD.read_text(encoding="utf-8")
+        self.assertIn(
+            "## Mode A entry sequence (interactive coding sessions)",
+            agents,
+            "AGENTS.md must carry the 'Mode A entry sequence' "
+            "section (073 A-18 re-scope — canonical install home)",
+        )
+        seq = _slice(
+            agents,
+            "## Mode A entry sequence (interactive coding sessions)",
+            "\n## ",
+        )
+        self.assertIn("python3 -m bin.install_skill", seq,
+                      "entry sequence must carry the install_skill "
+                      "invocation pattern (A-18)")
+        self.assertIn("2026-05-17 httpx", seq,
+                      "entry sequence must cite the httpx failure (A-18)")
+        # The 4-step ordered list (read source → install → cd/read
+        # installed → execute) must be present.
+        for marker in ("1.", "2.", "3.", "4."):
+            self.assertIn(marker, seq)
+        self.assertIn("install the skill into your target",
+                      seq.lower())
+
+    def test_readme_claude_code_subsection_has_install_step_in_prompt(self) -> None:
+        """README Step 4's Claude Code launch prompt includes the
+        explicit install step (Install the Quality Playbook +
+        install_skill command) — closes the httpx bad-launch-prompt
+        root cause (A-18)."""
+        readme = (_QPB_ROOT / "README.md").read_text(encoding="utf-8")
+        step4 = _slice(readme, "### Step 4: Run the playbook",
+                        "\n### ", "\n## ")
+        cc = _slice(step4, "**Claude Code:**", "\n**")
+        self.assertIn(
+            "Install the Quality Playbook", cc,
+            "README Claude Code launch prompt must include the "
+            "explicit install step (A-18)",
+        )
+        self.assertIn(
+            "install_skill", cc,
+            "README Claude Code launch prompt must name the "
+            "install_skill command (A-18)",
         )
 
 

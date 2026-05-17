@@ -114,6 +114,17 @@ This is the canonical install procedure when an AI coding agent (Claude Code, Cu
 
 For the underlying script's full options, see `bin/install_skill.py --help`.
 
+## Mode A entry sequence (interactive coding sessions)
+
+**This is the canonical Phase 0 for any interactive Mode A run** (Claude Code, Cursor, Copilot UI, Codex desktop — any session where the operator watches your chat). SKILL.md's Mode A intro points here; this section is the full protocol. **Installing the skill into the target is a MANDATORY first action — not implicit in "run the playbook".**
+
+1. **Read `SKILL.md` from this repo** (the QPB source clone) to learn the Mode A walkthrough.
+2. **Install the skill into your target**: `cd <target> && python3 -m bin.install_skill --into . --ai-tool <your-tool>` — `<your-tool>` is one of the 10 canonical layouts: `cursor`, `claude`, `copilot`, `github`, `continue`, `codex`, `windsurf`, `cline`, `aider`. For an interactive Claude Code session use `--ai-tool claude`. If `install_skill.py` emits `event=detection_failed`, pass `--ai-tool` explicitly. This puts `SKILL.md` + `bin/` + `references/` + `phase_prompts/` + `agents/` at the canonical install location for your tool (e.g. `.claude/skills/quality-playbook/` for Claude Code, `.github/skills/quality-playbook/` for Copilot).
+3. **`cd` into the target and read the INSTALLED `SKILL.md`** (`<target>/<marker>/skills/quality-playbook/SKILL.md`) — that, NOT the QPB source clone's SKILL.md, is the canonical one you execute Phases 1-6 from. The installed tree is where the Phase 2/5/6 validators (`bin/validate_phase_artifacts.py`) and the Phase 6 gate (`quality_gate.py`) live at canonical locations.
+4. **Execute Phases 1-6 per the installed SKILL.md** (Mode A walkthrough). Phase 6 verification is delegated to a fresh-context auditor sub-agent per the A-13-hybrid exception (see `phase_prompts/phase6.md` + `phase_prompts/phase6_auditor.md`).
+
+**Why this is non-negotiable.** Without the install step the Phase 2/5/6 validators and the Phase 6 gate are not at canonical locations — your run silently bypasses all artifact-contract enforcement (A-14/A-15/A-16). The **2026-05-17 httpx run reproduced exactly this failure mode**: the agent, told only "read SKILL.md and run the playbook", worked from the QPB source clone without installing into the target → validators unreachable → Phase 2 manifests entirely absent (A-19) → the gate would have failed 29 checks but the agent claimed pass. Phase 0 install is what makes the enforcement reachable.
+
 ## Repository layout
 
 ```
