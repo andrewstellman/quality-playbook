@@ -269,13 +269,13 @@ cat skill-template.gitignore >> .gitignore
 
 ### Step 4: Run the playbook
 
-**Claude Code:** Open Claude Code in your project directory and say: *"Install the Quality Playbook from `~/Documents/QPB` into this project using `python3 -m bin.install_skill --into . --ai-tool claude --verbose`, then read the installed SKILL.md and run the playbook including all four iteration strategies. Execute Phases 1-5 yourself in this session — do not delegate execution to a sub-agent; Phase 6 verification uses a fresh-context auditor sub-agent per the skill's A-13-hybrid contract."* (The install step is mandatory — without it the artifact-contract validators and the Phase 6 gate are not at canonical locations; see AGENTS.md "Mode A entry sequence".)
+**Claude Code:** Open Claude Code in your project directory and say: *"Install the Quality Playbook by running `cd ~/Documents/QPB && python3 -m bin.install_skill --into <this-project-absolute-path> --ai-tool claude --verbose` (substitute `<this-project-absolute-path>` with this project's absolute path; the install MUST run from the QPB clone — `bin.install_skill` is a Python package only reachable there). Then read the installed SKILL.md (under `.claude/skills/quality-playbook/SKILL.md`) and run the playbook including all four iteration strategies. Execute Phases 1-5 yourself in this session — do not delegate execution to a sub-agent; Phase 6 verification uses a fresh-context auditor sub-agent per the skill's A-13-hybrid contract."* (The install step is mandatory — without it the artifact-contract validators and the Phase 6 gate are not at canonical locations; see AGENTS.md "Mode A entry sequence".)
 
 Add `--dangerously-skip-permissions` when launching `claude` to skip file-write approval prompts during execution.
 
 (For automated batch invocation — headless CI, scripted runs — use the orchestrator agent file via `claude --agent agents/quality-playbook.agent.md`. The orchestrator-agent path spawns sub-agents per phase and hides per-step output from operator chat, which is appropriate for unattended automation but NOT for interactive sessions where the operator monitors output. See `agents/quality-playbook.agent.md`'s "When to use this file" header for the full constraint.)
 
-**GitHub Copilot:** Open the chat panel in VS Code, IntelliJ, or any IDE with Copilot support and say: *"Install the Quality Playbook into this project with `python3 -m bin.install_skill --into . --ai-tool copilot`, then read the installed SKILL.md and run the quality playbook on this project."* For the CLI, use `copilot-cli` with `--yolo` to skip prompts. (Install first — see AGENTS.md "Mode A entry sequence".)
+**GitHub Copilot:** Open the chat panel in VS Code, IntelliJ, or any IDE with Copilot support and say: *"Install the Quality Playbook by running `cd <path-to-QPB-clone> && python3 -m bin.install_skill --into <this-project-absolute-path> --ai-tool copilot` (the install MUST run from the QPB clone — `bin.install_skill` is a Python package only reachable there). Then read the installed SKILL.md and run the quality playbook on this project."* For the CLI, use `copilot-cli` with `--yolo` to skip prompts. (Install first — see AGENTS.md "Mode A entry sequence".)
 
 **OpenAI Codex CLI:**
 ```bash
@@ -283,9 +283,9 @@ python3 -m bin.run_playbook --codex ./my-project
 ```
 This invokes `codex exec --full-auto` (sandboxed automatic execution; the codex equivalent of `gh copilot --yolo`) for each playbook phase. Codex picks its model from `~/.codex/config.toml` unless you pass `--model gpt-5-codex` (or another model name in your codex config).
 
-**Cursor:** Open Composer (Cmd+I / Ctrl+I) and say: *"Install the Quality Playbook into this project with `python3 -m bin.install_skill --into . --ai-tool cursor`, then read the installed SKILL.md and run the quality playbook on this project."* (Install first — see AGENTS.md "Mode A entry sequence".)
+**Cursor:** Open Composer (Cmd+I / Ctrl+I) and say: *"Install the Quality Playbook by running `cd <path-to-QPB-clone> && python3 -m bin.install_skill --into <this-project-absolute-path> --ai-tool cursor` (the install MUST run from the QPB clone — `bin.install_skill` is a Python package only reachable there). Then read the installed SKILL.md and run the quality playbook on this project."* (Install first — see AGENTS.md "Mode A entry sequence".)
 
-**Windsurf:** Open Cascade and say: *"Install the Quality Playbook into this project with `python3 -m bin.install_skill --into . --ai-tool windsurf`, then read the installed SKILL.md and run the quality playbook on this project."* (Install first — see AGENTS.md "Mode A entry sequence".)
+**Windsurf:** Open Cascade and say: *"Install the Quality Playbook by running `cd <path-to-QPB-clone> && python3 -m bin.install_skill --into <this-project-absolute-path> --ai-tool windsurf` (the install MUST run from the QPB clone — `bin.install_skill` is a Python package only reachable there). Then read the installed SKILL.md and run the quality playbook on this project."* (Install first — see AGENTS.md "Mode A entry sequence".)
 
 <a href="images/claude-code-bootstrap-2.png"><img src="images/claude-code-bootstrap-0.png" alt="Giving Claude Code the initial prompt to start the playbook" width="700"></a>
 
