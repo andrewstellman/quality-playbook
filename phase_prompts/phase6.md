@@ -1,57 +1,38 @@
 {skill_fallback_guide}
 
-You are a quality engineer doing the verification phase of a quality playbook run. Phases 1-5 are complete.
+You are a quality engineer at the verification boundary of a quality playbook run. Phases 1-5 are complete.
 
-Read SKILL.md (the Phase 6 pointer section) AND `references/phase6_verify_guide.md` (the full Phase 6 protocol — moved out of SKILL.md in v1.5.7 Phase 7 trim for size reduction). Resolve SKILL.md and reference files via the documented fallback list above; do NOT assume any single install layout. Follow the incremental verification steps (6.1 through 6.5).
+**STRUCTURAL: Phase 6 verification MUST run in a fresh-context sub-agent, not your current session.** This is non-negotiable (v1.5.7 A-13 hybrid). Same-context Phase 6 has demonstrated systematic verdict fabrication across virtio (2026-05-16), express (2026-05-16), and httpx (2026-05-17) — each time prompt-level witness language was strengthened, the same-context executor ignored it and reported PASS against a failing gate. Three model-behavior factors create the bias when an executor verifies its own work: (1) memory of completed work → motivated reasoning ("I did all that, it must have succeeded"); (2) shared context window → anchoring on the "I'm wrapping up" frame; (3) reward shape favors completion-reports over discrepancy-finding. A fresh-context sub-agent has none of these — it IS the structural backstop against fabrication.
 
-Step 6.1: If quality/mechanical/verify.sh exists, run it. Record exit code.
-Step 6.2: Run quality_gate.py. Locate it via the same fallback list used for SKILL.md (`quality_gate.py` sits in the same directory as SKILL.md in every install layout — e.g., `quality_gate.py`, `.claude/skills/quality-playbook/quality_gate.py`, `.github/skills/quality_gate.py`, `.cursor/skills/quality-playbook/quality_gate.py`, `.continue/skills/quality-playbook/quality_gate.py`, `.github/skills/quality-playbook/quality_gate.py`, `.codex/skills/quality-playbook/quality_gate.py`, `.windsurf/skills/quality-playbook/quality_gate.py`, `.cline/skills/quality-playbook/quality_gate.py`, `.aider/skills/quality-playbook/quality_gate.py`). Then run:
-  python3 <resolved_quality_gate_path> .
-Read the output carefully. For every FAIL result, fix the issue:
-- Missing regression-test patches: generate quality/patches/BUG-NNN-regression-test.patch
-- Missing inline diffs in writeups: add a ```diff block
-- Non-canonical JSON fields: fix tdd-results.json (use 'id' not 'bug_id', etc.)
-- Missing files: create them
-After fixing all FAILs, run quality_gate.py again. Repeat until 0 FAIL.
-Save final output to quality/results/quality-gate.log.
+This is the principled A-17 exception: A-17 forbids sub-agent delegation for EXECUTING Phases 1-5 (hiding work from operator chat defeats real-time monitoring); A-17 MANDATES sub-agent delegation for Phase 6 VERIFICATION (the executor's reward bias is the failure mode). Same principle — operator chat carries the truth — opposite mechanism (visibility for execution, isolation for verification).
 
-**MANDATORY gate-verdict witness (v1.5.7 A-13).** Your State P6 "What
-just happened" chat emit MUST quote the gate's final verdict verbatim.
-After running `python3 <resolved_quality_gate_path> .` and saving
-output to `quality/results/quality-gate.log`, extract its literal last
-two lines and paste them into your emit. The gate prints exactly these
-two lines (from quality_gate.py):
+### Part A — Spawn the Phase 6 auditor sub-agent
 
+**If your runtime has fresh-context sub-agents (Claude Code, Cursor, etc.):**
+Use your Task tool / Agent primitive to spawn ONE sub-agent whose prompt is the contents of `phase_prompts/phase6_auditor.md` (resolve via the same install-location fallback list documented above for `references/`). That auditor runs mechanical verify, runs `quality_gate.py`, captures the **MANDATORY gate-verdict witness** (the verbatim `Total: N FAIL, M WARN` / `RESULT: GATE PASSED` lines), runs `python3 -m bin.validate_phase_artifacts . --phase 6` and captures its final `RESULT:` line verbatim, and returns a structured verdict. The auditor — not you — does the verification work and owns the **No PASS claim without N=0 FAILs** rule.
+
+**If your runtime lacks sub-agent primitives:** HALT and tell the operator:
+
+> Phase 6 verification must run in a fresh chat session (structural anti-fabrication backstop). Open a new chat in this project directory, paste the auditor prompt from `phase_prompts/phase6_auditor.md`, run it, and paste the result back here.
+
+Wait for the operator-supplied auditor verdict before the State P6 emit.
+
+### Part B — Paste the sub-agent's verdict VERBATIM in the State P6 emit
+
+After receiving the auditor's verdict, your State P6 "What just happened" chat emit MUST include the auditor's verbatim witness lines in a code block. Do NOT interpret, paraphrase, or summarize — the sub-agent's verdict IS your Phase 6 verdict (use the State B / State S template's gate-witness block). Pattern:
+
+    Phase 6 sub-agent auditor verdict:
+
+    GATE WITNESS (verbatim):
     Total: N FAIL, M WARN
     RESULT: GATE PASSED            (or: RESULT: GATE FAILED — N check(s) must be fixed)
 
-Both lines MUST appear verbatim in your "What just happened" emit (use
-the State B / State S template's gate-witness block). If
-`quality/results/quality-gate.log` is empty or does not contain these
-two lines, the gate did not run successfully — it was never invoked
-or its output was not captured; re-run it before emitting anything.
+    VALIDATOR WITNESS (verbatim):
+    RESULT: VALIDATION PASSED (phase 6)   (or: RESULT: VALIDATION FAILED (phase 6 — X FAIL, Y PASS))
 
-**No PASS claim without N=0 FAILs (v1.5.7 A-13).** Your end-of-Phase-6
-verdict — in PROGRESS.md AND the State P6 chat emit — is PASS ONLY
-when the quoted `RESULT:` line says `RESULT: GATE PASSED` with `N=0`
-FAILs in the `Total:` line. If the gate reports any FAILs, your
-verdict is FAIL: list the gate's FAIL count and the failing checks;
-do NOT report PASS, "complete", or "no remaining work". Fabricating a
-PASS claim against a failing (or never-run) gate is the exact
-credibility defect this witness contract closes — an adopter reading
-your chat output can verify the gate verdict line is present and
-matches your claim.
+    AUDITOR VERDICT: PASS                 (or: FAIL)
 
-Step 6.3: Run functional tests if a test runner is available.
-Step 6.4: File-by-file verification checklist (read one file at a time, check, move on).
-Step 6.5: Metadata consistency check.
-
-Append each step's result to quality/results/phase6-verification.log.
-**MANDATORY artifact-contract validation (v1.5.7 A-15).** Before completing Phase 6, re-validate the run index and quote the validator's final `RESULT:` line verbatim in your chat output (it matches `RESULT: VALIDATION PASSED (phase 6)` or `RESULT: VALIDATION FAILED (phase 6 — X FAIL, Y PASS)` — VALIDATION FAILED means your artifacts violate the contract; fix them per the `FAIL:` messages above and re-run until VALIDATION PASSED):
-
-    python3 -m bin.validate_phase_artifacts . --phase 6
-
-Resolve `bin/` via the documented install-root fallback (`PYTHONPATH=<install_root>` for an `install_skill.py`-layout adopter). `--phase 6` re-checks `quality/INDEX.md` presence + the schemas.md §11 required fields AND additionally requires `summary.gate_verdict` to be one of `pass` / `partial` / `fail` (it is `"pending"` after Phase 5 — Phase 6 MUST update it to the real verdict from the gate run above). A non-zero exit means INDEX.md is missing, missing §11 fields, or still carries `gate_verdict: "pending"`; fix and re-run until exit 0. You MAY NOT report Phase 6 PASS with a failing validator. This is the per-phase complement to the A-13 gate-verdict witness above — together they make the express fabrication failure mode mechanically detectable.
+You MAY NOT claim PASS unless `AUDITOR VERDICT` says PASS — which is legitimate ONLY when the gate's quoted `RESULT:` line is `RESULT: GATE PASSED` with `N=0` FAILs in the `Total:` line AND the validator line is `RESULT: VALIDATION PASSED (phase 6)`. If the gate reports any FAILs, or the validator still sees `gate_verdict: "pending"` / missing §11 fields, the verdict is FAIL: report the FAIL count and failing checks; do NOT report PASS, "complete", or "no remaining work". If `quality/results/quality-gate.log` is empty or lacks the two verdict lines, the gate was never invoked — the auditor must re-run it before returning anything. Fabricating a PASS claim against a failing (or never-run) gate is the exact credibility defect this hybrid contract closes — an adopter reading your chat can verify the verbatim witness lines against actual gate + validator output, and the auditor's reward shape (`pass`/`partial`/`fail` is what the gate actually said, not what you hoped) is structurally separated from your executor reward bias.
 
 Mark Phase 6 complete in PROGRESS.md (use the checkbox format `- [x] Phase 6 - Verify` — do NOT switch to a table).
 

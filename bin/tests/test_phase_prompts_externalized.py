@@ -285,7 +285,21 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         "phase3":                ( 9778, "3232173110c93b465e00ef8a7c0aef226fd6d9a5bd90ed0854990e94ce0a5217"),
         "phase4":                ( 3911, "923e0198ca39182397e118f45452afcfde54731a46f5414bcd99431812af752f"),
         "phase5":                (16080, "423d971ec146e2fd8c5342e48866d7d5314b29e907e9783f4b405cfd52408d6f"),
-        "phase6":                ( 5747, "1414eec77a189d33de9b87e0c6acc62c35014e11c9e47553126a4ffa81c047d0"),
+        # v1.5.7 instruction 071 (A-13 hybrid): phase6.md rewritten
+        # for fresh-context sub-agent delegation of Phase 6
+        # verification (principled A-17 exception). The old inline
+        # Step-6.x gate-invocation body was replaced with Part A
+        # (MANDATORY sub-agent spawn + virtio/express/httpx citation
+        # + fresh-chat fallback) + Part B (paste the auditor's
+        # verbatim GATE/VALIDATOR WITNESS + AUDITOR VERDICT). The
+        # gate-invocation/witness/validator logic now canonically
+        # lives in the NEW phase_prompts/phase6_auditor.md (which is
+        # NOT a run_playbook-rendered prompt, so it carries no
+        # EXPECTED_HASHES entry). phase1/2/5/phase3/phase4/
+        # single_pass/iteration are UNCHANGED. Hash recomputed —
+        # this baseline update IS the sanctioned
+        # change-acknowledgement signal.
+        "phase6":                ( 5411, "f5740b135689433b522177d944a86eed7a0bca1b2b3228243bded16712104bf8"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.
@@ -542,24 +556,42 @@ class PhasePromptHardcodedPathRegressionTests(unittest.TestCase):
                     )
 
     def test_phase5_and_phase6_enumerate_all_ten_gate_layouts(self) -> None:
-        """Phase 5 (cardinality gate) and Phase 6 (full gate) both
-        instruct the LLM to invoke quality_gate.py. The instruction
-        must enumerate all ten canonical gate-script locations so
-        the LLM can resolve the gate from any install layout, not
-        just `.github/skills/`."""
+        """Phase 5 (cardinality gate) invokes quality_gate.py inline
+        and must enumerate all ten canonical gate-script locations.
+
+        v1.5.7 instruction 071 (A-13 hybrid): Phase 6's gate
+        invocation moved OUT of phase6.md into the fresh-context
+        auditor sub-agent prompt (`phase_prompts/phase6_auditor.md`)
+        — phase6.md now spawns the sub-agent rather than invoking
+        the gate itself, so the ten-layout gate enumeration
+        canonically lives in the auditor prompt. Both surfaces must
+        still let the LLM resolve the gate from any install layout,
+        not just `.github/skills/`. (Pin updated in-commit per the
+        instruction-067 precedent for instruction-directed
+        relocations; the requirement is unchanged — only its
+        location moved.)"""
         from bin import run_playbook
 
-        for n in (5, 6):
-            with self.subTest(phase=n):
-                body = getattr(run_playbook, f"phase{n}_prompt")()
-                for layout in self.SIX_GATE_LAYOUTS:
-                    self.assertIn(
-                        layout, body,
-                        f"phase{n}_prompt() does not mention the "
-                        f"{layout!r} gate-script location. Phase 5/6 "
-                        f"prompts must enumerate all ten canonical "
-                        f"quality_gate.py locations."
-                    )
+        phase5_body = run_playbook.phase5_prompt()
+        for layout in self.SIX_GATE_LAYOUTS:
+            self.assertIn(
+                layout, phase5_body,
+                f"phase5_prompt() does not mention the {layout!r} "
+                f"gate-script location. Phase 5 must enumerate all "
+                f"ten canonical quality_gate.py locations."
+            )
+        auditor = (PHASE_PROMPTS_DIR / "phase6_auditor.md").read_text(
+            encoding="utf-8"
+        )
+        for layout in self.SIX_GATE_LAYOUTS:
+            self.assertIn(
+                layout, auditor,
+                f"phase6_auditor.md does not mention the {layout!r} "
+                f"gate-script location. Post-071 the Phase 6 gate "
+                f"invocation lives in the auditor sub-agent prompt; "
+                f"it must enumerate all ten canonical "
+                f"quality_gate.py locations."
+            )
 
     def test_phase_prompts_drop_old_invocation_pattern(self) -> None:
         """The pre-fix Phase 5 prompt invoked the cardinality gate via

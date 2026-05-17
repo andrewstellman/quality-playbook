@@ -2,6 +2,19 @@
 
 ## Phase 6: Verify
 
+> **v1.5.7 A-13 hybrid — role separation (instruction 071).** The
+> verification steps below are what the **Phase 6 auditor sub-agent**
+> executes, NOT what the parent executor agent runs inline. Per the
+> principled A-17 exception (see `phase_prompts/phase6.md` +
+> `phase_prompts/phase6_auditor.md`), the parent's only Phase 6 job is
+> to spawn a fresh-context sub-agent with the auditor prompt and paste
+> its verbatim verdict — a shared-context executor verifying its own
+> work fabricated PASS across virtio/express/httpx. This guide remains
+> the canonical Phase 6 protocol (the gate-verdict witness, the "No
+> PASS claim without N=0 FAILs" rule, the `validate_phase_artifacts
+> --phase 6` mandate); it is the content the auditor sub-agent carries
+> out, and the parent and this guide must stay coherent.
+
 **v1.5.7 instrumentation:** Append `phase_start phase=6` now. At phase end, cross-validate (`quality/BUGS.md` non-empty with `^## BUG-` sections AND `quality/INDEX.md` updated with `gate_verdict` field) then append `phase_end phase=6`. After Phase 6 closes, append `run_end status=success` (or `aborted` / `failed` if applicable).
 
 > **Required references for this phase:**
