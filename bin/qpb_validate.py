@@ -455,7 +455,20 @@ KIND_TO_FINDING_CODES = {
 }
 
 
+# F2 fix (instruction 077b): the two finding codes addendum r3
+# §3.3.3 names as package-manager-presence-dependent. For these,
+# command_for_platform() consults the detected managers and "prefers
+# commands that match what's actually installed" (§3.3.3 verbatim)
+# instead of the OS-only hardcode (Linux->apt, Windows->winget) codex
+# flagged. The static FINDING_CATALOG templates are retained as the
+# no-pkg_mgrs fallback so callers that pass no managers (acceptance
+# #12/#14, which iterate command_for_platform(code, plat)) keep
+# getting a non-empty string for every (code, platform) pair.
+_PKG_MGR_AWARE = {"python_version_too_old", "ai_cli_not_on_path"}
+
+
 def command_for_platform(finding_code: str, platform: "str | None" = None,
+                          pkg_mgrs: "dict[str, bool] | None" = None,
                           **subs: str) -> str:
     """Return the platform-correct command string for a finding code,
     with <placeholder> tokens substituted.
@@ -465,14 +478,88 @@ def command_for_platform(finding_code: str, platform: "str | None" = None,
     None, the host platform_kind() is used (Windows -> powershell, the
     modern default per §3.3.3). Always returns a non-empty string for
     every catalog (code, platform) pair.
+
+    ``pkg_mgrs`` (F2): the detect_package_managers() result
+    ({name: present-bool}). When provided AND the finding code is
+    package-manager-dependent (§3.3.3), the command is chosen from the
+    detected managers (dnf>apt on Linux, choco>winget on Windows, brew
+    on macOS). When omitted, the static catalog template is used.
     """
     entry = FINDING_CATALOG[finding_code]
-    cmds = entry["commands"]
     key = _platform_key(platform)
-    template = cmds[key]
+    if pkg_mgrs is not None and finding_code in _PKG_MGR_AWARE:
+        template = _pkg_mgr_aware_command(finding_code, key, pkg_mgrs, subs)
+    else:
+        template = entry["commands"][key]
     for placeholder, value in subs.items():
         template = template.replace(f"<{placeholder}>", str(value))
     return template
+
+
+def _pkg_mgr_aware_command(finding_code: str, key: str,
+                           pkg_mgrs: "dict[str, bool]",
+                           subs: "dict[str, str]") -> str:
+    """Build the package-manager-preferred command (§3.3.3). Windows
+    forms never contain a bare `python3` token and never use `&&`
+    (acceptance #14); Unix forms stay shlex-parseable."""
+    def has(pm: str) -> bool:
+        return bool(pkg_mgrs.get(pm))
+
+    if finding_code == "python_version_too_old":
+        if key == "macos":
+            return ("brew install python@3.12" if has("brew")
+                    else "Download and run the macOS installer from "
+                         "https://www.python.org/downloads/macos/")
+        if key == "linux":
+            if has("dnf"):
+                return "sudo dnf install python3.12"
+            if has("apt"):
+                return "sudo apt install python3.12"
+            return ("Install Python 3.10+ via your distribution "
+                    "package manager (apt/dnf) or from "
+                    "https://www.python.org/downloads/source/")
+        # windows_powershell / windows_cmd
+        if has("choco"):
+            return "choco install python --version=3.12.0"
+        if has("winget"):
+            return "winget install Python.Python.3.12"
+        return ("Download and run the Windows installer from "
+                "https://www.python.org/downloads/windows/ "
+                "(adds python and py -3 to PATH)")
+
+    # ai_cli_not_on_path — tool-aware (§3.3.2 per-tool) + pkg-mgr-aware
+    # for gh (Copilot). claude/cursor/codex have no distro package; use
+    # their canonical install routes.
+    tool = (subs.get("tool") or "").lower()
+    if tool == "claude":
+        return ("Install Claude Code: "
+                "https://docs.claude.com/en/docs/claude-code/quickstart")
+    if tool == "cursor":
+        return ("Install Cursor (its CLI ships with the desktop app): "
+                "https://cursor.com/install")
+    if tool == "codex":
+        return "npm install -g @openai/codex"
+    if tool in ("gh", "copilot", "github"):
+        if key == "macos":
+            return ("brew install gh" if has("brew")
+                    else "Install gh from https://cli.github.com ; then "
+                         "gh extension install github/gh-copilot")
+        if key == "linux":
+            if has("apt"):
+                return "sudo apt install gh"
+            if has("dnf"):
+                return "sudo dnf install gh"
+            return ("Install gh from https://cli.github.com ; then "
+                    "gh extension install github/gh-copilot")
+        # windows
+        if has("winget"):
+            return "winget install GitHub.cli"
+        if has("choco"):
+            return "choco install gh"
+        return ("Install gh from https://cli.github.com ; then "
+                "gh extension install github/gh-copilot")
+    # Unknown / placeholder tool -> the static multi-tool directive.
+    return FINDING_CATALOG[finding_code]["commands"][key]
 
 
 def _platform_key(platform: "str | None") -> str:
@@ -523,28 +610,57 @@ class Emitter:
 # Detection helpers
 # ---------------------------------------------------------------------------
 
-_CLONE_MARKERS = ("bin", "SKILL.md", "phase_prompts", "references")
+# Clone-only markers: top-level paths present in a QPB clone (and in
+# a download-zip extract of the repo, for the tracked ones) but NEVER
+# produced by install_skill.py:_bundle_files() (which copies only
+# SKILL.md, quality_gate.py, references/*, phase_prompts/*, agents/*,
+# bin/*). The pre-077b _CLONE_MARKERS set
+# (bin/SKILL.md/phase_prompts/references) was the F1 defect — all four
+# ARE bundled, so they could never discriminate clone-vs-installed and
+# every installed tree fell through to "ambiguous". `setup_repos.sh`
+# was named primary by 077b but is absent from the current clone;
+# `.git/` covers git clones, and `docs/design/` + `ai_context/` are
+# tracked clone-only paths (so they also survive a download-zip
+# extract). The OR-set stays robust if any single one drifts (worker
+# design call per 077b Task 1; HALT_077-named candidate set).
+_CLONE_ONLY_MARKERS = ("setup_repos.sh", ".git", "docs/design", "ai_context")
+
+# An installed validator lives at
+# <target>/<marker>/skills/quality-playbook/bin/qpb_validate.py.
+_INSTALL_MARKERS = tuple(MARKER_TO_INSTALL_REL)
 
 
 def detect_invocation_context(script_path: Path) -> "tuple[str, Path]":
     """Return ('clone'|'installed'|'ambiguous', resolved_root).
 
-    root = <script>/.. — for a clone that is the QPB tree (has bin/ +
-    SKILL.md + phase_prompts/ + references/); for an installed copy the
-    path contains a tool marker + 'skills' + 'quality-playbook'.
+    F1 fix (instruction 077b). The pre-077b heuristic used
+    bin/SKILL.md/phase_prompts/references as clone markers, but
+    install_skill.py:_bundle_files() bundles all four into the
+    installed tree, so "installed" was unreachable and every installed
+    tree fell through to "ambiguous" (addendum r3 §3.1 behavior #2
+    missed end-to-end; codex-confirmed in HALT_077). New algorithm, in
+    priority order:
+
+    1. INSTALLED first, via the unambiguous path-ancestor signature
+       ``<marker>/skills/quality-playbook/bin/<script>``. Structural —
+       cannot be spoofed by the closure-file overlap that broke F1.
+    2. else CLONE, via a marker ``_bundle_files()`` never produces
+       (setup_repos.sh / .git / docs/design / ai_context — any one).
+    3. else AMBIGUOUS — a true fallback now, not the always-fired
+       branch (the agent branches on the ambiguity, e.g. asks).
     """
-    root = script_path.resolve().parent.parent
-    looks_clone = all((root / m).exists() for m in _CLONE_MARKERS)
-    parts = set(root.parts)
-    looks_installed = (
-        "quality-playbook" in parts
-        and "skills" in parts
-        and any(mk in parts for mk in MARKER_TO_INSTALL_REL)
-    )
-    if looks_clone and not looks_installed:
+    resolved = script_path.resolve()
+    # (1) installed: <marker>/skills/quality-playbook/bin/<script>
+    for anc in resolved.parents:
+        if (anc.name == "quality-playbook"
+                and anc.parent.name == "skills"
+                and anc.parent.parent.name in _INSTALL_MARKERS):
+            return "installed", anc
+    root = resolved.parent.parent
+    # (2) clone: any bundle-absent marker at the clone root
+    if any((root / m).exists() for m in _CLONE_ONLY_MARKERS):
         return "clone", root
-    if looks_installed and not looks_clone:
-        return "installed", root
+    # (3) ambiguous (true fallback)
     return "ambiguous", root
 
 
@@ -900,7 +1016,8 @@ def main(argv: "list[str] | None" = None) -> int:
             local_subs["pkg"] = f["path"]
         em.emit("remediation_suggestion", tool=cat["tool"], finding=code,
                 severity=cat["severity"],
-                command=command_for_platform(code, **local_subs),
+                command=command_for_platform(code, pkg_mgrs=pkg_mgrs,
+                                              **local_subs),
                 rationale=cat["rationale"], verify_with=cat["verify_with"])
 
     n = len(findings)

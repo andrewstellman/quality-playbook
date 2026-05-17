@@ -122,5 +122,92 @@ class RemediationCommandRunnabilityTests(unittest.TestCase):
                           f"{code} unexpected leading token: {cmd!r}")
 
 
+class PkgMgrAwareRemediationTests(unittest.TestCase):
+    """Instruction 077b F2 — addendum r3 §3.3.3: the validator detects
+    brew/apt/dnf/winget/choco and 'prefers commands that match what's
+    actually installed' for python_version_too_old and
+    ai_cli_not_on_path. The static (no-pkg_mgrs) path is retained as
+    the acceptance #12/#14 fallback and must stay non-empty."""
+
+    def test_python_version_too_old_uses_detected_pkg_mgr(self) -> None:
+        """dnf is preferred over apt on Linux when both are detected;
+        the OS-only hardcode codex flagged is gone.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-077b —
+        BITE EXECUTED during instruction-077b development:
+          Mutation: in bin/qpb_validate.py:_pkg_mgr_aware_command(),
+          reorder the Linux branch so `if has("apt")` is tested
+          BEFORE `if has("dnf")`.
+          Observed failure (purged __pycache__ first):
+            FAIL: test_python_version_too_old_uses_detected_pkg_mgr
+            AssertionError: 'sudo apt install python3.12' != 'sudo dnf
+            install python3.12'
+            (assertEqual(actual, expected) prints first != second;
+            after the swap actual==apt, expected==dnf — dnf must win
+            when both present)
+          Restoration: dnf-before-apt order restored; PASS again.
+        """
+        f = v.command_for_platform
+        self.assertEqual(
+            f("python_version_too_old", "linux",
+              pkg_mgrs={"dnf": True, "apt": True}),
+            "sudo dnf install python3.12")
+        self.assertEqual(
+            f("python_version_too_old", "linux",
+              pkg_mgrs={"dnf": False, "apt": True}),
+            "sudo apt install python3.12")
+        self.assertIn(
+            "python.org",
+            f("python_version_too_old", "linux", pkg_mgrs={}))
+        self.assertEqual(
+            f("python_version_too_old", "macos", pkg_mgrs={"brew": True}),
+            "brew install python@3.12")
+        win_choco = f("python_version_too_old", "windows-cmd",
+                      pkg_mgrs={"choco": True, "winget": True})
+        self.assertEqual(win_choco, "choco install python --version=3.12.0")
+        self.assertNotIn("&&", win_choco)
+        self.assertNotIn("python3", win_choco.split())
+        self.assertEqual(
+            f("python_version_too_old", "windows-powershell",
+              pkg_mgrs={"choco": False, "winget": True}),
+            "winget install Python.Python.3.12")
+
+    def test_install_ai_cli_uses_detected_pkg_mgr(self) -> None:
+        f = v.command_for_platform
+        self.assertEqual(
+            f("ai_cli_not_on_path", "linux", pkg_mgrs={"apt": True},
+              tool="gh"),
+            "sudo apt install gh")
+        self.assertEqual(
+            f("ai_cli_not_on_path", "linux",
+              pkg_mgrs={"dnf": True, "apt": False}, tool="gh"),
+            "sudo dnf install gh")
+        win = f("ai_cli_not_on_path", "windows-cmd",
+                pkg_mgrs={"winget": True}, tool="gh")
+        self.assertEqual(win, "winget install GitHub.cli")
+        self.assertNotIn("&&", win)
+        self.assertEqual(
+            f("ai_cli_not_on_path", "windows-powershell",
+              pkg_mgrs={"winget": False, "choco": True}, tool="gh"),
+            "choco install gh")
+        self.assertIn(
+            "docs.claude.com",
+            f("ai_cli_not_on_path", "linux", pkg_mgrs={}, tool="claude"))
+        self.assertIn(
+            "openai/codex",
+            f("ai_cli_not_on_path", "macos", pkg_mgrs={}, tool="codex"))
+
+    def test_no_pkg_mgrs_falls_back_to_static_catalog(self) -> None:
+        """Acceptance #12/#14 path: with no pkg_mgrs the static
+        template is used and stays non-empty for every platform."""
+        for code in ("python_version_too_old", "ai_cli_not_on_path"):
+            for plat in ("macos", "linux", "windows-powershell",
+                         "windows-cmd"):
+                cmd = v.command_for_platform(code, plat)
+                self.assertTrue(cmd.strip())
+                self.assertNotIn("python3", cmd.split())
+
+
 if __name__ == "__main__":
     unittest.main()

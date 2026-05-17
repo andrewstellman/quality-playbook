@@ -217,5 +217,81 @@ class ValidatorFindingTests(unittest.TestCase):
         self.assertIn("status=blocked", proc.stdout)
 
 
+class DetectInvocationContextTests(unittest.TestCase):
+    """Instruction 077b F1 — detect_invocation_context() must return
+    'installed' for a bundled tree (was always 'ambiguous' pre-077b
+    because the closure bundles bin/SKILL.md/phase_prompts/references
+    so the old _CLONE_MARKERS could never discriminate), 'clone' via a
+    bundle-absent marker, and 'ambiguous' only as a true fallback."""
+
+    def test_detect_invocation_context_returns_installed_for_bundled_tree(self):
+        """The exact case HALT_077 reproduced: a fully-bundled
+        <marker>/skills/quality-playbook/ tree must classify as
+        'installed', not 'ambiguous'.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-077b —
+        BITE EXECUTED during instruction-077b development:
+          Mutation: in bin/qpb_validate.py:detect_invocation_context()
+          change the installed-ancestor `return "installed", anc` to
+          `break` (disabling step 1 — the pre-077b behavior).
+          Observed failure (purged __pycache__ first):
+            FAIL: test_detect_invocation_context_returns_installed_for_bundled_tree
+            AssertionError: 'ambiguous' != 'installed' : bundled tree
+            must classify as installed (the exact HALT_077 case)
+          Restoration: `return "installed", anc` restored; PASS again.
+        """
+        with TemporaryDirectory() as td:
+            qp = (Path(td) / ".claude" / "skills" / "quality-playbook")
+            (qp / "bin").mkdir(parents=True)
+            (qp / "phase_prompts").mkdir()
+            (qp / "references").mkdir()
+            (qp / "SKILL.md").write_text("meta:\n  version: 1.5.7\n")
+            fake = qp / "bin" / "qpb_validate.py"
+            fake.write_text("# bundled copy\n")
+            ctx, root = v.detect_invocation_context(fake)
+            self.assertEqual(
+                ctx, "installed",
+                "bundled tree must classify as installed (the exact "
+                "HALT_077 case)")
+            self.assertEqual(root.name, "quality-playbook")
+            self.assertEqual(root, qp.resolve())
+
+    def test_detect_invocation_context_returns_clone_for_clone_root(self):
+        """A clone-shaped tree (bundle-absent marker present, no
+        installed ancestor) classifies as 'clone'."""
+        for marker in ("setup_repos.sh", ".git", "docs/design",
+                       "ai_context"):
+            with self.subTest(marker=marker), TemporaryDirectory() as td:
+                clone = Path(td) / "QPBclone"
+                (clone / "bin").mkdir(parents=True)
+                (clone / "SKILL.md").write_text("x")
+                mk = clone / marker
+                if "/" in marker or marker in ("docs/design",):
+                    mk.mkdir(parents=True)
+                elif marker in (".git", "ai_context"):
+                    mk.mkdir()
+                else:
+                    mk.write_text("#!/bin/bash\n")
+                fake = clone / "bin" / "qpb_validate.py"
+                fake.write_text("x")
+                ctx, root = v.detect_invocation_context(fake)
+                self.assertEqual(ctx, "clone")
+                self.assertEqual(root, clone.resolve())
+
+    def test_detect_invocation_context_ambiguous_is_true_fallback(self):
+        """No installed ancestor AND no clone-only marker -> the
+        'ambiguous' fallback (no longer the always-fired branch)."""
+        with TemporaryDirectory() as td:
+            bare = Path(td) / "x"
+            (bare / "bin").mkdir(parents=True)
+            (bare / "SKILL.md").write_text("x")  # bundled-looking, but
+            (bare / "phase_prompts").mkdir()      # NOT a clone marker
+            fake = bare / "bin" / "qpb_validate.py"
+            fake.write_text("x")
+            ctx, _ = v.detect_invocation_context(fake)
+            self.assertEqual(ctx, "ambiguous")
+
+
 if __name__ == "__main__":
     unittest.main()
