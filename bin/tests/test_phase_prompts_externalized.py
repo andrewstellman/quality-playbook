@@ -287,10 +287,28 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # WRITE missing manifests per schemas.md §6/§7/§8). Hash
         # recomputed. phase1/phase5/phase3/phase4/single_pass/
         # iteration UNCHANGED.
-        "phase2":                ( 9910, "d720e415777fc27f6d053e7fc49b14ef2b4ea4d0cc903c796bb13163d51aedd1"),
+        # v1.5.7 instruction 080 (W4): verify.sh → verify.py across
+        # references/ + phase_prompts/; the non-substitution invariant
+        # prose rewritten (verify.py must subprocess the ORIGINAL
+        # shell pipeline — Python reimplementation FORBIDDEN, v1.3.23
+        # invariant preserved). phase2.md gained the verify.py
+        # orchestrator/invariant wording in the Phase-2a mechanical
+        # block + the canonical-artifact REQ (verify.sh → verify.py);
+        # phase5.md step 6 verify.sh → `python … verify.py`. phase2
+        # hash recomputed (9910 → 10096 codepoints); phase5 (16080 →
+        # 16089). phase6_auditor.md was ALSO edited (verify.py +
+        # non-substitution prose at its mechanical-verify step) but
+        # carries NO EXPECTED_HASHES entry (it is not a
+        # run_playbook-rendered prompt — see the 071 note above).
+        # phase6.md was NOT modified (it has no verify.sh reference —
+        # the instruction-080 :7/:18 citation was stale; verify-
+        # before-claim). phase1/phase3/phase4/single_pass/iteration
+        # UNCHANGED. Hashes recomputed — this baseline update IS the
+        # sanctioned change-acknowledgement signal.
+        "phase2":                (10096, "ecb68817dfdacc979d9dca4c5765e179e209e0970a4633df717856ab5a1f2e3f"),
         "phase3":                ( 9778, "3232173110c93b465e00ef8a7c0aef226fd6d9a5bd90ed0854990e94ce0a5217"),
         "phase4":                ( 3911, "923e0198ca39182397e118f45452afcfde54731a46f5414bcd99431812af752f"),
-        "phase5":                (16080, "423d971ec146e2fd8c5342e48866d7d5314b29e907e9783f4b405cfd52408d6f"),
+        "phase5":                (16089, "45e98e946f94673dee7b75b7e2b31bbc618cdba111b608f7fbf34ac1389087ea"),
         # v1.5.7 instruction 071 (A-13 hybrid): phase6.md rewritten
         # for fresh-context sub-agent delegation of Phase 6
         # verification (principled A-17 exception). The old inline

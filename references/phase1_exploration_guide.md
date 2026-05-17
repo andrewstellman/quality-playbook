@@ -309,37 +309,89 @@ This is the most important step for the code review protocol. Everything found d
 
    After execution, read the output file and use it as the sole source of truth for what the function handles. A contract line asserting "function preserves constant X" is **forbidden** unless `quality/mechanical/<function>_cases.txt` contains a matching `case X:` line. If a constant appears in a spec or header but NOT in the mechanical output, the contract must record it as absent: `"must handle X — **[NOT IN CODE]**: defined in header.h:NN but absent from function() per mechanical check."` Downstream artifacts (`REQUIREMENTS.md`, `RUN_SPEC_AUDIT.md`, code review) must cite the mechanical file path when referencing dispatch-function coverage — they may not replace the mechanical output with a hand-written list.
 
-   **Mechanical artifact integrity check (mandatory).** For each mechanical extraction command, also append it to `quality/mechanical/verify.sh` as a verification step. The script must re-run the same extraction pipeline and diff the result against the saved file. Generate `verify.sh` with this structure:
+   **Mechanical artifact integrity check (mandatory).** For each mechanical extraction command, register it in `quality/mechanical/verify.py` as a verification step. `verify.py` is a Python **orchestrator** that re-runs each ORIGINAL shell extraction pipeline as a `subprocess.run` and diffs its stdout against the saved file.
 
-   ```bash
-   #!/bin/bash
-   # Auto-generated: re-run mechanical extraction commands and verify saved artifacts
-   set -euo pipefail
-   FAIL=0
-   
-   # Verify <function>
-   ACTUAL=$(awk '/void vring_transport_features/,/^}$/' drivers/virtio/virtio_ring.c | grep -nE '^\s*case\s+')
-   SAVED=$(cat quality/mechanical/vring_transport_features_cases.txt)
-   if [ "$ACTUAL" != "$SAVED" ]; then
-     echo "MISMATCH: vring_transport_features_cases.txt"
-     diff <(echo "$ACTUAL") <(echo "$SAVED") || true
-     FAIL=1
-   else
-     echo "OK: vring_transport_features_cases.txt"
-   fi
-   
-   exit $FAIL
+   **v1.3.23 invariant (load-bearing — read this before generating `verify.py`).** The v1.3.23 incident: a model wrote its own expected output to `quality/mechanical/<function>_cases.txt` instead of letting the real extraction command's stdout populate it via shell redirect; the forged file passed downstream validation because nothing re-ran the extraction. The fix is that the verifier re-runs **the same shell extraction command** as a fresh subprocess and diffs the output against the saved file — the shell pipeline operates on actual source file bytes, so the model cannot substitute its output into the diff without simultaneously substituting the source files themselves (a much higher-cost attack). Therefore, inside `verify.py`, each extraction MUST be a `subprocess.run` of the ORIGINAL shell pipeline used here at Phase 1. **Reimplementing the extraction in Python (`re.findall`, `str.split`, `python -c '<reimplementation>'`, or any Python parsing that recreates the extraction logic) is FORBIDDEN** — Python was the v1.3.23 attack vector (the model authors both the extraction and the saved file). The shell pipeline is the witness; Python is only the orchestrator (subprocess invocation, diff, exit code).
+
+   Generate `verify.py` with this structure (one `EXTRACTIONS` entry per saved file — `cmd` is the EXACT `["bash", "-c", "<pipeline>"]` that produced the file above):
+
+   ```python
+   #!/usr/bin/env python3
+   """Mechanical artifact integrity check — auto-generated at Phase 1.
+
+   CRITICAL: This script's role is ORCHESTRATION only. The extraction
+   commands that produced the saved *_cases.txt files at Phase 1 MUST be
+   re-executed as subprocesses here. Reimplementing the extraction in
+   Python is FORBIDDEN — it would re-open the v1.3.23 attack surface (a
+   model substituting both the extraction and the saved file with
+   consistent forgeries). The shell command operates on actual source
+   bytes; that is the witness."""
+
+   import sys
+   import subprocess
+   from pathlib import Path
+
+   # Each entry: (saved_file_path, extraction_command_as_argv, source_files_read)
+   # commands are the EXACT pipelines used to produce the saved files.
+   EXTRACTIONS = [
+       (
+           "quality/mechanical/vring_transport_features_cases.txt",
+           ["bash", "-c",
+            "awk '/void vring_transport_features/,/^}$/' drivers/virtio/virtio_ring.c "
+            "| grep -E '^\\s*case\\s+'"],
+           ["drivers/virtio/virtio_ring.c"],
+       ),
+       # … one entry per dispatch table extracted at Phase 1
+   ]
+
+   def main() -> int:
+       failures = 0
+       for saved_path, cmd, sources in EXTRACTIONS:
+           for src in sources:
+               if not Path(src).is_file():
+                   print(f"FAIL: source file {src} missing")
+                   failures += 1
+                   continue
+           result = subprocess.run(cmd, capture_output=True, text=True, check=False)
+           if result.returncode != 0:
+               print(f"FAIL: extraction command exited {result.returncode} for {saved_path}")
+               print(f"  stderr: {result.stderr}")
+               failures += 1
+               continue
+           fresh = result.stdout
+           saved = Path(saved_path).read_text(encoding="utf-8")
+           if fresh != saved:
+               print(f"FAIL: {saved_path} mismatch")
+               import difflib
+               for line in difflib.unified_diff(
+                   saved.splitlines(keepends=True),
+                   fresh.splitlines(keepends=True),
+                   fromfile=f"saved:{saved_path}",
+                   tofile="fresh-extraction",
+               ):
+                   print(line, end="")
+               failures += 1
+       if failures:
+           print("Mechanical verification FAILED")
+           return 1
+       print("Mechanical verification OK")
+       return 0
+
+   if __name__ == "__main__":
+       sys.exit(main())
    ```
 
-   **Phase 6 must execute `bash quality/mechanical/verify.sh`** and the benchmark fails if any artifact mismatches. This catches a failure mode observed in v1.3.19: the model executed the extraction command but wrote its own expected output to the file instead of letting the shell redirect capture it, inserting a hallucinated `case VIRTIO_F_RING_RESET:` line that the real command does not produce. Re-running the same command in a separate step and diffing against the file detects this tampering.
+   The extraction is the shell pipeline; `verify.py` invokes it, captures stdout, and diffs against the saved file. The invariant is preserved across the bash → Python orchestrator transition. (`verify.py` is platform-portable, but the `["bash", "-c", …]` extraction still requires `bash`/`awk`/`grep`; on Windows hosts that means Git Bash or WSL — see the validator's `bash_available` environment check. Projects whose type does not trigger mechanical verification are unaffected.)
 
-   **Immediate integrity gate (mandatory, Phase 2a).** Run `bash quality/mechanical/verify.sh` **immediately** after writing each `*_cases.txt` file and **before** writing any contract, requirement, or prose artifact that cites the extraction. If exit code ≠ 0: stop, delete the failed `*_cases.txt`, re-run the extraction command with a fresh shell redirect (do not hand-edit the output), and re-verify. Do not advance to Phase 3/2c until verify.sh exits 0. Save verify.sh stdout and exit code to `quality/results/mechanical-verify.log` and `quality/results/mechanical-verify.exit` as durable receipt files. This gate exists because v1.3.23 showed that deferring verification to Phase 6 allows downstream artifacts (CONTRACTS.md, REQUIREMENTS.md, triage probes) to build on a forged extraction — the model reconciles a discrepancy between requirements and the artifact by corrupting the artifact instead of correcting the requirement.
+   **Phase 6 must execute `python quality/mechanical/verify.py`** and the benchmark fails if any artifact mismatches. This catches a failure mode observed in v1.3.19: the model executed the extraction command but wrote its own expected output to the file instead of letting the shell redirect capture it, inserting a hallucinated `case VIRTIO_F_RING_RESET:` line that the real command does not produce. Re-running the same command in a separate step and diffing against the file detects this tampering.
 
-   **Mechanical artifacts are immutable after extraction.** Once a `*_cases.txt` file has been written by the shell redirect and verified by `verify.sh`, it must not be modified, overwritten, or regenerated for the remainder of the run. If a downstream step discovers a discrepancy between the mechanical artifact and a requirement or contract, the requirement or contract is wrong — not the artifact. Fix the prose, not the extraction. This rule prevents the v1.3.23 failure mode where the model overwrote a correct extraction with fabricated content to match its own narrative.
+   **Immediate integrity gate (mandatory, Phase 2a).** Run `python quality/mechanical/verify.py` **immediately** after writing each `*_cases.txt` file and **before** writing any contract, requirement, or prose artifact that cites the extraction. If exit code ≠ 0: stop, delete the failed `*_cases.txt`, re-run the extraction command with a fresh shell redirect (do not hand-edit the output), and re-verify. Do not advance to Phase 3/2c until verify.py exits 0. Save verify.py stdout and exit code to `quality/results/mechanical-verify.log` and `quality/results/mechanical-verify.exit` as durable receipt files. This gate exists because v1.3.23 showed that deferring verification to Phase 6 allows downstream artifacts (CONTRACTS.md, REQUIREMENTS.md, triage probes) to build on a forged extraction — the model reconciles a discrepancy between requirements and the artifact by corrupting the artifact instead of correcting the requirement.
 
-   **Forbidden probe pattern (triage and verification).** Triage probes, verification probes, and audit assertions must not use `open('quality/mechanical/...')` or `cat quality/mechanical/...` as sole evidence for what a source file contains at a given line. To verify that function F handles constant C at line N, the probe must either: (a) read the source file directly (`open('drivers/virtio/virtio_ring.c')` with line-anchored assertions), or (b) re-execute the same extraction pipeline used by `verify.sh` and check its output. Reading the saved artifact proves only what the artifact says, not what the code says — this is circular verification. In v1.3.23, Probe C validated the forged artifact instead of the source code, passing with fabricated data.
+   **Mechanical artifacts are immutable after extraction.** Once a `*_cases.txt` file has been written by the shell redirect and verified by `verify.py`, it must not be modified, overwritten, or regenerated for the remainder of the run. If a downstream step discovers a discrepancy between the mechanical artifact and a requirement or contract, the requirement or contract is wrong — not the artifact. Fix the prose, not the extraction. This rule prevents the v1.3.23 failure mode where the model overwrote a correct extraction with fabricated content to match its own narrative.
 
-   **Do not create an empty mechanical/ directory.** Only create `quality/mechanical/` if the project's contracts include dispatch functions, registries, or enumeration checks that require mechanical extraction. If no such contracts exist, skip the directory entirely and record in PROGRESS.md: `Mechanical verification: NOT APPLICABLE — no dispatch/registry/enumeration contracts in scope.` Creating an empty mechanical/ directory (or one without verify.sh) is non-conformant — it signals that extraction was attempted and abandoned. Decide before creating the directory: does this project have dispatch-function contracts? If no, don't `mkdir`. If yes, populate it fully.
+   **Forbidden probe pattern (triage and verification).** Triage probes, verification probes, and audit assertions must not use `open('quality/mechanical/...')` or `cat quality/mechanical/...` as sole evidence for what a source file contains at a given line. To verify that function F handles constant C at line N, the probe must either: (a) read the source file directly (`open('drivers/virtio/virtio_ring.c')` with line-anchored assertions), or (b) re-execute the same extraction pipeline used by `verify.py` and check its output. Reading the saved artifact proves only what the artifact says, not what the code says — this is circular verification. In v1.3.23, Probe C validated the forged artifact instead of the source code, passing with fabricated data.
+
+   **Do not create an empty mechanical/ directory.** Only create `quality/mechanical/` if the project's contracts include dispatch functions, registries, or enumeration checks that require mechanical extraction. If no such contracts exist, skip the directory entirely and record in PROGRESS.md: `Mechanical verification: NOT APPLICABLE — no dispatch/registry/enumeration contracts in scope.` Creating an empty mechanical/ directory (or one without verify.py) is non-conformant — it signals that extraction was attempted and abandoned. Decide before creating the directory: does this project have dispatch-function contracts? If no, don't `mkdir`. If yes, populate it fully.
 
    **Normative vs. descriptive split.** Requirements and contracts must use normative language ("must preserve," "should handle") for expected behavior. They may only use descriptive language ("preserves," "handles") when the mechanical verification artifact confirms the claim. A requirement that says "the implementation preserves VIRTIO_F_RING_RESET" without a confirming mechanical artifact is non-conformant — write "the implementation **must** preserve VIRTIO_F_RING_RESET" and cite the mechanical check result showing whether the constant is currently present or absent.
 

@@ -118,7 +118,7 @@ Execute Phase 5: Reconciliation + TDD + Closure.
    output.
 4. Run the TDD red-green cycle: for each confirmed bug, run the regression test against unpatched code -> quality/results/BUG-NNN.red.log. If a fix patch exists, run against patched code -> quality/results/BUG-NNN.green.log. If the test runner is unavailable, create the log with NOT_RUN on the first line.
 5. Generate sidecar JSON: quality/results/tdd-results.json and quality/results/integration-results.json (schema_version "1.1", canonical fields: id, requirement, red_phase, green_phase, verdict, fix_patch_present, writeup_path).
-6. If mechanical verification artifacts exist, run quality/mechanical/verify.sh and save receipts.
+6. If mechanical verification artifacts exist, run `python quality/mechanical/verify.py` and save receipts.
 7. Run terminal gate verification, write it to PROGRESS.md.
 
 ### MANDATORY CARDINALITY GATE (Lever 3, v1.5.2)

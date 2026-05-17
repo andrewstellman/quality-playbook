@@ -25,7 +25,7 @@ Execute Phase 2: Generate all quality artifacts. Use the exploration findings in
 - quality/RUN_SPEC_AUDIT.md (spec audit protocol)
 - quality/RUN_TDD_TESTS.md (TDD verification protocol)
 - quality/COMPLETENESS_REPORT.md (baseline, without verdict)
-- If dispatch/enumeration contracts exist: quality/mechanical/ with verify.sh and extraction artifacts. Run verify.sh immediately and save receipts.
+- If dispatch/enumeration contracts exist: quality/mechanical/ with verify.py (a Python orchestrator that subprocess.runs the ORIGINAL shell extraction pipeline — reimplementing the extraction in Python is forbidden, v1.3.23 invariant) and extraction artifacts. Run `python quality/mechanical/verify.py` immediately and save receipts.
 
 **Canonical artifact-location REQs (v1.5.7 fix F-4c).** REQUIREMENTS.md MUST include explicit location requirements for the canonical artifact paths so the gate has concrete REQs to enforce against. Add these REQs verbatim (renumber to slot into your existing REQ-NNN sequence; do not omit any):
 
@@ -35,7 +35,7 @@ Execute Phase 2: Generate all quality artifacts. Use the exploration findings in
 - `REQ-NNN: Code review output is placed at quality/code_reviews/.`
 - `REQ-NNN: Spec audit outputs (auditor reports + triage) are placed at quality/spec_audits/.`
 - `REQ-NNN: Sidecar JSON results (tdd-results.json, integration-results.json, recheck-results.json) are placed at quality/results/.`
-- `REQ-NNN: Mechanical-verification artifacts (verify.sh + *_cases.txt) are placed at quality/mechanical/.`
+- `REQ-NNN: Mechanical-verification artifacts (verify.py + *_cases.txt) are placed at quality/mechanical/.`
 - `REQ-NNN: quality/workspace/<name>/ is forbidden — top-level quality/<name>/ is the only canonical layout. Phase 6 gate check_no_workspace_dir fails any run with a quality/workspace/ tree present (populated OR empty — empty workspace/ trains future-iteration agents on the wrong layout and is rejected too).`
 
 **v1.5.7 fix Q2 — schemas.md §3.10 v1.5.3 field mandates.** Every BUG record written to `quality/bugs_manifest.json` MUST populate `divergence_type` per schemas.md §3.8 (`code-spec` | `internal-prose` | `cross-source`). Every FORMAL_DOC record in `quality/formal_docs_manifest.json` MUST populate `role` per schemas.md §3.6 (`external-spec` for records from `reference_docs/cite/`; `skill-self-spec` / `skill-reference` only for Skill/Hybrid targets' own documents). The Phase 6 gate (`check_v1_5_3_formal_doc_role_validation`, `check_v1_5_3_bug_divergence_type`) keeps WARN for back-compat with pre-v1.5.7 manifests that lack these fields, but every v1.5.7 run must produce v1.5.3-shaped output. `bin/reference_docs_ingest.py` emits `role: "external-spec"` automatically; BUG records the agent writes must include `divergence_type` explicitly.

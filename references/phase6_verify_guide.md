@@ -29,11 +29,11 @@
 If `quality/mechanical/` exists, the **literal first action** of Phase 6 is:
 
 ```bash
-bash quality/mechanical/verify.sh > quality/results/mechanical-verify.log 2>&1
+python quality/mechanical/verify.py > quality/results/mechanical-verify.log 2>&1
 echo $? > quality/results/mechanical-verify.exit
 ```
 
-Execute this command in the shell. Do not substitute a Python script, do not read the artifact file and assert on its contents, do not skip this step. The command must be `bash quality/mechanical/verify.sh` — not `python3 -c "..."`, not `cat quality/mechanical/... | grep ...`, not any other equivalent.
+Execute this command. The command must be `python quality/mechanical/verify.py` — and inside `verify.py`, each extraction MUST be a `subprocess.run` of the ORIGINAL shell pipeline used at Phase 1. Do not substitute a model-authored Python reimplementation of the extraction (`python -c '<reimplementation>'`, `re.findall`, `str.split`, or any Python parsing that recreates the extraction logic is FORBIDDEN), do not read the artifact file and assert on its contents, do not skip this step. The shell pipeline (operating on actual source bytes) is the witness; Python is only the orchestrator (subprocess invocation, diff, exit code). Substituting the extraction with model-authored Python defeats the v1.3.23 invariant.
 
 Record the exit code. If non-zero, **Phase 6 fails immediately.** Do not proceed to further steps. Go back to the extraction step: delete the mismatched `*_cases.txt`, re-run the extraction command with a fresh shell redirect, re-verify, and update all downstream artifacts that cited the old extraction.
 
@@ -42,7 +42,7 @@ Record in PROGRESS.md under `## Phase 6 Mechanical Closure` and append to `quali
 [Step 6.1] Mechanical verification: PASS (exit 0)
 ```
 
-**Why this is non-substitutable:** In v1.3.23, the model replaced `bash verify.sh` with `python3 -c "from pathlib import Path; ..."` that read the (forged) artifact file and asserted on its contents — a circular check that passed despite the artifact being fabricated. The only trustworthy verification is re-running the same shell pipeline that produced the artifact and diffing the results. Any other method can be fooled by a corrupted intermediate file.
+**Why this is non-substitutable:** In v1.3.23, the model replaced the real shell extraction with a model-authored `python3 -c "from pathlib import Path; ..."` that read the (forged) artifact file and asserted on its contents — a circular check that passed despite the artifact being fabricated. `verify.py` is now the canonical verifier, but the same rule holds at a finer grain: `verify.py` must `subprocess.run` the ORIGINAL shell pipeline that produced each artifact and diff the results. A `verify.py` whose `EXTRACTIONS` reimplement the extraction in Python (instead of shelling out to the recorded pipeline) re-opens the exact v1.3.23 attack surface — the model would author both the extraction and the saved file. The only trustworthy verification is re-running the same shell pipeline that produced the artifact and diffing the results; any Python-reimplemented or artifact-reading method can be fooled by a corrupted intermediate file.
 
 ### Step 6.2: Run quality_gate.py (script-verified checks)
 

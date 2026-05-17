@@ -499,7 +499,7 @@ The protocol defines: a copy-pasteable audit prompt with guardrails, project-spe
 
 **Why this rule exists:** In v1.3.16 virtio testing, the triage correctly received a minority finding that `VIRTIO_F_RING_RESET` was missing from a switch/case whitelist. The triage performed a "verification probe" that claimed lines 3527-3528 "explicitly preserve VIRTIO_F_RING_RESET" — but those lines actually contained the `default:` branch. The triage hallucinated compliance with the code. Had it been required to write `assert "case VIRTIO_F_RING_RESET:" in source`, the assertion would have failed, exposing the hallucination. Requiring executable evidence for rejections makes hallucinated rejections self-defeating: the model cannot write a passing assertion for something that isn't in the code.
 
-**Triage evidence must be written to disk.** Verification probe assertions must appear in a file on disk — either appended to `quality/mechanical/verify.sh` or written to a dedicated `quality/spec_audits/triage_probes.sh`. Assertions described in the triage report prose but never written to an executable file are not executable evidence. The gate checks for the existence of probe assertions in the triage output; a triage report that says "verification probe confirms..." without a corresponding assertion in an executable file is non-conformant. This prevents the failure mode where the model narrates what a probe *would* show without actually running it.
+**Triage evidence must be written to disk.** Verification probe assertions must appear in a file on disk — written to a dedicated `quality/spec_audits/triage_probes.sh` (an executable evidence file; `quality/mechanical/verify.py` is the fixed-purpose extraction orchestrator, not a place to append ad-hoc probe assertions). Assertions described in the triage report prose but never written to an executable file are not executable evidence. The gate checks for the existence of probe assertions in the triage output; a triage report that says "verification probe confirms..." without a corresponding assertion in an executable file is non-conformant. This prevents the failure mode where the model narrates what a probe *would* show without actually running it.
 
 ### File 6: `AGENTS.md` (orchestrator-generated; you do NOT write this in Phase 2)
 
@@ -660,7 +660,7 @@ Re-read `quality/PROGRESS.md`. Update:
 **Phase 2 completion gate (mandatory).** Before proceeding to Phase 3, verify:
 1. All core artifacts exist on disk under `quality/` (`QUALITY.md`, `CONTRACTS.md`, `REQUIREMENTS.md`, `COVERAGE_MATRIX.md`, `COMPLETENESS_REPORT.md`, `test_functional.*`, `RUN_CODE_REVIEW.md`, `RUN_INTEGRATION_TESTS.md`, `RUN_SPEC_AUDIT.md`, `RUN_TDD_TESTS.md`). `AGENTS.md` is NOT in this list — the orchestrator writes it to the target repo root after Phase 6, not Phase 2.
 2. `REQUIREMENTS.md` contains requirements with specific conditions of satisfaction referencing actual code (file paths, function names, line numbers) — not abstract behavioral descriptions.
-3. If dispatch/enumeration contracts exist: `quality/mechanical/verify.sh` exists and has been executed.
+3. If dispatch/enumeration contracts exist: `quality/mechanical/verify.py` exists and has been executed.
 4. PROGRESS.md marks Phase 2 complete with timestamp.
 
 Re-read `quality/PROGRESS.md` and `quality/REQUIREMENTS.md` before starting Phase 3. The requirements are the target list for the code review — every requirement is a potential bug if the code doesn't satisfy its conditions.

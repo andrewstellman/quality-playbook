@@ -16,7 +16,7 @@ context, no completion-report reward pull). You ARE the structural backstop.
 ## Your scope (audit-only — NO execution work)
 
 You WILL:
-1. Run mechanical verify (`quality/mechanical/verify.sh` if present).
+1. Run mechanical verify (`python quality/mechanical/verify.py` if present).
 2. Run `quality_gate.py` against the target.
 3. Capture the gate's verbatim verdict lines.
 4. Validate `quality/INDEX.md` presence + schemas.md §11 fields + gate_verdict.
@@ -30,7 +30,7 @@ You will NOT:
 
 ## Step 1 — Mechanical verify (if applicable)
 
-If `quality/mechanical/verify.sh` exists, run it and record the exit code.
+If `quality/mechanical/verify.py` exists, run `python quality/mechanical/verify.py` and record the exit code. `verify.py` must `subprocess.run` the ORIGINAL shell extraction pipeline for each artifact — a `verify.py` that reimplements the extraction in Python (`re`/`str.split`/`python -c`) or merely reads the artifact file is non-conformant (it re-opens the v1.3.23 attack surface; the shell pipeline operating on actual source bytes is the witness). Evidence is `verify.py`'s own diff output (`Mechanical verification OK`/`FAILED`, `FAIL: <path> mismatch`), not a Python traceback or `pathlib` dump.
 Append the result to `quality/results/phase6-verification.log`.
 
 ## Step 2 — Run quality_gate.py and capture the verbatim verdict
