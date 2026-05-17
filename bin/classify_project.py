@@ -89,10 +89,19 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
+
+# v1.5.7 instruction 077 (addendum §5.2 W3 entry-point audit): uniform
+# entry-point bootstrap. classify_project.py is stdlib-only and imports
+# no sibling bin.* module today, so this is a defensive no-op that
+# keeps script-form invocation (`python <clone>/bin/classify_project.py
+# …` from any cwd) robust if a future sibling import is added (the
+# module docstring already discusses the bin.role_map replacement path).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 CLASSIFIER_VERSION = "1.0"
 # Bumped from "1.0" to "1.1" in v1.5.3 Phase 2 to signal the additive

@@ -24,7 +24,18 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 from typing import List, Optional
+
+# v1.5.7 instruction 077 (addendum §5.2 W3 entry-point audit): put the
+# QPB clone root on sys.path BEFORE the sibling-module imports below.
+# Without this, `python <clone>/bin/quality_playbook.py …` from a
+# foreign cwd reached the `except ImportError: import
+# migrate_v1_5_0_layout` flat fallback, but migrate_v1_5_0_layout's
+# own top-level `from bin import archive_lib` then failed with
+# ModuleNotFoundError: No module named 'bin' (observed exit 1 at the
+# instruction-077 baseline). No-op under `python -m bin.quality_playbook`.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 try:
     from . import archive_lib

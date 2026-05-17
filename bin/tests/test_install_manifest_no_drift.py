@@ -1,0 +1,92 @@
+"""v1.5.7 instruction 077 (addendum r3 §3.2 / acceptance #11) —
+INSTALL_CLOSURE must not drift from install_skill._bundle_files().
+
+This is the load-bearing guard the whole Phase 0 validator depends
+on: if the validator's bundled-file manifest silently diverges from
+what the installer actually copies, the validator passes while the
+install is broken — the exact failure class the validator exists to
+kill (addendum §12 row 1). The r1 and r2 §3.2 enumerations were both
+hand-written-from-memory and both wrong (caught by the 076 and 076b
+Councils); r3 §3.2 is machine-derived from this very function. This
+test pins that derivation so it cannot rot.
+
+Acceptance #11 is scoped to INSTALL_CLOSURE *only* — INSTALL_
+SCAFFOLDING and INSTALL_ENVIRONMENT have a different production code
+path (the AGENTS.md `cp` block / host environment), so a separate
+non-drift test asserts they stay disjoint from the closure rather
+than equal to _bundle_files().
+"""
+
+from __future__ import annotations
+
+import unittest
+from pathlib import Path
+
+_QPB_ROOT = Path(__file__).resolve().parents[2]
+
+
+class InstallClosureNoDriftTests(unittest.TestCase):
+
+    def test_install_closure_matches_bundle_files(self) -> None:
+        """set(INSTALL_CLOSURE paths) == set(_bundle_files() dsts).
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-077 —
+        BITE EXECUTED during instruction-077 development:
+          Mutation: delete the
+          {"path": "references/verification.md", ...} entry from
+          bin/qpb_validate.py:INSTALL_CLOSURE.
+          Observed failure (purged __pycache__ first):
+            FAIL: test_install_closure_matches_bundle_files
+            AssertionError: Items in the first set but not the
+            second:
+            'references/verification.md' : INSTALL_CLOSURE drift vs
+            _bundle_files(): missing_from_manifest=
+            {'references/verification.md'} phantom_in_manifest=set()
+          Restoration: entry restored; test PASS again (47 == 47,
+          symmetric difference empty).
+        """
+        from bin.install_skill import _bundle_files
+        from bin.qpb_validate import INSTALL_CLOSURE
+
+        expected = set(str(dst) for _src, dst in _bundle_files(_QPB_ROOT))
+        actual = set(entry["path"] for entry in INSTALL_CLOSURE)
+        missing = expected - actual
+        phantom = actual - expected
+        self.assertEqual(
+            expected, actual,
+            "INSTALL_CLOSURE drift vs _bundle_files(): "
+            f"missing_from_manifest={missing} "
+            f"phantom_in_manifest={phantom}")
+
+    def test_install_closure_count_is_47(self) -> None:
+        """The addendum §3.2 contract is exactly 47 entries; a count
+        check catches an accidental duplicate that a set comparison
+        would mask."""
+        from bin.qpb_validate import INSTALL_CLOSURE
+        self.assertEqual(len(INSTALL_CLOSURE), 47)
+        paths = [e["path"] for e in INSTALL_CLOSURE]
+        self.assertEqual(len(paths), len(set(paths)),
+                         "duplicate path in INSTALL_CLOSURE")
+
+    def test_scaffolding_and_environment_disjoint_from_closure(self) -> None:
+        """INSTALL_SCAFFOLDING / INSTALL_ENVIRONMENT must not leak
+        into the drift-tested closure (addendum §3.2 / acceptance
+        #11 decoupling — the 076b a1 self-contradiction fix)."""
+        from bin.qpb_validate import (
+            INSTALL_CLOSURE, INSTALL_SCAFFOLDING, INSTALL_ENVIRONMENT)
+        closure_paths = set(e["path"] for e in INSTALL_CLOSURE)
+        scaffold_paths = set(e["path"] for e in INSTALL_SCAFFOLDING)
+        self.assertEqual(closure_paths & scaffold_paths, set(),
+                         "scaffolding path leaked into INSTALL_CLOSURE")
+        # environment entries are kind-only (no "path") — assert that
+        # invariant so a future path= addition can't silently couple.
+        for e in INSTALL_ENVIRONMENT:
+            self.assertNotIn("path", e,
+                             f"INSTALL_ENVIRONMENT entry has a path: {e}")
+        self.assertEqual(len(INSTALL_SCAFFOLDING), 3)
+        self.assertEqual(len(INSTALL_ENVIRONMENT), 5)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -42,6 +42,21 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, Tuple
 
+# v1.5.7 instruction 077 (addendum §5.2 W3 entry-point audit): put the
+# QPB clone root on sys.path BEFORE the first `from bin import
+# benchmark_lib` so script-form invocation
+# (`python <clone>/bin/reference_docs_ingest.py …` from any cwd)
+# resolves it on the first try. The pre-077 try/except-only form was
+# broken from a foreign cwd in a clean environment: the failed first
+# import left a partially-resolved namespace `bin` cached in
+# sys.modules, so the post-`sys.path.insert` retry in the except
+# branch still raised `ImportError: cannot import name
+# 'benchmark_lib' from 'bin' (unknown location)` (observed under
+# `env -i` at the instruction-077 baseline). No-op under `python -m
+# bin.reference_docs_ingest`. The try/except below is retained as
+# harmless defense-in-depth.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 try:
     # When run as ``python -m bin.reference_docs_ingest``.
     from bin import benchmark_lib  # type: ignore

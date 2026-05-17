@@ -38,6 +38,13 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
+# v1.5.7 instruction 077 (addendum §5.2 W3 entry-point audit): uniform
+# entry-point bootstrap. qpb_config.py is stdlib-only and imports no
+# sibling bin.* module today; this is a defensive no-op keeping
+# script-form invocation (`python <clone>/bin/qpb_config.py …` from
+# any cwd) robust and the W3 audit set uniform.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 
 CONFIG_BASENAME = "config.json"
 CONFIG_SUBDIR = "qpb"

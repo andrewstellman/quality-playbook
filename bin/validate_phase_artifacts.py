@@ -74,6 +74,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+# v1.5.7 instruction 077 (addendum §5.2 W3 entry-point audit): put the
+# QPB clone root on sys.path so script-form invocation
+# (`python <clone>/bin/validate_phase_artifacts.py …` from any cwd)
+# resolves the canonical `from bin import role_map` (and role_map's
+# own sibling imports). No-op under `python -m
+# bin.validate_phase_artifacts` (root already on sys.path). The
+# try/except below remains as the flat/bundled-layout fallback.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 try:  # canonical package form (run from QPB root or PYTHONPATH set)
     from bin import role_map
 except ModuleNotFoundError:  # flat/bundled layout: bin/ itself on sys.path
