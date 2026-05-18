@@ -1158,59 +1158,131 @@ class TestMechanicalVerification(FixtureBase):
         self.assertIn("mechanical/ exists but verify.py missing", stdout)
 
     def test_cases_txt_without_verifier_fails_with_sharpened_message(self):
-        # 080b (F1): *_cases.txt present but no verifier → the
-        # sharpened "cannot be integrity-checked" error.
+        # 080c (F1): *_cases.txt present but no verifier → the exact
+        # required message (instruction-080c Task 1 step 3).
         tree = minimal_zero_bug_tree()
         tree["quality/mechanical/foo_cases.txt"] = "case 1:\n"
         self.write(tree)
         stdout, _ = self.gate()
-        self.assertIn("cannot be integrity-checked", stdout)
+        self.assertIn(
+            "verify.py or verify.sh expected but neither found; "
+            "cases.txt files exist, so mechanical verification is "
+            "required for this project.", stdout)
 
-    def test_verify_py_preferred_path(self):
-        # 080b (F1): W4-compliant run emits verify.py — the gate
-        # must accept it (the exact end-to-end gap codex flagged).
+    def test_verify_py_invoked_exit0_passes(self):
+        # 080c (F1): the gate ACTUALLY runs verify.py (real script,
+        # exit 0) — not a presence-only check.
         tree = minimal_zero_bug_tree()
-        tree["quality/mechanical/verify.py"] = "#!/usr/bin/env python3\n"
+        tree["quality/mechanical/verify.py"] = (
+            "import sys\nprint('Mechanical verification OK')\n"
+            "sys.exit(0)\n")
         tree["quality/results/mechanical-verify.log"] = "Mechanical verification OK\n"
         tree["quality/results/mechanical-verify.exit"] = "0\n"
         self.write(tree)
         stdout, _ = self.gate()
         self.assertIn("PASS: verify.py exists", stdout)
+        self.assertIn("PASS: verify.py ran clean (exit 0)", stdout)
         self.assertIn("PASS: mechanical-verify.exit is 0", stdout)
 
-    def test_both_present_prefers_verify_py(self):
-        # 080b (F1): if both exist, verify.py wins (single verifier
-        # — avoid divergent results). verify.sh's back-compat line
-        # must NOT appear when verify.py is present.
+    def test_verify_py_invoked_exit1_fails_with_diff_surfaced(self):
+        """The gate runs verify.py; a non-zero exit FAILs the gate
+        and the verifier's stdout (the diff) is surfaced.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-080c —
+        BITE EXECUTED during instruction-080c development:
+          Mutation: revert quality_gate.py:check_mechanical to the
+          080b presence-only form (delete the subprocess.run block;
+          keep only the verify.py/verify.sh .is_file() pass_).
+          Observed (purged __pycache__ first): this test FAILED —
+          'verify.py FAILED (exit 1)' absent from gate stdout (a
+          presence-only check never runs verify.py, so a forged
+          exit-1 verifier is not caught — the exact 080b-F1 gap).
+          Restoration: subprocess.run invocation block restored;
+          gate surfaces 'verify.py FAILED (exit 1)' + the diff;
+          test PASS again (PASS→FAIL→PASS).
+        """
         tree = minimal_zero_bug_tree()
-        tree["quality/mechanical/verify.py"] = "#!/usr/bin/env python3\n"
-        tree["quality/mechanical/verify.sh"] = "#!/bin/bash\n"
+        tree["quality/mechanical/verify.py"] = (
+            "import sys\n"
+            "print('FAIL: quality/mechanical/foo_cases.txt mismatch')\n"
+            "print('--- saved'); print('+++ fresh')\n"
+            "print('+  case HALLUCINATED:')\n"
+            "print('Mechanical verification FAILED')\n"
+            "sys.exit(1)\n")
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("verify.py FAILED (exit 1)", stdout)
+        self.assertIn("case HALLUCINATED", stdout)  # diff surfaced
+
+    def test_verify_py_preferred_over_sh_when_both_present(self):
+        # Both present → verify.py is RUN, verify.sh is not.
+        tree = minimal_zero_bug_tree()
+        tree["quality/mechanical/verify.py"] = (
+            "import sys\nprint('py-ran')\nsys.exit(0)\n")
+        tree["quality/mechanical/verify.sh"] = "#!/bin/bash\nexit 1\n"
         tree["quality/results/mechanical-verify.log"] = "output\n"
         tree["quality/results/mechanical-verify.exit"] = "0\n"
         self.write(tree)
         stdout, _ = self.gate()
-        self.assertIn("PASS: verify.py exists", stdout)
+        self.assertIn("PASS: verify.py ran clean (exit 0)", stdout)
         self.assertNotIn("verify.sh exists (pre-W4 back-compat)", stdout)
+        self.assertNotIn("verify.sh FAILED", stdout)
 
-    def test_verify_sh_back_compat_with_exit_0_passes(self):
-        # 080b (F1): pre-W4 runs (verify.sh only) still validate.
+    def test_verify_sh_backcompat_invoked_exit0(self):
         tree = minimal_zero_bug_tree()
-        tree["quality/mechanical/verify.sh"] = "#!/bin/bash\n"
+        tree["quality/mechanical/verify.sh"] = "#!/bin/bash\nexit 0\n"
         tree["quality/results/mechanical-verify.log"] = "output\n"
         tree["quality/results/mechanical-verify.exit"] = "0\n"
         self.write(tree)
         stdout, _ = self.gate()
         self.assertIn("PASS: verify.sh exists (pre-W4 back-compat)", stdout)
+        self.assertIn("PASS: verify.sh ran clean (exit 0)", stdout)
         self.assertIn("PASS: mechanical-verify.exit is 0", stdout)
 
-    def test_verify_sh_with_exit_nonzero_fails(self):
+    def test_verify_sh_backcompat_invoked_exit1_fails(self):
         tree = minimal_zero_bug_tree()
-        tree["quality/mechanical/verify.sh"] = "#!/bin/bash\n"
+        tree["quality/mechanical/verify.sh"] = (
+            "#!/bin/bash\necho 'sh-mismatch'\nexit 1\n")
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("verify.sh FAILED (exit 1)", stdout)
+        self.assertIn("sh-mismatch", stdout)
+
+    def test_receipt_exit_nonzero_still_fails(self):
+        # The receipt cross-check is retained: even when the live
+        # verify.sh exits 0, a receipt exit≠0 still FAILs (the agent
+        # must have verified at the Phase-2a gate / Phase 6).
+        tree = minimal_zero_bug_tree()
+        tree["quality/mechanical/verify.sh"] = "#!/bin/bash\nexit 0\n"
         tree["quality/results/mechanical-verify.log"] = "output\n"
         tree["quality/results/mechanical-verify.exit"] = "1\n"
         self.write(tree)
         stdout, _ = self.gate()
         self.assertIn("mechanical-verify.exit is '1', expected 0", stdout)
+
+    def test_check_mechanical_invokes_with_correct_argv_and_cwd(self):
+        """In-process: assert check_mechanical calls subprocess.run
+        with [sys.executable, 'quality/mechanical/verify.py'] and
+        cwd = the target repo root (q.parent) — the exact invocation
+        contract codex-080b-F1 required."""
+        import contextlib
+        import io
+        from unittest import mock
+        tree = minimal_zero_bug_tree()
+        tree["quality/mechanical/verify.py"] = "import sys\nsys.exit(0)\n"
+        self.write(tree)
+        q = self.repo / "quality"
+        fake = mock.Mock(returncode=0, stdout="", stderr="")
+        with mock.patch("quality_gate.subprocess.run",
+                        return_value=fake) as m:
+            with contextlib.redirect_stdout(io.StringIO()):
+                quality_gate.check_mechanical(q)
+        self.assertTrue(m.called, "check_mechanical never invoked subprocess.run")
+        call = m.call_args
+        self.assertEqual(call.args[0],
+                         [sys.executable, "quality/mechanical/verify.py"])
+        self.assertEqual(str(call.kwargs.get("cwd")), str(q.parent))
 
 
 class TestPatches(FixtureBase):

@@ -23,6 +23,7 @@ Runs on Python 3.8+ with only the standard library.
 import json
 import os
 import re
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
@@ -1677,31 +1678,65 @@ def check_mechanical(q):
     if not mech_dir.is_dir():
         info("No mechanical/ directory")
         return
-    # v1.5.7 instruction 080b (closes 080 codex F1). W4 (§6) makes
-    # quality/mechanical/verify.py the canonical mechanical verifier
-    # (a Python orchestrator that subprocesses the ORIGINAL shell
-    # extraction pipeline). Prefer verify.py; if both verify.py and
-    # verify.sh exist, verify.py wins (a single verifier — avoid
-    # divergent results). verify.sh remains a back-compat fallback for
-    # pre-W4 runs that predate the rewrite. If neither exists, the
-    # mechanical/ directory is non-conformant (per the Phase-1 guide's
-    # "do not create an empty mechanical/ directory" rule); the error
-    # is sharpened when *_cases.txt extraction artifacts are present.
+    # v1.5.7 instruction 080c (closes 080b codex F1). W4 (§6): the
+    # gate now ACTUALLY INVOKES the mechanical verifier — re-running
+    # the ORIGINAL shell pipeline fresh is the v1.3.23 witness; the
+    # 080b presence-only check never re-ran anything (codex F1).
+    # Prefer verify.py (W4 Python orchestrator); fall back to
+    # verify.sh (pre-W4 back-compat); if neither exists but
+    # *_cases.txt extraction artifacts do, mechanical verification is
+    # required and missing → FAIL; an empty mechanical/ is
+    # non-conformant. The verifier runs from the target repo root
+    # (q.parent — verify.py's recorded paths like
+    # quality/mechanical/<f>_cases.txt and the source files the shell
+    # pipeline reads are relative to it). The verifier's exit code IS
+    # the gate verdict; its stdout/stderr is surfaced on failure so
+    # adopters see WHAT failed, not just "verification failed".
+    target_root = q.parent
     verify_py = mech_dir / "verify.py"
     verify_sh = mech_dir / "verify.sh"
     if verify_py.is_file():
         pass_("verify.py exists")
+        verifier_cmd = [sys.executable, "quality/mechanical/verify.py"]
+        which = "verify.py"
     elif verify_sh.is_file():
         pass_("verify.sh exists (pre-W4 back-compat)")
+        verifier_cmd = ["bash", "quality/mechanical/verify.sh"]
+        which = "verify.sh"
     else:
         if list(mech_dir.glob("*_cases.txt")):
-            fail("mechanical/ has *_cases.txt extraction artifacts but "
-                 "no verify.py (W4) or verify.sh — they cannot be "
-                 "integrity-checked")
+            fail("verify.py or verify.sh expected but neither found; "
+                 "cases.txt files exist, so mechanical verification is "
+                 "required for this project.")
         else:
             fail("mechanical/ exists but verify.py missing")
         return
 
+    try:
+        proc = subprocess.run(
+            verifier_cmd, cwd=str(target_root),
+            capture_output=True, text=True, timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        fail(f"{which} timed out after 300s — mechanical verification "
+             f"did not complete")
+        return
+    except OSError as exc:
+        fail(f"{which} could not be executed: {exc}")
+        return
+    if proc.returncode == 0:
+        pass_(f"{which} ran clean (exit 0)")
+    else:
+        out = (proc.stdout or "").strip()
+        err = (proc.stderr or "").strip()
+        fail(f"{which} FAILED (exit {proc.returncode}) — mechanical "
+             f"artifact mismatch or extraction error. "
+             f"stdout: {out[:800]} | stderr: {err[:400]}")
+
+    # Receipt cross-check (unchanged). The gate's own fresh invocation
+    # above is the authoritative pass/fail; these receipts additionally
+    # prove the agent ran the verifier at the Phase-2a immediate gate /
+    # Phase 6 (verification.md §35/§37 benchmarks depend on them).
     mv_log = _resolve_artifact_path(q, "results/mechanical-verify.log")
     mv_exit = _resolve_artifact_path(q, "results/mechanical-verify.exit")
     if mv_log.is_file() and mv_exit.is_file():

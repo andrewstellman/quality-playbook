@@ -106,16 +106,26 @@ if __name__ == "__main__":
 '''
 
 
-# 080b F2: structured-parser extraction calls that have NO
-# legitimate use in the subprocess-the-shell-pipeline orchestrator
-# (reimplementing the extraction in Python re-opens v1.3.23).
-_FORBIDDEN_EXTRACTION_CALLS = {
-    ("re", "findall"), ("re", "finditer"), ("re", "search"),
-    ("re", "match"), ("re", "fullmatch"), ("re", "split"),
-    ("ast", "parse"), ("json", "loads"), ("json", "load"),
-    ("csv", "reader"), ("csv", "DictReader"),
-    ("yaml", "safe_load"), ("yaml", "load"),
-    ("tokenize", "tokenize"), ("tokenize", "generate_tokens"),
+# 080c F2: canonical-module → dangerous-callable map. These
+# structured parsers have NO legitimate use in the
+# subprocess-the-shell-pipeline orchestrator; using any of them to
+# build the comparison's "fresh" side reimplements the extraction in
+# Python and re-opens the v1.3.23 attack surface. Keyed by the FULL
+# dotted module path so import-alias resolution (below) can map any
+# local naming (`import xml.etree.ElementTree as ET`,
+# `from json import loads as L`, …) back to the canonical module.
+_DANGEROUS = {
+    "re": {"findall", "finditer", "search", "match", "fullmatch",
+           "split"},
+    "ast": {"parse", "literal_eval"},
+    "json": {"loads", "load"},
+    "csv": {"reader", "DictReader"},
+    "yaml": {"safe_load", "load", "full_load", "unsafe_load"},
+    "tokenize": {"tokenize", "generate_tokens"},
+    "xml.etree.ElementTree": {"parse", "fromstring", "iterparse",
+                              "XML", "XMLParser"},
+    "xml.etree.cElementTree": {"parse", "fromstring", "iterparse",
+                               "XML", "XMLParser"},
 }
 _SHELLS = {"bash", "sh", "/bin/bash", "/bin/sh", "/usr/bin/bash",
            "/usr/bin/sh"}
@@ -129,51 +139,79 @@ def _is_cases_txt(s: str) -> bool:
         "mechanical/" in s and s.endswith(".txt"))
 
 
-def _verify_py_is_conformant(src: str) -> bool:
-    """§6.6 "Council-of-One" anti-reimplementation lint — AST-based,
-    strengthened in 080b after the 080 codex F2 attack (a decoy
-    subprocess.run + pure-Python splitlines()/startswith() forgery
-    defeated the old string-token heuristic).
+def _dotted_name(node) -> "str | None":
+    """Flatten a Name / Attribute chain to ``"a.b.c"`` (or None)."""
+    parts = []
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if isinstance(node, ast.Name):
+        parts.append(node.id)
+        return ".".join(reversed(parts))
+    return None
 
-    The conformant pattern is narrow: a verify.py drives every
-    extraction through ``subprocess.run`` of the ORIGINAL recorded
-    shell pipeline (a ``["bash"/"sh", "-c", "<pipeline>"]``-shaped
-    argv) and only ever ``read_text()``s the saved ``*_cases.txt``
-    artifact for the comparison. It NEVER reads a source file in
-    Python and NEVER reimplements the extraction with regex /
-    structured parsers. Conformant iff BOTH:
+
+def _verify_py_is_conformant(src: str) -> bool:
+    """§6.6 "Council-of-One" anti-reimplementation lint — AST-based
+    with proper IMPORT-ALIAS TRACKING (080c, after the 080b codex F2
+    alias-evasion: ``import xml.etree.ElementTree as ET;
+    ET.fromstring(...)`` slipped past the old ast.dump substring
+    heuristic).
+
+    Walk-imports-first: build alias maps (local name → canonical
+    module / callable) covering ``import M``, ``import M as A``,
+    ``import a.b.c``, ``from M import f``, ``from M import f as g``.
+    Then resolve every call through those maps so a dangerous
+    extraction callable (regex / ast / json / csv / yaml / tokenize /
+    xml.etree — the _DANGEROUS map) is flagged regardless of local
+    naming.
+
+    Conformant iff BOTH:
       (a) a real shell-pipeline subprocess is present — a list
-          literal whose first element is bash/sh appears AND
-          subprocess.run/Popen/check_output/check_call is called
-          (a decoy ``subprocess.run(["true"])`` / ``["echo", …]``
-          has no bash/sh list literal → fails this); AND
+          literal whose first element is bash/sh appears AND a
+          subprocess (alias-resolved) run/Popen/check_* call is made
+          (a decoy ``subprocess.run(["true"])`` has no bash/sh list
+          literal → fails this); AND
       (b) NO forbidden extraction signal:
-          - any regex/ast/json/csv/yaml/tokenize extraction call
-            (the _FORBIDDEN_EXTRACTION_CALLS set), or an
-            xml.etree parse/fromstring; OR
+          - any alias-resolved call to a _DANGEROUS module callable
+            (covers `import xml.etree.ElementTree as ET;
+            ET.fromstring`, `from json import loads as L; L(...)`,
+            bare dotted `xml.etree.ElementTree.parse`, …); OR
           - any ``open("<lit>")`` / ``Path("<lit>").read_text()`` /
             ``.read_bytes()`` where ``<lit>`` is a string literal
-            that is NOT a ``*_cases.txt`` artifact (reading a
-            source file in Python is the extraction-substitution
-            vector — the canonical form only reads the
-            ``saved_path`` loop variable, never a source literal).
+            that is NOT a ``*_cases.txt`` artifact (reading a source
+            file in Python is the extraction-substitution vector).
 
-    Design note (080b): the lint does NOT denylist string methods
-    (``.splitlines``/``.split``/``.startswith``) directly — the
-    canonical §6.3 orchestrator legitimately calls
-    ``saved.splitlines(keepends=True)`` for ``difflib``. Flagging
-    those would false-positive the conformant sample (the
-    instruction-080b halt-condition). The precise discriminators —
-    "no real bash subprocess" and "reads a source-file literal" —
-    catch the codex splitlines/startswith forgery (it reads
-    ``Path("src/foo.c").read_text()`` and its only subprocess is a
-    non-bash decoy) without that false-positive risk.
+    Design note: the lint does NOT denylist string methods
+    (``.splitlines``/``.split``/``.startswith``) — the canonical §6.3
+    orchestrator legitimately calls ``saved.splitlines(keepends=True)``
+    for ``difflib``; flagging those would false-positive the
+    conformant sample (the 080b/080c halt-condition guard). The
+    precise discriminators — "no real bash subprocess", "dangerous
+    parser call (alias-resolved)", "source-file literal read" —
+    catch every codex evasion without that false-positive risk.
     """
     try:
         tree = ast.parse(src)
     except SyntaxError:
         return False
 
+    # ---- pass 1: import-alias maps ----
+    module_alias = {}        # local name → canonical module path
+    callable_alias = {}      # local name → (canonical module, callable)
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Import):
+            for a in n.names:
+                module_alias[a.asname or a.name] = a.name
+        elif isinstance(n, ast.ImportFrom) and n.module:
+            for a in n.names:
+                callable_alias[a.asname or a.name] = (n.module, a.name)
+    subprocess_names = {ln for ln, canon in module_alias.items()
+                        if canon == "subprocess"}
+    subprocess_names.add("subprocess")
+    _DANGEROUS_FNS = {fn for fns in _DANGEROUS.values() for fn in fns}
+
+    # ---- pass 2: calls + shell literal + source reads ----
     shell_list_literal = False
     subprocess_called = False
     forbidden = False
@@ -185,41 +223,53 @@ def _verify_py_is_conformant(src: str) -> bool:
                     and isinstance(first.value, str)
                     and first.value in _SHELLS):
                 shell_list_literal = True
-        if isinstance(node, ast.Call):
-            func = node.func
-            if (isinstance(func, ast.Attribute)
-                    and isinstance(func.value, ast.Name)
-                    and func.value.id == "subprocess"
-                    and func.attr in ("run", "Popen",
-                                      "check_output", "check_call")):
-                subprocess_called = True
-            if (isinstance(func, ast.Attribute)
-                    and isinstance(func.value, ast.Name)
-                    and (func.value.id, func.attr)
-                    in _FORBIDDEN_EXTRACTION_CALLS):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+
+        # subprocess.run/Popen/check_* (alias-resolved)
+        if (isinstance(func, ast.Attribute)
+                and isinstance(func.value, ast.Name)
+                and func.value.id in subprocess_names
+                and func.attr in ("run", "Popen",
+                                  "check_output", "check_call")):
+            subprocess_called = True
+
+        # dangerous dotted call: <modpart>.<fn>
+        d = _dotted_name(func)
+        if d and "." in d:
+            modpart, fn = d.rsplit(".", 1)
+            canon = module_alias.get(modpart, modpart)
+            if fn in _DANGEROUS.get(canon, ()):
                 forbidden = True
-            if (isinstance(func, ast.Name) and func.id == "open"
-                    and node.args):
-                a0 = node.args[0]
-                if (isinstance(a0, ast.Constant)
-                        and isinstance(a0.value, str)
-                        and not _is_cases_txt(a0.value)):
-                    forbidden = True
-            if (isinstance(func, ast.Attribute)
-                    and func.attr in ("read_text", "read_bytes")):
-                v = func.value
-                if (isinstance(v, ast.Call)
-                        and isinstance(v.func, ast.Name)
-                        and v.func.id == "Path" and v.args
-                        and isinstance(v.args[0], ast.Constant)
-                        and isinstance(v.args[0].value, str)
-                        and not _is_cases_txt(v.args[0].value)):
-                    forbidden = True
-            if (isinstance(func, ast.Attribute)
-                    and func.attr in ("parse", "fromstring")):
-                dumped = ast.dump(func.value)
-                if "etree" in dumped or "ElementTree" in dumped:
-                    forbidden = True
+
+        # bare from-import callable: f(...) where f is a dangerous
+        # callable alias (`from xml.etree.ElementTree import parse`)
+        if isinstance(func, ast.Name) and func.id in callable_alias:
+            cmod, cfn = callable_alias[func.id]
+            if cfn in _DANGEROUS.get(cmod, ()) or cfn in _DANGEROUS_FNS:
+                forbidden = True
+
+        # open("<src-literal>")
+        if (isinstance(func, ast.Name) and func.id == "open"
+                and node.args):
+            a0 = node.args[0]
+            if (isinstance(a0, ast.Constant)
+                    and isinstance(a0.value, str)
+                    and not _is_cases_txt(a0.value)):
+                forbidden = True
+
+        # Path("<src-literal>").read_text()/read_bytes()
+        if (isinstance(func, ast.Attribute)
+                and func.attr in ("read_text", "read_bytes")):
+            v = func.value
+            if (isinstance(v, ast.Call)
+                    and isinstance(v.func, ast.Name)
+                    and v.func.id == "Path" and v.args
+                    and isinstance(v.args[0], ast.Constant)
+                    and isinstance(v.args[0].value, str)
+                    and not _is_cases_txt(v.args[0].value)):
+                forbidden = True
 
     has_real_subprocess = shell_list_literal and subprocess_called
     return has_real_subprocess and not forbidden
@@ -373,6 +423,62 @@ if __name__ == "__main__":
 '''
 
 
+# 080c F2 — the EXACT codex-080b-F2 alias evasion + new alias forms.
+# Isolated so the SOLE forbidden signal is the alias-resolved
+# ET.fromstring call (reads only the saved *_cases.txt + a built
+# string — no source-literal read, so the source-read rule does NOT
+# redundantly mask the alias-tracking path the bite pins).
+_FORGED_XML_AS_ET = '''\
+#!/usr/bin/env python3
+import subprocess, sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+def main() -> int:
+    subprocess.run(["bash", "-c", "true"])  # decoy bash
+    saved = Path("quality/mechanical/foo_cases.txt").read_text()
+    fresh = str(ET.fromstring("<r>" + saved + "</r>"))
+    return 0 if fresh == saved else 1
+
+if __name__ == "__main__":
+    sys.exit(main())
+'''
+
+_FORGED_FROM_XML_IMPORT_PARSE = '''\
+#!/usr/bin/env python3
+import subprocess, sys
+from xml.etree.ElementTree import parse as P
+
+def main() -> int:
+    subprocess.run(["bash", "-c", "true"])  # decoy bash
+    fresh = str(P("src/foo.c"))
+    with open("quality/mechanical/foo_cases.txt") as fh:
+        saved = fh.read()
+    return 0 if fresh == saved else 1
+
+if __name__ == "__main__":
+    sys.exit(main())
+'''
+
+# Isolated so the SOLE forbidden signal is the alias-resolved
+# J.loads call (reads only the saved *_cases.txt; the json.loads
+# argument is a built string, not a source-literal read).
+_FORGED_JSON_AS_J = '''\
+#!/usr/bin/env python3
+import subprocess, sys, json as J
+from pathlib import Path
+
+def main() -> int:
+    subprocess.run(["bash", "-c", "true"])  # decoy bash
+    saved = Path("quality/mechanical/foo_cases.txt").read_text()
+    fresh = str(J.loads("[" + str(len(saved)) + "]"))
+    return 0 if fresh == saved else 1
+
+if __name__ == "__main__":
+    sys.exit(main())
+'''
+
+
 class VerifyPyAntiReimplementationLintTests(unittest.TestCase):
 
     def test_conformant_verify_py_passes_lint(self) -> None:
@@ -448,18 +554,78 @@ class VerifyPyAntiReimplementationLintTests(unittest.TestCase):
         with a decoy bash subprocess present.
 
         Mutation-test evidence (in-tree per
-        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-080b —
-        BITE EXECUTED: `("ast","parse")` ∈ _FORBIDDEN_EXTRACTION_
-        CALLS → forbidden True → lint returns False → test PASSES.
-        Mutation: remove `("ast","parse")` from
-        _FORBIDDEN_EXTRACTION_CALLS → lint returns True →
-        test FAILS; restore → PASS (PASS→FAIL→PASS; __pycache__
-        purged between mutate/restore).
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-080c —
+        BITE EXECUTED: `"parse" ∈ _DANGEROUS["ast"]` → the
+        alias-resolved dangerous-call rule sets forbidden=True →
+        lint returns False → test PASSES. Mutation: remove `"parse"`
+        from `_DANGEROUS["ast"]` → lint returns True → test FAILS;
+        restore → PASS (PASS→FAIL→PASS; __pycache__ purged between
+        mutate/restore).
         """
         self.assertFalse(
             _verify_py_is_conformant(_FORGED_AST_PARSE),
             "ast.parse extraction MUST be flagged (structured "
             "parser reimplementation)")
+
+    def test_lint_catches_xml_etree_as_ET_evasion(self) -> None:
+        """The EXACT codex-080b-F2 alias evasion: `import
+        xml.etree.ElementTree as ET; ET.fromstring(...)`. Under the
+        080b ast.dump substring heuristic this returned True (the
+        finding); the 080c import-alias tracker resolves ET →
+        xml.etree.ElementTree → False.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-080c —
+        BITE EXECUTED during instruction-080c development:
+          Reproduced the codex-080b-F2 attack live: pre-080c
+          (ast.dump-substring xml branch) `_verify_py_is_conformant
+          (_FORGED_XML_AS_ET)` returned True (alias evasion — the
+          codex finding). After the 080c walk-imports-first alias
+          tracker it returns False (module_alias['ET'] →
+          'xml.etree.ElementTree'; fromstring ∈ _DANGEROUS). Bite:
+          delete the `module_alias[a.asname or a.name] = a.name`
+          line → ET unresolved → returns True → test FAILS; restore
+          → False → PASS (PASS→FAIL→PASS, __pycache__ purged).
+        """
+        self.assertFalse(
+            _verify_py_is_conformant(_FORGED_XML_AS_ET),
+            "import xml.etree.ElementTree as ET; ET.fromstring(...) "
+            "MUST be flagged — the exact codex-080b-F2 alias evasion")
+
+    def test_lint_catches_from_xml_import_parse_evasion(self) -> None:
+        """`from xml.etree.ElementTree import parse as P; P(...)` —
+        bare aliased callable.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-080c —
+        BITE EXECUTED: callable_alias['P'] =
+        ('xml.etree.ElementTree','parse'); 'parse' ∈
+        _DANGEROUS['xml.etree.ElementTree'] → forbidden → False →
+        PASS. Mutation: drop the ImportFrom branch that populates
+        callable_alias → bare P() unresolved → returns True → test
+        FAILS; restore → False → PASS (PASS→FAIL→PASS, __pycache__
+        purged).
+        """
+        self.assertFalse(
+            _verify_py_is_conformant(_FORGED_FROM_XML_IMPORT_PARSE),
+            "from xml.etree.ElementTree import parse as P; P(...) "
+            "MUST be flagged (aliased from-import callable)")
+
+    def test_lint_catches_json_loads_alias_evasion(self) -> None:
+        """`import json as J; J.loads(...)` — aliased module call.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-080c —
+        BITE EXECUTED: module_alias['J']='json'; 'loads' ∈
+        _DANGEROUS['json'] via the alias-resolved dotted-call rule →
+        forbidden → False → PASS. Mutation: remove 'loads' from
+        _DANGEROUS['json'] → returns True → test FAILS; restore →
+        False → PASS (PASS→FAIL→PASS, __pycache__ purged).
+        """
+        self.assertFalse(
+            _verify_py_is_conformant(_FORGED_JSON_AS_J),
+            "import json as J; J.loads(...) MUST be flagged "
+            "(aliased dangerous-module call)")
 
 
 if __name__ == "__main__":
