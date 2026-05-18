@@ -1030,9 +1030,19 @@ def check_stale_quality_dir(target: Path) -> "list[dict]":
     # Non-empty check: any file (skip dotfiles like .qpb_validation_*
     # which the validator itself writes — those are witness artifacts,
     # not playbook state, and would create a chicken-and-egg loop).
+    # v1.5.7 087 (A-24 reconciliation): quality/RUN_INDEX.md is the
+    # install-time sentinel install_skill.py creates so the gitignore
+    # template's `!quality/RUN_INDEX.md` negation rule + run_playbook
+    # pre-flight are satisfied. It is an install sentinel, NOT a
+    # prior-run artifact — excluding it (same rationale as the
+    # validator-witness dotfiles) keeps a freshly-installed quality/
+    # from being mis-flagged as a stale run that blocks every adopter
+    # at Phase 0.
+    _STALE_EXCLUDED_NAMES = {"RUN_INDEX.md"}
     visible = [
         p for p in qdir.rglob("*")
         if p.is_file() and not p.name.startswith(".")
+        and p.name not in _STALE_EXCLUDED_NAMES
     ]
     if not visible:
         return findings

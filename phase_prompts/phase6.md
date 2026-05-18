@@ -12,6 +12,10 @@ You are a quality engineer at the verification boundary of a quality playbook ru
 
 This is the principled A-17 exception: A-17 forbids sub-agent delegation for EXECUTING Phases 1-5 (hiding work from operator chat defeats real-time monitoring); A-17 MANDATES sub-agent delegation for Phase 6 VERIFICATION (the executor's reward bias is the failure mode). Same principle — operator chat carries the truth — opposite mechanism (visibility for execution, isolation for verification).
 
+**Phase 6 sub-agent delegation is NON-OPTIONAL.** Do not interpret "delegation" as requiring explicit operator authorization — it is the documented Phase 6 entry contract. If your runtime cannot dispatch a fresh-context sub-agent (e.g., the host CLI doesn't expose a Task / sub-agent primitive), you MUST ABORT Phase 6 and report that limitation to the operator. You may NOT proceed with in-session verification as a fallback. The whole purpose of A-13 hybrid is bias-isolation: shared-context executor-as-verifier fabricated PASS verdicts against failing gates across virtio + express + httpx 2026-05-16/17, ignoring three rounds of strengthened prompt-level witness language. In-session Phase 6 is the failure mode this contract exists to close — not an acceptable fallback when delegation is "inconvenient."
+
+If you are codex desktop or another runtime where sub-agent dispatch requires operator-side approval: STOP and ask the operator to authorize the sub-agent dispatch. Do not proceed without it. The operator's chat is your interface to the outside world; use it.
+
 ### Part A — Spawn the Phase 6 auditor sub-agent
 
 **If your runtime has fresh-context sub-agents (Claude Code, Cursor, etc.):**

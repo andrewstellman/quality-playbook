@@ -339,7 +339,18 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # context and executes verification directly (no nested
         # sub-agent), so the 071 mandate no longer leaks into Mode B.
         # Hash recomputed (071 value 5411 → 6795).
-        "phase6":                ( 6795, "c533b72407ffffa6eb9357af9f6ed7f97db26bfde957f9c7a95997e034974375"),
+        # v1.5.7 instruction 087 (A-27): phase6.md gained the
+        # NON-OPTIONAL sub-agent-delegation framing (in-session
+        # verification is the FAILURE mode this contract closes, not a
+        # fallback; codex-class runtimes must STOP-and-ASK if dispatch
+        # needs operator approval) — closes the 2026-05-18 codex
+        # desktop "delegation wasn't explicitly authorized so I
+        # verified in-session" misread. phase6 codepoint length
+        # 6795 → 7868. phase1/2/3/4/5/single_pass/iteration UNCHANGED
+        # (each prompt is its own file; 087 touched only phase6).
+        # Hash recomputed — this baseline update IS the sanctioned
+        # change-acknowledgement signal.
+        "phase6":                ( 7868, "53b477551037961db6b54ce4a23174dcfc7551868931c0659a56fe9c179ce8ec"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.

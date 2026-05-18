@@ -132,6 +132,14 @@ initiative. The runner now refuses such invocations structurally (env-
 var based, see `bin/run_playbook.py::_check_agent_context_or_refuse`);
 this prose is the prose-level companion to the mechanical defense.
 
+**"Run the Quality Playbook on this project" means the FULL six-phase pipeline + four iteration strategies — NOT Phase 1 only.** Some agents (notably Codex Desktop on the 2026-05-18 express run) have interpreted the operator's "Run the Quality Playbook" as a Phase-1-only request because they saw "Phase 1" mentioned first in SKILL.md / phase prompts. This is a misreading. The canonical interpretation:
+
+- "Run the Quality Playbook on this project" → walk Phases 1 → 6 inline (per Mode A entry sequence), do NOT stop at any phase boundary, run all four iteration strategies (gap / unfiltered / parity / adversarial) after Phase 6
+- "Run phases 1 to N of the Quality Playbook" → explicit subset; honor the N requested
+- "Continue the Quality Playbook from phase N" → resume from phase N (the operator already ran prior phases)
+
+Phase-1-only as a default is the v1.5.3 legacy invocation behavior, restored only via explicit `python3 -m bin.run_playbook --phase 1`. Mode A "Run the Quality Playbook" is the full pipeline.
+
 **This is the canonical Phase 0 for any interactive Mode A run** (Claude Code, Cursor, Copilot UI, Codex desktop — any session where the operator watches your chat). SKILL.md's Mode A intro points here; this section is the full protocol. **Installing the skill into the target is a MANDATORY first action — not implicit in "run the playbook".**
 
 1. **Read `SKILL.md` from this repo** (the QPB source clone) to learn the Mode A walkthrough.

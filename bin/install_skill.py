@@ -293,6 +293,81 @@ def _utc_timestamp() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+# v1.5.7 instruction 087 (A-24): install-time sentinel-file creation.
+# The gitignore template the Phase 0 validator emits for
+# scaffolding_missing_gitignore contains `!informal_docs/README.md`
+# and `!quality/RUN_INDEX.md` negation rules; without the files
+# themselves, run_playbook.py's pre-flight aborts with "Required
+# sentinel files missing". Adopter had to create them by hand on
+# first run. Surfaced 2026-05-18 (httpx Terminal A; codex desktop
+# express).
+_SENTINEL_FILES: list[tuple[str, str]] = [
+    (
+        "informal_docs/README.md",
+        "# Informal Docs\n\n"
+        "Place non-citable plaintext project context here for "
+        "Quality Playbook runs.\n",
+    ),
+    (
+        "quality/RUN_INDEX.md",
+        "# Run Index\n\n"
+        "This directory holds Quality Playbook run artifacts. "
+        "See <https://github.com/andrewstellman/quality-playbook> "
+        "for details.\n",
+    ),
+]
+
+
+def _ensure_sentinel_files(repo_root: Path, emitter: Emitter) -> None:
+    """Create the two sentinel files the gitignore template's negation
+    rules require, if they don't already exist (or are empty).
+    Preserves operator content — a no-op when the file already has
+    content (A-24; instruction-087 Things-to-NOT-do)."""
+    for rel_path, default_content in _SENTINEL_FILES:
+        dst = repo_root / rel_path
+        if dst.exists() and dst.stat().st_size > 0:
+            emitter.emit("sentinel_check", path=rel_path,
+                         status="already_present")
+            continue
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_text(default_content, encoding="utf-8")
+        emitter.emit("sentinel_create", path=rel_path, status="created",
+                     bytes=len(default_content))
+
+
+def _migrate_flat_legacy_install(target: Path, emitter: Emitter) -> None:
+    """A-23: when installing the v1.5.7 NESTED layout
+    (`<marker>/skills/quality-playbook/`) and a v1.5.6-era FLAT
+    SKILL.md coexists at `<marker>/skills/SKILL.md`, a marker-based
+    resolver can load the older flat one (surfaced 2026-05-18 codex
+    desktop misdirected express run). Rename the flat SKILL.md (and a
+    flat quality_gate.py if present) to `<name>.legacy-<UTC-ts>` so it
+    can no longer be resolved as canonical, while preserving it for
+    inspection.
+
+    Fires ONLY for the canonical nested layout — `target` is
+    `<marker>/skills/quality-playbook` (target.parent.name == "skills"
+    and target.name != "skills"). v1.5.7 install() always computes a
+    nested target via AI_TOOL_MAP, so this never touches an
+    intentional flat-only install (instruction-087 halt-condition)."""
+    if target.parent.name != "skills" or target.name == "skills":
+        return  # not the canonical nested layout — do not migrate
+    flat_dir = target.parent  # <marker>/skills
+    for fname in ("SKILL.md", "quality_gate.py"):
+        flat = flat_dir / fname
+        if not flat.is_file():
+            continue
+        base_new = flat_dir / f"{fname}.legacy-{_utc_timestamp()}"
+        new_path = base_new
+        n = 1
+        while new_path.exists():  # idempotent: bump on collision
+            new_path = flat_dir / f"{base_new.name}.{n}"
+            n += 1
+        flat.rename(new_path)
+        emitter.emit("legacy_migrate", from_path=fname,
+                     to_path=new_path.name, status="renamed")
+
+
 def copy_with_backup(
     src: Path,
     dst: Path,
@@ -878,11 +953,28 @@ def install(
         )
         return 65
 
+    # v1.5.7 087 (A-23): rename any coexisting v1.5.6-era flat
+    # SKILL.md BEFORE the nested bundle lands, so the nested install
+    # is the only marker-resolvable canonical SKILL.md.
+    _migrate_flat_legacy_install(target, emitter)
+
     bundle = _bundle_files(source_root)
     statuses: list[str] = []
     for src, dst_rel in bundle:
         dst = target / dst_rel
         statuses.append(copy_with_backup(src, dst, force=force, emitter=emitter))
+
+    # v1.5.7 087 (A-24): create the gitignore-negation sentinel files
+    # at the adopter repo root so run_playbook.py's pre-flight does
+    # not abort with "Required sentinel files missing". The canonical
+    # nested layout is <repo_root>/<marker>/skills/quality-playbook,
+    # so repo_root == target.parents[2]. For an exotic explicit
+    # --target that is not the nested layout, skip (operator-managed).
+    if target.parent.name == "skills" and target.name != "skills":
+        _ensure_sentinel_files(target.parents[2], emitter)
+    else:
+        emitter.emit("sentinel_check", path="(skipped)",
+                     status="non_nested_target")
 
     smoke_failed = 0
     if not no_smoke:
