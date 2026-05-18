@@ -86,6 +86,16 @@ def _run_until_layout(workdir: Path, *, extra_args, env_extra=None):
     # Isolate from a stray real ~/.qpb/config.json (orchestrator D6
     # test pollution) and from an inherited QPB_LOGS_LEGACY.
     env.pop("QPB_LOGS_LEGACY", None)
+    # v1.5.7 084b: this is a REAL drive invocation of the runner (no
+    # --help/--worker/--operator-invoked), so under an ambient agent
+    # env (dev/CI running pytest from inside a Claude Code / Codex /
+    # Copilot terminal) the v1.5.7 A-22 guard would refuse it. These
+    # tests exercise logs-LAYOUT behavior, not agent-context behavior;
+    # strip the agent-context signals so the child runs as if from a
+    # bare operator shell (consistent with this helper's existing
+    # test-hygiene env isolation above).
+    for _agent_var in run_playbook._AGENT_CONTEXT_SIGNALS:
+        env.pop(_agent_var, None)
     if env_extra:
         env.update(env_extra)
     cmd = [

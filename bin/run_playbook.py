@@ -83,6 +83,41 @@ def _detect_agent_context() -> "Optional[str]":
     return None
 
 
+# v1.5.7 instruction 084b (closes 084 F1). The 084 agent-context
+# guard was too broad: under an ambient agent env (any dev/CI session
+# running inside a Claude Code / Codex / Copilot terminal) it refused
+# even informational / management probes (--help, --kill), breaking
+# ~11 pre-existing tests' subprocess invocations. The Mode-A drift we
+# actually prevent is "agent invokes the runner to DRIVE Phases 1-6";
+# we are NOT preventing --help / --kill. These tokens are exactly the
+# argparse-supported informational/management flags in the current
+# run_playbook.py (`-h`/`--help` are argparse defaults; `--kill` is
+# the cleanup command); `-V`/`--version` are harmless forward-compat
+# (argparse rejects them on its own if ever used, never a drive
+# invocation). Do not expand beyond argparse-supported tokens.
+_AGENT_CONTEXT_INFORMATIONAL_TOKENS: "frozenset[str]" = frozenset({
+    "-h", "--help", "-V", "--version", "--kill",
+})
+
+
+def _is_informational_or_management_invocation(argv: "Sequence[str]") -> bool:
+    """Return True if `argv` (typically `sys.argv[1:]`) contains any
+    token that marks the invocation as informational, management, or a
+    test-harness probe — i.e., NOT a "drive Phases 1-6" invocation.
+    The agent-context guard bypasses these paths so:
+      (a) operators can run --help / --kill from inside an agent terminal
+      (b) the existing test suite's subprocess probes are not refused
+          under ambient agent env (the 084 F1 failure mode)
+    Bare token membership is adequate: --help short-circuits argparse
+    anyway, and there is no drive invocation that legitimately also
+    carries one of these tokens.
+    """
+    for tok in argv or ():
+        if tok in _AGENT_CONTEXT_INFORMATIONAL_TOKENS:
+            return True
+    return False
+
+
 def parse_strategy_list(value: str) -> List[str]:
     """Parse --strategy value into an ordered list of concrete strategies.
 
@@ -5439,21 +5474,33 @@ def _check_agent_context_or_refuse(argv: "Sequence[str]") -> None:
     self-spawn always passes the literal `--worker`, and the operator
     override / iteration handoff pass the literal flags.
 
-    Carve-outs (legitimate non-agent-reaching invocations):
-      - --worker: an undocumented (argparse.SUPPRESS) internal flag set
-        ONLY by build_worker_command()'s self-spawn. A --worker process
-        is by definition an already-vetted recursive invocation — the
-        parent run_playbook already passed this gate. Workers inherit
-        the parent's environment (subprocess.Popen at the parallel
-        dispatch passes no env=), so without this carve-out parallel
-        mode would refuse its own workers under any agent terminal
-        (instruction-084 halt-condition #4 — the sanctioned fix).
-      - --next-iteration: SKILL.md §"Iteration strategies" mandates
-        that iterations after Phase 6 hand off to the runner.
-      - --operator-invoked: explicit operator override for the case
-        where the operator is running the runner from a shell that
-        happens to be inside an agent terminal.
+    Carve-out order (first match wins; all bypass the env-var check;
+    cheapest/most-common-case checks first — do not reorder, 084b):
+      1. Informational / management argv tokens (--help, --version,
+         --kill) — operators must be able to run these regardless of
+         terminal context, and the test-harness/CI subprocess probes
+         must not be refused under ambient agent env. This is the 084b
+         F1 fix; the prior 084 version lacked this carve-out and
+         refused informational probes (9 failures + 2 errors under
+         ambient CODEX_THREAD_ID).
+      2. --worker: an undocumented (argparse.SUPPRESS) internal flag
+         set ONLY by build_worker_command()'s self-spawn. A --worker
+         process is by definition an already-vetted recursive
+         invocation — the parent run_playbook already passed this
+         gate. Workers inherit the parent's environment
+         (subprocess.Popen at the parallel dispatch passes no env=),
+         so without this carve-out parallel mode would refuse its own
+         workers under any agent terminal (instruction-084
+         halt-condition #4 — the sanctioned fix).
+      3. --next-iteration: SKILL.md §"Iteration strategies" mandates
+         that iterations after Phase 6 hand off to the runner.
+      4. --operator-invoked: explicit operator override for the case
+         where the operator is running the runner from a shell that
+         happens to be inside an agent terminal.
+    Only after ALL carve-outs fail does the env-var detection fire.
     """
+    if _is_informational_or_management_invocation(argv):
+        return
     tokens = set(argv or ())
     if tokens & {"--worker", "--next-iteration", "--operator-invoked"}:
         return
