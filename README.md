@@ -342,6 +342,12 @@ The full autonomous run takes 60-180 minutes depending on codebase size and mode
 
 After fixing the bugs from BUGS.md, say *"recheck"* to verify your fixes. Recheck mode reads the existing bug report, checks each bug against the current source (reverse-applying patches, inspecting cited lines), and reports which bugs are fixed vs. still open. Takes 2-10 minutes instead of re-running the full pipeline.
 
+### Running in CI
+
+For headless / CI usage where `python3 -m bin.run_playbook` may be invoked
+from a non-interactive context, see [`docs/CI_INTEGRATION.md`](docs/CI_INTEGRATION.md)
+for the operator-side configuration steps.
+
 ## Running the playbook: phases, iterations, and macros
 
 `bin/run_playbook.py` exposes three invocation modes:

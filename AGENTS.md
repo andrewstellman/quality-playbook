@@ -45,16 +45,38 @@ cp "$QPB"/references/* .github/skills/references/
 cp "$QPB"/phase_prompts/*.md .github/skills/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
 cp "$QPB"/agents/*.md .github/skills/agents/
-# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
-# byte-equality citation check (without it, the gate falls back to a WARN path).
-cp "$QPB"/bin/citation_verifier.py .github/skills/bin/citation_verifier.py
-# v1.5.7 F-1: reference_docs_ingest.py + its dependency benchmark_lib.py are
-# now part of the bundle (without them, Phase 1's `python -m bin.reference_docs_ingest`
-# hits ModuleNotFoundError and the entire run hard-stops).
-cp "$QPB"/bin/reference_docs_ingest.py .github/skills/bin/reference_docs_ingest.py
-cp "$QPB"/bin/benchmark_lib.py .github/skills/bin/benchmark_lib.py
+# v1.5.7 088 (A-29): the bin/ closure required for Mode A walkthroughs
+# to resolve every module SKILL.md + phase_prompts hard-reference.
+# This list is MIRRORED from install_skill.py::_bundle_files() and
+# pinned by test_install_skill_bundle_completeness::
+# test_agents_md_cp_blocks_match_bundle. DO NOT add/remove a module
+# here without updating _bundle_files() in lockstep (drift recreates
+# the A-26 ship-blocker via this doc-sanctioned alternate path).
+cp "$QPB"/bin/__init__.py                          .github/skills/bin/__init__.py
+cp "$QPB"/bin/archive_lib.py                       .github/skills/bin/archive_lib.py
+cp "$QPB"/bin/benchmark_lib.py                     .github/skills/bin/benchmark_lib.py
+cp "$QPB"/bin/citation_verifier.py                 .github/skills/bin/citation_verifier.py
+cp "$QPB"/bin/council_config.py                    .github/skills/bin/council_config.py
+cp "$QPB"/bin/council_semantic_check.py            .github/skills/bin/council_semantic_check.py
+cp "$QPB"/bin/migrate_v1_5_0_layout.py             .github/skills/bin/migrate_v1_5_0_layout.py
+cp "$QPB"/bin/qpb_config.py                        .github/skills/bin/qpb_config.py
+cp "$QPB"/bin/quality_playbook.py                  .github/skills/bin/quality_playbook.py
+cp "$QPB"/bin/reference_docs_ingest.py             .github/skills/bin/reference_docs_ingest.py
+cp "$QPB"/bin/role_map.py                          .github/skills/bin/role_map.py
+cp "$QPB"/bin/run_state_lib.py                     .github/skills/bin/run_state_lib.py
+cp "$QPB"/bin/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
+# v1.5.7 (087): sentinel files for tracked-directory negation rules
+# (without them run_playbook.py's pre-flight aborts "Required
+# sentinel files missing"; install_skill.py creates these too).
+mkdir -p informal_docs quality
+cat > informal_docs/README.md << 'EOF'
+# Informal Docs
+
+Place non-citable plaintext project context here for Quality Playbook runs.
+EOF
+echo "# Run Index" > quality/RUN_INDEX.md
 # Optional: append suggested .gitignore rules for adopters.
 cat "$QPB"/skill-template.gitignore >> .gitignore
 ```
@@ -71,16 +93,38 @@ cp "$QPB"/references/* .claude/skills/quality-playbook/references/
 cp "$QPB"/phase_prompts/*.md .claude/skills/quality-playbook/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
 cp "$QPB"/agents/*.md .claude/skills/quality-playbook/agents/
-# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
-# byte-equality citation check (without it, the gate falls back to a WARN path).
-cp "$QPB"/bin/citation_verifier.py .claude/skills/quality-playbook/bin/citation_verifier.py
-# v1.5.7 F-1: reference_docs_ingest.py + its dependency benchmark_lib.py are
-# now part of the bundle (without them, Phase 1's `python -m bin.reference_docs_ingest`
-# hits ModuleNotFoundError and the entire run hard-stops).
-cp "$QPB"/bin/reference_docs_ingest.py .claude/skills/quality-playbook/bin/reference_docs_ingest.py
-cp "$QPB"/bin/benchmark_lib.py .claude/skills/quality-playbook/bin/benchmark_lib.py
+# v1.5.7 088 (A-29): the bin/ closure required for Mode A walkthroughs
+# to resolve every module SKILL.md + phase_prompts hard-reference.
+# This list is MIRRORED from install_skill.py::_bundle_files() and
+# pinned by test_install_skill_bundle_completeness::
+# test_agents_md_cp_blocks_match_bundle. DO NOT add/remove a module
+# here without updating _bundle_files() in lockstep (drift recreates
+# the A-26 ship-blocker via this doc-sanctioned alternate path).
+cp "$QPB"/bin/__init__.py                  .claude/skills/quality-playbook/bin/__init__.py
+cp "$QPB"/bin/archive_lib.py               .claude/skills/quality-playbook/bin/archive_lib.py
+cp "$QPB"/bin/benchmark_lib.py             .claude/skills/quality-playbook/bin/benchmark_lib.py
+cp "$QPB"/bin/citation_verifier.py         .claude/skills/quality-playbook/bin/citation_verifier.py
+cp "$QPB"/bin/council_config.py            .claude/skills/quality-playbook/bin/council_config.py
+cp "$QPB"/bin/council_semantic_check.py    .claude/skills/quality-playbook/bin/council_semantic_check.py
+cp "$QPB"/bin/migrate_v1_5_0_layout.py     .claude/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
+cp "$QPB"/bin/qpb_config.py                .claude/skills/quality-playbook/bin/qpb_config.py
+cp "$QPB"/bin/quality_playbook.py          .claude/skills/quality-playbook/bin/quality_playbook.py
+cp "$QPB"/bin/reference_docs_ingest.py     .claude/skills/quality-playbook/bin/reference_docs_ingest.py
+cp "$QPB"/bin/role_map.py                  .claude/skills/quality-playbook/bin/role_map.py
+cp "$QPB"/bin/run_state_lib.py             .claude/skills/quality-playbook/bin/run_state_lib.py
+cp "$QPB"/bin/validate_phase_artifacts.py  .claude/skills/quality-playbook/bin/validate_phase_artifacts.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
+# v1.5.7 (087): sentinel files for tracked-directory negation rules
+# (without them run_playbook.py's pre-flight aborts "Required
+# sentinel files missing"; install_skill.py creates these too).
+mkdir -p informal_docs quality
+cat > informal_docs/README.md << 'EOF'
+# Informal Docs
+
+Place non-citable plaintext project context here for Quality Playbook runs.
+EOF
+echo "# Run Index" > quality/RUN_INDEX.md
 cat "$QPB"/skill-template.gitignore >> .gitignore
 ```
 

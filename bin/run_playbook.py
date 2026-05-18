@@ -5529,6 +5529,25 @@ def _check_agent_context_or_refuse(argv: "Sequence[str]") -> None:
     # agent-visible surface (SKILL.md / AGENTS.md / README.md / --help /
     # this refusal message) so an agent reading the launch contract
     # cannot learn it (085).
+    #
+    # v1.5.7 instruction 088 (Council finding — sonnet-4.6 + opus-4.7):
+    # RESIDUAL THREAT acknowledgment. The TTY check defeats agents that
+    # read --help / refusal-message and pass --operator-invoked without
+    # pty allocation. An adversarial source-reader CAN defeat it by:
+    #   1. Reading bin/run_playbook.py source -> discovering the
+    #      QPB_OPERATOR_NON_TTY_OVERRIDE env var name (it appears
+    #      exactly once just below; structurally unavoidable)
+    #   2. Reading bin/tests/test_run_playbook_agent_context.py ->
+    #      finding the pty.openpty() bypass recipe that test file ships
+    #      explicitly to validate the isatty path
+    # Layer 1 env-var detection (CODEX_THREAD_ID /
+    # COPILOT_AGENT_SESSION_ID / CLAUDECODE) is the structural defense;
+    # it catches every named agent regardless of TTY allocation. The
+    # TTY check is a defense in depth, not a security boundary — it
+    # raises attack cost for documented threat actors and surfaces the
+    # bypass as an explicit adversarial action (not an accidental
+    # misread). v1.6.0 may revisit whether to add an additional
+    # fabrication-resistant signal.
     if "--operator-invoked" in tokens:
         try:
             if sys.stdin.isatty():
