@@ -195,6 +195,18 @@ INSTALL_ENVIRONMENT = [
     {"kind": "bash_available", "required_when": "project triggers mechanical verification"},
 ]
 
+# Python packages QPB requires importable, mapped from import name
+# (the name used in `importlib.util.find_spec`) to PyPI distribution
+# name (the name `pip install` actually accepts). For `yaml` the
+# import name and dist name diverge — `pip install yaml` is
+# unrunnable; the correct distribution is `PyYAML`. Keep this map as
+# the single source of truth so check_environment and the
+# remediation_suggestion emission agree.
+PYTHON_PKG_IMPORT_TO_DIST = {
+    "tiktoken": "tiktoken",
+    "yaml": "PyYAML",
+}
+
 # Sentinel substring used to recognise the QPB block appended to a
 # target's .gitignore by the AGENTS.md install `cp` step. Matched as a
 # substring (the template may evolve; this anchor stays stable).
@@ -832,11 +844,13 @@ def check_environment(cli_tool: "str | None") -> "tuple[list[dict], list[dict]]"
             "path": "<runtime>",
             "detail": f"{sys.version_info.major}.{sys.version_info.minor} < 3.10",
         })
-    for pkg in ("tiktoken", "yaml"):
-        if importlib.util.find_spec(pkg) is None:
+    for import_name, dist_name in PYTHON_PKG_IMPORT_TO_DIST.items():
+        if importlib.util.find_spec(import_name) is None:
             findings.append({"code": "python_pkg_missing",
-                             "kind": "python_pkg", "path": pkg,
-                             "detail": f"{pkg} not importable"})
+                             "kind": "python_pkg",
+                             "path": import_name,
+                             "dist": dist_name,
+                             "detail": f"{import_name} not importable"})
     if cli_tool:
         if shutil.which(cli_tool) is None:
             findings.append({"code": "ai_cli_not_on_path",
@@ -1013,7 +1027,7 @@ def main(argv: "list[str] | None" = None) -> int:
         cat = FINDING_CATALOG[code]
         local_subs = dict(subs)
         if code == "python_pkg_missing":
-            local_subs["pkg"] = f["path"]
+            local_subs["pkg"] = f.get("dist", f["path"])
         em.emit("remediation_suggestion", tool=cat["tool"], finding=code,
                 severity=cat["severity"],
                 command=command_for_platform(code, pkg_mgrs=pkg_mgrs,

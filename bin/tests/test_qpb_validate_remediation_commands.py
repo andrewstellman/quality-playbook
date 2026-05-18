@@ -111,6 +111,46 @@ class RemediationCommandRunnabilityTests(unittest.TestCase):
         self.assertNotIn("<pkg>", unix)
         self.assertNotIn("<pkg>", win)
 
+    def test_pyyaml_dist_name_substituted_not_import_name(self) -> None:
+        """F-1 regression (instruction 083b): the python_pkg_missing
+        remediation must substitute the PyPI distribution name, not the
+        Python import name. `pip install yaml` is unrunnable on PyPI;
+        the correct dist is `PyYAML`. The import-to-dist map at module
+        level is the single source of truth.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160) — BITE EXECUTED
+        during instruction-083b development:
+          Mutation: in bin/qpb_validate.py change
+            PYTHON_PKG_IMPORT_TO_DIST = {"tiktoken": "tiktoken", "yaml": "PyYAML"}
+          to
+            PYTHON_PKG_IMPORT_TO_DIST = {"tiktoken": "tiktoken", "yaml": "yaml"}
+          Observed failure (purged __pycache__ first):
+            FAIL: test_pyyaml_dist_name_substituted_not_import_name
+            AssertionError: 'yaml' != 'PyYAML'
+              [self.assertEqual(v.PYTHON_PKG_IMPORT_TO_DIST["yaml"],
+               "PyYAML") — the map-contract assertion fires first; with
+               the literal pkg="PyYAML" argument the command assertions
+               are unaffected by this mutation, so the map-contract line
+               is the load-bearing guard for the prescribed bite.]
+          Mutation reverted; test passes.
+        """
+        # The map itself is the contract.
+        self.assertEqual(v.PYTHON_PKG_IMPORT_TO_DIST["yaml"], "PyYAML")
+        self.assertEqual(v.PYTHON_PKG_IMPORT_TO_DIST["tiktoken"], "tiktoken")
+
+        # The remediation command for PyYAML (dist name) must be runnable.
+        unix = v.command_for_platform("python_pkg_missing", "macos",
+                                      pkg="PyYAML")
+        win = v.command_for_platform("python_pkg_missing",
+                                     "windows-powershell", pkg="PyYAML")
+        self.assertIn("PyYAML", unix)
+        self.assertIn("PyYAML", win)
+        self.assertNotIn(" yaml", unix,
+                         f"unix command contains bare `yaml` not `PyYAML`: {unix!r}")
+        self.assertNotIn(" yaml", win,
+                         f"windows command contains bare `yaml` not `PyYAML`: {win!r}")
+
     def test_shell_command_codes_are_real_commands(self) -> None:
         """The codes the python3/&& lint applies to actually produce
         a shell command token on Unix (sanity that the lint isn't
