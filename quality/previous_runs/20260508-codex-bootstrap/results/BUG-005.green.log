@@ -1,9 +1,0 @@
-GREEN
-Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_005_phase1_validator_enforces_the_written_gate after git apply quality/patches/BUG-005-fix.patch
-Patch apply exit code: 0
-Exit code: 0
-
-Full test output:
-test_bug_005_phase1_validator_enforces_the_written_gate (quality.test_regression.CodeReviewRegressionTests.test_bug_005_phase1_validator_enforces_the_written_gate) ... ok
-
-OK

@@ -1,5 +1,0 @@
-GREEN
---- Test output for BUG-013 green phase ---
-Command: bash -c set -uo pipefail; resolved=(); REPO_DIRS=("${resolved[@]+"${resolved[@]}"}") (after applying fix patch)
-Exit code: 0
-After applying BUG-013-fix.patch, empty resolved array is handled using ${resolved[@]+"${resolved[@]}"} pattern which avoids unbound variable on bash 3.2.

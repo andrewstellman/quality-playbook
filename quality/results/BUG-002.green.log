@@ -1,9 +1,0 @@
-GREEN
-Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_002_docs_present_uses_the_recognized_plaintext_predicate after git apply quality/patches/BUG-002-fix.patch
-Patch apply exit code: 0
-Exit code: 0
-
-Full test output:
-test_bug_002_docs_present_uses_the_recognized_plaintext_predicate (quality.test_regression.CodeReviewRegressionTests.test_bug_002_docs_present_uses_the_recognized_plaintext_predicate) ... ok
-
-OK

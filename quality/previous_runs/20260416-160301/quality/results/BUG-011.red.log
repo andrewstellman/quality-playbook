@@ -1,7 +1,0 @@
-RED
---- Test output for BUG-011 red phase ---
-Command: grep -c TDD_TRACEABILITY quality_gate.sh
-Exit code: 1
-TDD_TRACEABILITY mentions in quality_gate.sh: 0
-0
-Result: TDD_TRACEABILITY.md has 0 mentions in quality_gate.sh — gate does not check for it.

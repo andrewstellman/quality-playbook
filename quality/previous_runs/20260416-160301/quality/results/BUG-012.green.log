@@ -1,5 +1,0 @@
-GREEN
---- Test output for BUG-012 green phase ---
-Command: test -f references/review_protocols.md.orig (after applying fix patch)
-Exit code: 0
-After applying BUG-012-fix.patch, review_protocols.md.orig is deleted from references/ directory. No stale backup files remain.

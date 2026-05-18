@@ -1,4 +1,0 @@
-Command: python3 -m unittest quality.test_functional.SpecRequirementTests.test_req_001_treats_cite_only_docs_as_docs_backed_input quality.test_functional.SpecRequirementTests.test_req_002_uses_one_recognized_docs_predicate -v
-Exit code: 1
-
-FAILED (failures=2)

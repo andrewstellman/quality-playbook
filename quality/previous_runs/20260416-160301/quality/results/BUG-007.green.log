@@ -1,6 +1,0 @@
-GREEN
-Test: test_bug_007_version_path_asymmetry (after applying BUG-007-fix.patch)
-Date: 2026-04-15
-Bug: BUG-007 — Version detection path asymmetry between global and per-repo checks
-Result: PASS — after fix, per-repo version stamp check includes all 6 paths matching global detection
-Evidence: Fix adds ${SCRIPT_DIR}/../SKILL.md and ${SCRIPT_DIR}/SKILL.md to per-repo path list.

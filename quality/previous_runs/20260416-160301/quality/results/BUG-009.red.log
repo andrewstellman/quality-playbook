@@ -1,5 +1,0 @@
-RED
---- Test output for BUG-009 red phase ---
-Command: grep -q .github/skills/references/ SKILL.md
-Exit code: 1
-FAIL: TOOLKIT.md instructs .github/skills/references/ but SKILL.md does not include this path in its fallback chain

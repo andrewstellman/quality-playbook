@@ -1,5 +1,0 @@
-Command: python3 -m unittest quality.test_functional.SpecRequirementTests.test_req_003_limits_tier4_ingest_to_top_level_plaintext quality.test_functional.SpecRequirementTests.test_req_004_preserves_citable_vs_context_placement -v
-Exit code: 1
-
-event=mirror_complete source=<temp>/docs_gathered dest=<temp>/reference_docs files_copied=1
-FAILED (failures=2)
