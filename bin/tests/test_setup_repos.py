@@ -100,6 +100,9 @@ def _run_setup(script: Path, args: list[str]) -> subprocess.CompletedProcess:
     )
 
 
+@unittest.skipUnless(
+    os.name != "nt",
+    "setup_repos.sh is Linux/macOS-only — see addendum §2.2 (W5)")
 class SetupReposBackupTests(unittest.TestCase):
     """v1.5.7 fix F-3 — backup-by-default with --replace opt-in."""
 
@@ -202,6 +205,9 @@ class SetupReposBackupTests(unittest.TestCase):
             self.assertEqual(backups, [])
 
 
+@unittest.skipUnless(
+    os.name != "nt",
+    "setup_repos.sh is Linux/macOS-only — see addendum §2.2 (W5)")
 class SetupReposRunnerWrapperTests(unittest.TestCase):
     """v1.5.7 fix F-5b: setup_repos.sh installs the runner wrapper at
     <repo>-<version>/bin/run_playbook.sh so adopters can invoke the
@@ -262,6 +268,9 @@ class SetupReposRunnerWrapperTests(unittest.TestCase):
             self.assertIn("usage:", result2.stdout)
 
 
+@unittest.skipUnless(
+    os.name != "nt",
+    "setup_repos.sh is Linux/macOS-only — see addendum §2.2 (W5)")
 class SetupReposBinBundleTests(unittest.TestCase):
     """v1.5.7 instruction 049 A-6: setup_repos.sh must bundle
     bin/reference_docs_ingest.py (+ its stdlib-only transitive dep
