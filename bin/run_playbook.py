@@ -53,6 +53,35 @@ ALL_STRATEGIES = ["gap", "unfiltered", "parity", "adversarial"]
 VALID_STRATEGIES = frozenset(ALL_STRATEGIES)
 PID_FILE = lib.QPB_DIR / ".run_pids"
 
+# v1.5.7 A-22 structural defense (instruction 084). Live ship-validation
+# (copilot httpx, 2026-05-18) surfaced an agent honoring Phase 0 then
+# invoking the runner itself for Phases 1-6 — a Mode A -> Mode B drift
+# the SKILL.md "default to Mode A" prose could not prevent. Presence of
+# ANY of these env vars indicates the runner is being invoked from
+# inside an AI-agent session. The first three are empirically verified
+# (codex 0.125.0 / copilot-cli 1.0.48 / Claude Code documented); the
+# remainder are forward-compatibility placeholders, added but NOT
+# claimed verified.
+_AGENT_CONTEXT_SIGNALS: dict[str, str] = {
+    "CODEX_THREAD_ID":          "Codex CLI",
+    "COPILOT_AGENT_SESSION_ID": "GitHub Copilot CLI",
+    "CLAUDECODE":               "Claude Code",
+    "CURSOR_AGENT":             "Cursor",
+    "CONTINUE_SESSION":         "Continue",
+    "WINDSURF_AGENT":           "Windsurf",
+}
+
+
+def _detect_agent_context() -> "Optional[str]":
+    """Return the human-readable name of the AI-agent context if
+    `run_playbook.py` is being invoked from inside one, else None.
+    Detection is env-var based per `_AGENT_CONTEXT_SIGNALS`.
+    """
+    for var, name in _AGENT_CONTEXT_SIGNALS.items():
+        if os.environ.get(var):
+            return name
+    return None
+
 
 def parse_strategy_list(value: str) -> List[str]:
     """Parse --strategy value into an ordered list of concrete strategies.
@@ -352,6 +381,18 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("--next-iteration", action="store_true", help="Iterate on an existing quality/ run.")
+    parser.add_argument(
+        "--operator-invoked",
+        action="store_true",
+        help=(
+            "Acknowledge that this runner invocation is intended (you are "
+            "an operator running from a shell, not an agent reaching for "
+            "the runner from inside a Claude Code / Copilot / Codex / "
+            "Cursor session). The startup agent-context check (v1.5.7 A-22) "
+            "refuses unless this flag, --next-iteration, or no agent "
+            "context is detected."
+        ),
+    )
     parser.add_argument(
         "--full-run",
         action="store_true",
@@ -5383,7 +5424,81 @@ def print_suggested_next_command(
     print("-" * 56)
 
 
+def _check_agent_context_or_refuse(argv: "Sequence[str]") -> None:
+    """If running inside an agent context AND no explicit operator
+    opt-in, refuse with a Mode-A-directing error message.
+
+    Operates on the *raw* effective argv (token membership), NOT on a
+    parsed argparse.Namespace, and is called at the very top of main()
+    BEFORE parse_args. Rationale: the refusal must fire before ANY
+    other work (instruction-084 codex contract #2) so the agent sees
+    only the error — but argparse processes `--help` *during*
+    parse_args and exits 0 before a post-parse refusal could run.
+    Raw-argv carve-out detection is robust for this guard: an agent
+    reaching for the runner does not pass these flags, the worker
+    self-spawn always passes the literal `--worker`, and the operator
+    override / iteration handoff pass the literal flags.
+
+    Carve-outs (legitimate non-agent-reaching invocations):
+      - --worker: an undocumented (argparse.SUPPRESS) internal flag set
+        ONLY by build_worker_command()'s self-spawn. A --worker process
+        is by definition an already-vetted recursive invocation — the
+        parent run_playbook already passed this gate. Workers inherit
+        the parent's environment (subprocess.Popen at the parallel
+        dispatch passes no env=), so without this carve-out parallel
+        mode would refuse its own workers under any agent terminal
+        (instruction-084 halt-condition #4 — the sanctioned fix).
+      - --next-iteration: SKILL.md §"Iteration strategies" mandates
+        that iterations after Phase 6 hand off to the runner.
+      - --operator-invoked: explicit operator override for the case
+        where the operator is running the runner from a shell that
+        happens to be inside an agent terminal.
+    """
+    tokens = set(argv or ())
+    if tokens & {"--worker", "--next-iteration", "--operator-invoked"}:
+        return
+    agent = _detect_agent_context()
+    if agent is None:
+        return
+    sys.stderr.write(
+        f"\nERROR: bin/run_playbook.py detected it is being invoked from\n"
+        f"inside an AI-agent session ({agent}).\n"
+        f"\n"
+        f"This usually means the operator asked the agent to \"Run the\n"
+        f"Quality Playbook\" and the agent reached for the runner. The\n"
+        f"Quality Playbook's Mode A contract is that the AGENT walks\n"
+        f"Phases 1-6 inline using `phase_prompts/phase{{1..6}}.md`,\n"
+        f"writing artifacts to `<target>/quality/` directly. The runner\n"
+        f"is for operators invoking from a shell, or for the\n"
+        f"post-Phase-6 iteration handoff (`--next-iteration`).\n"
+        f"\n"
+        f"To fix:\n"
+        f"  - If you are the agent: stop. Walk Phases 1-6 inline per\n"
+        f"    SKILL.md \"Mode A entry sequence\". Do NOT re-invoke this\n"
+        f"    runner. See SKILL.md \"When in doubt, default to Mode A.\"\n"
+        f"  - If you are the operator running from inside an agent\n"
+        f"    terminal and you really want Mode B: pass\n"
+        f"    `--operator-invoked` to acknowledge the override.\n"
+        f"  - If this is a legitimate post-Phase-6 iteration: the\n"
+        f"    --next-iteration flag carve-out should already have\n"
+        f"    fired; check your invocation.\n"
+        f"\n"
+        f"Detected signal: env var present that names this agent CLI.\n"
+        f"This is the v1.5.7 A-22 structural defense (instruction 084).\n"
+    )
+    sys.exit(2)
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    # v1.5.7 A-22 (instruction 084): refuse agent-context invocations
+    # BEFORE parse_args — argparse would otherwise short-circuit
+    # `--help` at exit 0 before a post-parse refusal could fire — and
+    # before any dispatch / logs / state writes, so the agent sees only
+    # the Mode-A-directing error. Carve-outs (worker self-spawn,
+    # --next-iteration handoff, --operator-invoked override) handled
+    # inside via raw-argv token membership.
+    _effective_argv = list(argv) if argv is not None else sys.argv[1:]
+    _check_agent_context_or_refuse(_effective_argv)
     args = parse_args(argv)
     if args.kill:
         return kill_recorded_processes(

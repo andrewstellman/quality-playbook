@@ -116,6 +116,22 @@ For the underlying script's full options, see `bin/install_skill.py --help`.
 
 ## Mode A entry sequence (interactive coding sessions)
 
+**DO NOT invoke `bin/run_playbook.py` from inside your agent session.**
+If the operator asked "Run the Quality Playbook on this project", they
+expect YOU (the agent) to walk Phases 1-6 inline using the phase
+prompts in `phase_prompts/`. The runner is for operators invoking from
+a bare shell, or for the post-Phase-6 iteration handoff (the runner
+will refuse with a clear error if you try). See SKILL.md §"When in
+doubt, default to Mode A."
+
+This rule exists because the 2026-05-18 copilot httpx run surfaced an
+agent-initiated Mode A → Mode B handoff: copilot read the launch
+prompt, honored the Phase 0 install+validate sequence correctly, then
+invoked `bin.run_playbook --copilot --phase 1,2,3,4,5,6` on its own
+initiative. The runner now refuses such invocations structurally (env-
+var based, see `bin/run_playbook.py::_check_agent_context_or_refuse`);
+this prose is the prose-level companion to the mechanical defense.
+
 **This is the canonical Phase 0 for any interactive Mode A run** (Claude Code, Cursor, Copilot UI, Codex desktop — any session where the operator watches your chat). SKILL.md's Mode A intro points here; this section is the full protocol. **Installing the skill into the target is a MANDATORY first action — not implicit in "run the playbook".**
 
 1. **Read `SKILL.md` from this repo** (the QPB source clone) to learn the Mode A walkthrough.

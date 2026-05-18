@@ -24,15 +24,25 @@ _EXPECTED_FINDING_CODES = {
     "bash_unavailable_mechanical_required",
     "bash_unavailable_mechanical_not_required",
     "validator_invoked_from_clone", "multiple_ai_tool_markers",
+    # v1.5.7 instruction 084 (A-20 reframed): the 14th code. Live
+    # ship-validation (codex click, 2026-05-18) showed an agent
+    # mis-reading a stale quality/ tree as a resumable run; this
+    # blocked-severity finding makes the validator say so.
+    "stale_quality_dir",
 }
 
 
 class RemediationCatalogTests(unittest.TestCase):
 
-    def test_catalog_has_exactly_13_codes(self) -> None:
-        """§3.3.2 is a 13-code catalog (addendum §13 '13 codes')."""
+    def test_catalog_has_exactly_14_codes(self) -> None:
+        """§3.3.2 was a 13-code catalog through v1.5.7-083b; instruction
+        084 (A-20 reframed) adds the 14th, `stale_quality_dir`. NOTE:
+        addendum §13's "13 codes" prose is now stale — that is an
+        orchestrator/addendum-owned doc-currency follow-up (the worker
+        must not modify the canonical addendum spec); the catalog
+        itself is the source of truth and this pin tracks it."""
         self.assertEqual(set(v.FINDING_CATALOG), _EXPECTED_FINDING_CODES)
-        self.assertEqual(len(v.FINDING_CATALOG), 13)
+        self.assertEqual(len(v.FINDING_CATALOG), 14)
 
     def test_every_manifest_kind_maps_to_a_finding_code(self) -> None:
         """Every kind in the three manifests has >=1 catalog code.

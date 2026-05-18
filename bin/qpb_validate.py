@@ -57,7 +57,7 @@ import py_compile
 import shutil
 import tempfile
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 __all__ = [
     "INSTALL_CLOSURE",
@@ -438,6 +438,61 @@ FINDING_CATALOG = {
         "rationale": "Target has 2+ AI-tool markers; the install path is ambiguous without an explicit --ai-tool.",
         "verify_with": "python <clone>/bin/qpb_validate.py <target> --ai-tool <tool>",
     },
+    "stale_quality_dir": {
+        "tool": "resolve_stale_quality",
+        "severity": "blocked",
+        "commands": {
+            "macos": (
+                "Resolve stale <target>/quality/ explicitly. Choose one:\n"
+                "  (a) Fresh start (recommended for new runs):\n"
+                "      git -C <target> restore quality && git -C <target> clean -fd quality\n"
+                "  (b) Continue a previous run (only if you intend resume):\n"
+                "      pass --resume to bin/run_playbook (Mode B) or read "
+                "      quality/PROGRESS.md to identify the last completed phase "
+                "      (Mode A walk-from-checkpoint)."
+            ),
+            "linux": (
+                "Resolve stale <target>/quality/ explicitly. Choose one:\n"
+                "  (a) Fresh start (recommended for new runs):\n"
+                "      git -C <target> restore quality && git -C <target> clean -fd quality\n"
+                "  (b) Continue a previous run (only if you intend resume):\n"
+                "      pass --resume to bin/run_playbook (Mode B) or read "
+                "      quality/PROGRESS.md to identify the last completed phase "
+                "      (Mode A walk-from-checkpoint)."
+            ),
+            "windows_powershell": (
+                "Resolve stale <target>\\quality\\ explicitly. Choose one:\n"
+                "  (a) Fresh start (recommended for new runs):\n"
+                "      git -C <target> restore quality; git -C <target> clean -fd quality\n"
+                "  (b) Continue a previous run (only if you intend resume):\n"
+                "      pass --resume to bin/run_playbook (Mode B) or read "
+                "      quality\\PROGRESS.md to identify the last completed phase "
+                "      (Mode A walk-from-checkpoint)."
+            ),
+            "windows_cmd": (
+                "Resolve stale <target>\\quality\\ explicitly. Choose one:\n"
+                "  (a) Fresh start (recommended for new runs):\n"
+                # cmd.exe sequencing is `&` (single); `&&` is forbidden
+                # in windows-cmd catalog forms — see
+                # test_qpb_validate_remediation_commands::
+                # test_no_double_ampersand_in_cmd_forms. (macos/linux
+                # bash keep `&&`; windows_powershell uses `;`.)
+                "      git -C <target> restore quality & git -C <target> clean -fd quality\n"
+                "  (b) Continue a previous run (only if you intend resume):\n"
+                "      pass --resume to bin/run_playbook (Mode B) or read "
+                "      quality\\PROGRESS.md to identify the last completed phase "
+                "      (Mode A walk-from-checkpoint)."
+            ),
+        },
+        "rationale": (
+            "<target>/quality/ contains files but no active-run marker. "
+            "Agents have been observed (codex Mode A on click 2026-05-18) "
+            "treating this state as a resumable run and skipping the "
+            "Phase 0 install/validate sequence. Resolve explicitly: "
+            "either clean and restart, or resume deliberately."
+        ),
+        "verify_with": _REVALIDATE,
+    },
 }
 
 # §3.2 kind -> §3.3.2 finding code(s). Acceptance #12 asserts every
@@ -464,6 +519,10 @@ KIND_TO_FINDING_CODES = {
         "bash_unavailable_mechanical_required",
         "bash_unavailable_mechanical_not_required",
     ],
+    # v1.5.7 A-20 reframed (instruction 084). Not a manifest kind — a
+    # synthetic hygiene kind for the stale-quality-dir block; carries
+    # its own dedicated catalog code.
+    "install_hygiene": ["stale_quality_dir"],
 }
 
 
@@ -913,6 +972,83 @@ def _build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _is_recent_run_start(line: str, *, now: "datetime | None" = None,
+                         window_hours: int = 24) -> bool:
+    """True iff `line` carries a `ts` value within `window_hours` of
+    now. Dependency-free parse (no json/re — qpb_validate intentionally
+    keeps a minimal stdlib import surface): the timestamp is the first
+    quoted value following the ``"ts"`` key. Any parse/format failure
+    is treated as "not recent" — the conservative direction, since a
+    stale-but-unparseable marker should still block (A-20)."""
+    i = line.find('"ts"')
+    if i == -1:
+        return False
+    rest = line[i + 4:]
+    colon = rest.find(":")
+    if colon == -1:
+        return False
+    rest = rest[colon + 1:]
+    q1 = rest.find('"')
+    if q1 == -1:
+        return False
+    q2 = rest.find('"', q1 + 1)
+    if q2 == -1:
+        return False
+    try:
+        ts = datetime.fromisoformat(rest[q1 + 1:q2].strip())
+    except ValueError:
+        return False
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    cur = now or datetime.now(timezone.utc)
+    return (cur - ts) <= timedelta(hours=window_hours)
+
+
+def check_stale_quality_dir(target: Path) -> "list[dict]":
+    """Return findings if <target>/quality/ contains files but no
+    active-run marker. An active-run marker is presence of
+    quality/run_state.jsonl with at least one event=run_start line
+    whose ts is within the last 24 hours (a heuristic for "active or
+    very recent" — older state is treated as stale).
+
+    Why 24h: arbitrary but generous; longer than any plausible
+    in-flight run, shorter than a "definitely stale" gap.
+    """
+    findings: "list[dict]" = []
+    qdir = target / "quality"
+    if not qdir.is_dir():
+        return findings
+    # Non-empty check: any file (skip dotfiles like .qpb_validation_*
+    # which the validator itself writes — those are witness artifacts,
+    # not playbook state, and would create a chicken-and-egg loop).
+    visible = [
+        p for p in qdir.rglob("*")
+        if p.is_file() and not p.name.startswith(".")
+    ]
+    if not visible:
+        return findings
+    # Active-run marker check.
+    run_state = qdir / "run_state.jsonl"
+    if run_state.is_file():
+        try:
+            for line in run_state.read_text(encoding="utf-8").splitlines():
+                if ('"event": "run_start"' in line
+                        or "event=run_start" in line):
+                    if _is_recent_run_start(line):
+                        return findings
+        except OSError:
+            pass
+    findings.append({
+        "code": "stale_quality_dir",
+        "kind": "install_hygiene",
+        "path": "quality/",
+        "detail": (
+            f"{len(visible)} file(s) under quality/ without an active-run marker"
+        ),
+    })
+    return findings
+
+
 def main(argv: "list[str] | None" = None) -> int:
     args = _build_parser().parse_args(argv)
     argv_list = list(sys.argv[1:] if argv is None else argv)
@@ -978,6 +1114,16 @@ def main(argv: "list[str] | None" = None) -> int:
             **{k: ("yes" if v else "no") for k, v in pkg_mgrs.items()})
 
     findings: "list[dict]" = []
+
+    # v1.5.7 A-20 reframed (instruction 084): run the stale-quality
+    # hygiene check FIRST so an agent that found a stale quality/ tree
+    # from a prior aborted run sees a blocked finding before it can
+    # mis-read the artifacts as a resumable run and skip Phase 0.
+    stale_findings = check_stale_quality_dir(target)
+    for f in stale_findings:
+        em.emit("install_hygiene_check", path=f["path"], kind=f["kind"],
+                status="fail", detail=f["detail"])
+    findings.extend(stale_findings)
 
     # install_wrong_ai_tool: requested tool's path absent while a
     # different marker's install is present.
