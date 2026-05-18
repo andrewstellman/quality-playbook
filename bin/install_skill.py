@@ -185,6 +185,44 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
         _mod_src = source_root / "bin" / _mod_name
         if _mod_src.is_file():
             files.append((_mod_src, Path("bin") / _mod_name))
+    # v1.5.7 instruction 086 (A-26): bundle the three remaining
+    # adopter-facing bin/*.py modules SKILL.md / phase_prompts hard-
+    # reference but the install bundle previously omitted. Surfaced
+    # 2026-05-18 by gh copilot Mode B on httpx: agent honestly ran
+    # Phase 1, tried `python3 -m bin.validate_phase_artifacts . --phase
+    # 1` per phase_prompts/phase1.md:79-81, hit ModuleNotFoundError,
+    # correctly diagnosed the bundle gap. The Mode A runs that
+    # succeeded (cobra Claude Code, click codex CLI, gson Claude Code)
+    # only worked because Claude Code / codex CLI have lax filesystem
+    # sandboxes that silently fell back to running modules from the
+    # QPB source clone; sandboxed agents (gh copilot, codex desktop
+    # subprocess) hit hard ImportError. Bundling these three closes
+    # the adopter-path bundle gap.
+    #
+    # Why these three specifically (and no others): grep SKILL.md +
+    # phase_prompts/*.md for `bin\.[a-z_]+` → the union of referenced
+    # module names, minus the modules already bundled above, minus the
+    # two QPB-operator-side entry points adopters do NOT run from
+    # install_root (bin.run_playbook is the Mode-B harness invoked
+    # from the QPB clone; bin.qpb_validate is the Phase 0 entry-point
+    # also invoked from the QPB clone per SKILL.md:681 / README
+    # Step 4). What remains: run_state_lib, validate_phase_artifacts,
+    # qpb_config.
+    #
+    # Import closure: run_state_lib.py + qpb_config.py are stdlib-only
+    # (no `from bin` / `import bin` at module level);
+    # validate_phase_artifacts.py's only internal import is
+    # `from bin import role_map` (with an `import role_map` fallback)
+    # and role_map.py is already bundled by the 050 A-6.2 loop above.
+    # Closure terminates after these three additions.
+    for _mod_name in (
+        "run_state_lib.py",
+        "validate_phase_artifacts.py",
+        "qpb_config.py",
+    ):
+        _mod_src = source_root / "bin" / _mod_name
+        if _mod_src.is_file():
+            files.append((_mod_src, Path("bin") / _mod_name))
     return files
 
 
@@ -502,6 +540,61 @@ def smoke_check_bundle_presence(
     return True
 
 
+def smoke_check_bundled_modules(target: Path, emitter: Emitter) -> bool:
+    """v1.5.7 instruction 086 (A-26): the three adopter-facing modules
+    bundled by 086 (run_state_lib, validate_phase_artifacts,
+    qpb_config) must IMPORT cleanly as `bin.<module>` from the install
+    root — not merely be present + non-empty
+    (smoke_check_bundle_presence already covers presence/size). This
+    reproduces the EXACT adopter path that 2026-05-18 gh-copilot-on-
+    httpx hit ImportError on (`PYTHONPATH=<install_root> python3 -m
+    bin.validate_phase_artifacts`), so it also exercises the real
+    `from bin import role_map` closure resolving against the bundled
+    role_map at the install root — not just a syntax check.
+
+    Run in a subprocess with `-B` (no __pycache__ written into the
+    install tree), mirroring smoke_check_quality_gate's side-effect-
+    free pattern. (The in-process spec_from_file_location/exec_module
+    approach is unreliable for dotted `bin.<name>` modules — no parent
+    package in sys.modules → AttributeError.) Additive: does not
+    change any existing smoke check.
+    """
+    try:
+        result = subprocess.run(
+            [
+                sys.executable, "-B", "-c",
+                (
+                    "import sys; sys.path.insert(0, sys.argv[1]); "
+                    "import bin.run_state_lib, "
+                    "bin.validate_phase_artifacts, bin.qpb_config"
+                ),
+                str(target),
+            ],
+            capture_output=True, text=True, timeout=30, check=False,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        emitter.emit(
+            "smoke_check", check="bundled_modules", status="failed",
+            detail=type(exc).__name__,
+            prose=f"bundled-module import smoke check failed: {exc}",
+        )
+        return False
+    if result.returncode != 0:
+        emitter.emit(
+            "smoke_check", check="bundled_modules", status="failed",
+            detail=f"import-exit-{result.returncode}",
+            prose=(f"bundled-module import failed at install root: "
+                   f"{result.stderr.strip()[:500]}"),
+        )
+        return False
+    emitter.emit(
+        "smoke_check", check="bundled_modules", status="passed",
+        prose="run_state_lib + validate_phase_artifacts + qpb_config "
+              "import cleanly as bin.* from the install root",
+    )
+    return True
+
+
 def _parse_yaml_frontmatter(text: str) -> Optional[dict[str, str]]:
     """Lightweight YAML-frontmatter parser sufficient for the smoke check.
     Recognizes ``key: value`` pairs between leading ``---`` fences,
@@ -800,6 +893,8 @@ def install(
         if not smoke_check_exploration_patterns(target, emitter):
             smoke_failed += 1
         if not smoke_check_bundle_presence(target, source_root, emitter):
+            smoke_failed += 1
+        if not smoke_check_bundled_modules(target, emitter):
             smoke_failed += 1
 
     error_count = sum(1 for s in statuses if s == "error")

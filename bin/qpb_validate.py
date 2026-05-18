@@ -129,7 +129,9 @@ INSTALL_CLOSURE = [
     {"path": "agents/quality-playbook-claude.agent.md", "kind": "agent_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "agents/quality-playbook.agent.md", "kind": "agent_file", "min_version": None, "expected_sha256": None, "source_glob": None},
 
-    # ---- bin/ (10 — fixed enumeration from install_skill.py) ----
+    # ---- bin/ (13 — fixed enumeration from install_skill.py;
+    #      v1.5.7 086 A-26 added qpb_config / run_state_lib /
+    #      validate_phase_artifacts) ----
     {"path": "bin/__init__.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/archive_lib.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/benchmark_lib.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
@@ -137,9 +139,12 @@ INSTALL_CLOSURE = [
     {"path": "bin/council_config.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/council_semantic_check.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/migrate_v1_5_0_layout.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/qpb_config.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/quality_playbook.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/reference_docs_ingest.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/role_map.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/run_state_lib.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/validate_phase_artifacts.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
 
     # ---- phase_prompts/ (10 — sorted glob "*.md"; phase0.md does NOT
     #      exist; README.md/iteration.md/single_pass.md ARE bundled) ----
@@ -178,7 +183,11 @@ INSTALL_CLOSURE = [
     {"path": "references/verification.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/what_just_happened.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
 ]
-# Total: 2 + 3 + 10 + 10 + 22 = 47 entries.
+# Total: 2 + 3 + 13 + 10 + 22 = 50 entries (v1.5.7 086 A-26: bin/
+# grew 10 → 13 — qpb_config / run_state_lib / validate_phase_artifacts
+# added to install_skill.py:_bundle_files() because SKILL.md /
+# phase_prompts hard-reference them as adopter-runnable; INSTALL_CLOSURE
+# is the machine-derived mirror, kept in lockstep per the drift test).
 # Acceptance #11: set(e["path"]) == set(str(dst) for _, dst in _bundle_files()).
 
 INSTALL_SCAFFOLDING = [

@@ -958,9 +958,12 @@ _FLAT_LAYOUT_BUNDLED_BIN_FILES = frozenset({
     "council_config.py",
     "council_semantic_check.py",
     "migrate_v1_5_0_layout.py",
+    "qpb_config.py",                 # v1.5.7 086 A-26
     "quality_playbook.py",
     "reference_docs_ingest.py",
     "role_map.py",
+    "run_state_lib.py",             # v1.5.7 086 A-26
+    "validate_phase_artifacts.py",  # v1.5.7 086 A-26
 })
 
 # QPB-owned top-level subtrees/files in the flat (setup_repos.sh /
