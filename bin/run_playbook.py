@@ -421,11 +421,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "Acknowledge that this runner invocation is intended (you are "
-            "an operator running from a shell, not an agent reaching for "
-            "the runner from inside a Claude Code / Copilot / Codex / "
-            "Cursor session). The startup agent-context check (v1.5.7 A-22) "
-            "refuses unless this flag, --next-iteration, or no agent "
-            "context is detected."
+            "a HUMAN operator running from an INTERACTIVE TERMINAL, not "
+            "an agent reaching for the runner from inside a Claude Code / "
+            "Copilot / Codex / Cursor session). The startup agent-context "
+            "check (v1.5.7 A-22) refuses unless: --worker / --next-iteration "
+            "are set, OR --operator-invoked is set AND stdin is a TTY, OR "
+            "no agent context is detected. The TTY requirement (085) "
+            "prevents agents that read --help output from fabricating "
+            "the bypass — agents' subprocess.run() calls pipe stdin."
         ),
     )
     parser.add_argument(
@@ -5494,16 +5497,48 @@ def _check_agent_context_or_refuse(argv: "Sequence[str]") -> None:
          halt-condition #4 — the sanctioned fix).
       3. --next-iteration: SKILL.md §"Iteration strategies" mandates
          that iterations after Phase 6 hand off to the runner.
-      4. --operator-invoked: explicit operator override for the case
-         where the operator is running the runner from a shell that
-         happens to be inside an agent terminal.
+      4. --operator-invoked: human-operator override for running the
+         runner from a shell that happens to be inside an agent
+         terminal. HARDENED (085): the flag alone is insufficient —
+         agents read --help and fabricate it (2026-05-18 codex desktop
+         did). It bypasses ONLY together with an unfabricatable signal:
+         interactive stdin (sys.stdin.isatty()), or the out-of-band CI
+         env var documented solely in docs/CI_INTEGRATION.md.
     Only after ALL carve-outs fail does the env-var detection fire.
     """
     if _is_informational_or_management_invocation(argv):
         return
     tokens = set(argv or ())
-    if tokens & {"--worker", "--next-iteration", "--operator-invoked"}:
+    # Mechanically-set carve-outs: --worker (runner self-spawn) and
+    # --next-iteration (post-Phase-6 iteration handoff). Agents do NOT
+    # fabricate these from --help output — both are set by code paths
+    # the parent runner already vetted, OR by the iteration loop that
+    # follows a completed Phase 6. Semantics unchanged (085).
+    if tokens & {"--worker", "--next-iteration"}:
         return
+    # --operator-invoked is the human-operator override. Agents can
+    # read argparse --help and find this flag (2026-05-18 codex desktop
+    # did exactly this, then passed it). Require an additional signal an
+    # agent can't fabricate from documentation: stdin being a TTY
+    # (interactive operator at a real terminal). Agents' subprocess.run
+    # calls pipe stdin; an operator running run_playbook from an
+    # interactive shell has TTY stdin even when that shell is hosted
+    # inside an agent terminal (Claude Code, Codex desktop, Cursor IDE).
+    # CI escape hatch (no TTY): an out-of-band env var documented ONLY
+    # in docs/CI_INTEGRATION.md — deliberately absent from every
+    # agent-visible surface (SKILL.md / AGENTS.md / README.md / --help /
+    # this refusal message) so an agent reading the launch contract
+    # cannot learn it (085).
+    if "--operator-invoked" in tokens:
+        try:
+            if sys.stdin.isatty():
+                return
+        except (ValueError, OSError):
+            # stdin closed / not real (daemon context); fall through
+            # to the env-var CI escape hatch, then agent detection.
+            pass
+        if os.environ.get("QPB_OPERATOR_NON_TTY_OVERRIDE") == "1":
+            return
     agent = _detect_agent_context()
     if agent is None:
         return
@@ -5523,9 +5558,12 @@ def _check_agent_context_or_refuse(argv: "Sequence[str]") -> None:
         f"  - If you are the agent: stop. Walk Phases 1-6 inline per\n"
         f"    SKILL.md \"Mode A entry sequence\". Do NOT re-invoke this\n"
         f"    runner. See SKILL.md \"When in doubt, default to Mode A.\"\n"
-        f"  - If you are the operator running from inside an agent\n"
+        f"  - If you are a human operator running from inside an agent\n"
         f"    terminal and you really want Mode B: pass\n"
-        f"    `--operator-invoked` to acknowledge the override.\n"
+        f"    `--operator-invoked` from an INTERACTIVE TERMINAL (stdin\n"
+        f"    must be a TTY). The flag alone is not enough — agents that\n"
+        f"    read this error message will not be able to satisfy the\n"
+        f"    TTY check.\n"
         f"  - If this is a legitimate post-Phase-6 iteration: the\n"
         f"    --next-iteration flag carve-out should already have\n"
         f"    fired; check your invocation.\n"

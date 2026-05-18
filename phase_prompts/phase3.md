@@ -19,6 +19,32 @@ Run the 3-pass code review per quality/RUN_CODE_REVIEW.md. For every confirmed b
 - Write code review reports to quality/code_reviews/
 - Update PROGRESS.md BUG tracker
 
+**Recommended: disposable git worktree for executable RED→GREEN verification.**
+When your regression-test patch and fix patch need to compile or
+execute to validate (Go, TypeScript, Rust — languages where `git apply
+--check` alone doesn't catch semantic regressions), use an ephemeral
+`git worktree` so the source tree is never mutated even transiently:
+
+```
+git worktree add /tmp/qpb-validate-<bug-id> HEAD
+cd /tmp/qpb-validate-<bug-id>
+git apply <path-to-regression-test>.patch
+<run the project's test command>   # expect FAIL (RED)
+git apply <path-to-fix>.patch
+<run the project's test command>   # expect ok (GREEN)
+cd <original target dir>
+git worktree remove /tmp/qpb-validate-<bug-id>
+```
+
+This is OPTIONAL — `git apply --check` is sufficient for mechanical
+patch validation per the existing source-unchanged invariant. The
+worktree pattern is preferred when patches need execution because:
+- The source tree is never modified, not even transiently
+- Multiple bugs can be validated in parallel worktrees
+- Discard is one command (`git worktree remove`)
+- 2026-05-18 Claude Code Opus 4.7 used this pattern on cobra to
+  validate 5 bugs RED→GREEN without ever touching the source tree
+
 ### MANDATORY GRID STEP (Lever 2, v1.5.2) — pattern-tagged REQs only
 
 For every REQ in quality/REQUIREMENTS.md that has a `Pattern:` field (`whitelist`, `parity`, or `compensation`), you MUST produce a compensation grid BEFORE writing any BUG entries for that REQ.

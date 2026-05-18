@@ -305,10 +305,19 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # before-claim). phase1/phase3/phase4/single_pass/iteration
         # UNCHANGED. Hashes recomputed — this baseline update IS the
         # sanctioned change-acknowledgement signal.
+        # v1.5.7 instruction 085 (A-22 TTY hardening side-deliverable):
+        # phase3.md + phase5.md gained a RECOMMENDED (not required)
+        # disposable-`git worktree` RED→GREEN guidance paragraph (the
+        # 2026-05-18 Claude Code cobra run demonstrated it). phase3
+        # codepoint length 9778 → 10969; phase5 16089 → 16790.
+        # phase1/phase2/phase4/phase6/single_pass/iteration UNCHANGED
+        # (each prompt is its own file; 085 touched only phase3/phase5).
+        # Hashes recomputed — this baseline update IS the sanctioned
+        # change-acknowledgement signal.
         "phase2":                (10096, "ecb68817dfdacc979d9dca4c5765e179e209e0970a4633df717856ab5a1f2e3f"),
-        "phase3":                ( 9778, "3232173110c93b465e00ef8a7c0aef226fd6d9a5bd90ed0854990e94ce0a5217"),
+        "phase3":                (10969, "f9270b90cf41f73000844ecec2739d7de5177cbe2cdc779bf9d6dcaee2846b79"),
         "phase4":                ( 3911, "923e0198ca39182397e118f45452afcfde54731a46f5414bcd99431812af752f"),
-        "phase5":                (16089, "45e98e946f94673dee7b75b7e2b31bbc618cdba111b608f7fbf34ac1389087ea"),
+        "phase5":                (16790, "4dedef4a3fb29832bac1ec4699c64f073d3d7b976b37239442a4477a56851502"),
         # v1.5.7 instruction 071 (A-13 hybrid): phase6.md rewritten
         # for fresh-context sub-agent delegation of Phase 6
         # verification (principled A-17 exception). The old inline

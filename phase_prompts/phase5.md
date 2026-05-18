@@ -117,6 +117,17 @@ Execute Phase 5: Reconciliation + TDD + Closure.
    pedagogical markers from the worked example and from SKILL.md, never acceptable
    output.
 4. Run the TDD red-green cycle: for each confirmed bug, run the regression test against unpatched code -> quality/results/BUG-NNN.red.log. If a fix patch exists, run against patched code -> quality/results/BUG-NNN.green.log. If the test runner is unavailable, create the log with NOT_RUN on the first line.
+
+   **Recommended for the canonical red-green protocol: an ephemeral
+   `git worktree`.** To run the regression test against unpatched then
+   patched code without ever mutating the source tree, validate in a
+   disposable worktree: `git worktree add /tmp/qpb-validate-<bug-id>
+   HEAD` → apply the regression-test patch → run (RED) → apply the fix
+   patch → run (GREEN) → `git worktree remove /tmp/qpb-validate-<bug-id>`.
+   OPTIONAL — `git apply --check` + the source-unchanged invariant
+   already satisfy the contract; the worktree is the cleaner pattern
+   when the red/green logs require actually executing the patched code
+   (2026-05-18 Claude Code Opus 4.7 validated 5 cobra bugs this way).
 5. Generate sidecar JSON: quality/results/tdd-results.json and quality/results/integration-results.json (schema_version "1.1", canonical fields: id, requirement, red_phase, green_phase, verdict, fix_patch_present, writeup_path).
 6. If mechanical verification artifacts exist, run `python quality/mechanical/verify.py` and save receipts.
 7. Run terminal gate verification, write it to PROGRESS.md.

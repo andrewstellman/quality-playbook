@@ -17,6 +17,7 @@ in this file via _AgentEnvIsolationMixin so they pass under BOTH
 from __future__ import annotations
 
 import os
+import pty
 import subprocess
 import sys
 import tempfile
@@ -134,22 +135,29 @@ class AgentContextRefusalTests(_AgentEnvIsolationMixin, unittest.TestCase):
         self.assertIn("Mode A", result.stderr)
 
     def test_operator_invoked_bypasses_refusal(self) -> None:
-        # --operator-invoked + a non-informational target: the guard
-        # must NOT fire (carve-out); target resolution then fails on
-        # the nonexistent path with a non-2 exit. Asserting "not 2"
-        # keeps this load-bearing for the carve-out specifically
-        # (remove the carve-out -> guard exit 2 -> this fails).
+        # 085 HARDENING: --operator-invoked ALONE no longer bypasses
+        # (agents read --help and fabricate the flag — 2026-05-18 codex
+        # desktop did). It now requires an unfabricatable operator
+        # signal too: interactive TTY stdin, OR the out-of-band CI
+        # env var. subprocess tests have piped (non-TTY) stdin, so the
+        # deterministic operator path here is the env override; this
+        # test keeps proving "--operator-invoked + a valid operator
+        # signal bypasses under agent env" under the post-085 contract.
+        # (The full TTY/no-TTY/override matrix is in
+        # OperatorInvokedTtyRequirementTests below.)
         env = dict(os.environ)
         env["CODEX_THREAD_ID"] = "test-thread-uuid"
+        env["QPB_OPERATOR_NON_TTY_OVERRIDE"] = "1"
         result = subprocess.run(
             [sys.executable, "-m", "bin.run_playbook",
              "--operator-invoked", _NONEXISTENT_TARGET],
-            env=env, capture_output=True, text=True, cwd=str(_REPO_ROOT),
+            env=env, capture_output=True, text=True,
+            stdin=subprocess.PIPE, cwd=str(_REPO_ROOT),
         )
         self.assertNotEqual(result.returncode, 2,
-                            f"--operator-invoked must bypass the guard "
-                            f"(not exit 2), got {result.returncode}\n"
-                            f"stderr: {result.stderr}")
+                            f"--operator-invoked + operator signal must "
+                            f"bypass the guard (not exit 2), got "
+                            f"{result.returncode}\nstderr: {result.stderr}")
 
     def test_next_iteration_bypasses_refusal(self) -> None:
         env = dict(os.environ)
@@ -231,6 +239,127 @@ class AgentContextInformationalBypassTests(
                             f"--kill should bypass guard (not exit 2), "
                             f"got {result.returncode}\n"
                             f"stderr: {result.stderr}")
+
+
+@unittest.skipUnless(sys.platform != "win32",
+                     "pty.openpty() is POSIX-only; the TTY-positive "
+                     "case cannot be constructed on Windows")
+class OperatorInvokedTtyRequirementTests(
+        _AgentEnvIsolationMixin, unittest.TestCase):
+    """v1.5.7 instruction 085: --operator-invoked alone is no longer
+    sufficient to bypass the agent-context guard. It must be paired
+    with stdin-is-TTY OR the QPB_OPERATOR_NON_TTY_OVERRIDE env var.
+    --worker / --next-iteration (mechanically set, not agent-bypass
+    surface) keep their unconditional carve-out.
+
+    All invocations use a NONEXISTENT target (not --help): post-084b
+    --help is itself an informational bypass and would mask the TTY /
+    carve-out path under test, making the assertions non-load-bearing.
+    A nonexistent target makes the guard fire on a real "drive" shape;
+    when the guard does NOT fire the run exits 1 at target resolution
+    (deterministic, runner-independent), so "not 2" precisely isolates
+    "the guard let it through".
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160) — BITE EXECUTED during
+    instruction-085 development:
+      Mutation: in _check_agent_context_or_refuse, replace the
+        `if "--operator-invoked" in tokens:` isatty/env-var block
+        with the prior `if "--operator-invoked" in tokens: return`
+        (restores the 084b "--operator-invoked alone bypasses"
+        semantics).
+      Observed failure (purged __pycache__ first):
+        FAIL: test_operator_invoked_without_tty_still_refused
+        AssertionError: 1 != 2 : --operator-invoked without TTY
+        should refuse under agent env, got exit 1
+          [with the TTY/env gate removed, --operator-invoked alone
+           bypasses; the nonexistent target then exits 1 at target
+           resolution instead of the guard's exit 2]
+      Mutation reverted; tests pass.
+    """
+
+    def test_operator_invoked_without_tty_still_refused(self) -> None:
+        env = dict(os.environ)
+        env["CODEX_THREAD_ID"] = "test-thread-uuid"
+        env.pop("QPB_OPERATOR_NON_TTY_OVERRIDE", None)
+        result = subprocess.run(
+            [sys.executable, "-m", "bin.run_playbook",
+             "--operator-invoked", _NONEXISTENT_TARGET],
+            env=env, capture_output=True, text=True,
+            stdin=subprocess.PIPE, cwd=str(_REPO_ROOT),
+        )
+        self.assertEqual(result.returncode, 2,
+                         f"--operator-invoked without TTY should refuse "
+                         f"under agent env, got exit {result.returncode}\n"
+                         f"stderr: {result.stderr}")
+        self.assertIn("TTY", result.stderr)
+        self.assertIn("interactive terminal", result.stderr.lower())
+        # The CI escape-hatch env var must NOT leak into the refusal.
+        self.assertNotIn("QPB_OPERATOR_NON_TTY_OVERRIDE", result.stderr)
+
+    def test_operator_invoked_with_env_override_bypasses(self) -> None:
+        env = dict(os.environ)
+        env["CODEX_THREAD_ID"] = "test-thread-uuid"
+        env["QPB_OPERATOR_NON_TTY_OVERRIDE"] = "1"
+        result = subprocess.run(
+            [sys.executable, "-m", "bin.run_playbook",
+             "--operator-invoked", _NONEXISTENT_TARGET],
+            env=env, capture_output=True, text=True,
+            stdin=subprocess.PIPE, cwd=str(_REPO_ROOT),
+        )
+        self.assertNotEqual(result.returncode, 2,
+                            f"--operator-invoked + env override should "
+                            f"bypass (not exit 2), got "
+                            f"{result.returncode}\nstderr: {result.stderr}")
+
+    def test_operator_invoked_with_tty_bypasses(self) -> None:
+        # Real TTY stdin via pty.openpty() — the human-operator case.
+        env = dict(os.environ)
+        env["CODEX_THREAD_ID"] = "test-thread-uuid"
+        env.pop("QPB_OPERATOR_NON_TTY_OVERRIDE", None)
+        master, slave = pty.openpty()
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "bin.run_playbook",
+                 "--operator-invoked", _NONEXISTENT_TARGET],
+                env=env, capture_output=True, text=True,
+                stdin=slave, cwd=str(_REPO_ROOT),
+            )
+        finally:
+            os.close(slave)
+            os.close(master)
+        self.assertNotEqual(result.returncode, 2,
+                            f"--operator-invoked with TTY stdin should "
+                            f"bypass (not exit 2), got "
+                            f"{result.returncode}\nstderr: {result.stderr}")
+
+    def test_worker_carveout_unchanged(self) -> None:
+        env = dict(os.environ)
+        env["CODEX_THREAD_ID"] = "test-thread-uuid"
+        env.pop("QPB_OPERATOR_NON_TTY_OVERRIDE", None)
+        result = subprocess.run(
+            [sys.executable, "-m", "bin.run_playbook",
+             "--worker", _NONEXISTENT_TARGET],
+            env=env, capture_output=True, text=True,
+            stdin=subprocess.PIPE, cwd=str(_REPO_ROOT),
+        )
+        self.assertNotEqual(result.returncode, 2,
+                            "--worker carve-out should still bypass "
+                            "without TTY (mechanical self-spawn)")
+
+    def test_next_iteration_carveout_unchanged(self) -> None:
+        env = dict(os.environ)
+        env["COPILOT_AGENT_SESSION_ID"] = "test-session-uuid"
+        env.pop("QPB_OPERATOR_NON_TTY_OVERRIDE", None)
+        result = subprocess.run(
+            [sys.executable, "-m", "bin.run_playbook",
+             "--next-iteration", _NONEXISTENT_TARGET],
+            env=env, capture_output=True, text=True,
+            stdin=subprocess.PIPE, cwd=str(_REPO_ROOT),
+        )
+        self.assertNotEqual(result.returncode, 2,
+                            "--next-iteration carve-out should still "
+                            "bypass without TTY")
 
 
 if __name__ == "__main__":
