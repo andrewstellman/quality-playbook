@@ -16,6 +16,51 @@ Three checks per §6.6:
 `bash` is required for checks 1-2 (the §6.3 sample shells out to
 `bash -c "<pipeline>"`); skipped if unavailable (Windows host
 without Git Bash — addendum §6.5).
+
+================================================================
+ANTI-REIMPLEMENTATION LINT SCOPE — BEST-EFFORT.
+This lint is **NOT a security boundary** (v1.5.7 instruction
+080d; operator decision after the 080 → 080b → 080c arms race).
+================================================================
+
+Three rounds of codex review confirmed that statically detecting
+"is this Python reimplementing the extraction" is **undecidable**
+in the general case — Python offers unbounded dynamic dispatch
+(`importlib.import_module`, `getattr`, `__import__`, `exec`,
+`eval`, `operator.attrgetter`, C-extension shims, attribute
+indirection, runtime-assembled callable names). Each round closed
+one evasion class and codex found another (080 splitlines/
+startswith → 080b import-alias → 080c from-import-AS-submodule +
+importlib + getattr). The lint is therefore scoped to catch
+honest reimplementation and common forgery classes, NOT to be an
+exhaustive adversarial boundary.
+
+**Catches:** honest reimplementation; regex calls
+(`re.findall`/`finditer`/`search`/`match`/`split`);
+string-method extraction after `open(<source>)`; `open(<source>)`
+/ `Path("<source-literal>").read_text()` non-`*_cases.txt` reads;
+direct/`import-X-as-Y`-aliased calls to
+`xml.etree`/`json`/`csv`/`yaml`/`ast`/`tokenize` parsers;
+decoy-non-bash-subprocess; missing real `["bash"/"sh", …]`
+pipeline.
+
+**Does NOT catch (known, by design):**
+`from xml.etree import ElementTree as ET; ET.parse(...)`
+(submodule from-import-AS chain); `importlib.import_module(
+"json").loads(...)`; `getattr(json, "loads")(...)`; `exec` /
+`eval`-constructed callables; C-extension indirection;
+runtime-assembled callable names.
+
+**The load-bearing v1.3.23 defense is STRUCTURAL, not this lint.**
+`quality_gate.py:check_mechanical()` subprocess-invokes the
+agent-authored `verify.py` from the target root and propagates
+its exit code; genuine protection comes from `verify.py`'s
+`EXTRACTIONS` re-running `subprocess.run(["bash","-c",
+"<original-shell-pipeline>"])` against actual source bytes
+(080 + 080c F1, codex-confirmed). This lint is a useful sanity
+check for *accidental* reimplementation; it is explicitly
+**not the trust path**, and its incompleteness against an
+adversarial forger is intentional and accepted.
 """
 
 from __future__ import annotations
@@ -152,11 +197,29 @@ def _dotted_name(node) -> "str | None":
 
 
 def _verify_py_is_conformant(src: str) -> bool:
+    # BEST-EFFORT — see the module docstring's "ANTI-REIMPLEMENTATION
+    # LINT SCOPE" section; this is NOT a security boundary (080d,
+    # operator decision). Do NOT iterate it to chase dynamic-dispatch
+    # evasions — that arms race is undecidable; the load-bearing
+    # v1.3.23 defense is the gate's subprocess re-extraction, not
+    # this check.
     """§6.6 "Council-of-One" anti-reimplementation lint — AST-based
     with proper IMPORT-ALIAS TRACKING (080c, after the 080b codex F2
     alias-evasion: ``import xml.etree.ElementTree as ET;
     ET.fromstring(...)`` slipped past the old ast.dump substring
     heuristic).
+
+    **BEST-EFFORT, NOT a security boundary (080d).** Statically
+    proving Python does not reimplement the extraction is
+    undecidable. KNOWN UNCOVERED evasion classes, accepted by
+    design: ``from xml.etree import ElementTree as ET;
+    ET.parse(...)`` (submodule from-import-AS chain);
+    ``importlib.import_module("json").loads(...)``;
+    ``getattr(json, "loads")(...)``; ``exec``/``eval``-constructed
+    callables; C-extension indirection; runtime-assembled callable
+    names. This lint catches honest/accidental reimplementation +
+    the enumerated common forgery classes; the trust path is the
+    structural subprocess re-extraction (module docstring).
 
     Walk-imports-first: build alias maps (local name → canonical
     module / callable) covering ``import M``, ``import M as A``,
@@ -626,6 +689,49 @@ class VerifyPyAntiReimplementationLintTests(unittest.TestCase):
             _verify_py_is_conformant(_FORGED_JSON_AS_J),
             "import json as J; J.loads(...) MUST be flagged "
             "(aliased dangerous-module call)")
+
+    def test_lint_known_limitations_documented(self) -> None:
+        """080d (option C) structural pin: the honest best-effort
+        scoping must stay in BOTH the module docstring AND the
+        _verify_py_is_conformant docstring, so a future commit
+        cannot silently delete it and re-present the lint as an
+        exhaustive security boundary. (Not a mutation-bite test —
+        it IS the regression pin; deleting either scoping block
+        fails this directly.)"""
+        import sys as _sys
+        mod_doc = _sys.modules[__name__].__doc__ or ""
+        fn_doc = _verify_py_is_conformant.__doc__ or ""
+        for label, doc in (("module docstring", mod_doc),
+                           ("_verify_py_is_conformant docstring",
+                            fn_doc)):
+            lowered = doc.lower()
+            self.assertIn(
+                "best-effort", lowered,
+                f"{label} must mark the lint BEST-EFFORT (080d "
+                f"option C — operator decision)")
+            self.assertIn(
+                "not a security boundary", lowered,
+                f"{label} must state the lint is NOT a security "
+                f"boundary (080d)")
+            # at least one explicitly-named known uncovered evasion
+            self.assertTrue(
+                any(tok in doc for tok in
+                    ("importlib", "getattr", "from-import-AS",
+                     "from xml.etree import ElementTree as ET",
+                     "exec", "eval")),
+                f"{label} must enumerate >=1 known uncovered "
+                f"evasion class (importlib / getattr / "
+                f"from-import-AS-submodule / exec / eval) so the "
+                f"limits are honest up-front")
+        # the structural-defense pointer must be present (the lint
+        # is explicitly NOT the trust path)
+        self.assertIn("structural", mod_doc.lower())
+        self.assertTrue(
+            "subprocess" in mod_doc.lower()
+            and "trust path" in mod_doc.lower(),
+            "module docstring must point at the structural "
+            "subprocess re-extraction as the load-bearing v1.3.23 "
+            "defense (the lint is NOT the trust path)")
 
 
 if __name__ == "__main__":
