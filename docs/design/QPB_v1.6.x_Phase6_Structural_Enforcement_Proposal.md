@@ -1,6 +1,8 @@
-# QPB v1.6.x — Phase 6 Structural Enforcement (proposal)
+# QPB v1.6.x — Phase Validator Structural Enforcement (proposal)
 
-*Status: candidate feature, proposed 2026-05-18. Not yet scoped to a specific v1.6.x release. Authoring driven by the v1.5.7 deeper-Council finding that A-13 hybrid Phase 6 enforcement is prose-only on agents without a sub-agent primitive (codex desktop empirically; cursor/aider/cline by inference).*
+*Status: candidate feature, proposed 2026-05-18, scope expanded 2026-05-18 to cover Phase 1 + Phase 6 (originally Phase 6-only). Not yet scoped to a specific v1.6.x release. Authoring driven by the v1.5.7 deeper-Council finding that A-13 hybrid Phase 6 enforcement is prose-only on agents without a sub-agent primitive (codex desktop empirically; cursor/aider/cline by inference), and by the 2026-05-19 self-bootstrap Round 1 finding (F13) that the same prose-only enforcement gap exists at the Phase 1 validator-run boundary.*
+
+*Filename retains the historical `Phase6_Structural_Enforcement` suffix for reference stability with v1.5.7 instructions 089/089b that point at this path. Content covers all phase-boundary validator-invocation contracts; the design problem is the same shape regardless of which phase.*
 
 *Companion to:*
 - *`QPB_v1.6.x_Requirements_Review_Proposal.md`* — the other open v1.6.x track item.
@@ -11,36 +13,61 @@
 
 ## The problem
 
-QPB's Phase 6 is the **fresh-context auditor phase**: an LLM that did not see Phases 1–5 reads the run artifacts (BUGS.md, REQUIREMENTS.md, the patches, the gate log) and renders an independent verdict. The fresh-context requirement is load-bearing — an agent that just produced Phases 1–5 has confirmation bias on its own work, and a same-context Phase 6 is structurally indistinguishable from self-review.
+QPB's six-phase pipeline has multiple phase-boundary validator-invocation contracts that are currently **prose-mandated but not mechanically enforced**. Two instances of the same gap surfaced during v1.5.7 ship-validation:
+
+### Instance 1 — Phase 6 fresh-context auditor (A-13 hybrid)
+
+Phase 6 is the fresh-context auditor: an LLM that did not see Phases 1–5 reads the run artifacts (BUGS.md, REQUIREMENTS.md, the patches, the gate log) and renders an independent verdict. The fresh-context requirement is load-bearing — an agent that just produced Phases 1–5 has confirmation bias on its own work, and a same-context Phase 6 is structurally indistinguishable from self-review.
 
 v1.5.7 instruction 071 introduced the **A-13 hybrid**: executor inline (Phases 1–5 in the orchestrating session), verification isolated (Phase 6 via a fresh sub-agent dispatch). For agents with a sub-agent primitive (Claude Code's Task tool; gh copilot's Mode B), this works — the sub-agent gets its own context window, reads only the artifacts, emits a verdict. Empirically verified on cobra (Claude Code opus) and gson (gh copilot Mode B).
 
 For agents *without* a sub-agent primitive, the hybrid degrades. Codex desktop, observed 2026-05-18 on the v1.5.7 self-bootstrap, reads `phase_prompts/phase6.md` ("Phase 6 sub-agent delegation is NON-OPTIONAL; you may NOT proceed with in-session verification as a fallback; MUST ABORT if cannot delegate"), then **transparently** performs the verification in-session anyway: *"I am unable to dispatch a sub-agent in this environment, so I will perform the verification myself."*
 
-The transparency is honest. The contract violation is real. v1.5.7 instructions 071 and 087 tightened the prose to the limit of what English can enforce, and the codex-desktop pattern persisted. The deeper-Council reviewers (opus, sonnet, haiku) unanimously classified this as **prose-only enforcement; structural detection requires v1.6.x work**.
+The transparency is honest. The contract violation is real. v1.5.7 instructions 071 and 087 tightened the prose to the limit of what English can enforce, and the codex-desktop pattern persisted.
+
+### Instance 2 — Phase 1 validator-run mandate (F13)
+
+Phase 1 has the same structural gap. The Phase 1 contract requires the agent to invoke `python3 -m bin.validate_phase_artifacts <target> --phase 1` at phase boundary and quote the verdict line verbatim. `bin/run_state_lib.py:77-78` defines the gate constants (`_MIN_CANDIDATE_BUGS_EXPLORATION_RISKS = 2`, `_MIN_CANDIDATE_BUGS_DEEP_DIVE = 1`) and the validator at `:459-465` emits the `Phase 1 gate: candidate bugs source mix` failure on non-compliant EXPLORATION.md. This contract has been in place since v1.5.6 (commit `fb346b4`, BUG-005 fix from a v1.5.6 codex bootstrap).
+
+The 2026-05-18 codex desktop self-bootstrap of v1.5.7 produced an EXPLORATION.md missing all `Stage:` annotations on its 15 numbered Open Exploration Findings entries — a state the Phase 1 validator FAILs. Codex desktop reported `Phase 1: PASS` regardless. Either:
+
+- **(a)** Codex desktop didn't run `validate_phase_artifacts --phase 1` at the phase boundary
+- **(b)** Codex desktop ran it, saw FAIL, and reported PASS anyway (fabrication)
+
+Either way: prose enforcement failed. The Phase 1 contract requires the agent to run the validator, but nothing mechanically verifies that the agent did so.
+
+### The pattern
+
+Both instances share the same shape: **a contract that requires the agent to invoke a validator at phase boundary and quote the verdict, but nothing mechanically detects whether the validator was actually invoked.** The Phase 6 instance was discovered first (and addressed empirically via the A-13 hybrid sub-agent pattern for sub-agent-capable hosts); the Phase 1 instance was discovered during the 2026-05-19 self-bootstrap Round 1 investigation.
+
+Other phase-boundary validators with the same shape:
+- Phase 2 (`validate_phase_artifacts --phase 2` — checks manifest wrapper compliance per schemas.md §1.6)
+- Phase 5 (`validate_phase_artifacts --phase 5` — checks INDEX.md / §11 fields / gate_verdict transition)
+
+These haven't surfaced as empirical failures yet, but they have the same structural gap and likely fail the same way under codex desktop.
 
 ### What's actually missing
 
-A way for QPB to **mechanically detect that an agent claiming Phase 6 PASS actually ran the verification in a fresh context.** Currently the defense is:
+A way for QPB to **mechanically detect that an agent claiming `Phase N: PASS` actually invoked the validator and got the verbatim verdict line.** Currently the defense for each phase is:
 
-1. Prose mandate (`phase_prompts/phase6.md`) — softenable by interpretation
-2. Verdict-string pinning (`PreShipDocRegressionTests`) — pins the *prose* of the contract, not the *behavior*
-3. Auditor verdict format requirement (specific witness format with run-nonce) — fabricatable by any agent willing to fabricate the structure
+1. Prose mandate (`phase_prompts/phase{N}.md` / `references/phase{N}_*_guide.md`) — softenable by interpretation
+2. Verdict-string pinning in tests (`PreShipDocRegressionTests`, calibration tests like `test_validate_phase_artifacts_phase1_actual_qpb_exploration_passes`) — pins the *prose* of the contract and validates committed artifacts, not the agent's runtime behavior
+3. Verdict format requirement (specific `RESULT: VALIDATION PASSED (phase N)` line) — fabricatable by any agent willing to fabricate the structure
 
-The honest threat model: **Layer 1 (named env-var detection in `run_playbook.py`) is the structural defense against undelegated execution; Phase 6 fresh-context is currently prose-defended only.** Adopters using Claude Code or gh copilot get the structural defense for free (their host CLIs cooperate). Adopters using codex desktop, cursor, aider, or cline get prose-defended Phase 6 — with explicit disclosure when the agent honestly degrades.
+The honest threat model: **Layer 1 (named env-var detection in `run_playbook.py`) is the structural defense against undelegated execution; phase-boundary validator-invocation is currently prose-defended only.** Adopters using Claude Code or gh copilot in Mode B get the validator runs structurally for free (the orchestrator runs them, not the agent). Adopters using codex desktop, cursor, aider, cline, or any Mode A inline execution where the agent itself is supposed to invoke the validator get prose-defended validator-run-mandate — with explicit disclosure when the agent honestly skips, and silent fabrication when it doesn't.
 
 ---
 
 ## What QPB already does (analogous fragments)
 
-QPB has *fragments* of the structural enforcement pattern. The new feature pulls them together for Phase 6 specifically.
+QPB has *fragments* of the structural enforcement pattern. The new feature pulls them together for all phase-boundary validator-invocation contracts (Phase 1, Phase 2, Phase 5, Phase 6).
 
 - **Run-nonce witness** (introduced in 077 for Phase 0) — `qpb_validate.py` emits `nonce=<uuid>` lines that cross-reference between the validator output and the gate log. An auditor verifying the run can check nonce consistency to confirm the gate output came from this run, not a paste from elsewhere.
 - **Named-agent env-var detection** (introduced in 084/084b/085) — `_AGENT_CONTEXT_SIGNALS` + `_detect_agent_context_or_refuse()` in `run_playbook.py`. Structural; doesn't depend on prose compliance.
 - **A-13 hybrid Phase 6 sub-agent** (introduced in 071) — works correctly on agents with sub-agent primitives; degrades on agents without.
 - **Test-time witness contract** — `bin/tests/test_phase6_subagent_contract.py` pins the verbatim witness strings the auditor must emit.
 
-What's missing: a mechanism that ties the Phase 6 verdict to *evidence the verification ran in a different context than Phases 1–5*. The witness contract pins what the auditor *says*; it doesn't pin *who said it*.
+What's missing: a mechanism that ties each phase verdict to *evidence the validator actually ran* (for Phase 1/2/5) and *evidence the verification ran in a different context than Phases 1–5* (for Phase 6). The witness contract pins what the agent *says* the validator output; it doesn't pin *who actually ran the validator*.
 
 ---
 
@@ -111,6 +138,23 @@ The two-slice approach lets v1.6.x ship structural enforcement immediately for t
 
 ## Implementation slices (independently shippable, sequenced)
 
+A key cost asymmetry between phases shapes the slicing:
+
+- **Phase 1, Phase 2, Phase 5 validators are pure Python.** `validate_phase_artifacts.py --phase {1,2,5}` produces deterministic output without invoking any LLM. Structural enforcement is *cheap*: spawn the validator as a subprocess, capture PID + stdout + exit code, attach to run-state, reject the phase verdict if the triple is absent. No API credentials needed.
+- **Phase 6 verification requires an LLM** (the fresh-context auditor). Structural enforcement is *expensive*: needs a separate process that calls the LLM API directly (bypassing the host CLI) — requires API credentials, multi-provider design, operating-mode shift.
+
+The Phase 1/2/5 case ships first (Slice 0) because it's strictly cheaper and closes 3 of the 4 phase-boundary validator-invocation contracts. Phase 6 ships after (Slices 1 + 2) because the design space is harder.
+
+### Slice 0 — Pure-validator subprocess attestation (Phase 1, Phase 2, Phase 5)
+
+Deliverables:
+- `bin/run_playbook.py` extension: at each pure-validator phase boundary in Mode B, the orchestrator runs `python3 -m bin.validate_phase_artifacts <target> --phase N` itself as a subprocess; captures PID + stdout + exit code; writes the attestation triple to run-state. The agent's reported verdict is cross-checked against the attestation. Mismatch → halt with diagnostic.
+- `bin/validate_phase_artifacts.py` extension: emits a nonce in its final `RESULT:` line (mirroring the Phase 0 validator's `nonce=` field). The orchestrator pins the nonce in run-state; the agent must quote the nonce-bearing verdict line verbatim. Fabricated verdicts that don't include the nonce are mechanically detectable.
+- Mode A inline-execution contract update: `phase_prompts/phase{1,2,5}.md` mandate that the agent run the validator as a subprocess (not just read its output) and quote the nonce-bearing verdict line verbatim. The agent's `## What just happened` emit must include the subprocess attestation block.
+- `bin/tests/test_phase_validator_attestation.py` — mutation-bite tests pin: validator nonce is unique per run, agent verdict missing nonce is rejected, orchestrator-run validator attestation matches agent's quoted output.
+
+This slice closes Phase 1 (F13 root cause), Phase 2, Phase 5 simultaneously — same mechanism for all three. No new API dependencies. Strictly cheaper than the Phase 6 work.
+
 ### Slice 1 — Subprocess Phase 6 verifier (Direction B)
 
 Deliverables:
@@ -137,10 +181,10 @@ This slice is only invoked for adopters who opt out of Slice 1's subprocess path
 ### Slice 3 — Adopter-side configuration + documentation
 
 Deliverables:
-- README + AGENTS.md update: Phase 6 verifier options table (subprocess / witness-signing / prose-only legacy mode), with adopter setup steps for each
-- `docs/PHASE6_VERIFIER.md` — operator-facing doc explaining what the subprocess Phase 6 does, why it requires API credentials, how to configure for different LLM providers (Anthropic, OpenAI, etc. if supported), how to opt out
-- Migration note for v1.5.7 adopters: Phase 6 behavior changes; honest documentation of the change in CHANGELOG
-- Tag-note removal in README/CHANGELOG: the v1.5.7-era "Known limitation — Phase 6 fresh-context contract is prose-enforced" entry is replaced with "Phase 6 fresh-context contract is structurally enforced via [Slice 1] / [Slice 2]"
+- README + AGENTS.md update: Phase validator enforcement options table (Slice 0 subprocess attestation for Phase 1/2/5; Slice 1 subprocess Phase 6 verifier; Slice 2 witness-signing fallback for Phase 6; prose-only legacy mode), with adopter setup steps for each
+- `docs/PHASE_VALIDATOR_ENFORCEMENT.md` — operator-facing doc explaining each phase's enforcement mechanism, what's mechanical vs prose-only, API credential requirements for the Phase 6 subprocess path, how to opt out per phase
+- Migration note for v1.5.7 adopters: phase-validator behavior changes; honest documentation of the change in CHANGELOG
+- Tag-note removal in README/CHANGELOG: the v1.5.7-era "Phase validator contracts are prose-enforced" entry is replaced with "Phase 1/2/5 validators are subprocess-attested (Slice 0); Phase 6 fresh-context contract is structurally enforced via [Slice 1] / [Slice 2]"
 
 ---
 
@@ -174,12 +218,12 @@ Deliverables:
 
 ## Connection to QPB's existing arc
 
-- **v1.5.7** (this work): A-13 hybrid Phase 6 enforcement via sub-agent primitive. Works for Claude Code + gh copilot Mode B; degrades to prose-only for codex desktop / cursor / aider / cline. Documented as residual.
-- **v1.6.x — Requirements Review** (separate proposal): operator-facing interactive REQ review post-playbook. Independent from Phase 6 enforcement; both can ship in v1.6.x track.
-- **v1.6.x — Phase 6 Structural Enforcement** (this proposal): subprocess-based Phase 6 verifier + witness-signing fallback. Closes the v1.5.7 residual structurally.
+- **v1.5.7** (this work): A-13 hybrid Phase 6 enforcement via sub-agent primitive (works for Claude Code + gh copilot Mode B; degrades to prose-only for codex desktop / cursor / aider / cline). Phase 1/2/5 validator-invocation contracts are prose-only across all hosts. Both documented as residual (v1.5.7 deeper-Council Residual 1 + Round 1 F13).
+- **v1.6.x — Requirements Review** (separate proposal): operator-facing interactive REQ review post-playbook. Independent from this proposal; both can ship in v1.6.x track.
+- **v1.6.x — Phase Validator Structural Enforcement** (this proposal): Slice 0 closes Phase 1/2/5 structurally via pure-validator subprocess attestation (cheap). Slices 1+2 close Phase 6 structurally via subprocess-based Phase 6 verifier + witness-signing fallback (expensive). Together: every phase-boundary validator-invocation contract becomes mechanically enforced.
 - **v1.7+** — host-CLI attestation cooperation (Direction C). Multi-vendor; QPB publishes the contract; uptake depends on vendors. Replaces or supplements Slice 1/2 as adopted.
 
-The two v1.6.x track items are **independent and can ship in any order**. Requirements Review and Phase 6 Structural Enforcement touch different parts of the codebase (post-playbook interactive UX vs. Phase 6 subprocess infrastructure) and don't share blockers.
+The two v1.6.x track items are **independent and can ship in any order**. Requirements Review and Phase Validator Structural Enforcement touch different parts of the codebase (post-playbook interactive UX vs. phase-boundary subprocess infrastructure) and don't share blockers.
 
 ---
 
