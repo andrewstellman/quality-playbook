@@ -14,7 +14,12 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 README = REPO_ROOT / "README.md"
 
-LAUNCH_PROMPT_LINES = (272, 278, 286, 288)  # the 4 IDE prompts per §3.5
+# v1.5.7 089: conscious re-pin (the 079b Task-3 designed trigger) —
+# F1/F5/F10 expanded README Step 3 (3 cp recipes → 13 modules + the
+# 087 sentinel block) + added the F10 Known-limitations section,
+# shifting the 4 §3.5 IDE launch prompts down (272/278/286/288 →
+# 344/350/358/360). The prompts themselves are unchanged.
+LAUNCH_PROMPT_LINES = (344, 350, 358, 360)  # the 4 IDE prompts per §3.5
 
 
 class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
@@ -82,10 +87,10 @@ class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
         conscious re-pin (instruction-079b Task 3 note)."""
         lines = README.read_text(encoding="utf-8").splitlines()
         markers = {
-            272: "**Claude Code:**",
-            278: "**GitHub Copilot:**",
-            286: "**Cursor:**",
-            288: "**Windsurf:**",
+            344: "**Claude Code:**",
+            350: "**GitHub Copilot:**",
+            358: "**Cursor:**",
+            360: "**Windsurf:**",
         }
         for lineno, marker in markers.items():
             self.assertTrue(

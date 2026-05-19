@@ -106,7 +106,7 @@ If you'd rather read the docs yourself, the rest of this README has the same inf
 
 ### Step 1: Install the skill
 
-The playbook ships as a set of files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and `bin/citation_verifier.py`) that need to land in a directory your AI coding tool reads as a skill. The recommended path is to have your AI tool do the install for you.
+The playbook ships as a complete bundle of 50 files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and 13 `bin/*.py` modules — see `bin/install_skill.py::_bundle_files()` for the authoritative list, or the Step 3 manual recipe below) that need to land in a directory your AI coding tool reads as a skill. The recommended path is to have your AI tool do the install for you.
 
 **Recommended: have your AI tool install it.** Open a chat with Claude Code, Cursor, GitHub Copilot, or another AI coding assistant inside your target repo. Ask it:
 
@@ -127,7 +127,7 @@ python3 -m bin.install_skill --verbose                                      # hu
 
 **Already manually copied SKILL.md to your skills directory?** Skip this step. The manual install paths described in Step 3 below continue to work — `bin/install_skill.py` is additive, not a replacement.
 
-**What the install does:** copies the skill files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and `bin/citation_verifier.py`) into the chosen install location. Runs a smoke check at the end (verifies `quality_gate.py` is loadable Python, `SKILL.md` parses with the expected frontmatter, `references/exploration_patterns.md` loads). Reports any failures in the structured output. Re-installs preserve operator-edited files as `<file>.operator-backup-<UTC-timestamp>` so your local edits aren't silently overwritten.
+**What the install does:** copies the full skill bundle (50 files: `SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and 13 `bin/*.py` modules — see `bin/install_skill.py::_bundle_files()` for the authoritative list) into the chosen install location. Runs a smoke check at the end (verifies `quality_gate.py` is loadable Python, `SKILL.md` parses with the expected frontmatter, `references/exploration_patterns.md` loads). Reports any failures in the structured output. Re-installs preserve operator-edited files as `<file>.operator-backup-<UTC-timestamp>` so your local edits aren't silently overwritten.
 
 ### Step 2: Provide documentation (strongly recommended)
 
@@ -211,12 +211,36 @@ cp references/* .claude/skills/quality-playbook/references/
 cp phase_prompts/*.md .claude/skills/quality-playbook/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
 cp agents/*.md .claude/skills/quality-playbook/agents/
-# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
-# byte-equality citation check (without it, the gate falls back to a WARN path).
-cp bin/citation_verifier.py .claude/skills/quality-playbook/bin/citation_verifier.py
+# v1.5.7 089 (F1/A-29): the full bin/ closure SKILL.md + phase_prompts
+# hard-reference. MIRRORED from install_skill.py::_bundle_files() and
+# pinned by test_install_skill_bundle_completeness (drift recreates
+# the A-26 ship-blocker via this doc-sanctioned manual path).
+cp bin/__init__.py                          .claude/skills/quality-playbook/bin/__init__.py
+cp bin/archive_lib.py                       .claude/skills/quality-playbook/bin/archive_lib.py
+cp bin/benchmark_lib.py                     .claude/skills/quality-playbook/bin/benchmark_lib.py
+cp bin/citation_verifier.py                 .claude/skills/quality-playbook/bin/citation_verifier.py
+cp bin/council_config.py                    .claude/skills/quality-playbook/bin/council_config.py
+cp bin/council_semantic_check.py            .claude/skills/quality-playbook/bin/council_semantic_check.py
+cp bin/migrate_v1_5_0_layout.py             .claude/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
+cp bin/qpb_config.py                        .claude/skills/quality-playbook/bin/qpb_config.py
+cp bin/quality_playbook.py                  .claude/skills/quality-playbook/bin/quality_playbook.py
+cp bin/reference_docs_ingest.py             .claude/skills/quality-playbook/bin/reference_docs_ingest.py
+cp bin/role_map.py                          .claude/skills/quality-playbook/bin/role_map.py
+cp bin/run_state_lib.py                     .claude/skills/quality-playbook/bin/run_state_lib.py
+cp bin/validate_phase_artifacts.py          .claude/skills/quality-playbook/bin/validate_phase_artifacts.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 # No README ships — cite/ contents are adopter-provided plaintext.
 mkdir -p reference_docs reference_docs/cite
+# v1.5.7 (087/089): sentinel files for the gitignore negation rules
+# (without them run_playbook.py's pre-flight aborts "Required
+# sentinel files missing"; install_skill.py creates these too).
+mkdir -p informal_docs quality
+cat > informal_docs/README.md << 'EOF'
+# Informal Docs
+
+Place non-citable plaintext project context here for Quality Playbook runs.
+EOF
+echo "# Run Index" > quality/RUN_INDEX.md
 # Optional: append the suggested .gitignore rules for adopters (keeps bulk
 # archived runs + reference_docs content out of version control while tracking
 # the top-level RUN_INDEX.md).
@@ -235,11 +259,35 @@ cp references/* .github/skills/references/
 cp phase_prompts/*.md .github/skills/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
 cp agents/*.md .github/skills/agents/
-# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
-# byte-equality citation check (without it, the gate falls back to a WARN path).
-cp bin/citation_verifier.py .github/skills/bin/citation_verifier.py
+# v1.5.7 089 (F1/A-29): the full bin/ closure SKILL.md + phase_prompts
+# hard-reference. MIRRORED from install_skill.py::_bundle_files() and
+# pinned by test_install_skill_bundle_completeness (drift recreates
+# the A-26 ship-blocker via this doc-sanctioned manual path).
+cp bin/__init__.py                          .github/skills/bin/__init__.py
+cp bin/archive_lib.py                       .github/skills/bin/archive_lib.py
+cp bin/benchmark_lib.py                     .github/skills/bin/benchmark_lib.py
+cp bin/citation_verifier.py                 .github/skills/bin/citation_verifier.py
+cp bin/council_config.py                    .github/skills/bin/council_config.py
+cp bin/council_semantic_check.py            .github/skills/bin/council_semantic_check.py
+cp bin/migrate_v1_5_0_layout.py             .github/skills/bin/migrate_v1_5_0_layout.py
+cp bin/qpb_config.py                        .github/skills/bin/qpb_config.py
+cp bin/quality_playbook.py                  .github/skills/bin/quality_playbook.py
+cp bin/reference_docs_ingest.py             .github/skills/bin/reference_docs_ingest.py
+cp bin/role_map.py                          .github/skills/bin/role_map.py
+cp bin/run_state_lib.py                     .github/skills/bin/run_state_lib.py
+cp bin/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
+# v1.5.7 (087/089): sentinel files for the gitignore negation rules
+# (without them run_playbook.py's pre-flight aborts "Required
+# sentinel files missing"; install_skill.py creates these too).
+mkdir -p informal_docs quality
+cat > informal_docs/README.md << 'EOF'
+# Informal Docs
+
+Place non-citable plaintext project context here for Quality Playbook runs.
+EOF
+echo "# Run Index" > quality/RUN_INDEX.md
 cat skill-template.gitignore >> .gitignore
 ```
 
@@ -255,15 +303,39 @@ cp references/* .github/skills/quality-playbook/references/
 cp phase_prompts/*.md .github/skills/quality-playbook/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
 cp agents/*.md .github/skills/quality-playbook/agents/
-# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
-# byte-equality citation check (without it, the gate falls back to a WARN path).
-cp bin/citation_verifier.py .github/skills/quality-playbook/bin/citation_verifier.py
+# v1.5.7 089 (F1/A-29): the full bin/ closure SKILL.md + phase_prompts
+# hard-reference. MIRRORED from install_skill.py::_bundle_files() and
+# pinned by test_install_skill_bundle_completeness (drift recreates
+# the A-26 ship-blocker via this doc-sanctioned manual path).
+cp bin/__init__.py                          .github/skills/quality-playbook/bin/__init__.py
+cp bin/archive_lib.py                       .github/skills/quality-playbook/bin/archive_lib.py
+cp bin/benchmark_lib.py                     .github/skills/quality-playbook/bin/benchmark_lib.py
+cp bin/citation_verifier.py                 .github/skills/quality-playbook/bin/citation_verifier.py
+cp bin/council_config.py                    .github/skills/quality-playbook/bin/council_config.py
+cp bin/council_semantic_check.py            .github/skills/quality-playbook/bin/council_semantic_check.py
+cp bin/migrate_v1_5_0_layout.py             .github/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
+cp bin/qpb_config.py                        .github/skills/quality-playbook/bin/qpb_config.py
+cp bin/quality_playbook.py                  .github/skills/quality-playbook/bin/quality_playbook.py
+cp bin/reference_docs_ingest.py             .github/skills/quality-playbook/bin/reference_docs_ingest.py
+cp bin/role_map.py                          .github/skills/quality-playbook/bin/role_map.py
+cp bin/run_state_lib.py                     .github/skills/quality-playbook/bin/run_state_lib.py
+cp bin/validate_phase_artifacts.py          .github/skills/quality-playbook/bin/validate_phase_artifacts.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
+# v1.5.7 (087/089): sentinel files for the gitignore negation rules
+# (without them run_playbook.py's pre-flight aborts "Required
+# sentinel files missing"; install_skill.py creates these too).
+mkdir -p informal_docs quality
+cat > informal_docs/README.md << 'EOF'
+# Informal Docs
+
+Place non-citable plaintext project context here for Quality Playbook runs.
+EOF
+echo "# Run Index" > quality/RUN_INDEX.md
 cat skill-template.gitignore >> .gitignore
 ```
 
-**Cursor, Windsurf, other tools:** Use any of the locations above, or put the skill files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and `bin/citation_verifier.py`) in your project root. The runner, gate, and orchestrator agents check all four locations — repo-root `SKILL.md`, Claude's `.claude/skills/quality-playbook/`, and both Copilot layouts.
+**Cursor, Windsurf, other tools:** Use any of the locations above, or put the full skill bundle (50 files: `SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and 13 `bin/*.py` modules — see `bin/install_skill.py::_bundle_files()` for the authoritative list, or the Step 3 manual recipe above) in your project root. The runner, gate, and orchestrator agents check all four locations — repo-root `SKILL.md`, Claude's `.claude/skills/quality-playbook/`, and both Copilot layouts.
 
 **OpenAI Codex CLI:** v1.5.3 adds the standalone [codex CLI](https://github.com/openai/codex) (codex-cli 0.125+) as a third runner alongside claude and copilot. No separate skill-install layout — codex runs the playbook from any of the locations above. To use it via `bin/run_playbook.py`, pass `--codex` (see Step 4 + the "Running everything autonomously" section below).
 
@@ -347,6 +419,18 @@ After fixing the bugs from BUGS.md, say *"recheck"* to verify your fixes. Rechec
 For headless / CI usage where `python3 -m bin.run_playbook` may be invoked
 from a non-interactive context, see [`docs/CI_INTEGRATION.md`](docs/CI_INTEGRATION.md)
 for the operator-side configuration steps.
+
+### Known limitations
+
+**Phase 6 fresh-context contract is prose-enforced.** Agents with sub-agent
+primitives (Claude Code via Task tool, gh copilot in Mode B) dispatch a
+fresh-context auditor mechanically — the A-13 hybrid contract works correctly.
+Agents without sub-agent primitives (codex desktop, possibly cursor/aider/cline)
+perform Phase 6 verification in-session with explicit disclosure in the verdict
+output. Operators reviewing Phase 6 output should check for fresh-context framing;
+if absent, re-run on a sub-agent-capable host before treating the verdict as
+load-bearing. Structural enforcement (subprocess Phase 6 verifier + witness-signing
+fallback) is tracked for v1.6.x — see `docs/design/QPB_v1.6.x_Phase6_Structural_Enforcement_Proposal.md`.
 
 ## Running the playbook: phases, iterations, and macros
 

@@ -59,20 +59,20 @@ class InstallClosureNoDriftTests(unittest.TestCase):
             f"missing_from_manifest={missing} "
             f"phantom_in_manifest={phantom}")
 
-    def test_install_closure_count_is_50(self) -> None:
-        """Was exactly 47 through v1.5.7-085; v1.5.7 instruction 086
-        (A-26) bundles 3 more adopter-facing bin/*.py modules
-        (qpb_config / run_state_lib / validate_phase_artifacts) into
-        install_skill._bundle_files(), so the machine-derived
-        INSTALL_CLOSURE mirror is now 50. A count check still catches
-        an accidental duplicate that the set comparison would mask.
-        NOTE: addendum §3.2's "47 entries" prose is now stale — an
-        orchestrator/addendum-owned doc-currency follow-up (the worker
-        must not modify the canonical addendum); the live
-        _bundle_files() closure is the source of truth and the drift
-        test pins INSTALL_CLOSURE to it."""
+    def test_install_closure_count_is_51(self) -> None:
+        """47 through v1.5.7-085; 086 (A-26) bundled 3 more bin/*.py
+        (qpb_config / run_state_lib / validate_phase_artifacts) → 50;
+        v1.5.7 089 F8 adds references/qpb_validate_event_schema.md
+        (auto-bundled by _bundle_files()'s references/* glob) → 51.
+        A count check still catches an accidental duplicate the set
+        comparison would mask. NOTE: addendum §3.2's "47 entries"
+        prose is now doubly stale — an orchestrator/addendum-owned
+        doc-currency follow-up (the worker must not modify the
+        canonical addendum); the live _bundle_files() closure is the
+        source of truth and the drift test pins INSTALL_CLOSURE to
+        it."""
         from bin.qpb_validate import INSTALL_CLOSURE
-        self.assertEqual(len(INSTALL_CLOSURE), 50)
+        self.assertEqual(len(INSTALL_CLOSURE), 51)
         paths = [e["path"] for e in INSTALL_CLOSURE]
         self.assertEqual(len(paths), len(set(paths)),
                          "duplicate path in INSTALL_CLOSURE")

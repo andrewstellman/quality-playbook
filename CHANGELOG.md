@@ -74,6 +74,15 @@ Three independent ship-validation runs (Codex bootstrap on a fresh clone of the 
 
 Final release-gate review (instruction 040) substituted for the canonical Council-of-Three Council with three independent reviewers (Codex CLI + Cursor + Claude Code sub-agent) reviewing the cumulative `main..1.5.7` diff (84 commits, ~78 files, ~12K insertions). 2-of-3 reviewers completed (Cursor skipped by operator); strict-consensus floor adjusted to 2-of-2. 6 strict-consensus findings closed across orientation-doc currency (Cowork-direct), source-file fixups (instruction 041), and a P0 schemas.md §11.2 disclaimer removing the no-longer-canonical `workspace/` layout from the data contract. Synthesis at `Quality Playbook/v1.5.7_runner/outputs/040-integration-council.md`.
 
+### Known limitations
+
+- **Phase 6 fresh-context contract is prose-enforced on agents without
+  sub-agent primitives.** Claude Code Task-tool dispatch and gh copilot Mode B
+  work correctly (structural enforcement). Codex desktop, cursor, aider, and
+  cline currently fall through to in-session verification with explicit
+  disclosure. Structural enforcement (mechanical detector) is v1.6.x scope;
+  see `docs/design/QPB_v1.6.x_Phase6_Structural_Enforcement_Proposal.md`.
+
 ### v1.5.7.x carry-forwards (documented in phase synthesis docs)
 
 - **Phase 4 F-1**: `qpb_version` inference Source-ordering spec clarification.

@@ -2119,6 +2119,23 @@ _V153_VALID_FORMAL_DOC_ROLES = (
 _V153_FIELD_KEYS = frozenset({"source_type", "divergence_type", "role"})
 
 
+# v1.5.7 instruction 089 (F9 — bootstrap WARN investigation, KEEP
+# decision): the formal_docs / requirements / bugs "legacy manifest
+# detected" WARNs are a DELIBERATE, documented backward-compat shim,
+# NOT v1.5.6-era cruft. The v1.5.3 schema extension (schemas.md
+# §3.6–§3.10) added the role / source_type / divergence_type fields
+# (_V153_FIELD_KEYS). A manifest carrying NONE of them is "pre-v1.5.3
+# shaped"; the gate applies the schemas.md §3.10 documented defaults
+# (role→external-spec, source_type→code-derived, divergence_type→
+# code-spec) and WARN+skips strict validation rather than hard-FAILing
+# a repo last audited before v1.5.3. KEEP rationale: removing the shim
+# would hard-FAIL every pre-v1.5.3 manifest — a breaking change
+# inappropriate for the v1.5.7 patch-stabilization line; adopters on
+# old manifests would have to re-run Phase 2 with no warning. The
+# WARN text is clarified (089) to say the documented default was
+# applied (not a defect); behavior unchanged. When v1.6.0 drops
+# pre-v1.5.3 manifest compat, remove this shim + the three checks'
+# legacy branches and add a CHANGELOG breaking-change note.
 def _is_v1_5_3_shaped(manifest):
     """Return True iff any record in *manifest* carries a v1.5.3 field.
 
@@ -3062,8 +3079,12 @@ def check_v1_5_3_formal_doc_role_validation(q):
         return  # wrapper check already reported
     if not _is_v1_5_3_shaped(data):
         warn(
-            "formal_docs_manifest.json: legacy manifest detected; treating absent "
-            "FORMAL_DOC.role as 'external-spec' per schemas.md §3.10 backward-compat rule"
+            "formal_docs_manifest.json: legacy manifest detected "
+            "(pre-v1.5.3 manifest shape — no role/source_type/"
+            "divergence_type fields); applying the schemas.md §3.10 "
+            "documented default FORMAL_DOC.role='external-spec' and "
+            "skipping v1.5.3 strict role validation. This is the "
+            "intended backward-compat path (089 F9 KEEP), not a defect"
         )
         return
     any_fail = False
@@ -3099,8 +3120,13 @@ def check_v1_5_3_source_type_validation(q):
         return
     if not _is_v1_5_3_shaped(data):
         warn(
-            "requirements_manifest.json: legacy manifest detected; treating absent "
-            "REQ.source_type as 'code-derived' per schemas.md §3.10 backward-compat rule"
+            "requirements_manifest.json: legacy manifest detected "
+            "(pre-v1.5.3 manifest shape — no role/source_type/"
+            "divergence_type fields); applying the schemas.md §3.10 "
+            "documented default REQ.source_type='code-derived' and "
+            "skipping v1.5.3 strict source_type validation. This is "
+            "the intended backward-compat path (089 F9 KEEP), not a "
+            "defect"
         )
         return
     any_fail = False

@@ -159,7 +159,8 @@ INSTALL_CLOSURE = [
     {"path": "phase_prompts/phase6_auditor.md", "kind": "phase_prompt_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "phase_prompts/single_pass.md", "kind": "phase_prompt_file", "min_version": None, "expected_sha256": None, "source_glob": None},
 
-    # ---- references/ (22 — sorted glob "*.md") ----
+    # ---- references/ (23 — sorted glob "*.md"; v1.5.7 089 F8 added
+    #      qpb_validate_event_schema.md) ----
     {"path": "references/challenge_gate.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/code-only-mode.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/constitution.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
@@ -171,6 +172,7 @@ INSTALL_CLOSURE = [
     {"path": "references/phase1_exploration_guide.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/phase2_generation_guide.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/phase6_verify_guide.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "references/qpb_validate_event_schema.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/requirements_pipeline.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/requirements_refinement.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/requirements_review.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
@@ -183,11 +185,12 @@ INSTALL_CLOSURE = [
     {"path": "references/verification.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/what_just_happened.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
 ]
-# Total: 2 + 3 + 13 + 10 + 22 = 50 entries (v1.5.7 086 A-26: bin/
-# grew 10 → 13 — qpb_config / run_state_lib / validate_phase_artifacts
-# added to install_skill.py:_bundle_files() because SKILL.md /
-# phase_prompts hard-reference them as adopter-runnable; INSTALL_CLOSURE
-# is the machine-derived mirror, kept in lockstep per the drift test).
+# Total: 2 + 3 + 13 + 10 + 23 = 51 entries (v1.5.7 086 A-26: bin/
+# grew 10 → 13 — qpb_config / run_state_lib / validate_phase_artifacts;
+# v1.5.7 089 F8: references/ grew 22 → 23 — qpb_validate_event_schema.md
+# added, auto-bundled by _bundle_files()'s references/* glob.
+# INSTALL_CLOSURE is the machine-derived mirror of _bundle_files(),
+# kept in lockstep per the drift test).
 # Acceptance #11: set(e["path"]) == set(str(dst) for _, dst in _bundle_files()).
 
 INSTALL_SCAFFOLDING = [
@@ -797,15 +800,27 @@ def _readable_file(p: Path) -> bool:
         return False
 
 
-def _static_parse_ok(p: Path) -> bool:
+def _static_parse_ok(p: Path) -> "tuple[bool, str | None]":
     """Static parse via py_compile (NOT import — addendum §3.2: a
     target-root import could execute top-level code or collide with a
-    target's own module)."""
+    target's own module).
+
+    Returns (ok, detail). detail is None on success. On failure it
+    distinguishes a real SOURCE parse failure (py_compile.
+    PyCompileError / SyntaxError) from a FILESYSTEM/sandbox failure
+    (OSError — permissions, sandbox, missing fd) so Phase 0 closure
+    diagnostics never misreport a permissions/sandbox error as
+    syntactic corruption of the file (v1.5.7 089 F4 / bootstrap
+    BUG-001 / REQ-001 — closure diagnostics must distinguish syntax
+    from filesystem failures)."""
     try:
         py_compile.compile(str(p), doraise=True)
-        return True
-    except (py_compile.PyCompileError, SyntaxError, OSError):
-        return False
+        return True, None
+    except (py_compile.PyCompileError, SyntaxError) as exc:
+        return False, f"py_compile parse failed: {exc}"
+    except OSError as exc:
+        return False, (f"py_compile filesystem error: "
+                       f"{type(exc).__name__}: {exc}")
 
 
 def _skill_version(skill_md: Path) -> "str | None":
@@ -854,10 +869,11 @@ def check_closure(install_root: Path) -> "list[dict]":
                              "path": entry["path"], "detail": "unreadable"})
             continue
         if kind in ("gate_script", "bundled_module"):
-            if not _static_parse_ok(p):
+            ok, parse_detail = _static_parse_ok(p)
+            if not ok:
                 findings.append({"code": "install_partial", "kind": kind,
                                  "path": entry["path"],
-                                 "detail": "py_compile parse failed"})
+                                 "detail": parse_detail})
                 continue
         if kind == "skill_doc" and entry.get("min_version"):
             got = _skill_version(p)

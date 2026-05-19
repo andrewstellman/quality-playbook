@@ -157,5 +157,103 @@ class AgentsMdCpBlocksMatchBundleTests(unittest.TestCase):
             "AGENTS.md in lockstep?")
 
 
+class AllMdCpBlocksMatchBundleTests(unittest.TestCase):
+    """v1.5.7 instruction 089 (F2 Council finding): the A-29 drift
+    class — a doc-side bin/ cp recipe lagging _bundle_files() —
+    recurs unless EVERY adopter-facing doc with a cp recipe is pinned,
+    not just AGENTS.md. 088's AgentsMdCpBlocksMatchBundleTests covered
+    AGENTS.md (prefixed `cp "$QPB"/bin/x.py`) only; README Step 3 uses
+    the bare `cp bin/x.py` form and was the stale third enumeration
+    (F1). This class scans EVERY root/docs *.md that carries a bin/ cp
+    recipe (auto-discovered, so a future recipe-bearing doc is covered
+    the moment it lands) and asserts per-file symmetric equality with
+    _bundle_files(), matching BOTH the prefixed and bare cp forms.
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160) — BITE EXECUTED during
+    instruction-089 development:
+      Mutation: delete the `cp bin/run_state_lib.py ...` line from
+        ALL THREE README Step 3 recipes (Claude / Copilot-flat /
+        Copilot-nested). NOTE: this is a per-file WHOLE-FILE set
+        comparison, so the module must be absent from EVERY recipe
+        in the file to register as drift — deleting it from only one
+        recipe does NOT fire (the verify-before-claim correction to
+        the instruction's prescribed single-line bite, same
+        set-semantics class as the 088 AGENTS.md bite).
+      Observed failure (purged __pycache__ first):
+        FAIL: test_all_md_cp_recipes_match_bundle
+        AssertionError: Items in the first set but not the second:
+          'run_state_lib.py'  [README.md cp recipe drifted from
+          _bundle_files(): missing={'run_state_lib.py'}]
+      Mutation reverted (authoritative shutil.copy2 from a pre-bite
+      snapshot); test passes.
+    """
+
+    # Prefixed (AGENTS.md): cp "$QPB"/bin/<name>.py <dest>
+    PREFIXED_PATTERN = re.compile(
+        r'cp\s+"\$QPB"/bin/([a-z_][a-z0-9_]+\.py)\s')
+    # Bare (README Step 3): cp bin/<name>.py <dest>
+    BARE_PATTERN = re.compile(
+        r'(?:^|\s)cp\s+bin/([a-z_][a-z0-9_]+\.py)\s')
+    # Any bin/ cp recipe line (prefixed OR bare) — scan-set selector.
+    _RECIPE_LINE = re.compile(
+        r'cp\s+(?:"\$QPB"/)?bin/[a-z_][a-z0-9_]+\.py\s')
+    # Reuse 088's placeholder exclusion (citation-format teaching
+    # examples), mapped basename -> dotted to match the existing set.
+    _PLACEHOLDER_BASENAMES = frozenset(
+        ref.split(".", 1)[1] + ".py"
+        for ref in BundleCompletenessTests._PLACEHOLDER_BIN_MODULES
+    )
+
+    def _scan_set(self, qpb_root: Path) -> list[Path]:
+        candidates: list[Path] = []
+        candidates.extend(sorted(qpb_root.glob("*.md")))
+        docs = qpb_root / "docs"
+        if docs.is_dir():
+            candidates.extend(sorted(docs.rglob("*.md")))
+        out = []
+        for p in candidates:
+            try:
+                txt = p.read_text(encoding="utf-8")
+            except OSError:
+                continue
+            if self._RECIPE_LINE.search(txt):
+                out.append(p)
+        return out
+
+    def test_all_md_cp_recipes_match_bundle(self) -> None:
+        qpb_root = Path(__file__).resolve().parents[2]
+        bundle_files = {
+            src.name
+            for src, _dst in install_skill._bundle_files(qpb_root)
+            if src.suffix == ".py" and src.parent.name == "bin"
+        }
+        scanned = self._scan_set(qpb_root)
+        self.assertTrue(
+            scanned,
+            "no *.md with a bin/ cp recipe found — scan-set selector "
+            "is stale (AGENTS.md + README.md should match).")
+        for p in scanned:
+            txt = p.read_text(encoding="utf-8")
+            declared = (
+                set(self.PREFIXED_PATTERN.findall(txt))
+                | set(self.BARE_PATTERN.findall(txt))
+            ) - self._PLACEHOLDER_BASENAMES
+            missing = bundle_files - declared
+            extra = declared - bundle_files
+            rel = p.relative_to(qpb_root)
+            self.assertEqual(
+                missing, set(),
+                f"{rel} cp recipe drifted from _bundle_files(): "
+                f"missing={sorted(missing)}. Every adopter-facing "
+                f"manual install recipe MUST mirror "
+                f"install_skill.py::_bundle_files() (A-29 class).")
+            self.assertEqual(
+                extra, set(),
+                f"{rel} cp recipe has bin/*.py NOT in _bundle_files(): "
+                f"extra={sorted(extra)}. Did _bundle_files() drop a "
+                f"module without updating {rel} in lockstep?")
+
+
 if __name__ == "__main__":
     unittest.main()

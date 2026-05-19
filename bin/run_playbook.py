@@ -69,6 +69,15 @@ _AGENT_CONTEXT_SIGNALS: dict[str, str] = {
     "CURSOR_AGENT":             "Cursor",
     "CONTINUE_SESSION":         "Continue",
     "WINDSURF_AGENT":           "Windsurf",
+    # v1.5.7 instruction 089 (Council finding F6): cline + aider —
+    # forward-compatibility placeholders matching install_skill.py
+    # AI_TOOL_MAP coverage (the installer offers these as targets but
+    # the A-22 guard had no signal for them). Env-var names are NOT
+    # empirically verified — same status as Cursor/Continue/Windsurf
+    # above. If these tools begin setting identifiable session env
+    # vars, populate empirically and drop the "NOT verified" caveat.
+    "CLINE_AGENT":              "Cline",
+    "AIDER_AGENT":              "Aider",
 }
 
 
@@ -383,13 +392,25 @@ def build_parser() -> argparse.ArgumentParser:
     #   1. This CLI flag (comma-separated, e.g., "claude-opus-4.7,gpt-5.5,claude-sonnet-4.6")
     #   2. ~/.qpb/config.json "council_members" key
     #   3. bin/council_config.DEFAULT_COUNCIL_MEMBERS (built-in default)
-    # Help text intentionally SUPPRESSED — the flag is documented in
-    # references/runners_and_models.md; adopters discover it via the docs.
+    # v1.5.7 instruction 089 (Council finding F7): EXPOSED. D6
+    # designed --council-roster as an adopter-facing override
+    # (AGENTS.md + references/runners_and_models.md both document it
+    # as adopter-callable); the prior argparse.SUPPRESS contradicted
+    # that prose so `--help` and the docs disagreed. The flag works
+    # correctly when invoked (no unsafe edges), so the resolution is
+    # to expose it — `--help` now agrees with the docs.
     parser.add_argument(
         "--council-roster",
         dest="council_roster",
         default=None,
-        help=argparse.SUPPRESS,
+        metavar="m1,m2,m3",
+        help=(
+            "Override the Council roster (comma-separated model ids). "
+            "Resolution: this flag > ~/.qpb/config.json "
+            "(or $XDG_CONFIG_HOME/qpb/config.json) > built-in default "
+            "(claude-opus-4.7,gpt-5.5,claude-sonnet-4.6). See "
+            "references/runners_and_models.md."
+        ),
     )
 
     seed_group = parser.add_mutually_exclusive_group()
@@ -424,8 +445,8 @@ def build_parser() -> argparse.ArgumentParser:
             "a HUMAN operator running from an INTERACTIVE TERMINAL, not "
             "an agent reaching for the runner from inside a Claude Code / "
             "Copilot / Codex / Cursor session). The startup agent-context "
-            "check (v1.5.7 A-22) refuses unless: --worker / --next-iteration "
-            "are set, OR --operator-invoked is set AND stdin is a TTY, OR "
+            "check (v1.5.7 A-22) refuses unless: --next-iteration is set, "
+            "OR --operator-invoked is set AND stdin is a TTY, OR "
             "no agent context is detected. The TTY requirement (085) "
             "prevents agents that read --help output from fabricating "
             "the bypass — agents' subprocess.run() calls pipe stdin."
@@ -5548,6 +5569,20 @@ def _check_agent_context_or_refuse(argv: "Sequence[str]") -> None:
     # bypass as an explicit adversarial action (not an accidental
     # misread). v1.6.0 may revisit whether to add an additional
     # fabrication-resistant signal.
+    #
+    # v1.5.7 instruction 089 (Council finding F3): RESIDUAL THREAT
+    # acknowledgment, extension. The Layer-1 env-var detection above
+    # catches every named agent regardless of TTY allocation, AS LONG AS
+    # the invocation reaches _detect_agent_context(). The early return at
+    # :5517 (`if tokens & {"--worker", "--next-iteration"}: return`)
+    # short-circuits Layer-1 entirely for self-spawned worker / iteration
+    # subprocesses. --next-iteration is operator-driven (no agent-facing
+    # disclosure); --worker is argparse.SUPPRESS and is no longer disclosed
+    # in --help (instruction 089 removed it from :427). The bypass is
+    # preserved for legitimate self-spawn; the disclosure surface is
+    # closed. Adversarial source-reader bypasses (env-var name, pty.openpty
+    # recipe) remain as documented above; --help-reading no longer surfaces
+    # the --worker bypass.
     if "--operator-invoked" in tokens:
         try:
             if sys.stdin.isatty():
