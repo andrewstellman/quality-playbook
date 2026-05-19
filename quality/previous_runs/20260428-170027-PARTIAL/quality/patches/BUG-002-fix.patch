@@ -1,0 +1,8 @@
+--- a/bin/benchmark_lib.py
++++ b/bin/benchmark_lib.py
+@@ -39,5 +39,6 @@ SKILL_INSTALL_LOCATIONS = (
+     Path(".github") / "skills" / "SKILL.md",
+     Path(".claude") / "skills" / "quality-playbook" / "SKILL.md",
+     Path("SKILL.md"),
++    Path(".github") / "skills" / "quality-playbook" / "SKILL.md",
+ )

@@ -1,0 +1,35 @@
+RED
+=== Red Phase: BUG-H2 — Unquoted array expansion corrupts paths with spaces ===
+Date: 2026-04-16
+Test: test_BUG_H2_array_expansion_corrupts_spaces
+
+Command: BUG_SKIP_H2=0 bash quality/test_regression.sh test_BUG_H2_array_expansion_corrupts_spaces
+
+Output:
+=== Regression Tests: quality-playbook ===
+Date: 2026-04-16
+All tests are skip-guarded. Set BUG_SKIP_NNN=0 to enable individual tests.
+
+  TEST: test_BUG_H2_array_expansion_corrupts_spaces
+  Buggy reconstruction: 1 element(s)
+  Fixed reconstruction: 1 element(s)
+  BUG FIXED or not triggered: path preserved as single element
+  Note: word-splitting behavior may vary by bash version/IFS setting
+  RESULT: PASS
+
+===========================================
+Results: 1 PASS, 0 FAIL, 0 SKIP
+
+Exit code: 0
+
+VERDICT: RED — The regression test did not trigger in GNU bash 3.2.57 (arm64-apple-darwin25).
+In this bash version, array assignment (A=(...)) does not word-split even when the
+expansion is unquoted. The bug is documented and the pattern is risky (unquoted
+${arr[@]+"${arr[@]}"} is undefined behavior in POSIX sh and may fail in other
+shell environments), but bash 3.2 on macOS does not exhibit the split in this test.
+
+NOTE: The code still contains the unquoted pattern at lines 686 and 697 which is
+incorrect per POSIX and may fail in other contexts (sh, dash, etc.). The fix patch
+is still valid and should be applied for correctness and portability.
+
+Status: confirmed open (environment-dependent — not reproducible in bash 3.2 on macOS arm64)

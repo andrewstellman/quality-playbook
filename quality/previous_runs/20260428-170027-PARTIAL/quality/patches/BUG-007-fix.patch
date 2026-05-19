@@ -1,0 +1,11 @@
+--- a/bin/run_playbook.py
++++ b/bin/run_playbook.py
+@@ -560,3 +560,8 @@ def docs_present(repo_dir: Path) -> bool:
+     docs_dir = repo_dir / "docs_gathered"
+-    return docs_dir.is_dir() and any(docs_dir.iterdir())
++    if not docs_dir.is_dir():
++        return False
++    return any(
++        f for f in docs_dir.iterdir()
++        if f.is_file() and not f.name.startswith(".") and f.stat().st_size > 0
++    )

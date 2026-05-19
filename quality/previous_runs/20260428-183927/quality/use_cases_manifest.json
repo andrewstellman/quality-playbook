@@ -1,0 +1,90 @@
+{
+  "schema_version": "1.5.3",
+  "generated_at": "2026-04-28T17:28:30Z",
+  "records": [
+    {
+      "id": "UC-01",
+      "title": "Benchmark operator runs Phase 1 on a source-heavy target",
+      "description": "A benchmark operator starts a phased run on a target that may have sparse documentation. The runner inspects available docs, reports the real evidence posture, and writes an exploration artifact that later phases can trust.",
+      "actors": ["Benchmark operator", "Playbook runner"],
+      "steps": [
+        "Start a phased run from the repo root or an installed target.",
+        "Inspect the effective documentation inputs visible to Phase 1.",
+        "Proceed into exploration using the strongest evidence actually available."
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-02",
+      "title": "Maintainer self-audits QPB at the repo root",
+      "description": "A QPB maintainer runs the playbook directly against the repository root and expects the self-audit to see the same effective documentation surface that a harness-installed benchmark target would expose.",
+      "actors": ["QPB maintainer", "Playbook runner"],
+      "steps": [
+        "Run the playbook against the repository root.",
+        "Read the live skill plus curated bootstrap context.",
+        "Compare the resulting evidence posture with the harness-installed model."
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-03",
+      "title": "Later phases consume a generated exploration artifact",
+      "description": "A later-phase AI agent reads quality/EXPLORATION.md from disk, validates that it satisfies the written Phase 2 gate, and uses that stable artifact as the baseline for downstream files.",
+      "actors": ["Later-phase AI agent"],
+      "steps": [
+        "Read quality/EXPLORATION.md from disk.",
+        "Validate the required headings and content shape.",
+        "Generate downstream artifacts from the validated baseline."
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-04",
+      "title": "Maintainer classifies a target as Code, Skill, or Hybrid",
+      "description": "A maintainer or automation path classifies the target repository and expects that classification to survive into live run metadata consumed by later tooling.",
+      "actors": ["Maintainer", "Classifier", "Run metadata writer"],
+      "steps": [
+        "Run the project classifier.",
+        "Persist the resulting classification into live run metadata.",
+        "Let downstream tooling reason from the persisted value."
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-05",
+      "title": "Auditor relies on byte-verified citations on an installed target",
+      "description": "An auditor or quality gate on an installed target re-runs deterministic excerpt extraction against a cited document and expects the installed package to retain the verifier dependency needed for byte-equality checks.",
+      "actors": ["Auditor", "Quality gate"],
+      "steps": [
+        "Read the installed gate package from the target repo.",
+        "Re-run excerpt extraction against the cited document bytes.",
+        "Reject any mismatch between stored excerpt and fresh extraction."
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-06",
+      "title": "Operator terminates a stuck run without collateral damage",
+      "description": "A benchmark operator invokes cleanup after a stuck run and expects only the recorded workers for that run to be terminated.",
+      "actors": ["Benchmark operator", "Playbook runner"],
+      "steps": [
+        "Invoke run cleanup.",
+        "Read the per-run PID records.",
+        "Terminate only the workers belonging to that run."
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-07",
+      "title": "Installer or downstream agent reads either shipped skill entry point",
+      "description": "An installer or downstream AI agent resolves the playbook through either the repo-root or installed skill path and expects both entry points to teach the same instructions.",
+      "actors": ["Installer", "AI agent"],
+      "steps": [
+        "Resolve the skill through one supported path.",
+        "Resolve it again through the alternate supported path.",
+        "Compare the resulting instructions and version stamps."
+      ],
+      "formal_doc_refs": []
+    }
+  ]
+}

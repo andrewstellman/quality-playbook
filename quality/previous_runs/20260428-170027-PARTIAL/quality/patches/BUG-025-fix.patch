@@ -1,0 +1,20 @@
+diff --git a/.github/skills/quality_gate/quality_gate.py b/.github/skills/quality_gate/quality_gate.py
+--- a/.github/skills/quality_gate/quality_gate.py
++++ b/.github/skills/quality_gate/quality_gate.py
+@@
+-    func_test = first_file_matching(q, ["test_functional.*"])
+-    reg_test = first_file_matching(q, ["test_regression.*"])
++    func_test = first_file_matching(q, ["test_functional.*", "functional_test.*",
++                                        "FunctionalSpec.*", "FunctionalTest.*",
++                                        "functional.test.*"])
++    reg_test = first_file_matching(q, ["test_regression.*"])
+ @@
+-        warn("No test_functional.* found")
++        warn("No functional test file found across the supported naming matrix")
+         return
+@@
+-        pass_(f"test_functional.{ext} matches project language ({detected_lang})")
++        pass_(f"{func_test.name} matches project language ({detected_lang})")
+ @@
+-            pass_(f"test_regression.{reg_ext} matches project language ({detected_lang})")
++            pass_(f"{reg_test.name} matches project language ({detected_lang})")

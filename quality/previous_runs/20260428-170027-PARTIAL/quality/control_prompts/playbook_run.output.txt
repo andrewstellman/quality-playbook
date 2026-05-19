@@ -1,0 +1,660 @@
+● skill(quality-playbook)
+
+Quality Playbook v1.4.5 — by Andrew Stellman  
+https://github.com/andrewstellman/quality-playbook
+
+I’m loading the current run state and the iteration protocol, then I’ll execute the adversarial iteration against the existing quality artifacts. The iteration will reuse prior findings, challenge dismissed or weakly-triaged areas, merge any net-new findings back into the quality system, and carry the run through reconciliation and verification so the result is a complete adversarial pass rather than just another exploration note.
+
+● Read SKILL.md
+  │ .github/skills/SKILL.md
+  └ L1:260 (244 lines read)
+
+● Read iteration.md
+  │ .github/skills/references/iteration.md
+  └ L1:260 (185 lines read)
+
+● Read PROGRESS.md
+  │ quality/PROGRESS.md
+  └ L1:260 (145 lines read)
+
+● Read BUGS.md
+  │ quality/BUGS.md
+  └ L1:260 (260 lines read)
+
+● List directory quality/results
+  └ 59 files found
+
+I’ve confirmed this is the fourth iteration step in the recommended cycle: baseline, gap, unfiltered, parity are done, and the repo already has a merged exploration plus a demoted-candidate manifest. Next I’m drilling into the dismissed findings, thin SATISFIED calls, and triage reversals to see which ones can be re-promoted under the adversarial rules.
+
+● Read iteration.md
+  │ .github/skills/references/iteration.md
+  └ L162:260 (30 lines read)
+
+● Read ITERATION_PLAN.md
+  │ quality/ITERATION_PLAN.md
+  └ L1:220 (59 lines read)
+
+● Read EXPLORATION_MERGED.md
+  │ quality/EXPLORATION_MERGED.md
+  └ L1:260 (260 lines read)
+
+● Read EXPLORATION_MERGED.md
+  │ quality/EXPLORATION_MERGED.md
+  └ L261:520 (28 lines read)
+
+● Read EXPLORATION.md
+  │ quality/EXPLORATION.md
+  └ L220:360 (141 lines read)
+
+I’ve got the adversarial rules and the current merged state. The key question now is where the prior run was too conservative: demoted candidates, dismissals in triage, and requirements marked SATISFIED on thin evidence. That’s the seam most likely to yield net-new bugs without just re-reporting the existing 25.
+
+● Search (glob)
+  │ "quality/spec_audits/*triage*.md"
+  └ No matches found
+
+● Search (glob)
+  │ "quality/code_reviews/*.md"
+  └ No matches found
+
+● Search (grep)
+  │ "^### DC-|Dismiss|dismiss|demot|FALSE POSITIVE|SATISFIED|VIOLATED" in
+  │ **/*.{md,txt} (quality)
+  └ 23 lines found
+
+● Check worktree status (shell)
+  │ git --no-pager status --short
+  └ 1 line...
+
+● List directory quality/spec_audits
+  └ 19 files found
+
+● Read EXPLORATION_ITER4.md
+  │ quality/EXPLORATION_ITER4.md
+  └ L110:180 (51 lines read)
+
+● Read 2026-04-18-phase3-review.md
+  │ quality/code_reviews/2026-04-18-phase3-review.md
+  └ L120:260 (141 lines read)
+
+● Search (glob)
+  │ "*.md" in quality/code_reviews
+  └ 4 files found
+
+● Search (grep)
+  │ "Verdict: SATISFIED|Verdict: PARTIALLY SATISFIED" in *.md
+  │ (quality/code_reviews)
+  └ 2 lines found
+
+● Search (glob)
+  │ "*triage*.md" in quality/spec_audits
+  └ 4 files found
+
+The earlier passes left only a few explicitly demoted items, so I’m widening the adversarial scan to include triage dismissals and the two partially-satisfied requirements from the baseline review. That should tell us whether the remaining misses are truly false positives or just under-evidenced.
+
+● Search (grep)
+  │ "check_patches|test_regression|RegressionTest|regression_test"
+  │ (.github/skills/quality_gate/quality_gate.py)
+  └ 8 lines found
+
+● Search (grep)
+  │ "gh copilot -p|claude -p|_pkill_fallback|patterns = \["
+  │ (bin/run_playbook.py)
+  └ 5 lines found
+
+● Search (grep)
+  │ "dismiss|demot|false positive|FALSE
+  │ POSITIVE|reclass|needs.*verification|design choice|NOT CONFIRMED|not
+  │ confirmed|candidate" in *triage*.md (quality/spec_audits)
+  └ No matches found
+
+● Search (grep)
+  │ "RegressionTest|regression_test|functional_test|FunctionalTest|FunctionalSpe
+  │ c|test_regression|test_functional" in **/*.{md,py} (.github/skills)
+  └ 34 lines found
+
+● Read 2026-04-19-parity-triage.md
+  │ quality/spec_audits/2026-04-19-parity-triage.md
+  └ L1:260 (21 lines read)
+
+● Read 2026-04-18-triage.md
+  │ quality/spec_audits/2026-04-18-triage.md
+  └ L1:260 (143 lines read)
+
+● Read 2026-04-19-unfiltered-triage.md
+  │ quality/spec_audits/2026-04-19-unfiltered-triage.md
+  └ L1:260 (23 lines read)
+
+● Search (grep)
+  │ "RegressionTest|regression_test|test_regression_test\.go|test_regression\.|r
+  │ egression test file" in **/*.{md,py,sh}
+  └ 6 lines found
+
+I’m seeing one likely false positive seam already: regression-test naming is much more canonical in the skill docs than the helper library suggests, so that demoted candidate may stay demoted. To avoid stalling, I’m now tracing adjacent behavior around the remaining weak spots—kill-path cleanup and closed-set drift—to see whether there are overlooked bugs nearby rather than trying to force an under-specified one.
+
+● Read run_playbook.py
+  │ bin/run_playbook.py
+  └ L790:855 (66 lines read)
+
+● Read benchmark_lib.py
+  │ bin/benchmark_lib.py
+  └ L1:80 (80 lines read)
+
+● Read quality_gate.py
+  │ .github/skills/quality_gate/quality_gate.py
+  └ L780:920 (141 lines read)
+
+● Search (grep)
+  │ "regression_test\.go|RegressionTest|regression_test\.|test_regression\.\*|qu
+  │ ality/test_regression" in **/*.{md,py} (.github/skills)
+  └ 12 lines found
+
+● Search (grep)
+  │ "regression_test\.go|RegressionTest|regression_test\.|test_regression\.\*|qu
+  │ ality/test_regression" (README.md)
+  └ 1 line found
+
+That demoted regression-name item flipped direction after closer reading: the stronger contract is actually the canonical `test_regression.*` name, so the likely issue is not the gate being too strict but the helper library being too permissive. I’m checking where those permissive patterns feed user-visible or benchmark-visible behavior before deciding whether that becomes a real adversarial bug.
+
+● Read benchmark_lib.py
+  │ bin/benchmark_lib.py
+  └ L220:340 (121 lines read)
+
+● Read test_quality_gate.py
+  │ .github/skills/quality_gate/tests/test_quality_gate.py
+  └ L880:905 (26 lines read)
+
+● Read test_quality_gate.py
+  │ .github/skills/quality_gate/tests/test_quality_gate.py
+  └ L100:130 (31 lines read)
+
+● Read README.md
+  └ L320:345 (25 lines read)
+
+● Search (grep)
+  │ "REGRESSION_TEST_PATTERNS|find_regression|regression.*pattern|SummaryRow|fun
+  │ ctional_test|regression" (bin/benchmark_lib.py)
+  └ 18 lines found
+
+I’ve found a stronger adversarial angle than the original demoted candidate: the spec and README make `quality/test_regression.*` canonical, but the benchmark helper will still mark a repo as having regression coverage if it only contains non-canonical alternates. I’m checking whether the same “helper too permissive” drift also exists for `test_functional_test.*` before I promote either one.
+
+● Read benchmark_lib.py
+  │ bin/benchmark_lib.py
+  └ L150:180 (31 lines read)
+
+● Read SKILL.md
+  └ L60:80 (21 lines read)
+
+● Read functional_tests.md
+  │ .github/skills/references/functional_tests.md
+  └ L1:80 (79 lines read)
+
+● Search (grep)
+  │ "test_functional_test|functional_test\.\*|test_functional\.\*|test_regressio
+  │ n_test|regression_test\.\*|test_regression\.\*" in **/*.{md,py}
+  └ 9 lines found
+
+I’ve got enough evidence that the helper’s accepted filename sets are broader than the published contract. The remaining question is whether that permissiveness is isolated to summaries or leaks into any other runner behavior; if it’s user-visible, it’s a solid adversarial promotion.
+
+● Search (grep)
+  │ "test_functional_test|test_regression_test|functional_test\.\*|regression_te
+  │ st\.\*" (README.md)
+  └ No matches found
+
+● Search (grep)
+  │ "test_functional_test|test_regression_test|functional_test\.\*|regression_te
+  │ st\.\*" in **/*.md (.github/skills)
+  └ No matches found
+
+● Search (grep)
+  │ "test_functional_test|test_regression_test|functional_test\.\*|regression_te
+  │ st\.\*" in *.py (bin)
+  └ 4 lines found
+
+● Search (grep)
+  │ "find_functional_test\(|find_regression_test\(" in **/*.py
+  └ 7 lines found
+
+● Read run_playbook.py
+  │ bin/run_playbook.py
+  └ L584:606 (23 lines read)
+
+● Read test_benchmark_lib.py
+  │ bin/tests/test_benchmark_lib.py
+  └ L1:110 (109 lines read)
+
+I’ve got two promising adversarial promotions: the helper library accepts unsupported `test_functional_test.*` filenames, and it also treats non-canonical regression filenames as valid even though the published contract is `test_regression.*`. I’m writing down the plan and then I’ll verify these against the current artifacts before updating the iteration outputs.
+
+● Edit
+  └ Create ~/.copilot/session-state/aa52f969-f059-4b6f-b633-201568844db9/plan.md
+
+● Read REQUIREMENTS.md
+  │ quality/REQUIREMENTS.md
+  └ L560:780 (126 lines read)
+
+● Read COVERAGE_MATRIX.md
+  │ quality/COVERAGE_MATRIX.md
+  └ L1:220 (109 lines read)
+
+● Read CONTRACTS.md
+  │ quality/CONTRACTS.md
+  └ L150:260 (111 lines read)
+
+● Read test_functional.py
+  │ quality/test_functional.py
+  └ L1:260 (258 lines read)
+
+● Read test_regression.py
+  │ quality/test_regression.py
+  └ L1:320 (320 lines read)
+
+● Read QUALITY.md
+  │ quality/QUALITY.md
+  └ L1:260 (156 lines read)
+
+● Read BUG-024.green.log
+  │ quality/results/BUG-024.green.log
+  └ L1:80 (5 lines read)
+
+● Read BUG-024.red.log
+  │ quality/results/BUG-024.red.log
+  └ L1:80 (21 lines read)
+
+● Read BUG-024-regression-test.patch
+  │ quality/patches/BUG-024-regression-test.patch
+  └ L1:120 (17 lines read)
+
+● Read BUG-024-fix.patch
+  │ quality/patches/BUG-024-fix.patch
+  └ L1:120 (13 lines read)
+
+● Read BUG-024.md
+  │ quality/writeups/BUG-024.md
+  └ L1:220 (48 lines read)
+
+I’ve shifted from hunting more source areas to refreshing the artifact set around two concrete adversarial promotions. Next I’m reading the tail ends of the generated docs—the last requirements, scenarios, traceability tables, and run metadata—so I can extend them cleanly instead of patching blind.
+
+● Read TDD_TRACEABILITY.md
+  │ quality/TDD_TRACEABILITY.md
+  └ L1:220 (79 lines read)
+
+● Read QUALITY.md
+  │ quality/QUALITY.md
+  └ L260:420 (9 lines read)
+
+● Read tdd-results.json
+  │ quality/results/tdd-results.json
+  └ L1:260 (240 lines read)
+
+● Read integration-results.json
+  │ quality/results/integration-results.json
+  └ L1:220 (86 lines read)
+
+● Read run-2026-04-18T23-43-14.json
+  │ quality/results/run-2026-04-18T23-43-14.json
+  └ L1:220 (19 lines read)
+
+● Search (grep)
+  │ "^### Scenario" (quality/QUALITY.md)
+  └ 18 lines found
+
+● Read PROGRESS.md
+  │ quality/PROGRESS.md
+  └ L1:180 (145 lines read)
+
+● Read 2026-04-19-parity-review.md
+  │ quality/code_reviews/2026-04-19-parity-review.md
+  └ L1:220 (20 lines read)
+
+● Read BUGS.md
+  │ quality/BUGS.md
+  └ L440:640 (201 lines read)
+
+● Read test_regression.py
+  │ quality/test_regression.py
+  └ L760:920 (89 lines read)
+
+I’ve finished the investigation phase: the adversarial pass is going to land as artifact updates, not source fixes. Before I edit, I’m running the repo’s current quality/test validation commands so I can separate pre-existing noise from anything I introduce during the iteration refresh.
+
+● Run baseline validation suite (shell)
+  │ python3 -m unittest discover -s quality -p 'test_*.py' -v && python3 -m
+  │ unittest discover -s bin/tests -p 'test_*.py' -v && bash
+  │ quality/spec_audits/triage_probes.sh && bash quality/mechanical/verify.sh &&
+  │ python3 .github/skills/quality_gate/quality_gate.py .
+  └ 10 lines...
+
+● Show tail of baseline validation output (shell)
+  │ tail -n 80 /var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/copilot-tool-out
+  │ put-1776573766798-41y717.txt
+  └ 80 lines...
+
+● Extract validation summary lines (shell)
+  │ grep -n "^FAIL\|^ERROR\|^Traceback\|^FAILED\|^WARN\|^INFO\|^PASS"
+  │ /var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/copilot-tool-output-1776573
+  │ 766798-41y717.txt | tail -n 120
+  └ 10 lines...
+
+● Read 2026-04-19-gap-triage.md
+  │ quality/spec_audits/2026-04-19-gap-triage.md
+  └ L1:200 (21 lines read)
+
+● Read BUGS.md
+  │ quality/BUGS.md
+  └ L760:980 (124 lines read)
+
+● Search (grep)
+  │ "^### BUG-0(2[0-9])" (quality/BUGS.md)
+  └ 6 lines found
+
+● Search (grep)
+  │ "iterations_completed|bug_count|bug_severity|gate_fail_count|parity
+  │ iteration added BUG-024..BUG-025"
+  │ (quality/results/run-2026-04-18T23-43-14.json)
+  └ 5 lines found
+
+● Search (grep)
+  │ "26 requirements|REQ-001..REQ-026|REQ-001 through REQ-026|12 use cases|18
+  │ fitness scenarios|25 confirmed bugs|BUG-001 through BUG-025|25
+  │ rows|×25|BUG-025" in **/*.{md,json,py} (quality)
+  └ 40 lines found
+
+● Read REQUIREMENTS.md
+  │ quality/REQUIREMENTS.md
+  └ L648:740 (38 lines read)
+
+● Read QUALITY.md
+  │ quality/QUALITY.md
+  └ L228:270 (41 lines read)
+
+● Read CONTRACTS.md
+  │ quality/CONTRACTS.md
+  └ L300:380 (21 lines read)
+
+● Read COMPLETENESS_REPORT.md
+  │ quality/COMPLETENESS_REPORT.md
+  └ L150:220 (21 lines read)
+
+● Edit
+  │ Create quality/EXPLORATION_ITER5.md
+  │ Edit quality/ITERATION_PLAN.md
+  └ Edit quality/EXPLORATION_MERGED.md
+
+● Edit
+  │ Edit quality/REQUIREMENTS.md
+  │ Edit quality/CONTRACTS.md
+  │ Edit quality/COVERAGE_MATRIX.md
+  │ Edit quality/QUALITY.md
+  └ Edit quality/COMPLETENESS_REPORT.md
+
+● Read test_functional.py
+  │ quality/test_functional.py
+  └ L760:920 (161 lines read)
+
+● Read test_regression.py
+  │ quality/test_regression.py
+  └ L820:930 (29 lines read)
+
+✗ Edit
+  │ Edit quality/test_functional.py
+  └ Edit quality/test_regression.py
+
+● Read test_functional.py
+  │ quality/test_functional.py
+  └ L900:980 (81 lines read)
+
+● Read test_regression.py
+  │ quality/test_regression.py
+  └ L800:860 (49 lines read)
+
+● Read test_functional.py
+  │ quality/test_functional.py
+  └ L979:1045 (67 lines read)
+
+● Read test_functional.py
+  │ quality/test_functional.py
+  └ L1045:1088 (24 lines read)
+
+● Edit
+  │ Edit quality/test_functional.py
+  └ Edit quality/test_regression.py
+
+● Edit
+  │ Edit quality/BUGS.md
+  │ Create quality/code_reviews/2026-04-19-adversarial-review.md
+  │ Create quality/spec_audits/2026-04-19-adversarial-auditor-1.md
+  │ Create quality/spec_audits/2026-04-19-adversarial-auditor-2.md
+  │ Create quality/spec_audits/2026-04-19-adversarial-auditor-3.md
+  └ Create quality/spec_audits/2026-04-19-adversarial-triage.md
+
+The new adversarial bugs are confirmed; now I’m propagating them through the evidence chain. I’m updating the existing parity bug narratives to stay within the documented naming contract, then I’ll add the new writeups and patches so the TDD sidecars and bug tracker stay internally consistent.
+
+✗ Edit
+  │ Edit quality/patches/BUG-024-fix.patch
+  │ Edit quality/patches/BUG-025-fix.patch
+  │ Edit quality/writeups/BUG-024.md
+  │ Edit quality/writeups/BUG-025.md
+  │ Create quality/patches/BUG-026-regression-test.patch
+  │ Create quality/patches/BUG-026-fix.patch
+  │ Create quality/patches/BUG-027-regression-test.patch
+  │ Create quality/patches/BUG-027-fix.patch
+  │ Create quality/writeups/BUG-026.md
+  └ Create quality/writeups/BUG-027.md
+
+● Read BUG-024.md
+  │ quality/writeups/BUG-024.md
+  └ L1:120 (49 lines read)
+
+● Read BUG-025.md
+  │ quality/writeups/BUG-025.md
+  └ L1:140 (54 lines read)
+
+● Read BUG-025-fix.patch
+  │ quality/patches/BUG-025-fix.patch
+  └ L1:120 (20 lines read)
+
+● Read BUG-024-fix.patch
+  │ quality/patches/BUG-024-fix.patch
+  └ L1:80 (13 lines read)
+
+● Edit
+  │ Edit quality/writeups/BUG-025.md
+  │ Create quality/patches/BUG-026-regression-test.patch
+  │ Create quality/patches/BUG-026-fix.patch
+  │ Create quality/patches/BUG-027-regression-test.patch
+  │ Create quality/patches/BUG-027-fix.patch
+  │ Create quality/writeups/BUG-026.md
+  └ Create quality/writeups/BUG-027.md
+
+✗ Edit
+  │ Edit quality/PROGRESS.md
+  │ Edit quality/TDD_TRACEABILITY.md
+  │ Edit quality/results/tdd-results.json
+  │ Edit quality/results/integration-results.json
+  └ Edit quality/results/run-2026-04-18T23-43-14.json
+
+I've got the remaining closure work narrowed to the stale Phase 5/6 artifacts now. I'm re-reading the exact current sections before patching the counts, traceability, and run metadata so the adversarial iteration closes cleanly.
+
+● Read TDD_TRACEABILITY.md
+  │ quality/TDD_TRACEABILITY.md
+  └ L1:220 (79 lines read)
+
+● Read PROGRESS.md
+  │ quality/PROGRESS.md
+  └ L1:260 (145 lines read)
+
+● Read tdd-results.json
+  │ quality/results/tdd-results.json
+  └ L1:260 (240 lines read)
+
+● Read integration-results.json
+  │ quality/results/integration-results.json
+  └ L1:260 (86 lines read)
+
+● Read run-2026-04-18T23-43-14.json
+  │ quality/results/run-2026-04-18T23-43-14.json
+  └ L1:120 (19 lines read)
+
+✗ Edit
+  └ Failed to parse patch: Unexpected line found in update hunk: '*** Update
+    File: /Users/andrewstellman/Documents/QPB/quality/results/run-2026-04-18T23-
+    43-14.json'. Every line should start with ' ' (context line), '+' (added
+    line), or '-' (removed line) (line 197)
+
+● Edit
+  └ Edit quality/PROGRESS.md
+
+● Edit
+  └ Edit quality/TDD_TRACEABILITY.md
+
+● Edit
+  └ Edit quality/results/tdd-results.json
+
+● Edit
+  └ Edit quality/results/integration-results.json
+
+● Edit
+  └ Edit quality/results/run-2026-04-18T23-43-14.json
+
+The artifact counts are patched through the progress and sidecar layers now. Next I'm cloning the existing TDD log format for BUG-026 and BUG-027, then I’ll run the repo checks again and fold the final outputs back into the tracked artifacts.
+
+● Read BUG-025.green.log
+  │ quality/results/BUG-025.green.log
+  └ L1:30 (5 lines read)
+
+● Read BUG-025.red.log
+  │ quality/results/BUG-025.red.log
+  └ L1:40 (21 lines read)
+
+● Read test_regression.py
+  │ quality/test_regression.py
+  └ L320:430 (111 lines read)
+
+● Search (grep)
+  │ "test_reg_adv2[67]" (quality/test_regression.py)
+  └ 15 lines found
+
+● Search (glob)
+  │ "BUG-02{6,7}.*" in quality/results
+  └ No matches found
+
+● Create TDD red/green logs for BUG-026 and BUG-027 (shell)
+  │ set -euo pipefail
+  │ run_red() {
+  │ bug="$1"
+  │ klass="$2"
+  │ method="$3"…
+  └ 42 lines...
+
+● Read BUG-026.red.log
+  │ quality/results/BUG-026.red.log
+  └ L1:40 (30 lines read)
+
+● Read BUG-026.green.log
+  │ quality/results/BUG-026.green.log
+  └ L1:20 (5 lines read)
+
+● Read BUG-027.red.log
+  │ quality/results/BUG-027.red.log
+  └ L1:40 (40 lines read)
+
+● Read BUG-027.green.log
+  │ quality/results/BUG-027.green.log
+  └ L1:20 (5 lines read)
+
+I’ve reached the validation pass. I’m running the repo’s existing checks end-to-end now so I can update the last stale receipts and make sure the adversarial iteration artifacts line up with the current test and gate outputs.
+
+● Run quality, bin, triage, mechanical, and quality-gate validations (shell)
+  │ set +e
+  │ python3 -m unittest discover -s quality -p 'test_*.py' -v >
+  │ /tmp/qpb-quality-tests.log 2>&1; s1=$?
+  │ python3 -m unittest discover -s bin/tests -p 'test_*.py' -v >
+  │ /tmp/qpb-bin-tests.log 2>&1; s2=$?…
+  └ 31 lines...
+
+● Read mechanical-verify.log
+  │ quality/results/mechanical-verify.log
+  └ L1:120 (54 lines read)
+
+● Read qpb-bin-tests.log
+  │ /tmp/qpb-bin-tests.log
+  └ L1:220 (131 lines read)
+
+● Read qpb-quality-tests.log
+  │ /tmp/qpb-quality-tests.log
+  └ L1:260 (210 lines read)
+
+● Read qpb-triage.log
+  │ /tmp/qpb-triage.log
+  └ L1:220 (29 lines read)
+
+● Read quality-gate.log
+  │ quality/results/quality-gate.log
+  └ L1:220 (105 lines read)
+
+● Get current UTC time for run metadata (shell)
+  │ date -u +%Y-%m-%dT%H:%M:%SZ
+  └ 2 lines...
+
+● Compute duration minutes for updated run metadata (shell)
+  │ python3 - <<'PY'
+  │ from datetime import datetime
+  │ start=datetime.fromisoformat('2026-04-18T23:43:14+00:00')
+  │ end=datetime.fromisoformat('2026-04-19T04:53:27+00:00')
+  │ print(int((end-start).total_seconds()//60))…
+  └ 3 lines...
+
+● Show changed files summary (shell)
+  │ git --no-pager diff --stat -- quality /Users/andrewstellman/.copilot/session
+  │ -state/aa52f969-f059-4b6f-b633-201568844db9/plan.md | cat
+  └ 2 lines...
+
+● Show changed files summary (shell)
+  │ git --no-pager diff --stat -- quality .github/skills /Users/andrewstellman/.
+  │ copilot/session-state/aa52f969-f059-4b6f-b633-201568844db9/plan.md | cat
+  └ 2 lines...
+
+● Show repo diff summary (shell)
+  │ git --no-pager diff --stat -- quality .github/skills | cat
+  └ 1 line...
+
+● Check git status for modified files (shell)
+  │ git --no-pager status --short | cat
+  └ 1 line...
+
+● Edit
+  │ Edit quality/results/integration-results.json
+  └ Edit quality/results/run-2026-04-18T23-43-14.json
+
+● Read tdd-results.json
+  │ quality/results/tdd-results.json
+  └ L220:280 (39 lines read)
+
+● Read run-2026-04-18T23-43-14.json
+  │ quality/results/run-2026-04-18T23-43-14.json
+  └ L1:40 (19 lines read)
+
+● Read integration-results.json
+  │ quality/results/integration-results.json
+  └ L1:120 (97 lines read)
+
+● Search (grep)
+  │ "Run the quality playbook from scratch|Next iteration
+  │ suggestion|adversarial" (quality/PROGRESS.md)
+  └ 53 lines found
+
+# Iteration Complete — adversarial
+
+Found **2 net-new bugs**, bringing the total to **27**.
+
+- **BUG-026** — helper functional-test discovery accepts undocumented `test_functional_test.*`, so `final_artifact_gaps()` can suppress a missing functional-test artifact.
+- **BUG-027** — helper summary counts non-canonical regression aliases like `RegressionTest.java`, so artifact summaries can overstate regression coverage.
+
+I refreshed the adversarial iteration artifacts through closure: exploration/merged findings, requirements/contracts/coverage, BUGS, writeups, regression/fix patches, TDD traceability, sidecar JSON, run metadata, PROGRESS, and new red/green log placeholders for BUG-026/027. The repo checks still end with the same known open gate failure from **BUG-023** (language detection is still polluted by fixture repos).
+
+The next recommended prompt is:
+
+`Run the quality playbook from scratch.`
+
+
+Changes   +822 -126
+Requests  1 Premium (16m 2s)
+Tokens    ↑ 8.2m • ↓ 64.6k • 7.9m (cached) • 18.7k (reasoning)

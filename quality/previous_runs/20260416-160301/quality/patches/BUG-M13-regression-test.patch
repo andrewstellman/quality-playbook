@@ -1,0 +1,50 @@
+--- a/quality/test_regression.sh
++++ b/quality/test_regression.sh
+@@ -660,6 +660,40 @@ test_BUG_M12_test_file_ext_ls_glob_false_positive() {
+     fi
+ }
+
++# ---------------------------------------------------------------------------
++# BUG-M13: ls-glob in code_reviews directory check (quality_gate.sh:143)
++#
++# The bug: `[ -n "$(ls ${q}/code_reviews/*.md 2>/dev/null)" ]` uses ls-glob
++# for presence detection. Under nullglob + empty directory, ls lists CWD,
++# returning non-empty result — FALSE PASS for missing code review artifacts.
++# [BUG from Gap Iteration Spec Audit — 2026-04-16]
++# Skip guard: set BUG_SKIP_M13=0 to enable
++# Fix: quality/patches/BUG-M13-fix.patch
++# ---------------------------------------------------------------------------
++test_BUG_M13_code_reviews_ls_glob_false_pass() {
++    if [ "${BUG_SKIP_M13:-1}" = "1" ]; then
++        echo "  SKIP: BUG-M13 skip guard active (set BUG_SKIP_M13=0 to run red phase)"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    local gate="${GATE_SH_PATH:-quality_gate.sh}"
++
++    if [ ! -f "$gate" ]; then
++        echo "  SKIP: quality_gate.sh not found"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    # BUG CONFIRMATION: code_reviews check uses ls-glob instead of find
++    if grep -qE '\$\(ls [^)]*code_reviews/\*\.md' "$gate"; then
++        echo "  BUG CONFIRMED: quality_gate.sh:143 uses ls-glob for code_reviews detection (vulnerable to nullglob)"
++        return 1  # FAILS on unpatched code (red phase)
++    else
++        echo "  BUG FIXED: code_reviews check uses find-based detection"
++        return 0
++    fi
++}
++
+ # ---------------------------------------------------------------------------
+ # Run tests
+ # ---------------------------------------------------------------------------
+@@ -682,5 +716,6 @@ else
+     run_test test_BUG_L10_recheck_schema_version_inconsistency
+     run_test test_BUG_L11_tdd_results_two_incompatible_templates
+     run_test test_BUG_M12_test_file_ext_ls_glob_false_positive
++    run_test test_BUG_M13_code_reviews_ls_glob_false_pass
+ fi

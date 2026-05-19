@@ -1,0 +1,37 @@
+--- a/quality/test_regression.sh
++++ b/quality/test_regression.sh
+@@ -0,0 +1,38 @@
++# BUG-L23: integration-results.json groups[].result enum not validated
++# Regression test: confirms quality_gate.sh has no validation of groups[].result
++# enum values ("pass", "fail", "skipped", "error") despite SKILL.md:1273 requiring them.
++# Contrast: tdd-results.json verdict enum IS validated (lines 294-296).
++#
++: "${BUG_SKIP_L23:=1}"
++test_BUG_L23_integration_groups_result_enum_absent() {
++    if [ "$BUG_SKIP_L23" -ne 0 ]; then
++        echo "SKIP: test_BUG_L23_integration_groups_result_enum_absent"
++        return 77
++    fi
++    echo "TEST: test_BUG_L23_integration_groups_result_enum_absent"
++    local gate="quality_gate.sh"
++    # Should find no groups[].result enum validation in the integration block
++    local result_enum_check
++    result_enum_check=$(grep -n 'result.*pass\|result.*fail\|groups\[\]\|result_enum' "$gate" | grep -v '^#' | head -10)
++    # Verify tdd verdict enum IS checked (for contrast)
++    local tdd_verdict_check
++    tdd_verdict_check=$(grep -n '"open"\|"confirmed_open"\|"closed"\|verdict.*enum\|VERDICT' "$gate" | grep -v '^#' | head -5)
++    if [ -z "$result_enum_check" ] && [ -n "$tdd_verdict_check" ]; then
++        echo "  BUG CONFIRMED: integration groups[].result enum NOT validated in gate"
++        echo "  No grep for result enum values (pass/fail/skipped/error) in integration block"
++        echo "  Contrast: tdd verdict enum IS validated: $tdd_verdict_check"
++        echo "  SKILL.md:1273 defines valid result values; SKILL.md:1277 mandates validation"
++        echo "  An agent writing result: 'PASS' (wrong case) passes gate — bug undetected"
++        return 1
++    elif [ -n "$result_enum_check" ]; then
++        echo "  BUG FIXED: groups[].result enum validation now present: $result_enum_check"
++        return 0
++    else
++        echo "  INCONCLUSIVE: tdd verdict check not found — gate structure may have changed"
++        return 1
++    fi
++}

@@ -1,0 +1,378 @@
+...........archive: /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmpp12ht62r/quality does not exist; nothing to archive
+..........................................................................................................usage: classify_project [-h] (--target TARGET | --benchmark) [--write]
+                        [--log LOG] [--override {code,skill,hybrid}]
+                        [--override-rationale OVERRIDE_RATIONALE]
+classify_project: error: --override requires --override-rationale
+.usage: classify_project [-h] (--target TARGET | --benchmark) [--write]
+                        [--log LOG] [--override {code,skill,hybrid}]
+                        [--override-rationale OVERRIDE_RATIONALE]
+classify_project: error: --override-rationale only meaningful with --override
+...............................................no Council members supplied; nothing to assemble
+.--member and --response must appear in equal count
+.................................................................................................migrate: /no/such/path/should/exist/ever/xyz is not a directory
+..........................................................................................INFO: resolved 'chi' to 'chi-1.4.5' (via SKILL.md version)
+.....INFO: resolved 'cobra' to 'cobra-1.4.5' (via SKILL.md version)
+........Archived quality/ to quality/runs/20260419T143022Z-PARTIAL
+14:33:07   Tidied 1 tracked file(s) in tmpnc8vvd9x: README.md
+14:33:08   Tidied 1 tracked file(s) in tmpvl0i4bef: tracked.txt
+{
+  "schema_version": "1.1",
+  "classification": "Hybrid",
+  "rationale": "Override applied: Council determined hybrid based on test fixture. (heuristic suggested Code: No SKILL.md at repo root; only 1 non-blank code lines observed (small project below the 50-line confidence threshold).)",
+  "confidence": "high",
+  "evidence": {
+    "skill_md_present": false,
+    "skill_md_path": null,
+    "skill_md_word_count": null,
+    "total_code_loc": 1,
+    "code_languages": [
+      "Python"
+    ],
+    "confidence_reason": "small-project"
+  },
+  "classified_at": "2026-04-28T18:33:08Z",
+  "classifier_version": "1.0",
+  "override_applied": true,
+  "override_rationale": "Council determined hybrid based on test fixture."
+}
+
+wrote: /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmpp35vuy_1/quality/project_type.json
+Wrote /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmppplwv0sm/quality/citation_semantic_check.json with 1 review entries
+Wrote /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp50gd_5a9/quality/citation_semantic_check.json with 1 review entries
+No Tier 1/2 REQs — wrote empty /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp9pf1yvun/quality/citation_semantic_check.json (Spec Gap run). Skip dispatch.
+Wrote 3 prompt file(s) to quality/council_semantic_check_prompts:
+  quality/council_semantic_check_prompts/claude-opus-4.7.txt
+  quality/council_semantic_check_prompts/gpt-5.4.txt
+  quality/council_semantic_check_prompts/gemini-2.5-pro.txt
+Next: feed each prompt to its Council member, capture the JSON-array response to quality/council_semantic_check_responses/<member>.json, and run `quality_playbook semantic-check assemble <repo> --member ... --response ...`.
+14:33:08   Phase 6 complete: Total: 5 FAIL, 3 WARN
+14:33:08   Phase 6 complete: WARN: quality/REQUIREMENTS.md: missing section
+14:33:08   Phase 6 complete: RESULT: GATE PASSED
+14:33:08   Phase 6 complete: RESULT: GATE FAILED — 3 check(s) must be fixed
+14:33:08   Phase 6 complete: RESULT: GATE PASSED
+14:33:08   Phase 6 complete: RESULT: 0 FAIL, 5 WARN
+14:33:08   Phase 6 complete: RESULT: GATE FAILED — 3 check(s) must be fixed
+14:33:08   Phase 6 complete: FAIL: quality/BUGS.md: heading missing
+14:33:08 Starting iteration (gap): repo
+14:33:08   Iteration gap: 0 -> 0 bugs (+0)
+14:33:08 Starting iteration (unfiltered): repo
+14:33:08   Iteration unfiltered: 0 -> 0 bugs (+0)
+14:33:08 Starting iteration (adversarial): repo
+14:33:08   ABORT iteration adversarial: child runner exited 2
+14:33:08 Starting playbook (single-pass): repo (runner=claude)
+14:33:08 Playbook complete: repo
+14:33:08 All artifacts present
+14:33:08 Starting iteration (adversarial): repo (runner=claude, building on existing quality/)
+14:33:08 ABORT: child runner exited 2
+14:33:08 Starting iteration (adversarial): repo (runner=claude, building on existing quality/)
+14:33:08 Playbook complete: repo
+14:33:08 All artifacts present
+14:33:08 [finalizer:post-phase-6] bugs=0 status=pass
+14:33:08 [finalizer:post-test] bugs=5 status=pass
+14:33:08 [finalizer:post-singlepass] bugs=0 status=pass
+14:33:08 [finalizer:post-test] bugs=0 status=pass
+14:33:08 [finalizer:post-test] bugs=0 status=fail
+14:33:08 [finalizer:post-test] bugs=0 status=fail
+14:33:08 [finalizer:post-test] bugs=0 status=pass
+14:33:08 [finalizer:post-test] bugs=0 status=pass
+14:33:08 [finalizer:abort-during-adversarial] bugs=0 status=aborted
+14:33:08 [finalizer:post-test] skipped: no quality/ directory
+14:33:08 [finalizer:post-test] bugs=0 status=pass
+14:33:08 [finalizer:post-test] bugs=0 status=fail
+[dry-run] move control_prompts -> quality/control_prompts
+[migrate] move control_prompts -> quality/control_prompts
+[migrate] move previous_runs -> quality/runs
+[migrate] write quality/runs/20260418-120000/INDEX.md (1352 bytes)
+[migrate] write quality/RUN_INDEX.md (583 bytes)
+[migrate] move previous_runs -> quality/runs
+[migrate] keep existing quality/runs/20260418-120000/INDEX.md
+[migrate] write quality/RUN_INDEX.md (584 bytes)
+[migrate] move previous_runs -> quality/runs
+[migrate] write quality/runs/20260418-120000/INDEX.md (1401 bytes)
+[migrate] write quality/RUN_INDEX.md (580 bytes)
+[migrate] move previous_runs -> quality/runs
+[migrate] write quality/runs/20260418-120000/INDEX.md (1352 bytes)
+[migrate] write quality/runs/20260419-120000/INDEX.md (1352 bytes)
+[migrate] write quality/RUN_INDEX.md (684 bytes)
+[dry-run] move previous_runs -> quality/runs
+[dry-run] move control_prompts -> quality/control_prompts
+[dry-run] dry-run would backfill INDEX.md for quality/runs/20260418-120000/
+[migrate] move previous_runs -> quality/runs
+[migrate] move previous_runs -> quality/runs
+[migrate] move control_prompts -> quality/control_prompts
+[migrate] write quality/runs/20260418-120000/INDEX.md (1008 bytes)
+[migrate] write quality/RUN_INDEX.md (585 bytes)
+[migrate] move control_prompts -> quality/control_prompts
+[migrate] write quality/runs/20260418-120000/INDEX.md (1008 bytes)
+[migrate] write quality/RUN_INDEX.md (585 bytes)
+[migrate] move previous_runs -> quality/runs
+[migrate] write quality/runs/20260418-120000/INDEX.md (1008 bytes)
+[migrate] write quality/RUN_INDEX.md (585 bytes)
+[migrate] move previous_runs -> quality/runs
+[migrate] move control_prompts -> quality/control_prompts
+[migrate] write quality/runs/20260418-120000/INDEX.md (1008 bytes)
+[migrate] write quality/RUN_INDEX.md (585 bytes)
+[migrate] no legacy directories present — nothing to move
+[migrate] keep existing quality/runs/20260418-120000/INDEX.md
+[migrate] move previous_runs -> quality/runs
+................Writing run log to: /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp8waeb165-playbook-20260421-120000.log
+========================================================================
+QPB v1.5.3 run starting
+========================================================================
+Target:            /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp8waeb165
+Log file:          /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp8waeb165-playbook-20260421-120000.log
+Watch log:         tail -f /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp8waeb165-playbook-20260421-120000.log
+Watch transcript:  tail -f /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp8waeb165/quality/control_prompts/phase1.output.txt
+Watch progress:    while true; do clear; grep -E '^##?' /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp8waeb165/quality/PROGRESS.md; sleep 2; done
+
+Plan:
+  Iteration:            gap
+========================================================================
+14:33:12 WARN: tmp8waeb165 - docs_gathered/ is missing or empty; proceeding with code-only analysis
+
+========================================================================
+WARN: pre-run reference_docs guard triggered
+
+  reference_docs/ is missing at /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp8waeb165/reference_docs
+
+  The playbook will proceed using only Tier 3 evidence (the source
+  tree itself). For better results, drop plaintext documentation into:
+    reference_docs/            ← AI chats, design notes, retrospectives (Tier 4)
+    reference_docs/cite/       ← project specs, RFCs, API contracts (Tier 1/2)
+  Suppress this warning with --no-formal-docs for self-audit bootstrap / minimal-repo cases that legitimately have no reference docs.
+========================================================================
+
+14:33:12 Starting iteration (gap): tmp8waeb165
+# Run start
+## Phase 1 (Explore) complete
+## Iteration: gap started
+14:33:12   Iteration gap: 0 -> 0 bugs (+0)
+14:33:12   No new bugs found - stopping early (diminishing returns).
+.Writing run log to: /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp_cpcwdk5-playbook-20260421-120000.log
+========================================================================
+QPB v1.5.3 run starting
+========================================================================
+Target:            /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp_cpcwdk5
+Log file:          /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp_cpcwdk5-playbook-20260421-120000.log
+Watch log:         tail -f /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp_cpcwdk5-playbook-20260421-120000.log
+Watch transcript:  tail -f /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp_cpcwdk5/quality/control_prompts/phase1.output.txt
+Watch progress:    while true; do clear; grep -E '^##?' /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp_cpcwdk5/quality/PROGRESS.md; sleep 2; done
+
+Plan:
+  Iteration:            gap
+  Iteration:            unfiltered
+========================================================================
+14:33:12 WARN: tmp_cpcwdk5 - docs_gathered/ is missing or empty; proceeding with code-only analysis
+
+========================================================================
+WARN: pre-run reference_docs guard triggered
+
+  reference_docs/ is missing at /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmp_cpcwdk5/reference_docs
+
+  The playbook will proceed using only Tier 3 evidence (the source
+  tree itself). For better results, drop plaintext documentation into:
+    reference_docs/            ← AI chats, design notes, retrospectives (Tier 4)
+    reference_docs/cite/       ← project specs, RFCs, API contracts (Tier 1/2)
+  Suppress this warning with --no-formal-docs for self-audit bootstrap / minimal-repo cases that legitimately have no reference docs.
+========================================================================
+
+14:33:12 Starting iteration (gap): tmp_cpcwdk5
+14:33:12   Iteration gap: 0 -> 1 bugs (+1)
+14:33:12 Starting iteration (unfiltered): tmp_cpcwdk5
+14:33:12   Iteration unfiltered: 1 -> 1 bugs (+0)
+14:33:12   No new bugs found - stopping early (diminishing returns).
+.............usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: argument --pace-seconds: --pace-seconds must be between 0 and 3600 seconds; got 3601
+.usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: argument --pace-seconds: --pace-seconds must be between 0 and 3600 seconds; got -1
+.usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: argument --pace-seconds: --pace-seconds must be an integer; got 'abc'
+......usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: --iterations is not compatible with --full-run. --full-run is sugar for a fixed iterations plan; pass one or the other.
+.usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: --iterations is not compatible with --next-iteration. --iterations is the multi-strategy successor; use it alone.
+.........usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: --phase-groups is not compatible with --full-run. --full-run is sugar for a fixed phase-groups + iterations plan.
+.usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: --phase-groups is not compatible with --phase. --phase is sugar for a single-group spec; pass one or the other.
+...............................................usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: --full-run and --next-iteration are mutually exclusive. --full-run already chains all iterations after the main run.
+.usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: --full-run is not compatible with --phase. Full-run uses a single-prompt main run followed by all iterations.
+.usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: argument --strategy: invalid strategy 'bogus'. Must be one of: gap, unfiltered, parity, adversarial, all
+..usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: --next-iteration is not compatible with --phase. Iteration uses a single prompt.
+......................................................usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: argument --progress-interval: --progress-interval must be between 1 and 60 seconds; got 61
+.usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: argument --progress-interval: --progress-interval must be between 1 and 60 seconds; got 0
+.usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: argument --progress-interval: --progress-interval must be an integer; got 'fast'
+..usage: python3.13 -m unittest [-h] [--parallel | --sequential] [--claude |
+                              --copilot | --codex] [--no-seeds | --with-seeds]
+                              [--phase PHASE]
+                              [--phase-groups PHASE_GROUPS_RAW]
+                              [--next-iteration] [--full-run]
+                              [--strategy STRATEGY] [--iterations ITERATIONS]
+                              [--pace-seconds N] [--model MODEL]
+                              [--no-formal-docs] [--no-stdout-echo]
+                              [--verbose | --quiet] [--progress-interval N]
+                              [--kill]
+                              [targets ...]
+python3.13 -m unittest: error: argument --quiet: not allowed with argument --verbose
+..................=== Pass A: naive coverage on /private/var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/tmplrxhfmuy ===
+=== Pass B: mechanical citation extraction ===
+=== Pass C: formal REQ + UC production ===
+=== Pass D: coverage audit + council inbox ===
+Pass D summary: {'promoted_count': 0, 'rejected_count': 3, 'demoted_count': 0, 'rejection_rate': 1.0, 'phase4_council_flag': True, 'completeness_gap_count': 0, 'council_inbox_items': 3}
+.=== Pass B: mechanical citation extraction ===
+.=== Pass C: formal REQ + UC production ===
+.=== Phase 4 Part A.1: internal-prose divergence ===
+Part A.1 summary: {'divergences_emitted': 0, 'candidates_emitted': 0, 'un_anchored_uc_ids': [], 'comparison_count_by_stage': {'stage1_partitions': 0, 'stage2_pairs': 0, 'stage3_pairs': 0}, 'comparison_pair_budget': 25000, 'partition_density_warnings': 0}
+.=== Phase 4 Part C: gate enforcement runs via quality_gate.py; skipping ===
+...................................................................s.......................................................
+----------------------------------------------------------------------
+Ran 669 tests in 7.841s
+
+OK (skipped=1)

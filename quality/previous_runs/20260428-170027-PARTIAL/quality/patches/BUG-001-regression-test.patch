@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,20 @@
++    @unittest.expectedFailure
++    def test_reg_cb1_version_parser_divergence(self):
++        """BUG-001 / REQ-001: skill_version() must return "1.4.5" for SKILL.md
++        with `**Version:** 1.4.5` bold form.
++
++        Source: bin/benchmark_lib.py:106 — startswith("version:") rejects bold form.
++        Current: returns None. Desired: returns "1.4.5".
++        """
++        with TemporaryDirectory() as tmp:
++            skill_path = Path(tmp) / "SKILL.md"
++            _write(skill_path, "---\n**Version:** 1.4.5\n---\n# Quality Playbook\n")
++            with mock.patch.object(lib, "QPB_DIR", Path(tmp)):
++                result = lib.skill_version()
++        # Desired: bold form is accepted, version returned.
++        self.assertEqual(result, "1.4.5",
++                         "skill_version() must return '1.4.5' for bold **Version:** form")

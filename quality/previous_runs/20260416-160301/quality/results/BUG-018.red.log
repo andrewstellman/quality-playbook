@@ -1,0 +1,16 @@
+RED
+Test: test_bug_018_json_key_count_false_pass
+Target: quality_gate.sh json_key_count function (lines 88-91)
+
+Execution:
+  Created tdd-results.json with 2 bugs:
+    BUG-001: has verdict field, requirement text contains "verdict"
+    BUG-002: missing verdict field entirely
+
+  json_key_count("verdict") = grep -c '"verdict"' tdd-results.json => 2
+    Line matches: "verdict": "TDD verified" (BUG-001) and "verdict" in requirement text (BUG-001)
+
+  Gate check: fcount (2) >= bug_count (2) => PASS
+
+Result: XFAIL — Gate reports PASS for per-bug field 'verdict' but BUG-002 is missing the field.
+The false PASS is confirmed: string match in BUG-001's requirement text masks BUG-002's missing field.

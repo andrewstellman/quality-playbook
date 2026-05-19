@@ -1,0 +1,13 @@
+diff --git a/.github/skills/quality_gate/quality_gate.py b/.github/skills/quality_gate/quality_gate.py
+--- a/.github/skills/quality_gate/quality_gate.py
++++ b/.github/skills/quality_gate/quality_gate.py
+@@
+-    if has_file_matching(q, ["test_functional.*", "FunctionalSpec.*",
+-                             "FunctionalTest.*", "functional.test.*"]):
++    if has_file_matching(q, ["test_functional.*", "functional_test.*",
++                             "FunctionalSpec.*", "FunctionalTest.*",
++                             "functional.test.*"]):
+         pass_("functional test file exists")
+     else:
+-        fail("functional test file missing (test_functional.*, FunctionalSpec.*, FunctionalTest.*, functional.test.*)")
++        fail("functional test file missing (test_functional.*, functional_test.*, FunctionalSpec.*, FunctionalTest.*, functional.test.*)")

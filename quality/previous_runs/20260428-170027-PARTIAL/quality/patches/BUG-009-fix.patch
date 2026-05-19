@@ -1,0 +1,9 @@
+--- a/bin/run_playbook.py
++++ b/bin/run_playbook.py
+@@ -808,6 +808,7 @@ def _pkill_fallback() -> None:
+     patterns = [
+         "bin/run_playbook.py",
+         "claude -p",
+         "claude --model",
++        "gh copilot -p",
+     ]

@@ -1,0 +1,23 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,22 @@
++    @unittest.expectedFailure
++    def test_reg_version_parser_substring_reject(self):
++        """BUG-013 / REQ-003: detect_skill_version must not match version: inside
++        a description field.
++
++        Source: quality_gate.py:182-187 — `if "version:" in line` matches substring.
++        Current: picks up description line. Desired: only anchored `version:` at
++        line start.
++        """
++        qg = _load_quality_gate()
++        with TemporaryDirectory() as tmp:
++            skill_path = Path(tmp) / "SKILL.md"
++            # description line comes first; real version line follows
++            _write(skill_path,
++                   'description: "The version: 1.4.5 release of the skill"\n'
++                   'version: 9.9.9\n')
++            result = qg.detect_skill_version([skill_path])
++        # Desired: anchored match skips description, returns "9.9.9"
++        self.assertEqual(result, "9.9.9",
++                         "detect_skill_version must skip description fields and return version from anchored line")

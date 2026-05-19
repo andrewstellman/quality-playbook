@@ -1,0 +1,15 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@
++    @unittest.expectedFailure
++    def test_bug_009_skill_detection_uses_documented_four_path_order(self) -> None:
++        self.assertEqual(
++            tuple(str(path) for path in benchmark_lib.SKILL_INSTALL_LOCATIONS),
++            (
++                "SKILL.md",
++                ".claude/skills/quality-playbook/SKILL.md",
++                ".github/skills/SKILL.md",
++                ".github/skills/quality-playbook/SKILL.md",
++            ),
++        )

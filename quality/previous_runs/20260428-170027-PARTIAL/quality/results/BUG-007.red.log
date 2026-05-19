@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-007
+Test: quality.test_regression.RegressionTests.test_reg_cb7_docs_present_noise
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_cb7_docs_present_noise -v
+
+test_reg_cb7_docs_present_noise (quality.test_regression.RegressionTests.test_reg_cb7_docs_present_noise)
+BUG-007 / REQ-011: docs_present must return False for a directory ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+OK (expected failures=1)

@@ -1,0 +1,11 @@
+RED
+--- Test output for BUG-018 red phase ---
+Command: python3 -m unittest quality.test_regression.GapIterationRegressions.test_reg_gap18_general_agent_keeps_context_ownership_consistent -v
+Exit code: 0
+test_reg_gap18_general_agent_keeps_context_ownership_consistent (quality.test_regression.GapIterationRegressions.test_reg_gap18_general_agent_keeps_context_ownership_consistent)
+BUG-018 / REQ-019: the general orchestrator must not both forbid and ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+OK (expected failures=1)

@@ -1,0 +1,30 @@
+RED
+test_BUG_H17_bug_id_regex_bypasses_severity_prefix — FAIL (red phase)
+Date: 2026-04-16
+Shell: bash quality/test_regression.sh test_BUG_H17_bug_id_regex_bypasses_severity_prefix
+
+BUG CONFIRMED: regex '^### BUG-[0-9]+' returns 0 matches for '### BUG-H1'
+
+Direct proof:
+  echo '### BUG-H1' | grep -cE '^### BUG-[0-9]+'
+  Output: 0
+
+  echo '### BUG-001' | grep -cE '^### BUG-[0-9]+'
+  Output: 1 (numeric-suffix format works; severity-prefix does not)
+
+Gate confirmed to use BUG-[0-9]+ regex at quality_gate.sh:184:
+  correct_headings=$(grep -cE '^### BUG-[0-9]+' "${q}/BUGS.md" || true)
+
+Also at quality_gate.sh:313:
+  bug_ids=$(grep -oE 'BUG-[0-9]+' "${q}/BUGS.md" 2>/dev/null | ...)
+
+Consequence chain:
+  bug_count=0 →
+  line 223: if [ "$bug_count" -gt 0 ] → FALSE → "Zero bugs — tdd-results.json not required"
+  line 309: if [ "$bug_count" -gt 0 ] → FALSE → "Zero bugs — TDD log files not required"
+  line 564: if [ "$bug_count" -gt 0 ] → FALSE → patches not checked
+  line 592: if [ "$bug_count" -gt 0 ] → FALSE → writeups not checked
+
+All artifact validation bypassed. Gate reports PASS with zero validation.
+
+Test result: FAIL (exit 1) — confirms bug on unpatched code

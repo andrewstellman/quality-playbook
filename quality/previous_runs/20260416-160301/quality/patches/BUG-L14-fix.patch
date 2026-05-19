@@ -1,0 +1,9 @@
+--- a/references/review_protocols.md
++++ b/references/review_protocols.md
+@@ -407,7 +407,7 @@ test_BUG_L11_tdd_results_two_incompatible_templates() {
+ ### Recommendation
+-[SHIP IT / FIX FIRST / NEEDS INVESTIGATION]
++[SHIP / FIX BEFORE MERGE / BLOCK]
+ ```
+
+ ### Tips for Writing Good Integration Checks

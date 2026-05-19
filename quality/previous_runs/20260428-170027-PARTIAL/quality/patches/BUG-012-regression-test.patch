@@ -1,0 +1,34 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,31 @@
++    @unittest.expectedFailure
++    def test_reg_cb12_zero_bug_loose_regex(self):
++        """BUG-012 / REQ-015: A BUGS.md with prose "the zero analysis shows no
++        problems" and no BUG headings must NOT pass the zero-bug sentinel.
++
++        Source: quality_gate.py:397 — re.search("zero") matches anywhere in prose.
++        Current: zero-bug path passes (sentinel matched). Desired: structural check
++        only passes when an anchored zero-bug heading is present.
++        """
++        qg = _load_quality_gate()
++
++        # BUGS.md with "zero" in prose, but NO structured zero-bug heading
++        bugs_content = (
++            "# Bugs\n\n"
++            "The zero analysis of this project shows no obvious problems.\n"
++            "We found zero issues during review.\n"
++        )
++
++        with TemporaryDirectory() as tmp:
++            quality = Path(tmp) / "quality"
++            quality.mkdir(parents=True, exist_ok=True)
++            _write(quality / "BUGS.md", bugs_content)
++
++            # Call check_bugs_heading and collect the result
++            bug_count, bug_ids = qg.check_bugs_heading(quality)
++
++        self.assertNotEqual(
++            bug_count, 0,
++            "check_bugs_heading must not return 0 bugs when BUGS.md only contains "
++            "the word 'zero' in prose — structured heading required"
++        )

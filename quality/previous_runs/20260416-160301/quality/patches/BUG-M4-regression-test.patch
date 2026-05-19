@@ -1,0 +1,83 @@
+--- a/quality/test_regression.sh
++++ b/quality/test_regression.sh
+@@ -178,6 +178,70 @@ test_BUG_M3_phase2_gate_missing_checks() {
+     fi
+ }
+
++# ---------------------------------------------------------------------------
++# BUG-M4: test_regression.* not checked by gate despite artifact contract
++#
++# The bug: quality_gate.sh checks for regression test PATCHES but not the
++# regression test FILE (quality/test_regression.*). The artifact contract
++# table at SKILL.md lines 88-119 designates it as "Required: If bugs found."
++# Skip guard: set BUG_SKIP_M4=0 to enable (default: skip)
++# Remove this guard after applying quality/patches/BUG-M4-fix.patch
++# ---------------------------------------------------------------------------
++test_BUG_M4_gate_missing_regression_file_check() {
++    if [ "${BUG_SKIP_M4:-1}" = "1" ]; then
++        echo "  SKIP: BUG-M4 skip guard active (set BUG_SKIP_M4=0 to run)"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    local gate="${GATE_PATH:-quality_gate.sh}"
++
++    if [ ! -f "$gate" ]; then
++        echo "  SKIP: quality_gate.sh not found at $gate (set GATE_PATH)"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    # Set up a minimal test environment with bugs but no test_regression.* file
++    local tmpdir
++    tmpdir=$(mktemp -d /tmp/bug_m4_test.XXXXXX)
++    local q="${tmpdir}/quality"
++    mkdir -p "${q}/patches" "${q}/results" "${q}/code_reviews" "${q}/spec_audits"
++
++    # Create BUGS.md with a confirmed bug (### BUG-NNN format)
++    cat > "${q}/BUGS.md" <<'EOF'
++# Bug Report
++
++### BUG-001
++Description: test bug for regression test BUG-M4
++Severity: LOW
++EOF
++
++    # Do NOT create quality/test_regression.* — this is what we're testing
++    # The gate should FAIL because bugs exist but no test_regression.* file exists
++
++    # Create minimal required artifacts to get past early gate checks
++    touch "${q}/REQUIREMENTS.md" "${q}/QUALITY.md" "${q}/PROGRESS.md"
++    touch "${q}/COVERAGE_MATRIX.md" "${q}/COMPLETENESS_REPORT.md"
++    touch "${q}/CONTRACTS.md" "${q}/RUN_CODE_REVIEW.md" "${q}/RUN_SPEC_AUDIT.md"
++    touch "${q}/RUN_INTEGRATION_TESTS.md" "${q}/RUN_TDD_TESTS.md"
++    touch "${q}/test_functional.sh" "${q}/EXPLORATION.md"
++    touch "${tmpdir}/AGENTS.md"
++    touch "${q}/code_reviews/review.md"
++    echo "triage" > "${q}/spec_audits/triage.md"
++    echo "auditor" > "${q}/spec_audits/auditor1.md"
++    touch "${q}/spec_audits/triage_probes.sh"
++
++    # Run the gate on this directory; capture output
++    local gate_output
++    gate_output=$(bash "$gate" "$tmpdir" 2>&1 || true)
++
++    rm -rf "$tmpdir"
++
++    # Check if the gate output mentions failure for missing regression file
++    if echo "$gate_output" | grep -qi "test_regression"; then
++        echo "  Gate mentions test_regression — checking if it FAILs..."
++        if echo "$gate_output" | grep -qi "FAIL.*test_regression\|test_regression.*FAIL\|missing.*test_regression"; then
++            echo "  BUG FIXED: gate correctly FAILs for missing test_regression.*"
++            return 0
++        fi
++    fi
++
++    # Bug is present — gate does not enforce test_regression.* existence
++    echo "  BUG CONFIRMED: gate did not FAIL for missing test_regression.* when bugs exist"
++    return 1  # Test FAILS on unpatched code (red phase)
++}
++
+ # Run tests
+ echo "=== Regression Tests: quality-playbook ==="
+ if [ $# -gt 0 ]; then

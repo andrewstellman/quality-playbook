@@ -1,0 +1,56 @@
+=== extract_install_locations.py ===
+SKILL_INSTALL_LOCATIONS (source): 4 entries
+  - .github/skills/SKILL.md
+  - .claude/skills/quality-playbook/SKILL.md
+  - SKILL.md
+  - .github/skills/quality-playbook/SKILL.md
+Expected (Phase 2 CURRENT claim): 4 entries
+  - .github/skills/SKILL.md
+  - .claude/skills/quality-playbook/SKILL.md
+  - SKILL.md
+  - .github/skills/quality-playbook/SKILL.md
+MATCH: source tuple matches Phase 2 CURRENT documentation claim.
+[PASS] extract_install_locations.py
+
+=== extract_protected_prefixes.py ===
+PROTECTED_PREFIXES (source): 4 entries
+  - quality/
+  - control_prompts/
+  - previous_runs/
+  - docs_gathered/
+Expected (Phase 2 CURRENT claim): 4 entries
+  - quality/
+  - control_prompts/
+  - previous_runs/
+  - docs_gathered/
+MATCH: source tuple matches Phase 2 CURRENT documentation claim.
+[PASS] extract_protected_prefixes.py
+
+=== extract_strategies.py ===
+ALL_STRATEGIES (source): 4 entries
+  - gap
+  - unfiltered
+  - parity
+  - adversarial
+Expected (Phase 2 CURRENT claim): 4 entries
+  - gap
+  - unfiltered
+  - parity
+  - adversarial
+MATCH: source list matches Phase 2 CURRENT documentation claim.
+[PASS] extract_strategies.py
+
+=== extract_phases.py ===
+Phase IDs (source, run_playbook.py): ['1', '2', '3', '4', '5', '6']
+Expected (Phase 2 CURRENT claim): ['1', '2', '3', '4', '5', '6']
+MATCH: phase-id set matches Phase 2 CURRENT documentation claim.
+[PASS] extract_phases.py
+
+=== extract_verdict_enum.py ===
+allowed_verdicts (source, quality_gate.py): ['TDD verified', 'confirmed open', 'deferred', 'green failed', 'red failed']
+Expected (Phase 2 CURRENT claim): ['TDD verified', 'confirmed open', 'deferred', 'green failed', 'red failed']
+MATCH: verdict enum matches Phase 2 CURRENT documentation claim.
+[PASS] extract_verdict_enum.py
+
+=== SUMMARY ===
+ALL PASS — 5 extractor(s) agree with Phase 2 CURRENT claims.

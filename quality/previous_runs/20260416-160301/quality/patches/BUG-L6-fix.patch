@@ -1,0 +1,24 @@
+--- a/quality_gate.sh
++++ b/quality_gate.sh
+@@ -80,7 +80,15 @@ json_has_key() {
+ # Helper: extract a string value for a key (first occurrence)
++# Returns empty string if key is absent.
++# Returns __NOT_STRING__ if key exists but value is not a quoted string.
+ json_str_val() {
+     local file="$1" key="$2"
+-    grep -o "\"${key}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$file" 2>/dev/null \
+-        | head -1 | sed 's/.*: *"\([^"]*\)"/\1/'
++    # First try to match a quoted string value
++    local quoted_result
++    quoted_result=$(grep -o "\"${key}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$file" 2>/dev/null \
++        | head -1 | sed 's/.*: *"\([^"]*\)"/\1/')
++    if [ -n "$quoted_result" ]; then
++        echo "$quoted_result"
++        return 0
++    fi
++    # Check if key exists at all (with any value type)
++    if grep -q "\"${key}\"[[:space:]]*:" "$file" 2>/dev/null; then
++        echo "__NOT_STRING__"
++    fi
++    # Key absent — return empty (default)
+ }

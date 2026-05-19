@@ -1,0 +1,9 @@
+--- a/.github/skills/references/orchestrator_protocol.md
++++ b/.github/skills/references/orchestrator_protocol.md
+@@ -38,7 +38,7 @@ Express each check as content criteria ("verify that `quality/EXPLORATION.md` e
+ ### Expected outputs per phase
+
+ - **Phase 1 (Explore):** `quality/EXPLORATION.md` exists with more than 80 lines of substantive content; `quality/PROGRESS.md` exists with Phase 1 marked complete.
++- **Phase 1 (Explore):** `quality/EXPLORATION.md` exists with at least 120 lines of substantive content; `quality/PROGRESS.md` exists with Phase 1 marked complete.
+
+ Cross-reference SKILL.md's Complete Artifact Contract for the authoritative list.

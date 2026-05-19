@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-013
+Test: quality.test_regression.RegressionTests.test_reg_version_parser_substring_reject
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_version_parser_substring_reject -v
+
+test_reg_version_parser_substring_reject (quality.test_regression.RegressionTests.test_reg_version_parser_substring_reject)
+BUG-013 / REQ-003: detect_skill_version must not match version: inside ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+OK (expected failures=1)

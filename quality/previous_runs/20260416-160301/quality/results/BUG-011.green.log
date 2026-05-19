@@ -1,0 +1,5 @@
+GREEN
+--- Test output for BUG-011 green phase ---
+Command: grep -c TDD_TRACEABILITY quality_gate.sh (after applying fix patch)
+Exit code: 0
+After applying BUG-011-fix.patch, quality_gate.sh contains a [TDD Traceability] check section that validates TDD_TRACEABILITY.md exists when bugs have red-phase results.

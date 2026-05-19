@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-006
+Test: quality.test_regression.RegressionTests.test_reg_cb6_phase3_gate_incomplete
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_cb6_phase3_gate_incomplete -v
+
+test_reg_cb6_phase3_gate_incomplete (quality.test_regression.RegressionTests.test_reg_cb6_phase3_gate_incomplete)
+BUG-006 / REQ-010: check_phase_gate("3") must fail when ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+OK (expected failures=1)

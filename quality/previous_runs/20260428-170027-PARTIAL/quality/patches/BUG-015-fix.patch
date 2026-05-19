@@ -1,0 +1,12 @@
+--- a/bin/benchmark_lib.py
++++ b/bin/benchmark_lib.py
+@@ -192,4 +192,8 @@ def _parse_porcelain_path(line: str) -> Optional[str]:
+     if "->" in rest:
+         rest = rest.split("->", 1)[1].strip()
+-    return rest.strip()
++    stripped = rest.strip()
++    if len(stripped) >= 2 and stripped[0] == '"' and stripped[-1] == '"':
++        # Git quotes paths with spaces/special chars; remove surrounding quotes
++        # and unescape any embedded escaped double-quotes.
++        stripped = stripped[1:-1].replace('\\"', '"')
++    return stripped

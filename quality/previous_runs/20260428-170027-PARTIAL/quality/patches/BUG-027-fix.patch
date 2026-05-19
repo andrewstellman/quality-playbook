@@ -1,0 +1,18 @@
+diff --git a/bin/benchmark_lib.py b/bin/benchmark_lib.py
+--- a/bin/benchmark_lib.py
++++ b/bin/benchmark_lib.py
+@@
+ REGRESSION_TEST_PATTERNS = (
+     "test_regression.*",
+-    "regression_test.*",
+-    "test_regression_test.*",
+-    "RegressionTest.*",
+ )
+diff --git a/bin/tests/test_benchmark_lib.py b/bin/tests/test_benchmark_lib.py
+--- a/bin/tests/test_benchmark_lib.py
++++ b/bin/tests/test_benchmark_lib.py
+@@
+-            regression = repo_dir / "quality" / "RegressionTest.java"
++            regression = repo_dir / "quality" / "test_regression.py"
+             write(functional, "ok")
+             write(regression, "ok")

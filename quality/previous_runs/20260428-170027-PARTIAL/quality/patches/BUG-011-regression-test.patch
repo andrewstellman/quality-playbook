@@ -1,0 +1,48 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,43 @@
++    @unittest.expectedFailure
++    def test_reg_cb11_exploration_structure_ungated(self):
++        """BUG-011 / REQ-013: quality_gate must FAIL when EXPLORATION.md lacks
++        required section "## Quality Risks".
++
++        Source: quality_gate.py:310-313 — only checks existence, not structure.
++        Current: passes when EXPLORATION.md exists but lacks required sections.
++        Desired: FAIL count > 0 for missing section.
++        """
++        qg = _load_quality_gate()
++        with TemporaryDirectory() as tmp:
++            repo = Path(tmp)
++            quality = repo / "quality"
++
++            # Write a minimal EXPLORATION.md without ## Quality Risks
++            _write(quality / "EXPLORATION.md",
++                   "# Exploration\n\n"
++                   "## Open Exploration Findings\nSome findings.\n\n"
++                   "## Pattern Applicability Matrix\nNA\n\n"
++                   "## Candidate Bugs for Phase 2\nNone.\n\n"
++                   "## Gate Self-Check\nOK\n")
++
++            # Write other required artifacts to focus the test on structure
++            for name in ["REQUIREMENTS.md", "QUALITY.md", "CONTRACTS.md",
++                         "RUN_CODE_REVIEW.md", "COVERAGE_MATRIX.md",
++                         "COMPLETENESS_REPORT.md", "RUN_INTEGRATION_TESTS.md",
++                         "RUN_SPEC_AUDIT.md", "RUN_TDD_TESTS.md", "BUGS.md",
++                         "PROGRESS.md", "test_functional.py"]:
++                _write(quality / name, "stub\n")
++
++            fails = []
++            passes = []
++
++            def fail_(msg): fails.append(msg)
++            def pass_(msg): passes.append(msg)
++            def warn_(msg): pass
++
++            # Call the file-existence check which should also check structure
++            qg.check_file_existence(repo, quality, "strict")
++
++        # Desired: at least one FAIL for missing ## Quality Risks section
++        self.assertGreater(
++            len(fails), 0,
++            "check_file_existence must FAIL when EXPLORATION.md is missing ## Quality Risks"
++        )

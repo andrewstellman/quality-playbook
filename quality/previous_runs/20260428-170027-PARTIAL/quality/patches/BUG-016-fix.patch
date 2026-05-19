@@ -1,0 +1,24 @@
+--- a/bin/run_playbook.py
++++ b/bin/run_playbook.py
+@@ -473,8 +473,20 @@ def check_phase_gate(repo_dir: Path, phase: str) -> GateCheck:
+     if phase == "5":
+         if not (quality_dir / "PROGRESS.md").is_file():
+             return GateCheck(ok=False, messages=["GATE FAIL Phase 5: PROGRESS.md missing"])
+-        if not (quality_dir / "BUGS.md").is_file() and not (quality_dir / "spec_audits").is_dir():
+-            messages.append("GATE WARN Phase 5: no BUGS.md and no spec_audits/ - Phases 3-4 may not have run")
+-        return GateCheck(ok=True, messages=messages)
++        sa_dir = quality_dir / "spec_audits"
++        if not sa_dir.is_dir():
++            return GateCheck(ok=False, messages=["GATE FAIL Phase 5: spec_audits/ missing - run Phase 4 first"])
++        triage_files = list(sa_dir.glob("*triage*"))
++        if not triage_files:
++            return GateCheck(ok=False, messages=["GATE FAIL Phase 5: spec_audits/ has no triage file - complete Phase 4 triage first"])
++        auditor_files = list(sa_dir.glob("*auditor*"))
++        if not auditor_files:
++            return GateCheck(ok=False, messages=["GATE FAIL Phase 5: spec_audits/ has no auditor files - complete Phase 4 audit first"])
++        progress_content = (quality_dir / "PROGRESS.md").read_text(encoding="utf-8", errors="replace")
++        if "- [x] Phase 4" not in progress_content:
++            return GateCheck(ok=False, messages=["GATE FAIL Phase 5: Phase 4 not marked complete in PROGRESS.md"])
++        if not (quality_dir / "BUGS.md").is_file():
++            messages.append("GATE WARN Phase 5: no BUGS.md - Phase 3 may not have run")
++        return GateCheck(ok=True, messages=messages)

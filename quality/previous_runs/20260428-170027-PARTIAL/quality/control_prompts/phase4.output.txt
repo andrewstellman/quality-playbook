@@ -1,0 +1,26 @@
+Phase 4 is marked complete. Here is the end-of-phase summary:
+
+---
+
+# Phase 4 Complete — Spec Audit
+
+The Council of Three spec audit is done. **3 auditors ran (3/3 effective)**. **1 net-new bug confirmed from triage**. Total confirmed bugs now at **16**.
+
+**New bug from spec audit:**
+- **BUG-016** (MEDIUM) — `bin/run_playbook.py:473-478`: Phase 5 entry gate does not enforce SKILL.md:1663-1667's mandatory hard-stop requirements. A run with an empty `spec_audits/` directory (no triage file, no auditor files) and an unchecked Phase 4 `[x]` checkbox passes the Phase 5 gate with `ok=True`. Two new xfail regression tests added; fix patch written.
+
+**Spec-only fix patches (no new code bugs):**
+- `quality/patches/BUG-003-spec-fix.patch` — update `orchestrator_protocol.md:41` from 80 to 120 lines (companion to BUG-003 code fix)
+- CONTRACTS.md C-14 Statement wording inconsistency documented (says "deletes" instead of "archives" for control_prompts/) — pending spec-patch in Phase 5
+
+**Phase 4 artifacts produced:**
+- `quality/spec_audits/2026-04-18-auditor-{1,2,3}.md` — individual auditor reports with ≥3 probes each
+- `quality/spec_audits/2026-04-18-triage.md` — reconciled findings (3/3 council)
+- `quality/spec_audits/triage_probes.sh` — 7 executable probes, all confirming open bugs
+- `quality/writeups/BUG-016.md` + `quality/patches/BUG-016-fix.patch` + `quality/patches/BUG-016-regression-test.patch`
+
+To continue to Phase 5 (Reconciliation — TDD verification, writeups, closure), say:
+
+    Run quality playbook phase 5.
+
+Or say "keep going" to continue automatically.

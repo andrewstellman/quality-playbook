@@ -1,0 +1,34 @@
+--- a/quality/test_regression.sh
++++ b/quality/test_regression.sh
+@@ -0,0 +1,32 @@
++# BUG-L22: SEED_CHECKS.md absent from artifact contract table (spec bug)
++# Regression test: confirms SKILL.md:1641 requires SEED_CHECKS.md when Phase 0b runs,
++# but the canonical artifact contract table at lines 88-119 does not include it.
++# This is a self-contradiction in SKILL.md.
++#
++: "${BUG_SKIP_L22:=1}"
++test_BUG_L22_seed_checks_absent_from_artifact_table() {
++    if [ "$BUG_SKIP_L22" -ne 0 ]; then
++        echo "SKIP: test_BUG_L22_seed_checks_absent_from_artifact_table"
++        return 77
++    fi
++    echo "TEST: test_BUG_L22_seed_checks_absent_from_artifact_table"
++    local skill_md="SKILL.md"
++    local phase5_requirement
++    phase5_requirement=$(grep -n 'SEED_CHECKS' "$skill_md" | head -5)
++    local table_entry
++    table_entry=$(awk 'NR>=88 && NR<=125' "$skill_md" | grep -i 'SEED_CHECKS')
++    if [ -n "$phase5_requirement" ] && [ -z "$table_entry" ]; then
++        echo "  BUG CONFIRMED: SEED_CHECKS.md required by Phase 5 but absent from canonical table"
++        echo "  Phase 5 requirement: $phase5_requirement"
++        echo "  Table (lines 88-119): no SEED_CHECKS.md entry"
++        echo "  Self-contradiction: table claims to be canonical but omits this artifact"
++        return 1
++    elif [ -n "$table_entry" ]; then
++        echo "  BUG FIXED: SEED_CHECKS.md in artifact contract table: $table_entry"
++        return 0
++    else
++        echo "  INCONCLUSIVE: SEED_CHECKS.md not mentioned in SKILL.md Phase 5"
++        return 1
++    fi
++}

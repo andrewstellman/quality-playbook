@@ -1,0 +1,21 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@
++class ParityIterationRegressions(unittest.TestCase):
++    @unittest.expectedFailure
++    def test_reg_parity25_extension_check_accepts_functionaltest_java(self):
++        qg = _load_quality_gate()
++        qg._reset_counters()
++        with TemporaryDirectory() as tmp:
++            repo = Path(tmp)
++            q = repo / "quality"
++            q.mkdir(parents=True, exist_ok=True)
++            _write(repo / "App.java", "class App {}\n")
++            _write(q / "FunctionalTest.java", "class FunctionalTest {}\n")
++            with mock.patch("sys.stdout", new_callable=io.StringIO) as stdout:
++                qg.check_test_file_extension(repo, q)
++                output = stdout.getvalue()
++        self.assertEqual(qg.FAIL, 0)
++        self.assertEqual(qg.WARN, 0)
++        self.assertIn("FunctionalTest.java matches project language (java)", output)

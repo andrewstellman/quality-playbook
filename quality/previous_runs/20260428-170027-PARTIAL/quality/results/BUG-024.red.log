@@ -1,0 +1,21 @@
+RED
+--- Test output for BUG-024 red phase ---
+Command: python3 <inline unittest runner for test_reg_parity24_file_existence_accepts_functional_test_go>
+Exit code: 1
+test_reg_parity24_file_existence_accepts_functional_test_go (quality.test_regression.ParityIterationRegressions.test_reg_parity24_file_existence_accepts_functional_test_go)
+BUG-024 / REQ-025: `functional_test.go` must satisfy the file-existence gate. ... FAIL
+
+======================================================================
+FAIL: test_reg_parity24_file_existence_accepts_functional_test_go (quality.test_regression.ParityIterationRegressions.test_reg_parity24_file_existence_accepts_functional_test_go)
+BUG-024 / REQ-025: `functional_test.go` must satisfy the file-existence gate.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/andrewstellman/Documents/QPB/quality/test_regression.py", line 826, in test_reg_parity24_file_existence_accepts_functional_test_go
+    self.assertEqual(qg.FAIL, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: 1 != 0
+
+----------------------------------------------------------------------
+Ran 1 test in 0.009s
+
+FAILED (failures=1)

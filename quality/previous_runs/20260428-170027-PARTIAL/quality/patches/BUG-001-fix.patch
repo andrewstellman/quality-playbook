@@ -1,0 +1,20 @@
+--- a/bin/benchmark_lib.py
++++ b/bin/benchmark_lib.py
+@@ -100,14 +100,9 @@ def skill_version() -> Optional[str]:
+     try:
+         with open(path, "r", encoding="utf-8", errors="ignore") as f:
+             for line in f:
+-                stripped = line.lstrip()
+-                if not stripped.startswith("version:"):
+-                    continue
+-                remainder = stripped[len("version:"):].strip()
+-                if not remainder:
+-                    return None
+-                token = remainder.split()[0]
+-                return token or None
++                m = VERSION_PATTERN.match(line)
++                if m:
++                    return m.group(1)
+     except OSError:
+         return None
+     return None

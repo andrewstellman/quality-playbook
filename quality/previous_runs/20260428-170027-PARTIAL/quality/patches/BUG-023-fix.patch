@@ -1,0 +1,9 @@
+diff --git a/.github/skills/quality_gate/quality_gate.py b/.github/skills/quality_gate/quality_gate.py
+--- a/.github/skills/quality_gate/quality_gate.py
++++ b/.github/skills/quality_gate/quality_gate.py
+@@ -223,7 +223,7 @@ def detect_project_language(repo_dir):
+         ("c", ".c"),
+         ("agc", ".agc"),
+     ]
+-    excluded = {"vendor", "node_modules", ".git", "quality"}
++    excluded = {"vendor", "node_modules", ".git", "quality", "repos"}

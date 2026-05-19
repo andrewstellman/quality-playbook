@@ -1,0 +1,51 @@
+--- a/quality/test_regression.sh
++++ b/quality/test_regression.sh
+@@ -697,6 +697,40 @@ test_BUG_M13_code_reviews_ls_glob_false_pass() {
+     fi
+ }
+
++# ---------------------------------------------------------------------------
++# BUG-L14: Wrong recommendation enum values in references/review_protocols.md:410
++#
++# The bug: references/review_protocols.md:410 specifies template values
++# "SHIP IT / FIX FIRST / NEEDS INVESTIGATION" but quality_gate.sh:427 validates
++# only "SHIP", "FIX BEFORE MERGE", "BLOCK". Agents following the reference file
++# produce gate-failing integration-results.json artifacts.
++# [BUG from Gap Iteration Spec Audit — 2026-04-16]
++# Skip guard: set BUG_SKIP_L14=0 to enable
++# Fix: quality/patches/BUG-L14-fix.patch
++# ---------------------------------------------------------------------------
++test_BUG_L14_recommendation_enum_inconsistency() {
++    if [ "${BUG_SKIP_L14:-1}" = "1" ]; then
++        echo "  SKIP: BUG-L14 skip guard active (set BUG_SKIP_L14=0 to run red phase)"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    local ref="${REF_DIR:-references}/review_protocols.md"
++
++    if [ ! -f "$ref" ]; then
++        echo "  SKIP: references/review_protocols.md not found"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    # BUG CONFIRMATION: stale enum values present in reference file
++    if grep -q 'SHIP IT' "$ref" && grep -q 'FIX FIRST' "$ref"; then
++        echo "  BUG CONFIRMED: references/review_protocols.md contains stale enum values (SHIP IT / FIX FIRST)"
++        echo "  Gate expects: SHIP | FIX BEFORE MERGE | BLOCK"
++        return 1  # FAILS on unpatched code (red phase)
++    else
++        echo "  BUG FIXED: review_protocols.md uses canonical enum values"
++        return 0
++    fi
++}
++
+ # ---------------------------------------------------------------------------
+ # Run tests
+ # ---------------------------------------------------------------------------
+@@ -717,5 +751,6 @@ else
+     run_test test_BUG_M12_test_file_ext_ls_glob_false_positive
+     run_test test_BUG_M13_code_reviews_ls_glob_false_pass
++    run_test test_BUG_L14_recommendation_enum_inconsistency
+ fi

@@ -1,0 +1,20 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@
++    @unittest.expectedFailure
++    def test_bug_011_citation_verifier_rejects_out_of_root_paths(self) -> None:
++        with tempfile.TemporaryDirectory() as outside_dir, tempfile.TemporaryDirectory() as repo_dir:
++            sentinel = Path(outside_dir) / "secret.txt"
++            sentinel.write_text("alpha\nbeta\ngamma\n", encoding="utf-8")
++            repo_root = Path(repo_dir)
++            relative_traversal = os.path.relpath(sentinel, repo_root)
++            for hostile in (str(sentinel), relative_traversal):
++                with self.subTest(source_path=hostile):
++                    citation = {"document": hostile, "line": 1}
++                    formal_doc = {"source_path": hostile}
++                    result = citation_verifier.verify_citation(citation, formal_doc, repo_root)
++                    self.assertFalse(
++                        result.ok,
++                        f"verifier accepted out-of-root source_path {hostile!r} and produced excerpt {result.excerpt!r}",
++                    )

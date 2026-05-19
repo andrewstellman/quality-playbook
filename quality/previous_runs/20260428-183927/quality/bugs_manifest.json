@@ -1,0 +1,148 @@
+{
+  "schema_version": "1.5.3",
+  "generated_at": "2026-04-28T13:42:14-04:00",
+  "records": [
+    {
+      "id": "BUG-001",
+      "title": "docs_present ignores populated reference_docs trees",
+      "severity": "MEDIUM",
+      "divergence_description": "The Phase 1 runner advertises reference_docs/ as the canonical modern documentation surface, but docs_present() still keys warning behavior only off docs_gathered/.",
+      "documented_intent": "REQ-002 requires modern installs with populated reference_docs/ to count as docs-present input and to suppress legacy code-only warnings.",
+      "code_behavior": "bin/run_playbook.py:1552-1559 checks only docs_gathered/, while the Phase 1 prompt and formal_docs_guard_banner use reference_docs/ as the current contract (bin/run_playbook.py:621-630, 1582-1622, 2241-2246, 2314-2319, 2611-2616).",
+      "disposition": "code-fix",
+      "disposition_rationale": "The requirement is code-derived from the runner's own modern documentation contract, and the implementation still emits the legacy docs_gathered-only truth signal.",
+      "req_id": "REQ-002",
+      "proposed_fix": "Teach docs_present() to treat reference_docs/ plaintext files as authoritative and reserve docs_gathered/ for legacy supplemental detection. See quality/patches/BUG-001-fix.patch.",
+      "fix_type": "code",
+      "covers": [
+        "REQ-002/cell-REFERENCE_DOCS-GLOBAL"
+      ],
+      "divergence_type": "code-spec"
+    },
+    {
+      "id": "BUG-002",
+      "title": "Phase 2 gate accepts line-count placeholders instead of the written exploration contract",
+      "severity": "HIGH",
+      "divergence_description": "The executable Phase 2 gate advances on file existence plus a 120-line threshold even when every named exploration heading and content-shape check is absent.",
+      "documented_intent": "REQ-003 requires the exact Phase 2 exploration contract to be enforced before later phases can consume EXPLORATION.md.",
+      "code_behavior": "bin/run_playbook.py:1158-1165 enforces only presence plus line count, ignoring the heading and content checks mechanically enumerated in quality/mechanical/phase2_gate_required_headings.txt:1-8.",
+      "disposition": "code-fix",
+      "disposition_rationale": "The skill names the closed set of required headings and checks, and the runner currently omits all of them except the length threshold.",
+      "req_id": "REQ-003",
+      "proposed_fix": "Extend check_phase_gate(..., \"2\") to validate every required heading and content-shape predicate before returning ok=True. See quality/patches/BUG-002-fix.patch.",
+      "fix_type": "code",
+      "covers": [
+        "REQ-003/cell-OPEN_EXPLORATION_FINDINGS-GLOBAL",
+        "REQ-003/cell-QUALITY_RISKS-GLOBAL",
+        "REQ-003/cell-PATTERN_APPLICABILITY_MATRIX-GLOBAL",
+        "REQ-003/cell-CANDIDATE_BUGS_FOR_PHASE_2-GLOBAL",
+        "REQ-003/cell-GATE_SELF_CHECK-GLOBAL",
+        "REQ-003/cell-PHASE1_COMPLETE-GLOBAL",
+        "REQ-003/cell-CANDIDATE_STAGE_MIX-GLOBAL"
+      ],
+      "consolidation_rationale": "Every absent cell is omitted by the same Phase 2 gate branch in check_phase_gate(), so one gate-enforcement fix closes the entire missing contract set.",
+      "divergence_type": "code-spec"
+    },
+    {
+      "id": "BUG-003",
+      "title": "Live INDEX writers collapse non-Code classifications to Code",
+      "severity": "MEDIUM",
+      "divergence_description": "The project-type classifier supports Skill and Hybrid outputs, but both live INDEX.md writers still publish Code unconditionally.",
+      "documented_intent": "REQ-004 requires the exact Code/Skill/Hybrid classification to survive into live run metadata.",
+      "code_behavior": "bin/run_playbook.py:1819-1831 hardcodes \"Code\" in the stub payload, and bin/run_playbook.py:1888-1895 passes target_project_type=\"Code\" when re-rendering the final INDEX.md.",
+      "disposition": "code-fix",
+      "disposition_rationale": "The closed-set classifier already exists and downstream tooling depends on the published metadata; hardcoding Code silently erases valid Skill and Hybrid states.",
+      "req_id": "REQ-004",
+      "proposed_fix": "Read the recorded quality/project_type.json classification (or plumb the computed classification through) and use it in both writers. See quality/patches/BUG-003-fix.patch.",
+      "fix_type": "code",
+      "covers": [
+        "REQ-004/cell-SKILL-LIVE_INDEX",
+        "REQ-004/cell-HYBRID-LIVE_INDEX"
+      ],
+      "consolidation_rationale": "Both missing cells come from the same hardcoded literal in the stub/final INDEX writers, so one plumbing change restores both Skill and Hybrid.",
+      "divergence_type": "code-spec"
+    },
+    {
+      "id": "BUG-004",
+      "title": "Cleanup without PID files widens to workstation-wide pkill patterns",
+      "severity": "HIGH",
+      "divergence_description": "When no recorded PID file exists, the runner falls back to pkill -f patterns that can terminate unrelated Claude or Copilot sessions on the same machine.",
+      "documented_intent": "REQ-005 requires cleanup to stay scoped to playbook-owned workers even when PID files are missing.",
+      "code_behavior": "bin/run_playbook.py:2836-2865 defines _pkill_fallback() with broad patterns like \"claude -p\" and \"gh copilot -p\", and kill_recorded_processes() unconditionally invokes it when discover_pid_files() returns no files.",
+      "disposition": "code-fix",
+      "disposition_rationale": "The safe behavior is already present when PID files exist; the fallback path violates the same ownership boundary the feature is supposed to protect.",
+      "req_id": "REQ-005",
+      "proposed_fix": "Replace the pkill fallback with a bounded manual-intervention path (or another ownership-aware mechanism) instead of guessing process ownership from command-line substrings. See quality/patches/BUG-004-fix.patch.",
+      "fix_type": "code",
+      "divergence_type": "code-spec"
+    },
+    {
+      "id": "BUG-005",
+      "title": "Installed gate copy omits the citation verifier dependency",
+      "severity": "MEDIUM",
+      "divergence_description": "The setup script installs quality_gate.py into target repos but does not ship the bin/citation_verifier module that the installed gate needs for byte-equality checks.",
+      "documented_intent": "REQ-006 requires installed citable-doc workflows to retain the same Layer-1 byte-equality citation verification as repo-root runs.",
+      "code_behavior": "repos/setup_repos.sh:195-200 copies only .github/skills/quality_gate/quality_gate.py, while the installed gate imports bin.citation_verifier and otherwise warns and skips verification (.github/skills/quality_gate/quality_gate.py:32-44, 1823-1828).",
+      "disposition": "code-fix",
+      "disposition_rationale": "Installed targets are explicitly advertised as supporting byte-verified citation excerpts; the missing helper turns that guarantee into a silent warning path instead.",
+      "req_id": "REQ-006",
+      "proposed_fix": "Bundle the citation verifier import surface with the installed gate (for example, copy bin/citation_verifier.py and the minimal package scaffold into the target repo). See quality/patches/BUG-005-fix.patch.",
+      "fix_type": "code",
+      "covers": [
+        "REQ-006/cell-BIN_CITATION_VERIFIER_IMPORT-GLOBAL"
+      ],
+      "divergence_type": "code-spec"
+    },
+    {
+      "id": "BUG-006",
+      "title": "Curated bootstrap docs still present older releases and legacy docs paths as current",
+      "severity": "MEDIUM",
+      "divergence_description": "The self-audit bootstrap packet includes files that describe v1.5.0 or v1.5.1 as current and still teach docs_gathered/ as the documentation path, even though the live repo is v1.5.3 and the current contract is reference_docs/.",
+      "documented_intent": "REQ-007 requires curated bootstrap docs to stay current with the live release and documentation terminology whenever they describe the current product.",
+      "code_behavior": "docs_gathered/01_README_project.md:1-19 still labels the project as v1.5.0 and tells users to create docs_gathered/, while docs_gathered/29_improvement_axes_and_version_history.md:68-72 still labels v1.5.1 as current; the live repo advertises v1.5.3 and reference_docs/ in README.md:1-50 and SKILL.md:1-24.",
+      "disposition": "spec-fix",
+      "disposition_rationale": "The divergence is in curated documentation, not executable code. The fix is to update the stale bootstrap packet so the self-audit reads current claims.",
+      "req_id": "REQ-007",
+      "proposed_fix": "Refresh the curated bootstrap docs to match the live README/SKILL version and terminology, or label the old framing as historical. See quality/patches/BUG-006-fix.patch.",
+      "fix_type": "spec",
+      "divergence_type": "code-spec"
+    },
+    {
+      "id": "BUG-007",
+      "title": "Direct-root bootstrap exposes an empty reference_docs tree while harness installs mirror the curated docs set",
+      "severity": "MEDIUM",
+      "divergence_description": "The benchmark harness mirrors docs_gathered/ into reference_docs/, but the repo-root bootstrap run leaves reference_docs/ effectively empty, so Phase 1 sees different documentation trees depending on how QPB is invoked.",
+      "documented_intent": "REQ-008 requires direct-root bootstrap and harness-installed bootstrap to expose the same effective documentation surface to Phase 1.",
+      "code_behavior": "repos/setup_repos.sh:216-220 mirrors docs_gathered/ into reference_docs/ for installed targets, but the repo root currently exposes only reference_docs/.gitkeep and reference_docs/cite/.gitkeep while the curated plaintext bootstrap packet remains in docs_gathered/ (quality/PROGRESS.md:25-28; docs_gathered/INDEX.md:1-37).",
+      "disposition": "code-fix",
+      "disposition_rationale": "The repo layout and bootstrap path are part of the shipped product surface. Direct-root self-audit should not need a different mental model of where Phase 1 docs live.",
+      "req_id": "REQ-008",
+      "proposed_fix": "Mirror the curated plaintext bootstrap docs into reference_docs/ at the repo root or add bootstrap-only logic that exposes the same effective files through the canonical reference_docs/ path. See quality/patches/BUG-007-fix.patch.",
+      "fix_type": "code",
+      "covers": [
+        "REQ-008/cell-DOC_01_README_PROJECT_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_02_AGENTS_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_03_DEVELOPMENT_CONTEXT_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_04_BENCHMARK_PROTOCOL_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_05_TOOLKIT_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_20_DESIGN_INTENT_THE_35_PERCENT_GAP_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_21_REQUIREMENTS_PIPELINE_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_22_COUNCIL_OF_THREE_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_23_ITERATION_STRATEGIES_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_24_CHALLENGE_GATE_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_25_ANTI_HALLUCINATION_INVARIANTS_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_26_SIX_PHASE_ORCHESTRATION_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_27_TDD_VERIFICATION_PROTOCOL_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_28_RECHECK_MODE_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_29_IMPROVEMENT_AXES_AND_VERSION_HISTORY_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_30_BENCHMARK_PROTOCOL_AND_SELF_AUDIT_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_31_KNOWN_LIMITATIONS_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_50_QUALITY_PLAYBOOK_PATENT_REVIEW_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_INDEX_MD-DIRECT_BOOTSTRAP",
+        "REQ-008/cell-DOC_SOURCES_MD-DIRECT_BOOTSTRAP"
+      ],
+      "consolidation_rationale": "All absent cells come from the same missing direct-root mirror: the curated plaintext bootstrap set exists under docs_gathered/ but is not exposed through the canonical reference_docs/ path that the harness populates.",
+      "divergence_type": "code-spec"
+    }
+  ]
+}

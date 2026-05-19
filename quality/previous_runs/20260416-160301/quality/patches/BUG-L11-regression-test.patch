@@ -1,0 +1,59 @@
+--- a/quality/test_regression.sh
++++ b/quality/test_regression.sh
+@@ -567,6 +567,51 @@ test_BUG_L10_recheck_schema_version_inconsistency() {
+     fi
+ }
+
++# ---------------------------------------------------------------------------
++# BUG-L11: Two incompatible tdd-results.json templates in SKILL.md
++#
++# The bug: Artifact contract section (line ~135) uses "UC-03: Description..." format
++# for the "requirement" field; Phase 5 File 7 section (line ~1385) uses "REQ-003".
++# Agents see different expectations for the same required JSON field.
++# [BUG from Phase 4 Spec Audit — Auditors A and B]
++# Skip guard: set BUG_SKIP_L11=0 to enable
++# Fix: (no patch — fix is standardizing the templates)
++# ---------------------------------------------------------------------------
++test_BUG_L11_tdd_results_two_incompatible_templates() {
++    if [ "${BUG_SKIP_L11:-1}" = "1" ]; then
++        echo "  SKIP: BUG-L11 skip guard active (set BUG_SKIP_L11=0 to run red phase)"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    local skill_md="${SKILL_MD_PATH:-SKILL.md}"
++
++    if [ ! -f "$skill_md" ]; then
++        echo "  SKIP: SKILL.md not found"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    # BUG CONFIRMATION: Template 1 (artifact contract ~line 135) uses UC-format
++    local template1_uc
++    template1_uc=$(grep -n '"requirement":.*UC-[0-9][0-9]:' "$skill_md" | head -1)
++
++    # Template 2 (Phase 5 ~line 1385) uses REQ-format
++    local template2_req
++    template2_req=$(grep -n '"requirement": "REQ-[0-9]' "$skill_md" | head -1)
++
++    if [ -n "$template1_uc" ] && [ -n "$template2_req" ]; then
++        echo "  BUG CONFIRMED: Two incompatible 'requirement' field formats in SKILL.md"
++        echo "  Template 1 (artifact contract, UC-format): $template1_uc"
++        echo "  Template 2 (Phase 5, REQ-format): $template2_req"
++        return 1  # FAILS on unpatched code (red phase)
++    else
++        echo "  BUG FIXED or templates unified"
++        echo "  UC-format: '${template1_uc:-not found}'"
++        echo "  REQ-format: '${template2_req:-not found}'"
++        return 0
++    fi
++}
++
+ # ---------------------------------------------------------------------------
+ # Run tests
+ # ---------------------------------------------------------------------------
+@@ -780,6 +833,7 @@ else
+     run_test test_BUG_L10_recheck_schema_version_inconsistency
++    run_test test_BUG_L11_tdd_results_two_incompatible_templates
+ fi

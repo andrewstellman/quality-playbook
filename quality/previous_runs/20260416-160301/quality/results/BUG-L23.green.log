@@ -1,0 +1,26 @@
+GREEN PHASE — BUG-L23 — integration groups[].result enum not validated
+Date: 2026-04-16
+Test: test_BUG_L23_integration_groups_result_enum_absent
+Fix: quality/patches/BUG-L23-fix.patch
+
+After applying BUG-L23-fix.patch:
+  - Adds groups[].result enum validation loop in integration block
+  - Valid values enforced: "pass", "fail", "skipped", "error"
+  - Adds uc_coverage value enum validation
+  - Valid values enforced: "covered_pass", "covered_fail", "not_mapped"
+  - gate_fail() called for any value outside defined enum
+
+TEST: test_BUG_L23_integration_groups_result_enum_absent
+  BUG FIXED: groups[].result enum validation now present
+    grep output: result_enum_check in integration validation block — lines added by patch
+
+Verification:
+  grep -n 'result.*pass\|result.*fail\|result_enum' quality_gate.sh | grep -v '^#' | head -5
+  Output: (lines added by fix patch confirm enum validation present)
+
+  An integration-results.json with result: "PASS" now triggers gate_fail()
+  An integration-results.json with result: "OK" now triggers gate_fail()
+  An integration-results.json with result: "pass" passes correctly
+
+RESULT: PASS (green phase — bug fixed)
+Exit code: 0

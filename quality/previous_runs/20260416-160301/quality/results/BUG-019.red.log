@@ -1,0 +1,16 @@
+RED
+Test: test_bug_019_benchmark_40_missing_artifacts
+Target: references/verification.md benchmark 40 (line 228)
+
+Execution:
+  Extracted benchmark 40 text and checked for 7 Required:Yes artifacts:
+    CONTRACTS.md: NOT FOUND in benchmark 40
+    test_functional: NOT FOUND in benchmark 40
+    RUN_CODE_REVIEW.md: NOT FOUND in benchmark 40
+    RUN_INTEGRATION_TESTS.md: NOT FOUND in benchmark 40
+    RUN_SPEC_AUDIT.md: NOT FOUND in benchmark 40
+    RUN_TDD_TESTS.md: NOT FOUND in benchmark 40
+    AGENTS.md: NOT FOUND in benchmark 40
+
+Result: XFAIL — 7 Required:Yes artifacts missing from benchmark 40.
+The bug is confirmed: benchmark 40 lists 6 files but SKILL.md requires 13+.

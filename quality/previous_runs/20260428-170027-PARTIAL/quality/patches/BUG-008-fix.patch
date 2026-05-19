@@ -1,0 +1,29 @@
+--- a/bin/run_playbook.py
++++ b/bin/run_playbook.py
+@@ -930,8 +930,14 @@ def execute_run(args, repo_dirs, phase_list, run_timestamp):
+         failures = wait_for_processes(processes, pid_file_path)
+         print(f"\n=== Parallel run complete. {failures} failures out of {len(repo_dirs)} targets. ===")
+         print(lib.print_summary(repo_dirs))
+-        if not suppress_suggestion:
+-            print_suggested_next_command(args)
++        if not suppress_suggestion:
++            if failures > 0:
++                print(f"  {failures} target(s) failed — inspect control_prompts/ logs and re-run with --phase <N>")
++            else:
++                print_suggested_next_command(args)
+         return 1 if failures else 0
+
+     overall_status = 0
+     for repo_dir in repo_dirs:
+         overall_status = max(overall_status, run_one(repo_dir, phase_list, args, run_timestamp))
+         print("")
+
+     print(lib.print_summary(repo_dirs))
+-    if not suppress_suggestion:
+-        print_suggested_next_command(args)
++    if not suppress_suggestion:
++        if overall_status > 0:
++            print(f"  Run finished with errors — inspect control_prompts/ and re-run with --phase <N>")
++        else:
++            print_suggested_next_command(args)
+     return overall_status

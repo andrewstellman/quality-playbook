@@ -1,0 +1,19 @@
+diff --git a/bin/run_playbook.py b/bin/run_playbook.py
+--- a/bin/run_playbook.py
++++ b/bin/run_playbook.py
+@@
++SKILL_FALLBACK_GUIDE = (
++    "Read the quality playbook skill using the documented install-location fallback list: "
++    "SKILL.md, .claude/skills/quality-playbook/SKILL.md, "
++    ".github/skills/SKILL.md, .github/skills/quality-playbook/SKILL.md. "
++    "Resolve reference files using the same documented fallback order."
++)
+@@
+-    return f"""You are a quality engineer. Read the skill at .github/skills/SKILL.md ...
++    return f"""You are a quality engineer. {SKILL_FALLBACK_GUIDE} ...
+@@
+-    return f"Read the quality playbook skill at .github/skills/SKILL.md and execute the quality playbook for this project.{seed_instruction}"
++    return f"{SKILL_FALLBACK_GUIDE} Execute the quality playbook for this project.{seed_instruction}"
+@@
+-    return f"Read the quality playbook skill at .github/skills/SKILL.md and run the next iteration using the {strategy} strategy."
++    return f"{SKILL_FALLBACK_GUIDE} Run the next iteration using the {strategy} strategy."

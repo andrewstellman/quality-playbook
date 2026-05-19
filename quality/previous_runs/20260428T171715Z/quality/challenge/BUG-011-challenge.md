@@ -1,0 +1,8 @@
+# Challenge Record: BUG-011
+
+- Triggers: security-class, no-spec-basis, missing-functionality
+- Requirement: REQ-011 (added in adversarial iteration)
+- Evidence reviewed: `bin/citation_verifier.py:244-266`; `quality/EXPLORATION_ITER5.md` finding A-1 (reduced reproduction); `quality/REQUIREMENTS.md:328-346` (REQ-011 conditions of satisfaction); `SKILL.md:94, 1865-1868` (`formal_docs_manifest.json` is a gate-validated trust input).
+- Challenge: Is the path-traversal claim a hypothetical "could happen if hostile" or a real defect against a documented contract? Could it be dismissed as "manifests are trusted, so any traversal is operator error"?
+- Resolution: The defect is real against the new REQ-011 and against the implicit boundary contract that gate-validated trust inputs imply. `Path(root) / source_path` discards `root` for absolute paths and silently accepts `..`-traversal — both observable in the reduced reproduction (`result.ok = True`, excerpt populated from out-of-root content). The verifier is the *only* boundary between manifest input and `read_bytes()`; without containment, the input becomes a workstation file-read primitive. Iteration 3 enumerated this as a candidate; the orchestrator's Phase 2-5 cycle never promoted it; the adversarial iteration re-confirmed it with fresh evidence and a written reproduction. No documented design choice supports reading out-of-root files; SKILL.md treats `formal_docs_manifest.json` as a gate-validated artifact, which presumes containment. The "missing-functionality" trigger fires because the boundary check is absent, not because the verifier rejected anything incorrectly.
+**Verdict:** CONFIRMED

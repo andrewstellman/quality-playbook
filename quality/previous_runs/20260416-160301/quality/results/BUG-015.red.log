@@ -1,0 +1,28 @@
+RED
+BUG-015 regression test: integration-results.json schema_version not validated
+
+Test: Create integration-results.json with schema_version "0.9" and run quality_gate.sh
+Expected: FAIL — schema_version "0.9" is not "1.1"
+Actual: PASS — gate only checks key existence, not value
+
+Verification:
+  $ cat integration-results.json | grep schema_version
+  "schema_version":"0.9"
+
+  $ bash quality_gate.sh <tmpdir> 2>&1 | grep -i "schema_version.*integration"
+  (no output — schema_version value is never checked for integration-results.json)
+
+  $ bash quality_gate.sh <tmpdir> 2>&1 | grep "has 'schema_version'"
+    PASS: has 'schema_version'
+
+  (Key presence passes; value "0.9" is not validated)
+
+Gate exit code: 0 (PASS despite non-conformant schema_version)
+
+Comparison with tdd-results.json:
+  quality_gate.sh line 222: [ "$sv" = "1.1" ] && pass "schema_version is '1.1'" || fail "..."
+  quality_gate.sh line 371: json_has_key "$ij" "$key" && pass "has '${key}'" || fail "..."
+
+  tdd-results.json checks VALUE ("1.1"); integration-results.json checks only KEY EXISTENCE.
+
+Red phase: CONFIRMED — regression test demonstrates the bug

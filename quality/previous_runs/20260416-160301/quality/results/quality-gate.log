@@ -1,0 +1,64 @@
+=== Quality Gate — Post-Run Validation ===
+Version:    1.4.1
+Strictness: benchmark
+Repos:      1
+
+=== QFB-bootstrap ===
+[File Existence]
+  PASS: BUGS.md exists
+  PASS: REQUIREMENTS.md exists
+  PASS: QUALITY.md exists
+  PASS: PROGRESS.md exists
+  PASS: COVERAGE_MATRIX.md exists
+  PASS: COMPLETENESS_REPORT.md exists
+  PASS: CONTRACTS.md exists
+  PASS: RUN_CODE_REVIEW.md exists
+  PASS: RUN_SPEC_AUDIT.md exists
+  PASS: RUN_INTEGRATION_TESTS.md exists
+  PASS: RUN_TDD_TESTS.md exists
+  FAIL: functional test file missing (test_functional.*, FunctionalSpec.*, FunctionalTest.*, functional.test.*)
+  PASS: AGENTS.md exists
+  PASS: EXPLORATION.md exists
+  PASS: code_reviews/ has .md files
+  PASS: spec_audits/ has triage file
+  PASS: spec_audits/ has 3 auditor file(s)
+  PASS: triage_probes.sh exists (executable triage evidence)
+[BUGS.md Heading Format]
+  PASS: Zero-bug run — no headings expected
+[TDD Sidecar JSON]
+  INFO: Zero bugs — tdd-results.json not required
+[TDD Log Files]
+  INFO: Zero bugs — TDD log files not required
+[Integration Sidecar JSON]
+  PASS: has 'schema_version'
+  PASS: has 'skill_version'
+  PASS: has 'date'
+  PASS: has 'project'
+  PASS: has 'recommendation'
+  PASS: has 'groups'
+  PASS: has 'summary'
+  PASS: has 'uc_coverage'
+  PASS: integration schema_version is '1.1'
+  PASS: integration-results.json date '2026-04-16' is valid
+  PASS: recommendation 'FIX BEFORE MERGE' is canonical
+[Use Cases]
+  PASS: Found 5 distinct UC identifiers (5 total references, 0 source files)
+[Test File Extension]
+  INFO: Cannot detect project language — skipping extension check (test_functional.sh)
+[Terminal Gate]
+  PASS: PROGRESS.md has Terminal Gate section
+[Mechanical Verification]
+  INFO: No mechanical/ directory
+[Patches]
+[Bug Writeups]
+[Version Stamps]
+  PASS: PROGRESS.md version matches (1.4.1)
+  PASS: tdd-results.json skill_version matches
+[Cross-Run Contamination]
+  PASS: No version mismatch detected
+
+
+===========================================
+Total: 1 FAIL, 0 WARN
+RESULT: GATE FAILED — 1 check(s) must be fixed
+1

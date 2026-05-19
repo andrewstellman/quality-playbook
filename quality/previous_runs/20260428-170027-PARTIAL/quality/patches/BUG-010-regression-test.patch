@@ -1,0 +1,16 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,14 @@
++    @unittest.expectedFailure
++    def test_reg_cb10_run_metadata_ungated(self):
++        """BUG-010 / REQ-008: quality_gate must have attribute check_run_metadata.
++        Run-metadata JSON must be validated by the gate.
++
++        Source: quality_gate.py:1027-1053 — check_run_metadata function does not exist.
++        Current: hasattr → False. Desired: function exists and check_repo calls it.
++        """
++        qg = _load_quality_gate()
++        self.assertTrue(
++            hasattr(qg, "check_run_metadata"),
++            "quality_gate must expose check_run_metadata function (currently missing)"
++        )

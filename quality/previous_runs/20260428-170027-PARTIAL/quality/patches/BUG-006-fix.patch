@@ -1,0 +1,14 @@
+--- a/bin/run_playbook.py
++++ b/bin/run_playbook.py
+@@ -459,5 +459,12 @@ def check_phase_gate(quality_dir: Path, phase: str) -> GateCheck:
+     if phase == "3":
+-        missing = [name for name in ["REQUIREMENTS.md", "QUALITY.md", "CONTRACTS.md", "RUN_CODE_REVIEW.md"] if not (quality_dir / name).is_file()]
++        required = [
++            "REQUIREMENTS.md", "QUALITY.md", "CONTRACTS.md", "RUN_CODE_REVIEW.md",
++            "COVERAGE_MATRIX.md", "COMPLETENESS_REPORT.md",
++            "RUN_INTEGRATION_TESTS.md", "RUN_SPEC_AUDIT.md", "RUN_TDD_TESTS.md",
++        ]
++        missing = [name for name in required if not (quality_dir / name).is_file()]
+         if missing:
+             return GateCheck(ok=False, messages=[f"GATE FAIL Phase 3: missing {' '.join(missing)} - run Phase 2 first"])
+         return GateCheck(ok=True, messages=[])

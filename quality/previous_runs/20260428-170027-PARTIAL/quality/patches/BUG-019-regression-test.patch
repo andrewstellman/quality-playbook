@@ -1,0 +1,32 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+index 9aa7600..c65d9f2 100644
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@ -631,6 +631,31 @@ class GapIterationRegressions(unittest.TestCase):
+             "general orchestrator must not contradict its own phase-execution ownership"
+         )
+ 
++    @unittest.expectedFailure
++    def test_reg_gap19_collect_only_does_not_execute_tests(self):
++        shim = _load_pytest_shim()
++        fake_result = mock.Mock()
++        fake_result.wasSuccessful.return_value = True
++        with mock.patch("unittest.TextTestRunner.run", return_value=fake_result) as run_mock:
++            exit_code = shim.main(["--collect-only", ".github/skills/quality_gate/tests/test_quality_gate.py"])
++        self.assertEqual(exit_code, 0)
++        run_mock.assert_not_called()
++
++    @unittest.expectedFailure
++    def test_reg_gap19_nodeid_is_handled_without_importerror(self):
++        shim = _load_pytest_shim()
++        try:
++            shim.main([
++                ".github/skills/quality_gate/tests/test_quality_gate.py::"
++                "TestValidateIsoDate::test_valid_today"
++            ])
++        except ImportError as exc:
++            self.fail(f"node-id path must be handled explicitly, not crash with ImportError: {exc}")
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

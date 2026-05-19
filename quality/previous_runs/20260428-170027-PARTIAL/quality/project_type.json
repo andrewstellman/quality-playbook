@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.1",
+  "classification": "Hybrid",
+  "rationale": "SKILL.md exists at repo root (37361 prose words) alongside substantial code (34607 non-blank lines); ratio 1.08 words/LOC sits within the Hybrid band [1/2x, 2x].",
+  "confidence": "medium",
+  "evidence": {
+    "skill_md_present": true,
+    "skill_md_path": "SKILL.md",
+    "skill_md_word_count": 37361,
+    "total_code_loc": 34607,
+    "code_languages": [
+      "Python",
+      "Shell"
+    ],
+    "confidence_reason": "unambiguous"
+  },
+  "classified_at": "2026-04-28T17:00:27Z",
+  "classifier_version": "1.0",
+  "override_applied": false,
+  "override_rationale": null
+}

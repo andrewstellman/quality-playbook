@@ -1,0 +1,20 @@
+Phase 3 is complete and verified. Here's the summary:
+
+**All 17 regression tests pass as expected failures** (`OK (expected failures=17)`) — the red phase is confirmed.
+
+**15 confirmed bugs** (BUG-001 through BUG-015) covering all 12 candidate bugs from Phase 1 plus 3 new findings from the structural pass:
+- HIGH: BUG-001 (version parser), BUG-002 (missing install path), BUG-003 (threshold drift), BUG-004 (non-atomic archive)
+- MEDIUM: BUG-005 through BUG-009, BUG-013 through BUG-015
+- LOW: BUG-010 through BUG-012
+
+**Artifacts produced:**
+- `quality/code_reviews/2026-04-18-phase3-review.md` — 3-pass review with 25 structural observations
+- `quality/BUGS.md` — 15 bugs with `### BUG-NNN` headings
+- `quality/test_regression.py` — 17 xfail tests
+- `quality/writeups/BUG-001.md` through `BUG-015.md` — all with mandatory `diff` blocks
+- `quality/patches/` — 30 files (regression-test + fix patch per bug)
+- `quality/results/tdd-results.json` — schema v1.1, 15 entries, all `confirmed open`
+- `quality/results/tdd-red-phase.log` — test run transcript
+- `quality/PROGRESS.md` — Phase 3 marked complete, BUG tracker populated
+
+Phase 3 is done. **Do not proceed to Phase 4** — the next phase (spec audit) runs with a fresh context window.

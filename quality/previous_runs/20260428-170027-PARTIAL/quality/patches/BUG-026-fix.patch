@@ -1,0 +1,12 @@
+diff --git a/bin/benchmark_lib.py b/bin/benchmark_lib.py
+--- a/bin/benchmark_lib.py
++++ b/bin/benchmark_lib.py
+@@
+ FUNCTIONAL_TEST_PATTERNS = (
+     "test_functional.*",
+     "functional.test.*",
+     "functional_test.*",
+     "FunctionalTest.*",
+     "FunctionalSpec.*",
+-    "test_functional_test.*",
+ )

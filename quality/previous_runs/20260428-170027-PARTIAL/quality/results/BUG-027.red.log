@@ -1,0 +1,42 @@
+RED
+--- Test output for BUG-027 red phase ---
+Command: python3 <inline unittest runner for test_reg_adv27_summary_ignores_noncanonical_regression_aliases>
+Exit code: 1
+Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "/Users/andrewstellman/Documents/QPB/quality/test_regression.py", line 877, in test_reg_adv27_summary_ignores_noncanonical_regression_aliases
+    self.assertEqual(row.regression, ".",
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+                     "build_summary_rows() must leave REGR unset when only non-canonical regression aliases exist")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 907, in assertEqual
+    assertion_func(first, second, msg=msg)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 1273, in assertMultiLineEqual
+    self.fail(self._formatMessage(msg, standardMsg))
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 732, in fail
+    raise self.failureException(msg)
+AssertionError: 'Y' != '.'
+- Y
++ .
+ : build_summary_rows() must leave REGR unset when only non-canonical regression aliases exist
+Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "/Users/andrewstellman/Documents/QPB/quality/test_regression.py", line 877, in test_reg_adv27_summary_ignores_noncanonical_regression_aliases
+    self.assertEqual(row.regression, ".",
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+                     "build_summary_rows() must leave REGR unset when only non-canonical regression aliases exist")
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 907, in assertEqual
+    assertion_func(first, second, msg=msg)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 1273, in assertMultiLineEqual
+    self.fail(self._formatMessage(msg, standardMsg))
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 732, in fail
+    raise self.failureException(msg)
+AssertionError: 'Y' != '.'
+- Y
++ .
+ : build_summary_rows() must leave REGR unset when only non-canonical regression aliases exist

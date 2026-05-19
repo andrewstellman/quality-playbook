@@ -1,0 +1,14 @@
+RED
+--- Test output for BUG-023 red phase ---
+Command: python3 -m unittest quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered23_language_detection_ignores_fixture_repos -v
+Exit code: 0
+test_reg_unfiltered23_language_detection_ignores_fixture_repos (quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered23_language_detection_ignores_fixture_repos)
+BUG-023 / REQ-024: language detection must ignore nested fixture repos. ... /Users/andrewstellman/Documents/QPB/.github/skills/quality_gate/quality_gate.py:242: ResourceWarning: unclosed scandir iterator <posix.ScandirIterator object at 0x10a1e35b0>
+  return True
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.014s
+
+OK (expected failures=1)

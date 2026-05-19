@@ -1,0 +1,19 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,18 @@
++    @unittest.expectedFailure
++    def test_reg_cb7_docs_present_noise(self):
++        """BUG-007 / REQ-011: docs_present must return False for a directory
++        containing only ".DS_Store".
++
++        Source: run_playbook.py:560-562 — any(iterdir()) is True for .DS_Store.
++        Current: returns True. Desired: returns False.
++        """
++        with TemporaryDirectory() as tmp:
++            docs_dir = Path(tmp) / "docs_gathered"
++            docs_dir.mkdir()
++            # Write a .DS_Store file — macOS filesystem noise
++            _write(docs_dir / ".DS_Store", "bplist00\n")
++            result = run_playbook.docs_present(Path(tmp))
++        self.assertFalse(result,
++                         "docs_present must return False for a docs_gathered/ containing only .DS_Store")

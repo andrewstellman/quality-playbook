@@ -1,0 +1,8 @@
+1. `quality/EXPLORATION.md` must have at least 120 lines — a shorter file indicates incomplete exploration
+2. `## Open Exploration Findings` — must exist verbatim
+3. `## Quality Risks` — must exist verbatim
+4. `## Pattern Applicability Matrix` — must exist verbatim
+6. `## Candidate Bugs for Phase 2` — must exist verbatim
+7. `## Gate Self-Check` — must exist (proves the Phase 1 gate was run)
+8. `quality/PROGRESS.md` exists and its Phase 1 line is marked `[x]` — proves Phase 1 was completed, not just started
+13. `## Candidate Bugs for Phase 2` has ≥2 bugs from open exploration/risks AND ≥1 from a pattern deep dive — check source stage labels

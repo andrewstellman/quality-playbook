@@ -1,0 +1,258 @@
+{
+  "schema_version": "1.1",
+  "skill_version": "1.4.5",
+  "date": "2026-04-19",
+  "project": "quality-playbook",
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "requirement": "REQ-001",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-001.md"
+    },
+    {
+      "id": "BUG-002",
+      "requirement": "REQ-002",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-002.md"
+    },
+    {
+      "id": "BUG-003",
+      "requirement": "REQ-004",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-003.md"
+    },
+    {
+      "id": "BUG-004",
+      "requirement": "REQ-009",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-004.md"
+    },
+    {
+      "id": "BUG-005",
+      "requirement": "REQ-006",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-005.md"
+    },
+    {
+      "id": "BUG-006",
+      "requirement": "REQ-010",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-006.md"
+    },
+    {
+      "id": "BUG-007",
+      "requirement": "REQ-011",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-007.md"
+    },
+    {
+      "id": "BUG-008",
+      "requirement": "REQ-014",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-008.md"
+    },
+    {
+      "id": "BUG-009",
+      "requirement": "REQ-012",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-009.md"
+    },
+    {
+      "id": "BUG-010",
+      "requirement": "REQ-008",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-010.md"
+    },
+    {
+      "id": "BUG-011",
+      "requirement": "REQ-013",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-011.md"
+    },
+    {
+      "id": "BUG-012",
+      "requirement": "REQ-015",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-012.md"
+    },
+    {
+      "id": "BUG-013",
+      "requirement": "REQ-003",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-013.md"
+    },
+    {
+      "id": "BUG-014",
+      "requirement": "REQ-007",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-014.md"
+    },
+    {
+      "id": "BUG-015",
+      "requirement": "REQ-016",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-015.md"
+    },
+    {
+      "id": "BUG-016",
+      "requirement": "REQ-010",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-016.md"
+    },
+    {
+      "id": "BUG-017",
+      "requirement": "REQ-018",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-017.md"
+    },
+    {
+      "id": "BUG-018",
+      "requirement": "REQ-019",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-018.md"
+    },
+    {
+      "id": "BUG-019",
+      "requirement": "REQ-020",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-019.md"
+    },
+    {
+      "id": "BUG-020",
+      "requirement": "REQ-021",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-020.md"
+    },
+    {
+      "id": "BUG-021",
+      "requirement": "REQ-022",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-021.md"
+    },
+    {
+      "id": "BUG-022",
+      "requirement": "REQ-023",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-022.md"
+    },
+    {
+      "id": "BUG-023",
+      "requirement": "REQ-024",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-023.md"
+    },
+    {
+      "id": "BUG-024",
+      "requirement": "REQ-025",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-024.md"
+    },
+    {
+      "id": "BUG-025",
+      "requirement": "REQ-026",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-025.md"
+    },
+    {
+      "id": "BUG-026",
+      "requirement": "REQ-027",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-026.md"
+    },
+    {
+      "id": "BUG-027",
+      "requirement": "REQ-028",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-027.md"
+    }
+  ],
+  "summary": {
+    "total": 27,
+    "verified": 0,
+    "confirmed_open": 27,
+    "red_failed": 0,
+    "green_failed": 0
+  }
+}

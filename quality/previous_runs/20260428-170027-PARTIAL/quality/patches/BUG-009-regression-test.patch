@@ -1,0 +1,35 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,27 @@
++    @unittest.expectedFailure
++    def test_reg_cb9_pkill_misses_copilot(self):
++        """BUG-009 / REQ-012: _pkill_fallback patterns must include "gh copilot -p".
++        Copilot workers are orphaned after parent crash without this pattern.
++
++        Source: run_playbook.py:808-829 — patterns list has 3 entries, no gh copilot.
++        Current: "gh copilot" pattern absent. Desired: pattern present in pkill calls.
++        """
++        pkill_calls = []
++
++        def mock_subprocess_run(cmd, **kwargs):
++            if cmd and cmd[0] == "pkill":
++                pkill_calls.append(cmd)
++            result = mock.MagicMock()
++            result.returncode = 1
++            return result
++
++        with mock.patch("subprocess.run", side_effect=mock_subprocess_run):
++            run_playbook._pkill_fallback()
++
++        # Extract the -f pattern arguments from each pkill call
++        patterns_used = []
++        for call in pkill_calls:
++            if "-f" in call:
++                idx = call.index("-f")
++                if idx + 1 < len(call):
++                    patterns_used.append(call[idx + 1])
++
++        self.assertTrue(
++            any("gh copilot" in p for p in patterns_used),
++            f"_pkill_fallback must include 'gh copilot' in pkill patterns; got: {patterns_used}"
++        )

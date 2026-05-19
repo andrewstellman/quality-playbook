@@ -1,0 +1,123 @@
+{
+  "schema_version": "1.5.6",
+  "generated_at": "2026-05-08T02:34:19Z",
+  "records": [
+    {
+      "id": "BUG-001",
+      "title": "`docs_present()` ignores cite-only docs-backed trees",
+      "severity": "MEDIUM",
+      "divergence_description": "The startup warning path still treats cite-only documentation trees as docless even though the canonical documentation-state helpers classify the same trees as docs-backed.",
+      "documented_intent": "REQ-001 requires plaintext files under `reference_docs/cite/` to count as valid documentation input on every startup path that decides whether the run is docs-backed or code-only.",
+      "code_behavior": "`bin/run_playbook.py:1568-1574` only scans top-level files, while `_evaluate_documentation_state()` and `formal_docs_guard_banner()` recurse into `reference_docs/cite/` and accept cite-only trees (`bin/run_playbook.py:1617-1621`, `1666-1669`).",
+      "disposition": "code-fix",
+      "disposition_rationale": "The divergence is entirely in the executable predicate used by the startup warning paths; the documented contract and the other code surfaces already agree on the intended cite-only behavior.",
+      "req_id": "REQ-001",
+      "proposed_fix": "Make `docs_present()` use the same recognized-plaintext predicate as `_evaluate_documentation_state()` and `formal_docs_guard_banner()`. See `quality/patches/BUG-001-fix.patch`.",
+      "fix_type": "code",
+      "covers": [
+        "REQ-001/cell-CITE_PLAINTEXT-STARTUP_WARNING"
+      ],
+      "divergence_type": "code-spec"
+    },
+    {
+      "id": "BUG-002",
+      "title": "`docs_present()` uses a broader predicate than the rest of the documentation-state logic",
+      "severity": "MEDIUM",
+      "divergence_description": "The warning helper counts README-only and binary-only trees as docs-present while also missing cite-only trees, so operator-visible startup messaging disagrees with the runner's stored documentation state.",
+      "documented_intent": "REQ-002 requires warnings, state evaluation, and the formal-doc banner to share one recognized-plaintext rule across README-only, binary-only, cite-only, and top-level plaintext trees.",
+      "code_behavior": "`bin/run_playbook.py:1568-1574` treats any non-dot top-level file as documentation, whereas `_reference_docs_plaintext()` filters to `.md`/`.txt`, skips `README.md`, and recurses into `cite/` (`bin/run_playbook.py:1583-1595`).",
+      "disposition": "code-fix",
+      "disposition_rationale": "All three failing cells come from the same helper drift inside the startup warning path; no documentation or schema change is needed.",
+      "req_id": "REQ-002",
+      "proposed_fix": "Route `docs_present()` through `_reference_docs_plaintext()` or an equivalent shared helper so every documentation-state surface uses the same predicate. See `quality/patches/BUG-002-fix.patch`.",
+      "fix_type": "code",
+      "covers": [
+        "REQ-002/cell-README_ONLY-DOCS_PRESENT",
+        "REQ-002/cell-BINARY_ONLY-DOCS_PRESENT",
+        "REQ-002/cell-CITE_ONLY-DOCS_PRESENT"
+      ],
+      "consolidation_rationale": "A single predicate mismatch in `docs_present()` causes the README-only, binary-only, and cite-only parity failures.",
+      "divergence_type": "code-spec"
+    },
+    {
+      "id": "BUG-003",
+      "title": "Tier 4 ingest leaks nested non-`cite/` archives into Phase 1 context",
+      "severity": "HIGH",
+      "divergence_description": "The ingest pipeline treats every non-`cite/` plaintext file in the `reference_docs/` subtree as Tier 4 context, not just the documented top-level files.",
+      "documented_intent": "REQ-003 requires Tier 4 ingest to stay limited to the documented top-level `reference_docs/` plaintext surface unless the contract is explicitly widened.",
+      "code_behavior": "`bin/reference_docs_ingest.py:90-93` recursively enumerates the full tree, `_collect()` assigns `tier=4` to every non-`cite/` plaintext file (`189-227`), and `load_tier4_context()` returns those records directly (`263-276`).",
+      "disposition": "code-fix",
+      "disposition_rationale": "The contract and the Phase 2 requirement are explicit about top-level-only Tier 4 scope; the bug is the missing filter in the ingest implementation.",
+      "req_id": "REQ-003",
+      "proposed_fix": "Restrict Tier 4 collection to top-level `reference_docs/*.{md,txt}` files while preserving `cite/` recursion for formal-doc ingest. See `quality/patches/BUG-003-fix.patch`.",
+      "fix_type": "code",
+      "covers": [
+        "REQ-003/cell-TOP_LEVEL_PLAINTEXT_ONLY_FILTER-TIER4_CONTEXT"
+      ],
+      "divergence_type": "code-spec"
+    },
+    {
+      "id": "BUG-004",
+      "title": "Bootstrap mirroring drops the `cite/` formal-doc bucket",
+      "severity": "MEDIUM",
+      "divergence_description": "The bootstrap mirror helper preserves top-level plaintext docs but never copies the source-side `cite/` subtree into `reference_docs/cite/`.",
+      "documented_intent": "REQ-004 requires bootstrap mirroring to preserve the top-level-vs-`cite/` placement semantics of the source bootstrap corpus.",
+      "code_behavior": "`bin/bootstrap_self_audit_docs.py:50-61` creates `reference_docs/cite/` and then iterates only `SOURCE_DIR.iterdir()`, skipping subdirectories entirely.",
+      "disposition": "code-fix",
+      "disposition_rationale": "The missing behavior is confined to the mirroring helper; the destination layout and the ingest contract already define the correct placement.",
+      "req_id": "REQ-004",
+      "proposed_fix": "Mirror both eligible top-level docs and eligible files under `docs_gathered/cite/` into the corresponding destination buckets. See `quality/patches/BUG-004-fix.patch`.",
+      "fix_type": "code",
+      "covers": [
+        "REQ-004/cell-CITE_FORMAL_DOCS-BOOTSTRAP_MIRROR"
+      ],
+      "divergence_type": "code-spec"
+    },
+    {
+      "id": "BUG-005",
+      "title": "The Phase 1 validator accepts long placeholders instead of the written gate contract",
+      "severity": "HIGH",
+      "divergence_description": "The mechanical Phase 1 validator enforces only file existence, a 120-line minimum, and a generic findings regex even though the skill names a much stronger gate with exact headings and analytical minima.",
+      "documented_intent": "REQ-005 requires the mechanical validator to reject `quality/EXPLORATION.md` artifacts that omit the exact mandatory sections and content depth named by the Phase 2 gate.",
+      "code_behavior": "`bin/run_state_lib.py:171-198` stops after the line-count and generic findings checks, while `SKILL.md:1260-1273` defines the full required heading and content set.",
+      "disposition": "code-fix",
+      "disposition_rationale": "The skill prose already defines the authoritative contract; the runtime validator is simply too weak and needs to enforce the documented checks.",
+      "req_id": "REQ-005",
+      "proposed_fix": "Extend `validate_phase_artifacts(..., 1)` to check the exact required headings and the Phase 2 gate's analytical minima before it returns success. See `quality/patches/BUG-005-fix.patch`.",
+      "fix_type": "code",
+      "covers": [
+        "REQ-005/cell-OPEN_EXPLORATION_FINDINGS-PHASE1_VALIDATOR",
+        "REQ-005/cell-QUALITY_RISKS-PHASE1_VALIDATOR",
+        "REQ-005/cell-PATTERN_APPLICABILITY_MATRIX-PHASE1_VALIDATOR",
+        "REQ-005/cell-PATTERN_DEEP_DIVE_COUNT-PHASE1_VALIDATOR",
+        "REQ-005/cell-CANDIDATE_BUGS_FOR_PHASE_2-PHASE1_VALIDATOR",
+        "REQ-005/cell-GATE_SELF_CHECK-PHASE1_VALIDATOR",
+        "REQ-005/cell-PHASE1_COMPLETE-PHASE1_VALIDATOR",
+        "REQ-005/cell-OPEN_FINDINGS_MIN_8-PHASE1_VALIDATOR",
+        "REQ-005/cell-OPEN_FINDINGS_MULTI_LOCATION_MIN_3-PHASE1_VALIDATOR",
+        "REQ-005/cell-FULL_PATTERN_COUNT_3_TO_4-PHASE1_VALIDATOR",
+        "REQ-005/cell-DEEP_DIVE_MULTI_FUNCTION_MIN_2-PHASE1_VALIDATOR",
+        "REQ-005/cell-CANDIDATE_SOURCE_MIX-PHASE1_VALIDATOR"
+      ],
+      "consolidation_rationale": "All absent cells are omitted by the same Phase 1 validation branch, so a single validator expansion closes the full missing gate contract.",
+      "divergence_type": "code-spec"
+    },
+    {
+      "id": "BUG-006",
+      "title": "Archive bug counting ignores canonical titled headings",
+      "severity": "MEDIUM",
+      "divergence_description": "Archive summaries split `BUGS.md` only on bare `### BUG-NNN` headings, so the canonical titled form `### BUG-NNN: Title` is silently skipped.",
+      "documented_intent": "REQ-006 requires archive rendering to preserve bug counts from the canonical titled heading form used everywhere else in the playbook.",
+      "code_behavior": "`bin/archive_lib.py:69` defines `_BUG_HEADING_PATTERN` without an optional title suffix, and `_extract_bug_counts()` depends on that pattern to segment the file (`321-338`).",
+      "disposition": "code-fix",
+      "disposition_rationale": "The archive parser is the only outlier; the canonical heading form is already established by the rest of the protocol.",
+      "req_id": "REQ-006",
+      "proposed_fix": "Allow `_BUG_HEADING_PATTERN` to match an optional `: Title` suffix so canonical `BUGS.md` sections are counted. See `quality/patches/BUG-006-fix.patch`.",
+      "fix_type": "code",
+      "covers": [
+        "REQ-006/cell-TITLED_BUG_HEADING-ARCHIVE_BUG_COUNT"
+      ],
+      "divergence_type": "code-spec"
+    }
+  ]
+}

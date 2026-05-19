@@ -1,0 +1,15 @@
+GREEN
+BUG-L19: Summary sub-key check uses json_has_key (weak) instead of json_key_count (strong)
+Test: test_BUG_L19_summary_check_uses_weak_json_has_key
+Date: 2026-04-16
+Result: PASS (after applying BUG-L19-fix.patch)
+
+Fix applied: BUG-L19-fix.patch
+Changed lines 259-265 in quality_gate.sh:
+  BEFORE: if json_has_key "$json_file" "$skey"; then
+  AFTER:  scount=$(json_key_count "$json_file" "$skey")
+          if [ "${scount:-0}" -gt 0 ]; then
+
+After fix: json_key_count with colon-anchored pattern used consistently for both
+summary sub-keys and per-bug fields. No more inconsistency between the two checks.
+Test confirms: the json_has_key pattern is no longer used for summary checks.

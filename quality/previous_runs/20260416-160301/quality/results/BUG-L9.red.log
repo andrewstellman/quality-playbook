@@ -1,0 +1,26 @@
+RED
+=== Red Phase: BUG-L9 — Incompatible auditor report naming formats ===
+Date: 2026-04-16
+Test: test_BUG_L9_auditor_naming_inconsistency
+
+Command: BUG_SKIP_L9=0 SKILL_MD_PATH=SKILL.md bash quality/test_regression.sh test_BUG_L9_auditor_naming_inconsistency
+
+Output:
+=== Regression Tests: quality-playbook ===
+Date: 2026-04-16
+All tests are skip-guarded. Set BUG_SKIP_NNN=0 to enable individual tests.
+
+  TEST: test_BUG_L9_auditor_naming_inconsistency
+  BUG CONFIRMED: Two incompatible auditor naming formats exist
+  SKILL.md (Phase 4 instructions): 1548:**Individual auditor artifacts (mandatory).** The spec audit must produce individual auditor report files at `quality/spec_audits/YYYY-MM-DD-auditor-N.md` (one per auditor)...
+  RUN_SPEC_AUDIT.md: 143:Write each auditor's report to `quality/spec_audits/auditor_<model>_<date>.md`.
+  RESULT: FAIL
+
+===========================================
+Results: 0 PASS, 1 FAIL, 0 SKIP
+
+Exit code: 1
+
+VERDICT: RED — regression test FAILS on unpatched code, confirming BUG-L9 is real.
+Three incompatible naming formats exist: YYYY-MM-DD-auditor-N.md (SKILL.md Phase 4),
+auditor_<model>_<date>.md (RUN_SPEC_AUDIT.md), and YYYY-MM-DD-[model].md (references/spec_audit.md).

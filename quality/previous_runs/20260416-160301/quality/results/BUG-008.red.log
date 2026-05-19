@@ -1,0 +1,5 @@
+RED
+--- Test output for BUG-008 red phase ---
+Command: /bin/bash -c set -uo pipefail; arr=(); for x in "${arr[@]}"; do echo "$x"; done
+Exit code: 127
+/bin/bash: arr[@]: unbound variable

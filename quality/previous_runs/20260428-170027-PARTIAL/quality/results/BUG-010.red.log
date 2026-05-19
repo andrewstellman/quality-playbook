@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-010
+Test: quality.test_regression.RegressionTests.test_reg_cb10_run_metadata_ungated
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_cb10_run_metadata_ungated -v
+
+test_reg_cb10_run_metadata_ungated (quality.test_regression.RegressionTests.test_reg_cb10_run_metadata_ungated)
+BUG-010 / REQ-008: quality_gate must have attribute check_run_metadata. ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.003s
+
+OK (expected failures=1)

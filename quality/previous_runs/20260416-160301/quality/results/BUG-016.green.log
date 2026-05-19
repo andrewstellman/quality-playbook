@@ -1,0 +1,12 @@
+GREEN
+BUG-016 fix verification: Reference Files table now includes all required files
+
+Fix: Add 3 rows to the Reference Files table in SKILL.md for exploration_patterns.md,
+iteration.md, and requirements_pipeline.md.
+
+After applying fix patch:
+  Referenced in body: 10 files
+  Listed in table: 10 files
+  Missing from table: 0
+
+Green phase: CONFIRMED — all referenced files now appear in the table

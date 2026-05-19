@@ -1,0 +1,100 @@
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@ -514,3 +514,79 @@ class TestClosedSetDriftRegressions(unittest.TestCase):
+         )
+
+
++class TestSpecAuditRegressions(unittest.TestCase):
++    """Regression tests for Phase 4 spec-audit confirmed bugs."""
++
++    # ------------------------------------------------------------------ #
++    # BUG-016 / REQ-010: Phase 5 gate must enforce Phase 4 completion
++    # ------------------------------------------------------------------ #
++
++    @unittest.expectedFailure
++    def test_reg_sa16_phase5_gate_missing_triage(self):
++        """BUG-016 / REQ-010: check_phase_gate("5") must return ok=False when
++        spec_audits/ directory exists but contains no triage file.
++
++        SKILL.md:1663-1667 mandates a hard-stop if spec_audits/ lacks a triage
++        file. Current code returns ok=True in this scenario.
++
++        Source: bin/run_playbook.py:473-478
++        Current: ok=True even with empty spec_audits/. Desired: ok=False.
++        """
++        with TemporaryDirectory() as td:
++            repo = Path(td)
++            q = repo / "quality"
++            q.mkdir()
++            (q / "PROGRESS.md").write_text(
++                "- [x] Phase 1\n- [x] Phase 2\n- [x] Phase 3\n- [ ] Phase 4\n",
++                encoding="utf-8"
++            )
++            (q / "BUGS.md").write_text("# Bugs\n### BUG-001 — some bug\n", encoding="utf-8")
++            (q / "spec_audits").mkdir()  # exists but empty — no triage file
++            result = run_playbook.check_phase_gate(repo, "5")
++            self.assertFalse(
++                result.ok,
++                "Phase 5 gate must return ok=False when spec_audits/ has no triage file; "
++                f"got ok={result.ok}, messages={result.messages}"
++            )
++
++    @unittest.expectedFailure
++    def test_reg_sa16_phase5_gate_missing_phase4_checkbox(self):
++        """BUG-016 / REQ-010: check_phase_gate("5") must return ok=False when
++        PROGRESS.md Phase 4 line is not marked [x].
++
++        SKILL.md:1667 requires Phase 4 '[x]' in PROGRESS.md before Phase 5.
++        Current code never checks this checkbox.
++
++        Source: bin/run_playbook.py:473-478
++        Current: ok=True even when Phase 4 not marked. Desired: ok=False.
++        """
++        with TemporaryDirectory() as td:
++            repo = Path(td)
++            q = repo / "quality"
++            q.mkdir()
++            (q / "PROGRESS.md").write_text(
++                "- [x] Phase 1\n- [x] Phase 2\n- [x] Phase 3\n- [ ] Phase 4\n",
++                encoding="utf-8"
++            )
++            sa = q / "spec_audits"
++            sa.mkdir()
++            (sa / "2026-04-18-triage.md").write_text("# Triage\n", encoding="utf-8")
++            (sa / "2026-04-18-auditor-1.md").write_text("# Auditor 1\n", encoding="utf-8")
++            result = run_playbook.check_phase_gate(repo, "5")
++            self.assertFalse(
++                result.ok,
++                "Phase 5 gate must return ok=False when PROGRESS.md Phase 4 not [x]; "
++                f"got ok={result.ok}, messages={result.messages}"
++            )
++
++    def test_reg_sa16_phase5_gate_passes_when_complete(self):
++        """BUG-016 / REQ-010: check_phase_gate("5") must return ok=True when all
++        Phase 4 completion conditions are satisfied.
++
++        This is the positive guard — the BUG-016 fix must not over-restrict.
++        All three required conditions met → gate must return ok=True.
++        """
++        with TemporaryDirectory() as td:
++            repo = Path(td)
++            q = repo / "quality"
++            q.mkdir()
++            (q / "PROGRESS.md").write_text(
++                "- [x] Phase 1\n- [x] Phase 2\n- [x] Phase 3\n- [x] Phase 4\n",
++                encoding="utf-8"
++            )
++            (q / "BUGS.md").write_text("# Bugs\n### BUG-001 — some bug\n", encoding="utf-8")
++            sa = q / "spec_audits"
++            sa.mkdir()
++            (sa / "2026-04-18-triage.md").write_text("# Triage\n", encoding="utf-8")
++            (sa / "2026-04-18-auditor-1.md").write_text("# Auditor 1\n", encoding="utf-8")
++            result = run_playbook.check_phase_gate(repo, "5")
++            self.assertTrue(
++                result.ok,
++                "Phase 5 gate must return ok=True when Phase 4 complete with triage+auditor files"
++            )
++
++
+ if __name__ == "__main__":
+     unittest.main()

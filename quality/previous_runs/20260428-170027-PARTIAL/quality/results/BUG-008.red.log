@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-008
+Test: quality.test_regression.RegressionTests.test_reg_cb8_suggest_after_failure
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_cb8_suggest_after_failure -v
+
+test_reg_cb8_suggest_after_failure (quality.test_regression.RegressionTests.test_reg_cb8_suggest_after_failure)
+BUG-008 / REQ-014: When run fails (failures > 0), output must NOT ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK (expected failures=1)

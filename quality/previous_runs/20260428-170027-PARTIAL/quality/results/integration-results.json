@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.1",
+  "skill_version": "1.4.5",
+  "date": "2026-04-19",
+  "project": "quality-playbook",
+  "recommendation": "FIX BEFORE MERGE",
+  "groups": [
+    {
+      "name": "A",
+      "title": "Runner invocation and worker lifecycle",
+      "result": "fail",
+      "tests_passed": 20,
+      "tests_failed": 0,
+      "tests_xfailed": 0,
+      "tests_skipped": 0,
+      "notes": "Functional tests cover invocation paths (TestRunnerCLI, TestTargetResolution). BUG-003, BUG-008, BUG-009 affect runner behavior; covered by regression xfail tests. Full subprocess integration deferred.",
+      "uc_coverage": ["UC-01", "UC-02", "UC-05"]
+    },
+    {
+      "name": "B",
+      "title": "Phase gate enforcement",
+      "result": "fail",
+      "tests_passed": 15,
+      "tests_failed": 0,
+      "tests_xfailed": 3,
+      "tests_skipped": 0,
+      "notes": "BUG-003 (80 vs 120 threshold), BUG-006 (phase3 gate incomplete), BUG-016 (phase5 gate missing Phase 4 enforcement) are confirmed regression xfail tests demonstrating gate failures.",
+      "uc_coverage": ["UC-01", "UC-02"]
+    },
+    {
+      "name": "C",
+      "title": "Quality gate validator",
+      "result": "fail",
+      "tests_passed": 30,
+      "tests_failed": 0,
+      "tests_xfailed": 5,
+      "tests_skipped": 0,
+      "notes": "BUG-010, BUG-011, BUG-012, BUG-013, BUG-014 are confirmed xfail regressions. All 45 gate benchmarks covered by test_functional.py.",
+      "uc_coverage": ["UC-07"]
+    },
+    {
+      "name": "D",
+      "title": "Cleanup and archive behavior",
+      "result": "fail",
+      "tests_passed": 10,
+      "tests_failed": 0,
+      "tests_xfailed": 4,
+      "tests_skipped": 0,
+      "notes": "BUG-004, BUG-005, BUG-007, BUG-015 are confirmed xfail regressions. Full crash-recovery integration test deferred (requires process kill).",
+      "uc_coverage": ["UC-01", "UC-02", "UC-03"]
+    },
+    {
+      "name": "E",
+      "title": "Functional-test filename parity in quality_gate.py",
+      "result": "fail",
+      "tests_passed": 4,
+      "tests_failed": 0,
+      "tests_xfailed": 2,
+      "tests_skipped": 0,
+      "notes": "BUG-024 and BUG-025 are confirmed xfail regressions. The gate's file-existence and extension-check paths enforce narrower filename matrices than the helper library and the documented naming guidance.",
+      "uc_coverage": ["UC-07", "UC-12"]
+    },
+    {
+      "name": "F",
+      "title": "Helper artifact reporting stays canonical",
+      "result": "fail",
+      "tests_passed": 2,
+      "tests_failed": 0,
+      "tests_xfailed": 2,
+      "tests_skipped": 0,
+      "notes": "BUG-026 and BUG-027 are confirmed xfail regressions. The helper library currently over-accepts undocumented functional aliases and non-canonical regression aliases, so runner gap reports and artifact summaries can overstate conformance.",
+      "uc_coverage": ["UC-01", "UC-03", "UC-12"]
+    }
+  ],
+  "summary": {
+    "total_groups": 6,
+    "passed": 0,
+    "failed": 6,
+    "skipped": 0,
+    "confirmed_bugs_with_regression_tests": 27,
+    "unexpected_failures": 0
+  },
+  "uc_coverage": {
+    "UC-01": "covered_fail",
+    "UC-02": "covered_fail",
+    "UC-03": "covered_fail",
+    "UC-04": "not_mapped",
+    "UC-05": "covered_fail",
+    "UC-06": "not_mapped",
+    "UC-07": "covered_fail",
+    "UC-08": "not_mapped",
+    "UC-09": "not_mapped",
+    "UC-10": "not_mapped",
+    "UC-11": "not_mapped",
+    "UC-12": "covered_fail"
+  }
+}

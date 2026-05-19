@@ -1,0 +1,11 @@
+GREEN
+BUG-L20: Patch existence uses aggregate count instead of per-bug iteration
+Test: test_BUG_L20_patch_count_aggregate_vs_per_bug
+Date: 2026-04-16
+Result: PASS (after applying BUG-L20-fix.patch)
+
+Fix applied: BUG-L20-fix.patch
+Changed quality_gate.sh lines 562-588 to iterate bug_ids per-bug using find-based detection,
+matching the TDD log check pattern at lines 316-345. For each bug ID, verifies that a
+specific regression-test patch named ${bid}-regression*.patch exists.
+After fix: aggregate count pattern removed; per-bug iteration confirmed by test.

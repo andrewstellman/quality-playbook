@@ -1,0 +1,25 @@
+RED PHASE — BUG-L24 — integration summary sub-keys not validated
+Date: 2026-04-16
+Test: test_BUG_L24_integration_summary_subkeys_absent
+
+TEST: test_BUG_L24_integration_summary_subkeys_absent
+  BUG CONFIRMED: integration summary sub-keys NOT validated in gate
+  No check for total_groups, passed, failed, skipped in quality_gate.sh
+  Integration validation (lines 393-394): checks summary key PRESENCE ONLY
+    Line 393: if ! json_has_key "$int_json" "summary"; then gate_fail ...
+    Line 394: end of check — no sub-key loop follows
+  Contrast: tdd summary sub-keys ARE validated at lines 259-265:
+    Lines 259-265: for skey in total verified confirmed_open red_failed green_failed; do
+  SKILL.md:1252-1255 defines 4 required sub-keys: total_groups, passed, failed, skipped
+  An integration-results.json with "summary": {} passes gate — sub-keys silently absent
+  An integration-results.json with "summary": {"status": "ok"} passes gate — wrong keys
+
+Verification method:
+  grep -n 'total_groups\|integration.*summary\|summary.*total_groups' quality_gate.sh | grep -v '^#'
+  Output: (empty — no matches)
+
+  grep -n 'total\|verified\|confirmed_open\|red_failed\|green_failed' quality_gate.sh | grep -v '^#'
+  Output: Lines 259-265 — tdd summary sub-keys ARE checked
+
+RESULT: FAIL (red phase — bug exists on unpatched code)
+Exit code: 1

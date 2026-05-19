@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-014
+Test: quality.test_regression.RegressionTests.test_reg_iso_datetime_grammar
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_iso_datetime_grammar -v
+
+test_reg_iso_datetime_grammar (quality.test_regression.RegressionTests.test_reg_iso_datetime_grammar)
+BUG-014 / REQ-007: validate_iso_date("2026-04-18T23:43:14Z") must ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+OK (expected failures=1)

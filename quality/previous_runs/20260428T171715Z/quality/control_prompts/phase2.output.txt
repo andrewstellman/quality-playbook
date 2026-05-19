@@ -1,0 +1,343 @@
+I’m pulling in the Phase 1 findings and the Phase 2 generation rules first so the artifacts line up with the playbook rather than improvising structure.
+
+● Read EXPLORATION.md
+  │ quality/EXPLORATION.md
+  └ 1 line read
+
+● Read SKILL.md
+  │ .github/skills/SKILL.md
+  └ L1:400 (243 lines read)
+
+● Read PROGRESS.md
+  │ quality/PROGRESS.md
+  └ 33 lines read
+
+● Search (grep)
+  │ "Phase 2: Generate the Quality Playbook|Checkpoint: Update PROGRESS\.md
+  │ after artifact generation|references?/[^ )]+\.md" (.github/skills/SKILL.md)
+  └ 53 lines found
+
+I’ve got the artifact contract and now need the exact Phase 2 generation rules plus the Phase 1 hypotheses so I can transcribe identifiers and pattern tags without drift.
+
+● Read review_protocols.md
+  │ references/review_protocols.md
+  └ 1 line read
+
+● Read requirements_pipeline.md
+  │ references/requirements_pipeline.md
+  └ 1 line read
+
+● Read defensive_patterns.md
+  │ references/defensive_patterns.md
+  └ 221 lines read
+
+● Read constitution.md
+  │ references/constitution.md
+  └ 160 lines read
+
+● Read functional_tests.md
+  │ references/functional_tests.md
+  └ 179 lines read
+
+● Read spec_audit.md
+  │ references/spec_audit.md
+  └ 249 lines read
+
+● Read schema_mapping.md
+  │ references/schema_mapping.md
+  └ 139 lines read
+
+● Read EXPLORATION.md
+  │ quality/EXPLORATION.md
+  └ L1:260 (122 lines read)
+
+● Read SKILL.md
+  │ .github/skills/SKILL.md
+  └ L1015:1655 (165 lines read)
+
+I have the generation contract. Next I’m extracting the REQ/UC hypotheses and the manifest schema details so the Markdown and JSON stay in sync and preserve the Phase 1 pattern tags.
+
+● Read requirements_pipeline.md
+  │ references/requirements_pipeline.md
+  └ L1:320 (319 lines read)
+
+● Read review_protocols.md
+  │ references/review_protocols.md
+  └ L1:360 (263 lines read)
+
+● Read DEVELOPMENT_CONTEXT.md
+  │ ai_context/DEVELOPMENT_CONTEXT.md
+  └ L80:120 (41 lines read)
+
+● Read schemas.md
+  └ L592:900 (308 lines read)
+
+● Read EXPLORATION.md
+  │ quality/EXPLORATION.md
+  └ L120:340 (182 lines read)
+
+● Search (grep)
+  │ "REQ-|UC-|Pattern:|Candidate Bugs for Phase 2|Gate Self-Check|Pattern Deep
+  │ Dive — " (quality/EXPLORATION.md)
+  └ 45 lines found
+
+● Search (glob)
+  │ "**/test_*.py" in bin/tests, .github/skills/quality_gate/tests
+  └ 37 files found
+
+I’ve got the REQ/UC source material. Now I’m checking the repo’s test conventions and the gate’s manifest expectations so the generated artifacts are both runnable and parsable.
+
+● Read test_quality_playbook.py
+  │ bin/tests/test_quality_playbook.py
+  └ L1:220 (83 lines read)
+
+● Read test_req_pattern.py
+  │ .github/skills/quality_gate/tests/test_req_pattern.py
+  └ L1:240 (42 lines read)
+
+● Read test_run_playbook.py
+  │ bin/tests/test_run_playbook.py
+  └ L1:140 (140 lines read)
+
+● List directory quality
+  └ 6 files found
+
+● Search (grep)
+  │ "requirements_manifest|use_cases_manifest|QUALITY\.md|REQUIREMENTS\.md|CONTR
+  │ ACTS\.md|COVERAGE_MATRIX\.md|COMPLETENESS_REPORT\.md|Pattern: "
+  │ (.github/skills/quality_gate/quality_gate.py,
+  │ .github/skills/quality_gate/tests/test_quality_gate.py)
+  └ 103 lines found
+
+● Run baseline unittest suites (shell)
+  │ python3 -m unittest discover bin/tests >/tmp/qpb_bin_tests.log 2>&1 &&
+  │ python3 -m unittest discover -s .github/skills/quality_gate/tests/ -p
+  │ 'test_*.py' >/tmp/qpb_gate_tests.log 2>&1; printf 'bin_tests_exit=%s\n' $?;
+  │ printf 'gate_tests_exit=%s\n' $?
+  └ 3 lines...
+
+The repo baseline is clean. I’m reading the gate checks now so the generated requirements/manifest/rendering match what Phase 5 will actually validate, not just the prose template.
+
+● Read quality_gate.py
+  │ .github/skills/quality_gate/quality_gate.py
+  └ L1:340 (340 lines read)
+
+● Read quality_gate.py
+  │ .github/skills/quality_gate/quality_gate.py
+  └ L1180:1270 (91 lines read)
+
+● Read quality_gate.py
+  │ .github/skills/quality_gate/quality_gate.py
+  └ L1866:2585 (521 lines read)
+
+● Read test_quality_gate.py
+  │ .github/skills/quality_gate/tests/test_quality_gate.py
+  └ L2210:2395 (186 lines read)
+
+● Read test_quality_gate.py
+  │ .github/skills/quality_gate/tests/test_quality_gate.py
+  └ L1460:1635 (176 lines read)
+
+I’ve got the gate shape. One more pass on the v1.5.3 enum values and requirement narrative rules, then I can draft the artifacts in one coherent batch instead of patching them piecemeal.
+
+● Create phase2 todos (sql)
+  │ CREATE TABLE IF NOT EXISTS todos (id TEXT PRIMARY KEY, title TEXT NOT NULL,
+  │ desc…
+  └ Executed 3 statement(s)
+
+● Read requirements_pipeline.md
+  │ references/requirements_pipeline.md
+  └ L320:428 (108 lines read)
+
+● Search (grep)
+  │ "good_req_record|good_uc|use_cases_manifest|formal_doc_refs"
+  │ (.github/skills/quality_gate/tests/test_quality_gate.py)
+  └ 8 lines found
+
+● Search (grep)
+  │ "source_type|req_source_type|skill-section|code-derived|formal-doc-derived|u
+  │ ser-confirmed|skill-derived|use_cases_manifest|generated_at|schema_version"
+  │ (schemas.md, .github/skills/quality_gate/quality_gate.py)
+  └ 98 lines found
+
+● Read schemas.md
+  └ L276:312 (37 lines read)
+
+● Read quality_gate.py
+  │ .github/skills/quality_gate/quality_gate.py
+  └ L1608:1760 (153 lines read)
+
+● Read test_quality_gate.py
+  │ .github/skills/quality_gate/tests/test_quality_gate.py
+  └ L1348:1388 (41 lines read)
+
+I’m sampling a couple of prior generated artifacts in the benchmark repos to match the house style for Phase 2 files instead of inventing a new rendering.
+
+✗ Read test_functional.py
+  │ repos/chi-1.5.1/quality/test_functional.py
+  └ Path does not exist
+
+● Read QUALITY.md
+  │ repos/express-1.5.1/quality/QUALITY.md
+  └ L1:220 (197 lines read)
+
+● Read RUN_INTEGRATION_TESTS.md
+  │ repos/express-1.5.1/quality/RUN_INTEGRATION_TESTS.md
+  └ L1:220 (201 lines read)
+
+● Read REQUIREMENTS.md
+  │ repos/chi-1.5.1/quality/REQUIREMENTS.md
+  └ L1:220 (220 lines read)
+
+● Search (glob)
+  │ "repos/**/quality/{QUALITY.md,REQUIREMENTS.md,CONTRACTS.md,COVERAGE_MATRIX.m
+  │ d,COMPLETENESS_REPORT.md,test_functional.py,RUN_CODE_REVIEW.md,RUN_INTEGRATI
+  │ ON_TESTS.md,RUN_SPEC_AUDIT.md,RUN_TDD_TESTS.md}"
+  └ No matches found
+
+I’ve got enough structure and examples now. I’m creating the Phase 2 artifacts and keeping the JSON manifests, Markdown renderings, and progress state synchronized as a single batch.
+
+✗ Read results
+  │ quality/results
+  └ Path does not exist
+
+● Read RUN_INDEX.md
+  │ quality/RUN_INDEX.md
+  └ L1:220 (12 lines read)
+
+● Read INDEX.md
+  │ quality/INDEX.md
+  └ L1:220 (35 lines read)
+
+I’m down to implementation details now: the remaining reads are just the exact function bodies and shell snippets I need to make the tests and mechanical receipts exercise real project code rather than guessed call patterns.
+
+● Read citation_verifier.py
+  │ bin/citation_verifier.py
+  └ L1:220 (220 lines read)
+
+● Read setup_repos.sh
+  │ repos/setup_repos.sh
+  └ L190:225 (36 lines read)
+
+● Read classify_project.py
+  │ bin/classify_project.py
+  └ L250:290 (41 lines read)
+
+● Read run_playbook.py
+  │ bin/run_playbook.py
+  └ L1148:1175 (28 lines read)
+
+● Read run_playbook.py
+  │ bin/run_playbook.py
+  └ L2800:2878 (79 lines read)
+
+● Read run_playbook.py
+  │ bin/run_playbook.py
+  └ L1548:1625 (78 lines read)
+
+● Read run_playbook.py
+  │ bin/run_playbook.py
+  └ L1810:1902 (93 lines read)
+
+● Edit
+  └ Create ~/.copilot/session-state/ce7ee327-d5db-4dc4-87a0-f93d21fdc452/plan.md
+
+● Search (grep)
+  │ "^def (classify_[A-Za-z_]+|write_live_index_stub|write_live_index_final|docs
+  │ _present|formal_docs_guard_banner|check_phase_gate)"
+  │ (bin/classify_project.py, bin/run_playbook.py)
+  └ 6 lines found
+
+● Read classify_project.py
+  │ bin/classify_project.py
+  └ L200:252 (53 lines read)
+
+● Read run_playbook.py
+  │ bin/run_playbook.py
+  └ L1778:1810 (33 lines read)
+
+I’ve shifted from reading to writing now. This patch batch lays down the Phase 2 artifacts themselves so the remaining work is execution receipts and final consistency updates, not more drafting.
+
+● Edit
+  │ Create quality/QUALITY.md
+  │ Create quality/CONTRACTS.md
+  │ Create quality/REQUIREMENTS.md
+  │ Create quality/COVERAGE_MATRIX.md
+  │ Create quality/COMPLETENESS_REPORT.md
+  │ Create quality/requirements_manifest.json
+  └ Create quality/use_cases_manifest.json
+
+This second batch is the execution-facing part of Phase 2: runnable functional tests, the three review/test protocols, and the mechanical verification scaffold that later phases will depend on.
+
+● Edit
+  │ Create quality/test_functional.py
+  │ Create quality/RUN_CODE_REVIEW.md
+  │ Create quality/RUN_INTEGRATION_TESTS.md
+  │ Create quality/RUN_SPEC_AUDIT.md
+  │ Create quality/RUN_TDD_TESTS.md
+  └ Create quality/mechanical/verify.sh
+
+The last content patch is cleanup and synchronization: fixing the mechanical script, marking Phase 2 complete in the tracker, and bringing the live run index up to date with what now exists on disk.
+
+● Edit
+  │ Edit quality/mechanical/verify.sh
+  │ Edit quality/PROGRESS.md
+  └ Edit quality/INDEX.md
+
+I’ve finished the artifact draft. I’m generating the mechanical extraction files and then running the repo’s documented suites plus the new Phase 2 checks to catch any format or import mistakes before I stop.
+
+● Generate mechanical artifacts and run Phase 2 validation (shell)
+  │ set -euo pipefail
+  │ mkdir -p quality/mechanical quality/results
+  │ chmod +x quality/mechanical/verify.sh
+  │ python3 - <<'PY' > quality/mechanical/phase2_gate_required_headings.txt
+  │ from pathlib import Path…
+  └ 71 lines...
+
+The generation step is done. I’m checking the new logs now—mostly to distinguish intentional failing spec checks from any accidental import or syntax mistakes in the generated test file.
+
+● Todo started phase2-artifacts
+
+● Read mechanical-verify.log
+  │ quality/results/mechanical-verify.log
+  └ 1 line read
+
+● Read functional-tests.log
+  │ quality/results/functional-tests.log
+  └ L1:260 (20 lines read)
+
+The new functional suite is doing what it should for this repo: it’s surfacing real divergence checks rather than crashing on import. I’m just folding the generated receipts into the progress metadata now.
+
+✔ Todo completed phase2-update-progress
+
+● List directory quality/results
+  └ 5 files found
+
+● List directory quality/mechanical
+  └ 7 files found
+
+I’ve got the saved receipts on disk. I’m making one small metadata pass so the tracker and live index point at the mechanical artifacts and logs that were actually produced.
+
+● Edit
+  │ Edit quality/PROGRESS.md
+  └ Edit quality/INDEX.md
+
+I’ve finished the disk writes. I’m doing a quick final repo-state read so I can make sure the Phase 2 output set is complete and there isn’t any accidental file omission before I hand off.
+
+● Memory stored testing commands
+  └ Run repo tests with `python3 -m unittest discover bin/tests` and `python3 -m
+    uni…
+
+● Summarize changed files (shell)
+  │ git --no-pager status --short && printf '\n---\n' && git --no-pager diff
+  │ --stat -- quality/ .github/skills/SKILL.md SKILL.md | cat
+  └ 23 lines...
+
+**Phase 2 is complete.** I generated the requested artifact set under `quality/`: `QUALITY.md`, `CONTRACTS.md`, `REQUIREMENTS.md`, `COVERAGE_MATRIX.md`, `COMPLETENESS_REPORT.md`, `test_functional.py`, `RUN_CODE_REVIEW.md`, `RUN_INTEGRATION_TESTS.md`, `RUN_SPEC_AUDIT.md`, `RUN_TDD_TESTS.md`, plus `requirements_manifest.json` and `use_cases_manifest.json`. `PROGRESS.md` now marks `- [x] Phase 2 - Generate`, and I stopped there without starting Phase 3.
+
+**Pattern-tag preservation is wired through.** The Phase 1 `Pattern: parity` on `REQ-001` is preserved in both `quality/REQUIREMENTS.md` and `quality/requirements_manifest.json`, and additional Phase 2 pattern tags were added where the exploration evidence showed closed-set/parity structures (`REQ-002`, `REQ-003`, `REQ-004`, `REQ-006`, `REQ-008`). I also created `quality/mechanical/verify.sh` with extraction artifacts under `quality/mechanical/`, and saved the verification receipts to `quality/results/mechanical-verify.log` and `quality/results/mechanical-verify.exit`.
+
+
+Changes   +1590 -9
+Requests  1 Premium (12m 41s)
+Tokens    ↑ 3.0m • ↓ 45.8k • 2.9m (cached) • 16.3k (reasoning)

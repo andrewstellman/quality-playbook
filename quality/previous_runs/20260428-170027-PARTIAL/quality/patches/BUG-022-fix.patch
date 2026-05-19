@@ -1,0 +1,20 @@
+diff --git a/bin/run_playbook.py b/bin/run_playbook.py
+--- a/bin/run_playbook.py
++++ b/bin/run_playbook.py
+@@ -607,7 +607,10 @@ def run_one_phase(repo_dir: Path, phase: str, phase_list: Sequence[str], args: a
+     output_file = repo_dir / "control_prompts" / f"phase{phase}.output.txt"
+     lib.logboth(log_file, lib.log(f"  Phase {phase_index}/{len(phase_list)} ({phase_label(phase)}): {repo_dir.name}"))
+-    run_prompt(repo_dir, prompt, f"phase{phase}", output_file, log_file, args.runner, args.model)
++    exit_code = run_prompt(repo_dir, prompt, f"phase{phase}", output_file, log_file, args.runner, args.model)
++    if exit_code:
++        lib.logboth(log_file, lib.log(f"  ABORT Phase {phase}: child runner exited {exit_code}"))
++        return False
+@@ -695,7 +698,10 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
+     control_prompts.mkdir(parents=True, exist_ok=True)
+     output_file = control_prompts / "playbook_run.output.txt"
+-    run_prompt(repo_dir, prompt, pass_label, output_file, log_file, args.runner, args.model)
++    exit_code = run_prompt(repo_dir, prompt, pass_label, output_file, log_file, args.runner, args.model)
++    if exit_code:
++        lib.logboth(log_file, lib.log(f"ABORT: child runner exited {exit_code}"))
++        return exit_code
+     lib.logboth(log_file, lib.log(f"Playbook complete: {repo_dir.name}"))

@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-003
+Test: quality.test_regression.RegressionTests.test_reg_cb3_line_count_threshold_drift
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_cb3_line_count_threshold_drift -v
+
+test_reg_cb3_line_count_threshold_drift (quality.test_regression.RegressionTests.test_reg_cb3_line_count_threshold_drift)
+BUG-003 / REQ-004: check_phase_gate("2") must return ok=False for a ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+OK (expected failures=1)

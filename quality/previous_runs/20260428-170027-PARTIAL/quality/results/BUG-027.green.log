@@ -1,0 +1,5 @@
+NOT_RUN
+--- Test output for BUG-027 green phase ---
+Command: not run
+Exit code: 0
+Bootstrap self-audit keeps fix patches unapplied; green phase deferred.

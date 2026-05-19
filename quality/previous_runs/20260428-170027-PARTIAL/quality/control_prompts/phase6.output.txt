@@ -1,0 +1,48 @@
+All steps complete. Here's the Phase 6 summary:
+
+---
+
+# Phase 6 Complete — All Phases Done
+
+The quality playbook baseline run is complete. Here's the summary:
+
+**16 confirmed bugs** (15 from code review, 1 from spec audit)
+
+| Bug | Summary | Severity |
+|-----|---------|----------|
+| BUG-001 | `skill_version` rejects bold `**Version:**` form | HIGH |
+| BUG-002 | `SKILL_INSTALL_LOCATIONS` missing 4th path | HIGH |
+| BUG-003 | Phase 2 gate threshold 80 WARN vs 120 FAIL | HIGH |
+| BUG-004 | `archive_previous_run` non-atomic; `control_prompts` deleted | HIGH |
+| BUG-005 | `PROTECTED_PREFIXES` missing `AGENTS.md` | MEDIUM |
+| BUG-006 | Phase 3 gate checks only 4 of 9 required artifacts | MEDIUM |
+| BUG-007 | `docs_present` accepts `.DS_Store` / noise files | MEDIUM |
+| BUG-008 | Iteration suggestion printed even on failure | MEDIUM |
+| BUG-009 | `_pkill_fallback` missing `gh copilot -p` pattern | MEDIUM |
+| BUG-010 | `check_run_metadata` never called | LOW |
+| BUG-011 | `EXPLORATION.md` only checked for existence, not structure | LOW |
+| BUG-012 | Zero-bug sentinel matches "zero" anywhere in prose | LOW |
+| BUG-013 | `detect_skill_version` uses substring match, no anchor | MEDIUM |
+| BUG-014 | `validate_iso_date` rejects valid ISO 8601 datetimes | MEDIUM |
+| BUG-015 | `_parse_porcelain_path` returns quoted path with quotes | MEDIUM |
+| BUG-016 | Phase 5 gate missing Phase 4 completion enforcement | MEDIUM |
+
+**Quality gate:** PASS — 0 FAIL, 0 WARN  
+**Functional tests:** 87/87 PASS  
+**Regression tests:** 20 tests, 19 xfail (expected), 1 pass-guard
+
+Key output files:
+- `quality/BUGS.md` — all 16 confirmed bugs with spec basis and patches
+- `quality/results/tdd-results.json` — structured TDD verification results
+- `quality/patches/` — 32 patch files (16 fix + 16 regression-test)
+- `quality/results/phase6-verification.log` — full verification trail
+- `quality/results/quality-gate.log` — gate output
+
+---
+
+```
+────────────────────────────────────────────────────────
+Next iteration suggestion:
+"Run the next iteration of the quality playbook using the gap strategy."
+────────────────────────────────────────────────────────
+```

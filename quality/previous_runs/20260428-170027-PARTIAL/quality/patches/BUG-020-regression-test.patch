@@ -1,0 +1,27 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@
++    @unittest.expectedFailure
++    def test_reg_unfiltered20_phase_mode_warns_not_skips(self):
++        with TemporaryDirectory() as tmp:
++            repo = Path(tmp)
++            args = _make_args()
++            with mock.patch.object(run_playbook, "run_prompt", return_value=0) as run_prompt_mock, \
++                 mock.patch.object(run_playbook, "archive_previous_run"), \
++                 mock.patch.object(lib, "cleanup_repo"):
++                exit_code = run_playbook.run_one_phased(repo, ["1"], args, "2026-04-19T12-00-00")
++        self.assertEqual(exit_code, 0)
++        run_prompt_mock.assert_called_once()
++
++    @unittest.expectedFailure
++    def test_reg_unfiltered20_single_pass_warns_not_skips(self):
++        with TemporaryDirectory() as tmp:
++            repo = Path(tmp)
++            args = _make_args()
++            with mock.patch.object(run_playbook, "run_prompt", return_value=0) as run_prompt_mock, \
++                 mock.patch.object(run_playbook, "archive_previous_run"), \
++                 mock.patch.object(lib, "cleanup_repo"):
++                exit_code = run_playbook.run_one_singlepass(repo, args, "2026-04-19T12-00-00")
++        self.assertEqual(exit_code, 0)
++        run_prompt_mock.assert_called_once()

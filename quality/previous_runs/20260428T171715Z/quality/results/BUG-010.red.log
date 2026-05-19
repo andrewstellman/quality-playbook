@@ -1,0 +1,9 @@
+RED
+Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_010_claude_orchestrator_uses_canonical_copilot_order
+
+Traceback (most recent call last):
+  File "<stdin>", line 20, in <module>
+  File "/Users/andrewstellman/Documents/QPB/quality/test_regression.py", line 176, in test_bug_010_claude_orchestrator_uses_canonical_copilot_order
+    claude_agent.index("3. `.github/skills/SKILL.md`"),
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: substring not found

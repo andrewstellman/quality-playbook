@@ -1,0 +1,26 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@
++    @unittest.expectedFailure
++    def test_reg_unfiltered22_run_one_phase_propagates_child_failure(self):
++        with TemporaryDirectory() as tmp:
++            repo = Path(tmp)
++            args = _make_args()
++            log_file = repo / "phase.log"
++            with mock.patch.object(run_playbook, "run_prompt", return_value=31):
++                result = run_playbook.run_one_phase(repo, "1", ["1"], args, log_file)
++        self.assertFalse(result)
++
++    @unittest.expectedFailure
++    def test_reg_unfiltered22_run_one_singlepass_propagates_child_failure(self):
++        with TemporaryDirectory() as tmp:
++            repo = Path(tmp)
++            (repo / "docs_gathered").mkdir()
++            _write(repo / "docs_gathered" / "README.md", "real docs\n")
++            args = _make_args()
++            with mock.patch.object(run_playbook, "run_prompt", return_value=41), \
++                 mock.patch.object(run_playbook, "archive_previous_run"), \
++                 mock.patch.object(lib, "cleanup_repo"):
++                exit_code = run_playbook.run_one_singlepass(repo, args, "2026-04-19T12-00-00")
++        self.assertNotEqual(exit_code, 0)

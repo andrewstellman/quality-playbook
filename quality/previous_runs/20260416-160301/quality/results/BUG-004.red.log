@@ -1,0 +1,11 @@
+RED
+--- Test output for BUG-004 red phase ---
+Command: RUN_BUG=004 bash quality/test_regression.sh
+Exit code: 0
+
+=== Regression Tests ===
+  XFAIL: BUG-004: review_protocols.md has 'Phase 6: Results' (should be Phase 3)
+
+==================================
+Results: 0 pass, 0 fail, 1 xfail out of 1 tests
+==================================

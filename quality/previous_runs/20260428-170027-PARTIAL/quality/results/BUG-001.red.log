@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-001
+Test: quality.test_regression.RegressionTests.test_reg_cb1_version_parser_divergence
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_cb1_version_parser_divergence -v
+
+test_reg_cb1_version_parser_divergence (quality.test_regression.RegressionTests.test_reg_cb1_version_parser_divergence)
+BUG-001 / REQ-001: skill_version() must return "1.4.5" for SKILL.md ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+OK (expected failures=1)

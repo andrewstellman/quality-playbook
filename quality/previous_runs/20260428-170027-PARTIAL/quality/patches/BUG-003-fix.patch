@@ -1,0 +1,12 @@
+--- a/bin/run_playbook.py
++++ b/bin/run_playbook.py
+@@ -452,8 +452,9 @@ def check_phase_gate(quality_dir: Path, phase: str) -> GateCheck:
+         if not exploration.is_file():
+             return GateCheck(ok=False, messages=["GATE FAIL Phase 2: quality/EXPLORATION.md missing - run Phase 1 first"])
+         line_count = count_lines(exploration)
+-        if line_count < 80:
+-            messages.append(f"GATE WARN Phase 2: EXPLORATION.md is only {line_count} lines (expected 80+)")
+-        return GateCheck(ok=True, messages=messages)
++        if line_count < 120:
++            return GateCheck(ok=False, messages=[f"GATE FAIL Phase 2: EXPLORATION.md is only {line_count} lines (expected 120+)"])
++        return GateCheck(ok=True, messages=messages)

@@ -1,0 +1,13 @@
+RED
+--- Test output for BUG-022 red phase ---
+Command: python3 -m unittest quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered22_run_one_phase_propagates_child_failure quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered22_run_one_singlepass_propagates_child_failure -v
+Exit code: 0
+test_reg_unfiltered22_run_one_phase_propagates_child_failure (quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered22_run_one_phase_propagates_child_failure)
+BUG-022 / REQ-023: `run_one_phase()` must return False on child failure. ... expected failure
+test_reg_unfiltered22_run_one_singlepass_propagates_child_failure (quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered22_run_one_singlepass_propagates_child_failure)
+BUG-022 / REQ-023: single-pass mode must return non-zero on child failure. ... expected failure
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.005s
+
+OK (expected failures=2)

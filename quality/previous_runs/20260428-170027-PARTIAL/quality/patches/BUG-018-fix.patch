@@ -1,0 +1,13 @@
+diff --git a/agents/quality-playbook.agent.md b/agents/quality-playbook.agent.md
+index 6c4d4f5..54cfd2d 100644
+--- a/agents/quality-playbook.agent.md
++++ b/agents/quality-playbook.agent.md
+@@ -75,7 +75,7 @@
+ The playbook has two modes. Ask the user which they want, or infer from their prompt:
+ 
+ ### Mode 1: Phase by phase (recommended for first run)
+ 
+-Run Phase 1 in the current session. When it completes, show the end-of-phase summary and tell the user to say "keep going" or "run phase N" to continue. Each subsequent phase should run in a **new session or context window** so it gets maximum depth.
++Start a fresh session or context for Phase 1. When it completes, show the end-of-phase summary and tell the user to say "keep going" or "run phase N" to continue. Each subsequent phase should also run in a **new session or context window** so it gets maximum depth.
+ 
+ This is the default if the user says "run the quality playbook."

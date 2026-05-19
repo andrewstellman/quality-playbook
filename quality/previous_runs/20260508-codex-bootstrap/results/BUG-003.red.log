@@ -1,0 +1,11 @@
+RED
+Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_003_tier4_context_excludes_nested_non_cite_archives
+Exit code: 1
+
+Traceback excerpt:
+AssertionError: nested non-cite archive leaked into Tier 4 context
+
+Full test output:
+test_bug_003_tier4_context_excludes_nested_non_cite_archives (quality.test_regression.CodeReviewRegressionTests.test_bug_003_tier4_context_excludes_nested_non_cite_archives) ... FAIL
+
+FAILED (failures=1)

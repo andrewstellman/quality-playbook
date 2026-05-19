@@ -1,0 +1,9 @@
+GREEN
+Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_004_cleanup_without_pid_files_stays_run_scoped (after patched code)
+
+No PID files found. Refusing broad cleanup; remove stale workers manually.
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK

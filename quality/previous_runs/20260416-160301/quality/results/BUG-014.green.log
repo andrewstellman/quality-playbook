@@ -1,0 +1,5 @@
+GREEN
+--- Test output for BUG-014 green phase ---
+Command: test #### BUG-001 heading detection (after applying fix patch)
+Exit code: 0
+After applying BUG-014-fix.patch, quality_gate.sh detects #### BUG-NNN headings using grep -cE "^#{4,} BUG-[0-9]+" and reports them as wrong-format headings.

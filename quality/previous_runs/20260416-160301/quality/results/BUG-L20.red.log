@@ -1,0 +1,11 @@
+RED
+BUG-L20: Patch existence uses aggregate count instead of per-bug iteration
+Test: test_BUG_L20_patch_count_aggregate_vs_per_bug
+Date: 2026-04-16
+Result: FAIL (expected — bug confirmed on unpatched code)
+
+BUG CONFIRMED: aggregate patch count pattern found:
+  567: reg_patch_count=$(ls ${q}/patches/BUG-*-regression*.patch 2>/dev/null | wc -l | tr -d ' ')
+Log check at lines 316-345 iterates per bug ID (correct pattern).
+Patch check uses aggregate count — cannot detect missing patch for specific bug.
+Concrete false-pass: 2 bugs, 2 copies of BUG-H1 patch, BUG-M3 patch absent → count=2, bug_count=2 → PASS.

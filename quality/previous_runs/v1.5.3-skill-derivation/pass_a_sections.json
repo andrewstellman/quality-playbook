@@ -1,0 +1,1255 @@
+{
+  "schema_version": "1.1",
+  "sections": [
+    {
+      "section_idx": 0,
+      "document": "SKILL.md",
+      "heading": "Plan Overview \u2014 read this first, then explain it to the user",
+      "heading_level": 2,
+      "line_start": 18,
+      "line_end": 48,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 1,
+      "document": "SKILL.md",
+      "heading": "Why This Exists",
+      "heading_level": 2,
+      "line_start": 60,
+      "line_end": 65,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 2,
+      "document": "SKILL.md",
+      "heading": "What This Skill Produces",
+      "heading_level": 2,
+      "line_start": 66,
+      "line_end": 87,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 3,
+      "document": "SKILL.md",
+      "heading": "How to Use",
+      "heading_level": 2,
+      "line_start": 210,
+      "line_end": 215,
+      "skip_reason": null,
+      "section_kind": "execution-mode"
+    },
+    {
+      "section_idx": 4,
+      "document": "SKILL.md",
+      "heading": "Phase 0: Prior Run Analysis (Automatic)",
+      "heading_level": 2,
+      "line_start": 311,
+      "line_end": 336,
+      "skip_reason": null,
+      "section_kind": "execution-mode"
+    },
+    {
+      "section_idx": 5,
+      "document": "SKILL.md",
+      "heading": "Step 0: Ask About Development History",
+      "heading_level": 3,
+      "line_start": 449,
+      "line_end": 467,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 6,
+      "document": "SKILL.md",
+      "heading": "Step 1: Identify Domain, Stack, and Specifications",
+      "heading_level": 3,
+      "line_start": 468,
+      "line_end": 494,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 7,
+      "document": "SKILL.md",
+      "heading": "Step 1b: Evaluate Documentation Depth",
+      "heading_level": 3,
+      "line_start": 495,
+      "line_end": 521,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 8,
+      "document": "SKILL.md",
+      "heading": "Step 2: Map the Architecture",
+      "heading_level": 3,
+      "line_start": 522,
+      "line_end": 530,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 9,
+      "document": "SKILL.md",
+      "heading": "Step 3: Read Existing Tests",
+      "heading_level": 3,
+      "line_start": 531,
+      "line_end": 538,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 10,
+      "document": "SKILL.md",
+      "heading": "Step 4: Read the Specifications",
+      "heading_level": 3,
+      "line_start": 539,
+      "line_end": 544,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 11,
+      "document": "SKILL.md",
+      "heading": "Step 4b: Read Function Signatures and Real Data",
+      "heading_level": 3,
+      "line_start": 545,
+      "line_end": 555,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 12,
+      "document": "SKILL.md",
+      "heading": "Step 5: Find the Skeletons",
+      "heading_level": 3,
+      "line_start": 556,
+      "line_end": 565,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 13,
+      "document": "SKILL.md",
+      "heading": "Step 5a: Trace State Machines",
+      "heading_level": 3,
+      "line_start": 566,
+      "line_end": 580,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 14,
+      "document": "SKILL.md",
+      "heading": "Step 5b: Map Schema Types",
+      "heading_level": 3,
+      "line_start": 581,
+      "line_end": 586,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 15,
+      "document": "SKILL.md",
+      "heading": "Step 6: Domain-Knowledge Risk Analysis (Code + Domain Knowledge)",
+      "heading_level": 3,
+      "line_start": 587,
+      "line_end": 614,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 16,
+      "document": "SKILL.md",
+      "heading": "Step 7: Derive Testable Requirements",
+      "heading_level": 3,
+      "line_start": 615,
+      "line_end": 810,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 17,
+      "document": "SKILL.md",
+      "heading": "Checkpoint: Initialize PROGRESS.md",
+      "heading_level": 3,
+      "line_start": 811,
+      "line_end": 886,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 18,
+      "document": "SKILL.md",
+      "heading": "Write exploration findings to disk",
+      "heading_level": 3,
+      "line_start": 887,
+      "line_end": 1014,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 19,
+      "document": "SKILL.md",
+      "heading": "v1.5.2 JSON manifest discipline (read before writing any artifact)",
+      "heading_level": 3,
+      "line_start": 1079,
+      "line_end": 1106,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 20,
+      "document": "SKILL.md",
+      "heading": "File 1: `quality/QUALITY.md` \u2014 Quality Constitution",
+      "heading_level": 3,
+      "line_start": 1107,
+      "line_end": 1123,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 21,
+      "document": "SKILL.md",
+      "heading": "File 2: Functional Tests",
+      "heading_level": 3,
+      "line_start": 1124,
+      "line_end": 1142,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 22,
+      "document": "SKILL.md",
+      "heading": "File 3: `quality/RUN_CODE_REVIEW.md`",
+      "heading_level": 3,
+      "line_start": 1143,
+      "line_end": 1363,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 23,
+      "document": "SKILL.md",
+      "heading": "File 4: `quality/RUN_INTEGRATION_TESTS.md`",
+      "heading_level": 3,
+      "line_start": 1364,
+      "line_end": 1478,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 24,
+      "document": "SKILL.md",
+      "heading": "File 5: `quality/RUN_SPEC_AUDIT.md` \u2014 Council of Three",
+      "heading_level": 3,
+      "line_start": 1479,
+      "line_end": 1506,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 25,
+      "document": "SKILL.md",
+      "heading": "File 6: `AGENTS.md`",
+      "heading_level": 3,
+      "line_start": 1507,
+      "line_end": 1512,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 26,
+      "document": "SKILL.md",
+      "heading": "File 7: `quality/RUN_TDD_TESTS.md` \u2014 TDD Verification Protocol",
+      "heading_level": 3,
+      "line_start": 1513,
+      "line_end": 1647,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 27,
+      "document": "SKILL.md",
+      "heading": "Checkpoint: Update PROGRESS.md after artifact generation",
+      "heading_level": 3,
+      "line_start": 1648,
+      "line_end": 1685,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 28,
+      "document": "SKILL.md",
+      "heading": "Phase 3: Code Review and Regression Tests",
+      "heading_level": 2,
+      "line_start": 1686,
+      "line_end": 1714,
+      "skip_reason": null,
+      "section_kind": "execution-mode"
+    },
+    {
+      "section_idx": 29,
+      "document": "SKILL.md",
+      "heading": "Phase 4: Spec Audit and Triage",
+      "heading_level": 2,
+      "line_start": 1715,
+      "line_end": 1727,
+      "skip_reason": null,
+      "section_kind": "execution-mode"
+    },
+    {
+      "section_idx": 30,
+      "document": "SKILL.md",
+      "heading": "Phase 5: Post-Review Reconciliation and Closure Verification",
+      "heading_level": 2,
+      "line_start": 1779,
+      "line_end": 1922,
+      "skip_reason": null,
+      "section_kind": "execution-mode"
+    },
+    {
+      "section_idx": 31,
+      "document": "SKILL.md",
+      "heading": "Phase 6: Verify",
+      "heading_level": 2,
+      "line_start": 1923,
+      "line_end": 1931,
+      "skip_reason": null,
+      "section_kind": "execution-mode"
+    },
+    {
+      "section_idx": 32,
+      "document": "SKILL.md",
+      "heading": "Recheck Mode \u2014 Verify Bug Fixes",
+      "heading_level": 2,
+      "line_start": 2167,
+      "line_end": 2174,
+      "skip_reason": null,
+      "section_kind": "execution-mode"
+    },
+    {
+      "section_idx": 33,
+      "document": "SKILL.md",
+      "heading": "Phase 7: Present, Explore, Improve (Interactive)",
+      "heading_level": 2,
+      "line_start": 2308,
+      "line_end": 2313,
+      "skip_reason": null,
+      "section_kind": "execution-mode"
+    },
+    {
+      "section_idx": 34,
+      "document": "SKILL.md",
+      "heading": "Fixture Strategy",
+      "heading_level": 2,
+      "line_start": 2435,
+      "line_end": 2449,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 35,
+      "document": "SKILL.md",
+      "heading": "Terminology",
+      "heading_level": 2,
+      "line_start": 2450,
+      "line_end": 2459,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 36,
+      "document": "SKILL.md",
+      "heading": "Principles",
+      "heading_level": 2,
+      "line_start": 2460,
+      "line_end": 2474,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 37,
+      "document": "SKILL.md",
+      "heading": "Reference Files",
+      "heading_level": 2,
+      "line_start": 2475,
+      "line_end": 2490,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 38,
+      "document": "references/challenge_gate.md",
+      "heading": "Purpose",
+      "heading_level": 2,
+      "line_start": 3,
+      "line_end": 11,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 39,
+      "document": "references/challenge_gate.md",
+      "heading": "The two-round challenge",
+      "heading_level": 2,
+      "line_start": 12,
+      "line_end": 15,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 40,
+      "document": "references/challenge_gate.md",
+      "heading": "Auto-trigger patterns",
+      "heading_level": 2,
+      "line_start": 69,
+      "line_end": 84,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 41,
+      "document": "references/challenge_gate.md",
+      "heading": "Standalone invocation",
+      "heading_level": 2,
+      "line_start": 85,
+      "line_end": 101,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 42,
+      "document": "references/challenge_gate.md",
+      "heading": "Token budget",
+      "heading_level": 2,
+      "line_start": 102,
+      "line_end": 106,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 43,
+      "document": "references/constitution.md",
+      "heading": "Template",
+      "heading_level": 2,
+      "line_start": 5,
+      "line_end": 90,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 44,
+      "document": "references/constitution.md",
+      "heading": "Where Scenarios Come From",
+      "heading_level": 2,
+      "line_start": 91,
+      "line_end": 94,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 45,
+      "document": "references/constitution.md",
+      "heading": "Calibrating Scenario Count",
+      "heading_level": 2,
+      "line_start": 146,
+      "line_end": 149,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 46,
+      "document": "references/constitution.md",
+      "heading": "Self-Critique Before Finishing",
+      "heading_level": 2,
+      "line_start": 150,
+      "line_end": 157,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 47,
+      "document": "references/constitution.md",
+      "heading": "Critical Rule",
+      "heading_level": 2,
+      "line_start": 158,
+      "line_end": 160,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 48,
+      "document": "references/defensive_patterns.md",
+      "heading": "Systematic Search",
+      "heading_level": 2,
+      "line_start": 5,
+      "line_end": 42,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 49,
+      "document": "references/defensive_patterns.md",
+      "heading": "What to Look For Beyond Grep",
+      "heading_level": 2,
+      "line_start": 43,
+      "line_end": 50,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 50,
+      "document": "references/defensive_patterns.md",
+      "heading": "Converting Findings to Scenarios",
+      "heading_level": 2,
+      "line_start": 51,
+      "line_end": 68,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 51,
+      "document": "references/defensive_patterns.md",
+      "heading": "Converting Findings to Boundary Tests",
+      "heading_level": 2,
+      "line_start": 69,
+      "line_end": 135,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 52,
+      "document": "references/defensive_patterns.md",
+      "heading": "State Machine Patterns",
+      "heading_level": 2,
+      "line_start": 136,
+      "line_end": 157,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 53,
+      "document": "references/defensive_patterns.md",
+      "heading": "Enumeration and Whitelist Completeness",
+      "heading_level": 2,
+      "line_start": 158,
+      "line_end": 191,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 54,
+      "document": "references/defensive_patterns.md",
+      "heading": "Missing Safeguard Patterns",
+      "heading_level": 2,
+      "line_start": 192,
+      "line_end": 216,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 55,
+      "document": "references/defensive_patterns.md",
+      "heading": "Minimum Bar",
+      "heading_level": 2,
+      "line_start": 217,
+      "line_end": 221,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 56,
+      "document": "references/exploration_patterns.md",
+      "heading": "Pattern 1: Fallback and Degradation Path Parity",
+      "heading_level": 2,
+      "line_start": 13,
+      "line_end": 14,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 57,
+      "document": "references/exploration_patterns.md",
+      "heading": "Pattern 2: Dispatcher Return-Value Correctness",
+      "heading_level": 2,
+      "line_start": 55,
+      "line_end": 56,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 58,
+      "document": "references/exploration_patterns.md",
+      "heading": "Pattern 3: Cross-Implementation Contract Consistency",
+      "heading_level": 2,
+      "line_start": 99,
+      "line_end": 100,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 59,
+      "document": "references/exploration_patterns.md",
+      "heading": "Pattern 4: Enumeration and Representation Completeness",
+      "heading_level": 2,
+      "line_start": 143,
+      "line_end": 144,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 60,
+      "document": "references/exploration_patterns.md",
+      "heading": "Pattern 5: API Surface Consistency",
+      "heading_level": 2,
+      "line_start": 189,
+      "line_end": 190,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 61,
+      "document": "references/exploration_patterns.md",
+      "heading": "Pattern 6: Spec-Structured Parsing Fidelity",
+      "heading_level": 2,
+      "line_start": 230,
+      "line_end": 231,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 62,
+      "document": "references/exploration_patterns.md",
+      "heading": "Extending This List",
+      "heading_level": 2,
+      "line_start": 272,
+      "line_end": 283,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 63,
+      "document": "references/functional_tests.md",
+      "heading": "Structure: Three Test Groups",
+      "heading_level": 2,
+      "line_start": 5,
+      "line_end": 22,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 64,
+      "document": "references/functional_tests.md",
+      "heading": "Test Count Heuristic",
+      "heading_level": 2,
+      "line_start": 23,
+      "line_end": 30,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 65,
+      "document": "references/functional_tests.md",
+      "heading": "Import Pattern: Match the Existing Tests",
+      "heading_level": 2,
+      "line_start": 31,
+      "line_end": 45,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 66,
+      "document": "references/functional_tests.md",
+      "heading": "Create Test Setup BEFORE Writing Tests",
+      "heading_level": 2,
+      "line_start": 46,
+      "line_end": 57,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 67,
+      "document": "references/functional_tests.md",
+      "heading": "No Placeholder Tests",
+      "heading_level": 2,
+      "line_start": 58,
+      "line_end": 63,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 68,
+      "document": "references/functional_tests.md",
+      "heading": "Read Before You Write: The Function Call Map",
+      "heading_level": 2,
+      "line_start": 64,
+      "line_end": 76,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 69,
+      "document": "references/functional_tests.md",
+      "heading": "Writing Spec-Derived Tests",
+      "heading_level": 2,
+      "line_start": 77,
+      "line_end": 89,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 70,
+      "document": "references/functional_tests.md",
+      "heading": "What Makes a Good Functional Test",
+      "heading_level": 2,
+      "line_start": 90,
+      "line_end": 97,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 71,
+      "document": "references/functional_tests.md",
+      "heading": "Cross-Variant Testing Strategy",
+      "heading_level": 2,
+      "line_start": 98,
+      "line_end": 111,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 72,
+      "document": "references/functional_tests.md",
+      "heading": "Anti-Patterns to Avoid",
+      "heading_level": 2,
+      "line_start": 112,
+      "line_end": 122,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 73,
+      "document": "references/functional_tests.md",
+      "heading": "Testing at the Right Layer",
+      "heading_level": 2,
+      "line_start": 147,
+      "line_end": 152,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 74,
+      "document": "references/functional_tests.md",
+      "heading": "Fitness-to-Purpose Scenario Tests",
+      "heading_level": 2,
+      "line_start": 153,
+      "line_end": 158,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 75,
+      "document": "references/functional_tests.md",
+      "heading": "Boundary and Negative Tests",
+      "heading_level": 2,
+      "line_start": 159,
+      "line_end": 179,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 76,
+      "document": "references/iteration.md",
+      "heading": "Iteration cycle",
+      "heading_level": 2,
+      "line_start": 7,
+      "line_end": 18,
+      "skip_reason": null,
+      "section_kind": "execution-mode"
+    },
+    {
+      "section_idx": 77,
+      "document": "references/iteration.md",
+      "heading": "Shared rules for all strategies",
+      "heading_level": 2,
+      "line_start": 19,
+      "line_end": 69,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 78,
+      "document": "references/iteration.md",
+      "heading": "Meta-strategy: `all` \u2014 run every strategy in sequence",
+      "heading_level": 2,
+      "line_start": 70,
+      "line_end": 78,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 79,
+      "document": "references/iteration.md",
+      "heading": "Strategy: `gap` (default) \u2014 find what the previous run missed",
+      "heading_level": 2,
+      "line_start": 79,
+      "line_end": 100,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 80,
+      "document": "references/iteration.md",
+      "heading": "Strategy: `unfiltered` \u2014 pure domain-driven exploration without structural constraints",
+      "heading_level": 2,
+      "line_start": 101,
+      "line_end": 124,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 81,
+      "document": "references/iteration.md",
+      "heading": "Strategy: `parity` \u2014 cross-path comparison and diffing",
+      "heading_level": 2,
+      "line_start": 125,
+      "line_end": 161,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 82,
+      "document": "references/iteration.md",
+      "heading": "Strategy: `adversarial` \u2014 challenge the previous run's conclusions",
+      "heading_level": 2,
+      "line_start": 162,
+      "line_end": 191,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 83,
+      "document": "references/orchestrator_protocol.md",
+      "heading": "Role Definition",
+      "heading_level": 2,
+      "line_start": 5,
+      "line_end": 10,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 84,
+      "document": "references/orchestrator_protocol.md",
+      "heading": "File-Writing Override",
+      "heading_level": 2,
+      "line_start": 11,
+      "line_end": 14,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 85,
+      "document": "references/orchestrator_protocol.md",
+      "heading": "Rationalization Patterns",
+      "heading_level": 2,
+      "line_start": 15,
+      "line_end": 26,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 86,
+      "document": "references/orchestrator_protocol.md",
+      "heading": "Grounding",
+      "heading_level": 2,
+      "line_start": 27,
+      "line_end": 30,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 87,
+      "document": "references/orchestrator_protocol.md",
+      "heading": "Post-Phase Verification Gate (Mandatory)",
+      "heading_level": 2,
+      "line_start": 31,
+      "line_end": 36,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 88,
+      "document": "references/orchestrator_protocol.md",
+      "heading": "Error Recovery",
+      "heading_level": 2,
+      "line_start": 56,
+      "line_end": 63,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 89,
+      "document": "references/requirements_pipeline.md",
+      "heading": "Overview",
+      "heading_level": 2,
+      "line_start": 3,
+      "line_end": 8,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 90,
+      "document": "references/requirements_pipeline.md",
+      "heading": "Files produced",
+      "heading_level": 2,
+      "line_start": 9,
+      "line_end": 23,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 91,
+      "document": "references/requirements_pipeline.md",
+      "heading": "Phase A: Extract behavioral contracts",
+      "heading_level": 2,
+      "line_start": 24,
+      "line_end": 28,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 92,
+      "document": "references/requirements_pipeline.md",
+      "heading": "Phase B: Derive requirements from contracts",
+      "heading_level": 2,
+      "line_start": 96,
+      "line_end": 100,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 93,
+      "document": "references/requirements_pipeline.md",
+      "heading": "Phase C: Verify coverage (loop, max 3 iterations)",
+      "heading_level": 2,
+      "line_start": 120,
+      "line_end": 126,
+      "skip_reason": null,
+      "section_kind": "execution-mode"
+    },
+    {
+      "section_idx": 94,
+      "document": "references/requirements_pipeline.md",
+      "heading": "Phase D: Completeness check",
+      "heading_level": 2,
+      "line_start": 153,
+      "line_end": 159,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 95,
+      "document": "references/requirements_pipeline.md",
+      "heading": "Phase E: Narrative pass",
+      "heading_level": 2,
+      "line_start": 297,
+      "line_end": 305,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 96,
+      "document": "references/requirements_pipeline.md",
+      "heading": "Versioning protocol",
+      "heading_level": 2,
+      "line_start": 349,
+      "line_end": 350,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 97,
+      "document": "references/requirements_pipeline.md",
+      "heading": "After the pipeline: review and refinement",
+      "heading_level": 2,
+      "line_start": 408,
+      "line_end": 411,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 98,
+      "document": "references/requirements_refinement.md",
+      "heading": "Overview",
+      "heading_level": 2,
+      "line_start": 3,
+      "line_end": 6,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 99,
+      "document": "references/requirements_refinement.md",
+      "heading": "Generated file template",
+      "heading_level": 2,
+      "line_start": 7,
+      "line_end": 70,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 100,
+      "document": "references/requirements_refinement.md",
+      "heading": "Refinement Pass \u2014 v[new version]",
+      "heading_level": 2,
+      "line_start": 71,
+      "line_end": 74,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 101,
+      "document": "references/requirements_review.md",
+      "heading": "Overview",
+      "heading_level": 2,
+      "line_start": 3,
+      "line_end": 6,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 102,
+      "document": "references/requirements_review.md",
+      "heading": "Generated file template",
+      "heading_level": 2,
+      "line_start": 7,
+      "line_end": 100,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 103,
+      "document": "references/requirements_review.md",
+      "heading": "Cross-Model Audit",
+      "heading_level": 2,
+      "line_start": 101,
+      "line_end": 104,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 104,
+      "document": "references/requirements_review.md",
+      "heading": "Review Progress",
+      "heading_level": 2,
+      "line_start": 130,
+      "line_end": 136,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 105,
+      "document": "references/requirements_review.md",
+      "heading": "Cross-Cutting Concerns",
+      "heading_level": 2,
+      "line_start": 137,
+      "line_end": 143,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 106,
+      "document": "references/requirements_review.md",
+      "heading": "Feedback",
+      "heading_level": 2,
+      "line_start": 144,
+      "line_end": 145,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 107,
+      "document": "references/requirements_review.md",
+      "heading": "Additional hints",
+      "heading_level": 2,
+      "line_start": 153,
+      "line_end": 158,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 108,
+      "document": "references/review_protocols.md",
+      "heading": "File 3: Code Review Protocol (`RUN_CODE_REVIEW.md`)",
+      "heading_level": 2,
+      "line_start": 3,
+      "line_end": 4,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 109,
+      "document": "references/review_protocols.md",
+      "heading": "File 4: Integration Test Protocol (`RUN_INTEGRATION_TESTS.md`)",
+      "heading_level": 2,
+      "line_start": 283,
+      "line_end": 284,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 110,
+      "document": "references/review_protocols.md",
+      "heading": "Integration Test Plan",
+      "heading_level": 2,
+      "line_start": 348,
+      "line_end": 380,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 111,
+      "document": "references/review_protocols.md",
+      "heading": "Results",
+      "heading_level": 2,
+      "line_start": 381,
+      "line_end": 412,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 112,
+      "document": "references/schema_mapping.md",
+      "heading": "Why This Matters",
+      "heading_level": 2,
+      "line_start": 5,
+      "line_end": 113,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 113,
+      "document": "references/schema_mapping.md",
+      "heading": "How to Build the Map",
+      "heading_level": 2,
+      "line_start": 114,
+      "line_end": 124,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 114,
+      "document": "references/schema_mapping.md",
+      "heading": "Rules for Choosing Mutation Values",
+      "heading_level": 2,
+      "line_start": 125,
+      "line_end": 136,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 115,
+      "document": "references/schema_mapping.md",
+      "heading": "When to Skip This Step",
+      "heading_level": 2,
+      "line_start": 137,
+      "line_end": 139,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 116,
+      "document": "references/spec_audit.md",
+      "heading": "Why Three Models?",
+      "heading_level": 2,
+      "line_start": 5,
+      "line_end": 8,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 117,
+      "document": "references/spec_audit.md",
+      "heading": "Template",
+      "heading_level": 2,
+      "line_start": 9,
+      "line_end": 105,
+      "skip_reason": "meta-allowlist",
+      "section_kind": "meta"
+    },
+    {
+      "section_idx": 118,
+      "document": "references/spec_audit.md",
+      "heading": "Council Status",
+      "heading_level": 2,
+      "line_start": 106,
+      "line_end": 212,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 119,
+      "document": "references/spec_audit.md",
+      "heading": "The Four Guardrails (Critical for All Auditors)",
+      "heading_level": 2,
+      "line_start": 213,
+      "line_end": 223,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 120,
+      "document": "references/spec_audit.md",
+      "heading": "Model Selection Notes",
+      "heading_level": 2,
+      "line_start": 224,
+      "line_end": 233,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 121,
+      "document": "references/spec_audit.md",
+      "heading": "Tips for Writing Scrutiny Areas",
+      "heading_level": 2,
+      "line_start": 238,
+      "line_end": 249,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 122,
+      "document": "references/verification.md",
+      "heading": "Self-Check Benchmarks",
+      "heading_level": 2,
+      "line_start": 5,
+      "line_end": 6,
+      "skip_reason": null,
+      "section_kind": "execution-mode"
+    },
+    {
+      "section_idx": 123,
+      "document": "references/verification.md",
+      "heading": "Documentation Verification",
+      "heading_level": 2,
+      "line_start": 69,
+      "line_end": 70,
+      "skip_reason": null,
+      "section_kind": "operational"
+    },
+    {
+      "section_idx": 124,
+      "document": "references/verification.md",
+      "heading": "Quick Checklist Format",
+      "heading_level": 2,
+      "line_start": 250,
+      "line_end": 302,
+      "skip_reason": null,
+      "section_kind": "operational"
+    }
+  ]
+}

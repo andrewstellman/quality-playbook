@@ -1,0 +1,9 @@
+GREEN
+Test: test_bug_017_exploration_md_not_in_artifact_table (after fix patch)
+Target: SKILL.md artifact contract table with EXPLORATION.md added
+
+Execution (after applying BUG-017-fix.patch):
+  grep -c "EXPLORATION.md.*mandatory" SKILL.md => 1 (body text still declares mandatory)
+  awk '/^### Complete Artifact Contract$/,/^### /' SKILL.md | grep -c "EXPLORATION" => 1 (now in table)
+
+Result: PASS — EXPLORATION.md now appears in the artifact contract table, resolving the contradiction.

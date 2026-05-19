@@ -1,0 +1,33 @@
+GREEN
+=== Green Phase: BUG-M8 — nullglob ls-glob counting (fix verified) ===
+Date: 2026-04-16
+Test: test_BUG_M8_nullglob_ls_counting (with fix applied to quality_gate.sh)
+
+Fix applied: quality/patches/BUG-M8-fix.patch
+Replaces ls-glob counting patterns with find-based patterns at all 4 vulnerable locations:
+  Line 152: ls ${q}/spec_audits/*triage* → find "${q}/spec_audits" -maxdepth 1 -name '*triage*'
+  Line 153: ls ${q}/spec_audits/*auditor* → find "${q}/spec_audits" -maxdepth 1 -name '*auditor*'
+  Line 331: ls ${q}/patches/${bid}-fix*.patch → find "${q}/patches" -maxdepth 1 -name "${bid}-fix*.patch"
+  Line 567: ls ${q}/patches/BUG-*-regression*.patch → find "${q}/patches" -maxdepth 1 -name 'BUG-*-regression*.patch'
+  Line 568: ls ${q}/patches/BUG-*-fix*.patch → find "${q}/patches" -maxdepth 1 -name 'BUG-*-fix*.patch'
+  Line 595: ls ${q}/writeups/BUG-*.md → find "${q}/writeups" -maxdepth 1 -name 'BUG-*.md'
+
+Command: BUG_SKIP_M8=0 GATE_PATH=quality_gate.sh bash quality/test_regression.sh test_BUG_M8_nullglob_ls_counting
+
+Output (with fix applied):
+=== Regression Tests: quality-playbook ===
+Date: 2026-04-16
+All tests are skip-guarded. Set BUG_SKIP_NNN=0 to enable individual tests.
+
+  TEST: test_BUG_M8_nullglob_ls_counting
+  BUG FIXED: ls-glob counting patterns replaced with nullglob-safe find/count
+  RESULT: PASS
+
+===========================================
+Results: 1 PASS, 0 FAIL, 0 SKIP
+
+Exit code: 0
+
+VERDICT: GREEN — after applying fix patch, vulnerable ls-glob patterns are replaced
+with find-based counting that is immune to nullglob expansion. The gate correctly
+counts artifacts even when globs match nothing.

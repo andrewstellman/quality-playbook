@@ -1,0 +1,21 @@
+RED
+--- Test output for BUG-025 red phase ---
+Command: python3 <inline unittest runner for test_reg_parity25_extension_check_accepts_functionaltest_java>
+Exit code: 1
+test_reg_parity25_extension_check_accepts_functionaltest_java (quality.test_regression.ParityIterationRegressions.test_reg_parity25_extension_check_accepts_functionaltest_java)
+BUG-025 / REQ-026: `FunctionalTest.java` must be extension-validated, not skipped. ... FAIL
+
+======================================================================
+FAIL: test_reg_parity25_extension_check_accepts_functionaltest_java (quality.test_regression.ParityIterationRegressions.test_reg_parity25_extension_check_accepts_functionaltest_java)
+BUG-025 / REQ-026: `FunctionalTest.java` must be extension-validated, not skipped.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/andrewstellman/Documents/QPB/quality/test_regression.py", line 843, in test_reg_parity25_extension_check_accepts_functionaltest_java
+    self.assertEqual(qg.WARN, 0)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+AssertionError: 1 != 0
+
+----------------------------------------------------------------------
+Ran 1 test in 0.003s
+
+FAILED (failures=1)

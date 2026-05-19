@@ -1,0 +1,12 @@
+=== Regression Tests: quality-playbook ===
+Date: 2026-04-16
+All tests are skip-guarded. Set BUG_SKIP_NNN=0 to enable individual tests.
+
+
+  TEST: test_BUG_L14_recommendation_enum_inconsistency
+  BUG CONFIRMED: references/review_protocols.md contains stale enum values (SHIP IT / FIX FIRST)
+  Gate expects: SHIP | FIX BEFORE MERGE | BLOCK
+  RESULT: FAIL
+
+===========================================
+Results: 0 PASS, 1 FAIL, 0 SKIP

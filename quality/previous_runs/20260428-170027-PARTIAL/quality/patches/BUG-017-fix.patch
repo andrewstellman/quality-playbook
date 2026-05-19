@@ -1,0 +1,36 @@
+diff --git a/agents/quality-playbook.agent.md b/agents/quality-playbook.agent.md
+index 0dd0a11..6c4d4f5 100644
+--- a/agents/quality-playbook.agent.md
++++ b/agents/quality-playbook.agent.md
+@@ -35,10 +35,11 @@
+ ## Setup: find the skill
+ 
+ Check that the quality playbook skill is installed. Look for SKILL.md in these locations, in order:
+ 
+-1. `.claude/skills/quality-playbook/SKILL.md` (Claude Code)
+-2. `.github/skills/SKILL.md` (Copilot, flat layout)
+-3. `.github/skills/quality-playbook/SKILL.md` (Copilot, nested layout)
++1. `SKILL.md` (source checkout / repo root)
++2. `.claude/skills/quality-playbook/SKILL.md` (Claude Code)
++3. `.github/skills/SKILL.md` (Copilot, flat layout)
++4. `.github/skills/quality-playbook/SKILL.md` (Copilot, nested layout)
+ 
+ Also check for a `references/` directory alongside SKILL.md. It should contain .md files (the full set includes iteration.md, review_protocols.md, spec_audit.md, verification.md, requirements_pipeline.md, exploration_patterns.md, defensive_patterns.md, schema_mapping.md, constitution.md, functional_tests.md, orchestrator_protocol.md, and others). Verify the directory exists and has at least 6 .md files.
+diff --git a/agents/quality-playbook-claude.agent.md b/agents/quality-playbook-claude.agent.md
+index c6e90f1..7d6f72b 100644
+--- a/agents/quality-playbook-claude.agent.md
++++ b/agents/quality-playbook-claude.agent.md
+@@ -45,8 +45,9 @@
+ ## Setup: find the skill
+ 
+ Look for SKILL.md in these locations, in order:
+ 
+-1. `.claude/skills/quality-playbook/SKILL.md`
+-2. `.github/skills/quality-playbook/SKILL.md`
+-3. `.github/skills/SKILL.md`
++1. `SKILL.md`
++2. `.claude/skills/quality-playbook/SKILL.md`
++3. `.github/skills/quality-playbook/SKILL.md`
++4. `.github/skills/SKILL.md`
+ 
+ Also check for a `references/` directory alongside SKILL.md.

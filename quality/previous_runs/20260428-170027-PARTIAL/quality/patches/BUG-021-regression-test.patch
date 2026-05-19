@@ -1,0 +1,16 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@
++    @unittest.expectedFailure
++    def test_reg_unfiltered21_phase_prompt_mentions_fallback_layouts(self):
++        prompt = run_playbook.phase1_prompt(no_seeds=False)
++        self.assertIn(".claude/skills/quality-playbook/SKILL.md", prompt)
++        self.assertIn(".github/skills/quality-playbook/SKILL.md", prompt)
++
++    @unittest.expectedFailure
++    def test_reg_unfiltered21_single_pass_prompt_mentions_fallback_layouts(self):
++        single_pass = run_playbook.single_pass_prompt(no_seeds=False)
++        iteration = run_playbook.iteration_prompt("unfiltered")
++        self.assertIn(".claude/skills/quality-playbook/SKILL.md", single_pass)
++        self.assertIn("documented install-location fallback list", iteration)

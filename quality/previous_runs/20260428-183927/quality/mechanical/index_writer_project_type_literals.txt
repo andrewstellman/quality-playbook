@@ -1,0 +1,2 @@
+"target_project_type": "Code",  # TODO(v1.5.2): Code/Skill/Hybrid detector.
+target_project_type="Code",

@@ -1,0 +1,32 @@
+RED
+BUG-016 regression test: Reference Files table missing 3 required reference files
+
+Test: Compare references cited in SKILL.md body text against the Reference Files table
+
+Referenced in body text with imperative "Read" language:
+  - references/exploration_patterns.md (line 309: "Required references for this phase")
+  - references/iteration.md (line 227: "Read references/iteration.md")
+  - references/requirements_pipeline.md (line 523: "Read references/requirements_pipeline.md")
+  - references/defensive_patterns.md (line 887)
+  - references/schema_mapping.md (line 888)
+  - references/constitution.md (line 941)
+  - references/functional_tests.md (line 958)
+  - references/review_protocols.md (line 977)
+  - references/spec_audit.md (line 1530)
+  - references/verification.md (line 1675)
+
+Listed in Reference Files table (lines 2075-2083):
+  - references/defensive_patterns.md
+  - references/schema_mapping.md
+  - references/constitution.md
+  - references/functional_tests.md
+  - references/review_protocols.md
+  - references/spec_audit.md
+  - references/verification.md
+
+Missing from table:
+  - references/exploration_patterns.md
+  - references/iteration.md
+  - references/requirements_pipeline.md
+
+Red phase: CONFIRMED — 3 required reference files are absent from the table

@@ -1,0 +1,61 @@
+test_reg_cb10_run_metadata_ungated (quality.test_regression.RegressionTests.test_reg_cb10_run_metadata_ungated)
+BUG-010 / REQ-008: quality_gate must have attribute check_run_metadata. ... expected failure
+test_reg_cb11_exploration_structure_ungated (quality.test_regression.RegressionTests.test_reg_cb11_exploration_structure_ungated)
+BUG-011 / REQ-013: quality_gate must FAIL when EXPLORATION.md lacks ... expected failure
+test_reg_cb12_zero_bug_loose_regex (quality.test_regression.RegressionTests.test_reg_cb12_zero_bug_loose_regex)
+BUG-012 / REQ-015: A BUGS.md with prose "the zero analysis shows no ... expected failure
+test_reg_cb1_version_parser_divergence (quality.test_regression.RegressionTests.test_reg_cb1_version_parser_divergence)
+BUG-001 / REQ-001: skill_version() must return "1.4.5" for SKILL.md ... expected failure
+test_reg_cb2_missing_fourth_install_path (quality.test_regression.RegressionTests.test_reg_cb2_missing_fourth_install_path)
+BUG-002 / REQ-002: SKILL_INSTALL_LOCATIONS must contain all 4 paths ... expected failure
+test_reg_cb3_line_count_threshold_drift (quality.test_regression.RegressionTests.test_reg_cb3_line_count_threshold_drift)
+BUG-003 / REQ-004: check_phase_gate("2") must return ok=False for a ... expected failure
+test_reg_cb4_archive_not_atomic (quality.test_regression.RegressionTests.test_reg_cb4_archive_not_atomic)
+BUG-004 / REQ-009: After archive_previous_run, control_prompts/ must ... expected failure
+test_reg_cb5_agents_md_cleanup_reversion (quality.test_regression.RegressionTests.test_reg_cb5_agents_md_cleanup_reversion)
+BUG-005 / REQ-006: lib._is_protected("AGENTS.md") must return True. ... expected failure
+test_reg_cb6_phase3_gate_incomplete (quality.test_regression.RegressionTests.test_reg_cb6_phase3_gate_incomplete)
+BUG-006 / REQ-010: check_phase_gate("3") must fail when ... expected failure
+test_reg_cb7_docs_present_noise (quality.test_regression.RegressionTests.test_reg_cb7_docs_present_noise)
+BUG-007 / REQ-011: docs_present must return False for a directory ... expected failure
+test_reg_cb8_suggest_after_failure (quality.test_regression.RegressionTests.test_reg_cb8_suggest_after_failure)
+BUG-008 / REQ-014: When run fails (failures > 0), output must NOT ... expected failure
+test_reg_cb9_pkill_misses_copilot (quality.test_regression.RegressionTests.test_reg_cb9_pkill_misses_copilot)
+BUG-009 / REQ-012: _pkill_fallback patterns must include "gh copilot -p". ... expected failure
+test_reg_closed_set_drift (quality.test_regression.RegressionTests.test_reg_closed_set_drift)
+BUG-002 / REQ-017: All 4 install paths documented in SKILL.md must ... expected failure
+test_reg_fallback_skipped_diagnostic (quality.test_regression.RegressionTests.test_reg_fallback_skipped_diagnostic)
+REQ-005: When skill_version returns None and bare name fails, the error ... expected failure
+test_reg_iso_datetime_grammar (quality.test_regression.RegressionTests.test_reg_iso_datetime_grammar)
+BUG-014 / REQ-007: validate_iso_date("2026-04-18T23:43:14Z") must ... expected failure
+test_reg_porcelain_quoted_paths (quality.test_regression.RegressionTests.test_reg_porcelain_quoted_paths)
+BUG-015 / REQ-016: _parse_porcelain_path(' M "file with space.txt"') ... expected failure
+test_reg_version_parser_substring_reject (quality.test_regression.RegressionTests.test_reg_version_parser_substring_reject)
+BUG-013 / REQ-003: detect_skill_version must not match version: inside ... expected failure
+
+----------------------------------------------------------------------
+Ran 17 tests in 0.047s
+
+OK (expected failures=17)
+[File Existence]
+  PASS: BUGS.md exists
+  PASS: REQUIREMENTS.md exists
+  PASS: QUALITY.md exists
+  PASS: PROGRESS.md exists
+  PASS: COVERAGE_MATRIX.md exists
+  PASS: COMPLETENESS_REPORT.md exists
+  PASS: CONTRACTS.md exists
+  PASS: RUN_CODE_REVIEW.md exists
+  PASS: RUN_SPEC_AUDIT.md exists
+  PASS: RUN_INTEGRATION_TESTS.md exists
+  PASS: RUN_TDD_TESTS.md exists
+  PASS: functional test file exists
+  FAIL: AGENTS.md missing (required at project root)
+  PASS: EXPLORATION.md exists
+  FAIL: code_reviews/ missing or empty
+  FAIL: spec_audits/ directory missing
+[BUGS.md Heading Format]
+  PASS: Zero-bug run — no headings expected
+  no processes matched: bin/run_playbook.py
+  no processes matched: claude -p
+  no processes matched: claude --model

@@ -1,0 +1,11 @@
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -293,8 +293,10 @@ perform their own sibling-run seeding without an explicit `previous_runs/` archi
+ ### Phase 0b: Sibling-Run Seed Discovery (Automatic)
+
+-**This step runs only if `previous_runs/` does not exist** (i.e., Phase 0a has nothing to work with) **and** the project directory is versioned (e.g., `httpx-1.3.23/` sits alongside `httpx-1.3.21/`). If `previous_runs/` exists, Phase 0a already handles seed injection — skip this step.
++**This step runs only if `previous_runs/` does not exist OR `previous_runs/` exists but contains no conformant quality artifacts** (i.e., Phase 0a has nothing to work with) **and** the project directory is versioned (e.g., `httpx-1.3.23/` sits alongside `httpx-1.3.21/`). If `previous_runs/` exists with conformant artifacts, Phase 0a already handles seed injection — skip this step.
++
++**If `previous_runs/` exists but is empty or contains only non-conformant subdirectories**, emit a warning: "Phase 0b: `previous_runs/` exists but contains no conformant artifacts — consulting sibling versioned directories for seeds." Then proceed with the sibling discovery below.
+
+ When no `previous_runs/` directory exists but sibling versioned directories do, look for prior quality artifacts in those siblings:

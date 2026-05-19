@@ -1,0 +1,16 @@
+RED
+Date: 2026-04-18
+Bug: BUG-009
+Test: quality.test_regression.RegressionTests.test_reg_cb9_pkill_misses_copilot
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_cb9_pkill_misses_copilot -v
+
+  no processes matched: bin/run_playbook.py
+  no processes matched: claude -p
+  no processes matched: claude --model
+test_reg_cb9_pkill_misses_copilot (quality.test_regression.RegressionTests.test_reg_cb9_pkill_misses_copilot)
+BUG-009 / REQ-012: _pkill_fallback patterns must include "gh copilot -p". ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+OK (expected failures=1)

@@ -1,0 +1,38 @@
+FF
+======================================================================
+FAIL: test_req_003_phase2_gate_requires_exact_sections (quality.test_functional.SpecRequirementTests.test_req_003_phase2_gate_requires_exact_sections)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/andrewstellman/Documents/QPB/quality/test_functional.py", line 151, in test_req_003_phase2_gate_requires_exact_sections
+    self.assert_req_003_phase2_gate_requires_exact_sections()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/andrewstellman/Documents/QPB/quality/test_functional.py", line 69, in assert_req_003_phase2_gate_requires_exact_sections
+    self.assertFalse(
+    ~~~~~~~~~~~~~~~~^
+        gate.ok,
+        ^^^^^^^^
+        "Phase 2 gate should reject a 120+ line placeholder that omits the required headings",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+AssertionError: True is not false : Phase 2 gate should reject a 120+ line placeholder that omits the required headings
+
+======================================================================
+FAIL: test_req_004_live_index_preserves_project_type (quality.test_functional.SpecRequirementTests.test_req_004_live_index_preserves_project_type)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/Users/andrewstellman/Documents/QPB/quality/test_functional.py", line 154, in test_req_004_live_index_preserves_project_type
+    self.assert_req_004_live_index_preserves_project_type()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/andrewstellman/Documents/QPB/quality/test_functional.py", line 86, in assert_req_004_live_index_preserves_project_type
+    self.assertEqual(payload["target_project_type"], record["classification"])
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: 'Code' != 'Hybrid'
+- Code
++ Hybrid
+
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.005s
+
+FAILED (failures=2)

@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-016
+Test: quality.test_regression.TestSpecAuditRegressions.test_reg_sa16_phase5_gate_missing_triage
+Runner: python3 -m unittest quality.test_regression.TestSpecAuditRegressions.test_reg_sa16_phase5_gate_missing_triage -v
+
+test_reg_sa16_phase5_gate_missing_triage (quality.test_regression.TestSpecAuditRegressions.test_reg_sa16_phase5_gate_missing_triage)
+BUG-016 / REQ-010: check_phase_gate("5") must return ok=False when ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+OK (expected failures=1)

@@ -1,0 +1,15 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,14 @@
++    @unittest.expectedFailure
++    def test_reg_iso_datetime_grammar(self):
++        """BUG-014 / REQ-007: validate_iso_date("2026-04-18T23:43:14Z") must
++        return "valid". Run-metadata start_time uses datetime form.
++
++        Source: quality_gate.py:156-173 — regex \\d{4}-\\d{2}-\\d{2} rejects datetime.
++        Current: returns "bad_format". Desired: returns "valid".
++        """
++        qg = _load_quality_gate()
++        result = qg.validate_iso_date("2026-04-18T23:43:14Z")
++        self.assertEqual(result, "valid",
++                         "validate_iso_date must accept ISO 8601 datetime form '2026-04-18T23:43:14Z'")

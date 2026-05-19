@@ -1,0 +1,19 @@
+--- a/quality_gate.sh
++++ b/quality_gate.sh
+@@ -683,8 +683,8 @@ else
+     resolved=()
+-    for name in ${REPO_DIRS[@]+"${REPO_DIRS[@]}"}; do
++    for name in "${REPO_DIRS[@]+"${REPO_DIRS[@]}"}"; do
+         if [ -d "$name/quality" ]; then
+             resolved+=("$name")
+         elif [ -d "${SCRIPT_DIR}/${name}-${VERSION}" ]; then
+             resolved+=("${SCRIPT_DIR}/${name}-${VERSION}")
+         elif [ -d "${SCRIPT_DIR}/${name}" ]; then
+             resolved+=("${SCRIPT_DIR}/${name}")
+         else
+             echo "WARNING: Cannot find repo '${name}'"
+         fi
+     done
+-    REPO_DIRS=(${resolved[@]+"${resolved[@]}"})
++    REPO_DIRS=("${resolved[@]+"${resolved[@]}"}")
+ fi

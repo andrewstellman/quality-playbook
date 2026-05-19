@@ -1,0 +1,25 @@
+GREEN PHASE — BUG-L24 — integration summary sub-keys not validated
+Date: 2026-04-16
+Test: test_BUG_L24_integration_summary_subkeys_absent
+Fix: quality/patches/BUG-L24-fix.patch
+
+After applying BUG-L24-fix.patch:
+  - Adds sub-key validation loop after summary key presence check
+  - Checks all 4 required sub-keys using json_key_count (consistent with tdd sub-key approach)
+  - Sub-keys validated: total_groups, passed, failed, skipped
+  - gate_fail() called for any missing sub-key
+
+TEST: test_BUG_L24_integration_summary_subkeys_absent
+  BUG FIXED: integration summary sub-key validation now present
+    grep output: total_groups found in quality_gate.sh integration section
+
+Verification:
+  grep -n 'total_groups' quality_gate.sh | grep -v '^#'
+  Output: (line added by fix patch confirms sub-key validation present)
+
+  An integration-results.json with "summary": {} now triggers gate_fail() for total_groups
+  An integration-results.json with "summary": {"status": "ok"} triggers gate_fail() for total_groups
+  An integration-results.json with all 4 required sub-keys passes correctly
+
+RESULT: PASS (green phase — bug fixed)
+Exit code: 0

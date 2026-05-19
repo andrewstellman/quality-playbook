@@ -1,0 +1,5 @@
+RED
+--- Test output for BUG-010 red phase ---
+Command: sed -n 561p quality_gate.sh | grep warn
+Exit code: 1
+FAIL: quality_gate.sh line 561 uses warn() for incomplete writeups:             warn "${writeup_count} writeup(s) for ${bug_count} bug(s) — incomplete"

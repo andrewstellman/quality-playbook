@@ -1,0 +1,9 @@
+--- a/.github/skills/quality_gate/quality_gate.py
++++ b/.github/skills/quality_gate/quality_gate.py
+@@ -397,4 +397,5 @@ def check_bugs_heading(q):
+         if correct_headings == 0 and wrong_headings == 0:
+-            if re.search(r"(No confirmed|zero|0 confirmed)", bugs_content):
++            if re.search(r"^##\s+(No confirmed bugs|Zero confirmed bugs)\s*$",
++                         bugs_content, re.MULTILINE | re.IGNORECASE):
+                 pass_("Zero-bug run — no headings expected")
+             else:

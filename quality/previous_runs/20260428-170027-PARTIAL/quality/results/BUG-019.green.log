@@ -1,0 +1,5 @@
+NOT_RUN
+--- Test output for BUG-019 green phase ---
+Command: python3 -m unittest quality.test_regression.GapIterationRegressions.test_reg_gap19_collect_only_does_not_execute_tests quality.test_regression.GapIterationRegressions.test_reg_gap19_nodeid_is_handled_without_importerror -v
+Exit code: 0
+Bootstrap iteration defers green phase; see quality/patches/BUG-019-fix.patch.

@@ -1,0 +1,38 @@
+--- a/quality_gate.sh
++++ b/quality_gate.sh
+@@ Integration JSON validation block (lines 389-436 approx) @@
+ # Validate integration groups array entries
+ int_groups=$(json_str_val "$int_json" "groups")
++#
++# BUG-L23 fix: validate groups[].result enum values
++# SKILL.md:1273 defines valid values: "pass", "fail", "skipped", "error"
++valid_result_values=("pass" "fail" "skipped" "error")
++int_result_check=$(grep -oE '"result"[[:space:]]*:[[:space:]]*"[^"]*"' "$int_json" | \
++    grep -oE '"[^"]*"$' | tr -d '"')
++while IFS= read -r result_val; do
++    [ -z "$result_val" ] && continue
++    valid=0
++    for v in "${valid_result_values[@]}"; do
++        [ "$result_val" = "$v" ] && valid=1 && break
++    done
++    if [ "$valid" -eq 0 ]; then
++        gate_fail "integration-results.json: groups[].result value '$result_val' not in valid enum (pass, fail, skipped, error) — SKILL.md:1273"
++    fi
++done <<< "$int_result_check"
++#
++# BUG-L23 fix: validate uc_coverage value enum
++# SKILL.md:1273 defines valid values: "covered_pass", "covered_fail", "not_mapped"
++valid_uc_values=("covered_pass" "covered_fail" "not_mapped")
++uc_coverage_check=$(grep -oE '"uc_coverage"[[:space:]]*:[[:space:]]*\{[^}]*\}' "$int_json" | \
++    grep -oE '"[a-z_]+"[[:space:]]*:[[:space:]]*"[^"]*"' | grep -v '"uc_coverage"' | \
++    grep -oE '"[^"]*"$' | tr -d '"')
++while IFS= read -r uc_val; do
++    [ -z "$uc_val" ] && continue
++    valid=0
++    for v in "${valid_uc_values[@]}"; do
++        [ "$uc_val" = "$v" ] && valid=1 && break
++    done
++    if [ "$valid" -eq 0 ]; then
++        gate_fail "integration-results.json: uc_coverage value '$uc_val' not in valid enum (covered_pass, covered_fail, not_mapped) — SKILL.md:1273"
++    fi
++done <<< "$uc_coverage_check"

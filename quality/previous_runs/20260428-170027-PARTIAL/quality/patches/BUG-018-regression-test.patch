@@ -1,0 +1,20 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+index 8f4e7d9..9aa7600 100644
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@ -620,6 +620,17 @@ class GapIterationRegressions(unittest.TestCase):
+         self.assertIn("`SKILL.md`", general)
+         self.assertIn("`SKILL.md`", claude)
+ 
++    @unittest.expectedFailure
++    def test_reg_gap18_general_agent_keeps_context_ownership_consistent(self):
++        source = (QPB_ROOT / "agents" / "quality-playbook.agent.md").read_text(encoding="utf-8")
++        self.assertFalse(
++            "You do NOT execute phase logic yourself." in source
++            and "Run Phase 1 in the current session." in source,
++            "general orchestrator must not contradict its own phase-execution ownership"
++        )
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

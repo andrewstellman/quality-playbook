@@ -1,0 +1,21 @@
+RED
+test_BUG_M16_functional_test_existence_nullglob — FAIL (red phase)
+Date: 2026-04-16
+Shell: bash quality/test_regression.sh test_BUG_M16_functional_test_existence_nullglob
+
+BUG CONFIRMED: quality_gate.sh:124 uses ls-glob for functional test existence (nullglob vulnerable)
+
+Probe: grep -qE 'if ls \$\{q\}/test_functional\.' quality_gate.sh
+Result: MATCH FOUND at line 124
+
+Line 124 (unpatched):
+  if ls ${q}/test_functional.* ${q}/FunctionalSpec.* ${q}/FunctionalTest.* ${q}/functional.test.* &>/dev/null 2>&1; then
+
+Under nullglob: unmatched globs expand to nothing → ls receives no arguments → lists CWD → exit 0
+Gate outputs: PASS: functional test file detected
+Actual state: no test file exists
+
+Compare: lines 449-454 use correct find-based pattern:
+  find "${repo_dir}" -maxdepth 1 \( -name "*.sh" -o -name "*.py" \) -print -quit
+
+Test result: FAIL (exit 1) — confirms bug on unpatched code

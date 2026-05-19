@@ -1,0 +1,11 @@
+=== Regression Tests: quality-playbook ===
+Date: 2026-04-16
+All tests are skip-guarded. Set BUG_SKIP_NNN=0 to enable individual tests.
+
+
+  TEST: test_BUG_M15_no_recheck_validation
+  BUG CONFIRMED: quality_gate.sh has no validation for recheck-results.json or recheck-summary.md
+  RESULT: FAIL
+
+===========================================
+Results: 0 PASS, 1 FAIL, 0 SKIP

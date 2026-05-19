@@ -1,0 +1,24 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,22 @@
++    @unittest.expectedFailure
++    def test_reg_cb8_suggest_after_failure(self):
++        """BUG-008 / REQ-014: When run fails (failures > 0), output must NOT
++        contain the normal iteration suggestion. A failure-specific message
++        should appear instead.
++
++        Source: run_playbook.py:930-946 — print_suggested_next_command called
++        unconditionally regardless of failures.
++        Current: suggestion always printed. Desired: suppressed on failure.
++        """
++        # We test the conditional logic by examining the print_suggested_next_command
++        # signature — it currently has no failures parameter.
++        import inspect
++        sig = inspect.signature(run_playbook.print_suggested_next_command)
++        params = list(sig.parameters.keys())
++        # Desired: function has a failures_occurred or similar parameter
++        self.assertTrue(
++            any("fail" in p.lower() for p in params),
++            f"print_suggested_next_command must accept a failures parameter; "
++            f"current signature: {params}. The function cannot suppress suggestion on failure."
++        )

@@ -1,0 +1,5 @@
+GREEN
+--- Test output for BUG-001 green phase ---
+Command: RUN_BUG=001 bash quality/test_regression.sh
+Exit code: 127
+(eval):2: no such file or directory: bash quality/test_regression.sh

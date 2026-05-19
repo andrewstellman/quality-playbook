@@ -1,0 +1,23 @@
+--- a/bin/run_playbook.py
++++ b/bin/run_playbook.py
+@@ -565,12 +565,19 @@ def archive_previous_run(repo_dir: Path, timestamp: str) -> None:
+     quality_dir = repo_dir / "quality"
+     control_prompts_dir = repo_dir / "control_prompts"
+     if not quality_dir.is_dir():
+         return
+     archive_dir = repo_dir / "previous_runs" / timestamp / "quality"
++    partial_dir = repo_dir / "previous_runs" / (timestamp + ".partial")
+     archive_dir.parent.mkdir(parents=True, exist_ok=True)
+     if archive_dir.exists():
+         shutil.rmtree(archive_dir)
+-    shutil.copytree(quality_dir, archive_dir)
+-    shutil.rmtree(quality_dir, ignore_errors=True)
+-    shutil.rmtree(control_prompts_dir, ignore_errors=True)
++    if partial_dir.exists():
++        shutil.rmtree(partial_dir)
++    shutil.copytree(quality_dir, partial_dir / "quality")
++    if control_prompts_dir.is_dir():
++        shutil.copytree(control_prompts_dir, partial_dir / "control_prompts")
++    partial_dir.rename(archive_dir.parent)
++    shutil.rmtree(quality_dir, ignore_errors=True)
++    shutil.rmtree(control_prompts_dir, ignore_errors=True)

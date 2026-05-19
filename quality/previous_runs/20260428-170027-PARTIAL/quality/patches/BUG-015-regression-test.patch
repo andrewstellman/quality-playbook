@@ -1,0 +1,18 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,14 @@
++    @unittest.expectedFailure
++    def test_reg_porcelain_quoted_paths(self):
++        """BUG-015 / REQ-016: _parse_porcelain_path(' M "file with space.txt"')
++        must return 'file with space.txt' (no surrounding quotes).
++
++        Source: bin/benchmark_lib.py:185-196 — returns rest.strip() without
++        removing Git's surrounding double-quotes.
++        Current: returns '"file with space.txt"' with quotes.
++        Desired: returns 'file with space.txt' without quotes.
++        """
++        result = lib._parse_porcelain_path(' M "file with space.txt"')
++        self.assertEqual(
++            result, "file with space.txt",
++            f"_parse_porcelain_path must strip surrounding quotes; got: {result!r}"
++        )

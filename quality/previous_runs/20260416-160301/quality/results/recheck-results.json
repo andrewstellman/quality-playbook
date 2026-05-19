@@ -1,0 +1,194 @@
+{
+  "schema_version": "1.0",
+  "skill_version": "1.4.1",
+  "date": "2026-04-16",
+  "project": "quality-playbook (bootstrap self-audit)",
+  "source_run": {
+    "bugs_md_date": "2026-04-16",
+    "total_bugs": 25
+  },
+  "results": [
+    {
+      "id": "BUG-H1",
+      "severity": "HIGH",
+      "summary": "json_has_key() matches key name anywhere in file, including string values",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:77 now uses grep -q '\"${key}\"[[:space:]]*:' — colon-anchored, prevents false positives from key names in string values"
+    },
+    {
+      "id": "BUG-H2",
+      "severity": "HIGH",
+      "summary": "Unquoted REPO_DIRS array reconstruction splits paths with spaces",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:866 now uses REPO_DIRS=(\"${resolved[@]+\"${resolved[@]}\"}\") — outer quotes preserve paths with spaces; loop at line 855 also correctly quoted"
+    },
+    {
+      "id": "BUG-M3",
+      "severity": "MEDIUM",
+      "summary": "Phase 2 entry gate enforces only 6 of 12 Phase 1 completion gate checks",
+      "status": "FIXED",
+      "evidence": "SKILL.md:963-979 Phase 2 entry gate now enforces all missing checks including 120-line minimum, depth checks, ensemble balance, and all required section titles"
+    },
+    {
+      "id": "BUG-M4",
+      "severity": "MEDIUM",
+      "summary": "Gate does not check test_regression.* existence when bugs are confirmed",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:714-725 now checks for test_regression.* when bug_count > 0, using fail() in benchmark mode"
+    },
+    {
+      "id": "BUG-M5",
+      "severity": "MEDIUM",
+      "summary": "Empty previous_runs/ directory causes both Phase 0a and 0b to skip with no warning",
+      "status": "FIXED",
+      "evidence": "SKILL.md:334 now explicitly handles the case: 'If previous_runs/ exists but is empty or contains only non-conformant subdirectories, emit a warning' and proceeds with sibling discovery"
+    },
+    {
+      "id": "BUG-L6",
+      "severity": "LOW",
+      "summary": "json_str_val() cannot distinguish 'key absent' from 'key with non-string value'",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:83-98 json_str_val() now returns __NOT_STRING__ when key exists but value is not a quoted string, enabling callers to distinguish the two cases"
+    },
+    {
+      "id": "BUG-L7",
+      "severity": "LOW",
+      "summary": "No mechanical check enforces SKILL.md-internal version consistency across 8 hardcoded locations",
+      "status": "FIXED",
+      "evidence": "SKILL.md:7-9 frontmatter now includes a comment noting 8 inline occurrences of the version and instructing all to be updated when bumping the version"
+    },
+    {
+      "id": "BUG-M8",
+      "severity": "MEDIUM",
+      "summary": "ls-glob artifact counting vulnerable to nullglob (spec_audits triage/auditor, patch counting, writeup counting)",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:170-173 spec_audits now uses find-based counting; patch section uses per-bug iteration (lines 729-738); writeup section uses find (line 764)"
+    },
+    {
+      "id": "BUG-L9",
+      "severity": "LOW",
+      "summary": "Three incompatible naming formats specified for individual auditor report files",
+      "status": "FIXED",
+      "evidence": "SKILL.md:1621 now documents canonical format (YYYY-MM-DD-auditor-N.md) and accepted alternative (auditor_<model>_<date>.md), with gate glob *auditor* matching both"
+    },
+    {
+      "id": "BUG-L10",
+      "severity": "LOW",
+      "summary": "Recheck mode JSON artifact template uses schema_version 1.0 while all others use 1.1, with no rationale",
+      "status": "FIXED",
+      "evidence": "SKILL.md:2044 now documents explicit rationale: recheck uses 1.0 because it has a different structure with source_run and per-bug status/evidence fields unique to the recheck schema"
+    },
+    {
+      "id": "BUG-L11",
+      "severity": "LOW",
+      "summary": "Two incompatible tdd-results.json templates in SKILL.md with different field value formats",
+      "status": "FIXED",
+      "evidence": "SKILL.md:140-141 (artifact contract template) and SKILL.md:1458-1459 (Phase 5 template) now both use 'requirement': 'REQ-003' and 'red_phase': 'fail' — harmonized format"
+    },
+    {
+      "id": "BUG-M12",
+      "severity": "MEDIUM",
+      "summary": "ls-glob for func_test at line 479 vulnerable to nullglob",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:628 now uses find -maxdepth 1 -name 'test_functional.*' -print -quit instead of ls-glob; nullglob-safe"
+    },
+    {
+      "id": "BUG-M13",
+      "severity": "MEDIUM",
+      "summary": "ls-glob code_reviews check vulnerable to nullglob — empty directory passes",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:161-164 now uses find -maxdepth 1 -name '*.md' -print -quit | grep -q . — correctly returns false for empty directory under nullglob"
+    },
+    {
+      "id": "BUG-L14",
+      "severity": "LOW",
+      "summary": "review_protocols.md specifies stale recommendation enum values incompatible with quality_gate.sh",
+      "status": "FIXED",
+      "evidence": "references/review_protocols.md:410 now shows [SHIP / FIX BEFORE MERGE / BLOCK] matching canonical enum values in quality_gate.sh:509 and SKILL.md:1273"
+    },
+    {
+      "id": "BUG-M15",
+      "severity": "MEDIUM",
+      "summary": "quality_gate.sh has no validation section for recheck-results.json or recheck-summary.md",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:540-579 now validates recheck-results.json: required root keys, schema_version='1.0', date format/validity, recheck-summary.md companion existence, per-result status enum"
+    },
+    {
+      "id": "BUG-M16",
+      "severity": "MEDIUM",
+      "summary": "Functional test file existence check uses ls-glob vulnerable to nullglob",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:137-146 now uses find with all four SKILL.md patterns (test_functional.*, FunctionalSpec.*, FunctionalTest.*, functional.test.*) — nullglob-safe"
+    },
+    {
+      "id": "BUG-H17",
+      "severity": "HIGH",
+      "summary": "Bug ID regex BUG-[0-9]+ never matches severity-prefixed IDs, causing bug_count=0 and complete validation bypass",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:202 correct_headings uses BUG-([HML]|[0-9])[0-9]*; lines 333-334 bug_ids uses BUG-([HML][0-9]+|[0-9]+); all format-policing patterns updated to match both formats"
+    },
+    {
+      "id": "BUG-M18",
+      "severity": "MEDIUM",
+      "summary": "Gate validates tdd-results.json fields and log tags separately but never cross-validates them",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:398-444 now cross-validates red_phase/green_phase values against corresponding log file first-line tags for every bug with both a sidecar entry and a log file"
+    },
+    {
+      "id": "BUG-L19",
+      "severity": "LOW",
+      "summary": "TDD summary sub-key checks use json_has_key (substring match) instead of json_key_count (colon-anchored)",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:277-285 now uses json_key_count for all 5 summary sub-keys (total, verified, confirmed_open, red_failed, green_failed) — consistent with per-bug field checks"
+    },
+    {
+      "id": "BUG-L20",
+      "severity": "LOW",
+      "summary": "Patch presence check uses aggregate count instead of per-bug iteration, allowing wrong-set patches to produce false PASS",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:729-746 now iterates per bug_id, checking for BUG-NNN-regression*.patch individually — matches per-bug TDD log check pattern"
+    },
+    {
+      "id": "BUG-L21",
+      "severity": "LOW",
+      "summary": "Phase 5 has no entry gate mirroring the Phase 2 entry gate's fail-early pattern",
+      "status": "FIXED",
+      "evidence": "SKILL.md:1654 now includes 'Phase 5 entry gate (mandatory — HARD STOP)' that verifies Phase 4 artifacts exist before any Phase 5 work begins"
+    },
+    {
+      "id": "BUG-L22",
+      "severity": "LOW",
+      "summary": "SEED_CHECKS.md not in artifact contract table despite Phase 5 gate requiring it when Phase 0b ran",
+      "status": "FIXED",
+      "evidence": "SKILL.md:122 artifact contract table now includes 'Seed checks | quality/SEED_CHECKS.md | If Phase 0b ran | Phase 0b' — contradiction with Phase 5 gate resolved"
+    },
+    {
+      "id": "BUG-L23",
+      "severity": "LOW",
+      "summary": "Gate does not validate integration-results.json groups[].result enum values",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:513-530 now validates groups[].result against canonical set (pass/fail/skipped/error) and uc_coverage values against (covered_pass/covered_fail/not_mapped)"
+    },
+    {
+      "id": "BUG-L24",
+      "severity": "LOW",
+      "summary": "Gate validates integration summary top-level key presence but not required sub-keys",
+      "status": "FIXED",
+      "evidence": "repos/quality_gate.sh:467-477 now validates all 4 required integration summary sub-keys (total_groups, passed, failed, skipped) using json_key_count"
+    },
+    {
+      "id": "BUG-L25",
+      "severity": "LOW",
+      "summary": "Phase 2 entry gate does not enforce Phase 1 check #1 (120-line minimum) even after BUG-M3 fix",
+      "status": "FIXED",
+      "evidence": "SKILL.md:965 Phase 2 entry gate now explicitly checks 'quality/EXPLORATION.md must have at least 120 lines — a shorter file indicates incomplete exploration'"
+    }
+  ],
+  "summary": {
+    "total": 25,
+    "fixed": 25,
+    "partially_fixed": 0,
+    "still_open": 0,
+    "inconclusive": 0
+  }
+}

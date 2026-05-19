@@ -1,0 +1,27 @@
+--- a/.github/skills/quality_gate/quality_gate.py
++++ b/.github/skills/quality_gate/quality_gate.py
+@@ -310,4 +310,22 @@ def check_file_existence(repo_dir, q, strictness):
+     if (q / "EXPLORATION.md").is_file():
+         pass_("EXPLORATION.md exists")
++        _check_exploration_sections(q / "EXPLORATION.md", fail_)
+     else:
+         fail_("EXPLORATION.md missing")
++
++
++def _check_exploration_sections(path, fail_):
++    """Check that EXPLORATION.md contains all required section titles per SKILL.md:914-929."""
++    required_sections = [
++        "## Open Exploration Findings",
++        "## Quality Risks",
++        "## Pattern Applicability Matrix",
++        "## Candidate Bugs for Phase 2",
++        "## Gate Self-Check",
++    ]
++    try:
++        content = path.read_text(encoding="utf-8", errors="replace")
++    except OSError as exc:
++        fail_(f"EXPLORATION.md unreadable: {exc}")
++        return
++    for section in required_sections:
++        if section not in content:
++            fail_(f"EXPLORATION.md missing required section: {section!r}")

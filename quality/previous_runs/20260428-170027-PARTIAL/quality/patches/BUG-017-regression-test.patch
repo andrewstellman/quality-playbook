@@ -1,0 +1,19 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+index 7c3b2c1..8f4e7d9 100644
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@ -608,4 +608,20 @@ class TestSpecAuditRegressions(unittest.TestCase):
+                 f"got ok={result.ok}, messages={result.messages}"
+             )
+ 
++class GapIterationRegressions(unittest.TestCase):
++    @unittest.expectedFailure
++    def test_reg_gap17_agents_support_repo_root_skill(self):
++        general = (QPB_ROOT / "agents" / "quality-playbook.agent.md").read_text(encoding="utf-8")
++        claude = (QPB_ROOT / "agents" / "quality-playbook-claude.agent.md").read_text(encoding="utf-8")
++        self.assertIn("`SKILL.md`", general)
++        self.assertIn("`SKILL.md`", claude)
++
+ 
+ if __name__ == "__main__":
+     unittest.main()

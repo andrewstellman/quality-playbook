@@ -1,0 +1,21 @@
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@ -125,3 +125,18 @@
+             ok, _reason = run_state_lib.validate_phase_artifacts(quality, 1)
+             self.assertFalse(ok)
+ 
++    @xfail(
++        reason=(
++            "BUG-006: archive bug counting ignores canonical titled headings; "
++            "remove after applying quality/patches/BUG-006-fix.patch"
++        )
++    )
++    def test_bug_006_archive_bug_count_accepts_titled_bug_headings(self) -> None:
++        with TemporaryDirectory() as tmp:
++            run_folder = Path(tmp)
++            _write(
++                run_folder / "quality" / "BUGS.md",
++                "# Bugs\n\n### BUG-001: Cite-only docs trigger false code-only warning\n\n**Severity**: HIGH\n",
++            )
++            counts = archive_lib._extract_bug_counts(run_folder)
++            self.assertEqual(counts["HIGH"], 1)

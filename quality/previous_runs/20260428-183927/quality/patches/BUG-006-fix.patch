@@ -1,0 +1,20 @@
+diff --git a/docs_gathered/01_README_project.md b/docs_gathered/01_README_project.md
+--- a/docs_gathered/01_README_project.md
++++ b/docs_gathered/01_README_project.md
+@@ -3,7 +3,7 @@
+ Point an AI coding tool at any codebase. Get a complete quality engineering infrastructure: requirements derived from the actual intent of the code, functional tests traced to those requirements, a three-pass code review protocol, and a multi-model spec audit that catches bugs no single reviewer can find alone.
+ 
+-**Version:** 1.5.0 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
++**Version:** 1.5.3 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
+@@ -17,7 +17,7 @@
+-Create a `docs_gathered/` directory in your project and fill it with anything that describes what the code should do:
++Create a `reference_docs/` directory in your project and fill it with plaintext material that describes what the code should do.
+diff --git a/docs_gathered/29_improvement_axes_and_version_history.md b/docs_gathered/29_improvement_axes_and_version_history.md
+--- a/docs_gathered/29_improvement_axes_and_version_history.md
++++ b/docs_gathered/29_improvement_axes_and_version_history.md
+@@ -68,5 +68,5 @@
+ ### v1.5.x — self-audit foundations (in progress)
+ 
+ - **v1.5.0** — Formal docs pipeline (tier 1/2 cited in REQ manifest, tier 3/4 context-only), `formal_docs_manifest.json`, `requirements_manifest.json`, `bugs_manifest.json`, citation semantic check.
+-- **v1.5.1** (current) — Phases 1–3 operator-flow improvements, Phase 2 observability, Phase 3 invocation flexibility.
++- **v1.5.3** (current) — Skill-as-code project-type classification, four-pass derivation, divergence taxonomy, and current `reference_docs/` intake model.

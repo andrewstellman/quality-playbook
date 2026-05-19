@@ -1,0 +1,13 @@
+--- a/bin/benchmark_lib.py
++++ b/bin/benchmark_lib.py
+@@ -177,7 +177,9 @@ PROTECTED_PREFIXES = (
+     "quality/",
+     "control_prompts/",
+     "previous_runs/",
+     "docs_gathered/",
+ )
++PROTECTED_EXACT = ("AGENTS.md",)
+
+ def _is_protected(path: str) -> bool:
+-    return any(path.startswith(prefix) for prefix in PROTECTED_PREFIXES)
++    return path in PROTECTED_EXACT or any(path.startswith(prefix) for prefix in PROTECTED_PREFIXES)

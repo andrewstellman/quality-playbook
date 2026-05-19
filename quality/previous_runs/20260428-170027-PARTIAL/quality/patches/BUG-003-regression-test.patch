@@ -1,0 +1,22 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,21 @@
++    @unittest.expectedFailure
++    def test_reg_cb3_line_count_threshold_drift(self):
++        """BUG-003 / REQ-004: check_phase_gate("2") must return ok=False for a
++        119-line EXPLORATION.md. SKILL.md:906 requires 120 as the FAIL threshold.
++
++        Source: run_playbook.py:455-457 — threshold is 80 with WARN, not 120 with FAIL.
++        Current: ok=True (WARN only). Desired: ok=False.
++        """
++        with TemporaryDirectory() as tmp:
++            quality = Path(tmp) / "quality"
++            exploration = quality / "EXPLORATION.md"
++            # Write exactly 119 lines — one below the required 120
++            _write(exploration, "line content\n" * 119)
++            result = run_playbook.check_phase_gate(Path(tmp), "2")
++        # Desired: gate fails at 119 lines
++        self.assertFalse(result.ok,
++                         "check_phase_gate('2') must return ok=False for 119-line EXPLORATION.md")
++        self.assertTrue(any("FAIL" in m for m in result.messages),
++                        "Gate message must say FAIL not WARN")

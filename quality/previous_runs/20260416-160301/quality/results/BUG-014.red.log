@@ -1,0 +1,6 @@
+RED
+--- Test output for BUG-014 red phase ---
+Command: test all four heading detection patterns against "#### BUG-001: test"
+Exit code: 1
+Correct (### BUG-): 0, Wrong (## BUG-): 0, Bold (**BUG-): 0, Bullet (- BUG-): 0, Total detected: 0
+Result: #### BUG-001 heading matches 0 out of 4 detection patterns — completely invisible to quality_gate.sh.

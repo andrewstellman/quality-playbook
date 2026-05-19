@@ -1,0 +1,208 @@
+{
+  "schema_version": "1.0",
+  "skill_version": "1.4.5",
+  "date": "2026-04-19",
+  "project": "quality-playbook",
+  "source_run": {
+    "bugs_md_date": "2026-04-18",
+    "total_bugs": 27
+  },
+  "results": [
+    {
+      "id": "BUG-001",
+      "severity": "HIGH",
+      "summary": "skill_version() rejects bold Version form (case-sensitive startswith)",
+      "status": "FIXED",
+      "evidence": "test_reg_cb1_version_parser_divergence passes; bin/benchmark_lib.py:skill_version now delegates to VERSION_PATTERN regex which accepts both `version:` and `**Version:**` forms."
+    },
+    {
+      "id": "BUG-002",
+      "severity": "HIGH",
+      "summary": "SKILL_INSTALL_LOCATIONS missing fourth documented path",
+      "status": "FIXED",
+      "evidence": "test_reg_cb2_missing_fourth_install_path + test_reg_closed_set_drift pass; SKILL_INSTALL_LOCATIONS tuple now carries all four documented paths (benchmark_lib.py:39-44); mechanical/extract_install_locations.py also confirms at audit time."
+    },
+    {
+      "id": "BUG-003",
+      "severity": "HIGH",
+      "summary": "Phase 2 gate threshold 80 WARN vs SKILL.md requirement 120 FAIL",
+      "status": "FIXED",
+      "evidence": "test_reg_cb3_line_count_threshold_drift passes; run_playbook.check_phase_gate phase=2 now returns ok=False with `GATE FAIL Phase 2: EXPLORATION.md is only {n} lines (expected 120+)`. references/orchestrator_protocol.md prose updated to 120 as well."
+    },
+    {
+      "id": "BUG-004",
+      "severity": "HIGH",
+      "summary": "archive_previous_run is non-atomic; control_prompts/ deleted not archived",
+      "status": "FIXED",
+      "evidence": "test_reg_cb4_archive_not_atomic passes; archive_previous_run now stages into previous_runs/<ts>.partial/, copies both quality/ and control_prompts/, then os.renames to previous_runs/<ts>/. control_prompts/ is preserved alongside quality/."
+    },
+    {
+      "id": "BUG-005",
+      "severity": "MEDIUM",
+      "summary": "PROTECTED_PREFIXES missing AGENTS.md",
+      "status": "FIXED",
+      "evidence": "test_reg_cb5_agents_md_cleanup_reversion passes; PROTECTED_EXACT = ('AGENTS.md',) added and _is_protected now checks path equality against that set in addition to the prefix list."
+    },
+    {
+      "id": "BUG-006",
+      "severity": "MEDIUM",
+      "summary": "Phase 3 gate checks only 4 of 9 required Phase 2 artifacts",
+      "status": "FIXED",
+      "evidence": "test_reg_cb6_phase3_gate_incomplete passes; check_phase_gate phase=3 now checks all nine Phase 2 artifacts (REQUIREMENTS/QUALITY/CONTRACTS/RUN_CODE_REVIEW + COVERAGE_MATRIX/COMPLETENESS_REPORT/RUN_INTEGRATION_TESTS/RUN_SPEC_AUDIT/RUN_TDD_TESTS)."
+    },
+    {
+      "id": "BUG-007",
+      "severity": "MEDIUM",
+      "summary": "docs_present accepts .DS_Store / noise files as documentation",
+      "status": "FIXED",
+      "evidence": "test_reg_cb7_docs_present_noise passes; docs_present now requires is_file() AND non-hidden name AND non-zero size."
+    },
+    {
+      "id": "BUG-008",
+      "severity": "MEDIUM",
+      "summary": "Iteration suggestion printed unconditionally even on failure",
+      "status": "FIXED",
+      "evidence": "test_reg_cb8_suggest_after_failure passes; print_suggested_next_command now takes a failures_occurred parameter and emits an inspect-and-re-run hint instead of the normal iteration suggestion on failure. Both execute_run call sites pass through the actual failure count."
+    },
+    {
+      "id": "BUG-009",
+      "severity": "MEDIUM",
+      "summary": "_pkill_fallback missing gh copilot -p pattern",
+      "status": "FIXED",
+      "evidence": "test_reg_cb9_pkill_misses_copilot passes; _pkill_fallback patterns list now includes 'gh copilot -p'."
+    },
+    {
+      "id": "BUG-010",
+      "severity": "LOW",
+      "summary": "check_run_metadata never called; run-metadata entirely ungated",
+      "status": "FIXED",
+      "evidence": "test_reg_cb10_run_metadata_ungated passes; new check_run_metadata() added to quality_gate.py and wired into check_repo; validates run-*.json filename, JSON parseability, and six required fields."
+    },
+    {
+      "id": "BUG-011",
+      "severity": "LOW",
+      "summary": "quality_gate checks EXPLORATION.md existence only, not section structure",
+      "status": "FIXED",
+      "evidence": "test_reg_cb11_exploration_structure_ungated passes; _check_exploration_sections now validates the five mandated SKILL.md section headings (Open Exploration Findings, Quality Risks, Pattern Applicability Matrix, Candidate Bugs for Phase 2, Gate Self-Check)."
+    },
+    {
+      "id": "BUG-012",
+      "severity": "LOW",
+      "summary": "Zero-bug sentinel matches \"zero\" anywhere in prose",
+      "status": "FIXED",
+      "evidence": "test_reg_cb12_zero_bug_loose_regex passes; zero-bug sentinel now requires an anchored `## No confirmed bugs` or `## Zero confirmed bugs` heading (multiline + case-insensitive regex), replacing the free-substring search."
+    },
+    {
+      "id": "BUG-013",
+      "severity": "MEDIUM",
+      "summary": "detect_skill_version uses substring match without line-start anchor",
+      "status": "FIXED",
+      "evidence": "test_reg_version_parser_substring_reject passes; detect_skill_version now uses the same anchored VERSION_PATTERN regex as benchmark_lib.skill_version, so `description: \"The version: 1.4.5 release\"` no longer shadows the real version line."
+    },
+    {
+      "id": "BUG-014",
+      "severity": "MEDIUM",
+      "summary": "validate_iso_date rejects valid ISO 8601 datetimes",
+      "status": "FIXED",
+      "evidence": "test_reg_iso_datetime_grammar passes; validate_iso_date now accepts both date-only (YYYY-MM-DD) and full ISO 8601 datetime (YYYY-MM-DDTHH:MM:SSZ | ±HH:MM) forms."
+    },
+    {
+      "id": "BUG-015",
+      "severity": "MEDIUM",
+      "summary": "_parse_porcelain_path returns quoted paths with surrounding quotes intact",
+      "status": "FIXED",
+      "evidence": "test_reg_porcelain_quoted_paths passes; _parse_porcelain_path now strips surrounding double quotes and unescapes embedded `\\\"` sequences."
+    },
+    {
+      "id": "BUG-016",
+      "severity": "MEDIUM",
+      "summary": "Phase 5 entry gate does not enforce SKILL.md Phase 4 completion requirements",
+      "status": "FIXED",
+      "evidence": "test_reg_sa16_phase5_gate_missing_triage, test_reg_sa16_phase5_gate_missing_phase4_checkbox, test_reg_sa16_phase5_gate_passes_when_complete all pass; check_phase_gate phase=5 now hard-stops when spec_audits/ is missing, has no *triage* file, has no *auditor* files, or PROGRESS.md Phase 4 is not `[x]`."
+    },
+    {
+      "id": "BUG-017",
+      "severity": "MEDIUM",
+      "summary": "Orchestrator prompts omit repo-root SKILL.md from source-checkout bootstrap",
+      "status": "FIXED",
+      "evidence": "test_reg_gap17_agents_support_repo_root_skill passes; both agents/quality-playbook.agent.md and agents/quality-playbook-claude.agent.md now list `SKILL.md` as entry 1 in their install-discovery order."
+    },
+    {
+      "id": "BUG-018",
+      "severity": "MEDIUM",
+      "summary": "General orchestrator contradicts its own phase-execution ownership model",
+      "status": "FIXED",
+      "evidence": "test_reg_gap18_general_agent_keeps_context_ownership_consistent passes; agents/quality-playbook.agent.md Mode 1 now reads `Start a fresh session or context for Phase 1` instead of `Run Phase 1 in the current session`."
+    },
+    {
+      "id": "BUG-019",
+      "severity": "MEDIUM",
+      "summary": "Local pytest shim does not honor documented CLI forms",
+      "status": "FIXED",
+      "evidence": "test_reg_gap19_collect_only_does_not_execute_tests and test_reg_gap19_nodeid_is_handled_without_importerror both pass; pytest/__main__.py now parses --collect-only (emits tests without running) and rejects `::` node IDs with a clear stderr message + exit 2 instead of ImportError."
+    },
+    {
+      "id": "BUG-020",
+      "severity": "HIGH",
+      "summary": "Missing docs block code-only runs",
+      "status": "FIXED",
+      "evidence": "test_reg_unfiltered20_phase_mode_warns_not_skips and test_reg_unfiltered20_single_pass_warns_not_skips pass; both run_one_phased and run_one_singlepass now emit a WARN and continue with code-only analysis when docs_gathered/ is absent, rather than SKIPping with exit 1."
+    },
+    {
+      "id": "BUG-021",
+      "severity": "MEDIUM",
+      "summary": "Runner-generated prompts hardcode one skill-install layout",
+      "status": "FIXED",
+      "evidence": "test_reg_unfiltered21_phase_prompt_mentions_fallback_layouts and test_reg_unfiltered21_single_pass_prompt_mentions_fallback_layouts both pass; new SKILL_FALLBACK_GUIDE constant fronts phase_1, single_pass, and iteration prompts and enumerates all four documented install paths."
+    },
+    {
+      "id": "BUG-022",
+      "severity": "HIGH",
+      "summary": "Child runner failures are reported as successful phases/runs",
+      "status": "FIXED",
+      "evidence": "test_reg_unfiltered22_run_one_phase_propagates_child_failure and test_reg_unfiltered22_run_one_singlepass_propagates_child_failure both pass; run_one_phase and run_one_singlepass now capture run_prompt's exit code and ABORT on non-zero."
+    },
+    {
+      "id": "BUG-023",
+      "severity": "MEDIUM",
+      "summary": "quality_gate.py misclassifies the bootstrap repo because of fixture repos",
+      "status": "FIXED",
+      "evidence": "test_reg_unfiltered23_language_detection_ignores_fixture_repos passes; detect_project_language's excluded-directory set now contains `repos`, so nested benchmark fixtures don't flip the self-audit repo's detected language."
+    },
+    {
+      "id": "BUG-024",
+      "severity": "MEDIUM",
+      "summary": "File-existence gate omits valid functional-test filenames",
+      "status": "FIXED",
+      "evidence": "test_reg_parity24_file_existence_accepts_functional_test_go passes; check_file_existence now accepts functional_test.* alongside the other four documented naming variants."
+    },
+    {
+      "id": "BUG-025",
+      "severity": "MEDIUM",
+      "summary": "Extension checker only validates `test_functional.*`",
+      "status": "FIXED",
+      "evidence": "test_reg_parity25_extension_check_accepts_functionaltest_java passes; check_test_file_extension walks the full documented naming matrix and reports the discovered filename rather than hardcoding test_functional.{ext}."
+    },
+    {
+      "id": "BUG-026",
+      "severity": "MEDIUM",
+      "summary": "Helper functional-test discovery accepts undocumented `test_functional_test.*`",
+      "status": "FIXED",
+      "evidence": "test_reg_adv26_final_artifact_gaps_rejects_test_functional_test_alias passes; FUNCTIONAL_TEST_PATTERNS no longer contains the undocumented test_functional_test.* alias."
+    },
+    {
+      "id": "BUG-027",
+      "severity": "LOW",
+      "summary": "Helper summary counts non-canonical regression aliases as coverage",
+      "status": "FIXED",
+      "evidence": "test_reg_adv27_summary_ignores_noncanonical_regression_aliases passes; REGRESSION_TEST_PATTERNS narrowed to the single canonical test_regression.* entry matching the SKILL.md artifact contract."
+    }
+  ],
+  "summary": {
+    "total": 27,
+    "fixed": 27,
+    "partially_fixed": 0,
+    "still_open": 0,
+    "inconclusive": 0
+  }
+}

@@ -1,0 +1,38 @@
+RED
+Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_009_skill_detection_uses_documented_four_path_order
+
+Traceback (most recent call last):
+  File "<stdin>", line 20, in <module>
+  File "/Users/andrewstellman/Documents/QPB/quality/test_regression.py", line 161, in test_bug_009_skill_detection_uses_documented_four_path_order
+    self.assertEqual(
+    ~~~~~~~~~~~~~~~~^
+        tuple(str(path) for path in benchmark_lib.SKILL_INSTALL_LOCATIONS),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+        ),
+        ^^
+    )
+    ^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 907, in assertEqual
+    assertion_func(first, second, msg=msg)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 1124, in assertTupleEqual
+    self.assertSequenceEqual(tuple1, tuple2, msg, seq_type=tuple)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 1095, in assertSequenceEqual
+    self.fail(msg)
+    ~~~~~~~~~^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 732, in fail
+    raise self.failureException(msg)
+AssertionError: Tuples differ: ('.github/skills/SKILL.md', '.claude/skills[79 chars].md') != ('SKILL.md', '.claude/skills/quality-playbo[79 chars].md')
+
+First differing element 0:
+'.github/skills/SKILL.md'
+'SKILL.md'
+
+- ('.github/skills/SKILL.md',
++ ('SKILL.md',
+   '.claude/skills/quality-playbook/SKILL.md',
+-  'SKILL.md',
++  '.github/skills/SKILL.md',
+   '.github/skills/quality-playbook/SKILL.md')

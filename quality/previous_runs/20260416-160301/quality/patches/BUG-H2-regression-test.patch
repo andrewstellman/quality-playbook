@@ -1,0 +1,58 @@
+--- a/quality/test_regression.sh
++++ b/quality/test_regression.sh
+@@ -57,6 +57,60 @@ test_BUG_H1_json_has_key_false_positive() {
+     fi
+ }
+
++# ---------------------------------------------------------------------------
++# BUG-H2: Unquoted array expansion corrupts repository paths containing spaces
++#
++# The bug: REPO_DIRS=(${resolved[@]+"${resolved[@]}"}) at line 697 is unquoted.
++# Word-splitting turns "/path/with spaces/repo" into two elements.
++# Skip guard: set BUG_SKIP_H2=0 to enable (default: skip)
++# Remove this guard and re-run after applying quality/patches/BUG-H2-fix.patch
++# ---------------------------------------------------------------------------
++test_BUG_H2_array_expansion_corrupts_spaces() {
++    if [ "${BUG_SKIP_H2:-1}" = "1" ]; then
++        echo "  SKIP: BUG-H2 skip guard active (set BUG_SKIP_H2=0 to run)"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    # Simulate the buggy array reconstruction from quality_gate.sh:697
++    # resolved array contains a path with spaces (common on macOS)
++    local resolved=("/Users/joe/My Projects/my-repo")
++
++    # Buggy reconstruction (unquoted outer expansion):
++    local REPO_DIRS_BUGGY
++    REPO_DIRS_BUGGY=(${resolved[@]+"${resolved[@]}"})
++
++    # Fixed reconstruction (quoted outer expansion):
++    local REPO_DIRS_FIXED
++    REPO_DIRS_FIXED=("${resolved[@]+"${resolved[@]}"}")
++
++    local buggy_count="${#REPO_DIRS_BUGGY[@]}"
++    local fixed_count="${#REPO_DIRS_FIXED[@]}"
++
++    if [ "$buggy_count" -ne 1 ]; then
++        # Bug is present — path with spaces was split into multiple elements
++        echo "  BUG CONFIRMED: path with spaces split into ${buggy_count} elements (expected 1)"
++        echo "  Elements: ${REPO_DIRS_BUGGY[*]}"
++        return 1  # Test FAILS on unpatched code (red phase)
++    fi
++
++    # This test verifies the fixed behavior exists — if the buggy count IS 1
++    # then either the test environment doesn't trigger word-splitting (unusual)
++    # or the bug was already fixed. Report the fixed count as evidence.
++    if [ "$fixed_count" -eq 1 ] && [ "${REPO_DIRS_FIXED[0]}" = "/Users/joe/My Projects/my-repo" ]; then
++        echo "  Fixed reconstruction: ${fixed_count} element(s), value preserved correctly"
++        return 0
++    else
++        echo "  UNEXPECTED: fixed reconstruction also failed (${fixed_count} elements)"
++        return 1
++    fi
++}
++
+ # Run tests
+ echo "=== Regression Tests: quality-playbook ==="
+ if [ $# -gt 0 ]; then

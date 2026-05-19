@@ -1,0 +1,14 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,13 @@
++    @unittest.expectedFailure
++    def test_reg_cb5_agents_md_cleanup_reversion(self):
++        """BUG-005 / REQ-006: lib._is_protected("AGENTS.md") must return True.
++        AGENTS.md is a required artifact that cleanup_repo must not revert.
++
++        Source: bin/benchmark_lib.py:177-182 — AGENTS.md not in PROTECTED_PREFIXES.
++        Current: returns False. Desired: returns True.
++        """
++        result = lib._is_protected("AGENTS.md")
++        self.assertTrue(result,
++                        "lib._is_protected('AGENTS.md') must return True; AGENTS.md is a required artifact")

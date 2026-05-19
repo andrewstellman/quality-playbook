@@ -1,0 +1,203 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-04-27T20:23:27Z",
+  "phase": "4",
+  "phase_3_inbox_ref": "pass_d_council_inbox.json",
+  "items": [
+    {
+      "item_type": "divergence-internal-prose",
+      "divergence_id": "DIV-INT-001",
+      "bug_id": "BUG-PHASE4-001",
+      "auto_disposition": null,
+      "rationale": "Two records in the same section claim different counts for 'req': REQ-PHASE3-169 says 2, REQ-PHASE3-171 says 5.",
+      "context_excerpts": [
+        "Every REQ with tier \u2208 {1, 2} carries a citation block; the block includes 'document', 'document_sha256', at least one of 'section'/'line', and 'citation_excerpt'; any Tier 1/2 REQ missing any of these fields is non-conformant.",
+        "Every Tier 3 REQ description contains a 'file:line' citation; no Tier 3/4/5 REQ carries a 'citation' block; the citation block is exclusive to Tier 1 and Tier 2."
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::16"
+    },
+    {
+      "item_type": "divergence-internal-prose",
+      "divergence_id": "DIV-INT-002",
+      "bug_id": "BUG-PHASE4-002",
+      "auto_disposition": null,
+      "rationale": "Two records in the same section claim different counts for 'req': REQ-PHASE3-171 says 5, REQ-PHASE3-212 says 2.",
+      "context_excerpts": [
+        "Every Tier 3 REQ description contains a 'file:line' citation; no Tier 3/4/5 REQ carries a 'citation' block; the citation block is exclusive to Tier 1 and Tier 2.",
+        "quality_gate.py re-runs citation_verifier at gate time; any Tier 1/2 REQ whose stored citation_excerpt differs even one byte from the fresh extraction output is rejected by the gate."
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::16"
+    },
+    {
+      "item_type": "divergence-internal-prose",
+      "divergence_id": "DIV-INT-003",
+      "bug_id": "BUG-PHASE4-003",
+      "auto_disposition": null,
+      "rationale": "Two records in the same section claim different counts for 'req': REQ-PHASE3-171 says 5, REQ-PHASE3-217 says 2.",
+      "context_excerpts": [
+        "Every Tier 3 REQ description contains a 'file:line' citation; no Tier 3/4/5 REQ carries a 'citation' block; the citation block is exclusive to Tier 1 and Tier 2.",
+        "- **Conditions of satisfaction**: Specific, testable scenarios that prove this requirement is met. Include the happy path, edge cases, and failure modes. Each individual contract from Phase A that was grouped into this requirement becomes a condition of satisfaction.\n- **Alternative paths**: Multiple code paths, modes, or entry points that must all satisfy the requirement. Alternative paths are where bugs hide.\n- **Use cases**: `use_cases[]` \u2014 list of `UC-NN` IDs this REQ participates in. One-way forward link.\n- **References**: Cite the source \u2014 spec section, ChangeLog entry, config field definition, source comment, issue number, or domain knowledge. For Tier 1/2 REQs the `citation` block carries the authoritative locator; free-form references are supplementary.\n- **Specificity**: **specific** (testable \u2014 must have conditions of satisfaction that a code reviewer can check against a specific code location or behavior; this is the default and counts toward coverage metrics) or **architectural-guidance** (not testable against individual code paths \u2014 covers cross-cutting properties like \"remain lightweight and stdlib-compatible\" or \"no_std support\"; informs the quality constitution but is not counted in coverage metrics; most projects should have 0\u20133 architectural-guidance requirements \u2014 more than 3 triggers the mandatory self-check below). The category \"directional\" is retired. Any requirement that would have been \"directional\" must either be made specific (with testable conditions) or explicitly classified as architectural-guidance."
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::16"
+    },
+    {
+      "item_type": "divergence-internal-prose",
+      "divergence_id": "DIV-INT-004",
+      "bug_id": "BUG-PHASE4-004",
+      "auto_disposition": null,
+      "rationale": "Two records in the same section claim different counts for 'section': REQ-PHASE3-262 says 3, REQ-PHASE3-265 says 4.",
+      "context_excerpts": [
+        "2. `## Open Exploration Findings` \u2014 must exist verbatim\n3. `## Quality Risks` \u2014 must exist verbatim\n4. `## Pattern Applicability Matrix` \u2014 must exist verbatim\n5. At least 3 sections starting with `## Pattern Deep Dive \u2014 ` \u2014 must exist verbatim\n6. `## Candidate Bugs for Phase 2` \u2014 must exist verbatim\n7. `## Gate Self-Check` \u2014 must exist (proves the Phase 1 gate was run)\n8. `quality/PROGRESS.md` exists and its Phase 1 line is marked `[x]` \u2014 proves Phase 1 was completed, not just started\n9. The `## Open Exploration Findings` section contains at least 8 concrete bug hypotheses \u2014 count lines with file:line citations\n10. At least 3 findings in `## Open Exploration Findings` trace behavior across 2+ functions \u2014 look for multi-location traces\n11. Between 3 and 4 patterns are marked `FULL` in `## Pattern Applicability Matrix` \u2014 count FULL entries",
+        "5. **Open-exploration depth check:** At least 3 findings in `## Open Exploration Findings` must trace a behavior across 2 or more functions or 2 concrete code locations. A list of isolated single-function suspicions is not sufficient depth.\n6. A section titled **exactly** `## Quality Risks` exists and contains at least 5 domain-driven failure scenarios ranked by priority. Each scenario must: (a) name a specific function, file, and line, (b) describe a domain-specific edge case or failure mode, and (c) explain why the code produces wrong behavior. These must come from domain knowledge about what goes wrong in systems like this one \u2014 not from structural analysis of the code alone. A section that lists defensive patterns the code already has (things the code does RIGHT) does not satisfy this gate. A section that lists risky modules without specific failure scenarios does not satisfy this gate. A section that concludes the library is mature and unlikely to have basic bugs does not satisfy this gate.\n7. A section titled **exactly** `## Pattern Applicability Matrix` exists and evaluates all six patterns from `exploration_patterns.md`, marking each as `FULL` or `SKIP` with target modules and codebase-specific rationale.\n8. Between 3 and 4 patterns (inclusive) are marked `FULL` in the applicability matrix.\n9. There are between 3 and 4 sections (inclusive) whose titles begin with `## Pattern Deep Dive \u2014 `. Each must contain concrete file:line evidence, not just pattern-name placeholders. The count must match the number of `FULL` patterns in the matrix.\n10. **Pattern depth check:** At least 2 of the pattern deep-dive sections must trace a code path across 2 or more functions. A section that says \"function X at file:line has a gap\" is a surface finding. A section that says \"function X at file:line calls function Y at file:line, which does A but not B; compare with function Z which does both\" is a depth finding.\n11. A section titled **exactly** `## Candidate Bugs for Phase 2` exists and contains at least 4 prioritized bug hypotheses with file:line references, the stage that surfaced each one (open exploration, quality risks, or pattern), and what the code review should look for.\n12. **Ensemble balance check:** At least 2 candidate bugs must originate from open exploration or quality risks, and at least 1 must originate from or be materially strengthened by a pattern deep dive. This ensures both domain-knowledge and structural-analysis findings flow into Phase 2."
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::18"
+    },
+    {
+      "item_type": "divergence-internal-prose",
+      "divergence_id": "DIV-INT-005",
+      "bug_id": "BUG-PHASE4-005",
+      "auto_disposition": null,
+      "rationale": "Two records in the same section claim different counts for 'section': REQ-PHASE3-262 says 3, REQ-PHASE3-274 says 4.",
+      "context_excerpts": [
+        "2. `## Open Exploration Findings` \u2014 must exist verbatim\n3. `## Quality Risks` \u2014 must exist verbatim\n4. `## Pattern Applicability Matrix` \u2014 must exist verbatim\n5. At least 3 sections starting with `## Pattern Deep Dive \u2014 ` \u2014 must exist verbatim\n6. `## Candidate Bugs for Phase 2` \u2014 must exist verbatim\n7. `## Gate Self-Check` \u2014 must exist (proves the Phase 1 gate was run)\n8. `quality/PROGRESS.md` exists and its Phase 1 line is marked `[x]` \u2014 proves Phase 1 was completed, not just started\n9. The `## Open Exploration Findings` section contains at least 8 concrete bug hypotheses \u2014 count lines with file:line citations\n10. At least 3 findings in `## Open Exploration Findings` trace behavior across 2+ functions \u2014 look for multi-location traces\n11. Between 3 and 4 patterns are marked `FULL` in `## Pattern Applicability Matrix` \u2014 count FULL entries",
+        "7. A section titled **exactly** `## Pattern Applicability Matrix` exists and evaluates all six patterns from `exploration_patterns.md`, marking each as `FULL` or `SKIP` with target modules and codebase-specific rationale.\n8. Between 3 and 4 patterns (inclusive) are marked `FULL` in the applicability matrix.\n9. There are between 3 and 4 sections (inclusive) whose titles begin with `## Pattern Deep Dive \u2014 `. Each must contain concrete file:line evidence, not just pattern-name placeholders. The count must match the number of `FULL` patterns in the matrix.\n10. **Pattern depth check:** At least 2 of the pattern deep-dive sections must trace a code path across 2 or more functions. A section that says \"function X at file:line has a gap\" is a surface finding. A section that says \"function X at file:line calls function Y at file:line, which does A but not B; compare with function Z which does both\" is a depth finding.\n11. A section titled **exactly** `## Candidate Bugs for Phase 2` exists and contains at least 4 prioritized bug hypotheses with file:line references, the stage that surfaced each one (open exploration, quality risks, or pattern), and what the code review should look for.\n12. **Ensemble balance check:** At least 2 candidate bugs must originate from open exploration or quality risks, and at least 1 must originate from or be materially strengthened by a pattern deep dive. This ensures both domain-knowledge and structural-analysis findings flow into Phase 2."
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::18"
+    },
+    {
+      "item_type": "divergence-internal-prose",
+      "divergence_id": "DIV-INT-006",
+      "bug_id": "BUG-PHASE4-006",
+      "auto_disposition": null,
+      "rationale": "Two records in the same section claim different counts for 'section': REQ-PHASE3-262 says 3, REQ-PHASE3-275 says 4.",
+      "context_excerpts": [
+        "2. `## Open Exploration Findings` \u2014 must exist verbatim\n3. `## Quality Risks` \u2014 must exist verbatim\n4. `## Pattern Applicability Matrix` \u2014 must exist verbatim\n5. At least 3 sections starting with `## Pattern Deep Dive \u2014 ` \u2014 must exist verbatim\n6. `## Candidate Bugs for Phase 2` \u2014 must exist verbatim\n7. `## Gate Self-Check` \u2014 must exist (proves the Phase 1 gate was run)\n8. `quality/PROGRESS.md` exists and its Phase 1 line is marked `[x]` \u2014 proves Phase 1 was completed, not just started\n9. The `## Open Exploration Findings` section contains at least 8 concrete bug hypotheses \u2014 count lines with file:line citations\n10. At least 3 findings in `## Open Exploration Findings` trace behavior across 2+ functions \u2014 look for multi-location traces\n11. Between 3 and 4 patterns are marked `FULL` in `## Pattern Applicability Matrix` \u2014 count FULL entries",
+        "7. A section titled **exactly** `## Pattern Applicability Matrix` exists and evaluates all six patterns from `exploration_patterns.md`, marking each as `FULL` or `SKIP` with target modules and codebase-specific rationale.\n8. Between 3 and 4 patterns (inclusive) are marked `FULL` in the applicability matrix.\n9. There are between 3 and 4 sections (inclusive) whose titles begin with `## Pattern Deep Dive \u2014 `. Each must contain concrete file:line evidence, not just pattern-name placeholders. The count must match the number of `FULL` patterns in the matrix.\n10. **Pattern depth check:** At least 2 of the pattern deep-dive sections must trace a code path across 2 or more functions. A section that says \"function X at file:line has a gap\" is a surface finding. A section that says \"function X at file:line calls function Y at file:line, which does A but not B; compare with function Z which does both\" is a depth finding.\n11. A section titled **exactly** `## Candidate Bugs for Phase 2` exists and contains at least 4 prioritized bug hypotheses with file:line references, the stage that surfaced each one (open exploration, quality risks, or pattern), and what the code review should look for.\n12. **Ensemble balance check:** At least 2 candidate bugs must originate from open exploration or quality risks, and at least 1 must originate from or be materially strengthened by a pattern deep dive. This ensures both domain-knowledge and structural-analysis findings flow into Phase 2."
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::18"
+    },
+    {
+      "item_type": "divergence-internal-prose",
+      "divergence_id": "DIV-INT-007",
+      "bug_id": "BUG-PHASE4-007",
+      "auto_disposition": null,
+      "rationale": "Two records in the same section claim different counts for 'section': REQ-PHASE3-262 says 3, REQ-PHASE3-276 says 4.",
+      "context_excerpts": [
+        "2. `## Open Exploration Findings` \u2014 must exist verbatim\n3. `## Quality Risks` \u2014 must exist verbatim\n4. `## Pattern Applicability Matrix` \u2014 must exist verbatim\n5. At least 3 sections starting with `## Pattern Deep Dive \u2014 ` \u2014 must exist verbatim\n6. `## Candidate Bugs for Phase 2` \u2014 must exist verbatim\n7. `## Gate Self-Check` \u2014 must exist (proves the Phase 1 gate was run)\n8. `quality/PROGRESS.md` exists and its Phase 1 line is marked `[x]` \u2014 proves Phase 1 was completed, not just started\n9. The `## Open Exploration Findings` section contains at least 8 concrete bug hypotheses \u2014 count lines with file:line citations\n10. At least 3 findings in `## Open Exploration Findings` trace behavior across 2+ functions \u2014 look for multi-location traces\n11. Between 3 and 4 patterns are marked `FULL` in `## Pattern Applicability Matrix` \u2014 count FULL entries",
+        "7. A section titled **exactly** `## Pattern Applicability Matrix` exists and evaluates all six patterns from `exploration_patterns.md`, marking each as `FULL` or `SKIP` with target modules and codebase-specific rationale.\n8. Between 3 and 4 patterns (inclusive) are marked `FULL` in the applicability matrix.\n9. There are between 3 and 4 sections (inclusive) whose titles begin with `## Pattern Deep Dive \u2014 `. Each must contain concrete file:line evidence, not just pattern-name placeholders. The count must match the number of `FULL` patterns in the matrix.\n10. **Pattern depth check:** At least 2 of the pattern deep-dive sections must trace a code path across 2 or more functions. A section that says \"function X at file:line has a gap\" is a surface finding. A section that says \"function X at file:line calls function Y at file:line, which does A but not B; compare with function Z which does both\" is a depth finding.\n11. A section titled **exactly** `## Candidate Bugs for Phase 2` exists and contains at least 4 prioritized bug hypotheses with file:line references, the stage that surfaced each one (open exploration, quality risks, or pattern), and what the code review should look for.\n12. **Ensemble balance check:** At least 2 candidate bugs must originate from open exploration or quality risks, and at least 1 must originate from or be materially strengthened by a pattern deep dive. This ensures both domain-knowledge and structural-analysis findings flow into Phase 2."
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::18"
+    },
+    {
+      "item_type": "divergence-internal-prose",
+      "divergence_id": "DIV-INT-008",
+      "bug_id": "BUG-PHASE4-008",
+      "auto_disposition": null,
+      "rationale": "Two records in the same section claim different counts for 'section': REQ-PHASE3-262 says 3, REQ-PHASE3-278 says 4.",
+      "context_excerpts": [
+        "2. `## Open Exploration Findings` \u2014 must exist verbatim\n3. `## Quality Risks` \u2014 must exist verbatim\n4. `## Pattern Applicability Matrix` \u2014 must exist verbatim\n5. At least 3 sections starting with `## Pattern Deep Dive \u2014 ` \u2014 must exist verbatim\n6. `## Candidate Bugs for Phase 2` \u2014 must exist verbatim\n7. `## Gate Self-Check` \u2014 must exist (proves the Phase 1 gate was run)\n8. `quality/PROGRESS.md` exists and its Phase 1 line is marked `[x]` \u2014 proves Phase 1 was completed, not just started\n9. The `## Open Exploration Findings` section contains at least 8 concrete bug hypotheses \u2014 count lines with file:line citations\n10. At least 3 findings in `## Open Exploration Findings` trace behavior across 2+ functions \u2014 look for multi-location traces\n11. Between 3 and 4 patterns are marked `FULL` in `## Pattern Applicability Matrix` \u2014 count FULL entries",
+        "9. There are between 3 and 4 sections (inclusive) whose titles begin with `## Pattern Deep Dive \u2014 `. Each must contain concrete file:line evidence, not just pattern-name placeholders. The count must match the number of `FULL` patterns in the matrix.\n10. **Pattern depth check:** At least 2 of the pattern deep-dive sections must trace a code path across 2 or more functions. A section that says \"function X at file:line has a gap\" is a surface finding. A section that says \"function X at file:line calls function Y at file:line, which does A but not B; compare with function Z which does both\" is a depth finding.\n11. A section titled **exactly** `## Candidate Bugs for Phase 2` exists and contains at least 4 prioritized bug hypotheses with file:line references, the stage that surfaced each one (open exploration, quality risks, or pattern), and what the code review should look for.\n12. **Ensemble balance check:** At least 2 candidate bugs must originate from open exploration or quality risks, and at least 1 must originate from or be materially strengthened by a pattern deep dive. This ensures both domain-knowledge and structural-analysis findings flow into Phase 2."
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::18"
+    },
+    {
+      "item_type": "divergence-internal-prose",
+      "divergence_id": "DIV-INT-009",
+      "bug_id": "BUG-PHASE4-009",
+      "auto_disposition": null,
+      "rationale": "Two records in the same section claim different counts for 'section': REQ-PHASE3-262 says 3, REQ-PHASE3-279 says 4.",
+      "context_excerpts": [
+        "2. `## Open Exploration Findings` \u2014 must exist verbatim\n3. `## Quality Risks` \u2014 must exist verbatim\n4. `## Pattern Applicability Matrix` \u2014 must exist verbatim\n5. At least 3 sections starting with `## Pattern Deep Dive \u2014 ` \u2014 must exist verbatim\n6. `## Candidate Bugs for Phase 2` \u2014 must exist verbatim\n7. `## Gate Self-Check` \u2014 must exist (proves the Phase 1 gate was run)\n8. `quality/PROGRESS.md` exists and its Phase 1 line is marked `[x]` \u2014 proves Phase 1 was completed, not just started\n9. The `## Open Exploration Findings` section contains at least 8 concrete bug hypotheses \u2014 count lines with file:line citations\n10. At least 3 findings in `## Open Exploration Findings` trace behavior across 2+ functions \u2014 look for multi-location traces\n11. Between 3 and 4 patterns are marked `FULL` in `## Pattern Applicability Matrix` \u2014 count FULL entries",
+        "9. There are between 3 and 4 sections (inclusive) whose titles begin with `## Pattern Deep Dive \u2014 `. Each must contain concrete file:line evidence, not just pattern-name placeholders. The count must match the number of `FULL` patterns in the matrix.\n10. **Pattern depth check:** At least 2 of the pattern deep-dive sections must trace a code path across 2 or more functions. A section that says \"function X at file:line has a gap\" is a surface finding. A section that says \"function X at file:line calls function Y at file:line, which does A but not B; compare with function Z which does both\" is a depth finding.\n11. A section titled **exactly** `## Candidate Bugs for Phase 2` exists and contains at least 4 prioritized bug hypotheses with file:line references, the stage that surfaced each one (open exploration, quality risks, or pattern), and what the code review should look for.\n12. **Ensemble balance check:** At least 2 candidate bugs must originate from open exploration or quality risks, and at least 1 must originate from or be materially strengthened by a pattern deep dive. This ensures both domain-knowledge and structural-analysis findings flow into Phase 2."
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::18"
+    },
+    {
+      "item_type": "divergence-internal-prose",
+      "divergence_id": "DIV-INT-010",
+      "bug_id": "BUG-PHASE4-010",
+      "auto_disposition": null,
+      "rationale": "Two records in the same section claim different counts for 'section': REQ-PHASE3-262 says 3, REQ-PHASE3-288 says 4.",
+      "context_excerpts": [
+        "2. `## Open Exploration Findings` \u2014 must exist verbatim\n3. `## Quality Risks` \u2014 must exist verbatim\n4. `## Pattern Applicability Matrix` \u2014 must exist verbatim\n5. At least 3 sections starting with `## Pattern Deep Dive \u2014 ` \u2014 must exist verbatim\n6. `## Candidate Bugs for Phase 2` \u2014 must exist verbatim\n7. `## Gate Self-Check` \u2014 must exist (proves the Phase 1 gate was run)\n8. `quality/PROGRESS.md` exists and its Phase 1 line is marked `[x]` \u2014 proves Phase 1 was completed, not just started\n9. The `## Open Exploration Findings` section contains at least 8 concrete bug hypotheses \u2014 count lines with file:line citations\n10. At least 3 findings in `## Open Exploration Findings` trace behavior across 2+ functions \u2014 look for multi-location traces\n11. Between 3 and 4 patterns are marked `FULL` in `## Pattern Applicability Matrix` \u2014 count FULL entries",
+        "3. The Derived Requirements section contains at least one REQ-NNN with specific file paths and function names \u2014 not abstract subsystem descriptions.\n4. A section titled **exactly** `## Open Exploration Findings` exists and contains at least 8 concrete bug hypotheses or suspicious findings, each with a file path and line number. These must come from domain-driven investigation, not just from applying patterns. At least 4 must reference different modules or subsystems.\n5. **Open-exploration depth check:** At least 3 findings in `## Open Exploration Findings` must trace a behavior across 2 or more functions or 2 concrete code locations. A list of isolated single-function suspicions is not sufficient depth.\n6. A section titled **exactly** `## Quality Risks` exists and contains at least 5 domain-driven failure scenarios ranked by priority. Each scenario must: (a) name a specific function, file, and line, (b) describe a domain-specific edge case or failure mode, and (c) explain why the code produces wrong behavior. These must come from domain knowledge about what goes wrong in systems like this one \u2014 not from structural analysis of the code alone. A section that lists defensive patterns the code already has (things the code does RIGHT) does not satisfy this gate. A section that lists risky modules without specific failure scenarios does not satisfy this gate. A section that concludes the library is mature and unlikely to have basic bugs does not satisfy this gate.\n7. A section titled **exactly** `## Pattern Applicability Matrix` exists and evaluates all six patterns from `exploration_patterns.md`, marking each as `FULL` or `SKIP` with target modules and codebase-specific rationale.\n8. Between 3 and 4 patterns (inclusive) are marked `FULL` in the applicability matrix.\n9. There are between 3 and 4 sections (inclusive) whose titles begin with `## Pattern Deep Dive \u2014 `. Each must contain concrete file:line evidence, not just pattern-name placeholders. The count must match the number of `FULL` patterns in the matrix.\n10. **Pattern depth check:** At least 2 of the pattern deep-dive sections must trace a code path across 2 or more functions. A section that says \"function X at file:line has a gap\" is a surface finding. A section that says \"function X at file:line calls function Y at file:line, which does A but not B; compare with function Z which does both\" is a depth finding.\n11. A section titled **exactly** `## Candidate Bugs for Phase 2` exists and contains at least 4 prioritized bug hypotheses with file:line references, the stage that surfaced each one (open exploration, quality risks, or pattern), and what the code review should look for.\n12. **Ensemble balance check:** At least 2 candidate bugs must originate from open exploration or quality risks, and at least 1 must originate from or be materially strengthened by a pattern deep dive. This ensures both domain-knowledge and structural-analysis findings flow into Phase 2."
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::18"
+    },
+    {
+      "item_type": "divergence-internal-prose",
+      "divergence_id": "DIV-INT-011",
+      "bug_id": "BUG-PHASE4-011",
+      "auto_disposition": null,
+      "rationale": "Two records in the same section claim different counts for 'section': REQ-PHASE3-262 says 3, REQ-PHASE3-299 says 4.",
+      "context_excerpts": [
+        "2. `## Open Exploration Findings` \u2014 must exist verbatim\n3. `## Quality Risks` \u2014 must exist verbatim\n4. `## Pattern Applicability Matrix` \u2014 must exist verbatim\n5. At least 3 sections starting with `## Pattern Deep Dive \u2014 ` \u2014 must exist verbatim\n6. `## Candidate Bugs for Phase 2` \u2014 must exist verbatim\n7. `## Gate Self-Check` \u2014 must exist (proves the Phase 1 gate was run)\n8. `quality/PROGRESS.md` exists and its Phase 1 line is marked `[x]` \u2014 proves Phase 1 was completed, not just started\n9. The `## Open Exploration Findings` section contains at least 8 concrete bug hypotheses \u2014 count lines with file:line citations\n10. At least 3 findings in `## Open Exploration Findings` trace behavior across 2+ functions \u2014 look for multi-location traces\n11. Between 3 and 4 patterns are marked `FULL` in `## Pattern Applicability Matrix` \u2014 count FULL entries",
+        "2. `quality/PROGRESS.md` exists and marks Phase 1 complete.\n3. The Derived Requirements section contains at least one REQ-NNN with specific file paths and function names \u2014 not abstract subsystem descriptions.\n4. A section titled **exactly** `## Open Exploration Findings` exists and contains at least 8 concrete bug hypotheses or suspicious findings, each with a file path and line number. These must come from domain-driven investigation, not just from applying patterns. At least 4 must reference different modules or subsystems.\n5. **Open-exploration depth check:** At least 3 findings in `## Open Exploration Findings` must trace a behavior across 2 or more functions or 2 concrete code locations. A list of isolated single-function suspicions is not sufficient depth.\n6. A section titled **exactly** `## Quality Risks` exists and contains at least 5 domain-driven failure scenarios ranked by priority. Each scenario must: (a) name a specific function, file, and line, (b) describe a domain-specific edge case or failure mode, and (c) explain why the code produces wrong behavior. These must come from domain knowledge about what goes wrong in systems like this one \u2014 not from structural analysis of the code alone. A section that lists defensive patterns the code already has (things the code does RIGHT) does not satisfy this gate. A section that lists risky modules without specific failure scenarios does not satisfy this gate. A section that concludes the library is mature and unlikely to have basic bugs does not satisfy this gate.\n7. A section titled **exactly** `## Pattern Applicability Matrix` exists and evaluates all six patterns from `exploration_patterns.md`, marking each as `FULL` or `SKIP` with target modules and codebase-specific rationale.\n8. Between 3 and 4 patterns (inclusive) are marked `FULL` in the applicability matrix.\n9. There are between 3 and 4 sections (inclusive) whose titles begin with `## Pattern Deep Dive \u2014 `. Each must contain concrete file:line evidence, not just pattern-name placeholders. The count must match the number of `FULL` patterns in the matrix.\n10. **Pattern depth check:** At least 2 of the pattern deep-dive sections must trace a code path across 2 or more functions. A section that says \"function X at file:line has a gap\" is a surface finding. A section that says \"function X at file:line calls function Y at file:line, which does A but not B; compare with function Z which does both\" is a depth finding.\n11. A section titled **exactly** `## Candidate Bugs for Phase 2` exists and contains at least 4 prioritized bug hypotheses with file:line references, the stage that surfaced each one (open exploration, quality risks, or pattern), and what the code review should look for."
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::18"
+    },
+    {
+      "item_type": "divergence-prose-to-code",
+      "divergence_id": "DIV-P2C-001",
+      "bug_id": "BUG-PHASE4-012",
+      "auto_disposition": null,
+      "rationale": "LLM verdict 'unclear' for REQ REQ-PHASE3-065 against bin/run_playbook.py: The code region shows `bin/run_playbook.py` exists as a benchmark runner, confirming the prose's reference to it, but the excerpt does not show whether Step 0's question is skipped when running through this runner \u2014 the relevant logic (if any) is not visible in the truncated code provided.",
+      "context_excerpts": [
+        "**Autonomous fallback:** When running in benchmark mode, via `bin/run_playbook.py` (benchmark runner, not shipped with the skill), or without user interaction (e.g., `--single-pass`), skip Step 0's question and proceed directly to Step 1. If chat history folders are visible in the project tree (e.g., `AI Chat History/`, `.chat_exports/`), scan them without asking. If no chat history is found, proceed \u2014 do not block waiting for a response that won't come.",
+        "bin/run_playbook.py"
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::5"
+    },
+    {
+      "item_type": "divergence-prose-to-code",
+      "divergence_id": "DIV-P2C-002",
+      "bug_id": "BUG-PHASE4-013",
+      "auto_disposition": null,
+      "rationale": "LLM verdict 'unclear' for REQ REQ-PHASE3-119 against bin/reference_docs_ingest.py: The code region shows `reference_docs_ingest.py` which writes `formal_docs_manifest.json`, consistent with part of the claim, but the excerpt is truncated and does not show whether the script validates the existence of all the other files listed (REQUIREMENTS.md, QUALITY.md, PROGRESS.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, requirements_manifest.json, use_cases_manifest.json, citation_semantic_check.json, or code_reviews/) \u2014 those checks would need to be in a different script or the truncated portion.",
+      "context_excerpts": [
+        "- `quality/REQUIREMENTS.md` exists\n- `quality/QUALITY.md` exists\n- `quality/PROGRESS.md` exists (obviously \u2014 you're writing to it)\n- `quality/COVERAGE_MATRIX.md` exists\n- `quality/COMPLETENESS_REPORT.md` exists\n- `quality/formal_docs_manifest.json` exists (v1.5.2 \u2014 written by `bin/reference_docs_ingest.py` in Phase 1; empty `records[]` is valid when no formal docs present)\n- `quality/requirements_manifest.json` exists (v1.5.2 \u2014 authoritative REQ records, rendered to REQUIREMENTS.md)\n- `quality/use_cases_manifest.json` exists (v1.5.2 \u2014 authoritative UC records, rendered to USE_CASES.md / the REQUIREMENTS.md narrative)\n- `quality/citation_semantic_check.json` exists (v1.5.2 \u2014 Phase 4 Layer-2 output; empty `reviews[]` is valid for Spec Gap runs)\n- If Phase 3 ran: `quality/code_reviews/` contains at least one `.md` file",
+        "bin/reference_docs_ingest.py"
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::10"
+    },
+    {
+      "item_type": "divergence-prose-to-code",
+      "divergence_id": "DIV-P2C-003",
+      "bug_id": "BUG-PHASE4-014",
+      "auto_disposition": null,
+      "rationale": "LLM verdict 'unclear' for REQ REQ-PHASE3-1036 against bin/run_playbook.py: The code excerpt shows the runner's argument parsing and setup logic but does not include the section that generates the 'Next iteration suggestion' output block shown in the prose claim, so it cannot be confirmed or denied from this region alone.",
+      "context_excerpts": [
+        "  For a baseline run (no iteration strategy):\n  ```\n  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  Next iteration suggestion:\n  \"Run the next iteration of the quality playbook using the gap strategy.\"\n  \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n  ```",
+        "bin/run_playbook.py"
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::78"
+    },
+    {
+      "item_type": "divergence-prose-to-code",
+      "divergence_id": "DIV-P2C-004",
+      "bug_id": "BUG-PHASE4-015",
+      "auto_disposition": null,
+      "rationale": "LLM verdict 'unclear' for REQ REQ-PHASE3-1170 against bin/reference_docs_ingest.py: The code region shows the implementation of `bin/reference_docs_ingest.py` which writes `quality/formal_docs_manifest.json`, confirming one artifact from the prose claim, but the code excerpt is truncated and does not show the full implementation, and the other artifacts listed in the prose (COMPLETENESS_REPORT.md, requirements_manifest.json, use_cases_manifest.json, citation_semantic_check.json, etc.) are produced by different scripts not shown here, making a complete verdict impossible from this excerpt alone.",
+      "context_excerpts": [
+        "- `quality/COMPLETENESS_REPORT.md` exists\n- `quality/formal_docs_manifest.json` exists (v1.5.2 \u2014 written by `bin/reference_docs_ingest.py` in Phase 1; empty `records[]` is valid when no formal docs present)\n- `quality/requirements_manifest.json` exists (v1.5.2 \u2014 authoritative REQ records, rendered to REQUIREMENTS.md)\n- `quality/use_cases_manifest.json` exists (v1.5.2 \u2014 authoritative UC records, rendered to USE_CASES.md / the REQUIREMENTS.md narrative)\n- `quality/citation_semantic_check.json` exists (v1.5.2 \u2014 Phase 4 Layer-2 output; empty `reviews[]` is valid for Spec Gap runs)\n- If Phase 3 ran: `quality/code_reviews/` contains at least one `.md` file\n- If Phase 4 ran: `quality/spec_audits/` contains a triage file AND individual auditor files\n- If Phase 0 or 0b ran: `quality/SEED_CHECKS.md` exists as a standalone file (not inlined in PROGRESS.md)\n- If confirmed bugs exist: `quality/bugs_manifest.json` exists (v1.5.2 \u2014 authoritative BUG records per schemas.md \u00a78)\n- If confirmed bugs exist: `quality/results/tdd-results.json` exists",
+        "bin/reference_docs_ingest.py"
+      ],
+      "council_action_required": true,
+      "triage_batch_key": "SKILL.md::94"
+    }
+  ]
+}

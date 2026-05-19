@@ -1,0 +1,15 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,17 @@
++    @unittest.expectedFailure
++    def test_reg_cb2_missing_fourth_install_path(self):
++        """BUG-002 / REQ-002: SKILL_INSTALL_LOCATIONS must contain all 4 paths
++        documented in SKILL.md §Locating reference files (lines 48-55).
++
++        Source: bin/benchmark_lib.py:39-43 — 3-tuple; missing fourth entry.
++        Current: 3 entries. Desired: 4 entries including quality-playbook variant.
++        """
++        paths_str = [str(p) for p in lib.SKILL_INSTALL_LOCATIONS]
++        fourth_path = str(Path(".github") / "skills" / "quality-playbook" / "SKILL.md")
++        self.assertIn(fourth_path, paths_str,
++                      f"SKILL_INSTALL_LOCATIONS must include {fourth_path!r} (the fourth documented install path)")

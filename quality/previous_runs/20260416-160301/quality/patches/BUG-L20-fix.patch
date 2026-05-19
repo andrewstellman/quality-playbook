@@ -1,0 +1,39 @@
+--- a/quality_gate.sh
++++ b/quality_gate.sh
+@@ -562,16 +562,23 @@ check_repo() {
+     # --- Patches for confirmed bugs (benchmark 44) ---
+     echo "[Patches]"
+     if [ "$bug_count" -gt 0 ]; then
+-        local reg_patch_count=0 fix_patch_count=0
+-        if [ -d "${q}/patches" ]; then
+-            reg_patch_count=$(ls ${q}/patches/BUG-*-regression*.patch 2>/dev/null | wc -l | tr -d ' ')
+-            fix_patch_count=$(ls ${q}/patches/BUG-*-fix*.patch 2>/dev/null | wc -l | tr -d ' ')
+-        fi
+-
+-        if [ "$reg_patch_count" -ge "$bug_count" ]; then
+-            pass "${reg_patch_count} regression-test patch(es) for ${bug_count} bug(s)"
+-        elif [ "$reg_patch_count" -gt 0 ]; then
+-            fail "Only ${reg_patch_count} regression-test patch(es) for ${bug_count} bug(s)"
+-        else
+-            fail "No regression-test patches (quality/patches/BUG-NNN-regression-test.patch required for each bug)"
+-        fi
++        local reg_patch_count=0 fix_patch_count=0 reg_patch_missing=0
++        # Per-bug iteration (matches TDD log check pattern at lines 316-345)
++        for bid in $bug_ids; do
++            if find "${q}/patches" -name "${bid}-regression*.patch" -print -quit 2>/dev/null | grep -q .; then
++                reg_patch_count=$((reg_patch_count + 1))
++            else
++                reg_patch_missing=$((reg_patch_missing + 1))
++            fi
++            if find "${q}/patches" -name "${bid}-fix*.patch" -print -quit 2>/dev/null | grep -q .; then
++                fix_patch_count=$((fix_patch_count + 1))
++            fi
++        done
++
++        if [ "$reg_patch_missing" -eq 0 ] && [ "$reg_patch_count" -gt 0 ]; then
++            pass "${reg_patch_count} regression-test patch(es) for ${bug_count} bug(s)"
++        elif [ "$reg_patch_count" -gt 0 ]; then
++            fail "${reg_patch_missing} bug(s) missing regression-test patch"
++        else
++            fail "No regression-test patches found (quality/patches/BUG-NNN-regression-test.patch required)"
++        fi

@@ -1,0 +1,3 @@
+BUG-017 probe: repo-root SKILL.md absent from general orchestrator
+BUG-018 probe: general orchestrator contains both contradictory ownership statements
+BUG-019 probe: shim lacks explicit collect-only and node-id handling

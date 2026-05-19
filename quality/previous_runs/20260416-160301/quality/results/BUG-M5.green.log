@@ -1,0 +1,22 @@
+GREEN
+=== Green Phase: BUG-M5 — Phase 0b empty previous_runs/ gap (fix verified) ===
+Date: 2026-04-16
+Test: Simulated fix verification — patch updates Phase 0b activation condition
+
+Fix applied: quality/patches/BUG-M5-fix.patch
+Changes Phase 0b condition from "does not exist" to
+"does not exist OR exists but contains no conformant quality artifacts"
+Also adds explicit warning when previous_runs/ is empty.
+
+Output:
+=== Green Phase: BUG-M5 fix verification (simulated) ===
+
+Fixed Phase 0b activation: This step runs only if previous_runs/ does not exist OR
+  previous_runs/ exists but contains no conformant quality artifacts
+PASS: Fixed Phase 0b condition covers empty previous_runs/ case
+
+The fixed condition matched grep -iE "no conformant quality artifacts"
+confirming the empty directory case is now handled.
+
+VERDICT: GREEN — after applying fix patch, Phase 0b correctly activates when
+previous_runs/ exists but is empty, preventing silent no-op behavior.

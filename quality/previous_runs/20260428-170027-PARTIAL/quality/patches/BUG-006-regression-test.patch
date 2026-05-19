@@ -1,0 +1,22 @@
+--- /dev/null
++++ b/quality/test_regression.py
+@@ -0,0 +1,22 @@
++    @unittest.expectedFailure
++    def test_reg_cb6_phase3_gate_incomplete(self):
++        """BUG-006 / REQ-010: check_phase_gate("3") must fail when
++        COVERAGE_MATRIX.md is absent. Only the currently-checked 4 files are
++        present; 5 required Phase 2 artifacts are missing.
++
++        Source: run_playbook.py:459-463 — only 4 files checked.
++        Current: ok=True with only 4 files. Desired: ok=False (missing 5 artifacts).
++        """
++        with TemporaryDirectory() as tmp:
++            quality = Path(tmp) / "quality"
++            # Write only the 4 currently-checked files
++            for name in ["REQUIREMENTS.md", "QUALITY.md", "CONTRACTS.md", "RUN_CODE_REVIEW.md"]:
++                _write(quality / name, "stub\n")
++            # COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, RUN_INTEGRATION_TESTS.md,
++            # RUN_SPEC_AUDIT.md, RUN_TDD_TESTS.md are intentionally absent.
++            result = run_playbook.check_phase_gate(Path(tmp), "3")
++        self.assertFalse(result.ok,
++                         "check_phase_gate('3') must fail when COVERAGE_MATRIX.md and others are absent")

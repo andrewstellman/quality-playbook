@@ -1,0 +1,13 @@
+RED
+BUG-L21: Phase 5 has no entry gate for Phase 4 artifacts (spec bug — SKILL.md)
+Test: test_BUG_L21_phase5_no_entry_gate
+Date: 2026-04-16
+Result: FAIL (expected — bug confirmed on unpatched code)
+
+BUG CONFIRMED: Phase 2 has entry gate but Phase 5 has none.
+Phase 2 gate (SKILL.md:897): "Phase 2 entry gate (mandatory — HARD STOP). Before generating
+  any artifacts, read quality/EXPLORATION.md from disk and verify ALL of the following exact
+  section titles exist..."
+Phase 5 opening (SKILL.md:1573-1590): reads PROGRESS.md but has no mechanical artifact check.
+Only backstop is the terminal gate at END of Phase 5 — an agent can complete all Phase 5 work
+before discovering Phase 4 was never run.

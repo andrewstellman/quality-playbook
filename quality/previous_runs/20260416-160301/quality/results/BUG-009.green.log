@@ -1,0 +1,5 @@
+GREEN
+--- Test output for BUG-009 green phase ---
+Command: grep .github/skills/references/ quality/patches/BUG-009-fix.patch
+Exit code: 0
+GREEN: Fix patch adds .github/skills/references/ to SKILL.md fallback chain

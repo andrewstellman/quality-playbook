@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-015
+Test: quality.test_regression.RegressionTests.test_reg_porcelain_quoted_paths
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_porcelain_quoted_paths -v
+
+test_reg_porcelain_quoted_paths (quality.test_regression.RegressionTests.test_reg_porcelain_quoted_paths)
+BUG-015 / REQ-016: _parse_porcelain_path(' M "file with space.txt"') ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK (expected failures=1)

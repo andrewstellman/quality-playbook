@@ -1,0 +1,13 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@
++    @unittest.expectedFailure
++    def test_reg_unfiltered23_language_detection_ignores_fixture_repos(self):
++        qg = _load_quality_gate()
++        with TemporaryDirectory() as tmp:
++            repo = Path(tmp)
++            _write(repo / "main.py", "print('root python')\n")
++            _write(repo / "repos" / "fixture" / "main.go", "package main\n")
++            detected = qg.detect_project_language(repo)
++        self.assertEqual(detected, "py")

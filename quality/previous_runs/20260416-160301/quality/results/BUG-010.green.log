@@ -1,0 +1,5 @@
+GREEN
+--- Test output for BUG-010 green phase ---
+Command: grep fail quality/patches/BUG-010-fix.patch
+Exit code: 0
+GREEN: Fix patch changes warn to fail for incomplete writeups

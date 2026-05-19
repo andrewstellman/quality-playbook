@@ -1,0 +1,327 @@
+● Read REQUIREMENTS.md
+  │ quality/REQUIREMENTS.md
+  └ 1 line read
+
+● Read SKILL.md
+  │ .github/skills/SKILL.md
+  └ 1 line read
+
+● Read spec_audit.md
+  │ .github/skills/references/spec_audit.md
+  └ 249 lines read
+
+● Read AGENTS.md
+  └ 79 lines read
+
+● Read PROGRESS.md
+  │ quality/PROGRESS.md
+  └ 78 lines read
+
+● Read RUN_SPEC_AUDIT.md
+  │ quality/RUN_SPEC_AUDIT.md
+  └ 128 lines read
+
+● Read BUGS.md
+  │ quality/BUGS.md
+  └ 95 lines read
+
+I’ve got the phase context. Next I’m pulling the exact Phase 4 instructions, the council config, and the gate/schema details so I can run the audit and citation check against the repo’s actual contracts instead of guessing.
+
+✗ Read plan.md
+  │ ~/.copilot/session-state/a025c612-a58f-4a7a-8fc0-7b9949806d07/plan.md
+  └ Path does not exist
+
+● Read council_config.py
+  │ bin/council_config.py
+  └ 37 lines read
+
+● Read RUN_SPEC_AUDIT.md
+  │ quality/RUN_SPEC_AUDIT.md
+  └ 128 lines read
+
+● Read schemas.md
+  └ L1:260 (260 lines read)
+
+● Read SKILL.md
+  │ .github/skills/SKILL.md
+  └ L720:860 (140 lines read)
+
+● Read SKILL.md
+  │ .github/skills/SKILL.md
+  └ L860:980 (121 lines read)
+
+● Read SKILL.md
+  │ .github/skills/SKILL.md
+  └ L980:1125 (145 lines read)
+
+● Search (grep)
+  │ "Phase 4: Spec Audit and Triage|Phase 4 - Spec
+  │ Audit|semantic-check|Council|citation_semantic_check|invariant #17|Invariant
+  │ #17" in *.{md,py,sh,json} (.github/skills/SKILL.md, schemas.md, bin,
+  │ quality)
+  └ 8 lines found
+
+I’ve confirmed this is a self-audit/spec-gap run with no Tier 1/2 inputs in scope, so the semantic check may short-circuit. I’m still reading the schema and implementation details to follow the exact empty-run behavior and make the triage mechanically defensible.
+
+● Read schemas.md
+  └ L760:980 (221 lines read)
+
+● Read schemas.md
+  └ L250:420 (171 lines read)
+
+● Read DEVELOPMENT_CONTEXT.md
+  │ ai_context/DEVELOPMENT_CONTEXT.md
+  └ L75:110 (36 lines read)
+
+● Search (grep)
+  │ "semantic-check|citation_semantic_check|Council
+  │ roster|DEFAULT_COUNCIL_MEMBERS|spec_audits|triage_probes" in *.py (bin,
+  │ .github/skills/quality_gate, quality)
+  └ 138 lines found
+
+● Check git status and run baseline tests (shell)
+  │ git --no-pager status --short && printf '\n---\n' && python3 -m unittest
+  │ discover bin/tests && printf '\n---\n' && python3 -m unittest discover -s
+  │ .github/skills/quality_gate/tests/ -p 'test_*.py'
+  └ 23 lines...
+
+The baseline repo suites are green, and the worktree is already populated with the Phase 1–3 artifacts plus some expected archival deletions. I’m treating those as the existing run state and only touching the Phase 4 surfaces from here.
+
+● Read council_semantic_check.py
+  │ bin/council_semantic_check.py
+  └ L1:260 (260 lines read)
+
+● Read council_semantic_check.py
+  │ bin/council_semantic_check.py
+  └ L260:620 (361 lines read)
+
+● Read copilot-tool-output-1777399022519-o2pn9p.txt
+  │ /var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/copilot-tool-output-1777399
+  │ 022519-o2pn9p.txt
+  └ L1:220 (220 lines read)
+
+● Check available council CLIs (shell)
+  │ command -v gemini >/dev/null && echo gemini:yes || echo gemini:no; command
+  │ -v claude >/dev/null && echo claude:yes || echo claude:no; command -v gh
+  │ >/dev/null && echo gh:yes || echo gh:no
+  └ 4 lines...
+
+I’ve hit one real environment constraint: `claude` and `gh` are available, but there’s no `gemini` CLI here. I’m proceeding with a documented 2/3 effective council for the spec audit, which the protocol explicitly supports, and I’ll still run the semantic-check planner to see whether Part B is a no-op on this Spec Gap run.
+
+✗ Read formal_docs_manifest.json
+  │ quality/formal_docs_manifest.json
+  └ Path does not exist
+
+● Read requirements_manifest.json
+  │ quality/requirements_manifest.json
+  └ L1:220 (92 lines read)
+
+● Read quality_gate.py
+  │ .github/skills/quality_gate/quality_gate.py
+  └ L2038:2225 (188 lines read)
+
+✗ Search (grep)
+  │ ""tier"\s*:\s*[12]\b" (quality/requirements_manifest.json,
+  │ quality/formal_docs_manifest.json)
+  └ rg: /Users/andrewstellman/Documents/QPB/quality/formal_docs_manifest.json:
+    No such file or directory (os error 2)
+
+● Search (grep)
+  │ "gpt-5\.4|claude-opus-4\.7|gemini-2\.5-pro|Tier 1/2|Spec Gap|no Tier 1/2"
+  │ (bin/tests/test_council_semantic_check.py,
+  │ bin/tests/test_phase6_integration.py)
+  └ 56 lines found
+
+I’ve verified the semantic-check side is indeed a Spec Gap path here: every current REQ is Tier 3, and the gate explicitly treats an empty `reviews[]` file as the correct output. I’m moving on to the actual council audit now, using two live auditors plus a documented unavailable third slot.
+
+● Edit
+  └ Create ~/.copilot/session-state/a025c612-a58f-4a7a-8fc0-7b9949806d07/plan.md
+
+● General-purpose(gpt-5.4) Audit with GPT
+  └ Agent started in background with agent_id: spec-audit-gpt. You'll be not...
+
+● General-purpose(gpt-5.4) Audit with Claude
+  └ Agent started in background with agent_id: spec-audit-claude. You'll be ...
+
+The two live council auditors are running now. While they read the repo, I’m executing the mechanical semantic-check path so the Phase 4 contract is satisfied even if the run has zero Tier 1/2 requirements.
+
+● Read test_council_semantic_check.py
+  │ bin/tests/test_council_semantic_check.py
+  └ L430:530 (101 lines read)
+
+● Run semantic-check plan (shell)
+  │ python3 -m bin.quality_playbook semantic-check plan .
+  └ 2 lines...
+
+The semantic-check planner took the expected Spec Gap branch and wrote the empty manifest directly. I’m waiting on the two live auditors now so I can merge their findings, add the unavailable third slot, and write the triage with probes.
+
+● Read (General-purpose agent — Audit with GPT)
+  └ Running
+
+● Read (General-purpose agent — Audit with Claude)
+  └ Running
+
+The live council audit is still running. The semantic-check side is already complete for this Spec Gap run: `quality/citation_semantic_check.json` was emitted with empty `reviews[]` because there are no Tier 1/2 requirements.
+
+I’m waiting for the auditor reports before I write `quality/spec_audits/*`, triage the findings, and update `BUGS.md` and `PROGRESS.md`.
+
+Claude’s audit finished. I’m pulling that report now and checking whether the GPT audit also finished so I can do a single triage pass instead of piecemeal merging.
+
+● Read (General-purpose agent — Audit with Claude)
+  └ Completed
+
+● Read (General-purpose agent — Audit with GPT)
+  └ Completed
+
+I have both audit reports now. Most findings line up with the Phase 3 bugs already on the tracker; I’m verifying the two GPT-only claims to decide whether they’re truly net-new bugs or just additional evidence under the existing doc-drift/metadata bugs before I write the triage.
+
+● Read INDEX.md
+  │ docs_gathered/INDEX.md
+  └ L1:30 (30 lines read)
+
+● Read README.md
+  │ docs_gathered/README.md
+  └ 117 lines read
+
+● Read 03_DEVELOPMENT_CONTEXT.md
+  │ docs_gathered/03_DEVELOPMENT_CONTEXT.md
+  └ L1:100 (100 lines read)
+
+● Read reference_docs_ingest.py
+  │ bin/reference_docs_ingest.py
+  └ L270:316 (47 lines read)
+
+● Read quality_gate.py
+  │ .github/skills/quality_gate/quality_gate.py
+  └ L1968:2045 (78 lines read)
+
+● Read quality_gate.py
+  │ .github/skills/quality_gate/quality_gate.py
+  └ L2928:2995 (68 lines read)
+
+● Search (grep)
+  │ "stage_formal_docs\.py|target_project_type|project_type\.json|check_project_
+  │ type_consistency|check_v1_5_0_index_md"
+  │ (.github/skills/quality_gate/quality_gate.py, docs_gathered, bin)
+  └ 60 lines found
+
+I’ve triaged the overlaps: there are no net-new Phase 4 bugs here. The extra single-auditor items are either additional evidence for the existing stale-doc/install-surface bugs or a detector-gap observation that doesn’t introduce a separate divergence from the already-tracked `target_project_type` bug. I’m writing the audit artifacts and marking Phase 4 complete now.
+
+● Read PROGRESS.md
+  │ quality/PROGRESS.md
+  └ L1:120 (78 lines read)
+
+● Ensure spec audit dir exists (shell)
+  │ mkdir -p quality/spec_audits && ls -ld quality/spec_audits
+  │ quality/citation_semantic_check.json
+  └ 3 lines...
+
+● Edit
+  │ Create quality/spec_audits/2026-04-28-auditor-1.md
+  │ Create quality/spec_audits/2026-04-28-auditor-2.md
+  │ Create quality/spec_audits/2026-04-28-triage.md
+  │ Create quality/spec_audits/triage_probes.sh
+  └ Edit quality/PROGRESS.md
+
+The artifacts are written. I’m doing one last pass to execute the triage probes and re-run the repo’s established test suites so Phase 4 closes with a clean audit trail.
+
+● Read PROGRESS.md
+  │ quality/PROGRESS.md
+  └ L1:110 (86 lines read)
+
+● Read citation_semantic_check.json
+  │ quality/citation_semantic_check.json
+  └ 5 lines read
+
+● Run triage probes and repo test suites (shell)
+  │ chmod +x quality/spec_audits/triage_probes.sh && bash
+  │ quality/spec_audits/triage_probes.sh && printf '\n---\n' && python3 -m
+  │ unittest discover bin/tests && printf '\n---\n' && python3 -m unittest
+  │ discover -s .github/skills/quality_gate/tests/ -p 'test_*.py'
+  └ 6 lines...
+
+One probe failed because I matched the harness mirror command too literally. I’m checking the current shell script text, then I’ll tighten the probe to the actual command form and rerun the validation.
+
+● Read setup_repos.sh
+  │ repos/setup_repos.sh
+  └ L190:225 (36 lines read)
+
+● Read triage_probes.sh
+  │ quality/spec_audits/triage_probes.sh
+  └ L1:120 (96 lines read)
+
+● Edit
+  └ Edit quality/spec_audits/triage_probes.sh
+
+The probe is fixed to the current `cp -R "${dst}/docs_gathered/." "${dst}/reference_docs/"` form. I’m rerunning the probes and test suites now.
+
+● Inspect Phase 4 artifact diff (shell)
+  │ git --no-pager diff -- quality/PROGRESS.md
+  │ quality/spec_audits/2026-04-28-auditor-1.md
+  │ quality/spec_audits/2026-04-28-auditor-2.md
+  │ quality/spec_audits/2026-04-28-triage.md
+  │ quality/spec_audits/triage_probes.sh quality/citation_semantic_check.json …
+  └ 28 lines...
+
+● Rerun probes and repo test suites (shell)
+  │ bash quality/spec_audits/triage_probes.sh && printf '\n---\n' && python3 -m
+  │ unittest discover bin/tests && printf '\n---\n' && python3 -m unittest
+  │ discover -s .github/skills/quality_gate/tests/ -p 'test_*.py'
+  └ 9 lines...
+
+One more probe was too narrow: the `INDEX.md` check pulls `target_project_type` from the shared required-fields constant rather than spelling it inside the function body. I’m widening that probe to the real structure and running the full validation again.
+
+● Edit
+  └ Edit quality/spec_audits/triage_probes.sh
+
+● Read 2026-04-28-triage.md
+  │ quality/spec_audits/2026-04-28-triage.md
+  └ L1:220 (85 lines read)
+
+● Run final probes and tests (shell)
+  │ bash quality/spec_audits/triage_probes.sh && printf '\n---\n' && python3 -m
+  │ unittest discover bin/tests && printf '\n---\n' && python3 -m unittest
+  │ discover -s .github/skills/quality_gate/tests/ -p 'test_*.py'
+  └ 14 lines...
+
+The validation command finished cleanly; I’m just reading back the saved output once to capture the final success lines before I close Phase 4.
+
+● Read copilot-tool-output-1777399763534-ppo5rz.txt
+  │ /var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/copilot-tool-output-1777399
+  │ 763534-ppo5rz.txt
+  └ L1:80 (80 lines read)
+
+● Read copilot-tool-output-1777399763534-ppo5rz.txt
+  │ /var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/copilot-tool-output-1777399
+  │ 763534-ppo5rz.txt
+  └ L180:260 (81 lines read)
+
+● Search (grep)
+  │ "^Ran [0-9]+ tests|^OK$|^OK \(|^FAILED \(" (/var/folders/7x/zj29dyln53q3x1zn
+  │ gmf39q_h0000gn/T/copilot-tool-output-1777399763534-ppo5rz.txt)
+  └ 4 lines found
+
+● Read final test output lines (shell)
+  │ tail -n 30 /var/folders/7x/zj29dyln53q3x1zngmf39q_h0000gn/T/copilot-tool-out
+  │ put-1777399763534-ppo5rz.txt
+  └ 30 lines...
+
+● Memory stored testing commands
+  └ Run repo tests with `python3 -m unittest discover bin/tests` and `python3 -m
+    uni…
+
+**Phase 4 is complete.** I wrote the spec-audit artifacts to:
+
+- `quality/spec_audits/2026-04-28-auditor-1.md`
+- `quality/spec_audits/2026-04-28-auditor-2.md`
+- `quality/spec_audits/2026-04-28-triage.md`
+- `quality/spec_audits/triage_probes.sh`
+
+I also generated `quality/citation_semantic_check.json` with empty `reviews[]`, which is the correct Layer-2 output for this Spec Gap run with zero Tier 1/2 requirements, and I marked `- [x] Phase 4 - Spec Audit` in `quality/PROGRESS.md`.
+
+**No net-new spec-audit bugs were confirmed.** The confirmed Phase 4 findings all reconcile to the existing `BUG-001` through `BUG-007` set, and the extra single-auditor items were either absorbed as added evidence for the existing stale-doc/install-surface bugs or downgraded as a detector-gap note under the existing `target_project_type` bug.
+
+
+Changes   +349 -4
+Requests  1 Premium (14m 4s)
+Tokens    ↑ 5.1m • ↓ 55.5k • 4.8m (cached) • 27.7k (reasoning)

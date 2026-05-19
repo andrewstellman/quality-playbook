@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "generated_at": "2026-04-27T20:21:28Z",
+  "warnings": [
+    {
+      "partition_key": "SKILL.md::16",
+      "section_heading": "Step 7: Derive Testable Requirements",
+      "req_count": 69,
+      "pairs": 2346,
+      "rationale": "Section density exceeds 30 REQs; consider partition splitting or prose-section refactor in v1.5.4+."
+    },
+    {
+      "partition_key": "SKILL.md::18",
+      "section_heading": "Write exploration findings to disk",
+      "req_count": 47,
+      "pairs": 1081,
+      "rationale": "Section density exceeds 30 REQs; consider partition splitting or prose-section refactor in v1.5.4+."
+    },
+    {
+      "partition_key": "SKILL.md::22",
+      "section_heading": "File 3: `quality/RUN_CODE_REVIEW.md`",
+      "req_count": 68,
+      "pairs": 2278,
+      "rationale": "Section density exceeds 30 REQs; consider partition splitting or prose-section refactor in v1.5.4+."
+    },
+    {
+      "partition_key": "SKILL.md::23",
+      "section_heading": "File 4: `quality/RUN_INTEGRATION_TESTS.md`",
+      "req_count": 61,
+      "pairs": 1830,
+      "rationale": "Section density exceeds 30 REQs; consider partition splitting or prose-section refactor in v1.5.4+."
+    },
+    {
+      "partition_key": "SKILL.md::26",
+      "section_heading": "File 7: `quality/RUN_TDD_TESTS.md` \u2014 TDD Verification Protocol",
+      "req_count": 47,
+      "pairs": 1081,
+      "rationale": "Section density exceeds 30 REQs; consider partition splitting or prose-section refactor in v1.5.4+."
+    },
+    {
+      "partition_key": "SKILL.md::30",
+      "section_heading": "Phase 5: Post-Review Reconciliation and Closure Verification",
+      "req_count": 40,
+      "pairs": 780,
+      "rationale": "Section density exceeds 30 REQs; consider partition splitting or prose-section refactor in v1.5.4+."
+    },
+    {
+      "partition_key": "references/requirements_review.md::102",
+      "section_heading": "Generated file template",
+      "req_count": 32,
+      "pairs": 496,
+      "rationale": "Section density exceeds 30 REQs; consider partition splitting or prose-section refactor in v1.5.4+."
+    },
+    {
+      "partition_key": "references/verification.md::124",
+      "section_heading": "Quick Checklist Format",
+      "req_count": 50,
+      "pairs": 1225,
+      "rationale": "Section density exceeds 30 REQs; consider partition splitting or prose-section refactor in v1.5.4+."
+    }
+  ]
+}

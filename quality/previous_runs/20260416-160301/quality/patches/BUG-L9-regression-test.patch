@@ -1,0 +1,64 @@
+--- a/quality/test_regression.sh
++++ b/quality/test_regression.sh
+@@ -474,6 +474,55 @@ test_BUG_M8_nullglob_ls_counting() {
+     fi
+ }
+
++# ---------------------------------------------------------------------------
++# BUG-L9: Auditor report naming inconsistency across three specifications
++#
++# The bug: Three incompatible naming formats specified:
++# SKILL.md:1548 → YYYY-MM-DD-auditor-N.md
++# RUN_SPEC_AUDIT.md:143 → auditor_<model>_<date>.md
++# references/spec_audit.md → YYYY-MM-DD-[model].md
++# [BUG from Phase 4 Spec Audit — Auditor A]
++# Skip guard: set BUG_SKIP_L9=0 to enable
++# Fix: (no patch — fix is standardizing naming in SKILL.md and RUN_SPEC_AUDIT.md template)
++# ---------------------------------------------------------------------------
++test_BUG_L9_auditor_naming_inconsistency() {
++    if [ "${BUG_SKIP_L9:-1}" = "1" ]; then
++        echo "  SKIP: BUG-L9 skip guard active (set BUG_SKIP_L9=0 to run red phase)"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    local skill_md="${SKILL_MD_PATH:-SKILL.md}"
++    local run_spec_audit="quality/RUN_SPEC_AUDIT.md"
++
++    if [ ! -f "$skill_md" ]; then
++        echo "  SKIP: SKILL.md not found"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    # BUG CONFIRMATION: Two different naming formats coexist
++    # SKILL.md line 1548 specifies: YYYY-MM-DD-auditor-N.md
++    local skill_format
++    skill_format=$(grep -n 'YYYY-MM-DD-auditor-N' "$skill_md" | head -1)
++
++    # RUN_SPEC_AUDIT.md line 143 specifies: auditor_<model>_<date>.md
++    local run_format=""
++    if [ -f "$run_spec_audit" ]; then
++        run_format=$(grep -n 'auditor_<model>' "$run_spec_audit" | head -1)
++    fi
++
++    if [ -n "$skill_format" ] && [ -n "$run_format" ]; then
++        echo "  BUG CONFIRMED: Two incompatible auditor naming formats exist"
++        echo "  SKILL.md (Phase 4 instructions): $skill_format"
++        echo "  RUN_SPEC_AUDIT.md: $run_format"
++        return 1  # FAILS on unpatched code (red phase)
++    else
++        echo "  BUG FIXED or formats unified"
++        echo "  SKILL.md format: '${skill_format:-not found}'"
++        echo "  RUN_SPEC_AUDIT.md format: '${run_format:-not found}'"
++        return 0
++    fi
++}
++
+ # ---------------------------------------------------------------------------
+ # Run tests
+ # ---------------------------------------------------------------------------
+@@ -674,6 +727,7 @@ else
+     run_test test_BUG_M8_nullglob_ls_counting
++    run_test test_BUG_L9_auditor_naming_inconsistency
+ fi

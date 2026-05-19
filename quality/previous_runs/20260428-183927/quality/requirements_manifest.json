@@ -1,0 +1,92 @@
+{
+  "schema_version": "1.5.3",
+  "generated_at": "2026-04-28T17:28:30Z",
+  "records": [
+    {
+      "id": "REQ-001",
+      "title": "Keep installed and repo-root skill entry points synchronized",
+      "description": "The repo-root SKILL.md and installed .github/skills/SKILL.md entry point must always resolve to the same instructions, version stamp, and reference-resolution guidance so fallback path selection never changes the operator brief.",
+      "tier": 3,
+      "functional_section": "Packaging and Installed Surface Integrity",
+      "use_cases": ["UC-07"],
+      "pattern": "parity",
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-002",
+      "title": "Treat reference_docs as the authoritative Phase 1 docs input",
+      "description": "Modern installs that provide reference_docs must not be downgraded or warned as code-only because docs_gathered is absent; runner messaging and exploration behavior must align with the canonical reference_docs contract.",
+      "tier": 3,
+      "functional_section": "Packaging and Installed Surface Integrity",
+      "use_cases": ["UC-01", "UC-02"],
+      "pattern": "parity",
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-003",
+      "title": "Enforce the full Phase 2 exploration-artifact gate",
+      "description": "A run must not advance beyond Phase 1 unless quality/EXPLORATION.md satisfies the exact heading and content checks named in the Phase 2 skill contract, not just a file-exists and line-count threshold.",
+      "tier": 3,
+      "functional_section": "Packaging and Installed Surface Integrity",
+      "use_cases": ["UC-01", "UC-03"],
+      "pattern": "whitelist",
+      "source_type": "skill-section",
+      "skill_section": "Phase 2: Generate the Quality Playbook"
+    },
+    {
+      "id": "REQ-004",
+      "title": "Preserve actual project classification in live run metadata",
+      "description": "Once a target is classified as Code, Skill, or Hybrid, that exact value must survive into live quality/INDEX.md metadata rather than collapsing to a default Code label.",
+      "tier": 3,
+      "functional_section": "Packaging and Installed Surface Integrity",
+      "use_cases": ["UC-03", "UC-04"],
+      "pattern": "whitelist",
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-005",
+      "title": "Restrict cleanup to playbook-owned worker processes",
+      "description": "Operator cleanup must remain scoped to recorded run workers; missing PID files must not trigger workstation-wide pattern kills across unrelated Claude or Copilot sessions.",
+      "tier": 3,
+      "functional_section": "Safety, Cleanup, and Documentation Fidelity",
+      "use_cases": ["UC-06"],
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-006",
+      "title": "Retain byte-equality citation verification on installed targets",
+      "description": "If the repository advertises byte-verified citation excerpts for reference_docs/cite, installed targets must receive the verifier dependency needed for quality_gate.py to enforce that guarantee rather than downgrading it to a warning.",
+      "tier": 3,
+      "functional_section": "Safety, Cleanup, and Documentation Fidelity",
+      "use_cases": ["UC-05"],
+      "pattern": "parity",
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-007",
+      "title": "Keep curated bootstrap docs current with the live release",
+      "description": "Curated bootstrap/self-audit docs may compress context, but they must not present an older current version or obsolete documentation path as the live product surface when describing the current release.",
+      "tier": 3,
+      "functional_section": "Safety, Cleanup, and Documentation Fidelity",
+      "use_cases": ["UC-02"],
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-008",
+      "title": "Expose the same documentation surface in direct and harness bootstrap modes",
+      "description": "Running the playbook directly at the repo root and running it through the benchmark harness must expose the same effective documentation tree to Phase 1 so self-audit and installed runs remain comparable.",
+      "tier": 3,
+      "functional_section": "Safety, Cleanup, and Documentation Fidelity",
+      "use_cases": ["UC-01", "UC-02"],
+      "pattern": "parity",
+      "source_type": "code-derived",
+      "skill_section": null
+    }
+  ]
+}

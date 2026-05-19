@@ -1,0 +1,14 @@
+GREEN
+Test: test_bug_018_json_key_count_false_pass (after fix patch)
+Target: quality_gate.sh json_key_count function with key-value pattern
+
+Execution (after applying BUG-018-fix.patch):
+  Same tdd-results.json with 2 bugs (BUG-002 missing verdict field)
+
+  json_key_count("verdict") = grep -cE '"verdict"[[:space:]]*:' tdd-results.json => 1
+    Only matches: "verdict": "TDD verified" (BUG-001 actual field)
+    Does NOT match "verdict" inside requirement text (no colon follows)
+
+  Gate check: fcount (1) >= bug_count (2) => FAIL (correctly reports missing field)
+
+Result: PASS — Gate now correctly detects the missing verdict field in BUG-002.

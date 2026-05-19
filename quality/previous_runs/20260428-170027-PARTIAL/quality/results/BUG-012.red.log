@@ -1,0 +1,15 @@
+RED
+Date: 2026-04-18
+Bug: BUG-012
+Test: quality.test_regression.RegressionTests.test_reg_cb12_zero_bug_loose_regex
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_cb12_zero_bug_loose_regex -v
+
+[BUGS.md Heading Format]
+  PASS: Zero-bug run — no headings expected
+test_reg_cb12_zero_bug_loose_regex (quality.test_regression.RegressionTests.test_reg_cb12_zero_bug_loose_regex)
+BUG-012 / REQ-015: A BUGS.md with prose "the zero analysis shows no ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.006s
+
+OK (expected failures=1)

@@ -1,0 +1,13 @@
+RED
+--- Test output for BUG-021 red phase ---
+Command: python3 -m unittest quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered21_phase_prompt_mentions_fallback_layouts quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered21_single_pass_prompt_mentions_fallback_layouts -v
+Exit code: 0
+test_reg_unfiltered21_phase_prompt_mentions_fallback_layouts (quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered21_phase_prompt_mentions_fallback_layouts)
+BUG-021 / REQ-022: phase prompts must describe repo-root and Claude ... expected failure
+test_reg_unfiltered21_single_pass_prompt_mentions_fallback_layouts (quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered21_single_pass_prompt_mentions_fallback_layouts)
+BUG-021 / REQ-022: single-pass and iteration prompts must stop naming only ... expected failure
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.001s
+
+OK (expected failures=2)

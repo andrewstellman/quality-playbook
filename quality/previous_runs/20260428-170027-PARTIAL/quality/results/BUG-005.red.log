@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-005
+Test: quality.test_regression.RegressionTests.test_reg_cb5_agents_md_cleanup_reversion
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_cb5_agents_md_cleanup_reversion -v
+
+test_reg_cb5_agents_md_cleanup_reversion (quality.test_regression.RegressionTests.test_reg_cb5_agents_md_cleanup_reversion)
+BUG-005 / REQ-006: lib._is_protected("AGENTS.md") must return True. ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.001s
+
+OK (expected failures=1)

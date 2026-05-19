@@ -1,0 +1,16 @@
+diff --git a/bin/run_playbook.py b/bin/run_playbook.py
+--- a/bin/run_playbook.py
++++ b/bin/run_playbook.py
+@@ -645,8 +645,8 @@ def run_one_phased(repo_dir: Path, phase_list: Sequence[str], args: argparse.Nam
+     log_file = log_file_for(repo_dir, timestamp)
+     if not docs_present(repo_dir):
+-        print(lib.log(f"SKIP: {repo_dir.name} - docs_gathered/ is missing or empty"))
+-        return 1
++        print(lib.log(f"WARN: {repo_dir.name} - docs_gathered/ is missing or empty; proceeding with code-only analysis"))
+ 
+@@ -671,8 +671,8 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
+     log_file = log_file_for(repo_dir, timestamp)
+     if not docs_present(repo_dir):
+-        print(lib.log(f"SKIP: {repo_dir.name} - docs_gathered/ is missing or empty"))
+-        return 1
++        print(lib.log(f"WARN: {repo_dir.name} - docs_gathered/ is missing or empty; proceeding with code-only analysis"))

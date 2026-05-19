@@ -1,0 +1,11 @@
+RED
+--- Test output for BUG-017 red phase ---
+Command: python3 -m unittest quality.test_regression.GapIterationRegressions.test_reg_gap17_agents_support_repo_root_skill -v
+Exit code: 0
+test_reg_gap17_agents_support_repo_root_skill (quality.test_regression.GapIterationRegressions.test_reg_gap17_agents_support_repo_root_skill)
+BUG-017 / REQ-018: both orchestrator agents must list repo-root ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+OK (expected failures=1)

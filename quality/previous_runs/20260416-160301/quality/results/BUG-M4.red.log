@@ -1,0 +1,47 @@
+RED
+=== Red Phase: BUG-M4 — test_regression.* not checked by gate ===
+Date: 2026-04-16
+Test: test_BUG_M4_gate_missing_regression_file_check
+
+Command: BUG_SKIP_M4=0 GATE_PATH=quality_gate.sh bash quality/test_regression.sh test_BUG_M4_gate_missing_regression_file_check
+
+Output:
+=== Regression Tests: quality-playbook ===
+Date: 2026-04-16
+All tests are skip-guarded. Set BUG_SKIP_NNN=0 to enable individual tests.
+
+  TEST: test_BUG_M4_gate_missing_regression_file_check
+  BUG CONFIRMED: gate did not FAIL for missing test_regression.* when bug_count > 0
+  Gate exit: 0
+  Gate output (last 20 lines):
+      INFO: Cannot detect project language — skipping extension check (test_functional.sh)
+    [Terminal Gate]
+      PASS: PROGRESS.md has Terminal Gate section
+    [Mechanical Verification]
+      INFO: No mechanical/ directory
+    [Patches]
+      FAIL: No regression-test patches (quality/patches/BUG-NNN-regression-test.patch required for each bug)
+      WARN: 0 fix patches (fix patches are optional but strongly encouraged)
+      INFO: Total: 0 patch file(s) in quality/patches/
+    [Bug Writeups]
+      FAIL: No writeups for 1 confirmed bug(s)
+    [Version Stamps]
+      PASS: PROGRESS.md version matches (1.4.1)
+    [Cross-Run Contamination]
+      PASS: No version mismatch detected
+
+    ===========================================
+    Total: 6 FAIL, 1 WARN
+    RESULT: GATE FAILED — 6 check(s) must be fixed
+  RESULT: FAIL
+
+===========================================
+Results: 0 PASS, 1 FAIL, 0 SKIP
+
+Exit code: 1
+
+VERDICT: RED — regression test FAILS on unpatched code, confirming BUG-M4 is real.
+The gate fails for other reasons (missing patches, writeups) but does NOT specifically
+FAIL for missing test_regression.* file. The gate exit is 0 from the gate itself
+(the test wrapper returns 1 because it detected no FAIL for test_regression.*).
+Note: the gate reported FAIL for other checks but not specifically "test_regression.* missing".

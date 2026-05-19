@@ -1,0 +1,22 @@
+GREEN
+=== Green Phase: BUG-L6 — json_str_val non-string distinction (fix verified) ===
+Date: 2026-04-16
+Test: Inline fix verification using patched json_str_val implementation
+
+Fix applied: quality/patches/BUG-L6-fix.patch
+Adds two-step lookup: first tries quoted string match, then checks if key exists
+at all with any value type. Returns "__NOT_STRING__" when key exists but is not a string.
+
+Output:
+=== Green Phase: BUG-L6 fix verification ===
+Result for number-typed schema_version: "__NOT_STRING__"
+PASS: Fixed function returns __NOT_STRING__ for number value
+PASS: Returns empty for absent key
+PASS: Returns string value correctly
+
+VERDICT: GREEN — after applying fix patch, json_str_val correctly distinguishes:
+  - key absent → returns "" (empty)
+  - key present as number/bool → returns "__NOT_STRING__"
+  - key present as string → returns the string value
+This allows callers to emit accurate error messages like "schema_version is wrong type
+(number instead of string)" rather than misleading "schema_version is missing".

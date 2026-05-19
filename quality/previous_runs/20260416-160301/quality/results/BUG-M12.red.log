@@ -1,0 +1,11 @@
+=== Regression Tests: quality-playbook ===
+Date: 2026-04-16
+All tests are skip-guarded. Set BUG_SKIP_NNN=0 to enable individual tests.
+
+
+  TEST: test_BUG_M12_test_file_ext_ls_glob_false_positive
+  BUG CONFIRMED: quality_gate.sh uses ls-glob for func_test assignment (vulnerable to nullglob)
+  RESULT: FAIL
+
+===========================================
+Results: 0 PASS, 1 FAIL, 0 SKIP

@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "skill_version": "1.4.5",
+  "project": "quality-playbook",
+  "model": "claude-opus-4-7",
+  "model_provider": "anthropic",
+  "runner": "claude-code",
+  "start_time": "2026-04-18T23:43:14Z",
+  "end_time": "2026-04-19T04:53:27Z",
+  "duration_minutes": 310,
+  "phases_completed": ["Phase 1", "Phase 2", "Phase 3", "Phase 4", "Phase 5", "Phase 6"],
+  "iterations_completed": ["gap", "unfiltered", "parity", "adversarial"],
+  "bug_count": 27,
+  "bug_severity": { "HIGH": 6, "MEDIUM": 17, "LOW": 4 },
+  "gate_result": "FAIL",
+  "gate_fail_count": 1,
+  "gate_warn_count": 0,
+  "notes": "Bootstrap self-audit run: QPB audited against itself at v1.4.5. Baseline phases completed, then gap iteration added BUG-017..BUG-019, unfiltered iteration added BUG-020..BUG-023, parity iteration added BUG-024..BUG-025 around gate-side filename-matrix drift, and adversarial iteration added BUG-026..BUG-027 around helper-side artifact-discovery permissiveness. Final quality-gate rerun still has one known FAIL from the language-extension heuristic misclassifying this repo as Go because benchmark fixture repos live under repos/."
+}

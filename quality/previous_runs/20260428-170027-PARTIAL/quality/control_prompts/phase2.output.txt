@@ -1,0 +1,13 @@
+Phase 2 complete. All artifacts produced and verified.
+
+**Phase 2 deliverables:**
+- `quality/COMPLETENESS_REPORT.md` — baseline snapshot; verdict section reserved for Phase 6
+- `quality/mechanical/` — 5 AST-based extractors + `verify.sh` driver; receipts at `quality/results/mechanical-verify.log` (exit 0)
+- `AGENTS.md` — appended **Quality Docs** section pointing to every file under `quality/`
+- `quality/PROGRESS.md` — Phase 2 box checked, artifact inventory updated with all paths
+
+**Baseline gates:**
+- `python3 -m unittest quality.test_functional -v` → 87/87 pass
+- `bash quality/mechanical/verify.sh` → exit 0 (5/5 extractors match CURRENT documentation claims)
+
+Phase 3 (code review + regression tests) is the next phase — not started per instructions.

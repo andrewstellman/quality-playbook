@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.1",
+  "skill_version": "1.5.3",
+  "date": "2026-04-28",
+  "project": "quality-playbook",
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "requirement": "REQ-002",
+      "red_phase": "fail",
+      "green_phase": "pass",
+      "verdict": "TDD verified",
+      "regression_patch": "quality/patches/BUG-001-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-001-fix.patch",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-001.md"
+    },
+    {
+      "id": "BUG-002",
+      "requirement": "REQ-003",
+      "red_phase": "fail",
+      "green_phase": "pass",
+      "verdict": "TDD verified",
+      "regression_patch": "quality/patches/BUG-002-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-002-fix.patch",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-002.md"
+    },
+    {
+      "id": "BUG-003",
+      "requirement": "REQ-004",
+      "red_phase": "fail",
+      "green_phase": "fail",
+      "verdict": "green failed",
+      "regression_patch": "quality/patches/BUG-003-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-003-fix.patch",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-003.md",
+      "notes": "The current fix patch does not change the red-phase failure."
+    },
+    {
+      "id": "BUG-004",
+      "requirement": "REQ-005",
+      "red_phase": "fail",
+      "green_phase": "pass",
+      "verdict": "TDD verified",
+      "regression_patch": "quality/patches/BUG-004-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-004-fix.patch",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-004.md"
+    },
+    {
+      "id": "BUG-005",
+      "requirement": "REQ-006",
+      "red_phase": "fail",
+      "green_phase": "fail",
+      "verdict": "green failed",
+      "regression_patch": "quality/patches/BUG-005-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-005-fix.patch",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-005.md",
+      "notes": "The packaged fix does not satisfy the installed-gate regression."
+    },
+    {
+      "id": "BUG-006",
+      "requirement": "REQ-007",
+      "red_phase": "fail",
+      "green_phase": "pass",
+      "verdict": "TDD verified",
+      "regression_patch": "quality/patches/BUG-006-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-006-fix.patch",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-006.md"
+    },
+    {
+      "id": "BUG-007",
+      "requirement": "REQ-008",
+      "red_phase": "fail",
+      "green_phase": "fail",
+      "verdict": "green failed",
+      "regression_patch": "quality/patches/BUG-007-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-007-fix.patch",
+      "fix_patch_present": true,
+      "writeup_path": "quality/writeups/BUG-007.md",
+      "notes": "The current fix patch does not populate the direct-root `reference_docs/` tree seen by the regression."
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "verified": 4,
+    "confirmed_open": 0,
+    "red_failed": 0,
+    "green_failed": 3
+  }
+}

@@ -1,0 +1,9 @@
+Phase 6 verification complete. Summary:
+
+- **Step 6.1**: SKIP — no `quality/mechanical/` (this run had no dispatch/registry contracts requiring shell-extracted artifacts).
+- **Step 6.2**: `quality_gate.py` exited 0 — 95 PASS, 0 FAIL, 1 benign WARN (legacy `formal_docs_manifest.json` shape, handled by schemas.md §3.10 backward-compat).
+- **Step 6.3**: Functional tests 21 ran / 12 failures (each maps 1:1 to a confirmed bug across both FitnessScenario and SpecRequirement classes); regression tests 6/6 xfail as expected.
+- **Step 6.4** (A–F): All checks PASS or SKIP (continuation mode skipped — first run).
+- **Step 6.5**: Metadata consistent — 8 REQs across REQUIREMENTS.md / COVERAGE_MATRIX.md, version stamps v1.5.6 throughout, single verdict in COMPLETENESS_REPORT.md.
+
+`PROGRESS.md` now shows `- [x] Phase 6 - Verify` and a Phase 6 completion timestamp. Phase 6 closed cleanly with the run reflecting 6 confirmed code-review bugs, 0 net-new spec-audit bugs.

@@ -1,0 +1,13 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@
++class AdversarialIterationRegressions(unittest.TestCase):
++    @unittest.expectedFailure
++    def test_reg_adv27_summary_ignores_noncanonical_regression_aliases(self):
++        with TemporaryDirectory() as tmp:
++            repo = Path(tmp)
++            _write(repo / "quality" / "REQUIREMENTS.md", "### REQ-001\n[Tier 1]\n")
++            _write(repo / "quality" / "RegressionTest.java", "class RegressionTest {}\n")
++            row = lib.build_summary_rows([repo])[0]
++        self.assertEqual(row.regression, ".")

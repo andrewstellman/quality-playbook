@@ -1,0 +1,6 @@
+RED
+--- Test output for BUG-012 red phase ---
+Command: test -f /Users/andrewstellman/tmp/QFB-bootstrap/references/review_protocols.md.orig && ! grep -q review_protocols.md.orig /Users/andrewstellman/tmp/QFB-bootstrap/SKILL.md
+Exit code: 0
+
+Result: review_protocols.md.orig exists (611 lines) and is not documented in SKILL.md.

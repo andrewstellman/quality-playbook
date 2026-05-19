@@ -1,0 +1,15 @@
+RED
+--- Test output for BUG-020 red phase ---
+Command: python3 -m unittest quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered20_phase_mode_warns_not_skips quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered20_single_pass_warns_not_skips -v
+Exit code: 0
+00:23:06 SKIP: tmp4s0xjqsm - docs_gathered/ is missing or empty
+00:23:06 SKIP: tmpvmsuvzag - docs_gathered/ is missing or empty
+test_reg_unfiltered20_phase_mode_warns_not_skips (quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered20_phase_mode_warns_not_skips)
+BUG-020 / REQ-021: phase mode must continue with code-only analysis when ... expected failure
+test_reg_unfiltered20_single_pass_warns_not_skips (quality.test_regression.UnfilteredIterationRegressions.test_reg_unfiltered20_single_pass_warns_not_skips)
+BUG-020 / REQ-021: single-pass mode must also continue code-only. ... expected failure
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.004s
+
+OK (expected failures=2)

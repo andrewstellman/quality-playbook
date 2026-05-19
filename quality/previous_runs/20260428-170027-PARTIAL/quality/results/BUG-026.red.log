@@ -1,0 +1,30 @@
+RED
+--- Test output for BUG-026 red phase ---
+Command: python3 <inline unittest runner for test_reg_adv26_final_artifact_gaps_rejects_test_functional_test_alias>
+Exit code: 1
+Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "/Users/andrewstellman/Documents/QPB/quality/test_regression.py", line 864, in test_reg_adv26_final_artifact_gaps_rejects_test_functional_test_alias
+    self.assertIn("functional test", missing,
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                  "final_artifact_gaps() must still report a missing functional test when only test_functional_test.py exists")
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 1174, in assertIn
+    self.fail(self._formatMessage(msg, standardMsg))
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 732, in fail
+    raise self.failureException(msg)
+AssertionError: 'functional test' not found in [] : final_artifact_gaps() must still report a missing functional test when only test_functional_test.py exists
+Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "/Users/andrewstellman/Documents/QPB/quality/test_regression.py", line 864, in test_reg_adv26_final_artifact_gaps_rejects_test_functional_test_alias
+    self.assertIn("functional test", missing,
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                  "final_artifact_gaps() must still report a missing functional test when only test_functional_test.py exists")
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 1174, in assertIn
+    self.fail(self._formatMessage(msg, standardMsg))
+    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.13/3.13.1/Frameworks/Python.framework/Versions/3.13/lib/python3.13/unittest/case.py", line 732, in fail
+    raise self.failureException(msg)
+AssertionError: 'functional test' not found in [] : final_artifact_gaps() must still report a missing functional test when only test_functional_test.py exists

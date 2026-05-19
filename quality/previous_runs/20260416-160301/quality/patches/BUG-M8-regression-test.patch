@@ -1,0 +1,74 @@
+--- a/quality/test_regression.sh
++++ b/quality/test_regression.sh
+@@ -416,6 +416,60 @@ test_BUG_L7_version_string_consistency() {
+     fi
+ }
+
++# ---------------------------------------------------------------------------
++# BUG-M8: Systemic nullglob vulnerability in ls-glob counting operations
++#
++# The bug: Multiple artifact-counting operations use ls ${q}/path/*glob* | wc -l
++# Under nullglob (active by default in zsh/macOS), unmatched globs expand to empty,
++# causing ls to list the current directory. wc -l counts that listing, producing
++# nonzero counts even when no matching files exist. The gate incorrectly passes.
++# Affected lines: 152-153 (spec_audits), 331 (fix patch check), 567-568 (patches),
++# 595 (writeups)
++# [BUG from Phase 4 Spec Audit — all three auditors]
++# Skip guard: set BUG_SKIP_M8=0 to enable
++# Fix: quality/patches/BUG-M8-fix.patch
++# ---------------------------------------------------------------------------
++test_BUG_M8_nullglob_ls_counting() {
++    if [ "${BUG_SKIP_M8:-1}" = "1" ]; then
++        echo "  SKIP: BUG-M8 skip guard active (set BUG_SKIP_M8=0 to run red phase)"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    local gate="${GATE_PATH:-quality_gate.sh}"
++
++    if [ ! -f "$gate" ]; then
++        echo "  SKIP: quality_gate.sh not found at $gate (set GATE_PATH=...)"
++        SKIP=$((SKIP + 1))
++        return 0
++    fi
++
++    # BUG CONFIRMATION: Verify that unquoted ls-glob counting patterns exist in the gate
++    # Line 567: reg_patch_count=$(ls ${q}/patches/BUG-*-regression*.patch ...)
++    # Line 331: if ls ${q}/patches/${bid}-fix*.patch ...
++    # These patterns use unquoted globs that are vulnerable to nullglob
++
++    # Check for the specific vulnerable pattern at line 567
++    local line567
++    line567=$(sed -n '567p' "$gate")
++    local line331
++    line331=$(sed -n '331p' "$gate")
++
++    local found_vulnerable=false
++    if echo "$line567" | grep -q 'ls \${q}/patches/BUG-\*-regression\*'; then
++        found_vulnerable=true
++        echo "  Line 567 (vulnerable): $line567"
++    fi
++    if echo "$line331" | grep -q 'ls \${q}/patches/\${bid}-fix\*'; then
++        found_vulnerable=true
++        echo "  Line 331 (vulnerable): $line331"
++    fi
++
++    if [ "$found_vulnerable" = true ]; then
++        echo "  BUG CONFIRMED: Unquoted ls-glob counting patterns present — vulnerable to nullglob"
++        echo "  Under nullglob, ls with no glob matches lists current dir, wc -l returns wrong count"
++        return 1  # FAILS on unpatched code (red phase)
++    else
++        echo "  BUG FIXED: ls-glob counting patterns replaced with nullglob-safe find/count"
++        return 0
++    fi
++}
++
+ # ---------------------------------------------------------------------------
+ # Run tests
+ # ---------------------------------------------------------------------------
+@@ -620,6 +674,9 @@ else
+     run_test test_BUG_L6_json_str_val_non_string_empty
+     run_test test_BUG_L7_version_string_consistency
++    # Phase 4 spec audit additions
++    run_test test_BUG_M8_nullglob_ls_counting
+ fi

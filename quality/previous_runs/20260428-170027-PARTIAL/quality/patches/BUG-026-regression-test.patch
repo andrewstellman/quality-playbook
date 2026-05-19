@@ -1,0 +1,17 @@
+diff --git a/quality/test_regression.py b/quality/test_regression.py
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@
++class AdversarialIterationRegressions(unittest.TestCase):
++    @unittest.expectedFailure
++    def test_reg_adv26_final_artifact_gaps_rejects_test_functional_test_alias(self):
++        with TemporaryDirectory() as tmp:
++            repo = Path(tmp)
++            for name in ["REQUIREMENTS.md", "CONTRACTS.md", "COVERAGE_MATRIX.md",
++                         "COMPLETENESS_REPORT.md", "PROGRESS.md", "QUALITY.md",
++                         "RUN_CODE_REVIEW.md", "RUN_INTEGRATION_TESTS.md",
++                         "RUN_SPEC_AUDIT.md", "RUN_TDD_TESTS.md"]:
++                _write(repo / "quality" / name, "stub\n")
++            _write(repo / "quality" / "test_functional_test.py", "# undocumented alias\n")
++            missing = run_playbook.final_artifact_gaps(repo)
++        self.assertIn("functional test", missing)

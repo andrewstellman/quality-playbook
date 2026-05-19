@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-004
+Test: quality.test_regression.RegressionTests.test_reg_cb4_archive_not_atomic
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_cb4_archive_not_atomic -v
+
+test_reg_cb4_archive_not_atomic (quality.test_regression.RegressionTests.test_reg_cb4_archive_not_atomic)
+BUG-004 / REQ-009: After archive_previous_run, control_prompts/ must ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.004s
+
+OK (expected failures=1)

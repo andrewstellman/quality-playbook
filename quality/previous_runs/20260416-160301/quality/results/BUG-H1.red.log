@@ -1,0 +1,29 @@
+RED
+=== Red Phase: BUG-H1 — json_has_key false positive ===
+Date: 2026-04-16
+Test: test_BUG_H1_json_has_key_false_positive
+
+Command: BUG_SKIP_H1=0 bash quality/test_regression.sh test_BUG_H1_json_has_key_false_positive
+
+Output:
+=== Regression Tests: quality-playbook ===
+Date: 2026-04-16
+All tests are skip-guarded. Set BUG_SKIP_NNN=0 to enable individual tests.
+
+  TEST: test_BUG_H1_json_has_key_false_positive
+  BUG CONFIRMED: json_has_key returned true for 'id' appearing only in string value
+  JSON content: {
+  "field_type": "id",
+  "schema_version": "1.1",
+  "project": "quality-playbook"
+}
+  RESULT: FAIL
+
+===========================================
+Results: 0 PASS, 1 FAIL, 0 SKIP
+
+Exit code: 1
+
+VERDICT: RED — regression test FAILS on unpatched code, confirming BUG-H1 is real.
+The buggy json_has_key() uses grep -q "\"${key}\"" which matches "id" appearing as
+a string VALUE ("field_type": "id"), not as a JSON key ("id": ...).

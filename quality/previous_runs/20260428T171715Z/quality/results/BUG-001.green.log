@@ -1,0 +1,8 @@
+GREEN
+Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_001_reference_docs_counts_as_docs_present (after patched code)
+
+.
+----------------------------------------------------------------------
+Ran 1 test in 0.002s
+
+OK

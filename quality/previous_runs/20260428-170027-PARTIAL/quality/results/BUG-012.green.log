@@ -1,0 +1,8 @@
+NOT_RUN
+Date: 2026-04-18
+Bug: BUG-012
+Reason: Bootstrap green-phase deferred per RUN_TDD_TESTS.md §Bootstrap-specific notes.
+The green phase requires applying quality/patches/BUG-012-fix.patch and re-running
+the regression test. For bootstrap self-audit, fixes are not applied to the
+working source — they are proposed patches for the next release cycle.
+Verdict in tdd-results.json: confirmed open

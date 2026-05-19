@@ -1,0 +1,105 @@
+=== Quality Gate — Post-Run Validation ===
+Version:    1.4.5
+Strictness: benchmark
+Repos:      1
+
+=== QPB ===
+[File Existence]
+  PASS: BUGS.md exists
+  PASS: REQUIREMENTS.md exists
+  PASS: QUALITY.md exists
+  PASS: PROGRESS.md exists
+  PASS: COVERAGE_MATRIX.md exists
+  PASS: COMPLETENESS_REPORT.md exists
+  PASS: CONTRACTS.md exists
+  PASS: RUN_CODE_REVIEW.md exists
+  PASS: RUN_SPEC_AUDIT.md exists
+  PASS: RUN_INTEGRATION_TESTS.md exists
+  PASS: RUN_TDD_TESTS.md exists
+  PASS: functional test file exists
+  PASS: AGENTS.md exists
+  PASS: EXPLORATION.md exists
+  PASS: code_reviews/ has .md files
+  PASS: spec_audits/ has triage file
+  PASS: spec_audits/ has 15 auditor file(s)
+  PASS: triage_probes.sh exists (executable triage evidence)
+[BUGS.md Heading Format]
+  PASS: All 27 bug headings use ### BUG-NNN format
+[TDD Sidecar JSON]
+  PASS: tdd-results.json exists (27 bugs)
+  PASS: has 'schema_version'
+  PASS: has 'skill_version'
+  PASS: has 'date'
+  PASS: has 'project'
+  PASS: has 'bugs'
+  PASS: has 'summary'
+  PASS: schema_version is '1.1'
+  PASS: per-bug field 'id' present (27x)
+  PASS: per-bug field 'requirement' present (27x)
+  PASS: per-bug field 'red_phase' present (27x)
+  PASS: per-bug field 'green_phase' present (27x)
+  PASS: per-bug field 'verdict' present (27x)
+  PASS: per-bug field 'fix_patch_present' present (27x)
+  PASS: per-bug field 'writeup_path' present (27x)
+  PASS: summary has 'total'
+  PASS: summary has 'verified'
+  PASS: summary has 'confirmed_open'
+  PASS: summary has 'red_failed'
+  PASS: summary has 'green_failed'
+  PASS: tdd-results.json date '2026-04-19' is valid
+  PASS: all verdict values are canonical
+[TDD Log Files]
+  PASS: All 27 confirmed bug(s) have red-phase logs
+  PASS: All 27 bug(s) with fix patches have green-phase logs
+  PASS: All red-phase logs have valid status tags
+  PASS: All green-phase logs have valid status tags
+  PASS: Sidecar-to-log cross-validation passed (54 checks)
+  PASS: TDD_TRACEABILITY.md exists (27 bugs with red-phase results)
+[Integration Sidecar JSON]
+  PASS: has 'schema_version'
+  PASS: has 'skill_version'
+  PASS: has 'date'
+  PASS: has 'project'
+  PASS: has 'recommendation'
+  PASS: has 'groups'
+  PASS: has 'summary'
+  PASS: has 'uc_coverage'
+  PASS: integration summary has 'total_groups'
+  PASS: integration summary has 'passed'
+  PASS: integration summary has 'failed'
+  PASS: integration summary has 'skipped'
+  PASS: integration schema_version is '1.1'
+  PASS: integration-results.json date '2026-04-18' is valid
+  PASS: recommendation 'FIX BEFORE MERGE' is canonical
+  PASS: all groups[].result values are canonical
+  PASS: all uc_coverage values are canonical
+[Recheck Sidecar JSON]
+  INFO: recheck-results.json not present (only required when recheck mode was run)
+[Use Cases]
+  PASS: Found 12 distinct UC identifiers (14 total references, 14167 source files)
+[Test File Extension]
+  FAIL: test_functional.py does not match project language (go) — expected .go
+  PASS: test_regression.go matches project language (go)
+[Terminal Gate]
+  PASS: PROGRESS.md has Terminal Gate section
+[Mechanical Verification]
+  PASS: verify.sh exists
+  PASS: mechanical-verify.exit is 0
+[Patches]
+  PASS: test_regression.* exists (27 confirmed bugs require it)
+  PASS: 27 regression-test patch(es) for 27 bug(s)
+  PASS: 27 fix patch(es)
+  INFO: Total: 54 patch file(s) in quality/patches/
+[Bug Writeups]
+  PASS: 27 writeup(s) for 27 bug(s)
+  PASS: All 27 writeup(s) have inline fix diffs
+[Version Stamps]
+  PASS: PROGRESS.md version matches (1.4.5)
+  PASS: tdd-results.json skill_version matches
+[Cross-Run Contamination]
+  PASS: No version mismatch detected
+
+
+===========================================
+Total: 1 FAIL, 0 WARN
+RESULT: GATE FAILED — 1 check(s) must be fixed

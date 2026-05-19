@@ -1,0 +1,26 @@
+RED
+=== Red Phase: BUG-L6 — json_str_val misleading error for non-string values ===
+Date: 2026-04-16
+Test: test_BUG_L6_json_str_val_non_string_empty
+
+Command: BUG_SKIP_L6=0 bash quality/test_regression.sh test_BUG_L6_json_str_val_non_string_empty
+
+Output:
+=== Regression Tests: quality-playbook ===
+Date: 2026-04-16
+All tests are skip-guarded. Set BUG_SKIP_NNN=0 to enable individual tests.
+
+  TEST: test_BUG_L6_json_str_val_non_string_empty
+  BUG CONFIRMED: json_str_val returned empty for number-typed 'schema_version'
+  Caller would report: "schema_version is 'missing', expected '1.1'"
+  Actual problem: field exists but is a number, not a string
+  RESULT: FAIL
+
+===========================================
+Results: 0 PASS, 1 FAIL, 0 SKIP
+
+Exit code: 1
+
+VERDICT: RED — regression test FAILS on unpatched code, confirming BUG-L6 is real.
+json_str_val() returns empty string for both "key absent" and "key present as number",
+making the error message misleading: "missing" when the actual problem is wrong type.

@@ -1,0 +1,13 @@
+RED
+Date: 2026-04-18
+Bug: BUG-002
+Test: quality.test_regression.RegressionTests.test_reg_cb2_missing_fourth_install_path
+Runner: python3 -m unittest quality.test_regression.RegressionTests.test_reg_cb2_missing_fourth_install_path -v
+
+test_reg_cb2_missing_fourth_install_path (quality.test_regression.RegressionTests.test_reg_cb2_missing_fourth_install_path)
+BUG-002 / REQ-002: SKILL_INSTALL_LOCATIONS must contain all 4 paths ... expected failure
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+OK (expected failures=1)

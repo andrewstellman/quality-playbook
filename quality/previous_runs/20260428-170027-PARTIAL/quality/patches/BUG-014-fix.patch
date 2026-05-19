@@ -1,0 +1,14 @@
+--- a/.github/skills/quality_gate/quality_gate.py
++++ b/.github/skills/quality_gate/quality_gate.py
+@@ -158,5 +158,10 @@ def validate_iso_date(date_str):
+     if date_str in ("YYYY-MM-DD", "0000-00-00"):
+         return "placeholder"
+-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_str):
++    # Accept both date-only (YYYY-MM-DD) and datetime (YYYY-MM-DDTHH:MM:SSZ) forms
++    date_part = date_str[:10]
++    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date_part):
+         return "bad_format"
++    if len(date_str) > 10:
++        if not re.fullmatch(r"T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})?", date_str[10:]):
++            return "bad_format"
+     today = date.today().isoformat()
