@@ -80,6 +80,18 @@ Then run the Phase 1 artifact-contract validator and quote its final `RESULT:` l
 
 Resolve `bin/` via the documented install-root fallback — for an `install_skill.py`-layout adopter use `PYTHONPATH=<install_root> python3 -m bin.validate_phase_artifacts . --phase 1` (the same layout-aware form Phase 1's `reference_docs_ingest` step uses). If the validator exits non-zero your `breakdown` is not the canonical object — re-run the normalization above until it exits 0. You MAY NOT proceed to Phase 2 with a failing validator. This closes the 2026-05-16 express opus-4.6 Mode-A defect: the agent left `"breakdown": null` (no runner normalized it — Mode A), the gate FAILED with "'breakdown' is not an object", and the agent reported PASS anyway.
 
+**Phase 1 validator invocation is NON-OPTIONAL.** Running `python3 -m bin.validate_phase_artifacts <target> --phase 1` at the Phase 1 boundary and quoting the verbatim `RESULT: VALIDATION PASSED (phase 1)` line in your State P1 emit is the documented Phase 1 entry contract — not advisory. You may NOT report Phase 1 PASS without that quoted verdict line. Fabricating PASS against a non-compliant EXPLORATION.md is the exact failure mode this mandate exists to prevent — observed 2026-05-18 in the codex desktop self-bootstrap, which produced 15 Open Exploration Findings with no `Stage:` annotations and reported `Phase 1: PASS` anyway (the validator would have FAILed). This is the Phase 1 instance of the same prose-only-enforcement gap as A-22/A-23/A-27/A-28; structural enforcement is tracked for v1.6.x (see `docs/design/QPB_v1.6.x_Phase6_Structural_Enforcement_Proposal.md`, Slice 0).
+
+**`Stage:` annotation requirement (the validator's candidate-bug source-mix gate).** The validator (`bin/run_state_lib.py`, check 13a/13b) requires ≥2 candidate-bug entries sourced from exploration/risks AND ≥1 from pattern deep dive. It buckets each entry by a `Stage:` annotation line: the parser routes an entry to the **exploration/risks** bucket when its `Stage:` value contains `open exploration`, `quality risks`, or `risks`; any other non-empty `Stage:` value (e.g. `pattern deep dive`) routes to the **deep dive** bucket. Every candidate-bug entry in EXPLORATION.md MUST carry a `Stage:` line. Exact syntax (one per entry, immediately under the entry heading):
+
+    Stage: open exploration
+    Stage: quality risks
+    Stage: pattern deep dive
+
+An entry with no `Stage:` line is counted toward NEITHER bucket → the gate FAILs with "candidate bugs source mix". Do NOT omit `Stage:`; do NOT invent other stage names — match the parser tokens above exactly.
+
+**HALT clause.** If your runtime cannot invoke the validator (no `python3`, cannot read the target dir, cannot write `quality/`, sandbox denies the subprocess), you MUST HALT and report that limitation to the operator. You may NOT emit Phase 1 PASS without the quoted `RESULT: VALIDATION PASSED (phase 1)` line — an unverifiable Phase 1 is a HALT, never an assumed-pass. (Parallel to the Phase 6 NON-OPTIONAL mandate in `phase_prompts/phase6.md`.)
+
 When Phase 1 is complete, write your full exploration findings to
 `quality/EXPLORATION.md`. The file MUST contain ALL of the following
 section titles VERBATIM (the Phase 1 gate at SKILL.md:1257-1273 enforces

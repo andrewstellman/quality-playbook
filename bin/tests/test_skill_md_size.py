@@ -62,14 +62,23 @@ class SkillMdSizeTests(unittest.TestCase):
         # Phase 7 trim achieved 26,162 BPE; instruction 058 (A-11)
         # re-grew SKILL.md to 27,943 BPE post-trim (layout-aware
         # Phase 1 invocation guidance). Instruction 062 widened this
-        # ceiling 28,000 → 29,000: the old 28,000 pin left only ~57
-        # BPE live headroom (Council-061 Lens-1 fragility finding);
-        # 29,000 restores ~1,057 BPE while still hard-blocking any
-        # change that would breach the <30K design target.
+        # ceiling 28,000 → 29,000 (Council-061 Lens-1 fragility
+        # finding; ~1,057 BPE headroom). v1.5.7 instruction 089b F11
+        # widened it 29,000 → 29,500: the F11 fix inverts 3 SKILL.md
+        # per-phase STOP boundary instructions to longer
+        # default-continue prose (the A-28 full-pipeline alignment),
+        # growing SKILL.md to ~29,156 BPE. Instruction-089b
+        # explicitly relaxed the size budget for F11 ("byte count may
+        # change; this is not a constraint — prefer correctness over
+        # arbitrary size targets"); 29,500 accommodates the
+        # instruction-mandated growth with ~344 BPE headroom while
+        # still hard-blocking the <30K design target. A references/
+        # *.md trim pass to reclaim headroom is deferred (orchestrator
+        # / v1.6.x — out of 089b's finding-scoped remit).
         self.assertLess(
-            token_count, 29000,
+            token_count, 29500,
             f"SKILL.md is {token_count} BPE tokens — exceeds the "
-            f"v1.5.7 size ceiling (29000; <30K design target). If "
+            f"v1.5.7 size ceiling (29500; <30K design target). If "
             f"this growth is intentional, update this test's pin AND "
             f"re-check the references/*.md tree for further trim "
             f"opportunities rather than only widening the ceiling."

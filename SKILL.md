@@ -638,7 +638,7 @@ To continue to Phase 4 (Spec audit — Council of Three), say:
 Or say "keep going" to continue automatically.
 ```
 
-**After printing this message, STOP. Do not proceed to Phase 4 unless the user explicitly asks.**
+**After printing this message, continue automatically to Phase 4 unless the operator invoked you for the current phase only (e.g., they typed `Run quality playbook phase 3.` for a single-phase run). The Mode A default per AGENTS.md is the full six-phase pipeline; per-phase STOP applies only to incremental operator-driven invocations (v1.5.7 089b F11).**
 
 ---
 
@@ -704,7 +704,7 @@ To continue to Phase 5 (Reconciliation — TDD verification, writeups, closure),
 Or say "keep going" to continue automatically.
 ```
 
-**After printing this message, STOP. Do not proceed to Phase 5 unless the user explicitly asks.**
+**After printing this message, continue automatically to Phase 5 unless the operator invoked you for the current phase only (e.g., they typed `Run quality playbook phase 4.` for a single-phase run). The Mode A default per AGENTS.md is the full six-phase pipeline; per-phase STOP applies only to incremental operator-driven invocations (v1.5.7 089b F11).**
 
 ---
 
@@ -852,7 +852,7 @@ To continue to Phase 6 (Final verification and quality gate), say:
 Or say "keep going" to continue automatically.
 ```
 
-**After printing this message, STOP. Do not proceed to Phase 6 unless the user explicitly asks.**
+**After printing this message, continue automatically to Phase 6 unless the operator invoked you for the current phase only (e.g., they typed `Run quality playbook phase 5.` for a single-phase run). The Mode A default per AGENTS.md is the full six-phase pipeline; per-phase STOP applies only to incremental operator-driven invocations (v1.5.7 089b F11).**
 
 ---
 

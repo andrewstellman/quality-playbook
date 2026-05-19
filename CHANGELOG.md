@@ -76,11 +76,20 @@ Final release-gate review (instruction 040) substituted for the canonical Counci
 
 ### Known limitations
 
-- **Phase 6 fresh-context contract is prose-enforced on agents without
-  sub-agent primitives.** Claude Code Task-tool dispatch and gh copilot Mode B
-  work correctly (structural enforcement). Codex desktop, cursor, aider, and
-  cline currently fall through to in-session verification with explicit
-  disclosure. Structural enforcement (mechanical detector) is v1.6.x scope;
+- **Phase validator-invocation contracts are prose-enforced (Phase 1 + Phase
+  6 observed empirically; Phase 2 + Phase 5 same structural shape).** Phase
+  1/2/5 require the agent to invoke `validate_phase_artifacts` and quote the
+  verbatim `RESULT: VALIDATION PASSED (phase N)` line; Phase 6 requires the
+  `quality_gate.py` + fresh-context auditor verdict. Agents are prose-required
+  to comply but it is not mechanically enforced. Empirically: codex desktop
+  performed in-session Phase 6 verification rather than dispatching the
+  mandated fresh-context sub-agent (2026-05-18), and reported Phase 1 PASS
+  while producing an EXPLORATION.md the validator would have FAILed
+  (2026-05-18 self-bootstrap — validator not invoked, or its FAIL ignored).
+  Claude Code Task-tool dispatch + gh copilot Mode B comply correctly.
+  Operators should check for the verbatim verdict lines; if absent, do not
+  treat the verdict as load-bearing. Structural enforcement is v1.6.x scope
+  (Slice 0 for Phase 1/2/5 subprocess attestation; Slices 1+2 for Phase 6) —
   see `docs/design/QPB_v1.6.x_Phase6_Structural_Enforcement_Proposal.md`.
 
 ### v1.5.7.x carry-forwards (documented in phase synthesis docs)

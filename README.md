@@ -420,17 +420,44 @@ For headless / CI usage where `python3 -m bin.run_playbook` may be invoked
 from a non-interactive context, see [`docs/CI_INTEGRATION.md`](docs/CI_INTEGRATION.md)
 for the operator-side configuration steps.
 
+**Non-interactive host-CLI invocation (auto-approval flag).** Each supported
+host CLI needs its auto-approval flag (`--yolo` / `--dangerously-skip-permissions`
+/ `--full-auto`) for non-interactive runs — omitting it makes the CLI silently
+deny filesystem ops and cascade into a failed (or fabricated) run. See the
+**Canonical adopter invocations** table in `AGENTS.md` for the exact
+interactive vs non-interactive command per host CLI (Claude Code, gh copilot,
+codex CLI, codex desktop).
+
 ### Known limitations
 
-**Phase 6 fresh-context contract is prose-enforced.** Agents with sub-agent
-primitives (Claude Code via Task tool, gh copilot in Mode B) dispatch a
-fresh-context auditor mechanically — the A-13 hybrid contract works correctly.
-Agents without sub-agent primitives (codex desktop, possibly cursor/aider/cline)
-perform Phase 6 verification in-session with explicit disclosure in the verdict
-output. Operators reviewing Phase 6 output should check for fresh-context framing;
-if absent, re-run on a sub-agent-capable host before treating the verdict as
-load-bearing. Structural enforcement (subprocess Phase 6 verifier + witness-signing
-fallback) is tracked for v1.6.x — see `docs/design/QPB_v1.6.x_Phase6_Structural_Enforcement_Proposal.md`.
+**Phase validator-invocation contracts are prose-enforced.** Phase 1, Phase 2,
+Phase 5, and Phase 6 each require the agent to invoke `validate_phase_artifacts`
+(Phase 1/2/5) or `quality_gate.py` + the fresh-context auditor (Phase 6) at phase
+boundary and quote the verbatim verdict line. This is currently prose-mandated
+in `phase_prompts/*.md` and the per-phase reference guides — agents are required
+to comply but the requirement is not mechanically enforced. Empirically:
+
+- **Phase 6** — codex desktop performs in-session verification with explicit
+  disclosure rather than dispatching the mandated fresh-context sub-agent
+  (observed 2026-05-18). Claude Code via Task tool + gh copilot Mode B dispatch
+  the sub-agent correctly.
+- **Phase 1** — codex desktop reported Phase 1 PASS while producing an
+  EXPLORATION.md the validator would have FAILed (observed 2026-05-18
+  self-bootstrap). Either the validator was not invoked, or its FAIL verdict
+  was ignored.
+
+Phase 2 and Phase 5 have the same structural shape and likely fail the same
+way under the same conditions, though they have not surfaced empirically yet.
+
+Operators reviewing phase verdicts should check for verbatim `RESULT: VALIDATION
+PASSED (phase N)` lines (Phase 1/2/5) or fresh-context framing in the auditor
+verdict (Phase 6). If absent, do not treat the verdict as load-bearing.
+
+Structural enforcement is tracked for v1.6.x — see
+`docs/design/QPB_v1.6.x_Phase6_Structural_Enforcement_Proposal.md` (filename
+retains the historical `Phase6` suffix; content covers all phase-boundary
+validator contracts via Slice 0 for Phase 1/2/5 subprocess attestation and
+Slices 1+2 for Phase 6 subprocess verifier + witness-signing).
 
 ## Running the playbook: phases, iterations, and macros
 

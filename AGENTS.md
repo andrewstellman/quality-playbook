@@ -197,6 +197,17 @@ Phase-1-only as a default is the v1.5.3 legacy invocation behavior, restored onl
 
 **Why this is non-negotiable.** Without the install step the Phase 2/5/6 validators and the Phase 6 gate are not at canonical locations — your run silently bypasses all artifact-contract enforcement (A-14/A-15/A-16). The **2026-05-17 httpx run reproduced exactly this failure mode**: the agent, told only "read SKILL.md and run the playbook", worked from the QPB source clone without installing into the target → validators unreachable → Phase 2 manifests entirely absent (A-19) → the gate would have failed 29 checks but the agent claimed pass. Phase 0 install is what makes the enforcement reachable.
 
+## Canonical adopter invocations
+
+| Host CLI | Interactive | Non-interactive (auto-approval) |
+|---|---|---|
+| Claude Code | `claude --dangerously-skip-permissions --model X` (operator types prompt) | `claude --dangerously-skip-permissions --model X -p "<prompt>"` |
+| gh copilot | `gh copilot --model X` (operator types prompt; per-command approvals) | `gh copilot --model X --yolo --prompt "<prompt>"` |
+| codex CLI (Mode B subprocess only) | n/a (invoked by `bin/run_playbook.py --codex`) | `codex exec --full-auto -m X -c model_reasoning_effort='"medium"' "<prompt>"` |
+| codex desktop | open via desktop app, paste prompt in chat | n/a |
+
+The `--yolo` / `--dangerously-skip-permissions` / `--full-auto` flag is the auto-approval signal. Omitting it in non-interactive mode causes the host CLI to silently deny filesystem operations, which produces cascading failures (install denied → playbook can't run → agent may fabricate verdicts rather than HALT). Always use the documented flag for non-interactive runs. (v1.5.7 089b F12 — surfaced 2026-05-18: chi via `gh copilot --prompt` without `--yolo` hit ~30 permission-denied ops then a fabricated Phase 6 PASS.)
+
 ## Repository layout
 
 ```

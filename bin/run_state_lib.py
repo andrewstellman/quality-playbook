@@ -460,7 +460,8 @@ def _validate_phase1(quality_dir: Path) -> tuple[bool, str]:
             f"≥{_MIN_CANDIDATE_BUGS_EXPLORATION_RISKS} from exploration/risks "
             f"AND ≥{_MIN_CANDIDATE_BUGS_DEEP_DIVE} from pattern deep dive, "
             f"found {n_exploration_risks} from exploration/risks AND "
-            f"{n_deep_dive} from pattern deep dive; see SKILL.md:1271. "
+            f"{n_deep_dive} from pattern deep dive; "
+            f'see SKILL.md "Phase-by-phase execution". '
             f"Per-entry stages:\n{per_entry_lines}"
         )
 

@@ -11,6 +11,7 @@ append-event guard. Each test stages its fixtures inside a
 from __future__ import annotations
 
 import json
+import re
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -2032,6 +2033,72 @@ class ResolveRunStatePathTests(unittest.TestCase):
             resolved = lib.resolve_run_state_path(repo)
             self.assertEqual(resolved.read_text(encoding="utf-8"),
                              "20260101T120000Z")
+
+
+class Phase1DiagnosticSkillRefNotStaleTests(unittest.TestCase):
+    """v1.5.7 instruction 089b F14: the Phase 1 gate-failure
+    diagnostic in bin/run_state_lib.py must NOT carry a stale
+    `SKILL.md:<lineno>` reference (it pointed at SKILL.md:1271 while
+    SKILL.md is 1211 lines — adopters following it land past EOF).
+    It now references a stable SKILL.md SECTION TITLE; this test
+    pins that the referenced section still exists verbatim in
+    SKILL.md so a future SKILL.md edit that removes/renames it is
+    caught instead of silently re-breaking the diagnostic.
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160) — BITE EXECUTED:
+      Mutation: in SKILL.md rename the heading
+        `### Phase-by-phase execution` to `### Phase execution`.
+      Observed failure (purged __pycache__ first):
+        FAIL: test_phase1_diagnostic_section_ref_resolves
+        AssertionError: SKILL.md section 'Phase-by-phase execution'
+          (referenced by the Phase 1 gate diagnostic in
+          bin/run_state_lib.py) not found verbatim in SKILL.md
+      Mutation reverted; test passes.
+    """
+
+    def test_phase1_diagnostic_has_no_stale_skill_lineno_ref(self) -> None:
+        src = (Path(__file__).resolve().parents[2]
+               / "bin" / "run_state_lib.py").read_text(encoding="utf-8")
+        # SCOPED to the F14 finding only: the Phase 1
+        # candidate-bugs-source-mix diagnostic (the `:463` message
+        # that said "see SKILL.md:1271"). NOT a file-wide assertion —
+        # the v1.5.6 BUG-005 13-check region carries its own
+        # `see SKILL.md:1257-1273` refs that are OUT OF 089b-F14
+        # SCOPE (a separate, orchestrator-scopable staleness, not
+        # this finding; instruction-089b is finding-scoped + "don't
+        # expand scope"). Window = the candidate-bugs diagnostic
+        # f-string, from its lead-in to "Per-entry stages:".
+        start = src.index("Phase 1 gate: candidate bugs source mix")
+        end = src.index("Per-entry stages:", start)
+        diag = src[start:end]
+        self.assertNotRegex(
+            diag, r"SKILL\.md:\d+",
+            "the Phase 1 candidate-bugs-source-mix diagnostic still "
+            "carries a stale `SKILL.md:<lineno>` literal — F14 "
+            "replaced it with a stable section title.")
+        self.assertIn(
+            'see SKILL.md "', diag,
+            "the Phase 1 candidate-bugs diagnostic lost its stable "
+            "`see SKILL.md \"<section>\"` cross-reference (F14).")
+
+    def test_phase1_diagnostic_section_ref_resolves(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        src = (repo_root / "bin" / "run_state_lib.py").read_text(
+            encoding="utf-8")
+        m = re.search(r'see SKILL\.md "([^"]+)"', src)
+        self.assertIsNotNone(
+            m, "Phase 1 diagnostic no longer carries a "
+            '`see SKILL.md "<section>"` reference — F14 cross-ref '
+            "scheme changed; update this test to match.")
+        section = m.group(1)
+        skill = (repo_root / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn(
+            section, skill,
+            f"SKILL.md section {section!r} (referenced by the Phase 1 "
+            f"gate diagnostic in bin/run_state_lib.py) not found "
+            f"verbatim in SKILL.md — the cross-reference rotted; "
+            f"re-point the diagnostic or restore the section.")
 
 
 if __name__ == "__main__":

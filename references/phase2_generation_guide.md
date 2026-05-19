@@ -684,6 +684,6 @@ To continue to Phase 3 (Code review with regression tests), say:
 Or say "keep going" to continue automatically.
 ```
 
-**After printing this message, STOP. Do not proceed to Phase 3 unless the user explicitly asks.**
+**After printing this message, continue automatically to Phase 3 unless the operator invoked you for the current phase only (e.g., they typed `Run quality playbook phase 2.` for a single-phase run). The Mode A default per AGENTS.md is the full six-phase pipeline; per-phase STOP applies only to incremental operator-driven invocations (v1.5.7 089b F11).**
 
 ---

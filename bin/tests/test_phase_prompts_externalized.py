@@ -279,8 +279,23 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # iteration were NOT edited (their hashes are unchanged).
         # Hashes recomputed — this baseline update IS the sanctioned
         # change-acknowledgement signal.
-        "phase1_no_seeds_True":  (24719, "778df327fcbcd64e45119cdb6e6cc90f2767ca2fbdbee7e7d4003d8954c8fa37"),
-        "phase1_no_seeds_False": (24522, "f7150215bdd061ed39dc853fe471fd8bb97b1d9c66b692bcc5f704eb308eef19"),
+        # v1.5.7 instruction 089b F13a: phase1.md gained the
+        # NON-OPTIONAL Phase-1 validator-invocation mandate (run
+        # validate_phase_artifacts --phase 1 + quote the verbatim
+        # RESULT line; Stage: annotation requirement w/ syntax
+        # example matching the run_state_lib parser; HALT clause for
+        # can't-invoke runtimes) — closes the 2026-05-18 codex
+        # desktop "reported Phase 1 PASS against a non-compliant
+        # EXPLORATION.md" gap (F13). phase1 codepoint length
+        # 24719→27026 (no_seeds_True) / 24522→26829 (no_seeds_False).
+        # phase2-6/single_pass/iteration UNCHANGED (089b touched only
+        # phase1.md among the run_playbook-rendered prompts; the F11
+        # references/phase{1,2}_guide.md edits are NOT
+        # run_playbook-rendered and carry no EXPECTED_HASHES entry).
+        # Hashes recomputed — this baseline update IS the sanctioned
+        # change-acknowledgement signal.
+        "phase1_no_seeds_True":  (27026, "42010af537fa2d1bde614f791e2bd5a2b82b506a4d43cfa1b69f04268533d605"),
+        "phase1_no_seeds_False": (26829, "daf228a20f85f5a65ef6efaaa3b8acc7457d27313bff5c555d3a85cbc70de1eb"),
         # v1.5.7 instruction 073 Item-4 (A-19): phase2.md gained the
         # httpx-2026-05-17 missing-manifests warning (validator now
         # FAILs on ABSENT manifests, not just wrong-shape; agent must
