@@ -14,12 +14,16 @@ Usage:
     ./quality_gate.py --version 1.3.27 virtio    # Check specific version
 
 Exit codes:
-    0 — all checks passed
-    1 — one or more checks failed
+    0 — GATE PASSED, or GATE PASSED WITH CLEANUP NEEDED (only audit
+        record-keeping gaps remain; the review completed and its
+        findings stand — see the v1.5.7 089c F15 taxonomy block below)
+    1 — GATE FAILED (one or more substantive issues — the work itself
+        wasn't done correctly)
 
 Runs on Python 3.8+ with only the standard library.
 """
 
+import functools
 import json
 import os
 import re
@@ -66,6 +70,169 @@ for _candidate_root in _VERIFIER_SEARCH_ROOTS:
 # directly should reset these in setUp.
 FAIL = 0
 WARN = 0
+
+
+# ---------------------------------------------------------------------------
+# v1.5.7 instruction 089c (F15) — three-state verdict taxonomy.
+#
+# Round 2 ship-validation surfaced an adopter-UX defect: the old binary
+# GATE PASSED / GATE FAILED verdict treated audit record-keeping
+# incompleteness (a manifest field missing, a sidecar absent, a
+# cross-site pattern tag not applied) IDENTICALLY to substantive failure
+# (the review never ran, specs absent, a verdict fabricated). An adopter
+# reading "GATE FAILED — 44 check(s)" could not tell "your code is
+# broken in 44 ways" from "your audit trail is incomplete in 44 ways".
+# Both Round 2 runs (haiku/click, codex/express) completed real Phase
+# 0-6 work and found real TDD-verified bugs but were tagged GATE FAILED
+# purely on artifact-completeness gaps.
+#
+# Every check function is now classified into exactly one category:
+#
+#   "substantive"    — failure means the WORK WASN'T DONE CORRECTLY:
+#                      the review didn't complete; EXPLORATION / specs /
+#                      BUGS / writeups / patches are missing; the
+#                      mechanical verifier was never invoked or failed;
+#                      TDD red->green evidence is absent; the Phase 5
+#                      verdict is missing/fabricated; layout drift hides
+#                      artifacts. These BLOCK the gate (exit 1).
+#
+#   "record_keeping" — failure means the WORK HAPPENED but the AUDIT
+#                      TRAIL HAS GAPS: a manifest record is missing a
+#                      field (disposition / functional_section / tier);
+#                      a sidecar or per-bug challenge record is absent;
+#                      a cross-site pattern tag or role-map breakdown
+#                      field is missing; bugs↔patches bookkeeping is
+#                      out of sync. The bugs are real and reviewed; the
+#                      paperwork is incomplete. These DON'T block — they
+#                      surface as cleanup (exit 0).
+#
+# Classification is per CHECK FUNCTION via the @verdict_category(...)
+# decorator (recorded as the function's _VERDICT_CATEGORY attribute).
+# The decorator pushes the category onto _CHECK_CATEGORY_STACK for the
+# duration of the call so fail()s emitted by nested helpers
+# (_v150_manifest, validate_cardinality_gate, _check_citation_block,
+# _check_exploration_sections, ...) inherit the enclosing check's
+# category. A fail() MAY override per call via fail(..., category=...).
+#
+# Default rule (089c Task 1): a genuinely ambiguous check is classified
+# "substantive" — better to FAIL than to PASS-WITH-CLEANUP a real
+# defect. The record_keeping set is deliberately narrow and tracks the
+# Round 2 evidence + the F15 illustrative output: bugs↔patches
+# consistency, the v1.5.0 / v1.5.3 manifest field-completeness checks,
+# the challenge-gate coverage check, the v1.5.2 cardinality
+# (cross-site-pattern-tag) gate, run-metadata, and role-map
+# well-formedness. Everything else (artifact existence, BUGS heading,
+# TDD sidecar/logs, integration/recheck sidecars, use-cases, mechanical
+# verification, patches, writeups, verdict shape, workspace drift,
+# version stamps, cross-run contamination, cite-extensions, INDEX.md
+# (invariant #10 — absent INDEX is substantive), semantic check, the
+# Phase-4 skill-coverage checks) stays substantive.
+#
+# Verdict (main()): zero FAILs -> GATE PASSED (exit 0). Any substantive
+# FAIL -> GATE FAILED (exit 1). Only record_keeping FAILs -> GATE
+# PASSED WITH CLEANUP NEEDED (exit 0 — cleanup is not a hard failure).
+# The exact RESULT: line strings are LOAD-BEARING; downstream consumers
+# (phase_prompts/phase6{,_auditor}.md witness contract,
+# bin/validate_phase_artifacts.py, references/what_just_happened.md
+# State CN, the gate test suite) pattern-match on them.
+# ---------------------------------------------------------------------------
+
+VERDICT_SUBSTANTIVE = "substantive"
+VERDICT_RECORD_KEEPING = "record_keeping"
+_VALID_VERDICT_CATEGORIES = (VERDICT_SUBSTANTIVE, VERDICT_RECORD_KEEPING)
+
+# (category, rendered_message) for every fail() emitted this run. Reset
+# with the counters. main() splits this for the three-state verdict.
+_FAIL_RECORDS = []
+
+# Category context stack. @verdict_category pushes on call entry and
+# pops on exit; fail() reads the top (or an explicit category= override;
+# or VERDICT_SUBSTANTIVE when the stack is empty — conservative default).
+_CHECK_CATEGORY_STACK = []
+
+
+def verdict_category(category):
+    """Decorator: record a check function's F15 verdict category and,
+    for the duration of each call, push it onto _CHECK_CATEGORY_STACK so
+    fail()s from nested helpers inherit it. See the classification
+    policy block above. `category` must be one of
+    _VALID_VERDICT_CATEGORIES (raises ValueError otherwise — a typo'd
+    category is a hard programming error, not a silent mis-classify)."""
+    if category not in _VALID_VERDICT_CATEGORIES:
+        raise ValueError(
+            f"verdict_category: {category!r} not in "
+            f"{_VALID_VERDICT_CATEGORIES}"
+        )
+
+    def _decorate(fn):
+        @functools.wraps(fn)
+        def _wrapped(*args, **kwargs):
+            _CHECK_CATEGORY_STACK.append(category)
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                _CHECK_CATEGORY_STACK.pop()
+
+        # Expose the classification on BOTH the wrapper and the
+        # underlying fn so introspection works regardless of which the
+        # caller holds (the test suite asserts every check carries one).
+        _wrapped._VERDICT_CATEGORY = category
+        fn._VERDICT_CATEGORY = category
+        return _wrapped
+
+    return _decorate
+
+
+def _compute_final_verdict(fail_records, warn_count):
+    """v1.5.7 089c (F15) — pure three-state verdict decision.
+
+    `fail_records` is the (category, message) ledger
+    (quality_gate._FAIL_RECORDS shape). Returns
+    ``(total_line, result_line, exit_code)``:
+
+      - zero fails                  -> GATE PASSED                  exit 0
+      - any substantive fail        -> GATE FAILED                  exit 1
+      - only record_keeping fails   -> GATE PASSED WITH CLEANUP
+                                       NEEDED                       exit 0
+
+    The RESULT: line strings are LOAD-BEARING — phase_prompts/
+    phase6{,_auditor}.md's witness contract, bin/validate_phase_
+    artifacts.py, references/what_just_happened.md's State CN, and the
+    gate test suite all pattern-match them. Kept pure (no globals, no
+    printing) so the three-state logic is unit-testable directly
+    without constructing a full repo fixture (089c Task 7)."""
+    n_total = len(fail_records)
+    n_sub = sum(1 for r in fail_records if r[0] == VERDICT_SUBSTANTIVE)
+    n_clean = sum(
+        1 for r in fail_records if r[0] == VERDICT_RECORD_KEEPING
+    )
+    if n_total == 0:
+        return (
+            f"Total: 0 FAIL, {warn_count} WARN",
+            "RESULT: GATE PASSED",
+            0,
+        )
+    if n_sub > 0:
+        # Any substantive failure blocks. Break out the cleanup count
+        # so the operator sees how much of the total is record-keeping.
+        return (
+            f"Total: {n_total} FAIL "
+            f"({n_sub} substantive, {n_clean} record-keeping), "
+            f"{warn_count} WARN",
+            f"RESULT: GATE FAILED — {n_sub} substantive "
+            f"issue(s) must be fixed",
+            1,
+        )
+    # Only record-keeping fails remain: the review completed and its
+    # findings stand on their own; the audit trail just has gaps. This
+    # is NOT a hard failure (exit 0) — adopters/CI must be able to tell
+    # "audit paperwork incomplete" apart from "the work is broken".
+    return (
+        f"Total: {n_clean} CLEANUP, {warn_count} WARN",
+        f"RESULT: GATE PASSED WITH CLEANUP NEEDED — "
+        f"{n_clean} audit record-keeping gap(s)",
+        0,
+    )
 
 
 # v1.5.2 — REQ Pattern field (Lever 2)
@@ -452,9 +619,14 @@ def _reset_counters():
     global FAIL, WARN
     FAIL = 0
     WARN = 0
+    # v1.5.7 089c (F15): clear the per-fail category ledger and the
+    # category context stack so a fresh main()/check_repo run starts
+    # clean (tests that call check_repo directly must reset too).
+    _FAIL_RECORDS.clear()
+    _CHECK_CATEGORY_STACK.clear()
 
 
-def fail(msg, reason=None, *, line=None):
+def fail(msg, reason=None, *, line=None, category=None):
     """Emit a structured failure line and increment FAIL.
 
     Phase 5 r3 format: `<path>[:<line>]: <reason>` — no "FAIL:" label, so
@@ -472,15 +644,36 @@ def fail(msg, reason=None, *, line=None):
     messages already embed a path-like token):
         fail("BUGS.md missing or not a file")
             -> "  BUGS.md missing or not a file"
+
+    v1.5.7 089c (F15): every fail is tagged with a verdict category
+    ("substantive" | "record_keeping"). When `category` is None the
+    enclosing @verdict_category check's category is used (top of
+    _CHECK_CATEGORY_STACK); when the stack is empty the conservative
+    default VERDICT_SUBSTANTIVE applies (an un-decorated caller's failure
+    is treated as blocking, never silently downgraded to cleanup).
+    main() splits _FAIL_RECORDS by category for the three-state verdict.
     """
     global FAIL
     if reason is None:
-        print(f"  {msg}")
+        rendered = f"  {msg}"
     elif line is None:
-        print(f"  {msg}: {reason}")
+        rendered = f"  {msg}: {reason}"
     else:
-        print(f"  {msg}:{line}: {reason}")
+        rendered = f"  {msg}:{line}: {reason}"
+    print(rendered)
     FAIL += 1
+    if category is None:
+        category = (
+            _CHECK_CATEGORY_STACK[-1]
+            if _CHECK_CATEGORY_STACK
+            else VERDICT_SUBSTANTIVE
+        )
+    elif category not in _VALID_VERDICT_CATEGORIES:
+        raise ValueError(
+            f"fail(): category {category!r} not in "
+            f"{_VALID_VERDICT_CATEGORIES}"
+        )
+    _FAIL_RECORDS.append((category, rendered.strip()))
 
 
 def pass_(msg):
@@ -557,6 +750,7 @@ def _resolve_artifact_path(quality_dir, name):
     return quality_dir / name
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_no_workspace_dir(q):
     """v1.5.7 fix F-4a (Phase 6 gate): artifacts must be at canonical
     quality/<name>/ paths, NOT quality/workspace/<name>/. The
@@ -620,6 +814,7 @@ _VERDICT_PLACEHOLDER_PHRASES = (
 )
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_verdict_shape(q):
     """v1.5.7 Fix 8 (instruction 031) + instruction 032 NCF-1: Phase 5
     must end COMPLETENESS_REPORT.md with the canonical verdict shape:
@@ -765,6 +960,7 @@ def check_verdict_shape(q):
     )
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_bugs_md_patches_consistency(q, bug_count, bug_ids):
     """v1.5.7 Fix 7 (instruction 031): the patches/ directory and
     BUGS.md must be consistent — patches without corresponding bug
@@ -1088,6 +1284,7 @@ def count_source_files(repo_dir):
 # --- Section checks ---
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_file_existence(repo_dir, q, strictness):
     """File existence section (benchmark 40)."""
     print("[File Existence]")
@@ -1167,6 +1364,7 @@ def check_file_existence(repo_dir, q, strictness):
         fail("spec_audits/ directory missing")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_bugs_heading(q):
     """BUGS.md heading-format section (benchmark 39).
 
@@ -1228,6 +1426,7 @@ def check_bugs_heading(q):
     return bug_count, bug_ids
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_tdd_sidecar(q, bug_count):
     """TDD sidecar JSON (benchmarks 14, 41)."""
     print("[TDD Sidecar JSON]")
@@ -1328,6 +1527,7 @@ def check_tdd_sidecar(q, bug_count):
     return data
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     """TDD log files and sidecar-to-log cross-validation."""
     print("[TDD Log Files]")
@@ -1447,6 +1647,7 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
             fail("TDD_TRACEABILITY.md missing (mandatory when bugs have red-phase results)")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_integration_sidecar(q, strictness):
     """Integration sidecar JSON section."""
     print("[Integration Sidecar JSON]")
@@ -1531,6 +1732,7 @@ def check_integration_sidecar(q, strictness):
         fail(f"{bad_uc} non-canonical uc_coverage value(s) (must be covered_pass/covered_fail/not_mapped)")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_recheck_sidecar(q):
     """Recheck sidecar JSON (schema 1.0, uses 'results' key not 'bugs')."""
     print("[Recheck Sidecar JSON]")
@@ -1576,6 +1778,7 @@ def check_recheck_sidecar(q):
         fail("recheck-summary.md missing (required companion to recheck-results.json)")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_use_cases(repo_dir, q, strictness):
     """Use case identifier section (benchmarks 43, 48)."""
     print("[Use Cases]")
@@ -1610,6 +1813,7 @@ def check_use_cases(repo_dir, q, strictness):
         fail("No canonical UC-NN identifiers in REQUIREMENTS.md")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_test_file_extension(repo_dir, q):
     """Test file extension matches project language (benchmark 47)."""
     print("[Test File Extension]")
@@ -1658,6 +1862,7 @@ def check_test_file_extension(repo_dir, q):
             fail(f"test_regression.{reg_ext} does not match project language ({detected_lang}) — expected .{primary}")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_terminal_gate(q):
     """Terminal Gate section in PROGRESS.md."""
     print("[Terminal Gate]")
@@ -1671,6 +1876,7 @@ def check_terminal_gate(q):
         fail("PROGRESS.md missing Terminal Gate section")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_mechanical(q):
     """Mechanical verification section."""
     print("[Mechanical Verification]")
@@ -1753,6 +1959,7 @@ def check_mechanical(q):
         fail("Verification receipt files missing")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_patches(q, bug_count, bug_ids, strictness):
     """Patches section (benchmark 44)."""
     print("[Patches]")
@@ -1833,6 +2040,7 @@ def _writeup_diff_is_non_empty(text):
     return False
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_writeups(q, bug_count):
     """Bug writeups section (benchmark 30)."""
     print("[Bug Writeups]")
@@ -1908,6 +2116,7 @@ def check_writeups(q, bug_count):
             pass_("No writeups contain unfilled template sentinels")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_version_stamps(repo_dir, q):
     """Version stamp consistency (benchmark 26). Returns detected skill_version."""
     print("[Version Stamps]")
@@ -1946,6 +2155,7 @@ def check_version_stamps(repo_dir, q):
     return skill_version
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_cross_run_contamination(repo_dir, q, version_arg, skill_version):
     """Cross-run contamination detection."""
     print("[Cross-Run Contamination]")
@@ -1985,6 +2195,7 @@ def _check_exploration_sections(path):
             fail(f"EXPLORATION.md missing required section: {section!r}")
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_run_metadata(q):
     """Validate the run-metadata sidecar JSON (run-YYYY-MM-DDTHH-MM-SS.json)."""
     print("[Run Metadata]")
@@ -2180,6 +2391,7 @@ def _v150_manifest(q, name):
     return None
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_v1_5_0_cite_extensions(repo_dir):
     """§10 invariant #9 — reference_docs/cite/ contains only .txt/.md.
 
@@ -2218,6 +2430,7 @@ def check_v1_5_0_cite_extensions(repo_dir):
         pass_("reference_docs/cite/: all files use supported extensions")
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_0_manifest_wrappers(q):
     """§10 invariant #13 — manifest wrapper shape.
 
@@ -2366,6 +2579,7 @@ def _check_citation_block(repo_dir, req_id, citation, formal_docs_by_path, req_t
         )
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_0_requirements_manifest(repo_dir, q):
     """§10 invariants #1, #4, #8, #11, #14 — REQ shape, citation gating, functional_section."""
     req_data = _v150_manifest(q, "requirements_manifest.json")
@@ -2442,6 +2656,7 @@ def check_v1_5_0_requirements_manifest(repo_dir, q):
 _V157_CANONICAL_SEVERITIES = ("HIGH", "MEDIUM", "LOW")
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_0_bugs_manifest(q):
     """§10 invariants #7, #12 — disposition completeness + legal fix_type × disposition.
 
@@ -2521,6 +2736,7 @@ def check_v1_5_0_bugs_manifest(q):
     pass_("bugs_manifest.json: v1.5.1 Layer-1 BUG checks complete")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_v1_5_0_index_md(q):
     """§10 invariant #10 — quality/INDEX.md exists with all §11 required fields.
 
@@ -2653,6 +2869,7 @@ def check_v1_5_0_index_md(q):
 _V150_VALID_VERDICTS = ("supports", "overreaches", "unclear")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_v1_5_0_semantic_check(q):
     """§10 invariant #17 — Council-of-Three majority-overreaches rule.
 
@@ -2996,6 +3213,7 @@ def _challenge_record_has_verdict(path):
     return False
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_challenge_gate_coverage(q):
     """v1.5.1 Item 5.2 — every bug whose fingerprints trigger the challenge
     gate must have a quality/challenge/BUG-NNN-challenge.md with a valid
@@ -3064,6 +3282,7 @@ def check_challenge_gate_coverage(q):
         )
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_3_formal_doc_role_validation(q):
     """schemas.md §10 invariant #23 — FORMAL_DOC.role on v1.5.3-shaped manifests.
 
@@ -3105,6 +3324,7 @@ def check_v1_5_3_formal_doc_role_validation(q):
         pass_("formal_docs_manifest.json: v1.5.3 role validation complete")
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_3_source_type_validation(q):
     """schemas.md §10 invariants #21 (first part) — REQ.source_type presence.
 
@@ -3148,6 +3368,7 @@ def check_v1_5_3_source_type_validation(q):
         pass_("requirements_manifest.json: v1.5.3 source_type validation complete")
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_3_skill_section_consistency(q):
     """schemas.md §10 invariant #21 (second part) — skill_section consistency.
 
@@ -3207,6 +3428,7 @@ def check_v1_5_3_skill_section_consistency(q):
         pass_("requirements_manifest.json: v1.5.3 skill_section consistency complete")
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_3_divergence_type_validation(q):
     """schemas.md §10 invariant #22 — BUG.divergence_type on v1.5.3-shaped manifests.
 
@@ -3253,6 +3475,7 @@ _V153_COUNCIL_INBOX_ITEM_TYPES = frozenset({
 })
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_3_council_inbox_validation(q):
     """Skill-derivation Pass D 3b BLOCK-4 cross-reference + DQ-5
     structural validation (v1.5.7 fix Q4: this is the
@@ -3465,6 +3688,7 @@ def _phase4_project_type_from_artifact_shape(q):
     return None
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_skill_section_req_coverage(repo_dir, q):
     """Skill / Hybrid: every operational SKILL.md section per
     pass_d_section_coverage.json has ≥1 promoted REQ. Meta-allowlist
@@ -3519,6 +3743,7 @@ def check_skill_section_req_coverage(repo_dir, q):
         pass_("check_skill_section_req_coverage: every operational section has ≥1 promoted REQ")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_reference_file_req_coverage(repo_dir, q):
     """Skill / Hybrid: every reference file under references/ has ≥1
     REQ citing it OR a `<!-- non-normative -->` marker in its first
@@ -3585,6 +3810,7 @@ def check_reference_file_req_coverage(repo_dir, q):
         pass_("check_reference_file_req_coverage: every reference file has ≥1 citing REQ or non-normative marker")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_hybrid_cross_cutting_reqs(repo_dir, q):
     """Hybrid only: ≥1 REQ has triangulated evidence —
     `source_type=skill-section` AND its acceptance_criteria references
@@ -3679,6 +3905,7 @@ def check_hybrid_cross_cutting_reqs(repo_dir, q):
         )
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_role_map_consistency(repo_dir, q):
     """All projects: exploration_role_map.json (when present) parses as
     a JSON object, declares schema_version '1.0', carries a 'files'
@@ -3752,6 +3979,7 @@ def check_role_map_consistency(repo_dir, q):
     )
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_2_cardinality_gate(repo_dir):
     """v1.5.2 Lever 3: Phase 5 cardinality reconciliation gate.
 
@@ -3814,6 +4042,7 @@ _ASYMMETRY_PROSE_RE = re.compile(
 )
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_compensation_asymmetry_promotion(q):
     """v1.5.7 instruction 047 Item 3 (A-5) — WARN-only net for the
     Phase-1→Phase-2 promotion gap: an architectural asymmetry noticed
@@ -3980,13 +4209,12 @@ def main(argv=None):
 
     print("")
     print("===========================================")
-    print(f"Total: {FAIL} FAIL, {WARN} WARN")
-    if FAIL > 0:
-        print(f"RESULT: GATE FAILED — {FAIL} check(s) must be fixed")
-        return 1
-    else:
-        print("RESULT: GATE PASSED")
-        return 0
+    total_line, result_line, exit_code = _compute_final_verdict(
+        _FAIL_RECORDS, WARN
+    )
+    print(total_line)
+    print(result_line)
+    return exit_code
 
 
 if __name__ == "__main__":

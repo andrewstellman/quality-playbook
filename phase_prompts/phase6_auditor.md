@@ -26,7 +26,8 @@ You WILL:
 You will NOT:
 - Write new artifacts (no EXPLORATION.md, no manifests, no patches).
 - Fix any FAIL the gate reports (your job is to REPORT it, not fix it).
-- Claim PASS without `N=0` FAILs in the gate's verbatim `Total:` line.
+- Claim PASS or PASS WITH CLEANUP NEEDED when the gate's verbatim
+  `RESULT:` line is `RESULT: GATE FAILED` (any substantive issue).
 
 ## Step 1 — Mechanical verify (if applicable)
 
@@ -55,16 +56,34 @@ Run:
 Extract the literal last two verdict lines — the gate prints exactly:
 
     Total: N FAIL, M WARN
-    RESULT: GATE PASSED            (or: RESULT: GATE FAILED — N check(s) must be fixed)
+    RESULT: GATE PASSED
+       (or: RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)
+        or: RESULT: GATE FAILED — N substantive issue(s) must be fixed)
 
 This is the **MANDATORY gate-verdict witness** (v1.5.7 A-13). QUOTE THESE
 TWO LINES VERBATIM in your return. Do not summarize, paraphrase, or
 interpret. If `quality/results/quality-gate.log` is empty or does not
 contain these two lines, the gate did not run successfully — it was never
 invoked or its output was not captured; re-run it before returning
-anything. **No PASS claim without N=0 FAILs**: a PASS verdict is legitimate
-ONLY when the `RESULT:` line says `RESULT: GATE PASSED` with `N=0` FAILs in
-the `Total:` line.
+anything.
+
+**Three-state verdict (v1.5.7 089c F15).** The gate distinguishes
+substantive failure (the work wasn't done correctly) from audit
+record-keeping gaps (the work happened; the paperwork is incomplete).
+Map the gate's `RESULT:` line to your verdict:
+
+- `RESULT: GATE PASSED` → `AUDITOR VERDICT: PASS`
+- `RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping
+  gap(s)` → `AUDITOR VERDICT: PASS WITH CLEANUP NEEDED` (legitimate,
+  non-blocking — the bug findings are real and reviewed; only audit
+  records have gaps)
+- `RESULT: GATE FAILED — N substantive issue(s) must be fixed` →
+  `AUDITOR VERDICT: FAIL`
+
+**No PASS / PASS WITH CLEANUP NEEDED claim if there are ANY substantive
+FAILs.** A PASS WITH CLEANUP NEEDED verdict is legitimate ONLY when the
+`RESULT:` line is exactly `RESULT: GATE PASSED WITH CLEANUP NEEDED`
+(zero substantive FAILs); PASS only on `RESULT: GATE PASSED`.
 
 ## Step 3 — Run validate_phase_artifacts for Phase 6
 
@@ -90,12 +109,12 @@ Your return to the parent MUST contain exactly:
 
     GATE WITNESS (verbatim):
     Total: <N> FAIL, <M> WARN
-    RESULT: GATE [PASSED|FAILED]
+    RESULT: GATE [PASSED | PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s) | FAILED — N substantive issue(s) must be fixed]
 
     VALIDATOR WITNESS (verbatim):
     RESULT: VALIDATION [PASSED|FAILED] (phase 6 — ...)
 
-    AUDITOR VERDICT: [PASS|FAIL]
+    AUDITOR VERDICT: [PASS | PASS WITH CLEANUP NEEDED | FAIL]
 
     Audit notes:
     - <key findings: any reproducibility issues, missing artifacts,
@@ -103,6 +122,12 @@ Your return to the parent MUST contain exactly:
 
 `AUDITOR VERDICT: PASS` is legitimate ONLY when BOTH witness lines show
 `PASSED` (gate `RESULT: GATE PASSED` with `Total: 0 FAIL`, AND
-`RESULT: VALIDATION PASSED (phase 6)`). If EITHER shows `FAILED`, your
+`RESULT: VALIDATION PASSED (phase 6)`). `AUDITOR VERDICT: PASS WITH
+CLEANUP NEEDED` is legitimate when the gate line is exactly `RESULT:
+GATE PASSED WITH CLEANUP NEEDED` (only record-keeping gaps, zero
+substantive FAILs) AND the validator shows `RESULT: VALIDATION PASSED
+(phase 6)` — the review completed and the bug findings stand; only the
+audit trail has gaps (non-blocking). If the gate shows `RESULT: GATE
+FAILED` (any substantive issue) OR the validator shows `FAILED`, your
 verdict is `FAIL`. There is no value in helping the parent look good —
 that is precisely the bug this auditor role fixes.

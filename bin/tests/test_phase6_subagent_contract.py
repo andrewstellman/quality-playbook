@@ -115,8 +115,24 @@ class Phase6SubAgentContractTests(unittest.TestCase):
     def test_phase6_auditor_prompt_exists_and_has_verdict_contract(self) -> None:
         """phase_prompts/phase6_auditor.md carries the AUDITOR-role
         framing (not executor-style) AND the structured verdict
-        contract (GATE WITNESS + VALIDATOR WITNESS + AUDITOR
-        VERDICT)."""
+        contract (GATE WITNESS + VALIDATOR WITNESS + AUDITOR VERDICT),
+        now in the v1.5.7 089c F15 three-state form (PASS / PASS WITH
+        CLEANUP NEEDED / FAIL).
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089c F15 (reconciling the retired
+        binary "No PASS claim without N=0 FAILs" pin to the
+        three-state contract):
+          Mutation: delete the "**No PASS / PASS WITH CLEANUP NEEDED
+          claim if there are ANY substantive" sentence from
+          phase_prompts/phase6_auditor.md.
+          Expected failure: THIS test fails at
+            assertIn("No PASS / PASS WITH CLEANUP NEEDED claim if "
+            "there are ANY substantive", auditor) → AssertionError.
+          Restoration: re-add the sentence; test passes.
+          Bite executed during 089c development; PASS→FAIL→PASS
+          confirmed (__pycache__ purged between mutate and restore).
+        """
         self.assertTrue(
             _AUDITOR.is_file(),
             "phase_prompts/phase6_auditor.md must exist (A-13 hybrid "
@@ -142,7 +158,18 @@ class Phase6SubAgentContractTests(unittest.TestCase):
         # The auditor genuinely runs the gate + the phase-6 validator
         # and carries the A-13 witness contract.
         self.assertIn("MANDATORY gate-verdict witness", auditor)
-        self.assertIn("No PASS claim without N=0 FAILs", auditor)
+        # v1.5.7 089c F15: the binary "No PASS claim without N=0
+        # FAILs" rule is retired; pin the three-state contract +
+        # the substantive-FAILs-block rule + the AUDITOR VERDICT
+        # cleanup state instead.
+        self.assertIn("Three-state verdict (v1.5.7 089c F15)", auditor)
+        self.assertIn(
+            "No PASS / PASS WITH CLEANUP NEEDED claim if there are "
+            "ANY substantive", auditor,
+            "auditor prompt missing the 089c F15 substantive-FAILs "
+            "block rule (replaces the retired N=0 binary rule)",
+        )
+        self.assertIn("AUDITOR VERDICT: PASS WITH CLEANUP NEEDED", auditor)
         self.assertIn("bin.validate_phase_artifacts . --phase 6", auditor)
         # Audit-only: must NOT fix FAILs (that is the executor's bias).
         self.assertIn("you will not", auditor.lower())

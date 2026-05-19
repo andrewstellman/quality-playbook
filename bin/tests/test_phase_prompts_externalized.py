@@ -365,7 +365,23 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # (each prompt is its own file; 087 touched only phase6).
         # Hash recomputed — this baseline update IS the sanctioned
         # change-acknowledgement signal.
-        "phase6":                ( 7868, "53b477551037961db6b54ce4a23174dcfc7551868931c0659a56fe9c179ce8ec"),
+        # v1.5.7 instruction 089c (F15): phase6.md gained the
+        # three-state verdict contract — the GATE WITNESS block now
+        # shows all three RESULT: lines (PASSED / PASSED WITH CLEANUP
+        # NEEDED / FAILED), a "Three-state verdict" mapping para, the
+        # AUDITOR VERDICT three-state mapping (PASS / PASS WITH
+        # CLEANUP NEEDED / FAIL), and the retired "No PASS without
+        # N=0 FAILs" rule restated as "No PASS/PASS-WITH-CLEANUP if
+        # any substantive FAILs" (Mode-B + Part-A rule-name pointers
+        # updated to match). phase6 codepoint length 7868 → 9017.
+        # phase1/2/3/4/5/single_pass/iteration UNCHANGED (each prompt
+        # is its own file; 089c touched only phase6 among the
+        # run_playbook-rendered prompts — phase6_auditor.md /
+        # what_just_happened.md / phase6_verify_guide.md are NOT
+        # run_playbook-rendered and carry no EXPECTED_HASHES entry).
+        # Hash recomputed — this baseline update IS the sanctioned
+        # change-acknowledgement signal.
+        "phase6":                ( 9017, "74dace8dc8c156d134502a6185d00a6099dee3240efdd0a255a340a092cb553b"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.

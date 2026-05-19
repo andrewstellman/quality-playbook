@@ -525,6 +525,14 @@ The playbook's value comes from requirement derivation. AI code reviewers are bo
 
 **Phase 6: Verify.** 45 self-check benchmarks validate the generated artifacts against internal consistency rules -- requirement counts match across all surfaces, no stale text remains, every finding has a closure status, and triage probes include executable evidence.
 
+The gate ends with one of **three verdicts** (v1.5.7):
+
+- **GATE PASSED** — the review completed and every audit record is in place. Nothing to do.
+- **GATE PASSED WITH CLEANUP NEEDED** — the bug findings are real, reviewed, and stand on their own; only the audit trail is incomplete (a manifest record missing a field, a per-bug challenge record absent, a cross-site pattern tag not applied). This is **not a failure** — the review is done; only the paperwork needs filling in. Ask your AI assistant to complete the audit records without changing any findings.
+- **GATE FAILED** — a substantive problem: the review didn't complete, specs are missing, the mechanical verifier never ran, or a verdict was fabricated. Fix the listed issues before treating the run as trustworthy.
+
+The split exists so you can tell *"your code is broken in N ways"* apart from *"your audit trail is incomplete in N ways"* — earlier versions reported both as a flat `GATE FAILED — N checks`, and honest record-keeping-incomplete runs (which had found real, TDD-verified bugs) looked identical to runs where the review never happened.
+
 ### Why documentation matters
 
 Adding community documentation to the pipeline produces measurably better results. In a controlled experiment across multiple repositories, documentation-enriched runs found more bugs, different bugs, and higher-confidence bugs than code-only baselines. The documentation gives auditors spec language to check against, turning "this code looks odd" into "this code contradicts the documented behavior."

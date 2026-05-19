@@ -50,15 +50,17 @@ The classifier is mechanical from the artifact tree and the run-state log. Apply
 | 4 | `quality/PROGRESS.md` contains a `^## Iteration: adversarial complete$` heading AND the prior three headings (`gap complete`, `unfiltered complete`, `parity complete`) are also present | **State F** — All four iteration strategies complete |
 | 5 | `quality/PROGRESS.md` contains at least one `^## Iteration: <strategy> complete$` heading for any of `gap` / `unfiltered` / `parity` / `adversarial`, but not all four | **State I** — One or more iteration strategies complete |
 | 6 | The run-state log shows `phase_end phase=6` AND `quality/results/quality-gate.log` exists AND `quality/BUGS.md` has zero `^### BUG-` headings AND `quality/results/quality-gate.log` contains the literal WARN string `No ### BUG-NNN headings found in BUGS.md` | **State S** — Phases 1-6 all ran, but Phases 3-5 stubbed (pass-process / fail-recall) |
-| 7 | The run-state log shows `phase_end phase=6` AND `quality/BUGS.md` has at least one `^### BUG-` heading | **State B** — Phases 1-6 baseline complete with N confirmed bugs |
-| 8 | The run-state log shows `phase_end phase=1` AND a `documentation_state state=code_only` event AND no `phase_end phase=2` event yet | **State C** — Phase 1 completed in code-only mode |
-| 9 | The run-state log shows `phase_end phase=N` (N ∈ {1, 2, 3, 4, 5}) AND no `phase_end phase=N+1` AND no abort terminal | **State P<N>** — Phase N just completed cleanly (use the matching State P1 / P2 / P3 / P4 / P5 template below) |
+| 7 | The run-state log shows `phase_end phase=6` AND `quality/results/quality-gate.log` contains the literal line `RESULT: GATE PASSED WITH CLEANUP NEEDED` | **State CN** — Phases 1-6 complete; the review ran and the bug findings stand, but the audit trail has record-keeping gaps (089c F15) |
+| 8 | The run-state log shows `phase_end phase=6` AND `quality/BUGS.md` has at least one `^### BUG-` heading | **State B** — Phases 1-6 baseline complete with N confirmed bugs |
+| 9 | The run-state log shows `phase_end phase=1` AND a `documentation_state state=code_only` event AND no `phase_end phase=2` event yet | **State C** — Phase 1 completed in code-only mode |
+| 10 | The run-state log shows `phase_end phase=N` (N ∈ {1, 2, 3, 4, 5}) AND no `phase_end phase=N+1` AND no abort terminal | **State P<N>** — Phase N just completed cleanly (use the matching State P1 / P2 / P3 / P4 / P5 template below) |
 
-Rules 1, 2, 6, and 8 are the load-bearing branches for adopter UX:
+Rules 1, 2, 6, 7, and 9 are the load-bearing branches for adopter UX:
 - Rule 1 (**State G**) covers the v1.5.7 D1 deliverable's preservation surface so adopters don't think their data is gone.
 - Rule 2 (**State E**) covers agent-emitted unrecoverable errors mid-phase so adopters get a useful chat artifact rather than a silent abort.
-- Rule 6 (**State S**) is the original Cursor-Auto-mode failure mode this contract was authored to expose. Rule 6 fires BEFORE Rule 7 so a Phase 6 run with zero confirmed bugs is correctly identified as pass-process / fail-recall rather than mis-classified as State B "complete with N=0 bugs."
-- Rule 8 (**State C**) is the code-only-mode-specific framing so adopters who skipped `reference_docs/` get the documented weaker-recall caveat surfaced explicitly. Rule 8 fires only at the Phase 1 boundary; later boundaries in a code-only run use State P<N> (the agent already surfaced the caveat at State C and the run continues with it acknowledged).
+- Rule 6 (**State S**) is the original Cursor-Auto-mode failure mode this contract was authored to expose. Rule 6 fires BEFORE Rule 8 so a Phase 6 run with zero confirmed bugs is correctly identified as pass-process / fail-recall rather than mis-classified as State B "complete with N=0 bugs."
+- Rule 7 (**State CN**) is the 089c F15 adopter-UX branch: when the gate returns `RESULT: GATE PASSED WITH CLEANUP NEEDED`, the review completed and the bug findings are real — only the audit-trail paperwork is incomplete. Rule 7 fires BEFORE Rule 8 so a cleanup-needed run is NOT mis-emitted as a plain State B "all clear" (the adopter must see the cleanup distinction, not a flat PASS). It cannot collide with Rule 6 — State S is the zero-bug stub case, whereas a cleanup-needed run has real findings with record-keeping gaps. (The state letter is **CN**, not **C**: **C** is already assigned to the code-only-Phase-1 framing in Rule 9. Instruction 089c suggested "State C"; that label was taken, so this is **State CN** to avoid the collision.)
+- Rule 9 (**State C**) is the code-only-mode-specific framing so adopters who skipped `reference_docs/` get the documented weaker-recall caveat surfaced explicitly. Rule 9 fires only at the Phase 1 boundary; later boundaries in a code-only run use State P<N> (the agent already surfaced the caveat at State C and the run continues with it acknowledged).
 
 ## Decision tree — what the block says when
 
@@ -217,17 +219,22 @@ BUGS.md", emitted to `quality/results/quality-gate.log`) — that WARN is the si
 final two lines of `quality/results/quality-gate.log` verbatim:
 
     Total: N FAIL, M WARN
-    RESULT: GATE PASSED            (or: RESULT: GATE FAILED — N check(s) must be fixed)
+    RESULT: GATE PASSED
+       (or: RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)
+        or: RESULT: GATE FAILED — N substantive issue(s) must be fixed)
 
 In this State S case the gate typically shows `0 FAIL` with `M≥1 WARN`
 and `RESULT: GATE PASSED` — but a GATE PASSED here does NOT mean a
 successful bug-finding run: the no-`### BUG-NNN`-headings WARN is the
 pass-process / fail-recall signal. You may NOT report this run as a
 successful "complete" / "PASS" baseline. If the `RESULT:` line shows
-`GATE FAILED` with `N>0` FAILs, the verdict is FAIL — list the failing
-checks. If `quality/results/quality-gate.log` is empty or missing
-these two lines the gate never ran — re-run it before emitting this
-block.
+`GATE FAILED — N substantive issue(s) must be fixed`, the verdict is
+FAIL — list the failing checks. (A zero-bug stub run does not reach
+`GATE PASSED WITH CLEANUP NEEDED` — that state needs real findings
+with record-keeping gaps; if you somehow see it here, emit State CN,
+not State S.) If `quality/results/quality-gate.log` is empty or
+missing these two lines the gate never ran — re-run it before emitting
+this block.
 
 ### What to do next
 
@@ -236,6 +243,65 @@ Switch to a more capable model. From a Quality Playbook clone, run
 `--copilot` with a current production model). Or continue Mode A here with Claude Code
 Sonnet, GPT-5.4+, or similar. Note that Auto-mode in Cursor and other tools tends to
 pick a weaker model than the playbook needs.
+```
+
+### State CN — Phases 1-6 complete, PASSED WITH CLEANUP NEEDED (089c F15)
+
+The review ran and the bug findings are real and stand on their own — only
+the audit trail has record-keeping gaps. Use this state, NOT State B, when
+`quality/results/quality-gate.log` ends with `RESULT: GATE PASSED WITH
+CLEANUP NEEDED`. (State letter is **CN** because **C** is the code-only
+Phase-1 state; instruction 089c said "State C" but that label was taken —
+see the classifier prose for Rule 7.) Substitute the real numbers from
+`quality/BUGS.md`, `quality/REQUIREMENTS.md`, and the gate output.
+
+```
+## Quality Playbook Run Complete — PASSED WITH CLEANUP NEEDED
+
+The Quality Playbook reviewed your code and found N real bugs. Each bug has
+reproduction steps and is traceable to a requirement, and TDD verification
+confirmed all N (red->green cycles). The findings stand on their own — this
+result is NOT a failure.
+
+### Quality findings (complete)
+- N bugs confirmed, each with a reproduction and a fix diff
+- R requirements derived from the codebase
+- Bug -> requirement traceability verified
+- TDD verification: N/N red->green cycles
+
+### Audit record-keeping (needs cleanup)
+The gate flagged K audit record-keeping gap(s). Typical gaps:
+- some bugs are missing their per-bug challenge record
+  (the note that explains why each bug matters and why a fix is right)
+- a requirement is missing descriptive fields used by future audits
+  to find related work
+- some requirements need cross-site pattern tags
+- the role-map summary is missing its breakdown numbers
+
+The review is done; the bug findings stand on their own. These gaps are
+about the audit trail, not about your code's quality.
+
+**Gate witness (REQUIRED — do not omit, do not paraphrase):** paste the
+final two lines of `quality/results/quality-gate.log` verbatim:
+
+    Total: N FAIL, M WARN
+    RESULT: GATE PASSED WITH CLEANUP NEEDED — K audit record-keeping gap(s)
+
+(If that log is empty or the `RESULT:` line is anything else, this is the
+wrong state — re-read the classifier. A `RESULT: GATE FAILED — N
+substantive issue(s) must be fixed` line is a real FAIL, not cleanup.)
+
+### Recommended next step
+
+Ask your AI assistant to complete the audit records. The bug findings
+will not change — only the record-keeping fills in. Copy-paste this:
+
+  Please complete the audit record-keeping gaps in the quality/ folder
+  that the Quality Playbook flagged. Don't change any bug findings or
+  requirements — just fill in the missing record fields, add the missing
+  challenge records, and add the cross-site pattern tags. The current
+  state is the audit trail of what was done; complete it without
+  altering it.
 ```
 
 ### State B — Phases 1-6 baseline complete with N confirmed bugs
@@ -252,13 +318,27 @@ patches in `quality/patches/`, TDD verification in `quality/results/`).
 final two lines of `quality/results/quality-gate.log` verbatim:
 
     Total: N FAIL, M WARN
-    RESULT: GATE PASSED            (or: RESULT: GATE FAILED — N check(s) must be fixed)
+    RESULT: GATE PASSED
+       (or: RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)
+        or: RESULT: GATE FAILED — N substantive issue(s) must be fixed)
 
-If the gate output above does not show `RESULT: GATE PASSED` with `N=0`
-FAILs, the run's verdict is **FAIL** (regardless of how many bugs you
-confirmed) — say so explicitly and list the failing checks. You may
-NOT claim PASS, "complete", or "no remaining work" without `N=0`. If
-`quality/results/quality-gate.log` is empty or missing these two
+Read the `RESULT:` line and report per the 089c F15 three-state rule:
+
+- `RESULT: GATE PASSED` — the review is complete and every audit
+  record is in place. Report a clean run with N confirmed bugs.
+- `RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping
+  gap(s)` — the bug findings are real, reviewed, and stand on their
+  own; only the audit trail (missing manifest fields, missing per-bug
+  challenge records, missing cross-site pattern tags) is incomplete.
+  Do NOT report a flat "all clear" — emit **State CN** instead; it
+  walks the adopter through the cleanup.
+- `RESULT: GATE FAILED — N substantive issue(s) must be fixed` — the
+  run's verdict is **FAIL** regardless of how many bugs you confirmed.
+  Say so explicitly and list the failing checks. The agent may
+  NOT claim PASS, PASS WITH CLEANUP NEEDED, "complete", or "no
+  remaining work" when there are any substantive FAILs.
+
+If `quality/results/quality-gate.log` is empty or missing these two
 lines the gate never ran — re-run it before emitting this block.
 
 ### What to do next
