@@ -15,7 +15,8 @@ The Quality Playbook is a skill for AI coding agents that explores any codebase 
 | `quality_gate.py` | Mechanical validation script | After playbook completes, to validate artifacts |
 | `references/*.md` | Phase-specific reference files (review protocols, spec audit, etc.) | During specific phases as directed by SKILL.md |
 | `bin/skill_derivation/` | Phase 3 four-pass derivation pipeline + Phase 4 divergence detection (Skill / Hybrid projects only) | When working on the v1.5.3 skill-as-code surface |
-| `bin/skill_derivation/runners.py` | LLM runner abstraction — four concrete runners: `ClaudeRunner` (`claude --print`), `CopilotRunner` (`gh copilot --prompt`), `CodexRunner` (`codex exec --full-auto`, codex-cli 0.125+), `CursorRunner` (`cursor agent --print --force`, cursor-cli 3.1.10+) | When adding a new LLM backend or tuning subprocess invocation |
+| `bin/skill_derivation/runners.py` | LLM runner abstraction — four concrete runners: `ClaudeRunner` (`claude --print`), `CopilotRunner` (the GitHub Copilot CLI — new standalone `copilot -p` with deprecated `gh copilot --prompt` extension as grace-period fallback per v1.5.7 089f; routed via `bin/copilot_resolver.py`), `CodexRunner` (`codex exec --full-auto`, codex-cli 0.125+), `CursorRunner` (`cursor agent --print --force`, cursor-cli 3.1.10+) | When adding a new LLM backend or tuning subprocess invocation |
+| `bin/copilot_resolver.py` | v1.5.7 089f — Copilot CLI resolver. Detects which CLI is on PATH (preferring the new standalone `copilot` over the deprecated `gh copilot` extension), emits the correct argv shape (flag mapping shimmed: `--allow-all` ↔ `--yolo`), and raises `CopilotCLIUnavailable` with platform-aware remediation when neither is available. All five Copilot CLI subprocess sites route through it. | When adjusting Copilot CLI detection or adding a new install route |
 | `bin/council_config.py` | v1.5.7 D6 — Council roster defaults + override resolver. Default members: `claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6`. Override precedence: `--council-roster` CLI flag > `~/.qpb/config.json` (or `$XDG_CONFIG_HOME/qpb/config.json`) > defaults. See `references/runners_and_models.md` for adopter-facing override docs. | When adjusting the Council roster or debugging Council availability |
 | `bin/qpb_config.py` | v1.5.7 D6 — `python3 -m bin.qpb_config show|set|unset <key>` manages `~/.qpb/config.json`. | When showing/setting the adopter's Council override |
 | `ai_context/TOOLKIT.md` | User-facing interactive documentation | When helping a user set up or run the playbook |
@@ -202,11 +203,12 @@ Phase-1-only as a default is the v1.5.3 legacy invocation behavior, restored onl
 | Host CLI | Interactive | Non-interactive (auto-approval) |
 |---|---|---|
 | Claude Code | `claude --dangerously-skip-permissions --model X` (operator types prompt) | `claude --dangerously-skip-permissions --model X -p "<prompt>"` |
-| gh copilot | `gh copilot --model X` (operator types prompt; per-command approvals) | `gh copilot --model X --yolo --prompt "<prompt>"` |
+| Copilot CLI — new (`copilot`) | `copilot --model X` (operator types prompt) | `copilot --model X --allow-all -p "<prompt>"` |
+| Copilot CLI — legacy (`gh copilot`, deprecated 2025-10-25; works during grace period) | `gh copilot --model X` (operator types prompt; per-command approvals) | `gh copilot --model X --yolo --prompt "<prompt>"` |
 | codex CLI (Mode B subprocess only) | n/a (invoked by `bin/run_playbook.py --codex`) | `codex exec --full-auto -m X -c model_reasoning_effort='"medium"' "<prompt>"` |
 | codex desktop | open via desktop app, paste prompt in chat | n/a |
 
-The `--yolo` / `--dangerously-skip-permissions` / `--full-auto` flag is the auto-approval signal. Omitting it in non-interactive mode causes the host CLI to silently deny filesystem operations, which produces cascading failures (install denied → playbook can't run → agent may fabricate verdicts rather than HALT). Always use the documented flag for non-interactive runs. (v1.5.7 089b F12 — surfaced 2026-05-18: chi via `gh copilot --prompt` without `--yolo` hit ~30 permission-denied ops then a fabricated Phase 6 PASS.)
+The `--allow-all` / `--yolo` / `--dangerously-skip-permissions` / `--full-auto` flag is the auto-approval signal. Omitting it in non-interactive mode causes the host CLI to silently deny filesystem operations, which produces cascading failures (install denied → playbook can't run → agent may fabricate verdicts rather than HALT). Always use the documented flag for non-interactive runs. (v1.5.7 089b F12 — surfaced 2026-05-18: chi via `gh copilot --prompt` without `--yolo` hit ~30 permission-denied ops then a fabricated Phase 6 PASS. The new standalone `copilot` CLI per 089f uses `--allow-all` as the canonical spelling; it also accepts `--yolo` as an alias.)
 
 ## Repository layout
 

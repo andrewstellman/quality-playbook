@@ -30,10 +30,13 @@ import sys
 # identifiers change here. Swap rationale:
 #   - claude-opus-4.7: retained (no change).
 #   - gpt-5.4 → gpt-5.5: vendor's current production model identifier.
-#   - gemini-2.5-pro → claude-sonnet-4.6: Council resilience — gh copilot
-#     silently dropped gemini-2.5-pro support during the v1.5.6 sweep
-#     (see QPB_v1.5.7_Design.md "Council resilience gap"); claude-
-#     sonnet-4.6 is reliably available across the same runner set.
+#   - gemini-2.5-pro → claude-sonnet-4.6: Council resilience — the
+#     Copilot CLI silently dropped gemini-2.5-pro support during the
+#     v1.5.6 sweep (see QPB_v1.5.7_Design.md "Council resilience gap";
+#     this happened under the deprecated `gh copilot` extension and
+#     persists under the new standalone `copilot` CLI per 089f);
+#     claude-sonnet-4.6 is reliably available across the same runner
+#     set.
 DEFAULT_COUNCIL_MEMBERS: tuple[str, ...] = (
     "claude-opus-4.7",
     "gpt-5.5",

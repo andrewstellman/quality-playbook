@@ -188,14 +188,16 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     # v1.5.7 instruction 086 (A-26): bundle the three remaining
     # adopter-facing bin/*.py modules SKILL.md / phase_prompts hard-
     # reference but the install bundle previously omitted. Surfaced
-    # 2026-05-18 by gh copilot Mode B on httpx: agent honestly ran
-    # Phase 1, tried `python3 -m bin.validate_phase_artifacts . --phase
-    # 1` per phase_prompts/phase1.md:79-81, hit ModuleNotFoundError,
+    # 2026-05-18 by the Copilot CLI Mode B on httpx (then the
+    # `gh copilot` extension; superseded by the standalone `copilot`
+    # CLI per 089f): agent honestly ran Phase 1, tried `python3 -m
+    # bin.validate_phase_artifacts . --phase 1` per
+    # phase_prompts/phase1.md:79-81, hit ModuleNotFoundError,
     # correctly diagnosed the bundle gap. The Mode A runs that
     # succeeded (cobra Claude Code, click codex CLI, gson Claude Code)
     # only worked because Claude Code / codex CLI have lax filesystem
     # sandboxes that silently fell back to running modules from the
-    # QPB source clone; sandboxed agents (gh copilot, codex desktop
+    # QPB source clone; sandboxed agents (Copilot CLI, codex desktop
     # subprocess) hit hard ImportError. Bundling these three closes
     # the adopter-path bundle gap.
     #

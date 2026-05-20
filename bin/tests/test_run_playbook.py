@@ -409,24 +409,118 @@ class RunPlaybookTests(unittest.TestCase):
             self.assertEqual(run_playbook.final_artifact_gaps(repo_dir), [])
 
     @mock.patch("bin.run_playbook.shutil.which", return_value=None)
-    def test_command_for_runner_builds_claude_and_copilot_variants(self, _which) -> None:
-        # v1.5.7 instruction 078 (W2): command_for_runner now routes
-        # argv[0] through _resolve_runner_command/shutil.which. Mock
-        # which->None so the resolver is a pure pass-through and the
-        # exact-argv contract below stays host-PATH-independent
-        # (addendum r3 §4.2: "existing test mocks patch(
-        # 'bin.run_playbook.shutil.which') continue to work").
+    def test_command_for_runner_builds_claude_variants(self, _which) -> None:
+        # v1.5.7 instruction 078 (W2): command_for_runner routes argv[0]
+        # through _resolve_runner_command/shutil.which. Mock which->None
+        # so the resolver is a pure pass-through and the exact-argv
+        # contract below stays host-PATH-independent (addendum r3 §4.2).
         claude_default = run_playbook.command_for_runner("claude", "prompt text", None)
         self.assertEqual(claude_default, ["claude", "-p", "prompt text", "--dangerously-skip-permissions"])
 
         claude_model = run_playbook.command_for_runner("claude", "prompt text", "sonnet")
         self.assertEqual(claude_model, ["claude", "--model", "sonnet", "-p", "prompt text", "--dangerously-skip-permissions"])
 
-        copilot_default = run_playbook.command_for_runner("copilot", "prompt text", None)
-        self.assertEqual(copilot_default, ["gh", "copilot", "-p", "prompt text", "--model", run_playbook.lib.DEFAULT_MODEL, "--yolo"])
+    def test_command_for_runner_builds_copilot_new_cli_variant(self) -> None:
+        """v1.5.7 089f: when the new standalone `copilot` CLI is on
+        PATH, the Mode B reviewer hot path routes through it via
+        :mod:`bin.copilot_resolver`. The expected argv shape is
+        ``["copilot", "-p", <prompt>, "--model", <model>,
+        "--allow-all"]`` — note the new CLI's canonical ``--allow-all``
+        replaces the legacy ``--yolo`` flag (the new CLI accepts both
+        but ``--allow-all`` is the documented spelling).
 
-        copilot_model = run_playbook.command_for_runner("copilot", "prompt text", "gpt-5.5")
-        self.assertEqual(copilot_model, ["gh", "copilot", "-p", "prompt text", "--model", "gpt-5.5", "--yolo"])
+        We patch the resolver's ``_detect_copilot_cli`` to return
+        "copilot" rather than mocking ``shutil.which`` because the
+        single ``shutil`` module is shared with run_playbook's
+        ``_resolve_runner_command`` Windows-shim resolver — a global
+        mock there would force the shim resolver to no-op (which
+        we want) but also masks any future resolver change that
+        moved off of ``shutil.which``. Direct patch of the resolver's
+        detection function gives a tighter test contract.
+        """
+        from bin import copilot_resolver
+        copilot_resolver.reset_cache()
+        try:
+            with mock.patch(
+                "bin.copilot_resolver._detect_copilot_cli", return_value="copilot",
+            ), mock.patch(
+                "bin.run_playbook.shutil.which", return_value=None,
+            ):
+                copilot_default = run_playbook.command_for_runner(
+                    "copilot", "prompt text", None)
+                self.assertEqual(
+                    copilot_default,
+                    ["copilot", "-p", "prompt text", "--model",
+                     run_playbook.lib.DEFAULT_MODEL, "--allow-all"],
+                )
+
+                copilot_model = run_playbook.command_for_runner(
+                    "copilot", "prompt text", "gpt-5.5")
+                self.assertEqual(
+                    copilot_model,
+                    ["copilot", "-p", "prompt text", "--model",
+                     "gpt-5.5", "--allow-all"],
+                )
+        finally:
+            copilot_resolver.reset_cache()
+
+    def test_command_for_runner_builds_copilot_legacy_fallback_variant(self) -> None:
+        """v1.5.7 089f: back-compat fallback. When the new standalone
+        ``copilot`` CLI is NOT on PATH but the deprecated
+        ``gh copilot`` extension IS available (its ``--help`` returns
+        0), the resolver falls back to the legacy form
+        ``["gh", "copilot", "-p", <prompt>, "--model", <model>,
+        "--yolo"]`` — the exact pre-089f shape so adopters mid-
+        migration on the grace period don't see a behavior change.
+        Verifies the fallback path stays load-bearing.
+        """
+        from bin import copilot_resolver
+        copilot_resolver.reset_cache()
+        try:
+            with mock.patch(
+                "bin.copilot_resolver._detect_copilot_cli", return_value="gh-copilot",
+            ), mock.patch(
+                "bin.run_playbook.shutil.which", return_value=None,
+            ):
+                copilot_default = run_playbook.command_for_runner(
+                    "copilot", "prompt text", None)
+                self.assertEqual(
+                    copilot_default,
+                    ["gh", "copilot", "-p", "prompt text", "--model",
+                     run_playbook.lib.DEFAULT_MODEL, "--yolo"],
+                )
+
+                copilot_model = run_playbook.command_for_runner(
+                    "copilot", "prompt text", "gpt-5.5")
+                self.assertEqual(
+                    copilot_model,
+                    ["gh", "copilot", "-p", "prompt text", "--model",
+                     "gpt-5.5", "--yolo"],
+                )
+        finally:
+            copilot_resolver.reset_cache()
+
+    def test_command_for_runner_copilot_raises_when_no_cli_available(self) -> None:
+        """v1.5.7 089f: when neither CLI is available, the resolver
+        raises :class:`copilot_resolver.CopilotCLIUnavailable` —
+        ``command_for_runner`` lets that bubble up rather than
+        returning a malformed argv that subprocess.run would
+        FileNotFoundError on. This test pins that the failure mode
+        is the documented exception, not a silent fallback.
+        """
+        from bin import copilot_resolver
+        copilot_resolver.reset_cache()
+        try:
+            with mock.patch(
+                "bin.copilot_resolver._detect_copilot_cli", return_value="",
+            ), mock.patch(
+                "bin.run_playbook.shutil.which", return_value=None,
+            ):
+                with self.assertRaises(copilot_resolver.CopilotCLIUnavailable):
+                    run_playbook.command_for_runner(
+                        "copilot", "prompt text", None)
+        finally:
+            copilot_resolver.reset_cache()
 
     def test_build_worker_command_propagates_cursor_runner(self) -> None:
         """v1.5.4 F-1: when the operator passes --cursor, the spawned
@@ -4158,10 +4252,12 @@ class KillRecordedProcessesPkillSafetyTests(unittest.TestCase):
     """v1.5.6 fix-up 057 — BUG-004 (HIGH) workstation-wide pkill safety.
 
     The pre-fix `_pkill_fallback()` ran `pkill -f` against substrings like
-    `claude -p` and `gh copilot -p`, killing every interactive Claude or
-    Copilot session on the workstation when PID files were missing.
-    Default behavior is now manual-intervention guidance; legacy pkill
-    is preserved behind --allow-pkill-fallback for explicit opt-in.
+    `claude -p` and the Copilot CLI invocations (`copilot -p`,
+    `gh copilot -p` — both forms after v1.5.7 089f's gh-copilot →
+    copilot migration), killing every interactive Claude or Copilot
+    session on the workstation when PID files were missing. Default
+    behavior is now manual-intervention guidance; legacy pkill is
+    preserved behind --allow-pkill-fallback for explicit opt-in.
     """
 
     def test_no_pid_files_default_does_not_invoke_pkill(self) -> None:

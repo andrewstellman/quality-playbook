@@ -392,7 +392,7 @@ Work items:
 
 - Worker drafts `references/runners_and_models.md` (~150-300 lines) per the Design content outline:
   1. Overview: what the four runners are at conceptual level (vendor, scope, install command).
-  2. Per-runner sections: `claude-cli`, `gh copilot`, `codex-cli`, `cursor-cli`. Each section: brief description, install command, vendor scope (single-family vs multi-family), authentication model, a deliberately-omitted-matrix note explaining that current model availability is volatile and the orchestrating LLM is the canonical source for runtime model knowledge.
+  2. Per-runner sections: `claude-cli`, the GitHub Copilot CLI (`copilot` per v1.5.7 089f, or the deprecated `gh copilot` extension during the grace period — both shapes shimmed via `bin/copilot_resolver.py`), `codex-cli`, `cursor-cli`. Each section: brief description, install command, vendor scope (single-family vs multi-family), authentication model, a deliberately-omitted-matrix note explaining that current model availability is volatile and the orchestrating LLM is the canonical source for runtime model knowledge.
   3. Why Council-of-Three diversity matters: short essay covering why three reviewers (one fewer than four catches almost as much), why model-family diversity (different blind spots), why 2-of-2 degradation is acceptable (still cross-family) but 1-of-1 is not (overreach risk).
   4. How to override the Council roster: cross-reference to `--council-roster` flag, `~/.qpb/config.yaml`, and the `qpb config set-roster` sub-command.
   5. Pointer to the cluster-050 Phase 4 Council banner: explains where adopters see the active roster at runtime.

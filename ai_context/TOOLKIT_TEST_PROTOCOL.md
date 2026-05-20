@@ -134,9 +134,12 @@ answer also surfaces the scope limits — execution divergence
 needs archived runs to land any signal; the Council override path
 exists for when the classifier is wrong; v1.5.3 also added the
 OpenAI codex CLI as a third LLM backend (alongside `claude
---print` and `gh copilot --prompt`) so adopters who prefer the
-codex CLI can drive the pipeline via `--runner codex` without
-giving up access to the skill-as-code surface.
+--print` and the GitHub Copilot CLI — `copilot -p` per
+v1.5.7 089f, or `gh copilot --prompt` during the grace
+period — both shimmed via `bin/copilot_resolver.py`) so
+adopters who prefer the codex CLI can drive the pipeline
+via `--runner codex` without giving up access to the skill-
+as-code surface.
 
 (Persona 19's "what an adopter holding SKILL.md plus
 references/ actually does step-by-step" deep work is queued
@@ -212,7 +215,7 @@ Note: convergence is NOT "all panelists agree." Agreement optimizes for plausibi
 
 The protocol is best run with a top-level agent orchestrating sub-agents:
 
-1. The top-level agent fans out the persona prompts to N sub-agents (Task tool with restricted Read access, separate Cowork sessions, or three Council-of-Three terminals run via `gh copilot --model …`, `claude --print --model …`, or `codex exec --full-auto -m …`). v1.5.3+ supports all three CLIs as runner backends; the panelist-model choice is independent of which CLI fires the prompt.
+1. The top-level agent fans out the persona prompts to N sub-agents (Task tool with restricted Read access, separate Cowork sessions, or three Council-of-Three terminals run via the GitHub Copilot CLI — `copilot --model …` per v1.5.7 089f, or `gh copilot --model …` during the grace period — or via `claude --print --model …` / `codex exec --full-auto -m …`). v1.5.3+ supports all three CLIs as runner backends; the panelist-model choice is independent of which CLI fires the prompt.
 2. Each sub-agent is given TOOLKIT.md (and optionally IMPROVEMENT_LOOP.md / this file) as context, plus its persona prompt.
 3. Sub-agents return responses to the top-level agent.
 4. The top-level agent applies the rubric, identifies DOC GAP / DOC WRONG findings, and proposes fixes.
@@ -224,9 +227,17 @@ The protocol is best run with a top-level agent orchestrating sub-agents:
 For Council-of-Three execution, the canonical commands follow the workspace `AGENTS.md` Council protocol but with one substantive difference: the working directory should be the orientation-docs surface, not the QPB source repo, since panelists must not have access to source files. Suggested form:
 
 ```zsh
+# v1.5.7 089f: new standalone `copilot` CLI (canonical post-2025-10-25):
 cd /Users/andrewstellman/Documents/QPB/ai_context && \
-  gh copilot --model <MODEL> --prompt "$(cat ../Reviews/toolkit_test_persona_<N>.md)" \
+  copilot --model <MODEL> -p "$(cat ../Reviews/toolkit_test_persona_<N>.md)" --allow-all \
   | tee "/Users/andrewstellman/Documents/AI-Driven Development/Quality Playbook/Reviews/toolkit_test_runs/<timestamp>/<persona-id>_<MODEL>.md"
+
+# Legacy `gh copilot` extension (deprecated 2025-10-25; works during the
+# grace period — swap `copilot` → `gh copilot`, `-p` → `--prompt`,
+# `--allow-all` → `--yolo`):
+# cd /Users/andrewstellman/Documents/QPB/ai_context && \
+#   gh copilot --model <MODEL> --prompt "$(cat ../Reviews/toolkit_test_persona_<N>.md)" \
+#   | tee "..."
 ```
 
 The acceptance check from Council-of-Three Invocation still applies: each response file should show actual Reads against `TOOLKIT.md`, IMPROVEMENT_LOOP.md, or this file — not against SKILL.md, bin/, or .github/skills/. If a response file shows source-file Reads, the panelist was outside the test envelope and the run is invalid.
@@ -244,7 +255,7 @@ When the protocol converges, archive the run as the release-gate evidence for th
 
 ## Test prompt files
 
-Persona prompts should be saved as standalone files so they can be passed to `gh copilot --prompt "$(cat ...)"` without quoting issues. Suggested location:
+Persona prompts should be saved as standalone files so they can be passed to the Copilot CLI without quoting issues — `copilot -p "$(cat ...)"` per v1.5.7 089f, or `gh copilot --prompt "$(cat ...)"` during the grace period. Suggested location:
 
 `Quality Playbook/Reviews/toolkit_test_personas/persona_<N>_<short_name>.md`
 

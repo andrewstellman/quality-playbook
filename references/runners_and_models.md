@@ -11,8 +11,9 @@ QPB invokes external AI runners to execute phase prompts (Phase 1-5)
 and to launch the Council of Three (Phase 4 audit). Adopters new to
 QPB ask three recurring questions:
 
-1. **Which runner should I use?** (`claude-cli`, `gh copilot`,
-   `codex-cli`, `cursor-cli`)
+1. **Which runner should I use?** (`claude-cli`, the GitHub Copilot
+   CLI — `copilot` or `gh copilot`; see below, `codex-cli`,
+   `cursor-cli`)
 2. **Why does QPB ship with a Council of Three rather than relying on
    a single reviewer?**
 3. **How do I override the default Council roster?**
@@ -20,8 +21,10 @@ QPB ask three recurring questions:
 This document answers each at the conceptual level. It does NOT list
 which specific model identifiers each runner supports at any given
 date — that's intentionally absent because vendor availability is
-volatile (gh copilot silently dropped gemini-2.5-pro support during
-the v1.5.6 model-comparison sweep; codex-cli's model lineup shifted
+volatile (the Copilot CLI silently dropped gemini-2.5-pro support
+during the v1.5.6 model-comparison sweep — observed under the
+then-active `gh copilot` extension, still missing under the new
+standalone `copilot` CLI per 089f; codex-cli's model lineup shifted
 twice in the same quarter). The orchestrating LLM has runtime
 knowledge of current model availability; this document carries the
 stable conceptual reference instead.
@@ -41,18 +44,35 @@ Haiku across versions). QPB's `--claude` flag selects this runner.
 Install: see Anthropic's claude-cli documentation. Authentication is
 API-key-based via env var or a long-lived auth file.
 
-### `gh copilot` (GitHub, multi-family)
+### GitHub Copilot CLI (`copilot` or `gh copilot`, multi-family)
 
-Multi-family runner from GitHub. Distributed as a `gh` CLI extension
-(`gh extension install github/gh-copilot`). Scope: spans multiple
-model families that GitHub Copilot exposes — Anthropic Claude family,
-OpenAI GPT family, occasionally Gemini / other vendors when
-available. The exact set is opaque to QPB; the runner accepts model
-identifiers as opaque strings and returns errors for unknown ones.
-QPB's `--copilot` flag selects this runner. Default runner.
+Multi-family runner from GitHub. Scope: spans multiple model families
+that GitHub Copilot exposes — Anthropic Claude family, OpenAI GPT
+family, occasionally Gemini / other vendors when available. The exact
+set is opaque to QPB; the runner accepts model identifiers as opaque
+strings and returns errors for unknown ones. QPB's `--copilot` flag
+selects this runner. Default runner.
 
-Install: `gh extension install github/gh-copilot`. Authentication
-piggybacks on `gh auth` (GitHub login).
+**Two CLIs during the deprecation grace period (v1.5.7 089f).**
+GitHub deprecated the `gh copilot` extension on 2025-10-25; the new
+canonical form is the standalone `copilot` CLI ([github/copilot-cli](https://github.com/github/copilot-cli)).
+QPB auto-detects which is on `PATH` via `bin/copilot_resolver.py`
+and prefers the new `copilot` CLI when both are available.
+
+Install — the standalone CLI (preferred):
+
+- macOS: `brew install copilot-cli`
+- Windows: `winget install GitHub.Copilot`
+- Linux: `curl -fsSL https://gh.io/copilot-install | bash`
+- npm: `npm install -g @github/copilot`
+
+Install — the legacy extension (still works during the grace period):
+`gh extension install github/gh-copilot`. Both CLIs use the same
+`--model <name>` flag; auto-approval is `--allow-all` (new canonical)
+or `--yolo` (works on both — the legacy spelling, retained as an
+alias on the new CLI). Authentication piggybacks on `gh auth` (the
+legacy extension) or follows the new CLI's setup (`copilot auth login`
+or equivalent — see [github/copilot-cli](https://github.com/github/copilot-cli) docs).
 
 ### `codex-cli` (OpenAI, single-family)
 
@@ -182,9 +202,10 @@ launch-result JSON that the runner reads after Phase 4 completes
 and applies vote-tabulation / degradation rules to.
 
 Adopter workaround for v1.5.7: when a Council member becomes
-unavailable mid-run (typically gh copilot dropping a model
-identifier), the operator can re-run with `--council-roster
-<m1,m2,m3>` substituting a known-available model. The
+unavailable mid-run (typically the Copilot CLI dropping a model
+identifier — observed under both the deprecated `gh copilot` extension
+and the new standalone `copilot` CLI), the operator can re-run with
+`--council-roster <m1,m2,m3>` substituting a known-available model. The
 `KNOWN_MODEL_IDENTIFIERS` set at `bin/qpb_config.py` includes
 curated alternatives (`gpt-4.1`, `claude-sonnet-4.5`,
 `claude-haiku-4.5`) the operator can fall back to.

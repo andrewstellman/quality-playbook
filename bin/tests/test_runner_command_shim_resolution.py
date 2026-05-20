@@ -23,6 +23,7 @@ disagreement, enumerates these 4+4.
 
 from __future__ import annotations
 
+import contextlib
 import unittest
 from unittest import mock
 
@@ -111,9 +112,40 @@ class ResolveRunnerCommandBehaviorTests(unittest.TestCase):
 
 class RunPlaybookSitesUseResolverTests(unittest.TestCase):
 
+    def setUp(self) -> None:
+        # v1.5.7 089g: reset copilot_resolver detection cache so a
+        # real-host probe result from a prior test (or another suite
+        # in the same process) doesn't leak into the copilot subtest
+        # below, and so this test's mocked detection result doesn't
+        # leak out to subsequent tests. The cache is `dict`-backed
+        # and lives in `bin.copilot_resolver._CACHE`; the resolver
+        # exposes `reset_cache()` for exactly this purpose.
+        from bin import copilot_resolver
+        copilot_resolver.reset_cache()
+
+    def tearDown(self) -> None:
+        from bin import copilot_resolver
+        copilot_resolver.reset_cache()
+
     def test_command_for_runner_routes_every_runner_through_resolver(self) -> None:
         """All four bin/run_playbook.py:command_for_runner branches
-        (claude/codex/cursor/gh) pass through _resolve_runner_command.
+        (claude/codex/cursor/copilot) pass through _resolve_runner_command.
+
+        v1.5.7 089g — PATH-hermeticity fix: the `runner='copilot'`
+        subtest also patches `bin.copilot_resolver._detect_copilot_cli`
+        to return ``"copilot"`` deterministically. Pre-089g the test
+        relied on a host CLI being on PATH (homebrew preserved
+        `copilot`) — under a hermetic `env -i
+        PATH=/usr/bin:/bin:/usr/local/bin` the resolver raised
+        ``CopilotCLIUnavailable`` before `_resolve_runner_command`
+        was reached and the `m.called` assertion errored. The mock
+        forces a successful detection so the test exercises the
+        routing-through-`_resolve_runner_command` property it
+        actually asserts, independent of host PATH. The assertions
+        are unchanged: `m.called` + `out[0] == "RESOLVED"` still
+        pin that command_for_runner routes through the shim
+        resolver — that's what this test verifies, not whether
+        copilot is installed.
 
         Mutation-test evidence (in-tree per
         ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-078 —
@@ -127,15 +159,45 @@ class RunPlaybookSitesUseResolverTests(unittest.TestCase):
             AssertionError: False is not true : resolver not called
             for runner 'claude'
           Restoration: wrapper restored; PASS again.
+
+        Mutation-test evidence (089g extension): revert
+          bin/run_playbook.py:1518-1521 copilot branch to bypass
+          _resolve_runner_command (return the resolver output
+          directly without wrapping):
+            return copilot_resolver.resolve_copilot_command(
+                prompt, copilot_model, allow_all=True)
+          Observed failure (purged __pycache__ first):
+            FAIL: test_command_for_runner_routes_every_runner_through_resolver
+            (runner='copilot')
+            AssertionError: 'copilot' != 'RESOLVED'
+          Restoration: _resolve_runner_command wrapper restored; PASS
+          again. Bite executed during 089g development; PASS→FAIL→PASS
+          confirmed.
         """
         for runner in ("claude", "codex", "cursor", "copilot"):
             with self.subTest(runner=runner):
+                # 089g: the copilot branch in command_for_runner calls
+                # copilot_resolver.resolve_copilot_command BEFORE
+                # _resolve_runner_command. Under a hermetic PATH the
+                # resolver raises CopilotCLIUnavailable, masking the
+                # routing-through-_resolve_runner_command property
+                # this test is actually checking. Mock the resolver's
+                # detection to return "copilot" deterministically so
+                # the subtest is PATH-independent.
+                extra_patches = []
+                if runner == "copilot":
+                    extra_patches.append(mock.patch(
+                        "bin.copilot_resolver._detect_copilot_cli",
+                        return_value="copilot"))
                 with mock.patch(
                     "bin.run_playbook._resolve_runner_command",
                     side_effect=lambda a: ["RESOLVED"] + list(a[1:])
                 ) as m:
-                    out = run_playbook.command_for_runner(
-                        runner, "the-prompt", None)
+                    with contextlib.ExitStack() as stack:
+                        for p in extra_patches:
+                            stack.enter_context(p)
+                        out = run_playbook.command_for_runner(
+                            runner, "the-prompt", None)
                 self.assertTrue(
                     m.called,
                     f"resolver not called for runner {runner!r}")

@@ -285,16 +285,22 @@ claude -p "Read the quality playbook skill — locate SKILL.md using the documen
 
 ```bash
 cd /path/to/repo
-gh copilot -p "Read the quality playbook skill — locate SKILL.md using the documented install-location fallback list (SKILL.md, .claude/skills/quality-playbook/SKILL.md, .github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, .continue/skills/quality-playbook/SKILL.md, .github/skills/quality-playbook/SKILL.md) and resolve reference files using the same fallback. Execute the quality playbook for this project." --model gpt-5.4 --yolo
+# v1.5.7 089f: GitHub deprecated the `gh copilot` extension on
+# 2025-10-25; the standalone `copilot` CLI is the new canonical form.
+# Both shapes work during the grace period; QPB auto-detects which
+# is on PATH via bin/copilot_resolver.py.
+copilot -p "Read the quality playbook skill — locate SKILL.md using the documented install-location fallback list (SKILL.md, .claude/skills/quality-playbook/SKILL.md, .github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, .continue/skills/quality-playbook/SKILL.md, .github/skills/quality-playbook/SKILL.md) and resolve reference files using the same fallback. Execute the quality playbook for this project." --model gpt-5.4 --allow-all
+# Legacy form (deprecated, works during grace period):
+# gh copilot -p "..." --model gpt-5.4 --yolo
 ```
 
-- `--yolo` is Copilot's equivalent of skip-permissions
+- `--allow-all` (new CLI) / `--yolo` (legacy + new CLI alias) is Copilot's equivalent of skip-permissions
 - Rate limits are aggressive: running 6+ repos in parallel with iteration cycles can trigger a 54-hour cooldown
 - Stagger runs: 2-3 repos at a time, with pauses between batches
 
 ### OpenAI Codex CLI
 
-**Third runner, added in v1.5.3 (codex-cli 0.125+).** The standalone codex CLI (`https://github.com/openai/codex`) is distinct from `gh copilot` — it's OpenAI's own non-interactive coding assistant, not a GitHub-CLI extension. The runner wraps `codex exec --full-auto`, codex's sandboxed automatic-execution mode (the codex equivalent of `gh copilot --yolo`).
+**Third runner, added in v1.5.3 (codex-cli 0.125+).** The standalone codex CLI (`https://github.com/openai/codex`) is distinct from the GitHub Copilot CLI (`copilot` or the deprecated `gh copilot` extension) — it's OpenAI's own non-interactive coding assistant, not a GitHub-CLI integration. The runner wraps `codex exec --full-auto`, codex's sandboxed automatic-execution mode (the codex equivalent of the Copilot CLI's `--allow-all` / `--yolo`).
 
 ```bash
 cd /path/to/quality-playbook                                                 # required: bin/ on sys.path

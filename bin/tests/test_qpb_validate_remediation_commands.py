@@ -214,23 +214,48 @@ class PkgMgrAwareRemediationTests(unittest.TestCase):
             "winget install Python.Python.3.12")
 
     def test_install_ai_cli_uses_detected_pkg_mgr(self) -> None:
+        """v1.5.7 089f necessary-consequence reconciliation: the
+        Copilot CLI (`gh`/`copilot`/`github` tool key) remediation
+        advice changed shape — GitHub deprecated `gh copilot` on
+        2025-10-25; QPB now recommends the standalone `copilot` CLI
+        first with the legacy `gh extension install github/gh-copilot`
+        form as a secondary option during the grace period. The
+        previous single-command assertions (e.g., "sudo apt install
+        gh") were pinned to behavior that no longer exists; the new
+        assertions check for substring presence of both the new and
+        legacy install routes.
+        """
         f = v.command_for_platform
-        self.assertEqual(
-            f("ai_cli_not_on_path", "linux", pkg_mgrs={"apt": True},
-              tool="gh"),
-            "sudo apt install gh")
-        self.assertEqual(
-            f("ai_cli_not_on_path", "linux",
-              pkg_mgrs={"dnf": True, "apt": False}, tool="gh"),
-            "sudo dnf install gh")
+        # Linux + apt: new CLI install-script preferred, apt+gh-extension grace-period fallback.
+        linux_apt = f("ai_cli_not_on_path", "linux",
+                      pkg_mgrs={"apt": True}, tool="gh")
+        self.assertIn("gh.io/copilot-install", linux_apt,
+                      "preferred new-CLI install route must be present")
+        self.assertIn("sudo apt install gh", linux_apt,
+                      "legacy apt fallback must remain available during grace period")
+        self.assertIn("gh extension install github/gh-copilot", linux_apt)
+        # Linux + dnf: same shape with dnf swapped in.
+        linux_dnf = f("ai_cli_not_on_path", "linux",
+                      pkg_mgrs={"dnf": True, "apt": False}, tool="gh")
+        self.assertIn("gh.io/copilot-install", linux_dnf)
+        self.assertIn("sudo dnf install gh", linux_dnf)
+        self.assertIn("gh extension install github/gh-copilot", linux_dnf)
+        # Windows + winget: new CLI preferred + legacy gh.cli fallback.
         win = f("ai_cli_not_on_path", "windows-cmd",
                 pkg_mgrs={"winget": True}, tool="gh")
-        self.assertEqual(win, "winget install GitHub.cli")
-        self.assertNotIn("&&", win)
-        self.assertEqual(
-            f("ai_cli_not_on_path", "windows-powershell",
-              pkg_mgrs={"winget": False, "choco": True}, tool="gh"),
-            "choco install gh")
+        self.assertIn("winget install GitHub.Copilot", win,
+                      "preferred new-CLI winget install must be present")
+        self.assertIn("winget install GitHub.cli", win,
+                      "legacy gh.cli winget install must remain available")
+        # Windows + choco: choco-install-gh as grace-period fallback.
+        win_choco = f("ai_cli_not_on_path", "windows-powershell",
+                      pkg_mgrs={"winget": False, "choco": True},
+                      tool="gh")
+        self.assertIn("copilot-cli", win_choco,
+                      "preferred new-CLI mention must be present")
+        self.assertIn("choco install gh", win_choco,
+                      "legacy choco-install-gh must remain available")
+        # Non-Copilot tools unchanged (claude, codex).
         self.assertIn(
             "docs.claude.com",
             f("ai_cli_not_on_path", "linux", pkg_mgrs={}, tool="claude"))

@@ -623,24 +623,54 @@ def _pkg_mgr_aware_command(finding_code: str, key: str,
     if tool == "codex":
         return "npm install -g @openai/codex"
     if tool in ("gh", "copilot", "github"):
+        # v1.5.7 089f: GitHub deprecated `gh copilot` on 2025-10-25;
+        # the canonical install is now the standalone `copilot` CLI
+        # (https://github.com/github/copilot-cli). Recommend the new
+        # CLI first; keep the legacy `gh extension install` form as a
+        # secondary option so adopters with `gh` already installed
+        # can keep using the extension during the deprecation grace
+        # period.
         if key == "macos":
-            return ("brew install gh" if has("brew")
-                    else "Install gh from https://cli.github.com ; then "
-                         "gh extension install github/gh-copilot")
+            if has("brew"):
+                return ("brew install copilot-cli  # or, during the "
+                        "deprecation grace period: brew install gh && "
+                        "gh extension install github/gh-copilot")
+            return ("Install Copilot CLI from "
+                    "https://github.com/github/copilot-cli (preferred) "
+                    "OR install gh from https://cli.github.com and run "
+                    "`gh extension install github/gh-copilot` (deprecated)")
         if key == "linux":
+            # Linux uses the install-script form (matches the new
+            # CLI's README); adopters on apt/dnf can still install
+            # the legacy gh extension as fallback.
             if has("apt"):
-                return "sudo apt install gh"
+                return ("curl -fsSL https://gh.io/copilot-install | bash  "
+                        "# or, during the grace period: "
+                        "sudo apt install gh && "
+                        "gh extension install github/gh-copilot")
             if has("dnf"):
-                return "sudo dnf install gh"
-            return ("Install gh from https://cli.github.com ; then "
-                    "gh extension install github/gh-copilot")
+                return ("curl -fsSL https://gh.io/copilot-install | bash  "
+                        "# or, during the grace period: "
+                        "sudo dnf install gh && "
+                        "gh extension install github/gh-copilot")
+            return ("curl -fsSL https://gh.io/copilot-install | bash "
+                    "(preferred) OR install gh from "
+                    "https://cli.github.com and run `gh extension "
+                    "install github/gh-copilot` (deprecated)")
         # windows
         if has("winget"):
-            return "winget install GitHub.cli"
+            return ("winget install GitHub.Copilot  # or, during the "
+                    "deprecation grace period: winget install GitHub.cli "
+                    "&& gh extension install github/gh-copilot")
         if has("choco"):
-            return "choco install gh"
-        return ("Install gh from https://cli.github.com ; then "
-                "gh extension install github/gh-copilot")
+            return ("Install Copilot CLI from "
+                    "https://github.com/github/copilot-cli (preferred) "
+                    "OR `choco install gh` and `gh extension install "
+                    "github/gh-copilot` (deprecated)")
+        return ("Install Copilot CLI from "
+                "https://github.com/github/copilot-cli (preferred) OR "
+                "install gh from https://cli.github.com and run `gh "
+                "extension install github/gh-copilot` (deprecated)")
     # Unknown / placeholder tool -> the static multi-tool directive.
     return FINDING_CATALOG[finding_code]["commands"][key]
 

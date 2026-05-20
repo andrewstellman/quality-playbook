@@ -45,6 +45,7 @@ from typing import List, Optional, Sequence, Tuple
 
 from bin import benchmark_lib as lib
 from bin import archive_lib
+from bin import copilot_resolver
 from bin import progress_monitor
 from bin import reference_docs_ingest
 from bin import role_map as role_map_lib
@@ -384,10 +385,10 @@ def build_parser() -> argparse.ArgumentParser:
     # passed AND the config file has a "runner" key, args.runner is
     # post-processed in execute_run/main per the override layer.
     runner_group = parser.add_mutually_exclusive_group()
-    runner_group.add_argument("--claude", dest="runner", action="store_const", const="claude", default="copilot", help="Use claude -p instead of gh copilot.")
-    runner_group.add_argument("--copilot", dest="runner", action="store_const", const="copilot", help="Use gh copilot (default).")
-    runner_group.add_argument("--codex", dest="runner", action="store_const", const="codex", help="Use codex exec --full-auto instead of gh copilot.")
-    runner_group.add_argument("--cursor", dest="runner", action="store_const", const="cursor", help="Use cursor agent --print --force instead of gh copilot (cursor-cli 3.1+).")
+    runner_group.add_argument("--claude", dest="runner", action="store_const", const="claude", default="copilot", help="Use claude -p instead of the Copilot CLI.")
+    runner_group.add_argument("--copilot", dest="runner", action="store_const", const="copilot", help="Use the GitHub Copilot CLI (default; auto-detects new standalone `copilot` with deprecated `gh copilot` extension as fallback per v1.5.7 089f).")
+    runner_group.add_argument("--codex", dest="runner", action="store_const", const="codex", help="Use codex exec --full-auto instead of the Copilot CLI.")
+    runner_group.add_argument("--cursor", dest="runner", action="store_const", const="cursor", help="Use cursor agent --print --force instead of the Copilot CLI (cursor-cli 3.1+).")
 
     # v1.5.7 Phase 6c: --council-roster override flag. Resolution order:
     #   1. This CLI flag (comma-separated, e.g., "claude-opus-4.7,gpt-5.5,claude-sonnet-4.6")
@@ -626,10 +627,11 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "When --kill cannot find PID files, fall back to a workstation-wide "
             "pkill -f match against runner command-line substrings (claude -p, "
-            "gh copilot -p, etc.). DEFAULT OFF — opt in only when you're sure "
-            "no other interactive Claude or Copilot sessions are running on "
-            "this machine, since the substring match cannot distinguish them "
-            "from playbook workers (BUG-004 from the v1.5.6 codex recheck)."
+            "copilot -p, gh copilot -p, etc.). DEFAULT OFF — opt in only when "
+            "you're sure no other interactive Claude or Copilot sessions are "
+            "running on this machine, since the substring match cannot "
+            "distinguish them from playbook workers (BUG-004 from the v1.5.6 "
+            "codex recheck)."
         ),
     )
     parser.add_argument(
@@ -1510,8 +1512,12 @@ def command_for_runner(runner: str, prompt: str, model: Optional[str]) -> List[s
             command.extend(["--model", model])
         return _resolve_runner_command(command)
     copilot_model = model or lib.DEFAULT_MODEL
+    # v1.5.7 089f: route through copilot_resolver so the new standalone
+    # `copilot` CLI is preferred when on PATH, with the deprecated
+    # `gh copilot` extension as fallback during the grace period.
     return _resolve_runner_command(
-        ["gh", "copilot", "-p", prompt, "--model", copilot_model, "--yolo"])
+        copilot_resolver.resolve_copilot_command(
+            prompt, copilot_model, allow_all=True))
 
 
 def command_preview(command: Sequence[str]) -> str:
@@ -5105,6 +5111,10 @@ def _pkill_fallback() -> None:
         "bin/run_playbook.py",
         "claude -p",
         "claude --model",
+        # v1.5.7 089f: match both the new standalone `copilot` CLI
+        # and the deprecated `gh copilot` extension during the
+        # grace period. Adopters may have either or both installed.
+        "copilot -p",
         "gh copilot -p",
     ]
     for pattern in patterns:
@@ -5139,7 +5149,7 @@ def kill_recorded_processes(allow_pkill_fallback: bool = False) -> int:
         print("No PID files found. Refusing workstation-wide pkill cleanup.")
         print("To find playbook workers manually, run:")
         print("  ps -o pid,ppid,command -p $(pgrep -f bin/run_playbook) 2>/dev/null")
-        print("  ps -o pid,ppid,command | grep -E 'bin/run_playbook|claude -p|claude --model|gh copilot -p'")
+        print("  ps -o pid,ppid,command | grep -E 'bin/run_playbook|claude -p|claude --model|copilot -p|gh copilot -p'")
         print(f"PID-file directory: {pid_dir}")
         print("If you're certain no other Claude or Copilot sessions are running on this")
         print("machine, re-run with --kill --allow-pkill-fallback to invoke the legacy pkill path.")
@@ -5664,7 +5674,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     if not ensure_runner_available(args.runner):
         if args.runner == "copilot":
-            print("ERROR: 'gh copilot' not available. Install with: gh extension install github/gh-copilot", file=sys.stderr)
+            # v1.5.7 089f: recommend the new standalone `copilot` CLI
+            # first (GitHub deprecated `gh copilot` on 2025-10-25),
+            # with the legacy extension as fallback during the grace
+            # period.
+            print(
+                "ERROR: GitHub Copilot CLI not available. Install the "
+                "standalone CLI: `brew install copilot-cli` (macOS), "
+                "`winget install GitHub.Copilot` (Windows), or "
+                "`curl -fsSL https://gh.io/copilot-install | bash` "
+                "(Linux). OR install the legacy extension: "
+                "`gh extension install github/gh-copilot` (deprecated "
+                "2025-10-25; still works during the grace period).",
+                file=sys.stderr,
+            )
         elif args.runner == "codex":
             print("ERROR: 'codex' CLI not found. Install from https://github.com/openai/codex", file=sys.stderr)
         elif args.runner == "cursor":

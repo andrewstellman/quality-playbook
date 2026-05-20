@@ -31,13 +31,22 @@ class TestRunnerStdinTransport(unittest.TestCase):
             "not as a positional command-line argument, to avoid ARG_MAX "
             "truncation for large prompts.",
         )
-        # Defensive: argv list must not contain a bare `prompt` element.
-        # The fix removed `prompt` from the ["gh", "copilot", ...] list.
+        # Defensive: argv list must not contain a bare `prompt` element
+        # passed via the literal `"--prompt", prompt,` pattern. The
+        # BUG-001 fix removed that pattern from the legacy
+        # ["gh", "copilot", "--prompt", "--model", ...] list. After
+        # v1.5.7 089f's gh-copilot → copilot migration, CopilotRunner
+        # routes through bin/copilot_resolver and the prompt arrives
+        # on argv via the resolver's `["copilot", "-p", prompt, ...]`
+        # form — the literal `"--prompt", prompt,` pattern this assert
+        # forbids still cannot appear in source (the resolver returns
+        # a list; CopilotRunner.run() doesn't write that exact literal).
         self.assertNotIn(
             '"--prompt", prompt,',
             source,
             "CopilotRunner.run() must not pass prompt as a positional argv "
-            "element; it should be piped via input=prompt instead.",
+            "element with the literal `\"--prompt\", prompt,` shape; "
+            "it should route through bin/copilot_resolver instead.",
         )
 
     def test_all_runners_use_stdin_transport(self):

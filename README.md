@@ -347,13 +347,13 @@ Add `--dangerously-skip-permissions` when launching `claude` to skip file-write 
 
 (For automated batch invocation — headless CI, scripted runs — use the orchestrator agent file via `claude --agent agents/quality-playbook.agent.md`. The orchestrator-agent path spawns sub-agents per phase and hides per-step output from operator chat, which is appropriate for unattended automation but NOT for interactive sessions where the operator monitors output. See `agents/quality-playbook.agent.md`'s "When to use this file" header for the full constraint.)
 
-**GitHub Copilot:** Open the chat panel in VS Code, IntelliJ, or any IDE with Copilot support and say: *"Run the QPB install validator against this project (the `qpb_validate.py` entry point inside your QPB installation). For a clone-based install, the command is `python <path-to-your-QPB-clone>/bin/qpb_validate.py <this-project-absolute-path>`. Paste the complete structured output (every `event=` line) into chat. Do not proceed past Phase 0 until `event=validation_complete status=ok`; if `status=remediable`, run each `event=remediation_suggestion` command verbatim (the validator emits the platform-correct `--ai-tool copilot` install, run from the QPB clone) and re-run the validator. Then read the installed SKILL.md and run the quality playbook on this project."* For the CLI, use `copilot-cli` with `--yolo` to skip prompts. (The validator is the mandatory Phase 0 — see AGENTS.md "Mode A entry sequence".)
+**GitHub Copilot:** Open the chat panel in VS Code, IntelliJ, or any IDE with Copilot support and say: *"Run the QPB install validator against this project (the `qpb_validate.py` entry point inside your QPB installation). For a clone-based install, the command is `python <path-to-your-QPB-clone>/bin/qpb_validate.py <this-project-absolute-path>`. Paste the complete structured output (every `event=` line) into chat. Do not proceed past Phase 0 until `event=validation_complete status=ok`; if `status=remediable`, run each `event=remediation_suggestion` command verbatim (the validator emits the platform-correct `--ai-tool copilot` install, run from the QPB clone) and re-run the validator. Then read the installed SKILL.md and run the quality playbook on this project."* For the CLI, install the standalone `copilot` CLI (preferred — `brew install copilot-cli` on macOS, `winget install GitHub.Copilot` on Windows, or `curl -fsSL https://gh.io/copilot-install | bash` on Linux; npm: `npm install -g @github/copilot`) and invoke it with `copilot -p "<prompt>" --allow-all`. The deprecated `gh copilot` extension (`gh extension install github/gh-copilot`, then `gh copilot -p "<prompt>" --yolo`) still works during GitHub's grace period — QPB auto-detects which CLI is on `PATH` and routes accordingly via `bin/copilot_resolver.py` (v1.5.7 089f). (The validator is the mandatory Phase 0 — see AGENTS.md "Mode A entry sequence".)
 
 **OpenAI Codex CLI:**
 ```bash
 python3 -m bin.run_playbook --codex ./my-project
 ```
-This invokes `codex exec --full-auto` (sandboxed automatic execution; the codex equivalent of `gh copilot --yolo`) for each playbook phase. Codex picks its model from `~/.codex/config.toml` unless you pass `--model gpt-5-codex` (or another model name in your codex config).
+This invokes `codex exec --full-auto` (sandboxed automatic execution; the codex equivalent of the Copilot CLI's `--allow-all` / `--yolo`) for each playbook phase. Codex picks its model from `~/.codex/config.toml` unless you pass `--model gpt-5-codex` (or another model name in your codex config).
 
 **Cursor:** Open Composer (Cmd+I / Ctrl+I) and say: *"Run the QPB install validator against this project (the `qpb_validate.py` entry point inside your QPB installation). For a clone-based install, the command is `python <path-to-your-QPB-clone>/bin/qpb_validate.py <this-project-absolute-path>`. Paste the complete structured output (every `event=` line) into chat. Do not proceed past Phase 0 until `event=validation_complete status=ok`; if `status=remediable`, run each `event=remediation_suggestion` command verbatim (the validator emits the platform-correct `--ai-tool cursor` install, run from the QPB clone) and re-run the validator. Then read the installed SKILL.md and run the quality playbook on this project."* (The validator is the mandatory Phase 0 — see AGENTS.md "Mode A entry sequence".)
 
@@ -425,8 +425,9 @@ host CLI needs its auto-approval flag (`--yolo` / `--dangerously-skip-permission
 / `--full-auto`) for non-interactive runs — omitting it makes the CLI silently
 deny filesystem ops and cascade into a failed (or fabricated) run. See the
 **Canonical adopter invocations** table in `AGENTS.md` for the exact
-interactive vs non-interactive command per host CLI (Claude Code, gh copilot,
-codex CLI, codex desktop).
+interactive vs non-interactive command per host CLI (Claude Code, the GitHub
+Copilot CLI — new standalone `copilot` and the deprecated `gh copilot`
+extension during the grace period per v1.5.7 089f, codex CLI, codex desktop).
 
 ### Known limitations
 
@@ -439,8 +440,10 @@ to comply but the requirement is not mechanically enforced. Empirically:
 
 - **Phase 6** — codex desktop performs in-session verification with explicit
   disclosure rather than dispatching the mandated fresh-context sub-agent
-  (observed 2026-05-18). Claude Code via Task tool + gh copilot Mode B dispatch
-  the sub-agent correctly.
+  (observed 2026-05-18). Claude Code via Task tool + Copilot CLI Mode B dispatch
+  the sub-agent correctly (Copilot CLI was the deprecated `gh copilot`
+  extension at the time of observation; superseded by the standalone
+  `copilot` CLI per v1.5.7 089f).
 - **Phase 1** — codex desktop reported Phase 1 PASS while producing an
   EXPLORATION.md the validator would have FAILed (observed 2026-05-18
   self-bootstrap). Either the validator was not invoked, or its FAIL verdict
@@ -576,7 +579,7 @@ v1.5.7 is a cleanup release that makes v1.5.6's runner output research-grade, fo
 - **Centralized log emission at `quality/logs/<run-id>/` (D3).** All log emission for a given run lands under one directory inside the cell. The `--logs-flat` legacy flag is available for adopters whose tooling reads from the old scattered paths. `quality/logs/` is included in the suggested `.gitignore` template.
 - **`metrics/` formalization (D4).** The `metrics/` tree (recall data, calibration ledgers, regression-replay output) is now formally documented in [`metrics/README.md`](metrics/README.md). A reconstruction script rebuilds historical Q1+Q2 data from current artifacts so v1.7's SPC machinery has a stable input shape.
 - **`SKILL.md` trim (D5).** Phase-specific reference-grade content moved from `SKILL.md` into `references/` files (same skill, same install, same behavior). Per-phase token cost is now better aligned with the existing phase architecture's isolation principle. The awesome-copilot Skill Validator's "comprehensive skill" warning prompted this; the underlying observation that every phase invocation loaded the full SKILL.md regardless of relevance was correct. SKILL.md dropped from 66,332 to 26,162 BPE tokens via pure move (no semantic changes, mechanical equivalence verified).
-- **Council resilience and override layer (D6).** Phase 4 Council roster updated to `claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6` (replacing `gemini-2.5-pro` which `gh copilot` silently dropped support for during the v1.5.6 sweep). Fast-fail availability detection at launch: graceful 2-of-2 degradation when one member is unreachable, hard-fail when two or more are. Adopters can now override the roster locally via `~/.qpb/config.json` (or `$XDG_CONFIG_HOME/qpb/config.json`) without editing source. A structured failure-recovery template guides recovery when an installed roster decays over time.
+- **Council resilience and override layer (D6).** Phase 4 Council roster updated to `claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6` (replacing `gemini-2.5-pro` which the Copilot CLI silently dropped support for during the v1.5.6 sweep — observed under the then-active `gh copilot` extension and still missing under the new standalone `copilot` CLI per 089f). Fast-fail availability detection at launch: graceful 2-of-2 degradation when one member is unreachable, hard-fail when two or more are. Adopters can now override the roster locally via `~/.qpb/config.json` (or `$XDG_CONFIG_HOME/qpb/config.json`) without editing source. A structured failure-recovery template guides recovery when an installed roster decays over time.
 - **Ship-readiness fixes (F-1 through F-8).** Install/version detection now uses canonical six-layout markers instead of accepting any root `SKILL.md` as proof of install (F-1). Operator-facing six-layout fallback prose is consistent across SKILL.md, TOOLKIT, verification, review_protocols, and challenge_gate (F-2). *(Historical: the F-1/F-2 marker set was six layouts at v1.5.6; v1.5.7 expanded it to the canonical ten-layout list per A-3 + A-10 + A-11.)* `setup_repos.sh` archives existing target dirs as `.tar.gz` rather than deleting (F-3). The workspace/ guardrail also fails on empty workspace directories (F-4 amendment). A `run_playbook.sh` wrapper installs into target repos via `setup_repos.sh` for three-mode runner accessibility (F-5b). Runner hint clarity on gate-failure-preservation state (F-6). Phase 3 BUGS.md/patches consistency gate check (F-7). The Phase 5 verdict shape is mechanically enforced as `## Verdict\n<PASS|FAIL>` (F-8).
 - **Self-audit closures from ship-validation.** Three independent ship-validation runs (Codex bootstrap + chi/cobra copilot benchmarks on a fresh clone of the `v1.5.7` tag) surfaced 12 self-defects in v1.5.7 itself; all 12 are fixed (BUG-001 through BUG-007 from the bootstrap + Q1 through Q5 from the chi/cobra runs). The combined PROGRESS.md two-form schema not-in-drift test gives the deliverable-form and automation-form schemas a single shared test surface for future drift detection.
 - **Test suite.** `bin/tests`: 1359 OK / 0 fail / 8 skipped. Quality-gate tests: 257 OK.
@@ -1081,9 +1084,9 @@ options:
   -h, --help            show this help message and exit
   --parallel            Run all targets concurrently (default).
   --sequential          Run targets one after another.
-  --claude              Use claude -p instead of gh copilot.
-  --copilot             Use gh copilot (default).
-  --codex               Use codex exec --full-auto instead of gh copilot.
+  --claude              Use claude -p instead of the Copilot CLI.
+  --copilot             Use the GitHub Copilot CLI (default; auto-detects new standalone `copilot` with deprecated `gh copilot` extension as fallback per v1.5.7 089f).
+  --codex               Use codex exec --full-auto instead of the Copilot CLI.
   --no-seeds            Skip Phase 0/0b seed injection (default).
   --with-seeds          Allow Phase 0/0b seed injection from prior or sibling runs.
   --phase PHASE         Run specific phase(s): 1-6, all, or comma-separated values like 3,4,5.

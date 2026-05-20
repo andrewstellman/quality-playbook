@@ -19,7 +19,7 @@ QPB's six-phase pipeline has multiple phase-boundary validator-invocation contra
 
 Phase 6 is the fresh-context auditor: an LLM that did not see Phases 1–5 reads the run artifacts (BUGS.md, REQUIREMENTS.md, the patches, the gate log) and renders an independent verdict. The fresh-context requirement is load-bearing — an agent that just produced Phases 1–5 has confirmation bias on its own work, and a same-context Phase 6 is structurally indistinguishable from self-review.
 
-v1.5.7 instruction 071 introduced the **A-13 hybrid**: executor inline (Phases 1–5 in the orchestrating session), verification isolated (Phase 6 via a fresh sub-agent dispatch). For agents with a sub-agent primitive (Claude Code's Task tool; gh copilot's Mode B), this works — the sub-agent gets its own context window, reads only the artifacts, emits a verdict. Empirically verified on cobra (Claude Code opus) and gson (gh copilot Mode B).
+v1.5.7 instruction 071 introduced the **A-13 hybrid**: executor inline (Phases 1–5 in the orchestrating session), verification isolated (Phase 6 via a fresh sub-agent dispatch). For agents with a sub-agent primitive (Claude Code's Task tool; the Copilot CLI's Mode B — at the time of the empirical verification, the `gh copilot` extension; same mechanism under the new standalone `copilot` CLI per v1.5.7 089f), this works — the sub-agent gets its own context window, reads only the artifacts, emits a verdict. Empirically verified on cobra (Claude Code opus) and gson (Copilot CLI Mode B — `gh copilot` at observation time; the Mode B mechanism is preserved under the new `copilot` CLI).
 
 For agents *without* a sub-agent primitive, the hybrid degrades. Codex desktop, observed 2026-05-18 on the v1.5.7 self-bootstrap, reads `phase_prompts/phase6.md` ("Phase 6 sub-agent delegation is NON-OPTIONAL; you may NOT proceed with in-session verification as a fallback; MUST ABORT if cannot delegate"), then **transparently** performs the verification in-session anyway: *"I am unable to dispatch a sub-agent in this environment, so I will perform the verification myself."*
 
@@ -54,7 +54,7 @@ A way for QPB to **mechanically detect that an agent claiming `Phase N: PASS` ac
 2. Verdict-string pinning in tests (`PreShipDocRegressionTests`, calibration tests like `test_validate_phase_artifacts_phase1_actual_qpb_exploration_passes`) — pins the *prose* of the contract and validates committed artifacts, not the agent's runtime behavior
 3. Verdict format requirement (specific `RESULT: VALIDATION PASSED (phase N)` line) — fabricatable by any agent willing to fabricate the structure
 
-The honest threat model: **Layer 1 (named env-var detection in `run_playbook.py`) is the structural defense against undelegated execution; phase-boundary validator-invocation is currently prose-defended only.** Adopters using Claude Code or gh copilot in Mode B get the validator runs structurally for free (the orchestrator runs them, not the agent). Adopters using codex desktop, cursor, aider, cline, or any Mode A inline execution where the agent itself is supposed to invoke the validator get prose-defended validator-run-mandate — with explicit disclosure when the agent honestly skips, and silent fabrication when it doesn't.
+The honest threat model: **Layer 1 (named env-var detection in `run_playbook.py`) is the structural defense against undelegated execution; phase-boundary validator-invocation is currently prose-defended only.** Adopters using Claude Code or the GitHub Copilot CLI in Mode B (`copilot` per v1.5.7 089f, or the deprecated `gh copilot` extension during the grace period) get the validator runs structurally for free (the orchestrator runs them, not the agent). Adopters using codex desktop, cursor, aider, cline, or any Mode A inline execution where the agent itself is supposed to invoke the validator get prose-defended validator-run-mandate — with explicit disclosure when the agent honestly skips, and silent fabrication when it doesn't.
 
 ---
 
@@ -108,7 +108,7 @@ Phase 6 runs as a **separate Python subprocess** spawned by `run_playbook.py`. T
 
 ### Direction C — Host-CLI cooperation
 
-QPB defines a **fresh-context attestation contract** that host CLIs can opt into. Claude Code, gh copilot, codex desktop, cursor, aider, etc. would each implement an `attest-fresh-context` API that returns a signed/verifiable claim that the named sub-agent execution happened in an isolated context.
+QPB defines a **fresh-context attestation contract** that host CLIs can opt into. Claude Code, the GitHub Copilot CLI (`copilot` / `gh copilot`), codex desktop, cursor, aider, etc. would each implement an `attest-fresh-context` API that returns a signed/verifiable claim that the named sub-agent execution happened in an isolated context.
 
 **Strengths:**
 - Architecturally clean: each host CLI is the authority on its own context isolation
@@ -218,7 +218,7 @@ Deliverables:
 
 ## Connection to QPB's existing arc
 
-- **v1.5.7** (this work): A-13 hybrid Phase 6 enforcement via sub-agent primitive (works for Claude Code + gh copilot Mode B; degrades to prose-only for codex desktop / cursor / aider / cline). Phase 1/2/5 validator-invocation contracts are prose-only across all hosts. Both documented as residual (v1.5.7 deeper-Council Residual 1 + Round 1 F13).
+- **v1.5.7** (this work): A-13 hybrid Phase 6 enforcement via sub-agent primitive (works for Claude Code + the Copilot CLI Mode B — `copilot` per v1.5.7 089f, or the deprecated `gh copilot` extension during the grace period; degrades to prose-only for codex desktop / cursor / aider / cline). Phase 1/2/5 validator-invocation contracts are prose-only across all hosts. Both documented as residual (v1.5.7 deeper-Council Residual 1 + Round 1 F13).
 - **v1.6.x — Requirements Review** (separate proposal): operator-facing interactive REQ review post-playbook. Independent from this proposal; both can ship in v1.6.x track.
 - **v1.6.x — Phase Validator Structural Enforcement** (this proposal): Slice 0 closes Phase 1/2/5 structurally via pure-validator subprocess attestation (cheap). Slices 1+2 close Phase 6 structurally via subprocess-based Phase 6 verifier + witness-signing fallback (expensive). Together: every phase-boundary validator-invocation contract becomes mechanically enforced.
 - **v1.7+** — host-CLI attestation cooperation (Direction C). Multi-vendor; QPB publishes the contract; uptake depends on vendors. Replaces or supplements Slice 1/2 as adopted.
@@ -235,7 +235,7 @@ A v1.6.x release that ships Slice 1 + Slice 2 of this proposal is successful if:
 
 2. **The v1.5.7 prose-only residual entry in README + CHANGELOG is removed.** Replaced with documentation of the structural enforcement and how to configure it.
 
-3. **Existing A-13 hybrid behavior preserved for agents with sub-agent primitives.** Claude Code Task-tool dispatch continues to work; gh copilot Mode B continues to work. Slice 1 is additive, not replacing.
+3. **Existing A-13 hybrid behavior preserved for agents with sub-agent primitives.** Claude Code Task-tool dispatch continues to work; the Copilot CLI Mode B continues to work (`copilot` per v1.5.7 089f, or the deprecated `gh copilot` extension during the grace period — same Mode B mechanism). Slice 1 is additive, not replacing.
 
 4. **Test surface includes both unit-level mocked subprocess tests AND a marked integration test that hits a real API.** The integration test is operator-runnable on demand; CI runs the mocked path only.
 

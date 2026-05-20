@@ -343,16 +343,21 @@ def cleanup_repo(repo_dir: Path) -> bool:
 
 
 def require_copilot() -> bool:
-    try:
-        result = subprocess.run(
-            ["gh", "copilot", "--help"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
-    except FileNotFoundError:
-        return False
-    return result.returncode == 0
+    """Return True iff a GitHub Copilot CLI is available on the host.
+
+    v1.5.7 089f: thin wrapper around
+    :func:`bin.copilot_resolver.require_copilot_cli`. Returns the
+    boolean availability flag for back-compat with existing callers
+    that only need yes/no. Callers that need to know WHICH CLI was
+    found (for install-route diagnostics or for choosing
+    ``--allow-all`` vs ``--yolo``) should call the resolver directly.
+    """
+    # Local import to keep bin/benchmark_lib lightweight and avoid
+    # ordering dependencies — benchmark_lib is imported early by
+    # bin/run_playbook.py.
+    from bin import copilot_resolver
+    available, _which = copilot_resolver.require_copilot_cli()
+    return available
 
 
 def count_matching_lines(path: Path, pattern: str) -> int:

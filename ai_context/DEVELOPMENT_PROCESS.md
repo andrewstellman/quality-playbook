@@ -1,6 +1,6 @@
 # QPB Development Process
 
-*Last updated: 2026-05-14 (v1.5.7 ship — process documentation unchanged from v1.5.6 baseline. v1.5.7 ran end-to-end through the orchestrator/worker pattern via `v1.5.7_runner/`, with a council-of-two fallback (claude CLI + codex CLI) substituted for full Council-of-Three when `gh copilot` was rate-limited mid-release. Per-release narrative on the council-of-two pattern, strict file:line consensus discipline, and the no-carry-forward principle is saved for v1.6.0). Single source of truth for how the Quality Playbook project is developed. Read at session start by any AI agent (Cowork, Claude Code, codex, etc.) orchestrating QPB development.*
+*Last updated: 2026-05-14 (v1.5.7 ship — process documentation unchanged from v1.5.6 baseline. v1.5.7 ran end-to-end through the orchestrator/worker pattern via `v1.5.7_runner/`, with a council-of-two fallback (claude CLI + codex CLI) substituted for full Council-of-Three when the Copilot CLI — then the deprecated `gh copilot` extension; superseded by the standalone `copilot` CLI per v1.5.7 089f — was rate-limited mid-release. Per-release narrative on the council-of-two pattern, strict file:line consensus discipline, and the no-carry-forward principle is saved for v1.6.0). Single source of truth for how the Quality Playbook project is developed. Read at session start by any AI agent (Cowork, Claude Code, codex, etc.) orchestrating QPB development.*
 
 This document covers **how QPB is developed** — the mechanical procedures, the rationale behind them, and the open directions for evolving the process itself. It is the parallel for QPB-the-project of what `IMPROVEMENT_LOOP.md` is for QPB-the-skill: the methodology doc.
 
@@ -59,7 +59,7 @@ QPB development uses Council-style review on substantial work. Three flavors, sc
 
 - **Focused single-panel review** — for small commits (e.g., Phase 3.9.1's two-line fix). The orchestrating AI examines the diff, mutation-tests regression pins, checks scope discipline, writes a brief verdict. Single perspective; quick.
 - **Parallel-Agent reviewers** — for larger commits (e.g., Phase 5 apparatus, ~700 LOC). The orchestrating AI spawns 3 Agent reviewers with orthogonal lenses (typically: correctness, scope/discipline, architectural integrity). Each reviews independently; orchestrator synthesizes findings into a single verdict (Ship / Hold-with-fixes / Block).
-- **Full nested 9-perspective Council** — for foundational/architectural changes or umbrella reviews before tag. Three outer models (`gpt-5.4`, `gpt-5.3-codex`, `claude-sonnet-4.6`) via `gh copilot --prompt`, each spawning its own three-reviewer panel internally. Protocol details in workspace CLAUDE.md (cd-into-repo discipline; nested-panel trigger header; suspicious-convergence flag).
+- **Full nested 9-perspective Council** — for foundational/architectural changes or umbrella reviews before tag. Three outer models (`gpt-5.4`, `gpt-5.3-codex`, `claude-sonnet-4.6`) via the Copilot CLI (the new standalone `copilot -p` per v1.5.7 089f, or the deprecated `gh copilot --prompt` extension during the grace period — both shimmed transparently by `bin/copilot_resolver.py`), each spawning its own three-reviewer panel internally. Protocol details in workspace CLAUDE.md (cd-into-repo discipline; nested-panel trigger header; suspicious-convergence flag).
 
 **Iterate to clean review.** A first review surfacing P0 findings is normal and expected. Fix-up commit → focused re-review → if new findings, fix-up again. Multi-round (Round 1 → Round 2 → Round 3) is the norm, not a sign of trouble.
 
@@ -249,7 +249,7 @@ Docs that inform or are informed by the development process. This is not a navig
 
 ### Workspace context
 
-- **`~/Documents/AI-Driven Development/CLAUDE.md`** — workspace-level conventions (cross-project navigation, source-edit lanes, verify-before-claiming, Council protocol mechanics including `gh copilot` invocation, the universal Cowork communication style for any conversation in the workspace). When a working convention applies to QPB specifically, the canonical version lives in this `DEVELOPMENT_PROCESS.md` file; the workspace CLAUDE.md may replicate it for orientation but is not the source of truth.
+- **`~/Documents/AI-Driven Development/CLAUDE.md`** — workspace-level conventions (cross-project navigation, source-edit lanes, verify-before-claiming, Council protocol mechanics including Copilot CLI invocation — the new standalone `copilot` per v1.5.7 089f, or the deprecated `gh copilot` extension during the grace period, the universal Cowork communication style for any conversation in the workspace). When a working convention applies to QPB specifically, the canonical version lives in this `DEVELOPMENT_PROCESS.md` file; the workspace CLAUDE.md may replicate it for orientation but is not the source of truth.
 
 ### Peer orientation docs (in `ai_context/`)
 

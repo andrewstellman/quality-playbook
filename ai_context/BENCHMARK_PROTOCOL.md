@@ -149,9 +149,11 @@ python3 -m bin.skill_derivation --phase 4 --part a3 --runner claude --pace-secon
 
 **Runner choice (v1.5.3+).** Three LLM backends ship: `--runner
 claude` (default; wraps `claude --print`), `--runner copilot`
-(wraps `gh copilot --prompt`), and `--runner codex` (added
-post-tag in commit `b6b31f2`; wraps `codex exec --full-auto`,
-codex-cli 0.125+). For benchmark-cell isolation, the runner choice
+(routes through `bin/copilot_resolver.py` per v1.5.7 089f — the
+new standalone `copilot -p` with the deprecated `gh copilot
+--prompt` extension as grace-period fallback), and `--runner
+codex` (added post-tag in commit `b6b31f2`; wraps `codex exec
+--full-auto`, codex-cli 0.125+). For benchmark-cell isolation, the runner choice
 should be recorded in the run directory's `NOTES.md` so future
 analysis can attribute variance to the runner backend. Codex picks
 its model from `~/.codex/config.toml` by default; pass

@@ -13,7 +13,7 @@
 
 ### Six deliverables, one release, picked together for a reason
 
-v1.5.7 ships six things. Three came from the v1.5.6 model-comparison benchmark sweep; one is a v1.5.6 close-out carry-forward; one is an architectural improvement surfaced by the awesome-copilot Skill Validator; one closes a Council-resilience gap that surfaced in the same PR review (`gh copilot` silently dropped `gemini-2.5-pro` support, breaking the v1.5.6 Phase 4 Council for adopters using the copilot runner):
+v1.5.7 ships six things. Three came from the v1.5.6 model-comparison benchmark sweep; one is a v1.5.6 close-out carry-forward; one is an architectural improvement surfaced by the awesome-copilot Skill Validator; one closes a Council-resilience gap that surfaced in the same PR review (the Copilot CLI — then the `gh copilot` extension; superseded by the standalone `copilot` CLI per v1.5.7 089f — silently dropped `gemini-2.5-pro` support, breaking the v1.5.6 Phase 4 Council for adopters using the copilot runner):
 
 1. **Phase 2 gate-failure artifact preservation.** When the Phase 2 gate aborts, the cell's `quality/` directory is empty by the time the operator inspects it. The agent's outputs that triggered the abort — the rejected EXPLORATION.md, the malformed role map, the partial PROGRESS.md — are gone. The operator can read the gate's diagnostic message in the runner's log, but cannot inspect WHAT the agent produced. v1.5.7 preserves the failed artifact set into `quality.gate-failed-<UTC-timestamp>/` for diagnostic inspection. (Workspace-side staging brief at `Quality Playbook/Reviews/QPB_v1.5.7_Backlog/PreserveQualityOnGateFail.md` for original symptom + reproduction + patch sketch.)
 
@@ -25,7 +25,7 @@ v1.5.7 ships six things. Three came from the v1.5.6 model-comparison benchmark s
 
 5. **Trim `SKILL.md` by moving phase-specific content to `references/`.** The awesome-copilot Skill Validator flagged QPB's `SKILL.md` at 73K BPE tokens with the warning "comprehensive skills hurt performance by 2.9pp on average. Consider splitting into 2-3 focused skills." The "split into multiple skills" recommendation is wrong for QPB's architecture (the phase architecture already isolates cumulative token cost via per-phase sub-agent contexts), but the underlying observation is correct: every phase invocation loads the full `SKILL.md` whether or not the loaded content is relevant to that phase. v1.5.7 addresses this by moving phase-specific reference-grade content out of `SKILL.md` and into existing or new `references/*.md` files. Same one skill, same install, same adopter UX, same behavior — just a leaner orchestration spine that strengthens the phase architecture. The token reduction is not the goal in itself; the goal is alignment with the phase architecture's existing isolation principle.
 
-6. **Council roster modernization, availability resilience, and override layer.** The Phase 4 Council currently encodes a fixed roster (`claude-opus-4.7`, `gpt-5.4`, `gemini-2.5-pro`) in `bin/council_config.py`. Two real problems with this: (a) `gh copilot` silently dropped `gemini-2.5-pro` support — so any adopter using the v1.5.6 skill with the copilot runner gets a broken Phase 4 Council; (b) more generally, models change faster than skill releases, so any roster pinned at ship time decays. v1.5.7 addresses this with a four-part deliverable: update the roster to a currently-deployable set (`claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6`); add fast-fail availability detection at Council launch with graceful 2-of-2 degradation when one member is unreachable and hard-fail when two or more are; add a `~/.qpb/config.yaml` persistence layer so adopters can override the roster locally without editing source; and ship a structured failure-recovery template that the orchestrating LLM fills in with current runner-specific model knowledge so adopters get actionable recovery guidance regardless of how stale their installed skill is. The reference document is a stable backgrounder (what runners are, install commands, why Council diversity matters), NOT a decay-prone availability matrix — the volatile information lives in the LLM's runtime knowledge, not in QPB source.
+6. **Council roster modernization, availability resilience, and override layer.** The Phase 4 Council currently encodes a fixed roster (`claude-opus-4.7`, `gpt-5.4`, `gemini-2.5-pro`) in `bin/council_config.py`. Two real problems with this: (a) the Copilot CLI silently dropped `gemini-2.5-pro` support (observed under the then-active `gh copilot` extension; the dropoff persists under the new standalone `copilot` CLI per 089f) — so any adopter using the v1.5.6 skill with the copilot runner gets a broken Phase 4 Council; (b) more generally, models change faster than skill releases, so any roster pinned at ship time decays. v1.5.7 addresses this with a four-part deliverable: update the roster to a currently-deployable set (`claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6`); add fast-fail availability detection at Council launch with graceful 2-of-2 degradation when one member is unreachable and hard-fail when two or more are; add a `~/.qpb/config.yaml` persistence layer so adopters can override the roster locally without editing source; and ship a structured failure-recovery template that the orchestrating LLM fills in with current runner-specific model knowledge so adopters get actionable recovery guidance regardless of how stale their installed skill is. The reference document is a stable backgrounder (what runners are, install commands, why Council diversity matters), NOT a decay-prone availability matrix — the volatile information lives in the LLM's runtime knowledge, not in QPB source.
 
 These six items share one property: **each one closes a research-data-integrity, methodology-machinery, architectural-alignment, or environmental-decay gap that surfaced during or immediately after v1.5.6 ship**. Bundling them produces a release whose theme is "v1.5.6's runner was correct; v1.5.7 makes its outputs research-grade, its supporting metrics tree formal, its skill prose better-aligned with the phase architecture, and its Council resilient to environmental drift."
 
@@ -41,7 +41,7 @@ These six items share one property: **each one closes a research-data-integrity,
 
 - **`SKILL.md` trim.** The awesome-copilot Skill Validator's "comprehensive skill" warning surfaced during PR #1402 review on 2026-05-10. The fix isn't urgent (QPB still works correctly with a 73K-token `SKILL.md`), but the validator's observation is correct: per-phase token cost can be reduced by aligning the skill prose more tightly with the phase architecture. v1.5.7 is the natural home because (a) it's a cleanup release whose theme is "make v1.5.6's outputs better"; (b) the work fits the cleanup framing rather than feature work; (c) v1.6.0 is committed to Requirements Review and shouldn't absorb architectural-prose work.
 
-- **Council resilience and override layer.** Surfaced on 2026-05-10 when `gh copilot` was observed to have silently dropped `gemini-2.5-pro` support, breaking v1.5.6's Phase 4 Council for any adopter using the copilot runner. The fix is urgent for adopters whose installed skill ships with the v1.5.6 roster — without the override layer + availability resilience, they have a broken Phase 4 with no recovery path that doesn't require updating QPB itself. v1.5.7 is the natural home because skills outlive model rosters in general (not just gemini-via-copilot), and an adopter's option to override the roster locally is a robustness property that should be in the system, not a per-incident hot-fix.
+- **Council resilience and override layer.** Surfaced on 2026-05-10 when the Copilot CLI (then the `gh copilot` extension, now the standalone `copilot` CLI per 089f — same vendor backend) was observed to have silently dropped `gemini-2.5-pro` support, breaking v1.5.6's Phase 4 Council for any adopter using the copilot runner. The fix is urgent for adopters whose installed skill ships with the v1.5.6 roster — without the override layer + availability resilience, they have a broken Phase 4 with no recovery path that doesn't require updating QPB itself. v1.5.7 is the natural home because skills outlive model rosters in general (not just gemini-via-copilot), and an adopter's option to override the roster locally is a robustness property that should be in the system, not a per-incident hot-fix.
 
 ### What v1.5.7 explicitly does NOT do
 
@@ -374,7 +374,7 @@ Phase 8 integration testing additionally runs the existing v1.5.5 + v1.5.6 bench
 
 ### Deliverable 6 — Council roster modernization, availability resilience, and override layer
 
-**Symptom.** On 2026-05-10 (during awesome-copilot PR #1402 review), `gh copilot` was observed to have silently dropped `gemini-2.5-pro` from its `--model` whitelist. Any adopter using v1.5.6's Phase 4 Council with the copilot runner now hits an immediate failure when the runner tries to invoke `gemini-2.5-pro` — the audit prompt errors before producing any Council output, and Phase 4 hard-fails. The adopter has no recovery path that doesn't require updating QPB itself.
+**Symptom.** On 2026-05-10 (during awesome-copilot PR #1402 review), the Copilot CLI was observed to have silently dropped `gemini-2.5-pro` from its `--model` whitelist. (The observation was under the `gh copilot` extension that GitHub deprecated on 2025-10-25; the dropoff persists under the new standalone `copilot` CLI per v1.5.7 089f — same vendor backend, same model availability.) Any adopter using v1.5.6's Phase 4 Council with the copilot runner now hits an immediate failure when the runner tries to invoke `gemini-2.5-pro` — the audit prompt errors before producing any Council output, and Phase 4 hard-fails. The adopter has no recovery path that doesn't require updating QPB itself.
 
 This is a special case of a more general property: **skills outlive model rosters**. Whatever Council members the skill ships with on its release date, the runners those models are reachable through will drop, rename, or deprecate them faster than QPB releases. Without a resilience-and-override layer, every Council roster decay turns into a hot-fix release.
 
@@ -404,7 +404,7 @@ DEFAULT_COUNCIL_MEMBERS: tuple[str, ...] = (
 
 Per the existing `council_config.py` docstring rule: identifiers are not renamed in place; the tuple's contents are swapped to NEW identifiers. Historical archives still reference the OLD identifiers verbatim (those strings still exist as canonical for old runs). The new roster is what new runs use.
 
-The new roster is 2 Anthropic + 1 OpenAI, losing the Anthropic/OpenAI/Google triangle. This is forced by environmental constraint — there isn't currently a reliable way to invoke Gemini models through any of QPB's four orchestrator runners (`gh copilot` dropped gemini-2.5-pro; the other runners are family-specific). The cross-vendor diversity loss is acknowledged but unavoidable for this release.
+The new roster is 2 Anthropic + 1 OpenAI, losing the Anthropic/OpenAI/Google triangle. This is forced by environmental constraint — there isn't currently a reliable way to invoke Gemini models through any of QPB's four orchestrator runners (the Copilot CLI — both the deprecated `gh copilot` extension and the new standalone `copilot` CLI per 089f — dropped gemini-2.5-pro; the other runners are family-specific). The cross-vendor diversity loss is acknowledged but unavoidable for this release.
 
 Banner-string updates: search `bin/run_playbook.py` for hardcoded `gpt-5.4` and `gemini-2.5-pro` references in argparse help text, the cluster-050 Phase 4 banner, and any error messages. Update each occurrence to reflect the new roster. The cluster-050 Phase 4 banner already reads from `council_config.council_members()` dynamically (per `bin/run_playbook.py:2552-2561`); confirm and don't break the dynamic read.
 
@@ -476,14 +476,18 @@ Recovery options (LLM: please expand with current model knowledge):
 
   1. **Override the roster.** Pick replacement models that the copilot
      runner currently supports. To list candidates, run:
-         gh copilot -p "What models does --model accept?"
+         copilot -p "What models does --model accept?"
+       (or, during the gh-copilot deprecation grace period per
+        v1.5.7 089f: `gh copilot -p "What models does --model accept?"`)
      Or check `references/runners_and_models.md` for the runner's
      historical capabilities.
 
   2. **Switch orchestrator runner.** If copilot has dropped support
      for these models, another runner may still reach them:
          claude (Anthropic models): claude-cli
-         copilot (multi-vendor): gh copilot
+         copilot (multi-vendor): the GitHub Copilot CLI
+           (standalone `copilot` per v1.5.7 089f, or the deprecated
+            `gh copilot` extension during the grace period)
          codex (OpenAI models): codex-cli
          cursor (multi-vendor): cursor-cli
      [LLM: if you know which runner currently supports the desired
@@ -501,7 +505,7 @@ The template's bracketed `[LLM: ...]` markers signal the orchestrating LLM to fi
 
 New reference file (~150-300 lines) covering:
 
-- **What each of the four runners is.** One paragraph per runner (claude-cli, gh copilot, codex-cli, cursor-cli): vendor, scope (single-family vs multi-family), authentication model, install command. Explicitly NOT a model-availability matrix — those decay; this is the stable "what is this CLI" backgrounder.
+- **What each of the four runners is.** One paragraph per runner (claude-cli, the GitHub Copilot CLI — `copilot` per v1.5.7 089f, or the deprecated `gh copilot` extension during the grace period, codex-cli, cursor-cli): vendor, scope (single-family vs multi-family), authentication model, install command. Explicitly NOT a model-availability matrix — those decay; this is the stable "what is this CLI" backgrounder.
 - **Why Council-of-Three diversity matters.** Short explanation of why the audit benefits from multiple model families catching different defect classes; why 2-of-2 degradation is acceptable but 1-of-1 is not (overreach risk).
 - **How to override the Council roster.** Cross-reference to Part C's persistence layer and the `--council-roster` CLI flag.
 - **Pointer to v1.5.6 cluster 050 banner.** The Phase 4 startup banner already shows the active roster — this doc tells adopters where to look at runtime.
