@@ -29,10 +29,17 @@ import shutil
 import sys
 from pathlib import Path
 
+from bin.reference_docs_ingest import SUPPORTED_EXTENSIONS
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SOURCE_DIR = REPO_ROOT / "docs_gathered"
 DEST_DIR = REPO_ROOT / "reference_docs"
-PLAINTEXT_EXTENSIONS = {".md", ".txt"}
+# v1.5.7 089d (F20): the canonical plaintext-extension set lives in
+# bin/reference_docs_ingest.SUPPORTED_EXTENSIONS (the producer of
+# reference_docs/ ingestion). Pre-089d this local definition omitted
+# ".rst" and would silently drop .rst docs even though the ingest
+# surface accepts them (opus bootstrap BUG-016/017/018).
+PLAINTEXT_EXTENSIONS = SUPPORTED_EXTENSIONS
 EXCLUDED_NAMES = {"README.md"}
 
 

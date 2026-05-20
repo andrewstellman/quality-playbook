@@ -106,7 +106,13 @@ _INDEX_REQUIRED_FIELDS = (
     "target_role_breakdown",
 )
 _INDEX_REQUIRED_SUMMARY_KEYS = ("requirements", "bugs", "gate_verdict")
-_INDEX_VALID_VERDICTS = ("pass", "partial", "fail")
+# v1.5.7 089d (F17): "pass-with-cleanup" added — the INDEX gate_verdict
+# value for the 089c three-state gate's `RESULT: GATE PASSED WITH
+# CLEANUP NEEDED` line (review completed, bug findings stand, only
+# audit record-keeping is incomplete; non-blocking, exit 0). Mirrors
+# schemas.md §11 + SKILL.md + references/run_state_schema.md +
+# references/phase6_verify_guide.md.
+_INDEX_VALID_VERDICTS = ("pass", "pass-with-cleanup", "partial", "fail")
 
 _RECORD_SHAPED_MANIFESTS = (
     "formal_docs_manifest.json",

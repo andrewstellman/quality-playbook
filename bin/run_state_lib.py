@@ -49,6 +49,47 @@ _REQUIRED_FIELDS: tuple[str, ...] = ("ts", "event")
 # Per-schema-doc valid phase numbers.
 _VALID_PHASES: frozenset[int] = frozenset({1, 2, 3, 4, 5, 6})
 
+# v1.5.7 089d (F22) — CANONICAL BUG-NNN heading pattern.
+#
+# This is the single source of truth for parsing `### BUG-NNN:` and
+# variant headings out of BUGS.md across QPB. Pre-089d three modules
+# each defined their own:
+#   - quality_gate.py:286    `^###\s+BUG-(\d+):`           digit-only
+#                                                          + required colon
+#   - archive_lib.py:69      this form (alphanumeric)
+#   - run_state_lib.py inline (lines 700/830, both copies)  this form
+#
+# The gate's digit-only form rejected BUG-H1 / BUG-M1 / BUG-L1
+# (severity-prefixed historical IDs used in some v1.5.x fixtures) and
+# any future hyphenated-suffix variant like BUG-001-fix-2 — these
+# parsed in archive_lib + run_state_lib but not in the gate, so a
+# canonical BUG record could be classified differently by each
+# surface (opus bootstrap F22).
+#
+# The canonical form (this constant) accepts:
+#   BUG-001         (digit-only — the most common form)
+#   BUG-H1 / BUG-M1 / BUG-L1 (severity-prefixed historical IDs)
+#   BUG-001-fix-2   (hyphenated-suffix variants)
+# and treats the trailing `: <title>` as optional (matches both
+# titled-and-bare bug headings).
+#
+# `BUG_HEADING_PATTERN_STR` is the raw string (so the cross-module
+# pin test can equality-compare against the gate's standalone copy);
+# `BUG_HEADING_PATTERN_RE` is the compiled re.MULTILINE form for
+# direct use by archive_lib + run_state_lib (which CAN import this
+# module). quality_gate.py is INSTALLED STANDALONE into adopters'
+# `.github/skills/quality_gate/` and CANNOT import from `bin/`
+# (same Option-B-additive-duplication constraint as
+# `_INSTALL_MARKER_DIRS` in quality_gate.py); it carries a literal
+# copy whose string must match this constant (pinned by
+# `bin/tests/test_bug_heading_pattern_pinned.py`).
+BUG_HEADING_PATTERN_STR: str = (
+    r"^###\s+BUG-([A-Za-z0-9][A-Za-z0-9\-]*)(?::\s+.+)?\s*$"
+)
+BUG_HEADING_PATTERN_RE: re.Pattern[str] = re.compile(
+    BUG_HEADING_PATTERN_STR, re.MULTILINE,
+)
+
 # v1.5.6 BUG-005 (codex bootstrap, 2026-05-08): Phase 1 validator
 # enforces the full SKILL.md:1257-1273 entry gate (13 checks). The
 # old single-regex check covered approximately 1 of those 13 — a
@@ -108,6 +149,32 @@ _PROGRESS_PHASE1_DONE_RE = re.compile(
 _CANDIDATE_STAGE_RE = re.compile(
     r"^\s*-\s*Stage\s*:\s*(.+)$", re.MULTILINE | re.IGNORECASE
 )
+
+# v1.5.7 089d (F19) — checks 14-17: the four documented Phase 1 gate
+# checks the pre-089d validator under-enforced (per the opus
+# bootstrap: spec lists 12 checks, validator implemented ~6;
+# BUG-005 in v1.5.6 closed it partially). Constants + regexes for:
+#
+#   check 14 — Derived Requirements section presence + structure
+#              (phase1_exploration_guide.md #3): ≥1 ### REQ-NNN
+#              entry under ## Derived Requirements.
+#   check 15 — Open-Exploration module spread (#4 second clause):
+#              ≥4 distinct modules referenced across findings.
+#   check 16 — Quality Risks depth (#6): ≥5 numbered entries with
+#              file:line citations under ## Quality Risks.
+#   check 17 — Pattern Applicability Matrix coverage (#7): all 6
+#              patterns from references/exploration_patterns.md
+#              evaluated FULL or SKIP — mechanically, ≥6 matrix
+#              rows carrying a FULL or SKIP cell.
+_MIN_DERIVED_REQUIREMENTS = 1                # check 14
+_MIN_DISTINCT_MODULES_OPEN_EXPLORATION = 4   # check 15
+_MIN_QUALITY_RISKS_WITH_CITATION = 5         # check 16
+_MIN_PATTERN_MATRIX_ROWS = 6                 # check 17
+# `### REQ-NNN:` heading inside Derived Requirements.
+_REQ_HEADING_RE = re.compile(r"^###\s+REQ-(\d+):", re.MULTILINE)
+# Matrix SKIP cell — mirror of _FULL_CELL_RE for the SKIP token.
+_SKIP_CELL_RE = re.compile(r"\|\s*`?(SKIP)`?\s*\|")
+
 
 @dataclass(frozen=True)
 class Event:
@@ -465,6 +532,93 @@ def _validate_phase1(quality_dir: Path) -> tuple[bool, str]:
             f"Per-entry stages:\n{per_entry_lines}"
         )
 
+    # v1.5.7 089d (F19): four checks the pre-089d validator
+    # under-enforced — the opus bootstrap traced ~6 of 12 documented
+    # checks implemented; v1.5.6 BUG-005 closed it partially. The
+    # new checks follow the existing failure-aggregation idiom (no
+    # short-circuit) so the operator sees the full picture, and
+    # cite the phase1_exploration_guide.md gate-list item number
+    # rather than a SKILL.md line number (the latter rotted in
+    # 089b F14; the section reference is stable).
+
+    # Check 14: Derived Requirements section exists with ≥1
+    # `### REQ-NNN:` entry (phase1_exploration_guide.md #3). The
+    # spec mandates "specific file paths and function names" inside
+    # each REQ; mechanically detecting "function names" is too
+    # noisy, so the conservative form pins the entry count only.
+    derived_body = _slice_h2_section(text, "## Derived Requirements")
+    req_entries = _REQ_HEADING_RE.findall(derived_body)
+    if len(req_entries) < _MIN_DERIVED_REQUIREMENTS:
+        failures.append(
+            f"Phase 1 gate: Derived Requirements — required "
+            f"≥{_MIN_DERIVED_REQUIREMENTS} '### REQ-NNN:' entries "
+            f"with specific file paths and function names, "
+            f"found {len(req_entries)}; "
+            f'see references/phase1_exploration_guide.md "Phase 1 '
+            f'completion gate" item #3.'
+        )
+
+    # Check 15: Multi-module spread across Open Exploration Findings
+    # (phase1_exploration_guide.md #4, second clause: "At least 4
+    # must reference different modules or subsystems"). Distinct
+    # modules = the file-path portion of each file:line citation
+    # across the entries that have citations.
+    distinct_modules: set[str] = set()
+    for entry in findings_with_citations:
+        for file_part, _line_part in _distinct_file_line_citations(entry):
+            distinct_modules.add(file_part)
+    if len(distinct_modules) < _MIN_DISTINCT_MODULES_OPEN_EXPLORATION:
+        failures.append(
+            f"Phase 1 gate: open exploration module spread — required "
+            f"≥{_MIN_DISTINCT_MODULES_OPEN_EXPLORATION} distinct "
+            f"modules referenced across findings, found "
+            f"{len(distinct_modules)}; "
+            f'see references/phase1_exploration_guide.md "Phase 1 '
+            f'completion gate" item #4.'
+        )
+
+    # Check 16: Quality Risks depth — ≥5 numbered entries each
+    # carrying a file:line citation (phase1_exploration_guide.md #6).
+    # The spec also mandates per-entry "edge case" and "why wrong"
+    # prose; those are content checks not mechanically detectable,
+    # so the file:line proxy catches the most common gap (a section
+    # full of patterns the code already has, with no concrete
+    # citations) while staying tractable.
+    quality_risks_body = _slice_h2_section(text, "## Quality Risks")
+    risks_entries = _slice_numbered_entries(quality_risks_body)
+    risks_with_citations = [
+        e for e in risks_entries if _FILE_LINE_CITATION_RE.search(e)
+    ]
+    if len(risks_with_citations) < _MIN_QUALITY_RISKS_WITH_CITATION:
+        failures.append(
+            f"Phase 1 gate: Quality Risks depth — required "
+            f"≥{_MIN_QUALITY_RISKS_WITH_CITATION} domain-driven "
+            f"failure scenarios with file:line citations (each "
+            f"naming a specific function/file/line + edge case + "
+            f"why the code produces wrong behavior), found "
+            f"{len(risks_with_citations)} with file:line; "
+            f'see references/phase1_exploration_guide.md "Phase 1 '
+            f'completion gate" item #6.'
+        )
+
+    # Check 17: Pattern Applicability Matrix evaluates all 6
+    # patterns from references/exploration_patterns.md
+    # (phase1_exploration_guide.md #7). Mechanically: the matrix
+    # body must carry ≥6 rows with a FULL or SKIP cell.
+    skip_count = len(_SKIP_CELL_RE.findall(matrix_body))
+    matrix_evaluated = full_count + skip_count
+    if matrix_evaluated < _MIN_PATTERN_MATRIX_ROWS:
+        failures.append(
+            f"Phase 1 gate: Pattern Applicability Matrix coverage — "
+            f"required ≥{_MIN_PATTERN_MATRIX_ROWS} patterns "
+            f"evaluated FULL or SKIP (one per pattern in "
+            f"references/exploration_patterns.md), found "
+            f"{matrix_evaluated} (FULL={full_count}, "
+            f"SKIP={skip_count}); "
+            f'see references/phase1_exploration_guide.md "Phase 1 '
+            f'completion gate" item #7.'
+        )
+
     if failures:
         return (False, "\n".join(failures))
     return (True, "")
@@ -580,14 +734,13 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
         bugs_md = quality_dir / "BUGS.md"
         if bugs_md.is_file():
             bugs_text = bugs_md.read_text(encoding="utf-8", errors="ignore")
-            # Match archive_lib._BUG_HEADING_PATTERN's titled-and-bare
-            # form so future BUG-NNN-suffix forms (e.g., BUG-001-fix-2)
-            # are handled consistently.
-            bug_id_re = re.compile(
-                r"^###\s+BUG-([A-Za-z0-9][A-Za-z0-9\-]*)(?::\s+.+)?\s*$",
-                re.MULTILINE,
-            )
-            bug_ids_p3 = sorted({m.group(1) for m in bug_id_re.finditer(bugs_text)})
+            # v1.5.7 089d (F22): use the module-level canonical
+            # `BUG_HEADING_PATTERN_RE` so all surfaces agree on
+            # which BUG-NNN forms parse (incl. BUG-H1/M1/L1 and
+            # future hyphenated-suffix variants).
+            bug_ids_p3 = sorted({
+                m.group(1) for m in BUG_HEADING_PATTERN_RE.finditer(bugs_text)
+            })
             if bug_ids_p3:
                 patches_dir = quality_dir / "patches"
                 if not patches_dir.is_dir():
@@ -710,14 +863,13 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
             # matches the contract's "if bugs were confirmed" caveat.
             return (True, "")
         bugs_text = bugs_md.read_text(encoding="utf-8", errors="ignore")
-        # v1.5.6 fix-up 071 BUG-006: match archive_lib._BUG_HEADING_PATTERN's
-        # titled-and-bare form for consistency (also handles future
-        # hyphenated suffix BUG IDs like BUG-001-fix-2).
-        bug_id_re = re.compile(
-            r"^###\s+BUG-([A-Za-z0-9][A-Za-z0-9\-]*)(?::\s+.+)?\s*$",
-            re.MULTILINE,
-        )
-        bug_ids = sorted({m.group(1) for m in bug_id_re.finditer(bugs_text)})
+        # v1.5.6 fix-up 071 BUG-006: match the canonical
+        # `BUG_HEADING_PATTERN_RE` titled-and-bare form for
+        # consistency across surfaces. v1.5.7 089d (F22) made this
+        # the canonical module-level constant.
+        bug_ids = sorted({
+            m.group(1) for m in BUG_HEADING_PATTERN_RE.finditer(bugs_text)
+        })
         if not bug_ids:
             # BUGS.md exists but contains no confirmed bugs.
             return (True, "")

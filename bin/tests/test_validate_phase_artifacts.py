@@ -253,6 +253,44 @@ class Phase5IndexTests(unittest.TestCase):
             rc, out = _run(Path(tmp), 6)
             self.assertEqual(rc, 0, out)
 
+    def test_phase6_accepts_pass_with_cleanup_gate_verdict(self) -> None:
+        """v1.5.7 089d (F17): the 089c three-state gate emits
+        `RESULT: GATE PASSED WITH CLEANUP NEEDED` — a successful,
+        non-blocking outcome. The INDEX gate_verdict value for that
+        line is `"pass-with-cleanup"`. Without this enum value,
+        validate_phase_artifacts rejected the INDEX.md (the
+        F17-traced defect: the new gate state was unreachable
+        through the artifact pipeline). This test pins acceptance.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089d F17:
+          Mutation: in bin/validate_phase_artifacts.py, remove
+          "pass-with-cleanup" from _INDEX_VALID_VERDICTS (reverting
+          F17 partway — schemas.md and the verdict are updated, but
+          the validator still rejects).
+          Expected failure: THIS test fails at
+            assertEqual(rc, 0, out) → AssertionError: 1 != 0
+            (validator output includes "must be one of [...]" naming
+            the truncated tuple).
+          Restoration: re-add the value; test passes.
+          Bite executed during 089d development; PASS→FAIL→PASS
+          confirmed (__pycache__ purged between mutate and restore).
+        """
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_index(
+                q, _valid_index_payload(gate_verdict="pass-with-cleanup"),
+            )
+            rc, out = _run(Path(tmp), 6)
+            self.assertEqual(rc, 0, out)
+            # The success line should still cite the §11 required
+            # fields + a valid gate_verdict (the validator's PASS
+            # message format) — locks the wording so a future
+            # refactor that drops the "valid gate_verdict" suffix
+            # is caught here as well.
+            self.assertIn("§11 required fields", out)
+            self.assertIn("valid gate_verdict", out)
+
 
 class Phase1RoleMapTests(unittest.TestCase):
     """A-16 — exploration_role_map.json breakdown object."""

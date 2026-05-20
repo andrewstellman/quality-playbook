@@ -63,6 +63,14 @@ QPB ships in two execution shapes. Pick the one that matches your runtime — th
 
 **When in doubt, default to Mode A.** If the operator wanted runner-driven invocation they would have run the runner themselves; if they pasted "Run the Quality Playbook" into your chat, they want you to drive. The Mode B section below tells you what to do *if* the operator explicitly invokes the runner.
 
+**Documented Mode A vs Mode B asymmetries — by design (v1.5.7 089d F21).** Three behaviors deliberately differ between the modes because the modes serve different purposes (Mode A is the adopter-facing walkthrough on a target repo; Mode B is the QPB-internal runner used for benchmarking + headless CI). The phase prompts are identical (single source of truth — see paragraph above); the divergences are in the *driver* obligations, not the *audited contract*:
+
+1. **Phase 0 install-validator (Mode A only).** Mode A's mandatory first action is `python3 bin/qpb_validate.py <target>` — the adopter has just installed QPB into their target repo and must confirm canonical layout before any phase. Mode B (the QPB clone running its own runner) operates from the canonical install by construction; the validator would always succeed against the QPB clone itself, so the check would be vacuous. Adopters running Mode A get the install correctness gate; Mode B operators have it already.
+2. **End-of-run archive (Mode B only).** Mode B's `_finalize_iteration` calls `archive_lib.archive_run` after Phase 6, materializing `quality/previous_runs/<ts>/` for benchmark replay + cross-run diffing. Mode A produces artifacts directly into the target's live `quality/` for the adopter to inspect, commit, or re-run on top of; there is no archive partition because there is no benchmark loop. Adopters who want longitudinal archives invoke Mode B explicitly (`python3 -m bin.run_playbook --full-run <target>`).
+3. **Phase 6 auditor-prompt sub-agent dispatch (Mode A only).** `phase_prompts/phase6.md` routes Mode A through `phase_prompts/phase6_auditor.md` via a fresh-context sub-agent spawn (the A-13 hybrid). Mode B's per-phase CLI subprocess is *already* a fresh context (the structural separation the auditor exists to provide), so `phase6.md:5-7` tells Mode B to execute the verification inline and skip the auditor spawn. `phase_prompts/phase6_auditor.md` is therefore only loaded under Mode A; the file's header documents this routing explicitly.
+
+These asymmetries are pinned by `bin/tests/test_mode_a_b_parity_documented.py`. If a future change wants to align them, update the pin test, the rationale here, and add the missing behavior to the appropriate side.
+
 ### Mode A — skill-direct walkthrough (UI-context)
 
 The operator's prompt is just **"Run the Quality Playbook"** (or "run on itself", "self-audit", etc.). You drive every phase inline.
@@ -206,7 +214,7 @@ A successful run produces this canonical set under the target's `quality/` direc
 | `<repo_dir>/quality.gate-failed-<UTC-ts>/` | v1.5.7 D1 — preserved on Phase 2 gate-failure: the failed `quality/` tree is renamed to this sibling directory and a fresh `quality/` is created. The preserved directory carries its own `logs/<run-id>/` subtree with the failure logs. Operators inspect it post-mortem; the next run starts clean. |
 | `AGENTS.md` (target repo root) | Per-project orientation generated post-Phase-6. Carries a QPB sentinel marker so future runs detect QPB-managed copies. |
 
-The gate verdict in `quality/INDEX.md` (`pass` / `partial` / `fail`) is the operator-facing summary of how the run went. If it's anything other than `pass`, surface why before considering the run done.
+The gate verdict in `quality/INDEX.md` (`pass` / `pass-with-cleanup` / `partial` / `fail`) is the operator-facing summary of how the run went. The 089c F15 three-state taxonomy maps the gate's `RESULT:` line to this enum: `RESULT: GATE PASSED` → `pass`; `RESULT: GATE PASSED WITH CLEANUP NEEDED` → `pass-with-cleanup` (review completed, bug findings stand, only audit record-keeping incomplete — non-blocking); `RESULT: GATE FAILED` → `fail` (a substantive issue). `partial` covers aborted / WARN-only runs. If the verdict is anything other than `pass`, surface why before considering the run done; `pass-with-cleanup` is a successful outcome, but the State CN emit (per `references/what_just_happened.md`) walks the adopter through completing the remaining audit records.
 
 ### Locating reference files
 

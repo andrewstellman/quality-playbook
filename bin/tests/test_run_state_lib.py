@@ -159,29 +159,48 @@ class LastInProgressPhaseTests(unittest.TestCase):
 
 
 def _canonical_phase1_exploration_md() -> str:
-    """Return a minimal EXPLORATION.md that satisfies all 13 SKILL.md
-    Phase 2 entry-gate checks (used by tests below to construct
-    fixtures and to mutate single sections for per-check rejection
-    tests)."""
+    """Return a minimal EXPLORATION.md that satisfies all 17 Phase 1
+    gate checks (the 12 documented checks in references/phase1_
+    exploration_guide.md "Phase 1 completion gate" #1-#12, mapped to
+    validator checks 1-17 — v1.5.7 089d F19 added checks 14-17 for
+    the documented items #3 / #4 second clause / #6 / #7 the
+    pre-089d validator under-enforced). Used by tests below to
+    construct fixtures and to mutate single sections for per-check
+    rejection tests."""
+    # v1.5.7 089d (F19, check 15): 8 numbered findings spanning 4+
+    # distinct modules (each finding cites two modules — at least 4
+    # unique files across the 8 entries). Each entry has ≥2
+    # citations (satisfies pre-089d checks 9 + 10).
+    _module_pairs = (
+        ("bin/run_playbook.py", "bin/run_state_lib.py"),
+        ("bin/archive_lib.py", "bin/reference_docs_ingest.py"),
+        ("bin/install_skill.py", "bin/role_map.py"),
+        ("bin/bootstrap_self_audit_docs.py", "bin/qpb_validate.py"),
+    )
     findings: list[str] = []
-    # 8 numbered findings, each with 2+ file:line citations
-    # (satisfies checks 9 + 10).
     for i in range(1, 9):
+        mod_a, mod_b = _module_pairs[(i - 1) % len(_module_pairs)]
         findings.append(
-            f"{i}. `bin/run_playbook.py:{1500 + i * 10}-{1500 + i * 10 + 5}` "
-            f"diverges from `bin/run_state_lib.py:{1660 + i}-{1670 + i}` on "
+            f"{i}. `{mod_a}:{1500 + i * 10}-{1500 + i * 10 + 5}` "
+            f"diverges from `{mod_b}:{1660 + i}-{1670 + i}` on "
             f"behavior X. Multi-location trace across both modules.\n"
         )
     findings_section = "## Open Exploration Findings\n\n" + "\n".join(findings)
 
+    # v1.5.7 089d (F19, check 16): ≥5 Quality Risks entries each
+    # with a file:line citation.
     risks_section = (
         "## Quality Risks\n\n"
         "1. **Highest risk** — risk one. `bin/run_playbook.py:100`.\n\n"
-        "2. **Second risk** — risk two. `bin/run_playbook.py:200`.\n"
+        "2. **Second risk** — risk two. `bin/run_playbook.py:200`.\n\n"
+        "3. **Third risk** — risk three. `bin/run_state_lib.py:300`.\n\n"
+        "4. **Fourth risk** — risk four. `bin/archive_lib.py:400`.\n\n"
+        "5. **Fifth risk** — risk five. `bin/reference_docs_ingest.py:500`.\n"
     )
 
     # Pattern Applicability Matrix: 3 FULL rows (lower bound of 3-4
-    # inclusive), 2 SKIP rows.
+    # inclusive), 3 SKIP rows — 6 total to satisfy check 17 (one row
+    # per pattern in references/exploration_patterns.md).
     matrix_section = (
         "## Pattern Applicability Matrix\n\n"
         "| Pattern | Decision (`FULL` / `SKIP`) | Target | Why |\n"
@@ -191,6 +210,17 @@ def _canonical_phase1_exploration_md() -> str:
         "| API Surface | `FULL` | bin/ | Reason |\n"
         "| Dispatch Returns | `SKIP` | CLI | Reason |\n"
         "| Spec Parsing | `SKIP` | parsers | Reason |\n"
+        "| Enumeration Completeness | `SKIP` | enums | Reason |\n"
+    )
+
+    # v1.5.7 089d (F19, check 14): ≥1 `### REQ-NNN:` entry under
+    # `## Derived Requirements` with specific file paths.
+    derived_section = (
+        "## Derived Requirements\n\n"
+        "### REQ-001: Phase 1 validator must enforce all 12 documented checks\n\n"
+        "Per `references/phase1_exploration_guide.md` items #1-#12, the validator\n"
+        "at `bin/run_state_lib.py:_validate_phase1` must implement all twelve\n"
+        "gate checks (not the ~6 the pre-089d implementation enforced).\n"
     )
 
     # 3 Pattern Deep Dive sections; 2 of them cite ≥2 distinct
@@ -242,6 +272,7 @@ def _canonical_phase1_exploration_md() -> str:
         + matrix_section + "\n"
         + deep_dives + "\n"
         + candidate_section + "\n"
+        + derived_section + "\n"
         + gate_section + "\n"
         + filler
     )
@@ -568,6 +599,142 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
             ok, reason = lib.validate_phase_artifacts(quality, 1)
             self.assertFalse(ok)
             self.assertIn("candidate bugs source mix", reason)
+
+    # ----- v1.5.7 089d (F19): checks 14-17 ----------------------
+    # The opus bootstrap traced ~6 of 12 documented Phase 1 checks
+    # implemented; the validator was tightened to all 12. Per-check
+    # rejection tests pin the new failure messages so a future
+    # refactor that drops or weakens a check is caught here.
+
+    def test_phase1_validator_rejects_missing_derived_requirements(self) -> None:
+        """Check 14 (089d F19): `## Derived Requirements` section
+        missing OR contains no `### REQ-NNN:` entries.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089d F19:
+          Mutation: in bin/run_state_lib.py, set
+          _MIN_DERIVED_REQUIREMENTS = 0 (or comment out check 14).
+          Expected failure: THIS test fails — the validator no
+          longer rejects EXPLORATION.md with zero REQ-NNN entries
+          under Derived Requirements.
+          Restoration: re-set to 1; passes. Bite executed during
+          089d development; PASS→FAIL→PASS confirmed
+          (__pycache__ purged between mutate and restore).
+        """
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            # Drop the entire Derived Requirements section.
+            start = text.index("## Derived Requirements")
+            # The fixture's Derived section is followed by the Gate
+            # Self-Check section; slice it out.
+            end = text.index("## Gate Self-Check", start)
+            text = text[:start] + text[end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("Derived Requirements", reason)
+            self.assertIn("REQ-NNN", reason)
+
+    def test_phase1_validator_rejects_under_4_module_spread(self) -> None:
+        """Check 15 (089d F19): all open-exploration findings cite
+        ≤3 distinct modules — required ≥4.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089d F19:
+          Mutation: in bin/run_state_lib.py, set
+          _MIN_DISTINCT_MODULES_OPEN_EXPLORATION = 2.
+          Expected failure: THIS test fails — the fixture with 2
+          modules no longer hits the threshold below which the
+          rejection fires.
+          Restoration: re-set to 4; passes. Bite executed during
+          089d development; PASS→FAIL→PASS confirmed.
+        """
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            # Replace findings with 8 entries citing only 2 modules.
+            new_findings = "\n".join(
+                f"{i}. `bin/x.py:{100+i}-{105+i}` diverges from "
+                f"`bin/y.py:{200+i}-{205+i}` on behavior. "
+                f"Multi-location trace.\n"
+                for i in range(1, 9)
+            )
+            new_block = "## Open Exploration Findings\n\n" + new_findings
+            old_block_start = text.index("## Open Exploration Findings")
+            old_block_end = text.index("## Quality Risks")
+            text = text[:old_block_start] + new_block + "\n" + text[old_block_end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("module spread", reason)
+
+    def test_phase1_validator_rejects_under_5_quality_risks(self) -> None:
+        """Check 16 (089d F19): `## Quality Risks` section has <5
+        numbered entries with file:line citations.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089d F19:
+          Mutation: in bin/run_state_lib.py, set
+          _MIN_QUALITY_RISKS_WITH_CITATION = 0.
+          Expected failure: THIS test fails — the validator no
+          longer rejects under-populated Quality Risks sections.
+          Restoration: re-set to 5; passes. Bite executed during
+          089d development; PASS→FAIL→PASS confirmed.
+        """
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            old_block_start = text.index("## Quality Risks")
+            old_block_end = text.index("## Pattern Applicability Matrix")
+            shrunk = (
+                "## Quality Risks\n\n"
+                "1. **Highest** — one. `bin/x.py:1`.\n\n"
+                "2. **Second** — two. `bin/y.py:2`.\n\n"
+            )
+            text = text[:old_block_start] + shrunk + text[old_block_end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("Quality Risks depth", reason)
+
+    def test_phase1_validator_rejects_under_6_pattern_matrix_rows(self) -> None:
+        """Check 17 (089d F19): `## Pattern Applicability Matrix`
+        evaluates <6 patterns FULL or SKIP.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089d F19:
+          Mutation: in bin/run_state_lib.py, set
+          _MIN_PATTERN_MATRIX_ROWS = 0.
+          Expected failure: THIS test fails — the validator no
+          longer rejects matrices that omit patterns.
+          Restoration: re-set to 6; passes. Bite executed during
+          089d development; PASS→FAIL→PASS confirmed.
+        """
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            old_block_start = text.index("## Pattern Applicability Matrix")
+            old_block_end = text.index("## Pattern Deep Dive — ")
+            # Shrink matrix to 4 rows (3 FULL + 1 SKIP) — under 6.
+            shrunk = (
+                "## Pattern Applicability Matrix\n\n"
+                "| Pattern | Decision (`FULL` / `SKIP`) | Target | Why |\n"
+                "|---|---|---|---|\n"
+                "| Fallback Parity | `FULL` | bin/ | Reason |\n"
+                "| Cross-Implementation | `FULL` | bin/ | Reason |\n"
+                "| API Surface | `FULL` | bin/ | Reason |\n"
+                "| Dispatch Returns | `SKIP` | CLI | Reason |\n\n"
+            )
+            text = text[:old_block_start] + shrunk + text[old_block_end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("Pattern Applicability Matrix coverage", reason)
 
     def test_phase1_validator_aggregates_multiple_failures(self) -> None:
         """Multiple failures must aggregate into a multi-line message

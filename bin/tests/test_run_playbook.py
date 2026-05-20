@@ -784,28 +784,37 @@ class RunPlaybookTests(unittest.TestCase):
     # --- Path-based target resolution (replaces the old version-matching tests) ---
 
     def test_resolve_target_dirs_absolute_path_passes_through(self) -> None:
+        from bin import benchmark_lib as _lib
+
         with TemporaryDirectory() as temp_dir:
             resolved, warnings, errors = run_playbook.resolve_target_dirs([temp_dir])
             self.assertEqual(resolved, [Path(temp_dir).resolve()])
             self.assertEqual(errors, [])
-            # No skill installed -> warning about missing SKILL.md
-            # (v1.5.7 BUG-004: the warning lists all 6 canonical
-            # install layouts; pre-fix it listed only 3.)
+            # No skill installed -> warning about missing SKILL.md.
+            # v1.5.7 089d (F23): the WARN derives its layout
+            # enumeration from lib.SKILL_INSTALL_LOCATIONS (10
+            # post-046), so every canonical layout must appear
+            # (pre-089d: hard-coded 6; pre-BUG-004: hard-coded 3).
+            # The detailed enumeration pin is in
+            # bin/tests/test_install_layouts_pinned.py; this test
+            # focuses on the WARN being singular + naming all the
+            # canonical paths from the lib constant.
             self.assertEqual(len(warnings), 1)
             self.assertIn("No QPB-installed SKILL.md found", warnings[0])
-            # All 6 canonical install layouts must be named in the warning.
-            for layout in (
-                "SKILL.md (root",
-                ".claude/skills/quality-playbook/SKILL.md",
-                ".github/skills/SKILL.md",
-                ".cursor/skills/quality-playbook/SKILL.md",
-                ".continue/skills/quality-playbook/SKILL.md",
-                ".github/skills/quality-playbook/SKILL.md",
-            ):
+            # The "SKILL.md is the root/bootstrap form" clarifier
+            # now lives in a trailing parenthetical (F23 phrased the
+            # message as a dynamic enumeration + a single root-form
+            # note instead of an inline-with-each-layout note).
+            self.assertIn(
+                "SKILL.md is the root/bootstrap form", warnings[0],
+                "missing-install WARN must keep the root-form clarifier",
+            )
+            # Every layout from the canonical lib constant must appear.
+            for layout in _lib.SKILL_INSTALL_LOCATIONS:
                 self.assertIn(
-                    layout, warnings[0],
-                    f"missing-install WARN must name {layout!r}; "
-                    f"got: {warnings[0]!r}",
+                    str(layout), warnings[0],
+                    f"missing-install WARN must name canonical layout "
+                    f"{layout!s}; got: {warnings[0]!r}",
                 )
 
     def test_resolve_target_dirs_relative_path_anchors_to_cwd(self) -> None:

@@ -783,11 +783,16 @@ def install(
 
     # v1.5.6 instruction 064: install explainer message at run start.
     # Brief explanation of what's happening + how to override detection.
+    # v1.5.7 089d (F23): derive the marker list from the canonical
+    # KNOWN_ENVIRONMENTS (8 markers post-046/A-3) instead of
+    # hard-coding 4 of 8 (.cursor/.claude/.github/.continue). Pinned
+    # by bin/tests/test_install_layouts_pinned.py.
+    _intro_markers = "/, ".join(marker for marker, _ in KNOWN_ENVIRONMENTS) + "/"
     intro_short = (
-        "skill bundle installs into a tool-specific subdirectory; "
-        "auto-detection scans for the marker (.cursor/, .claude/, "
-        ".github/, .continue/); pass --ai-tool <cursor|claude|copilot|continue|codex|windsurf|cline|aider> "
-        "to bypass detection"
+        f"skill bundle installs into a tool-specific subdirectory; "
+        f"auto-detection scans for the marker ({_intro_markers}); "
+        f"pass --ai-tool <cursor|claude|copilot|continue|codex|windsurf|cline|aider> "
+        f"to bypass detection"
     )
     intro_verbose = (
         "Installing the Quality Playbook skill. The skill files (SKILL.md, "

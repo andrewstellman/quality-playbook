@@ -66,11 +66,58 @@ LEGACY_ARCHIVE_DIRNAME = "runs"
 PARTIAL_SENTINEL_NAME = ".partial"
 
 _VERSION_HEADER_PATTERN = re.compile(r"Quality Playbook v([0-9]+(?:\.[0-9]+)+)", re.IGNORECASE)
-_BUG_HEADING_PATTERN = re.compile(r"^###\s+BUG-([A-Za-z0-9][A-Za-z0-9\-]*)(?::\s+.+)?\s*$", re.MULTILINE)
+# v1.5.7 089d (F22): the canonical BUG-NNN heading pattern lives in
+# `bin/run_state_lib.BUG_HEADING_PATTERN_RE` (see that constant for
+# the rationale + scope). archive_lib re-exports it via this local
+# alias to preserve the existing name (avoids touching ~30 call
+# sites of `_BUG_HEADING_PATTERN`).
+from bin.run_state_lib import BUG_HEADING_PATTERN_RE as _BUG_HEADING_PATTERN
 _REQ_HEADING_PATTERN = re.compile(r"^###\s+REQ-([A-Za-z0-9]+)", re.MULTILINE)
 _SEVERITY_PATTERN = re.compile(r"\*\*Severity\*\*\s*[:.-]\s*(HIGH|MEDIUM|LOW)", re.IGNORECASE)
 _PHASE_CHECK_PATTERN = re.compile(r"^-\s*\[x\]\s*Phase\s*([0-9a-zA-Z]+)", re.MULTILINE)
-_GATE_RESULT_PATTERN = re.compile(r"gate_result['\"]?\s*[:=]\s*['\"](PASS|FAIL|WARN)['\"]?", re.IGNORECASE)
+# v1.5.7 089d (F18): the canonical gate output source is
+# `quality/results/quality-gate.log` (gate stdout captured by
+# run_playbook._finalize_iteration). The v1.5.7 gate emits one of
+# three lines:
+#     RESULT: GATE PASSED
+#     RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)
+#     RESULT: GATE FAILED — N substantive issue(s) must be fixed
+# Group 1 captures the verdict tail; _GATE_RESULT_TO_VERDICT maps it
+# to the schemas.md §11 gate_verdict enum value (incl. the F17
+# "pass-with-cleanup" value). PASSED-WITH-CLEANUP-NEEDED is listed
+# first so longest-match wins (avoid mis-matching "PASSED" inside
+# "PASSED WITH CLEANUP NEEDED"). Pre-089d this pattern read
+# `gate_result: 'PASS'` key=value (zero matches on v1.5.7 output —
+# Mode B archive wrote gate_verdict: "unknown" for every run, which
+# the validator then rejected).
+_GATE_RESULT_PATTERN = re.compile(
+    r"^RESULT:\s+GATE\s+(PASSED WITH CLEANUP NEEDED|PASSED|FAILED)\b",
+    re.MULTILINE,
+)
+
+# Legacy `gate_result: 'PASS|FAIL|WARN'` key=value form. Pre-v1.5.7
+# archives stored this in run-*.json / gate-report-latest.json. Kept
+# strictly for back-compat — v1.5.7 runs hit the new pattern above
+# against quality-gate.log first.
+_GATE_RESULT_LEGACY_PATTERN = re.compile(
+    r"gate_result['\"]?\s*[:=]\s*['\"]?(PASS|FAIL|WARN)['\"]?",
+    re.IGNORECASE,
+)
+
+# Unified verdict mapping. v1.5.7 verbatim tokens
+# ("PASSED" / "PASSED WITH CLEANUP NEEDED" / "FAILED") use the F17
+# enum values; legacy tokens ("PASS" / "FAIL" / "WARN") map to the
+# pre-F17 enum values for back-compat with archived runs.
+_GATE_RESULT_TO_VERDICT = {
+    # v1.5.7 (089d F18) — quality-gate.log shapes:
+    "PASSED": "pass",
+    "PASSED WITH CLEANUP NEEDED": "pass-with-cleanup",
+    "FAILED": "fail",
+    # Legacy (pre-v1.5.7) — run-*.json key=value shapes:
+    "PASS": "pass",
+    "FAIL": "fail",
+    "WARN": "partial",
+}
 
 
 class ArchiveError(Exception):
@@ -395,19 +442,39 @@ def _extract_phases_executed(run_folder: Path) -> List[Dict[str, str]]:
 def _extract_gate_verdict(run_folder: Path) -> str:
     results_dir = run_folder / "quality" / "results"
     if results_dir.is_dir():
-        for candidate in sorted(results_dir.glob("run-*.json")):
-            match = _GATE_RESULT_PATTERN.search(_read_text(candidate))
+        # v1.5.7 089d (F18): the canonical v1.5.7 source is the
+        # captured gate stdout at quality-gate.log; it carries one
+        # of three `RESULT: GATE …` lines that _GATE_RESULT_PATTERN
+        # matches. Pre-089d this function only looked at run-*.json
+        # / gate-report-latest.json for a `gate_result: 'PASS'`
+        # key=value form that v1.5.7 never emits, so Mode B archive
+        # wrote gate_verdict: "unknown" → validator rejected it.
+        gate_log = results_dir / "quality-gate.log"
+        if gate_log.is_file():
+            match = _GATE_RESULT_PATTERN.search(_read_text(gate_log))
             if match:
-                return {"PASS": "pass", "FAIL": "fail", "WARN": "partial"}.get(
-                    match.group(1).upper(), "partial"
+                return _GATE_RESULT_TO_VERDICT.get(
+                    match.group(1).upper(), "partial",
+                )
+        # Legacy fallback: pre-v1.5.7 archives stored the verdict in
+        # run-*.json / gate-report-latest.json key=value JSON form.
+        # _GATE_RESULT_LEGACY_PATTERN matches those; the unified
+        # _GATE_RESULT_TO_VERDICT map handles both vocabularies.
+        for candidate in sorted(results_dir.glob("run-*.json")):
+            match = _GATE_RESULT_LEGACY_PATTERN.search(
+                _read_text(candidate)
+            )
+            if match:
+                return _GATE_RESULT_TO_VERDICT.get(
+                    match.group(1).upper(), "partial",
                 )
         latest = results_dir / "gate-report-latest.json"
         if latest.is_file():
             raw = _read_text(latest)
-            match = _GATE_RESULT_PATTERN.search(raw)
+            match = _GATE_RESULT_LEGACY_PATTERN.search(raw)
             if match:
-                return {"PASS": "pass", "FAIL": "fail", "WARN": "partial"}.get(
-                    match.group(1).upper(), "partial"
+                return _GATE_RESULT_TO_VERDICT.get(
+                    match.group(1).upper(), "partial",
                 )
     progress = _read_text(run_folder / "quality" / "PROGRESS.md") or _read_text(
         run_folder / "PROGRESS.md"

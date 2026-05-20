@@ -381,7 +381,19 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # run_playbook-rendered and carry no EXPECTED_HASHES entry).
         # Hash recomputed — this baseline update IS the sanctioned
         # change-acknowledgement signal.
-        "phase6":                ( 9017, "74dace8dc8c156d134502a6185d00a6099dee3240efdd0a255a340a092cb553b"),
+        # v1.5.7 instruction 089d (F17): phase6.md gained one
+        # sentence-internal extension at :54 — the gate_verdict enum
+        # citation in the "auditor reward shape" parenthetical grew
+        # from `pass`/`partial`/`fail` to `pass`/`pass-with-cleanup`/
+        # `partial`/`fail` (adding the new schemas.md §11 enum value
+        # for the 089c three-state cleanup-needed outcome that 089d
+        # F17 now wires through to the INDEX gate_verdict). phase6
+        # codepoint length 9017 → 9152. phase1-5/single_pass/iteration
+        # UNCHANGED (089d-F17 touched only phase6 among the
+        # run_playbook-rendered prompts). Hash recomputed — this
+        # baseline update IS the sanctioned change-acknowledgement
+        # signal.
+        "phase6":                ( 9152, "8e7dee0f0dff29104f6b24b13ef86477fccedef11b64b41011304da3c9216f36"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.

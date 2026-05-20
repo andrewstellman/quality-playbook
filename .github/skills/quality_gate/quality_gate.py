@@ -283,7 +283,28 @@ _CONSOLIDATION_RE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 
-_BUG_HEADING_RE = re.compile(r"^###\s+BUG-(\d+):", re.MULTILINE)
+# v1.5.7 089d (F22): canonical BUG-NNN heading pattern.
+#
+# The canonical source is bin/run_state_lib.BUG_HEADING_PATTERN_STR
+# (see that constant for rationale). quality_gate.py is INSTALLED
+# STANDALONE into adopters' .github/skills/quality_gate/ and CANNOT
+# import bin/run_state_lib (same Option-B-additive-duplication
+# constraint as _INSTALL_MARKER_DIRS — see those lines above). The
+# string literal below MUST match bin/run_state_lib.BUG_HEADING_PATTERN_STR
+# exactly; the equality is pinned by
+# bin/tests/test_bug_heading_pattern_pinned.py.
+#
+# Pre-089d this pattern was `^###\s+BUG-(\d+):` — digit-only with
+# required colon. The canonical form below accepts BUG-001 +
+# BUG-H1/M1/L1 (historical severity-prefixed IDs) + BUG-001-fix-2
+# (hyphenated-suffix variants), and treats the title `: <text>` as
+# optional. Widening to the canonical form was the 089d F22 fix.
+_BUG_HEADING_PATTERN_STR_CANONICAL = (
+    r"^###\s+BUG-([A-Za-z0-9][A-Za-z0-9\-]*)(?::\s+.+)?\s*$"
+)
+_BUG_HEADING_RE = re.compile(
+    _BUG_HEADING_PATTERN_STR_CANONICAL, re.MULTILINE,
+)
 
 # v1.5.2 (C13.8/Fix 1) — evidence locator for present:true grid cells.
 # Relative path (no leading '/'), single colon, line number (>=1) or
@@ -814,6 +835,20 @@ _VERDICT_PLACEHOLDER_PHRASES = (
 )
 
 
+# v1.5.7 089d (F24): classification rationale — kept SUBSTANTIVE.
+# check_verdict_shape rejects COMPLETENESS_REPORT.md when the
+# `## Verdict` heading is missing OR when its value is missing /
+# placeholder ("verdict is rendered…", "tbd", etc.) OR when a
+# trailing level-2 heading shifts `## Verdict` off the terminal
+# position. Each of these failure modes means Phase 5 reconciliation
+# did NOT declare a verdict — the audit lacks its final
+# PASS/FAIL judgment. That is "the work wasn't done correctly"
+# (no verdict exists), not "the audit completed but the paperwork
+# has gaps". The opus-bootstrap baseline 4 FAILs include
+# `## Verdict` missing on its self-bootstrap COMPLETENESS_REPORT.md,
+# but the substantive reading (Phase 5 didn't finish writing the
+# verdict block) is correct — flipping to RECORD_KEEPING would
+# silently downgrade a fabricated-PASS-style failure.
 @verdict_category(VERDICT_SUBSTANTIVE)
 def check_verdict_shape(q):
     """v1.5.7 Fix 8 (instruction 031) + instruction 032 NCF-1: Phase 5
@@ -2116,6 +2151,23 @@ def check_writeups(q, bug_count):
             pass_("No writeups contain unfilled template sentinels")
 
 
+# v1.5.7 089d (F24): classification rationale — kept SUBSTANTIVE.
+# check_version_stamps FAILs when SKILL.md, PROGRESS.md, and the
+# JSON sidecars disagree on `skill_version`. Naively this looks
+# like record-keeping (the audit happened, the paperwork is
+# mis-stamped) but the failure mode it catches is cross-run
+# contamination — an INDEX from one version mixed with artifacts
+# from another. That cross-version mix means the audit isn't
+# COHERENT: the gate cannot tell which version's contract to
+# enforce, and downstream consumers (compensation grid by version,
+# v1.5.x schema features, benchmark replay) silently mis-apply
+# rules. Per the opus-bootstrap analysis, "version stamps drifted
+# across runs" looks like paperwork but is actually substrate
+# corruption — keep as substantive so the gate hard-FAILs rather
+# than silently downgrading to cleanup. Instruction 089d "Things
+# to NOT do": "Don't bump version stamps in tracked files to
+# silence F24 baseline FAILs (that defeats the cross-run-
+# contamination check by design)."
 @verdict_category(VERDICT_SUBSTANTIVE)
 def check_version_stamps(repo_dir, q):
     """Version stamp consistency (benchmark 26). Returns detected skill_version."""

@@ -64,24 +64,28 @@ class SkillMdSizeTests(unittest.TestCase):
         # Phase 1 invocation guidance). Instruction 062 widened this
         # ceiling 28,000 → 29,000 (Council-061 Lens-1 fragility
         # finding; ~1,057 BPE headroom). v1.5.7 instruction 089b F11
-        # widened it 29,000 → 29,500: the F11 fix inverts 3 SKILL.md
-        # per-phase STOP boundary instructions to longer
-        # default-continue prose (the A-28 full-pipeline alignment),
-        # growing SKILL.md to ~29,156 BPE. Instruction-089b
-        # explicitly relaxed the size budget for F11 ("byte count may
-        # change; this is not a constraint — prefer correctness over
-        # arbitrary size targets"); 29,500 accommodates the
-        # instruction-mandated growth with ~344 BPE headroom while
-        # still hard-blocking the <30K design target. A references/
-        # *.md trim pass to reclaim headroom is deferred (orchestrator
-        # / v1.6.x — out of 089b's finding-scoped remit).
+        # widened it 29,000 → 29,500: 3 STOP→default-continue
+        # inversions, ~29,156 BPE. v1.5.7 instruction 089d F21
+        # widened it 29,500 → 30,000 (the design-target hard
+        # ceiling): the F21 fix documents 3 by-design Mode A vs
+        # Mode B asymmetries (Phase 0 install-validator, end-of-run
+        # archive, Phase 6 auditor-prompt sub-agent dispatch — see
+        # SKILL.md "Documented Mode A vs Mode B asymmetries"),
+        # growing SKILL.md to ~29,823 BPE. Instruction-089d
+        # explicitly directs documenting the asymmetries; 30,000 IS
+        # the <30K design target — any further growth must trim
+        # references/*.md OR cut SKILL.md content rather than widen
+        # the ceiling. A references/ trim pass to reclaim headroom
+        # is deferred (orchestrator / v1.6.x — out of 089d's
+        # finding-scoped remit).
         self.assertLess(
-            token_count, 29500,
+            token_count, 30000,
             f"SKILL.md is {token_count} BPE tokens — exceeds the "
-            f"v1.5.7 size ceiling (29500; <30K design target). If "
-            f"this growth is intentional, update this test's pin AND "
-            f"re-check the references/*.md tree for further trim "
-            f"opportunities rather than only widening the ceiling."
+            f"v1.5.7 size ceiling (30000 = the <30K design target "
+            f"hard ceiling). The ceiling is at-design-target — any "
+            f"further growth must come from trimming references/*.md "
+            f"or SKILL.md content. Do NOT widen the ceiling above "
+            f"30K without an explicit design decision."
         )
 
 

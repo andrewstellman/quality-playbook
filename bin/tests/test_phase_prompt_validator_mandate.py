@@ -78,7 +78,12 @@ class PhasePromptValidatorMandateTests(unittest.TestCase):
         self.assertIn("bin.validate_phase_artifacts . --phase 6", t)
         self.assertIn("quote", t.lower())
         # Phase 6 is the stricter gate_verdict-value check.
-        for v in ("pass", "partial", "fail"):
+        # v1.5.7 089d (F17): "pass-with-cleanup" added — the INDEX
+        # gate_verdict value for the 089c three-state cleanup-needed
+        # outcome (`RESULT: GATE PASSED WITH CLEANUP NEEDED`).
+        # phase6.md must name all four enum values so the prompt
+        # surface and schemas.md §11 stay coherent.
+        for v in ("pass", "pass-with-cleanup", "partial", "fail"):
             self.assertIn(v, t)
         self.assertIn('"pending"', t)
 

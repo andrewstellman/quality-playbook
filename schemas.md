@@ -1127,7 +1127,7 @@ every required field below is present and non-empty.
 | `phases_executed`        | array of object | yes      | One entry per phase run. Each: `{phase_id, model, start, end, exit_status}`.                                                  |
 | `summary.requirements`   | object          | yes      | Counts by tier — keys `"1"`..`"5"`, integer values.                                                                          |
 | `summary.bugs`           | object          | yes      | Counts by severity and disposition. Keys include every enum value from §3.2 and §3.3; integer values.                        |
-| `summary.gate_verdict`   | string          | yes      | One of `"pass"`, `"fail"`, `"partial"`.                                                                                      |
+| `summary.gate_verdict`   | string          | yes      | One of `"pass"`, `"pass-with-cleanup"`, `"fail"`, `"partial"`. The `"pass-with-cleanup"` value (v1.5.7 089d F17) corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line — the review completed and the bug findings stand; only audit record-keeping is incomplete (non-blocking outcome, exit 0). |
 | `artifacts`              | array of string | yes      | Relative paths (within the run folder) to every artifact produced during this run.                                           |
 
 **INDEX schema migration (v1.5.3 → v1.5.4).** v1.5.3 INDEX files

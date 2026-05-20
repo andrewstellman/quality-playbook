@@ -46,6 +46,7 @@ from typing import List, Optional, Sequence, Tuple
 from bin import benchmark_lib as lib
 from bin import archive_lib
 from bin import progress_monitor
+from bin import reference_docs_ingest
 from bin import role_map as role_map_lib
 
 
@@ -1045,20 +1046,20 @@ def resolve_target_dirs(paths: Sequence[str]) -> Tuple[List[Path], List[str], Li
                 continue
 
         if lib.find_installed_skill(candidate) is None:
-            # v1.5.7 BUG-004: list all 6 canonical install layouts
-            # (was 3 pre-fix). Order matches lib.SKILL_INSTALL_LOCATIONS
-            # which itself matches SKILL_FALLBACK_GUIDE.
+            # v1.5.7 089d (F23): derive the layout enumeration from
+            # the canonical lib.SKILL_INSTALL_LOCATIONS (10 layouts
+            # post-046/A-3) at message-construction time. Pre-089d
+            # this WARN hard-coded 6 of 10 layouts (missing .codex,
+            # .windsurf, .cline, .aider — added in 046), so adopters
+            # on those tools saw incomplete diagnostic guidance.
+            # Pinned by bin/tests/test_install_layouts_pinned.py.
+            _layouts = ", ".join(str(p) for p in lib.SKILL_INSTALL_LOCATIONS)
             warnings.append(
                 f"WARN: No QPB-installed SKILL.md found for {candidate}. "
-                "Expected at one of the canonical install layouts: "
-                "SKILL.md (root, bootstrap form — must have "
-                "`name: quality-playbook` frontmatter), "
-                ".claude/skills/quality-playbook/SKILL.md, "
-                ".github/skills/SKILL.md, "
-                ".cursor/skills/quality-playbook/SKILL.md, "
-                ".continue/skills/quality-playbook/SKILL.md, or "
-                ".github/skills/quality-playbook/SKILL.md — "
-                "the playbook may not be installed there."
+                f"Expected at one of the canonical install layouts: "
+                f"{_layouts} — the playbook may not be installed there. "
+                f"(SKILL.md is the root/bootstrap form — must have "
+                f"`name: quality-playbook` frontmatter.)"
             )
         resolved.append(candidate)
     return resolved, warnings, errors
@@ -2018,7 +2019,14 @@ def docs_present(repo_dir: Path) -> bool:
 
 
 # v1.5.2: pre-run reference_docs guard.
-_REFERENCE_DOCS_PLAINTEXT_EXTS = frozenset({".txt", ".md"})
+# v1.5.7 089d (F20): the canonical plaintext-extension set lives in
+# bin/reference_docs_ingest.SUPPORTED_EXTENSIONS (the producer of
+# reference_docs/ ingestion). Importing it here keeps the three
+# surfaces (run_playbook, bootstrap_self_audit_docs, ingest)
+# coherent. Pre-089d this local definition omitted ".rst", so a
+# .rst doc file under reference_docs/ was treated differently by
+# each surface (opus bootstrap BUG-016/017/018).
+_REFERENCE_DOCS_PLAINTEXT_EXTS = reference_docs_ingest.SUPPORTED_EXTENSIONS
 _REFERENCE_DOCS_SKIPPED = frozenset({"README.md"})
 
 
@@ -3785,7 +3793,17 @@ def _log_phase_completion(
         if finalizer_status == "aborted":
             verdict = "partial"
         elif finalizer_status == "pass" and gate_passed:
-            verdict = "pass"
+            # v1.5.7 089d (F17): the 089c three-state gate emits
+            # `RESULT: GATE PASSED WITH CLEANUP NEEDED` for the
+            # record-keeping-only case. `_gate_pass` returns True for
+            # that line (PASSED substring, no FAIL substring), so we
+            # must distinguish it here to write the correct INDEX
+            # gate_verdict enum value. "pass-with-cleanup" mirrors
+            # schemas.md §11 / _INDEX_VALID_VERDICTS.
+            if "WITH CLEANUP NEEDED" in gate_result:
+                verdict = "pass-with-cleanup"
+            else:
+                verdict = "pass"
         elif finalizer_status == "pass" and "warn" in gate_result.lower():
             verdict = "partial"
         else:
