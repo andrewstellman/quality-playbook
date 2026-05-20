@@ -1,8 +1,25 @@
 # Local skill installations (test copies, not the canonical source)
 .github/
 
-# Claude Code local settings (session-specific permissions, not part of the skill)
+# Per-AI-tool skill installations created by bin/install_skill.py --ai-tool <tool>.
+# QPB's canonical source-of-truth is bin/install_skill.py + .github/skills/ +
+# bin/ + phase_prompts/ + references/ + agents/ + SKILL.md. The per-flavor
+# installed directories are bootstrap artifacts from QPB auditing itself.
 .claude/
+.codex/
+.cursor/
+.continue/
+.windsurf/
+.cline/
+.aider/
+
+# install_skill.py::_ensure_sentinel_files() (v1.5.7 A-24) creates
+# informal_docs/README.md as a sentinel for the gitignore template's
+# negation rules. Adopters get the directory on install with the README
+# explaining its purpose. QPB's own repo doesn't need to track its
+# self-install copy. v1.6.x Requirements Review will activate this
+# directory as a first-class source class (informal-spec role tag).
+informal_docs/
 
 # Test repos and run artifacts (used for playbook evaluation, not part of the skill)
 repos/
