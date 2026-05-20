@@ -291,6 +291,114 @@ class Phase5IndexTests(unittest.TestCase):
             self.assertIn("§11 required fields", out)
             self.assertIn("valid gate_verdict", out)
 
+    # ----- v1.5.7 089e (BUG-014) phase-aware schema_version ----
+    # Pre-089e the validator hard-FAILed missing `schema_version`
+    # for every phase that touched _validate_index — Phase 5/6 only
+    # via dispatch, but the function-level enforcement was
+    # phase-agnostic. The gate's case-4 (quality_gate.py:2820)
+    # deliberately tolerates missing schema_version to support
+    # Phase 1 stub-INDEX (run-in-progress state). 089e Option A
+    # adds a `phase` parameter to _validate_index so:
+    #   phase >= 5 → strict (require "2.0")
+    #   phase  < 5 → lenient (accept missing; wrong value still
+    #                          FAILs at stub stage)
+    # The Phase 5/6 strictness is intentional and divergent from
+    # the gate by design — validator is the canonical Phase 5/6
+    # enforcement; gate case-4 is best-effort archive-tolerance.
+
+    def _index_text_with_payload(self, payload: dict) -> str:
+        import json as _json
+        return (
+            "# Run Index\n\n```json\n" + _json.dumps(payload) + "\n```\n"
+        )
+
+    def test_phase5_missing_schema_version_fails(self) -> None:
+        """BUG-014: Phase 5 final-INDEX MUST have schema_version.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089e BUG-014:
+          Mutation: in _validate_index, swap the `if phase >= 5:`
+          guard to `if phase >= 99:` (effectively disabling the
+          Phase 5/6 strict branch).
+          Expected failure: THIS test fails — Phase 5 missing
+          schema_version no longer FAILs (`rc == 0` rather than 1).
+          Restoration: revert; passes. Bite executed during 089e
+          development; PASS→FAIL→PASS confirmed.
+        """
+        from bin import validate_phase_artifacts as vpa
+
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            payload = _valid_index_payload(gate_verdict="pass")
+            del payload["schema_version"]
+            _write_index(q, payload)
+            passes, fails = vpa._validate_index(
+                q, phase=5, check_verdict_value=False,
+            )
+            self.assertEqual(passes, [],
+                             "missing schema_version at Phase 5 must NOT pass")
+            self.assertTrue(
+                any("schema_version" in f for f in fails),
+                f"expected schema_version FAIL at Phase 5, got: {fails!r}",
+            )
+
+    def test_phase5_correct_schema_version_passes(self) -> None:
+        """BUG-014: Phase 5 with schema_version='2.0' passes."""
+        from bin import validate_phase_artifacts as vpa
+
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_index(q, _valid_index_payload(gate_verdict="pass"))
+            passes, fails = vpa._validate_index(
+                q, phase=5, check_verdict_value=False,
+            )
+            self.assertEqual(
+                fails, [],
+                f"Phase 5 with schema_version='2.0' should pass: {fails!r}",
+            )
+
+    def test_phase1_missing_schema_version_passes(self) -> None:
+        """BUG-014: Phase 1 stub-INDEX MAY omit schema_version
+        (matches gate case-4)."""
+        from bin import validate_phase_artifacts as vpa
+
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            payload = _valid_index_payload(gate_verdict="pending")
+            del payload["schema_version"]
+            _write_index(q, payload)
+            passes, fails = vpa._validate_index(
+                q, phase=1, check_verdict_value=False,
+            )
+            # No schema_version FAIL should appear; other fields are
+            # still checked (so `fails` may be non-empty for other
+            # reasons, but NOT for schema_version).
+            self.assertFalse(
+                any("schema_version" in f for f in fails),
+                f"Phase 1 stub-INDEX missing schema_version must NOT "
+                f"FAIL on it (gate case-4 territory): {fails!r}",
+            )
+
+    def test_phase1_wrong_schema_version_fails(self) -> None:
+        """BUG-014: Phase 1 stub-INDEX with WRONG schema_version
+        (not '2.0' and not missing) still FAILs — the stub-INDEX
+        tolerance is for *absent*, not *bogus*."""
+        from bin import validate_phase_artifacts as vpa
+
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            payload = _valid_index_payload(gate_verdict="pending")
+            payload["schema_version"] = "3.0"
+            _write_index(q, payload)
+            passes, fails = vpa._validate_index(
+                q, phase=1, check_verdict_value=False,
+            )
+            self.assertTrue(
+                any("schema_version" in f for f in fails),
+                f"Phase 1 stub-INDEX with wrong schema_version "
+                f"('3.0') must still FAIL: {fails!r}",
+            )
+
 
 class Phase1RoleMapTests(unittest.TestCase):
     """A-16 — exploration_role_map.json breakdown object."""

@@ -2548,6 +2548,82 @@ class TestV150IndexMd(V150FixtureBase):
         fails, _ = _capture_fail_output(quality_gate.check_v1_5_0_index_md, self.q)
         self.assertEqual(fails, 0)
 
+    # ----- v1.5.7 089e (BUG-011) ---------------------------------
+    # Pre-089e the gate's `if isinstance(summary, dict)` guard
+    # silently skipped the required-keys loop when summary was
+    # anything other than a JSON object, and the trailing
+    # `pass_("§11 fields present")` fired anyway — soft-passing
+    # `summary: "pending"` / `summary: null` / `summary: []`
+    # against schemas.md:1128 (`summary | object | yes`). The
+    # validator (bin/validate_phase_artifacts._validate_index)
+    # already FAILed these — opposite enforcement. The 089e fix
+    # tightens the gate to match. These tests pin each non-dict
+    # shape; the dict path is covered by `test_valid_index_passes`
+    # above.
+
+    def _index_with_summary(self, summary_value):
+        """Build a §11 INDEX.md payload but override `summary` to
+        the given value (used to cover the 4 non-dict shapes)."""
+        payload = json.loads(
+            self._valid_index().split("```json\n")[1].split("\n```")[0]
+        )
+        payload["summary"] = summary_value
+        return (
+            "# Run Index\n\n```json\n"
+            + json.dumps(payload)
+            + "\n```\n"
+        )
+
+    def test_non_dict_summary_string_fails(self):
+        """BUG-011: gate must FAIL when `summary` is a string.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089e BUG-011:
+          Mutation: revert the new `if not isinstance(summary,
+          dict): fail(...); return` block in
+          quality_gate.check_v1_5_0_index_md to the pre-089e
+          `if isinstance(summary, dict): ...` (positive guard).
+          Expected failure: THIS test fails — gate soft-passes
+          `summary: "pending"` (`fails == 0` rather than ≥1).
+          Restoration: re-add the negative-guard FAIL; passes.
+          Bite executed during 089e development; PASS→FAIL→PASS
+          confirmed (__pycache__ purged between mutate and restore).
+        """
+        (self.q / "INDEX.md").write_text(
+            self._index_with_summary("pending"), encoding="utf-8",
+        )
+        fails, out = _capture_fail_output(
+            quality_gate.check_v1_5_0_index_md, self.q,
+        )
+        self.assertGreaterEqual(fails, 1)
+        self.assertIn("'summary' must be a JSON object", out)
+        self.assertIn("'str'", out)  # type name in FAIL message
+        self.assertIn("schemas.md:1128", out)
+
+    def test_non_dict_summary_null_fails(self):
+        """BUG-011: gate must FAIL when `summary` is null."""
+        (self.q / "INDEX.md").write_text(
+            self._index_with_summary(None), encoding="utf-8",
+        )
+        fails, out = _capture_fail_output(
+            quality_gate.check_v1_5_0_index_md, self.q,
+        )
+        self.assertGreaterEqual(fails, 1)
+        self.assertIn("'summary' must be a JSON object", out)
+        self.assertIn("'NoneType'", out)
+
+    def test_non_dict_summary_list_fails(self):
+        """BUG-011: gate must FAIL when `summary` is a list."""
+        (self.q / "INDEX.md").write_text(
+            self._index_with_summary([]), encoding="utf-8",
+        )
+        fails, out = _capture_fail_output(
+            quality_gate.check_v1_5_0_index_md, self.q,
+        )
+        self.assertGreaterEqual(fails, 1)
+        self.assertIn("'summary' must be a JSON object", out)
+        self.assertIn("'list'", out)
+
 
 class TestV150IndexMdSchemaRouting(V150FixtureBase):
     """v1.5.4 Round 2 Council finding C1 + C3: INDEX.md schema_version

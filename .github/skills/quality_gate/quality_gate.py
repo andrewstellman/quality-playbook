@@ -2908,13 +2908,29 @@ def check_v1_5_0_index_md(q):
         if isinstance(val, str) and not val:
             fail(f"quality/INDEX.md: field {key!r} is empty string (schemas.md §11)")
     summary = payload.get("summary")
-    if isinstance(summary, dict):
-        for sub in _V150_REQUIRED_SUMMARY_KEYS:
-            if sub not in summary:
-                fail(
-                    f"quality/INDEX.md: summary missing {sub!r} sub-key "
-                    "(schemas.md §11)"
-                )
+    # v1.5.7 089e (BUG-011): non-dict `summary` (string / null / list /
+    # anything other than a JSON object) is a §11 contract violation —
+    # schemas.md:1128 says `summary | object | yes`. Pre-089e the
+    # `if isinstance(summary, dict)` guard silently skipped the
+    # required-keys loop and the trailing `pass_` fired anyway, so the
+    # gate soft-passed `summary: "pending"` / `summary: null` /
+    # `summary: []` while validate_phase_artifacts FAILed them. Mirror
+    # the validator's FAIL message shape (bin/validate_phase_artifacts.
+    # py:_validate_index). Early-return so the trailing pass_ doesn't
+    # claim "§11 fields present" against a structurally-broken INDEX.
+    if not isinstance(summary, dict):
+        fail(
+            f"quality/INDEX.md: §11 'summary' must be a JSON object "
+            f"(got {type(summary).__name__!r}; schemas.md:1128 requires "
+            f"`summary | object | yes`)"
+        )
+        return
+    for sub in _V150_REQUIRED_SUMMARY_KEYS:
+        if sub not in summary:
+            fail(
+                f"quality/INDEX.md: summary missing {sub!r} sub-key "
+                "(schemas.md §11)"
+            )
     pass_("quality/INDEX.md: §11 fields present")
 
 

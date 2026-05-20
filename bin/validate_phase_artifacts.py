@@ -340,7 +340,7 @@ def _load_index_payload(quality: Path) -> tuple[dict | None, str | None]:
     return payload, None
 
 
-def _validate_index(quality: Path, check_verdict_value: bool
+def _validate_index(quality: Path, phase: int, check_verdict_value: bool
                     ) -> tuple[list[str], list[str]]:
     passes: list[str] = []
     fails: list[str] = []
@@ -349,17 +349,44 @@ def _validate_index(quality: Path, check_verdict_value: bool
         fails.append(f"FAIL: {err}")
         return passes, fails
 
-    # A current run's Phase 5/6 INDEX MUST be the v1.5.4 contract
-    # (schemas.md §11: "New runs MUST emit schema_version: '2.0'").
-    # The gate is lenient for *archived* INDEX files; this validator
-    # runs against the live run, so 2.0 is required, not optional.
+    # v1.5.7 089e (BUG-014, Option A — phase-aware schema_version
+    # enforcement). The gate's `check_v1_5_0_index_md` case-4 is
+    # deliberately lenient on missing `schema_version` so a Phase 1
+    # stub-INDEX (written before the field has been set) doesn't
+    # FAIL — that tolerance is a design point per the schema-routing
+    # block at .github/skills/quality_gate/quality_gate.py:2820. The
+    # validator now matches that intent:
+    #
+    #   phase >= 5  → Phase 5/6 final INDEX MUST have
+    #                 schema_version == "2.0" (strict — schemas.md
+    #                 §11: "New runs MUST emit schema_version:
+    #                 '2.0'"). Wrong value still FAILs.
+    #   phase  < 5  → Phase 1/2 stub-INDEX MAY omit schema_version
+    #                 (matches gate case-4). If present, must be
+    #                 "2.0" (wrong value still FAILs at stub stage).
+    #
+    # The divergence-with-gate at Phase 5/6 (gate lenient via case-4,
+    # validator strict) is intentional and documented: the validator
+    # is the canonical Phase 5/6 enforcement surface; gate case-4 is
+    # best-effort archive-tolerance.
     sv = payload.get("schema_version")
-    if sv != "2.0":
-        fails.append(
-            f"FAIL: quality/INDEX.md schema_version={sv!r} — a current "
-            "run MUST emit '2.0' (schemas.md §11; '1.0'/absent is the "
-            "archived-legacy read path only)"
-        )
+    if phase >= 5:
+        if sv != "2.0":
+            fails.append(
+                f"FAIL: quality/INDEX.md schema_version={sv!r} — a "
+                f"Phase {phase} final INDEX MUST emit '2.0' "
+                "(schemas.md §11; '1.0'/absent is the archived-legacy "
+                "read path only)"
+            )
+    else:
+        # Phase 1/2 stub-INDEX: missing is OK (gate case-4 territory).
+        # If present, must be the current value.
+        if sv is not None and sv != "2.0":
+            fails.append(
+                f"FAIL: quality/INDEX.md schema_version={sv!r} — if "
+                f"present at Phase {phase}, must be '2.0' (missing is "
+                "permitted on stub-INDEX per BUG-014 / 089e)"
+            )
 
     for key in _INDEX_REQUIRED_FIELDS:
         if key not in payload:
@@ -398,8 +425,11 @@ def _validate_index(quality: Path, check_verdict_value: bool
 _PHASE_DISPATCH = {
     1: lambda q: _validate_phase1(q),
     2: lambda q: _validate_phase2(q),
-    5: lambda q: _validate_index(q, check_verdict_value=False),
-    6: lambda q: _validate_index(q, check_verdict_value=True),
+    # v1.5.7 089e (BUG-014): _validate_index now takes phase to
+    # support phase-aware schema_version enforcement (Phase 1/2 stub
+    # accepts missing; Phase 5/6 final requires '2.0').
+    5: lambda q: _validate_index(q, 5, check_verdict_value=False),
+    6: lambda q: _validate_index(q, 6, check_verdict_value=True),
 }
 
 
