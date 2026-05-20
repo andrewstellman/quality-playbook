@@ -1,5 +1,5 @@
 === Quality Gate — Post-Run Validation ===
-Version:    1.5.6
+Version:    1.5.7
 Strictness: benchmark
 Repos:      1
 
@@ -76,7 +76,7 @@ Repos:      1
 [Recheck Sidecar JSON]
   INFO: recheck-results.json not present (only required when recheck mode was run)
 [Use Cases]
-  PASS: Found 8 distinct UC identifiers (8 total references, 8336 source files)
+  PASS: Found 8 distinct UC identifiers (8 total references, 6 source files)
 [Test File Extension]
   PASS: test_functional.py matches project language (py)
   PASS: test_regression.py matches project language (py)
@@ -94,13 +94,22 @@ Repos:      1
   PASS: All 6 writeup(s) have inline fix diffs
   PASS: All writeup ```diff blocks contain unified-diff content
   PASS: No writeups contain unfilled template sentinels
+[BUGS.md / patches consistency]
+  PASS: BUGS.md (6 bug(s)) and patches/ (12 patch(es)) are consistent
+[Verdict Shape]
+  quality/COMPLETENESS_REPORT.md: missing the canonical `## Verdict` heading. Phase 5 reconciliation must add it (exact form: `## Verdict` on its own line, followed by a blank line and then `PASS` or `FAIL`).
+[Workspace Drift]
+  PASS: no non-canonical quality/workspace/ tree present
 [Version Stamps]
-  PASS: PROGRESS.md version matches (1.5.6)
-  PASS: tdd-results.json skill_version matches
+  PROGRESS.md version '1.5.6' != '1.5.7'
+  tdd-results.json skill_version '1.5.6' != '1.5.7'
 [Cross-Run Contamination]
   PASS: No version mismatch detected
+  tdd-results.json skill_version '1.5.6' != SKILL.md '1.5.7' — stale artifacts from prior run?
 [Run Metadata]
   PASS: run-metadata JSON present
+[Asymmetry promotion (A-5)]
+  PASS: no compensation-asymmetry prose in EXPLORATION.md
   PASS: reference_docs/cite/: all files use supported extensions
   PASS: formal_docs_manifest.json: manifest wrapper valid
   PASS: requirements_manifest.json: manifest wrapper valid
@@ -113,25 +122,21 @@ Repos:      1
   PASS: citation_semantic_check.json: no Tier 1/2 REQs to review (invariant #17 vacuously satisfied)
   PASS: challenge gate coverage: 6 triggered bug(s) all have valid challenge records
   PASS: compensation_grid.json: v1.5.2 cardinality gate clean
-  WARN: formal_docs_manifest.json: legacy manifest detected; treating absent FORMAL_DOC.role as 'external-spec' per schemas.md §3.10 backward-compat rule
+  WARN: formal_docs_manifest.json: legacy manifest detected (pre-v1.5.3 manifest shape — no role/source_type/divergence_type fields); applying the schemas.md §3.10 documented default FORMAL_DOC.role='external-spec' and skipping v1.5.3 strict role validation. This is the intended backward-compat path (089 F9 KEEP), not a defect
   PASS: requirements_manifest.json: v1.5.3 source_type validation complete
   PASS: requirements_manifest.json: v1.5.3 skill_section consistency complete
   PASS: bugs_manifest.json: v1.5.3 divergence_type validation complete
 [Phase 4: skill-section REQ coverage]
-  INFO: check_skill_section_req_coverage: skip (pass_d_section_coverage.json missing or unparseable)
+  INFO: check_skill_section_req_coverage: skip (pass_d_section_coverage.json missing or unparsable)
 [Phase 4: reference-file REQ coverage]
-  INFO: check_reference_file_req_coverage: skip (pass_c_formal.jsonl missing — Phase 3 not run yet)
+  INFO: check_reference_file_req_coverage: skip (pass_c_formal.jsonl missing — skill-derivation Pass C not run yet; this is the four-pass skill-derivation pipeline's Pass C output, not the playbook's Phase 3 Code Review output)
 [Phase 4: hybrid cross-cutting REQs]
-  INFO: check_hybrid_cross_cutting_reqs: skip (pass_c_formal.jsonl missing — Phase 3 not run yet)
+  INFO: check_hybrid_cross_cutting_reqs: skip (pass_c_formal.jsonl missing — skill-derivation Pass C not run yet; this is the four-pass skill-derivation pipeline's Pass C output, not the playbook's Phase 3 Code Review output)
 [Phase 4: role-map consistency]
   PASS: quality/exploration_role_map.json: role map well-formed (legacy-derived project type 'Hybrid'; check_role_map_consistency)
 
 
 ===========================================
-Total: 0 FAIL, 1 WARN
-RESULT: GATE PASSED
-
-=== source-edit guardrail (validate_no_source_edits) ===
-Non-quality/ files were modified during this run; Phase 5 must produce proposed-fix patches in quality/patches/, not apply them. Violations:
-  - metrics/regression_replay/20260502T155324Z/
-  - v1.5.6_council_review/
+Total: 4 FAIL (4 substantive, 0 record-keeping), 1 WARN
+RESULT: GATE FAILED — 4 substantive issue(s) must be fixed
+exit=1

@@ -15,3 +15,5 @@
 
 # Phase 6 Complete: 2026-05-08T03:06:15Z
 # Summary: 0 FAIL, 1 benign WARN (legacy formal_docs_manifest), 6 confirmed bugs (BUG-001..006), 6 xfail regression tests passing as expected, 12 functional test failures map 1:1 to confirmed bugs (no broken infrastructure).
+
+[auditor 2026-05-19] quality/mechanical/ directory not present in this repo; no mechanical verify to run.
