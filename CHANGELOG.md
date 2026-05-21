@@ -109,13 +109,13 @@ Four close-out changes after the 089f migration:
   - **True-UTC run-ids.** The run-id directory name is now true UTC (matching the archive dir + `run_state.jsonl` `ts`); the `Z` suffix is now honest (previously local time stamped with `Z`).
   - **Python 3.10+ floor.** Documented as the minimum; the one `assertNoLogs` test guarded with `skipUnless`.
   - **Doc-currency.** Finding-catalog count comment corrected and now self-guarding (a test asserts it equals `len(FINDING_CATALOG)`).
-- **089j — install attribution banner.** `install_skill.py` prints a Quality Playbook / Andrew Stellman / GitHub-URL / Apache-2.0 banner to stderr at install start; the stdout `event=` stream is unaffected (the existing `event=intro` / `event=install_complete` contract and ordering are intact).
+- **089j–089l — install attribution banner.** `install_skill.py` prints an 80-wide Quality Playbook / Andrew Stellman / GitHub-URL / tagline / Apache-2.0 banner at the **end** of a successful install, on stderr, leaving the stdout `event=` stream untouched (the `event=intro` / `event=install_complete` contract is intact; banner is success-path only). The AGENTS.md install procedure instructs the AI agent to **close its install reply by displaying the banner verbatim**, so the attribution is visible in the primary agent-driven install flow — not only to terminal users (089k closed the gap where an agent relayed stdout and never surfaced the stderr banner). A drift-guard test keeps the banner identical between `install_skill.py` and `AGENTS.md`. Tagline: *"AI code review is good. Quality engineering is better. Because code that looks right can still do the wrong thing."*
 
 ### Cross-platform validation (macOS + Windows)
 
 v1.5.7 validated end-to-end on **Windows** (PowerShell) in both Mode A (Claude Code — natural-language install + run) and Mode B (`run_playbook.py` + the `copilot` CLI), and on **macOS**. Both modes reach Phase 6 verdicts; Phase 1/2/6 validators pass; the fresh-context Phase 6 auditor enforces the no-fabrication contract on Windows via both `claude` and `copilot`. The `install_skill.py` adopter path installs cleanly on Windows. Known Windows note: the `quality/logs/latest` symlink needs Developer Mode — handled gracefully via `latest.txt` (089h).
 
-Test suite at tag: **1,647 OK** (dual-env) + gate **282 OK** — up from 1,359 / 257 at the D1-D6 milestone (+288 across the F-fixes, the 089-series, and self-audit + Windows closures).
+Test suite at tag: **1,652 OK** (dual-env) + gate **282 OK** — up from 1,359 / 257 at the D1-D6 milestone (+293 across the F-fixes, the 089-series, and self-audit + Windows closures).
 
 ### v1.5.7.x carry-forwards (documented in phase synthesis docs)
 
