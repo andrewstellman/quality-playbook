@@ -358,8 +358,20 @@ class UpdateLatestSymlinkTests(unittest.TestCase):
     def test_oserror_during_symlink_logs_warning_and_continues(self) -> None:
         # v1.5.7 Phase 5 fix-up follow-on (C1-c): mock Path.symlink_to
         # to raise OSError, assert (a) the run continues without
-        # crashing, (b) a warning is logged via lib.logboth. Closes
-        # the test-coverage gap the Phase 5 fix-up mini-review flagged.
+        # crashing, (b) an informational note is logged via
+        # lib.logboth. Closes the test-coverage gap the Phase 5
+        # fix-up mini-review flagged.
+        #
+        # v1.5.7 089h necessary-consequence reconciliation: the
+        # pre-089h message was "Could not update quality/logs/latest
+        # symlink: <strerror>. Centralized resolver falls back to
+        # most-recent-by-name." — a WARN-style framing that read
+        # like an error on Windows (where the symlink failure is
+        # expected and resolution is unaffected). 089h softens this
+        # to an informational note that explains the symlink's
+        # purpose, says latest.txt covers resolution, and mentions
+        # Developer Mode as OPTIONAL. The assertions below check
+        # for the softened wording.
         with TemporaryDirectory() as tmp:
             repo = Path(tmp) / "cell"
             repo.mkdir()
@@ -376,13 +388,41 @@ class UpdateLatestSymlinkTests(unittest.TestCase):
                 run_playbook._update_latest_symlink(
                     repo, "20260512-130000", _make_args(), log_file,
                 )
-            # Warning logged to the log file.
+            # Informational note logged to the log file. 089h
+            # softened framing: explains the symlink's purpose,
+            # says latest.txt covers resolution, mentions
+            # Developer Mode as OPTIONAL.
             log_text = log_file.read_text(encoding="utf-8")
-            self.assertIn("Could not update quality/logs/latest symlink", log_text)
-            self.assertIn("simulated filesystem failure", log_text)
+            self.assertIn("convenience symlink", log_text,
+                          "message should explain the symlink is a convenience")
+            self.assertIn("latest.txt", log_text,
+                          "message must say latest.txt was written as backup")
+            self.assertIn("resolution is unaffected", log_text,
+                          "message must reassure operators")
+            self.assertIn("Developer Mode", log_text,
+                          "message should mention the optional Windows knob")
+            self.assertIn("simulated filesystem failure", log_text,
+                          "underlying OSError detail must surface")
+            # 089h: WARN-style framing removed. The string "Could
+            # not update quality/logs/latest symlink" was the
+            # pre-089h shape; the softened note must NOT match it.
+            self.assertNotIn("Could not update quality/logs/latest symlink",
+                             log_text,
+                             "softened message must drop the pre-089h "
+                             "WARN-style framing")
             # No symlink created (Path.symlink_to was patched to raise).
             symlink = repo / "quality" / "logs" / "latest"
             self.assertFalse(symlink.is_symlink())
+            # 089h: latest.txt MUST be written regardless of
+            # whether the symlink succeeded. This is the load-
+            # bearing portable pointer.
+            pointer = repo / "quality" / "logs" / "latest.txt"
+            self.assertTrue(pointer.is_file(),
+                            "089h: latest.txt must be written even when "
+                            "the symlink fails (cross-platform pointer)")
+            self.assertEqual(pointer.read_text(encoding="utf-8").strip(),
+                             run_id,
+                             "latest.txt must hold the run-id")
 
     def test_replaces_pre_existing_symlink(self) -> None:
         with TemporaryDirectory() as tmp:

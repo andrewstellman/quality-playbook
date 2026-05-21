@@ -4431,19 +4431,39 @@ def _update_latest_symlink(
     args: argparse.Namespace,
     log_file: Path,
 ) -> None:
-    """v1.5.7 Phase 5 FS-4: update <repo>/quality/logs/latest →
-    <run-id>. In legacy mode (--logs-flat / QPB_LOGS_LEGACY=1) this is
-    a no-op because the legacy layout doesn't use the logs/ tree.
+    """v1.5.7 Phase 5 FS-4 + 089h: update the "latest" pointer for
+    ``<repo>/quality/logs/``. Always writes a portable
+    ``latest.txt`` (cross-platform, no privilege); ALSO attempts a
+    relative ``latest`` symlink as a best-effort operator
+    convenience for ``cd quality/logs/latest``. In legacy mode
+    (--logs-flat / QPB_LOGS_LEGACY=1) this is a no-op because the
+    legacy layout doesn't use the logs/ tree.
+
+    v1.5.7 089h (W-B fix; Windows smoke 2026-05-20): the symlink
+    operation requires ``SeCreateSymbolicLinkPrivilege`` on standard
+    Windows (without admin or Developer Mode), so it failed with
+    WinError 1314 on httpx-win Mode B. Resolution itself was fine
+    (the resolver's most-recent-by-name fallback covers it), but
+    the message read like an error and Windows operators lost any
+    ``latest`` reference. The fix: ALWAYS write
+    ``quality/logs/latest.txt`` (a one-line file holding the
+    current run-id; cross-platform, no privilege) BEFORE the
+    symlink attempt, so resolution and the operator's "what's the
+    latest run?" question both have a robust answer regardless of
+    symlink support. The symlink stays as a best-effort convenience
+    when the OS allows it; its failure message is informational
+    (not a WARN/error).
 
     v1.5.7 Issue 4 (chi-surfaced): this now fires at run-START (right
     after the new run-id directory is created / run_start is emitted)
     as well as at successful completion. Pre-fix it ran ONLY at
     successful completion, so a run interrupted before completion
     (e.g. the chi-1.5.1 Anthropic-outage interruption + the abandoned
-    resume attempt) left `latest` pointing at a stale prior run-id
+    resume attempt) left ``latest`` pointing at a stale prior run-id
     while a newer run-id directory existed. The call is idempotent
-    (same run-id → same relative symlink), so the retained
-    completion-time call is a harmless defensive refresh.
+    (same run-id → same relative symlink + same ``latest.txt``
+    contents), so the retained completion-time call is a harmless
+    defensive refresh.
 
     Run-START callers — every entry point that creates a fresh
     centralized run-id directory: ``run_one_phased`` (after run_start
@@ -4455,37 +4475,64 @@ def _update_latest_symlink(
     deliberately NOT a run-start caller: it reuses the preceding
     phased run's run-id, already refreshed by ``run_one_phased``.
 
-    The symlink is RELATIVE (target_is_directory=True; target string
-    is just the run-id, not an absolute path) so the cell tree
-    remains relocatable. On filesystems that don't support symlinks
-    (or where the operation otherwise fails), a warning is logged
-    and the function returns — the resolver's most-recent-by-name
-    fallback covers operators who care about the "latest" semantics.
+    The symlink is RELATIVE (``target_is_directory=True``; target
+    string is just the run-id, not an absolute path) so the cell
+    tree remains relocatable. ``latest.txt`` likewise holds only
+    the run-id (not an absolute path) for the same reason.
     """
     if _logs_legacy_mode(args):
         return
     run_id = _compute_run_id(timestamp)
     logs_root = repo_dir / "quality" / "logs"
+    # v1.5.7 089h (B) — portable pointer file. Cross-platform; no
+    # privilege required. This is the load-bearing "latest"
+    # reference (read by run_state_lib.resolve_run_state_path
+    # Source 1.5 + _control_prompts_dir); the symlink below is a
+    # best-effort convenience for ``cd quality/logs/latest``.
+    try:
+        logs_root.mkdir(parents=True, exist_ok=True)
+        (logs_root / "latest.txt").write_text(run_id + "\n", encoding="utf-8")
+    except OSError:
+        # Non-fatal: resolver still has most-recent-by-name. The
+        # symlink attempt below is independent and may still
+        # succeed even if this write didn't.
+        pass
     target = logs_root / "latest"
     try:
         if target.is_symlink() or target.exists():
             try:
                 target.unlink()
-            except OSError:
+            except OSError as exc:
                 # Pre-existing entry we can't remove (perhaps a real
                 # directory): bail out gracefully rather than try
-                # increasingly destructive removals.
+                # increasingly destructive removals. v1.5.7 089h —
+                # softened to informational framing + latest.txt
+                # context.
+                detail = getattr(exc, "strerror", None) or str(exc)
                 lib.logboth(log_file, lib.log(
-                    f"  Could not update {target}: pre-existing entry "
-                    f"can't be removed. Centralized resolver falls "
-                    f"back to most-recent-by-name."
+                    f"  Note: could not update the quality/logs/latest "
+                    f"convenience symlink because a pre-existing entry "
+                    f"at that path couldn't be removed ({detail}); "
+                    f"wrote quality/logs/latest.txt instead, so run "
+                    f"resolution is unaffected. Operators can `cd "
+                    f"quality/logs/{run_id}` directly."
                 ))
                 return
         target.symlink_to(run_id, target_is_directory=True)
     except OSError as exc:
+        # v1.5.7 089h (A+D) — informational note, not a WARN. The
+        # symlink is a `cd quality/logs/latest` convenience for
+        # operators; latest.txt covers resolution. Mentions
+        # Developer Mode as OPTIONAL — never required.
+        detail = getattr(exc, "strerror", None) or str(exc)
         lib.logboth(log_file, lib.log(
-            f"  Could not update quality/logs/latest symlink: {exc}. "
-            f"Centralized resolver falls back to most-recent-by-name."
+            f"  Note: quality/logs/latest is a convenience symlink "
+            f"pointing at this run's log directory (so you can `cd "
+            f"quality/logs/latest`). It couldn't be created "
+            f"({detail}); wrote quality/logs/latest.txt instead, "
+            f"so run resolution is unaffected. On Windows, enabling "
+            f"Developer Mode (or running elevated) lets the symlink "
+            f"succeed and silences this note."
         ))
 
 

@@ -192,13 +192,21 @@ class Event:
 
 
 def resolve_run_state_path(repo_dir: Path) -> Optional[Path]:
-    """v1.5.7 Phase 5b: resolve the canonical run_state.jsonl path
-    for a given cell, honoring the centralized log layout (Phase 5a)
-    with a fallback to the v1.5.6 legacy location.
+    """v1.5.7 Phase 5b + 089h: resolve the canonical run_state.jsonl
+    path for a given cell, honoring the centralized log layout
+    (Phase 5a) with a fallback to the v1.5.6 legacy location.
 
     Resolution order (first existing wins):
       1. ``<repo_dir>/quality/logs/latest/run_state.jsonl`` (the
-         "latest" symlink lazily-updated by the runner).
+         "latest" symlink lazily-updated by the runner; absent on
+         Windows without Developer Mode / admin per 089h).
+      1.5. ``<repo_dir>/quality/logs/<run-id-from-latest.txt>/run_state.jsonl``
+         where ``run-id-from-latest.txt`` is the content of the
+         portable pointer file ``quality/logs/latest.txt`` (v1.5.7
+         089h W-B fix; the runner always writes this even when the
+         symlink fails). Falls through to Source 2 on stale/empty/
+         dangling pointer so the resolver is robust to interrupted
+         writes.
       2. ``<repo_dir>/quality/logs/<most-recent-by-name>/run_state.jsonl``
          (lexicographic max of the timestamped sub-directories under
          ``quality/logs/``; the run-id format is sortable so the max
@@ -220,10 +228,31 @@ def resolve_run_state_path(repo_dir: Path) -> Optional[Path]:
         latest = logs_dir / "latest" / "run_state.jsonl"
         if latest.is_file():
             return latest
+        # Source 1.5: portable pointer file (Windows / no-symlink
+        # filesystems where the latest symlink couldn't be created
+        # — see ``bin/run_playbook._update_latest_symlink`` and
+        # the 089h W-B Windows smoke fix). Holds the current
+        # run-id; stale/empty/dangling pointers fall through to
+        # most-recent-by-name (Source 2) so the resolver is robust
+        # to interrupted writes.
+        pointer = logs_dir / "latest.txt"
+        if pointer.is_file():
+            try:
+                pointed = pointer.read_text(encoding="utf-8").strip()
+            except OSError:
+                pointed = ""
+            if pointed:
+                rs = logs_dir / pointed / "run_state.jsonl"
+                if rs.is_file():
+                    return rs
+            # Pointer present but stale/empty/dangling → fall through
+            # to most-recent-by-name below.
         # Source 2: most-recent timestamped sub-directory by name
         # (the run-id format YYYYMMDDTHHMMSSZ sorts lexicographically
         # the same way it sorts chronologically). Skip the "latest"
         # entry itself if it's a directory rather than a symlink.
+        # ``latest.txt`` is a file, not a dir, so the ``p.is_dir()``
+        # filter naturally excludes it.
         candidates = sorted(
             (p for p in logs_dir.iterdir()
              if p.is_dir() and p.name != "latest"),
