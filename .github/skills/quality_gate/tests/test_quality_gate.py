@@ -915,6 +915,225 @@ class TestTDDLogs(FixtureBase):
         self.assertIn("TDD_TRACEABILITY.md missing", stdout)
 
 
+class TestTDDNotRunWarn089m(FixtureBase):
+    """v1.5.7 089m (#326 cheap half): the gate must emit a WARN when
+    one or more TDD red/green receipts are first-line ``NOT_RUN`` —
+    but the gate still passes (NOT_RUN is an honestly-marked
+    legitimate state per ``quality/RUN_TDD_TESTS.md``; the WARN
+    surfaces the gap so adopters don't read ``GATE PASSED`` as
+    covering empirical red→green proof that didn't happen).
+
+    Surfaced by the 2026-05-21 javalin Codex/GPT-5.5 run: 0 FAIL,
+    1 WARN, ``RESULT: GATE PASSED`` with all six TDD receipts
+    marked NOT_RUN (Maven test cycle was never executed; the agent
+    correctly recorded NOT_RUN rather than fabricating). The fuller
+    verdict-qualifier ("PASSED — TDD not executed") is tracked in
+    the v1.6.x verdict-taxonomy work; this cheap fix adds the WARN.
+
+    Mutation-bite evidence (per ai_context/DEVELOPMENT_PROCESS.md):
+    delete the WARN-emission block in quality_gate.py (the
+    ``if bugs_with_not_run > 0:`` clause). Expected failure:
+    ``test_not_run_receipts_emit_warn_but_still_pass`` fails — the
+    expected WARN substring is absent from stdout. Bite executed
+    PASS → FAIL → PASS during 089m development.
+    """
+
+    @staticmethod
+    def _make_not_run_bug(tree, bug_id="BUG-001", version="1.4.4"):
+        """Apply ``add_one_bug`` then overwrite the receipts with
+        NOT_RUN first-line tags AND set the tdd-results.json
+        sidecar fields ``red_phase``/``green_phase`` to ``"not_run"``
+        so the existing sidecar-log cross-validator stays silent
+        (it FAILs only on ``"fail"``/``"pass"`` sidecar disagreement
+        with the log; any other sidecar value is treated as
+        non-asserting)."""
+        add_one_bug(tree, version=version, bug_id=bug_id)
+        tree[f"quality/results/{bug_id}.red.log"] = (
+            "NOT_RUN\nTest harness skipped (no JDK / no Maven).\n"
+        )
+        tree[f"quality/results/{bug_id}.green.log"] = (
+            "NOT_RUN\nTest harness skipped (no JDK / no Maven).\n"
+        )
+        # Sidecar must agree that the cycle was not executed.
+        # ``verdict`` uses ``"confirmed open"`` (a canonical enum
+        # value) because the verdict-canonicality check (quality_
+        # gate.py:1549) doesn't yet have a "TDD not executed"
+        # state — the fuller verdict-qualifier work is tracked in
+        # the v1.6.x verdict-taxonomy update. "confirmed open"
+        # semantically matches: the bug is confirmed but the red→
+        # green cycle wasn't executed.
+        tree["quality/results/tdd-results.json"] = json.dumps({
+            "schema_version": "1.1",
+            "skill_version": version,
+            "date": today_iso(),
+            "project": "testproj",
+            "bugs": [
+                {
+                    "id": bug_id,
+                    "requirement": "REQ-001",
+                    "red_phase": "not_run",
+                    "green_phase": "not_run",
+                    "verdict": "confirmed open",
+                    "fix_patch_present": True,
+                    "writeup_path": f"quality/writeups/{bug_id}.md",
+                }
+            ],
+            "summary": {
+                "total": 1,
+                "verified": 0,
+                "confirmed_open": 1,
+                "red_failed": 0,
+                "green_failed": 0,
+            },
+        }, indent=2)
+        return tree
+
+    def test_not_run_receipts_emit_warn_but_still_pass(self):
+        """NOT_RUN fixture: confirmed bug whose red AND green
+        receipts have first-line ``NOT_RUN``. The gate must emit
+        the NOT_RUN WARN (count + RUN_TDD_TESTS.md pointer),
+        increment the WARN tally, and still ``RESULT: GATE PASSED``
+        with exit code 0 (NOT_RUN is honest, not a failure)."""
+        tree = minimal_zero_bug_tree()
+        self._make_not_run_bug(tree, bug_id="BUG-001")
+        self.write(tree)
+        stdout, code = self.gate()
+
+        # WARN emitted, with the required substrings.
+        self.assertIn(
+            "WARN: TDD red/green cycle not executed", stdout,
+            "089m: gate must emit the NOT_RUN WARN header",
+        )
+        self.assertIn(
+            "1 of 1 confirmed bug(s)", stdout,
+            "089m: WARN must name the count (NOT_RUN bugs / total "
+            "confirmed bugs)",
+        )
+        self.assertIn(
+            "RUN_TDD_TESTS.md", stdout,
+            "089m: WARN must point at RUN_TDD_TESTS.md as the "
+            "remediation",
+        )
+        self.assertIn(
+            "patch-applicable and reasoned, but not empirically "
+            "proven",
+            stdout,
+            "089m: WARN must explain that the bugs are reasoned "
+            "but not empirically proven",
+        )
+        # Still PASSES (NOT_RUN is honest, not FAIL).
+        self.assertIn(
+            "RESULT: GATE PASSED", stdout,
+            "089m: NOT_RUN receipts must keep the gate at PASSED — "
+            "never FAIL. The whole point is rewarding honesty while "
+            "surfacing the gap.",
+        )
+        self.assertEqual(
+            code, 0,
+            "089m: NOT_RUN receipts must keep the exit code at 0",
+        )
+        # Negative pin: the gate did NOT promote NOT_RUN to FAIL.
+        self.assertNotIn(
+            "FAIL: TDD red/green cycle not executed", stdout,
+            "089m: NOT_RUN must be WARN, never FAIL",
+        )
+
+    def test_executed_receipts_emit_no_not_run_warn(self):
+        """Executed fixture: receipts are RED/GREEN. The NOT_RUN
+        WARN must NOT fire (no false positive on executed cycles).
+        Existing RED/GREEN semantics + WARN counter behavior
+        unchanged."""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree, bug_id="BUG-001")
+        # add_one_bug already sets RED + GREEN receipts and
+        # red_phase="fail" / green_phase="pass" sidecar values.
+        self.write(tree)
+        stdout, code = self.gate()
+
+        # The NOT_RUN WARN must NOT appear.
+        self.assertNotIn(
+            "TDD red/green cycle not executed", stdout,
+            "089m: executed RED/GREEN receipts must NOT trigger "
+            "the NOT_RUN WARN. Found the WARN despite both "
+            "receipts being executed — false positive.",
+        )
+        # Existing PASS lines still present.
+        self.assertIn(
+            "PASS: All 1 confirmed bug(s) have red-phase logs",
+            stdout,
+        )
+        self.assertIn(
+            "PASS: All 1 bug(s) with fix patches have green-phase "
+            "logs",
+            stdout,
+        )
+        self.assertEqual(code, 0)
+
+    def test_no_bugs_emits_no_not_run_warn(self):
+        """Zero-bug fixture: no confirmed bugs → no receipts to
+        check → the NOT_RUN WARN must NOT fire (nothing to run)."""
+        tree = minimal_zero_bug_tree()
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotIn(
+            "TDD red/green cycle not executed", stdout,
+            "089m: zero-bug runs must NOT trigger the NOT_RUN "
+            "WARN (nothing to run; the receipt-check function "
+            "short-circuits on no bugs).",
+        )
+        self.assertEqual(code, 0)
+
+    def test_partial_not_run_red_only_emits_warn(self):
+        """Partial NOT_RUN: a bug whose RED receipt is NOT_RUN but
+        whose GREEN receipt is GREEN still counts as "TDD cycle
+        not executed" — the red→green PROOF requires both ends to
+        have run. WARN fires; gate still PASSES.
+
+        (Sidecar set to ``red_phase="not_run", green_phase="pass"``
+        so the cross-validator doesn't FAIL the GREEN side.)"""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree, bug_id="BUG-001")
+        tree["quality/results/BUG-001.red.log"] = "NOT_RUN\nskipped\n"
+        # green.log left as GREEN from add_one_bug.
+        tree["quality/results/tdd-results.json"] = json.dumps({
+            "schema_version": "1.1",
+            "skill_version": "1.4.4",
+            "date": today_iso(),
+            "project": "testproj",
+            "bugs": [
+                {
+                    "id": "BUG-001",
+                    "requirement": "REQ-001",
+                    "red_phase": "not_run",
+                    "green_phase": "pass",
+                    "verdict": "confirmed open",
+                    "fix_patch_present": True,
+                    "writeup_path": "quality/writeups/BUG-001.md",
+                }
+            ],
+            "summary": {
+                "total": 1,
+                "verified": 0,
+                "confirmed_open": 0,
+                "red_failed": 0,
+                "green_failed": 0,
+            },
+        }, indent=2)
+        self.write(tree)
+        stdout, code = self.gate()
+
+        self.assertIn(
+            "WARN: TDD red/green cycle not executed", stdout,
+            "089m: a partial NOT_RUN (RED only) must still trigger "
+            "the WARN — the red→green proof requires both ends",
+        )
+        self.assertIn(
+            "1 of 1 confirmed bug(s)", stdout,
+            "089m: partial-NOT_RUN bug still counts toward the WARN",
+        )
+        self.assertEqual(code, 0)
+
+
 class TestIntegrationSidecar(FixtureBase):
     def test_absent_benchmark_warns(self):
         tree = minimal_zero_bug_tree()

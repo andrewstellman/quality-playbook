@@ -1581,28 +1581,45 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     green_expected = 0
     red_bad_tag = 0
     green_bad_tag = 0
+    # v1.5.7 089m (#326 cheap half): count bugs with at least one
+    # NOT_RUN TDD receipt so we can emit a WARN when the red/green
+    # cycle was honestly skipped (legitimate state — `RUN_TDD_TESTS.md`
+    # documents NOT_RUN as the "test execution skipped" tag — but
+    # the gate must surface that the empirical red→green proof
+    # didn't happen, so adopters don't read GATE PASSED as more
+    # than it covers).
+    bugs_with_not_run = 0
 
     for bid in bug_ids:
         red_log = results_dir / f"{bid}.red.log"
+        red_tag = None
         if red_log.is_file():
             red_found += 1
-            tag = read_first_line_stripped(red_log)
-            if tag not in valid_tags:
+            red_tag = read_first_line_stripped(red_log)
+            if red_tag not in valid_tags:
                 red_bad_tag += 1
         else:
             red_missing += 1
 
+        green_tag = None
         fix_patch = first_file_matching(patches_dir, [f"{bid}-fix*.patch"])
         if fix_patch is not None:
             green_expected += 1
             green_log = results_dir / f"{bid}.green.log"
             if green_log.is_file():
                 green_found += 1
-                tag = read_first_line_stripped(green_log)
-                if tag not in valid_tags:
+                green_tag = read_first_line_stripped(green_log)
+                if green_tag not in valid_tags:
                     green_bad_tag += 1
             else:
                 green_missing += 1
+
+        # 089m: a bug counts as "TDD-not-executed" if either its
+        # red receipt OR its green receipt (when expected) is
+        # NOT_RUN. Both ends of the red→green cycle need to have
+        # actually executed for the cycle to count as proven.
+        if red_tag == "NOT_RUN" or green_tag == "NOT_RUN":
+            bugs_with_not_run += 1
 
     if red_missing == 0 and red_found > 0:
         pass_(f"All {red_found} confirmed bug(s) have red-phase logs")
@@ -1627,6 +1644,25 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
         fail(f"{green_bad_tag} green-phase log(s) missing valid first-line status tag (expected RED/GREEN/NOT_RUN/ERROR)")
     elif green_found > 0:
         pass_("All green-phase logs have valid status tags")
+
+    # v1.5.7 089m (#326 cheap half): WARN when one or more bugs
+    # have NOT_RUN red/green receipts. NOT_RUN is an honestly-marked,
+    # legitimate state (an environment that can't run the build
+    # records NOT_RUN per quality/RUN_TDD_TESTS.md), so this is
+    # WARN, NOT FAIL — the gate still PASSES on honest NOT_RUN.
+    # The point is surfacing the gap so "GATE PASSED" isn't read
+    # as covering empirical red→green proof that never happened.
+    # The fuller verdict-qualifier ("PASSED — TDD not executed")
+    # is tracked in v1.6.x verdict-taxonomy work.
+    if bugs_with_not_run > 0:
+        warn(
+            f"TDD red/green cycle not executed for {bugs_with_not_run} "
+            f"of {len(bug_ids)} confirmed bug(s) (receipts marked "
+            f"NOT_RUN). These bugs are patch-applicable and reasoned, "
+            f"but not empirically proven by a failing-then-passing "
+            f"test. Run quality/RUN_TDD_TESTS.md to complete the "
+            f"red/green cycle."
+        )
 
     # Sidecar-to-log cross-validation (BUG-M18)
     if tdd_data is not None and isinstance(tdd_data, dict):
