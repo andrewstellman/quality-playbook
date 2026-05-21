@@ -4,6 +4,8 @@
 *Status: drafted 2026-04-26; awaiting v1.5.4 ship before implementation begins.*
 *Depends on: v1.5.4 complete (regression replay machinery + calibration log operational); v1.5.0–v1.5.3 stable; benchmark replicate harness operational with at least one (release × benchmark) cell at N≥5*
 
+> **v1.6.x scope note (added 2026-05-21).** This is the original *lever-pull* implementation plan; the canonical v1.6.0 scope was reframed to **Requirements Review** (see the `QPB_v1.6.0_Design.md` banner). v1.6.x additionally carries two track items beyond this plan, each gaining its own implementation detail when scoped into a release: (1) **Phase Validator Structural Enforcement** (`QPB_v1.6.x_Phase6_Structural_Enforcement_Proposal.md`); and (2) a **verdict-fidelity item — the TDD-not-executed verdict qualifier**: extend v1.5.7's F15 verdict taxonomy with a first-class `PASSED — TDD not executed` qualifier (or a `tdd_executed: false` field on the verdict / `INDEX.md` summary), so a `GATE PASSED` run whose TDD red/green cycle was never executed (all receipts `NOT_RUN`) is verdict-distinguishable from a red→green-proven one. The v1.5.7 089m WARN is the cheap half; this verdict qualifier is the v1.6.x fuller half. Touches the gate verdict + `INDEX.md` schema + `references/what_just_happened.md`. Tracking: v1.5.7 finding #326. Implementation detail for each track lands when v1.6.x scopes it into a specific release.
+
 ---
 
 ## Operating Principles
