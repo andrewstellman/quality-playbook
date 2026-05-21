@@ -254,21 +254,31 @@ _PATTERN_7_ANCHOR_RE = re.compile(r"^##+\s+Pattern\s+7\b", re.MULTILINE)
 # license) are the required deliverable; box-drawing is
 # presentational. NOT printed on failed installs (returns 64/65
 # before reaching the closing emission).
+# v1.5.7 089l: box rule widened from 60 to 80 `=`; tagline replaced
+# with a two-line blurb contrasting AI code review with quality
+# engineering. _BANNER_TAGLINE is now a 2-tuple so the drift test
+# can compare element-by-element against AGENTS.md's embedded copy.
 _BANNER_NAME = "Quality Playbook"
 _BANNER_AUTHOR = "Andrew Stellman"
 _BANNER_URL = "https://github.com/andrewstellman/quality-playbook"
-_BANNER_TAGLINE = "Quality engineering that finds the bugs review misses."
+_BANNER_TAGLINE: tuple[str, str] = (
+    "AI code review is good. Quality engineering is better.",
+    "Because code that looks right can still do the wrong thing.",
+)
 _BANNER_LICENSE = "Apache License, Version 2.0"
+_BANNER_BOX_WIDTH = 80
+_BANNER_BOX_RULE = "=" * _BANNER_BOX_WIDTH
 
 _BANNER_TEXT = (
-    "============================================================\n"
+    f"{_BANNER_BOX_RULE}\n"
     f"  {_BANNER_NAME} — by {_BANNER_AUTHOR}\n"
     f"  {_BANNER_URL}\n"
     "\n"
-    f"  {_BANNER_TAGLINE}\n"
+    f"  {_BANNER_TAGLINE[0]}\n"
+    f"  {_BANNER_TAGLINE[1]}\n"
     "\n"
     f"  Licensed under the {_BANNER_LICENSE}\n"
-    "============================================================\n"
+    f"{_BANNER_BOX_RULE}\n"
 )
 
 

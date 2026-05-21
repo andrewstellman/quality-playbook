@@ -1,4 +1,5 @@
-"""v1.5.7 instruction 089j (banner) + 089k (placement refinement) —
+"""v1.5.7 instruction 089j (banner) + 089k (placement refinement)
++ 089l (final wording: 80-wide box + two-line tagline) —
 install-time attribution banner.
 
 Asserts the four contract obligations:
@@ -54,6 +55,17 @@ Asserts the four contract obligations:
   fires because the banner now sits at the top of stderr (before
   the success marker line in stdout had to be emitted). Restored
   by reverting.
+- **089l drift bite (one tagline line)**: change ``_BANNER_TAGLINE[1]``
+  in ``bin/install_skill.py`` ONLY (e.g., "Because code that
+  looks right can still do the wrong thing." → "MUTATED 089l
+  tagline drift bite"), leaving AGENTS.md's embedded copy
+  unchanged. Expected failure: both
+  ``test_banner_text_drift_guard`` and
+  ``test_banner_elements_present_in_agents_md`` fire — the line-
+  for-line compare shows the mutated tagline next to the
+  canonical AGENTS.md line; the per-element check fails on the
+  missing tagline-line-1 needle. Executed PASS → FAIL → PASS
+  during 089l development.
 """
 
 from __future__ import annotations
@@ -108,11 +120,12 @@ class BannerOnStderrTests(unittest.TestCase):
             "https://github.com/andrewstellman/quality-playbook", stderr,
             "banner must include GitHub URL",
         )
-        self.assertIn(
-            "Quality engineering that finds the bugs review misses.",
-            stderr,
-            "banner must include the canonical tagline",
-        )
+        # 089l: tagline is now a 2-tuple (both lines must appear).
+        for tagline_line in install_skill._BANNER_TAGLINE:
+            self.assertIn(
+                tagline_line, stderr,
+                f"banner must include tagline line {tagline_line!r}",
+            )
         self.assertIn(
             "Apache License, Version 2.0", stderr,
             "banner must include the Apache-2.0 license line",
@@ -129,10 +142,8 @@ class BannerOnStderrTests(unittest.TestCase):
         self.assertIn(
             "https://github.com/andrewstellman/quality-playbook", stderr,
         )
-        self.assertIn(
-            "Quality engineering that finds the bugs review misses.",
-            stderr,
-        )
+        for tagline_line in install_skill._BANNER_TAGLINE:
+            self.assertIn(tagline_line, stderr)
         self.assertIn("Apache License, Version 2.0", stderr)
 
     def test_banner_module_constants_drive_text(self) -> None:
@@ -147,14 +158,43 @@ class BannerOnStderrTests(unittest.TestCase):
             install_skill._BANNER_URL,
             "https://github.com/andrewstellman/quality-playbook",
         )
+        # 089l: tagline is a 2-tuple of strings (both lines required).
         self.assertEqual(
             install_skill._BANNER_TAGLINE,
-            "Quality engineering that finds the bugs review misses.",
+            (
+                "AI code review is good. Quality engineering is better.",
+                "Because code that looks right can still do the wrong thing.",
+            ),
         )
         self.assertEqual(
             install_skill._BANNER_LICENSE,
             "Apache License, Version 2.0",
         )
+        # 089l: box rule is exactly 80 `=` chars (width pin to catch
+        # accidental width regressions).
+        self.assertEqual(install_skill._BANNER_BOX_WIDTH, 80)
+        self.assertEqual(install_skill._BANNER_BOX_RULE, "=" * 80)
+        # Banner text contains the 80-wide rule line, exactly twice
+        # (top + bottom).
+        rendered_lines = install_skill._BANNER_TEXT.splitlines()
+        rule_lines = [
+            line for line in rendered_lines if line == "=" * 80
+        ]
+        self.assertEqual(
+            len(rule_lines), 2,
+            f"089l: banner must have exactly two 80-`=` box rules "
+            f"(top + bottom). Found: {rule_lines!r}",
+        )
+        # And NO line is exactly 60 `=` (regression guard against
+        # the pre-089l box width). The 60-`=` substring DOES appear
+        # inside the 80-`=` rule, so this checks line equality
+        # rather than substring membership.
+        for line in rendered_lines:
+            self.assertNotEqual(
+                line, "=" * 60,
+                "089l: banner must not contain a line of exactly "
+                "60 `=` (the pre-089l box width). Width regressed.",
+            )
 
 
 class StdoutStaysParseCleanTests(unittest.TestCase):
@@ -174,13 +214,16 @@ class StdoutStaysParseCleanTests(unittest.TestCase):
         """
         rc, stdout, _stderr = _capture_install(verbose=False)
         self.assertEqual(rc, 0)
-        # Five negative pins — none of the five banner elements
-        # may appear on stdout.
+        # Negative pins — none of the banner elements may appear on
+        # stdout. 089l: tagline is now a 2-tuple, so we expand to
+        # six needles (name, author, URL, tagline-line-0,
+        # tagline-line-1, license).
         for needle in (
             install_skill._BANNER_NAME,
             install_skill._BANNER_AUTHOR,
             install_skill._BANNER_URL,
-            install_skill._BANNER_TAGLINE,
+            install_skill._BANNER_TAGLINE[0],
+            install_skill._BANNER_TAGLINE[1],
             install_skill._BANNER_LICENSE,
         ):
             self.assertNotIn(
@@ -190,7 +233,9 @@ class StdoutStaysParseCleanTests(unittest.TestCase):
                 f"is a machine-parseable event=key=value stream "
                 f"that strict agent parsers consume.",
             )
-        # Box-drawing line must also be absent on stdout.
+        # Box-drawing line must also be absent on stdout. 089l: pin
+        # against the 80-wide rule explicitly (was 30 as a partial
+        # match guard).
         self.assertNotIn(
             "=" * 30, stdout,
             "089j: banner box-drawing leaked onto stdout",
@@ -202,24 +247,15 @@ class StdoutStaysParseCleanTests(unittest.TestCase):
         banner still must not appear)."""
         rc, stdout, _stderr = _capture_install(verbose=True)
         self.assertEqual(rc, 0)
+        # 089l: tagline expanded to two needles. Banner-unique
+        # elements only (name + author appear in non-banner verbose
+        # prose for event=intro; skip those here).
         for needle in (
-            install_skill._BANNER_NAME,
-            install_skill._BANNER_AUTHOR,
             install_skill._BANNER_URL,
-            install_skill._BANNER_TAGLINE,
+            install_skill._BANNER_TAGLINE[0],
+            install_skill._BANNER_TAGLINE[1],
             install_skill._BANNER_LICENSE,
         ):
-            # NB: install_skill prose mentions "Quality Playbook" in
-            # the verbose prose continuation for event=intro
-            # ("Installing the Quality Playbook skill..."). That is
-            # NOT the banner — it pre-existed 089j. Pin the URL +
-            # license instead, which are banner-unique.
-            if needle == install_skill._BANNER_NAME:
-                continue
-            if needle == install_skill._BANNER_AUTHOR:
-                # Andrew Stellman is similarly potentially in prose;
-                # only check the banner-unique elements.
-                continue
             self.assertNotIn(
                 needle, stdout,
                 f"089j: banner element {needle!r} leaked onto "
@@ -321,7 +357,9 @@ class BannerPlacement089kTests(unittest.TestCase):
         )
         # Banner present on stderr — closing-flourish obligation.
         self.assertIn(install_skill._BANNER_NAME, stderr)
-        self.assertIn(install_skill._BANNER_TAGLINE, stderr)
+        # 089l: tagline is a 2-tuple; both lines must appear.
+        for tagline_line in install_skill._BANNER_TAGLINE:
+            self.assertIn(tagline_line, stderr)
         # 089k structural pin: stderr's last non-empty line is the
         # banner's closing box-drawing border. Under any earlier
         # placement this would also hold (banner is the only stderr
@@ -332,10 +370,14 @@ class BannerPlacement089kTests(unittest.TestCase):
         ]
         self.assertGreater(len(stderr_lines), 0,
                            "stderr must contain the banner")
-        self.assertTrue(
-            stderr_lines[-1].startswith("=" * 30),
-            f"089k: stderr's last non-empty line must be the "
-            f"banner's closing box border, not {stderr_lines[-1]!r}",
+        # 089l: pin to the FULL 80-wide rule (exact equality) — this
+        # catches both a width regression AND a missing closing
+        # border in one assertion.
+        self.assertEqual(
+            stderr_lines[-1], "=" * 80,
+            f"089l: stderr's last non-empty line must be the "
+            f"banner's closing box border (80 `=`), not "
+            f"{stderr_lines[-1]!r}",
         )
 
     def test_banner_not_emitted_on_failed_install(self) -> None:
@@ -485,26 +527,50 @@ class BannerAgentsMdDriftGuard089kTests(unittest.TestCase):
             f"  install_skill.py rendered:\n{rendered_lines!r}",
         )
 
-    def test_banner_five_elements_present_in_agents_md(self) -> None:
-        """Positive pin per element on the AGENTS.md side: all
-        five required elements (name, author, URL, tagline,
-        license) appear in the embedded block. Catches a partial
-        deletion that the line-for-line comparison would also
-        catch but with a less specific message."""
+    def test_banner_elements_present_in_agents_md(self) -> None:
+        """Positive pin per element on the AGENTS.md side: every
+        required element (name, author, URL, **both tagline
+        lines**, license) appears in the embedded block. Catches a
+        partial deletion that the line-for-line comparison would
+        also catch but with a less specific message.
+
+        089l: tagline is now a 2-tuple — pin each line
+        independently so a partial regression (one tagline line
+        present, other missing) fails with a precise message."""
         agents_lines = self._extract_banner_from_agents_md()
         joined = "\n".join(agents_lines)
-        for element_name, needle in (
+        elements: list[tuple[str, str]] = [
             ("name", install_skill._BANNER_NAME),
             ("author", install_skill._BANNER_AUTHOR),
             ("URL", install_skill._BANNER_URL),
-            ("tagline", install_skill._BANNER_TAGLINE),
+            ("tagline line 0", install_skill._BANNER_TAGLINE[0]),
+            ("tagline line 1", install_skill._BANNER_TAGLINE[1]),
             ("license", install_skill._BANNER_LICENSE),
-        ):
+        ]
+        for element_name, needle in elements:
             self.assertIn(
                 needle, joined,
-                f"089k drift guard: AGENTS.md banner block is "
+                f"089l drift guard: AGENTS.md banner block is "
                 f"missing the {element_name} element ({needle!r}).",
             )
+
+    def test_banner_box_rule_is_80_wide_in_agents_md(self) -> None:
+        """089l: the box rule embedded in AGENTS.md must be exactly
+        80 `=` chars (matching install_skill._BANNER_BOX_WIDTH)."""
+        agents_lines = self._extract_banner_from_agents_md()
+        self.assertGreater(len(agents_lines), 0)
+        # First and last non-empty lines should be the 80-wide rule.
+        non_empty = [line for line in agents_lines if line.strip()]
+        self.assertEqual(
+            non_empty[0], "=" * 80,
+            f"089l: AGENTS.md banner's opening box rule must be "
+            f"exactly 80 `=` chars, not {non_empty[0]!r}",
+        )
+        self.assertEqual(
+            non_empty[-1], "=" * 80,
+            f"089l: AGENTS.md banner's closing box rule must be "
+            f"exactly 80 `=` chars, not {non_empty[-1]!r}",
+        )
 
 
 class SmokeChecksStillPassTests(unittest.TestCase):
