@@ -1774,9 +1774,14 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     if overclaim_receipts:
         for bid, phase, marker in overclaim_receipts:
             tag = "RED" if phase == "red" else "GREEN"
+            # NB: the substring "but body admits non-execution" is
+            # kept contiguous on one source line — the v1.5.7 089p
+            # recap drift guard (test_recap_tdd_signal_drift_089p)
+            # greps quality_gate.py source for it.
             fail(
-                f"{bid}.{phase}.log tagged {tag} but body admits "
-                f"non-execution (\"{marker}\"). A RED/GREEN tag "
+                f"{bid}.{phase}.log tagged {tag} "
+                f"but body admits non-execution"
+                f" (\"{marker}\"). A RED/GREEN tag "
                 f"asserts the test was actually run. Run the test "
                 f"for real (capture real runner output) or mark the "
                 f"receipt NOT_RUN (which WARN-passes per the honest-"

@@ -304,6 +304,8 @@ will not change — only the record-keeping fills in. Copy-paste this:
   altering it.
 ```
 
+**Also run the cross-cutting TDD-execution check (v1.5.7 089p)** — see "Cross-cutting augmentation — TDD execution status" below; append its callout + retry hint to the block above if the gate log carries a TDD-not-executed signal. (A cleanup-needed run can ALSO have an unproven TDD cycle — the two are independent.)
+
 ### State B — Phases 1-6 baseline complete with N confirmed bugs
 
 Substitute the actual bug count `N` from `quality/BUGS.md` (count `^### BUG-` headings).
@@ -349,6 +351,8 @@ typically adds 40-60% more bugs. Start with `run the next iteration using the ga
 strategy`.
 ```
 
+**Also run the cross-cutting TDD-execution check (v1.5.7 089p)** — see "Cross-cutting augmentation — TDD execution status" below. If `quality/results/quality-gate.log` carries a TDD-not-executed signal, append that augmentation's callout + retry hint to the block above.
+
 ### State I — One or more iteration strategies complete
 
 Substitute `<strategy>` with the strategy just completed (`gap` / `unfiltered` / `parity` / `adversarial`) — the one named in the most recent `## Iteration: <strategy> complete` heading in `quality/PROGRESS.md` — and `N` with the cumulative confirmed-bug count. `<next>` is whichever strategy comes next per the canonical cycle, or "the next strategy" if you're not certain.
@@ -365,6 +369,8 @@ Run the next iteration: `run the <next> iteration` (or `recheck` if you're done 
 iterations and want to verify fixes). Or read `quality/BUGS.md` and start applying
 patches.
 ```
+
+**Also run the cross-cutting TDD-execution check (v1.5.7 089p)** — see "Cross-cutting augmentation — TDD execution status" below; append its callout + retry hint to the block above if the gate log carries a TDD-not-executed signal.
 
 ### State F — All four iteration strategies complete
 
@@ -383,6 +389,8 @@ regression-test patches in `quality/patches/` are portable; you can carry them
 upstream when submitting PRs.
 ```
 
+**Also run the cross-cutting TDD-execution check (v1.5.7 089p)** — see "Cross-cutting augmentation — TDD execution status" below; append its callout + retry hint to the block above if the gate log carries a TDD-not-executed signal.
+
 ### State R — Recheck complete
 
 Substitute `M` / `K` / `J` with the FIXED / OPEN / INCONCLUSIVE counts from `quality/results/recheck-results.json`.
@@ -400,6 +408,66 @@ Address the K still-open bugs. Open PRs for the M fixed bugs (the regression-tes
 patches in `quality/patches/` are portable — adopt them upstream so the maintainer can
 verify the fix). After the next fix batch, say `recheck` again.
 ```
+
+## Cross-cutting augmentation — TDD execution status (v1.5.7 089p)
+
+This is **not** a first-match-wins state — it does not appear in the
+classifier table above and never shadows State B / CN / I / F. It is a
+**cross-cutting modifier**: after the classifier picks a state and you
+build that state's `## What just happened` block, you ALSO run this
+check and, if it fires, append its callout to the SAME block.
+
+**When it fires.** A run's TDD red→green cycle can be unproven —
+recorded but not empirically executed — alongside any terminal state
+that has confirmed bugs (State B, State CN, and the iteration States
+I / F). The signal is buried in the gate log; this augmentation
+surfaces it in plain English.
+
+**Detection.** Grep `quality/results/quality-gate.log` for any of
+these literal strings (the gate emits them — 089m's NOT_RUN WARN and
+089o's overclaim / phase5_env FAILs; same grep mechanism as Rule 6
+State S and Rule 7 State CN). If **any** is present, the augmentation
+fires:
+
+- `TDD red/green cycle not executed for` — 089m WARN: one or more
+  receipts honestly marked `NOT_RUN` (the cycle was skipped).
+- `but body admits non-execution` — 089o overclaim FAIL: a receipt
+  tagged `RED`/`GREEN` whose body admits it was not actually run.
+- `TDD receipt(s) overclaim` — 089o overclaim FAIL (rolled-up count).
+- `phase5_env.log is missing` — 089o FAIL: the Phase 5 test-runner
+  probe artifact was never captured.
+- `phase5_env.log shows the test runner IS available` — 089o FAIL: a
+  `NOT_RUN` receipt contradicted by a probe showing the runner WAS
+  available.
+
+**What to append when it fires.** Add this to the state's
+`## What just happened` block (plain English, no jargon — substitute
+`<tool>` with the runner the run reported as unavailable, read from
+the first line / `Command:` line of `quality/results/phase5_env.log`
+when present, else say "the project's test runner"):
+
+```
+**TDD note — verdicts reasoned, not observed.** The TDD red→green
+cycle was NOT empirically executed for one or more confirmed bugs:
+the regression tests were reasoned about, not actually run, so the
+RED/GREEN verdicts are predictions rather than observations. The run
+reported `<tool>` as unavailable.
+```
+
+And add this to the state's `### What to do next` (it is a
+recoverable, in-chat fix — NOT a dead end):
+
+```
+**To get real TDD verification:** if `<tool>` is actually installed
+(check with `which <tool>`), or you can install it, you can recover
+in one message — tell the agent:
+*"`<tool>` is available — re-run the TDD red→green cycle in online
+mode for the confirmed bugs and capture real runner output."*
+```
+
+Keep the existing State templates intact — this only appends. If the
+gate log carries none of the five strings, the cycle was executed
+(or there were no bugs) and the augmentation is silent.
 
 ## DO NOT
 
