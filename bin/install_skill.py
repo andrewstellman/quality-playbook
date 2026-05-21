@@ -239,14 +239,21 @@ _PATTERN_7_ANCHOR_RE = re.compile(r"^##+\s+Pattern\s+7\b", re.MULTILINE)
 # ---------------------------------------------------------------------------
 
 
-# v1.5.7 instruction 089j — attribution banner printed to stderr at
-# install start (BEFORE the first ``event=`` emission). stderr keeps
-# stdout's machine-parseable ``event=key=value`` stream pure for
-# calling agents; the banner is for the human running the install.
-# Adopters see project name + author + URL + tagline + license at
-# the moment they pull the skill in. The five elements (name,
-# author, URL, tagline, license) are the required deliverable;
-# box-drawing is presentational.
+# v1.5.7 instruction 089j (banner) + 089k (placement refinement) —
+# attribution banner printed to stderr at the END of a SUCCESSFUL
+# install (after ``event=install_complete status=success``). stderr
+# keeps stdout's machine-parseable ``event=key=value`` stream pure
+# for calling agents; the banner is for the human running the
+# install. 089k moved this from start-of-run to end-of-success
+# because (a) closing-flourish is the right UX moment, and (b) an
+# orchestrating agent that captures only stdout (e.g. Codex during
+# the 2026-05-21 smoke) would never surface a start-of-run stderr
+# banner — AGENTS.md now also embeds the banner verbatim so the
+# agent always has the text to display as the closing element of
+# its reply. The five elements (name, author, URL, tagline,
+# license) are the required deliverable; box-drawing is
+# presentational. NOT printed on failed installs (returns 64/65
+# before reaching the closing emission).
 _BANNER_NAME = "Quality Playbook"
 _BANNER_AUTHOR = "Andrew Stellman"
 _BANNER_URL = "https://github.com/andrewstellman/quality-playbook"
@@ -267,11 +274,12 @@ _BANNER_TEXT = (
 
 def _print_banner(stream=None) -> None:
     """Write the install-time attribution banner to ``stream``
-    (default ``sys.stderr``). Always called BEFORE the first
-    ``event=`` emission so the stdout event stream stays parse-
-    clean for calling agents. Idempotent on stream errors — the
-    banner is informational; a broken stderr must not break the
-    install.
+    (default ``sys.stderr``). 089k: called at the END of a
+    SUCCESSFUL install (after ``event=install_complete
+    status=success``) — the closing flourish, on stderr so the
+    stdout event stream stays parse-clean for calling agents.
+    Idempotent on stream errors — the banner is informational;
+    a broken stderr must not break the install.
     """
     target = stream if stream is not None else sys.stderr
     try:
@@ -824,11 +832,6 @@ def install(
     the banner-on-stderr / stdout-parse-clean contract. Production
     callers (``__main__``) get stderr.
     """
-    # v1.5.7 089j: attribution banner FIRST, to stderr (or injected
-    # banner_stream). MUST precede the first event= line so stdout
-    # remains a clean machine-parseable stream for calling agents.
-    _print_banner(banner_stream)
-
     emitter = Emitter(verbose=verbose, stream=stream)
     cwd = cwd or Path.cwd()
     source_root = (
@@ -1098,6 +1101,19 @@ def install(
         files_copied=sum(1 for s in statuses if s != "skipped"),
         prose=f"install OK; target={target}",
     )
+    # v1.5.7 089k: attribution banner at the END of a SUCCESSFUL
+    # install (after event=install_complete status=success). Moved
+    # here from the start of install() because (a) the closing
+    # flourish is the right UX moment for attribution, and (b)
+    # 089j's start-of-run placement printed to stderr at a moment
+    # when an orchestrating agent (e.g. Codex) might capture only
+    # stdout and never surface the banner to the user. The agent
+    # also embeds the banner verbatim in its closing reply per
+    # AGENTS.md — this stderr emission backstops terminal users
+    # who run the installer directly. Failed paths return earlier
+    # without invoking this; the banner only crowns a successful
+    # install.
+    _print_banner(banner_stream)
     return 0
 
 

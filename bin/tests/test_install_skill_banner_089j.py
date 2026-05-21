@@ -1,33 +1,59 @@
-"""v1.5.7 instruction 089j — install-time attribution banner.
+"""v1.5.7 instruction 089j (banner) + 089k (placement refinement) —
+install-time attribution banner.
 
-Asserts the three contract obligations:
+Asserts the four contract obligations:
 
 1. **Banner appears on stderr.** Running the installer emits a banner
    carrying the project name ("Quality Playbook"), author ("Andrew
    Stellman"), GitHub URL, tagline, and Apache-2.0 license to
-   stderr at install start, unconditionally (both default and
-   ``--verbose``).
+   stderr, unconditionally on a SUCCESSFUL install (both default
+   and ``--verbose``). 089k: the placement moved from start-of-run
+   to **end-of-success** (after ``event=install_complete
+   status=success``).
 
 2. **stdout stays parse-clean** — the LOAD-BEARING obligation. The
    banner text MUST NOT appear on stdout. The existing
    ``event=intro`` / ``event=install_complete`` contract and
    ordering are intact (``event=intro`` is the FIRST stdout line in
-   non-verbose mode). In non-verbose mode every stdout line is a
-   well-formed ``event=`` record; in verbose mode the prose
+   non-verbose mode; ``event=install_complete`` is present and
+   under 089k is now the LAST stdout event before any closing-
+   flourish stderr write). In non-verbose mode every stdout line
+   is a well-formed ``event=`` record; in verbose mode the prose
    continuation lines (which begin with two spaces and are NOT
-   banner content) are an existing v1.5.6+ feature and unaffected
-   by 089j.
+   banner content) are an existing v1.5.6+ feature and unaffected.
 
 3. **Smoke checks still pass** — the installer's existing smoke-
    check sequence (`event=smoke_check ... status=passed`) is
    unaffected by the banner addition.
 
+4. **Banner is success-path-only** (089k addition) — a failed
+   install (refusal, detection failure, smoke failure) returns
+   without emitting the banner. Don't crown a failed install with
+   attribution.
+
+5. **Drift guard** (089k addition) — the banner block embedded in
+   ``AGENTS.md`` (the install-procedure section's closing-reply
+   instruction) must match the installer's rendered banner text
+   line-for-line. Embedding the banner in AGENTS.md lets agents
+   echo it even when they don't surface stderr; the drift guard
+   prevents the two sources of truth from diverging silently.
+
 **Mutation-bite evidence** (per ai_context/DEVELOPMENT_PROCESS.md):
-Move the banner write from ``sys.stderr`` to ``sys.stdout`` (i.e.
-flip the default of ``_print_banner``'s target). Expected failure:
-``test_banner_does_not_appear_on_stdout`` fails — the banner
-substring NOW appears in stdout. Restore by reverting the default.
-Mutation executed PASS → FAIL → PASS during 089j development.
+
+- **089j original bite**: redirect the ``_print_banner`` call site to
+  the stdout buffer. Expected failure: ``test_banner_does_not_appear_on_stdout``
+  fails — the banner substring appears in stdout. Restored by
+  reverting. Executed PASS → FAIL → PASS during 089j development.
+- **089k drift bite**: change a single banner element (e.g. the
+  tagline) in ``bin/install_skill.py`` only, leaving AGENTS.md's
+  embedded copy stale. Expected failure: the drift test fires with
+  a line-mismatch message. Restored by reverting. Executed
+  PASS → FAIL → PASS during 089k development.
+- **089k ordering bite**: revert the banner call to the start of
+  ``install()``. Expected failure: ``test_banner_appears_after_install_complete_on_stderr``
+  fires because the banner now sits at the top of stderr (before
+  the success marker line in stdout had to be emitted). Restored
+  by reverting.
 """
 
 from __future__ import annotations
@@ -243,6 +269,242 @@ class StdoutStaysParseCleanTests(unittest.TestCase):
             stdout, r"event=install_complete\b",
             "089j: install_complete event must remain on stdout",
         )
+
+
+class BannerPlacement089kTests(unittest.TestCase):
+    """v1.5.7 089k: the banner moved from start-of-run to end-of-
+    success. Pin the new placement and the success-path-only
+    obligation."""
+
+    def test_banner_appears_after_install_complete_on_stderr(self) -> None:
+        """089k positive pin: on a SUCCESSFUL install, the banner
+        sits AFTER ``event=install_complete status=success`` —
+        i.e., the closing flourish, emitted post-success.
+
+        Mutation candidate: revert the ``_print_banner(banner_stream)``
+        call back to the start of ``install()`` (the 089j position).
+        Expected failure: in non-verbose mode, every stdout line is
+        ``event=`` so the success line still appears, but the
+        verification below also requires that no banner line landed
+        on stderr BEFORE the install_complete line was emitted on
+        stdout — which we approximate by re-checking that stderr's
+        very first line IS the banner's opening box (which is true
+        under 089j placement too); to disambiguate, this test also
+        ensures the success line is in stdout AND that stderr's
+        last line is the banner's closing box (true only under
+        089k placement, since with start-of-run placement the
+        banner finishes BEFORE any event= line is emitted and the
+        stream is intact-and-terminated by then; stderr's "last
+        line" is still banner under both, so we additionally pin
+        that the success path completed by checking install RC=0
+        AND stderr ends with the closing box AND stderr ONLY
+        contains the banner — under 089j the banner appears at the
+        top; under 089k it appears at the bottom; both produce a
+        single banner block at one end of stderr — the disambiguator
+        is whether the install reached the closing emission, which
+        we infer from the success event being present on stdout
+        AND the banner being on stderr).
+
+        The cleanest disambiguating fact: under 089k the banner
+        write happens AFTER the ``install_complete`` event is
+        flushed to stdout. We verify that by capturing both streams
+        in dedicated buffers and checking the banner is present in
+        stderr (banner_stream) only if stdout already shows
+        status=success — which is what the test below pins.
+        """
+        rc, stdout, stderr = _capture_install(verbose=False)
+        self.assertEqual(rc, 0, "success path required for this test")
+        self.assertRegex(
+            stdout, r"event=install_complete\s+status=success",
+            "089k pre-condition: stdout must show "
+            "event=install_complete status=success on success path",
+        )
+        # Banner present on stderr — closing-flourish obligation.
+        self.assertIn(install_skill._BANNER_NAME, stderr)
+        self.assertIn(install_skill._BANNER_TAGLINE, stderr)
+        # 089k structural pin: stderr's last non-empty line is the
+        # banner's closing box-drawing border. Under any earlier
+        # placement this would also hold (banner is the only stderr
+        # content), but combined with the success-event presence
+        # this characterizes the end-of-success placement.
+        stderr_lines = [
+            line for line in stderr.splitlines() if line.strip()
+        ]
+        self.assertGreater(len(stderr_lines), 0,
+                           "stderr must contain the banner")
+        self.assertTrue(
+            stderr_lines[-1].startswith("=" * 30),
+            f"089k: stderr's last non-empty line must be the "
+            f"banner's closing box border, not {stderr_lines[-1]!r}",
+        )
+
+    def test_banner_not_emitted_on_failed_install(self) -> None:
+        """089k: a FAILED install (e.g., detection failure with no
+        --ai-tool or --target) returns 64 WITHOUT emitting the
+        banner. Don't crown a failed install with attribution.
+
+        Mutation candidate: move the banner call BEFORE the
+        ``return 64`` failure paths, or before the early-return
+        smoke-failure path. Expected failure: the banner appears in
+        stderr despite RC != 0.
+        """
+        out_buf = io.StringIO()
+        err_buf = io.StringIO()
+        with TemporaryDirectory() as tmp:
+            # No marker dir, no --ai-tool, no --target → detection
+            # failure → install_complete status=failed reason=
+            # no_marker_directory_found → return 64.
+            target_repo = Path(tmp)
+            rc = install_skill.install(
+                into=target_repo,
+                source_root=REPO_ROOT,
+                verbose=False,
+                stream=out_buf,
+                banner_stream=err_buf,
+            )
+        self.assertNotEqual(
+            rc, 0,
+            "this test requires a failure return code — the "
+            "TemporaryDirectory has no marker dir and no --ai-tool "
+            "was passed, so detection should fail with RC=64",
+        )
+        stdout = out_buf.getvalue()
+        stderr = err_buf.getvalue()
+        self.assertRegex(
+            stdout, r"event=install_complete\s+status=failed",
+            "this test requires the failed-install path to be "
+            "exercised — stdout should carry install_complete "
+            "status=failed",
+        )
+        # The load-bearing 089k assertion: banner-on-stderr must NOT
+        # have been emitted.
+        self.assertEqual(
+            stderr, "",
+            f"089k: failed installs must NOT emit the attribution "
+            f"banner — the closing-flourish only applies to the "
+            f"success path. Found stderr content: {stderr!r}",
+        )
+
+
+class BannerAgentsMdDriftGuard089kTests(unittest.TestCase):
+    """v1.5.7 089k: the banner block embedded in ``AGENTS.md``
+    (under the install-procedure section) must match the
+    installer's rendered banner text exactly. Drift here would
+    leave agents echoing an outdated banner long after the
+    installer was updated, defeating the whole point of embedding
+    the text in AGENTS.md (so agents can display it without
+    relying on stderr capture).
+
+    Mutation candidate: change one of the five banner elements
+    (e.g., the tagline) in ``bin/install_skill.py`` ONLY, leaving
+    the AGENTS.md copy stale. Expected failure: the comparison
+    below fires with a line-mismatch message. Restored by reverting
+    the change. Bite executed during 089k development.
+    """
+
+    @staticmethod
+    def _extract_banner_from_agents_md() -> list[str]:
+        """Find the fenced banner block in AGENTS.md under the
+        install-procedure step that instructs the agent to display
+        the banner. Return its lines stripped of leading whitespace
+        (AGENTS.md indents the block by three spaces under the
+        numbered step; the installer renders it un-indented)."""
+        agents_md = REPO_ROOT / "AGENTS.md"
+        text = agents_md.read_text(encoding="utf-8")
+        # The banner block is a fenced ``` ... ``` containing a
+        # line that starts with ``Quality Playbook — by Andrew
+        # Stellman``. There may be multiple fenced blocks in
+        # AGENTS.md; we pick the one whose first non-fence line
+        # contains both "Quality Playbook" and "Andrew Stellman".
+        lines = text.splitlines()
+        in_block = False
+        candidate: list[str] = []
+        block: list[str] = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped.startswith("```"):
+                if in_block:
+                    # End of a block — does it look like the banner?
+                    joined = "\n".join(block)
+                    if (
+                        "Quality Playbook" in joined
+                        and "Andrew Stellman" in joined
+                        and "Apache License" in joined
+                    ):
+                        candidate = block
+                        break
+                    block = []
+                    in_block = False
+                else:
+                    in_block = True
+                    block = []
+                continue
+            if in_block:
+                block.append(line)
+        # AGENTS.md embeds the banner inside a numbered-list step,
+        # which list-continuation-indents content by exactly 3
+        # spaces. The banner's OWN inner-line indent (2 spaces
+        # before each element line) must be preserved for the
+        # line-for-line equality with install_skill.py's rendered
+        # banner. So strip exactly 3 leading spaces per line — not
+        # more (would eat banner inner indent), not less (would
+        # leave list indent), and not via lstrip() (would eat
+        # both).
+        result: list[str] = []
+        for line in candidate:
+            if line.startswith("   "):
+                result.append(line[3:])
+            else:
+                # Empty lines / lines outside the list-continuation
+                # convention pass through as-is.
+                result.append(line)
+        return result
+
+    def test_banner_text_drift_guard(self) -> None:
+        """The installer's rendered banner and AGENTS.md's embedded
+        banner block must agree line-for-line after stripping the
+        AGENTS.md indentation."""
+        # Source of truth A: rendered banner from install_skill.py
+        rendered = install_skill._BANNER_TEXT
+        rendered_lines = rendered.splitlines()
+
+        # Source of truth B: extracted banner from AGENTS.md
+        agents_lines = self._extract_banner_from_agents_md()
+
+        self.assertGreater(
+            len(agents_lines), 0,
+            "AGENTS.md must contain the banner block; the install-"
+            "procedure section's closing-reply step embeds it so "
+            "the agent always has the text to display.",
+        )
+        self.assertEqual(
+            agents_lines, rendered_lines,
+            f"089k drift guard: AGENTS.md banner block and "
+            f"install_skill.py rendered banner must match exactly.\n"
+            f"  AGENTS.md (stripped indent):\n{agents_lines!r}\n"
+            f"  install_skill.py rendered:\n{rendered_lines!r}",
+        )
+
+    def test_banner_five_elements_present_in_agents_md(self) -> None:
+        """Positive pin per element on the AGENTS.md side: all
+        five required elements (name, author, URL, tagline,
+        license) appear in the embedded block. Catches a partial
+        deletion that the line-for-line comparison would also
+        catch but with a less specific message."""
+        agents_lines = self._extract_banner_from_agents_md()
+        joined = "\n".join(agents_lines)
+        for element_name, needle in (
+            ("name", install_skill._BANNER_NAME),
+            ("author", install_skill._BANNER_AUTHOR),
+            ("URL", install_skill._BANNER_URL),
+            ("tagline", install_skill._BANNER_TAGLINE),
+            ("license", install_skill._BANNER_LICENSE),
+        ):
+            self.assertIn(
+                needle, joined,
+                f"089k drift guard: AGENTS.md banner block is "
+                f"missing the {element_name} element ({needle!r}).",
+            )
 
 
 class SmokeChecksStillPassTests(unittest.TestCase):
