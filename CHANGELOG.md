@@ -5,7 +5,7 @@ All notable changes to the Quality Playbook will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.7] — 2026-05-14
+## [1.5.7] — 2026-05-21
 
 Research-grade hardening release. Last v1.5.x; next is v1.6.0 (Requirements Review — feature-complete).
 
@@ -97,6 +97,25 @@ Final release-gate review (instruction 040) substituted for the canonical Counci
 ### 089f — Copilot CLI migration (GitHub deprecated `gh copilot` 2025-10-25)
 
 Migrated all five Copilot CLI subprocess sites + the Phase 0 validator remediation advice from the deprecated `gh copilot` extension to the standalone `copilot` CLI ([github/copilot-cli](https://github.com/github/copilot-cli)). Both CLIs work during the GitHub-announced deprecation grace period; the new `bin/copilot_resolver.py` auto-detects which is on `PATH` and routes accordingly (preference: standalone `copilot` first, deprecated `gh copilot` fallback, fail-fast remediation message if neither). Flag mapping shimmed transparently (`--allow-all` vs `--yolo`; `-p`/`--prompt`/`--model` unchanged). Phase 0 validator remediation advice updated to recommend the new install routes per platform (`brew install copilot-cli` on macOS, `winget install GitHub.Copilot` on Windows, `curl -fsSL https://gh.io/copilot-install | bash` on Linux, npm `npm install -g @github/copilot`) with the legacy `gh extension install github/gh-copilot` form retained as fallback. Adopter impact: zero behavior change for users still on `gh copilot`; users with `copilot` installed transparently route there. Active prose (README, AGENTS.md, ai_context/, references/, agents/, v1.5.7 design docs) reflects the new canonical form with parenthetical legacy-form notes for the grace period.
+
+### 089g–089j — resolver hardening, Windows portability, pre-tag cleanup, install banner
+
+Four close-out changes after the 089f migration:
+
+- **089g — resolver test PATH-independence.** The `copilot_resolver` routing test no longer depends on a Copilot CLI being on the host `PATH` (mocks detection so the suite passes under a hermetic `PATH`). Test-only; no production change.
+- **089h — portable `latest.txt` run pointer (Windows symlink, W-B).** `quality/logs/` always writes a cross-platform `latest.txt` (the current run-id) alongside the best-effort `latest` symlink. On Windows the symlink needs elevated privilege / Developer Mode; on failure the runner writes `latest.txt`, emits an informational note (not a warning), and `resolve_run_state_path` reads `latest.txt` as a resolution source. Run resolution is unaffected with or without the symlink. Refines D3.
+- **089i — pre-tag cleanup (4 fixes).**
+  - **W-A — layout-aware install freshness check.** No more false "installed bundle stale" warning on a correct `install_skill.py` install. The check now validates against only the detected layout's manifest (previously it unioned the `install_skill` + `setup_repos` manifests, flagging every adopter install for benchmark-only files it legitimately lacks). Genuinely-incomplete installs are still flagged.
+  - **True-UTC run-ids.** The run-id directory name is now true UTC (matching the archive dir + `run_state.jsonl` `ts`); the `Z` suffix is now honest (previously local time stamped with `Z`).
+  - **Python 3.10+ floor.** Documented as the minimum; the one `assertNoLogs` test guarded with `skipUnless`.
+  - **Doc-currency.** Finding-catalog count comment corrected and now self-guarding (a test asserts it equals `len(FINDING_CATALOG)`).
+- **089j — install attribution banner.** `install_skill.py` prints a Quality Playbook / Andrew Stellman / GitHub-URL / Apache-2.0 banner to stderr at install start; the stdout `event=` stream is unaffected (the existing `event=intro` / `event=install_complete` contract and ordering are intact).
+
+### Cross-platform validation (macOS + Windows)
+
+v1.5.7 validated end-to-end on **Windows** (PowerShell) in both Mode A (Claude Code — natural-language install + run) and Mode B (`run_playbook.py` + the `copilot` CLI), and on **macOS**. Both modes reach Phase 6 verdicts; Phase 1/2/6 validators pass; the fresh-context Phase 6 auditor enforces the no-fabrication contract on Windows via both `claude` and `copilot`. The `install_skill.py` adopter path installs cleanly on Windows. Known Windows note: the `quality/logs/latest` symlink needs Developer Mode — handled gracefully via `latest.txt` (089h).
+
+Test suite at tag: **1,647 OK** (dual-env) + gate **282 OK** — up from 1,359 / 257 at the D1-D6 milestone (+288 across the F-fixes, the 089-series, and self-audit + Windows closures).
 
 ### v1.5.7.x carry-forwards (documented in phase synthesis docs)
 

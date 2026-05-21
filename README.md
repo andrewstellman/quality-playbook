@@ -594,10 +594,12 @@ v1.5.7 is a cleanup release that makes v1.5.6's runner output research-grade, fo
   It auto-detects `.claude/`, `.github/`, `.cursor/`, and `.continue/` targets,
   and it also supports explicit `--into <target-repo>` and `--target <path>`
   flags when the operator wants to pin the destination.
-- **Cross-platform support is part of the release contract.**
+- **Cross-platform support is part of the release contract — and Windows is now directly validated.**
   The install path is written for Windows, macOS, and Linux via `pathlib`-style
-  path handling. Windows was asserted in code and tests, but not directly
-  exercised in this release environment.
+  path handling. As of v1.5.7, Windows is exercised directly, not just asserted:
+  `install_skill.py` installs cleanly on Windows (PowerShell), and full runs
+  complete in both Mode A (Claude Code — natural-language install + run) and
+  Mode B (`run_playbook.py` + the `copilot` CLI).
 - **Re-installs are idempotent and preserve operator edits.**
   Existing files are not silently clobbered; operator-modified copies are
   preserved via timestamped backup handling so install automation does not erase
@@ -647,10 +649,12 @@ v1.5.7 is a cleanup release that makes v1.5.6's runner output research-grade, fo
   on chi-1.3.45. The cycle is closed at 3 of 4 benchmarks; chi-1.5.1 is not a
   4th cell in the per-benchmark recall table.
 - **Known limitations remain in the release notes instead of being buried in validation output.**
-  Windows install behavior is `untested-infrastructure-blocked-pathlib-coverage-extended`
-  (no Windows machine, no Wine, no Windows container in the validation
-  sandbox; cluster D extended `PureWindowsPath` coverage in the install-skill
-  test surface in lieu of a direct run). The reused `chi-1.3.45` Phase 4
+  Windows install + full runs are directly validated as of v1.5.7 (PowerShell;
+  Mode A via Claude Code and Mode B via `run_playbook.py` + the `copilot` CLI).
+  The one Windows-specific note: `quality/logs/latest` is a symlink that needs
+  Developer Mode (or an elevated shell); when unavailable the runner writes a
+  cross-platform `quality/logs/latest.txt` pointer and run resolution is
+  unaffected. The reused `chi-1.3.45` Phase 4
   evidence remains code-only-mode reuse; the docs-backed re-validation was
   dropped in favor of the v1.5.6 cluster 047 architectural fix that closes
   the underlying defect class (see "Role_map architectural fix lands as the
