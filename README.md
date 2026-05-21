@@ -24,7 +24,7 @@ The fastest way is to let your AI coding tool do it.
 
 Prefer to install by hand or use the script directly? See [Step 1 of the walkthrough](#step-1-install-the-skill) for the script invocation and [Step 3](#step-3-install-the-skill-manual-flow--fallback) for the manual `cp` recipes.
 
-**Prerequisite:** Python 3.9 or later on your `PATH` (the installer uses standard-library features that require 3.9+).
+**Prerequisite:** Python 3.10 or later on your `PATH`. QPB's runtime floor was raised from 3.9 to 3.10 in v1.5.7 089i — adopters must have 3.10+ available (the test suite uses 3.10-only features such as `unittest.TestCase.assertNoLogs`).
 
 **The more documentation you give it, the better it finds bugs.** The playbook reads written specs, design docs, GitHub or Jira issues from real users, chat history, and post-mortems — then derives what your code is *supposed* to do from those sources. Without documentation it still runs (from the source tree alone), but bug recall drops materially. See [Step 2: Provide documentation (strongly recommended)](#step-2-provide-documentation-strongly-recommended) for what to gather and the best ways to gather it.
 

@@ -275,7 +275,7 @@ def detect_package_managers() -> "dict[str, bool]":
 
 
 # ---------------------------------------------------------------------------
-# §3.3.2 Finding catalog (13 codes). Each entry: tool, severity,
+# §3.3.2 Finding catalog (14 codes). Each entry: tool, severity,
 # per-platform command templates, rationale, verify_with. Platform keys
 # are macos / linux / windows_powershell / windows_cmd. command_for_
 # platform() resolves <placeholder> substitutions and always returns a

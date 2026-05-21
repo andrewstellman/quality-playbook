@@ -14,6 +14,7 @@ without those packages installed.
 
 from __future__ import annotations
 
+import sys
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -134,6 +135,14 @@ class HelperParserTests(unittest.TestCase):
                 "for diagnosability.",
             )
 
+    @unittest.skipUnless(sys.version_info >= (3, 10),
+                         "assertNoLogs requires Python 3.10+ "
+                         "(v1.5.7 089i: QPB's documented runtime "
+                         "floor is Python 3.10+; this guard keeps "
+                         "the suite green on older interpreters "
+                         "while the test itself pins the "
+                         "no-log-warning contract on supported "
+                         "Pythons).")
     def test_load_historical_bugs_returns_empty_list_when_bugs_md_has_no_headings(self) -> None:
         """v1.5.6 BUG-006: when the archive IS present but BUGS.md
         contains zero parseable BUG- headings (a real "archive

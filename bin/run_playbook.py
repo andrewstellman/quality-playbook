@@ -1554,21 +1554,38 @@ def _logs_legacy_mode(args: Optional[argparse.Namespace]) -> bool:
 
 
 def _compute_run_id(timestamp: str) -> str:
-    """Convert the runner's display timestamp (`YYYYMMDD-HHMMSS`) into
-    a sortable compact UTC ISO-8601 form (`YYYYMMDDTHHMMSSZ`).
+    """Reformat the runner's display timestamp (`YYYYMMDD-HHMMSS`)
+    into a sortable compact ISO-8601 form (`YYYYMMDDTHHMMSSZ`).
 
-    The display timestamp is local-time per `datetime.now()`; we
-    re-render it in UTC compact form so the run-id directory sorts
-    chronologically across timezones and matches the convention used
-    everywhere else in the metrics tree (per
-    metrics/regression_replay/SCHEMA.md). For runs where the supplied
-    timestamp is already compact UTC (rare; only the regression-replay
-    apparatus does this currently), pass through unchanged.
+    The display timestamp comes from the runner's entry points
+    (``execute_run`` and ``main``), both of which produce the
+    timestamp via ``datetime.now(timezone.utc).strftime(...)`` (true
+    UTC) per v1.5.7 089i. This function only inserts ``T`` and
+    appends ``Z`` — it does NOT do timezone conversion itself; it
+    relies on its callers feeding true-UTC display timestamps. So
+    the resulting run-id sorts chronologically across timezones (the
+    resolver's most-recent-by-name relies on lexical==chronological
+    order) and the trailing ``Z`` is honest — the run-id agrees
+    with the archive directory (``:3261``) and the run_state ``ts``
+    (``:4566``), both of which were already true UTC pre-089i.
+
+    Pre-089i: the display timestamp was local-time per a bare
+    ``datetime.now().strftime(...)`` call, and this function's
+    ``Z`` suffix was misleading — adopters saw a run-id like
+    ``20260520T143459Z`` (their 2:34pm EDT) sitting next to an
+    archive ``20260520T183459Z`` (true 18:34 UTC). The 089i fix
+    moves the truth into the callers (true-UTC display timestamps)
+    so this function's behavior matches its docstring + label.
+
+    For runs where the supplied timestamp is already compact UTC
+    (rare; only the regression-replay apparatus does this), pass
+    through unchanged.
     """
     # Already compact UTC form (YYYYMMDDTHHMMSSZ): pass through.
     if len(timestamp) == 16 and timestamp.endswith("Z") and "T" in timestamp:
         return timestamp
-    # Display form (YYYYMMDD-HHMMSS): re-render as UTC compact.
+    # Display form (YYYYMMDD-HHMMSS): re-render as compact ISO-8601.
+    # Callers feed true-UTC content per 089i; the Z suffix is honest.
     if len(timestamp) == 15 and timestamp[8] == "-":
         return f"{timestamp[:8]}T{timestamp[9:]}Z"
     # Anything else: best-effort — preserve the timestamp but warn
@@ -2702,13 +2719,17 @@ def _check_installed_bundle_freshness(
             if not (installed_dir / sf.name).is_file():
                 missing.append(f"{subdir}/{sf.name}")
 
-    # v1.5.7 instruction 047 Item 2 + 049 A-2-recast-ext: bundled
-    # bin/ modules across BOTH install layouts.
+    # v1.5.7 instruction 047 Item 2 + 049 A-2-recast-ext + 089i W-A:
+    # bundled bin/ modules across BOTH install layouts, but
+    # LAYOUT-AWARE — expect only the manifest for the layout that's
+    # actually present.
     #
     #   - install_skill.py layout: bin/ sits at <bundle_dir>/bin/
     #     (sibling of the resolved SKILL.md inside the
     #     skills/quality-playbook tree). Source of truth for its
-    #     expected set: install_skill._bundle_files.
+    #     expected set: install_skill._bundle_files. Adopters on
+    #     this layout legitimately don't have setup_repos.sh-only
+    #     files (run_playbook.sh, install_skill.py).
     #   - setup_repos.sh layout: bin/ sits at <target>/bin/ (target
     #     root); SKILL.md at <target>/.github/skills/SKILL.md so
     #     bundle_dir resolves to .github/skills/ and <bundle_dir>/bin/
@@ -2716,28 +2737,30 @@ def _check_installed_bundle_freshness(
     #     `cp "${...}/..." "${dst}/bin/<name>"` lines in
     #     repos/setup_repos.sh.
     #
-    # A bundled bin/ module is reported missing ONLY when absent from
-    # BOTH candidate locations (<bundle_dir>/bin/<m> AND
-    # <target>/bin/<m>). This is layout-agnostic — it avoids a
-    # cross-layout false positive where a setup_repos.sh-installed
-    # target (bin/ at target root) would otherwise be flagged by the
-    # install_skill.py-layout check (which only looked at
-    # bundle_dir/bin/). Self-audit short-circuits on either location;
-    # the whole block is defensively wrapped so a freshness hint can
+    # Pre-089i this took the UNION of both manifests and checked
+    # presence in EITHER bin/, which produced a false-positive
+    # "installed bundle stale ... Missing: bin/run_playbook.sh,
+    # bin/install_skill.py" WARN on every correct install_skill.py-
+    # layout install (those files are setup_repos.sh-only). 089i:
+    # detect which layout is present and expect only that layout's
+    # manifest. Self-audit short-circuits on either location; the
+    # whole block is defensively wrapped so a freshness hint can
     # never crash the run.
     try:
         from bin import install_skill as _install_skill
 
-        expected_bin: List[str] = []
+        # install_skill.py-layout manifest.
+        install_skill_manifest: List[str] = []
         for _src, dest in _install_skill._bundle_files(qpb_root):
             parts = dest.parts
             if len(parts) == 2 and parts[0] == "bin":
-                if parts[1] not in expected_bin:
-                    expected_bin.append(parts[1])
-        # setup_repos.sh source of truth: parse its `${dst}/bin/<name>`
+                if parts[1] not in install_skill_manifest:
+                    install_skill_manifest.append(parts[1])
+        # setup_repos.sh-layout manifest: parse its `${dst}/bin/<name>`
         # cp destinations (covers run_playbook.sh + A-6's
         # reference_docs_ingest.py / benchmark_lib.py).
         import re as _re  # run_playbook.py imports re locally per-function
+        setup_repos_manifest: List[str] = []
         setup_repos_sh = qpb_root / "repos" / "setup_repos.sh"
         if setup_repos_sh.is_file():
             try:
@@ -2748,8 +2771,8 @@ def _check_installed_bundle_freshness(
                     r'"\$\{dst\}/bin/([^"/]+)"', sr_text
                 ):
                     name = m.group(1)
-                    if name not in expected_bin:
-                        expected_bin.append(name)
+                    if name not in setup_repos_manifest:
+                        setup_repos_manifest.append(name)
             except OSError:
                 pass
 
@@ -2763,14 +2786,57 @@ def _check_installed_bundle_freshness(
             except OSError:
                 return False
 
+        # 089i W-A: detect which install layout is actually present.
+        # Self-audit (install IS the source tree) short-circuits to
+        # "trivially complete" — no missing.
+        if _is_source_tree(bundle_bin) or _is_source_tree(target_bin):
+            expected_bin: List[str] = []  # nothing to check
+            check_locations: tuple = ()
+        elif bundle_bin.is_dir():
+            # install_skill.py layout — bundle_dir/bin/ populated.
+            # Expect ONLY install_skill._bundle_files; setup_repos.sh-
+            # only files (run_playbook.sh, install_skill.py) are NOT
+            # part of this layout and must not be reported missing.
+            expected_bin = install_skill_manifest
+            check_locations = (bundle_bin,)
+        elif target_bin.is_dir():
+            # setup_repos.sh layout — target/bin/ populated, bundle_dir/
+            # bin/ absent. Expect the setup_repos.sh manifest.
+            expected_bin = setup_repos_manifest
+            check_locations = (target_bin,)
+        else:
+            # 089i Council R1 cycle 2: bundle_dir was resolved (an
+            # install IS present at the canonical SKILL.md path) but
+            # NEITHER bundle_dir/bin/ NOR target/bin/ exists — the
+            # install is missing its entire bin/ tree. Discriminate by
+            # bundle_dir's path shape to pick the RIGHT manifest:
+            #
+            #   - setup_repos.sh flat layout puts SKILL.md at
+            #     .github/skills/SKILL.md → bundle_dir.name == "skills".
+            #     For this layout the expected set is the setup_repos.sh
+            #     manifest (includes run_playbook.sh + install_skill.py),
+            #     checked against target/bin/.
+            #   - install_skill.py layout puts SKILL.md at
+            #     <marker>/skills/quality-playbook/SKILL.md →
+            #     bundle_dir.name == "quality-playbook". Expected set is
+            #     the install_skill manifest, checked against
+            #     bundle_dir/bin/.
+            #
+            # Cycle-1 returned no findings (silent suppression of a
+            # broken install). Initial cycle-2 fix used install_skill_
+            # manifest unconditionally, which under-reported the flat
+            # setup_repos.sh layout (missed run_playbook.sh +
+            # install_skill.py). This cycle-2 fix picks per layout.
+            if bundle_dir.name == "skills":
+                expected_bin = setup_repos_manifest
+                check_locations = (target_bin,)
+            else:
+                expected_bin = install_skill_manifest
+                check_locations = (bundle_bin,)
+
         for name in expected_bin:
             present = False
-            for cand in (bundle_bin, target_bin):
-                if _is_source_tree(cand):
-                    # Install IS the source tree (self-audit) — the
-                    # module is trivially present; not stale.
-                    present = True
-                    break
+            for cand in check_locations:
                 if (cand / name).is_file():
                     present = True
                     break
@@ -5326,7 +5392,14 @@ def execute_run(args: argparse.Namespace, repo_dirs: Sequence[Path], timestamp: 
     # key off the flat list. Equivalent in content; derived from phase_groups
     # when present, else from args.phase.
     phase_list = [p for g in phase_groups for p in g] if phase_groups else phase_list_from_mode(args.phase)
-    run_timestamp = timestamp or datetime.now().strftime("%Y%m%d-%H%M%S")
+    # v1.5.7 089i (UTC run-id): emit the display timestamp in UTC so
+    # that the run-id _compute_run_id derives from it (a) sorts
+    # chronologically across timezones (the resolver's most-recent-by-
+    # name relies on this), and (b) agrees with the archive dir
+    # (`:3261`) and run_state ts (`:4566`) which were already true UTC.
+    # Pre-089i this was local time mislabeled with a UTC `Z` after
+    # _compute_run_id's reformat — a docstring-vs-behavior mismatch.
+    run_timestamp = timestamp or datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
 
     # v1.5.4 Phase 3.6.1 Section A.3.a / A.4.b (codex-prevention):
     # pre-flight sentinel check + capture QPB source baseline SHA.
@@ -5755,7 +5828,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 1
 
     display_version = lib.detect_repo_skill_version(repo_dirs[0])
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    # v1.5.7 089i (UTC run-id): see execute_run for the same fix —
+    # display timestamp in UTC so _compute_run_id produces a true-UTC
+    # run-id that sorts chronologically and matches the archive +
+    # run_state ts conventions.
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     display_run_header(args, repo_dirs, display_version, phase_list_from_mode(args.phase), timestamp)
     # v1.5.6 cluster 050: write a per-target RUN_MODE.md marker so
     # downstream model-comparison tooling can filter for clean
