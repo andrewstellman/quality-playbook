@@ -239,6 +239,48 @@ _PATTERN_7_ANCHOR_RE = re.compile(r"^##+\s+Pattern\s+7\b", re.MULTILINE)
 # ---------------------------------------------------------------------------
 
 
+# v1.5.7 instruction 089j — attribution banner printed to stderr at
+# install start (BEFORE the first ``event=`` emission). stderr keeps
+# stdout's machine-parseable ``event=key=value`` stream pure for
+# calling agents; the banner is for the human running the install.
+# Adopters see project name + author + URL + tagline + license at
+# the moment they pull the skill in. The five elements (name,
+# author, URL, tagline, license) are the required deliverable;
+# box-drawing is presentational.
+_BANNER_NAME = "Quality Playbook"
+_BANNER_AUTHOR = "Andrew Stellman"
+_BANNER_URL = "https://github.com/andrewstellman/quality-playbook"
+_BANNER_TAGLINE = "Quality engineering that finds the bugs review misses."
+_BANNER_LICENSE = "Apache License, Version 2.0"
+
+_BANNER_TEXT = (
+    "============================================================\n"
+    f"  {_BANNER_NAME} — by {_BANNER_AUTHOR}\n"
+    f"  {_BANNER_URL}\n"
+    "\n"
+    f"  {_BANNER_TAGLINE}\n"
+    "\n"
+    f"  Licensed under the {_BANNER_LICENSE}\n"
+    "============================================================\n"
+)
+
+
+def _print_banner(stream=None) -> None:
+    """Write the install-time attribution banner to ``stream``
+    (default ``sys.stderr``). Always called BEFORE the first
+    ``event=`` emission so the stdout event stream stays parse-
+    clean for calling agents. Idempotent on stream errors — the
+    banner is informational; a broken stderr must not break the
+    install.
+    """
+    target = stream if stream is not None else sys.stderr
+    try:
+        target.write(_BANNER_TEXT)
+        target.flush()
+    except (OSError, ValueError):
+        pass
+
+
 class Emitter:
     """Structured key=value output for AI-agent consumption, plus optional
     human-prose lines under --verbose. Both go to stdout; smoke-failure
@@ -762,6 +804,7 @@ def install(
     no_smoke: bool = False,
     verbose: bool = False,
     stream=None,
+    banner_stream=None,
 ) -> int:
     """Run the install. Returns the exit code (0 success; 64 usage refusal;
     65 smoke-check failure or downgrade refusal).
@@ -775,7 +818,17 @@ def install(
       4. cwd-based auto-detect — fallback for bare invocations.
 
     ``target`` is mutually exclusive with ``into`` and with ``ai_tool``.
+
+    ``banner_stream`` (default ``sys.stderr``) is where the v1.5.7 089j
+    attribution banner is written. Tests inject a buffer here to assert
+    the banner-on-stderr / stdout-parse-clean contract. Production
+    callers (``__main__``) get stderr.
     """
+    # v1.5.7 089j: attribution banner FIRST, to stderr (or injected
+    # banner_stream). MUST precede the first event= line so stdout
+    # remains a clean machine-parseable stream for calling agents.
+    _print_banner(banner_stream)
+
     emitter = Emitter(verbose=verbose, stream=stream)
     cwd = cwd or Path.cwd()
     source_root = (
