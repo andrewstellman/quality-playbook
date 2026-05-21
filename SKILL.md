@@ -90,6 +90,8 @@ The 2026-05-16 express opus-4.6 run reproduced the failure mode that motivated t
 
 YOU read SKILL.md and the phase prompts. YOU execute Phases 1-5 yourself and write artifacts to `quality/`. Phase 6 verification is delegated to the fresh-context auditor sub-agent per the A-13-hybrid exception above (the auditor invokes `quality_gate.py`); you paste its verbatim verdict. Your chat IS the trust trail — execution stays visible, verification stays bias-isolated.
 
+**You have shell access — probe before claiming unavailability (v1.5.7 089o).** Mode A means an interactive coding agent (Claude Code, Cursor, Copilot UI) running commands on the operator's actual machine via your Bash tool — NOT a sandboxed runtime. A common failure is writing "the sandbox can't run X" reflexively, conflating your model-level "I can't natively execute" with the harness Bash tool you DO have. A `which <tool>` / `<tool> --version` probe costs one line; assuming-and-being-wrong forfeits the entire Phase 5 evidence trail. (2026-05-21 gson: 15 TDD verdicts recorded "by inspection" on a machine where `mvn` was installed and on PATH.)
+
 For each phase 1..6, in order:
 
 1. **Load the phase prompt.** Read `phase_prompts/phaseN.md` (resolve via the same install-location fallback list documented for `references/` below). For `phase1.md`, substitute `{seed_instruction}` (the prelude that says "skip Phase 0/0b" — empty string when seeds are allowed) and `{role_taxonomy}` (the taxonomy block rendered from the role taxonomy below). For `phase2.md` through `phase6.md`, the file is pure-literal — read it verbatim.

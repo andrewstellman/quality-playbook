@@ -156,6 +156,17 @@ def add_one_bug(tree, version="1.4.4", bug_id="BUG-001"):
     )
     tree[f"quality/results/{bug_id}.red.log"] = "RED\nCommand: test\nExit code: 1\n"
     tree[f"quality/results/{bug_id}.green.log"] = "GREEN\nCommand: test\nExit code: 0\n"
+    # v1.5.7 089o: phase5_env.log is a required Phase 5 artifact
+    # when confirmed bugs exist (the test-runner probe). The
+    # default fixture records a SUCCESSFUL probe (exit code 0,
+    # a version string) — consistent with the RED/GREEN receipts
+    # above (the cycle was executed). Tests that need an honest-
+    # NOT_RUN scenario override this with a failed-probe log.
+    tree["quality/results/phase5_env.log"] = (
+        "Command: pytest --version\n"
+        "pytest 8.1.1\n"
+        "Exit code: 0\n"
+    )
     tree["quality/test_regression_test.go"] = "package quality\n"
     tree["quality/test_regression.py"] = "# Mirror as test_regression.*\n"
     tree["quality/TDD_TRACEABILITY.md"] = "# Traceability\n"
@@ -954,6 +965,17 @@ class TestTDDNotRunWarn089m(FixtureBase):
         tree[f"quality/results/{bug_id}.green.log"] = (
             "NOT_RUN\nTest harness skipped (no JDK / no Maven).\n"
         )
+        # v1.5.7 089o: an honest NOT_RUN must be substantiated by a
+        # phase5_env.log showing the probe actually FAILED. Override
+        # add_one_bug's default success-probe with a failed probe
+        # (non-zero exit + command-not-found) so the 089m honest-
+        # skip WARN path stays at WARN (gate still PASSES) and the
+        # 089o NOT_RUN-but-runner-available escalation does NOT fire.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: mvn -version\n"
+            "zsh: command not found: mvn\n"
+            "Exit code: 127\n"
+        )
         # Sidecar must agree that the cycle was not executed.
         # ``verdict`` uses ``"confirmed open"`` (a canonical enum
         # value) because the verdict-canonicality check (quality_
@@ -1095,6 +1117,15 @@ class TestTDDNotRunWarn089m(FixtureBase):
         add_one_bug(tree, bug_id="BUG-001")
         tree["quality/results/BUG-001.red.log"] = "NOT_RUN\nskipped\n"
         # green.log left as GREEN from add_one_bug.
+        # v1.5.7 089o: this bug has a NOT_RUN receipt, so its
+        # phase5_env.log must show a FAILED probe — otherwise the
+        # 089o NOT_RUN-but-runner-available escalation would FAIL
+        # the run. Override add_one_bug's default success-probe.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: mvn -version\n"
+            "zsh: command not found: mvn\n"
+            "Exit code: 127\n"
+        )
         tree["quality/results/tdd-results.json"] = json.dumps({
             "schema_version": "1.1",
             "skill_version": "1.4.4",
@@ -1130,6 +1161,244 @@ class TestTDDNotRunWarn089m(FixtureBase):
         self.assertIn(
             "1 of 1 confirmed bug(s)", stdout,
             "089m: partial-NOT_RUN bug still counts toward the WARN",
+        )
+        self.assertEqual(code, 0)
+
+
+class TestTDDOverclaimAndProbe089o(FixtureBase):
+    """v1.5.7 089o (#329, extends #326/089m): the gate must FAIL a
+    TDD receipt that overclaims — a first-line tag of RED/GREEN
+    (which asserts the test was actually executed) over a body
+    that admits non-execution ("verified by inspection", "Maven
+    is not available", etc.). It must ALSO require a Phase 5
+    test-runner probe artifact (quality/results/phase5_env.log)
+    and FAIL a NOT_RUN run whose probe log shows the runner WAS
+    available.
+
+    Surfaced by the 2026-05-21 gson run (Claude Code, opus,
+    interactive Mode A): all 15 TDD receipts tagged RED/GREEN
+    with bodies reading "VERIFIED BY INSPECTION (sandbox cannot
+    compile gson; Maven is not available)" — yet Maven 3.9.9 was
+    installed and on PATH. 089m's NOT_RUN WARN did not fire
+    because the tags said RED/GREEN, not NOT_RUN. 089o closes
+    that loophole: the overclaim FAILs, and the probe-substantiation
+    rule attacks the assume-unavailable root cause.
+
+    Design (preserves 089m's reward-honesty): an honest NOT_RUN
+    with a phase5_env.log showing a FAILED probe still WARN-passes.
+    The FAIL targets only the dishonest combinations — RED/GREEN
+    over a by-inspection body, and NOT_RUN contradicted by an
+    available-runner probe.
+
+    Mutation-bite evidence (per ai_context/DEVELOPMENT_PROCESS.md):
+    - Remove the `if overclaim_receipts:` FAIL block in
+      quality_gate.py → test_overclaim_red_green_body_fails stops
+      FAILing (the overclaim fixture would PASS).
+    - Remove the `if probe_ok is True:` escalation branch →
+      test_not_run_but_runner_available_fails stops FAILing.
+    - Remove the `if not phase5_env_present:` FAIL →
+      test_missing_phase5_env_log_fails stops FAILing.
+    All three bites executed PASS → FAIL → PASS during 089o
+    development.
+    """
+
+    @staticmethod
+    def _make_executed_bug(tree, bug_id="BUG-001"):
+        """add_one_bug already produces a real-execution fixture:
+        RED/GREEN receipts with plain runner output (no markers)
+        and a success-probe phase5_env.log. Return it unchanged —
+        this is the legitimate baseline the overclaim FAIL must
+        NOT touch."""
+        add_one_bug(tree, bug_id=bug_id)
+        return tree
+
+    def test_overclaim_red_green_body_fails(self):
+        """A RED/GREEN receipt whose body contains a non-execution
+        marker is an overclaim → FAIL, gate FAILED. The phase5_env
+        probe shows the runner available (so the only defect is
+        the overclaim itself)."""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree, bug_id="BUG-001")
+        # Overclaim: tag says RED, body admits inspection-only.
+        tree["quality/results/BUG-001.red.log"] = (
+            "RED\n"
+            "VERIFIED BY INSPECTION (sandbox cannot compile the "
+            "project; Maven is not available).\n"
+        )
+        # phase5_env.log shows the runner WAS available — so the
+        # honest move would have been to actually run it.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: mvn -version\nApache Maven 3.9.9\nExit code: 0\n"
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "BUG-001.red.log tagged RED but body admits "
+            "non-execution", stdout,
+            "089o: a RED receipt with a by-inspection body must "
+            "FAIL as an overclaim, naming the bug + phrase.",
+        )
+        self.assertIn(
+            "TDD receipt(s) overclaim", stdout,
+            "089o: the rolled-up overclaim count must be visible",
+        )
+        self.assertIn("RESULT: GATE FAILED", stdout)
+        self.assertEqual(code, 1)
+
+    def test_overclaim_not_flagged_on_not_run_receipt(self):
+        """The SAME non-execution body under a NOT_RUN tag must NOT
+        trigger the overclaim FAIL — NOT_RUN + an honest
+        explanation is exactly correct (089m honest-skip path).
+        The run WARN-passes."""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree, bug_id="BUG-001")
+        # Same by-inspection prose, but honestly tagged NOT_RUN.
+        not_run_body = (
+            "NOT_RUN\n"
+            "Maven is not available in this environment; could "
+            "not run the regression test.\n"
+        )
+        tree["quality/results/BUG-001.red.log"] = not_run_body
+        tree["quality/results/BUG-001.green.log"] = not_run_body
+        # Honest NOT_RUN → phase5_env.log shows a FAILED probe.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: mvn -version\n"
+            "zsh: command not found: mvn\nExit code: 127\n"
+        )
+        tree["quality/results/tdd-results.json"] = json.dumps({
+            "schema_version": "1.1",
+            "skill_version": "1.4.4",
+            "date": today_iso(),
+            "project": "testproj",
+            "bugs": [{
+                "id": "BUG-001",
+                "requirement": "REQ-001",
+                "red_phase": "not_run",
+                "green_phase": "not_run",
+                "verdict": "confirmed open",
+                "fix_patch_present": True,
+                "writeup_path": "quality/writeups/BUG-001.md",
+            }],
+            "summary": {"total": 1, "verified": 0,
+                        "confirmed_open": 1, "red_failed": 0,
+                        "green_failed": 0},
+        }, indent=2)
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotIn(
+            "tagged RED but body admits", stdout,
+            "089o: NOT_RUN + a by-inspection body must NOT trigger "
+            "the overclaim FAIL — that's the honest-skip path.",
+        )
+        self.assertNotIn(
+            "tagged GREEN but body admits", stdout,
+            "089o: NOT_RUN + a by-inspection body must NOT trigger "
+            "the overclaim FAIL.",
+        )
+        self.assertIn(
+            "WARN: TDD red/green cycle not executed", stdout,
+            "089m honest-skip WARN must still fire for NOT_RUN",
+        )
+        self.assertIn("RESULT: GATE PASSED", stdout)
+        self.assertEqual(code, 0)
+
+    def test_real_execution_red_green_passes(self):
+        """A RED/GREEN run with plain real runner output (no
+        markers) + a success-probe phase5_env.log must NOT trigger
+        the overclaim FAIL — gate PASSES. This is the legitimate
+        baseline (add_one_bug's default)."""
+        tree = minimal_zero_bug_tree()
+        self._make_executed_bug(tree, bug_id="BUG-001")
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotIn(
+            "overclaim", stdout,
+            "089o: a real-execution RED/GREEN run must not be "
+            "flagged as an overclaim — false positive.",
+        )
+        self.assertNotIn(
+            "tagged RED but body admits", stdout,
+        )
+        self.assertIn("RESULT: GATE PASSED", stdout)
+        self.assertEqual(code, 0)
+
+    def test_honest_not_run_with_failed_probe_warn_passes(self):
+        """NOT_RUN receipts + a phase5_env.log showing the probe
+        FAILED (command not found, exit 127) → 089m WARN still
+        fires, gate PASSES. Honesty preserved, 089m unchanged."""
+        tree = minimal_zero_bug_tree()
+        TestTDDNotRunWarn089m._make_not_run_bug(tree, bug_id="BUG-001")
+        # _make_not_run_bug already writes a failed-probe
+        # phase5_env.log (exit 127, command not found).
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "WARN: TDD red/green cycle not executed", stdout,
+            "089o: honest NOT_RUN + failed probe must stay at "
+            "WARN (089m path unchanged).",
+        )
+        self.assertNotIn(
+            "phase5_env.log shows the test runner IS available",
+            stdout,
+            "089o: a FAILED probe must NOT trigger the NOT_RUN-but-"
+            "available escalation.",
+        )
+        self.assertIn("RESULT: GATE PASSED", stdout)
+        self.assertEqual(code, 0)
+
+    def test_not_run_but_runner_available_fails(self):
+        """NOT_RUN receipts + a phase5_env.log showing the runner
+        WAS available (clean version probe, exit 0) → FAIL. This
+        is the assume-unavailable root cause: the agent had a
+        working runner and recorded NOT_RUN anyway."""
+        tree = minimal_zero_bug_tree()
+        TestTDDNotRunWarn089m._make_not_run_bug(tree, bug_id="BUG-001")
+        # Override the failed-probe log with a SUCCESSFUL probe —
+        # the runner was available, yet receipts say NOT_RUN.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: mvn -version\n"
+            "Apache Maven 3.9.9\n"
+            "Java version: 21.0.2\n"
+            "Exit code: 0\n"
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "phase5_env.log shows the test runner IS available",
+            stdout,
+            "089o: NOT_RUN receipts contradicted by an available-"
+            "runner probe must escalate to FAIL.",
+        )
+        self.assertIn("RESULT: GATE FAILED", stdout)
+        self.assertEqual(code, 1)
+
+    def test_missing_phase5_env_log_fails(self):
+        """Confirmed bugs but no quality/results/phase5_env.log →
+        FAIL. The Phase 5 runner probe is a required artifact when
+        bugs are present."""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree, bug_id="BUG-001")
+        del tree["quality/results/phase5_env.log"]
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "phase5_env.log is missing", stdout,
+            "089o: a run with confirmed bugs must capture the "
+            "test-runner probe to quality/results/phase5_env.log.",
+        )
+        self.assertIn("RESULT: GATE FAILED", stdout)
+        self.assertEqual(code, 1)
+
+    def test_no_bugs_does_not_require_phase5_env_log(self):
+        """Zero-bug runs need no phase5_env.log — the probe
+        requirement is gated on bug_count > 0 (the TDD-log check
+        short-circuits earlier on zero bugs)."""
+        tree = minimal_zero_bug_tree()
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotIn(
+            "phase5_env.log is missing", stdout,
+            "089o: zero-bug runs must not require phase5_env.log.",
         )
         self.assertEqual(code, 0)
 

@@ -1161,6 +1161,105 @@ def read_first_line_stripped(path):
     return re.sub(r"\s", "", line)
 
 
+def read_full_text(path):
+    """Return the full file body as text, or '' on any IO error.
+
+    v1.5.7 089o: the TDD-receipt overclaim check needs the WHOLE
+    receipt body (not just the first-line tag) to scan for non-
+    execution markers. read_first_line_stripped covers the tag;
+    this covers the body."""
+    if not path.is_file():
+        return ""
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
+    except OSError:
+        return ""
+
+
+# v1.5.7 089o (#329): non-execution markers. A TDD receipt whose
+# first-line tag is RED or GREEN asserts the test was actually
+# run; if its body ALSO contains one of these phrases it is an
+# overclaim — a by-inspection prediction mislabeled as an
+# empirical result — and the gate FAILs it. The 2026-05-21 gson
+# run recorded all 15 receipts RED/GREEN with bodies reading
+# "VERIFIED BY INSPECTION (sandbox cannot compile gson; Maven is
+# not available)" on a machine where Maven was installed and on
+# PATH. Matched case-insensitively as substrings against the
+# receipt body. NOT matched against NOT_RUN receipts — NOT_RUN +
+# an honest non-execution explanation is exactly correct (the
+# 089m honest-skip WARN path).
+_TDD_OVERCLAIM_MARKERS = (
+    "by inspection",
+    "verified by inspection",
+    "did not execute",
+    "not executed",
+    "could not run",
+    "cannot run",
+    "couldn't run",
+    "cannot compile",
+    "can't compile",
+    "not available",
+    "sandbox cannot",
+    "without running",
+    "without executing",
+    "predictions, not observations",
+    "no maven",
+    "no test runner",
+)
+
+
+def _first_overclaim_marker(body):
+    """Return the first non-execution marker found in ``body``
+    (case-insensitive), or None. Used to FAIL a RED/GREEN receipt
+    whose body admits the test was not actually run."""
+    low = body.lower()
+    for marker in _TDD_OVERCLAIM_MARKERS:
+        if marker in low:
+            return marker
+    return None
+
+
+def _phase5_probe_succeeded(log_text):
+    """Heuristic read of quality/results/phase5_env.log: did the
+    test-runner version probe SUCCEED (runner available)?
+
+    Returns True only on positive evidence of success, False on
+    positive evidence of failure, None when genuinely ambiguous.
+
+    v1.5.7 089o Task 2: the caller escalates a NOT_RUN run to FAIL
+    ONLY on a confident True — so ambiguity (None) and a failed
+    probe (False) both keep the honest-skip path at WARN (089m
+    philosophy: never FAIL an honest NOT_RUN). An explicit exit
+    code is the strongest signal; failing that, command-not-found-
+    style markers indicate failure and a version string with no
+    failure marker indicates success."""
+    if not log_text or not log_text.strip():
+        return None
+    low = log_text.lower()
+    # Strongest signal: an explicit captured exit code.
+    m = re.search(r"exit[ _]?code[ :=]+(\d+)", low)
+    if m:
+        return m.group(1) == "0"
+    # No explicit exit code — fall back to markers.
+    failure_markers = (
+        "command not found",
+        "not found",
+        "no such file",
+        "cannot execute",
+        "permission denied",
+        "is not recognized",  # Windows "X is not recognized as ..."
+    )
+    if any(fm in low for fm in failure_markers):
+        return False
+    # A version line ("X version 1.2.3" / "v1.2.3") with no failure
+    # marker is positive evidence the probe ran and the runner is
+    # present.
+    if re.search(r"version", low) and re.search(r"\d+\.\d+", low):
+        return True
+    return None
+
+
 def validate_iso_date(date_str):
     """Return one of: 'valid', 'placeholder', 'future', 'bad_format', 'empty'.
 
@@ -1589,6 +1688,10 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     # didn't happen, so adopters don't read GATE PASSED as more
     # than it covers).
     bugs_with_not_run = 0
+    # v1.5.7 089o (#329): receipts tagged RED/GREEN whose body
+    # admits non-execution ("by inspection" etc.) — overclaims.
+    # Each entry is (bug_id, phase, marker).
+    overclaim_receipts = []
 
     for bid in bug_ids:
         red_log = results_dir / f"{bid}.red.log"
@@ -1598,6 +1701,12 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
             red_tag = read_first_line_stripped(red_log)
             if red_tag not in valid_tags:
                 red_bad_tag += 1
+            # 089o: a RED/GREEN tag asserts real execution. If the
+            # body admits non-execution, that's an overclaim → FAIL.
+            if red_tag in ("RED", "GREEN"):
+                marker = _first_overclaim_marker(read_full_text(red_log))
+                if marker is not None:
+                    overclaim_receipts.append((bid, "red", marker))
         else:
             red_missing += 1
 
@@ -1611,6 +1720,12 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
                 green_tag = read_first_line_stripped(green_log)
                 if green_tag not in valid_tags:
                     green_bad_tag += 1
+                if green_tag in ("RED", "GREEN"):
+                    marker = _first_overclaim_marker(
+                        read_full_text(green_log)
+                    )
+                    if marker is not None:
+                        overclaim_receipts.append((bid, "green", marker))
             else:
                 green_missing += 1
 
@@ -1645,24 +1760,88 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     elif green_found > 0:
         pass_("All green-phase logs have valid status tags")
 
-    # v1.5.7 089m (#326 cheap half): WARN when one or more bugs
-    # have NOT_RUN red/green receipts. NOT_RUN is an honestly-marked,
-    # legitimate state (an environment that can't run the build
-    # records NOT_RUN per quality/RUN_TDD_TESTS.md), so this is
-    # WARN, NOT FAIL — the gate still PASSES on honest NOT_RUN.
-    # The point is surfacing the gap so "GATE PASSED" isn't read
-    # as covering empirical red→green proof that never happened.
-    # The fuller verdict-qualifier ("PASSED — TDD not executed")
-    # is tracked in v1.6.x verdict-taxonomy work.
-    if bugs_with_not_run > 0:
-        warn(
-            f"TDD red/green cycle not executed for {bugs_with_not_run} "
-            f"of {len(bug_ids)} confirmed bug(s) (receipts marked "
-            f"NOT_RUN). These bugs are patch-applicable and reasoned, "
-            f"but not empirically proven by a failing-then-passing "
-            f"test. Run quality/RUN_TDD_TESTS.md to complete the "
-            f"red/green cycle."
+    # v1.5.7 089o (#329) Task 1: FAIL on RED/GREEN overclaim. A
+    # receipt tagged RED or GREEN asserts the test was actually
+    # executed; a body that admits non-execution ("by inspection",
+    # "Maven is not available", etc.) under that tag is a
+    # prediction mislabeled as an observation. This is the
+    # dishonest combination 089m's NOT_RUN WARN could not catch
+    # (the gson run mislabeled 15 by-inspection receipts RED/GREEN
+    # so the first-line tag never said NOT_RUN). The remedy for an
+    # agent that can't execute is to run it for real OR tag
+    # NOT_RUN honestly (→ WARN, still passes) — so this FAIL
+    # targets only the overclaim, never honesty.
+    if overclaim_receipts:
+        for bid, phase, marker in overclaim_receipts:
+            tag = "RED" if phase == "red" else "GREEN"
+            fail(
+                f"{bid}.{phase}.log tagged {tag} but body admits "
+                f"non-execution (\"{marker}\"). A RED/GREEN tag "
+                f"asserts the test was actually run. Run the test "
+                f"for real (capture real runner output) or mark the "
+                f"receipt NOT_RUN (which WARN-passes per the honest-"
+                f"skip path)."
+            )
+        fail(
+            f"{len(overclaim_receipts)} TDD receipt(s) overclaim: "
+            f"tagged RED/GREEN over a by-inspection / non-execution "
+            f"body. A RED/GREEN tag must be backed by real test "
+            f"execution."
         )
+
+    # v1.5.7 089o (#329) Task 2: phase5_env.log probe substantiation.
+    # A run with confirmed bugs must capture the test-runner probe
+    # (mvn -version / pytest --version / cargo --version / go
+    # version, with stdout+stderr+exit code) to
+    # quality/results/phase5_env.log BEFORE any RED/GREEN/NOT_RUN
+    # determination — this is what forces the agent to actually
+    # check runner availability rather than assume it.
+    phase5_env_log = results_dir / "phase5_env.log"
+    phase5_env_present = phase5_env_log.is_file()
+    if not phase5_env_present:
+        fail(
+            "Phase 5 must probe the test runner and capture "
+            "`<tool> --version` (stdout+stderr+exit code) to "
+            "quality/results/phase5_env.log before any RED/GREEN/"
+            "NOT_RUN determination — phase5_env.log is missing."
+        )
+    else:
+        pass_("phase5_env.log present (test-runner probe captured)")
+
+    # v1.5.7 089m (#326 cheap half) + 089o Task 2: handle NOT_RUN
+    # receipts. NOT_RUN is an honestly-marked legitimate state — an
+    # environment that genuinely can't build records NOT_RUN per
+    # quality/RUN_TDD_TESTS.md — so the BASE case is WARN, the gate
+    # still PASSES. 089o escalates ONLY the contradicted case: if
+    # phase5_env.log shows the runner WAS available (a clean
+    # version probe) yet receipts are NOT_RUN, that's the assume-
+    # unavailable root cause — escalate to FAIL. An ambiguous or
+    # failed probe keeps the honest-skip WARN (089m unchanged).
+    if bugs_with_not_run > 0:
+        probe_ok = (
+            _phase5_probe_succeeded(read_full_text(phase5_env_log))
+            if phase5_env_present else None
+        )
+        if probe_ok is True:
+            fail(
+                f"{bugs_with_not_run} of {len(bug_ids)} confirmed "
+                f"bug(s) have receipts marked NOT_RUN, but "
+                f"phase5_env.log shows the test runner IS available "
+                f"(the version probe succeeded). Run the red/green "
+                f"cycle — NOT_RUN is only honest when the probe "
+                f"itself failed. Quote the failing probe output if "
+                f"the runner genuinely cannot run."
+            )
+        else:
+            warn(
+                f"TDD red/green cycle not executed for "
+                f"{bugs_with_not_run} of {len(bug_ids)} confirmed "
+                f"bug(s) (receipts marked NOT_RUN). These bugs are "
+                f"patch-applicable and reasoned, but not empirically "
+                f"proven by a failing-then-passing test. Run "
+                f"quality/RUN_TDD_TESTS.md to complete the red/green "
+                f"cycle."
+            )
 
     # Sidecar-to-log cross-validation (BUG-M18)
     if tdd_data is not None and isinstance(tdd_data, dict):

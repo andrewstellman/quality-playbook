@@ -329,10 +329,24 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # (each prompt is its own file; 085 touched only phase3/phase5).
         # Hashes recomputed — this baseline update IS the sanctioned
         # change-acknowledgement signal.
+        # v1.5.7 instruction 089o (#329): phase5.md step 4 (the TDD
+        # red-green cycle) gained the probe-first contract — probe
+        # the test runner FIRST and capture quality/results/
+        # phase5_env.log; a RED/GREEN tag asserts real execution
+        # (a by-inspection prediction under it is an overclaim that
+        # FAILs the gate); NOT_RUN only with a non-zero probe whose
+        # output is quoted. phase5 codepoint length 16790 → 17635.
+        # phase1/2/3/4/6/single_pass/iteration UNCHANGED (089o
+        # touched only phase5 among the run_playbook-rendered
+        # prompts; references/iteration.md + references/
+        # phase2_generation_guide.md were also edited but those are
+        # NOT run_playbook-rendered prompts and carry no
+        # EXPECTED_HASHES entry). Hash recomputed — this baseline
+        # update IS the sanctioned change-acknowledgement signal.
         "phase2":                (10096, "ecb68817dfdacc979d9dca4c5765e179e209e0970a4633df717856ab5a1f2e3f"),
         "phase3":                (10969, "f9270b90cf41f73000844ecec2739d7de5177cbe2cdc779bf9d6dcaee2846b79"),
         "phase4":                ( 3911, "923e0198ca39182397e118f45452afcfde54731a46f5414bcd99431812af752f"),
-        "phase5":                (16790, "4dedef4a3fb29832bac1ec4699c64f073d3d7b976b37239442a4477a56851502"),
+        "phase5":                (17635, "14887e2e516a53a5ecbeefa2ba0cc0de594284eeadc5f1a34cc76eca35435941"),
         # v1.5.7 instruction 071 (A-13 hybrid): phase6.md rewritten
         # for fresh-context sub-agent delegation of Phase 6
         # verification (principled A-17 exception). The old inline

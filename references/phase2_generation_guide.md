@@ -312,6 +312,8 @@ When a bug is fixed (fix patch applied permanently), remove the skip guard and u
 
 **TDD execution enforcement (mandatory).** Regression tests must be actually executed during the TDD verification cycle, not just generated as patch files. For every confirmed bug, the red-phase test run must produce a log file at `quality/results/BUG-NNN.red.log` capturing the test output. The green-phase (if a fix patch exists) must produce `quality/results/BUG-NNN.green.log`. Each log file's first line must be a status tag: `RED` (test failed as expected), `GREEN` (test passed after fix), `NOT_RUN` (test could not be executed — with explanation), or `ERROR` (test infrastructure failed — with explanation).
 
+**Probe the test runner first (v1.5.7 089o).** Before recording ANY red/green/NOT_RUN verdict, run the runner's version probe (`mvn -version`, `pytest --version`, `cargo --version`, `go version`, etc.) and capture stdout+stderr+exit code to `quality/results/phase5_env.log`. This artifact is required when confirmed bugs exist — the gate FAILs without it. If the probe **succeeds**, the runner IS available and you MUST actually execute the regression tests: a `RED`/`GREEN` first-line tag asserts the test was really run. A by-inspection prediction recorded under a `RED`/`GREEN` tag is an **overclaim** and FAILs the gate; recording `NOT_RUN` while `phase5_env.log` shows the runner available also FAILs. You may record `NOT_RUN` **only if** the probe (or the test run itself) exits non-zero AND no alternative runner is reachable — and you MUST quote the failing probe/run output in the log as evidence. "I assumed it wasn't available" / "by inspection" / "the sandbox can't run it" is NOT acceptable evidence. (Mode A agents run on the operator's real machine via the Bash tool — a `which <tool>` probe costs one line; do not conflate your model-level "I can't natively execute" with the shell you DO have.)
+
 **Language-aware test execution commands.** Use the project's native test runner to execute regression tests. Detect the project language and use the appropriate command:
 
 - **Go:** `go test -v -run TestBugNNN ./path/to/package`
@@ -324,7 +326,7 @@ When a bug is fixed (fix patch applied permanently), remove the skip guard and u
 - **TypeScript/JavaScript (Vitest):** `npx vitest run --reporter=verbose --testNamePattern="BUG-NNN"`
 - **C (kernel/make-based):** Source-inspection tests via shell script (grep/awk on source files) — log the script output.
 
-If the project uses a language or test framework not listed above, use whatever test runner the project already uses (check for `Makefile`, `package.json`, `build.gradle`, `Cargo.toml`, `go.mod`, `setup.py`, `pyproject.toml`, etc.) and adapt the pattern. If no test runner is available or the language runtime is not installed, record `NOT_RUN` with an explanation — do not skip the log file entirely.
+If the project uses a language or test framework not listed above, use whatever test runner the project already uses (check for `Makefile`, `package.json`, `build.gradle`, `Cargo.toml`, `go.mod`, `setup.py`, `pyproject.toml`, etc.) and adapt the pattern. Record `NOT_RUN` with an explanation **only after** the runner probe (captured to `quality/results/phase5_env.log`) actually exits non-zero — a probed-and-failed runner, not an assumed-unavailable one. Quote the failing probe output. Do not skip the log file entirely.
 
 **Log capture format.** Each `BUG-NNN.red.log` and `BUG-NNN.green.log` must follow this format:
 ```
@@ -335,7 +337,7 @@ Exit code: [exit code]
 [full stdout/stderr from test execution]
 ```
 
-The status tag (`RED`, `GREEN`, `NOT_RUN`, `ERROR`) on the first line is machine-readable — `quality_gate.py` will check for its presence. The `NOT_RUN` status is acceptable when the test runner is unavailable (e.g., a C project where the kernel build environment is not present), but the log file must still exist with an explanation of why the test could not be executed.
+The status tag (`RED`, `GREEN`, `NOT_RUN`, `ERROR`) on the first line is machine-readable — `quality_gate.py` will check for its presence. The `NOT_RUN` status is acceptable when the test runner is genuinely unavailable (e.g., a C project where the kernel build environment is not present) — but "genuinely unavailable" means the runner probe in `quality/results/phase5_env.log` actually exited non-zero, NOT that the agent assumed unavailability. The gate (v1.5.7 089o) FAILs a `NOT_RUN` receipt whose `phase5_env.log` shows the runner WAS available, and FAILs a `RED`/`GREEN` receipt whose body admits non-execution ("by inspection" / "could not run"). The log file must still exist with an explanation, and that explanation must quote the failing probe output.
 
 **Ready-to-run TDD log template.** For each confirmed BUG-NNN, execute this sequence (adapt the test command for the project's language per the table above):
 
@@ -354,7 +356,7 @@ printf 'GREEN\n--- Test output for BUG-NNN green phase ---\nCommand: %s\nExit co
   "$TEST_CMD" "$EXIT" "$OUTPUT" > quality/results/BUG-NNN.green.log
 ```
 
-Run this for every confirmed bug. If the test runner is not available, create the log file with `NOT_RUN` on the first line and an explanation. Do not skip this step — the TDD Log Closure Gate in Phase 5 will block completion if logs are missing.
+Run this for every confirmed bug. Probe the runner first and capture the probe to `quality/results/phase5_env.log`; if the probe succeeds you MUST run the tests for real. Record `NOT_RUN` only when the probe itself exited non-zero (quote that output in the log). Do not skip this step — the TDD Log Closure Gate in Phase 5 will block completion if logs are missing, and the overclaim/probe checks (v1.5.7 089o) FAIL a `RED`/`GREEN` tag over a by-inspection body.
 
 **TDD execution gate.** Before the terminal gate in Phase 5, verify that for every confirmed bug in `quality/BUGS.md`, a corresponding `quality/results/BUG-NNN.red.log` exists. Bugs without red-phase logs are incomplete — the regression test patch exists but was never proven to detect the bug. This gate exists because v1.3.45 benchmarking showed that most repos generate regression test patches but never execute them, leaving the TDD verdict unverified.
 
