@@ -579,10 +579,10 @@ v1.5.7 is a cleanup release that makes v1.5.6's runner output research-grade, fo
 - **Centralized log emission at `quality/logs/<run-id>/` (D3).** All log emission for a given run lands under one directory inside the cell. The `--logs-flat` legacy flag is available for adopters whose tooling reads from the old scattered paths. `quality/logs/` is included in the suggested `.gitignore` template.
 - **`metrics/` formalization (D4).** The `metrics/` tree (recall data, calibration ledgers, regression-replay output) is now formally documented in [`metrics/README.md`](metrics/README.md). A reconstruction script rebuilds historical Q1+Q2 data from current artifacts so v1.7's SPC machinery has a stable input shape.
 - **`SKILL.md` trim (D5).** Phase-specific reference-grade content moved from `SKILL.md` into `references/` files (same skill, same install, same behavior). Per-phase token cost is now better aligned with the existing phase architecture's isolation principle. The awesome-copilot Skill Validator's "comprehensive skill" warning prompted this; the underlying observation that every phase invocation loaded the full SKILL.md regardless of relevance was correct. SKILL.md dropped from 66,332 to 26,162 BPE tokens via pure move (no semantic changes, mechanical equivalence verified).
-- **Council resilience and override layer (D6).** Phase 4 Council roster updated to `claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6` (replacing `gemini-2.5-pro` which the Copilot CLI silently dropped support for during the v1.5.6 sweep — observed under the then-active `gh copilot` extension and still missing under the new standalone `copilot` CLI per 089f). Fast-fail availability detection at launch: graceful 2-of-2 degradation when one member is unreachable, hard-fail when two or more are. Adopters can now override the roster locally via `~/.qpb/config.json` (or `$XDG_CONFIG_HOME/qpb/config.json`) without editing source. A structured failure-recovery template guides recovery when an installed roster decays over time.
+- **Council resilience and override layer (D6).** Phase 4 Council roster updated to `claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6` (replacing `gemini-2.5-pro` which the Copilot CLI silently dropped support for during the v1.5.6 sweep — observed under the then-active `gh copilot` extension and still missing under the new standalone `copilot` CLI per 089f). Adopters can now override the roster locally via `~/.qpb/config.json` (or `$XDG_CONFIG_HOME/qpb/config.json`) without editing source. v1.5.7 ships the roster modernization (sub-phase 6a) and this adopter override (6c); two further D6 sub-phases — fast-fail Council-launch availability detection (6b) and a structured failure-recovery template (6d) — are deferred to v1.5.7.x.
 - **Ship-readiness fixes (F-1 through F-8).** Install/version detection now uses canonical six-layout markers instead of accepting any root `SKILL.md` as proof of install (F-1). Operator-facing six-layout fallback prose is consistent across SKILL.md, TOOLKIT, verification, review_protocols, and challenge_gate (F-2). *(Historical: the F-1/F-2 marker set was six layouts at v1.5.6; v1.5.7 expanded it to the canonical ten-layout list per A-3 + A-10 + A-11.)* `setup_repos.sh` archives existing target dirs as `.tar.gz` rather than deleting (F-3). The workspace/ guardrail also fails on empty workspace directories (F-4 amendment). A `run_playbook.sh` wrapper installs into target repos via `setup_repos.sh` for three-mode runner accessibility (F-5b). Runner hint clarity on gate-failure-preservation state (F-6). Phase 3 BUGS.md/patches consistency gate check (F-7). The Phase 5 verdict shape is mechanically enforced as `## Verdict\n<PASS|FAIL>` (F-8).
 - **Self-audit closures from ship-validation.** Three independent ship-validation runs (Codex bootstrap + chi/cobra copilot benchmarks on a fresh clone of the `v1.5.7` tag) surfaced 12 self-defects in v1.5.7 itself; all 12 are fixed (BUG-001 through BUG-007 from the bootstrap + Q1 through Q5 from the chi/cobra runs). The combined PROGRESS.md two-form schema not-in-drift test gives the deliverable-form and automation-form schemas a single shared test surface for future drift detection.
-- **Test suite.** `bin/tests`: 1359 OK / 0 fail / 8 skipped. Quality-gate tests: 257 OK.
+- **Test suite.** `bin/tests`: 1661 OK / 0 fail / 7 skipped. Quality-gate tests: 298 OK.
 
 ### What's new in v1.5.6
 
@@ -815,7 +815,7 @@ v1.5.7 is a cleanup release that makes v1.5.6's runner output research-grade, fo
   explains the recommended AI-driven install flow concisely (clone QPB →
   open clone in AI tool → ask AI to install) plus the auto-detection
   behavior, the `--ai-tool` and `--target` fallbacks when detection fails,
-  the Python 3.9+ prerequisite, and a link to the manual `cp` recipes for
+  the Python 3.10+ prerequisite, and a link to the manual `cp` recipes for
   operators who skip the AI handoff. First-time adopters now have a
   90-second readable overview before the detailed walkthrough.
 - **`--ai-tool <name>` flag for explicit AI-tool selection (post-original-tag, instruction 064).**
@@ -1124,7 +1124,7 @@ quality-playbook/
 ├── agents/                  # Orchestrator agent files for autonomous runs
 │   ├── quality-playbook-claude.agent.md   # Claude Code orchestrator (sub-agent architecture)
 │   └── quality-playbook.agent.md          # General-purpose orchestrator
-├── bin/                     # Standard-library runner package (Python 3.8+)
+├── bin/                     # Standard-library runner package (Python 3.10+)
 │   ├── __init__.py
 │   ├── benchmark_lib.py     # Shared logging, cleanup, artifact discovery, and summary helpers
 │   ├── run_playbook.py      # Main entry point — positional args are target directories; defaults to cwd

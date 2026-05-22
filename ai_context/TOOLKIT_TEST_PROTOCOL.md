@@ -2,7 +2,7 @@
 
 > Release-gate review for `TOOLKIT.md` and the orientation docs that reference it. Applies the same empirical-loop discipline that `IMPROVEMENT_LOOP.md` describes for the playbook itself, but to the documentation: surface problems through a panel of independent readers, fix them, re-test until convergence.
 
-*Last updated: 2026-05-14 (v1.5.7 ship — rubric, convergence criterion, and orchestration mechanics unchanged from v1.5.6. v1.5.7 release-gate run added Persona 22 below (post-abort recovery walkthrough) to test v1.5.7 D1+D3+D6 awareness; existing personas confirmed current via the 5-persona TTP fanout in instruction 036 (10/12/20/21/22 all PASS with convergence; one DOC GAP at TOOLKIT.md F-5b mention closed via Cowork-direct).*
+*Last updated: 2026-05-22 (v1.5.7-final — rubric, convergence criterion, and orchestration mechanics unchanged from v1.5.6. v1.5.7 release-gate run added Persona 22 below (post-abort recovery walkthrough) to test v1.5.7 D1+D3+D6 awareness; existing personas confirmed current via the 5-persona TTP fanout in instruction 036 (10/12/20/21/22 all PASS with convergence; one DOC GAP at TOOLKIT.md F-5b mention closed via Cowork-direct). 089r currency pass: Persona 7's expected answer updated to the v1.5.7 probe-first TDD contract — `NOT_RUN` is honest only when a runner probe actually failed; the gate WARNs on `NOT_RUN` and FAILs an inspection-only `RED`/`GREEN` overclaim (the 089m → 089q TDD-credibility arc).*
 
 ## Purpose
 
@@ -66,7 +66,7 @@ Tests: model-requirement awareness; surface-area-as-theater risk articulation; p
 
 > Our test runner doesn't work in our CI environment. The TDD logs show NOT_RUN. Are the bugs still verified? Can I trust the bug reports?
 
-Tests: NOT_RUN-as-acknowledgment-not-verification distinction.
+Tests: the v1.5.7 probe-first TDD contract. A correct answer says `NOT_RUN` is a *legitimate honest skip* — the bugs are confirmed by code-path trace at the documented evidentiary standard, but they are NOT empirically TDD-verified (no executed red→green proof), so treat the reports as reasoned, not observed. It must also surface the v1.5.7 contract: the agent is required to **probe the test runner first** (capturing `quality/results/phase5_env.log`) and run it in default online mode; `NOT_RUN` is honest *only when that probe actually failed* — an *assumed*-unavailable runner is not acceptable. The gate FAILs a `NOT_RUN` receipt contradicted by a probe showing the runner available, and FAILs a `RED`/`GREEN` receipt that admits non-execution or carries no runner output (089m WARN / 089o + 089q overclaim FAIL). The right operator move when the runner genuinely can be made to work: tell the agent so, and have it re-run the red→green cycle for real.
 
 ### Persona 8 — The methodology challenger
 
