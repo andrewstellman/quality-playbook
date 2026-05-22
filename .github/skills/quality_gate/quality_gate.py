@@ -1179,45 +1179,170 @@ def read_full_text(path):
 
 # v1.5.7 089o (#329): non-execution markers. A TDD receipt whose
 # first-line tag is RED or GREEN asserts the test was actually
-# run; if its body ALSO contains one of these phrases it is an
-# overclaim — a by-inspection prediction mislabeled as an
-# empirical result — and the gate FAILs it. The 2026-05-21 gson
-# run recorded all 15 receipts RED/GREEN with bodies reading
-# "VERIFIED BY INSPECTION (sandbox cannot compile gson; Maven is
-# not available)" on a machine where Maven was installed and on
-# PATH. Matched case-insensitively as substrings against the
-# receipt body. NOT matched against NOT_RUN receipts — NOT_RUN +
-# an honest non-execution explanation is exactly correct (the
-# 089m honest-skip WARN path).
+# run; if its agent-authored summary ALSO contains one of these
+# phrases it is an overclaim — a by-inspection prediction
+# mislabeled as an empirical result — and the gate FAILs it. The
+# 2026-05-21 gson run recorded all 15 receipts RED/GREEN with
+# bodies reading "VERIFIED BY INSPECTION (sandbox cannot compile
+# gson; Maven is not available)" on a machine where Maven was
+# installed and on PATH. Matched case-insensitively as substrings
+# against the receipt's SUMMARY REGION only (v1.5.7 089q D1 —
+# see _receipt_summary_region; the runner transcript is off-
+# limits). NOT matched against NOT_RUN receipts — NOT_RUN + an
+# honest non-execution explanation is exactly correct (the 089m
+# honest-skip WARN path).
+# v1.5.7 089q (D1): NARROWED to unambiguous self-admissions only.
+# The 089o list also carried runner-output-collision phrases —
+# "cannot compile", "can't compile", "not available", "no maven",
+# "no test runner", "cannot run" / "could not run" / "couldn't run"
+# — which legitimately appear in REAL runner/compiler output. A
+# red-phase TDD test that genuinely doesn't compile yet (the
+# canonical RED scenario) emits "cannot compile"; runner stderr
+# emits "module X not available". Matching those as raw substrings
+# FAILed the exact honest case 089o exists to protect. 089q keeps
+# ONLY phrases an agent writes when narrating that it did NOT run
+# the test — phrases that do not occur in ordinary runner output —
+# AND scans them only in the agent-authored summary region (see
+# _receipt_summary_region). The false-negatives this narrowing
+# opens up are closed by the D2 positive-execution-evidence
+# requirement, not by a broad marker net.
 _TDD_OVERCLAIM_MARKERS = (
     "by inspection",
     "verified by inspection",
     "did not execute",
     "not executed",
-    "could not run",
-    "cannot run",
-    "couldn't run",
-    "cannot compile",
-    "can't compile",
-    "not available",
-    "sandbox cannot",
     "without running",
     "without executing",
     "predictions, not observations",
-    "no maven",
-    "no test runner",
+    "i assumed",
+    "sandbox cannot",
+)
+
+# v1.5.7 089q (D2): affirmative execution signatures. When the
+# Phase 5 probe shows the runner available, a RED/GREEN receipt
+# MUST carry at least one of these — structured evidence the test
+# was actually run. The documented receipt format
+# (references/phase2_generation_guide.md log-capture template)
+# mandates a `Command:` line and an `Exit code:` line, so a
+# legitimately-executed receipt always has them; the runner-
+# transcript tokens are a secondary signal for receipts that don't
+# follow the exact template. None of these occur in a by-inspection
+# / paraphrased-prediction narration, so a paraphrase-evasion
+# receipt (no marker, no transcript) is caught by their absence.
+_TDD_EXECUTION_SIGNATURES = (
+    "command:",            # documented log-format Command: line
+    "exit code:",          # documented log-format Exit code: line
+    "exit_code:",
+    "tests run:",          # JUnit / Maven Surefire summary
+    "build success",       # Maven
+    "build failure",       # Maven
+    "test session starts",  # pytest session banner
+    "test result:",        # cargo test summary
+    "--- fail:",           # go test
+    "--- pass:",           # go test
 )
 
 
+def _receipt_summary_region(body):
+    """Return the agent-authored leading narration of a TDD receipt
+    — the lines AFTER the first-line status tag and BEFORE the
+    first runner-transcript boundary (a ``` fence, or a line
+    starting ``Command:`` / ``Exit code:`` / ``--- Test output``).
+
+    v1.5.7 089q (D1): overclaim markers are scanned ONLY here, so a
+    phrase like "cannot compile" quoted from genuine runner output
+    in the transcript region cannot trigger a false overclaim
+    FAIL. The summary region is where an agent writes a by-
+    inspection admission; the transcript region is captured tool
+    output and is off-limits to the marker scan."""
+    region = []
+    for i, line in enumerate(body.splitlines()):
+        if i == 0:
+            continue  # the first-line status tag
+        stripped = line.strip()
+        low = stripped.lower()
+        if (stripped.startswith("```")
+                or low.startswith("command:")
+                or low.startswith("exit code:")
+                or low.startswith("exit_code:")
+                or low.startswith("--- test output")):
+            break
+        region.append(line)
+    return "\n".join(region)
+
+
 def _first_overclaim_marker(body):
-    """Return the first non-execution marker found in ``body``
-    (case-insensitive), or None. Used to FAIL a RED/GREEN receipt
-    whose body admits the test was not actually run."""
-    low = body.lower()
+    """Return the first non-execution marker found in the receipt's
+    agent-authored summary region (case-insensitive), or None.
+    Used to FAIL a RED/GREEN receipt whose summary admits the test
+    was not actually run. v1.5.7 089q (D1): scans only
+    _receipt_summary_region, never the runner transcript."""
+    low = _receipt_summary_region(body).lower()
     for marker in _TDD_OVERCLAIM_MARKERS:
         if marker in low:
             return marker
     return None
+
+
+def _has_execution_signature(body):
+    """True if the receipt body carries at least one affirmative
+    execution signature (v1.5.7 089q D2) — structured evidence the
+    test was actually run. Scanned over the WHOLE body (the
+    signature lives in the transcript region, exactly where the
+    summary-region marker scan does NOT look)."""
+    low = body.lower()
+    return any(sig in low for sig in _TDD_EXECUTION_SIGNATURES)
+
+
+# v1.5.7 089q (D3): the phase5_env.log requirement is a NEW v1.5.7
+# (089o) artifact contract. Version-gate it so a pre-089o archived
+# or replayed run — which never produced phase5_env.log — does not
+# spuriously FAIL. Mirrors the gate's existing legacy-tolerance
+# pattern (absent newer artifacts on a pre-version run = legacy,
+# no-op rather than FAIL).
+_PHASE5_ENV_CONTRACT_VERSION = (1, 5, 7)
+
+
+def _parse_version_tuple(version_str):
+    """Parse a dotted version string ("1.5.7", "1.5.7.2") into a
+    tuple of ints, or None if it has no leading numeric component."""
+    if not version_str:
+        return None
+    m = re.match(r"\s*([0-9]+(?:\.[0-9]+)*)", str(version_str))
+    if not m:
+        return None
+    try:
+        return tuple(int(p) for p in m.group(1).split("."))
+    except ValueError:
+        return None
+
+
+def _run_predates_phase5_env_contract(tdd_data, q):
+    """v1.5.7 089q (D3): True when the run's skill/playbook version
+    is older than the 089o phase5_env.log contract (< 1.5.7), so a
+    missing phase5_env.log should WARN rather than FAIL.
+
+    Version source order: tdd-results.json `skill_version` (already
+    parsed into ``tdd_data``), then PROGRESS.md `Skill version:`.
+    If the version cannot be determined, return True — the
+    conservative, non-breaking choice (consistent with the gate's
+    legacy-tolerance pattern: an undeterminable run is treated as
+    legacy rather than hard-FAILed; a current run missing its
+    version stamp fails the dedicated version-stamp checks
+    elsewhere)."""
+    version_str = ""
+    if isinstance(tdd_data, dict):
+        version_str = get_str(tdd_data, "skill_version")
+    if not version_str:
+        progress_md = q / "PROGRESS.md"
+        if progress_md.is_file():
+            version_str = read_skill_value_line(
+                progress_md, "Skill version:"
+            )
+    parsed = _parse_version_tuple(version_str)
+    if parsed is None:
+        return True  # undeterminable → treat as legacy (non-breaking)
+    return parsed < _PHASE5_ENV_CONTRACT_VERSION
 
 
 def _phase5_probe_succeeded(log_text):
@@ -1233,7 +1358,15 @@ def _phase5_probe_succeeded(log_text):
     philosophy: never FAIL an honest NOT_RUN). An explicit exit
     code is the strongest signal; failing that, command-not-found-
     style markers indicate failure and a version string with no
-    failure marker indicates success."""
+    failure marker indicates success.
+
+    TODO(v1.6.x — 089q D4): this heuristic is coarse — first
+    `Exit code` line wins, the version+digits fallback is loose,
+    and there is one global per-run signal with no per-bug /
+    per-runner mapping. Accepted as a v1.5.7 risk because the
+    ambiguous→None→WARN escape prevents false FAILs. The v1.6.x
+    verdict-fidelity track hardens it: per-runner probe mapping +
+    tighter multi-attempt parsing."""
     if not log_text or not log_text.strip():
         return None
     low = log_text.lower()
@@ -1688,25 +1821,37 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     # didn't happen, so adopters don't read GATE PASSED as more
     # than it covers).
     bugs_with_not_run = 0
-    # v1.5.7 089o (#329): receipts tagged RED/GREEN whose body
+    # v1.5.7 089o (#329): receipts tagged RED/GREEN whose SUMMARY
     # admits non-execution ("by inspection" etc.) — overclaims.
     # Each entry is (bug_id, phase, marker).
     overclaim_receipts = []
+    # v1.5.7 089q (D2): every RED/GREEN receipt, with whether its
+    # body carries an affirmative execution signature. Each entry
+    # is (bug_id, phase, has_execution_signature). After the loop,
+    # when the Phase 5 probe shows the runner available, a RED/
+    # GREEN receipt with no signature is an overclaim-by-omission.
+    red_green_receipts = []
 
     for bid in bug_ids:
         red_log = results_dir / f"{bid}.red.log"
         red_tag = None
         if red_log.is_file():
             red_found += 1
+            red_body = read_full_text(red_log)
             red_tag = read_first_line_stripped(red_log)
             if red_tag not in valid_tags:
                 red_bad_tag += 1
             # 089o: a RED/GREEN tag asserts real execution. If the
-            # body admits non-execution, that's an overclaim → FAIL.
+            # summary admits non-execution, that's an overclaim →
+            # FAIL. 089q D2: also record whether the receipt
+            # carries an execution signature.
             if red_tag in ("RED", "GREEN"):
-                marker = _first_overclaim_marker(read_full_text(red_log))
+                marker = _first_overclaim_marker(red_body)
                 if marker is not None:
                     overclaim_receipts.append((bid, "red", marker))
+                red_green_receipts.append(
+                    (bid, "red", _has_execution_signature(red_body))
+                )
         else:
             red_missing += 1
 
@@ -1717,15 +1862,18 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
             green_log = results_dir / f"{bid}.green.log"
             if green_log.is_file():
                 green_found += 1
+                green_body = read_full_text(green_log)
                 green_tag = read_first_line_stripped(green_log)
                 if green_tag not in valid_tags:
                     green_bad_tag += 1
                 if green_tag in ("RED", "GREEN"):
-                    marker = _first_overclaim_marker(
-                        read_full_text(green_log)
-                    )
+                    marker = _first_overclaim_marker(green_body)
                     if marker is not None:
                         overclaim_receipts.append((bid, "green", marker))
+                    red_green_receipts.append(
+                        (bid, "green",
+                         _has_execution_signature(green_body))
+                    )
             else:
                 green_missing += 1
 
@@ -1760,17 +1908,28 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     elif green_found > 0:
         pass_("All green-phase logs have valid status tags")
 
+    # v1.5.7 089o/089q: resolve the Phase 5 runner-probe artifact
+    # and its outcome ONCE, up front — both the 089q D2 positive-
+    # evidence check and the 089m/089o NOT_RUN handling below
+    # depend on whether the probe showed the runner available.
+    phase5_env_log = results_dir / "phase5_env.log"
+    phase5_env_present = phase5_env_log.is_file()
+    probe_ok = (
+        _phase5_probe_succeeded(read_full_text(phase5_env_log))
+        if phase5_env_present else None
+    )
+
     # v1.5.7 089o (#329) Task 1: FAIL on RED/GREEN overclaim. A
     # receipt tagged RED or GREEN asserts the test was actually
-    # executed; a body that admits non-execution ("by inspection",
-    # "Maven is not available", etc.) under that tag is a
-    # prediction mislabeled as an observation. This is the
-    # dishonest combination 089m's NOT_RUN WARN could not catch
-    # (the gson run mislabeled 15 by-inspection receipts RED/GREEN
-    # so the first-line tag never said NOT_RUN). The remedy for an
-    # agent that can't execute is to run it for real OR tag
-    # NOT_RUN honestly (→ WARN, still passes) — so this FAIL
-    # targets only the overclaim, never honesty.
+    # executed; a SUMMARY that admits non-execution ("by
+    # inspection", etc.) under that tag is a prediction mislabeled
+    # as an observation. This is the dishonest combination 089m's
+    # NOT_RUN WARN could not catch (the gson run mislabeled 15
+    # by-inspection receipts RED/GREEN so the first-line tag never
+    # said NOT_RUN). The remedy for an agent that can't execute is
+    # to run it for real OR tag NOT_RUN honestly (→ WARN, still
+    # passes) — so this FAIL targets only the overclaim, never
+    # honesty.
     if overclaim_receipts:
         for bid, phase, marker in overclaim_receipts:
             tag = "RED" if phase == "red" else "GREEN"
@@ -1794,22 +1953,76 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
             f"execution."
         )
 
-    # v1.5.7 089o (#329) Task 2: phase5_env.log probe substantiation.
-    # A run with confirmed bugs must capture the test-runner probe
-    # (mvn -version / pytest --version / cargo --version / go
-    # version, with stdout+stderr+exit code) to
+    # v1.5.7 089q (D2): overclaim BY OMISSION. The D1 narrowing
+    # above only catches a receipt that NARRATES non-execution in
+    # a recognizable phrase — a paraphrased inspection-only receipt
+    # ("derived analytically", "confirmed from reading the source")
+    # slips past it. So: when the Phase 5 probe shows the runner
+    # demonstrably available (probe_ok is True), a RED/GREEN
+    # receipt MUST carry an affirmative execution signature
+    # (Command:/Exit code: line, runner transcript token). A
+    # RED/GREEN receipt with no signature, while the runner was
+    # available, is asserting an execution that left no trace →
+    # FAIL. Honesty preserved (089m): this requirement applies
+    # ONLY when probe_ok is True — a failed/ambiguous probe
+    # (False/None) requires NO evidence, so NOT_RUN stays the
+    # honest WARN/PASS path. A receipt already FAILed for a D1
+    # marker is not double-counted here.
+    if probe_ok is True:
+        _d1_flagged = {(b, p) for b, p, _ in overclaim_receipts}
+        omission_receipts = [
+            (b, p) for b, p, has_sig in red_green_receipts
+            if not has_sig and (b, p) not in _d1_flagged
+        ]
+        for bid, phase in omission_receipts:
+            tag = "RED" if phase == "red" else "GREEN"
+            fail(
+                f"{bid}.{phase}.log tagged {tag} but carries no "
+                f"runner output (overclaim by omission). The Phase "
+                f"5 probe shows the test runner IS available, so a "
+                f"{tag} tag must be backed by a real execution "
+                f"signature (a Command:/Exit code: line or runner "
+                f"transcript). Run the test for real and capture "
+                f"its output, or mark the receipt NOT_RUN."
+            )
+        if omission_receipts:
+            fail(
+                f"{len(omission_receipts)} TDD receipt(s) overclaim "
+                f"by omission: tagged RED/GREEN with the runner "
+                f"available but no captured runner output."
+            )
+
+    # v1.5.7 089o (#329) Task 2 + 089q (D3): phase5_env.log probe
+    # substantiation. A run with confirmed bugs must capture the
+    # test-runner probe (mvn -version / pytest --version / cargo
+    # --version / go version, with stdout+stderr+exit code) to
     # quality/results/phase5_env.log BEFORE any RED/GREEN/NOT_RUN
     # determination — this is what forces the agent to actually
-    # check runner availability rather than assume it.
-    phase5_env_log = results_dir / "phase5_env.log"
-    phase5_env_present = phase5_env_log.is_file()
+    # check runner availability rather than assume it. 089q D3:
+    # phase5_env.log is a NEW v1.5.7 (089o) artifact contract —
+    # version-gate it so pre-089o archived/replayed runs (which
+    # never produced it) do not spuriously FAIL.
     if not phase5_env_present:
-        fail(
-            "Phase 5 must probe the test runner and capture "
-            "`<tool> --version` (stdout+stderr+exit code) to "
-            "quality/results/phase5_env.log before any RED/GREEN/"
-            "NOT_RUN determination — phase5_env.log is missing."
-        )
+        if _run_predates_phase5_env_contract(tdd_data, q):
+            warn(
+                "phase5_env.log absent — this run predates the "
+                "v1.5.7 089o Phase 5 test-runner-probe contract "
+                "(pre-1.5.7 runs never produced it). Not a failure "
+                "for a legacy run; a current-version run would "
+                "FAIL here."
+            )
+        else:
+            # NB: the substring "phase5_env.log is missing" is kept
+            # contiguous on one source line — the v1.5.7 089p recap
+            # drift guard (test_recap_tdd_signal_drift_089p) greps
+            # quality_gate.py source for it.
+            fail(
+                "Phase 5 must probe the test runner and capture "
+                "`<tool> --version` (stdout+stderr+exit code) to "
+                "quality/results/phase5_env.log before any "
+                "RED/GREEN/NOT_RUN determination — "
+                "phase5_env.log is missing."
+            )
     else:
         pass_("phase5_env.log present (test-runner probe captured)")
 
@@ -1823,10 +2036,7 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     # unavailable root cause — escalate to FAIL. An ambiguous or
     # failed probe keeps the honest-skip WARN (089m unchanged).
     if bugs_with_not_run > 0:
-        probe_ok = (
-            _phase5_probe_succeeded(read_full_text(phase5_env_log))
-            if phase5_env_present else None
-        )
+        # probe_ok was resolved once, up front (089o/089q).
         if probe_ok is True:
             fail(
                 f"{bugs_with_not_run} of {len(bug_ids)} confirmed "

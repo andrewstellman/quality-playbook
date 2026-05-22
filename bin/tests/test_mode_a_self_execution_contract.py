@@ -254,26 +254,46 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
         073 Item-3 further mandates the prompt be INSTALL-FIRST
         ("install … then read the installed SKILL.md and run the
         playbook"), so the literal pre-073 "Read SKILL.md" string
-        was superseded by "read the installed SKILL.md"; the 067
-        guarantees (no orchestrator-agent primary; automation
-        parenthetical retained) are unchanged and still pinned
-        below. Pin updated in-commit per the 067 precedent for
-        instruction-directed prompt changes; the 067 bite was
-        executed at 067 (the contract, not the literal string, is
-        what's load-bearing).
+        was superseded by "read the installed SKILL.md".
+
+        v1.5.7 089q Task 3 reconciliation: the redundant "read the
+        installed SKILL.md" clause was dropped — the agent auto-
+        discovers the installed skill, so telling it to "read" the
+        file read as if the operator opens it. The install-first
+        contract is UNCHANGED (the prompt still runs the Phase 0
+        validator and blocks until `event=validation_complete
+        status=ok`); only the redundant read-the-file imperative
+        was removed, and the prompt now says the agent
+        "auto-discovers the installed skill". The 067 guarantees
+        (no orchestrator-agent primary; automation parenthetical
+        retained) are unchanged and still pinned below. Pin
+        updated in-commit per the 067 precedent for
+        instruction-directed prompt changes (the contract, not the
+        literal string, is what's load-bearing).
         """
         readme = (_QPB_ROOT / "README.md").read_text(encoding="utf-8")
         step4 = _slice(readme, "### Step 4: Run the playbook",
                         "\n### ", "\n## ")
         cc = _slice(step4, "**Claude Code:**", "\n**")
-        # Interactive read-the-skill pattern present (073: the
-        # installed skill, install-first).
+        # Install-first interactive pattern present (073 A-18 +
+        # 089q): the prompt routes through the Phase 0 validator
+        # and references the installed skill the agent auto-
+        # discovers (089q dropped the redundant "read the
+        # installed SKILL.md" imperative — the install-first
+        # contract holds via the validator gate, not a
+        # read-the-file instruction).
         self.assertIn(
-            "installed SKILL.md", cc,
+            "install validator", cc,
             "README Step 4 Claude Code subsection must direct the "
-            "agent to read the INSTALLED SKILL.md (interactive "
-            "read-the-skill pattern, install-first — 067 F1 / 066 "
-            "SA1 / 073 Item-3 A-18)",
+            "agent through the Phase 0 install validator "
+            "(install-first interactive pattern — 067 F1 / 066 "
+            "SA1 / 073 Item-3 A-18 / 089q)",
+        )
+        self.assertIn(
+            "installed skill", cc,
+            "README Step 4 Claude Code subsection must reference "
+            "the INSTALLED skill the agent runs against (089q: "
+            "'the agent auto-discovers the installed skill')",
         )
         # The orchestrator-agent path must NOT be the primary
         # instruction — only allowed inside the automation

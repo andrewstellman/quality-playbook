@@ -1375,9 +1375,20 @@ class TestTDDOverclaimAndProbe089o(FixtureBase):
     def test_missing_phase5_env_log_fails(self):
         """Confirmed bugs but no quality/results/phase5_env.log →
         FAIL. The Phase 5 runner probe is a required artifact when
-        bugs are present."""
-        tree = minimal_zero_bug_tree()
-        add_one_bug(tree, bug_id="BUG-001")
+        bugs are present.
+
+        v1.5.7 089q D3 reconciliation: the phase5_env.log
+        requirement is now version-gated — it FAILs only for a
+        run whose skill version is >= 1.5.7 (the version that
+        introduced the 089o contract). This fixture is therefore
+        pinned to version 1.5.7 (both minimal_zero_bug_tree and
+        add_one_bug) so the FAIL still fires. The <1.5.7 legacy
+        case is covered by
+        TestTDDOverclaimFixup089q.test_d3_legacy_missing_phase5_env_warns.
+        The assertion is unchanged — only the fixture version was
+        bumped to keep the test exercising a current-version run."""
+        tree = minimal_zero_bug_tree(version="1.5.7")
+        add_one_bug(tree, version="1.5.7", bug_id="BUG-001")
         del tree["quality/results/phase5_env.log"]
         self.write(tree)
         stdout, code = self.gate()
@@ -1400,6 +1411,189 @@ class TestTDDOverclaimAndProbe089o(FixtureBase):
             "phase5_env.log is missing", stdout,
             "089o: zero-bug runs must not require phase5_env.log.",
         )
+        self.assertEqual(code, 0)
+
+
+class TestTDDOverclaimFixup089q(FixtureBase):
+    """v1.5.7 instruction 089q — Council fix-up of the TDD-arc
+    (089o/089p). Three coordinated gate-semantics defects:
+
+    D1 — the 089o overclaim markers `cannot compile` / `can't
+    compile` / `not available` / `no maven` / `no test runner`
+    were matched as raw substrings over the WHOLE receipt body, so
+    they FAILed a legitimately-executed RED receipt whose red-phase
+    test genuinely doesn't compile yet (the canonical RED scenario)
+    or whose runner stderr says "module X not available". 089q
+    narrows the marker list to unambiguous self-admissions AND
+    scopes the scan to the agent-authored summary region (before
+    the first runner-transcript boundary).
+
+    D2 — narrowing D1 widens false negatives (a paraphrased
+    inspection-only receipt slips past the narrowed list), so 089q
+    adds a positive-evidence requirement: when the Phase 5 probe
+    shows the runner available, a RED/GREEN receipt MUST carry an
+    affirmative execution signature (Command:/Exit code: line or
+    runner transcript) or it FAILs as an overclaim by omission.
+
+    D3 — the phase5_env.log requirement is a NEW v1.5.7 (089o)
+    artifact contract; 089q version-gates it so pre-089o
+    archived/replayed runs (which never produced it) WARN rather
+    than spuriously FAIL.
+
+    Mutation-bite evidence (per ai_context/DEVELOPMENT_PROCESS.md):
+    - Re-add `cannot compile` to _TDD_OVERCLAIM_MARKERS, or widen
+      _first_overclaim_marker to scan the whole body → the D1
+      false-positive test (collision phrase in transcript) FAILs.
+    - Remove the `if probe_ok is True:` D2 omission block → the D2
+      paraphrase test stops FAILing.
+    - Remove the `_run_predates_phase5_env_contract` version gate
+      → the D3 legacy test FAILs (a <1.5.7 run gets a hard FAIL).
+    All three bites executed PASS → FAIL → PASS during 089q
+    development.
+    """
+
+    def test_d1_false_positive_collision_phrase_in_transcript_passes(self):
+        """D1 false-positive: a legitimately-executed RED receipt
+        whose runner transcript contains `cannot compile` /
+        `not available` (the red-phase test genuinely doesn't
+        compile yet) — but whose agent-authored summary narrates
+        real execution and carries an execution signature — must
+        NOT trigger the overclaim FAIL. The collision phrases sit
+        AFTER the `--- Test output` / `Command:` boundary, so the
+        089q summary-scoped marker scan never sees them."""
+        tree = minimal_zero_bug_tree(version="1.5.7")
+        add_one_bug(tree, version="1.5.7", bug_id="BUG-001")
+        tree["quality/results/BUG-001.red.log"] = (
+            "RED\n"
+            "Ran the regression test against unpatched code; it "
+            "failed as expected (the bug reproduces).\n"
+            "--- Test output for BUG-001 red phase ---\n"
+            "Command: mvn -pl module test -Dtest=RegressionTest\n"
+            "Exit code: 1\n"
+            "[ERROR] RegressionTest.java:[12,8] cannot compile: "
+            "symbol not found\n"
+            "[ERROR] dependency module not available in this "
+            "profile\n"
+            "Tests run: 1, Failures: 1, Errors: 0\n"
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotIn(
+            "BUG-001.red.log tagged RED but body admits", stdout,
+            "089q D1: 'cannot compile' / 'not available' quoted in "
+            "the runner transcript must NOT trigger the overclaim "
+            "FAIL — the canonical red-phase scenario.",
+        )
+        self.assertNotIn(
+            "overclaim by omission", stdout,
+            "089q D2: the receipt carries Command:/Exit code:/"
+            "Tests run: signatures — it must not FAIL for missing "
+            "execution evidence.",
+        )
+        self.assertIn("RESULT: GATE PASSED", stdout)
+        self.assertEqual(code, 0)
+
+    def test_d1_still_bites_summary_admission(self):
+        """D1 still-bites: the gson-style receipt — RED tag, summary
+        narration 'VERIFIED BY INSPECTION (sandbox cannot compile
+        … Maven is not available)' — still FAILs. The retained
+        `verified by inspection` marker catches it in the summary
+        region (089o behavior preserved)."""
+        tree = minimal_zero_bug_tree(version="1.5.7")
+        add_one_bug(tree, version="1.5.7", bug_id="BUG-001")
+        tree["quality/results/BUG-001.red.log"] = (
+            "RED\n"
+            "VERIFIED BY INSPECTION (sandbox cannot compile the "
+            "project; Maven is not available).\n"
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "BUG-001.red.log tagged RED but body admits "
+            "non-execution", stdout,
+            "089q D1: a summary-region 'verified by inspection' "
+            "admission must still FAIL as an overclaim.",
+        )
+        self.assertIn("RESULT: GATE FAILED", stdout)
+        self.assertEqual(code, 1)
+
+    def test_d2_paraphrase_no_signature_fails(self):
+        """D2 paraphrase: a RED receipt with probe-available and a
+        PARAPHRASED inspection-only narration ('derived
+        analytically', no recognizable self-admission marker) and
+        NO execution signature → FAIL (overclaim by omission). D2
+        catches what the narrowed D1 marker list no longer does."""
+        tree = minimal_zero_bug_tree(version="1.5.7")
+        add_one_bug(tree, version="1.5.7", bug_id="BUG-001")
+        # add_one_bug's phase5_env.log shows a successful probe.
+        tree["quality/results/BUG-001.red.log"] = (
+            "RED\n"
+            "Derived analytically from reading the source — the "
+            "regression test would fail against unpatched code "
+            "because the off-by-one is plainly visible at line "
+            "40.\n"
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "overclaim by omission", stdout,
+            "089q D2: a RED receipt with the runner available but "
+            "no captured runner output must FAIL — a paraphrased "
+            "prediction is still an overclaim.",
+        )
+        self.assertIn("RESULT: GATE FAILED", stdout)
+        self.assertEqual(code, 1)
+
+    def test_d2_honesty_not_run_failed_probe_warns(self):
+        """D2 honesty: a NOT_RUN receipt with a FAILED probe (and
+        no execution signature) must stay at WARN / PASS. The D2
+        positive-evidence requirement applies ONLY when the probe
+        succeeded — an honest NOT_RUN is never asked to carry
+        execution evidence (089m preserved)."""
+        tree = minimal_zero_bug_tree(version="1.5.7")
+        TestTDDNotRunWarn089m._make_not_run_bug(
+            tree, bug_id="BUG-001", version="1.5.7",
+        )
+        # _make_not_run_bug writes a failed-probe phase5_env.log.
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "WARN: TDD red/green cycle not executed", stdout,
+            "089q D2: honest NOT_RUN + failed probe stays WARN.",
+        )
+        self.assertNotIn(
+            "overclaim by omission", stdout,
+            "089q D2: a NOT_RUN receipt must never be asked for an "
+            "execution signature — that requirement is RED/GREEN + "
+            "probe-available only.",
+        )
+        self.assertIn("RESULT: GATE PASSED", stdout)
+        self.assertEqual(code, 0)
+
+    def test_d3_legacy_missing_phase5_env_warns(self):
+        """D3 legacy: a pre-1.5.7 run (skill version < 1.5.7) with
+        confirmed bugs and no phase5_env.log must WARN, not FAIL —
+        the artifact contract didn't exist in that version. (The
+        >=1.5.7 FAIL direction is covered by
+        TestTDDOverclaimAndProbe089o.test_missing_phase5_env_log_fails,
+        pinned to version 1.5.7.)"""
+        tree = minimal_zero_bug_tree(version="1.4.4")
+        add_one_bug(tree, version="1.4.4", bug_id="BUG-001")
+        del tree["quality/results/phase5_env.log"]
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "phase5_env.log absent", stdout,
+            "089q D3: a <1.5.7 run missing phase5_env.log must be "
+            "noted as a legacy WARN.",
+        )
+        self.assertNotIn(
+            "phase5_env.log is missing", stdout,
+            "089q D3: a <1.5.7 run must NOT hit the hard-FAIL "
+            "phrase — the contract is version-gated.",
+        )
+        # Legacy WARN only — no substantive FAIL from this path.
+        self.assertNotIn("RESULT: GATE FAILED", stdout)
         self.assertEqual(code, 0)
 
 
