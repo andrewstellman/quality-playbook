@@ -266,7 +266,57 @@ def stage(repo_root: Path, dest_dir: Path,
     # clean stage starts from an empty dir so there's nothing to
     # purge).
     _purge_compiled_artifacts(dest_dir)
+    # v1.5.7 090b T-B: belt-and-suspenders fail-loud guard. The
+    # 090b Task-A change made `_bundle_files()` raise-on-missing
+    # for each mandatory member, so a missing source file fails
+    # the build cleanly. This guard catches the OTHER failure
+    # mode: a staging step that completes "successfully" but
+    # produces a partial tree (e.g. an interrupted copy, an OS
+    # race, the still-unexplained machine-specific stage that
+    # produced 53 files instead of 54). The wheel / npm tarball
+    # must never ship without these — install_skill +
+    # qpb_validate (the channel executors) import _purpose at
+    # module load.
+    _assert_mandatory_staged_members(dest_dir)
     return staged
+
+
+# v1.5.7 090b: load-time hard dependencies that MUST be present in
+# the staged tree before a wheel/tarball can be produced. install_
+# skill.py + qpb_validate.py are the channel executors; _purpose.py
+# is the shared helper both import at module load.
+_MANDATORY_STAGED_REL_PATHS: tuple[Path, ...] = (
+    Path("bin") / "install_skill.py",
+    Path("bin") / "qpb_validate.py",
+    Path("bin") / "_purpose.py",
+)
+
+
+def _assert_mandatory_staged_members(dest_dir: Path) -> None:
+    """v1.5.7 090b T-B: refuse to declare staging complete if any
+    of the LOAD-TIME hard-dependency members are absent from
+    ``dest_dir``. Pre-090b a partial stage would silently produce
+    a wheel/tarball that crashed at install with FileNotFoundError
+    on first import of the channel executors (the 2026-05-23
+    pip/npx smoke crash). This guard makes the failure mode loud
+    at build time instead of silent at adopter install time."""
+    missing: list[Path] = []
+    for rel in _MANDATORY_STAGED_REL_PATHS:
+        p = dest_dir / rel
+        if not p.is_file():
+            missing.append(rel)
+    if missing:
+        names = ", ".join(str(m) for m in missing)
+        raise RuntimeError(
+            f"build_channel_package: staged bundle at {dest_dir} "
+            f"is missing mandatory members: {names}. The channel "
+            f"executors (install_skill.py + qpb_validate.py) import "
+            f"`_purpose.py` at module load; a wheel / npm tarball "
+            f"built from this staged tree would crash with "
+            f"FileNotFoundError on first install. Refusing to "
+            f"declare staging complete — investigate the staging "
+            f"step before retrying."
+        )
 
 
 _PYPROJECT_VERSION_RE = re.compile(

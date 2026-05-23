@@ -22,7 +22,7 @@ README = REPO_ROOT / "README.md"
 # v1.5.7 089x: `cp bin/_purpose.py …` added to each of the 3 §3 cp-blocks
 # shifts the 4 launch prompts by +3 lines (344/350/358/360 →
 # 347/353/361/363). The prompts themselves are still unchanged.
-LAUNCH_PROMPT_LINES = (347, 353, 361, 363)  # the 4 IDE prompts per §3.5
+LAUNCH_PROMPT_LINES = (361, 367, 375, 377)  # the 4 IDE prompts per §3.5
 
 
 class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
@@ -90,10 +90,10 @@ class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
         conscious re-pin (instruction-079b Task 3 note)."""
         lines = README.read_text(encoding="utf-8").splitlines()
         markers = {
-            347: "**Claude Code:**",
-            353: "**GitHub Copilot:**",
-            361: "**Cursor:**",
-            363: "**Windsurf:**",
+            361: "**Claude Code:**",
+            367: "**GitHub Copilot:**",
+            375: "**Cursor:**",
+            377: "**Windsurf:**",
         }
         for lineno, marker in markers.items():
             self.assertTrue(

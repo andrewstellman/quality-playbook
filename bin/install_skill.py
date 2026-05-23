@@ -83,11 +83,135 @@ AI_TOOL_CHOICES: tuple[str, ...] = tuple(AI_TOOL_MAP.keys())
 
 # Bundle source paths, relative to the QPB clone root. Each tuple is
 # (source-relative-to-clone, dest-relative-to-target).
+def _require_bundle_file(path: Path) -> Path:
+    """v1.5.7 090b: a mandatory bundle member that must exist on
+    every correct QPB clone. Raises a clear ``RuntimeError`` naming
+    the file if it's missing — replacing the previous silent
+    ``if path.is_file():`` skip that could ship a bundle missing a
+    hard dependency (e.g. the 2026-05-23 pip/npx smoke crash where
+    `bin/_purpose.py` was conditionally dropped and the wheel /
+    npm tarball both crashed at install with FileNotFoundError on
+    first import of install_skill / qpb_validate).
+
+    If a future bundle member is genuinely OPTIONAL (no shipped
+    script's import closure needs it), keep the conditional
+    ``if path.is_file()`` guard inline — but add a comment saying
+    why it's optional. The default for any new bundle member is
+    mandatory (this helper)."""
+    if not path.is_file():
+        raise RuntimeError(
+            f"install_skill._bundle_files: mandatory bundle "
+            f"member missing at {path}. This is a clone-integrity "
+            f"error — the file must be present in every correct "
+            f"QPB clone for the channel bundle (pip wheel / npm "
+            f"tarball) to be buildable. The pre-090b silent "
+            f"`if path.is_file():` skip caused the 2026-05-23 "
+            f"pip/npx smoke crash where the staged bundle was "
+            f"missing `bin/_purpose.py`; 090b makes mandatory "
+            f"members raise-on-missing so the build can never "
+            f"silently produce a broken artifact."
+        )
+    return path
+
+
+def _require_bundle_dir(path: Path) -> Path:
+    """v1.5.7 090b: mandatory bundle directory — raises on missing.
+    See ``_require_bundle_file`` for the rationale; this is the
+    directory counterpart for the ``references/`` / ``phase_prompts/``
+    / ``agents/`` globs that emit multiple files."""
+    if not path.is_dir():
+        raise RuntimeError(
+            f"install_skill._bundle_files: mandatory bundle "
+            f"directory missing at {path}. This is a clone-"
+            f"integrity error — the directory must be present "
+            f"in every correct QPB clone."
+        )
+    return path
+
+
+def _bundle_files_soft(
+    source_root: Path,
+) -> list[tuple[Path, Path]]:
+    """v1.5.7 090b: best-effort bundle-files enumeration. Returns
+    the same `(src, dest_rel)` list as ``_bundle_files`` but
+    silently skips any member that's missing on the source-root
+    instead of raising. For callers that enumerate against a
+    possibly-incomplete source root (e.g.
+    ``run_playbook._check_installed_bundle_freshness``, which
+    runs against the live QPB clone but must NEVER crash the run
+    even if the clone is partial).
+
+    Implementation: try the strict ``_bundle_files`` first; if it
+    raises, fall back to a per-section enumeration that silently
+    skips missing members. The strict-first attempt is cheap on a
+    correct clone (no extra I/O beyond what `_bundle_files` does
+    anyway) and gives identical output to the strict path."""
+    try:
+        return _bundle_files(source_root)
+    except RuntimeError:
+        # Fall back to silent-skip enumeration. Mirrors the
+        # pre-090b behavior of `_bundle_files` for callers that
+        # genuinely want "what's here, whatever's missing".
+        files: list[tuple[Path, Path]] = []
+        if (source_root / "SKILL.md").is_file():
+            files.append((source_root / "SKILL.md", Path("SKILL.md")))
+        qg = (source_root / ".github" / "skills"
+              / "quality_gate" / "quality_gate.py")
+        if qg.is_file():
+            files.append((qg, Path("quality_gate.py")))
+        refs = source_root / "references"
+        if refs.is_dir():
+            for f in sorted(refs.glob("*.md")):
+                files.append((f, Path("references") / f.name))
+        phases = source_root / "phase_prompts"
+        if phases.is_dir():
+            for f in sorted(phases.glob("*.md")):
+                files.append((f, Path("phase_prompts") / f.name))
+        agents = source_root / "agents"
+        if agents.is_dir():
+            for f in sorted(agents.glob("*.md")):
+                files.append((f, Path("agents") / f.name))
+        for rel in (
+            "bin/citation_verifier.py",
+            "bin/_purpose.py",
+            "bin/reference_docs_ingest.py",
+            "bin/benchmark_lib.py",
+            "bin/__init__.py",
+            "bin/quality_playbook.py",
+            "bin/archive_lib.py",
+            "bin/council_semantic_check.py",
+            "bin/migrate_v1_5_0_layout.py",
+            "bin/role_map.py",
+            "bin/council_config.py",
+            "bin/run_state_lib.py",
+            "bin/validate_phase_artifacts.py",
+            "bin/qpb_config.py",
+        ):
+            p = source_root / rel
+            if p.is_file():
+                files.append((p, Path(rel)))
+        return files
+
+
 def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     """Enumerate every file the install bundle copies, with each file's
-    destination path relative to the install target."""
+    destination path relative to the install target.
+
+    v1.5.7 090b: every member is MANDATORY by default — a missing
+    source file raises a clear error instead of silently dropping
+    the entry from the bundle. Pre-090b, several entries used
+    ``if path.is_file():`` to skip-on-missing, which shipped
+    broken bundles (the 2026-05-23 pip/npx smoke crash: the staged
+    `_bundle/` was missing `bin/_purpose.py`, the wheel + tarball
+    both crashed at install with FileNotFoundError on first
+    import of install_skill). Callers needing "best effort"
+    enumeration against a possibly-incomplete source root (e.g.
+    ``run_playbook._check_installed_bundle_freshness``) should
+    use ``_bundle_files_soft()`` instead — same enumeration but
+    silently skips missing members."""
     files: list[tuple[Path, Path]] = [
-        (source_root / "SKILL.md", Path("SKILL.md")),
+        (_require_bundle_file(source_root / "SKILL.md"),
+         Path("SKILL.md")),
         # quality_gate.py canonical location is
         # .github/skills/quality_gate/quality_gate.py within the QPB
         # clone — the file at .github/skills/quality_gate.py is a
@@ -95,23 +219,31 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
         # alongside the Council Round 1 P1.2 install-path fix.) The
         # install bundle copies the real script to the target's
         # quality_gate.py at the install root, not nested.
-        (source_root / ".github" / "skills" / "quality_gate" / "quality_gate.py",
+        (_require_bundle_file(
+            source_root / ".github" / "skills"
+            / "quality_gate" / "quality_gate.py"),
          Path("quality_gate.py")),
     ]
-    refs_src = source_root / "references"
-    if refs_src.is_dir():
-        for f in sorted(refs_src.glob("*.md")):
-            files.append((f, Path("references") / f.name))
+    # v1.5.7 090b: references/ is mandatory (the bundled directory
+    # ships the Phase 1 ingest sources; without it Phase 1 has
+    # nothing to ingest and adopter Mode A breaks at the first
+    # `python -m bin.reference_docs_ingest .` step). The glob inside
+    # just enumerates whatever .md files are present.
+    refs_src = _require_bundle_dir(source_root / "references")
+    for f in sorted(refs_src.glob("*.md")):
+        files.append((f, Path("references") / f.name))
     # v1.5.6 BUG-001: phase_prompts/ are loaded at runtime by both Mode A
     # walkthroughs (per SKILL.md Mode A description, around line 62) and
     # Mode B's `bin/run_playbook.py::_load_phase_prompt`. The installer
     # MUST bundle them — installs that omit phase_prompts/ produce a
     # bundle that looks complete but breaks Mode A on the first phase
     # boundary because phase{N}.md cannot be resolved.
-    phase_prompts_src = source_root / "phase_prompts"
-    if phase_prompts_src.is_dir():
-        for f in sorted(phase_prompts_src.glob("*.md")):
-            files.append((f, Path("phase_prompts") / f.name))
+    # v1.5.7 090b: directory presence is now mandatory (was silent
+    # skip; that was the same class of bug the pip/npx crash
+    # surfaced for _purpose.py).
+    phase_prompts_src = _require_bundle_dir(source_root / "phase_prompts")
+    for f in sorted(phase_prompts_src.glob("*.md")):
+        files.append((f, Path("phase_prompts") / f.name))
     # v1.5.6 cluster A (issue #1 concern 4): bundle agents/ alongside
     # references/ and phase_prompts/ so README Step 4's
     # `claude --agent agents/quality-playbook.agent.md` invocation
@@ -120,10 +252,10 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     # source tree — adopters running the documented invocation from
     # their own target repo got "agent file not found" because the
     # installer never copied the agents/ directory.
-    agents_src = source_root / "agents"
-    if agents_src.is_dir():
-        for f in sorted(agents_src.glob("*.md")):
-            files.append((f, Path("agents") / f.name))
+    # v1.5.7 090b: directory presence is now mandatory.
+    agents_src = _require_bundle_dir(source_root / "agents")
+    for f in sorted(agents_src.glob("*.md")):
+        files.append((f, Path("agents") / f.name))
     # v1.5.6 BUG-005: bundle bin/citation_verifier.py so quality_gate.py's
     # soft-import path resolves at the install destination instead of
     # silently falling back to the WARN path. Pre-fix the v1.5.1 byte-
@@ -131,18 +263,28 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     # installed copy because the only working import path was the QPB
     # source clone itself. quality_gate.py's _VERIFIER_SEARCH_ROOTS
     # picks up bin/citation_verifier.py from the install root.
-    citation_verifier_src = source_root / "bin" / "citation_verifier.py"
-    if citation_verifier_src.is_file():
-        files.append((citation_verifier_src, Path("bin") / "citation_verifier.py"))
+    # v1.5.7 090b: mandatory — the gate's WARN-fallback path is a
+    # degraded mode, not normal operation. Make absence loud at
+    # build time so adopters never get a silently-degraded gate.
+    files.append((
+        _require_bundle_file(source_root / "bin" / "citation_verifier.py"),
+        Path("bin") / "citation_verifier.py",
+    ))
     # v1.5.7 089x: bundle bin/_purpose.py so adopter installs still
     # have the shared purpose-banner / version-reader / attribution-
     # banner helpers available. Every other bundled bin script
     # imports it (lazily, with a file-path fallback for shim
     # contexts) — without it the no-args purpose banners would
     # break at an adopter install location.
-    purpose_src = source_root / "bin" / "_purpose.py"
-    if purpose_src.is_file():
-        files.append((purpose_src, Path("bin") / "_purpose.py"))
+    # v1.5.7 090b: **the ship-blocker fix.** Pre-090b this was a
+    # silent `if .is_file()` skip; the pip/npx channels both
+    # crashed at install when the staged bundle's `_purpose.py`
+    # was absent because install_skill + qpb_validate both
+    # import it at module load. _purpose.py is now mandatory.
+    files.append((
+        _require_bundle_file(source_root / "bin" / "_purpose.py"),
+        Path("bin") / "_purpose.py",
+    ))
     # v1.5.7 fix F-1: bundle bin/reference_docs_ingest.py so Phase 1's
     # `python -m bin.reference_docs_ingest` invocation resolves at the
     # install destination. Pre-fix, every benchmark target hard-stopped
@@ -150,16 +292,22 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     # in the QPB clone, not at the install root. The module imports
     # `from bin import benchmark_lib`, so benchmark_lib.py must also be
     # bundled (next entry).
-    reference_docs_ingest_src = source_root / "bin" / "reference_docs_ingest.py"
-    if reference_docs_ingest_src.is_file():
-        files.append((reference_docs_ingest_src, Path("bin") / "reference_docs_ingest.py"))
+    # v1.5.7 090b: mandatory (Phase 1 hard-stop at adopter install
+    # if missing).
+    files.append((
+        _require_bundle_file(source_root / "bin" / "reference_docs_ingest.py"),
+        Path("bin") / "reference_docs_ingest.py",
+    ))
     # v1.5.7 fix F-1 (transitive): bundle bin/benchmark_lib.py because
     # reference_docs_ingest.py imports it at module load. benchmark_lib
     # has no internal bin/ dependencies (stdlib-only) so the bundle
     # closure terminates here.
-    benchmark_lib_src = source_root / "bin" / "benchmark_lib.py"
-    if benchmark_lib_src.is_file():
-        files.append((benchmark_lib_src, Path("bin") / "benchmark_lib.py"))
+    # v1.5.7 090b: mandatory (transitive dep of an already-mandatory
+    # member; ImportError at Phase 1 if missing).
+    files.append((
+        _require_bundle_file(source_root / "bin" / "benchmark_lib.py"),
+        Path("bin") / "benchmark_lib.py",
+    ))
     # v1.5.7 instruction 050 A-6.2: bundle the quality_playbook
     # closure so adopter Mode-A runs hitting Phase 4's
     # `python3 -m bin.quality_playbook semantic-check plan|assemble .`
@@ -180,9 +328,17 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     # benchmark_lib was bundled in 049 (A-6.1); the remaining 6 land
     # here. __init__.py is required for the `from .` package syntax
     # to resolve at the install root.
-    qpb_init_src = source_root / "bin" / "__init__.py"
-    if qpb_init_src.is_file():
-        files.append((qpb_init_src, Path("bin") / "__init__.py"))
+    # v1.5.7 090b: __init__.py is mandatory — without it the
+    # `from .` package syntax that the bundled bin/*.py modules
+    # use does not resolve at the adopter install root.
+    files.append((
+        _require_bundle_file(source_root / "bin" / "__init__.py"),
+        Path("bin") / "__init__.py",
+    ))
+    # v1.5.7 090b: every adopter-side bin/*.py the 050 A-6.2
+    # closure ships is mandatory — Phase 4's `python3 -m
+    # bin.quality_playbook semantic-check ...` would hit
+    # ModuleNotFoundError on any missing member.
     for _mod_name in (
         "quality_playbook.py",
         "archive_lib.py",
@@ -191,9 +347,10 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
         "role_map.py",
         "council_config.py",
     ):
-        _mod_src = source_root / "bin" / _mod_name
-        if _mod_src.is_file():
-            files.append((_mod_src, Path("bin") / _mod_name))
+        files.append((
+            _require_bundle_file(source_root / "bin" / _mod_name),
+            Path("bin") / _mod_name,
+        ))
     # v1.5.7 instruction 086 (A-26): bundle the three remaining
     # adopter-facing bin/*.py modules SKILL.md / phase_prompts hard-
     # reference but the install bundle previously omitted. Surfaced
@@ -226,14 +383,20 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     # `from bin import role_map` (with an `import role_map` fallback)
     # and role_map.py is already bundled by the 050 A-6.2 loop above.
     # Closure terminates after these three additions.
+    # v1.5.7 090b: the A-26 trio is mandatory — adopter Mode B
+    # invocations (`python3 -m bin.validate_phase_artifacts`, etc.)
+    # hit ImportError if any is missing. The pre-090b
+    # `if _mod_src.is_file()` skip was the same class of bug the
+    # 2026-05-23 pip/npx smoke crash surfaced for _purpose.py.
     for _mod_name in (
         "run_state_lib.py",
         "validate_phase_artifacts.py",
         "qpb_config.py",
     ):
-        _mod_src = source_root / "bin" / _mod_name
-        if _mod_src.is_file():
-            files.append((_mod_src, Path("bin") / _mod_name))
+        files.append((
+            _require_bundle_file(source_root / "bin" / _mod_name),
+            Path("bin") / _mod_name,
+        ))
     return files
 
 

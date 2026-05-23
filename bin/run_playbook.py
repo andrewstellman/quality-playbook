@@ -2784,7 +2784,13 @@ def _check_installed_bundle_freshness(
 
         # install_skill.py-layout manifest.
         install_skill_manifest: List[str] = []
-        for _src, dest in _install_skill._bundle_files(qpb_root):
+        # v1.5.7 090b: use the soft variant — the freshness check
+        # must never crash the run even if the clone is partial
+        # (e.g. an in-progress checkout, a test fixture with a
+        # synthetic incomplete source_root). `_bundle_files_soft`
+        # silently skips missing members; `_bundle_files` (strict)
+        # raises on missing for the channel build path.
+        for _src, dest in _install_skill._bundle_files_soft(qpb_root):
             parts = dest.parts
             if len(parts) == 2 and parts[0] == "bin":
                 if parts[1] not in install_skill_manifest:
