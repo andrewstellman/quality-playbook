@@ -1,0 +1,23 @@
+# v1.5.7 090f — sdist additions for the custom build backend.
+#
+# pyproject.toml declares `build-backend = "_qpb_build_backend"`
+# with `backend-path = ["."]` (090c). When `python -m build`
+# (the standard publish path) runs the sdist→wheel sequence, it
+# unpacks the sdist and tries to import `_qpb_build_backend`
+# from the unpacked tree. Without this MANIFEST.in entry, the
+# backend module is NOT included in the sdist and the wheel
+# build fails with:
+#
+#   pyproject_hooks._impl.BackendUnavailable: Cannot find module
+#   '_qpb_build_backend' in ['…/quality_playbook-1.5.7']
+#
+# Shipping the backend in the sdist closes that gap. The backend
+# itself (post-090f T-A2) is context-aware: when run from a
+# source tree it stages + stamps; when run from an unpacked
+# sdist (where the bundle is already complete + version is
+# already stamped) it skips and delegates straight to setuptools.
+#
+# Note we do NOT ship the root `bin/` or any other dev machinery
+# — the sdist stays the lean runtime+bundle artifact, with only
+# the one backend module added.
+include _qpb_build_backend.py

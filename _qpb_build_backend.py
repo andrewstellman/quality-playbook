@@ -68,6 +68,38 @@ prepare_metadata_for_build_editable = getattr(
 _REPO_ROOT = Path(__file__).resolve().parent
 
 
+def _is_source_tree_build() -> bool:
+    """v1.5.7 090f: distinguish a SOURCE-TREE build (where
+    ``stage()`` + ``stamp()`` need to run because the staged
+    bundle / stamped versions might be stale) from an
+    SDIST-UNPACK build (where the sdist already contains a
+    complete, stamped bundle and the dev machinery isn't
+    present).
+
+    The standard publish path is ``python -m build`` (no
+    ``--wheel``), which builds the sdist first and then builds
+    the wheel FROM THE UNPACKED SDIST in a temp dir. The
+    unpacked sdist contains the backend module (per 090f's
+    MANIFEST.in addition) + the pyproject.toml + the already-
+    staged ``quality_playbook_cli/_bundle/`` — but NOT the root
+    ``bin/build_channel_package.py`` / ``bin/install_skill.py``
+    / ``SKILL.md`` etc. Trying to ``stage()`` or ``stamp()``
+    from the sdist would crash because the build machinery
+    isn't reachable.
+
+    The discriminator: presence of root ``SKILL.md`` AND
+    ``bin/build_channel_package.py``. Both exist in a real QPB
+    clone (source-tree); neither is in the sdist. A single
+    AND-check is enough because the sdist ships only the
+    runtime artifact + the backend module, not the dev
+    machinery (per 090f's halt-condition: don't ship dev
+    machinery in the sdist as the "fix")."""
+    return (
+        (_REPO_ROOT / "SKILL.md").is_file()
+        and (_REPO_ROOT / "bin" / "build_channel_package.py").is_file()
+    )
+
+
 def _load_build_channel_package():
     """Path-load ``bin/build_channel_package.py`` from the QPB
     clone (anchored on `_REPO_ROOT`, never via sys.path). Used by
@@ -144,8 +176,16 @@ def build_wheel(wheel_directory, config_settings=None,
     # when computing the wheel metadata. Stamp first, then
     # stage, then delegate to setuptools (which now sees the
     # stamped version).
-    _stamp_version()
-    _stage_bundle()
+    #
+    # v1.5.7 090f: context-aware. Source-tree builds need
+    # stamp+stage (the bundle might be stale). Sdist-unpack
+    # builds (standard `python -m build` sdist→wheel) already
+    # have a complete + stamped tree — and the dev machinery
+    # isn't present — so skip stamp/stage and delegate
+    # straight to setuptools.
+    if _is_source_tree_build():
+        _stamp_version()
+        _stage_bundle()
     return _setuptools_backend.build_wheel(
         wheel_directory, config_settings, metadata_directory,
     )
@@ -154,8 +194,12 @@ def build_wheel(wheel_directory, config_settings=None,
 def build_sdist(sdist_directory, config_settings=None):  # type: ignore[no-redef]
     # v1.5.7 090e T5: stamp before staging (see build_wheel
     # comment for ordering rationale).
-    _stamp_version()
-    _stage_bundle()
+    # v1.5.7 090f: same context-awareness — sdist-of-sdist is
+    # nonsensical so this almost always runs from a source
+    # tree, but the guard makes the backend uniform.
+    if _is_source_tree_build():
+        _stamp_version()
+        _stage_bundle()
     return _setuptools_backend.build_sdist(
         sdist_directory, config_settings,
     )
@@ -171,8 +215,12 @@ if build_editable is not None:  # setuptools >= 64
         # v1.5.7 090e T5: stamp before staging — editable
         # installs also produce metadata that pyproject.toml
         # drives.
-        _stamp_version()
-        _stage_bundle()
+        # v1.5.7 090f: context-aware (editable installs almost
+        # always run from a source tree, but the guard makes
+        # the backend uniform).
+        if _is_source_tree_build():
+            _stamp_version()
+            _stage_bundle()
         return _setuptools_editable(
             wheel_directory, config_settings, metadata_directory,
         )
