@@ -83,3 +83,9 @@ metrics/bootstrap_recall/
 metrics/cross_version_trends/
 metrics/*/.backup-*/
 
+
+# v1.5.7 089u — pip channel build artifacts
+quality_playbook_cli/_bundle/
+build/
+dist/
+*.egg-info/

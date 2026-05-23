@@ -1,0 +1,75 @@
+# v1.5.7 089u — pip distribution channel for the Quality Playbook.
+#
+# This file makes `pip install quality-playbook` / `uvx quality-playbook` /
+# `pipx run quality-playbook` viable.
+#
+# HARD PACKAGING CONSTRAINT (089u decision, 2026-05-22): the package
+# ships the QPB tooling + skill bundle as DATA, exposed only through
+# the thin `quality_playbook_cli` shim package. The full `bin/`
+# tooling closure is NOT installed as a top-level import package —
+# `python -c "import bin"` MUST FAIL after `pip install`. Only
+# `import quality_playbook_cli` resolves. See
+# `docs/design/QPB_v1.6.x_Distribution_Channels_Proposal.md` for
+# the design and `bin/build_channel_package.py` for the build-time
+# stager that assembles the data from `_bundle_files()` (single
+# source of truth).
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quality-playbook"
+version = "1.5.7"
+description = "Quality engineering for AI-driven development — a skill for AI coding agents that finds the bugs review misses."
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Apache-2.0"}
+authors = [
+    {name = "Andrew Stellman", email = "andrew@stellman.com"},
+]
+keywords = ["quality", "tdd", "code-review", "ai", "claude", "copilot", "cursor", "codex", "skill"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+]
+
+[project.scripts]
+quality-playbook = "quality_playbook_cli:main"
+
+[project.urls]
+Homepage = "https://github.com/andrewstellman/quality-playbook"
+Source = "https://github.com/andrewstellman/quality-playbook"
+Issues = "https://github.com/andrewstellman/quality-playbook/issues"
+
+# v1.5.7 089u: explicit packages list — DO NOT use `find` / `find_packages`.
+# `find` would discover `bin/` (which has `__init__.py`) as a top-level
+# import package and install it into site-packages, violating the hard
+# constraint that `import bin` must fail post-install. Only the thin
+# shim package is published.
+[tool.setuptools]
+packages = ["quality_playbook_cli"]
+include-package-data = false
+
+# Stage the QPB clone's source layout under quality_playbook_cli/_bundle/
+# (via bin/build_channel_package.py before `python -m build`) and ship
+# every file under it as package data. The explicit glob list covers
+# the dotfile subtrees (.github/) that a bare `**/*` may exclude on
+# some setuptools versions.
+[tool.setuptools.package-data]
+"quality_playbook_cli" = [
+    "_bundle/**/*",
+    "_bundle/.github/**/*",
+    "_bundle/.github/skills/**/*",
+    "_bundle/.github/skills/quality_gate/**/*",
+]

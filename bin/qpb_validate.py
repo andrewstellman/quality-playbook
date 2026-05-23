@@ -293,54 +293,106 @@ _RUN_INSTALLER_MAC_FORCE = _RUN_INSTALLER_MAC + " --force"
 _RUN_INSTALLER_WIN_FORCE = _RUN_INSTALLER_WIN + " --force"
 _REVALIDATE = "python <root>/bin/qpb_validate.py <target>"
 
+# v1.5.7 089u — pip distribution channel.
+# When QPB_CHANNEL=pip the adopter ran via the published wheel
+# (`uvx quality-playbook …` / `pipx run quality-playbook …`), so
+# remediation must point at `uvx`/`pipx`, NOT a non-existent clone
+# path. `uvx` and `pipx` invocations are cross-platform (the same
+# command works on macOS, Linux, and Windows shells), so the
+# four-platform table collapses to a single string per (form, force)
+# pair. The clone strings above stay UNCHANGED — the back-compat
+# default (QPB_CHANNEL unset / "clone") emits them byte-identical.
+# npm (block C, instruction 089v) is wired through the same helper.
+_RUN_INSTALLER_PIP = "uvx quality-playbook install --into <target> --ai-tool <tool>"
+_RUN_INSTALLER_PIP_FORCE = _RUN_INSTALLER_PIP + " --force"
+_REVALIDATE_PIP = "uvx quality-playbook validate <target>"
+
+
+def _channel() -> str:
+    """Return the adopter's invocation channel from the QPB_CHANNEL
+    env var. Unset → "clone" (back-compat default; existing tests
+    must observe byte-identical remediation strings in this case).
+    """
+    return os.environ.get("QPB_CHANNEL", "clone").strip().lower() or "clone"
+
+
+def _platform_table(form: str, *, force: bool = False) -> dict[str, str]:
+    """Build the per-platform remediation-command table for one
+    install form (currently ``"installer"`` only — the revalidate
+    form is built directly via ``_revalidate_command()``, which
+    doesn't fan out per platform), respecting the current
+    ``QPB_CHANNEL``.
+
+    For ``"installer"`` + pip: every platform key maps to the same
+    ``uvx quality-playbook …`` string (uvx is cross-platform). For
+    clone (default): the existing per-platform mac/linux/windows_*
+    forms are returned unchanged.
+
+    npm (089v block C): not yet implemented as a distinct form — for
+    now ``QPB_CHANNEL=npm`` falls through to the clone form with a
+    TODO marker; instruction 089v wires the npm-correct command.
+    """
+    channel = _channel()
+    if form == "installer":
+        if channel == "pip":
+            cmd = _RUN_INSTALLER_PIP_FORCE if force else _RUN_INSTALLER_PIP
+            return {
+                "macos": cmd,
+                "linux": cmd,
+                "windows_powershell": cmd,
+                "windows_cmd": cmd,
+            }
+        # TODO(089v block C): when channel == "npm", emit the
+        # `npx @stellman/quality-playbook install …` form. For now
+        # fall through to the clone form so the npm branch is
+        # discoverable but doesn't ship a wrong command.
+        mac_cmd = _RUN_INSTALLER_MAC_FORCE if force else _RUN_INSTALLER_MAC
+        win_cmd = _RUN_INSTALLER_WIN_FORCE if force else _RUN_INSTALLER_WIN
+        return {
+            "macos": mac_cmd,
+            "linux": mac_cmd,
+            "windows_powershell": win_cmd,
+            "windows_cmd": win_cmd,
+        }
+    raise ValueError(f"_platform_table: unknown form {form!r}")
+
+
+def _revalidate_command() -> str:
+    """Channel-aware ``verify_with`` string. pip → ``uvx …
+    validate <target>``; clone (default, unset) → the existing
+    ``python <root>/bin/qpb_validate.py <target>`` form unchanged."""
+    if _channel() == "pip":
+        return _REVALIDATE_PIP
+    return _REVALIDATE
+
 FINDING_CATALOG = {
     "install_absent": {
         "tool": "run_installer",
         "severity": "remediable",
-        "commands": {
-            "macos": _RUN_INSTALLER_MAC,
-            "linux": _RUN_INSTALLER_MAC,
-            "windows_powershell": _RUN_INSTALLER_WIN,
-            "windows_cmd": _RUN_INSTALLER_WIN,
-        },
+        "commands": _platform_table("installer"),
         "rationale": "No QPB install at the canonical AI-tool path; run the installer.",
-        "verify_with": _REVALIDATE,
+        "verify_with": _revalidate_command(),
     },
     "install_partial": {
         "tool": "repair_partial",
         "severity": "remediable",
-        "commands": {
-            "macos": _RUN_INSTALLER_MAC_FORCE,
-            "linux": _RUN_INSTALLER_MAC_FORCE,
-            "windows_powershell": _RUN_INSTALLER_WIN_FORCE,
-            "windows_cmd": _RUN_INSTALLER_WIN_FORCE,
-        },
+        "commands": _platform_table("installer", force=True),
         "rationale": "Install path exists but INSTALL_CLOSURE has missing/unreadable entries; re-run with --force (operator-edited files become <file>.operator-backup-<TIMESTAMP>).",
-        "verify_with": _REVALIDATE,
+        "verify_with": _revalidate_command(),
     },
     "install_wrong_ai_tool": {
         "tool": "reinstall_for_correct_tool",
         "severity": "remediable",
-        "commands": {
-            "macos": _RUN_INSTALLER_MAC,
-            "linux": _RUN_INSTALLER_MAC,
-            "windows_powershell": _RUN_INSTALLER_WIN,
-            "windows_cmd": _RUN_INSTALLER_WIN,
-        },
+        "commands": _platform_table("installer"),
         "rationale": "Install detected at one marker but a different --ai-tool was requested; re-install for the requested tool.",
-        "verify_with": _REVALIDATE,
+        "verify_with": _revalidate_command(),
     },
     "install_version_skew": {
         "tool": "upgrade_install",
         "severity": "remediable",
-        "commands": {
-            "macos": _RUN_INSTALLER_MAC_FORCE,
-            "linux": _RUN_INSTALLER_MAC_FORCE,
-            "windows_powershell": _RUN_INSTALLER_WIN_FORCE,
-            "windows_cmd": _RUN_INSTALLER_WIN_FORCE,
-        },
+        "commands": _platform_table("installer", force=True),
         "rationale": "Installed SKILL.md version older than the clone. Re-install is closure-only; your <target>/quality/ directory is preserved untouched. Operator-edited files become <file>.operator-backup-<TIMESTAMP>.",
-        "verify_with": _REVALIDATE,
+        "verify_with": _revalidate_command(),
     },
     "scaffolding_missing_gitignore": {
         "tool": "apply_gitignore_template",
@@ -352,7 +404,7 @@ FINDING_CATALOG = {
             "windows_cmd": "type <clone>\\skill-template.gitignore >> <target>\\.gitignore",
         },
         "rationale": "Target .gitignore absent or lacks the QPB sentinel block.",
-        "verify_with": _REVALIDATE,
+        "verify_with": _revalidate_command(),
     },
     "scaffolding_missing_reference_docs": {
         "tool": "create_reference_docs",
@@ -364,7 +416,7 @@ FINDING_CATALOG = {
             "windows_cmd": "mkdir <target>\\reference_docs\\cite",
         },
         "rationale": "<target>/reference_docs/ or <target>/reference_docs/cite/ does not exist.",
-        "verify_with": _REVALIDATE,
+        "verify_with": _revalidate_command(),
     },
     "python_version_too_old": {
         "tool": "install_newer_python",
@@ -388,7 +440,7 @@ FINDING_CATALOG = {
             "windows_cmd": "py -3 -m pip install --user <pkg>",
         },
         "rationale": "importlib.util.find_spec(<pkg>) returned None; install the missing package.",
-        "verify_with": _REVALIDATE,
+        "verify_with": _revalidate_command(),
     },
     "ai_cli_not_on_path": {
         "tool": "install_ai_cli",
@@ -400,7 +452,7 @@ FINDING_CATALOG = {
             "windows_cmd": "Install the <tool> CLI: claude -> https://docs.claude.com/en/docs/claude-code/quickstart ; cursor -> https://cursor.com/install ; codex -> npm install -g @openai/codex ; gh -> winget install GitHub.cli ; then gh extension install github/gh-copilot",
         },
         "rationale": "shutil.which(<tool>) returned None for the detected AI tool; the runner cannot invoke it. Phase 0 blocks rather than discovering this in Phase 1.",
-        "verify_with": _REVALIDATE,
+        "verify_with": _revalidate_command(),
     },
     "bash_unavailable_mechanical_required": {
         "tool": "install_bash_environment",
@@ -412,7 +464,7 @@ FINDING_CATALOG = {
             "windows_cmd": "Install Git Bash from https://gitforwindows.org or WSL2 via wsl --install -d Ubuntu",
         },
         "rationale": "Target project type triggers mechanical verification but bash is unavailable. (Phase 0 cannot classify the project; this code is emitted later by the mechanical-verification path, not by the Phase 0 validator.)",
-        "verify_with": _REVALIDATE,
+        "verify_with": _revalidate_command(),
     },
     "bash_unavailable_mechanical_not_required": {
         "tool": "none",
@@ -503,7 +555,7 @@ FINDING_CATALOG = {
             "Phase 0 install/validate sequence. Resolve explicitly: "
             "either clean and restart, or resume deliberately."
         ),
-        "verify_with": _REVALIDATE,
+        "verify_with": _revalidate_command(),
     },
 }
 
