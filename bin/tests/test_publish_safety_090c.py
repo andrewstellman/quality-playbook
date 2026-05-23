@@ -315,14 +315,29 @@ class ColdNpmPackShipsCompleteBundle090cTests(unittest.TestCase):
             f"rc={r.returncode}\nstdout:\n{r.stdout}\n"
             f"stderr:\n{r.stderr}",
         )
-        # `npm pack` prints non-JSON noise (the `prepack` script
-        # output) before the JSON. Find the JSON array start.
-        idx = r.stdout.find("[")
-        self.assertGreaterEqual(
-            idx, 0,
-            f"npm pack output has no JSON array: {r.stdout!r}",
+        # v1.5.7 090e T4: deterministic JSON extraction. `npm pack
+        # --json` prints non-JSON `prepack` script output BEFORE
+        # the JSON array (e.g. the 090c auto-stage emits
+        # `build_channel_package: staged 54 files...` first). The
+        # pre-090e parser used `stdout.find("[")` which is brittle
+        # — if `prepack` output ever contains a `[` character
+        # (e.g. a bracketed log prefix), the slice starts at the
+        # wrong byte. The robust form: find the first LINE that
+        # starts with `[` (the JSON array opener at column 0).
+        # That can never collide with prepack chatter (which
+        # never starts a line with bare `[`).
+        json_lines = r.stdout.splitlines(keepends=True)
+        json_start_idx = None
+        for i, line in enumerate(json_lines):
+            if line.lstrip().startswith("["):
+                json_start_idx = i
+                break
+        self.assertIsNotNone(
+            json_start_idx,
+            f"090e: npm pack output has no line starting with "
+            f"`[` (JSON array). stdout:\n{r.stdout}",
         )
-        data = json.loads(r.stdout[idx:])
+        data = json.loads("".join(json_lines[json_start_idx:]))
         files = data[0].get("files", [])
         names = {entry["path"] for entry in files}
         bundle_names = [
@@ -426,6 +441,139 @@ class ForeignBinIsolation090cTests(unittest.TestCase):
                         f"stdout:\n{r.stdout}\nstderr:\n"
                         f"{r.stderr}",
                     )
+
+
+# ---------------------------------------------------------------------------
+# Test class 4 (090e T5): backend version stamping
+# ---------------------------------------------------------------------------
+
+
+@unittest.skipUnless(
+    _BUILD_OK,
+    "`build` package + working `python -m venv` required — "
+    "skipping the backend version-stamping test.",
+)
+class BackendStampsSkillMdVersion090eTests(unittest.TestCase):
+    """v1.5.7 090e T5: `_qpb_build_backend` must stamp the
+    SKILL.md version into pyproject.toml + package.json BEFORE
+    setuptools builds the wheel, so a cold `python -m build`
+    after a SKILL.md version bump produces a correctly-
+    versioned artifact (no need to run the stamper CLI
+    separately).
+
+    Pre-090e the backend only staged the bundle; the version
+    stamper lived in the CLI. A bare `python -m build` after a
+    SKILL.md bump (the blessed release path post-090c) would
+    therefore ship a stale version.
+
+    Mutation candidate: revert the `_stamp_version()` call in
+    `_qpb_build_backend.build_wheel` / `build_sdist`. Expected
+    failure: this test fires because the wheel's METADATA
+    Version field shows the stale pyproject value instead of
+    the (simulated) SKILL.md value."""
+
+    def test_cold_build_stamps_skill_md_version(self) -> None:
+        """Temporarily set SKILL.md frontmatter to a different
+        version, run cold `python -m build --wheel`, unzip the
+        wheel and confirm METADATA shows the SKILL.md version,
+        not the pre-stamp pyproject value. Restores SKILL.md
+        + pyproject.toml + package.json on teardown.
+        """
+        skill_md = REPO_ROOT / "SKILL.md"
+        pyproject = REPO_ROOT / "pyproject.toml"
+        package_json = REPO_ROOT / "package.json"
+        skill_backup = skill_md.read_text(encoding="utf-8")
+        pyproject_backup = pyproject.read_text(encoding="utf-8")
+        package_json_backup = package_json.read_text(encoding="utf-8")
+        # Also back up the staged bundle dir state so a clean
+        # _bundle (which the cold-build will produce) doesn't
+        # corrupt the working tree post-test.
+        bundle = REPO_ROOT / "quality_playbook_cli" / "_bundle"
+        try:
+            # Rewrite SKILL.md frontmatter's version line to a
+            # synthetic value that wouldn't match by accident.
+            # PEP440-valid synthetic version (no hyphens; the
+            # build backend's pyproject.toml validator
+            # enforces PEP440). 9999 is implausible as a real
+            # release version, so the test's pin doesn't
+            # accidentally match a future bump.
+            synthetic_version = "9999.0.0"
+            # SKILL.md's version: line is INDENTED under
+            # `metadata:` ("  version: 1.5.7"); the regex must
+            # allow leading whitespace to match it.
+            new_skill = re.sub(
+                r"^(\s*version:\s*).*$",
+                rf"\g<1>{synthetic_version}",
+                skill_backup, count=1, flags=re.MULTILINE,
+            )
+            self.assertNotEqual(
+                new_skill, skill_backup,
+                "Could not find a `version:` frontmatter line "
+                "in SKILL.md to rewrite for the test fixture.",
+            )
+            skill_md.write_text(new_skill, encoding="utf-8")
+
+            # Clear _bundle to exercise the cold path.
+            if bundle.is_dir():
+                shutil.rmtree(bundle)
+
+            with tempfile.TemporaryDirectory(
+                prefix="qpb_090e_stamp_",
+            ) as tmp:
+                tmp_path = Path(tmp)
+                r = subprocess.run(
+                    [sys.executable, "-m", "build", "--wheel",
+                     "--outdir", str(tmp_path), str(REPO_ROOT)],
+                    capture_output=True, text=True, timeout=300,
+                )
+                self.assertEqual(
+                    r.returncode, 0,
+                    f"090e: cold `python -m build` (synthetic "
+                    f"SKILL.md version) must succeed. rc="
+                    f"{r.returncode}\nstdout:\n{r.stdout}\n"
+                    f"stderr:\n{r.stderr}",
+                )
+                wheels = list(
+                    tmp_path.glob(
+                        f"quality_playbook-{synthetic_version}*.whl"
+                    )
+                )
+                self.assertTrue(
+                    wheels,
+                    f"090e: expected wheel named "
+                    f"quality_playbook-{synthetic_version}-*.whl "
+                    f"(SKILL.md version stamped into "
+                    f"pyproject.toml). Got: "
+                    f"{[p.name for p in tmp_path.iterdir()]}",
+                )
+                wheel = wheels[0]
+                with zipfile.ZipFile(wheel) as zf:
+                    metadata_names = [
+                        n for n in zf.namelist()
+                        if n.endswith(".dist-info/METADATA")
+                    ]
+                    self.assertEqual(len(metadata_names), 1)
+                    metadata = zf.read(metadata_names[0]).decode(
+                        "utf-8")
+                self.assertIn(
+                    f"Version: {synthetic_version}", metadata,
+                    f"090e: wheel METADATA must carry the "
+                    f"SKILL.md-stamped version ({synthetic_version}), "
+                    f"not the pre-stamp pyproject value. "
+                    f"METADATA excerpt:\n{metadata[:500]}",
+                )
+        finally:
+            skill_md.write_text(skill_backup, encoding="utf-8")
+            pyproject.write_text(pyproject_backup, encoding="utf-8")
+            package_json.write_text(
+                package_json_backup, encoding="utf-8")
+            # Re-stage the _bundle so the next test that needs
+            # it has a fresh copy.
+            from bin import build_channel_package as bcp
+            bcp.stage(REPO_ROOT, bundle, clean=True)
+
+
+import re  # noqa: E402 — late import used only by the 090e test
 
 
 if __name__ == "__main__":

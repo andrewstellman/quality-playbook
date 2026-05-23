@@ -403,6 +403,78 @@ class NpmChannelInstallE2E090bTests(unittest.TestCase):
                     f"{required} at {install_root}",
                 )
 
+    def test_npx_validate_from_real_tarball_reports_status_ok(self) -> None:
+        """v1.5.7 090e T3: run `npx --package=<tgz> quality-
+        playbook validate <target>` from the actually-packed
+        tarball (not a staged shim) and assert
+        ``status=ok``.
+
+        Closes the round-2 Council gap: pre-090e the npm
+        coverage was install-from-tarball (090b) + validate-on-
+        staged-shim (089v) SEPARATELY. There was no test that
+        exercised `validate` from the real tarball.
+
+        Mutation-bite: revert 090c's `prepack` auto-stage in
+        package.json → the cold tarball ships empty `_bundle/`
+        → `npx ... init` succeeds but the install closure is
+        missing key files → `npx ... validate` reports
+        `status=remediable` (not `ok`) → this test fires.
+        """
+        self._require_setup()
+        with tempfile.TemporaryDirectory(prefix="qpb-090e-vtarget-") as t:
+            target = Path(t)
+            # 1. `npx ... init` from the real tarball.
+            r_init = subprocess.run(
+                ["npx", "--yes",
+                 f"--package={self._tarball}",
+                 "quality-playbook", "init",
+                 "--ai-tool=claude", "--no-smoke"],
+                cwd=str(target),
+                capture_output=True, text=True, timeout=180,
+                env=os.environ.copy(),
+            )
+            self.assertEqual(
+                r_init.returncode, 0,
+                f"090e T3: npx init from real .tgz must exit 0. "
+                f"rc={r_init.returncode}\nstdout:\n{r_init.stdout}\n"
+                f"stderr:\n{r_init.stderr}",
+            )
+            # 2. Scaffold the target so validate has the
+            #    canonical layout. install_skill normally writes
+            #    these; pre-scaffolding mirrors the existing
+            #    090b pip-validate test pattern.
+            (target / ".gitignore").write_text(
+                "# QPB scaffold\nquality/\n", encoding="utf-8",
+            )
+            (target / "reference_docs").mkdir(exist_ok=True)
+            (target / "reference_docs" / "cite").mkdir(exist_ok=True)
+            # 3. `npx ... validate` from the SAME tarball.
+            r_validate = subprocess.run(
+                ["npx", "--yes",
+                 f"--package={self._tarball}",
+                 "quality-playbook", "validate", str(target)],
+                cwd=str(target),
+                capture_output=True, text=True, timeout=180,
+                env=os.environ.copy(),
+            )
+            # qpb_validate exit codes: 0 = ok, 1 = remediable,
+            # 2 = blocked. The 090e contract is status=ok on a
+            # scaffolded fresh install.
+            self.assertEqual(
+                r_validate.returncode, 0,
+                f"090e T3: `npx validate` from real .tgz must "
+                f"exit 0 on a scaffolded fresh install. "
+                f"rc={r_validate.returncode}\nstdout:\n"
+                f"{r_validate.stdout}\nstderr:\n"
+                f"{r_validate.stderr}",
+            )
+            self.assertIn(
+                "status=ok", r_validate.stdout,
+                f"090e T3: `npx validate` from real .tgz must "
+                f"emit status=ok on a scaffolded fresh install. "
+                f"stdout:\n{r_validate.stdout}",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

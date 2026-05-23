@@ -41,6 +41,6 @@
     "!**/*.pyo",
     "!**/.DS_Store",
     "README.md",
-    "LICENSE"
+    "LICENSE.txt"
   ]
 }

@@ -1212,12 +1212,37 @@ def check_stale_quality_dir(target: Path) -> "list[dict]":
 def main(argv: "list[str] | None" = None) -> int:
     # v1.5.7 089x: no-args is purpose-banner-safe.
     argv_list = list(sys.argv[1:] if argv is None else argv)
+    # v1.5.7 090e: 3-step anchored fallback matching the
+    # foreign-bin-proof pattern in validate_phase_artifacts.py /
+    # reference_docs_ingest.py: try the canonical package form
+    # first, then the flat-layout form, then path-load
+    # `_purpose.py` from THIS file's directory via
+    # `importlib.util.spec_from_file_location` so the import is
+    # anchored on `Path(__file__)` and can never resolve to a
+    # sibling repo's `bin/`.
     try:
         from bin._purpose import print_command_intro as _print_command_intro
         from bin._purpose import print_help_banner as _print_help_banner
     except ImportError:
-        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
-        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
+        try:
+            from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+            from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
+        except ImportError:
+            import importlib.util as _ilu
+            _pp = Path(__file__).resolve().parent / "_purpose.py"
+            _ps = _ilu.spec_from_file_location(
+                "_qpb_purpose_via_qpb_validate", _pp,
+            )
+            if _ps is None or _ps.loader is None:
+                raise ImportError(
+                    f"qpb_validate: cannot resolve _purpose — "
+                    f"path-load fallback target {_pp} is missing."
+                )
+            _purpose_mod = _ilu.module_from_spec(_ps)
+            sys.modules[_ps.name] = _purpose_mod
+            _ps.loader.exec_module(_purpose_mod)
+            _print_command_intro = _purpose_mod.print_command_intro  # type: ignore[no-redef]
+            _print_help_banner = _purpose_mod.print_help_banner  # type: ignore[no-redef]
     if not argv_list:
         # v1.5.7 090a: full attribution banner + purpose banner.
         _print_command_intro(
