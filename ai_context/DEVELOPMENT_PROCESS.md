@@ -255,7 +255,8 @@ Docs that inform or are informed by the development process. This is not a navig
 
 - **`TOOLKIT.md`** — adopter-facing toolkit-installation and bare-invocation guide.
 - **`TOOLKIT_TEST_PROTOCOL.md`** — release-gate review protocol for orientation docs (the orientation-doc analog of Council-of-Three).
-- **`DEVELOPMENT_CONTEXT.md`** — context-gathering recipes and "baseline runs" guidance for development sessions. Operational counterpart to this `DEVELOPMENT_PROCESS.md` (which is the durable conventions doc; `DEVELOPMENT_CONTEXT.md` is the per-session-context doc).
+- **`DEVELOPMENT_CONTEXT.md`** — context-gathering recipes and "baseline runs" guidance for development sessions. Operational counterpart to this `DEVELOPMENT_PROCESS.md` (which is the durable conventions doc; `DEVELOPMENT_CONTEXT.md` is the per-session-context doc). Opens with a "How to read this doc" selective-load guide; benchmarking methodology lives in `BENCHMARK_PROTOCOL.md` and release history in `VERSION_HISTORY.md`.
+- **`VERSION_HISTORY.md`** — curated release-evolution narrative (v1.3.13 → present): what changed each release and why it mattered. The mechanical per-release changelog is `CHANGELOG.md` at the repo root.
 - **`CALIBRATION_PROTOCOL.md`** — the 12-step Mode 1 (autonomous) / Mode 2 (operator-driven) protocol for driving a QPB calibration cycle on a benchmark target. Read when working on any lever-pull release.
 - **`IMPROVEMENT_LOOP.md`** — methodology context for the calibration cycles: WHY the lever inventory exists and WHAT each lever controls.
 - **`BENCHMARK_PROTOCOL.md`** — clean-folder run protocol for contamination-free benchmarks; v1.5.5+ also documents the `quality/run_state.jsonl` event format and cross-validation rules.

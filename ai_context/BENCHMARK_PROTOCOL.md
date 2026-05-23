@@ -165,3 +165,66 @@ directory holds Phase 3 four-pass + Phase 4 divergence outputs).
 The contamination-risk discipline above still applies — never run
 against `repos/clean/<target>` directly; copy fresh into a run
 directory under `repos/runs/`.
+
+## Code-target run procedure
+
+Code targets (and Hybrid code-path runs) use `bin/run_playbook.py`. Positional arguments are directory paths (relative or absolute) — the runner does no short-name resolution and no benchmark-folder lookup. Run from `repos/` so the working-copy directory names produced by `setup_repos.sh` (e.g. `chi-1.5.7`) can be passed as plain relative paths:
+
+```bash
+cd repos/
+./setup_repos.sh chi cobra virtio                     # copy skill files into the three repo-based targets
+python3 ../bin/run_playbook.py chi-1.5.7 cobra-1.5.7 virtio-1.5.7          # baseline runs (Copilot default)
+python3 ../bin/run_playbook.py --claude chi-1.5.7 cobra-1.5.7 virtio-1.5.7 # baseline runs (Claude Code)
+python3 ../bin/run_playbook.py --codex chi-1.5.7 cobra-1.5.7 virtio-1.5.7  # baseline runs (codex-cli, v1.5.3+)
+python3 ../bin/run_playbook.py --next-iteration --strategy all chi-1.5.7 cobra-1.5.7 virtio-1.5.7  # full iteration cycle
+```
+
+**Bootstrap is invoked by passing the QPB repo root as an explicit target** — it doesn't go through `setup_repos.sh` because the QPB repo already has SKILL.md and references at their canonical locations:
+
+```bash
+python3 bin/run_playbook.py /path/to/QPB --phase all   # bootstrap: run on the QPB repo itself
+```
+
+**Post-089x note:** running `bin/run_playbook.py` with **no arguments no longer auto-starts the bootstrap self-audit** — bare invocation prints the script's purpose banner and exits 0 (the 089x no-args-safe invariant). A real run, including bootstrap, requires an explicit target path; the human-operator override `--operator-invoked` is available for driving a run from inside an agent terminal. (Pre-089x, no-args ran a full self-audit against the current directory — a footgun that 089x removed.)
+
+## Why bootstrap is a benchmark target
+
+Bootstrap is the playbook running against the QPB repo itself. It's always included in the active benchmark set because:
+
+1. **Self-referential edge cases.** The gate script validates its own artifacts. SKILL.md is both the instruction set and the subject under audit. Changes to rules about enum validation, heading format, or script-verified closure can break on the very script that enforces them — and only bootstrap catches that class of bug.
+2. **Perfect verification.** We wrote the skill and the gate, so we can verify any finding against our own intent quickly. For other repos, we spot-check; for bootstrap, we can confirm every bug.
+3. **Reproducibility.** The codebase is stable between runs (our own commits), so convergence trends cleanly across model/runner combinations.
+
+Bootstrap artifacts live at `quality/` at the QPB repo root rather than under `repos/`. To run bootstrap, the agent treats the QPB root as the target directory; the existing `quality/` is the prior-run evidence (phase 0 seed source).
+
+## Interpreting results
+
+**Bug counts vary between runs.** The same skill on the same codebase produces different bug counts due to non-determinism in exploration. A single run isn't definitive. Compare across 5+ runs or use iteration cycles to compensate.
+
+**Baseline vs. iteration yield.** Baseline typically finds 1-3 bugs per repo. Full iteration cycle (gap + unfiltered + parity + adversarial) multiplies by 3-4x. If a skill change doesn't improve baseline yield, it may still improve iteration yield or vice versa.
+
+**Spot-check every new version.** After making skill changes, spot-check 3-5 bugs from the new version against actual source code. Verify the bug is real, the file:line is correct, and the regression test would actually fail. In v1.3.46 benchmarking, 15/15 spot-checked bugs were verified as real.
+
+## Known agent behavior differences
+
+| Agent | Exploration | TDD execution | Known issues |
+|-------|------------|---------------|-------------|
+| Claude Code / Opus | Strong | Reliable (creates red/green logs) | Expensive (~8% weekly per run) |
+| Claude Code / Sonnet | Strong (25 bugs, 3 HIGH) | Reliable | Recommended default (~3% weekly per run) |
+| Copilot / gpt-5.4 | Strong | Weak (skips log creation) | 54hr rate limit on heavy use |
+| Cursor / Sonnet | Good | Weak first pass, follows up when asked | Workspace scope bleeds to siblings |
+| Cursor / Codex 5.3 | Weak (zero bugs) | N/A | Insufficient reasoning depth |
+| Codex CLI / `codex exec --full-auto` (v1.5.3+) | TBD — released as a runner option in commit `b6b31f2`; benchmark data accumulates as adopters use it | TBD | Standalone CLI (NOT the GitHub Copilot CLI — neither the new `copilot` nor the deprecated `gh copilot` extension); codex picks its model from `~/.codex/config.toml` unless `--model` overrides |
+
+The v1.5.7 UX contract surfaces the **pass-process / fail-recall** failure mode (Cursor / Codex 5.3 row above; the "agent produces clean artifacts and passes gates while finding zero real bugs" case) directly in the agent's chat output via the mandatory `## What just happened` block emitted at every phase boundary (see SKILL.md cross-phase orientation-spine section + `references/what_just_happened.md` State S template). Adopters who hit this on a Cursor-Auto run now see plain-English framing like "Phases 1-2 produced real artifacts, but Phases 3-5 wrote stubs and zero bugs were confirmed. This is the documented pass-process / fail-recall failure mode — switch to a more capable model" rather than having to derive the same diagnosis from buried gate WARNs.
+
+## Council reviews
+
+For major skill changes, we run a council review: three different AI agents independently analyze the benchmark data, iteration logs, and bug quality, then propose improvements. The agents don't modify code — they write analysis documents.
+
+Council review artifacts go in `council-reviews/`. Each review has:
+- `COUNCIL_BRIEFING_VN.md` — data and questions for the council
+- `COUNCIL_VN_PROMPTS.md` — prompts for each reviewer (must include "DO NOT modify any code")
+- `{AGENT}_RESPONSE_VN.md` — each reviewer's analysis
+
+(For the project's full Council-of-Three nested-panel protocol — roster, the `cd`-into-repo discipline, the nested-panel trigger header — see the workspace `CLAUDE.md` and `ai_context/DEVELOPMENT_PROCESS.md`.)
