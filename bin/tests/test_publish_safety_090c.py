@@ -43,41 +43,17 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def _build_available() -> bool:
-    try:
-        import build  # noqa: F401
-        return True
-    except ImportError:
-        return False
+# v1.5.7 090d: use the centralized skip-clean helper.
+# Previously the `import build` shape returned True even when
+# `build/__main__.py` was missing, so `python -m build` crashed
+# and the test reported FAIL instead of skipped.
+from bin.tests._channel_test_helpers import (  # noqa: E402
+    pip_channel_prereqs_ok as _pip_channel_prereqs_ok,
+    node_npm_available as _node_npm_available,
+)
 
-
-def _venv_works() -> bool:
-    try:
-        with tempfile.TemporaryDirectory() as tmp:
-            r = subprocess.run(
-                [sys.executable, "-m", "venv", "--without-pip",
-                 str(Path(tmp) / "v")],
-                capture_output=True, text=True, timeout=30,
-            )
-            return r.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-
-
-def _npm_available() -> bool:
-    if shutil.which("npm") is None:
-        return False
-    try:
-        r = subprocess.run(["npm", "--version"],
-                           stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE, timeout=20)
-        return r.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-
-
-_BUILD_OK = _build_available() and _venv_works()
-_NPM_OK = _npm_available()
+_BUILD_OK = _pip_channel_prereqs_ok()
+_NPM_OK = _node_npm_available()
 
 
 # ---------------------------------------------------------------------------

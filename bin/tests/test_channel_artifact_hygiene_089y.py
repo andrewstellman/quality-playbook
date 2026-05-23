@@ -72,29 +72,19 @@ def _npm_available() -> bool:
         return False
 
 
-def _build_available() -> bool:
-    try:
-        import build  # noqa: F401
-        return True
-    except ImportError:
-        return False
-
-
-def _venv_works() -> bool:
-    try:
-        with tempfile.TemporaryDirectory() as tmp:
-            r = subprocess.run(
-                [sys.executable, "-m", "venv", "--without-pip",
-                 str(Path(tmp) / "v")],
-                capture_output=True, text=True, timeout=30,
-            )
-            return r.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-
+# v1.5.7 090d: centralized skip-clean checks. The in-process
+# ``import build`` shape was insufficient — it returned True
+# even when ``build`` was a namespace package missing
+# ``__main__.py``, so ``python -m build`` failed and the test
+# crashed instead of skipping. The new helper invokes
+# ``sys.executable -m build --help`` to match what the test
+# actually does.
+from bin.tests._channel_test_helpers import (  # noqa: E402
+    pip_channel_prereqs_ok as _pip_channel_prereqs_ok,
+)
 
 _NPM_OK = _npm_available()
-_PIP_PREREQS_OK = _build_available() and _venv_works()
+_PIP_PREREQS_OK = _pip_channel_prereqs_ok()
 
 
 class ChannelArtifactHygiene089yStructuralTests(unittest.TestCase):

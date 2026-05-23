@@ -60,35 +60,23 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def _build_available() -> bool:
-    """Is the `build` PEP-517 builder available?"""
-    try:
-        import build  # noqa: F401
-        return True
-    except ImportError:
-        return False
+# v1.5.7 090d: skip-clean check via the centralized helper. The
+# previous in-process ``import build`` check returned True even
+# when ``build`` was a namespace package missing ``__main__.py``
+# (and therefore ``python -m build`` failed). The new check runs
+# ``sys.executable -m build --help`` — same entry point the test
+# will invoke — so skip-vs-run agrees with what the test does.
+from bin.tests._channel_test_helpers import (  # noqa: E402
+    pip_channel_prereqs_ok as _pip_channel_prereqs_ok,
+    SKIP_PIP_PREREQS as _SKIP_PIP_PREREQS,
+)
 
-
-def _venv_works() -> bool:
-    """Can `python -m venv` create a usable venv?"""
-    try:
-        with tempfile.TemporaryDirectory() as tmp:
-            r = subprocess.run(
-                [sys.executable, "-m", "venv", "--without-pip", str(Path(tmp) / "v")],
-                capture_output=True, text=True, timeout=30,
-            )
-            return r.returncode == 0
-    except (OSError, subprocess.TimeoutExpired):
-        return False
-
-
-_PREREQS_OK = _build_available() and _venv_works()
+_PREREQS_OK = _pip_channel_prereqs_ok()
 
 
 @unittest.skipUnless(
     _PREREQS_OK,
-    "089u e2e: requires `build` package + working `python -m venv` "
-    "(both available on the dev host; skipping cleanly on minimal "
+    _SKIP_PIP_PREREQS + " (089u e2e: skipping cleanly on minimal "
     "CI runners).",
 )
 class PipChannelE2E089uTests(unittest.TestCase):
