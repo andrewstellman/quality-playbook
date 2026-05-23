@@ -32,6 +32,11 @@
   "files": [
     "bin/quality-playbook.js",
     "quality_playbook_cli/**/*",
+    "!**/__pycache__",
+    "!**/__pycache__/**",
+    "!**/*.pyc",
+    "!**/*.pyo",
+    "!**/.DS_Store",
     "README.md",
     "LICENSE"
   ]

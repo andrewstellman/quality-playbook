@@ -7,10 +7,13 @@ nonce stamped on every emitted line, structured exit codes
 (install_absent / install_partial / install_wrong_ai_tool /
 validator_invoked_from_clone / multiple_ai_tool_markers).
 
-Environment checks (tiktoken/yaml/cli-on-PATH/bash) are host-
-dependent, so the exit-code / closure subtests patch
+Environment checks (Python-version / cli-on-PATH / bash) are
+host-dependent, so the exit-code / closure subtests patch
 check_environment to isolate the behavior under test from CI host
 state — a deliberate unit-test isolation, not a behavior change.
+(v1.5.7 089y: the prior `tiktoken` / `yaml` `python_pkg` checks
+were dropped — the shipped runtime is stdlib-only; adopters need
+no third-party Python packages.)
 """
 
 from __future__ import annotations

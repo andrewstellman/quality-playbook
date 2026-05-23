@@ -181,6 +181,38 @@ def enumerate_npm_tarball(repo_root: Path) -> list[Path]:
     )
 
 
+def _purge_compiled_artifacts(dest_dir: Path) -> None:
+    """v1.5.7 089y T-B: remove ``__pycache__`` dirs + ``.pyc``/
+    ``.pyo`` files from a staged tree.
+
+    Why this exists: the staged ``quality_playbook_cli/_bundle/``
+    tree is a Python source bundle, but if anything imports the
+    staged modules at test/dev time (the 089u + 089v e2e tests
+    do this when they spawn ``python -m quality_playbook_cli``),
+    Python writes ``__pycache__/*.pyc`` siblings to the
+    ``.py`` files. Those compiled artifacts are
+    platform/version-specific and have no place in either the pip
+    wheel or the npm tarball — both channels should ship .py
+    source only.
+
+    Called at the END of ``stage()`` so the staged tree is
+    artifact-free regardless of whether ``clean=True`` wiped a
+    previous staging (in which case there'd be nothing to purge)
+    or ``clean=False`` left a dirty incremental tree.
+    """
+    if not dest_dir.is_dir():
+        return
+    for pycache in dest_dir.rglob("__pycache__"):
+        if pycache.is_dir():
+            shutil.rmtree(pycache, ignore_errors=True)
+    for suffix in (".pyc", ".pyo"):
+        for f in dest_dir.rglob(f"*{suffix}"):
+            try:
+                f.unlink()
+            except OSError:
+                pass
+
+
 def stage(repo_root: Path, dest_dir: Path,
           *, clean: bool = True) -> list[Path]:
     """Copy every file enumerated by ``enumerate_bundle(repo_root)``
@@ -189,6 +221,11 @@ def stage(repo_root: Path, dest_dir: Path,
     Returns the list of staged file paths (under ``dest_dir``).
     With ``clean=True`` (default), removes any prior ``dest_dir``
     contents first.
+
+    v1.5.7 089y T-B: also purges any ``__pycache__`` / ``.pyc`` /
+    ``.pyo`` that may have appeared under ``dest_dir`` (e.g. from
+    test imports of the staged modules) — neither channel ships
+    compiled artifacts.
     """
     repo_root = repo_root.resolve()
     dest_dir = dest_dir.resolve()
@@ -224,6 +261,11 @@ def stage(repo_root: Path, dest_dir: Path,
                 f"a regular file. _bundle_files() yielded a non-"
                 f"file entry — investigate."
             )
+    # v1.5.7 089y T-B: purge compiled-Python cruft from the staged
+    # tree (only effective for the --no-clean incremental case; a
+    # clean stage starts from an empty dir so there's nothing to
+    # purge).
+    _purge_compiled_artifacts(dest_dir)
     return staged
 
 

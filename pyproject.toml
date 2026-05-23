@@ -73,3 +73,17 @@ include-package-data = false
     "_bundle/.github/skills/**/*",
     "_bundle/.github/skills/quality_gate/**/*",
 ]
+
+# v1.5.7 089y T-B: exclude compiled-Python cruft from the wheel +
+# sdist. `bin/build_channel_package.stage()` already purges these
+# from the staged tree (`_purge_compiled_artifacts`), but the
+# defense-in-depth pattern here keeps the wheel clean even if a
+# future build path skips the purge step (e.g. a custom build
+# orchestration that calls `python -m build` without first running
+# `bin/build_channel_package.py`).
+[tool.setuptools.exclude-package-data]
+"quality_playbook_cli" = [
+    "_bundle/**/__pycache__/**",
+    "_bundle/**/*.pyc",
+    "_bundle/**/*.pyo",
+]

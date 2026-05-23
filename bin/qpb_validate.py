@@ -202,23 +202,27 @@ INSTALL_SCAFFOLDING = [
 
 INSTALL_ENVIRONMENT = [
     {"kind": "python_version", "min_version": "3.10"},
-    {"kind": "python_pkg", "pkg": "tiktoken"},
-    {"kind": "python_pkg", "pkg": "yaml"},
     {"kind": "cli_on_path", "tool": "<detected-ai-tool>"},
     {"kind": "bash_available", "required_when": "project triggers mechanical verification"},
 ]
 
-# Python packages QPB requires importable, mapped from import name
-# (the name used in `importlib.util.find_spec`) to PyPI distribution
-# name (the name `pip install` actually accepts). For `yaml` the
-# import name and dist name diverge — `pip install yaml` is
-# unrunnable; the correct distribution is `PyYAML`. Keep this map as
-# the single source of truth so check_environment and the
-# remediation_suggestion emission agree.
-PYTHON_PKG_IMPORT_TO_DIST = {
-    "tiktoken": "tiktoken",
-    "yaml": "PyYAML",
-}
+# v1.5.7 089y: adopters need ZERO third-party Python packages — the
+# shipped installer / gate / validators / skill_derivation closure
+# is stdlib-only. Pre-089y `INSTALL_ENVIRONMENT` required `tiktoken`
+# and `yaml` (PyYAML); a fresh install would validate
+# `status=remediable` telling every adopter to `pip install
+# tiktoken PyYAML`. But the shipped runtime imports NEITHER —
+# `yaml` is imported nowhere in `bin/` or the gate; `tiktoken` is
+# imported only in two dev TEST files (`bin/tests/
+# test_skill_md_size.py`, `test_role_map_queries_cookbook.py`),
+# which adopters never run. Removing the entries makes the env-
+# check honest: a properly-scaffolded fresh install now validates
+# `status=ok`. The PYTHON_PKG_IMPORT_TO_DIST map is now empty —
+# kept as a module attribute (the dict shape, not the contents) so
+# downstream code that imports it doesn't have to be touched, and
+# so that a future required-dep can be added in lockstep with its
+# dist-name without restructuring.
+PYTHON_PKG_IMPORT_TO_DIST: dict[str, str] = {}
 
 # Sentinel substring used to recognise the QPB block appended to a
 # target's .gitignore by the AGENTS.md install `cp` step. Matched as a

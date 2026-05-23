@@ -95,7 +95,12 @@ class InstallClosureNoDriftTests(unittest.TestCase):
             self.assertNotIn("path", e,
                              f"INSTALL_ENVIRONMENT entry has a path: {e}")
         self.assertEqual(len(INSTALL_SCAFFOLDING), 3)
-        self.assertEqual(len(INSTALL_ENVIRONMENT), 5)
+        # v1.5.7 089y: was 5 (python_version, tiktoken, yaml,
+        # cli_on_path, bash_available); 089y dropped the two
+        # python_pkg entries because the shipped runtime imports
+        # neither (tiktoken is dev-test-only, yaml has zero
+        # importers). New count: 3.
+        self.assertEqual(len(INSTALL_ENVIRONMENT), 3)
 
 
 if __name__ == "__main__":
