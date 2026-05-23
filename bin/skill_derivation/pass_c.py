@@ -483,3 +483,25 @@ def _count_existing_ucs(path: Path) -> int:
         if isinstance(rec, dict) and rec.get("uc_id", "").startswith("UC-PHASE3-"):
             count += 1
     return count
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.pass_c',
+        summary=(
+            "Skill-derivation pass C — prose-to-code divergence "
+            "cross-checking (LLM + mechanical lanes). "
+        ),
+        role=(
+            "Entry point for the skill-derivation `pass_c` stage; called "
+            "by the skill-derivation orchestrator. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

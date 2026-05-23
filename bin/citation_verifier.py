@@ -365,3 +365,27 @@ def verify_citation(
         )
 
     return VerificationResult(ok=True, excerpt=fresh, warnings=tuple(warnings))
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='citation_verifier',
+        summary=(
+            "Phase-2/3/4 byte-equality citation extraction + §5.5 section "
+            "resolution. Verifies that citations in agent output point at "
+            "real, unchanged passages of the cited files. "
+        ),
+        role=(
+            "Soft-imported by .github/skills/quality_gate/quality_gate.py "
+            "at the citation-check phase; the gate's WARN path is the "
+            "fallback when this module isn't bundled. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

@@ -286,3 +286,26 @@ def _render_requirements_md(
             lines.append(f"| {req_id} | {title} | {ac} | {tier} |")
         lines.append("")
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.curate_requirements',
+        summary=(
+            "Requirements-curation helpers for the skill-derivation "
+            "pipeline — normalizes Phase 1 requirements into the "
+            "canonical schema. "
+        ),
+        role=(
+            "Imported by skill_derivation pass A to produce the curated "
+            "requirements list that downstream passes consume. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

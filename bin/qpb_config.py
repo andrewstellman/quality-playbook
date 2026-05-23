@@ -271,6 +271,30 @@ def _cmd_unset(key: str) -> int:
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    if not _argv_list_089x:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name='qpb_config',
+            summary=(
+            "QPB-wide configuration loader (timeouts, model "
+            "defaults, feature flags read from environment / config "
+            "files). "
+            ),
+            role=(
+            "Imported by run_playbook.py at startup to seed runtime "
+            "configuration. Standalone CLI prints the resolved "
+            "config. "
+            ),
+            kind="command",
+            usage_hint='python3 -m bin.qpb_config',
+        )
+        return 0
+
     """Entry point for `python3 -m bin.qpb_config <subcommand> [...]`."""
     parser = argparse.ArgumentParser(
         prog="qpb config",

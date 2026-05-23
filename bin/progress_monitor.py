@@ -290,3 +290,26 @@ class ProgressMonitor:
             self._emit(self._log_file, message)
         except Exception:  # noqa: BLE001 — never crash the monitor thread
             pass
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='progress_monitor',
+        summary=(
+            "Background progress monitor that surfaces run-state events "
+            "to stdout as `event=progress_*` records. "
+        ),
+        role=(
+            "Started by run_playbook.py at run-start; emits while phases "
+            "execute and is shut down at run-end. Not used by Mode A "
+            "agent-driven runs. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

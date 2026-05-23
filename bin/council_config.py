@@ -108,3 +108,26 @@ def council_members() -> tuple[str, ...]:
     for warning in qpb_config.validate_roster(members):
         print(f"WARN: {warning}", file=sys.stderr)
     return members
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='council_config',
+        summary=(
+            "Stable reviewer identifiers and model defaults for the "
+            "Council of Three (Phase 6 gate reviewers). "
+        ),
+        role=(
+            "Imported by run_playbook.py during Phase 6 setup; the "
+            "reviewer-identity values are read by the Council "
+            "orchestrator to map verdicts back to roles. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

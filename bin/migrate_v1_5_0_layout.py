@@ -246,6 +246,30 @@ _load_existing_index_payload = archive_lib.load_index_payload
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    if not _argv_list_089x:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name='migrate_v1_5_0_layout',
+            summary=(
+            "One-shot v1.5.0 → v1.5.x layout migrator — upgrades a "
+            "target from the pre-v1.5.0 flat layout to the current "
+            "`quality/` + `informal_docs/` shape. "
+            ),
+            role=(
+            "Operator-side migration — NOT called during a playbook "
+            "run. Run once per target repo when upgrading from a "
+            "pre-v1.5.0 install. "
+            ),
+            kind="command",
+            usage_hint='python3 -m bin.migrate_v1_5_0_layout <target>',
+        )
+        return 0
+
     parser = argparse.ArgumentParser(
         description=(
             "Idempotently migrate a pre-v1.5.0 QPB target repo to the consolidated "

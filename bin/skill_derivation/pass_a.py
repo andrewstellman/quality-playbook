@@ -439,3 +439,26 @@ def _count_existing_uc_draft_idxs(uc_drafts_path: Optional[Path]) -> int:
         if isinstance(rec, dict) and "uc_draft_idx" in rec:
             count += 1
     return count
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.pass_a',
+        summary=(
+            "Skill-derivation pass A — initial requirements curation from "
+            "Phase 1 exploration output. "
+        ),
+        role=(
+            "Entry point for the skill-derivation `pass_a` stage; called "
+            "by the skill-derivation orchestrator "
+            "(bin/skill_derivation/__main__.py). "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

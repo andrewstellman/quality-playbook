@@ -337,3 +337,25 @@ def run_divergence_to_bugs(config: DivergenceToBugsConfig) -> dict:
         "prose_to_code_groups_consolidated": consolidated_groups,
         "execution_bugs": len(executions),
     }
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.divergence_to_bugs',
+        summary=(
+            "Divergence-to-bug-candidate converter — turns the divergence "
+            "detectors' raw output into Phase 2-style bug candidates. "
+        ),
+        role=(
+            "Imported by skill_derivation pass D as the final stage of "
+            "the bug-generation pipeline. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

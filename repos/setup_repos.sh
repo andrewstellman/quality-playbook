@@ -285,6 +285,12 @@ for short in "${REPOS[@]}"; do
     # __init__.py is required for the `from .` package syntax to
     # resolve at target/bin/.
     cp "${QPB_DIR}/bin/__init__.py" "${dst}/bin/__init__.py" 2>/dev/null || true
+    # v1.5.7 089x: _purpose.py is the shared purpose-banner +
+    # version-reader + attribution-banner helper that bundled bin/
+    # modules import (lazily, with a file-path fallback). Required
+    # at adopter targets so no-args invocations of bundled scripts
+    # print a real purpose banner.
+    cp "${QPB_DIR}/bin/_purpose.py" "${dst}/bin/_purpose.py" 2>/dev/null || true
     cp "${QPB_DIR}/bin/quality_playbook.py" "${dst}/bin/quality_playbook.py" 2>/dev/null || true
     cp "${QPB_DIR}/bin/archive_lib.py" "${dst}/bin/archive_lib.py" 2>/dev/null || true
     cp "${QPB_DIR}/bin/council_semantic_check.py" "${dst}/bin/council_semantic_check.py" 2>/dev/null || true

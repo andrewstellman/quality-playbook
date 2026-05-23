@@ -850,6 +850,29 @@ def archive_run(
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    if not _argv_list_089x:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name='archive_lib',
+            summary=(
+            "QPB run-archive helpers — snapshot quality/ between "
+            "runs + restore from a snapshot. "
+            ),
+            role=(
+            "Imported by run_playbook.py to archive each iteration's "
+            "quality/ outputs into quality/previous_runs/. Has a CLI "
+            "for operator-side snapshot management. "
+            ),
+            kind="command",
+            usage_hint='python3 -m bin.archive_lib --list <target>',
+        )
+        return 0
+
     parser = argparse.ArgumentParser(
         description=(
             "Archive the current quality/ tree to "

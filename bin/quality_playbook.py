@@ -79,6 +79,30 @@ def _usage() -> str:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    if not _argv_list_089x:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name='quality_playbook',
+            summary=(
+            "Phase 4 semantic-check entry — runs the canonical "
+            "Council-style cross-check passes (plan|assemble) "
+            "against the target's REQ/UC graph. "
+            ),
+            role=(
+            "Invoked by Phase 4 of the playbook (`python3 -m "
+            "bin.quality_playbook semantic-check plan|assemble .`) "
+            "to produce the per-target inbox of cross-check results. "
+            ),
+            kind="command",
+            usage_hint='python3 -m bin.quality_playbook semantic-check plan .',
+        )
+        return 0
+
     if argv is None:
         argv = sys.argv[1:]
     if not argv or argv[0] in ("-h", "--help"):

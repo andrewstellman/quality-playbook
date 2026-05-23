@@ -298,3 +298,24 @@ def require_upstream_complete(
             f"consume its artifact. Resume or re-run the upstream pass "
             f"first."
         )
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.protocol',
+        summary=(
+            "Skill-derivation protocol constants + pass-handoff schemas. "
+        ),
+        role=(
+            "Imported by every skill_derivation pass; defines the data "
+            "shapes the passes exchange. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

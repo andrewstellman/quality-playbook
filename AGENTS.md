@@ -54,6 +54,7 @@ cp "$QPB"/agents/*.md .github/skills/agents/
 # here without updating _bundle_files() in lockstep (drift recreates
 # the A-26 ship-blocker via this doc-sanctioned alternate path).
 cp "$QPB"/bin/__init__.py                          .github/skills/bin/__init__.py
+cp "$QPB"/bin/_purpose.py                          .github/skills/bin/_purpose.py
 cp "$QPB"/bin/archive_lib.py                       .github/skills/bin/archive_lib.py
 cp "$QPB"/bin/benchmark_lib.py                     .github/skills/bin/benchmark_lib.py
 cp "$QPB"/bin/citation_verifier.py                 .github/skills/bin/citation_verifier.py
@@ -102,6 +103,7 @@ cp "$QPB"/agents/*.md .claude/skills/quality-playbook/agents/
 # here without updating _bundle_files() in lockstep (drift recreates
 # the A-26 ship-blocker via this doc-sanctioned alternate path).
 cp "$QPB"/bin/__init__.py                  .claude/skills/quality-playbook/bin/__init__.py
+cp "$QPB"/bin/_purpose.py                  .claude/skills/quality-playbook/bin/_purpose.py
 cp "$QPB"/bin/archive_lib.py               .claude/skills/quality-playbook/bin/archive_lib.py
 cp "$QPB"/bin/benchmark_lib.py             .claude/skills/quality-playbook/bin/benchmark_lib.py
 cp "$QPB"/bin/citation_verifier.py         .claude/skills/quality-playbook/bin/citation_verifier.py

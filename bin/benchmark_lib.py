@@ -131,9 +131,17 @@ def _read_version(path: Path) -> str:
 
 
 def detect_skill_version(qpb_dir: Optional[Path] = None) -> str:
-    """Read the `version:` value from the root SKILL.md (utility helper)."""
-    base_dir = qpb_dir or QPB_DIR
-    return _read_version(base_dir / "SKILL.md")
+    """Read the ``version:`` value from the root SKILL.md.
+
+    089x: when called without an explicit ``qpb_dir``, delegates to
+    ``_purpose.get_version()`` — THE canonical version source. The
+    explicit-path form is preserved so callers that want a specific
+    SKILL.md (e.g. testing fixtures) can still target one.
+    """
+    if qpb_dir is None:
+        from bin import _purpose
+        return _purpose.get_version()
+    return _read_version(qpb_dir / "SKILL.md")
 
 
 def skill_version() -> Optional[str]:
@@ -568,3 +576,28 @@ def print_summary(repo_dirs: Sequence[Path]) -> str:
         )
     lines.append("")
     return "\n".join(lines)
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='benchmark_lib',
+        summary=(
+            "Shared helpers for the QPB benchmark tooling — file walking, "
+            "test discovery, skill-version detection, and language-aware "
+            "command builders. "
+        ),
+        role=(
+            "Imported by run_playbook.py and the harness sibling-target "
+            "wrappers (repos/setup_repos.sh's per-target "
+            "`run_playbook.sh`); also imported by reference_docs_ingest "
+            "at Phase 1 for the version-detection fallback. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

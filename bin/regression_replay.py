@@ -540,6 +540,30 @@ def _qpb_dir() -> Path:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    if not _argv_list_089x:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name='regression_replay',
+            summary=(
+            "**Superseded** apparatus (per CALIBRATION_PROTOCOL.md) "
+            "— kept for parsing historical benchmark fixtures from "
+            "earlier calibration arcs. "
+            ),
+            role=(
+            "Not called during a playbook run. Preserved for "
+            "operators inspecting pre-CALIBRATION_PROTOCOL fixture "
+            "archives. "
+            ),
+            kind="command",
+            usage_hint='python3 -m bin.regression_replay <fixture-path>',
+        )
+        return 0
+
     args = _build_parser().parse_args(argv)
 
     qpb_dir = _qpb_dir()

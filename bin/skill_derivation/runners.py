@@ -317,3 +317,25 @@ def make_runner(name: str, *, model: str | None = None) -> LLMRunner:
     raise ValueError(
         f"unknown runner {name!r}; valid values: claude, copilot, codex, cursor"
     )
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.runners',
+        summary=(
+            "Pass-runner glue for the skill-derivation pipeline — wraps "
+            "each pass with timing, retry, and error capture. "
+        ),
+        role=(
+            "Imported by bin/skill_derivation/__main__.py to wrap each "
+            "registered pass. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

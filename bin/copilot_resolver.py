@@ -182,3 +182,27 @@ def resolve_copilot_command(
             cmd.append("--yolo")
         return cmd
     raise CopilotCLIUnavailable(_REMEDIATION_MESSAGE)
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='copilot_resolver',
+        summary=(
+            "Single-source resolver for the GitHub Copilot CLI surface — "
+            "picks between the deprecated `gh copilot` extension and the "
+            "newer standalone `copilot` CLI based on PATH availability. "
+        ),
+        role=(
+            "Called by every code path that spawns a copilot reviewer "
+            "(Council-of-Three runs in Phase 6, the autonomous reviewer "
+            "loop, the workspace-addendum confirmation reviewer). "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

@@ -632,6 +632,30 @@ def _assemble_main(argv: List[str]) -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    if not _argv_list_089x:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name='council_semantic_check',
+            summary=(
+            "Council-style semantic cross-check runner — assembles N "
+            "reviewer responses for a single REQ/UC and compares "
+            "them. "
+            ),
+            role=(
+            "Called by Phase 4 semantic-check (via "
+            "quality_playbook.py) to fan out one Council-of-Three "
+            "pass per cross-check item. "
+            ),
+            kind="command",
+            usage_hint='python3 -m bin.council_semantic_check --help',
+        )
+        return 0
+
     if argv is None:
         argv = sys.argv[1:]
     if argv and argv[0] == "plan":

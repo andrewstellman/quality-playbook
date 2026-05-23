@@ -134,6 +134,15 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     citation_verifier_src = source_root / "bin" / "citation_verifier.py"
     if citation_verifier_src.is_file():
         files.append((citation_verifier_src, Path("bin") / "citation_verifier.py"))
+    # v1.5.7 089x: bundle bin/_purpose.py so adopter installs still
+    # have the shared purpose-banner / version-reader / attribution-
+    # banner helpers available. Every other bundled bin script
+    # imports it (lazily, with a file-path fallback for shim
+    # contexts) — without it the no-args purpose banners would
+    # break at an adopter install location.
+    purpose_src = source_root / "bin" / "_purpose.py"
+    if purpose_src.is_file():
+        files.append((purpose_src, Path("bin") / "_purpose.py"))
     # v1.5.7 fix F-1: bundle bin/reference_docs_ingest.py so Phase 1's
     # `python -m bin.reference_docs_ingest` invocation resolves at the
     # install destination. Pre-fix, every benchmark target hard-stopped
@@ -258,45 +267,62 @@ _PATTERN_7_ANCHOR_RE = re.compile(r"^##+\s+Pattern\s+7\b", re.MULTILINE)
 # with a two-line blurb contrasting AI code review with quality
 # engineering. _BANNER_TAGLINE is now a 2-tuple so the drift test
 # can compare element-by-element against AGENTS.md's embedded copy.
-_BANNER_NAME = "Quality Playbook"
-_BANNER_AUTHOR = "Andrew Stellman"
-_BANNER_URL = "https://github.com/andrewstellman/quality-playbook"
-_BANNER_TAGLINE: tuple[str, str] = (
-    "AI code review is good. Quality engineering is better.",
-    "Because code that looks right can still do the wrong thing.",
-)
-_BANNER_LICENSE = "Apache License, Version 2.0"
-_BANNER_BOX_WIDTH = 80
-_BANNER_BOX_RULE = "=" * _BANNER_BOX_WIDTH
+# v1.5.7 089x: the canonical constants + the print_attribution_banner
+# function moved to ``bin/_purpose.py`` so install + run_playbook +
+# the rest of the bin/ tree share ONE source. The constants are
+# re-exported below under their pre-089x names so the 089l drift-
+# guard test (test_install_skill_banner_089j.py) keeps reading
+# ``install_skill._BANNER_*`` unchanged. _purpose is loaded
+# defensively so install_skill stays runnable in BOTH:
+#   - clone context (`python -m bin.install_skill`), where
+#     ``from bin import _purpose`` works directly; AND
+#   - importlib-shim context (089u pip shim, 089v npm shim), where
+#     bin/ is NOT on sys.path and we have to load _purpose by file
+#     path. The shims still observe the hard 089u constraint that
+#     ``python -I -c 'import bin'`` MUST FAIL after pip install —
+#     that test runs in isolated mode and never reaches the
+#     fallback branch below.
+def _load_purpose():
+    try:
+        from bin import _purpose as _p  # type: ignore[import-not-found]
+        return _p
+    except ImportError:
+        import importlib.util as _ilu
+        _purpose_path = Path(__file__).resolve().parent / "_purpose.py"
+        spec = _ilu.spec_from_file_location(
+            "_qpb_purpose_via_install_skill", _purpose_path
+        )
+        if spec is None or spec.loader is None:
+            raise RuntimeError(
+                f"install_skill: could not load _purpose.py at "
+                f"{_purpose_path} — the bundle is malformed."
+            )
+        mod = _ilu.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        return mod
 
-_BANNER_TEXT = (
-    f"{_BANNER_BOX_RULE}\n"
-    f"  {_BANNER_NAME} — by {_BANNER_AUTHOR}\n"
-    f"  {_BANNER_URL}\n"
-    "\n"
-    f"  {_BANNER_TAGLINE[0]}\n"
-    f"  {_BANNER_TAGLINE[1]}\n"
-    "\n"
-    f"  Licensed under the {_BANNER_LICENSE}\n"
-    f"{_BANNER_BOX_RULE}\n"
-)
+
+_PURPOSE = _load_purpose()
+_BANNER_NAME = _PURPOSE.BANNER_NAME
+_BANNER_AUTHOR = _PURPOSE.BANNER_AUTHOR
+_BANNER_URL = _PURPOSE.BANNER_URL
+_BANNER_TAGLINE = _PURPOSE.BANNER_TAGLINE
+_BANNER_LICENSE = _PURPOSE.BANNER_LICENSE
+_BANNER_BOX_WIDTH = _PURPOSE.BANNER_BOX_WIDTH
+_BANNER_BOX_RULE = _PURPOSE.BANNER_BOX_RULE
+_BANNER_TEXT = _PURPOSE.BANNER_TEXT
 
 
 def _print_banner(stream=None) -> None:
-    """Write the install-time attribution banner to ``stream``
-    (default ``sys.stderr``). 089k: called at the END of a
-    SUCCESSFUL install (after ``event=install_complete
+    """Write the install-time attribution banner. 089k: called at the
+    END of a successful install (after ``event=install_complete
     status=success``) — the closing flourish, on stderr so the
-    stdout event stream stays parse-clean for calling agents.
-    Idempotent on stream errors — the banner is informational;
-    a broken stderr must not break the install.
+    stdout event stream stays parse-clean. 089x: implementation
+    moved to ``_purpose.print_attribution_banner`` (single source);
+    this remains a thin delegator so existing call sites
+    (and a few tests that mock at this name) keep working.
     """
-    target = stream if stream is not None else sys.stderr
-    try:
-        target.write(_BANNER_TEXT)
-        target.flush()
-    except (OSError, ValueError):
-        pass
+    _PURPOSE.print_attribution_banner(stream)
 
 
 class Emitter:
@@ -779,16 +805,17 @@ def _parse_yaml_frontmatter(text: str) -> Optional[dict[str, str]]:
 
 
 def _read_skill_version(skill_path: Path) -> Optional[str]:
+    """Read the ``version:`` value from a specific SKILL.md path.
+
+    089x: kept as a thin wrapper around ``_purpose._read_version_from``
+    so install_skill's downgrade-detection callers (which pass an
+    explicit ``skill_path`` from the install target) still have a
+    path-targeted reader. The general-purpose "what version is the
+    QPB skill" question goes through ``_purpose.get_version()`` —
+    the SINGLE source of truth (089x T4 consolidation)."""
     if not skill_path.is_file():
         return None
-    try:
-        text = skill_path.read_text(encoding="utf-8", errors="replace")
-    except OSError:
-        return None
-    fm = _parse_yaml_frontmatter(text)
-    if fm is None:
-        return None
-    return fm.get("version")
+    return _PURPOSE._read_version_from(skill_path)
 
 
 def _is_downgrade(installed: str, incoming: str) -> bool:
@@ -1128,9 +1155,76 @@ def install(
 
 
 def main(argv: Optional[list[str]] = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    else:
+        argv = list(argv)
+
+    # v1.5.7 089x: no-args is purpose-banner-safe. Pre-089x, bare
+    # invocation auto-detected an AI-tool marker in cwd and silently
+    # installed there — a real footgun if the operator was poking
+    # around (the auto-install would write under a marker dir like
+    # .claude/skills/quality-playbook/ without confirmation). The
+    # 089x invariant: every bin/*.py is no-args-SAFE. To install,
+    # pass --into <repo> --ai-tool <tool> (or --target <path>) — an
+    # explicit destination.
+    if not argv:
+        _PURPOSE.print_purpose(
+            name="install_skill",
+            summary=(
+                "Install the Quality Playbook skill closure (the "
+                "SKILL.md + bin/ + references/ + phase_prompts/ + "
+                "agents/ tree) into a target repo's AI-tool "
+                "skill directory."
+            ),
+            role=(
+                "The adopter-side entry point — run it from the "
+                "QPB clone against a target repo to copy the "
+                "skill into that repo's "
+                "`.claude/skills/quality-playbook/` (or the "
+                "equivalent for cursor / copilot / codex / "
+                "windsurf / cline / aider / continue). "
+                "Also re-invoked by `uvx quality-playbook "
+                "install` (pip channel) and `npx quality-playbook "
+                "init` (npm channel) — they ship this script as "
+                "package data and call it with `--source` "
+                "pointing at the staged bundle."
+            ),
+            kind="command",
+            usage_hint=(
+                "python3 bin/install_skill.py "
+                "--into <repo> --ai-tool claude"
+            ),
+        )
+        return 0
+
     parser = argparse.ArgumentParser(
         prog="install_skill",
-        description=__doc__,
+        description=(
+            "Install the Quality Playbook skill closure into a "
+            "target repo's AI-tool skill directory. See "
+            "`python3 bin/install_skill.py` (no args) for a "
+            "one-screen overview of the script's role."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  # Claude Code in <repo>:\n"
+            "  python3 bin/install_skill.py "
+            "--into <repo> --ai-tool claude\n\n"
+            "  # Cursor with --force (overwrite existing):\n"
+            "  python3 bin/install_skill.py "
+            "--into <repo> --ai-tool cursor --force\n\n"
+            "  # Explicit target path (skip auto-resolution):\n"
+            "  python3 bin/install_skill.py --target "
+            "<repo>/.codex/skills/quality-playbook\n\n"
+            + _PURPOSE.attribution_footer()
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--version", action="version",
+        version=f"%(prog)s {_PURPOSE.get_version()}",
+        help="Print the SKILL.md version and exit.",
     )
     location_group = parser.add_mutually_exclusive_group()
     location_group.add_argument(

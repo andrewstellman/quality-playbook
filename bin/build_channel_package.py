@@ -35,10 +35,20 @@ the parity test fails.
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 import sys
 from pathlib import Path
 from typing import Iterable
+
+# v1.5.7 089x: `_purpose` import that works in BOTH invocation forms —
+# `python -m bin.build_channel_package` (bin/ is a package; cwd is the
+# repo root) AND `python3 bin/build_channel_package.py` (sys.path[0] is
+# bin/, so the package import fails but the direct one works).
+try:
+    from bin import _purpose
+except ImportError:
+    import _purpose  # type: ignore[no-redef]
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -217,14 +227,134 @@ def stage(repo_root: Path, dest_dir: Path,
     return staged
 
 
+_PYPROJECT_VERSION_RE = re.compile(
+    r'^(version\s*=\s*)"([^"]+)"\s*$', re.MULTILINE
+)
+_PACKAGE_JSON_VERSION_RE = re.compile(
+    r'^(\s*"version"\s*:\s*)"([^"]+)"', re.MULTILINE
+)
+
+
+def stamp_channel_manifest_versions(repo_root: Path) -> list[tuple[Path, str, str]]:
+    """v1.5.7 089x T4: rewrite the channel manifests' ``version``
+    fields from SKILL.md so the pip wheel + npm tarball can't ship
+    a version that drifts from the skill.
+
+    Reads ``_purpose.get_version()`` (THE canonical reader) and
+    updates:
+      - ``pyproject.toml`` — the ``[project]`` table's ``version =
+        "..."`` line.
+      - ``package.json`` — the top-level ``"version": "..."`` field.
+
+    Idempotent: re-running with no SKILL.md change writes the same
+    text. Returns a list of ``(path, before, after)`` tuples for
+    every file actually modified (empty list if both files were
+    already in sync — useful for tests / logging).
+
+    Run by ``main()`` automatically before ``stage()``. Adopters
+    invoking ``python -m build`` / ``npm pack`` directly should
+    run this first.
+    """
+    # _purpose is imported at module top with try/except for both
+    # `python -m bin.build_channel_package` and `python3
+    # bin/build_channel_package.py` invocations.
+    skill_version = _purpose.get_version()
+    if skill_version == "unknown":
+        raise RuntimeError(
+            f"build_channel_package: could not resolve SKILL.md "
+            f"version from {repo_root}; refusing to stamp channel "
+            f"manifests with a placeholder."
+        )
+
+    changed: list[tuple[Path, str, str]] = []
+    pyproject = repo_root / "pyproject.toml"
+    if pyproject.is_file():
+        text = pyproject.read_text(encoding="utf-8")
+        new_text, n = _PYPROJECT_VERSION_RE.subn(
+            lambda m: f'{m.group(1)}"{skill_version}"',
+            text, count=1,
+        )
+        if n == 0:
+            raise RuntimeError(
+                f"build_channel_package: pyproject.toml has no "
+                f"matchable `version = \"...\"` line — manifest "
+                f"shape changed; update the regex deliberately."
+            )
+        if new_text != text:
+            pyproject.write_text(new_text, encoding="utf-8")
+            old = _PYPROJECT_VERSION_RE.search(text).group(2)
+            changed.append((pyproject, old, skill_version))
+
+    package_json = repo_root / "package.json"
+    if package_json.is_file():
+        text = package_json.read_text(encoding="utf-8")
+        new_text, n = _PACKAGE_JSON_VERSION_RE.subn(
+            lambda m: f'{m.group(1)}"{skill_version}"',
+            text, count=1,
+        )
+        if n == 0:
+            raise RuntimeError(
+                f"build_channel_package: package.json has no "
+                f"matchable `\"version\": \"...\"` line — manifest "
+                f"shape changed; update the regex deliberately."
+            )
+        if new_text != text:
+            package_json.write_text(new_text, encoding="utf-8")
+            old = _PACKAGE_JSON_VERSION_RE.search(text).group(2)
+            changed.append((package_json, old, skill_version))
+    return changed
+
+
 def main(argv: Iterable[str] | None = None) -> int:
+    if argv is None:
+        argv = sys.argv[1:]
+    else:
+        argv = list(argv)
+
+    # v1.5.7 089x T2 + T3 invariant: no-args is purpose-banner-safe.
+    # Bare invocation does NOT stage or modify anything — that
+    # behavior was a 089u footgun ("run the build script just to
+    # peek at what it does, get a half-staged tree"). The explicit
+    # form (`--stage` or any other arg) is required to do work.
+    if not argv:
+        _purpose.print_purpose(
+            name="build_channel_package",
+            summary=(
+                "Stage the QPB clone source layout into "
+                "quality_playbook_cli/_bundle/ + stamp the pip + "
+                "npm channel manifests' version from SKILL.md."
+            ),
+            role=(
+                "Run by the OPERATOR before `python -m build` "
+                "(pip wheel) or `npm pack` (npm tarball). NOT "
+                "called during a playbook run."
+            ),
+            kind="command",
+            usage_hint=(
+                "python3 bin/build_channel_package.py --stage"
+            ),
+        )
+        return 0
+
     parser = argparse.ArgumentParser(
         prog="build_channel_package",
         description=(
             "Stage the QPB clone's source layout under "
-            "quality_playbook_cli/_bundle/ for the pip channel. "
-            "Run before `python -m build`."
+            "quality_playbook_cli/_bundle/ for the pip channel + "
+            "stamp the pip+npm manifests' version from SKILL.md. "
+            "Run before `python -m build` (pip wheel) or `npm "
+            "pack` (npm tarball)."
         ),
+        epilog=(
+            "Examples:\n"
+            "  # Default: stage + stamp manifests\n"
+            "  python3 bin/build_channel_package.py --stage\n\n"
+            "  # Stamp only (no staging):\n"
+            "  python3 bin/build_channel_package.py "
+            "--stamp-only\n\n"
+            + ATTRIBUTION_FOOTER_FOR_HELP
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
         "--dest",
@@ -243,7 +373,38 @@ def main(argv: Iterable[str] | None = None) -> int:
             "staging. Use only for incremental dev runs."
         ),
     )
+    parser.add_argument(
+        "--stage", action="store_true",
+        help="Stage the bundle (default action when args given).",
+    )
+    parser.add_argument(
+        "--stamp-only", action="store_true",
+        help=(
+            "Stamp the pip+npm channel manifests' version from "
+            "SKILL.md but do NOT stage the bundle."
+        ),
+    )
+    parser.add_argument(
+        "--version", action="store_true",
+        help="Print the SKILL.md version and exit.",
+    )
     args = parser.parse_args(argv)
+
+    if args.version:
+        print(_purpose.get_version())
+        return 0
+
+    # Stamp the channel manifests from SKILL.md (089x T4 — single
+    # source of truth: pip wheel + npm tarball versions match SKILL).
+    changed = stamp_channel_manifest_versions(REPO_ROOT)
+    for path, before, after in changed:
+        print(
+            f"build_channel_package: stamped "
+            f"{path.relative_to(REPO_ROOT)}: {before} -> {after}"
+        )
+
+    if args.stamp_only:
+        return 0
 
     staged = stage(REPO_ROOT, args.dest, clean=not args.no_clean)
     print(
@@ -251,6 +412,15 @@ def main(argv: Iterable[str] | None = None) -> int:
         f"{args.dest}"
     )
     return 0
+
+
+# v1.5.7 089x T2: stitched into argparse's epilog so `--help` carries
+# the lightweight attribution footer (the FULL 80-wide banner is
+# install-success + run_playbook only).
+ATTRIBUTION_FOOTER_FOR_HELP = (
+    "Quality Playbook · by Andrew Stellman · "
+    "https://github.com/andrewstellman/quality-playbook"
+)
 
 
 if __name__ == "__main__":

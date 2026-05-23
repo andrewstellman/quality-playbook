@@ -129,10 +129,11 @@ INSTALL_CLOSURE = [
     {"path": "agents/quality-playbook-claude.agent.md", "kind": "agent_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "agents/quality-playbook.agent.md", "kind": "agent_file", "min_version": None, "expected_sha256": None, "source_glob": None},
 
-    # ---- bin/ (13 — fixed enumeration from install_skill.py;
+    # ---- bin/ (14 — fixed enumeration from install_skill.py;
     #      v1.5.7 086 A-26 added qpb_config / run_state_lib /
-    #      validate_phase_artifacts) ----
+    #      validate_phase_artifacts; 089x added _purpose.py) ----
     {"path": "bin/__init__.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/_purpose.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/archive_lib.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/benchmark_lib.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/citation_verifier.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
@@ -1205,8 +1206,35 @@ def check_stale_quality_dir(target: Path) -> "list[dict]":
 
 
 def main(argv: "list[str] | None" = None) -> int:
-    args = _build_parser().parse_args(argv)
+    # v1.5.7 089x: no-args is purpose-banner-safe.
     argv_list = list(sys.argv[1:] if argv is None else argv)
+    if not argv_list:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name="qpb_validate",
+            summary=(
+                "QPB install-validator — emits `event=` lines + a "
+                "run-nonce + remediation suggestions for any drift "
+                "between an adopter target's installed skill and "
+                "the canonical _bundle_files()."
+            ),
+            role=(
+                "Phase 0 single source of truth — every AI agent "
+                "launching the playbook MUST run this against the "
+                "target and not proceed past Phase 0 until "
+                "status=ok. Also routed via "
+                "`uvx quality-playbook validate <target>` and "
+                "`npx quality-playbook validate <target>`."
+            ),
+            kind="command",
+            usage_hint="python3 bin/qpb_validate.py <target-repo>",
+        )
+        return 0
+
+    args = _build_parser().parse_args(argv)
 
     script_path = Path(__file__)
     ctx, root = detect_invocation_context(script_path)

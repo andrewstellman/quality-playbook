@@ -804,6 +804,31 @@ def _parse_args(argv: Optional[list[str]] = None) -> "argparse.Namespace":
 
 
 def _main(argv: Optional[list[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    import sys as _sys
+    _argv_list = list(_sys.argv[1:] if argv is None else argv)
+    if not _argv_list:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name="classify_project",
+            summary=(
+                "Classify a target repo as code / skill / hybrid "
+                "based on file composition + role distribution."
+            ),
+            role=(
+                "Phase 1 helper — called by run_playbook.py to "
+                "decide which exploration / generation strategy "
+                "to use against the target. Also runnable "
+                "standalone to inspect the classification."
+            ),
+            kind="command",
+            usage_hint="python3 -m bin.classify_project --target <repo>",
+        )
+        return 0
+
     args = _parse_args(argv)
 
     if args.benchmark:

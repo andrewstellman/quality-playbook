@@ -911,3 +911,25 @@ def _section_heading(sections_path: Path, document: str, section_idx) -> str:
         if s.get("section_idx") == section_idx and s.get("document") == document:
             return s.get("heading", "") or ""
     return ""
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.divergence_internal',
+        summary=(
+            "Internal-divergence detector — flags inconsistencies between "
+            "two passages within the SAME spec / doc. "
+        ),
+        role=(
+            "Imported by skill_derivation passes B/C alongside the other "
+            "three divergence detectors. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

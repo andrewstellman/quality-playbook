@@ -382,6 +382,30 @@ def ingest(target_repo: Path) -> dict:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    if not _argv_list_089x:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name='reference_docs_ingest',
+            summary=(
+            "Phase 1 reference-docs ingest — copies a curated subset "
+            "of QPB references/ into the target's reference_docs/ "
+            "tree. "
+            ),
+            role=(
+            "Mandatory Phase 1 step before any agent-driven "
+            "exploration (without it run_playbook.py aborts with "
+            "`references missing`). Runs in the target repo's cwd. "
+            ),
+            kind="command",
+            usage_hint='python3 -m bin.reference_docs_ingest <target>',
+        )
+        return 0
+
     parser = argparse.ArgumentParser(description=__doc__, prog="reference_docs_ingest")
     parser.add_argument("target", nargs="?", default=".", help="Target repo path (default: cwd)")
     args = parser.parse_args(argv)

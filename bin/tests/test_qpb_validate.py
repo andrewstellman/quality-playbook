@@ -208,9 +208,17 @@ class ValidatorFindingTests(unittest.TestCase):
 
     def test_validator_clone_vs_installed_invocation(self) -> None:
         """Run from inside the QPB clone with no target arg ->
-        finding=validator_invoked_from_clone, exit 2."""
+        finding=validator_invoked_from_clone, exit 2.
+
+        v1.5.7 089x: bare no-args now prints the purpose banner +
+        exits 0 (the universal no-args-safety invariant — every
+        bin/*.py is self-describing on no-args). To trigger the
+        clone-abort code path we now pass a non-target flag
+        (``--ai-tool claude``) so argparse falls through to the
+        clone-target-resolution check while still leaving
+        ``args.target == None``."""
         proc = subprocess.run(
-            [sys.executable, str(_VALIDATOR)],
+            [sys.executable, str(_VALIDATOR), "--ai-tool", "claude"],
             cwd=str(_QPB_ROOT), capture_output=True, text=True)
         self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
         self.assertIn("finding=validator_invoked_from_clone", proc.stdout)

@@ -357,3 +357,26 @@ def _count_existing_a3_divergences(path: Path) -> int:
         1 for line in path.read_text(encoding="utf-8").splitlines()
         if line.strip() and "_a3_idx" in line
     )
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.divergence_prose_to_code_llm',
+        summary=(
+            "Prose-to-code divergence detector (LLM lane) — uses an LLM "
+            "to flag mismatches between prose specs and the code that "
+            "should implement them. "
+        ),
+        role=(
+            "Imported by skill_derivation pass C; produces the LLM-side "
+            "half of the prose-to-code divergence pair. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

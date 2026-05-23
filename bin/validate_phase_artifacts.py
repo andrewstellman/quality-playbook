@@ -439,6 +439,31 @@ def validate(target: Path, phase: int) -> tuple[list[str], list[str]]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    if not _argv_list_089x:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name='validate_phase_artifacts',
+            summary=(
+            "Per-phase artifact validator — checks that the phase's "
+            "expected output files exist, are non-empty, and conform "
+            "to the schema. "
+            ),
+            role=(
+            "Called between phases (and by the Phase 6 gate) to "
+            "catch structural drift early — a "
+            "missing/empty/malformed phase artifact aborts the run "
+            "before the next phase reads it. "
+            ),
+            kind="command",
+            usage_hint='python3 -m bin.validate_phase_artifacts <target> --phase 2',
+        )
+        return 0
+
     parser = argparse.ArgumentParser(
         prog="python3 -m bin.validate_phase_artifacts",
         description="Phase-boundary artifact-contract validator "

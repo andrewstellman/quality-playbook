@@ -560,7 +560,35 @@ def _resolve_role_map_for_dispatch(args: argparse.Namespace, target_dir: Path):
 
 
 def _main(argv: Optional[list[str]] = None) -> int:
-    args = _parse_args(sys.argv[1:] if argv is None else argv)
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list = list(sys.argv[1:] if argv is None else argv)
+    if not _argv_list:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name="skill_derivation",
+            summary=(
+                "Skill-derivation pipeline orchestrator — runs "
+                "passes A/B/C/D in sequence against a target "
+                "phase-3 corpus."
+            ),
+            role=(
+                "Phase 4 (skill-derivation lane) entry point. "
+                "Reads phase-3 exploration output and produces "
+                "the candidate-skill / candidate-bug corpus "
+                "Phase 4 Council reviewers consume."
+            ),
+            kind="command",
+            usage_hint=(
+                "python3 -m bin.skill_derivation "
+                "--pass all <target>"
+            ),
+        )
+        return 0
+
+    args = _parse_args(_argv_list)
     target_dir = args.target_dir.resolve()
     p3 = _phase3_dir(target_dir)
     p3.mkdir(parents=True, exist_ok=True)

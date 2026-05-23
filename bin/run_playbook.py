@@ -1961,7 +1961,19 @@ def print_startup_banner(
     platform_name: Optional[str] = None,
 ) -> None:
     """Emit the startup banner via logboth so it lands in both stdout
-    and the run log file. Single call site in each run entry point."""
+    and the run log file. Single call site in each run entry point.
+
+    v1.5.7 089x T6: the FULL 80-wide attribution banner
+    (``_purpose.print_attribution_banner``) prints to **stderr**
+    first — Mode B run-start ceremony — so it doesn't pollute the
+    stdout `event=` stream Mode A clients parse. The existing
+    per-run "QPB vN run starting" startup banner then goes to
+    logboth as before."""
+    try:
+        from bin._purpose import print_attribution_banner as _print_attrib
+    except ImportError:
+        from _purpose import print_attribution_banner as _print_attrib  # type: ignore[no-redef]
+    _print_attrib()
     banner = build_startup_banner(
         repo_dir,
         log_path,
@@ -1970,6 +1982,19 @@ def print_startup_banner(
         args=args,
     )
     lib.logboth(log_path, banner)
+
+
+def print_completion_banner() -> None:
+    """v1.5.7 089x T6: emit the FULL 80-wide attribution banner at
+    Mode B run END as the closing flourish — symmetric with the
+    startup banner. Stream is **stderr** (clean-stdout-event=
+    rule). Called once at the end of execute_run for a successful
+    or failed playbook run."""
+    try:
+        from bin._purpose import print_attribution_banner as _print_attrib
+    except ImportError:
+        from _purpose import print_attribution_banner as _print_attrib  # type: ignore[no-redef]
+    _print_attrib()
 
 
 def run_prompt(repo_dir: Path, prompt: str, pass_name: str, output_file: Path, log_file: Path, runner: str, model: Optional[str]) -> int:
@@ -5785,6 +5810,47 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # --next-iteration handoff, --operator-invoked override) handled
     # inside via raw-argv token membership.
     _effective_argv = list(argv) if argv is not None else sys.argv[1:]
+
+    # v1.5.7 089x: no-args is purpose-banner-safe. Pre-089x, bare
+    # `python -m bin.run_playbook` (from an operator shell) would
+    # fall through to no-targets and exit 1 — but worse, in some
+    # call paths it could auto-start the QPB self-audit (the
+    # bootstrap_self_audit_docs lane). 089x makes bare = banner
+    # universally; the self-audit and any real playbook run live
+    # behind an explicit target arg or a `--bootstrap` / `--self`
+    # flag (--operator-invoked also works for the orchestrator
+    # lane). The no-args path runs BEFORE the agent-refuse check
+    # so the discovery feature works from any context.
+    if not _effective_argv:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name="run_playbook",
+            summary=(
+                "Mode B (operator-driven) playbook runner — "
+                "executes Phases 1–6 against one or more target "
+                "repos using a configured agent runner (claude / "
+                "copilot / codex / cursor)."
+            ),
+            role=(
+                "The benchmark / operator entry point for full "
+                "Mode B runs. Adopters who installed the skill "
+                "into their own repo invoke this via the "
+                "per-target wrapper that setup_repos.sh writes "
+                "(`run_playbook.sh`). Mode A users (agent-driven "
+                "in-session) do NOT call this — the agent walks "
+                "Phases 1–6 inline using "
+                "phase_prompts/phase{1..6}.md."
+            ),
+            kind="command",
+            usage_hint=(
+                "python3 -m bin.run_playbook <target>"
+            ),
+        )
+        return 0
+
     _check_agent_context_or_refuse(_effective_argv)
     args = parse_args(argv)
     if args.kill:
@@ -5845,7 +5911,22 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 _write_run_mode_marker(repo_dir, args, timestamp)
             except OSError:
                 pass  # marker is best-effort; runs continue regardless
-    return execute_run(args, repo_dirs, timestamp=timestamp)
+    # v1.5.7 089x T6: Mode B run start/end attribution banners. The
+    # start banner already fires inside execute_run via
+    # print_startup_banner (Task 6 wired the full-banner prepend
+    # there). The end banner fires here, AFTER execute_run returns,
+    # so it lands on both success and failure exits and after any
+    # final logbook writes.
+    _rc = execute_run(args, repo_dirs, timestamp=timestamp)
+    # Best-effort closing banner. Skip on agent-mode runs (the
+    # _check_agent_context_or_refuse path bailed earlier so we
+    # don't need a check here, but a defensive try wraps stream
+    # writes anyway).
+    try:
+        print_completion_banner()
+    except Exception:
+        pass
+    return _rc
 
 
 def _write_run_mode_marker(

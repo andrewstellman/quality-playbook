@@ -1134,6 +1134,7 @@ _INSTALL_MARKER_DIRS = (
 # behind one shared constants module.
 _FLAT_LAYOUT_BUNDLED_BIN_FILES = frozenset({
     "__init__.py",
+    "_purpose.py",                  # v1.5.7 089x
     "archive_lib.py",
     "benchmark_lib.py",
     "citation_verifier.py",
@@ -1702,3 +1703,27 @@ def _atomic_write(target: Path, content: str) -> None:
         except FileNotFoundError:
             pass
         raise
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='run_state_lib',
+        summary=(
+            "Read/write/validate helpers for the v1.5.6 run-state event "
+            "log (the journal Mode B writes phase events into). "
+        ),
+        role=(
+            "Imported by run_playbook.py (the journaling backbone), by "
+            "regression_replay (which reads historical fixtures), and by "
+            "validate_phase_artifacts.py (which inspects state "
+            "transitions). "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

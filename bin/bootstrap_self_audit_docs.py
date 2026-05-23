@@ -44,6 +44,30 @@ EXCLUDED_NAMES = {"README.md"}
 
 
 def main() -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:])
+    if not _argv_list_089x:
+        try:
+            from bin._purpose import print_purpose as _print_purpose
+        except ImportError:
+            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+        _print_purpose(
+            name='bootstrap_self_audit_docs',
+            summary=(
+            "QPB self-audit doc bootstrapper — initializes the "
+            "self-audit tracking docs (quality/EXPLORATION.md, "
+            "BUGS.md, etc.) from the canonical templates. "
+            ),
+            role=(
+            "Operator self-audit lane — NOT called during an adopter "
+            "playbook run. Used by the orchestrator when running QPB "
+            "against itself for release-prep audits. "
+            ),
+            kind="command",
+            usage_hint='python3 -m bin.bootstrap_self_audit_docs',
+        )
+        return 0
+
     if not SOURCE_DIR.is_dir():
         print(f"ERROR: source directory missing: {SOURCE_DIR}", file=sys.stderr)
         print(
