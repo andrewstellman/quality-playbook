@@ -1,13 +1,15 @@
-"""v1.5.7 089v — npm channel-remediation tests for ``qpb_validate.py``.
+"""v1.5.7 089v + 089w — npm channel-remediation tests for ``qpb_validate.py``.
 
 089u wired the pip channel into ``qpb_validate.py``'s
 ``FINDING_CATALOG``; the ``npm`` branch was stubbed to fall through
-to the clone form with an in-source TODO. 089v completes the npm
-branch: ``QPB_CHANNEL=npm`` now emits
+to the clone form with an in-source TODO. 089v completed the npm
+branch; 089w aligned its surface to the same ``--ai-tool`` flag
+pip + the Python installer use (one vocabulary across both
+channels and all docs). ``QPB_CHANNEL=npm`` now emits
 
-    npx quality-playbook init --loop=<tool>             (install)
-    npx quality-playbook init --loop=<tool> --force     (force variant)
-    npx quality-playbook validate <target>              (verify_with)
+    npx quality-playbook init --ai-tool=<tool>             (install)
+    npx quality-playbook init --ai-tool=<tool> --force     (force variant)
+    npx quality-playbook validate <target>                  (verify_with)
 
 …in every platform slot (npx is cross-platform, so every
 mac/linux/windows_* slot collapses to the same string).
@@ -72,15 +74,18 @@ class NpmChannelRemediation089vTests(unittest.TestCase):
     def test_npm_channel_emits_npx_install_form(self) -> None:
         """With ``QPB_CHANNEL=npm``, every install-* catalog entry's
         every platform slot must emit ``npx quality-playbook init
-        --loop=<tool>`` (or the ``--force`` variant for the
-        partial/version-skew entries).
+        --ai-tool=<tool>`` (or the ``--force`` variant for the
+        partial/version-skew entries). 089w: the flag is
+        ``--ai-tool`` — same vocabulary as the pip channel and the
+        Python installer; the shim does NOT recognize any other
+        flag spelling for the tool name.
 
         Mutation candidate: remove the ``if channel == "npm"``
         branch in ``_platform_table``. Expected failure: this test
         fires because the catalog returns the clone string under
         ``QPB_CHANNEL=npm``."""
         catalog = self._reload_catalog("npm")
-        npm_install = "npx quality-playbook init --loop=<tool>"
+        npm_install = "npx quality-playbook init --ai-tool=<tool>"
         npm_install_force = npm_install + " --force"
 
         # install_absent + install_wrong_ai_tool — non-force form.

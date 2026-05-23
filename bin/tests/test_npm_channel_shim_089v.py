@@ -1,4 +1,4 @@
-"""v1.5.7 089v — npm channel shim behavior tests.
+"""v1.5.7 089v + 089w — npm channel shim behavior tests.
 
 Exercises ``bin/quality-playbook.js`` (the Node shim) directly:
 
@@ -7,11 +7,14 @@ Exercises ``bin/quality-playbook.js`` (the Node shim) directly:
   stderr (NOT a Node stack trace). The instruction is explicit:
   the operator must see something they can act on, not a JS
   traceback.
-- **`--loop` mapping** — the shim's verb-translation step turns
-  ``init --loop=<tool>`` into ``install --into <cwd> --ai-tool
-  <tool>`` and otherwise passes argv through unchanged. The
+- **`--ai-tool` passthrough** (089w) — the shim's verb-translation
+  step maps ``init`` -> ``install`` and injects ``--into <cwd>``,
+  but forwards ``--ai-tool`` (both ``=`` and spaced forms) verbatim
+  to the Python entry. 089w decision: one vocabulary across pip +
+  npm + all docs; the shim has NO semantic flag translation. The
   shim exposes a private ``__print_translated_argv`` self-test
-  hook for this so we don't have to wire a real spawn.
+  hook so we can assert the translated argv without spawning
+  python.
 - **Verbatim passthrough** — the spawned child's stdout/stderr
   reach the operator byte-identical. This pins the Phase-0
   anti-fabrication contract: ``event=…`` lines and the
@@ -37,11 +40,13 @@ slower setup isolated from these unit-style assertions).
   manual forwarding -> ``test_stdio_passthrough_preserves_event_
   lines_and_nonce`` fails because captured stdout is empty.
   Restore.
-- Delete the ``--loop=<tool>`` parsing branch in
-  ``translateArgv`` -> ``test_loop_eq_form_maps_to_ai_tool``
-  fails. Restore.
+- Drop the ``--ai-tool`` argv tokens in ``translateArgv`` ->
+  ``test_ai_tool_eq_form_passes_through_verbatim`` fails because
+  the translated argv no longer carries ``--ai-tool=<tool>``.
+  Restore.
 
-Bites executed PASS -> FAIL -> PASS during 089v development.
+Bites executed PASS -> FAIL -> PASS during 089v + 089w
+development.
 """
 
 from __future__ import annotations
@@ -86,8 +91,8 @@ _NODE_OK = _node_available()
     "condition: node-dependent tests SKIP, not FAIL).",
 )
 class NpmChannelShim089vTests(unittest.TestCase):
-    """Cover Python detection, --loop translation, and verbatim
-    stdio passthrough."""
+    """Cover Python detection, --ai-tool passthrough (089w), and
+    verbatim stdio passthrough."""
 
     def _run_shim(self, args, *, env=None, cwd=None, timeout=60):
         """Run the shim and return ``(returncode, stdout, stderr)``
@@ -168,7 +173,7 @@ class NpmChannelShim089vTests(unittest.TestCase):
             )
 
     # ------------------------------------------------------------
-    # --loop translation
+    # --ai-tool passthrough (089w)
     # ------------------------------------------------------------
 
     def _spawn_argv(self, shim_argv, cwd=None):
@@ -183,53 +188,60 @@ class NpmChannelShim089vTests(unittest.TestCase):
                 return json.loads(line[len("SPAWN_ARGV: "):])
         self.fail(f"SPAWN_ARGV not found in stdout: {stdout!r}")
 
-    def test_loop_eq_form_maps_to_ai_tool(self) -> None:
-        """``init --loop=claude`` -> ``install --into <cwd>
-        --ai-tool claude`` is the central translation. The
-        ``--loop=`` form (no space) and the spaced form
-        ``--loop claude`` both produce the same result."""
+    def test_ai_tool_eq_form_passes_through_verbatim(self) -> None:
+        """``init --ai-tool=claude`` -> ``install --into <cwd>
+        --ai-tool=claude``. 089w decision: the shim forwards
+        ``--ai-tool`` verbatim (no semantic translation, no
+        normalization of the ``=`` form into a spaced pair).
+        The Python entry's argparse handles both forms natively,
+        so the shim's job ends with verb mapping + cwd default."""
         with tempfile.TemporaryDirectory() as tmp:
             argv = self._spawn_argv(
-                ["init", "--loop=claude"], cwd=tmp,
+                ["init", "--ai-tool=claude"], cwd=tmp,
             )
-        self.assertEqual(
-            argv,
-            ["-m", "quality_playbook_cli", "install",
-             "--into", os.path.realpath(tmp), "--ai-tool", "claude"],
-        )
-
-    def test_loop_spaced_form_maps_to_ai_tool(self) -> None:
-        """``init --loop claude`` (with a space) produces the
-        same translated argv as the ``=`` form."""
-        with tempfile.TemporaryDirectory() as tmp:
-            argv = self._spawn_argv(
-                ["init", "--loop", "claude"], cwd=tmp,
-            )
-        self.assertEqual(
-            argv,
-            ["-m", "quality_playbook_cli", "install",
-             "--into", os.path.realpath(tmp), "--ai-tool", "claude"],
-        )
-
-    def test_extra_flags_pass_through_unchanged(self) -> None:
-        """Flags other than ``--loop`` pass through verbatim —
-        ``--force``, ``--no-smoke``, etc. The shim is a
-        translator, not a validator."""
-        with tempfile.TemporaryDirectory() as tmp:
-            argv = self._spawn_argv(
-                ["init", "--loop=cursor", "--force", "--no-smoke"],
-                cwd=tmp,
-            )
-        # Order: --force and --no-smoke land where they appeared in
-        # the original argv (after --into <cwd>, before the
-        # synthesized --ai-tool); --ai-tool is appended last.
         self.assertEqual(
             argv,
             ["-m", "quality_playbook_cli", "install",
              "--into", os.path.realpath(tmp),
-             "--force", "--no-smoke",
-             "--ai-tool", "cursor"],
+             "--ai-tool=claude"],
         )
+
+    def test_ai_tool_spaced_form_passes_through_verbatim(self) -> None:
+        """``init --ai-tool claude`` (spaced) is forwarded as TWO
+        separate tokens to the Python entry — the shim does NOT
+        merge them into the ``=`` form (it does not parse the
+        value)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            argv = self._spawn_argv(
+                ["init", "--ai-tool", "claude"], cwd=tmp,
+            )
+        self.assertEqual(
+            argv,
+            ["-m", "quality_playbook_cli", "install",
+             "--into", os.path.realpath(tmp),
+             "--ai-tool", "claude"],
+        )
+
+    def test_extra_flags_pass_through_unchanged(self) -> None:
+        """Flags other than the verb pass through verbatim in
+        their original order — ``--ai-tool``, ``--force``,
+        ``--no-smoke``, etc. The shim is a transport layer, not
+        a validator or reorderer."""
+        with tempfile.TemporaryDirectory() as tmp:
+            argv = self._spawn_argv(
+                ["init", "--ai-tool=cursor", "--force",
+                 "--no-smoke"],
+                cwd=tmp,
+            )
+        # Order: original argv positions preserved (the shim only
+        # prepends `install --into <cwd>`).
+        self.assertEqual(
+            argv,
+            ["-m", "quality_playbook_cli", "install",
+             "--into", os.path.realpath(tmp),
+             "--ai-tool=cursor", "--force", "--no-smoke"],
+        )
+
 
     def test_validate_verb_passes_through(self) -> None:
         """The ``validate`` verb is a pass-through — no implicit
@@ -307,7 +319,7 @@ class NpmChannelShim089vTests(unittest.TestCase):
             # so this is fine.
             proc = subprocess.run(
                 [_NODE, str(tmp_root / "bin" / "quality-playbook.js"),
-                 "init", "--loop=claude"],
+                 "init", "--ai-tool=claude"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=str(tmp_root),
@@ -335,7 +347,8 @@ class NpmChannelShim089vTests(unittest.TestCase):
         )
         # event=install_skill_invoked line contains the translated
         # argv as a Python repr; since the shim's translation
-        # injects --into <cwd> + --ai-tool claude, we can pin
+        # injects --into <cwd> and forwards --ai-tool=claude
+        # verbatim (089w: no semantic translation), we can pin
         # those tokens too.
         self.assertIn(
             "'install'", stdout,
@@ -343,14 +356,11 @@ class NpmChannelShim089vTests(unittest.TestCase):
             "verb after init->install mapping).",
         )
         self.assertIn(
-            "'--ai-tool'", stdout,
-            "089v: translated argv must include '--ai-tool' (from "
-            "the --loop= translation).",
-        )
-        self.assertIn(
-            "'claude'", stdout,
-            "089v: translated argv must include 'claude' (the "
-            "--loop value).",
+            "'--ai-tool=claude'", stdout,
+            "089w: translated argv must include "
+            "'--ai-tool=claude' forwarded verbatim from the npx "
+            "surface (the shim does not split or rewrite this "
+            "token).",
         )
 
     def test_exit_code_propagation_nonzero(self) -> None:
@@ -377,7 +387,7 @@ class NpmChannelShim089vTests(unittest.TestCase):
             )
             proc = subprocess.run(
                 [_NODE, str(tmp_root / "bin" / "quality-playbook.js"),
-                 "init", "--loop=claude"],
+                 "init", "--ai-tool=claude"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=str(tmp_root),
@@ -422,7 +432,7 @@ class NpmChannelShim089vTests(unittest.TestCase):
                    if k != "QPB_CHANNEL"}
             proc = subprocess.run(
                 [_NODE, str(tmp_root / "bin" / "quality-playbook.js"),
-                 "init", "--loop=claude"],
+                 "init", "--ai-tool=claude"],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=str(tmp_root),

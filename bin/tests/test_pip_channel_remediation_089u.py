@@ -13,11 +13,12 @@ the `QPB_CHANNEL` env var:
   `quality_playbook_cli` shim before invoking `install_skill.main()`,
   so any validator run inside the pip-channel flow emits the
   pip-correct remediation.
-- **"npm"** (089v block C, now implemented) — emits the
-  ``npx quality-playbook init --loop=<tool>`` form. The full npm
-  channel-remediation pins live in
-  ``test_npm_channel_remediation_089v.py``; this 089u file keeps
-  only the pip + back-compat pins (its original scope).
+- **"npm"** (089v block C, now implemented; 089w aligned the
+  surface to ``--ai-tool``) — emits the ``npx quality-playbook
+  init --ai-tool=<tool>`` form. The full npm channel-remediation
+  pins live in ``test_npm_channel_remediation_089v.py``; this
+  089u file keeps only the pip + back-compat pins (its original
+  scope).
 
 **Mutation-bite evidence** (per ai_context/DEVELOPMENT_PROCESS.md):
 delete the `_channel()` early-return on `"pip"` in `_platform_table`

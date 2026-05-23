@@ -307,27 +307,28 @@ _RUN_INSTALLER_PIP = "uvx quality-playbook install --into <target> --ai-tool <to
 _RUN_INSTALLER_PIP_FORCE = _RUN_INSTALLER_PIP + " --force"
 _REVALIDATE_PIP = "uvx quality-playbook validate <target>"
 
-# v1.5.7 089v — npm distribution channel.
+# v1.5.7 089v + 089w — npm distribution channel.
 # When QPB_CHANNEL=npm the adopter ran via the published npm package
-# (`npx quality-playbook init --loop=<tool>`), so remediation must
-# point at the npx surface, NOT a clone path. The Node shim
-# (`bin/quality-playbook.js`) translates `init --loop=<tool>` ->
-# `install --into <cwd> --ai-tool <tool>` before spawning the Python
-# entry; the remediation strings show the operator-facing npx form
-# (what they typed), not the translated python invocation. npx is
-# cross-platform (the same one-liner runs in macOS Terminal, Linux
-# shells, PowerShell, and cmd.exe), so the four-platform table
-# collapses to a single string per (form, force) pair — same shape
-# as the pip channel.
+# (`npx quality-playbook init --ai-tool=<tool>`), so remediation
+# must point at the npx surface, NOT a clone path. The Node shim
+# (`bin/quality-playbook.js`) maps the `init` verb to `install`
+# and injects `--into <cwd>` for the default target; the
+# `--ai-tool` flag is forwarded verbatim (089w decision: one
+# vocabulary across pip + npm + all docs). npx is cross-platform
+# (the same one-liner runs in macOS Terminal, Linux shells,
+# PowerShell, and cmd.exe), so the four-platform table collapses
+# to a single string per (form, force) pair — same shape as the
+# pip channel.
 #
-# Note the verb-surface asymmetry vs pip: npm uses `init --loop=`
-# (block C decision per the distribution-channels proposal), while
-# pip uses `install --ai-tool` directly. The Node shim is the only
-# translator; once the request reaches `quality_playbook_cli.main()`
-# (with `QPB_CHANNEL=npm` already set by the shim), the
+# Verb-surface symmetry vs pip: npm uses `init --ai-tool=<tool>`
+# (089w: `init` is npx-idiomatic and `--ai-tool` keeps the flag
+# vocabulary uniform), pip uses `install --ai-tool` directly. The
+# Node shim is the only verb translator (`init`->`install`); once
+# the request reaches `quality_playbook_cli.main()` (with
+# `QPB_CHANNEL=npm` already set by the shim), the
 # `quality_playbook_cli.setdefault` is a no-op and the validator
 # emits this npx form.
-_RUN_INSTALLER_NPM = "npx quality-playbook init --loop=<tool>"
+_RUN_INSTALLER_NPM = "npx quality-playbook init --ai-tool=<tool>"
 # npm's `init` verb has no in-place `--force` — re-running it just
 # overwrites; the remediation appends ` --force` for symmetry with
 # the other channels so the per-form table stays parallel and the
@@ -355,9 +356,10 @@ def _platform_table(form: str, *, force: bool = False) -> dict[str, str]:
 
     For ``"installer"`` + pip: every platform key maps to the same
     ``uvx quality-playbook …`` string (uvx is cross-platform). For
-    ``"installer"`` + npm (089v): every platform key maps to the
-    same ``npx quality-playbook init --loop=<tool>`` string (npx is
-    cross-platform). For clone (default): the existing per-platform
+    ``"installer"`` + npm (089v+089w): every platform key maps to
+    the same ``npx quality-playbook init --ai-tool=<tool>`` string
+    (npx is cross-platform). For clone (default): the existing
+    per-platform
     mac/linux/windows_* forms are returned unchanged.
     """
     channel = _channel()

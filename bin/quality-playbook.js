@@ -22,15 +22,19 @@
 //      quality_playbook_cli` resolves to the packaged shim.
 //   4. Translate the npx verb surface to the Python entry:
 //
-//          npx quality-playbook init --loop=<tool>
+//          npx quality-playbook init --ai-tool=<tool>
 //        → python3 -m quality_playbook_cli install \
 //                  --into <cwd> --ai-tool <tool> [extras...]
 //
-//      `--loop=<tool>` → `--ai-tool <tool>` is the shim's ONLY
-//      semantic mapping; everything else passes through verbatim
-//      (`--force`, `--no-smoke`, etc.). The default target is the
-//      cwd repo (operators of npx-style scaffolders expect to
-//      "install into here").
+//      089w decision (2026-05-22): the npm surface uses the
+//      same `--ai-tool` flag the pip channel, install_skill,
+//      AGENTS.md, and README all use — one vocabulary across
+//      both channels and all docs. The shim's ONLY argv-level
+//      changes are mapping `init` -> `install` and injecting
+//      `--into <cwd>` for install (the default target —
+//      operators of npx-style scaffolders expect to "install
+//      into here"). Everything else, including the entire
+//      `--ai-tool` flag, is forwarded verbatim.
 //   5. **Verbatim stdio passthrough + exit-code propagation.**
 //      `stdio: 'inherit'` so every `event=...` line and the
 //      `qpb_validate.py` run-nonce reach the operator/agent
@@ -48,9 +52,9 @@
 //   - Python detection: spawn the shim with a PATH that lacks
 //     Python; assert exit-code != 0 and the message is the
 //     remediation string, not a JS traceback.
-//   - `--loop` mapping: instrument the shim to print its computed
-//     spawn argv, then assert it equals the expected Python
-//     argv.
+//   - `--ai-tool` forwarding: instrument the shim to print its
+//     computed spawn argv, then assert it equals the expected
+//     Python argv (with --ai-tool passed through verbatim).
 //   - Verbatim passthrough: assert child stdout/stderr arrive
 //     byte-identical (including `event=` lines and run-nonce).
 //   - npx e2e: invoke the shim against a temp target and run
@@ -128,19 +132,31 @@ function findPython() {
  * Translate the npx-facing argv into the Python entry's argv.
  *
  * Public surface (npx):
- *     npx quality-playbook init --loop=<tool> [extras...]
+ *     npx quality-playbook init --ai-tool=<tool> [extras...]
+ *     npx quality-playbook init --ai-tool <tool> [extras...]
  *
  * Translated to:
  *     python -m quality_playbook_cli install \
  *            --into <cwd> --ai-tool <tool> [extras...]
  *
- * `--loop=<tool>` and `--loop <tool>` are the ONLY semantic
- * mappings; every other arg passes through unchanged. We
- * intentionally do NOT validate `<tool>` here — the Python entry's
- * existing validation is the single source of truth. If the
- * operator omits `--loop`, we pass an argv with no `--ai-tool` and
- * let `install_skill.py` apply its agent-self-identification
- * resolution (089s priority order).
+ * **089w decision (2026-05-22):** the npm surface uses the same
+ * `--ai-tool` flag the pip channel, the Python installer,
+ * AGENTS.md, and README all use — the shim simply forwards
+ * `--ai-tool` (both `=` and spaced forms) verbatim to the Python
+ * entry. One vocabulary across both channels and all docs, and
+ * no second alias map for the shim to keep in sync with the
+ * Python side.
+ *
+ * The shim therefore has TWO concerns left for argv:
+ *   1. Map the npx-idiomatic verb `init` -> the Python entry's
+ *      `install`.
+ *   2. For the install verb, inject `--into <cwd>` as the
+ *      default target (the npx-style scaffolder convention).
+ *
+ * Everything else, including the entire `--ai-tool` flag, is
+ * forwarded unchanged. If the operator omits `--ai-tool`, the
+ * shim does NOT inject one — `install_skill.py` applies its
+ * agent-self-identification resolution (089s priority order).
  *
  * Verbs:
  *   - `init` → `install` (npx-style scaffolder vocabulary).
@@ -171,31 +187,12 @@ function translateArgv(argv, cwd) {
     out.push("--into", cwd);
   }
 
-  let aiTool = null;
+  // Forward the remaining argv verbatim — including --ai-tool=
+  // and --ai-tool <tool>. No semantic translation here (089w).
   while (i < argv.length) {
     const tok = argv[i];
-    if (tok.startsWith("--loop=")) {
-      aiTool = tok.slice("--loop=".length);
-      i += 1;
-      continue;
-    }
-    if (tok === "--loop") {
-      if (i + 1 < argv.length) {
-        aiTool = argv[i + 1];
-        i += 2;
-        continue;
-      }
-      // Trailing --loop with no value: pass through so the Python
-      // entry reports the missing-value error in its own voice.
-      out.push(tok);
-      i += 1;
-      continue;
-    }
     out.push(tok);
     i += 1;
-  }
-  if (aiTool !== null) {
-    out.push("--ai-tool", aiTool);
   }
   return out;
 }

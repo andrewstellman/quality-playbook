@@ -4,7 +4,7 @@ These tests stage the npm-tarball-shaped tree directly (no actual
 ``npm publish`` / ``npm install`` needed) and run the Node shim
 against it, then assert:
 
-1. **End-to-end install** — ``node <shim> init --loop=claude
+1. **End-to-end install** — ``node <shim> init --ai-tool=claude
    --no-smoke`` writes the skill bundle into a tempdir's
    ``.claude/skills/quality-playbook/`` and exits 0; the installed
    closure has the expected load-bearing files (SKILL.md +
@@ -150,7 +150,7 @@ class NpmChannelE2E089vTests(unittest.TestCase):
         return [_NODE, str(self._staged / "bin" / "quality-playbook.js")]
 
     def test_npx_install_into_tempdir(self) -> None:
-        """``node <shim> init --loop=claude --no-smoke`` against a
+        """``node <shim> init --ai-tool=claude --no-smoke`` against a
         cwd of <tempdir> produces a .claude/skills/quality-
         playbook/ install closure inside that tempdir."""
         self._require_setup()
@@ -160,7 +160,7 @@ class NpmChannelE2E089vTests(unittest.TestCase):
             # translated --into resolves to the tempdir.
             proc = subprocess.run(
                 self._shim_argv() + [
-                    "init", "--loop=claude", "--no-smoke",
+                    "init", "--ai-tool=claude", "--no-smoke",
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -179,7 +179,7 @@ class NpmChannelE2E089vTests(unittest.TestCase):
             self.assertTrue(
                 install_root.is_dir(),
                 f"089v e2e: install root {install_root} does not "
-                f"exist after `node shim init --loop=claude`.",
+                f"exist after `node shim init --ai-tool=claude`.",
             )
             # Sanity-check load-bearing files.
             for required in ("SKILL.md", "quality_gate.py"):
@@ -200,7 +200,7 @@ class NpmChannelE2E089vTests(unittest.TestCase):
             # Install first.
             r_install = subprocess.run(
                 self._shim_argv() + [
-                    "init", "--loop=claude", "--no-smoke",
+                    "init", "--ai-tool=claude", "--no-smoke",
                 ],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
