@@ -106,6 +106,71 @@ def enumerate_bundle(repo_root: Path) -> list[Path]:
     return skill_bundle_paths(repo_root) + executor_paths(repo_root)
 
 
+def npm_extra_paths(repo_root: Path) -> list[Path]:
+    """Return the **npm-tarball-only extras** — files the npm
+    package needs in addition to the staged ``quality_playbook_cli/
+    _bundle/`` tree the wheel also uses.
+
+    These live at the clone root (not inside ``_bundle/``) and are
+    picked up by ``npm pack`` via ``package.json``'s ``files``
+    glob. The wheel does NOT include them — the wheel uses the
+    Python console-script declared in ``pyproject.toml`` instead,
+    and never needs the Node shim.
+
+    Order: stable for parity-test diffs.
+
+    089v additions:
+      - ``bin/quality-playbook.js`` — the Node shim that the npm
+        consumer's ``npx`` invocation hits first (it then spawns
+        ``python3 -m quality_playbook_cli`` against the staged
+        bundle).
+      - ``package.json`` — npm package metadata declaring the
+        ``quality-playbook`` bin entry, the npm tarball's
+        ``files`` manifest, and the Node engines floor.
+    """
+    return [
+        repo_root / "bin" / "quality-playbook.js",
+        repo_root / "package.json",
+    ]
+
+
+def enumerate_npm_tarball(repo_root: Path) -> list[Path]:
+    """Return the full set of absolute source paths the **npm
+    tarball** must contain. This is the parity contract for the
+    fourth distribution surface:
+
+      1. ``_bundle_files()`` — skill bundle (51 files, shared with
+         the wheel via the staged ``quality_playbook_cli/_bundle/``).
+      2. ``executor_paths()`` — ``install_skill.py`` +
+         ``qpb_validate.py`` (also shared, via the staged bundle).
+      3. ``quality_playbook_cli/__init__.py`` — the Python shim the
+         npm-shipped Node shim spawns as ``python -m
+         quality_playbook_cli`` (delivered via ``package.json``'s
+         ``files`` glob, NOT via ``_bundle_files()``).
+      4. ``quality_playbook_cli/__main__.py`` — the ``python -m``
+         entry the npm shim invokes. Without it
+         ``python -m quality_playbook_cli`` fails with
+         "package and cannot be directly executed"; the wheel's
+         console-script path bypasses ``-m`` entirely so the wheel
+         did not need this file, but the npm channel does.
+      5. ``npm_extra_paths()`` — the Node shim + ``package.json``.
+
+    Mutation bite (the 4-surface lockstep invariant): drop a member
+    from ``_bundle_files()`` and the npm-parity test fires (along
+    with the wheel-parity and AGENTS.md cp-block guards). Drop a
+    member from ``npm_extra_paths()`` and only the npm test
+    fires."""
+    return (
+        skill_bundle_paths(repo_root)
+        + executor_paths(repo_root)
+        + [
+            repo_root / "quality_playbook_cli" / "__init__.py",
+            repo_root / "quality_playbook_cli" / "__main__.py",
+        ]
+        + npm_extra_paths(repo_root)
+    )
+
+
 def stage(repo_root: Path, dest_dir: Path,
           *, clean: bool = True) -> list[Path]:
     """Copy every file enumerated by ``enumerate_bundle(repo_root)``

@@ -13,9 +13,11 @@ the `QPB_CHANNEL` env var:
   `quality_playbook_cli` shim before invoking `install_skill.main()`,
   so any validator run inside the pip-channel flow emits the
   pip-correct remediation.
-- **"npm"** (089v block C, not yet implemented) — falls through to
-  the clone form with an in-source TODO; this test pins the
-  fall-through behavior.
+- **"npm"** (089v block C, now implemented) — emits the
+  ``npx quality-playbook init --loop=<tool>`` form. The full npm
+  channel-remediation pins live in
+  ``test_npm_channel_remediation_089v.py``; this 089u file keeps
+  only the pip + back-compat pins (its original scope).
 
 **Mutation-bite evidence** (per ai_context/DEVELOPMENT_PROCESS.md):
 delete the `_channel()` early-return on `"pip"` in `_platform_table`
@@ -132,23 +134,6 @@ class ChannelAwareRemediation089uTests(unittest.TestCase):
                         f"089u pip channel: {key}.{slot} must use "
                         f"the uvx --force form, not the clone form.",
                     )
-
-    def test_npm_channel_falls_through_to_clone_form_for_now(self) -> None:
-        """``QPB_CHANNEL=npm`` is reserved for 089v block C
-        (instruction 089v). Until that block lands the npm value
-        falls through to the clone form with a TODO marker in the
-        source; this test pins the fall-through behavior so 089u
-        doesn't accidentally ship a wrong command for npm
-        adopters."""
-        catalog = self._reload_catalog("npm")
-        clone_mac = "python3 <clone>/bin/install_skill.py --into <target> --ai-tool <tool>"
-        self.assertEqual(
-            catalog["install_absent"]["commands"]["macos"], clone_mac,
-            "089u: QPB_CHANNEL=npm must currently fall through to "
-            "the clone form (089v block C wires the npm-correct "
-            "command).",
-        )
-
 
 if __name__ == "__main__":
     unittest.main()

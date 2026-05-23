@@ -307,6 +307,36 @@ _RUN_INSTALLER_PIP = "uvx quality-playbook install --into <target> --ai-tool <to
 _RUN_INSTALLER_PIP_FORCE = _RUN_INSTALLER_PIP + " --force"
 _REVALIDATE_PIP = "uvx quality-playbook validate <target>"
 
+# v1.5.7 089v — npm distribution channel.
+# When QPB_CHANNEL=npm the adopter ran via the published npm package
+# (`npx quality-playbook init --loop=<tool>`), so remediation must
+# point at the npx surface, NOT a clone path. The Node shim
+# (`bin/quality-playbook.js`) translates `init --loop=<tool>` ->
+# `install --into <cwd> --ai-tool <tool>` before spawning the Python
+# entry; the remediation strings show the operator-facing npx form
+# (what they typed), not the translated python invocation. npx is
+# cross-platform (the same one-liner runs in macOS Terminal, Linux
+# shells, PowerShell, and cmd.exe), so the four-platform table
+# collapses to a single string per (form, force) pair — same shape
+# as the pip channel.
+#
+# Note the verb-surface asymmetry vs pip: npm uses `init --loop=`
+# (block C decision per the distribution-channels proposal), while
+# pip uses `install --ai-tool` directly. The Node shim is the only
+# translator; once the request reaches `quality_playbook_cli.main()`
+# (with `QPB_CHANNEL=npm` already set by the shim), the
+# `quality_playbook_cli.setdefault` is a no-op and the validator
+# emits this npx form.
+_RUN_INSTALLER_NPM = "npx quality-playbook init --loop=<tool>"
+# npm's `init` verb has no in-place `--force` — re-running it just
+# overwrites; the remediation appends ` --force` for symmetry with
+# the other channels so the per-form table stays parallel and the
+# operator-facing string clearly signals "re-run, this time
+# forcing". The Node shim passes `--force` through to the spawned
+# `install_skill.main(--force)` unchanged.
+_RUN_INSTALLER_NPM_FORCE = _RUN_INSTALLER_NPM + " --force"
+_REVALIDATE_NPM = "npx quality-playbook validate <target>"
+
 
 def _channel() -> str:
     """Return the adopter's invocation channel from the QPB_CHANNEL
@@ -325,12 +355,10 @@ def _platform_table(form: str, *, force: bool = False) -> dict[str, str]:
 
     For ``"installer"`` + pip: every platform key maps to the same
     ``uvx quality-playbook …`` string (uvx is cross-platform). For
-    clone (default): the existing per-platform mac/linux/windows_*
-    forms are returned unchanged.
-
-    npm (089v block C): not yet implemented as a distinct form — for
-    now ``QPB_CHANNEL=npm`` falls through to the clone form with a
-    TODO marker; instruction 089v wires the npm-correct command.
+    ``"installer"`` + npm (089v): every platform key maps to the
+    same ``npx quality-playbook init --loop=<tool>`` string (npx is
+    cross-platform). For clone (default): the existing per-platform
+    mac/linux/windows_* forms are returned unchanged.
     """
     channel = _channel()
     if form == "installer":
@@ -342,10 +370,14 @@ def _platform_table(form: str, *, force: bool = False) -> dict[str, str]:
                 "windows_powershell": cmd,
                 "windows_cmd": cmd,
             }
-        # TODO(089v block C): when channel == "npm", emit the
-        # `npx @stellman/quality-playbook install …` form. For now
-        # fall through to the clone form so the npm branch is
-        # discoverable but doesn't ship a wrong command.
+        if channel == "npm":
+            cmd = _RUN_INSTALLER_NPM_FORCE if force else _RUN_INSTALLER_NPM
+            return {
+                "macos": cmd,
+                "linux": cmd,
+                "windows_powershell": cmd,
+                "windows_cmd": cmd,
+            }
         mac_cmd = _RUN_INSTALLER_MAC_FORCE if force else _RUN_INSTALLER_MAC
         win_cmd = _RUN_INSTALLER_WIN_FORCE if force else _RUN_INSTALLER_WIN
         return {
@@ -359,10 +391,14 @@ def _platform_table(form: str, *, force: bool = False) -> dict[str, str]:
 
 def _revalidate_command() -> str:
     """Channel-aware ``verify_with`` string. pip → ``uvx …
-    validate <target>``; clone (default, unset) → the existing
-    ``python <root>/bin/qpb_validate.py <target>`` form unchanged."""
-    if _channel() == "pip":
+    validate <target>``; npm → ``npx quality-playbook validate
+    <target>``; clone (default, unset) → the existing ``python
+    <root>/bin/qpb_validate.py <target>`` form unchanged."""
+    channel = _channel()
+    if channel == "pip":
         return _REVALIDATE_PIP
+    if channel == "npm":
+        return _REVALIDATE_NPM
     return _REVALIDATE
 
 FINDING_CATALOG = {
