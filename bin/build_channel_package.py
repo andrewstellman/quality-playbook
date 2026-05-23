@@ -359,7 +359,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     # peek at what it does, get a half-staged tree"). The explicit
     # form (`--stage` or any other arg) is required to do work.
     if not argv:
-        _purpose.print_purpose(
+        # v1.5.7 090a: full attribution banner + purpose banner.
+        _purpose.print_command_intro(
             name="build_channel_package",
             summary=(
                 "Stage the QPB clone source layout into "
@@ -371,12 +372,14 @@ def main(argv: Iterable[str] | None = None) -> int:
                 "(pip wheel) or `npm pack` (npm tarball). NOT "
                 "called during a playbook run."
             ),
-            kind="command",
             usage_hint=(
                 "python3 bin/build_channel_package.py --stage"
             ),
         )
         return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _purpose.print_help_banner(argv)
 
     parser = argparse.ArgumentParser(
         prog="build_channel_package",

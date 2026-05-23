@@ -1169,7 +1169,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     # pass --into <repo> --ai-tool <tool> (or --target <path>) — an
     # explicit destination.
     if not argv:
-        _PURPOSE.print_purpose(
+        # v1.5.7 090a: full attribution banner + purpose banner.
+        _PURPOSE.print_command_intro(
             name="install_skill",
             summary=(
                 "Install the Quality Playbook skill closure (the "
@@ -1190,13 +1191,15 @@ def main(argv: Optional[list[str]] = None) -> int:
                 "package data and call it with `--source` "
                 "pointing at the staged bundle."
             ),
-            kind="command",
             usage_hint=(
                 "python3 bin/install_skill.py "
                 "--into <repo> --ai-tool claude"
             ),
         )
         return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _PURPOSE.print_help_banner(argv)
 
     parser = argparse.ArgumentParser(
         prog="install_skill",

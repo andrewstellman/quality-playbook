@@ -199,6 +199,7 @@ def print_purpose(
     kind: str = "command",
     usage_hint: Optional[str] = None,
     stream: Optional[TextIO] = None,
+    footer: bool = True,
 ) -> None:
     """Print the per-script PURPOSE banner.
 
@@ -226,6 +227,16 @@ def print_purpose(
         Output stream. Defaults to ``sys.stdout`` — the purpose banner
         IS the script's output on a bare invocation; it must reach the
         same descriptor any other CLI output would.
+    footer
+        Whether to append the lightweight attribution footer (one-line
+        name + author + URL) at the bottom of the banner. Default
+        ``True``. 090a sets it ``False`` from
+        ``print_command_intro()``, where the FULL attribution banner
+        has already supplied the name + URL — printing the lightweight
+        footer too would double-attribute. The 089x meta-test only
+        requires that the GitHub URL + "by Andrew Stellman" string
+        appear *somewhere* in stdout, so caller-side dropping of the
+        footer is safe when the full banner is also emitted.
     """
     if stream is None:
         stream = sys.stdout
@@ -252,8 +263,9 @@ def print_purpose(
             )
         else:
             lines.append("This is a command — run with --help for options")
-    lines.append("")
-    lines.append(attribution_footer())
+    if footer:
+        lines.append("")
+        lines.append(attribution_footer())
 
     try:
         stream.write("\n".join(lines) + "\n")
@@ -263,6 +275,73 @@ def print_purpose(
         # break the script. Mirror install_skill._print_banner's
         # graceful-stream-error pattern.
         pass
+
+
+def print_command_intro(
+    name: str,
+    summary: str,
+    role: str,
+    *,
+    usage_hint: Optional[str] = None,
+    stream: Optional[TextIO] = None,
+) -> None:
+    """v1.5.7 090a — combined CLI intro: FULL attribution banner +
+    purpose banner (no lightweight footer), both to stdout by
+    default.
+
+    Used by every user-facing CLI's bare-no-args path. Pre-090a
+    the no-args path printed only the lightweight purpose banner +
+    one-line footer; 090a revises 089x's banner split to show the
+    full 80-wide attribution banner on the no-args invocation
+    (and at the top of ``--help`` via ``print_help_banner``).
+
+    The full banner appears FIRST as a ceremonial header; the
+    purpose banner follows with the script-specific role + usage
+    hint. The purpose banner's lightweight footer is suppressed
+    here because the full banner already supplied the name + URL
+    — printing both would double-attribute.
+
+    Libraries (``kind="library"``) are explicitly out of scope —
+    they keep the lightweight purpose banner + footer (090a's
+    CLI-vs-library line is deliberate; the full banner on every
+    internal library's bare-run is repetitive noise).
+    """
+    if stream is None:
+        stream = sys.stdout
+    print_attribution_banner(stream=stream)
+    print_purpose(
+        name=name,
+        summary=summary,
+        role=role,
+        kind="command",
+        usage_hint=usage_hint,
+        stream=stream,
+        footer=False,
+    )
+
+
+def print_help_banner(
+    argv: list[str],
+    *,
+    stream: Optional[TextIO] = None,
+) -> bool:
+    """v1.5.7 090a — emit the full attribution banner to stdout if
+    ``argv`` contains ``-h`` or ``--help``. Used by CLIs to put
+    the banner at the top of ``--help`` output, above argparse's
+    usage / description / epilog.
+
+    Returns ``True`` iff the banner was emitted (so a caller can
+    branch on it if needed). The default stream is stdout — the
+    full banner on the no-args + ``--help`` paths is stdout (the
+    089k clean-``event=`` rule applies to *runs*, not to
+    informational discovery actions).
+    """
+    if stream is None:
+        stream = sys.stdout
+    if "-h" in argv or "--help" in argv:
+        print_attribution_banner(stream=stream)
+        return True
+    return False
 
 
 # ---------------------------------------------------------------------------

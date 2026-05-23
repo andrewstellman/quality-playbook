@@ -562,12 +562,15 @@ def _resolve_role_map_for_dispatch(args: argparse.Namespace, target_dir: Path):
 def _main(argv: Optional[list[str]] = None) -> int:
     # v1.5.7 089x: no-args is purpose-banner-safe.
     _argv_list = list(sys.argv[1:] if argv is None else argv)
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
     if not _argv_list:
-        try:
-            from bin._purpose import print_purpose as _print_purpose
-        except ImportError:
-            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
-        _print_purpose(
+        # v1.5.7 090a: full attribution banner + purpose banner.
+        _print_command_intro(
             name="skill_derivation",
             summary=(
                 "Skill-derivation pipeline orchestrator — runs "
@@ -580,13 +583,15 @@ def _main(argv: Optional[list[str]] = None) -> int:
                 "the candidate-skill / candidate-bug corpus "
                 "Phase 4 Council reviewers consume."
             ),
-            kind="command",
             usage_hint=(
                 "python3 -m bin.skill_derivation "
                 "--pass all <target>"
             ),
         )
         return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(_argv_list)
 
     args = _parse_args(_argv_list)
     target_dir = args.target_dir.resolve()

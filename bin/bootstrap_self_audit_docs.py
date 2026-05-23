@@ -46,12 +46,14 @@ EXCLUDED_NAMES = {"README.md"}
 def main() -> int:
     # v1.5.7 089x: no-args is purpose-banner-safe.
     _argv_list_089x = list(sys.argv[1:])
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
     if not _argv_list_089x:
-        try:
-            from bin._purpose import print_purpose as _print_purpose
-        except ImportError:
-            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
-        _print_purpose(
+        _print_command_intro(
             name='bootstrap_self_audit_docs',
             summary=(
             "QPB self-audit doc bootstrapper — initializes the "
@@ -63,8 +65,23 @@ def main() -> int:
             "playbook run. Used by the orchestrator when running QPB "
             "against itself for release-prep audits. "
             ),
-            kind="command",
             usage_hint='python3 -m bin.bootstrap_self_audit_docs',
+        )
+        return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help; this
+    # script has no argparse, so handle --help explicitly with a
+    # brief usage hint + early-return. Without this, --help would
+    # fall through to the mirror operation (side effects on --help
+    # violates the 089x/090a no-side-effects-on-info-paths rule).
+    if "-h" in _argv_list_089x or "--help" in _argv_list_089x:
+        _print_help_banner(_argv_list_089x)
+        print(
+            "Usage: python3 -m bin.bootstrap_self_audit_docs"
+        )
+        print(
+            "Mirror docs_gathered/ → reference_docs/ for the QPB "
+            "self-audit. No args expected; idempotent."
         )
         return 0
 

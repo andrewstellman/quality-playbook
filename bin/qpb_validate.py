@@ -1212,12 +1212,15 @@ def check_stale_quality_dir(target: Path) -> "list[dict]":
 def main(argv: "list[str] | None" = None) -> int:
     # v1.5.7 089x: no-args is purpose-banner-safe.
     argv_list = list(sys.argv[1:] if argv is None else argv)
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
     if not argv_list:
-        try:
-            from bin._purpose import print_purpose as _print_purpose
-        except ImportError:
-            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
-        _print_purpose(
+        # v1.5.7 090a: full attribution banner + purpose banner.
+        _print_command_intro(
             name="qpb_validate",
             summary=(
                 "QPB install-validator — emits `event=` lines + a "
@@ -1233,10 +1236,12 @@ def main(argv: "list[str] | None" = None) -> int:
                 "`uvx quality-playbook validate <target>` and "
                 "`npx quality-playbook validate <target>`."
             ),
-            kind="command",
             usage_hint="python3 bin/qpb_validate.py <target-repo>",
         )
         return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(argv_list)
 
     args = _build_parser().parse_args(argv)
 

@@ -852,12 +852,14 @@ def archive_run(
 def main(argv: Optional[List[str]] = None) -> int:
     # v1.5.7 089x: no-args is purpose-banner-safe.
     _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
     if not _argv_list_089x:
-        try:
-            from bin._purpose import print_purpose as _print_purpose
-        except ImportError:
-            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
-        _print_purpose(
+        _print_command_intro(
             name='archive_lib',
             summary=(
             "QPB run-archive helpers — snapshot quality/ between "
@@ -868,10 +870,12 @@ def main(argv: Optional[List[str]] = None) -> int:
             "quality/ outputs into quality/previous_runs/. Has a CLI "
             "for operator-side snapshot management. "
             ),
-            kind="command",
             usage_hint='python3 -m bin.archive_lib --list <target>',
         )
         return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(_argv_list_089x)
 
     parser = argparse.ArgumentParser(
         description=(

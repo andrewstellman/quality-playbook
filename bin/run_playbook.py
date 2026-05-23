@@ -5831,12 +5831,17 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # flag (--operator-invoked also works for the orchestrator
     # lane). The no-args path runs BEFORE the agent-refuse check
     # so the discovery feature works from any context.
+    # v1.5.7 090a helper imports (used by both no-args + --help paths).
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
+
     if not _effective_argv:
-        try:
-            from bin._purpose import print_purpose as _print_purpose
-        except ImportError:
-            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
-        _print_purpose(
+        # v1.5.7 090a: full attribution banner + purpose banner.
+        _print_command_intro(
             name="run_playbook",
             summary=(
                 "Mode B (operator-driven) playbook runner — "
@@ -5855,12 +5860,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 "Phases 1–6 inline using "
                 "phase_prompts/phase{1..6}.md."
             ),
-            kind="command",
             usage_hint=(
                 "python3 -m bin.run_playbook <target>"
             ),
         )
         return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(_effective_argv)
 
     _check_agent_context_or_refuse(_effective_argv)
     args = parse_args(argv)

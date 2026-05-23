@@ -807,12 +807,15 @@ def _main(argv: Optional[list[str]] = None) -> int:
     # v1.5.7 089x: no-args is purpose-banner-safe.
     import sys as _sys
     _argv_list = list(_sys.argv[1:] if argv is None else argv)
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
     if not _argv_list:
-        try:
-            from bin._purpose import print_purpose as _print_purpose
-        except ImportError:
-            from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
-        _print_purpose(
+        # v1.5.7 090a: full attribution banner + purpose banner.
+        _print_command_intro(
             name="classify_project",
             summary=(
                 "Classify a target repo as code / skill / hybrid "
@@ -824,10 +827,12 @@ def _main(argv: Optional[list[str]] = None) -> int:
                 "to use against the target. Also runnable "
                 "standalone to inspect the classification."
             ),
-            kind="command",
             usage_hint="python3 -m bin.classify_project --target <repo>",
         )
         return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(_argv_list)
 
     args = _parse_args(argv)
 
