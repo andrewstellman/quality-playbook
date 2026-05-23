@@ -41,8 +41,8 @@ EXCEPT:
   ``bin/skill_derivation/tests/*``).
 - The shared helper ``bin/_purpose.py`` is included — its own
   ``__main__`` block prints the lib-form banner.
-- ``bin/run_playbook.sh`` and other shell helpers (this test is
-  Python-only).
+- Shell helpers (this test is Python-only — the discovery glob
+  matches ``*.py``).
 """
 
 from __future__ import annotations

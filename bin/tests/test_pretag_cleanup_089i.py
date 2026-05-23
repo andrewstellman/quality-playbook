@@ -288,8 +288,7 @@ class LayoutAwareFreshnessCheckTests(unittest.TestCase):
         """089i Council R1 cycle 2 regression: a setup_repos.sh flat
         install at ``.github/skills/SKILL.md`` whose ENTIRE ``target/
         bin/`` tree is absent must be flagged against the
-        setup_repos.sh manifest (which includes ``run_playbook.sh``
-        and ``install_skill.py``), NOT the install_skill manifest.
+        setup_repos.sh manifest, NOT the install_skill manifest.
 
         Cycle-2 R1 caught this gap: the initial else-branch fix used
         ``install_skill_manifest`` unconditionally, which under-
@@ -298,10 +297,15 @@ class LayoutAwareFreshnessCheckTests(unittest.TestCase):
         → setup_repos manifest; ``quality-playbook`` → install_skill
         manifest.
 
+        v1.5.7 089z: dropped the ``run_playbook.sh`` wrapper +
+        manifest entry — the test no longer asserts it's flagged.
+        The ``install_skill.py`` setup-only file is still in the
+        manifest and the assertion stays.
+
         Mutation candidate: revert the discrimination to unconditional
         ``install_skill_manifest``. Expected failure: the
-        ``bin/run_playbook.sh`` assertion fires (setup_repos manifest
-        entry is no longer in missing).
+        ``bin/install_skill.py`` assertion fires (setup_repos
+        manifest entry is no longer in missing).
         """
         # Resolve the setup_repos manifest from the live source-of-
         # truth — parse setup_repos.sh's cp destinations.
@@ -315,8 +319,6 @@ class LayoutAwareFreshnessCheckTests(unittest.TestCase):
             name = m.group(1)
             if name not in setup_manifest:
                 setup_manifest.append(name)
-        self.assertIn("run_playbook.sh", setup_manifest,
-                      "setup_repos.sh must stage run_playbook.sh")
         self.assertIn("install_skill.py", setup_manifest,
                       "setup_repos.sh must stage install_skill.py")
 
@@ -349,13 +351,10 @@ class LayoutAwareFreshnessCheckTests(unittest.TestCase):
 
         missing_bin_set = {m for m in missing if m.startswith("bin/")}
         # POSITIVE pin: setup_repos manifest entries (including
-        # setup-only files) must be reported missing.
-        self.assertIn(
-            "bin/run_playbook.sh", missing_bin_set,
-            "089i Council R1 cycle 2: flat setup_repos.sh install "
-            "with absent target/bin/ must flag bin/run_playbook.sh "
-            "as missing — it IS in this layout's manifest.",
-        )
+        # setup-only files) must be reported missing. v1.5.7 089z
+        # dropped the run_playbook.sh wrapper from the manifest, so
+        # the corresponding assertion was removed; install_skill.py
+        # remains in the setup-only manifest and is still checked.
         self.assertIn(
             "bin/install_skill.py", missing_bin_set,
             "089i Council R1 cycle 2: flat setup_repos.sh install "

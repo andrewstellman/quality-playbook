@@ -10,9 +10,11 @@ Three invocation forms are supported (v1.5.7 fix F-5):
 * ``python -m bin.run_playbook <target>`` — package-module form (canonical).
 * ``python /path/to/QPB/bin/run_playbook.py <target>`` — direct script form
   (e.g. ``python ../bin/run_playbook.py <target>`` from ``repos/``).
-* ``<target>/bin/run_playbook.sh [<target>]`` — wrapper installed into the
-  target by ``setup_repos.sh``; auto-discovers the QPB clone via walk-up
-  from the wrapper's location (with $QPB_HOME fallback).
+
+(v1.5.7 089z: the per-target ``<target>/bin/run_playbook.sh``
+wrapper that ``setup_repos.sh`` installed in earlier 1.5.7
+versions has been removed — the two forms above are the canonical
+entry points.)
 """
 
 from __future__ import annotations
@@ -2754,7 +2756,9 @@ def _check_installed_bundle_freshness(
     #     skills/quality-playbook tree). Source of truth for its
     #     expected set: install_skill._bundle_files. Adopters on
     #     this layout legitimately don't have setup_repos.sh-only
-    #     files (run_playbook.sh, install_skill.py).
+    #     files like install_skill.py. (v1.5.7 089z: the prior
+    #     setup_repos.sh-only `run_playbook.sh` wrapper is also
+    #     no longer installed at the target.)
     #   - setup_repos.sh layout: bin/ sits at <target>/bin/ (target
     #     root); SKILL.md at <target>/.github/skills/SKILL.md so
     #     bundle_dir resolves to .github/skills/ and <bundle_dir>/bin/
@@ -2764,13 +2768,17 @@ def _check_installed_bundle_freshness(
     #
     # Pre-089i this took the UNION of both manifests and checked
     # presence in EITHER bin/, which produced a false-positive
-    # "installed bundle stale ... Missing: bin/run_playbook.sh,
-    # bin/install_skill.py" WARN on every correct install_skill.py-
-    # layout install (those files are setup_repos.sh-only). 089i:
-    # detect which layout is present and expect only that layout's
-    # manifest. Self-audit short-circuits on either location; the
-    # whole block is defensively wrapped so a freshness hint can
-    # never crash the run.
+    # "installed bundle stale ... Missing: bin/install_skill.py"
+    # WARN on every correct install_skill.py-layout install (that
+    # file is setup_repos.sh-only). 089i: detect which layout is
+    # present and expect only that layout's manifest. Self-audit
+    # short-circuits on either location; the whole block is
+    # defensively wrapped so a freshness hint can never crash the
+    # run. (v1.5.7 089z: the pre-089i false-positive list also
+    # included bin/run_playbook.sh — the per-target wrapper —
+    # which was removed in 089z; the freshness logic is unchanged
+    # but the historical false-positive class is now just
+    # bin/install_skill.py.)
     try:
         from bin import install_skill as _install_skill
 
@@ -2782,8 +2790,10 @@ def _check_installed_bundle_freshness(
                 if parts[1] not in install_skill_manifest:
                     install_skill_manifest.append(parts[1])
         # setup_repos.sh-layout manifest: parse its `${dst}/bin/<name>`
-        # cp destinations (covers run_playbook.sh + A-6's
-        # reference_docs_ingest.py / benchmark_lib.py).
+        # cp destinations (the A-6 closure —
+        # reference_docs_ingest.py / benchmark_lib.py / the
+        # quality_playbook.py group + qpb_config / run_state_lib /
+        # validate_phase_artifacts + 089x's _purpose.py).
         import re as _re  # run_playbook.py imports re locally per-function
         setup_repos_manifest: List[str] = []
         setup_repos_sh = qpb_root / "repos" / "setup_repos.sh"
@@ -2819,8 +2829,8 @@ def _check_installed_bundle_freshness(
             check_locations: tuple = ()
         elif bundle_bin.is_dir():
             # install_skill.py layout — bundle_dir/bin/ populated.
-            # Expect ONLY install_skill._bundle_files; setup_repos.sh-
-            # only files (run_playbook.sh, install_skill.py) are NOT
+            # Expect ONLY install_skill._bundle_files; the
+            # setup_repos.sh-only file (install_skill.py) is NOT
             # part of this layout and must not be reported missing.
             expected_bin = install_skill_manifest
             check_locations = (bundle_bin,)
@@ -2839,8 +2849,8 @@ def _check_installed_bundle_freshness(
             #   - setup_repos.sh flat layout puts SKILL.md at
             #     .github/skills/SKILL.md → bundle_dir.name == "skills".
             #     For this layout the expected set is the setup_repos.sh
-            #     manifest (includes run_playbook.sh + install_skill.py),
-            #     checked against target/bin/.
+            #     manifest (includes install_skill.py + the A-6
+            #     closure), checked against target/bin/.
             #   - install_skill.py layout puts SKILL.md at
             #     <marker>/skills/quality-playbook/SKILL.md →
             #     bundle_dir.name == "quality-playbook". Expected set is
@@ -2850,8 +2860,8 @@ def _check_installed_bundle_freshness(
             # Cycle-1 returned no findings (silent suppression of a
             # broken install). Initial cycle-2 fix used install_skill_
             # manifest unconditionally, which under-reported the flat
-            # setup_repos.sh layout (missed run_playbook.sh +
-            # install_skill.py). This cycle-2 fix picks per layout.
+            # setup_repos.sh layout (missed install_skill.py +
+            # the A-6 closure). This cycle-2 fix picks per layout.
             if bundle_dir.name == "skills":
                 expected_bin = setup_repos_manifest
                 check_locations = (target_bin,)
@@ -5836,10 +5846,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             ),
             role=(
                 "The benchmark / operator entry point for full "
-                "Mode B runs. Adopters who installed the skill "
-                "into their own repo invoke this via the "
-                "per-target wrapper that setup_repos.sh writes "
-                "(`run_playbook.sh`). Mode A users (agent-driven "
+                "Mode B runs. Adopters invoke it directly from "
+                "the QPB clone via the canonical forms "
+                "`python3 -m bin.run_playbook <target>` (package "
+                "form) or `python3 bin/run_playbook.py <target>` "
+                "(script form). Mode A users (agent-driven "
                 "in-session) do NOT call this — the agent walks "
                 "Phases 1–6 inline using "
                 "phase_prompts/phase{1..6}.md."

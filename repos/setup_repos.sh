@@ -36,11 +36,10 @@
 #   QPB_SKILL_DIR=/path/to/version-pinned-qpb ./setup_repos.sh ...
 #       (recognized by _benchmark_lib.sh; defaults to the parent of repos/)
 #
-# After setup, run (defaults: Copilot, gpt-5.4, parallel, single-pass, no seeds):
-#   <repo>-<version>/bin/run_playbook.sh            # v1.5.7+ wrapper auto-discovers target
-#   <repo>-<version>/bin/run_playbook.sh <other>    # explicit target override
-#   python3 ../bin/run_playbook.py chi-1.5.7        # direct script form (v1.5.7+)
-#   python3 -m bin.run_playbook chi-1.5.7           # from QPB root (canonical package form)
+# After setup, run from the QPB clone root (defaults: Copilot,
+# gpt-5.4, parallel, single-pass, no seeds):
+#   python3 -m bin.run_playbook repos/chi-1.5.7          # canonical package form
+#   python3 bin/run_playbook.py repos/chi-1.5.7          # equivalent script form
 
 set -euo pipefail
 source "$(dirname "$0")/_benchmark_lib.sh"
@@ -311,18 +310,15 @@ for short in "${REPOS[@]}"; do
     cp "${QPB_DIR}/bin/run_state_lib.py" "${dst}/bin/run_state_lib.py" 2>/dev/null || true
     cp "${QPB_DIR}/bin/validate_phase_artifacts.py" "${dst}/bin/validate_phase_artifacts.py" 2>/dev/null || true
     cp "${QPB_DIR}/bin/qpb_config.py" "${dst}/bin/qpb_config.py" 2>/dev/null || true
-    # v1.5.7 fix F-5b + 089n: install the runner wrapper. NOT a
-    # parity match with install_skill.py — the wrapper is the
-    # Mode-B harness entry point; adopters drive Mode B from the
-    # QPB clone via `python3 -m bin.run_playbook`, but the benchmark
-    # harness drives runs through the per-target wrapper which
-    # auto-discovers the QPB clone via walk-up. Kept as a justified
-    # benchmark-harness need.
-    if [ -f "${SCRIPT_DIR}/bin/run_playbook.sh" ]; then
-        cp "${SCRIPT_DIR}/bin/run_playbook.sh" "${dst}/bin/run_playbook.sh"
-        chmod +x "${dst}/bin/run_playbook.sh"
-        log "  ✓ Installed runner wrapper at $(basename "$dst")/bin/run_playbook.sh"
-    fi
+    # v1.5.7 089z: the per-target `bin/run_playbook.sh` wrapper
+    # (F-5b + 089n) is removed. The canonical run forms remain
+    # and are sufficient: from the QPB clone root,
+    # `python3 -m bin.run_playbook repos/<target>` (package
+    # form) or `python3 bin/run_playbook.py repos/<target>`
+    # (script form). The wrapper was the one entry point in
+    # the bin/ tree that still auto-launched on no-args after
+    # 089x — removing it keeps the "no-args is safe" invariant
+    # whole.
     # v1.5.7 089n (#183 "B-9"): no longer copy ai_context/
     # AI_ORCHESTRATION_PATTERNS.md to the target. install_skill.py
     # does not ship it; no benchmark-harness reader requires it at
@@ -357,4 +353,4 @@ for short in "${REPOS[@]}"; do
     echo ""
 done
 
-echo "=== Setup complete. Next: $(echo "${REPOS[0]}-${VERSION}")/bin/run_playbook.sh ==="
+echo "=== Setup complete. Next (from the QPB clone root): python3 -m bin.run_playbook repos/${REPOS[0]}-${VERSION} ==="

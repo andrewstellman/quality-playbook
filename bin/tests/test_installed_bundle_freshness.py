@@ -219,8 +219,10 @@ class InstalledBundleFreshnessTests(unittest.TestCase):
             'cp "${QPB_DIR}/bin/install_skill.py" "${dst}/bin/install_skill.py" 2>/dev/null || true\n'
             'cp "${QPB_DIR}/bin/citation_verifier.py" "${dst}/bin/citation_verifier.py" 2>/dev/null || true\n'
             'cp "${QPB_DIR}/bin/reference_docs_ingest.py" "${dst}/bin/reference_docs_ingest.py" 2>/dev/null || true\n'
-            'cp "${QPB_DIR}/bin/benchmark_lib.py" "${dst}/bin/benchmark_lib.py" 2>/dev/null || true\n'
-            'cp "${SCRIPT_DIR}/bin/run_playbook.sh" "${dst}/bin/run_playbook.sh"\n',
+            'cp "${QPB_DIR}/bin/benchmark_lib.py" "${dst}/bin/benchmark_lib.py" 2>/dev/null || true\n',
+            # v1.5.7 089z: the per-target `bin/run_playbook.sh`
+            # wrapper line that used to be appended here is gone
+            # — the real setup_repos.sh no longer installs it.
             encoding="utf-8",
         )
 
@@ -361,7 +363,9 @@ class InstalledBundleFreshnessTests(unittest.TestCase):
             # shape).
             _write(target / "bin" / "citation_verifier.py")
             _write(target / "bin" / "install_skill.py")
-            _write(target / "bin" / "run_playbook.sh")
+            # v1.5.7 089z: dropped target/bin/run_playbook.sh —
+            # the wrapper is gone; the freshness check no longer
+            # looks for it.
 
             missing = run_playbook._check_installed_bundle_freshness(
                 qpb_root, target
@@ -381,7 +385,9 @@ class InstalledBundleFreshnessTests(unittest.TestCase):
                 "pins the no-cross-layout-false-positive guarantee",
             )
             self.assertNotIn("bin/install_skill.py", missing)
-            self.assertNotIn("bin/run_playbook.sh", missing)
+            # v1.5.7 089z: the assertion about run_playbook.sh is
+            # gone — the wrapper itself is gone and the freshness
+            # check no longer expects it at the target.
 
     def test_bin_check_noop_when_source_lacks_bundled_modules(self) -> None:
         """Defensive: if QPB source has no bundled bin/ modules

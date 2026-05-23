@@ -78,11 +78,12 @@ def _build_minimal_fixture(qpb_root: Path, short: str = "dummytest", version: st
     shutil.copy(REPO_ROOT / "repos" / "_benchmark_lib.sh", repos / "_benchmark_lib.sh")
     shutil.copy(REPO_ROOT / "repos" / "setup_repos.sh", repos / "setup_repos.sh")
     (repos / "setup_repos.sh").chmod(0o755)
-    # v1.5.7 fix F-5b: install_skill_wrapper at repos/bin/run_playbook.sh.
-    # Copy it so the fixture exercises the real wrapper-install path.
-    (repos / "bin").mkdir()
-    shutil.copy(REPO_ROOT / "repos" / "bin" / "run_playbook.sh", repos / "bin" / "run_playbook.sh")
-    (repos / "bin" / "run_playbook.sh").chmod(0o755)
+    # v1.5.7 089z: the per-target `bin/run_playbook.sh` wrapper
+    # (F-5b + 089n) was removed — the canonical run forms
+    # (`python3 -m bin.run_playbook <target>` etc.) are
+    # sufficient. The wrapper-install fixture lines + the two
+    # wrapper tests that used them are gone too; the fixture
+    # no longer needs a `bin/` source dir.
     # Clean source for the test repo.
     clean = repos / "clean" / short
     clean.mkdir(parents=True)
@@ -205,67 +206,16 @@ class SetupReposBackupTests(unittest.TestCase):
             self.assertEqual(backups, [])
 
 
-@unittest.skipUnless(
-    os.name != "nt",
-    "setup_repos.sh is Linux/macOS-only — see addendum §2.2 (W5)")
-class SetupReposRunnerWrapperTests(unittest.TestCase):
-    """v1.5.7 fix F-5b: setup_repos.sh installs the runner wrapper at
-    <repo>-<version>/bin/run_playbook.sh so adopters can invoke the
-    runner from anywhere via the wrapper (auto-discovers QPB clone
-    via walk-up from its own location, falls back to $QPB_HOME)."""
-
-    def test_wrapper_installed_into_target(self) -> None:
-        """After setup_repos.sh runs, the target carries an executable
-        bin/run_playbook.sh wrapper that points (via walk-up) at the
-        QPB clone the setup was sourced from."""
-        with TemporaryDirectory() as tmp_str:
-            qpb_root = Path(tmp_str) / "qpb"
-            qpb_root.mkdir()
-            script, dst = _build_minimal_fixture(qpb_root)
-            result = _run_setup(script, ["dummytest"])
-            self.assertEqual(result.returncode, 0, result.stderr)
-            wrapper = dst / "bin" / "run_playbook.sh"
-            self.assertTrue(
-                wrapper.is_file(),
-                f"runner wrapper missing at {wrapper}; output={result.stdout!r}",
-            )
-            self.assertTrue(
-                os.access(wrapper, os.X_OK),
-                f"runner wrapper not executable at {wrapper}",
-            )
-            # Content sanity: the wrapper must reference both
-            # bin/run_playbook.py (walk-up sentinel) and the
-            # `python3 -m bin.run_playbook` exec form.
-            body = wrapper.read_text(encoding="utf-8")
-            self.assertIn("bin/run_playbook.py", body)
-            self.assertIn("python3 -m bin.run_playbook", body)
-
-    def test_wrapper_invocation_resolves_to_real_qpb_via_walkup(self) -> None:
-        """Run the installed wrapper with --help and assert it exits 0.
-        The wrapper's find_qpb_home walks up to the real QPB clone (the
-        fixture's bin/ has the wrapper but not a runnable run_playbook.py,
-        so the wrapper must fall back to $QPB_HOME or further walk-up).
-        Test sets $QPB_HOME to the real QPB clone to verify the fallback
-        path works end-to-end."""
-        with TemporaryDirectory() as tmp_str:
-            qpb_root = Path(tmp_str) / "qpb"
-            qpb_root.mkdir()
-            script, dst = _build_minimal_fixture(qpb_root)
-            result = _run_setup(script, ["dummytest"])
-            self.assertEqual(result.returncode, 0, result.stderr)
-            wrapper = dst / "bin" / "run_playbook.sh"
-            env = os.environ.copy()
-            env["QPB_HOME"] = str(REPO_ROOT)
-            result2 = subprocess.run(
-                ["bash", str(wrapper), "--help"],
-                capture_output=True, text=True, timeout=30, env=env,
-            )
-            self.assertEqual(
-                result2.returncode, 0,
-                f"wrapper --help failed: stdout={result2.stdout!r} "
-                f"stderr={result2.stderr!r}",
-            )
-            self.assertIn("usage:", result2.stdout)
+# v1.5.7 089z: `SetupReposRunnerWrapperTests` removed. The per-
+# target `bin/run_playbook.sh` wrapper (F-5b + 089n) was dropped —
+# the canonical run forms (`python3 -m bin.run_playbook <target>`
+# from the QPB clone root, `python3 bin/run_playbook.py <target>`)
+# are the sole remaining entry points. The two wrapper tests
+# (test_wrapper_installed_into_target,
+# test_wrapper_invocation_resolves_to_real_qpb_via_walkup) and the
+# fixture lines that copied the wrapper into the fixture tree were
+# all removed in the same atomic commit as the wrapper-install
+# block in setup_repos.sh.
 
 
 @unittest.skipUnless(

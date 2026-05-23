@@ -592,10 +592,11 @@ if __name__ == "__main__":
             "command builders. "
         ),
         role=(
-            "Imported by run_playbook.py and the harness sibling-target "
-            "wrappers (repos/setup_repos.sh's per-target "
-            "`run_playbook.sh`); also imported by reference_docs_ingest "
-            "at Phase 1 for the version-detection fallback. "
+            "Imported by run_playbook.py and by sibling-target "
+            "tooling that repos/setup_repos.sh stages into each "
+            "benchmark clone; also imported by "
+            "reference_docs_ingest at Phase 1 for the "
+            "version-detection fallback. "
         ),
         kind="library",
     )
