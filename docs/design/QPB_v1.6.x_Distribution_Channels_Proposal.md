@@ -6,7 +6,7 @@
 
 *Decisions confirmed 2026-05-22 (resolving §7):*
 - *(Q1) Both channels ship — **npm is in**, alongside pip.*
-- *(Q2/Q4) Headline verbs are the **ephemeral one-shot forms**: `uvx quality-playbook …` / `pipx run quality-playbook …` for Python, `npx quality-playbook …` for Node. `--loop=<tool>` on the npm surface (Playwright `init-agents --loop=claude|vscode|opencode` precedent; QPB adds its own tool keys). Persistent `pip install` still works but is not the documented lead.*
+- *(Q2/Q4) Headline verbs are the **ephemeral one-shot forms**: `uvx quality-playbook …` / `pipx run quality-playbook …` for Python, `npx quality-playbook init …` for Node. **Flag: `--ai-tool` on BOTH channels** (NOT Playwright's `--loop`) — one vocabulary across pip + npm + all docs + the Python installer; the npm shim forwards `--ai-tool` to `quality_playbook_cli` verbatim, with no JS translation layer (resolves Q2). The conventional `init` verb stays on npm. Persistent `pip install` still works but is not the documented lead.*
 - *(Q3 + the `bin`-namespace concern) Package the Python code as **bundled data run via the console-script entry point — NOT importable top-level modules**. No generic `bin`/`quality_playbook` packages land in `site-packages`. This is the correct framing because the package is a one-shot **application / scaffolder** (à la `cookiecutter`), never `import`ed — `uvx`/`pipx run`/`npx` all treat it as a transient executable. The entry point invokes the installer with `--source` pointed at the packaged bundle data.*
 - *(Q5) **Thin shim, single routing brain** — confirmed; no second (JS) routing implementation.*
 - *(Q6) DockerHub out of scope.*
@@ -87,14 +87,14 @@ pipx run quality-playbook install --into ./my-repo --ai-tool claude
    - **Locates the bundle relative to the package** (`__dirname`), not the operator's cwd.
    - **Spawns** `python3 -m bin.install_skill --source <pkg-bundle-root> --into <cwd> --ai-tool <tool>` with `PYTHONPATH`/cwd set so the `bin/` package imports resolve.
    - **Passes stdio through verbatim** (`stdio: 'inherit'` or pipe-and-forward) and **propagates the child exit code**. This is non-negotiable for the Phase 0 contract: the `event=` lines and the `qpb_validate.py` run-nonce must reach the operator/agent unmodified for the verbatim-paste anti-fabrication check to hold. The shim must not summarize, reformat, or swallow them.
-   - **Translates `--loop=<tool>` → `--ai-tool <tool>`** as its *only* semantic mapping. (`--loop` matches Playwright's `init-agents --loop=vscode|claude|opencode` vocabulary, which is the closest precedent and familiar to that audience. Let the Python installer own the alias map if possible, so even the alias table is single-source — see §7 Q2.)
+   - **Forwards `--ai-tool <tool>` verbatim** to the Python entry — no flag translation. (Decision 2026-05-22, resolving §7 Q2: `--ai-tool` on the npm surface too, NOT Playwright's `--loop` — one vocabulary across both channels and all docs, and the shim carries no alias map to keep in sync. The `init` verb stays as the npx-idiomatic scaffolder verb. Implemented: 089v built `--loop`; 089w flipped it to `--ai-tool`.)
 
 **Adopter surface (illustrative)**
 
 ```bash
-npx quality-playbook init --loop=claude     # fetch + route into .claude/skills/quality-playbook/, one shot
-npx quality-playbook init --loop=cursor
-npx quality-playbook init --loop=copilot
+npx quality-playbook init --ai-tool=claude     # fetch + route into .claude/skills/quality-playbook/, one shot
+npx quality-playbook init --ai-tool=cursor
+npx quality-playbook init --ai-tool=copilot
 ```
 
 **Note vs the Playwright precedent:** Playwright's `init-agents` is pure Node end-to-end, so it never crosses a Node→Python boundary. QPB's shim does. That bridge — and its Python-presence check — is the one extra moving part this channel carries, and the reason fail-fast detection is load-bearing.
@@ -133,7 +133,7 @@ This is the one place the channels are *not* invisible to existing code, and it 
 ## 7. Open questions / decisions for roadmap orchestration
 
 1. **Is npm worth it?** The npm channel's entire justification is "a meaningful slice of adopters live in Node-tool ecosystems and `npx` is their reflex." If telemetry/anecdote says the audience is overwhelmingly Python-side, npm is overhead. Confirm the audience before committing both channels. (pip is the lower-risk of the two and could ship alone first.)
-2. **`--loop` vs `--ai-tool` on the npm surface.** Adopt Playwright's `--loop` vocabulary for familiarity, or keep `--ai-tool` for consistency with the Python CLI? And: alias-map ownership — teach the Python installer to accept `--loop` directly (single-source) vs translate in the JS shim (one more thing to keep in sync).
+2. **`--loop` vs `--ai-tool` on the npm surface. → RESOLVED 2026-05-22: `--ai-tool`** (consistency with the Python CLI + pip channel + all docs; `--loop` is Playwright-specific, not an industry standard, and would add a JS translation layer). No `--loop` alias. The npm shim forwards `--ai-tool` to `quality_playbook_cli` verbatim; the `init` verb stays. (089v built `--loop`; 089w flipped it.)
 3. **`source_root` resolution for pip.** `importlib.resources` introspection inside `install_skill.py` vs the entry point passing `--source <resolved>` explicitly. The latter changes less existing code.
 4. **pip headline verb.** `pip install` (persistent, familiar) vs `uvx`/`pipx run` (ephemeral, matches npx, arguably more correct for a one-shot scaffolder). Support both; choose the README lead.
 5. **Single-shim vs declarative-manifest.** Recommended path is the thin shim (single Python routing brain). The heavier alternative — lift `_bundle_files()` + `AI_TOOL_MAP` into a checked-in JSON manifest both Python and a native JS installer read — only earns its cost if a genuinely Python-free Node install becomes a requirement, which §1 argues it is not. Default: **thin shim**.
