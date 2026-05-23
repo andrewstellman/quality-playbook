@@ -41,14 +41,33 @@ import sys
 from pathlib import Path
 from typing import Iterable
 
-# v1.5.7 089x: `_purpose` import that works in BOTH invocation forms —
-# `python -m bin.build_channel_package` (bin/ is a package; cwd is the
-# repo root) AND `python3 bin/build_channel_package.py` (sys.path[0] is
-# bin/, so the package import fails but the direct one works).
-try:
-    from bin import _purpose
-except ImportError:
-    import _purpose  # type: ignore[no-redef]
+# v1.5.7 089x + 090c: `_purpose` import that's robust against the
+# foreign-`bin` import bug (Council finding 2026-05-23): when this
+# script is run as ``python3 bin/build_channel_package.py``,
+# `from bin import _purpose` resolved to a SIBLING repo's
+# `bin/_purpose.py` on sys.path. The path-load below uses the
+# same REPO_ROOT-anchored pattern as `_import_install_skill` below
+# — the `_purpose` module that gets bound is ALWAYS from this
+# clone, regardless of cwd or sibling repos.
+def _load_purpose_from_this_clone():
+    import importlib.util as _ilu
+    repo_root = Path(__file__).resolve().parent.parent
+    script = repo_root / "bin" / "_purpose.py"
+    if not script.is_file():
+        raise RuntimeError(
+            f"build_channel_package: cannot path-load _purpose "
+            f"from {script} — file missing in clone."
+        )
+    spec = _ilu.spec_from_file_location(
+        "_qpb_purpose_from_build_channel_package", script,
+    )
+    mod = _ilu.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_purpose = _load_purpose_from_this_clone()
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -58,14 +77,47 @@ def _import_install_skill():
     """Load ``bin/install_skill.py`` for its ``_bundle_files()``
     function — used at build time only, not at adopter ``pip
     install`` time. The shim loads install_skill from the staged
-    package data, not from this clone path."""
-    # The clone has ``bin/`` as a top-level package, so a plain
-    # ``from bin import install_skill`` works when this script is
-    # run from the clone root.
-    sys.path.insert(0, str(REPO_ROOT))
-    from bin import install_skill  # noqa: E402
+    package data, not from this clone path.
 
-    return install_skill
+    v1.5.7 090c (root-cause fix for the 2026-05-23 staging bug):
+    path-load from ``REPO_ROOT/bin/install_skill.py`` via
+    ``importlib.util.spec_from_file_location`` — the SAME pattern
+    ``quality_playbook_cli/__init__.py:_load_bundled_script`` uses.
+    Pre-090c this did `sys.path.insert(REPO_ROOT)` + `from bin
+    import install_skill`, which, **when this script was run as
+    ``python3 bin/build_channel_package.py``**, resolved to
+    whatever `bin/install_skill.py` was already importable as
+    `bin.install_skill` on sys.path — including a SIBLING repo's
+    copy (codex reproduced loading
+    ``…/repos/httpx-1.5.7/bin/install_skill.py``). That foreign-
+    `bin` module's `_bundle_files()` computed against the WRONG
+    `source_root`, dropped `_purpose.py`, and shipped a broken
+    bundle. The path-load anchors loading on REPO_ROOT
+    (``Path(__file__).resolve().parent.parent``) so the module
+    that defines `_bundle_files()` is ALWAYS from the SAME clone
+    as this script — regardless of cwd, sys.path, or sibling
+    repos."""
+    import importlib.util as _ilu
+    script = REPO_ROOT / "bin" / "install_skill.py"
+    if not script.is_file():
+        raise RuntimeError(
+            f"build_channel_package: cannot path-load "
+            f"install_skill from {script} — file missing. "
+            f"REPO_ROOT={REPO_ROOT} (anchored on __file__ via "
+            f"Path(__file__).resolve().parent.parent)."
+        )
+    spec = _ilu.spec_from_file_location(
+        "_qpb_install_skill_from_build_channel_package", script,
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(
+            f"build_channel_package: importlib spec resolution "
+            f"failed for {script}."
+        )
+    mod = _ilu.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def skill_bundle_paths(repo_root: Path) -> list[Path]:

@@ -96,6 +96,12 @@ def _load_bundled_script(bundle: Path, script_rel: str,
             f"{script} (importlib spec resolution failed)."
         )
     module = importlib.util.module_from_spec(spec)
+    # v1.5.7 090c: register in sys.modules BEFORE exec_module so
+    # dataclass/typing machinery in path-loaded modules can resolve
+    # `sys.modules[cls.__module__]`. Without this, dataclasses
+    # raises AttributeError on `cls.__module__.__dict__` because
+    # the private namespaced name isn't in sys.modules.
+    sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
 

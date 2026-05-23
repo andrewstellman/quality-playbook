@@ -461,6 +461,9 @@ def _load_purpose():
                 f"{_purpose_path} — the bundle is malformed."
             )
         mod = _ilu.module_from_spec(spec)
+        # v1.5.7 090c: register in sys.modules so dataclass/typing
+        # machinery in path-loaded modules resolves.
+        sys.modules[spec.name] = mod
         spec.loader.exec_module(mod)
         return mod
 

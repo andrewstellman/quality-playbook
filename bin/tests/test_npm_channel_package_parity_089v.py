@@ -259,7 +259,13 @@ class NpmChannelPackageParity089vE2ETests(unittest.TestCase):
         """Run ``npm pack --dry-run --json`` from ``self.staged``
         and return the set of tarball-relative paths."""
         proc = subprocess.run(
-            ["npm", "pack", "--dry-run", "--json"],
+            # --ignore-scripts skips the prepack auto-stage hook
+            # (090c) — the fixture pre-stages the bundle
+            # manually, so we don't want prepack to try to
+            # re-run `bin/build_channel_package.py --stage` from
+            # the temp tree (which doesn't have it).
+            ["npm", "pack", "--dry-run", "--json",
+             "--ignore-scripts"],
             cwd=self.staged,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,

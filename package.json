@@ -29,6 +29,9 @@
   "engines": {
     "node": ">=18"
   },
+  "scripts": {
+    "prepack": "python3 bin/build_channel_package.py --stage"
+  },
   "files": [
     "bin/quality-playbook.js",
     "quality_playbook_cli/**/*",

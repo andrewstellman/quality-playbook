@@ -358,7 +358,9 @@ class NpmChannelInstallE2E090bTests(unittest.TestCase):
 
             # npm pack — produces the tarball in the cwd.
             r = subprocess.run(
-                ["npm", "pack", "--silent"],
+                # --ignore-scripts skips the 090c prepack hook
+                # (fixture pre-stages manually).
+                ["npm", "pack", "--silent", "--ignore-scripts"],
                 cwd=str(staged),
                 capture_output=True, text=True, timeout=180,
             )

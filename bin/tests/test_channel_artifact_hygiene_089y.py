@@ -206,7 +206,10 @@ class NpmTarballArtifactHygiene089yTests(unittest.TestCase):
             stray.write_bytes(b"\x42\x42")
 
             proc = subprocess.run(
-                ["npm", "pack", "--dry-run", "--json"],
+                # --ignore-scripts skips the 090c prepack hook
+            # (fixture pre-stages manually + injects cruft).
+            ["npm", "pack", "--dry-run", "--json",
+             "--ignore-scripts"],
                 cwd=str(tmp_root),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

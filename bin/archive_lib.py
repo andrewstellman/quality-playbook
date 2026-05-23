@@ -71,7 +71,43 @@ _VERSION_HEADER_PATTERN = re.compile(r"Quality Playbook v([0-9]+(?:\.[0-9]+)+)",
 # the rationale + scope). archive_lib re-exports it via this local
 # alias to preserve the existing name (avoids touching ~30 call
 # sites of `_BUG_HEADING_PATTERN`).
-from bin.run_state_lib import BUG_HEADING_PATTERN_RE as _BUG_HEADING_PATTERN
+#
+# v1.5.7 090c: foreign-bin-proof import. `from bin.run_state_lib`
+# succeeds when this runs as `python -m bin.archive_lib` from the
+# clone, but a script-form invocation (or any context where `bin/`
+# isn't a package on sys.path) hits ImportError. The fallback
+# path-loads `run_state_lib.py` from the SAME directory as this
+# file — anchored on `Path(__file__)` so it can never resolve to a
+# foreign sibling repo's `bin/`.
+try:
+    from bin.run_state_lib import (
+        BUG_HEADING_PATTERN_RE as _BUG_HEADING_PATTERN,
+    )
+except ImportError:
+    import importlib.util as _ilu
+    _rsl_path = Path(__file__).resolve().parent / "run_state_lib.py"
+    _rsl_spec = _ilu.spec_from_file_location(
+        "_qpb_run_state_lib_via_archive_lib", _rsl_path,
+    )
+    if _rsl_spec is None or _rsl_spec.loader is None:
+        raise ImportError(
+            f"archive_lib: cannot resolve run_state_lib — "
+            f"`from bin import` failed and path-load fallback "
+            f"target {_rsl_path} is missing."
+        )
+    _rsl_mod = _ilu.module_from_spec(_rsl_spec)
+    # v1.5.7 090c: register in sys.modules BEFORE exec_module so
+    # any dataclass/typing machinery inside run_state_lib that
+    # consults `sys.modules[__module__]` finds the module. Without
+    # this, dataclasses.field() raises AttributeError because
+    # `cls.__module__` is the private namespaced name but
+    # `sys.modules` has no entry for it. The 089u/089v shim's
+    # `_load_bundled_script` has the same shape but works because
+    # install_skill (the only loaded module) does not use
+    # dataclasses; this script does.
+    sys.modules[_rsl_spec.name] = _rsl_mod
+    _rsl_spec.loader.exec_module(_rsl_mod)
+    _BUG_HEADING_PATTERN = _rsl_mod.BUG_HEADING_PATTERN_RE
 _REQ_HEADING_PATTERN = re.compile(r"^###\s+REQ-([A-Za-z0-9]+)", re.MULTILINE)
 _SEVERITY_PATTERN = re.compile(r"\*\*Severity\*\*\s*[:.-]\s*(HIGH|MEDIUM|LOW)", re.IGNORECASE)
 _PHASE_CHECK_PATTERN = re.compile(r"^-\s*\[x\]\s*Phase\s*([0-9a-zA-Z]+)", re.MULTILINE)

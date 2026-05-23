@@ -14,9 +14,18 @@
 # stager that assembles the data from `_bundle_files()` (single
 # source of truth).
 
+# v1.5.7 090c (cold-build empty-bundle hole fix): custom backend
+# `_qpb_build_backend` wraps setuptools.build_meta and auto-stages
+# `quality_playbook_cli/_bundle/` via `bin/build_channel_package.
+# stage()` before delegating. A cold `python -m build` from a
+# fresh checkout (no prior stage) now produces a wheel + sdist
+# containing the complete `_bundle/`. The 090b mandatory-member
+# guard runs inside `stage()` — an incomplete bundle raises
+# loudly before the wheel can be built.
 [build-system]
 requires = ["setuptools>=68"]
-build-backend = "setuptools.build_meta"
+build-backend = "_qpb_build_backend"
+backend-path = ["."]
 
 [project]
 name = "quality-playbook"
@@ -24,7 +33,13 @@ version = "1.5.7"
 description = "Quality engineering for AI-driven development — a skill for AI coding agents that finds the bugs review misses."
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "Apache-2.0"}
+# v1.5.7 090c F: SPDX string (replaces the deprecated TOML-table
+# form `{text = "Apache-2.0"}`); the deprecated `License :: OSI
+# Approved :: Apache Software License` classifier is dropped too
+# — clears setuptools `SetuptoolsDeprecationWarning`s on every
+# build.
+license = "Apache-2.0"
+license-files = ["LICENSE.txt"]
 authors = [
     {name = "Andrew Stellman", email = "andrew@stellman.com"},
 ]
@@ -32,7 +47,6 @@ keywords = ["quality", "tdd", "code-review", "ai", "claude", "copilot", "cursor"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",

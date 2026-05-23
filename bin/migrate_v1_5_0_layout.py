@@ -50,7 +50,29 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from bin import archive_lib
+# v1.5.7 090c: foreign-bin-proof import — try the package form
+# first, fall back to a path-load of archive_lib.py from this
+# file's directory so the import is anchored on __file__ and
+# never resolves to a sibling repo's bin/.
+try:
+    from bin import archive_lib
+except ImportError:
+    import importlib.util as _ilu
+    _al_path = Path(__file__).resolve().parent / "archive_lib.py"
+    _al_spec = _ilu.spec_from_file_location(
+        "_qpb_archive_lib_via_migrate", _al_path,
+    )
+    if _al_spec is None or _al_spec.loader is None:
+        raise ImportError(
+            f"migrate_v1_5_0_layout: cannot resolve archive_lib — "
+            f"path-load fallback target {_al_path} is missing."
+        )
+    archive_lib = _ilu.module_from_spec(_al_spec)
+    # v1.5.7 090c: register in sys.modules BEFORE exec_module so
+    # any dataclass/typing machinery in archive_lib that consults
+    # `sys.modules[__module__]` resolves.
+    sys.modules[_al_spec.name] = archive_lib
+    _al_spec.loader.exec_module(archive_lib)
 
 
 class MigrationError(Exception):

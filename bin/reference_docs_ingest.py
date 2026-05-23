@@ -57,12 +57,32 @@ from typing import Iterable, List, Optional, Sequence, Tuple
 # harmless defense-in-depth.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# v1.5.7 090c: foreign-bin-proof import. Pre-090c the "fallback"
+# branch repeated the same `from bin import benchmark_lib` —
+# tautological; if the first one raised the second one would too.
+# Real fallback: path-load `benchmark_lib.py` from THIS file's
+# directory so the import is anchored on __file__ regardless of
+# cwd / sys.path / sibling repos.
 try:
     # When run as ``python -m bin.reference_docs_ingest``.
     from bin import benchmark_lib  # type: ignore
-except Exception:  # pragma: no cover - fallback when invoked as a loose script
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from bin import benchmark_lib  # type: ignore
+except ImportError:
+    import importlib.util as _ilu
+    _bl_path = Path(__file__).resolve().parent / "benchmark_lib.py"
+    _bl_spec = _ilu.spec_from_file_location(
+        "_qpb_benchmark_lib_via_reference_docs_ingest", _bl_path,
+    )
+    if _bl_spec is None or _bl_spec.loader is None:
+        raise ImportError(
+            f"reference_docs_ingest: cannot resolve "
+            f"benchmark_lib — path-load fallback target "
+            f"{_bl_path} is missing."
+        )
+    benchmark_lib = _ilu.module_from_spec(_bl_spec)  # type: ignore[no-redef]
+    # v1.5.7 090c: register in sys.modules BEFORE exec_module so
+    # dataclass/typing machinery resolves.
+    sys.modules[_bl_spec.name] = benchmark_lib
+    _bl_spec.loader.exec_module(benchmark_lib)
 
 
 # v1.5.7 instruction 060 (A-12): `.rst` added — reStructuredText is

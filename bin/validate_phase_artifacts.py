@@ -83,10 +83,31 @@ from pathlib import Path
 # try/except below remains as the flat/bundled-layout fallback.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# v1.5.7 090c: foreign-bin-proof import. 3-step ladder:
+# (1) canonical package form, (2) flat-layout import, (3)
+# path-load from THIS file's directory (anchored on __file__).
 try:  # canonical package form (run from QPB root or PYTHONPATH set)
     from bin import role_map
-except ModuleNotFoundError:  # flat/bundled layout: bin/ itself on sys.path
-    import role_map  # type: ignore[no-redef]
+except ModuleNotFoundError:
+    try:  # flat/bundled layout: bin/ itself on sys.path
+        import role_map  # type: ignore[no-redef]
+    except ModuleNotFoundError:
+        import importlib.util as _ilu
+        _rm_path = Path(__file__).resolve().parent / "role_map.py"
+        _rm_spec = _ilu.spec_from_file_location(
+            "_qpb_role_map_via_validate_phase_artifacts", _rm_path,
+        )
+        if _rm_spec is None or _rm_spec.loader is None:
+            raise ImportError(
+                f"validate_phase_artifacts: cannot resolve "
+                f"role_map — path-load fallback target "
+                f"{_rm_path} is missing."
+            )
+        role_map = _ilu.module_from_spec(_rm_spec)  # type: ignore[no-redef]
+        # v1.5.7 090c: register in sys.modules BEFORE exec_module
+        # so dataclass/typing machinery resolves.
+        sys.modules[_rm_spec.name] = role_map
+        _rm_spec.loader.exec_module(role_map)
 
 
 # Mirror of quality_gate.py::_V150_INDEX_COMMON_FIELDS +

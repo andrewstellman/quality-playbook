@@ -139,7 +139,25 @@ def detect_skill_version(qpb_dir: Optional[Path] = None) -> str:
     SKILL.md (e.g. testing fixtures) can still target one.
     """
     if qpb_dir is None:
-        from bin import _purpose
+        # v1.5.7 090c: foreign-bin-proof — path-load fallback
+        # anchored on THIS file's directory.
+        try:
+            from bin import _purpose
+        except ImportError:
+            import importlib.util as _ilu
+            _pp = Path(__file__).resolve().parent / "_purpose.py"
+            _ps = _ilu.spec_from_file_location(
+                "_qpb_purpose_via_benchmark_lib", _pp,
+            )
+            if _ps is None or _ps.loader is None:
+                raise ImportError(
+                    f"benchmark_lib: cannot resolve _purpose — "
+                    f"path-load target {_pp} is missing."
+                )
+            _purpose = _ilu.module_from_spec(_ps)
+            import sys as _sysmod
+            _sysmod.modules[_ps.name] = _purpose
+            _ps.loader.exec_module(_purpose)
         return _purpose.get_version()
     return _read_version(qpb_dir / "SKILL.md")
 
@@ -363,7 +381,34 @@ def require_copilot() -> bool:
     # Local import to keep bin/benchmark_lib lightweight and avoid
     # ordering dependencies — benchmark_lib is imported early by
     # bin/run_playbook.py.
-    from bin import copilot_resolver
+    #
+    # v1.5.7 090c: foreign-bin-proof, with a graceful "resolver
+    # unavailable" fallback. `copilot_resolver` is NOT in
+    # `install_skill._bundle_files()` — it ships at the QPB clone
+    # / setup_repos.sh-layout location but is NOT in the adopter
+    # install-closure. From the bundled adopter context this
+    # import legitimately fails; in that case `is_copilot_cli_
+    # available` returns False (no resolver = treat copilot as
+    # unavailable, which matches the operational truth).
+    try:
+        from bin import copilot_resolver
+    except ImportError:
+        import importlib.util as _ilu
+        _cr_path = (
+            Path(__file__).resolve().parent / "copilot_resolver.py"
+        )
+        if not _cr_path.is_file():
+            # No resolver on this layout — copilot CLI is treated
+            # as unavailable. The caller (benchmark-mode runner
+            # selection) routes around it.
+            return False
+        _cr_spec = _ilu.spec_from_file_location(
+            "_qpb_copilot_resolver_via_benchmark_lib", _cr_path,
+        )
+        copilot_resolver = _ilu.module_from_spec(_cr_spec)  # type: ignore[assignment]
+        import sys as _sysmod
+        _sysmod.modules[_cr_spec.name] = copilot_resolver
+        _cr_spec.loader.exec_module(copilot_resolver)
     available, _which = copilot_resolver.require_copilot_cli()
     return available
 
