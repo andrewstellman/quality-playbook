@@ -14,6 +14,7 @@
 This file is the maintainer's map of the project. You rarely need all of it — load the section that matches your task:
 
 - **Changing skill files / navigating the repo** → "Project structure", "How the skill works", "Making changes to the skill".
+- **Running the tests / verifying a change** → "Project structure" (the *Running the tests* command block) and "Making changes to the skill".
 - **Diagnosing a missed bug** → "Three improvement axes".
 - **Running or interpreting benchmarks** → `ai_context/BENCHMARK_PROTOCOL.md` (run protocol, benchmark set, "Why bootstrap is a benchmark target", result interpretation, and the agent-capability table).
 - **Release history / why a feature exists** → `ai_context/VERSION_HISTORY.md` (curated arc) and `CHANGELOG.md` (mechanical per-release log).

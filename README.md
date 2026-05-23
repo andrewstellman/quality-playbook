@@ -125,6 +125,20 @@ python3 -m bin.install_skill --verbose                                      # hu
 
 `--ai-tool <name>` is the canonical way to invoke when you know which tool will use the project; values are `cursor`, `claude`, `copilot` (alias `github`), `continue`, `codex`, `windsurf`, `cline`, and `aider` — the full 8-tool set the installer supports. The script creates the marker directory if it doesn't exist and installs into that tool's canonical subdirectory (`.cursor/skills/quality-playbook/`, `.claude/skills/quality-playbook/`, `.github/skills/quality-playbook/`, `.continue/skills/quality-playbook/`, `.codex/skills/quality-playbook/`, `.windsurf/skills/quality-playbook/`, `.cline/skills/quality-playbook/`, or `.aider/skills/quality-playbook/`). Bare `--into <target-repo>` falls back to auto-detecting from a marker directory inside the target — which only works if the target has been opened by your AI tool at least once. Codex, Windsurf, Cline, and Aider don't pre-create a project marker directory (nor do Cursor and Copilot before first project open), so bare-`--into` auto-detection won't find them — but in the recommended flow (the "How to install" section above) you don't have to worry about this: the AI agent doing the install **self-identifies its own tool and passes the matching `--ai-tool` itself**, which installs to the canonical subdirectory and creates the marker dir whether or not it exists yet. You only pass `--ai-tool <tool>` yourself when you run the installer directly, with no agent in the loop. `--target <path>` treats the path as the literal install root and writes the skill files directly there; useful for operators with a non-standard install location. `--target` is mutually exclusive with both `--into` and `--ai-tool`.
 
+**Alternative: install via pip or npm (no clone needed).** If you'd rather not clone the QPB repo, install from a package manager. The Quality Playbook ships as an **application / scaffolder** that copies the skill into your project — not a library you import:
+
+```bash
+# pip / uvx / pipx (Python):
+uvx quality-playbook install --into /path/to/target-repo --ai-tool <tool>        # one-shot, no global install
+pipx run quality-playbook install --into /path/to/target-repo --ai-tool <tool>
+pip install quality-playbook && quality-playbook install --into /path/to/target-repo --ai-tool <tool>
+
+# npx (Node):
+npx quality-playbook init --ai-tool=<tool>                                        # e.g. --ai-tool=claude
+```
+
+Both channels run the **same Python installer** (Python 3.10+ is still required at runtime — the npm package is a thin Node shim, not a reimplementation), route the skill into the tool's canonical directory, and support the same `--ai-tool` self-identification described above. The channel sets `QPB_CHANNEL` (`pip` / `npm`) so the Phase-0 validator's remediation hints are channel-aware; neither channel ships compiled `.pyc` artifacts.
+
 **Already manually copied SKILL.md to your skills directory?** Skip this step. The manual install paths described in Step 3 below continue to work — `bin/install_skill.py` is additive, not a replacement.
 
 **What the install does:** copies the full skill bundle (50 files: `SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and 13 `bin/*.py` modules — see `bin/install_skill.py::_bundle_files()` for the authoritative list) into the chosen install location. Runs a smoke check at the end (verifies `quality_gate.py` is loadable Python, `SKILL.md` parses with the expected frontmatter, `references/exploration_patterns.md` loads). Reports any failures in the structured output. Re-installs preserve operator-edited files as `<file>.operator-backup-<UTC-timestamp>` so your local edits aren't silently overwritten.

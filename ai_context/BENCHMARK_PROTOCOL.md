@@ -185,7 +185,7 @@ python3 ../bin/run_playbook.py --next-iteration --strategy all chi-1.5.7 cobra-1
 python3 bin/run_playbook.py /path/to/QPB --phase all   # bootstrap: run on the QPB repo itself
 ```
 
-**Post-089x note:** running `bin/run_playbook.py` with **no arguments no longer auto-starts the bootstrap self-audit** — bare invocation prints the script's purpose banner and exits 0 (the 089x no-args-safe invariant). A real run, including bootstrap, requires an explicit target path; the human-operator override `--operator-invoked` is available for driving a run from inside an agent terminal. (Pre-089x, no-args ran a full self-audit against the current directory — a footgun that 089x removed.)
+**Post-089x note:** running `bin/run_playbook.py` with **no arguments at all no longer auto-starts the bootstrap self-audit** — a truly bare invocation prints the script's purpose banner and exits 0 (the 089x no-args-safe invariant). Note that passing flags *without* a positional target (e.g. `--phase all`) still defaults to the current directory (`args.targets = ["."]`), so always pass an explicit target for clarity and safety. The human-operator override `--operator-invoked` is available for driving a run from inside an agent terminal.
 
 ## Why bootstrap is a benchmark target
 

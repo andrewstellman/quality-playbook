@@ -48,6 +48,12 @@ The user wants to run the quality playbook on a codebase. Here's what to do:
 
    The canonical procedure for AI-agent-driven installs lives in the `AGENTS.md` install-procedure section — including Step 1's (a) operator-told / (b) self-identified / (c) ASK priority order and the full 8-tool `--ai-tool` value list. When an AI coding agent (Claude Code, Cursor, etc.) is doing the install on the operator's behalf, follow that section step by step rather than the manual file-copy commands below. Alternative invocations include `--target /path/to/install` for a literal install path, `--force` to skip the operator-edit-preservation backup, `--no-smoke` to skip the post-install smoke check, and `--verbose` for human-prose alongside the structured event output. The install bundle is `SKILL.md`, `quality_gate.py`, the `references/` subtree, `phase_prompts/` (v1.5.6+ — required for Mode A walkthrough phase resolution), and `agents/` (v1.5.6+ — `quality-playbook.agent.md` and `quality-playbook-claude.agent.md` so the README Step 4 `claude --agent agents/...` invocation resolves at the install destination, not just inside the QPB clone). Cross-platform: the script is **Python 3.10+** standard library only (the runtime floor was raised 3.9 → 3.10 in v1.5.7 089i — the test suite uses 3.10-only features such as `assertNoLogs`). During v1.5.7 release validation a real **Python/pytest run on Windows** (PowerShell, the click benchmark cell) and runs on macOS (the gson Java/Maven cell and the chi Go cell) each probed their test runner, ran it for real, and produced genuine RED→GREEN evidence with the gate PASSED. This supersedes the v1.5.6 `untested-infrastructure-blocked` Windows framing: Windows was directly exercised in v1.5.7 release validation, not left as a future-release candidate. `pathlib` correctness is additionally pinned by `PathlibCrossPlatformTests.test_install_skill_pathlib_windows_path_handling`, which walks every bundle destination through `PureWindowsPath`.
 
+   **Install without cloning — pip / npm package channels (v1.5.7+).** Adopters who don't want to clone the QPB repo can install via their package manager. The Quality Playbook ships as an **application / scaffolder you run** (it copies the skill into the target's tool directory, cookiecutter-style) — NOT a library you import:
+   - **pip / uvx / pipx:** the one-shot ephemeral form is `uvx quality-playbook install --into <repo> --ai-tool <tool>` (or `pipx run quality-playbook install --into <repo> --ai-tool <tool>`); a persistent `pip install quality-playbook` followed by `quality-playbook install --into <repo> --ai-tool <tool>` also works. Verbs are `install` and `validate`.
+   - **npx (Node):** `npx quality-playbook init --ai-tool=<tool>` (e.g. `--ai-tool=claude` / `cursor` / `copilot`). A thin Node shim runs the bundled Python installer.
+   - **Python 3.10+ is still required at runtime** for both channels — the npm package is a shim over the same Python installer, not a Node reimplementation.
+   - The same `--ai-tool` self-identification applies: an installing agent supplies `--ai-tool <tool>` itself, so the one-line prompt stays sufficient. The channel sets `QPB_CHANNEL` (`pip` / `npm`) so the Phase-0 validator's remediation hints are channel-aware. Neither channel ships compiled `.pyc` / `__pycache__` artifacts, and a properly-scaffolded fresh install validates `status=ok` with **zero third-party Python dependencies**.
+
    **Code-only mode (a runtime behavior, not an install flag).** When a target repo's `reference_docs/` is empty or absent, Phase 1 emits a `documentation_state state=code_only` event into `quality/run_state.jsonl`, prepends a "Documentation status: code-only mode" section to `quality/EXPLORATION.md`, and writes a `Documentation state: code_only` line to `quality/PROGRESS.md`. The playbook proceeds — it does not abort — but every requirement it derives leans entirely on code evidence (Tier 3+). See `references/code-only-mode.md` for what to expect from a code-only run and how to upgrade to a full-documentation run for the next pass.
 
    **Opt-out: `--require-docs` (v1.5.6+).** Operators who want runs to abort instead of proceeding in code-only mode can pass `--require-docs` to `python3 -m bin.run_playbook`. With the flag set and `reference_docs/` empty at Phase 1 entry, the playbook appends an `aborted_missing_docs` event to `quality/run_state.jsonl`, writes an `ERROR: aborted_missing_docs` block to `quality/PROGRESS.md`, and exits non-zero before any LLM work. Default behavior unchanged. Use for compliance/policy contexts where a quiet code-only-mode downgrade would mask a process gap (every release run must cite a spec; no spec means the run shouldn't have started).
@@ -56,7 +62,7 @@ The user wants to run the quality playbook on a codebase. Here's what to do:
 
    **Centralized run logs (v1.5.7+).** All log emission for a single run lands under `<target>/quality/logs/<run-id>/` inside the per-target `quality/` tree. The `quality/logs/` directory is included in the suggested `.gitignore` template so adopters don't accidentally commit megabytes of log data. Operators whose tooling depends on the v1.5.6 scattered layout can pass `--logs-flat` (or set `QPB_LOGS_LEGACY=1`) to preserve the old paths.
 
-   **Three invocation forms (v1.5.7 fix F-5b).** After install, an adopter can run the playbook three ways: `python3 -m bin.run_playbook <target>` (canonical package-module form from the QPB clone; preferred for development); `python3 path/to/QPB/bin/run_playbook.py <target>` (direct script form; v1.5.7 F-5a restored this after v1.5.4's `__main__` guard broke it); or `<target>/bin/run_playbook.sh [<target>]` (wrapper installed by `repos/setup_repos.sh` into each target repo — auto-discovers the QPB clone by walking up from its own location and falls back to `$QPB_HOME`; preferred for adopters who installed via `setup_repos.sh` because no QPB-path knowledge is needed at the invocation site).
+   **Two invocation forms.** After install, an adopter runs the playbook two ways: `python3 -m bin.run_playbook <target>` (canonical package-module form from the QPB clone; preferred) or `python3 path/to/QPB/bin/run_playbook.py <target>` (direct script form; v1.5.7 F-5a restored this after v1.5.4's `__main__` guard broke it). *(A third per-target `<target>/bin/run_playbook.sh` wrapper shipped briefly under v1.5.7 fix F-5b but was removed in 089z — it conflicted with the 089x "running any `bin` script with no args is safe" invariant, and the two forms above are sufficient. `repos/setup_repos.sh` no longer installs it.)*
 
    **Council roster + adopter override (v1.5.7+).** Phase 4 Council members are configured at `bin/council_config.py` (current roster: `claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6`) and can be overridden per-adopter via `~/.qpb/config.json` (or `$XDG_CONFIG_HOME/qpb/config.json`) — use the override when an installed skill's roster decays (e.g., a runner silently drops support for a model). v1.5.7 ships the roster modernization (D6 6a) and the adopter override layer (D6 6c). The fast-fail availability detection at Council launch (D6 6b) and the structured failure-recovery template (D6 6d) are deferred to v1.5.7.x per `references/runners_and_models.md`. For v1.5.7, all Council members must be reachable before the run; if one is unreachable, override the roster locally and re-run.
 
@@ -172,13 +178,14 @@ Users often want to run the playbook across multiple repositories or automate th
 
 ### Built-in runner
 
-Positional arguments are directory paths (relative or absolute). No version resolution, no benchmark-folder lookups — every argument is taken literally. Omit positional args to run against the current directory.
+Positional arguments are directory paths (relative or absolute). No version resolution, no benchmark-folder lookups — every argument is taken literally. **A truly bare invocation (no args at all) prints the script's purpose banner and exits 0** (the v1.5.7 089x no-args-safe invariant). Passing flags *without* a positional target (e.g. `--phase all`) still defaults to the current directory, so always pass an explicit target for clarity and safety.
 
-Three invocation forms are supported (v1.5.7 fixes F-5a + F-5b):
+Two invocation forms are supported (v1.5.7 fix F-5a):
 
 - `python3 -m bin.run_playbook <target>` — canonical package-module form (recommended; works from inside the QPB checkout).
 - `python3 /path/to/QPB/bin/run_playbook.py <target>` — direct script form. The runner injects QPB root into `sys.path` before importing sibling modules, so package-relative imports resolve regardless of how it's invoked.
-- `<target>/bin/run_playbook.sh [<target>]` — wrapper installed by `repos/setup_repos.sh` into each target repo (v1.5.7 F-5b). Auto-discovers the QPB clone by walking up from its own location and falls back to `$QPB_HOME`. Preferred for adopters who installed via `setup_repos.sh` because no QPB-path knowledge is needed at the invocation site.
+
+*(A third per-target `<target>/bin/run_playbook.sh` wrapper shipped briefly under v1.5.7 F-5b but was removed in 089z; `repos/setup_repos.sh` no longer installs it.)*
 
 Pass the target repo as a positional path:
 
@@ -192,7 +199,7 @@ python3 -m bin.run_playbook --codex /path/to/my-project                         
 python3 -m bin.run_playbook --next-iteration --strategy parity /path/to/my-project
 ```
 
-Omit positional args to run against the current directory (useful for the QPB self-bootstrap; the runner's CWD must still be the QPB checkout root).
+For the QPB self-bootstrap (running the playbook against the QPB checkout itself), pass the checkout root as an explicit target — e.g. `python3 -m bin.run_playbook --phase all .` from the QPB root, or pass its path. Post-089x, bare no-args no longer runs against the current directory (it prints the purpose banner and exits); a self-bootstrap run needs an explicit target, with `--operator-invoked` available when driving it from inside an agent terminal.
 
 For benchmark use, run from the `repos/` folder; the parent QPB checkout puts `bin/` on `sys.path`:
 
@@ -245,6 +252,8 @@ On Windows (PowerShell), replace the loop with `foreach ($repo in $args)` and us
 Positional arguments are **directory paths**. Version-append fallback: if a bare name (no path separators, no leading `.` / `..` / `~`) doesn't exist on disk, the runner retries `<name>-<skill_version>` using the `version:` line from `SKILL.md` at the QPB root. Path-like inputs are taken literally — no fallback. When the fallback hits, an `INFO: resolved '<name>' to '<name>-<version>' (via SKILL.md version)` line goes to stderr.
 
 The runner writes one log file per target next to the target directory (at `{parent}/{target-name}-playbook-{timestamp}.log`), archives prior `quality/` runs before fresh baselines, and enforces phase prerequisite gates.
+
+**Self-describing scripts (v1.5.7 089x).** Every `bin/**/*.py` script is safe to run with no arguments — a bare invocation prints a purpose banner (what the script is + its role in a playbook run + an attribution footer) and exits 0 with no side effects. So `python3 bin/run_playbook.py` with no arguments at all prints its banner rather than starting a run (pass an explicit target to run — note that flags without a target still default to the current directory). Every CLI also accepts `--version`. This makes the `bin/` tree self-documenting — run any script bare to learn what it does.
 
 The iteration prompt is built from `SKILL_FALLBACK_GUIDE` in `bin/run_playbook.py`, so it advertises all ten canonical install layouts instead of hardcoding one:
 ```
@@ -549,6 +558,11 @@ The gate script validates all artifacts mechanically. It is the sole mechanical 
 ```bash
 python3 <resolved_quality_gate_path> .
 ```
+
+The gate reports one of **three verdicts** (the v1.5.7 F15 three-state taxonomy), not a bare pass/fail:
+- **PASSED** — all checks clean; the run is complete and conformant.
+- **PASSED WITH CLEANUP NEEDED** — the substantive checks passed but a non-blocking hygiene issue remains (e.g. a stray `workspace/` directory left behind); the findings are trustworthy, just tidy up before archiving.
+- **FAILED** — a blocking check failed; the artifact set is non-conformant (see causes below).
 
 If it reports FAIL results, the most common causes:
 - Missing `quality/patches/BUG-NNN-regression-test.patch` files
