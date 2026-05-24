@@ -294,8 +294,17 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # run_playbook-rendered and carry no EXPECTED_HASHES entry).
         # Hashes recomputed — this baseline update IS the sanctioned
         # change-acknowledgement signal.
-        "phase1_no_seeds_True":  (27026, "42010af537fa2d1bde614f791e2bd5a2b82b506a4d43cfa1b69f04268533d605"),
-        "phase1_no_seeds_False": (26829, "daf228a20f85f5a65ef6efaaa3b8acc7457d27313bff5c555d3a85cbc70de1eb"),
+        # v1.5.7 090k: phase1.md gained the run-start attribution
+        # banner directive (canonical 80-wide BANNER_TEXT block +
+        # "print once at run start, do NOT reprint" + "v1.5.7 090k
+        # — Mode A only" framing) so channel-installed Mode A agents
+        # see the directive even though AGENTS.md is not bundled.
+        # Surfaced by the 2026-05-24 openfga-run3 dogfood (npm-channel
+        # Mode A; agent began the run with no attribution banner).
+        # Codepoints 27026 → 27855 (no_seeds_True), 26829 → 27658
+        # (no_seeds_False); hashes recomputed.
+        "phase1_no_seeds_True":  (27855, "ee59e2ea9cc4ba7f7ba778d7ce5f19ca2d6e159c00720214234706e12c35e7c1"),
+        "phase1_no_seeds_False": (27658, "848ee989918d67f1a3be472477b2617db0b31f046c25d95c9228a2d88fbdf2c9"),
         # v1.5.7 instruction 073 Item-4 (A-19): phase2.md gained the
         # httpx-2026-05-17 missing-manifests warning (validator now
         # FAILs on ABSENT manifests, not just wrong-shape; agent must

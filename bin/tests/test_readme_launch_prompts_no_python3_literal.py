@@ -34,7 +34,12 @@ README = REPO_ROOT / "README.md"
 # the guided-gathering-prompt block replacing the one-liner (+2 lines), shifting the 4
 # §3.5 IDE launch prompts down 4 lines (346/352/360/362 → 350/356/364/366). The prompts
 # themselves are unchanged.
-LAUNCH_PROMPT_LINES = (350, 356, 364, 366)  # the 4 IDE prompts per §3.5
+# v1.5.7 090k: each §3 cp-block gained a `cp bin/qpb_validate.py …` line so the
+# manual install recipe mirrors the new _bundle_files() membership (the 2026-05-24
+# openfga-run3 Mode-A dogfood proved qpb_validate.py must ship in the install
+# closure). +1 line × 3 blocks shifts the 4 launch prompts down 3 lines
+# (350/356/364/366 → 353/359/367/369). The prompts themselves are unchanged.
+LAUNCH_PROMPT_LINES = (353, 359, 367, 369)  # the 4 IDE prompts per §3.5
 
 
 class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
@@ -102,10 +107,10 @@ class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
         conscious re-pin (instruction-079b Task 3 note)."""
         lines = README.read_text(encoding="utf-8").splitlines()
         markers = {
-            350: "**Claude Code:**",
-            356: "**GitHub Copilot:**",
-            364: "**Cursor:**",
-            366: "**Windsurf:**",
+            353: "**Claude Code:**",
+            359: "**GitHub Copilot:**",
+            367: "**Cursor:**",
+            369: "**Windsurf:**",
         }
         for lineno, marker in markers.items():
             self.assertTrue(

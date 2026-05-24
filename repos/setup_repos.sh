@@ -310,6 +310,10 @@ for short in "${REPOS[@]}"; do
     cp "${QPB_DIR}/bin/run_state_lib.py" "${dst}/bin/run_state_lib.py" 2>/dev/null || true
     cp "${QPB_DIR}/bin/validate_phase_artifacts.py" "${dst}/bin/validate_phase_artifacts.py" 2>/dev/null || true
     cp "${QPB_DIR}/bin/qpb_config.py" "${dst}/bin/qpb_config.py" 2>/dev/null || true
+    # v1.5.7 090k: ship qpb_validate.py so the benchmark bundle
+    # matches the adopter closure (Phase 0 validator now lives at
+    # the install root per the openfga-run3 dogfood fix).
+    cp "${QPB_DIR}/bin/qpb_validate.py" "${dst}/bin/qpb_validate.py" 2>/dev/null || true
     # v1.5.7 089z: the per-target `bin/run_playbook.sh` wrapper
     # (F-5b + 089n) is removed. The canonical run forms remain
     # and are sufficient: from the QPB clone root,

@@ -1,3 +1,17 @@
+**Run-start attribution banner (v1.5.7 090k — Mode A only).** If you have not already printed the QPB attribution banner ONCE at the top of your first response in this session (per AGENTS.md "Mode A entry sequence" Step 0 / equivalent), do it now — before any other Phase 1 work — and DO NOT reprint on later turns. Canonical text (verbatim, matches `bin/_purpose.print_attribution_banner()`):
+
+```
+================================================================================
+  Quality Playbook — by Andrew Stellman
+  https://github.com/andrewstellman/quality-playbook
+
+  AI code review is good. Quality engineering is better.
+  Because code that looks right can still do the wrong thing.
+
+  Licensed under the Apache License, Version 2.0
+================================================================================
+```
+
 You are a quality engineer. {skill_fallback_guide} For this phase read SKILL.md up through the Phase 1 pointer section (v1.5.7+ Phase 7 trim: the full Phase 1 body now lives at `references/phase1_exploration_guide.md`). Then read `references/phase1_exploration_guide.md` end-to-end — that is the canonical Phase 1 protocol after the v1.5.7 SKILL.md trim. Also read the other reference files (under whichever references/ directory matches the install path you resolved) that are relevant to exploration.
 
 {seed_instruction}

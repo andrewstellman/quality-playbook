@@ -129,9 +129,12 @@ INSTALL_CLOSURE = [
     {"path": "agents/quality-playbook-claude.agent.md", "kind": "agent_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "agents/quality-playbook.agent.md", "kind": "agent_file", "min_version": None, "expected_sha256": None, "source_glob": None},
 
-    # ---- bin/ (14 — fixed enumeration from install_skill.py;
+    # ---- bin/ (15 — fixed enumeration from install_skill.py;
     #      v1.5.7 086 A-26 added qpb_config / run_state_lib /
-    #      validate_phase_artifacts; 089x added _purpose.py) ----
+    #      validate_phase_artifacts; 089x added _purpose.py;
+    #      v1.5.7 090k added qpb_validate.py to the closure so the
+    #      Phase 0 validator self-resolves at the install root
+    #      after the 2026-05-24 openfga-run3 dogfood) ----
     {"path": "bin/__init__.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/_purpose.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/archive_lib.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
@@ -141,6 +144,7 @@ INSTALL_CLOSURE = [
     {"path": "bin/council_semantic_check.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/migrate_v1_5_0_layout.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/qpb_config.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/qpb_validate.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/quality_playbook.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/reference_docs_ingest.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/role_map.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
@@ -186,12 +190,15 @@ INSTALL_CLOSURE = [
     {"path": "references/verification.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/what_just_happened.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
 ]
-# Total: 2 + 3 + 13 + 10 + 23 = 51 entries (v1.5.7 086 A-26: bin/
+# Total: 2 + 3 + 15 + 10 + 23 = 53 entries (v1.5.7 086 A-26: bin/
 # grew 10 → 13 — qpb_config / run_state_lib / validate_phase_artifacts;
 # v1.5.7 089 F8: references/ grew 22 → 23 — qpb_validate_event_schema.md
-# added, auto-bundled by _bundle_files()'s references/* glob.
-# INSTALL_CLOSURE is the machine-derived mirror of _bundle_files(),
-# kept in lockstep per the drift test).
+# added, auto-bundled by _bundle_files()'s references/* glob;
+# v1.5.7 089x: bin/ grew 13 → 14 — _purpose.py; v1.5.7 090k: bin/ grew
+# 14 → 15 — qpb_validate.py added to the closure so the Phase 0
+# validator self-resolves at the install root after the 2026-05-24
+# openfga-run3 Mode-A dogfood). INSTALL_CLOSURE is the machine-derived
+# mirror of _bundle_files(), kept in lockstep per the drift test.
 # Acceptance #11: set(e["path"]) == set(str(dst) for _, dst in _bundle_files()).
 
 INSTALL_SCAFFOLDING = [

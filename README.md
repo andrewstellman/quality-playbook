@@ -247,6 +247,7 @@ cp bin/reference_docs_ingest.py             .claude/skills/quality-playbook/bin/
 cp bin/role_map.py                          .claude/skills/quality-playbook/bin/role_map.py
 cp bin/run_state_lib.py                     .claude/skills/quality-playbook/bin/run_state_lib.py
 cp bin/validate_phase_artifacts.py          .claude/skills/quality-playbook/bin/validate_phase_artifacts.py
+cp bin/qpb_validate.py                      .claude/skills/quality-playbook/bin/qpb_validate.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 # No README ships — cite/ contents are adopter-provided plaintext.
 mkdir -p reference_docs reference_docs/cite
@@ -291,6 +292,7 @@ cp bin/reference_docs_ingest.py             .github/skills/bin/reference_docs_in
 cp bin/role_map.py                          .github/skills/bin/role_map.py
 cp bin/run_state_lib.py                     .github/skills/bin/run_state_lib.py
 cp bin/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
+cp bin/qpb_validate.py                      .github/skills/bin/qpb_validate.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 # v1.5.7: the quality/RUN_INDEX.md sentinel for the gitignore negation
@@ -331,6 +333,7 @@ cp bin/reference_docs_ingest.py             .github/skills/quality-playbook/bin/
 cp bin/role_map.py                          .github/skills/quality-playbook/bin/role_map.py
 cp bin/run_state_lib.py                     .github/skills/quality-playbook/bin/run_state_lib.py
 cp bin/validate_phase_artifacts.py          .github/skills/quality-playbook/bin/validate_phase_artifacts.py
+cp bin/qpb_validate.py                      .github/skills/quality-playbook/bin/qpb_validate.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 # v1.5.7: the quality/RUN_INDEX.md sentinel for the gitignore negation

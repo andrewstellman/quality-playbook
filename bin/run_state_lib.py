@@ -1141,7 +1141,8 @@ _FLAT_LAYOUT_BUNDLED_BIN_FILES = frozenset({
     "council_config.py",
     "council_semantic_check.py",
     "migrate_v1_5_0_layout.py",
-    "qpb_config.py",                 # v1.5.7 086 A-26
+    "qpb_config.py",                # v1.5.7 086 A-26
+    "qpb_validate.py",              # v1.5.7 090k
     "quality_playbook.py",
     "reference_docs_ingest.py",
     "role_map.py",

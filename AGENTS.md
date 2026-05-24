@@ -67,6 +67,7 @@ cp "$QPB"/bin/reference_docs_ingest.py             .github/skills/bin/reference_
 cp "$QPB"/bin/role_map.py                          .github/skills/bin/role_map.py
 cp "$QPB"/bin/run_state_lib.py                     .github/skills/bin/run_state_lib.py
 cp "$QPB"/bin/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
+cp "$QPB"/bin/qpb_validate.py                      .github/skills/bin/qpb_validate.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 # Place adopter docs here — citable specs/RFCs in reference_docs/cite/.
 # (v1.5.7 090h retired informal_docs/; reference_docs/ is the sole
@@ -115,6 +116,7 @@ cp "$QPB"/bin/reference_docs_ingest.py     .claude/skills/quality-playbook/bin/r
 cp "$QPB"/bin/role_map.py                  .claude/skills/quality-playbook/bin/role_map.py
 cp "$QPB"/bin/run_state_lib.py             .claude/skills/quality-playbook/bin/run_state_lib.py
 cp "$QPB"/bin/validate_phase_artifacts.py  .claude/skills/quality-playbook/bin/validate_phase_artifacts.py
+cp "$QPB"/bin/qpb_validate.py              .claude/skills/quality-playbook/bin/qpb_validate.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 # Place adopter docs here — citable specs/RFCs in reference_docs/cite/.
 # (v1.5.7 090h retired informal_docs/; reference_docs/ is the sole
@@ -201,6 +203,22 @@ this prose is the prose-level companion to the mechanical defense.
 Phase-1-only as a default is the v1.5.3 legacy invocation behavior, restored only via explicit `python3 -m bin.run_playbook --phase 1`. Mode A "Run the Quality Playbook" is the full pipeline.
 
 **This is the canonical Phase 0 for any interactive Mode A run** (Claude Code, Cursor, Copilot UI, Codex desktop — any session where the operator watches your chat). SKILL.md's Mode A intro points here; this section is the full protocol. **Installing the skill into the target is a MANDATORY first action — not implicit in "run the playbook".**
+
+0. **Print the attribution banner ONCE at run start, before Phase 0** (v1.5.7 instruction 090k). Emit the canonical 80-wide attribution banner — *verbatim, exactly the text rendered by `bin/_purpose.print_attribution_banner()`* — at the very top of your first response in the session, before the Phase 0 validator step. The banner text is:
+
+   ```
+   ================================================================================
+     Quality Playbook — by Andrew Stellman
+     https://github.com/andrewstellman/quality-playbook
+
+     AI code review is good. Quality engineering is better.
+     Because code that looks right can still do the wrong thing.
+
+     Licensed under the Apache License, Version 2.0
+   ================================================================================
+   ```
+
+   Print it **exactly once** per QPB run — do NOT repeat it on subsequent turns in the same session. This pairs with the install-time banner (089j/090a) so adopters see attribution at both install time (via the CLI / `install_skill`) AND at run start (when a Mode A agent picks up the playbook). The 2026-05-24 openfga-run3 npm-channel Mode A dogfood surfaced this gap: the install printed the banner but the run did not.
 
 1. **Read `SKILL.md` from this repo** (the QPB source clone) to learn the Mode A walkthrough.
 2. **Install the skill into your target (validator-first — v1.5.7 077/077b/078)**: run the Phase 0 install validator, `python3 <qpb-clone>/bin/qpb_validate.py <target-repo>` (it also works from an installed location). Paste every emitted `event=` line into chat verbatim, including the run-nonce. Branch on the outcome:

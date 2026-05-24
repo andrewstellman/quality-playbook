@@ -369,13 +369,15 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     #
     # Why these three specifically (and no others): grep SKILL.md +
     # phase_prompts/*.md for `bin\.[a-z_]+` → the union of referenced
-    # module names, minus the modules already bundled above, minus the
-    # two QPB-operator-side entry points adopters do NOT run from
-    # install_root (bin.run_playbook is the Mode-B harness invoked
-    # from the QPB clone; bin.qpb_validate is the Phase 0 entry-point
-    # also invoked from the QPB clone per SKILL.md:681 / README
-    # Step 4). What remains: run_state_lib, validate_phase_artifacts,
-    # qpb_config.
+    # module names, minus the modules already bundled above, minus
+    # `bin.run_playbook` (the Mode-B harness invoked from the QPB
+    # clone, NOT from install_root). What remains: run_state_lib,
+    # validate_phase_artifacts, qpb_config.
+    #
+    # NB: bin.qpb_validate was previously excluded here on the
+    # rationale that "Phase 0 is also invoked from the QPB clone."
+    # That rationale was empirically WRONG — see the 090k qpb_validate
+    # closure-shipping comment below.
     #
     # Import closure: run_state_lib.py + qpb_config.py are stdlib-only
     # (no `from bin` / `import bin` at module level);
@@ -397,6 +399,34 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
             _require_bundle_file(source_root / "bin" / _mod_name),
             Path("bin") / _mod_name,
         ))
+
+    # v1.5.7 instruction 090k: ship bin/qpb_validate.py in the install
+    # closure. Surfaced 2026-05-24 by the openfga-run3 npm-channel
+    # Mode-A dogfood (Claude Code Opus 4.7): the agent followed the
+    # README Step 4 / SKILL.md:68 directive and ran
+    # `<install>/.claude/skills/quality-playbook/bin/qpb_validate.py
+    # <target>` — and hit `Errno 2: No such file`, because the closure
+    # excluded qpb_validate.py on a now-wrong rationale ("the Phase 0
+    # entry-point is invoked from the QPB clone"). In reality SKILL.md
+    # / README / AGENTS.md all point Mode-A agents at the installed-
+    # skill bin path, so the validator MUST be present there.
+    # `install_skill.py` itself is correctly still excluded — the
+    # installer must not install itself.
+    #
+    # Import closure: qpb_validate.py's module-level imports are
+    # stdlib-only (sys, pathlib, argparse, importlib.util, os,
+    # py_compile, shutil, tempfile, uuid, datetime). The only `from
+    # bin` imports are LAZY inside CLI banner functions:
+    # `from bin._purpose import print_command_intro` /
+    # `print_help_banner` (file:1224-1225) — and `_purpose.py` is
+    # already bundled (mandatory member, see above). The validator
+    # runs from the install root with NO QPB clone on PYTHONPATH.
+    # v1.5.7 090b mandatory-bundle pattern applies: missing file would
+    # reproduce the openfga-run3 Phase 0 hard-stop.
+    files.append((
+        _require_bundle_file(source_root / "bin" / "qpb_validate.py"),
+        Path("bin") / "qpb_validate.py",
+    ))
     return files
 
 

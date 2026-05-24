@@ -59,22 +59,24 @@ class InstallClosureNoDriftTests(unittest.TestCase):
             f"missing_from_manifest={missing} "
             f"phantom_in_manifest={phantom}")
 
-    def test_install_closure_count_is_52(self) -> None:
+    def test_install_closure_count_is_53(self) -> None:
         """47 through v1.5.7-085; 086 (A-26) bundled 3 more bin/*.py
         (qpb_config / run_state_lib / validate_phase_artifacts) → 50;
         v1.5.7 089 F8 adds references/qpb_validate_event_schema.md
         (auto-bundled by _bundle_files()'s references/* glob) → 51;
         v1.5.7 089x adds bin/_purpose.py (the shared purpose-banner +
-        version-reader + attribution-banner helper) → 52. A count
-        check still catches an accidental duplicate the set
-        comparison would mask. NOTE: addendum §3.2's "47 entries"
-        prose is now triply stale — an orchestrator/addendum-owned
-        doc-currency follow-up (the worker must not modify the
-        canonical addendum); the live _bundle_files() closure is the
-        source of truth and the drift test pins INSTALL_CLOSURE to
-        it."""
+        version-reader + attribution-banner helper) → 52; v1.5.7 090k
+        adds bin/qpb_validate.py so the Phase 0 validator self-
+        resolves at the install root after the 2026-05-24 openfga-
+        run3 Mode-A dogfood → 53. A count check still catches an
+        accidental duplicate the set comparison would mask. NOTE:
+        addendum §3.2's "47 entries" prose is now quadruply stale —
+        an orchestrator/addendum-owned doc-currency follow-up (the
+        worker must not modify the canonical addendum); the live
+        _bundle_files() closure is the source of truth and the drift
+        test pins INSTALL_CLOSURE to it."""
         from bin.qpb_validate import INSTALL_CLOSURE
-        self.assertEqual(len(INSTALL_CLOSURE), 52)
+        self.assertEqual(len(INSTALL_CLOSURE), 53)
         paths = [e["path"] for e in INSTALL_CLOSURE]
         self.assertEqual(len(paths), len(set(paths)),
                          "duplicate path in INSTALL_CLOSURE")
