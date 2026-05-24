@@ -369,11 +369,17 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         "phase3":                (12167, "6add8a7e37a63fa441f06866194ae9ddcffdeebbe7053336ecbdd079e898d3a3"),
         "phase4":                ( 4398, "2cfdcb0617b00bb0be2fbffdcebc1cd9fe97fc61c07e1faccdbc163366968b41"),
         # v1.5.7 090g: phase5.md gained the explicit apply→run→
-        # revert green-cycle block (with co-located-test guidance
-        # for Go internal/Java/Rust + the `git apply --check`
-        # self-verify requirement). Codepoints 18254 → 21004;
+        # revert green-cycle block. v1.5.7 090o: phase5.md gained
+        # the build-prep paragraph (Keto cold-cache fix:
+        # go mod download / npm ci / pip install / cargo fetch /
+        # Maven offline) + the environment-failure remediation
+        # paragraph (don't degrade silently — emit specific fix
+        # commands and re-run-Phases-5-6 guidance) + THE LOAD-
+        # BEARING GUARD (an assertion failure is a RED, not an
+        # environment failure — never launder a real RED via the
+        # remediation/skip path). Codepoints 21004 → 25914;
         # hash recomputed.
-        "phase5":                (21004, "02359a8b1b9f21386becbf17ef60bd769f5257f79709bccd42309f9319f9579e"),
+        "phase5":                (25914, "461ce001112ca376b13f8fa4420b7a86746ec464bad3f8bd2d7395e932d4860c"),
         # v1.5.7 instruction 071 (A-13 hybrid): phase6.md rewritten
         # for fresh-context sub-agent delegation of Phase 6
         # verification (principled A-17 exception). The old inline
