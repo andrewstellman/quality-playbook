@@ -99,6 +99,8 @@ This pairing is the architecture: NFR discovery prevents the FPs at the requirem
 5. Advisory/CVE-only findings are classified `KNOWN-ISSUE`, excluded from the confirmed-bug count.
 6. bin/tests + gate green dual-env; no regression on the QPB self-audit REQ coverage.
 
+**Test fixtures** for the above (known-input/known-answer cases) are catalogued in `QPB_v1.6.0_Test_Fixtures.md`: Fixture 1 is the OpenFGA run (primary acceptance oracle, criterion #3); Fixture 2 is a candidate synthetic *negative* fixture — the orchestrator bootstrap doc fed as gathered documentation — that tests whether the grounding rule resists **process-prose-as-requirements** contamination (a genre the OpenFGA fixture doesn't cover; correct answer = zero bugs traceable only to that doc).
+
 ---
 
 ## Out of scope for v1.6.0
