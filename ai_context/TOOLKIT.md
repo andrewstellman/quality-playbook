@@ -85,6 +85,13 @@ The user wants to run the quality playbook on a codebase. Here's what to do:
 
 2. **Add documentation (strongly recommended).**
 
+   **The easy way — let an AI gather it for you.** Download `DOC_GATHERING_PROMPT.md` from the
+   Quality Playbook repo, open the user's project in any AI tool with web access (Claude Code,
+   Codex, Copilot, ChatGPT, …), paste it in, and run it. It confirms the project, then crawls its
+   docs, issues, and advisories into `reference_docs/` automatically — no manual gathering needed.
+   Everything below is the detail behind what it produces; the user only needs it if they're
+   gathering by hand or want to understand the tiers.
+
    **`reference_docs/` is the ONE place adopter docs go** — it's the only directory the playbook ingests (Phase 1). Common mistakes: `docs_gathered/` is benchmark-tooling-only and is **not** ingested by an adopter install; `informal_docs/` was **retired in v1.5.7** (it used to exist but nothing read it). If docs aren't being picked up, they're almost certainly not in `reference_docs/`.
 
    If the user has specs, API docs, design documents, AI chat logs, retrospectives,
@@ -704,6 +711,8 @@ The playbook works with any programming language. It adapts its exploration patt
 If the project's test runner genuinely isn't available (e.g., a C kernel module on a machine without the kernel build environment), the playbook records `NOT_RUN` in the TDD log with an explanation — it doesn't fail silently. v1.5.7: `NOT_RUN` must be substantiated by a failed runner probe captured to `quality/results/phase5_env.log` (the agent probes first and runs in default online mode); a `NOT_RUN` contradicted by a probe that shows the runner available FAILs the gate.
 
 ## Gathered documentation
+
+**Easiest path:** download `DOC_GATHERING_PROMPT.md` from the Quality Playbook repo, paste it into any AI tool with web access, and run it — it gathers the project's docs, issues, and advisories into `reference_docs/` for you. The rest of this section explains what good gathered docs look like, for when you'd rather do it by hand.
 
 The playbook works best when it has access to project documentation — specs, RFCs, API docs, design docs. If you have these, put them in a `reference_docs/` directory in the repo root before running the playbook (citable specs under `reference_docs/cite/`, everything else at the top level). The playbook will use them as the ground truth for what the code should do, which dramatically improves bug-finding accuracy.
 

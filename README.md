@@ -28,6 +28,8 @@ Prefer to install by hand or use the script directly? See [Step 1 of the walkthr
 
 **The more documentation you give it, the better it finds bugs.** The playbook reads written specs, design docs, GitHub or Jira issues from real users, chat history, and post-mortems — then derives what your code is *supposed* to do from those sources. Without documentation it still runs (from the source tree alone), but bug recall drops materially. See [Step 2: Provide documentation (strongly recommended)](#step-2-provide-documentation-strongly-recommended) for what to gather and the best ways to gather it.
 
+**Gather it in one step.** Copy [`DOC_GATHERING_PROMPT.md`](DOC_GATHERING_PROMPT.md), open your project in Claude Code, Codex, Copilot, Cursor, Windsurf (or any capable AI tool), paste it in, and run it — it confirms your project, then crawls its docs, issues, and advisories into `reference_docs/` for you. See [Step 2](#step-2-provide-documentation-strongly-recommended) for details.
+
 ## How to run the Quality Playbook
 
 Open your project in your AI coding tool (Claude Code, Cursor, GitHub Copilot, Windsurf, Continue, etc.) and tell the agent:
@@ -161,7 +163,9 @@ The playbook produces better requirements, fewer false positives, and more speci
 - **[Cowork](https://claude.ai/cowork)** — Anthropic's desktop tool for non-developers; can connect to GitHub, Jira, Slack, Google Drive, Notion, and similar sources via MCP connectors, search across them, and export results to files. Good fit if you're already in the Anthropic ecosystem and want a graphical workflow.
 - **[OpenClaw](https://openclaw.ai)** — open-source AI agent that runs as a local gateway connecting LLMs to your messaging platforms (Slack, Teams, Discord, IRC, plus 20+ others). Uses the same `SKILL.md`-based skills system QPB does, so you can give it tooling and ask it to traverse your channels and export the relevant threads. Good fit if your project's intent lives in chat history and you want self-hosted, open-source tooling.
 
-A useful prompt shape for either:
+**The easiest way: the guided gathering prompt.** Copy [`DOC_GATHERING_PROMPT.md`](DOC_GATHERING_PROMPT.md) (or fetch it raw from `https://raw.githubusercontent.com/andrewstellman/quality-playbook/refs/heads/main/DOC_GATHERING_PROMPT.md`), paste it into any of the tools above, and run it — it only needs a project name to start. It identifies the project, proposes a source plan you can narrow or extend (including internal Jira/Confluence/Slack via your connectors), and writes well-structured files into `reference_docs/` (with `cite/` for authoritative specs). It grounds itself in the playbook first, so it gathers the *intent and invariants* QPB checks against rather than generic docs.
+
+**Or a quick one-liner** if you just want something fast:
 
 > *"Search [GitHub issues / Jira / Slack #project-channel / your-doc-source] for everything related to this codebase. Export to Markdown files in `reference_docs/`. Prioritize user-reported bugs and feature requests — those tell us what users expected that we may not have documented."*
 

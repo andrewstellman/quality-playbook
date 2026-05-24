@@ -29,7 +29,12 @@ README = REPO_ROOT / "README.md"
 # adopter docs in reference_docs/" hint added a few lines. Net effect:
 # 4 launch prompts shifted up 15 lines (361/367/375/377 →
 # 346/352/360/362). The prompts themselves are still unchanged.
-LAUNCH_PROMPT_LINES = (346, 352, 360, 362)  # the 4 IDE prompts per §3.5
+# v1.5.7 (cowork doc-gathering discoverability pass): the README install section
+# gained a "Gather it in one step" quick-start paragraph (+2 lines) and Step 2 gained
+# the guided-gathering-prompt block replacing the one-liner (+2 lines), shifting the 4
+# §3.5 IDE launch prompts down 4 lines (346/352/360/362 → 350/356/364/366). The prompts
+# themselves are unchanged.
+LAUNCH_PROMPT_LINES = (350, 356, 364, 366)  # the 4 IDE prompts per §3.5
 
 
 class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
@@ -97,10 +102,10 @@ class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
         conscious re-pin (instruction-079b Task 3 note)."""
         lines = README.read_text(encoding="utf-8").splitlines()
         markers = {
-            346: "**Claude Code:**",
-            352: "**GitHub Copilot:**",
-            360: "**Cursor:**",
-            362: "**Windsurf:**",
+            350: "**Claude Code:**",
+            356: "**GitHub Copilot:**",
+            364: "**Cursor:**",
+            366: "**Windsurf:**",
         }
         for lineno, marker in markers.items():
             self.assertTrue(
