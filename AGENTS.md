@@ -68,16 +68,15 @@ cp "$QPB"/bin/role_map.py                          .github/skills/bin/role_map.p
 cp "$QPB"/bin/run_state_lib.py                     .github/skills/bin/run_state_lib.py
 cp "$QPB"/bin/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
+# Place adopter docs here — citable specs/RFCs in reference_docs/cite/.
+# (v1.5.7 090h retired informal_docs/; reference_docs/ is the sole
+# adopter doc location. docs_gathered/ is benchmark-tooling only and
+# is NOT ingested by an adopter install.)
 mkdir -p reference_docs reference_docs/cite
-# v1.5.7 (087): sentinel files for tracked-directory negation rules
-# (without them run_playbook.py's pre-flight aborts "Required
-# sentinel files missing"; install_skill.py creates these too).
-mkdir -p informal_docs quality
-cat > informal_docs/README.md << 'EOF'
-# Informal Docs
-
-Place non-citable plaintext project context here for Quality Playbook runs.
-EOF
+# v1.5.7 (087): sentinel file for the tracked-directory negation rule
+# (without it run_playbook.py's pre-flight aborts "Required sentinel
+# files missing"; install_skill.py creates this too).
+mkdir -p quality
 echo "# Run Index" > quality/RUN_INDEX.md
 # Optional: append suggested .gitignore rules for adopters.
 cat "$QPB"/skill-template.gitignore >> .gitignore
@@ -117,16 +116,15 @@ cp "$QPB"/bin/role_map.py                  .claude/skills/quality-playbook/bin/r
 cp "$QPB"/bin/run_state_lib.py             .claude/skills/quality-playbook/bin/run_state_lib.py
 cp "$QPB"/bin/validate_phase_artifacts.py  .claude/skills/quality-playbook/bin/validate_phase_artifacts.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
+# Place adopter docs here — citable specs/RFCs in reference_docs/cite/.
+# (v1.5.7 090h retired informal_docs/; reference_docs/ is the sole
+# adopter doc location. docs_gathered/ is benchmark-tooling only and
+# is NOT ingested by an adopter install.)
 mkdir -p reference_docs reference_docs/cite
-# v1.5.7 (087): sentinel files for tracked-directory negation rules
-# (without them run_playbook.py's pre-flight aborts "Required
-# sentinel files missing"; install_skill.py creates these too).
-mkdir -p informal_docs quality
-cat > informal_docs/README.md << 'EOF'
-# Informal Docs
-
-Place non-citable plaintext project context here for Quality Playbook runs.
-EOF
+# v1.5.7 (087): sentinel file for the tracked-directory negation rule
+# (without it run_playbook.py's pre-flight aborts "Required sentinel
+# files missing"; install_skill.py creates this too).
+mkdir -p quality
 echo "# Run Index" > quality/RUN_INDEX.md
 cat "$QPB"/skill-template.gitignore >> .gitignore
 ```

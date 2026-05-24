@@ -2448,6 +2448,19 @@ def _clear_live_quality(quality_dir: Path) -> None:
 # list at runtime — adding a new sentinel to .gitignore automatically
 # extends this check, no hardcoded list to drift.
 
+# v1.5.7 instruction 090h: `informal_docs/README.md` retired as a
+# sentinel (the directory itself was retired — see install_skill
+# `_SENTINEL_FILES` + skill-template.gitignore). Legacy adopters who
+# previously appended the old skill-template.gitignore still have
+# `!informal_docs/README.md` in their .gitignore and would otherwise
+# abort with "Required sentinel files missing" once install_skill
+# stops creating the file. Filter retired sentinels from the
+# discovered list so a v1.5.7-and-later run does not abort on a
+# legacy gitignore — adopters can drop the rule on their own
+# schedule. The set is hardcoded (one retired entry; not worth a
+# config surface).
+_RETIRED_SENTINELS: frozenset = frozenset({"informal_docs/README.md"})
+
 
 def _discover_sentinel_files(repo_dir: Path) -> List[Path]:
     """Parse .gitignore !-negations to derive the sentinel-file list.
@@ -2465,6 +2478,9 @@ def _discover_sentinel_files(repo_dir: Path) -> List[Path]:
         2026-04-30 empirical bootstrap test against QPB itself
         where ``!reference_docs/cite/`` AND
         ``!reference_docs/cite/.gitkeep`` both appear in .gitignore).
+      - Paths in ``_RETIRED_SENTINELS`` (v1.5.7 090h): the directory
+        these guarded was retired; a legacy gitignore that still
+        carries the rule must NOT cause a run to abort.
     """
     gitignore = repo_dir / ".gitignore"
     if not gitignore.is_file():
@@ -2485,6 +2501,10 @@ def _discover_sentinel_files(repo_dir: Path) -> List[Path]:
         # is_file() check in _verify_sentinels would always report
         # it as missing.
         if candidate.endswith("/"):
+            continue
+        # v1.5.7 090h: skip retired sentinels so a legacy gitignore
+        # carrying `!informal_docs/README.md` does not abort the run.
+        if candidate in _RETIRED_SENTINELS:
             continue
         sentinels.append(Path(candidate))
     return sentinels

@@ -20,31 +20,31 @@ _QPB_ROOT = Path(__file__).resolve().parents[2]
 
 class SentinelFileCreationTests(unittest.TestCase):
     """v1.5.7 instruction 087 (A-24): install_skill.py creates the
-    sentinel files the gitignore-template negation rules require, so
-    run_playbook.py's pre-flight does not abort with "Required
+    sentinel file(s) the gitignore-template negation rules require,
+    so run_playbook.py's pre-flight does not abort with "Required
     sentinel files missing".
 
-    Mutation-test evidence (in-tree per
-    ai_context/DEVELOPMENT_PROCESS.md:152-160) — BITE EXECUTED during
-    instruction-087 development:
-      Mutation: remove the `_ensure_sentinel_files(...)` call from
-        install()'s post-copy flow.
-      Observed failure (purged __pycache__ first):
-        FAIL: test_install_creates_informal_docs_readme
-        AssertionError: False is not true
-          (<target>/informal_docs/README.md does not exist)
-      Mutation reverted; tests pass.
-    """
+    v1.5.7 instruction 090h: `informal_docs/` retired (nothing
+    ingests it; misleading "place context here" README caused the
+    2026-05-23 OpenFGA dogfood to nearly run doc-blind). Install
+    now creates only `quality/RUN_INDEX.md`. The pre-090h
+    `test_install_creates_informal_docs_readme` test was removed and
+    replaced with the reverse-direction
+    `test_install_does_not_create_informal_docs_directory` below.
 
-    def test_install_creates_informal_docs_readme(self) -> None:
-        with tempfile.TemporaryDirectory() as td:
-            target = Path(td)
-            (target / ".github").mkdir()
-            install_skill.install(into=target, ai_tool="copilot",
-                                  no_smoke=True)
-            sentinel = target / "informal_docs" / "README.md"
-            self.assertTrue(sentinel.is_file())
-            self.assertGreater(sentinel.stat().st_size, 0)
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160) — BITE EXECUTED:
+      Pre-090h bite (instruction-087): remove the
+        `_ensure_sentinel_files(...)` call from install() →
+        test_install_creates_quality_run_index FAILs with
+        "<target>/quality/RUN_INDEX.md does not exist".
+      Post-090h bite (this instruction): re-add
+        `("informal_docs/README.md", ...)` to install_skill
+        `_SENTINEL_FILES` →
+        test_install_does_not_create_informal_docs_directory FAILs
+        because the directory IS created. Mutation reverted; tests
+        pass.
+    """
 
     def test_install_creates_quality_run_index(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -56,17 +56,70 @@ class SentinelFileCreationTests(unittest.TestCase):
             self.assertTrue(sentinel.is_file())
             self.assertGreater(sentinel.stat().st_size, 0)
 
-    def test_install_preserves_existing_sentinel_content(self) -> None:
+    def test_install_does_not_create_informal_docs_directory(
+            self) -> None:
+        """v1.5.7 090h: install must NOT create informal_docs/ — the
+        directory is retired. This is the reverse-direction pin for
+        the pre-090h `test_install_creates_informal_docs_readme`
+        test (now removed). Mutation bite: re-adding the
+        `informal_docs/README.md` entry to install_skill
+        `_SENTINEL_FILES` fires this test."""
         with tempfile.TemporaryDirectory() as td:
             target = Path(td)
             (target / ".github").mkdir()
-            (target / "informal_docs").mkdir()
-            existing = target / "informal_docs" / "README.md"
-            existing.write_text("# My Custom Docs\n", encoding="utf-8")
+            install_skill.install(into=target, ai_tool="copilot",
+                                  no_smoke=True)
+            self.assertFalse(
+                (target / "informal_docs").exists(),
+                "v1.5.7 090h: informal_docs/ is retired — install "
+                "must not create the directory.")
+
+    def test_install_preserves_existing_run_index_content(
+            self) -> None:
+        """The `_ensure_sentinel_files` no-overwrite-when-non-empty
+        contract (A-24 Things-to-NOT-do) must hold for the remaining
+        RUN_INDEX.md sentinel. Pre-090h this test guarded
+        informal_docs/README.md; the contract applies identically to
+        the RUN_INDEX.md sentinel."""
+        with tempfile.TemporaryDirectory() as td:
+            target = Path(td)
+            (target / ".github").mkdir()
+            (target / "quality").mkdir()
+            existing = target / "quality" / "RUN_INDEX.md"
+            existing.write_text("# My Custom Index\n", encoding="utf-8")
             install_skill.install(into=target, ai_tool="copilot",
                                   no_smoke=True)
             # Existing content preserved (no overwrite).
-            self.assertEqual(existing.read_text(), "# My Custom Docs\n")
+            self.assertEqual(existing.read_text(),
+                             "# My Custom Index\n")
+
+    def test_install_hint_names_reference_docs_as_doc_location(
+            self) -> None:
+        """v1.5.7 090h Task E: the `phase1_ingest_invocation_hint`
+        prose must point adopters at `reference_docs/` (+ cite/) as
+        the doc location and clarify `docs_gathered/` is benchmark
+        tooling. Mutation bite: drop the new paragraph from the
+        `prose=` block → this test fires."""
+        import io
+        # Capture install output via verbose stream so we can grep
+        # the emitted hint prose.
+        buf = io.StringIO()
+        with tempfile.TemporaryDirectory() as td:
+            target = Path(td)
+            (target / ".github").mkdir()
+            install_skill.install(into=target, ai_tool="copilot",
+                                  no_smoke=True, verbose=True,
+                                  stream=buf)
+        out = buf.getvalue()
+        # The hint MUST point at reference_docs/ + cite/ and call
+        # out docs_gathered as benchmark-only.
+        self.assertIn("reference_docs/", out)
+        self.assertIn("reference_docs/cite/", out)
+        self.assertIn("docs_gathered/", out)
+        self.assertIn("NOT ingested by an adopter install", out)
+        # informal_docs/ must NOT appear in the hint (retired in
+        # 090h).
+        self.assertNotIn("informal_docs/", out)
 
 
 class FlatLegacyMigrationTests(unittest.TestCase):

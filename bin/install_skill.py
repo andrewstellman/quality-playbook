@@ -549,19 +549,19 @@ def _utc_timestamp() -> str:
 
 # v1.5.7 instruction 087 (A-24): install-time sentinel-file creation.
 # The gitignore template the Phase 0 validator emits for
-# scaffolding_missing_gitignore contains `!informal_docs/README.md`
-# and `!quality/RUN_INDEX.md` negation rules; without the files
-# themselves, run_playbook.py's pre-flight aborts with "Required
-# sentinel files missing". Adopter had to create them by hand on
-# first run. Surfaced 2026-05-18 (httpx Terminal A; codex desktop
-# express).
+# scaffolding_missing_gitignore contains a `!quality/RUN_INDEX.md`
+# negation rule; without the file itself, run_playbook.py's pre-
+# flight aborts with "Required sentinel files missing". Adopter had
+# to create it by hand on first run. Surfaced 2026-05-18 (httpx
+# Terminal A; codex desktop express).
+#
+# v1.5.7 instruction 090h: `informal_docs/` retired — nothing
+# ingests it and the misleading "place context here" README caused
+# the 2026-05-23 OpenFGA dogfood to nearly run doc-blind.
+# `reference_docs/` is the one adopter doc location. The
+# informal_docs sentinel + gitignore rule + pre-flight requirement
+# were removed together (coupled change — see 090h Task C).
 _SENTINEL_FILES: list[tuple[str, str]] = [
-    (
-        "informal_docs/README.md",
-        "# Informal Docs\n\n"
-        "Place non-citable plaintext project context here for "
-        "Quality Playbook runs.\n",
-    ),
     (
         "quality/RUN_INDEX.md",
         "# Run Index\n\n"
@@ -573,7 +573,7 @@ _SENTINEL_FILES: list[tuple[str, str]] = [
 
 
 def _ensure_sentinel_files(repo_root: Path, emitter: Emitter) -> None:
-    """Create the two sentinel files the gitignore template's negation
+    """Create the sentinel file(s) the gitignore template's negation
     rules require, if they don't already exist (or are empty).
     Preserves operator content — a no-op when the file already has
     content (A-24; instruction-087 Things-to-NOT-do)."""
@@ -1295,7 +1295,13 @@ def install(
             f"  PYTHONPATH={target} python3 -m bin.reference_docs_ingest .\n"
             "(the bundled bin/ closure lives under the install root, "
             "not at the target repo root; the PYTHONPATH= prefix makes "
-            "`-m bin.reference_docs_ingest` resolve)"
+            "`-m bin.reference_docs_ingest` resolve)\n"
+            "\n"
+            "Place adopter docs in `reference_docs/` (citable specs/"
+            "RFCs in `reference_docs/cite/`). `reference_docs/` is "
+            "the one adopter doc location. `docs_gathered/` is "
+            "benchmark-tooling only and is NOT ingested by an "
+            "adopter install."
         ),
     )
     emitter.emit(
