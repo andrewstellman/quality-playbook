@@ -301,10 +301,16 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # see the directive even though AGENTS.md is not bundled.
         # Surfaced by the 2026-05-24 openfga-run3 dogfood (npm-channel
         # Mode A; agent began the run with no attribution banner).
-        # Codepoints 27026 → 27855 (no_seeds_True), 26829 → 27658
-        # (no_seeds_False); hashes recomputed.
-        "phase1_no_seeds_True":  (27855, "ee59e2ea9cc4ba7f7ba778d7ce5f19ca2d6e159c00720214234706e12c35e7c1"),
-        "phase1_no_seeds_False": (27658, "848ee989918d67f1a3be472477b2617db0b31f046c25d95c9228a2d88fbdf2c9"),
+        # v1.5.7 090l: rewrote the directive to anchor printing to
+        # immediately-after-skill-load (first content of first
+        # response) and to explicitly forbid condensing the banner
+        # block (surfaced by a follow-up live OpenFGA Mode-A run
+        # that emitted a 2-line condensed banner instead of the
+        # full canonical block). Codepoints 27855 → 28176
+        # (no_seeds_True), 27658 → 27979 (no_seeds_False); hashes
+        # recomputed.
+        "phase1_no_seeds_True":  (28176, "aff3a53aa5231914a83f0aa821cd4d12f38bc9d9b423ddd46ee022c6f0e4d660"),
+        "phase1_no_seeds_False": (27979, "fa7a60d2cdc0a2f3fdae6427dbad4436b5fdadb7be6ad9239360904f54427709"),
         # v1.5.7 instruction 073 Item-4 (A-19): phase2.md gained the
         # httpx-2026-05-17 missing-manifests warning (validator now
         # FAILs on ABSENT manifests, not just wrong-shape; agent must
