@@ -4932,5 +4932,223 @@ class TestV156SelfConsistencyDocsDerived(V150FixtureBase):
         self.assertIn("source_type validation complete", out)
 
 
+class TestTDDNoInTreeFixWarn090g(FixtureBase):
+    """v1.5.7 090g (Mode-A TDD gate-collision fix): a green NOT_RUN
+    receipt whose body documents a legitimate no-in-tree-fix reason
+    (e.g. an upgrade-only CVE — "remediation is upstream upgrade
+    to v1.5.9+") must emit WARN, NOT FAIL, even when the test
+    runner is available. The red phase must still run empirically
+    (a real RED log) — only the green NOT_RUN gets the marker-
+    based WARN downgrade.
+
+    Pre-090g: any green NOT_RUN with probe_ok=True → FAIL (089o).
+    Post-090g: green NOT_RUN + no-in-tree-fix marker + probe_ok=
+    True → WARN (the green cycle legitimately can't run because
+    there's nothing in-tree to apply). The 089o FAIL for green
+    NOT_RUN WITHOUT the marker is preserved.
+
+    Surfaced by the 2026-05-23 OpenFGA Mode-A dogfood: BUG-009
+    ("upgrade to v1.5.9+") had a legitimate no-in-tree fix, but
+    the gate FAILed it as if it were a dishonest skip — penalizing
+    the agent for honestly admitting "this isn't an in-tree fix
+    you can apply." 090g recognizes the documented case and
+    downgrades to WARN.
+
+    Three tests cover the three branches:
+    - PASS via documented marker → WARN gate
+    - FAIL via no marker + runner available → FAIL gate
+    - 089o overclaim path intact (regression check)
+    """
+
+    @staticmethod
+    def _make_green_not_run_bug(tree, bug_id, *,
+                                no_in_tree_fix_marker=True,
+                                version="1.4.4"):
+        """Set up a bug with a real RED log + a green NOT_RUN log.
+        ``no_in_tree_fix_marker`` controls whether the green body
+        contains the 090g marker (e.g. "upstream upgrade").
+        Sets phase5_env.log to the SUCCESS form (runner available)
+        so the 089o escalation conditions are met."""
+        add_one_bug(tree, version=version, bug_id=bug_id)
+        # Real RED log — the bug was reproduced empirically.
+        tree[f"quality/results/{bug_id}.red.log"] = (
+            "RED\n"
+            "Command: go test ./internal/checks -run "
+            f"TestCheck{bug_id}\n"
+            "FAIL: TestCheck — reproduced the bug\n"
+            "Exit code: 1\n"
+        )
+        # Green NOT_RUN log — optionally with the 090g marker.
+        if no_in_tree_fix_marker:
+            green_body = (
+                "NOT_RUN\n"
+                f"{bug_id} has no in-tree fix; remediation is an "
+                f"upstream upgrade to v1.5.9+. The fix lives in "
+                f"the dependency repository, not in this codebase.\n"
+            )
+        else:
+            green_body = (
+                "NOT_RUN\n"
+                "Green cycle skipped (no reason recorded).\n"
+            )
+        tree[f"quality/results/{bug_id}.green.log"] = green_body
+        # phase5_env.log: SUCCESS probe (runner available) — this
+        # is the condition that pre-090g escalated NOT_RUN to
+        # FAIL. The new no-in-tree-fix marker downgrades only the
+        # green NOT_RUN, never the red.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: go version\n"
+            "go version go1.22.0 darwin/arm64\n"
+            "Exit code: 0\n"
+        )
+        tree["quality/results/tdd-results.json"] = json.dumps({
+            "schema_version": "1.1",
+            "skill_version": version,
+            "date": today_iso(),
+            "project": "testproj",
+            "bugs": [
+                {
+                    "id": bug_id,
+                    "requirement": "REQ-001",
+                    "red_phase": "fail",
+                    "green_phase": "not_run",
+                    "verdict": "confirmed open",
+                    "fix_patch_present": True,
+                    "writeup_path": f"quality/writeups/{bug_id}.md",
+                }
+            ],
+            "summary": {
+                "total": 1,
+                "verified": 0,
+                "confirmed_open": 1,
+                "red_failed": 1,
+                "green_failed": 0,
+            },
+        }, indent=2)
+        return tree
+
+    def test_green_not_run_with_no_in_tree_fix_marker_is_warn(self) -> None:
+        """The 090g positive case: green NOT_RUN body contains
+        "upstream upgrade" (a no-in-tree-fix marker), runner is
+        available. Pre-090g this FAILed; post-090g it WARNs +
+        passes."""
+        tree = minimal_zero_bug_tree()
+        self._make_green_not_run_bug(
+            tree, bug_id="BUG-001", no_in_tree_fix_marker=True,
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertEqual(
+            code, 0,
+            f"090g: green NOT_RUN with documented no-in-tree-fix "
+            f"marker must not FAIL the gate. exit={code}\n"
+            f"stdout:\n{stdout}",
+        )
+        self.assertIn(
+            "GATE PASSED", stdout,
+            f"090g: gate must PASS with the marker present. "
+            f"stdout tail:\n{stdout[-500:]}",
+        )
+        # The new 090g WARN message must appear.
+        self.assertIn(
+            "no in-tree fix", stdout,
+            f"090g: WARN message must reference no-in-tree-fix. "
+            f"stdout:\n{stdout}",
+        )
+        # And the FAIL path must NOT have fired (the
+        # pre-090g escalation message).
+        self.assertNotIn(
+            "test runner IS available", stdout,
+            f"090g: FAIL message about 'runner IS available' must "
+            f"NOT appear when the marker is present.\n"
+            f"stdout:\n{stdout}",
+        )
+
+    def test_green_not_run_without_marker_runner_available_fails(self) -> None:
+        """The 090g negative case (the 089o behavior preserved):
+        green NOT_RUN body has no no-in-tree-fix marker, runner is
+        available. Must FAIL the gate. Pre-090g and post-090g
+        behavior — this test pins the FAIL path so a future change
+        doesn't accidentally widen the marker-based WARN."""
+        tree = minimal_zero_bug_tree()
+        self._make_green_not_run_bug(
+            tree, bug_id="BUG-001", no_in_tree_fix_marker=False,
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotEqual(
+            code, 0,
+            f"090g regression check: green NOT_RUN with NO marker "
+            f"+ runner available must FAIL. exit={code}\n"
+            f"stdout:\n{stdout}",
+        )
+        self.assertIn(
+            "test runner IS available", stdout,
+            f"090g: FAIL message must reference runner "
+            f"availability for the no-marker case. stdout:\n"
+            f"{stdout}",
+        )
+
+    def test_red_not_run_with_marker_still_fails_when_runner_available(self) -> None:
+        """The 090g boundary case: RED NOT_RUN with the no-in-tree-
+        fix marker still FAILs when the runner is available. The
+        marker only downgrades GREEN NOT_RUN (the green cycle has
+        nothing to apply); RED NOT_RUN is always FAIL when the
+        runner is up — reproducing the bug doesn't need a fix."""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree, version="1.4.4", bug_id="BUG-001")
+        # Both red AND green NOT_RUN; green body has the marker,
+        # red body does NOT (and shouldn't qualify even if it did).
+        tree["quality/results/BUG-001.red.log"] = (
+            "NOT_RUN\n"
+            "Test execution skipped (agent chose not to run).\n"
+        )
+        tree["quality/results/BUG-001.green.log"] = (
+            "NOT_RUN\n"
+            "BUG-001 has no in-tree fix; upstream upgrade.\n"
+        )
+        # Probe succeeded.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: go version\n"
+            "go version go1.22.0 darwin/arm64\n"
+            "Exit code: 0\n"
+        )
+        tree["quality/results/tdd-results.json"] = json.dumps({
+            "schema_version": "1.1",
+            "skill_version": "1.4.4",
+            "date": today_iso(),
+            "project": "testproj",
+            "bugs": [
+                {
+                    "id": "BUG-001",
+                    "requirement": "REQ-001",
+                    "red_phase": "not_run",
+                    "green_phase": "not_run",
+                    "verdict": "confirmed open",
+                    "fix_patch_present": True,
+                    "writeup_path": "quality/writeups/BUG-001.md",
+                }
+            ],
+            "summary": {
+                "total": 1, "verified": 0, "confirmed_open": 1,
+                "red_failed": 0, "green_failed": 0,
+            },
+        }, indent=2)
+        # Match PROGRESS.md / SKILL.md version with the bug version.
+        tree["quality/PROGRESS.md"] = (
+            "**Version:** 1.4.4\n\n# Test PROGRESS\n"
+            "- [x] Phase 4\n- [x] Phase 5\n- [x] Phase 6\n"
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotEqual(
+            code, 0,
+            f"090g: RED NOT_RUN with runner available must FAIL "
+            f"regardless of the no-in-tree-fix marker (the marker "
+            f"only downgrades GREEN, never RED). exit={code}\n"
+            f"stdout:\n{stdout}",
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -352,7 +352,12 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         "phase2":                (10096, "ecb68817dfdacc979d9dca4c5765e179e209e0970a4633df717856ab5a1f2e3f"),
         "phase3":                (10969, "f9270b90cf41f73000844ecec2739d7de5177cbe2cdc779bf9d6dcaee2846b79"),
         "phase4":                ( 3911, "923e0198ca39182397e118f45452afcfde54731a46f5414bcd99431812af752f"),
-        "phase5":                (18254, "79e48f2182dd77720ca56f29c632d169c89d698a104a3703347fe6c77a09833c"),
+        # v1.5.7 090g: phase5.md gained the explicit apply→run→
+        # revert green-cycle block (with co-located-test guidance
+        # for Go internal/Java/Rust + the `git apply --check`
+        # self-verify requirement). Codepoints 18254 → 21004;
+        # hash recomputed.
+        "phase5":                (21004, "02359a8b1b9f21386becbf17ef60bd769f5257f79709bccd42309f9319f9579e"),
         # v1.5.7 instruction 071 (A-13 hybrid): phase6.md rewritten
         # for fresh-context sub-agent delegation of Phase 6
         # verification (principled A-17 exception). The old inline

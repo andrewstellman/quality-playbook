@@ -1294,6 +1294,47 @@ def _has_execution_signature(body):
     return any(sig in low for sig in _TDD_EXECUTION_SIGNATURES)
 
 
+# v1.5.7 090g: phrases that mark a green NOT_RUN as legitimate
+# because the bug has no in-tree fix (e.g. an upgrade-only CVE
+# where the only remediation is a dependency bump). A receipt
+# body containing any of these downgrades the runner-available
+# NOT_RUN escalation from FAIL to WARN. The phrases are
+# deliberately specific — generic "skipped" or "blocked" don't
+# match, because the agent could use those to evade execution
+# of an in-tree fix. The agent has to explicitly assert the
+# no-in-tree-fix nature.
+_NO_IN_TREE_FIX_MARKERS = (
+    "no in-tree fix",
+    "no in tree fix",  # space variant
+    "upgrade-only",
+    "upgrade only",  # space variant
+    "upstream upgrade",
+    "upstream-upgrade",  # hyphen variant
+    "no in-tree remediation",
+    "no in tree remediation",
+    "remediation is an upstream",  # template phrasing
+    "remediation is upstream",
+    "third-party-only patch",
+    "third party only patch",
+)
+
+
+def _has_no_in_tree_fix_marker(body):
+    """v1.5.7 090g: True if the receipt body documents a legitimate
+    no-in-tree-fix reason (upgrade-only CVE, third-party patch,
+    etc.). Used to downgrade green NOT_RUN from FAIL to WARN when
+    the runner is available — the green cycle legitimately can't
+    run because there's nothing to apply in-tree.
+
+    The marker list is deliberately specific — generic "skipped"
+    or "blocked" don't match. The agent has to make the
+    no-in-tree-fix claim explicitly in the receipt body."""
+    if not body:
+        return False
+    low = body.lower()
+    return any(m in low for m in _NO_IN_TREE_FIX_MARKERS)
+
+
 # v1.5.7 089q (D3): the phase5_env.log requirement is a NEW v1.5.7
 # (089o) artifact contract. Version-gate it so a pre-089o archived
 # or replayed run — which never produced phase5_env.log — does not
@@ -1821,6 +1862,14 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     # didn't happen, so adopters don't read GATE PASSED as more
     # than it covers).
     bugs_with_not_run = 0
+    # v1.5.7 090g: green NOT_RUN whose body documents "no in-tree
+    # fix" (e.g. upgrade-only CVEs like "remediation is upstream
+    # upgrade to v1.5.9+"). These get WARN even when probe_ok is
+    # True — there's no in-tree fix to apply, so the green cycle
+    # legitimately can't run regardless of runner availability.
+    # Red NOT_RUN with probe_ok=True remains FAIL: reproducing
+    # the bug doesn't require a fix.
+    bugs_with_documented_no_in_tree_fix = 0
     # v1.5.7 089o (#329): receipts tagged RED/GREEN whose SUMMARY
     # admits non-execution ("by inspection" etc.) — overclaims.
     # Each entry is (bug_id, phase, marker).
@@ -1883,6 +1932,19 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
         # actually executed for the cycle to count as proven.
         if red_tag == "NOT_RUN" or green_tag == "NOT_RUN":
             bugs_with_not_run += 1
+            # v1.5.7 090g: a green NOT_RUN whose body documents a
+            # legitimate no-in-tree-fix reason (upgrade-only CVE,
+            # third-party-only patch, etc.) is a WARN even when
+            # the runner is available — there's nothing to apply
+            # to make the test pass in-tree. Red NOT_RUN never
+            # qualifies (reproducing the bug doesn't need a fix);
+            # only a green NOT_RUN whose RED ran clean and whose
+            # green body explicitly says "no in-tree fix" gets
+            # the WARN downgrade.
+            if (green_tag == "NOT_RUN" and red_tag != "NOT_RUN"
+                    and green_log.is_file()
+                    and _has_no_in_tree_fix_marker(read_full_text(green_log))):
+                bugs_with_documented_no_in_tree_fix += 1
 
     if red_missing == 0 and red_found > 0:
         pass_(f"All {red_found} confirmed bug(s) have red-phase logs")
@@ -2037,25 +2099,49 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     # failed probe keeps the honest-skip WARN (089m unchanged).
     if bugs_with_not_run > 0:
         # probe_ok was resolved once, up front (089o/089q).
-        if probe_ok is True:
+        # v1.5.7 090g: separate the documented-no-in-tree-fix
+        # NOT_RUN bugs (legitimate WARN even when probe_ok=True)
+        # from the rest (FAIL when probe_ok=True).
+        bugs_with_undocumented_not_run = (
+            bugs_with_not_run - bugs_with_documented_no_in_tree_fix
+        )
+        if probe_ok is True and bugs_with_undocumented_not_run > 0:
+            # NB: the substring "phase5_env.log shows the test runner IS available"
+            # is kept contiguous on one source line — the v1.5.7 089p
+            # recap drift guard (test_recap_tdd_signal_drift_089p) greps
+            # quality_gate.py source for it.
             fail(
-                f"{bugs_with_not_run} of {len(bug_ids)} confirmed "
-                f"bug(s) have receipts marked NOT_RUN, but "
-                f"phase5_env.log shows the test runner IS available "
-                f"(the version probe succeeded). Run the red/green "
+                f"{bugs_with_undocumented_not_run} of "
+                f"{len(bug_ids)} confirmed bug(s) have receipts "
+                f"marked NOT_RUN, but phase5_env.log shows the test runner IS available"
+                f" (the version probe succeeded). Run the red/green "
                 f"cycle — NOT_RUN is only honest when the probe "
-                f"itself failed. Quote the failing probe output if "
-                f"the runner genuinely cannot run."
+                f"itself failed OR when the green receipt "
+                f"documents a no-in-tree fix (e.g. upgrade-only "
+                f"CVE). Quote the failing probe output if the "
+                f"runner genuinely cannot run, or include a 'no "
+                f"in-tree fix' / 'upstream upgrade' marker in "
+                f"the green receipt body."
             )
-        else:
+        if bugs_with_documented_no_in_tree_fix > 0:
+            warn(
+                f"{bugs_with_documented_no_in_tree_fix} of "
+                f"{len(bug_ids)} confirmed bug(s) have green "
+                f"NOT_RUN receipts documenting no in-tree fix "
+                f"(e.g. upgrade-only CVEs). The red phase ran "
+                f"empirically; the green cycle skipped because "
+                f"the fix is out-of-tree. Operator action is "
+                f"the documented upstream upgrade. (v1.5.7 090g.)"
+            )
+        if probe_ok is not True and bugs_with_undocumented_not_run > 0:
             warn(
                 f"TDD red/green cycle not executed for "
-                f"{bugs_with_not_run} of {len(bug_ids)} confirmed "
-                f"bug(s) (receipts marked NOT_RUN). These bugs are "
-                f"patch-applicable and reasoned, but not empirically "
-                f"proven by a failing-then-passing test. Run "
-                f"quality/RUN_TDD_TESTS.md to complete the red/green "
-                f"cycle."
+                f"{bugs_with_undocumented_not_run} of {len(bug_ids)} "
+                f"confirmed bug(s) (receipts marked NOT_RUN). "
+                f"These bugs are patch-applicable and reasoned, "
+                f"but not empirically proven by a failing-then-"
+                f"passing test. Run quality/RUN_TDD_TESTS.md to "
+                f"complete the red/green cycle."
             )
 
     # Sidecar-to-log cross-validation (BUG-M18)

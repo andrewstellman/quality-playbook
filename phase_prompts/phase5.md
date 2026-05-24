@@ -118,16 +118,67 @@ Execute Phase 5: Reconciliation + TDD + Closure.
    output.
 4. Run the TDD red-green cycle. **Probe the test runner FIRST (v1.5.7 089o):** run the runner's version probe (`mvn -version`, `pytest --version`, `cargo --version`, `go version`, etc.) and capture stdout+stderr+exit code to `quality/results/phase5_env.log` before any red/green/NOT_RUN determination — this artifact is required (the gate FAILs without it when bugs exist). Then for each confirmed bug, run the regression test against unpatched code -> quality/results/BUG-NNN.red.log. If a fix patch exists, run against patched code -> quality/results/BUG-NNN.green.log. If the probe **succeeded**, you MUST actually execute the tests — a `RED`/`GREEN` first-line tag asserts the test was really run, and a by-inspection prediction under a `RED`/`GREEN` tag is an overclaim that FAILs the gate. **Use the runner's default (online) mode (v1.5.7 089p):** run the test runner the way it resolves dependencies normally (plain `mvn test`, `pytest`, `cargo test`, `go test`) so it can fetch from its standard remote (Maven Central, PyPI, crates.io, the Go module proxy). Do NOT pass `-o`/`--offline`/cache-only flags by default — your Bash tool has the operator's network. If a run fails on dependency resolution while offline, retry once in online mode before concluding anything; a missing dependency the remote can supply is NOT grounds for `NOT_RUN`. Create the log with `NOT_RUN` on the first line **only if** the **online** attempt (probe or test run) itself exited non-zero AND no alternative runner is reachable — and quote that failing online output in the log. "I assumed it wasn't available" / "I assumed the network was restricted" / "by inspection" is not acceptable evidence; recording `NOT_RUN` while `phase5_env.log` shows the runner available FAILs the gate.
 
-   **Recommended for the canonical red-green protocol: an ephemeral
-   `git worktree`.** To run the regression test against unpatched then
-   patched code without ever mutating the source tree, validate in a
-   disposable worktree: `git worktree add /tmp/qpb-validate-<bug-id>
-   HEAD` → apply the regression-test patch → run (RED) → apply the fix
-   patch → run (GREEN) → `git worktree remove /tmp/qpb-validate-<bug-id>`.
-   OPTIONAL — `git apply --check` + the source-unchanged invariant
-   already satisfy the contract; the worktree is the cleaner pattern
-   when the red/green logs require actually executing the patched code
-   (2026-05-18 Claude Code Opus 4.7 validated 5 cobra bugs this way).
+   **v1.5.7 090g — green-phase apply→run→revert (Mode A
+   compiled-language fix).** The canonical red-green protocol is an
+   apply→run→revert cycle, with `git apply -R` mandatory after EACH
+   log capture so the source tree is left in its pre-cycle state:
+
+       RED:   git apply quality/patches/BUG-NNN-regression-test.patch
+              <runner> ... > quality/results/BUG-NNN.red.log  (first line `RED`)
+              git apply -R quality/patches/BUG-NNN-regression-test.patch
+              git status   # confirm clean (non-quality/) tree
+       GREEN: git apply quality/patches/BUG-NNN-regression-test.patch
+              git apply quality/patches/BUG-NNN-fix.patch
+              <runner> ... > quality/results/BUG-NNN.green.log  (first line `GREEN`)
+              git apply -R quality/patches/BUG-NNN-fix.patch
+              git apply -R quality/patches/BUG-NNN-regression-test.patch
+              git status   # confirm clean (non-quality/) tree
+
+   The run-end clean-tree check (`bin.run_state_lib.
+   validate_no_source_edits`) is the hard backstop: if any non-
+   `quality/` path is left dirty at run end the run aborts with
+   `run_end status=aborted`. Apply-and-LEAVE is forbidden;
+   apply-then-revert is permitted and expected. The SKILL.md
+   source-edit guardrail was rewritten in 090g to make this
+   explicit (was "must NOT apply" — the OpenFGA 2026-05-23
+   dogfood agent read it literally and gate-FAILed every Mode-A
+   run on Go/Java/Rust).
+
+   **Co-located-test languages (Go `internal/` packages, Java,
+   Rust):** the regression test MUST live in the source tree
+   (e.g. `internal/authn/oidc/oidc_test.go`) to reach unexported
+   code under test — a `quality/`-only reconstruction tests a
+   copy, not the real code path, and is a weaker proof. The
+   apply→revert flow is exactly what makes a real co-located
+   test safe (it's reverted before run end). Prefer the real
+   co-located test + revert over a `quality/` reconstruction
+   when the runner is available.
+
+   **v1.5.7 090g — patches must `git apply --check` clean.** Every
+   emitted regression-test and fix patch in `quality/patches/`
+   MUST pass `git apply --check <patch>` before being treated as
+   final. The agent SHOULD self-verify each patch with
+   `git apply --check` against the unpatched tree before
+   finalizing; if a patch reports "corrupt patch at line N" or
+   any other check failure, regenerate it in-run (do not defer
+   the corruption to the operator). A non-applyable patch is a
+   Phase 5 defect to fix here, not a handoff item. The OpenFGA
+   2026-05-23 dogfood emitted patches with "corrupt patch at line
+   61" that broke both the apply→revert cycle AND the operator
+   handoff — the self-check would have caught it.
+
+   **Alternative — ephemeral `git worktree`.** When you'd rather
+   not touch the live source tree at all (e.g. an interpreted
+   language where a `quality/`-only test exercises the real code
+   path), validate in a disposable worktree: `git worktree add
+   /tmp/qpb-validate-<bug-id> HEAD` → apply the regression-test
+   patch → run (RED) → apply the fix patch → run (GREEN) →
+   `git worktree remove /tmp/qpb-validate-<bug-id>`. This was the
+   pre-090g recommendation and remains valid; the apply→revert
+   pattern above is recommended when co-located tests are
+   required (compiled languages with unexported APIs). The
+   2026-05-18 Claude Code Opus 4.7 cobra run validated 5 bugs
+   via the worktree approach.
 5. Generate sidecar JSON: quality/results/tdd-results.json and quality/results/integration-results.json (schema_version "1.1", canonical fields: id, requirement, red_phase, green_phase, verdict, fix_patch_present, writeup_path).
 6. If mechanical verification artifacts exist, run `python quality/mechanical/verify.py` and save receipts.
 7. Run terminal gate verification, write it to PROGRESS.md.
