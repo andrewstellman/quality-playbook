@@ -136,6 +136,16 @@ Suggested themes (adapt): overview & architecture; the authorization / security 
 multitenancy & isolation; the API / consistency contract; CVEs & advisories; outstanding issues
 & discussions; performance & reliability expectations. One theme per file.
 
+FILE PLACEMENT (tiering) — decide per file, and get this right:
+- reference_docs/cite/  → ONLY authoritative specs/contracts the code must conform to: the
+  official model/API spec, the security model, the project's own spec, the repo's proto/OpenAPI/
+  config-schema contracts, cited external standards. These become byte-verified citation sources.
+- reference_docs/ (top level) → EVERYTHING else, as Tier-4 context: the CVE/advisory file, the
+  issues/discussions file, release notes, design/architecture notes, the source inventory.
+- Do NOT put CVE/advisory or issue-tracker files in cite/. An advisory is not a contract; making
+  it citable-as-authoritative is a known false-positive trap (the audit may treat "the CVE says
+  affected" as ground truth). Advisory and issue files ALWAYS go top level.
+
 QUALITY BAR:
 - Real sources only. Capture the version or date of what you read. Distinguish official from
   informal. Prefer primary sources.
