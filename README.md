@@ -246,15 +246,10 @@ cp bin/validate_phase_artifacts.py          .claude/skills/quality-playbook/bin/
 # v1.5.2: single reference_docs/ tree at the target repo root.
 # No README ships — cite/ contents are adopter-provided plaintext.
 mkdir -p reference_docs reference_docs/cite
-# v1.5.7 (087/089): sentinel files for the gitignore negation rules
-# (without them run_playbook.py's pre-flight aborts "Required
-# sentinel files missing"; install_skill.py creates these too).
-mkdir -p informal_docs quality
-cat > informal_docs/README.md << 'EOF'
-# Informal Docs
-
-Place non-citable plaintext project context here for Quality Playbook runs.
-EOF
+# v1.5.7: the quality/RUN_INDEX.md sentinel for the gitignore negation
+# rule (without it run_playbook.py's pre-flight aborts "Required
+# sentinel files missing"; install_skill.py creates it too).
+mkdir -p quality
 echo "# Run Index" > quality/RUN_INDEX.md
 # Optional: append the suggested .gitignore rules for adopters (keeps bulk
 # archived runs + reference_docs content out of version control while tracking
@@ -294,15 +289,10 @@ cp bin/run_state_lib.py                     .github/skills/bin/run_state_lib.py
 cp bin/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
-# v1.5.7 (087/089): sentinel files for the gitignore negation rules
-# (without them run_playbook.py's pre-flight aborts "Required
-# sentinel files missing"; install_skill.py creates these too).
-mkdir -p informal_docs quality
-cat > informal_docs/README.md << 'EOF'
-# Informal Docs
-
-Place non-citable plaintext project context here for Quality Playbook runs.
-EOF
+# v1.5.7: the quality/RUN_INDEX.md sentinel for the gitignore negation
+# rule (without it run_playbook.py's pre-flight aborts "Required
+# sentinel files missing"; install_skill.py creates it too).
+mkdir -p quality
 echo "# Run Index" > quality/RUN_INDEX.md
 cat skill-template.gitignore >> .gitignore
 ```
@@ -339,15 +329,10 @@ cp bin/run_state_lib.py                     .github/skills/quality-playbook/bin/
 cp bin/validate_phase_artifacts.py          .github/skills/quality-playbook/bin/validate_phase_artifacts.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
-# v1.5.7 (087/089): sentinel files for the gitignore negation rules
-# (without them run_playbook.py's pre-flight aborts "Required
-# sentinel files missing"; install_skill.py creates these too).
-mkdir -p informal_docs quality
-cat > informal_docs/README.md << 'EOF'
-# Informal Docs
-
-Place non-citable plaintext project context here for Quality Playbook runs.
-EOF
+# v1.5.7: the quality/RUN_INDEX.md sentinel for the gitignore negation
+# rule (without it run_playbook.py's pre-flight aborts "Required
+# sentinel files missing"; install_skill.py creates it too).
+mkdir -p quality
 echo "# Run Index" > quality/RUN_INDEX.md
 cat skill-template.gitignore >> .gitignore
 ```

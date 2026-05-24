@@ -85,6 +85,8 @@ The user wants to run the quality playbook on a codebase. Here's what to do:
 
 2. **Add documentation (strongly recommended).**
 
+   **`reference_docs/` is the ONE place adopter docs go** — it's the only directory the playbook ingests (Phase 1). Common mistakes: `docs_gathered/` is benchmark-tooling-only and is **not** ingested by an adopter install; `informal_docs/` was **retired in v1.5.7** (it used to exist but nothing read it). If docs aren't being picked up, they're almost certainly not in `reference_docs/`.
+
    If the user has specs, API docs, design documents, AI chat logs, retrospectives,
    or community documentation, place them in a `reference_docs/` directory at the
    top of the target repo:
