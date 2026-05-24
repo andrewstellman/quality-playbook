@@ -22,7 +22,14 @@ README = REPO_ROOT / "README.md"
 # v1.5.7 089x: `cp bin/_purpose.py …` added to each of the 3 §3 cp-blocks
 # shifts the 4 launch prompts by +3 lines (344/350/358/360 →
 # 347/353/361/363). The prompts themselves are still unchanged.
-LAUNCH_PROMPT_LINES = (361, 367, 375, 377)  # the 4 IDE prompts per §3.5
+# v1.5.7 090h-followup (cowork commit 6a89102 "docs: reference_docs is the
+# one doc location"): each §3 cp-block dropped the `mkdir -p informal_docs`
+# / `cat > informal_docs/README.md` heredoc (4 lines per block × 3 blocks
+# = 12 net lines removed earlier in the file), and an inline "Place
+# adopter docs in reference_docs/" hint added a few lines. Net effect:
+# 4 launch prompts shifted up 15 lines (361/367/375/377 →
+# 346/352/360/362). The prompts themselves are still unchanged.
+LAUNCH_PROMPT_LINES = (346, 352, 360, 362)  # the 4 IDE prompts per §3.5
 
 
 class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
@@ -90,10 +97,10 @@ class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
         conscious re-pin (instruction-079b Task 3 note)."""
         lines = README.read_text(encoding="utf-8").splitlines()
         markers = {
-            361: "**Claude Code:**",
-            367: "**GitHub Copilot:**",
-            375: "**Cursor:**",
-            377: "**Windsurf:**",
+            346: "**Claude Code:**",
+            352: "**GitHub Copilot:**",
+            360: "**Cursor:**",
+            362: "**Windsurf:**",
         }
         for lineno, marker in markers.items():
             self.assertTrue(

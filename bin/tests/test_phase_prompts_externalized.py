@@ -350,8 +350,14 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # baseline update IS the sanctioned change-acknowledgement
         # signal.
         "phase2":                (10096, "ecb68817dfdacc979d9dca4c5765e179e209e0970a4633df717856ab5a1f2e3f"),
-        "phase3":                (10969, "f9270b90cf41f73000844ecec2739d7de5177cbe2cdc779bf9d6dcaee2846b79"),
-        "phase4":                ( 3911, "923e0198ca39182397e118f45452afcfde54731a46f5414bcd99431812af752f"),
+        # v1.5.7 090j: phase3.md + phase4.md gained the triage
+        # precision-guardrail pointers (D1 reachability_analysis on
+        # HIGH/MED bugs + D2 KNOWN-ISSUE classification for advisory-
+        # only findings + D3 security-HIGH bar via cve_version_applies).
+        # phase3: 10969 → 12167 codepoints; phase4: 3911 → 4398.
+        # Hashes recomputed.
+        "phase3":                (12167, "6add8a7e37a63fa441f06866194ae9ddcffdeebbe7053336ecbdd079e898d3a3"),
+        "phase4":                ( 4398, "2cfdcb0617b00bb0be2fbffdcebc1cd9fe97fc61c07e1faccdbc163366968b41"),
         # v1.5.7 090g: phase5.md gained the explicit apply→run→
         # revert green-cycle block (with co-located-test guidance
         # for Go internal/Java/Rust + the `git apply --check`

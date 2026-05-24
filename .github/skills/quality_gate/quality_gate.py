@@ -3304,6 +3304,180 @@ def check_v1_5_0_bugs_manifest(q):
     pass_("bugs_manifest.json: v1.5.1 Layer-1 BUG checks complete")
 
 
+# v1.5.7 instruction 090j: triage precision guardrails — D1 reachability,
+# D2 KNOWN-ISSUE classification, D3 tighter security-HIGH bar. Surfaced by
+# the 2026-05-23 OpenFGA Mode-A dogfood: 0/3 HIGH findings were real
+# (BUG-003 missed an upstream tryCache guard; BUG-006 missed an upstream
+# userType filter AND cited a CVE whose affected range doesn't include
+# v1.5.7; BUG-009 was a verbatim CVE restatement, no in-tree defect).
+# This check is the v1.5.7 band-aid — same-agent triage rules enforced at
+# the manifest. The fresh-context FP-audit sub-agent + first-class NFR
+# derivation are reserved for v1.6.0.
+
+# Heuristic substrings (case-insensitive) that say "the audited version
+# is within the cited CVE's affected range." When `cve_reference` is set
+# and `cve_version_applies` is missing/None, the gate looks for any of
+# these substrings in `reachability_analysis` as a fallback — adopters
+# who write the prose but forget the boolean flag should not be
+# auto-failed. If neither the boolean nor the prose marker is present,
+# the gate FAILs per D3.
+_CVE_APPLIES_PROSE_MARKERS: tuple[str, ...] = (
+    "version is within the affected range",
+    "version is within the cited",
+    "audited version is in the affected range",
+    "in the affected range",
+    "cve applies",
+    "cve_version_applies=true",
+)
+_HIGH_MED_SEVERITIES: frozenset = frozenset({"HIGH", "MEDIUM"})
+
+
+def _has_cve_applies_prose_marker(text: str) -> bool:
+    """True iff a reachability_analysis string contains a phrase that
+    clearly asserts the audited version is within the cited CVE's
+    affected range."""
+    if not isinstance(text, str):
+        return False
+    lowered = text.lower()
+    return any(m in lowered for m in _CVE_APPLIES_PROSE_MARKERS)
+
+
+@verdict_category(VERDICT_RECORD_KEEPING)
+def check_v1_5_7_090j_triage_precision(q):
+    """v1.5.7 090j — D1 (reachability) + D2 (KNOWN-ISSUE) + D3 (security-HIGH).
+
+    For each record in ``bugs_manifest.json`` classified as a `bug` (or
+    absent classification — default is `bug`):
+
+      * D1: severity HIGH/MEDIUM requires a non-empty
+        ``reachability_analysis`` field — FAIL absent. severity LOW
+        requires it too but absence is a WARN, not a FAIL.
+      * D2: when ``cve_reference`` is set, ``classification`` must be
+        ``known-issue`` OR the record MUST carry a non-empty
+        ``reachability_analysis`` documenting the in-tree code path
+        (i.e. the finding was independently located, not advisory-only).
+        FAIL otherwise.
+      * D3: when ``cve_reference`` is set AND severity is HIGH, the
+        record MUST also have ``cve_version_applies == true`` (or, as a
+        prose fallback, a `reachability_analysis` substring stating the
+        audited version is within the CVE's affected range). FAIL if
+        ``cve_version_applies`` is missing or false AND the prose
+        fallback is absent.
+
+    Records with ``classification == "known-issue"`` are excluded from
+    these checks (advisory notes are recorded for adopter awareness;
+    they are not bugs).
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160) — bites are documented
+    inline in the test class
+    ``TestTriagePrecisionGuardrails090j``:
+      D1: drop the ``reachability_analysis`` field from a HIGH bug →
+        fail. Restoring the field re-greens the test.
+      D2: keep ``cve_reference`` but drop ``classification`` ⇒
+        default `bug` ⇒ advisory-only-without-reachability FAILs.
+      D3: HIGH + ``cve_reference`` + ``cve_version_applies=False`` →
+        fail. Flip to True → pass.
+    """
+    data = _v150_manifest(q, "bugs_manifest.json")
+    if data is None:
+        return
+    records = data.get("records")
+    if not isinstance(records, list):
+        return
+
+    d1_fails: list[str] = []
+    d1_warns: list[str] = []
+    d2_fails: list[str] = []
+    d3_fails: list[str] = []
+
+    for idx, rec in enumerate(records):
+        if not isinstance(rec, dict):
+            continue
+        bug_id = rec.get("id", f"<#{idx}>")
+        classification = rec.get("classification", "bug")
+        # Records explicitly classified as known-issue/advisory-note
+        # are recorded for adopter awareness and excluded from these
+        # bug-precision checks. (They remain subject to the other
+        # bugs_manifest checks.)
+        if classification == "known-issue":
+            continue
+
+        sev_raw = rec.get("severity")
+        sev = sev_raw.strip().upper() if isinstance(sev_raw, str) else ""
+        reach = rec.get("reachability_analysis")
+        reach_present = isinstance(reach, str) and bool(reach.strip())
+        cve_ref = rec.get("cve_reference")
+        cve_set = isinstance(cve_ref, str) and bool(cve_ref.strip())
+        cve_applies = rec.get("cve_version_applies")
+
+        # D1: reachability analysis required on HIGH/MEDIUM bugs.
+        if sev in _HIGH_MED_SEVERITIES and not reach_present:
+            d1_fails.append(
+                f"record_id={bug_id} severity={sev}: missing or empty "
+                f"`reachability_analysis` (v1.5.7 090j D1 — show the "
+                f"upstream-guard / filter / early-return / compensation "
+                f"search performed before confirming the bug; if the "
+                f"finding has no in-tree defect, reclassify as "
+                f"classification=known-issue)"
+            )
+        elif sev == "LOW" and not reach_present:
+            d1_warns.append(
+                f"record_id={bug_id} severity=LOW: missing "
+                f"`reachability_analysis` (v1.5.7 090j D1 recommended; "
+                f"WARN, not FAIL, on LOW)"
+            )
+
+        # D2: advisory-only finding classified as bug.
+        if cve_set and not reach_present:
+            d2_fails.append(
+                f"record_id={bug_id} cve_reference={cve_ref!r}: an "
+                f"advisory/CVE-cited finding with no "
+                f"`reachability_analysis` cannot be classification=bug "
+                f"(v1.5.7 090j D2 — reclassify as "
+                f"classification=known-issue, or add a reachability "
+                f"analysis that locates the in-tree code defect)"
+            )
+
+        # D3: security-HIGH bar — CVE-cited HIGH requires version
+        # applicability evidence.
+        if sev == "HIGH" and cve_set:
+            applies_true = (cve_applies is True)
+            prose_fallback = (
+                reach_present and _has_cve_applies_prose_marker(reach)
+            )
+            if not (applies_true or prose_fallback):
+                d3_fails.append(
+                    f"record_id={bug_id} severity=HIGH "
+                    f"cve_reference={cve_ref!r}: missing "
+                    f"`cve_version_applies=true` AND no prose marker "
+                    f"in `reachability_analysis` asserting the audited "
+                    f"version is within the CVE's affected range "
+                    f"(v1.5.7 090j D3 — security-HIGH on a CVE basis "
+                    f"requires the audited version to be verified IN "
+                    f"the CVE's affected range; otherwise downgrade "
+                    f"severity or reclassify as "
+                    f"classification=known-issue)"
+                )
+
+    # Emit per-rule failures.
+    for msg in d1_fails:
+        fail("bugs_manifest.json", msg)
+    for msg in d2_fails:
+        fail("bugs_manifest.json", msg)
+    for msg in d3_fails:
+        fail("bugs_manifest.json", msg)
+    for msg in d1_warns:
+        warn(msg)
+
+    if not (d1_fails or d2_fails or d3_fails):
+        pass_(
+            "bugs_manifest.json: v1.5.7 090j triage precision "
+            "(D1 reachability + D2 known-issue + D3 security-HIGH) "
+            "complete"
+        )
+
+
 @verdict_category(VERDICT_SUBSTANTIVE)
 def check_v1_5_0_index_md(q):
     """§10 invariant #10 — quality/INDEX.md exists with all §11 required fields.
@@ -4583,6 +4757,11 @@ def check_v1_5_0_gate_invariants(repo_dir, q):
     check_v1_5_0_manifest_wrappers(q)
     check_v1_5_0_requirements_manifest(repo_dir, q)
     check_v1_5_0_bugs_manifest(q)
+    # v1.5.7 instruction 090j: triage precision guardrails (D1 reachability
+    # + D2 known-issue + D3 security-HIGH bar). Runs after the v1.5.0
+    # disposition / fix_type checks so the manifest is shape-validated
+    # before the precision rules examine it.
+    check_v1_5_7_090j_triage_precision(q)
     check_v1_5_0_index_md(q)
     # Phase 6 invariant #17 runs after requirements_manifest so it sees
     # shape-validated REQ records.

@@ -375,6 +375,28 @@ the version coupling. Once a manifest carries any v1.5.3 field, all of
 them are required on that manifest's record type — no half-populated
 v1.5.3 manifests.
 
+### 3.11 `bug_classification` — bug vs known-issue/advisory-note (v1.5.7 090j+)
+
+Constrains `BUG.classification` (see §8.1). Distinguishes findings the
+audit independently located + verified in the audited tree (`bug`)
+from findings whose sole basis is a gathered advisory/CVE/doc with no
+located in-tree code defect (`known-issue`).
+
+| Value         | Meaning                                                                                                                |
+|---------------|------------------------------------------------------------------------------------------------------------------------|
+| `bug`         | (default) A defect independently located and verified in the audited tree, with a reachability analysis recorded.       |
+| `known-issue` | An advisory/CVE/doc note about this version that the audit did not independently reproduce in the tree. Recorded for adopter awareness but **excluded from the confirmed-bug count and precision metrics.** |
+
+Rationale (v1.5.7 instruction 090j). The 2026-05-23 OpenFGA Mode-A
+dogfood reported `BUG-009` as a CVE-2024-42473 restatement, no code
+defect located in the audited tree. Such advisory-only findings should
+be SURFACED to operators (they should upgrade) but should NOT inflate
+the bug count or skew precision metrics. The `classification` field
+encodes the separation; the gate flags `BUG-NNN` records that cite
+only an advisory/CVE with no in-tree defect + reachability analysis
+(see invariant 090j-D2 enforced by
+`check_v1_5_7_090j_triage_precision`).
+
 ---
 
 ## 4. `FORMAL_DOC`
@@ -808,6 +830,10 @@ code behavior. Stored in `quality/bugs_manifest.json`; rendered to
 | `covers`                    | array[string] | no | Array of cell IDs this BUG addresses, form `REQ-N/cell-<item>-<site>`. REQUIRED when the BUG's primary requirement has `pattern:` set. |
 | `consolidation_rationale`   | string        | no | REQUIRED when `covers` has ≥2 entries. Explains why cells share a BUG (shared fix path, same function, etc.). Non-empty. |
 | `divergence_type`           | string        | conditional | v1.5.3+. Member of the `bug_divergence_type` enum (§3.8). REQUIRED on every BUG in a v1.5.3-shaped manifest (any record carrying a v1.5.3 field — see §3.10); absent on legacy manifests, where the validator emits one WARN per check function and treats it as `code-spec` for back-compat. |
+| `classification`            | string        | no          | v1.5.7 090j+. Member of the `bug_classification` enum (§3.11): `bug` (default if absent) or `known-issue`. Records classified `known-issue` are advisory/CVE notes the audit did not independently reproduce in the tree; they are excluded from the confirmed-bug count and precision metrics. |
+| `reachability_analysis`     | string        | conditional | v1.5.7 090j+. Required (gate-enforced) when `classification == "bug"` (or absent) and `severity` is `HIGH` or `MEDIUM`. A non-empty description of the upstream-guard / filter / early-return / compensation search performed before confirming the bug — at minimum, a one-sentence statement either citing the absence of a short-circuit ("no guard; cache.Get reached unconditionally") or quoting the guard found ("tryCache guard at cached_resolver.go:169 short-circuits HIGHER_CONSISTENCY → finding unreachable, demoting"). On `severity == LOW` the field is recommended but its absence is a WARN, not a FAIL. |
+| `cve_reference`             | string        | no          | v1.5.7 090j+. A CVE / GHSA identifier when the finding cites a published advisory (e.g. `CVE-2025-48371` or `GHSA-3f6g-m4hr-59h8`). When set, `cve_version_applies` is required and the gate enforces 090j-D3 (security-HIGH bar). |
+| `cve_version_applies`       | boolean       | conditional | v1.5.7 090j+. REQUIRED when `cve_reference` is set. `true` iff the audited project version is verified to be within the CVE's affected range; `false` iff the audit verified the version is OUTSIDE the affected range (in which case the finding should be `classification: known-issue` or have its severity downgraded). |
 
 ### Cell-identity invariants
 

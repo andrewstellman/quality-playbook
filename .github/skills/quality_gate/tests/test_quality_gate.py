@@ -5150,5 +5150,431 @@ class TestTDDNoInTreeFixWarn090g(FixtureBase):
         )
 
 
+class TestTriagePrecisionGuardrails090j(V150FixtureBase):
+    """v1.5.7 instruction 090j: triage precision guardrails
+
+    Exercises ``check_v1_5_7_090j_triage_precision`` against synthetic
+    bugs_manifest fixtures. Three rules (mutation-bites in docstrings):
+
+      D1 — reachability_analysis required on HIGH/MED bugs (LOW = WARN)
+      D2 — CVE-cited finding cannot be classification=bug without an
+            in-tree reachability_analysis (must be known-issue)
+      D3 — security-HIGH on a CVE basis requires cve_version_applies
+            (or a prose marker stating the audited version is within
+            the affected range)
+
+    These rules are the v1.5.7 band-aid identified by the 2026-05-23
+    OpenFGA Mode-A dogfood Council (instruction 090i): 0/3 HIGH
+    findings were real. Under 090j's rules BUG-003 / BUG-006 / BUG-009
+    cannot stand as confirmed HIGH BUG-NNN records.
+    """
+
+    # Canonical "well-formed bug" shape — all manifest fields the
+    # surrounding v1.5.0/1.5.1 checks require, plus the new 090j fields
+    # populated correctly. Tests mutate single fields to exercise one
+    # rule at a time.
+    @staticmethod
+    def _good_bug(
+        bug_id="BUG-001",
+        severity="MEDIUM",
+        reach="no upstream guard; defect reached unconditionally",
+        classification=None,
+        cve_reference=None,
+        cve_version_applies=None,
+    ):
+        rec = {
+            "id": bug_id,
+            "severity": severity,
+            "disposition": "code-fix",
+            "disposition_rationale": "fix in code",
+            "fix_type": "code",
+        }
+        if reach is not None:
+            rec["reachability_analysis"] = reach
+        if classification is not None:
+            rec["classification"] = classification
+        if cve_reference is not None:
+            rec["cve_reference"] = cve_reference
+        if cve_version_applies is not None:
+            rec["cve_version_applies"] = cve_version_applies
+        return rec
+
+    # ----- D1: reachability_analysis required on HIGH/MED bugs -----
+
+    def test_d1_high_with_reachability_passes(self) -> None:
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(severity="HIGH", reach="no upstream guard")],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+        self.assertIn("090j triage precision", out)
+
+    def test_d1_high_without_reachability_fails(self) -> None:
+        """Mutation bite: drop the `reachability_analysis` field from a
+        HIGH bug ⇒ FAIL. Restoring the field re-greens the test."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(severity="HIGH", reach=None)],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("BUG-001", out)
+        self.assertIn("090j D1", out)
+        self.assertIn("reachability_analysis", out)
+
+    def test_d1_medium_without_reachability_fails(self) -> None:
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(severity="MEDIUM", reach=None)],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("severity=MEDIUM", out)
+
+    def test_d1_low_without_reachability_warns_not_fails(self) -> None:
+        """LOW severity without reachability_analysis is a WARN, NOT a
+        FAIL. (LOW findings often don't need reachability proof to be
+        useful.)"""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(severity="LOW", reach=None)],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertGreaterEqual(warns, 1, out)
+        self.assertIn("severity=LOW", out)
+        self.assertIn("WARN, not FAIL", out)
+
+    def test_d1_low_with_reachability_silent(self) -> None:
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(severity="LOW", reach="reached at file:42")],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+
+    def test_d1_empty_string_reachability_treated_as_missing(self) -> None:
+        """An empty-string `reachability_analysis` is treated as missing
+        — the field is non-empty-required."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(severity="HIGH", reach="   ")],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+
+    # ----- D2: CVE-cited finding cannot be `bug` without reachability -----
+
+    def test_d2_cve_only_finding_classified_bug_fails(self) -> None:
+        """Mutation bite: keep `cve_reference` but drop `classification`
+        ⇒ default `bug` ⇒ advisory-only-without-reachability FAILs."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach=None,
+                cve_reference="CVE-2024-42473",
+                # classification absent — defaults to "bug"
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("090j D2", out)
+        self.assertIn("classification=known-issue", out)
+
+    def test_d2_cve_finding_classified_known_issue_passes(self) -> None:
+        """BUG-009 case: CVE restatement with classification=known-issue
+        is excluded from precision checks (advisory note, not a bug)."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach=None,  # no reachability needed for known-issue
+                cve_reference="CVE-2024-42473",
+                classification="known-issue",
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+
+    def test_d2_cve_finding_with_reachability_passes_d2_still_checked_d3(
+            self) -> None:
+        """A `bug`-classified CVE finding WITH a reachability analysis
+        passes D2 (in-tree path located) — but D3 still applies for
+        HIGH severity. This test fixture provides applies=True so it
+        passes both."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach="in-tree code path at check.go:1102 confirmed",
+                cve_reference="CVE-2025-48371",
+                cve_version_applies=True,
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+
+    # ----- D3: security-HIGH bar — CVE-cited HIGH needs applicability -----
+
+    def test_d3_high_cve_applies_true_passes(self) -> None:
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach="reachable at file:line",
+                cve_reference="CVE-2024-42473",
+                cve_version_applies=True,
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+
+    def test_d3_high_cve_applies_false_fails(self) -> None:
+        """BUG-006 case: HIGH severity, cites CVE-2025-48371, but the
+        audited version (v1.5.7) is OUTSIDE the affected range
+        (>=1.8.0). cve_version_applies=False ⇒ D3 FAIL.
+
+        Mutation bite: flip cve_version_applies to True → test FAILs
+        (the gate would let the BUG-006-class finding through)."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach="no in-tree code path; v1.5.7 predates v1.8.0",
+                cve_reference="CVE-2025-48371",
+                cve_version_applies=False,
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("090j D3", out)
+        self.assertIn("affected range", out)
+
+    def test_d3_high_cve_missing_applies_fails(self) -> None:
+        """HIGH + cve_reference but cve_version_applies absent ⇒ D3
+        FAIL unless the reachability_analysis contains a prose marker."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach="reachable at file:line (no version comment)",
+                cve_reference="CVE-2024-42473",
+                # cve_version_applies absent
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("090j D3", out)
+
+    def test_d3_prose_marker_fallback_passes(self) -> None:
+        """When cve_version_applies is absent, a reachability_analysis
+        substring asserting the audited version is within the CVE's
+        affected range satisfies D3. (Adopters who write the prose but
+        forget the boolean field shouldn't be auto-failed.)"""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach=(
+                    "reachable at file:line; audited version is within "
+                    "the affected range of CVE-2024-42473 (>=1.5.7, "
+                    "<1.5.9)"
+                ),
+                cve_reference="CVE-2024-42473",
+                # cve_version_applies absent — prose fallback applies
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+
+    def test_d3_medium_cve_no_applicability_check(self) -> None:
+        """D3 only triggers on HIGH severity. A MEDIUM CVE-cited finding
+        passes D3 even without cve_version_applies (D1+D2 still apply)."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="MEDIUM",
+                reach="reachable at file:line",
+                cve_reference="CVE-2024-42473",
+                # cve_version_applies absent — D3 doesn't fire on MED
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+
+    # ----- OpenFGA regression anchors (instruction Task D) -----
+
+    def test_openfga_bug003_class_reachable_guard_must_fail(self) -> None:
+        """BUG-003 class regression: a HIGH severity finding whose
+        actual reachability analysis reveals an upstream guard (making
+        the defect unreachable) must NOT stand as classification=bug.
+
+        The instruction says "A candidate whose reachability analysis
+        FINDS a guard that makes it unreachable must be demoted (not
+        confirmed)" — process-side. From the gate's perspective: if
+        the agent KEEPS the record as classification=bug after finding
+        an unreachable-guard, the bug should at minimum still trip the
+        existing D1 check on missing reachability OR be reclassified
+        to known-issue. This test exercises the most common error path:
+        an OpenFGA-BUG-003-style record with severity=HIGH but no
+        reachability field at all → must FAIL."""
+        # This is what BUG-003 looked like pre-090j (no reachability
+        # field, severity HIGH).
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                bug_id="BUG-003",
+                severity="HIGH",
+                reach=None,  # the gap 090j fixes
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("BUG-003", out)
+        self.assertIn("090j D1", out)
+
+    def test_openfga_bug006_class_security_high_no_applicability_must_fail(
+            self) -> None:
+        """BUG-006 class regression: HIGH severity, cites
+        CVE-2025-48371, audited version v1.5.7 outside the affected
+        range (>=1.8.0). Even with a reachability analysis explaining
+        the version mismatch, cve_version_applies=False blocks the
+        record from standing as classification=bug at HIGH severity."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                bug_id="BUG-006",
+                severity="HIGH",
+                reach=(
+                    "GetContextualTuplesByObjectID at check.go:1102 "
+                    "passes userType arg; validateCtxTupleInModel at "
+                    "request.go:91 enforces type restrictions; "
+                    "CVE-2025-48371 affects >=1.8.0, audited version "
+                    "v1.5.7 is OUTSIDE the affected range"
+                ),
+                cve_reference="CVE-2025-48371",
+                cve_version_applies=False,
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("BUG-006", out)
+        self.assertIn("090j D3", out)
+
+    def test_openfga_bug009_class_advisory_only_must_fail_as_bug(
+            self) -> None:
+        """BUG-009 class regression: a verbatim advisory restatement
+        with no in-tree code defect AND no reachability analysis. The
+        record cites CVE-2024-42473 + severity HIGH but
+        classification=bug. D2 FAILs."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                bug_id="BUG-009",
+                severity="HIGH",
+                reach=None,
+                cve_reference="CVE-2024-42473",
+                # classification absent (defaults to bug)
+                # cve_version_applies absent
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("BUG-009", out)
+        # D2 should fire (advisory-only + classification=bug + no
+        # reachability). D1 also fires for the same record (HIGH + no
+        # reachability). Either is acceptable — both are correct.
+        self.assertTrue(
+            "090j D1" in out or "090j D2" in out,
+            f"Expected D1 or D2 to fire on BUG-009 class, got:\n{out}",
+        )
+
+    def test_openfga_bug009_reclassified_as_known_issue_passes(
+            self) -> None:
+        """The CORRECT classification for the BUG-009 class: a
+        CVE-2024-42473 advisory note with classification=known-issue
+        is excluded from the bug-precision checks. The advisory is
+        still surfaced to operators; it just doesn't count as a bug."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                bug_id="BUG-009",
+                severity="HIGH",
+                reach=None,
+                cve_reference="CVE-2024-42473",
+                classification="known-issue",
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+
+    def test_openfga_bug001_real_bug_passes_clean(self) -> None:
+        """Regression anchor — the REAL bugs (BUG-001, BUG-002, BUG-004
+        per 090i Council) must still pass clean under 090j's rules.
+        BUG-001 (OIDC ClientID empty-string): MEDIUM, no CVE, with a
+        reachability analysis quoting the absence of an upstream
+        non-empty guard."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                bug_id="BUG-001",
+                severity="MEDIUM",
+                reach=(
+                    "no upstream non-empty guard at oidc.go:143-149; "
+                    "type assertion .(string) returns true for empty "
+                    "string; defect reaches authz.go:466-470"
+                ),
+                # no CVE — pure code finding
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+
+
 if __name__ == "__main__":
     unittest.main()

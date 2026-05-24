@@ -109,3 +109,56 @@ quality/writeups/BUG-042.md and the source code in this repo.
 Each bug costs roughly 2 sub-agent calls. For a typical run with 5-10 auto-triggered bugs, that's 10-20 sub-agent calls. This is significantly cheaper than a full iteration cycle and catches the highest-value false positives.
 
 For runs with many security findings (>15 auto-triggered), consider batching: run Round 1 on all triggered bugs first, then only run Round 2 on bugs where Round 1 was ambiguous or where the confidence was low.
+
+---
+
+## Precision guardrails — v1.5.7 instruction 090j
+
+The 2026-05-23 OpenFGA Mode-A dogfood Council (instruction 090i) confirmed a precision failure: 0/3 HIGH-severity findings were real. BUG-003 missed an upstream `tryCache` guard at the SAME file, BUG-006 missed an upstream `userType` filter AND cited a CVE whose affected range doesn't include the audited version, BUG-009 was a verbatim CVE restatement with no in-tree defect. Three same-agent triage rules — D1, D2, D3 below — close those failure modes. They are **mandatory** before a candidate becomes a confirmed `BUG-NNN`. The mechanical gate enforces each rule against `quality/bugs_manifest.json`.
+
+The full FP-audit sub-agent + first-class NFR-requirement derivation are reserved for v1.6.0. Within v1.5.7, these three same-agent rules are the precision band-aid.
+
+### D1 — Reachability check (MANDATORY before confirming any bug)
+
+Before a candidate becomes a confirmed `BUG-NNN`, perform a **reachability analysis**: search the cited code path for any **upstream guard, filter, early-return, or compensating mechanism** that would make the claimed defect unreachable. Capture the result on the manifest record as the field `reachability_analysis` (see schemas.md §8.1). The field is non-empty-required when the record's `classification` is `bug` (the default) and `severity` is `HIGH` or `MEDIUM`; on `LOW` severity, absence is a WARN, not a FAIL.
+
+**Two outcomes:**
+
+- **Guard NOT found.** The defect is reachable. Quote the search result, then confirm — e.g. `Reachability: no upstream guard found in ±50 lines of cached_resolver.go:200; cache.Get reached unconditionally for all consistency preferences except where blocked downstream`.
+- **Guard FOUND that makes the defect unreachable.** The candidate must be **demoted** (not confirmed as a bug) — record the demotion in the run's challenge log and DO NOT emit a `BUG-NNN`. This is exactly the BUG-003 case: the `tryCache` guard at `cached_resolver.go:169` short-circuits HIGHER_CONSISTENCY before the omitted-key issue can matter.
+
+**Gate enforcement:** a confirmed `BUG-NNN` with severity HIGH or MEDIUM and no `reachability_analysis` field (or an empty string) is a **FAIL** in the v1.5.7 090j gate check `check_v1_5_7_090j_triage_precision`. LOW severity without the field is a WARN.
+
+### D2 — KNOWN-ISSUE classification for advisory/CVE-only findings
+
+A finding may only be a `BUG-NNN` if the specific code defect is **independently located and verified in the audited tree** (with D1's reachability analysis). A finding whose **sole basis is a gathered advisory/CVE/doc** — with no located in-tree code defect — must be classified `classification: known-issue` (see schemas.md §3.11 / §8.1), not as a bug.
+
+**Why:** advisories should be SURFACED to operators (they should upgrade), but they should NOT inflate the bug count or skew precision metrics. The BUG-009 case (CVE-2024-42473 restatement, no in-tree defect found) belongs in a separate `known-issue` category that the gate excludes from bug counts.
+
+**Gate enforcement:** a record with `cve_reference` set AND `classification == "bug"` (or absent — default is `bug`) AND no `reachability_analysis` is a **FAIL** in the v1.5.7 090j gate check. The reachability analysis is the load-bearing evidence that the defect was independently located in the audited tree; its absence + a CVE citation is exactly the "advisory-only" failure mode.
+
+### D3 — Tighter security-HIGH bar
+
+A finding may not be rated **HIGH severity** on a **security / authorization-bypass** basis unless BOTH:
+
+- **(a)** a **reachable code path** demonstrating the bypass is identified in the audited tree (see D1), AND
+- **(b)** if the finding cites a CVE, the audited version is **verified to be within the CVE's affected range** — record this on the manifest as `cve_version_applies: true` (boolean; required when `cve_reference` is set).
+
+Absent either, the security framing/severity must be **downgraded to MEDIUM or below** (or the finding reclassified `known-issue` per D2). This is the BUG-006 case: HIGH severity was assigned on a CVE-2025-48371 basis, but the audited v1.5.7 is OUTSIDE the affected range (`>=1.8.0`).
+
+**Gate enforcement:** a record with `severity == "HIGH"` AND `cve_reference` set AND `cve_version_applies != true` (false, null, or missing) is a **FAIL** in the v1.5.7 090j gate check — unless the `reachability_analysis` text contains an explicit prose marker asserting the audited version is within the CVE's affected range (the gate accepts the prose as a fallback so adopters who write the analysis but forget the boolean aren't auto-failed).
+
+### What 090j does NOT add
+
+- **No fresh-context FP-audit sub-agent pass.** The Round-1/Round-2 challenge above is unchanged; 090j is same-agent triage rules. The fresh-context audit is reserved for v1.6.0.
+- **No first-class NFR (non-functional requirement) derivation.** Also v1.6.0.
+- **No new finding-class for "design observation."** BUG-005/007/008 from the OpenFGA run were 2:1-or-split design/observability/defensive observations, but 090j leaves them as `bug`-classified records — the precision win comes from D1/D2/D3, not from a new class. v1.6.0 may add an `observation` class.
+
+### Worked example — the OpenFGA dogfood under 090j
+
+Under the rules above:
+
+- **BUG-003** (HIGH, cache key omits Consistency): the agent's D1 reachability analysis would have located the `tryCache` guard at `cached_resolver.go:169` — the candidate is **demoted, not confirmed**. If the agent forgets D1, the gate FAILs on missing `reachability_analysis` for a HIGH-severity bug.
+- **BUG-006** (HIGH, contextual tuples + CVE-2025-48371): D1 would have located the `userType` filter at `check.go:1102` AND `validateCtxTupleInModel` at `request.go:91`. D3 would have caught the CVE version mismatch (v1.5.7 < 1.8.0 = `cve_version_applies: false`). Either rule alone catches the record — both together force a downgrade or reclassification.
+- **BUG-009** (HIGH, CVE-2024-42473 restatement): under D2 the record must be `classification: known-issue`. The advisory is still surfaced to operators (they should upgrade to v1.5.9+), but the record is excluded from the bug count.
+- **BUG-001/002/004** (the real bugs): each has an in-tree code defect and a reachable code path — D1's `reachability_analysis` is straightforward (e.g. `BUG-001`: *"no upstream non-empty guard at oidc.go:143-149; type assertion .(string) returns true for empty string; defect reaches authz.go:466-470"*). None cite a CVE, so D2 and D3 don't apply. **They pass clean under 090j's rules** — the precision wins come from filtering the FPs, not from rejecting legitimate findings.
