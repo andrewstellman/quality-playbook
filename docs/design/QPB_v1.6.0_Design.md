@@ -1,198 +1,154 @@
 # Quality Playbook v1.6.0 — Design Document
 
-*Status: scope reframed 2026-05-03 to match the v1.6.x Requirements Review proposal (`QPB_v1.6.x_Requirements_Review_Proposal.md`). The prior framing — "first iterative-improvement release shipping a single lever pull" — has been superseded by the requirements-review-and-management UX scope. The v1.5.4 calibration infrastructure shipped on schedule; the autonomous improvement loop shipped in v1.5.5 and runs Pattern 7 displacement-recovery in v1.5.6, which means the "demonstrate the iterative-improvement workflow" goal that originally drove v1.6.0 is satisfied by the v1.5.5/v1.5.6 work. v1.6.0's actual scope is now the Requirements Review feature. The pre-2026-05-03 narrative below is preserved as historical context but is no longer canonical.*
-*Originally authored: April 2026. Reframed: 2026-05-03.*
-*Owner: Andrew Stellman*
-*Depends on: v1.5.5 (autonomous improvement-loop infrastructure) and v1.5.6 (Pattern 7 displacement-recovery cycle plus adopter-facing distribution work).*
-
-> **Where v1.6.0 sits in the arc (current framing).** v1.6.0 is the **Requirements review and management UX release**. Operator-facing system for reviewing the requirements QPB derives from a target — walks the operator through each requirement (Wiegers quality attributes), surfaces evidence from formal docs / informal sources / exploration findings, and helps validate or refine requirements. Includes targeted playbook runs that check specific requirements against the code (re-derive REQ-007 against updated source, verify a logging requirement against `bin/audit_log.py`, etc.). Closes the QI loop: defect data from review sessions feeds back into Phase 1/2 prompt-tuning calibration cycles. **Canonical scope lives at `QPB_v1.6.x_Requirements_Review_Proposal.md`.** The text below this banner is the original v1.6.0 framing from April 2026, preserved for historical reference.
->
-> **Other v1.6.x track items.** A second open v1.6.x candidate is **Phase Validator Structural Enforcement** — the subprocess-attestation (Phase 1/2/5) + subprocess-Phase-6-verifier (Phase 6) + witness-signing fallback solution for closing the v1.5.7 prose-only phase-boundary validator-invocation residuals. The Phase 6 instance was discovered first (codex desktop empirically; cursor/aider/cline by inference); the Phase 1 instance was discovered 2026-05-19 during Round 1 self-bootstrap analysis (F13). Both share the same shape — a phase-boundary contract that requires the agent to invoke a validator and quote its verdict, currently mandated only by prose. Canonical scope at `QPB_v1.6.x_Phase6_Structural_Enforcement_Proposal.md` (filename retains the historical `Phase6` suffix; content covers all phase-boundary validator contracts). This is independent of the Requirements Review track and can ship in any order within v1.6.x; the two touch different parts of the codebase (post-playbook interactive UX vs. phase-boundary subprocess infrastructure) and do not share blockers. v1.5.7 ships with the prose-only phase-validator state documented as known limitation; the v1.6.x proposal closes it structurally.
->
-> **Verdict-fidelity track item — TDD-not-executed verdict qualifier.** A third, smaller open v1.6.x candidate, in the verdict-taxonomy family that v1.5.7's F15 three-state verdict (`PASSED` / `PASSED WITH CLEANUP NEEDED` / `FAILED`) started. Finding (javalin, Codex/GPT-5.5, 2026-05-21): the gate returns `GATE PASSED` even when **all** TDD red/green receipts are `NOT_RUN` — the agent honestly marks them (rather than fabricating green logs) and the patches pass `git apply --check`, but the red→green cycle was never executed. So a complete-but-empirically-unproven run is verdict-indistinguishable from a red→green-proven one, and a reader of "PASSED" may infer more than happened. **v1.5.7 (instruction 089m) lands the cheap half: the gate emits a WARN when receipts are `NOT_RUN`.** The v1.6.x verdict-taxonomy work owns the **fuller half: a first-class verdict qualifier** — e.g. `PASSED — TDD not executed`, or a `tdd_executed: false` field on the verdict / `INDEX.md` summary — so the verdict itself (not just a WARN line) distinguishes proven from reasoned-but-unproven runs. Anti-fabrication intent: reward honest `NOT_RUN` while never letting `PASSED` overstate empirical proof. Independent of the other two tracks; touches the gate verdict + `INDEX.md` schema + `references/what_just_happened.md`. Tracking: v1.5.7 finding #326.
->
-> **Probe-heuristic hardening (companion to the qualifier).** The v1.5.7 089o/089q work added a runner-probe contract: `_phase5_probe_succeeded()` reads `quality/results/phase5_env.log` to decide whether a `NOT_RUN` is honest (runner genuinely unavailable → WARN) or a contradiction (runner available but the agent skipped → FAIL), and whether a `RED`/`GREEN` lacking execution evidence is an overclaim. The 089q two-round Council (finding **D4**) flagged that this probe is intentionally coarse: it takes the **first** `Exit code` match as authoritative, falls back to a loose `version`+digits heuristic, and applies a **single global per-run signal with no per-bug / per-runner mapping** — so multi-attempt logs or multi-tool targets (a project needing both `pytest` and `cargo`, say) can be misread. Accepted for v1.5.7 because the ambiguous → `None` → WARN escape means the probe can only *fail to escalate*, never wrongly FAIL an honest run; the conservative direction is safe. v1.6.x hardens it: **per-runner / per-bug probe mapping + tighter multi-attempt parsing**, so the NOT_RUN-vs-overclaim determination is robust on heterogeneous targets. Touches `quality_gate.py::_phase5_probe_succeeded` (a v1.5.7 089q tracking comment already marks the site). Tracking: v1.5.7 089q Council finding D4.
+*Status: scope reframed **2026-05-24** to the **Non-Functional Requirements discovery + requirements-grounded false-positive audit** feature. This supersedes the 2026-05-03 "Requirements Review UX" framing (now repositioned to a later v1.6.x point release — see "v1.6.x track map" below) and the original April-2026 "single lever pull" framing (absorbed by v1.5.5/v1.5.6). v1.6.0's actual scope is now: make QPB derive **non-functional requirements as first-class, testable REQs**, and add a **fresh-context, requirements-grounded false-positive audit** over confirmed findings. Both pieces are motivated by a concrete, just-observed defect (the 2026-05-23 OpenFGA dogfood), not by abstract planning. The pre-2026-05-24 narrative is preserved at the bottom as historical context and is no longer canonical.*
+*Owner: Andrew Stellman. Reframed: 2026-05-24. Depends on: v1.5.7 (shipping — incl. the 090j triage band-aid this feature supersedes at the requirements level).*
 
 ---
 
-## ⚠️ Original v1.6.0 framing (superseded — see banner above)
+## ⚠️ Read this first — why v1.6.0 is the NFR feature
 
-The sections below were written before the Requirements Review scope was added. They describe v1.6.0 as the "first iterative-improvement release with one lever pull." That goal has been absorbed by v1.5.5 (run-state instrumentation + autonomous orchestrator) and v1.5.6 (Pattern 7 displacement-recovery cycle as the first production-shape lever pull). Read for historical context only.
+v1.6.0 is **empirically motivated**, which is the QPB way: a release driven by a concrete missed/false finding, not a speculative feature. The 2026-05-23 OpenFGA Mode-A dogfood (QPB v1.5.7, npm-channel install, real 548-file Go repo, doc-enriched) reported 9 bugs including 3 HIGH "security" findings — and a unanimous 3-model Council review of those findings (instruction 090i) confirmed **0/3 HIGH precision**:
 
----
+- **BUG-003** (HIGH, cache consistency): FALSE POSITIVE — missed the `tryCache` guard that already bypasses the cache for `HIGHER_CONSISTENCY`.
+- **BUG-006** (HIGH, contextual-tuples / "CVE-2025-48371 class"): FALSE POSITIVE on two grounds — the `userType` filter *is* applied and `validateCtxTupleInModel` enforces type restrictions upstream; *and* the cited CVE affects ≥1.8.0, so v1.5.7 isn't even in range.
+- **BUG-009** (HIGH, "CVE-2024-42473 unpatched"): DOC-RESTATEMENT — verbatim from a gathered advisory, not a located code defect.
 
-## Motivation
+Strict precision was 3/9 (the genuine finds — BUG-001/002/004 — were the non-security code-analysis ones). v1.5.7 shipped a **band-aid** (instruction 090j: same-agent triage rules — reachability note, KNOWN-ISSUE classification, security-HIGH bar) to stop the worst of it in the shipping version.
 
-### Feature-complete on the v1.5.x infrastructure
+**The root cause is a requirements asymmetry, which is why the real fix belongs in v1.6.0 (a requirements-focused release):** QPB derives *functional* REQs rigorously (code-derived behavioral contracts → a bug is a concrete deviation with file:line + a test), but it has **no equivalent rigor for non-functional requirements** (security, performance, reliability, …). So when an adopter feeds security advisories, the agent has no derived, testable security REQ to check a finding against — it pattern-matches advisories straight into "bugs." BUG-006 is the proof: had QPB *derived* `REQ-SEC: contextual tuples MUST be filtered by allowedUserTypeRestrictions [acceptance: a disallowed-type contextual tuple does not contribute; verify: <test>]`, the agent would have had to test it against the code and found `validateCtxTupleInModel` already enforces it — no bug.
 
-By the end of v1.5.4, QPB has accumulated everything it needs to do continuous quality improvement under the SEI / Humphrey lineage:
-
-- **Quality control infrastructure** (v1.5.0–v1.5.3): the divergence model, tier system, citation schema, Phase 5 writeup hardening, bug-family amplification, finalizer robustness, INDEX verdict mapping, the project-type classifier, the four-pass skill-derivation pipeline, the skill-divergence taxonomy. QPB can audit code projects, AI-skill projects, and hybrid projects with operational rigor.
-- **Quality improvement infrastructure** (v1.5.4): `bin/regression_replay.py`, the `metrics/regression_replay/` schema, the calibration log, the cross-benchmark regression check, the noise-floor handling. QPB can measure whether a proposed change actually improves recall, against a documented baseline, with cross-benchmark side-effect detection.
-- **Measurement infrastructure** (the benchmark replicate harness in `repos/replicate/`): accumulating within-version σ data so that future "is this metric in statistical control?" questions have an empirical floor to test against.
-
-There's no QC capability left to add for the foreseeable future. There's no QI apparatus left to build. v1.6.0's job is to start *using* what was built.
-
-### What "iterative improvement" actually looks like
-
-The pattern at v1.6.0+:
-
-1. **An observation triggers a release candidate.** Most often: a regression-replay run identifies a class of bugs current QPB misses. Sometimes: a Council review of a benchmark output flags a quality issue. Sometimes: an adopter reports a category of bug QPB systematically misses on their codebase. Each observation is a candidate for a release.
-2. **A lever is hypothesized.** Read `IMPROVEMENT_LOOP.md` Levers 1-5; identify which one, when pulled, would be expected to address the observation. The diagnostic reasoning is documented.
-3. **The lever is pulled.** Edit the lever's home file (e.g., `references/exploration_patterns.md` for Lever 1) with a focused change.
-4. **The release is checked.** Run regression replay on the original observation's cell; record the recall delta. Run cross-benchmark regression check on the other pinned benchmarks; confirm no regression beyond the documented noise floor.
-5. **The release is acted on.** If the delta is positive and no regression elsewhere, ship as a v1.6.x point release. If the lever was the wrong diagnosis, document the dead end in the calibration log and try a different lever.
-
-That's PDCA. It's the second half of QPB applying QE to itself, made operational.
-
-### The release cadence shifts
-
-v1.5.x releases were chunked feature work — months between releases, each shipping a coherent package of new capability. v1.6.x releases are smaller and more frequent. Each one closes one calibration cycle, lands one lever pull, ships one quantitative recall improvement (or honestly documents a failed lever-pull attempt). The release cadence is governed by the rate at which the calibration log accumulates entries, which is governed by how fast Andrew can do the diagnostic work and how fast the regression-replay machinery completes runs.
-
-A reasonable expectation: 2-4 v1.6.x point releases per month once the workflow is established, slowing as the improvement loop converges (when most levers are well-tuned and new lever-pull opportunities are rare, releases become sparser by design).
-
-### Honest framing: this may take a long time to converge
-
-The improvement loop is genuinely open-ended. Each release pulls one lever; there are five levers; there might be more lever-pull opportunities than fit in any reasonable release schedule. There also might be diminishing returns — early lever pulls capture the most-obvious calibration deltas, later pulls deliver smaller and noisier improvements until the lever-pull recall delta drops below σ and the apparatus can no longer distinguish "real improvement" from "lucky single run."
-
-That convergence point — when lever-pull deltas drop below the noise floor — is when QPB approaches "in statistical control" territory under SEI / Humphrey definitions. It's the multi-year horizon. v1.6.0 starts the journey; v1.7+ probably reaches it (or honestly falsifies the expectation that LLM-driven processes can reach it under our current measurement infrastructure).
+So v1.6.0 fixes it where the problem lives: derive NFRs as first-class requirements, then verify findings against them.
 
 ---
 
-## Design
+## v1.6.x track map (so nothing is lost)
 
-### What v1.6.0 delivers
+v1.6.0 is the **NFR discovery + requirements-grounded FP-audit** release. The other v1.6.x candidates remain open and independent; they ship as later v1.6.x point releases in motivation-driven order (no hard sequence between them):
 
-v1.6.0 is the **first iterative-improvement release** — meaning the release itself contains exactly ONE lever pull, motivated by ONE missed-bug observation, validated by the v1.5.4 apparatus. The deliverable is structurally small (a single lever change) but methodologically significant (it's the first release shipped under the new workflow).
-
-The specific lever pull for v1.6.0 is to be determined during v1.5.4's calibration cycles. v1.5.4 ships with 3-5 cycles documented; one of those cycles' lever pulls is the natural candidate for the v1.6.0 release. Most likely: the chi-1.3.45 → 1.3.46 collapse cycle's diagnosis (probably a Lever 1 — exploration breadth — adjustment), packaged as a permanent skill change rather than a calibration-log curiosity.
-
-### What v1.6.0 doesn't deliver
-
-- No new features. No new schema fields. No new lever-inventory items. No new benchmark targets. The point of v1.6.0 is to demonstrate the workflow, not to add capability.
-- No automated continuous-improvement scheduler. v1.6.0+ releases are still manually initiated by Andrew with each calibration observation. Automating "monitor benchmarks, propose lever pulls, run replay" is a v1.7+ idea (and probably a bad idea — the diagnostic reasoning step is hard to automate without losing the methodology's discipline).
-- No control charts. Those need ~20-30 stable observations per process and v1.6.0 has at most a handful. Control charts come later.
-
-### What v1.6.0 establishes
-
-- **The release template for v1.6.x onward.** Each release ships with a calibration-log entry referencing the cell.json that motivated it, a focused lever-pull diff, a benchmark-confirmation run showing recall improvement, and a cross-benchmark regression check showing no harm elsewhere. v1.6.0's release artifacts are the prototype for this template.
-- **The IMPROVEMENT_LOOP.md status update.** "Stage C: Continuous lever-pull improvement" gets marked operational. The methodology doc transitions from prospective ("once v1.5.4 lands, the loop becomes operational") to descriptive ("the loop is operational, see calibration log").
-- **The cadence baseline.** v1.6.0 establishes a cadence reference: how long does it take from "calibration cycle observation" to "tagged release"? That number anchors expectations for v1.6.x.
+- **v1.6.0 (this doc): NFR discovery + requirements-grounded FP-audit.** First, because it's motivated by a known issue, is self-contained, and is a *prerequisite* for meaningful requirements review (you can't review requirements that aren't being derived).
+- **Requirements Review UX** (`QPB_v1.6.x_Requirements_Review_Proposal.md`) — repositioned from v1.6.0 to a later v1.6.x point release. It is the operator-facing post-playbook interactive REQ-review system; it **builds on** v1.6.0's NFR discovery (it reviews the derived REQs, now including NFRs). Its Slice 3 (QI-loop closure) shares machinery with this feature's lessons-learned synthesis.
+- **Phase Validator Structural Enforcement** (`QPB_v1.6.x_Phase6_Structural_Enforcement_Proposal.md`) — independent; subprocess-attestation for the prose-only phase-boundary validator contracts.
+- **Verdict-fidelity track** — the TDD-not-executed verdict qualifier (#326 fuller half) + probe-heuristic hardening (089q finding D4). Independent.
+- **Carry-forward backlog from v1.5.4** (B-4 … B-14 + Round-8a/8b items) — opportunistic point-release candidates, sequenced by calibration cycles, not a fixed list (preserved verbatim at the bottom).
+- **Done early:** the pip+npm distribution channels (`QPB_v1.6.x_Distribution_Channels_Proposal.md`) shipped in v1.5.7.
 
 ---
 
-## Success Criteria
+## What v1.6.0 delivers
 
-v1.6.0 is successful if:
+Two coupled pieces. (A) is the new capability; (B) is the precision mechanism — kept **general**, not NFR-only, so it covers every finding class while (A) closes the NFR-specific gap.
 
-1. **One lever pull is shipped via the v1.5.4 workflow.** The release contains exactly one focused lever change in one of Levers 1-5's home files. The change has a documented diagnostic reasoning (which calibration cycle motivated it, which lever was hypothesized, why), a regression-replay measurement showing recall improved on the cycle's cell, and a cross-benchmark regression check showing no harm to chi-1.5.1, virtio-1.5.1, express-1.5.1.
+### A — First-class non-functional-requirement discovery & documentation
 
-2. **The calibration log gains a v1.6.0 release-shipment entry.** The entry references the calibration cycle it derived from, names the lever pulled, documents before/after recall, and links to the cell.json files generated by the v1.5.4 apparatus.
+QPB's Phase 1/2 derivation gains explicit NFR coverage: alongside functional REQs, it derives **non-functional requirements as first-class records** with the same rigor — each carrying an **acceptance criterion** and a **verification method** (how you'd observe the REQ is met), so an NFR is testable, not aspirational.
 
-3. **`IMPROVEMENT_LOOP.md` is updated** to mark Stage C operational and note v1.6.0 as the first release shipped under the iterative-improvement workflow.
+- **NFR taxonomy** (the classes to derive, drawn from Wiegers / ISO-25010): **security, performance/efficiency, reliability, usability, portability, maintainability, integration/interoperability** (compatibility). Functional requirements are unchanged.
+- **First-class REQ shape:** an NFR REQ has the same record fields as a functional REQ plus an `nfr_class` tag and a mandatory `acceptance_criterion` + `verification_method`. It traces to evidence (code, formal docs, exploration) the same way functional REQs do. It is **not** valid to assert an NFR with no acceptance criterion (the "aspirational NFR" anti-pattern QPB must avoid).
+- **Categorization tie-in:** `nfr_class` extends the existing REQ categorization. (The "Lever 6 categorization tier" was *withdrawn* in earlier framings as speculative; here it returns concretely, scoped to the NFR taxonomy — confirm the current categorization implementation during the design-doc-to-code step rather than assuming the earlier withdraw/return state.)
+- **Grounding rule (the precision fix at the requirements level):** an NFR finding (e.g. a security bug) may only be confirmed if it traces to a derived NFR and demonstrates a violation of that NFR's acceptance criterion in the audited tree. A gathered advisory/CVE with no derived-NFR violation is a `KNOWN-ISSUE`, not a `BUG`.
 
-4. **The release template is documented** at `docs/design/QPB_v1.6.x_Release_Template.md` (or equivalent) so that v1.6.1+ have a structural reference. The template specifies: required calibration-cycle reference, required cell.json links, required cross-benchmark regression check, required diagnostic reasoning, required Council review scope (lever home file plus calibration log).
+### B — Fresh-context, requirements-grounded false-positive audit
 
-5. **No regression on code-project benchmarks beyond the documented noise floor.** chi-1.5.1, virtio-1.5.1, express-1.5.1 yields are within ±σ of the v1.5.4 baseline (where σ comes from the replicate harness data).
+A QPB-spun **fresh-context sub-agent pass** that adversarially re-verifies each *confirmed* finding (functional and NFR) against the derived requirements — the productionized form of the 090i Council shape. It is **general** (not NFR- or security-only): the failure mode it guards (a finding contradicted by something the producing agent didn't check) is class-agnostic.
 
-6. **No regression on QPB self-audit.** The v1.5.3 skill-as-code work continues to produce ≥80 REQ self-audit. v1.6.0's lever pull might tighten the skill prompts but shouldn't reduce coverage.
+- **Independence is the point.** The audit sub-agent does NOT load the running QPB skill, the phase prompts, or the writeup's reasoning — it gets only the finding + the cited source + the relevant derived REQ + a compact rubric. That independence removes the producing agent's confirmation bias and advisory-priming (the exact bias that produced the OpenFGA FPs). It also makes the pass context-cheap.
+- **Class-agnostic rubric (each confirmed finding):** **reachability** (is there an upstream guard/filter/early-return that makes the cited defect unreachable? — the BUG-003 class); **compensation** (is it handled elsewhere — cache, retry, default, validation?); **applicability** (does it apply to this tree/version/config? incl. CVE version-range — the BUG-006 class); **source-of-truth** (real located code defect vs advisory/doc restatement → `KNOWN-ISSUE` — the BUG-009 class); **design-intent** (documented/intentional choice? — the BUG-007/008 class); **severity-justification** (does the claimed severity match a demonstrated impact path?); **requirements-traceability** (does it violate a *derived* REQ — functional or NFR — or is it untethered?).
+- **Security is the highest-scrutiny tier**, not a separate detector: a HIGH security/auth-bypass finding needs a demonstrated reachable path + (if a CVE is cited) a verified version match — or it's downgraded/reclassified.
+- **Output:** a per-finding verdict (CONFIRMED / DEMOTED / RECLASSIFIED-KNOWN-ISSUE / UNCERTAIN) with reasoning; the confirmed-bug set + precision metrics updated accordingly; the audit transcript preserved as a run artifact.
+
+### What v1.6.0 does NOT deliver
+
+- The full Requirements Review operator UX (the 8-dimension interactive session) — the repositioned later v1.6.x point release. v1.6.0 derives NFRs and audits findings; it does not add the interactive review-session UX.
+- Control charts / formal SPC. Still needs ~20-30 stable observations.
+- New benchmark targets or runners.
+
+---
+
+## How NFR discovery + the FP-audit fit the pipeline
+
+- **NFR discovery** is a Phase 1/2 derivation extension — the same passes that derive functional REQs gain NFR-class derivation with acceptance criteria. (Skill-derivation: Pass A/C produce NFR records; the gate validates the new fields.)
+- **The FP-audit** runs **after** findings are confirmed (post Phase 3/4 triage, at/before Phase 5 finalization) as a fresh-context pass over the confirmed set — analogous to QPB's existing fresh-context auditors (the Phase 6 A-13 hybrid; the Phase 4 Council). It is a precision gate on the *findings*, distinct from the Phase-6 *artifact* gate.
+
+This pairing is the architecture: NFR discovery prevents the FPs at the requirements layer; the FP-audit catches anything that slips through, independent of the producing context.
+
+---
+
+## Implementation slices (independently shippable, sequenced)
+
+**Slice 1 — the v1.6.0 release (must make the OpenFGA re-run come out right):**
+- NFR discovery for the **core classes (security, reliability, performance)** with mandatory acceptance criterion + verification method; the `nfr_class` REQ field + gate validation; the grounding rule (advisory-only → KNOWN-ISSUE).
+- FP-audit fresh-context pass implementing the **reachability + applicability + source-of-truth + requirements-traceability** checks (the three that map to BUG-003/006/009 + traceability), security highest-scrutiny.
+- **Acceptance:** re-running QPB Mode-A on OpenFGA, BUG-003/006/009 cannot stand as confirmed HIGH bugs (demoted/reclassified by the audit and/or never confirmed because they violate no derived NFR), while the genuine BUG-001/002/004 still surface. HIGH-severity precision ≥ a defined bar.
+
+**Slice 2 — breadth + completeness:**
+- Remaining NFR classes (usability, portability, maintainability, integration/interoperability).
+- Full FP-audit rubric (design-intent, compensation, severity-justification).
+- Inspection/precision metrics emitted per run.
+
+**Slice 3 — QI-loop closure (depends on regression-replay/calibration being operational):**
+- FP-audit + NFR-derivation defect patterns feed calibration cycles (Phase 1/2 prompt tuning). Shares machinery with the Requirements Review proposal's Slice 3; sequence after the calibration infrastructure.
+
+---
+
+## Success criteria
+
+1. QPB derives NFRs as first-class REQs (core classes in Slice 1) with acceptance criteria + verification methods; the gate rejects an NFR REQ lacking them.
+2. The fresh-context FP-audit runs over confirmed findings, independent of the producing context, and emits per-finding verdicts with reasoning.
+3. **OpenFGA regression (the proof point):** BUG-003 (FP), BUG-006 (FP), BUG-009 (doc-restatement) do not survive as confirmed HIGH bugs on a re-run; BUG-001/002/004 still surface. No genuine finding is suppressed (precision up without recall collapse).
+4. The FP-audit is **general** — it demotes a reachability/applicability/design-intent FP in a non-security class too (validated by a fixture or a second run), not only security.
+5. Advisory/CVE-only findings are classified `KNOWN-ISSUE`, excluded from the confirmed-bug count.
+6. bin/tests + gate green dual-env; no regression on the QPB self-audit REQ coverage.
+
+---
+
+## Out of scope for v1.6.0
+
+- The interactive Requirements Review operator UX (repositioned v1.6.x point release).
+- Autonomous/continuous improvement scheduling (v1.7+).
+- Control charts / SPC limits.
+- New levers, benchmark targets, or runners.
+
+---
+
+## Open questions (resolve during the design-doc-to-code step)
+
+- **NFR record schema:** exact `nfr_class` enum + how `acceptance_criterion`/`verification_method` are represented in `schemas.md` and the manifests; backward-compat with existing REQ records.
+- **FP-audit invocation:** which runner/model drives the fresh-context sub-agent; cost/latency budget; scope (all confirmed findings, or HIGH/MED only, like 090j).
+- **Relationship to the 090j band-aid:** v1.6.0 supersedes the same-agent triage rules with requirements-grounding + the fresh-context audit; decide whether 090j's rules are retired, retained as a cheap first pass, or folded into the FP-audit rubric.
+- **Categorization-tier reconciliation:** confirm the current categorization implementation/state before extending it with `nfr_class` (the earlier withdraw/return history needs grounding in code, not assumption).
+- **Acceptance bar number** for HIGH-severity precision on the regression set.
 
 ---
 
 ## Provenance
 
-### v1.6.0 is the SEI level-4 transition
-
-The CMMI level 4 ("quantitatively managed") definition: process performance is quantitatively understood, statistical and other quantitative techniques are used to control the process, special causes of variation are identified and addressed. v1.6.0 begins the move toward that state. Each release pulls a lever based on quantitative evidence; cross-benchmark regression checks identify special causes; the calibration log accumulates the historical record.
-
-The CMMI level 5 ("optimizing") definition extends level 4 with continuous improvement. v1.6.0 is on the trajectory to level 5; whether the methodology actually reaches it (and whether LLM-driven processes cooperate with statistical-control assumptions) is the open empirical question that the v1.6.x release stream answers over time.
-
-### The framing comes from prior conversation
-
-v1.6.0 was scoped during the 2026-04-26 conversation that recovered from the v1.5.3 IMPROVEMENT_LOOP.md misfire. Key decisions captured during that conversation:
-
-- v1.5.x is feature work. v1.5.3 is the skill-as-code feature. v1.5.4 is the QI machinery. After v1.5.4, QPB is feature-complete.
-- v1.6.0 is the transition release. From v1.6.0 onward, every release is a lever pull motivated by missed-bug observation.
-- The methodology is in the Shewhart / Deming / Humphrey / SEI lineage, with the honest caveat that LLM-driven processes are a novel application domain for SPC.
-- v1.5.5 (originally planned as a naive-review-phase feature) is NOT happening as a feature release. If naive-review framing has methodological value, it's a candidate v1.6.x lever-pull experiment (use replay to measure whether adding a naive phase improves recall against the calibration set), not a separate feature release.
-
-The conversation log is preserved in the AI Chat History export.
-
-### What v1.6.0 inherits from v1.5.4
-
-The full apparatus: `bin/regression_replay.py`, `metrics/regression_replay/SCHEMA.md`, `Lever_Calibration_Log.md`. v1.6.0 doesn't modify these — it uses them. The inherited apparatus is what makes v1.6.0 possible; v1.6.0 wouldn't be coherent as a release before v1.5.4.
+- **2026-05-23 OpenFGA Mode-A dogfood** — the concrete observation (0/3 HIGH precision; advisory-primed NFR over-claiming).
+- **Instruction 090i Council** (gpt-5.4 / gpt-5.3-codex / claude-sonnet-4.6, each reading the OpenFGA source) — unanimous confirmation; recommended the three guardrail directions that became 090j (v1.5.7 band-aid) and inform this feature's FP-audit rubric. Synthesis under `…/Reviews/v1.5.7_responses/` + the 090i outputs.
+- **2026-05-23/24 conversation** — owner decision to make NFR discovery + the requirements-grounded FP-audit the v1.6.0 feature, repositioning the Requirements Review UX to a later v1.6.x point.
+- Requirements-quality lineage (Wiegers attributes; ISO-25010 NFR classes) carries over from the Requirements Review proposal's source material.
 
 ---
-
-## Out of Scope for v1.6.0
-
-- Multi-lever releases. v1.6.0 is exactly one lever pull; multi-lever releases are explicitly avoided to keep the recall-delta attribution clean. Multi-lever bundles can come later (v1.7+) once the methodology has demonstrated it can attribute changes to specific levers.
-- New levers. The v1.5.x lever inventory (Levers 1-5) is the working set. New levers get added in v1.6.x+ releases when calibration cycles reveal a missed-bug class that doesn't fit any existing lever — but adding a new lever is its own release, distinct from a release that pulls an existing one.
-- Naive-review phase. Originally planned as v1.5.5; deferred. May come back as a v1.6.x lever-pull experiment if calibration motivates it.
-- Categorization tier policy. Originally listed as Lever 6 in earlier IMPROVEMENT_LOOP.md drafts; that listing was withdrawn because it's feature work for a not-yet-built capability. If categorization becomes valuable, it's a feature release in the v1.7+ track, not a v1.6.x lever pull.
-- Control charts / formal SPC limits. Need ~20-30 stable observations per process. v1.6.0 has at most a handful.
-- Cross-model replay infrastructure. Originally a v1.5.4 stretch goal; remains deferred.
-
 ---
 
-## Carry-forward backlog from v1.5.4
+# Historical context (superseded — preserved for reference)
 
-The following items were dispositioned `defer-to-v1.6.0` during v1.5.4 Phase 3.6.8 (`Quality Playbook/Reviews/v1.5.4_backlog.md` Section E) but do not fit v1.6.0's "single lever pull" scope. They are candidates for v1.6.x point releases (post-v1.6.0) when calibration cycles motivate them, or for explicit feature releases beyond the v1.6.x track if substantive.
+*The framings below are no longer canonical. They are kept so the doc's lineage is legible.*
 
-**Algorithmic / curation work (substantive — defer to feature release if motivated):**
-- B-4 — 171-floor curation algorithm: cross-partition merging or recalibrated target band.
-- B-5 — Disposition-table degeneracy: Pass A and Pass C redesign for behavioral-claim categories.
-- B-6 — A.3 resolver heuristic broadening: SKILL.md alias resolution.
-- B-7 — Partition density warnings → curation tuning.
-- B-9 — Detector precision FP analysis: candidate-confidence scoring.
-- B-10 — UC anchor threshold: fixture catalog of borderline UCs.
+## Superseded framing 2 — "Requirements Review UX as v1.6.0" (2026-05-03 → 2026-05-24)
 
-**Architectural / hygiene work:**
-- B-8 — Pytest import architecture for the gate test suite.
-- B-11 — Phase 4 5-of-5 prose-to-code BUG consolidation: document or remove.
-- B-12 — Calibration anchor refresh cadence in `bin/classify_project.py`.
+From 2026-05-03 to 2026-05-24, v1.6.0's canonical scope was the interactive Requirements Review operator UX (`QPB_v1.6.x_Requirements_Review_Proposal.md`). On 2026-05-24 that UX was **repositioned to a later v1.6.x point release** and v1.6.0 became the NFR discovery + FP-audit feature (above), because the NFR work is a prerequisite for meaningful requirements review and is motivated by the concrete OpenFGA precision failure. The Requirements Review proposal remains the canonical scope for that later release.
 
-**Cross-model / cross-version:**
-- B-2 — Cross-model second backend (opus). Subset of v1.6.x cross-model replay (already enumerated above).
-- B-3 — v1.4.5 cross-version cell as optional calibration target.
+## Superseded framing 1 — "first iterative-improvement release / single lever pull" (April 2026)
 
-**Categorization tagging feature (Lever 6 work item):**
-- B-13 feature — Per-bug categorization tagging surface (standout / confirmed / probable / candidate tiers). Original v1.5.3 forward-looking claim. Subsumed by "Categorization tier policy" Out of Scope item above.
+The original April-2026 framing cast v1.6.0 as the first iterative-improvement release shipping one lever pull validated by the v1.5.4 apparatus. That goal was absorbed by v1.5.5 (run-state instrumentation + autonomous orchestrator) and v1.5.6 (Pattern 7 displacement-recovery cycle). The detailed historical text for that framing is preserved in version-control history (pre-2026-05-24 revisions of this file).
 
-**Documentation cadence:**
-- B-14 — Formal orientation-doc release-cadence review + 18-persona TTP run.
+## Carry-forward backlog from v1.5.4 (still valid — opportunistic v1.6.x point-release candidates)
 
-**Round 8 deferred MEDIUM/LOW findings (bug-hardening / cleanup):**
-- Round 8a A3 — `PromptCodexPreventionInvariant` test class pinning the load-bearing `phase1_prompt` prose (MUST NOT block, `git ls-files` mandate, source-patch STOP).
-- Round 8a A2 — Sentinel re-verification at phase boundaries (currently pre-flight only).
-- Round 8a A2 — Source-unchanged check on phase failure (currently fires only when `exit_code == 0`).
-- Round 8b A3-M1 — `--strategy <X>` bare-invocation: silent escalation to full-run; document or tighten gate.
-- Round 8b C3 — `_finalize_quality_layout` partial-move failure logging (currently swallows OSErrors silently).
-- Round 8b A1 — Dead helper `_runs_exclude_ignore` at `bin/archive_lib.py:600` — delete.
-- Round 8b B1 — Hardcoded `results/` reads in Phase 6: add comment explaining the intentional pre-`_finalize_quality_layout` path.
-- Round 8b B2 — AGENTS.md operator-authored-preservation warning: route through `lib.log` instead of `sys.stderr` only.
+Dispositioned `defer-to-v1.6.0` during v1.5.4 Phase 3.6.8 (`Quality Playbook/Reviews/v1.5.4_backlog.md` Section E); sequenced by calibration cycles, not a fixed list:
 
-These are listed for inventory; v1.6.x release sequencing is governed by calibration cycles, not by this list. An item lands when a cycle motivates it or a v1.6.x cleanup release scopes it.
-
----
-
-## Dependencies
-
-- v1.5.3 ships first (skill-as-code).
-- v1.5.4 ships second (regression-replay machinery + calibration log).
-- The benchmark replicate harness has accumulated enough variance data to provide a noise floor for v1.6.0's regression-check threshold. Threshold: at least one (release × benchmark) cell at N≥5.
-- The v1.5.4 calibration log has at least one cycle with a clean lever-pull recommendation that can be promoted to a permanent skill change in v1.6.0.
-
----
-
-## Open Questions
-
-These don't block v1.6.0 design but need answers during implementation:
-
-1. **What's the threshold for σ-aware "no regression"?** The cross-benchmark regression check needs to declare a benchmark "regressed" or "stable" — at what σ-multiple does a measured drop become a regression? Lean: 2σ (consistent with the v1.5.4 design's "real regression" threshold).
-
-2. **What if the calibration cycle identified the wrong lever?** If v1.6.0 ships a lever pull and a v1.6.1 calibration cycle reveals it actually made things worse on a different benchmark class, what's the remediation path? Lean: revert via v1.6.0.1 patch, document in calibration log as a corrected diagnosis.
-
-3. **How is the release template enforced?** v1.6.0 establishes the template; v1.6.1+ should follow it. Is the enforcement by Council convention, by quality_gate.py check, by tooling? Lean: Council convention initially; consider gate enforcement once the template is stable.
-
-4. **When does the v1.6.x stream end and v1.7 start?** Open. Two natural triggers: (a) the lever-pull recall deltas drop below σ (improvement loop has converged within current methodology); (b) a calibration cycle motivates a structural change too large to be one lever pull (e.g., a new gate check, a new phase). Either triggers a v1.7 feature release.
+- **Algorithmic / curation:** B-4 (171-floor curation — cross-partition merging / recalibrated band), B-5 (disposition-table degeneracy — Pass A/C redesign), B-6 (A.3 resolver heuristic broadening), B-7 (partition-density → curation tuning), B-9 (detector-precision FP analysis / candidate-confidence scoring), B-10 (UC anchor threshold fixtures).
+- **Architectural / hygiene:** B-8 (pytest import architecture for the gate suite), B-11 (Phase 4 5-of-5 prose-to-code BUG consolidation — document or remove), B-12 (calibration-anchor refresh cadence in `classify_project.py`).
+- **Cross-model / cross-version:** B-2 (cross-model second backend, opus), B-3 (v1.4.5 cross-version cell).
+- **Categorization tagging:** B-13 (per-bug categorization tagging surface) — partially subsumed by v1.6.0's `nfr_class` work; reconcile.
+- **Documentation cadence:** B-14 (formal orientation-doc release-cadence review + 18-persona TTP run).
+- **Round-8 deferred MEDIUM/LOW:** sentinel re-verification at phase boundaries; source-unchanged check on phase failure (not only `exit_code==0`); `--strategy <X>` bare-invocation escalation; `_finalize_quality_layout` partial-move logging; dead helper `_runs_exclude_ignore` deletion; Phase 6 hardcoded `results/` read comment; AGENTS.md preservation-warning via `lib.log`.

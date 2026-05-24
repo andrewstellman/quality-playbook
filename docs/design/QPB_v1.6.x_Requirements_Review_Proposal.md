@@ -1,6 +1,6 @@
 # QPB v1.6.x — Requirements Review (proposal)
 
-*Status: candidate feature, proposed 2026-04-29 (revised 2026-04-29 to consolidate). Not yet scoped to a specific v1.6.x release. Authoring driven by Andrew's question during v1.5.4 Phase 3.6 implementation: "translate traditional requirements review practices to the skill."*
+*Status: candidate feature, proposed 2026-04-29 (revised 2026-04-29 to consolidate). **Repositioned 2026-05-24 from v1.6.0 to a later v1.6.x point release** — v1.6.0 is now the NFR discovery + requirements-grounded FP-audit feature (`QPB_v1.6.0_Design.md`), which is a **prerequisite** for this proposal: the interactive Requirements Review reviews the derived REQs, and as of v1.6.0 those REQs include first-class non-functional requirements. This proposal's Slice 3 (QI-loop closure) also shares machinery with the v1.6.0 FP-audit's lessons-learned synthesis. Not yet scoped to a specific v1.6.x release number; sequence after v1.6.0 ships. Authoring driven by Andrew's question during v1.5.4 Phase 3.6 implementation: "translate traditional requirements review practices to the skill."*
 
 *Source material:*
 - *Andrew Stellman & Jennifer Greene,* Applied Software Project Management *(O'Reilly, 2005), Chapter 5 (Reviews) and Chapter 6 (Software Requirements). Specifically: the SRS development script's deskcheck → walkthrough → inspection iteration, the SRS Inspection Checklist, the inspection role/process taxonomy.*
