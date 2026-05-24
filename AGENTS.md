@@ -204,23 +204,7 @@ Phase-1-only as a default is the v1.5.3 legacy invocation behavior, restored onl
 
 **This is the canonical Phase 0 for any interactive Mode A run** (Claude Code, Cursor, Copilot UI, Codex desktop — any session where the operator watches your chat). SKILL.md's Mode A intro points here; this section is the full protocol. **Installing the skill into the target is a MANDATORY first action — not implicit in "run the playbook".**
 
-0. **Print the FULL attribution banner immediately after the skill loads, as the first content of your first response** (v1.5.7 090k + 090l refinement). The moment the Quality Playbook skill is loaded (after Claude Code / your host CLI reports "Successfully loaded skill" or equivalent), the **very first content of your first response — before any plan/explanation/Phase 0 work — must be the FULL canonical attribution block, reproduced verbatim, byte-for-byte matching `bin/_purpose.print_attribution_banner()`**:
-
-   ```
-   ================================================================================
-     Quality Playbook — by Andrew Stellman
-     https://github.com/andrewstellman/quality-playbook
-
-     AI code review is good. Quality engineering is better.
-     Because code that looks right can still do the wrong thing.
-
-     Licensed under the Apache License, Version 2.0
-   ================================================================================
-   ```
-
-   **Do NOT condense, abbreviate, summarize, or reformat this block.** Reproduce all eight lines including the two `===…===` rules, the URL, both taglines, the blank lines, and the license line — exactly as shown. **Do NOT add a version number** (no `v1.5.7` token in the block — match `_purpose` exactly). Print it **exactly once** per QPB run — anchored to the deterministic skill-load trigger, NOT to "run start" / "phase boundary" / any later turn. Do NOT reprint at later phase transitions in the same session.
-
-   The single source of truth for the banner wording is `bin/_purpose.py` (`BANNER_*` constants + `print_attribution_banner()`); the block above must continue to match it byte-for-byte. This pairs with the install-time banner (089j / 090a) so adopters see attribution at both install time (via the CLI / `install_skill`) AND at skill-load (when a Mode-A agent picks up the playbook). The 2026-05-24 openfga-run3 npm-channel Mode-A dogfood surfaced the original gap (no banner at run); a follow-up live OpenFGA Mode-A run surfaced the 090l refinement (agent emitted a condensed two-line banner instead of the full block — fixed by the explicit "do not condense" rule above).
+(The Mode-A skill-load attribution banner — full canonical block, byte-for-byte matching `bin/_purpose.print_attribution_banner()` — is the SKILL.md MANDATORY FIRST ACTION; see SKILL.md, not here. v1.5.7 090m moved the directive to its real surface — 090k/090l's parallel directives here and in `phase_prompts/phase1.md` were redundant since SKILL.md is the file the agent reads at skill-load.)
 
 1. **Read `SKILL.md` from this repo** (the QPB source clone) to learn the Mode A walkthrough.
 2. **Install the skill into your target (validator-first — v1.5.7 077/077b/078)**: run the Phase 0 install validator, `python3 <qpb-clone>/bin/qpb_validate.py <target-repo>` (it also works from an installed location). Paste every emitted `event=` line into chat verbatim, including the run-nonce. Branch on the outcome:

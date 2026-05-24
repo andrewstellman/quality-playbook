@@ -295,22 +295,17 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # Hashes recomputed — this baseline update IS the sanctioned
         # change-acknowledgement signal.
         # v1.5.7 090k: phase1.md gained the run-start attribution
-        # banner directive (canonical 80-wide BANNER_TEXT block +
-        # "print once at run start, do NOT reprint" + "v1.5.7 090k
-        # — Mode A only" framing) so channel-installed Mode A agents
-        # see the directive even though AGENTS.md is not bundled.
-        # Surfaced by the 2026-05-24 openfga-run3 dogfood (npm-channel
-        # Mode A; agent began the run with no attribution banner).
-        # v1.5.7 090l: rewrote the directive to anchor printing to
-        # immediately-after-skill-load (first content of first
-        # response) and to explicitly forbid condensing the banner
-        # block (surfaced by a follow-up live OpenFGA Mode-A run
-        # that emitted a 2-line condensed banner instead of the
-        # full canonical block). Codepoints 27855 → 28176
-        # (no_seeds_True), 27658 → 27979 (no_seeds_False); hashes
-        # recomputed.
-        "phase1_no_seeds_True":  (28176, "aff3a53aa5231914a83f0aa821cd4d12f38bc9d9b423ddd46ee022c6f0e4d660"),
-        "phase1_no_seeds_False": (27979, "fa7a60d2cdc0a2f3fdae6427dbad4436b5fdadb7be6ad9239360904f54427709"),
+        # banner directive so channel-installed Mode A agents see
+        # it (the openfga-run3 dogfood found no banner emitted).
+        # 090l rewrote that directive (condensed→full, skill-load
+        # anchor). v1.5.7 090m REMOVED the directive entirely:
+        # root-cause analysis showed SKILL.md (the file actually
+        # read at skill-load) is the correct surface; phase1.md +
+        # AGENTS.md were the wrong place all along. With the
+        # directive removed, the hashes return to their pre-090k
+        # baseline (27026 no_seeds_True, 26829 no_seeds_False).
+        "phase1_no_seeds_True":  (27026, "42010af537fa2d1bde614f791e2bd5a2b82b506a4d43cfa1b69f04268533d605"),
+        "phase1_no_seeds_False": (26829, "daf228a20f85f5a65ef6efaaa3b8acc7457d27313bff5c555d3a85cbc70de1eb"),
         # v1.5.7 instruction 073 Item-4 (A-19): phase2.md gained the
         # httpx-2026-05-17 missing-manifests warning (validator now
         # FAILs on ABSENT manifests, not just wrong-shape; agent must

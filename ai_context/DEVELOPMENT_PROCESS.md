@@ -96,6 +96,10 @@ When the orchestrating AI reports state to Andrew, each of these rules is about 
 - **Don't claim "100% complete" without an audit** (don't over-claim confidence about scope completeness). When asked "is X complete?" — verify against canonical sources before answering yes. Cowork has a documented pattern of dropping things; never trust the orchestrator's recall as a completeness signal.
 - **Don't conflate AI identities** (don't over-claim confidence about which agent did what). Codex desktop, Claude Code, and Cowork are distinct agents with distinct roles; codex desktop is the empirical-bootstrap agent, Claude Code is the development-session agent, Cowork is the orchestrating chat agent. Sloppy attribution causes confusion when reviewing artifacts later.
 
+### SKILL.md token-ceiling discipline
+
+`bin/tests/test_skill_md_size.py` pins SKILL.md below a BPE (cl100k_base) token ceiling — currently **32,000** (v1.5.7 instruction 090m). **This ceiling is an arbitrary, owner-chosen soft tripwire — NOT a hard technical limit.** It exists to catch unintended SKILL.md bloat, and is bumped DELIBERATELY when a change is worth the tokens. Per the 090m owner note: *"If an extra 2k tokens make a difference we're probably dealing with a far too limited AI to do this work anyway."* When a SKILL.md edit breaches the ceiling, the question is "is this change worth the tokens?" — if yes, bump the ceiling here (with a one-line rationale appended to the test's module docstring, the same way prior widenings were documented); if no, trim references/*.md or SKILL.md content. The bound is operational hygiene, not a model-capability constraint.
+
 ---
 
 ## 2. Rationale

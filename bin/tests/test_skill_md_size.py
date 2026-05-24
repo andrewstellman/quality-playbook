@@ -1,20 +1,47 @@
-"""v1.5.7 Phase 7: pin SKILL.md size below the <30K design target.
+"""v1.5.7: pin SKILL.md size below an OWNER-CHOSEN ARBITRARY SOFT
+TRIPWIRE.
 
-Acceptance criteria from instruction 025: SKILL.md BPE token count
-below 30K. Phase 7 trim achieved 26,162 BPE (cl100k_base). Instruction
-058 (A-11) then added the layout-aware `PYTHONPATH=<install_root>`
-Phase 1 invocation guidance to SKILL.md, re-growing it to **27,943
-BPE** post-trim. Instruction 062 widened the ceiling 28,000 → 29,000
-BPE: the prior 28,000 pin left only ~57 BPE of live headroom (any
-incremental SKILL.md prose edit would have reddened the suite — the
-instruction-061 Council Lens-1 fragility finding); 29,000 restores
-~1,057 BPE of headroom while still hard-blocking any change that
-would breach the <30K design target.
+**This ceiling is an arbitrary, owner-chosen soft tripwire — NOT a
+hard technical limit.** It exists to catch unintended SKILL.md
+bloat, and is bumped DELIBERATELY when a change is worth the
+tokens. Per the v1.5.7 090m owner note: *"If an extra 2k tokens
+make a difference we're probably dealing with a far too limited AI
+to do this work anyway"* — i.e. the bound is operational hygiene,
+not a model-capability constraint.
 
-If a future SKILL.md edit legitimately grows the file past 29,000
-(new orchestration content), update the pin AND the no-orphaned-
-pointer test below to match — and re-check references/*.md for
-further trim opportunities rather than only widening the ceiling.
+History:
+- Acceptance criterion from instruction 025: SKILL.md BPE token
+  count below 30K. Phase 7 trim achieved 26,162 BPE (cl100k_base).
+- Instruction 058 (A-11) added the layout-aware
+  `PYTHONPATH=<install_root>` Phase 1 invocation guidance to
+  SKILL.md, re-growing it to ~27,943 BPE.
+- Instruction 062 widened the ceiling 28,000 → 29,000 BPE (the
+  prior 28,000 pin left only ~57 BPE of live headroom — the
+  instruction-061 Council Lens-1 fragility finding).
+- Instruction 089b F11 widened it 29,000 → 29,500 (3
+  STOP→default-continue inversions, ~29,156 BPE).
+- Instruction 089d F21 widened it 29,500 → 30,000 (the design-
+  target hard ceiling): the F21 fix documents 3 by-design Mode A
+  vs Mode B asymmetries, growing SKILL.md to ~29,823 BPE.
+- **Instruction 090m** widened it 30,000 → 32,000 because the
+  MANDATORY FIRST ACTION banner went from a condensed 2-line
+  blockquote (which the agent was producing literally at skill-
+  load, defeating the install-time attribution) to the full
+  canonical 8-line block matching `bin/_purpose.BANNER_TEXT`
+  (+~170 BPE). The owner's accompanying decision: this ceiling
+  is arbitrary, not a design target; bump it whenever a change
+  is worth the tokens. The 32,000 bound leaves ~1,900 BPE of
+  headroom over the live ~30,113 BPE; future edits widen the
+  ceiling DELIBERATELY (with a one-line rationale appended here),
+  the same way prior widenings were documented.
+
+If a future SKILL.md edit legitimately grows the file past
+32,000, update the pin to match, add a one-line rationale here
+explaining why the change was worth the tokens, and re-check
+references/*.md for further trim opportunities — but understand
+that "we breached the ceiling" is NOT a forcing function on its
+own; the question is always "is this change worth the tokens?"
+The bump is the answer when the answer is yes.
 """
 
 from __future__ import annotations
@@ -30,27 +57,34 @@ REFERENCES_DIR = Path(__file__).resolve().parents[2] / "references"
 
 class SkillMdSizeTests(unittest.TestCase):
     def test_skill_md_bpe_token_count_under_threshold(self) -> None:
-        """SKILL.md stays under the 29,000 BPE (cl100k_base) ceiling
-        — well below the <30K design target.
+        """SKILL.md stays under the 32,000 BPE (cl100k_base) ceiling
+        — an arbitrary, owner-chosen soft tripwire (v1.5.7 090m).
+
+        See the module docstring for the full ceiling-history prose
+        and the rationale for treating this bound as a soft
+        tripwire (not a hard technical limit).
 
         Mutation-test evidence (in-tree per
-        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-062
-        (closing the instruction-061 Council Lens-1 test-fragility
-        finding):
+        ai_context/DEVELOPMENT_PROCESS.md):
           Mutation: drop the ceiling below the live SKILL.md size —
-          set the `assertLess` bound to `27500` (live SKILL.md is
-          27,943 BPE post-A-11).
+          set the `assertLess` bound to `30000` (live SKILL.md is
+          ~30,113 BPE post-090m; the 32,000 bound provides ~1,887
+          BPE headroom).
           Expected failure: THIS test fails with
-            AssertionError: SKILL.md is 27943 BPE tokens — exceeds
-            the v1.5.7 size ceiling (27500). ...
-          (dropping back to 28,000 is NOT a useful bite — 27,943 <
-          28,000 so it would still pass; the bite must use a bound
-          below the live size to actually flip the test).
-          Restoration: re-set the ceiling to 29,000; test passes
-          (27,943 < 29,000, ~1,057 BPE headroom).
-          Bite executed during instruction-062 development;
-          PASS→FAIL→PASS confirmed (__pycache__ purged between
-          mutate and restore).
+            AssertionError: SKILL.md is 30113 BPE tokens — exceeds
+            the v1.5.7 size ceiling (30000 — an arbitrary, owner-
+            chosen soft tripwire …).
+          (Returning to 31,000 would also fail by the same logic;
+          a useful bite is any value below the live size. A bite
+          that uses a value strictly above the live size — e.g.
+          33,000 — is NOT useful because the test would still
+          pass under either the original 32,000 bound or the
+          mutated one.)
+          Restoration: re-set the ceiling to 32,000; test passes
+          (30,113 < 32,000).
+          Mutation strategy unchanged from prior bumps — any future
+          widening adds a one-line history bullet to the module
+          docstring and keeps this mutation-evidence form.
         """
         try:
             import tiktoken
@@ -59,33 +93,30 @@ class SkillMdSizeTests(unittest.TestCase):
         enc = tiktoken.get_encoding("cl100k_base")
         text = SKILL_MD.read_text(encoding="utf-8")
         token_count = len(enc.encode(text))
-        # Phase 7 trim achieved 26,162 BPE; instruction 058 (A-11)
-        # re-grew SKILL.md to 27,943 BPE post-trim (layout-aware
-        # Phase 1 invocation guidance). Instruction 062 widened this
-        # ceiling 28,000 → 29,000 (Council-061 Lens-1 fragility
-        # finding; ~1,057 BPE headroom). v1.5.7 instruction 089b F11
-        # widened it 29,000 → 29,500: 3 STOP→default-continue
-        # inversions, ~29,156 BPE. v1.5.7 instruction 089d F21
-        # widened it 29,500 → 30,000 (the design-target hard
-        # ceiling): the F21 fix documents 3 by-design Mode A vs
-        # Mode B asymmetries (Phase 0 install-validator, end-of-run
-        # archive, Phase 6 auditor-prompt sub-agent dispatch — see
-        # SKILL.md "Documented Mode A vs Mode B asymmetries"),
-        # growing SKILL.md to ~29,823 BPE. Instruction-089d
-        # explicitly directs documenting the asymmetries; 30,000 IS
-        # the <30K design target — any further growth must trim
-        # references/*.md OR cut SKILL.md content rather than widen
-        # the ceiling. A references/ trim pass to reclaim headroom
-        # is deferred (orchestrator / v1.6.x — out of 089d's
-        # finding-scoped remit).
+        # Ceiling history (see module docstring for full prose):
+        # 28,000 → 29,000 (062 Lens-1 fragility), → 29,500 (089b
+        # F11), → 30,000 (089d F21). v1.5.7 090m widened it
+        # 30,000 → 32,000 because the MANDATORY FIRST ACTION
+        # banner went from a condensed 2-line blockquote to the
+        # full 8-line canonical banner block matching
+        # `bin/_purpose.BANNER_TEXT` byte-for-byte. The owner's
+        # accompanying decision: **this ceiling is an arbitrary,
+        # owner-chosen soft tripwire — not a hard technical
+        # limit.** It catches unintended bloat; bump it
+        # deliberately when a change is worth the tokens. (Per
+        # the 090m owner note: "if an extra 2k tokens make a
+        # difference we're probably dealing with a far too
+        # limited AI to do this work anyway.")
         self.assertLess(
-            token_count, 30000,
+            token_count, 32000,
             f"SKILL.md is {token_count} BPE tokens — exceeds the "
-            f"v1.5.7 size ceiling (30000 = the <30K design target "
-            f"hard ceiling). The ceiling is at-design-target — any "
-            f"further growth must come from trimming references/*.md "
-            f"or SKILL.md content. Do NOT widen the ceiling above "
-            f"30K without an explicit design decision."
+            f"v1.5.7 size ceiling (32000 — an arbitrary, owner-"
+            f"chosen soft tripwire, not a hard technical limit). "
+            f"If the SKILL.md growth is intentional and worth the "
+            f"tokens, bump the ceiling here with a one-line "
+            f"rationale appended to the module docstring (see "
+            f"history of prior bumps for the canonical form). "
+            f"Otherwise trim references/*.md or SKILL.md content."
         )
 
 
