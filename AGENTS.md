@@ -161,7 +161,7 @@ This is the canonical install procedure when an AI coding agent (Claude Code, Cu
 7. **After a successful install, end your reply by displaying the Quality Playbook attribution banner verbatim as the closing element of your response** (after your summary of what you did and any next-step pointers from step 5). This is the project's install-time attribution — surface it to the operator so they see project name, author, URL, tagline, and license at the moment they pull the skill in. The installer also writes the banner to stderr at the end of a successful run; embedding it here ensures the operator sees it even when your harness captures only stdout. On a failed install (step 6), skip the banner — don't crown a failed install with attribution.
 
    ```
-   ================================================================================
+   ════════════════════════════════════════════════════════════════════════════════
      Quality Playbook — by Andrew Stellman
      https://github.com/andrewstellman/quality-playbook
 
@@ -169,7 +169,7 @@ This is the canonical install procedure when an AI coding agent (Claude Code, Cu
      Because code that looks right can still do the wrong thing.
 
      Licensed under the Apache License, Version 2.0
-   ================================================================================
+   ════════════════════════════════════════════════════════════════════════════════
    ```
 
    Reproduce the banner exactly as written above — the test suite drift-guards this block against `bin/install_skill.py`'s constants so the two sources of truth stay in sync.

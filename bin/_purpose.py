@@ -79,7 +79,7 @@ BANNER_TAGLINE: tuple[str, str] = (
 )
 BANNER_LICENSE: str = "Apache License, Version 2.0"
 BANNER_BOX_WIDTH: int = 80
-BANNER_BOX_RULE: str = "=" * BANNER_BOX_WIDTH
+BANNER_BOX_RULE: str = "═" * BANNER_BOX_WIDTH  # U+2550 BOX DRAWINGS DOUBLE HORIZONTAL — Markdown-inert (not setext H1, not a thematic break); v1.5.7 090n cosmetic fix so the bottom rule under the license line doesn't render as a heading when an agent emits the banner as Markdown at skill-load.
 
 BANNER_TEXT: str = (
     f"{BANNER_BOX_RULE}\n"

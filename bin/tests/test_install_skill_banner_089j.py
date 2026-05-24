@@ -170,20 +170,25 @@ class BannerOnStderrTests(unittest.TestCase):
             install_skill._BANNER_LICENSE,
             "Apache License, Version 2.0",
         )
-        # 089l: box rule is exactly 80 `=` chars (width pin to catch
+        # 089l: box rule is exactly 80 chars wide (width pin to catch
         # accidental width regressions).
+        # v1.5.7 090n: rule character changed from `=` to `═`
+        # (U+2550 BOX DRAWINGS DOUBLE HORIZONTAL) so the bottom rule
+        # under the license line doesn't render as a Markdown setext
+        # H1 when an agent emits the banner as Markdown at skill-load.
         self.assertEqual(install_skill._BANNER_BOX_WIDTH, 80)
-        self.assertEqual(install_skill._BANNER_BOX_RULE, "=" * 80)
+        self.assertEqual(install_skill._BANNER_BOX_RULE, "═" * 80)
         # Banner text contains the 80-wide rule line, exactly twice
         # (top + bottom).
         rendered_lines = install_skill._BANNER_TEXT.splitlines()
         rule_lines = [
-            line for line in rendered_lines if line == "=" * 80
+            line for line in rendered_lines if line == "═" * 80
         ]
         self.assertEqual(
             len(rule_lines), 2,
-            f"089l: banner must have exactly two 80-`=` box rules "
-            f"(top + bottom). Found: {rule_lines!r}",
+            f"089l/090n: banner must have exactly two 80-wide box "
+            f"rules using `═` (U+2550), top + bottom. Found: "
+            f"{rule_lines!r}",
         )
         # And NO line is exactly 60 `=` (regression guard against
         # the pre-089l box width). The 60-`=` substring DOES appear
@@ -372,11 +377,12 @@ class BannerPlacement089kTests(unittest.TestCase):
                            "stderr must contain the banner")
         # 089l: pin to the FULL 80-wide rule (exact equality) — this
         # catches both a width regression AND a missing closing
-        # border in one assertion.
+        # border in one assertion. v1.5.7 090n: rule char is now
+        # `═` (U+2550) — Markdown-inert.
         self.assertEqual(
-            stderr_lines[-1], "=" * 80,
-            f"089l: stderr's last non-empty line must be the "
-            f"banner's closing box border (80 `=`), not "
+            stderr_lines[-1], "═" * 80,
+            f"089l/090n: stderr's last non-empty line must be the "
+            f"banner's closing box border (80 `═` chars, U+2550), not "
             f"{stderr_lines[-1]!r}",
         )
 
@@ -556,20 +562,23 @@ class BannerAgentsMdDriftGuard089kTests(unittest.TestCase):
 
     def test_banner_box_rule_is_80_wide_in_agents_md(self) -> None:
         """089l: the box rule embedded in AGENTS.md must be exactly
-        80 `=` chars (matching install_skill._BANNER_BOX_WIDTH)."""
+        80 chars (matching install_skill._BANNER_BOX_WIDTH).
+        v1.5.7 090n: rule char is now `═` (U+2550) — Markdown-inert
+        so the bottom rule under the license line doesn't render
+        as a setext H1 when the banner is emitted as Markdown."""
         agents_lines = self._extract_banner_from_agents_md()
         self.assertGreater(len(agents_lines), 0)
         # First and last non-empty lines should be the 80-wide rule.
         non_empty = [line for line in agents_lines if line.strip()]
         self.assertEqual(
-            non_empty[0], "=" * 80,
-            f"089l: AGENTS.md banner's opening box rule must be "
-            f"exactly 80 `=` chars, not {non_empty[0]!r}",
+            non_empty[0], "═" * 80,
+            f"089l/090n: AGENTS.md banner's opening box rule must "
+            f"be exactly 80 `═` chars (U+2550), not {non_empty[0]!r}",
         )
         self.assertEqual(
-            non_empty[-1], "=" * 80,
-            f"089l: AGENTS.md banner's closing box rule must be "
-            f"exactly 80 `=` chars, not {non_empty[-1]!r}",
+            non_empty[-1], "═" * 80,
+            f"089l/090n: AGENTS.md banner's closing box rule must "
+            f"be exactly 80 `═` chars (U+2550), not {non_empty[-1]!r}",
         )
 
 
