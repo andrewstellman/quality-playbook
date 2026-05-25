@@ -46,17 +46,20 @@ class CommandConstructionTests(unittest.TestCase):
         self.assertIn("--verbose", cmd)
         self.assertEqual(cmd[-1], "do thing")
 
-    def test_phase1_rejects_non_claude_runner(self) -> None:
-        """Phase 1 supports CLAUDE only. Other runners raise
-        RunnerError with a clear "Phase 5" message so a case
-        author trying to test a multi-runner case in advance
-        gets useful feedback."""
-        with self.assertRaises(R.RunnerError) as ctx:
-            R._command_for_axes(_mk_axes(S.Runner.CODEX),
-                                  "prompt")
-        self.assertIn("Phase 5", str(ctx.exception))
+    def test_codex_adapter_now_supported_post_095(self) -> None:
+        """v1.5.7 095 Phase 5 lifted the Phase 1 claude-only
+        restriction; codex / copilot / cursor adapters are now
+        supported. The Phase-1 rejection-message tests were
+        replaced by the broader-adapter coverage in
+        test_runner_adapters_095.py."""
+        cmd = R._command_for_axes(_mk_axes(S.Runner.CODEX),
+                                    "prompt")
+        # codex command starts with 'codex exec --full-auto'
+        self.assertEqual(cmd[:3], ["codex", "exec", "--full-auto"])
 
-    def test_phase1_rejects_non_clone_channel(self) -> None:
+    def test_non_clone_channel_still_rejected(self) -> None:
+        """Channel coverage stays at Phase 1's CLONE only —
+        local-wheel/local-tgz are Phase 2, registry is Phase 6."""
         axes = S.RunAxes(
             runner=S.Runner.CLAUDE, mode=S.Mode.A,
             install_channel=S.InstallChannel.PIP_LOCAL_WHEEL,
@@ -95,7 +98,7 @@ class TimeoutKillTests(unittest.TestCase):
         """
         # Inject: a sleep 60s command, with a tight max-duration so
         # the kill path is exercised in under 5 seconds.
-        def _fake_cmd(axes: S.RunAxes, prompt: str) -> "list[str]":
+        def _fake_cmd(axes: S.RunAxes, prompt: str, target_dir=None) -> "list[str]":
             return ["sleep", "60"]
 
         R._command_for_axes = _fake_cmd  # type: ignore[assignment]
@@ -125,7 +128,7 @@ class TimeoutKillTests(unittest.TestCase):
         ``terminal_state=COMPLETED`` (Phase 1 routes by exit code;
         Phase 2's grader will re-classify by gate-verdict presence).
         """
-        def _fake_cmd(axes: S.RunAxes, prompt: str) -> "list[str]":
+        def _fake_cmd(axes: S.RunAxes, prompt: str, target_dir=None) -> "list[str]":
             return ["true"]
 
         R._command_for_axes = _fake_cmd  # type: ignore[assignment]
@@ -145,7 +148,7 @@ class TimeoutKillTests(unittest.TestCase):
 
     def test_nonzero_exit_routes_to_failed(self) -> None:
         """A subprocess that exits non-zero → ``FAILED``."""
-        def _fake_cmd(axes: S.RunAxes, prompt: str) -> "list[str]":
+        def _fake_cmd(axes: S.RunAxes, prompt: str, target_dir=None) -> "list[str]":
             return ["false"]
 
         R._command_for_axes = _fake_cmd  # type: ignore[assignment]
@@ -166,7 +169,7 @@ class TimeoutKillTests(unittest.TestCase):
         """A subprocess's stdout is captured to
         ``run_dir/stream.ndjson`` (raw — never committed; the
         ``runs/`` gitignore handles that)."""
-        def _fake_cmd(axes: S.RunAxes, prompt: str) -> "list[str]":
+        def _fake_cmd(axes: S.RunAxes, prompt: str, target_dir=None) -> "list[str]":
             return [sys.executable, "-c",
                      "import sys; sys.stdout.write('hello\\nworld\\n'); sys.stdout.flush()"]
 

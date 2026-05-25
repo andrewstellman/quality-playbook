@@ -23,6 +23,7 @@ import json
 import os
 import signal
 import subprocess
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -30,6 +31,7 @@ from pathlib import Path
 
 from bin.harness.schema import (
     InstallChannel,
+    Mode,
     RunAxes,
     Runner,
     TerminalState,
@@ -39,14 +41,18 @@ from bin.harness.schema import (
 class RunnerError(RuntimeError):
     """A runner adapter call failed for a non-timeout reason
     (e.g. claude CLI is not on PATH, or the channel is not yet
-    supported in Phase 1)."""
+    supported)."""
 
 
-# Phase 1: only the CLAUDE adapter is wired. The others are
-# rejected at runtime with a clear "Phase 5" message; the schema
-# enum has them so cases can be authored in advance.
-_PHASE1_RUNNERS = {Runner.CLAUDE}
-_PHASE1_CHANNELS = {InstallChannel.CLONE}
+# Phases supported by the current runner implementation:
+#   * Phase 1 (091): claude adapter, clone channel.
+#   * Phase 5 (095): codex / copilot / cursor adapters + Mode B
+#     reuse of ``bin.run_playbook`` for each.
+# Channel coverage is still Phase 1's ``clone`` only — Phase 2
+# wires local-wheel/local-tgz; Phase 6 wires registry.
+_SUPPORTED_RUNNERS = {Runner.CLAUDE, Runner.CODEX,
+                      Runner.COPILOT, Runner.CURSOR}
+_SUPPORTED_CHANNELS = {InstallChannel.CLONE}
 
 
 def _utc_now_iso() -> str:
@@ -57,9 +63,8 @@ def _utc_now_iso() -> str:
 
 @dataclass
 class LaunchSpec:
-    """Caller-supplied launch parameters. Phase 1 is intentionally
-    minimal — Phase 4's manager builds richer specs from queue
-    entries."""
+    """Caller-supplied launch parameters. The Phase 4 manager
+    builds richer specs from queue entries."""
     target_dir: Path
     run_dir: Path
     axes: RunAxes
@@ -108,16 +113,17 @@ def _claude_command(model: str, prompt: str,
                      thinking: "str | None" = None) -> "list[str]":
     """Build the claude CLI invocation for a Mode A run.
 
-    Uses the same flags QPB's existing ``run_playbook.py`` uses
-    (``--print``, ``--dangerously-skip-permissions``,
-    ``--model``). Stream is captured via ``--output-format
-    stream-json --verbose``, matching the design §G note that
-    "claude has clean stream-json --verbose".
+    Uses the same flags QPB's existing ``run_playbook.py``
+    ``command_for_runner`` uses (``-p``, ``--dangerously-skip-
+    permissions``, ``--model``). Stream is captured via
+    ``--output-format stream-json --verbose``, matching the
+    design §G note that "claude has clean stream-json --verbose".
 
     NOTE: ``thinking`` is reserved for axes parity but not yet
-    wired into the claude CLI invocation here (Phase 1 stays
-    minimal; Phase 5 broadens this when codex/copilot adapters
-    land and the thinking parameter shapes per-CLI).
+    wired into the claude CLI invocation — the production
+    `run_playbook.command_for_runner` doesn't pass it either;
+    when claude grows a stable thinking-effort flag, both this
+    helper and the production builder gain it together.
     """
     return [
         "claude",
@@ -130,25 +136,141 @@ def _claude_command(model: str, prompt: str,
     ]
 
 
-def _command_for_axes(axes: RunAxes, prompt: str) -> "list[str]":
-    """Phase 1: only claude+clone is supported. Anything else
-    raises a clear RunnerError so a case-author trying to author
-    a multi-runner case in advance gets a helpful message rather
-    than a cryptic subprocess failure.
+def _codex_command(model: str) -> "list[str]":
+    """v1.5.7 095 Phase 5: codex adapter. Mirrors
+    ``bin.run_playbook.command_for_runner`` for ``runner=codex``:
+    ``codex exec --full-auto`` reads the prompt from stdin when
+    no positional prompt is provided (codex-cli 0.125+). The
+    trailing ``"-"`` is the explicit stdin sentinel.
+
+    Caller must set ``stdin_input=prompt`` on the LaunchSpec so
+    the prompt reaches the subprocess on stdin (argv would hit
+    shell command-line length limits on long phase prompts).
     """
-    if axes.runner not in _PHASE1_RUNNERS:
+    command = ["codex", "exec", "--full-auto"]
+    if model:
+        command.extend(["-m", model])
+    command.append("-")
+    return command
+
+
+def _copilot_command(model: str, prompt: str) -> "list[str]":
+    """v1.5.7 095 Phase 5: copilot adapter. Mirrors the
+    ``copilot_resolver`` pattern from ``bin.run_playbook``: the
+    standalone ``copilot`` CLI is preferred when on PATH; the
+    deprecated ``gh copilot`` extension is the grace-period
+    fallback (089f).
+
+    The harness-side build is a soft-resolve: try the standalone
+    ``copilot``-with-``-p``-prompt form first, fall through to
+    ``gh copilot suggest`` only at launch time if the operator
+    explicitly opts in (the harness defaults to the canonical
+    standalone form per 089f).
+    """
+    command = ["copilot", "--model", model, "--allow-all-tools",
+                "-p", prompt]
+    return command
+
+
+def _cursor_command(model: str) -> "list[str]":
+    """v1.5.7 095 Phase 5: cursor adapter. Mirrors
+    ``bin.run_playbook.command_for_runner`` for ``runner=cursor``:
+    ``cursor agent --print --force`` reads the prompt from stdin
+    (cursor-cli 3.1+; do NOT pass ``-`` as a positional — cursor
+    treats it as the literal prompt content, unlike codex).
+    ``--force`` (alias ``--yolo``) skips confirmation prompts
+    for unattended runs.
+
+    Caller must set ``stdin_input=prompt`` on the LaunchSpec.
+    """
+    command = ["cursor", "agent", "--print", "--force"]
+    if model:
+        command.extend(["--model", model])
+    return command
+
+
+def _mode_b_command(runner: Runner, target_dir: Path,
+                     model: str) -> "list[str]":
+    """v1.5.7 095 Phase 5: Mode B reuses ``bin.run_playbook`` as
+    the canonical harness (per design §G — "run_playbook.py IS
+    the Mode B harness"). The shell-out invocation is:
+
+        python3 -m bin.run_playbook --<runner> --model <model> \
+            <target_dir>
+
+    The runner flag matches the run_playbook arg parser
+    (``--claude``/``--copilot``/``--codex``/``--cursor``);
+    ``--model`` is the per-runner model override. The harness
+    captures stream output the same way as Mode A; the difference
+    is just *who drives the phases* — Mode A is the CLI agent,
+    Mode B is the run_playbook harness.
+    """
+    flag = {
+        Runner.CLAUDE: "--claude",
+        Runner.CODEX: "--codex",
+        Runner.COPILOT: "--copilot",
+        Runner.CURSOR: "--cursor",
+    }[runner]
+    return [
+        sys.executable, "-m", "bin.run_playbook",
+        flag, "--model", model, str(target_dir),
+    ]
+
+
+def _needs_stdin_prompt(runner: Runner) -> bool:
+    """codex + cursor read the prompt on stdin (codex via the
+    ``-`` sentinel; cursor implicitly when no positional arg).
+    claude + copilot take the prompt on argv.
+
+    Mode B is the run_playbook harness — it consumes the prompt
+    internally and doesn't need a stdin pipe from the harness.
+    """
+    return runner in (Runner.CODEX, Runner.CURSOR)
+
+
+def _command_for_axes(axes: RunAxes, prompt: str,
+                       target_dir: "Path | None" = None
+                       ) -> "list[str]":
+    """v1.5.7 095 Phase 5: dispatch to the right adapter.
+
+    Mode A: per-runner CLI invocation (claude/codex/copilot/
+    cursor) with the prompt passed on argv (claude/copilot) or
+    stdin (codex/cursor — caller routes via
+    ``_needs_stdin_prompt``).
+
+    Mode B: ``python3 -m bin.run_playbook --<runner> --model
+    <model> <target_dir>`` — the run_playbook harness drives the
+    phases.
+    """
+    if axes.runner not in _SUPPORTED_RUNNERS:
         raise RunnerError(
-            f"runner {axes.runner.value!r} is not supported in "
-            f"Phase 1 (claude only); the {axes.runner.value} "
-            f"adapter lands in Phase 5."
+            f"runner {axes.runner.value!r} is not in the supported "
+            f"set {sorted(r.value for r in _SUPPORTED_RUNNERS)}"
         )
-    if axes.install_channel not in _PHASE1_CHANNELS:
+    if axes.install_channel not in _SUPPORTED_CHANNELS:
         raise RunnerError(
             f"install_channel {axes.install_channel.value!r} is "
-            f"not supported in Phase 1 (clone only); local-wheel/"
-            f"local-tgz land in Phase 2, registry in Phase 6."
+            f"not yet supported (clone only; local-wheel/local-tgz "
+            f"land in Phase 2, registry in Phase 6)."
         )
-    return _claude_command(axes.model, prompt, axes.thinking)
+    if axes.mode == Mode.B:
+        if target_dir is None:
+            raise RunnerError(
+                "Mode B requires target_dir (run_playbook drives "
+                "the phases against the target tree)"
+            )
+        return _mode_b_command(axes.runner, target_dir, axes.model)
+    # Mode A — per-runner Mode A invocation.
+    if axes.runner == Runner.CLAUDE:
+        return _claude_command(axes.model, prompt, axes.thinking)
+    if axes.runner == Runner.CODEX:
+        return _codex_command(axes.model)
+    if axes.runner == Runner.COPILOT:
+        return _copilot_command(axes.model, prompt)
+    if axes.runner == Runner.CURSOR:
+        return _cursor_command(axes.model)
+    # Unreachable given the _SUPPORTED_RUNNERS guard above.
+    raise RunnerError(f"runner {axes.runner!r} fell through dispatch")
 
 
 def _write_status(run_dir: Path, status: dict) -> None:
@@ -184,8 +306,17 @@ def launch_run(spec: LaunchSpec) -> LaunchResult:
     LaunchSpecs; this function stays a single-run primitive.
     """
     spec.run_dir.mkdir(parents=True, exist_ok=True)
-    cmd = _command_for_axes(spec.axes, spec.prompt)
+    cmd = _command_for_axes(spec.axes, spec.prompt,
+                              target_dir=spec.target_dir)
     cli_command = " ".join(cmd)
+    # v1.5.7 095 Phase 5: codex and cursor read the prompt on
+    # stdin (codex: via the ``-`` sentinel; cursor: implicitly
+    # when no positional arg). claude+copilot take it on argv.
+    # Mode B (run_playbook) handles its own prompt internally.
+    needs_stdin = (
+        spec.axes.mode != Mode.B
+        and _needs_stdin_prompt(spec.axes.runner)
+    )
 
     # Snapshot env at launch time — recorded in invocation.json so
     # the run is reproducible. Includes the vendor env var we set
@@ -224,7 +355,8 @@ def launch_run(spec: LaunchSpec) -> LaunchResult:
             cwd=str(spec.target_dir),
             stdout=stream_fp,
             stderr=subprocess.STDOUT,
-            stdin=subprocess.DEVNULL,
+            stdin=(subprocess.PIPE if needs_stdin
+                    else subprocess.DEVNULL),
             env=env,
             start_new_session=True,
         )
@@ -236,6 +368,16 @@ def launch_run(spec: LaunchSpec) -> LaunchResult:
             "exit_code": None,
             "terminal_state": None,
         })
+        # codex/cursor: write the prompt to stdin then close it.
+        if needs_stdin and proc.stdin is not None:
+            try:
+                proc.stdin.write(spec.prompt.encode("utf-8"))
+                proc.stdin.close()
+            except (BrokenPipeError, OSError):
+                # Subprocess died before we wrote the prompt —
+                # the wait() below will surface the exit code +
+                # FAILED terminal state.
+                pass
 
         terminal_state: TerminalState
         exit_code: int
@@ -287,9 +429,14 @@ __all__ = [
     "LaunchSpec",
     "LaunchResult",
     "launch_run",
-    # Exposed for tests + Phase 5 to reuse:
+    # Exposed for tests + downstream reuse:
     "_claude_command",
+    "_codex_command",
+    "_copilot_command",
+    "_cursor_command",
+    "_mode_b_command",
     "_command_for_axes",
+    "_needs_stdin_prompt",
     "_vendor_env_for",
     "_kill_process_tree",
 ]
