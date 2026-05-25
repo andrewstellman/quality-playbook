@@ -120,9 +120,17 @@ MARKER_TO_CLI = {
 }
 
 INSTALL_CLOSURE = [
-    # ---- Top-level skill files (2) ----
+    # ---- Top-level skill files (3 — v1.5.7 090u added
+    #      skill-template.gitignore so the
+    #      ``scaffolding_missing_gitignore`` remediation can point at
+    #      a real file on a channel install; pre-090u the file was at
+    #      the clone root only and channel adopters got the literal
+    #      ``<path-to-your-QPB-clone>/skill-template.gitignore``
+    #      placeholder, which they couldn't follow. 2026-05-25 Keto
+    #      run5 + NATS run2 root cause.) ----
     {"path": "SKILL.md", "kind": "skill_doc", "min_version": "1.5.7", "expected_sha256": None, "source_glob": None},
     {"path": "quality_gate.py", "kind": "gate_script", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "skill-template.gitignore", "kind": "scaffolding_template", "min_version": None, "expected_sha256": None, "source_glob": None},
 
     # ---- agents/ (3 — sorted glob "*.md", NOT "*.agent.md") ----
     {"path": "agents/calibration_orchestrator.md", "kind": "agent_file", "min_version": None, "expected_sha256": None, "source_glob": None},
@@ -190,15 +198,19 @@ INSTALL_CLOSURE = [
     {"path": "references/verification.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/what_just_happened.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
 ]
-# Total: 2 + 3 + 15 + 10 + 23 = 53 entries (v1.5.7 086 A-26: bin/
+# Total: 3 + 3 + 15 + 10 + 23 = 54 entries (v1.5.7 086 A-26: bin/
 # grew 10 → 13 — qpb_config / run_state_lib / validate_phase_artifacts;
 # v1.5.7 089 F8: references/ grew 22 → 23 — qpb_validate_event_schema.md
 # added, auto-bundled by _bundle_files()'s references/* glob;
 # v1.5.7 089x: bin/ grew 13 → 14 — _purpose.py; v1.5.7 090k: bin/ grew
 # 14 → 15 — qpb_validate.py added to the closure so the Phase 0
 # validator self-resolves at the install root after the 2026-05-24
-# openfga-run3 Mode-A dogfood). INSTALL_CLOSURE is the machine-derived
-# mirror of _bundle_files(), kept in lockstep per the drift test.
+# openfga-run3 Mode-A dogfood; v1.5.7 090u: top-level grew 2 → 3 —
+# skill-template.gitignore added so the scaffolding_missing_gitignore
+# remediation points at a real file on a channel install after the
+# 2026-05-25 Keto run5 + NATS run2 dogfoods). INSTALL_CLOSURE is the
+# machine-derived mirror of _bundle_files(), kept in lockstep per
+# the drift test.
 # Acceptance #11: set(e["path"]) == set(str(dst) for _, dst in _bundle_files()).
 
 INSTALL_SCAFFOLDING = [
@@ -447,11 +459,23 @@ FINDING_CATALOG = {
     "scaffolding_missing_gitignore": {
         "tool": "apply_gitignore_template",
         "severity": "remediable",
+        # v1.5.7 090u: <clone> → <root>. <root> resolves to the install
+        # root for BOTH layouts (clone: clone root with the file at top
+        # level; install: the install closure dir, now containing the
+        # file via the 090u Task A bundling). On a channel install
+        # pre-090u this rendered to the literal <path-to-your-QPB-
+        # clone> placeholder (channel adopters have no clone), so the
+        # remediation was unfollowable — root cause of the 2026-05-25
+        # Keto run5 + NATS run2 improvisations (gpt-5.3-codex searched
+        # for the file, didn't find it, then improvised an INCOMPLETE
+        # sentinel that omitted the `!quality/RUN_INDEX.md` negation).
+        # The _RUN_INSTALLER_* <clone> constants are UNCHANGED (those
+        # are correct as-is for the pip/npm channels).
         "commands": {
-            "macos": "cat <clone>/skill-template.gitignore >> <target>/.gitignore",
-            "linux": "cat <clone>/skill-template.gitignore >> <target>/.gitignore",
-            "windows_powershell": "Get-Content <clone>\\skill-template.gitignore | Add-Content <target>\\.gitignore",
-            "windows_cmd": "type <clone>\\skill-template.gitignore >> <target>\\.gitignore",
+            "macos": "cat <root>/skill-template.gitignore >> <target>/.gitignore",
+            "linux": "cat <root>/skill-template.gitignore >> <target>/.gitignore",
+            "windows_powershell": "Get-Content <root>\\skill-template.gitignore | Add-Content <target>\\.gitignore",
+            "windows_cmd": "type <root>\\skill-template.gitignore >> <target>\\.gitignore",
         },
         "rationale": "Target .gitignore absent or lacks the QPB sentinel block.",
         "verify_with": _revalidate_command(),
@@ -622,6 +646,13 @@ KIND_TO_FINDING_CODES = {
     "reference_file": ["install_partial", "install_absent"],
     "phase_prompt_file": ["install_partial", "install_absent"],
     "agent_file": ["install_partial", "install_absent"],
+    # v1.5.7 090u: skill-template.gitignore ships in the closure
+    # (top-level, alongside SKILL.md / quality_gate.py) so the
+    # ``scaffolding_missing_gitignore`` remediation can point at a
+    # real file on a channel install. Missing/unreadable behaviour
+    # is the same as the other presence-only closure kinds
+    # (skill_doc / reference_file): re-run the installer.
+    "scaffolding_template": ["install_partial", "install_absent"],
     # INSTALL_SCAFFOLDING kinds.
     "gitignore_scaffold": ["scaffolding_missing_gitignore"],
     "directory_scaffold": ["scaffolding_missing_reference_docs"],

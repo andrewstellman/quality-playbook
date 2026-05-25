@@ -728,7 +728,14 @@ class PathlibCrossPlatformTests(unittest.TestCase):
             # Track which top-level region the destination falls
             # under for the regions_seen set.
             top = dst.parts[0]
-            if top in ("SKILL.md", "quality_gate.py"):
+            if top in ("SKILL.md", "quality_gate.py",
+                       "skill-template.gitignore"):
+                # v1.5.7 090u: skill-template.gitignore joined the
+                # top-level bundle so the
+                # ``scaffolding_missing_gitignore`` remediation can
+                # point at <root>/skill-template.gitignore on a
+                # channel install (root cause of the 2026-05-25 Keto
+                # run5 + NATS run2 Phase-0 friction).
                 regions_seen.add(top)
             elif top in ("references", "phase_prompts", "agents", "bin"):
                 # v1.5.6 BUG-005: bin/ joined the bundle to ship
@@ -739,8 +746,9 @@ class PathlibCrossPlatformTests(unittest.TestCase):
             else:
                 self.fail(
                     f"unexpected top-level destination region: {top!r} "
-                    f"(in {dst!r}). Six regions are supported: "
-                    f"SKILL.md, quality_gate.py, references/, "
+                    f"(in {dst!r}). Seven regions are supported: "
+                    f"SKILL.md, quality_gate.py, "
+                    f"skill-template.gitignore, references/, "
                     f"phase_prompts/, agents/, bin/."
                 )
             # Joined with a Windows root, the result is a well-formed
@@ -774,9 +782,11 @@ class PathlibCrossPlatformTests(unittest.TestCase):
             )
         self.assertEqual(
             regions_seen,
-            {"SKILL.md", "quality_gate.py", "references",
+            {"SKILL.md", "quality_gate.py",
+             "skill-template.gitignore", "references",
              "phase_prompts", "agents", "bin"},
-            f"expected all six bundle regions; got {regions_seen}",
+            f"expected all seven bundle regions (v1.5.7 090u added "
+            f"skill-template.gitignore); got {regions_seen}",
         )
 
     def test_install_path_separator_independence(self) -> None:

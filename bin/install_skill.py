@@ -159,6 +159,12 @@ def _bundle_files_soft(
               / "quality_gate" / "quality_gate.py")
         if qg.is_file():
             files.append((qg, Path("quality_gate.py")))
+        # v1.5.7 090u: keep the soft-fallback parallel with the strict
+        # path so a freshness check against a partial clone still
+        # enumerates skill-template.gitignore when it's present.
+        sti = source_root / "skill-template.gitignore"
+        if sti.is_file():
+            files.append((sti, Path("skill-template.gitignore")))
         refs = source_root / "references"
         if refs.is_dir():
             for f in sorted(refs.glob("*.md")):
@@ -223,6 +229,21 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
             source_root / ".github" / "skills"
             / "quality_gate" / "quality_gate.py"),
          Path("quality_gate.py")),
+        # v1.5.7 090u: skill-template.gitignore ships in the install
+        # closure at the top level (alongside SKILL.md /
+        # quality_gate.py) so the
+        # ``scaffolding_missing_gitignore`` remediation in
+        # ``bin/qpb_validate.py`` can point at a REAL file on a
+        # channel install. Pre-090u the remediation referenced
+        # ``<clone>/skill-template.gitignore`` on a channel install
+        # (no clone present); root cause of the 2026-05-25 Keto
+        # run5 (Copilot / gpt-5.3-codex) + NATS run2 (Codex /
+        # gpt-5.2-low) Phase-0 friction. With the file shipped here
+        # AND the remediation flipped to ``<root>/`` (090u Task B),
+        # an adopter following the validator's command verbatim
+        # appends the full sentinel block on the first try.
+        (_require_bundle_file(source_root / "skill-template.gitignore"),
+         Path("skill-template.gitignore")),
     ]
     # v1.5.7 090b: references/ is mandatory (the bundled directory
     # ships the Phase 1 ingest sources; without it Phase 1 has
