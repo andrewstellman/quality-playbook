@@ -1294,6 +1294,204 @@ def _has_execution_signature(body):
     return any(sig in low for sig in _TDD_EXECUTION_SIGNATURES)
 
 
+# v1.5.7 090p: gate-level RED-validity check. A red receipt counts
+# as a valid RED only if its log shows the test actually executed
+# and failed — a test-level/assertion failure — NOT a
+# setup/build/dependency/collection failure. The 2026-05-24 Ory
+# Keto run2 (cold Go caches + network-restricted sandbox) reported
+# `RESULT: GATE PASSED` on three reds whose bodies were
+# `FAIL [setup failed]` / `lookup proxy.golang.org: no such host`
+# — a dependency-resolution failure proved nothing about whether
+# the bug exists, but the gate accepted any non-zero exit as a
+# satisfied red. 090p closes this hole mechanically (090o's prose-
+# side env-vs-real-RED guard is the prompt-side companion; 090p
+# is the gate-level backstop because run2 proved prose alone
+# doesn't bind).
+#
+# Conservative-direction guard: only reject reds matching a KNOWN
+# setup-failure signature AND lacking a recognized "genuine
+# test-level failure" signature. A non-zero red that is neither
+# (e.g. an unknown ecosystem's runner output) stays a genuine red
+# — the safety direction per 089m–q is "under-escalate ambiguity,
+# never wrongly fail an honest run." See _is_red_setup_failure
+# below for the exact decision rule.
+
+_RED_SETUP_FAILURE_SIGNATURES = (
+    # Go (the run2 trigger).
+    "[setup failed]",
+    "no such host",                 # proxy.golang.org / DNS
+    "dependency resolution failed",
+    "cannot find package",
+    "build failed",
+    "go: download",                  # go: download X: ...
+    "go: github.com/",               # go: github.com/.../...: cannot find module
+    "go: module ",
+    # pytest (collection-time failures).
+    "internalerror",                # pytest infra crash
+    "errors during collection",
+    "collection error",
+    "modulenotfounderror",
+    "importerror",
+    # Maven / Gradle / Java (build-side failures preceding any test run).
+    "could not resolve dependencies",
+    "unresolved dependency",
+    "build failure",                # also a Maven success-line sibling — paired with no genuine-fail signature below
+    # Generic (cargo / npm / others — best-effort).
+    "could not compile",
+    "could not download",
+    "network is unreachable",
+    "connection refused",
+    "connection timed out",
+)
+
+_RED_GENUINE_FAILURE_SIGNATURES = (
+    # Go — the canonical test-level failure shape.
+    "--- fail: test",
+    # pytest — the test-ran-and-failed nodeid line ("FAILED <path>::<test>").
+    "failed test",                  # pytest "FAILED test_x.py::test_y" line (case-insensitive)
+    "failed — ",               # em-dash form
+    # JUnit / Maven Surefire — explicit test-failure lines (not build failures).
+    "tests run:",                   # Surefire summary line; per 089q is an execution signature, also a genuine-test-ran marker
+    # cargo — explicit test-failure line.
+    "thread '",                     # "thread '<test name>' panicked at"
+)
+
+
+def _is_red_setup_failure(body):
+    """v1.5.7 090p Task A: True iff the red-receipt body looks like a
+    setup/build/dependency/collection failure — i.e. NOT a genuine
+    test-level assertion failure.
+
+    Decision rule (conservative direction per 089m–q):
+      * If the body contains ANY ``_RED_GENUINE_FAILURE_SIGNATURES``
+        substring → the test ran and failed (genuine RED); return
+        False even if a setup-failure substring is also present
+        (the runner output may legitimately mention "build failure"
+        in a multi-package run where some packages built and others
+        failed-after-running).
+      * Else, if the body contains ANY
+        ``_RED_SETUP_FAILURE_SIGNATURES`` substring → reject as
+        setup-failure; return True.
+      * Else → unrecognized shape; default to NOT a setup failure
+        (genuine red — under-escalate ambiguity per 089m–q).
+
+    Matched case-insensitive substring against the WHOLE body
+    (these signatures appear in real runner output, not in agent-
+    authored narration; the 089q summary-region scoping does not
+    apply here).
+    """
+    if not isinstance(body, str):
+        return False
+    low = body.lower()
+    # First, look for a genuine test-level failure signature. If
+    # present, this is NOT a setup failure regardless of any other
+    # signal (the test actually ran and failed).
+    for sig in _RED_GENUINE_FAILURE_SIGNATURES:
+        if sig in low:
+            return False
+    # Otherwise, look for setup-failure signatures.
+    for sig in _RED_SETUP_FAILURE_SIGNATURES:
+        if sig in low:
+            return True
+    return False
+
+
+# v1.5.7 090p Task B: extract the regression test's name from a
+# `BUG-NNN-regression-test.patch` file. Patterns recognize the
+# canonical Go (`func TestXxx(t *testing.T)`) and pytest
+# (`def test_xxx(`) test-definition lines that the patch adds.
+# Returns a list of test names (a patch may add more than one).
+# Conservative direction: if no name can be extracted, downstream
+# code falls back to the weaker "red and green use the same
+# targeted selector, not a bare whole-package run" check.
+
+import re as _090p_re
+
+_REGRESSION_TEST_NAME_PATTERNS = (
+    # Go: `+func TestXxx(t *testing.T)` (also tolerate `func (s *Suite) TestXxx`).
+    _090p_re.compile(
+        r"^\+\s*func(?:\s*\([^)]*\))?\s+(Test[A-Za-z0-9_]+)\s*\(",
+        _090p_re.MULTILINE,
+    ),
+    # pytest: `+def test_xxx(`
+    _090p_re.compile(
+        r"^\+\s*def\s+(test_[A-Za-z0-9_]+)\s*\(",
+        _090p_re.MULTILINE,
+    ),
+)
+
+
+def _extract_regression_test_names(patch_text):
+    """Return a sorted list of unique test-function names ADDED by
+    the regression-test patch. Handles Go `func TestXxx(...)` and
+    pytest `def test_xxx(...)` patterns scanned over patch-add
+    lines (`^+` prefix). Returns [] if nothing matches — caller
+    falls back to a conservative same-selector / no-bare-package
+    check.
+    """
+    if not isinstance(patch_text, str):
+        return []
+    names = set()
+    for pat in _REGRESSION_TEST_NAME_PATTERNS:
+        for m in pat.finditer(patch_text):
+            names.add(m.group(1))
+    return sorted(names)
+
+
+def _red_log_references_test_name(body, test_names):
+    """True iff the receipt body explicitly references at least one
+    of the patch-derived test names — in either the `Command:` line
+    (e.g. `go test -run TestXxx`, `pytest -k test_xxx`, an explicit
+    test-node id) or in the runner transcript (e.g. `--- FAIL:
+    TestXxx`, `FAILED test_x.py::test_xxx`). Case-insensitive
+    substring scan over the WHOLE body.
+    """
+    if not isinstance(body, str) or not test_names:
+        return False
+    low = body.lower()
+    return any(name.lower() in low for name in test_names)
+
+
+def _is_bare_package_run(body):
+    """v1.5.7 090p Task B (conservative fallback): True iff the
+    receipt's `Command:` line looks like a bare whole-package run —
+    no targeted test selector. Recognizes the run2 shape
+    `go test ./pkg` with NO `-run` flag, `pytest pkg/` with no
+    `-k`/nodeid, `cargo test` with no test-name filter, etc.
+
+    Used only when `_extract_regression_test_names` returned no
+    names (patch format the extractor doesn't recognize) — falls
+    back to "red and green must at least use the same targeted
+    selector, not a bare whole-package run."
+    """
+    if not isinstance(body, str):
+        return False
+    cmd_line = ""
+    for ln in body.splitlines():
+        ls = ln.strip().lower()
+        if ls.startswith("command:"):
+            cmd_line = ls[len("command:"):].strip()
+            break
+    if not cmd_line:
+        return False
+    # Tokens that ARE targeted selectors.
+    if any(tok in cmd_line for tok in (
+        "-run ", "-run=",            # go
+        "-k ", "-k=",                # pytest
+        "::test_", "::Test",         # pytest nodeids
+        "--test ",                   # cargo
+    )):
+        return False
+    # Heuristic for bare-package shapes (the run2 trigger):
+    if cmd_line.startswith("go test ") or " go test " in cmd_line:
+        return True
+    if cmd_line.startswith("pytest") and "::" not in cmd_line:
+        return True
+    if cmd_line.startswith("cargo test"):
+        return True
+    return False
+
+
 # v1.5.7 090g: phrases that mark a green NOT_RUN as legitimate
 # because the bug has no in-tree fix (e.g. an upgrade-only CVE
 # where the only remediation is a dependency bump). A receipt
@@ -1969,6 +2167,171 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
         fail(f"{green_bad_tag} green-phase log(s) missing valid first-line status tag (expected RED/GREEN/NOT_RUN/ERROR)")
     elif green_found > 0:
         pass_("All green-phase logs have valid status tags")
+
+    # v1.5.7 090p — GATE-LEVEL TDD RED VALIDITY: a red must be a
+    # genuine test-level failure, not a setup/build/dependency/
+    # collection failure; and the red/green must exercise the bug's
+    # named regression test (or, conservatively, the same targeted
+    # selector — not a bare whole-package run).
+    #
+    # The 2026-05-24 Ory Keto run2 (cold Go caches, network-
+    # restricted sandbox) reported GATE PASSED on TDD proofs of this
+    # shape: red `FAIL [setup failed] / lookup proxy.golang.org: no
+    # such host` (Exit 1) + green `ok pkg 0.398s` (Exit 0), with
+    # both red and green running an identical generic `go test
+    # ./ketoapi` regardless of where the bug actually lived. The
+    # gate accepted this because (1) any non-zero exit was a
+    # "satisfied red" and (2) there was no requirement that red/
+    # green exercise the bug's specific regression test. 090p
+    # closes both holes mechanically — 090o's phase5.md env-vs-
+    # real-RED guard is the prompt-side companion; 090p is the
+    # gate-level backstop because run2 proved prose alone doesn't
+    # bind.
+    #
+    # Routing rule: a red rejected as setup-failure is treated as
+    # NOT_RUN(environment) for the verdict-shape (090o
+    # remediation routes the operator to fix the environment and
+    # re-run Phases 5–6); the existing 089m NOT_RUN escalation
+    # (WARN if probe failed/ambiguous; FAIL if probe shows runner
+    # available — overclaim) then governs downstream. The bug
+    # does NOT count as TDD-proven.
+    #
+    # Conservative direction (per 089m–q): only rejection of a red
+    # matching a KNOWN setup-failure signature; an unrecognized
+    # non-zero red stays a genuine red (don't wrongly fail honest
+    # assertion-failure reds).
+
+    invalid_red_setup_failures = []           # (bid, signature_excerpt)
+    untied_red_green = []                     # (bid, reason)
+    bugs_invalidated_by_090p = set()          # bids whose TDD is rejected by 090p
+
+    for bid in bug_ids:
+        red_log = results_dir / f"{bid}.red.log"
+        green_log = results_dir / f"{bid}.green.log"
+        if not red_log.is_file():
+            continue
+        red_body = read_full_text(red_log)
+        red_tag = read_first_line_stripped(red_log)
+        # 090p does NOT apply to NOT_RUN reds — those are already
+        # routed through the 089m honesty path. 090p targets the
+        # RED tag specifically (a claimed test-level failure).
+        if red_tag != "RED":
+            continue
+
+        # Task A: is this red a setup-failure shape?
+        if _is_red_setup_failure(red_body):
+            invalid_red_setup_failures.append((bid, red_log.name))
+            bugs_invalidated_by_090p.add(bid)
+            # Don't double-fire the named-test check for the same
+            # bug — Task A's rejection already invalidates it.
+            continue
+
+        # Task B: does the red/green exercise the bug's named
+        # regression test? Try to extract test names from the
+        # regression-test patch; if extraction returns nothing,
+        # fall back to "not a bare whole-package run" + "red and
+        # green use the same targeted selector."
+        regression_patch = first_file_matching(
+            patches_dir,
+            [f"{bid}-regression-test*.patch", f"{bid}-regression*.patch"],
+        )
+        test_names = []
+        if regression_patch is not None:
+            try:
+                patch_text = read_full_text(regression_patch)
+            except Exception:
+                patch_text = ""
+            test_names = _extract_regression_test_names(patch_text)
+
+        # Need a green log to check the green side.
+        green_body = (
+            read_full_text(green_log) if green_log.is_file() else None
+        )
+
+        if test_names:
+            # Strong form: red and green must both reference at
+            # least one of the patch-derived test names.
+            red_refs = _red_log_references_test_name(red_body, test_names)
+            if not red_refs:
+                untied_red_green.append((
+                    bid,
+                    f"red log {red_log.name} does not reference any "
+                    f"patch-derived test name "
+                    f"({', '.join(test_names[:3])}"
+                    f"{'…' if len(test_names) > 3 else ''})",
+                ))
+                bugs_invalidated_by_090p.add(bid)
+            if green_body is not None:
+                green_refs = _red_log_references_test_name(
+                    green_body, test_names,
+                )
+                if not green_refs:
+                    untied_red_green.append((
+                        bid,
+                        f"green log {green_log.name} does not reference "
+                        f"any patch-derived test name "
+                        f"({', '.join(test_names[:3])}"
+                        f"{'…' if len(test_names) > 3 else ''})",
+                    ))
+                    bugs_invalidated_by_090p.add(bid)
+        else:
+            # Conservative fallback: red and green must not be bare
+            # whole-package runs.
+            if _is_bare_package_run(red_body):
+                untied_red_green.append((
+                    bid,
+                    f"red log {red_log.name} is a bare whole-package "
+                    f"run with no targeted test selector; cannot tie "
+                    f"to the bug's regression test",
+                ))
+                bugs_invalidated_by_090p.add(bid)
+            if green_body is not None and _is_bare_package_run(green_body):
+                untied_red_green.append((
+                    bid,
+                    f"green log {green_log.name} is a bare whole-"
+                    f"package run with no targeted test selector",
+                ))
+                bugs_invalidated_by_090p.add(bid)
+
+    # Emit per-bug failures with specific guidance.
+    for bid, log_name in invalid_red_setup_failures:
+        fail(
+            f"{log_name}: tagged RED but body is a setup/dependency/"
+            f"build/collection failure (e.g. '[setup failed]', 'no "
+            f"such host', 'dependency resolution failed', "
+            f"ImportError, collection ERROR). A red that fails "
+            f"because deps won't resolve proves nothing about "
+            f"whether the bug exists — the red→green transition "
+            f"is explained by deps becoming resolvable, not by the "
+            f"fix. v1.5.7 090p: setup-failure reds are NOT valid "
+            f"TDD evidence. Treat as NOT_RUN(environment) per the "
+            f"089m policy + 090o phase5 remediation: prepare the "
+            f"build / fix the environment, then re-run Phases 5–6 "
+            f"so the test can actually execute."
+        )
+    for bid, reason in untied_red_green:
+        fail(
+            f"{bid}: TDD red/green does not exercise the bug's "
+            f"specific regression test — {reason}. v1.5.7 090p: a "
+            f"red/green that does not exercise the bug's named "
+            f"regression test is not a valid TDD proof (the run "
+            f"could have passed for any number of reasons unrelated "
+            f"to the bug). Add a targeted selector (Go `-run "
+            f"<TestName>`, pytest `-k <name>` or nodeid) that "
+            f"matches the test added by "
+            f"`quality/patches/{bid}-regression-test.patch`."
+        )
+    if invalid_red_setup_failures:
+        fail(
+            f"{len(invalid_red_setup_failures)} TDD red receipt(s) "
+            f"rejected as setup/dependency/build failures (v1.5.7 "
+            f"090p — not valid REDs)."
+        )
+    if untied_red_green:
+        fail(
+            f"{len(untied_red_green)} TDD receipt(s) not tied to a "
+            f"bug-specific regression test (v1.5.7 090p)."
+        )
 
     # v1.5.7 089o/089q: resolve the Phase 5 runner-probe artifact
     # and its outcome ONCE, up front — both the 089q D2 positive-
