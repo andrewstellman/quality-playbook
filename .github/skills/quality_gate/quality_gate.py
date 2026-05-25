@@ -153,6 +153,28 @@ _FAIL_RECORDS = []
 # compat via the curated allowlist (Task D). Reset with the counters.
 _WARN_RECORDS: list[str] = []
 
+# v1.5.7 090w: per-repo run provenance for the operator verdict-
+# explanation layer. Each entry captures:
+#   - ``repo``: repo name (matches ``_ZERO_BUG_REPOS`` shape).
+#   - ``runner_detected``: runner detected from the EXECUTION
+#     environment (verified — CODEX_THREAD_ID / COPILOT_AGENT_
+#     SESSION_ID / CLAUDECODE → codex / copilot / claude-code, or
+#     ``unknown`` when none are set).
+#   - ``model_self_reported``: the ``model`` field from
+#     ``quality/results/run-*.json`` if present (LABELED as
+#     self-report — demonstrably unreliable; NATS run2 wrote
+#     "gpt-5.2" when the actual model was gpt-5.4).
+#   - ``bug_count_gate``: the gate's own confirmed bug count for
+#     this repo (verified — derived from BUG-NNN headings in
+#     BUGS.md).
+#   - ``bug_count_self_reported``: the ``bug_count`` field from
+#     run-metadata if present, else ``None``. NATS run2 wrote 0
+#     when the gate counted 3 (stale-metadata mismatch).
+# The verdict block renders one provenance block per entry with
+# explicit confidence labels (verified vs self-reported); a
+# self-report vs gate mismatch is flagged informationally.
+_RUN_PROVENANCE: list[dict] = []
+
 # Category context stack. @verdict_category pushes on call entry and
 # pops on exit; fail() reads the top (or an explicit category= override;
 # or VERDICT_SUBSTANTIVE when the stack is empty — conservative default).
@@ -364,6 +386,128 @@ def _has_environment_signal(fail_records) -> bool:
     return False
 
 
+# v1.5.7 090w — Run provenance (verified runner + labeled
+# self-reported model + gate-counted bugs).
+#
+# Motivated by the 2026-05-25 NATS run2 (gpt-5.4/medium via Codex
+# desktop): the run found 3 real bugs but ``quality/results/run-*.json``
+# still read ``"model": "gpt-5.2"`` and ``"bug_count": 0`` (the agent
+# wrote the template at the start and never updated it). Operators want
+# real provenance, but echoing the self-reported fields raw would print
+# confidently-wrong provenance. The fix: surface provenance with
+# explicit confidence labels, prefer gate-derived facts, and flag
+# self-report/gate mismatches.
+#
+# These environment variables are the SAME ones the dual-env test
+# harness keys off (see ``CODEX_THREAD_ID``/``COPILOT_AGENT_SESSION_ID``/
+# ``CLAUDECODE`` references in bin/tests). When more than one is set,
+# all detected runners are returned (joined with "+") so a mixed
+# environment is honestly reported, not collapsed to a guess.
+_RUNNER_ENV_MARKERS: "tuple[tuple[str, str], ...]" = (
+    ("CODEX_THREAD_ID", "codex"),
+    ("COPILOT_AGENT_SESSION_ID", "copilot"),
+    ("CLAUDECODE", "claude-code"),
+)
+
+
+def _detect_runner_from_env(env: "dict | None" = None) -> str:
+    """Return the runner detected from the execution environment.
+
+    Returns one of ``codex``/``copilot``/``claude-code``/``unknown``,
+    OR a "+"-joined string when more than one marker is present.
+    `env` defaults to ``os.environ`` (real execution); tests pass an
+    explicit dict.
+    """
+    if env is None:
+        env = os.environ
+    detected = [name for var, name in _RUNNER_ENV_MARKERS
+                if env.get(var)]
+    if not detected:
+        return "unknown"
+    if len(detected) == 1:
+        return detected[0]
+    return "+".join(detected)
+
+
+def _capture_run_provenance(q, repo_name: str, bug_count: int) -> None:
+    """Read ``quality/results/run-*.json`` (self-reported), combine
+    with the env-detected runner + the gate's bug count, and append
+    one entry to ``_RUN_PROVENANCE``. Defensive: missing /
+    unparseable / odd shapes still record a provenance entry (with
+    ``model_self_reported=None`` /
+    ``bug_count_self_reported=None``) — provenance is informational
+    only and never fails the gate.
+
+    The existing ``check_run_metadata`` is the FAIL/WARN-emitting
+    validator; this helper is read-only and additive — it never
+    emits FAIL/WARN, never alters ``exit_code``.
+    """
+    results_dir = _resolve_artifact_path(q, "results")
+    import glob as _glob
+    matches = _glob.glob(str(results_dir / "run-*.json"))
+    model_self_reported: "str | None" = None
+    bug_count_self_reported: "int | None" = None
+    if matches:
+        # Pick the lexicographically-last (the ISO-style timestamp
+        # makes lexsort equivalent to chronological). When
+        # check_run_metadata WARNs on multiple files, we still get
+        # SOME provenance — provenance is informational.
+        data = load_json(Path(sorted(matches)[-1]))
+        if isinstance(data, dict):
+            raw_model = data.get("model")
+            if isinstance(raw_model, str) and raw_model.strip():
+                model_self_reported = raw_model.strip()
+            raw_bc = data.get("bug_count")
+            if isinstance(raw_bc, int):
+                bug_count_self_reported = raw_bc
+    _RUN_PROVENANCE.append({
+        "repo": repo_name,
+        "runner_detected": _detect_runner_from_env(),
+        "model_self_reported": model_self_reported,
+        "bug_count_gate": bug_count,
+        "bug_count_self_reported": bug_count_self_reported,
+    })
+
+
+def _format_provenance_lines(entry: dict) -> "list[str]":
+    """Render a provenance entry as a list of lines for the verdict
+    block. The format mirrors the spec example shape:
+
+        Runner:  codex (detected from environment)
+        Model:   gpt-5.2 (self-reported by the agent — not verified)
+        Bugs:    3 found (gate-counted)   [run-metadata self-reported: 0 — mismatch]
+    """
+    lines: list[str] = []
+    runner = entry.get("runner_detected") or "unknown"
+    if runner == "unknown":
+        lines.append(
+            f"  Runner:  {runner} (no AI-CLI environment marker "
+            f"detected)"
+        )
+    else:
+        lines.append(
+            f"  Runner:  {runner} (detected from environment)"
+        )
+    model = entry.get("model_self_reported")
+    if model:
+        lines.append(
+            f"  Model:   {model} (self-reported by the agent — "
+            f"not verified)"
+        )
+    else:
+        lines.append("  Model:   not recorded")
+    gate_bc = entry.get("bug_count_gate", 0)
+    self_bc = entry.get("bug_count_self_reported")
+    bug_line = f"  Bugs:    {gate_bc} found (gate-counted)"
+    if self_bc is not None and self_bc != gate_bc:
+        bug_line += (
+            f"   [run-metadata self-reported: {self_bc} — "
+            f"mismatch; run metadata was not updated]"
+        )
+    lines.append(bug_line)
+    return lines
+
+
 # Narration table — keyed by classifier category; emits plain-
 # English explanation + remediation. Wording per the spec
 # (docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md §1.5.7).
@@ -405,7 +549,7 @@ _FAIL_NARRATION = {
 
 
 def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
-                            exit_code):
+                            exit_code, run_provenance=None):
     """v1.5.7 090v — print the operator-facing verdict-explanation
     block AFTER ``total_line`` + ``result_line``.
 
@@ -414,6 +558,13 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
     the return value). Subsumes the standalone 090s zero-bug NOTE
     by folding the message into the shallow-pass narration when
     applicable.
+
+    v1.5.7 090w: optional ``run_provenance`` (list of dicts from
+    ``_capture_run_provenance``) renders the "── Run provenance ──"
+    section — verified runner (env-detected), labeled self-reported
+    model, gate-counted bugs with a stale-metadata mismatch flag.
+    Provenance is informational only; never changes pass/fail
+    semantics.
 
     Spec: docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md
     """
@@ -575,6 +726,29 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
             for w in actionable:
                 excerpt = w.strip().splitlines()[0][:120]
                 print(f"  • {excerpt}")
+
+    # === Section 5: run provenance (v1.5.7 090w) ===
+    #
+    # One block per repo. The runner is VERIFIED (env-detected via
+    # the AI-CLI marker variables — the same ones the dual-env test
+    # harness keys off). The model is SELF-REPORTED (read from
+    # ``quality/results/run-*.json`` — demonstrably unreliable per
+    # the 2026-05-25 NATS run2 dogfood where the agent wrote
+    # "gpt-5.2" when the actual model was gpt-5.4; explicit confidence
+    # label is load-bearing). The bug count is GATE-COUNTED
+    # (verified — derived from BUG-NNN headings); a self-reported
+    # bug_count that disagrees triggers an informational mismatch
+    # flag. Provenance is informational only; never changes
+    # pass/fail.
+    if run_provenance:
+        print("")
+        print("── Run provenance ──")
+        multi = len(run_provenance) > 1
+        for entry in run_provenance:
+            if multi:
+                print(f"[{entry.get('repo', '<unknown repo>')}]")
+            for line in _format_provenance_lines(entry):
+                print(line)
 
     print("───────────────────────────────────────────")
 
@@ -995,6 +1169,9 @@ def _reset_counters():
     # v1.5.7 090v: also clear the WARN ledger so the operator verdict
     # layer reads only this run's WARNs.
     _WARN_RECORDS.clear()
+    # v1.5.7 090w: clear the per-repo run-provenance ledger so the
+    # verdict layer reads only this run's provenance.
+    _RUN_PROVENANCE.clear()
 
 
 def fail(msg, reason=None, *, line=None, category=None):
@@ -5870,6 +6047,11 @@ def check_repo(repo_dir, version_arg, strictness):
     # run actually explored before trusting the PASS).
     if bug_count == 0:
         _ZERO_BUG_REPOS.append(repo_name)
+    # v1.5.7 090w: capture run provenance (env-detected runner +
+    # self-reported model + gate-counted bugs vs self-reported
+    # bug_count) for the verdict block. Read-only / never emits
+    # FAIL/WARN — provenance is informational.
+    _capture_run_provenance(q, repo_name, bug_count)
     check_terminal_gate(q)
     check_mechanical(q)
     check_patches(q, bug_count, bug_ids, strictness)
@@ -5977,7 +6159,8 @@ def main(argv=None):
     # inside the new block. Spec:
     # docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md.
     _emit_operator_verdict(
-        _FAIL_RECORDS, _WARN_RECORDS, _ZERO_BUG_REPOS, exit_code
+        _FAIL_RECORDS, _WARN_RECORDS, _ZERO_BUG_REPOS, exit_code,
+        run_provenance=_RUN_PROVENANCE,
     )
     return exit_code
 
