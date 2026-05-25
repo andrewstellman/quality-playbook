@@ -645,6 +645,9 @@ def _reset_counters():
     # clean (tests that call check_repo directly must reset too).
     _FAIL_RECORDS.clear()
     _CHECK_CATEGORY_STACK.clear()
+    # v1.5.7 090s Task B: also clear the zero-bug-repos tracker so
+    # the verdict qualifier doesn't carry stale state across runs.
+    _ZERO_BUG_REPOS.clear()
 
 
 def fail(msg, reason=None, *, line=None, category=None):
@@ -2774,6 +2777,268 @@ def check_test_file_extension(repo_dir, q):
             pass_(f"test_regression.{reg_ext} matches project language ({detected_lang})")
         else:
             fail(f"test_regression.{reg_ext} does not match project language ({detected_lang}) — expected .{primary}")
+
+
+# v1.5.7 instruction 090s: Task A — reject a functional test file
+# whose test functions are ALL trivial / no-assertion stubs. Motivated
+# by the 2026-05-25 Ory Keto run4 (Copilot in VS Code auto-mode =
+# gpt-5.3-codex): the agent fabricated a hollow run that the gate
+# PASSED — `quality/test_functional.go` was literally
+# `func TestFunctionalBaseline(t *testing.T) {}` (empty body, no
+# assertions), zero confirmed bugs, and the gate's functional-test
+# check only verified the file existed and matched the project
+# language. 090s closes the mechanically-catchable part: a file
+# where EVERY test function is trivial / no-assertion FAILs.
+#
+# Conservative direction (per 089m–q "under-escalate ambiguity"):
+# only FAIL when ALL test functions in the file are trivial. A file
+# with at least one real assertion-bearing test PASSES. This catches
+# the run4 hollow shape without touching legitimate test files (table-
+# driven tests, helper-only files, sub-test patterns).
+#
+# Detection is regex-based — pragmatic, not full-AST. The
+# assertion-pattern lists below MAY be extended as new ecosystems
+# surface, but should stay anchored to call-site shapes that have
+# zero false-positive overlap with non-assertion code.
+
+_GO_ASSERTION_PATTERNS: tuple[str, ...] = (
+    r"\bt\.Error\b",
+    r"\bt\.Errorf\b",
+    r"\bt\.Fatal\b",
+    r"\bt\.Fatalf\b",
+    r"\bt\.Fail\b",
+    r"\bt\.FailNow\b",
+    r"\bt\.Skip\b",            # Skip is a real signal (intentional)
+    r"\brequire\.",            # testify/require
+    r"\bassert\.",             # testify/assert
+    r"\bassertions\.",         # testify/assertions
+    r"\bg\.Expect\b",          # ginkgo/gomega
+    r"\bExpect\(.+\)\.To\b",   # ginkgo/gomega
+)
+
+# Python: tautological assertions (`assertTrue(True)`, `assertEqual(1, 1)`,
+# `assert True`) are stripped BEFORE the real-assertion scan so a body
+# containing ONLY tautologies counts as trivial.
+_PYTHON_ASSERTION_PATTERNS: tuple[str, ...] = (
+    r"\bself\.assert[A-Z]\w*\b",  # unittest-style (assertEqual, assertTrue, ...)
+    r"\bself\.fail\b",
+    r"\bpytest\.raises\b",
+    r"\bpytest\.fail\b",
+    r"\bpytest\.warns\b",
+    r"\bunittest\.skip\b",
+    # Bare `assert <expr>` with expr that isn't a constant-True
+    # tautology (filtered upstream — see `_body_has_real_assertion`).
+    r"\bassert\s+",
+)
+
+# Python tautology patterns — STRIPPED before the real-assertion scan.
+# These are the no-op forms a hollow run could insert to look like a
+# test without actually testing anything.
+_PYTHON_TAUTOLOGY_PATTERNS: tuple[str, ...] = (
+    r"\bself\.assertTrue\(\s*True\s*\)",
+    r"\bself\.assertFalse\(\s*False\s*\)",
+    r"\bself\.assertEqual\(\s*(\d+)\s*,\s*\1\s*\)",
+    r"\bself\.assertEqual\(\s*(\"[^\"]*\")\s*,\s*\1\s*\)",
+    r"\bself\.assertIs\(\s*True\s*,\s*True\s*\)",
+    r"\bassert\s+True\b",
+    r"\bassert\s+1\s*==\s*1\b",
+)
+
+
+def _go_test_function_bodies(source: str) -> list[str]:
+    """Return the body text of every ``func Test*(t *testing.T) { ... }``
+    in a Go test file. Handles nested braces via a simple depth
+    counter. (Pragmatic — not a full Go parser; rejects strings/
+    comments containing braces is out of scope here, but the
+    test-body shape is unambiguous enough that this is fine for the
+    run4 hollow-test pattern this check exists to detect.)"""
+    bodies: list[str] = []
+    # `func TestX(...)` opener — also tolerate method-form
+    # `func (s *Suite) TestX(...)`.
+    pattern = re.compile(
+        r"\bfunc\s*(?:\([^)]*\)\s*)?Test\w+\s*\([^)]*\)\s*\{"
+    )
+    for m in pattern.finditer(source):
+        start = m.end() - 1  # The opening `{`
+        depth = 0
+        i = start
+        while i < len(source):
+            c = source[i]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    bodies.append(source[start + 1:i])
+                    break
+            i += 1
+    return bodies
+
+
+def _python_test_function_bodies(source: str) -> list[str]:
+    """Return the body text of every ``def test_*`` in a Python test
+    file. Uses indentation to find the end of each function block.
+    Pragmatic — not a full Python parser; close enough for the
+    no-op detection 090s targets."""
+    bodies: list[str] = []
+    lines = source.splitlines()
+    i = 0
+    while i < len(lines):
+        m = re.match(r"^(\s*)def\s+test_\w+\s*\(", lines[i])
+        if m:
+            indent = m.group(1)
+            body_lines: list[str] = []
+            j = i + 1
+            while j < len(lines):
+                line = lines[j]
+                if line.strip() == "":
+                    body_lines.append(line)
+                    j += 1
+                    continue
+                line_indent_match = re.match(r"^\s*", line)
+                line_indent = line_indent_match.group(0) if line_indent_match else ""
+                if len(line_indent) <= len(indent):
+                    break  # dedent — end of body
+                body_lines.append(line)
+                j += 1
+            bodies.append("\n".join(body_lines))
+            i = j
+        else:
+            i += 1
+    return bodies
+
+
+def _body_has_real_assertion(body: str, lang: str) -> bool:
+    """True iff a test-function body contains at least one real
+    assertion call (after stripping tautologies for Python). For
+    Go, a tautology like `t.Error()` with no message is still a
+    real assertion-call shape (it's an explicit fail signal), so
+    Go has no tautology stripping. Unknown languages return True
+    (pass-through — don't over-fire on unrecognized shapes per
+    089m–q)."""
+    if lang == "go":
+        for pat in _GO_ASSERTION_PATTERNS:
+            if re.search(pat, body):
+                return True
+        return False
+    if lang == "py":
+        # Strip Python tautologies first so a body containing ONLY
+        # `assertTrue(True)` / `assert True` / `assertEqual(1, 1)`
+        # counts as trivial.
+        normalized = body
+        for pat in _PYTHON_TAUTOLOGY_PATTERNS:
+            normalized = re.sub(pat, "", normalized)
+        for pat in _PYTHON_ASSERTION_PATTERNS:
+            if re.search(pat, normalized):
+                return True
+        return False
+    # Unrecognized language: pass-through (conservative direction).
+    return True
+
+
+@verdict_category(VERDICT_SUBSTANTIVE)
+def check_functional_test_has_assertions(q):
+    """v1.5.7 090s Task A: FAIL when the functional test file's
+    test functions are ALL trivial / no-assertion stubs (the
+    2026-05-25 Ory Keto run4 hollow shape — empty
+    `TestFunctionalBaseline`). Conservative: a file with ≥1
+    assertion-bearing test passes; unrecognized languages
+    pass-through (don't over-fire).
+
+    Anchored to `quality/test_functional.{go,py,...}` only — the
+    canonical functional-test file path; regression test files
+    (`quality/test_regression.*`) are out of scope (they're
+    auto-generated from patches, with their own coverage checks)."""
+    print("[Functional Test Content]")
+    func_test = first_file_matching(
+        q, ["test_functional.*", "functional_test.*",
+            "FunctionalSpec.*", "FunctionalTest.*",
+            "functional.test.*"],
+    )
+    if func_test is None:
+        # No file → the existing extension check already warns; this
+        # check has nothing to evaluate.
+        info("No functional test file — content check skipped")
+        return
+
+    ext = func_test.suffix.lstrip(".") if func_test.suffix else ""
+    lang_map = {"go": "go", "py": "py"}
+    lang = lang_map.get(ext)
+    if not lang:
+        # Unrecognized language → pass-through per the conservative
+        # direction (don't over-fire on shapes the detector doesn't
+        # know).
+        info(
+            f"{func_test.name}: language {ext!r} not in the 090s "
+            f"no-op detection set — content check skipped "
+            f"(conservative pass-through; 090s targets Go + Python "
+            f"only)",
+        )
+        return
+
+    try:
+        source = func_test.read_text(encoding="utf-8", errors="ignore")
+    except OSError as exc:
+        warn(
+            f"{func_test.name}: could not read for content check: "
+            f"{type(exc).__name__}: {exc}",
+        )
+        return
+
+    if lang == "go":
+        bodies = _go_test_function_bodies(source)
+    else:
+        bodies = _python_test_function_bodies(source)
+
+    if not bodies:
+        # No `func Test*` / `def test_*` patterns found — the file
+        # exists but doesn't carry any conventional test function.
+        # This is a DIFFERENT shape from "all test functions are
+        # trivial" (the load-bearing 090s pattern). Conservative
+        # direction (per 089m–q): WARN, not FAIL — adopters with
+        # helper-only files / non-canonical test naming should not
+        # be wrongly failed. The "all-trivial" check below catches
+        # the actual run4 shape (a real `func Test*` with an empty
+        # body).
+        warn(
+            f"{func_test.name}: no test functions found "
+            f"(expected `func Test*` for Go or `def test_*` for "
+            f"Python). The file exists and matches the language "
+            f"but doesn't carry conventional test functions; check "
+            f"whether the assertions live in an unconventional "
+            f"shape this detector doesn't recognize. v1.5.7 090s."
+        )
+        return
+
+    real_count = sum(1 for b in bodies
+                     if _body_has_real_assertion(b, lang))
+    if real_count == 0:
+        fail(
+            f"{func_test.name}: ALL {len(bodies)} test function(s) "
+            f"are trivial / no-assertion stubs (the 2026-05-25 Ory "
+            f"Keto run4 hollow shape). A functional test file with "
+            f"no real assertions doesn't prove anything about the "
+            f"codebase. Add at least one assertion-bearing test "
+            f"(Go: `t.Error` / `t.Fatal` / `require.*` / `assert.*`; "
+            f"Python: a real `assert <expr>` / `self.assert*` / "
+            f"`pytest.raises`). v1.5.7 090s.",
+        )
+    else:
+        pass_(
+            f"{func_test.name}: {real_count} of {len(bodies)} test "
+            f"function(s) carry real assertions (v1.5.7 090s "
+            f"no-op detection)"
+        )
+
+
+# v1.5.7 instruction 090s: Task B — track repos with zero confirmed
+# bugs so the gate verdict can be loudly qualified. A clean codebase
+# may legitimately have zero bugs, but a hollow / shallow run also
+# produces zero bugs; the qualification line tells the operator to
+# verify the run actually explored before trusting the PASS. Does
+# NOT change pass/fail semantics — only adds a prominent line
+# adjacent to RESULT:.
+_ZERO_BUG_REPOS: list[str] = []
 
 
 @verdict_category(VERDICT_SUBSTANTIVE)
@@ -5244,6 +5509,14 @@ def check_repo(repo_dir, version_arg, strictness):
     check_recheck_sidecar(q)
     check_use_cases(repo_dir, q, strictness)
     check_test_file_extension(repo_dir, q)
+    # v1.5.7 090s Task A: functional-test content check (anti-no-op).
+    check_functional_test_has_assertions(q)
+    # v1.5.7 090s Task B: track zero-bug repos for the verdict
+    # qualifier (a clean codebase MAY have zero bugs, but so does a
+    # hollow run — the qualifier tells the operator to verify the
+    # run actually explored before trusting the PASS).
+    if bug_count == 0:
+        _ZERO_BUG_REPOS.append(repo_name)
     check_terminal_gate(q)
     check_mechanical(q)
     check_patches(q, bug_count, bug_ids, strictness)
@@ -5340,6 +5613,29 @@ def main(argv=None):
     )
     print(total_line)
     print(result_line)
+    # v1.5.7 090s Task B: prominent zero-bug qualifier. A run with
+    # zero confirmed bugs MAY be a clean codebase, but it MAY also be
+    # a hollow / shallow run (the 2026-05-25 Ory Keto run4 shape).
+    # Surface the count immediately after RESULT: so operators read
+    # the verdict in context. Does NOT change pass/fail semantics —
+    # the RESULT: line strings remain load-bearing for downstream
+    # consumers (phase6 witness contract, what_just_happened state
+    # templates) and are unmodified.
+    if _ZERO_BUG_REPOS:
+        n = len(_ZERO_BUG_REPOS)
+        names = ", ".join(_ZERO_BUG_REPOS)
+        repo_word = "repo" if n == 1 else "repos"
+        print(
+            f"NOTE: {n} {repo_word} ({names}) found ZERO confirmed "
+            f"bugs. A clean codebase may legitimately have zero "
+            f"bugs, but a hollow / shallow run also produces zero "
+            f"bugs (the 2026-05-25 Ory Keto run4 shape — a fabricated "
+            f"EXPLORATION.md + a no-op functional test + no bugs). "
+            f"Before trusting this PASS, verify the run actually "
+            f"explored: EXPLORATION.md cites real code paths; the "
+            f"role-map enumerates the in-scope files; Phase 4 spec "
+            f"audits ran against real specs. v1.5.7 090s."
+        )
     return exit_code
 
 
