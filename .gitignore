@@ -89,3 +89,4 @@ quality_playbook_cli/_bundle/
 build/
 dist/
 *.egg-info/
+quality-playbook-*.tgz
