@@ -807,7 +807,233 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
             for line in _format_provenance_lines(entry):
                 print(line)
 
+    # === Section 6: newcomer orientation (v1.5.7 090y) ===
+    #
+    # Two plain-English sections written for someone who downloaded
+    # QPB, ran it, and has no idea what they're looking at — zero
+    # QPB knowledge assumed.
+    #
+    # Motivated by the 2026-05-25 Keto run6 (Copilot/gpt-5.3-codex):
+    # the gate FAILED and an operator reading the output could see
+    # *that* it failed but had **no idea what happened or what to
+    # do next**.
+    #
+    # HARD RULE (per the instruction's "Branch correctly" pin):
+    # the "stronger reasoning model" next-step appears ONLY for the
+    # ``weak_model`` attribution. An honest coverage/artifact fail
+    # (no attribution) MUST NOT tell the user to swap models.
+    # Mutation-bite pinned by test_honest_fail_does_not_recommend_
+    # stronger_model in test_what_happened_next_090y.py.
+    _emit_what_happened_what_next(
+        fail_records=fail_records,
+        warn_records=warn_records,
+        zero_bug_repos=zero_bug_repos,
+        exit_code=exit_code,
+        is_shallow_pass=is_shallow_pass,
+        weak_model=weak_model,
+        env_failure=env_failure,
+        run_provenance=run_provenance,
+    )
+
     print("───────────────────────────────────────────")
+
+
+def _emit_what_happened_what_next(*, fail_records, warn_records,
+                                    zero_bug_repos, exit_code,
+                                    is_shallow_pass, weak_model,
+                                    env_failure, run_provenance):
+    """v1.5.7 090y — emit the "What happened" + "What to do next"
+    newcomer-oriented sections at the END of the operator verdict
+    block.
+
+    Reads only the same accumulators the rest of the block uses
+    (no new state; purely presentation). Determines which
+    classifier categories fired so "What to do next" can branch
+    correctly between weak_model / incomplete_verification /
+    honest-fail / CLEANUP / shallow / solid.
+    """
+    # ----- Classifier reuse: determine which FAIL categories fired
+    fired_categories: set[str] = set()
+    for _cat, msg in fail_records:
+        fired_categories.add(_classify_fail(msg))
+    bugs_unverified_fired = _FAIL_BUGS_UNVERIFIED in fired_categories
+    # Detect CLEANUP path (only record-keeping fails exist).
+    cleanup_only = False
+    if fail_records:
+        substantive_count = sum(
+            1 for cat, _msg in fail_records
+            if cat == VERDICT_SUBSTANTIVE
+        )
+        cleanup_only = substantive_count == 0
+    # Bug counts (gate-counted) — used to enrich the solid path.
+    total_bug_count = 0
+    if run_provenance:
+        total_bug_count = sum(
+            entry.get("bug_count_gate", 0) for entry in run_provenance
+        )
+
+    # ===== Section 6.1: "What happened" =====
+    print("")
+    print("── What happened ──")
+    # Universal QPB-orientation lines (zero-jargon).
+    print(
+        "Quality Playbook reviewed this project's code in six "
+        "phases — exploring it, deriving what it's supposed to "
+        "do, reviewing the code against that, and verifying "
+        "findings with tests."
+    )
+    print(
+        "The gate is the final quality checkpoint that decides "
+        "whether this run's results are trustworthy."
+    )
+    # State-specific summary line.
+    if cleanup_only and exit_code == 0:
+        # CLEANUP path — must read as a pass, not a fail.
+        # (Instruction 090y Task A: "It passed, with some
+        # bookkeeping gaps to tidy up".)
+        print(
+            "Result: it passed the checkpoint, with some "
+            "bookkeeping gaps to tidy up (see 'Why it failed' "
+            "above — these are audit record-keeping issues, "
+            "not real defects)."
+        )
+    elif exit_code != 0:
+        # ❌ FAILED — name the plain reason class.
+        if bugs_unverified_fired:
+            reason = (
+                "the AI found issues but didn't verify them "
+                "with tests"
+            )
+        elif weak_model:
+            reason = (
+                "the AI appears to have cut corners (low-effort "
+                "test or unrun proofs)"
+            )
+        elif env_failure:
+            reason = (
+                "the test environment broke before the AI could "
+                "complete its checks"
+            )
+        else:
+            reason = (
+                "the gate flagged quality issues that need "
+                "fixing before this run can be trusted"
+            )
+        print(f"Result: it did not pass the checkpoint — {reason}.")
+    elif is_shallow_pass:
+        # ⚠️ shallow — name the why.
+        shallow_reason_bits = []
+        if zero_bug_repos:
+            shallow_reason_bits.append("found no issues")
+        if any("no test functions found" in w for w in warn_records):
+            shallow_reason_bits.append(
+                "the functional test file has no real tests"
+            )
+        if not shallow_reason_bits:
+            shallow_reason_bits.append("hollow-shape signal fired")
+        why = "; ".join(shallow_reason_bits)
+        print(
+            f"Result: it passed the checkpoint, but it looks "
+            f"like it didn't dig deep ({why}) — treat the "
+            f"result with caution."
+        )
+    else:
+        # ✅ solid
+        suffix = ""
+        if total_bug_count > 0:
+            issue_word = "issue" if total_bug_count == 1 else "issues"
+            suffix = f" and verified {total_bug_count} {issue_word}"
+        print(
+            f"Result: it completed and passed cleanly{suffix}."
+        )
+
+    # ===== Section 6.2: "What to do next" =====
+    print("")
+    print("── What to do next ──")
+    if cleanup_only and exit_code == 0:
+        # CLEANUP — "Mostly good — a few bookkeeping artifacts
+        # need tidying; see 'Why it failed' for which."
+        print(
+            "Mostly good — a few bookkeeping artifacts need "
+            "tidying; see 'Why it failed' above for which "
+            "audit records are missing."
+        )
+    elif exit_code != 0:
+        # ❌ failed — BRANCH on attribution. Per the instruction's
+        # "Branch correctly" pin: the "stronger model" advice
+        # appears ONLY for the weak_model attribution. An honest
+        # coverage/artifact fail must NOT tell the user to swap
+        # models.
+        if weak_model:
+            print(
+                "This looks like the AI cut corners — re-run "
+                "with a stronger reasoning model at higher "
+                "effort."
+            )
+        elif bugs_unverified_fired:
+            print(
+                "The AI found issues but didn't verify them "
+                "with red/green tests — re-run to complete the "
+                "test step, or treat the findings in "
+                "quality/BUGS.md as candidates to check by "
+                "hand."
+            )
+        elif env_failure:
+            print(
+                "The test environment failed (not the AI's "
+                "analysis). Fix the environment (install "
+                "missing tooling, restore network or pre-fetch "
+                "dependencies, verify the build) then re-run. "
+                "Do NOT swap models — the model is not the "
+                "problem here."
+            )
+        else:
+            # Honest fail — no attribution. The 2026-05-25 Keto
+            # run6 shape. NEVER recommend stronger model here.
+            n_fail = sum(
+                1 for cat, _msg in fail_records
+                if cat == VERDICT_SUBSTANTIVE
+            )
+            issue_word = "issue" if n_fail == 1 else "issues"
+            extra = ""
+            if total_bug_count > 0:
+                extra = (
+                    " The issues it did find are in "
+                    "quality/BUGS.md."
+                )
+            print(
+                f"The gate flagged {n_fail} {issue_word} with "
+                f"this run — see 'Why it failed' above; address "
+                f"those and re-run.{extra}"
+            )
+    elif is_shallow_pass:
+        # ⚠️ shallow — verify the exploration, consider stronger
+        # model. (Distinct from ❌ weak_model: shallow is a PASS,
+        # and the stronger-model advice here is a "consider",
+        # not a directive.)
+        print(
+            "Verify the run actually explored: look at "
+            "quality/EXPLORATION.md (does it cite real code "
+            "paths?) and quality/BUGS.md (what did it actually "
+            "find?). Consider re-running with a stronger "
+            "reasoning model for a deeper review."
+        )
+    else:
+        # ✅ solid
+        if total_bug_count > 0:
+            issue_word = "issue" if total_bug_count == 1 else "issues"
+            print(
+                f"Review the {total_bug_count} confirmed "
+                f"{issue_word} in quality/BUGS.md; proposed "
+                f"fixes and their tests are in "
+                f"quality/patches/ and quality/results/."
+            )
+        else:
+            print(
+                "Review quality/BUGS.md for confirmed issues; "
+                "proposed fixes and their tests are in "
+                "quality/patches/ and quality/results/."
+            )
 
 
 # v1.5.2 — REQ Pattern field (Lever 2)
