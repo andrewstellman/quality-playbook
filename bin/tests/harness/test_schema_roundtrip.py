@@ -47,9 +47,11 @@ class CasesJsonLoadTests(unittest.TestCase):
 
     def test_cases_file_parses(self) -> None:
         cases = S.load_cases_file(CASES_JSON)
-        # Exactly 11: 10 legacy security_eval (existing pre-091) +
-        # 1 new acceptance (091 deliverable).
-        self.assertEqual(len(cases), 11, [c.id for c in cases])
+        # 091 added the type field to the existing 10 security_eval
+        # cases + a single ACC-001 smoke. 092 replaced ACC-001 with
+        # the full Tier 0-3 acceptance set (ACC-A solid / ACC-B
+        # weak_model / ACC-C honest / ACC-D shallow). Total: 14.
+        self.assertEqual(len(cases), 14, [c.id for c in cases])
 
     def test_existing_ten_are_security_eval(self) -> None:
         cases = S.load_cases_file(CASES_JSON)
@@ -61,19 +63,22 @@ class CasesJsonLoadTests(unittest.TestCase):
             self.assertIsNone(c.expected, c.id)
             self.assertEqual(c.inputs.prep, S.PrepPolicy.SECURITY)
 
-    def test_one_acceptance_case_present(self) -> None:
+    def test_acceptance_set_complete(self) -> None:
+        """v1.5.7 092: the first acceptance case set is ACC-A /
+        ACC-B / ACC-C / ACC-D, one per Tier 2 run-target shape."""
         cases = S.load_cases_file(CASES_JSON)
         acc = [c for c in cases if c.type == S.CaseType.ACCEPTANCE]
-        self.assertEqual(len(acc), 1)
-        a = acc[0]
-        self.assertEqual(a.id, "ACC-001")
-        self.assertEqual(a.inputs.prep, S.PrepPolicy.ACCEPTANCE)
-        self.assertIsNone(a.answer_key)
-        self.assertIsNotNone(a.expected)
-        # Every expected entry parses to the closed §F vocabulary.
-        for e in a.expected:
-            self.assertIsInstance(e, S.ExpectedAssertion)
-            self.assertIn(e.comparator, list(S.Comparator))
+        ids = sorted(c.id for c in acc)
+        self.assertEqual(ids, ["ACC-A", "ACC-B", "ACC-C", "ACC-D"])
+        for a in acc:
+            self.assertEqual(a.inputs.prep, S.PrepPolicy.ACCEPTANCE)
+            self.assertIsNone(a.answer_key)
+            self.assertIsNotNone(a.expected)
+            self.assertGreater(len(a.expected), 0)
+            # Every expected entry parses to the closed §F vocabulary.
+            for e in a.expected:
+                self.assertIsInstance(e, S.ExpectedAssertion)
+                self.assertIn(e.comparator, list(S.Comparator))
 
 
 class ExpectedAssertionShapeTests(unittest.TestCase):
