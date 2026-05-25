@@ -944,15 +944,57 @@ def _static_parse_ok(p: Path) -> "tuple[bool, str | None]":
     diagnostics never misreport a permissions/sandbox error as
     syntactic corruption of the file (v1.5.7 089 F4 / bootstrap
     BUG-001 / REQ-001 — closure diagnostics must distinguish syntax
-    from filesystem failures)."""
+    from filesystem failures).
+
+    v1.5.7 090q: use the builtin ``compile()`` instead of
+    ``py_compile.compile`` so the parse check does NOT touch the
+    (possibly read-only / sandbox-restricted) install dir's
+    ``__pycache__`` at all. ``compile(src, filename, 'exec')`` does
+    pure parse + bytecode generation in memory with NO disk I/O —
+    raises ``SyntaxError`` on a genuine parse defect, raises nothing
+    on success. ``py_compile.compile`` wraps this same primitive but
+    ALSO writes a ``.pyc`` cache file (the run3 false-fail came from
+    that cache-write being denied in Codex's restricted sandbox,
+    even though ``cfile=os.devnull`` looks like a workaround, it
+    actually raises ``FileExistsError`` because ``py_compile``
+    refuses to overwrite a non-regular file). The builtin
+    ``compile()`` sidesteps the entire I/O step.
+
+    OSError remains caught as a benign fallback for the unlikely
+    case that reading the file itself fails (e.g. an exotic FUSE
+    mount that bombs on ``read_bytes``) — the source we couldn't
+    read isn't a parse defect either; surface it as benign so the
+    install closure doesn't false-fail in odd filesystem
+    environments. Motivated by the 2026-05-24 Ory Keto run3
+    (Codex / uvx, restricted sandbox): the install was fine (53
+    files copied, 5/5 smoke checks passed) but the validator
+    falsely Phase-0-failed because of the ``py_compile`` cache-
+    write. The recovery that contaminated run3 was the agent
+    SCAVENGING foreign QPB checkouts on the operator's machine —
+    closed prompt-side by 090q Task B (the entry-sequence anti-
+    scavenge guard).
+    """
     try:
-        py_compile.compile(str(p), doraise=True)
+        # 090q: builtin compile() — parse + bytecode generation, no
+        # disk I/O. SyntaxError on genuine parse defects; OSError
+        # only if reading the source file itself fails.
+        src = p.read_bytes()
+        compile(src, str(p), "exec")
         return True, None
-    except (py_compile.PyCompileError, SyntaxError) as exc:
+    except SyntaxError as exc:
         return False, f"py_compile parse failed: {exc}"
     except OSError as exc:
-        return False, (f"py_compile filesystem error: "
-                       f"{type(exc).__name__}: {exc}")
+        # 090q: if reading the source file failed, this isn't a
+        # parse defect — surface as benign so the install closure
+        # doesn't false-fail in odd filesystem environments. The
+        # downstream readability check (`_readable_file`) at the
+        # caller is the canonical signal for "the file is
+        # unreadable" and runs BEFORE this function.
+        return True, (f"compile-time read reported "
+                      f"{type(exc).__name__}: {exc} (benign — "
+                      f"v1.5.7 090q; source-read failure is not a "
+                      f"parse defect; the canonical readability "
+                      f"check runs upstream)")
 
 
 def _skill_version(skill_md: Path) -> "str | None":
