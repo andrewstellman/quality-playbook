@@ -145,6 +145,14 @@ _VALID_VERDICT_CATEGORIES = (VERDICT_SUBSTANTIVE, VERDICT_RECORD_KEEPING)
 # with the counters. main() splits this for the three-state verdict.
 _FAIL_RECORDS = []
 
+# v1.5.7 090v: every warn() message recorded for the operator verdict-
+# explanation layer (additive presentation only — see
+# ``_emit_operator_verdict``). The WARN counter (`WARN`) remains the
+# authoritative count; this list adds the message bodies so the
+# verdict layer can partition WARNs into actionable vs benign-back-
+# compat via the curated allowlist (Task D). Reset with the counters.
+_WARN_RECORDS: list[str] = []
+
 # Category context stack. @verdict_category pushes on call entry and
 # pops on exit; fail() reads the top (or an explicit category= override;
 # or VERDICT_SUBSTANTIVE when the stack is empty — conservative default).
@@ -233,6 +241,342 @@ def _compute_final_verdict(fail_records, warn_count):
         f"{n_clean} audit record-keeping gap(s)",
         0,
     )
+
+
+# ============================================================
+# v1.5.7 090v — Operator verdict-explanation layer
+#
+# Additive presentation over already-computed accumulators
+# (_FAIL_RECORDS / _WARN_RECORDS / _ZERO_BUG_REPOS). Printed
+# AFTER the load-bearing ``total_line`` + ``result_line`` lines.
+# Touches ZERO check logic; never changes ``exit_code``.
+#
+# Spec: docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md
+# (the 1.5.7 slice; v1.6.x expansion E1–E6 deferred).
+#
+# Hard rule: the "try a stronger model" recommendation is gated
+# specifically on a weak-model/fabrication signal (a 090s
+# hollow-test FAIL or a 090p overclaim FAIL). A pure environment-
+# failure run (setup-failure reds only, no fabrication signal)
+# gets the environment message and NEVER the stronger-model
+# line. Getting this wrong gives actively harmful advice.
+# ============================================================
+
+# FAIL signatures the curated cluster (Task B). Each maps to a
+# plain-English narration. Order is significant: a FAIL is
+# classified against the first matching key. Substrings only —
+# the legacy FAIL strings are load-bearing and not re-worded
+# here.
+_FAIL_NOOP_FUNCTIONAL = "noop_functional_test"
+_FAIL_TDD_OVERCLAIM = "tdd_overclaim"
+_FAIL_SETUP_FAILURE_RED = "setup_failure_red"
+_FAIL_MISSING_ARTIFACT = "missing_artifact"
+_FAIL_GENERIC = "generic"
+
+# Substring-match table; first match wins.
+_FAIL_CLASSIFIER: "tuple[tuple[str, str], ...]" = (
+    # 090s — no-op / all-trivial functional test.
+    ("trivial / no-assertion stubs", _FAIL_NOOP_FUNCTIONAL),
+    # 089o / 090p — TDD claimed RED/GREEN over a by-inspection body.
+    ("body admits non-execution", _FAIL_TDD_OVERCLAIM),
+    ("TDD receipt(s) overclaim", _FAIL_TDD_OVERCLAIM),
+    # 090p — RED rejected as setup/build/dependency/collection failure.
+    ("setup/dependency/build/collection failure", _FAIL_SETUP_FAILURE_RED),
+    ("rejected as setup/dependency/build failures", _FAIL_SETUP_FAILURE_RED),
+    # Missing required artifact — the generic "X missing" / "missing
+    # required" / "required" cluster (intentionally broad — the
+    # generic-fallback path still covers anything we miss).
+    ("missing required", _FAIL_MISSING_ARTIFACT),
+    (" missing (required at ", _FAIL_MISSING_ARTIFACT),
+    ("missing (required ", _FAIL_MISSING_ARTIFACT),
+)
+
+
+def _classify_fail(message: str) -> str:
+    """Return the curated category for a FAIL message, or
+    ``_FAIL_GENERIC`` if no curated message applies (graceful
+    fallback per the spec)."""
+    for needle, category in _FAIL_CLASSIFIER:
+        if needle in message:
+            return category
+    return _FAIL_GENERIC
+
+
+# Benign WARN allowlist (Task D). Conservative — every entry is a
+# WARN that is documented in-source as a back-compat / intended-
+# default / "not a defect" notice. Substring match against the
+# WARN message body; first match wins. Anything NOT on this list
+# stays prominent (we never collapse an unknown WARN).
+_BENIGN_WARN_ALLOWLIST: "tuple[str, ...]" = (
+    # 089 F9 — intended backward-compat path, documented "not a
+    # defect" (see quality_gate.py ~:4692/4734).
+    "intended backward-compat path",
+    # schemas.md §3.10 — legacy bugs_manifest auto-defaulting.
+    "legacy manifest detected",
+    # Pre-W4 back-compat — older runs appended probe assertions to
+    # verify.sh (see quality_gate.py ~:1858/3088).
+    "pre-W4 back-compat",
+    # Skill version detection on legacy SKILL.md / PROGRESS.md.
+    "Cannot detect skill version from SKILL.md",
+)
+
+
+def _is_benign_warn(message: str) -> bool:
+    """Return True iff the WARN matches the curated benign
+    allowlist. Conservative: an unknown WARN is NEVER demoted."""
+    return any(needle in message for needle in _BENIGN_WARN_ALLOWLIST)
+
+
+def _has_weak_model_signal(fail_records, zero_bug_repos,
+                            warn_records) -> bool:
+    """Return True iff the run carries a fabrication / hollow-tell
+    signal that justifies the 'try a stronger reasoning model'
+    recommendation (Task C hard rule). Signals:
+
+    * Any FAIL classified as no-op functional or TDD overclaim
+      (the 090s hollow shape or the 090p overclaim-by-omission).
+    * A zero-bug repo coincident with a 090s WARN about test
+      functions missing (the thin-exploration tell).
+    """
+    for _cat, msg in fail_records:
+        cat = _classify_fail(msg)
+        if cat in (_FAIL_NOOP_FUNCTIONAL, _FAIL_TDD_OVERCLAIM):
+            return True
+    # Thin-exploration tell: zero-bug AND a 090s no-test-functions
+    # WARN present in the same run. The WARN alone (without the
+    # zero-bug shape) is not a fabrication signal — the test file
+    # might just use a helper-only shape the detector doesn't
+    # recognize (see quality_gate.py ~:3003).
+    if zero_bug_repos:
+        for w in warn_records:
+            if "no test functions found" in w:
+                return True
+    return False
+
+
+def _has_environment_signal(fail_records) -> bool:
+    """Return True iff the run carries a setup-failure RED that
+    routes the operator to fix the environment (Task C). May
+    coexist with a weak-model signal in mixed-failure runs."""
+    for _cat, msg in fail_records:
+        if _classify_fail(msg) == _FAIL_SETUP_FAILURE_RED:
+            return True
+    return False
+
+
+# Narration table — keyed by classifier category; emits plain-
+# English explanation + remediation. Wording per the spec
+# (docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md §1.5.7).
+_FAIL_NARRATION = {
+    _FAIL_NOOP_FUNCTIONAL: (
+        "The functional test contains no real assertions — the "
+        "test functions exist but their bodies don't actually "
+        "check anything. A test that asserts nothing can't fail, "
+        "so a PASS proves nothing about the code. Add at least "
+        "one assertion-bearing test (Go: `t.Error` / `t.Fatal` "
+        "/ `require.*` / `assert.*`; Python: `assert <expr>` / "
+        "`self.assert*` / `pytest.raises`), then re-run."
+    ),
+    _FAIL_TDD_OVERCLAIM: (
+        "The run claims its bug-fix tests passed, but it never "
+        "actually ran them (no runner output), or the test it "
+        "ran isn't the one tied to the bug. A GREEN claim "
+        "without real execution isn't proof — these bugs are "
+        "unconfirmed. Re-run so the tests actually execute "
+        "(capture real runner output), or honestly mark them "
+        "NOT_RUN (which WARN-passes per the honest-skip path)."
+    ),
+    _FAIL_SETUP_FAILURE_RED: (
+        "A test failed because the environment couldn't "
+        "build/run it (e.g. missing dependency, no network for "
+        "module fetch, test binary failed to compile) — not "
+        "because the AI found a defect. Fix the environment "
+        "(install missing tooling, restore network or pre-fetch "
+        "dependencies, verify the build), then re-run Phases "
+        "5–6."
+    ),
+    _FAIL_MISSING_ARTIFACT: (
+        "A required artifact (file or section) the gate expects "
+        "is missing or malformed. The check name above identifies "
+        "which artifact; produce it (or fix its content) and "
+        "re-run."
+    ),
+}
+
+
+def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+                            exit_code):
+    """v1.5.7 090v — print the operator-facing verdict-explanation
+    block AFTER ``total_line`` + ``result_line``.
+
+    Purely additive: the load-bearing strings and ``exit_code`` are
+    untouched (the caller has already printed them and is keeping
+    the return value). Subsumes the standalone 090s zero-bug NOTE
+    by folding the message into the shallow-pass narration when
+    applicable.
+
+    Spec: docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md
+    """
+    weak_model = _has_weak_model_signal(
+        fail_records, zero_bug_repos, warn_records
+    )
+    env_failure = _has_environment_signal(fail_records)
+    # "Shallow" PASS: exit_code == 0 (no FAIL) but a hollow-shape
+    # tell is present. Zero-bug alone is a shallow tell (per 090s).
+    is_shallow_pass = (
+        exit_code == 0 and (
+            bool(zero_bug_repos)
+            or any("no test functions found" in w for w in warn_records)
+            # If we reach here on exit 0, there ARE no FAILs, so a
+            # weak_model signal can only have come from the WARN
+            # tells already enumerated. Kept here defensively.
+            or weak_model
+        )
+    )
+
+    # === Section 1: lead verdict line ===
+    print("")
+    print("─── Operator Verdict ──────────────────────")
+    if exit_code != 0:
+        lead = "❌ GATE FAILED"
+    elif is_shallow_pass:
+        lead = "⚠️ GATE PASSED — but this run looks shallow"
+    else:
+        lead = "✅ GATE PASSED — this run looks solid"
+    print(lead)
+
+    # === Section 2: plain-English "why + what to do" for FAILs ===
+    if fail_records:
+        # Group FAILs by curated category to avoid repeating the
+        # same narration N times. Preserve first-seen order so
+        # the operator reads the explanations in the order the
+        # checks fired.
+        seen: list[str] = []
+        per_category_msgs: dict[str, list[str]] = {}
+        for _cat, msg in fail_records:
+            classified = _classify_fail(msg)
+            if classified not in per_category_msgs:
+                per_category_msgs[classified] = []
+                seen.append(classified)
+            per_category_msgs[classified].append(msg)
+        print("")
+        print("Why it failed:")
+        for category in seen:
+            msgs = per_category_msgs[category]
+            label = (
+                f"  • [{category}] ({len(msgs)} FAIL{'s' if len(msgs) > 1 else ''})"
+            )
+            print(label)
+            narration = _FAIL_NARRATION.get(category)
+            if narration is None:
+                # Generic fallback — name the failing check from
+                # the first message so the operator has a pointer.
+                first = msgs[0].strip()
+                # Strip leading line-number prefix if present.
+                short = first.split(":", 1)[0] if ":" in first else first
+                narration = (
+                    f"This check failed: {short}. See the line "
+                    f"above for the specific check output; the "
+                    f"v1.6.x verdict-explanation expansion will "
+                    f"add a curated message for this code."
+                )
+            print(f"    {narration}")
+
+    # === Section 3: shallow-PASS narration + three-bucket attribution ===
+    #
+    # Bucket precedence (per spec §1.5.7 "Three-bucket attribution"):
+    # buckets are NOT mutually exclusive — emit every applicable. The
+    # "try a stronger reasoning model" line is gated to the weak-model
+    # bucket ONLY (hard rule — mis-attribution gives actively harmful
+    # advice on a pure environment-failure run).
+    #
+    # The shallow-PASS narration subsumes the standalone 090s zero-bug
+    # NOTE so the message appears here, not duplicated. The "ZERO
+    # confirmed bugs" / "hollow / shallow run" / "Ory Keto run4" /
+    # "v1.5.7 090s" tokens are preserved verbatim so the
+    # ZeroBugVerdictQualifierTests pins still hold.
+    if is_shallow_pass:
+        print("")
+        shallow_bits = []
+        if zero_bug_repos:
+            n = len(zero_bug_repos)
+            names = ", ".join(zero_bug_repos)
+            repo_word = "repo" if n == 1 else "repos"
+            shallow_bits.append(
+                f"{n} {repo_word} ({names}) found ZERO confirmed bugs"
+            )
+        if any("no test functions found" in w for w in warn_records):
+            shallow_bits.append(
+                "the functional test file carries no recognised "
+                "test functions"
+            )
+        detail = "; ".join(shallow_bits) if shallow_bits else (
+            "a hollow-shape signal fired"
+        )
+        print(
+            f"This run looks shallow: {detail}. A clean codebase "
+            f"can legitimately have zero bugs, but a hollow / "
+            f"shallow run also produces zero bugs (the 2026-05-25 "
+            f"Ory Keto run4 shape — a fabricated EXPLORATION.md + "
+            f"a no-op functional test + no bugs). Before trusting "
+            f"this PASS, verify the run actually explored: "
+            f"EXPLORATION.md cites real code paths; the role-map "
+            f"enumerates the in-scope files; Phase 4 spec audits "
+            f"ran against real specs. (v1.5.7 090s detection + "
+            f"090v narration.)"
+        )
+    if weak_model:
+        print("")
+        print("Attribution: weak-model artifact")
+        print(
+            "  These results look like they came from a model "
+            "that cut corners — they are not trustworthy. "
+            "Re-run with a stronger reasoning model at higher "
+            "effort before relying on this."
+        )
+    if env_failure:
+        print("")
+        print("Attribution: environment / setup problem")
+        print(
+            "  This run couldn't complete because the test "
+            "environment failed — not because of the AI's "
+            "analysis. Fix the environment (install missing "
+            "tooling, restore network or pre-fetch dependencies, "
+            "verify the build), then re-run Phases 5–6. "
+            "Do NOT swap models; the model is not the problem."
+        )
+    if (not weak_model and not env_failure and not is_shallow_pass
+            and exit_code == 0):
+        print("")
+        print(
+            "Attribution: no shallow / fabrication signals "
+            "detected — verdict reads as a real PASS."
+        )
+
+    # === Section 4: benign-WARN demotion ===
+    if warn_records:
+        actionable = [w for w in warn_records if not _is_benign_warn(w)]
+        benign = [w for w in warn_records if _is_benign_warn(w)]
+        if benign:
+            n = len(benign)
+            notice_word = "notice" if n == 1 else "notices"
+            print("")
+            print(
+                f"({n} operational {notice_word} — safe to ignore: "
+                f"documented back-compat / intended-default WARNs)"
+            )
+        if actionable:
+            n = len(actionable)
+            warn_word = "WARN" if n == 1 else "WARNs"
+            print("")
+            print(f"{n} actionable {warn_word} above — review:")
+            # Quote a short prefix of each so the operator can
+            # spot the topic without scrolling.
+            for w in actionable:
+                excerpt = w.strip().splitlines()[0][:120]
+                print(f"  • {excerpt}")
+
+    print("───────────────────────────────────────────")
 
 
 # v1.5.2 — REQ Pattern field (Lever 2)
@@ -648,6 +992,9 @@ def _reset_counters():
     # v1.5.7 090s Task B: also clear the zero-bug-repos tracker so
     # the verdict qualifier doesn't carry stale state across runs.
     _ZERO_BUG_REPOS.clear()
+    # v1.5.7 090v: also clear the WARN ledger so the operator verdict
+    # layer reads only this run's WARNs.
+    _WARN_RECORDS.clear()
 
 
 def fail(msg, reason=None, *, line=None, category=None):
@@ -708,6 +1055,12 @@ def warn(msg):
     global WARN
     print(f"  WARN: {msg}")
     WARN += 1
+    # v1.5.7 090v: record the message body for the operator verdict-
+    # explanation layer. The print + counter above are the load-
+    # bearing legacy behaviour (downstream consumers parse the print
+    # stream and the counter feeds total_line); the list is purely
+    # presentation-layer fuel.
+    _WARN_RECORDS.append(msg)
 
 
 def info(msg):
@@ -5613,29 +5966,19 @@ def main(argv=None):
     )
     print(total_line)
     print(result_line)
-    # v1.5.7 090s Task B: prominent zero-bug qualifier. A run with
-    # zero confirmed bugs MAY be a clean codebase, but it MAY also be
-    # a hollow / shallow run (the 2026-05-25 Ory Keto run4 shape).
-    # Surface the count immediately after RESULT: so operators read
-    # the verdict in context. Does NOT change pass/fail semantics —
-    # the RESULT: line strings remain load-bearing for downstream
-    # consumers (phase6 witness contract, what_just_happened state
-    # templates) and are unmodified.
-    if _ZERO_BUG_REPOS:
-        n = len(_ZERO_BUG_REPOS)
-        names = ", ".join(_ZERO_BUG_REPOS)
-        repo_word = "repo" if n == 1 else "repos"
-        print(
-            f"NOTE: {n} {repo_word} ({names}) found ZERO confirmed "
-            f"bugs. A clean codebase may legitimately have zero "
-            f"bugs, but a hollow / shallow run also produces zero "
-            f"bugs (the 2026-05-25 Ory Keto run4 shape — a fabricated "
-            f"EXPLORATION.md + a no-op functional test + no bugs). "
-            f"Before trusting this PASS, verify the run actually "
-            f"explored: EXPLORATION.md cites real code paths; the "
-            f"role-map enumerates the in-scope files; Phase 4 spec "
-            f"audits ran against real specs. v1.5.7 090s."
-        )
+    # v1.5.7 090v: operator verdict-explanation layer. ADDITIVE
+    # presentation over the already-computed accumulators
+    # (_FAIL_RECORDS / _WARN_RECORDS / _ZERO_BUG_REPOS) — printed
+    # AFTER total_line + result_line; never reformats / replaces
+    # them and never changes exit_code (load-bearing per the
+    # downstream witness contract). Subsumes the standalone 090s
+    # zero-bug NOTE by folding the message into the shallow-pass
+    # narration; the 090s zero-bug semantics still appear, just
+    # inside the new block. Spec:
+    # docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md.
+    _emit_operator_verdict(
+        _FAIL_RECORDS, _WARN_RECORDS, _ZERO_BUG_REPOS, exit_code
+    )
     return exit_code
 
 
