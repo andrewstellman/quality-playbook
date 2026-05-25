@@ -62,9 +62,20 @@ BIN_DIR = REPO_ROOT / "bin"
 
 
 def _discover_scripts() -> list[tuple[str, Path]]:
-    """Discover every bin/**/*.py except tests + __init__. Return
-    list of ``(dotted_module_name, path)`` tuples so the unittest
-    output prints the module name."""
+    """Discover every bin/**/*.py except tests + __init__ + the
+    v1.5.7 091 harness subpackage's LIBRARY modules. Return list
+    of ``(dotted_module_name, path)`` tuples so the unittest
+    output prints the module name.
+
+    v1.5.7 091: ``bin/harness/`` is a SUBPACKAGE of LIBRARY
+    modules (schema / prepare / runner / facts) consumed by the
+    single user-facing entry ``bin/qpb_harness.py``. The library
+    modules are not invoked bare — adding a 089x banner to each
+    would pollute library code with CLI scaffolding. The entry
+    ``qpb_harness.py`` IS in the sweep and carries the 089x
+    banner. The skip pattern mirrors the existing tests/
+    exclusion (library code that's not a user-facing script).
+    """
     scripts: list[tuple[str, Path]] = []
     for path in sorted(BIN_DIR.rglob("*.py")):
         rel = path.relative_to(REPO_ROOT)
@@ -74,6 +85,11 @@ def _discover_scripts() -> list[tuple[str, Path]]:
             continue
         # Exclude tests/ subtrees.
         if "tests" in parts:
+            continue
+        # v1.5.7 091: exclude bin/harness/ library modules — not
+        # user-facing scripts. ``bin/qpb_harness.py`` (the entry)
+        # is at the bin/ top level and remains in the sweep.
+        if "harness" in parts:
             continue
         dotted = ".".join(parts)
         scripts.append((dotted, path))
