@@ -292,10 +292,34 @@ def _compute_final_verdict(fail_records, warn_count):
 _FAIL_NOOP_FUNCTIONAL = "noop_functional_test"
 _FAIL_TDD_OVERCLAIM = "tdd_overclaim"
 _FAIL_SETUP_FAILURE_RED = "setup_failure_red"
+# v1.5.7 090x: bugs-found-but-unverified — bugs are present in
+# BUGS.md but the TDD-proof artifacts (tdd-results.json /
+# red-green logs / regression-test patches / test_regression.*)
+# are absent ENTIRELY. Distinct from ``_FAIL_TDD_OVERCLAIM`` (090v
+# / 089o): overclaim = GREEN claimed without runner output;
+# bugs_unverified = the run never produced verification artifacts
+# at all. Both can co-occur; each curated message emits when its
+# signature is present. Attribution is intentionally NOT routed
+# to the weak-model bucket — a capable model can produce this
+# shape (discovery without verification = incomplete run, not
+# cut-corners). The 2026-05-25 NATS run2 gpt-5.4 fixture is the
+# motivating shape.
+_FAIL_BUGS_UNVERIFIED = "bugs_unverified"
 _FAIL_MISSING_ARTIFACT = "missing_artifact"
 _FAIL_GENERIC = "generic"
 
 # Substring-match table; first match wins.
+#
+# v1.5.7 090x: the ``bugs_unverified`` cluster is placed BEFORE the
+# broader ``missing_artifact`` cluster so a precise keyed signature
+# (e.g. "tdd-results.json missing (" — emitted only with a bug
+# count) routes to ``bugs_unverified`` rather than falling through
+# to the generic "missing required" message. These signatures are
+# keyed to the FAIL emit strings in:
+#   * check_tdd_sidecar     — tdd-results.json missing
+#   * check_tdd_logs        — red-phase / green-phase log missing
+#   * check_patches         — test_regression.* / regression-test
+#                              patch missing
 _FAIL_CLASSIFIER: "tuple[tuple[str, str], ...]" = (
     # 090s — no-op / all-trivial functional test.
     ("trivial / no-assertion stubs", _FAIL_NOOP_FUNCTIONAL),
@@ -305,6 +329,23 @@ _FAIL_CLASSIFIER: "tuple[tuple[str, str], ...]" = (
     # 090p — RED rejected as setup/build/dependency/collection failure.
     ("setup/dependency/build/collection failure", _FAIL_SETUP_FAILURE_RED),
     ("rejected as setup/dependency/build failures", _FAIL_SETUP_FAILURE_RED),
+    # 090x — bugs present but TDD-proof artifacts absent
+    # (BUG-NNN headings exist, but tdd-results.json / red-green
+    # logs / regression-test patches / test_regression.* are
+    # missing). Each signature is keyed to a specific FAIL emit
+    # string. The 2026-05-25 NATS run2 gpt-5.4 fixture: 3 bugs +
+    # no TDD artifacts. ORDERING NOTE: must precede the
+    # ``missing_artifact`` broad cluster below — these strings
+    # contain "missing", and we want the keyed signature to win.
+    ("tdd-results.json missing (", _FAIL_BUGS_UNVERIFIED),
+    ("confirmed bug(s) missing red-phase log",
+     _FAIL_BUGS_UNVERIFIED),
+    ("No red-phase logs found", _FAIL_BUGS_UNVERIFIED),
+    ("bug(s) with fix patches missing green-phase log",
+     _FAIL_BUGS_UNVERIFIED),
+    ("test_regression.* missing — required when bugs exist",
+     _FAIL_BUGS_UNVERIFIED),
+    ("No regression-test patches found", _FAIL_BUGS_UNVERIFIED),
     # Missing required artifact — the generic "X missing" / "missing
     # required" / "required" cluster (intentionally broad — the
     # generic-fallback path still covers anything we miss).
@@ -544,6 +585,22 @@ _FAIL_NARRATION = {
         "is missing or malformed. The check name above identifies "
         "which artifact; produce it (or fix its content) and "
         "re-run."
+    ),
+    # v1.5.7 090x — pulled forward from the v1.6.x E1 long-tail
+    # because the incomplete-verification shape is high-frequency
+    # (the 2026-05-25 NATS run2 gpt-5.4 fixture: 3 real bugs, no
+    # TDD proof, generic-fallback message). Attribution stays in
+    # the "neither weak-model nor environment" attribution path —
+    # this is an incomplete run, NOT a cut-corners run.
+    _FAIL_BUGS_UNVERIFIED: (
+        "This run found bug(s) but didn't verify them — there's "
+        "no TDD proof (missing tdd-results.json / red-green logs "
+        "/ regression-test patches / test_regression.*). A found "
+        "bug without a red→green test isn't confirmed: the fix "
+        "might be wrong, or the \"bug\" might not be real. "
+        "Either complete the verification step so the tests "
+        "actually run, or treat these as code-review "
+        "candidates, not confirmed bugs."
     ),
 }
 
