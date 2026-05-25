@@ -216,6 +216,85 @@ def _qpb_version() -> str:
     return "unknown"
 
 
+def _cmd_manager(args: argparse.Namespace) -> int:
+    """Start the manager daemon (Phase 4 substrate).
+
+    Initialises the manager, recovers orphaned runs, consumes
+    any queued commands ONCE, writes the snapshot, then exits.
+    A full daemon loop with periodic ticking is the operator-
+    deployment shape; for Phase 4 the single-tick entry is
+    enough to demonstrate the queue + recovery + control-file
+    contract end-to-end.
+    """
+    from bin.harness import manager as _manager
+    from bin.harness import scheduler as _sched
+
+    root = Path(args.root).expanduser().resolve()
+    config = None
+    if args.config:
+        cfg_path = Path(args.config).expanduser().resolve()
+        if cfg_path.is_file():
+            try:
+                raw = json.loads(cfg_path.read_text(encoding="utf-8"))
+                config = _sched.config_from_dict(
+                    raw.get("scheduler") or raw,
+                )
+            except (OSError, json.JSONDecodeError) as exc:
+                print(f"ERROR: failed to read config: {exc}",
+                      file=sys.stderr)
+                return 2
+    mgr = _manager.Manager(root=root, config=config)
+    try:
+        mgr.start()
+    except _manager.ManagerError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 3
+    print(f"manager started (pid={os.getpid()})", file=sys.stderr)
+    try:
+        mgr.consume_commands()
+        mgr.write_queue_snapshot()
+        snapshot = mgr.snapshot()
+        print(json.dumps({
+            "queue_length": snapshot["scheduler"]["queue_length"],
+            "in_flight_total": snapshot["scheduler"]["in_flight_total"],
+            "paused": snapshot["paused"],
+            "recovered": [d for d in snapshot["recent_done"]
+                          if "recovered_at" in d],
+        }, indent=2))
+    finally:
+        mgr.shutdown()
+    return 0
+
+
+def _cmd_tui(args: argparse.Namespace) -> int:
+    """Launch the read-mostly Textual TUI (Phase 4)."""
+    from bin.harness import tui as _tui
+
+    root = Path(args.root).expanduser().resolve()
+    snapshot_file = root / "control" / "queue.json"
+    if not snapshot_file.is_file():
+        print(f"ERROR: no manager snapshot at {snapshot_file}. "
+              f"Start the manager first.", file=sys.stderr)
+        return 2
+    try:
+        snapshot = json.loads(snapshot_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"ERROR: failed to read snapshot: {exc}",
+              file=sys.stderr)
+        return 2
+    try:
+        app = _tui.build_app(snapshot)
+    except RuntimeError as exc:
+        # Textual isn't installed — fall back to printing the
+        # data-shaping output so the operator still gets state.
+        print(f"NOTE: {exc}", file=sys.stderr)
+        for line in _tui.render_overview(snapshot):
+            print(line)
+        return 0
+    app.run()
+    return 0
+
+
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog=_HARNESS_NAME,
@@ -251,6 +330,24 @@ def _build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--max-duration-s", default=1800.0,
                         type=float,
                         help="Kill the run after this many seconds (default 1800).")
+
+    # Phase 4 subcommands.
+    p_mgr = sub.add_parser(
+        "manager",
+        help="Start the manager daemon (Phase 4).",
+    )
+    p_mgr.add_argument("--root", required=True,
+                        help="Harness runner root (e.g. "
+                             "repos/security-test-cases).")
+    p_mgr.add_argument("--config", default=None,
+                        help="Optional scheduler config JSON.")
+
+    p_tui = sub.add_parser(
+        "tui",
+        help="Open the Textual TUI (read-mostly client; Phase 4).",
+    )
+    p_tui.add_argument("--root", required=True,
+                        help="Harness runner root.")
     return p
 
 
@@ -264,6 +361,10 @@ def main(argv: "list[str] | None" = None) -> int:
     args = parser.parse_args(argv_list)
     if args.command == "run":
         return _cmd_run(args)
+    if args.command == "manager":
+        return _cmd_manager(args)
+    if args.command == "tui":
+        return _cmd_tui(args)
     parser.print_help(sys.stderr)
     return 2
 
