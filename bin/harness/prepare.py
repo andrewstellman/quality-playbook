@@ -96,14 +96,30 @@ def clone_worktree(repo_url: str, target_ref: "str | None",
         raise PrepError(
             f"clone failed: {exc.stderr.strip() or exc}"
         )
+    # v1.5.7 105: skip the switch when the clone already landed
+    # on the requested ref (the common case where the plan names
+    # the repo's default branch — chi/express/keto/master,
+    # gson/main, etc.) and prefer `git switch` over the legacy
+    # `git checkout`. The two-step (plain switch, then `--detach`
+    # fallback) handles branch names AND SHAs/tags cleanly:
+    # branch names switch + auto-track origin; SHAs/tags fall
+    # through to the detached path (gson pins a full SHA, so
+    # this matters). Bad refs still raise PrepError →
+    # ABORTED_PREP.
     if target_ref:
-        try:
-            _git("checkout", "--quiet", target_ref, cwd=dest)
-        except subprocess.CalledProcessError as exc:
-            raise PrepError(
-                f"checkout {target_ref!r} failed: "
-                f"{exc.stderr.strip() or exc}"
-            )
+        current = _git("rev-parse", "--abbrev-ref", "HEAD",
+                        cwd=dest).stdout.strip()
+        if target_ref != current:
+            res = _git("switch", "--quiet", target_ref,
+                        cwd=dest, check=False)
+            if res.returncode != 0:
+                res = _git("switch", "--quiet", "--detach",
+                            target_ref, cwd=dest, check=False)
+            if res.returncode != 0:
+                raise PrepError(
+                    f"switch {target_ref!r} failed: "
+                    f"{res.stderr.strip() or res.stdout.strip()}"
+                )
     try:
         sha = _git("rev-parse", "HEAD", cwd=dest).stdout.strip()
     except subprocess.CalledProcessError as exc:
