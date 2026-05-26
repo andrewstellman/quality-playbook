@@ -237,9 +237,10 @@ def install_skill_clone_channel(target_dir: Path, *,
     ``python3 -m bin.install_skill --into <target> --ai-tool <tool>``
     from the QPB clone root.
 
-    Phase 1 supports ``clone`` only. Phase 2 will fan this out to
-    ``pip-local-wheel`` / ``npm-local-tgz`` via the channel-build
-    harness.
+    This is the dev/Phase 1 path. Other channels are templated
+    by ``build_install_command``; their live execution lands
+    post-publish (for registry) / after channel-build prereqs
+    are present locally (for *-local-*).
     """
     qpb = _qpb_clone_root()
     cmd = [
@@ -258,6 +259,184 @@ def install_skill_clone_channel(target_dir: Path, *,
         raise PrepError(
             f"install_skill (clone channel) failed: "
             f"{(exc.stderr or exc.stdout or '').strip()[-500:]}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# v1.5.7 096 Phase 6 — install-command templating per channel + version
+# ---------------------------------------------------------------------------
+
+
+def build_install_command(channel: "InstallChannel",
+                           target_dir: Path, *,
+                           ai_tool: str = "claude",
+                           install_version: "str | None" = None,
+                           local_artifact: "Path | None" = None,
+                           force: bool = False,
+                           ) -> "list[str]":
+    """v1.5.7 096 Phase 6: build the install command for any of
+    the SCHEMA.md §3 channels. The returned argv list is exactly
+    what the harness shells out to install the skill into
+    ``target_dir`` for the given channel.
+
+    Channel forms (verified against
+    ``bin.qpb_validate._RUN_INSTALLER_*``):
+
+    * ``clone`` →
+      ``python3 -m bin.install_skill --into <target> --ai-tool <tool>``
+      run from the QPB clone root.
+    * ``pip-registry@<version|latest>`` →
+      ``uvx quality-playbook@<version> install --into <target>
+      --ai-tool <tool>``. ``install_version="latest"`` (or None)
+      installs the current PyPI head.
+    * ``npm-registry@<version|latest>`` →
+      ``npx quality-playbook@<version> init --ai-tool=<tool>``.
+      (npm syntax uses ``=`` for ai-tool, matching the
+      ``_RUN_INSTALLER_NPM`` template + the README's published
+      npx incantation.)
+    * ``pip-local-wheel`` → ``uvx --from <wheel-path>
+      quality-playbook install --into <target> --ai-tool <tool>``.
+      ``local_artifact`` is the path to the freshly-built wheel
+      (``dist/quality_playbook-<version>-py3-none-any.whl``).
+    * ``npm-local-tgz`` → ``npx --package <tgz-path>
+      quality-playbook init --ai-tool=<tool>``.
+      ``local_artifact`` is the path to ``npm pack`` output.
+
+    ``force=True`` appends ``--force`` to overwrite an existing
+    target install (matches the ``_RUN_INSTALLER_*_FORCE``
+    variants).
+
+    Raises PrepError for missing local_artifact on a local
+    channel, or unsupported channel.
+
+    NOTE: this is pure templating — no subprocess runs here. The
+    `install_skill_channel` wrapper below shells it out. Tests
+    exercise the templater directly so they're hermetic (no live
+    registry / no built wheel required).
+    """
+    if channel == InstallChannel.CLONE:
+        qpb = _qpb_clone_root()
+        cmd = [
+            sys.executable, "-m", "bin.install_skill",
+            "--into", str(target_dir),
+            "--ai-tool", ai_tool,
+        ]
+        if force:
+            cmd.append("--force")
+        # The clone command runs from qpb_root cwd, but the
+        # caller of `subprocess.run` is what sets cwd; the argv
+        # itself doesn't carry that — flagged via the returned
+        # list. The wrapper sets cwd=qpb_root for clone.
+        return cmd
+
+    if channel == InstallChannel.PIP_REGISTRY:
+        version = install_version or "latest"
+        cmd = [
+            "uvx", f"quality-playbook@{version}",
+            "install",
+            "--into", str(target_dir),
+            "--ai-tool", ai_tool,
+        ]
+        if force:
+            cmd.append("--force")
+        return cmd
+
+    if channel == InstallChannel.NPM_REGISTRY:
+        version = install_version or "latest"
+        cmd = [
+            "npx", f"quality-playbook@{version}",
+            "init",
+            f"--ai-tool={ai_tool}",
+        ]
+        if force:
+            cmd.append("--force")
+        return cmd
+
+    if channel == InstallChannel.PIP_LOCAL_WHEEL:
+        if local_artifact is None:
+            raise PrepError(
+                "pip-local-wheel channel requires local_artifact "
+                "(path to the freshly-built wheel under dist/)"
+            )
+        cmd = [
+            "uvx", "--from", str(local_artifact),
+            "quality-playbook", "install",
+            "--into", str(target_dir),
+            "--ai-tool", ai_tool,
+        ]
+        if force:
+            cmd.append("--force")
+        return cmd
+
+    if channel == InstallChannel.NPM_LOCAL_TGZ:
+        if local_artifact is None:
+            raise PrepError(
+                "npm-local-tgz channel requires local_artifact "
+                "(path to the `npm pack` output)"
+            )
+        cmd = [
+            "npx", "--package", str(local_artifact),
+            "quality-playbook", "init",
+            f"--ai-tool={ai_tool}",
+        ]
+        if force:
+            cmd.append("--force")
+        return cmd
+
+    raise PrepError(f"unknown install channel: {channel!r}")
+
+
+def install_skill_channel(channel: "InstallChannel",
+                            target_dir: Path, *,
+                            ai_tool: str = "claude",
+                            install_version: "str | None" = None,
+                            local_artifact: "Path | None" = None,
+                            force: bool = False,
+                            timeout_s: float = 300.0) -> None:
+    """v1.5.7 096 Phase 6: dispatch install per channel.
+
+    Wraps ``build_install_command`` + ``subprocess.run`` with
+    the per-channel cwd convention:
+
+    * ``clone``: cwd = QPB clone root (so ``-m bin.install_skill``
+      resolves).
+    * registry / local channels: cwd is the OS default (the
+      uvx/npx tooling locates its own working dir).
+
+    Live registry runs only work POST-PUBLISH (PyPI/npm carry
+    the artifact). Pre-publish, the local channels use the
+    freshly-built local wheel/tgz.
+    """
+    cmd = build_install_command(
+        channel, target_dir, ai_tool=ai_tool,
+        install_version=install_version,
+        local_artifact=local_artifact, force=force,
+    )
+    cwd = (str(_qpb_clone_root())
+           if channel == InstallChannel.CLONE else None)
+    try:
+        subprocess.run(
+            cmd, cwd=cwd, check=True,
+            capture_output=True, text=True,
+            timeout=timeout_s,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise PrepError(
+            f"install_skill ({channel.value}) failed: "
+            f"{(exc.stderr or exc.stdout or '').strip()[-500:]}"
+        )
+    except subprocess.TimeoutExpired:
+        raise PrepError(
+            f"install_skill ({channel.value}) timed out after "
+            f"{timeout_s}s — registry channels can be slow on a "
+            f"cold cache, raise --timeout if needed."
+        )
+    except FileNotFoundError as exc:
+        # uvx / npx not on PATH — operator-actionable.
+        raise PrepError(
+            f"install_skill ({channel.value}) tooling missing: "
+            f"{exc}. Install the required runtime (uvx for pip "
+            f"channels; npx for npm channels)."
         )
 
 
@@ -319,10 +498,44 @@ class PrepResult:
     leakage_gate: "str | None" = None  # "clean" | None for acceptance
 
 
+def _run_install_for_axes(
+    target_dir: Path,
+    *,
+    axes: "RunAxes | None" = None,
+    ai_tool: str = "claude",
+    local_artifact: "Path | None" = None,
+) -> None:
+    """v1.5.7 096 Phase 6: route the install step by axes.install_
+    channel. When ``axes`` is None (no axes provided — Phase 1
+    smoke entry pre-096), defaults to the clone channel for
+    backward compatibility.
+    """
+    if axes is None:
+        install_skill_clone_channel(target_dir, ai_tool=ai_tool)
+        return
+    install_skill_channel(
+        axes.install_channel,
+        target_dir,
+        ai_tool=ai_tool,
+        install_version=axes.install_version,
+        local_artifact=local_artifact,
+    )
+
+
 def prepare_acceptance(case: Case, worktree_dest: Path, *,
-                        ai_tool: str = "claude") -> PrepResult:
+                        ai_tool: str = "claude",
+                        axes: "RunAxes | None" = None,
+                        local_artifact: "Path | None" = None,
+                        ) -> PrepResult:
     """SCHEMA.md §1 acceptance prep: worktree → docs present →
-    Phase-0 install. No scrub, no leakage gate."""
+    Phase-0 install. No scrub, no leakage gate.
+
+    v1.5.7 096 Phase 6: accepts an optional ``axes`` so the
+    install step routes by ``install_channel``
+    (clone / pip-registry@<v> / npm-registry@<v> /
+    pip-local-wheel / npm-local-tgz). ``axes=None`` keeps the
+    Phase 1 clone-default contract for backward compatibility.
+    """
     if case.type != CaseType.ACCEPTANCE:
         raise PrepError(
             f"prepare_acceptance called on non-acceptance case "
@@ -333,7 +546,10 @@ def prepare_acceptance(case: Case, worktree_dest: Path, *,
     if case.inputs.reference_docs_source is not None:
         populate_reference_docs(worktree_dest,
                                   case.inputs.reference_docs_source)
-    install_skill_clone_channel(worktree_dest, ai_tool=ai_tool)
+    _run_install_for_axes(
+        worktree_dest, axes=axes, ai_tool=ai_tool,
+        local_artifact=local_artifact,
+    )
     return PrepResult(
         target_dir=worktree_dest,
         target_sha=sha,
@@ -343,7 +559,10 @@ def prepare_acceptance(case: Case, worktree_dest: Path, *,
 
 
 def prepare_security(case: Case, worktree_dest: Path, *,
-                      ai_tool: str = "claude") -> PrepResult:
+                      ai_tool: str = "claude",
+                      axes: "RunAxes | None" = None,
+                      local_artifact: "Path | None" = None,
+                      ) -> PrepResult:
     """SCHEMA.md §1 / design §B security prep: worktree → scrub
     reference_docs of leakage terms → leakage-gate → install.
 
@@ -376,7 +595,10 @@ def prepare_security(case: Case, worktree_dest: Path, *,
             f"after scrub: {leaked}",
             leakage_terms=leaked,
         )
-    install_skill_clone_channel(worktree_dest, ai_tool=ai_tool)
+    _run_install_for_axes(
+        worktree_dest, axes=axes, ai_tool=ai_tool,
+        local_artifact=local_artifact,
+    )
     return PrepResult(
         target_dir=worktree_dest,
         target_sha=sha,
@@ -386,14 +608,29 @@ def prepare_security(case: Case, worktree_dest: Path, *,
 
 
 def prepare(case: Case, worktree_dest: Path, *,
-             ai_tool: str = "claude") -> PrepResult:
+             ai_tool: str = "claude",
+             axes: "RunAxes | None" = None,
+             local_artifact: "Path | None" = None,
+             ) -> PrepResult:
     """Top-level dispatch: routes by ``case.inputs.prep``. The
     case's prep policy MUST match its type (the loader pins this
-    in ``schema.parse_case``)."""
+    in ``schema.parse_case``).
+
+    v1.5.7 096 Phase 6: ``axes`` routes the install step through
+    ``build_install_command`` by channel + version (clone /
+    pip-registry@<v> / npm-registry@<v> / pip-local-wheel /
+    npm-local-tgz). ``axes=None`` keeps the Phase 1 clone default.
+    """
     if case.inputs.prep == PrepPolicy.ACCEPTANCE:
-        return prepare_acceptance(case, worktree_dest, ai_tool=ai_tool)
+        return prepare_acceptance(
+            case, worktree_dest, ai_tool=ai_tool,
+            axes=axes, local_artifact=local_artifact,
+        )
     elif case.inputs.prep == PrepPolicy.SECURITY:
-        return prepare_security(case, worktree_dest, ai_tool=ai_tool)
+        return prepare_security(
+            case, worktree_dest, ai_tool=ai_tool,
+            axes=axes, local_artifact=local_artifact,
+        )
     else:
         raise PrepError(
             f"unknown prep policy {case.inputs.prep!r}"
@@ -408,6 +645,8 @@ __all__ = [
     "scrub_reference_docs",
     "leakage_gate",
     "install_skill_clone_channel",
+    "build_install_command",
+    "install_skill_channel",
     "populate_reference_docs",
     "prepare",
     "prepare_acceptance",

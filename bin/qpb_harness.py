@@ -110,9 +110,21 @@ def _cmd_run(args: argparse.Namespace) -> int:
     )
 
     # ----- PREPARE -----
+    # v1.5.7 096 Phase 6: pass axes so prepare routes the install
+    # step by channel + version (clone / pip-registry@<v> /
+    # npm-registry@<v> / pip-local-wheel / npm-local-tgz). The
+    # local_artifact arg is wired through to the qpb_harness CLI
+    # as --install-artifact; pre-publish operators pass the freshly-
+    # built wheel/tgz here.
+    local_artifact = (
+        Path(args.install_artifact).expanduser().resolve()
+        if args.install_artifact else None
+    )
     try:
-        prep_result = _prepare.prepare(case, target_dir,
-                                          ai_tool=args.runner)
+        prep_result = _prepare.prepare(
+            case, target_dir, ai_tool=args.runner,
+            axes=axes, local_artifact=local_artifact,
+        )
     except _prepare.PrepError as exc:
         # SCHEMA.md §6: prep failure → ABORTED_PREP terminal state.
         # Write a minimal invocation.json so the receipt is
@@ -330,6 +342,11 @@ def _build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--max-duration-s", default=1800.0,
                         type=float,
                         help="Kill the run after this many seconds (default 1800).")
+    p_run.add_argument("--install-artifact", default=None,
+                        help="v1.5.7 096: path to the local artifact "
+                             "(wheel for pip-local-wheel, tgz for "
+                             "npm-local-tgz). Required for those "
+                             "channels; ignored otherwise.")
 
     # Phase 4 subcommands.
     p_mgr = sub.add_parser(
