@@ -865,21 +865,263 @@ def _execute_one_run(plan_run: PlanRun, harness_run_dir: Path,
                     .run_facts_to_json(facts) if facts else None),
         )
 
-    # Production path — uses the real prepare/launch/facts/grade
-    # modules. Implemented for completeness, but the live-run
-    # behaviour (real clone + install + AI-CLI subprocess) is
-    # operator-triggered and NOT exercised by tests (per
-    # instruction Task D).
-    raise NotImplementedError(
-        "production plan-runner execution path is operator-"
-        "triggered. Tests use hooks.fake_run; live operation "
-        "will land when an operator invokes "
-        "`python3 -m bin.qpb_harness run-plan <plan.json>` with "
-        "real clone/install/launch wiring + a real AI-CLI on "
-        "PATH. The Phase 1-6 substrate (prepare/runner/facts/"
-        "grade) is unit-proven; composing it here is the "
-        "operator-driven smoke test deferred per the "
-        "instruction's halt-condition (no real QPB runs in CI)."
+    # v1.5.7 103: production path — real clone → install →
+    # launch → facts → grade. ``hooks.fake_run`` (above) stays an
+    # OPTIONAL fast-path for unit tests; absent the hook, the
+    # real composition runs. The AI-CLI subprocess in
+    # ``runner.launch_run`` is the only thing tests stub (via
+    # `unittest.mock.patch`); everything else — clone, install,
+    # the installed-gate re-run, the grader — runs for real.
+    return _execute_one_run_production(
+        plan_run, harness_run_dir, run_dir, target_dir,
+        artifact_map=artifact_map,
+        local_artifact_info=local_artifact_info,
+    )
+
+
+def _execute_one_run_production(
+        plan_run: PlanRun, harness_run_dir: Path,
+        run_dir: Path, target_dir: Path, *,
+        artifact_map: "dict[InstallChannel, dict]",
+        local_artifact_info: "Optional[dict]",
+) -> RunOutcome:
+    """v1.5.7 103: real per-run composition.
+
+    Steps:
+      1. Build a synthetic Case + RunAxes from the PlanRun.
+      2. ``prepare.prepare`` clones the repo, populates docs per
+         prep policy, and installs the skill via the run's
+         channel (passing the folder-local artifact when
+         applicable per 101). PrepError ⇒ terminal
+         ``ABORTED_PREP``, ``result=N/A``; the invocation
+         receipt records the reason.
+      3. ``runner.launch_run`` runs the AI-CLI as a detached
+         subprocess with the run's parameters (100) and the
+         appropriate stdin/argv prompt route (095). Tests patch
+         this to write a canned ``quality/`` tree and return
+         COMPLETED — the only stub-able piece in the
+         composition.
+      4. On COMPLETED: ``facts.extract_facts`` re-runs the run's
+         INSTALLED gate over the produced ``quality/`` tree (the
+         two-sourced extraction per design §C); ``grade_expect``
+         (existing 099 helper) grades the plan's flat ``expect``
+         map against the extracted facts. Result is MET/NOT-MET.
+      5. Non-COMPLETED terminals (FAILED, TIMED_OUT, BLOCKED) ⇒
+         ``result=N/A`` (never silently MET); the receipts +
+         transcript still land so the operator can debug.
+
+    Receipts written into ``run-NN/``:
+      * ``invocation.json`` — RunInvocation serialized, with a
+        non-standard ``local_artifact`` field carrying the 101
+        wheel/tgz provenance (path + filename + sha256) when
+        applicable, and a non-standard ``prep_error`` field on
+        ABORTED_PREP.
+      * ``facts.json`` — on COMPLETED only.
+      * ``grading.json`` — on COMPLETED only.
+      * (``stream.ndjson`` is written by ``runner.launch_run``.)
+    """
+    from bin import _purpose as _purpose_mod
+    from bin.harness import facts as _facts_mod
+    from bin.harness import prepare as _prepare_mod
+    from bin.harness import runner as _runner_mod
+    from bin.harness.schema import (
+        Case, CaseInputs, CaseType, PrepPolicy, RunInvocation,
+        run_facts_to_json, run_invocation_to_json,
+    )
+
+    # Build synthetic Case + RunAxes (the plan-runner doesn't use
+    # cases.json — every per-run identity is the plan index).
+    case_type = (CaseType.SECURITY_EVAL
+                  if plan_run.prep == "security"
+                  else CaseType.ACCEPTANCE)
+    prep_policy = (PrepPolicy.SECURITY
+                    if plan_run.prep == "security"
+                    else PrepPolicy.ACCEPTANCE)
+    case = Case(
+        id=f"plan-{plan_run.index:02d}",
+        type=case_type,
+        title=plan_run.description,
+        inputs=CaseInputs(
+            repo_url=plan_run.repo,
+            prep=prep_policy,
+            target_ref=plan_run.ref,
+            reference_docs_source=plan_run.docs,
+        ),
+        expected=[],
+    )
+    axes = RunAxes(
+        runner=plan_run.runner,
+        mode=plan_run.mode,
+        install_channel=plan_run.channel,
+        install_version=plan_run.install_version,
+        model=plan_run.model,
+    )
+
+    run_id = _utc_now_run_id()
+    local_artifact = (
+        Path(local_artifact_info["path"])
+        if local_artifact_info else None
+    )
+    qpb_version = _purpose_mod.get_version()
+    phase_yn_all_dashes = {f"P{i}": "-" for i in range(7)}
+
+    def _now_iso() -> str:
+        return datetime.now(timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+
+    # ----- STEP 1: PREPARE (clone + docs + install) -----
+    started_at = _now_iso()
+    try:
+        prep_result = _prepare_mod.prepare(
+            case, target_dir,
+            ai_tool=plan_run.runner.value,
+            axes=axes,
+            local_artifact=local_artifact,
+        )
+    except _prepare_mod.PrepError as exc:
+        ended_at = _now_iso()
+        inv_dict = {
+            "run_id": run_id,
+            "case_id": case.id,
+            "axes": {
+                "runner": axes.runner.value,
+                "mode": axes.mode.value,
+                "install_channel": axes.install_channel.value,
+                "install_version": axes.install_version,
+                "model": axes.model,
+                "thinking": axes.thinking,
+            },
+            "qpb_version": qpb_version,
+            "target_sha": "",
+            "cli_command": "",
+            "cwd": str(target_dir),
+            "env_snapshot": {},
+            "started_at": started_at,
+            "ended_at": ended_at,
+            "exit_code": -1,
+            "terminal_state": TerminalState.ABORTED_PREP.value,
+            "scrubbed_docs_manifest": None,
+            "leakage_gate": (
+                "ABORTED" if exc.leakage_terms else None
+            ),
+            "local_artifact": local_artifact_info,
+            "prep_error": exc.reason,
+        }
+        (run_dir / "invocation.json").write_text(
+            json.dumps(inv_dict, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        return RunOutcome(
+            index=plan_run.index,
+            description=plan_run.description,
+            repo=plan_run.repo,
+            runner=plan_run.runner.value,
+            model=plan_run.model,
+            phase_yn=phase_yn_all_dashes,
+            gate_verdict="N/A",
+            result="N/A",
+            terminal_state=TerminalState.ABORTED_PREP.value,
+            grading={"prep_error": exc.reason},
+        )
+
+    # ----- STEP 2: LAUNCH (detached AI-CLI subprocess) -----
+    launch_spec = _runner_mod.LaunchSpec(
+        target_dir=prep_result.target_dir,
+        run_dir=run_dir,
+        axes=axes,
+        case_id=case.id,
+        run_id=run_id,
+        max_duration_s=1800.0,
+        prompt="Run the Quality Playbook on this project.",
+        parameters=(plan_run.parameters or None),
+    )
+    launch = _runner_mod.launch_run(launch_spec)
+    terminal = launch.terminal_state
+
+    # ----- STEP 3: INVOCATION RECEIPT -----
+    inv = RunInvocation(
+        run_id=run_id,
+        case_id=case.id,
+        axes=axes,
+        qpb_version=qpb_version,
+        target_sha=prep_result.target_sha,
+        cli_command=launch.cli_command,
+        cwd=launch.cwd,
+        env_snapshot=launch.env_snapshot,
+        started_at=launch.started_at,
+        ended_at=launch.ended_at,
+        exit_code=launch.exit_code,
+        terminal_state=terminal,
+        scrubbed_docs_manifest=prep_result.scrubbed_docs_manifest,
+        leakage_gate=prep_result.leakage_gate,
+    )
+    inv_dict = run_invocation_to_json(inv)
+    inv_dict["local_artifact"] = local_artifact_info
+    (run_dir / "invocation.json").write_text(
+        json.dumps(inv_dict, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    # ----- STEP 4: FACTS + GRADE (only on COMPLETED) -----
+    facts: "Optional[RunFacts]" = None
+    grading = None
+    result_label = "N/A"
+    transcript = ""
+    if terminal == TerminalState.COMPLETED:
+        try:
+            transcript = launch.stream_path.read_text(
+                encoding="utf-8", errors="ignore",
+            )
+        except OSError:
+            transcript = ""
+        try:
+            facts = _facts_mod.extract_facts(
+                target_dir=prep_result.target_dir,
+                axes=axes,
+                transcript=transcript,
+                exit_code=launch.exit_code,
+                raw_receipt=launch.stream_path.name,
+            )
+            (run_dir / "facts.json").write_text(
+                json.dumps(run_facts_to_json(facts), indent=2)
+                + "\n", encoding="utf-8",
+            )
+            grading = grade_expect(plan_run, facts, axes)
+            (run_dir / "grading.json").write_text(
+                json.dumps(grading.to_json(), indent=2) + "\n",
+                encoding="utf-8",
+            )
+            result_label = grading.verdict  # MET / NOT-MET
+        except _facts_mod.FactsError as exc:
+            # Gate re-run failed (e.g. installed gate missing).
+            # Treat as N/A and record the reason; the
+            # invocation.json is still the load-bearing receipt.
+            grading = {"facts_error": str(exc)}
+            result_label = "N/A"
+
+    # ----- STEP 5: PHASE Y/N + OUTCOME -----
+    quality_dir = prep_result.target_dir / "quality"
+    phase_yn = capture_phase_yn(transcript, quality_dir)
+    if terminal != TerminalState.COMPLETED:
+        # Phases past the failure point read "-" rather than "N"
+        # — they didn't get a chance.
+        for p in ("P3", "P4", "P5", "P6"):
+            if phase_yn.get(p) == "N":
+                phase_yn[p] = "-"
+    return RunOutcome(
+        index=plan_run.index,
+        description=plan_run.description,
+        repo=plan_run.repo,
+        runner=plan_run.runner.value,
+        model=plan_run.model,
+        phase_yn=phase_yn,
+        gate_verdict=_gate_verdict_str(terminal, facts),
+        result=result_label,
+        terminal_state=terminal.value,
+        grading=(grading.to_json() if hasattr(grading, "to_json")
+                  else grading),
+        facts=(run_facts_to_json(facts) if facts else None),
     )
 
 
@@ -1057,5 +1299,6 @@ __all__ = [
     "build_artifacts",
     "_PoolGate",
     "_execute_one_run",
+    "_execute_one_run_production",
     "_required_local_channels",
 ]
