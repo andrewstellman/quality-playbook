@@ -39,7 +39,12 @@ README = REPO_ROOT / "README.md"
 # openfga-run3 Mode-A dogfood proved qpb_validate.py must ship in the install
 # closure). +1 line × 3 blocks shifts the 4 launch prompts down 3 lines
 # (350/356/364/366 → 353/359/367/369). The prompts themselves are unchanged.
-LAUNCH_PROMPT_LINES = (353, 359, 367, 369)  # the 4 IDE prompts per §3.5
+# v1.5.7 109: each §3 cp-block gained a `cp bin/qpb_phase.py …` line so the
+# manual install recipe mirrors the new _bundle_files() membership (qpb_phase
+# is the SKILL.md phase-boundary sentinel emitter). +1 line × 3 blocks shifts
+# the 4 launch prompts down 3 more lines (353/359/367/369 → 356/362/370/372).
+# The prompts themselves are unchanged.
+LAUNCH_PROMPT_LINES = (356, 362, 370, 372)  # the 4 IDE prompts per §3.5
 
 
 class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
@@ -107,10 +112,10 @@ class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
         conscious re-pin (instruction-079b Task 3 note)."""
         lines = README.read_text(encoding="utf-8").splitlines()
         markers = {
-            353: "**Claude Code:**",
-            359: "**GitHub Copilot:**",
-            367: "**Cursor:**",
-            369: "**Windsurf:**",
+            356: "**Claude Code:**",
+            362: "**GitHub Copilot:**",
+            370: "**Cursor:**",
+            372: "**Windsurf:**",
         }
         for lineno, marker in markers.items():
             self.assertTrue(

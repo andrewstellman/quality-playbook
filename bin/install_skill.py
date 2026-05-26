@@ -192,6 +192,9 @@ def _bundle_files_soft(
             "bin/run_state_lib.py",
             "bin/validate_phase_artifacts.py",
             "bin/qpb_config.py",
+            # v1.5.7 109: qpb_phase ships at adopter runtime
+            # (SKILL.md calls it at each phase boundary).
+            "bin/qpb_phase.py",
         ):
             p = source_root / rel
             if p.is_file():
@@ -447,6 +450,22 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     files.append((
         _require_bundle_file(source_root / "bin" / "qpb_validate.py"),
         Path("bin") / "qpb_validate.py",
+    ))
+    # v1.5.7 instruction 109: ship bin/qpb_phase.py so the
+    # adopter-side SKILL.md phase-boundary instruction can call
+    # `python3 <install_root>/bin/qpb_phase.py <n> <state>
+    # [--note ...]` at each phase boundary. The Test Harness
+    # status layer (107/108) parses the emitted ``::QPB::`` line
+    # to track which phase a run is in.
+    #
+    # Import closure: qpb_phase.py is stdlib-only (argparse, json,
+    # sys, datetime, typing) and has no `from bin` imports — the
+    # 090c cross-bin-import discipline is preserved. v1.5.7 090b
+    # mandatory-bundle pattern applies: missing file would break
+    # the adopter's first phase-boundary call (FileNotFoundError).
+    files.append((
+        _require_bundle_file(source_root / "bin" / "qpb_phase.py"),
+        Path("bin") / "qpb_phase.py",
     ))
     return files
 

@@ -152,6 +152,7 @@ INSTALL_CLOSURE = [
     {"path": "bin/council_semantic_check.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/migrate_v1_5_0_layout.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/qpb_config.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/qpb_phase.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/qpb_validate.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/quality_playbook.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/reference_docs_ingest.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},

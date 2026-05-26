@@ -187,6 +187,7 @@ class ScriptFormForeignCwdStaging090cTests(unittest.TestCase):
             for required in (
                 "bin/install_skill.py",
                 "bin/qpb_validate.py",
+                "bin/qpb_phase.py",  # v1.5.7 109
                 "bin/_purpose.py",
                 "SKILL.md",
                 "phase_prompts/phase1.md",
@@ -273,6 +274,7 @@ class ColdPipBuildShipsCompleteBundle090cTests(unittest.TestCase):
                 "_bundle/bin/_purpose.py",
                 "_bundle/bin/install_skill.py",
                 "_bundle/bin/qpb_validate.py",
+                "_bundle/bin/qpb_phase.py",  # v1.5.7 109
                 "_bundle/SKILL.md",
                 "_bundle/phase_prompts/phase1.md",
             ):
@@ -354,6 +356,7 @@ class ColdNpmPackShipsCompleteBundle090cTests(unittest.TestCase):
             "quality_playbook_cli/_bundle/bin/_purpose.py",
             "quality_playbook_cli/_bundle/bin/install_skill.py",
             "quality_playbook_cli/_bundle/bin/qpb_validate.py",
+            "quality_playbook_cli/_bundle/bin/qpb_phase.py",
         ):
             self.assertIn(
                 required_rel, names,

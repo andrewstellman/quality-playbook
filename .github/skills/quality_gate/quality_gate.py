@@ -213,6 +213,70 @@ def verdict_category(category):
     return _decorate
 
 
+def _compute_verdict_state(exit_code, fail_records,
+                             warn_records, zero_bug_repos):
+    """v1.5.7 109 — pure helper that returns the verdict-state
+    slug ("solid" | "shallow" | "failed") matching the operator-
+    verdict lead line in ``_emit_operator_verdict``.
+
+    Extracted so the 109 ``::QPB::`` gate-result sentinel can
+    emit the same state without re-running the lead-line
+    rendering. The two callers (lead line + sentinel) MUST stay
+    aligned — divergence would mean the operator sees one state
+    on screen and the harness extracts a different one from the
+    sentinel. The lead-line in ``_emit_operator_verdict`` calls
+    this so the alignment is structural.
+    """
+    if exit_code != 0:
+        return "failed"
+    weak_model = _has_weak_model_signal(
+        fail_records, zero_bug_repos, warn_records
+    )
+    is_shallow_pass = (
+        bool(zero_bug_repos)
+        or any("no test functions found" in w for w in warn_records)
+        or weak_model
+    )
+    return "shallow" if is_shallow_pass else "solid"
+
+
+def _format_gate_sentinel(*, gate_result: str,
+                            verdict_state: str,
+                            ts: "str | None" = None) -> str:
+    """v1.5.7 109 — return the single ``::QPB:: {json}`` line
+    for the gate-result sentinel. Unit-testable; the gate calls
+    this once at the end of main(), after the operator-verdict
+    block.
+
+    Format mirrors the ``kind:"phase"`` sentinel emitted by
+    ``bin/qpb_phase.py`` (same v=1 envelope, different kind):
+    ``::QPB:: {"v":1,"kind":"gate","gate_result":"PASS",
+    "verdict_state":"solid","ts":"2026-05-26T..."}``.
+
+    For LIVE DISPLAY ONLY. The harness's authoritative gate
+    result for grading stays ``facts.rerun_installed_gate``
+    (the collector's re-run, two-sourced per design §C); this
+    sentinel does NOT become a grading input.
+    """
+    payload = {
+        "v": 1,
+        "kind": "gate",
+        "gate_result": gate_result,
+        "verdict_state": verdict_state,
+        "ts": ts or _utc_now_iso(),
+    }
+    return f"::QPB:: {json.dumps(payload, separators=(',', ':'))}"
+
+
+def _utc_now_iso() -> str:
+    """v1.5.7 109 — UTC ISO-8601 in the format the harness uses
+    elsewhere (Zulu suffix, no microseconds). Stdlib-only."""
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+
 def _compute_final_verdict(fail_records, warn_count):
     """v1.5.7 089c (F15) — pure three-state verdict decision.
 
@@ -631,16 +695,15 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
     env_failure = _has_environment_signal(fail_records)
     # "Shallow" PASS: exit_code == 0 (no FAIL) but a hollow-shape
     # tell is present. Zero-bug alone is a shallow tell (per 090s).
-    is_shallow_pass = (
-        exit_code == 0 and (
-            bool(zero_bug_repos)
-            or any("no test functions found" in w for w in warn_records)
-            # If we reach here on exit 0, there ARE no FAILs, so a
-            # weak_model signal can only have come from the WARN
-            # tells already enumerated. Kept here defensively.
-            or weak_model
-        )
+    # v1.5.7 109: the shallow-vs-solid decision moved into
+    # _compute_verdict_state so the 109 ::QPB:: gate sentinel
+    # emits the SAME state slug the lead line prints (no
+    # divergence between operator-facing render + harness-facing
+    # sentinel — they share one helper).
+    verdict_state = _compute_verdict_state(
+        exit_code, fail_records, warn_records, zero_bug_repos,
     )
+    is_shallow_pass = (verdict_state == "shallow")
 
     # === Section 1: lead verdict line ===
     print("")
@@ -6445,6 +6508,26 @@ def main(argv=None):
         _FAIL_RECORDS, _WARN_RECORDS, _ZERO_BUG_REPOS, exit_code,
         run_provenance=_RUN_PROVENANCE,
     )
+    # v1.5.7 109: emit the deterministic ::QPB:: gate-result
+    # sentinel for the Test Harness status layer (107/108) to
+    # parse. ONE line, AFTER the load-bearing total_line /
+    # result_line / verdict block — those are byte-identical and
+    # the existing verdict parsers (Phase-6 witness,
+    # what_just_happened, the harness fact extractors) anchor on
+    # their specific line patterns, unaffected by this additive
+    # line. For live display only: the harness's authoritative
+    # gate result for grading stays facts.rerun_installed_gate.
+    _gate_result = (
+        "FAIL" if exit_code != 0
+        else ("CLEANUP" if "CLEANUP NEEDED" in result_line
+              else "PASS")
+    )
+    _verdict_state = _compute_verdict_state(
+        exit_code, _FAIL_RECORDS, _WARN_RECORDS, _ZERO_BUG_REPOS,
+    )
+    print(_format_gate_sentinel(
+        gate_result=_gate_result, verdict_state=_verdict_state,
+    ))
     return exit_code
 
 

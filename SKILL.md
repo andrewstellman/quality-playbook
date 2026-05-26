@@ -493,6 +493,12 @@ Each phase produces files on disk that the next phase reads. This is how context
 
 The pattern for each phase boundary: finish the current phase, write everything to disk, then print the end-of-phase message and stop. When the user starts the next phase, read back the files you need before proceeding. This "write then read" cycle is the phase boundary — it lets you drop exploration context from working memory before loading review context, for example.
 
+**Phase sentinel markers (v1.5.7 109).** At each phase boundary, emit a machine-readable marker so the Test Harness status layer can tell which phase a run is in. Resolve the install root the same way Phase 0 / Phase 1 do (the 10-layout fallback list documented below), then:
+- **On phase entry:** `python3 <install_root>/bin/qpb_phase.py <n> start` (no `--note`).
+- **On phase exit:** `python3 <install_root>/bin/qpb_phase.py <n> done --note "<1-3 sentence summary of what happened in this phase>"`. The note is your own free-text summary — what you did, what you found, what's notable. No rigid schema.
+
+Each invocation prints exactly one `::QPB:: {json}` line; the helper is install-bundled. The sentinel is observability only — it does NOT change any phase output, gate verdict, or grading.
+
 Write your Phase 1 exploration findings to `quality/EXPLORATION.md` before proceeding. This file is mandatory in all modes. Make it thorough: domain identification, architecture map, existing tests, specification summary, quality risks, skeleton/dispatch analysis, derived requirements (REQ-NNN), and derived use cases (UC-NN). Everything Phase 2 needs to generate artifacts must be in this file.
 
 The discipline of writing exploration findings to disk is what forces thorough analysis. Without it, the model keeps vague impressions in working memory and produces broad, abstract requirements that miss function-level defects. Writing forces specificity: file paths, line numbers, exact function names, concrete behavioral rules. That specificity is what makes requirements precise enough to catch bugs during code review.

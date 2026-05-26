@@ -68,6 +68,7 @@ cp "$QPB"/bin/role_map.py                          .github/skills/bin/role_map.p
 cp "$QPB"/bin/run_state_lib.py                     .github/skills/bin/run_state_lib.py
 cp "$QPB"/bin/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
 cp "$QPB"/bin/qpb_validate.py                      .github/skills/bin/qpb_validate.py
+cp "$QPB"/bin/qpb_phase.py                         .github/skills/bin/qpb_phase.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 # Place adopter docs here — citable specs/RFCs in reference_docs/cite/.
 # (v1.5.7 090h retired informal_docs/; reference_docs/ is the sole

@@ -314,6 +314,10 @@ for short in "${REPOS[@]}"; do
     # matches the adopter closure (Phase 0 validator now lives at
     # the install root per the openfga-run3 dogfood fix).
     cp "${QPB_DIR}/bin/qpb_validate.py" "${dst}/bin/qpb_validate.py" 2>/dev/null || true
+    # v1.5.7 109: ship qpb_phase.py so the benchmark bundle
+    # mirrors the adopter closure for the phase-sentinel emitter
+    # the SKILL.md phase-boundary directive calls at runtime.
+    cp "${QPB_DIR}/bin/qpb_phase.py" "${dst}/bin/qpb_phase.py" 2>/dev/null || true
     # v1.5.7 089z: the per-target `bin/run_playbook.sh` wrapper
     # (F-5b + 089n) is removed. The canonical run forms remain
     # and are sufficient: from the QPB clone root,

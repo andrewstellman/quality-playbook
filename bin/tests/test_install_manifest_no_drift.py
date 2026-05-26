@@ -79,8 +79,10 @@ class InstallClosureNoDriftTests(unittest.TestCase):
         currency follow-up (the worker must not modify the canonical
         addendum); the live _bundle_files() closure is the source of
         truth and the drift test pins INSTALL_CLOSURE to it."""
+        # v1.5.7 109: 54 → 55 (bin/qpb_phase.py shipped for the
+        # SKILL.md phase-boundary sentinel).
         from bin.qpb_validate import INSTALL_CLOSURE
-        self.assertEqual(len(INSTALL_CLOSURE), 54)
+        self.assertEqual(len(INSTALL_CLOSURE), 55)
         paths = [e["path"] for e in INSTALL_CLOSURE]
         self.assertEqual(len(paths), len(set(paths)),
                          "duplicate path in INSTALL_CLOSURE")
