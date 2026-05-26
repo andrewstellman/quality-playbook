@@ -44,15 +44,20 @@ class RunnerError(RuntimeError):
     supported)."""
 
 
-# Phases supported by the current runner implementation:
-#   * Phase 1 (091): claude adapter, clone channel.
-#   * Phase 5 (095): codex / copilot / cursor adapters + Mode B
-#     reuse of ``bin.run_playbook`` for each.
-# Channel coverage is still Phase 1's ``clone`` only — Phase 2
-# wires local-wheel/local-tgz; Phase 6 wires registry.
+# Runners supported by the current adapter implementation. Each
+# entry has a per-CLI command builder (`_<runner>_command`)
+# below; adding a runner is a 091-style adapter addition.
+#
+# v1.5.7 104: install_channel guard removed. The launch command
+# is channel-independent — `prepare` already installed the skill
+# into the target before launch_run runs; the runner just spawns
+# the AI-CLI against the installed target. The stale Phase-1
+# `_SUPPORTED_CHANNELS = {clone}` guard wrongly blocked
+# local-wheel / local-tgz / registry channels on the first live
+# run (it survived 091-103 only because every test before 104
+# used the clone channel).
 _SUPPORTED_RUNNERS = {Runner.CLAUDE, Runner.CODEX,
                       Runner.COPILOT, Runner.CURSOR}
-_SUPPORTED_CHANNELS = {InstallChannel.CLONE}
 
 
 def _utc_now_iso() -> str:
@@ -293,12 +298,10 @@ def _command_for_axes(axes: RunAxes, prompt: str,
             f"runner {axes.runner.value!r} is not in the supported "
             f"set {sorted(r.value for r in _SUPPORTED_RUNNERS)}"
         )
-    if axes.install_channel not in _SUPPORTED_CHANNELS:
-        raise RunnerError(
-            f"install_channel {axes.install_channel.value!r} is "
-            f"not yet supported (clone only; local-wheel/local-tgz "
-            f"land in Phase 2, registry in Phase 6)."
-        )
+    # v1.5.7 104: install_channel does NOT affect the launch
+    # argv (prepare already installed the skill); the old
+    # clone-only guard here wrongly blocked local/registry
+    # channels on the first live run.
     if axes.mode == Mode.B:
         if target_dir is None:
             raise RunnerError(

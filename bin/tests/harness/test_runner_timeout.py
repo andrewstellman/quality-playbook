@@ -57,17 +57,30 @@ class CommandConstructionTests(unittest.TestCase):
         # codex command starts with 'codex exec --full-auto'
         self.assertEqual(cmd[:3], ["codex", "exec", "--full-auto"])
 
-    def test_non_clone_channel_still_rejected(self) -> None:
-        """Channel coverage stays at Phase 1's CLONE only —
-        local-wheel/local-tgz are Phase 2, registry is Phase 6."""
-        axes = S.RunAxes(
-            runner=S.Runner.CLAUDE, mode=S.Mode.A,
-            install_channel=S.InstallChannel.PIP_LOCAL_WHEEL,
-            model="opus",
-        )
-        with self.assertRaises(R.RunnerError) as ctx:
-            R._command_for_axes(axes, "prompt")
-        self.assertIn("Phase 2", str(ctx.exception))
+    def test_local_channel_no_longer_rejected_post_104(
+            self) -> None:
+        """v1.5.7 104 retired the clone-only channel guard: the
+        launch command is channel-independent (prepare already
+        installed the skill), so local-wheel / local-tgz /
+        registry channels must produce a valid command without
+        RunnerError. The pre-104 assertion (`raises RunnerError
+        with "Phase 2"`) is the mutation-bite for 104 — re-adding
+        the guard would make this test FAIL with a RunnerError
+        raise instead of returning a valid command list."""
+        for channel in (S.InstallChannel.PIP_LOCAL_WHEEL,
+                         S.InstallChannel.NPM_LOCAL_TGZ,
+                         S.InstallChannel.PIP_REGISTRY,
+                         S.InstallChannel.NPM_REGISTRY):
+            axes = S.RunAxes(
+                runner=S.Runner.CLAUDE, mode=S.Mode.A,
+                install_channel=channel, model="opus",
+            )
+            cmd = R._command_for_axes(axes, "prompt")
+            self.assertEqual(
+                cmd[0], "claude",
+                f"channel {channel.value} must produce a valid "
+                f"claude command, not raise",
+            )
 
 
 @unittest.skipUnless(

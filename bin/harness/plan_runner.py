@@ -694,6 +694,69 @@ def build_artifacts(harness_run_dir: Path, plan: Plan, *,
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# v1.5.7 104: progress logging (operator visibility, no TUI)
+# ---------------------------------------------------------------------------
+
+
+class _ProgressLog:
+    """v1.5.7 104: thread-safe step-level progress logger.
+
+    Writes each line to THREE sinks:
+      * ``stderr`` — live operator visibility (the operator sees
+        the AI-CLIs running but the harness itself was silent
+        before 104).
+      * ``<harness-run>/harness.log`` — one line per state
+        transition across ALL runs in the harness-run.
+      * ``<run-dir>/run.log`` — same line, scoped to one run
+        (so an operator inspecting `run-NN/` sees only that
+        run's transitions).
+
+    Format: ``[HH:MM:SS] [<tag>] <message>``. The tag is either
+    ``harness-run`` for harness-level events or
+    ``run-NN <repo-tail> <runner>/<model>`` for per-run events.
+
+    Outcomes / SUMMARY are NOT affected by this — it's purely
+    additive operator-facing output. Concurrent run threads
+    serialize through ``_lock`` so log lines don't interleave.
+    """
+
+    def __init__(self, harness_run_dir: Path) -> None:
+        self.harness_log = harness_run_dir / "harness.log"
+        self._lock = threading.Lock()
+        self.harness_log.touch()
+
+    def log(self, message: str, *,
+             run_dir: "Optional[Path]" = None,
+             tag: str = "harness-run") -> None:
+        ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
+        line = f"[{ts}] [{tag}] {message}"
+        with self._lock:
+            print(line, file=sys.stderr, flush=True)
+            with open(self.harness_log, "a",
+                       encoding="utf-8") as f:
+                f.write(line + "\n")
+            if run_dir is not None:
+                run_log = run_dir / "run.log"
+                with open(run_log, "a", encoding="utf-8") as f:
+                    f.write(line + "\n")
+
+
+def _run_tag(plan_run: PlanRun) -> str:
+    """Compact per-run tag for log lines:
+    ``run-NN <repo-tail> <runner>/<model>``. The repo tail is the
+    last path segment of the URL (e.g. ``gson`` / ``chi`` /
+    ``keto``)."""
+    repo_tail = plan_run.repo.rstrip("/").split("/")[-1] or plan_run.repo
+    return (f"run-{plan_run.index:02d} {repo_tail} "
+            f"{plan_run.runner.value}/{plan_run.model}")
+
+
+# ---------------------------------------------------------------------------
+# Per-runner concurrency gate (pools-aware semaphore)
+# ---------------------------------------------------------------------------
+
+
 class _PoolGate:
     """A per-runner semaphore set. Each `acquire(runner)` blocks
     until that runner's pool has capacity; `release(runner)`
@@ -764,6 +827,7 @@ def _gate_verdict_str(terminal: TerminalState,
 def _execute_one_run(plan_run: PlanRun, harness_run_dir: Path,
                       hooks: PlanRunnerHooks,
                       artifact_map: "Optional[dict[InstallChannel, dict]]" = None,
+                      log: "Optional[_ProgressLog]" = None,
                       ) -> RunOutcome:
     """Execute one run end-to-end. Returns the RunOutcome that
     drives the SUMMARY.md row.
@@ -775,10 +839,16 @@ def _execute_one_run(plan_run: PlanRun, harness_run_dir: Path,
     ``<run-dir>/artifact_used.json`` (which the production
     invocation.json absorbs once the live launch path is wired).
     Tests assert against this receipt to verify per-run wiring.
+
+    v1.5.7 104: ``log`` is an optional ``_ProgressLog`` for
+    step-level operator visibility (stderr + harness.log +
+    per-run run.log). Outcomes are unchanged with or without
+    logging.
     """
     run_dir = harness_run_dir / f"run-{plan_run.index:02d}"
     run_dir.mkdir(parents=True, exist_ok=True)
     target_dir = run_dir / "target"
+    tag = _run_tag(plan_run)
 
     # v1.5.7 101: per-run artifact provenance. Even on the fake
     # path the receipt is written so tests can verify the wiring
@@ -799,6 +869,9 @@ def _execute_one_run(plan_run: PlanRun, harness_run_dir: Path,
     # clone+install+launch+facts cycle by returning a synthetic
     # result dict. This is what the tests use.
     if hooks.fake_run is not None:
+        if log is not None:
+            log.log("fake_run (test fast-path)",
+                     run_dir=run_dir, tag=tag)
         try:
             result = hooks.fake_run(plan_run, run_dir)
         except Exception as exc:
@@ -849,7 +922,7 @@ def _execute_one_run(plan_run: PlanRun, harness_run_dir: Path,
                 json.dumps(grading.to_json(), indent=2) + "\n",
                 encoding="utf-8",
             )
-        return RunOutcome(
+        outcome = RunOutcome(
             index=plan_run.index,
             description=plan_run.description,
             repo=plan_run.repo,
@@ -864,6 +937,13 @@ def _execute_one_run(plan_run: PlanRun, harness_run_dir: Path,
                                 fromlist=["run_facts_to_json"])
                     .run_facts_to_json(facts) if facts else None),
         )
+        if log is not None:
+            log.log(
+                f"DONE: gate={outcome.gate_verdict} "
+                f"result={outcome.result}",
+                run_dir=run_dir, tag=tag,
+            )
+        return outcome
 
     # v1.5.7 103: production path — real clone → install →
     # launch → facts → grade. ``hooks.fake_run`` (above) stays an
@@ -876,6 +956,7 @@ def _execute_one_run(plan_run: PlanRun, harness_run_dir: Path,
         plan_run, harness_run_dir, run_dir, target_dir,
         artifact_map=artifact_map,
         local_artifact_info=local_artifact_info,
+        log=log, tag=tag,
     )
 
 
@@ -884,6 +965,8 @@ def _execute_one_run_production(
         run_dir: Path, target_dir: Path, *,
         artifact_map: "dict[InstallChannel, dict]",
         local_artifact_info: "Optional[dict]",
+        log: "Optional[_ProgressLog]" = None,
+        tag: "Optional[str]" = None,
 ) -> RunOutcome:
     """v1.5.7 103: real per-run composition.
 
@@ -970,8 +1053,16 @@ def _execute_one_run_production(
             "%Y-%m-%dT%H:%M:%SZ"
         )
 
+    def _log(msg: str) -> None:
+        # No-op when log is absent (some unit tests call the
+        # production helper directly without a logger).
+        if log is not None:
+            log.log(msg, run_dir=run_dir, tag=tag or "run")
+
     # ----- STEP 1: PREPARE (clone + docs + install) -----
     started_at = _now_iso()
+    _log(f"clone {plan_run.repo}@{plan_run.ref}")
+    _log(f"install ({plan_run.channel.value})")
     try:
         prep_result = _prepare_mod.prepare(
             case, target_dir,
@@ -1012,6 +1103,8 @@ def _execute_one_run_production(
             json.dumps(inv_dict, indent=2) + "\n",
             encoding="utf-8",
         )
+        _log(f"ABORTED_PREP: {exc.reason}")
+        _log("DONE: gate=N/A result=N/A")
         return RunOutcome(
             index=plan_run.index,
             description=plan_run.description,
@@ -1036,8 +1129,13 @@ def _execute_one_run_production(
         prompt="Run the Quality Playbook on this project.",
         parameters=(plan_run.parameters or None),
     )
+    _log(f"launch {plan_run.runner.value}/{plan_run.model}")
     launch = _runner_mod.launch_run(launch_spec)
     terminal = launch.terminal_state
+    _log(
+        f"launched (pid={launch.pid}, terminal={terminal.value}) "
+        f"stream={launch.stream_path}"
+    )
 
     # ----- STEP 3: INVOCATION RECEIPT -----
     inv = RunInvocation(
@@ -1075,6 +1173,7 @@ def _execute_one_run_production(
             )
         except OSError:
             transcript = ""
+        _log("facts (re-run installed gate)")
         try:
             facts = _facts_mod.extract_facts(
                 target_dir=prep_result.target_dir,
@@ -1087,6 +1186,7 @@ def _execute_one_run_production(
                 json.dumps(run_facts_to_json(facts), indent=2)
                 + "\n", encoding="utf-8",
             )
+            _log("grade")
             grading = grade_expect(plan_run, facts, axes)
             (run_dir / "grading.json").write_text(
                 json.dumps(grading.to_json(), indent=2) + "\n",
@@ -1097,6 +1197,7 @@ def _execute_one_run_production(
             # Gate re-run failed (e.g. installed gate missing).
             # Treat as N/A and record the reason; the
             # invocation.json is still the load-bearing receipt.
+            _log(f"facts error: {exc}")
             grading = {"facts_error": str(exc)}
             result_label = "N/A"
 
@@ -1109,6 +1210,8 @@ def _execute_one_run_production(
         for p in ("P3", "P4", "P5", "P6"):
             if phase_yn.get(p) == "N":
                 phase_yn[p] = "-"
+    gate_verdict = _gate_verdict_str(terminal, facts)
+    _log(f"DONE: gate={gate_verdict} result={result_label}")
     return RunOutcome(
         index=plan_run.index,
         description=plan_run.description,
@@ -1116,7 +1219,7 @@ def _execute_one_run_production(
         runner=plan_run.runner.value,
         model=plan_run.model,
         phase_yn=phase_yn,
-        gate_verdict=_gate_verdict_str(terminal, facts),
+        gate_verdict=gate_verdict,
         result=result_label,
         terminal_state=terminal.value,
         grading=(grading.to_json() if hasattr(grading, "to_json")
@@ -1160,17 +1263,32 @@ def run_plan(plan: Plan, harness_runs_root: Path,
     harness_run_dir = harness_runs_root / _utc_now_run_id()
     harness_run_dir.mkdir(parents=True, exist_ok=False)
 
+    # v1.5.7 104: progress logger — stderr + harness.log
+    # (per-run log added when each run-NN dir is created).
+    log = _ProgressLog(harness_run_dir)
+    log.log(f"harness-run dir = {harness_run_dir}")
+    log.log(f"plan: {len(plan.runs)} runs, "
+            f"pools={plan.pools}")
+
     # v1.5.7 101: build the local artifacts BEFORE any runs
     # launch. BuildError propagates — no run-dirs, no SUMMARY.md;
     # the empty `<harness-run>/artifacts/` (or no artifacts/ at
     # all when the plan needs no local builds) is the forensic
     # trail of what was attempted.
+    needed_channels = _required_local_channels(plan)
+    if needed_channels:
+        log.log(
+            f"build artifacts "
+            f"({sorted(c.value for c in needed_channels)})"
+        )
     artifact_map = build_artifacts(
         harness_run_dir, plan,
         builder=builder,
         wheel_override=wheel_override,
         tgz_override=tgz_override,
     )
+    if needed_channels:
+        log.log("build artifacts complete")
 
     # Copy plan.
     (harness_run_dir / "plan.json").write_text(
@@ -1206,6 +1324,7 @@ def run_plan(plan: Plan, harness_runs_root: Path,
             outcomes[idx] = _execute_one_run(
                 pr, harness_run_dir, hooks,
                 artifact_map=artifact_map,
+                log=log,
             )
         finally:
             gate.release(pr.runner.value)
@@ -1225,6 +1344,12 @@ def run_plan(plan: Plan, harness_runs_root: Path,
     # Write SUMMARY.md.
     (harness_run_dir / "SUMMARY.md").write_text(
         render_summary(plan, result), encoding="utf-8",
+    )
+    # v1.5.7 104: harness-level completion line.
+    met = sum(1 for o in result if o.result == "MET")
+    log.log(
+        f"all runs complete: {met}/{len(result)} MET — "
+        f"SUMMARY={harness_run_dir / 'SUMMARY.md'}"
     )
     return result
 
@@ -1298,7 +1423,9 @@ __all__ = [
     "render_summary",
     "build_artifacts",
     "_PoolGate",
+    "_ProgressLog",
     "_execute_one_run",
     "_execute_one_run_production",
     "_required_local_channels",
+    "_run_tag",
 ]
