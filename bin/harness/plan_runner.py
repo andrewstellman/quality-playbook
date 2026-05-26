@@ -65,6 +65,7 @@ grades ``N/A``, never silently MET.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shlex
@@ -103,6 +104,14 @@ from bin.harness.schema import (
 class PlanError(ValueError):
     """The plan.json document violates the simplified-runner
     contract. Carries the offending field path."""
+
+
+class BuildError(RuntimeError):
+    """v1.5.7 101: a required local artifact (wheel/tgz) build
+    failed (or an override path was missing/unreadable). The
+    plan-runner aborts the harness run cleanly when this is
+    raised — no runs are launched against a failed/missing
+    build."""
 
 
 # ---------------------------------------------------------------------------
@@ -426,6 +435,192 @@ def capture_phase_yn(transcript: str,
 
 
 # ---------------------------------------------------------------------------
+# v1.5.7 101: local-artifact autobuild (pip wheel / npm tgz)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class BuilderHooks:
+    """v1.5.7 101: injection point for the wheel/tgz builders.
+
+    Tests pass mock callables (no real `python -m build` /
+    `npm pack` — those are slow and out-of-scope for unit tests).
+    Production: the operator-triggered live path supplies a real
+    builder that shells out to `bin/build_channel_package.py
+    --stage` + `python3 -m build --outdir <artifacts>` / `npm
+    pack --pack-destination <artifacts>` (matches design §D's
+    pre-publish lane).
+
+    Each callable accepts the harness-run's ``artifacts`` dir and
+    returns the path of the built file (which must live inside
+    that dir). The default ``_default_build_*`` helpers raise
+    NotImplementedError per the 099 halt-condition pattern.
+    """
+    build_wheel: "Optional[Callable[[Path], Path]]" = None
+    build_tgz: "Optional[Callable[[Path], Path]]" = None
+
+
+def _sha256_of(path: Path) -> str:
+    """SHA-256 of a file, streamed in 64 KiB chunks so large
+    artifacts (multi-MB wheels) don't blow memory."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def _default_build_wheel(artifacts_dir: Path) -> Path:
+    raise NotImplementedError(
+        "production wheel build is operator-triggered. Tests "
+        "pass BuilderHooks.build_wheel; live operation shells "
+        "out to `python3 bin/build_channel_package.py --stage` "
+        "+ `python3 -m build --outdir " + str(artifacts_dir) +
+        "`."
+    )
+
+
+def _default_build_tgz(artifacts_dir: Path) -> Path:
+    raise NotImplementedError(
+        "production tgz build is operator-triggered. Tests pass "
+        "BuilderHooks.build_tgz; live operation shells out to "
+        "`npm pack --pack-destination " + str(artifacts_dir) + "`."
+    )
+
+
+def _required_local_channels(plan: Plan) -> "set[InstallChannel]":
+    """Scan the plan's run channels for those requiring a
+    locally-built artifact. ``pip-local-wheel`` ⇒ wheel;
+    ``npm-local-tgz`` ⇒ tgz. Clone + registry channels need no
+    build."""
+    needed: set[InstallChannel] = set()
+    for r in plan.runs:
+        if r.channel == InstallChannel.PIP_LOCAL_WHEEL:
+            needed.add(InstallChannel.PIP_LOCAL_WHEEL)
+        elif r.channel == InstallChannel.NPM_LOCAL_TGZ:
+            needed.add(InstallChannel.NPM_LOCAL_TGZ)
+    return needed
+
+
+def build_artifacts(harness_run_dir: Path, plan: Plan, *,
+                     builder: "Optional[BuilderHooks]" = None,
+                     wheel_override: "Optional[Path]" = None,
+                     tgz_override: "Optional[Path]" = None,
+                     ) -> "dict[InstallChannel, dict]":
+    """v1.5.7 101: build (or copy from override) the local
+    artifacts the plan needs, into ``<harness-run>/artifacts/``.
+
+    Returns ``{channel: {path, filename, sha256}}`` for each
+    artifact actually placed. Channels that no run needs are
+    absent. If the plan needs no local artifacts at all, returns
+    an empty dict and writes no manifest.
+
+    Build-step contract:
+      * One build per artifact per harness run (the bundle is
+        identical across runs at one HEAD — there's no point
+        rebuilding per run).
+      * Overrides (``wheel_override`` / ``tgz_override``) are
+        copied into the artifacts dir verbatim, then the build
+        is skipped — so reproducibility is preserved (the
+        harness-run folder still contains the exact artifact
+        each run installed from).
+      * On ANY failure (default-builder NotImplementedError, an
+        override path that doesn't exist, a fake builder raising
+        for the build-failure test) → raise BuildError so the
+        caller aborts the harness run without launching any
+        runs.
+
+    Writes ``<artifacts>/manifest.json`` with the full provenance
+    so the operator can audit which exact artifacts a harness
+    run installed from.
+    """
+    needed = _required_local_channels(plan)
+    if not needed:
+        return {}
+    builder = builder or BuilderHooks()
+    artifacts_dir = harness_run_dir / "artifacts"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    out: dict[InstallChannel, dict] = {}
+
+    def _resolve_artifact(
+        channel: InstallChannel,
+        override: "Optional[Path]",
+        build_fn: "Optional[Callable[[Path], Path]]",
+        default_fn: "Callable[[Path], Path]",
+        kind: str,
+    ) -> Path:
+        if override is not None:
+            src = Path(override).expanduser().resolve()
+            if not src.is_file():
+                raise BuildError(
+                    f"{kind} override not found: {src}"
+                )
+            dst = artifacts_dir / src.name
+            shutil.copy2(src, dst)
+            return dst
+        try:
+            built = (build_fn or default_fn)(artifacts_dir)
+        except BuildError:
+            raise
+        except Exception as exc:
+            raise BuildError(
+                f"{kind} build failed: {exc}"
+            ) from exc
+        built = Path(built).resolve()
+        if not str(built).startswith(
+                str(artifacts_dir.resolve())):
+            raise BuildError(
+                f"{kind} build returned path outside the "
+                f"artifacts dir: {built}"
+            )
+        if not built.is_file():
+            raise BuildError(
+                f"{kind} build returned a non-existent path: "
+                f"{built}"
+            )
+        return built
+
+    if InstallChannel.PIP_LOCAL_WHEEL in needed:
+        whl = _resolve_artifact(
+            InstallChannel.PIP_LOCAL_WHEEL,
+            wheel_override,
+            builder.build_wheel,
+            _default_build_wheel,
+            "wheel",
+        )
+        out[InstallChannel.PIP_LOCAL_WHEEL] = {
+            "path": str(whl),
+            "filename": whl.name,
+            "sha256": _sha256_of(whl),
+        }
+
+    if InstallChannel.NPM_LOCAL_TGZ in needed:
+        tgz = _resolve_artifact(
+            InstallChannel.NPM_LOCAL_TGZ,
+            tgz_override,
+            builder.build_tgz,
+            _default_build_tgz,
+            "tgz",
+        )
+        out[InstallChannel.NPM_LOCAL_TGZ] = {
+            "path": str(tgz),
+            "filename": tgz.name,
+            "sha256": _sha256_of(tgz),
+        }
+
+    # Manifest for operator-facing audit + production-path's
+    # invocation.json absorption.
+    (artifacts_dir / "manifest.json").write_text(
+        json.dumps({
+            channel.value: info for channel, info in out.items()
+        }, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return out
+
+
+# ---------------------------------------------------------------------------
 # Per-runner concurrency gate (pools-aware semaphore)
 # ---------------------------------------------------------------------------
 
@@ -498,12 +693,38 @@ def _gate_verdict_str(terminal: TerminalState,
 
 
 def _execute_one_run(plan_run: PlanRun, harness_run_dir: Path,
-                      hooks: PlanRunnerHooks) -> RunOutcome:
+                      hooks: PlanRunnerHooks,
+                      artifact_map: "Optional[dict[InstallChannel, dict]]" = None,
+                      ) -> RunOutcome:
     """Execute one run end-to-end. Returns the RunOutcome that
-    drives the SUMMARY.md row."""
+    drives the SUMMARY.md row.
+
+    v1.5.7 101: ``artifact_map`` carries the harness-run's local
+    artifacts (``{channel: {path, filename, sha256}}``). When the
+    run's channel matches an entry, the per-run install would
+    use that artifact and the provenance is captured to
+    ``<run-dir>/artifact_used.json`` (which the production
+    invocation.json absorbs once the live launch path is wired).
+    Tests assert against this receipt to verify per-run wiring.
+    """
     run_dir = harness_run_dir / f"run-{plan_run.index:02d}"
     run_dir.mkdir(parents=True, exist_ok=True)
     target_dir = run_dir / "target"
+
+    # v1.5.7 101: per-run artifact provenance. Even on the fake
+    # path the receipt is written so tests can verify the wiring
+    # contract; on the production path the same data is absorbed
+    # into invocation.json (Task B).
+    artifact_map = artifact_map or {}
+    local_artifact_info = artifact_map.get(plan_run.channel)
+    if local_artifact_info is not None:
+        (run_dir / "artifact_used.json").write_text(
+            json.dumps({
+                "channel": plan_run.channel.value,
+                **local_artifact_info,
+            }, indent=2) + "\n",
+            encoding="utf-8",
+        )
 
     # Test-injection path: a fake runner short-circuits the
     # clone+install+launch+facts cycle by returning a synthetic
@@ -595,19 +816,51 @@ def _execute_one_run(plan_run: PlanRun, harness_run_dir: Path,
 
 def run_plan(plan: Plan, harness_runs_root: Path,
               hooks: "Optional[PlanRunnerHooks]" = None,
+              *,
+              builder: "Optional[BuilderHooks]" = None,
+              wheel_override: "Optional[Path]" = None,
+              tgz_override: "Optional[Path]" = None,
               ) -> "list[RunOutcome]":
     """Execute a parsed Plan end-to-end. Returns the list of
     RunOutcomes in plan-array order.
 
     Creates a timestamped harness-run subdir under
-    ``harness_runs_root``, copies ``plan.json`` in, launches the
-    runs in parallel gated by ``pools``, writes per-run receipts
-    + the root ``SUMMARY.md``.
+    ``harness_runs_root``, builds the local artifacts the plan
+    needs into ``<harness-run>/artifacts/``, copies ``plan.json``
+    in, launches the runs in parallel gated by ``pools``, writes
+    per-run receipts + the root ``SUMMARY.md``.
+
+    v1.5.7 101 build step:
+      * Runs ONCE per harness run, BEFORE any per-run launches.
+      * ``builder`` injects test mocks for wheel/tgz build
+        callables (production omits → default_build_* would
+        raise NotImplementedError for live runs, matching the
+        099 halt-condition pattern).
+      * ``wheel_override`` / ``tgz_override`` copy a pre-built
+        artifact into the harness-run folder instead of
+        building. Default (overrides absent) is build-fresh.
+      * On BuildError, the exception propagates — NO per-run
+        folders are created, NO SUMMARY.md is written. The empty
+        ``<harness-run>/artifacts/`` is the forensic trail of
+        what was attempted.
     """
     hooks = hooks or PlanRunnerHooks()
     harness_runs_root.mkdir(parents=True, exist_ok=True)
     harness_run_dir = harness_runs_root / _utc_now_run_id()
     harness_run_dir.mkdir(parents=True, exist_ok=False)
+
+    # v1.5.7 101: build the local artifacts BEFORE any runs
+    # launch. BuildError propagates — no run-dirs, no SUMMARY.md;
+    # the empty `<harness-run>/artifacts/` (or no artifacts/ at
+    # all when the plan needs no local builds) is the forensic
+    # trail of what was attempted.
+    artifact_map = build_artifacts(
+        harness_run_dir, plan,
+        builder=builder,
+        wheel_override=wheel_override,
+        tgz_override=tgz_override,
+    )
+
     # Copy plan.
     (harness_run_dir / "plan.json").write_text(
         json.dumps({
@@ -639,8 +892,10 @@ def run_plan(plan: Plan, harness_runs_root: Path,
         pr = plan.runs[idx]
         gate.acquire(pr.runner.value)
         try:
-            outcomes[idx] = _execute_one_run(pr, harness_run_dir,
-                                              hooks)
+            outcomes[idx] = _execute_one_run(
+                pr, harness_run_dir, hooks,
+                artifact_map=artifact_map,
+            )
         finally:
             gate.release(pr.runner.value)
 
@@ -718,16 +973,20 @@ def render_summary(plan: Plan,
 
 __all__ = [
     "PlanError",
+    "BuildError",
     "PlanRun",
     "Plan",
     "RunOutcome",
     "PlanRunnerHooks",
+    "BuilderHooks",
     "parse_plan",
     "load_plan",
     "grade_expect",
     "capture_phase_yn",
     "run_plan",
     "render_summary",
+    "build_artifacts",
     "_PoolGate",
     "_execute_one_run",
+    "_required_local_channels",
 ]

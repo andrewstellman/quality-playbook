@@ -232,7 +232,15 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
     """v1.5.7 099 — simplified plan-runner entry. Reads a flat
     plan.json, creates a timestamped harness-run folder, runs
     each run gated per-runner by ``pools``, writes the
-    SUMMARY.md table."""
+    SUMMARY.md table.
+
+    v1.5.7 101: also builds the local artifacts the plan needs
+    (pip wheel / npm tgz) into ``<harness-run>/artifacts/`` once
+    per harness run before any launches. Optional ``--wheel`` /
+    ``--tgz`` overrides skip the build and copy a pre-built
+    artifact into the folder instead. A build failure aborts
+    cleanly (no runs are launched against a failed build).
+    """
     from bin.harness import plan_runner as _plan
 
     plan_path = Path(args.plan_file).expanduser().resolve()
@@ -247,7 +255,23 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
     except _plan.PlanError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
-    outcomes = _plan.run_plan(plan, runs_root)
+    wheel_override = (
+        Path(args.wheel).expanduser().resolve()
+        if getattr(args, "wheel", None) else None
+    )
+    tgz_override = (
+        Path(args.tgz).expanduser().resolve()
+        if getattr(args, "tgz", None) else None
+    )
+    try:
+        outcomes = _plan.run_plan(
+            plan, runs_root,
+            wheel_override=wheel_override,
+            tgz_override=tgz_override,
+        )
+    except _plan.BuildError as exc:
+        print(f"ERROR: build failed — {exc}", file=sys.stderr)
+        return 3
     met = sum(1 for o in outcomes if o.result == "MET")
     total = len(outcomes)
     print(f"Plan complete: {met}/{total} MET", file=sys.stderr)
@@ -387,6 +411,18 @@ def _build_parser() -> argparse.ArgumentParser:
                           help="Root directory for harness-run "
                                "output folders (gitignored by "
                                "convention).")
+    p_plan.add_argument("--wheel", default=None,
+                          help=("v1.5.7 101: pre-built pip wheel "
+                                "path to use for pip-local-wheel "
+                                "runs (still copied into "
+                                "<harness-run>/artifacts/). When "
+                                "absent: build a fresh wheel."))
+    p_plan.add_argument("--tgz", default=None,
+                          help=("v1.5.7 101: pre-built npm tgz "
+                                "path to use for npm-local-tgz "
+                                "runs (still copied into "
+                                "<harness-run>/artifacts/). When "
+                                "absent: build a fresh tgz."))
 
     # Phase 4 subcommands.
     p_mgr = sub.add_parser(
