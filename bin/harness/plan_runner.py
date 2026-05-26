@@ -199,6 +199,19 @@ class PlanRun:
     # N-1's artifacts). The run's own receipts still write
     # under ``run-NN/``; only the TARGET is shared.
     workspace_root: "Optional[str]" = None
+    # v1.5.7 106 (fix): optional per-run Mode A launch prompt
+    # override. When None, ``_execute_one_run_production`` uses
+    # ``_MODE_A_FULL_RUN_PROMPT`` (the default that drives
+    # phases 1-6 + gate, unattended, no iteration strategies).
+    # When set, the override REPLACES the default verbatim —
+    # the operator can drive a single phase ("Run quality
+    # playbook phase 2."), test odd prompts, or A/B-test
+    # phrasings without changing the constant. Mode B is
+    # unaffected: run_playbook always builds its own phase
+    # prompt sequence and the per-run prompt does not reach the
+    # subprocess (Mode B's LaunchSpec.prompt is a sentinel
+    # string that's never consumed).
+    prompt: "Optional[str]" = None
 
 
 @dataclass
@@ -340,6 +353,26 @@ def _parse_run(idx: int, raw: dict) -> PlanRun:
             f"number or absent; got "
             f"{type(max_duration_raw).__name__}"
         )
+    # v1.5.7 106 (fix): optional per-run Mode A launch prompt
+    # override. Absent ⇒ default _MODE_A_FULL_RUN_PROMPT.
+    # Present + non-string OR empty/whitespace ⇒ PlanError.
+    prompt_raw = raw.get("prompt", None)
+    prompt_value: "Optional[str]"
+    if prompt_raw is None:
+        prompt_value = None
+    elif isinstance(prompt_raw, str):
+        if not prompt_raw.strip():
+            raise PlanError(
+                f"runs[{idx}].prompt: empty/whitespace string "
+                f"is not a valid override; omit the field to "
+                f"use the default prompt"
+            )
+        prompt_value = prompt_raw
+    else:
+        raise PlanError(
+            f"runs[{idx}].prompt: must be a string or absent; "
+            f"got {type(prompt_raw).__name__}"
+        )
     # v1.5.7 107: optional per-run `workspace_root` (path-as-
     # string). Absent ⇒ standard `run-NN/target` behavior.
     # Present ⇒ first run clones+installs into it; later runs
@@ -378,6 +411,7 @@ def _parse_run(idx: int, raw: dict) -> PlanRun:
         mode=mode_value,
         max_duration_s=max_duration_value,
         workspace_root=workspace_root_value,
+        prompt=prompt_value,
     )
 
 
@@ -1325,10 +1359,19 @@ def _execute_one_run_production(
         if plan_run.max_duration_s is not None
         else _DEFAULT_MAX_DURATION_S
     )
-    launch_prompt = (
-        _MODE_A_FULL_RUN_PROMPT if plan_run.mode == Mode.A
-        else "(Mode B — run_playbook drives the phases)"
-    )
+    # v1.5.7 106 (fix): per-run `prompt` override in Mode A
+    # replaces the default verbatim. Operator can drive a
+    # single phase ("Run quality playbook phase 2.") for the
+    # 107 sequential-phase-by-phase pattern, or test odd
+    # prompts. Mode B is unaffected (run_playbook builds its
+    # own phase prompts).
+    if plan_run.mode == Mode.A:
+        launch_prompt = (
+            plan_run.prompt if plan_run.prompt
+            else _MODE_A_FULL_RUN_PROMPT
+        )
+    else:
+        launch_prompt = "(Mode B — run_playbook drives the phases)"
     launch_spec = _runner_mod.LaunchSpec(
         target_dir=prep_result.target_dir,
         run_dir=run_dir,
@@ -1534,6 +1577,11 @@ def run_plan(plan: Plan, harness_runs_root: Path,
                 # set; absent keeps pre-107 plans byte-stable.
                 **({"workspace_root": r.workspace_root}
                    if r.workspace_root is not None else {}),
+                # v1.5.7 106 (fix): persist per-run prompt
+                # override only when set; absent keeps pre-106
+                # plans byte-stable.
+                **({"prompt": r.prompt}
+                   if r.prompt is not None else {}),
             } for r in plan.runs],
         }, indent=2) + "\n",
         encoding="utf-8",

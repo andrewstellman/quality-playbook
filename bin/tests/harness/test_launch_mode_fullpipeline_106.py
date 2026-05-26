@@ -618,6 +618,186 @@ class ModeBProductionCompositionTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# 106 (fix) — per-run `prompt` override (closes review finding 1)
+# ---------------------------------------------------------------------------
+
+
+class ParsePromptOverrideTests(unittest.TestCase):
+
+    def _base(self) -> dict:
+        return {
+            "description": "x", "repo": "y", "ref": "main",
+            "runner": "claude", "model": "opus",
+            "channel": "clone", "expect": {},
+        }
+
+    def test_prompt_absent_defaults_none(self) -> None:
+        plan = PR.parse_plan(
+            {"pools": {}, "runs": [self._base()]})
+        self.assertIsNone(plan.runs[0].prompt)
+
+    def test_prompt_string_parses(self) -> None:
+        raw = self._base()
+        raw["prompt"] = "Run quality playbook phase 2."
+        plan = PR.parse_plan({"pools": {}, "runs": [raw]})
+        self.assertEqual(
+            plan.runs[0].prompt,
+            "Run quality playbook phase 2.",
+        )
+
+    def test_prompt_empty_string_rejected(self) -> None:
+        raw = self._base()
+        raw["prompt"] = "   "
+        with self.assertRaises(PR.PlanError) as ctx:
+            PR.parse_plan({"pools": {}, "runs": [raw]})
+        self.assertIn("prompt", str(ctx.exception))
+        self.assertIn("empty", str(ctx.exception))
+
+    def test_prompt_wrong_type_rejected(self) -> None:
+        raw = self._base()
+        raw["prompt"] = 42
+        with self.assertRaises(PR.PlanError) as ctx:
+            PR.parse_plan({"pools": {}, "runs": [raw]})
+        self.assertIn("prompt", str(ctx.exception))
+        self.assertIn("string", str(ctx.exception))
+
+
+class PromptOverrideProductionPathTests(unittest.TestCase):
+    """**Mutation-bite for the 106-fix.** The per-run prompt
+    MUST override the default when set, in Mode A. If a future
+    refactor ignores the override (always uses the constant),
+    these tests FAIL."""
+
+    def test_per_run_prompt_overrides_default_in_mode_a(
+            self) -> None:
+        captured: dict = {}
+
+        def _fake(spec):
+            captured["prompt"] = spec.prompt
+            spec.run_dir.mkdir(parents=True, exist_ok=True)
+            stream = spec.run_dir / "stream.ndjson"
+            stream.write_text("{}\n", encoding="utf-8")
+            return RUN.LaunchResult(
+                pid=0,
+                started_at="2026-05-26T00:00:00Z",
+                ended_at="2026-05-26T00:00:01Z",
+                exit_code=1,
+                terminal_state=S.TerminalState.FAILED,
+                cli_command="(patched)",
+                cwd=str(spec.target_dir),
+                env_snapshot={},
+                stream_path=stream,
+            )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_p = Path(tmp)
+            fixture = tmp_p / "fixture-repo"
+            fixture.mkdir()
+            for c in (("git", "init", "--initial-branch=main"),
+                       ("git", "config", "user.email", "t@e.x"),
+                       ("git", "config", "user.name", "T")):
+                subprocess.run(list(c), cwd=str(fixture),
+                               check=True, capture_output=True)
+            (fixture / "README.md").write_text("# fix\n")
+            subprocess.run(["git", "add", "README.md"],
+                           cwd=str(fixture), check=True,
+                           capture_output=True)
+            subprocess.run(["git", "commit", "-m", "init"],
+                           cwd=str(fixture), check=True,
+                           capture_output=True)
+            plan_run = PR.PlanRun(
+                index=0, description="phase-2 explicitly",
+                repo=f"file://{fixture}", ref="main",
+                runner=S.Runner.CLAUDE, model="opus",
+                channel=S.InstallChannel.CLONE,
+                prompt="Run quality playbook phase 2.",
+                expect={},
+            )
+            harness_run = tmp_p / "harness-run"
+            harness_run.mkdir()
+            with mock.patch(
+                "bin.harness.runner.launch_run",
+                side_effect=_fake,
+            ):
+                PR._execute_one_run(
+                    plan_run, harness_run,
+                    hooks=PR.PlanRunnerHooks(),
+                    artifact_map={},
+                )
+            self.assertEqual(
+                captured["prompt"],
+                "Run quality playbook phase 2.",
+                "per-run prompt override must reach LaunchSpec."
+                "prompt verbatim; mutation-bite: revert the "
+                "override-honoring branch and this test fails",
+            )
+            self.assertNotEqual(
+                captured["prompt"], PR._MODE_A_FULL_RUN_PROMPT,
+                "the override must REPLACE the default, not "
+                "be appended or merged",
+            )
+
+    def test_no_prompt_falls_back_to_default_constant(
+            self) -> None:
+        captured: dict = {}
+
+        def _fake(spec):
+            captured["prompt"] = spec.prompt
+            spec.run_dir.mkdir(parents=True, exist_ok=True)
+            stream = spec.run_dir / "stream.ndjson"
+            stream.write_text("{}\n", encoding="utf-8")
+            return RUN.LaunchResult(
+                pid=0, started_at="2026-05-26T00:00:00Z",
+                ended_at="2026-05-26T00:00:01Z",
+                exit_code=1,
+                terminal_state=S.TerminalState.FAILED,
+                cli_command="(patched)",
+                cwd=str(spec.target_dir),
+                env_snapshot={}, stream_path=stream,
+            )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_p = Path(tmp)
+            fixture = tmp_p / "fixture-repo"
+            fixture.mkdir()
+            for c in (("git", "init", "--initial-branch=main"),
+                       ("git", "config", "user.email", "t@e.x"),
+                       ("git", "config", "user.name", "T")):
+                subprocess.run(list(c), cwd=str(fixture),
+                               check=True, capture_output=True)
+            (fixture / "README.md").write_text("# fix\n")
+            subprocess.run(["git", "add", "README.md"],
+                           cwd=str(fixture), check=True,
+                           capture_output=True)
+            subprocess.run(["git", "commit", "-m", "init"],
+                           cwd=str(fixture), check=True,
+                           capture_output=True)
+            plan_run = PR.PlanRun(
+                index=0, description="default-prompt",
+                repo=f"file://{fixture}", ref="main",
+                runner=S.Runner.CLAUDE, model="opus",
+                channel=S.InstallChannel.CLONE,
+                # NO prompt override.
+                expect={},
+            )
+            harness_run = tmp_p / "harness-run"
+            harness_run.mkdir()
+            with mock.patch(
+                "bin.harness.runner.launch_run",
+                side_effect=_fake,
+            ):
+                PR._execute_one_run(
+                    plan_run, harness_run,
+                    hooks=PR.PlanRunnerHooks(),
+                    artifact_map={},
+                )
+            self.assertEqual(
+                captured["prompt"],
+                PR._MODE_A_FULL_RUN_PROMPT,
+            )
+
+
 class PlanRoundtripPreservesNewFieldsTests(unittest.TestCase):
 
     def test_run_plan_writes_mode_and_max_duration_when_set(
@@ -676,6 +856,58 @@ class PlanRoundtripPreservesNewFieldsTests(unittest.TestCase):
             self.assertEqual(written["runs"][1]["mode"], "B")
             self.assertEqual(
                 written["runs"][1]["max_duration_s"], 9000.0,
+            )
+
+    def test_run_plan_writes_prompt_only_when_set(self) -> None:
+        """106-fix round-trip: prompt persists when set, absent
+        when None (pre-106 plans round-trip byte-stable)."""
+        run_with_prompt = {
+            "description": "phase-2 override",
+            "repo": "x", "ref": "main",
+            "runner": "claude", "model": "opus",
+            "channel": "clone",
+            "prompt": "Run quality playbook phase 2.",
+            "expect": {},
+        }
+        run_default = {
+            "description": "default-prompt",
+            "repo": "y", "ref": "main",
+            "runner": "claude", "model": "opus",
+            "channel": "clone", "expect": {},
+        }
+        plan = PR.parse_plan({
+            "pools": {"claude": 1},
+            "runs": [run_default, run_with_prompt],
+        })
+
+        def _fake(pr, run_dir):
+            return {
+                "terminal_state":
+                    S.TerminalState.ABORTED_PREP.value,
+                "facts": None, "transcript": "",
+                "axes": S.RunAxes(
+                    runner=pr.runner, mode=pr.mode,
+                    install_channel=pr.channel, model=pr.model,
+                ),
+            }
+
+        with tempfile.TemporaryDirectory() as tmp:
+            runs_root = Path(tmp)
+            PR.run_plan(
+                plan, runs_root,
+                hooks=PR.PlanRunnerHooks(fake_run=_fake),
+            )
+            harness_run = next(
+                d for d in runs_root.iterdir() if d.is_dir()
+            )
+            written = json.loads(
+                (harness_run / "plan.json").read_text(
+                    encoding="utf-8")
+            )
+            self.assertNotIn("prompt", written["runs"][0])
+            self.assertEqual(
+                written["runs"][1]["prompt"],
+                "Run quality playbook phase 2.",
             )
 
 
