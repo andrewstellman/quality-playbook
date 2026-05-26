@@ -1901,6 +1901,7 @@ def _collect_one_run_detached(
     deadline = (time.monotonic()
                 + max(0.0, max_duration_s))
     terminal: TerminalState
+    terminal_reason = ""
     while True:
         if pid is None or not _pid_is_alive(pid):
             # Process terminated. Infer terminal_state from
@@ -1926,12 +1927,31 @@ def _collect_one_run_detached(
             break
         time.sleep(0.25)
 
+    # v1.5.7 112: AUP / API-error refusal overrides
+    # exit-code / artifact-inference. Claude Code's AUP
+    # refusal can leave a `gate-report-latest.json` from an
+    # earlier phase (so the artifact-inference path would
+    # mis-mark COMPLETED). The stream's last `result` event
+    # with `is_error:true` is the authoritative signal.
+    # TIMED_OUT (max-duration kill) still wins; otherwise
+    # an API-error stream ⇒ BLOCKED.
+    if terminal != TerminalState.TIMED_OUT:
+        blocked, reason = _runner_mod._stream_ended_in_api_error(
+            Path(entry.get("stream_path",
+                            str(run_dir / "stream.ndjson")))
+        )
+        if blocked:
+            terminal = TerminalState.BLOCKED
+            terminal_reason = reason
+
     ended_at = datetime.now(timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
-    # Write terminal status.json.
+    # Write terminal status.json (carries 112's
+    # terminal_reason when BLOCKED).
     _write_terminal_status(run_dir, pid, started_at,
-                            ended_at, terminal)
+                            ended_at, terminal,
+                            terminal_reason=terminal_reason)
 
     # ----- FACTS + GRADE -----
     facts = None
@@ -2013,10 +2033,16 @@ def _collect_one_run_detached(
 
 def _write_terminal_status(run_dir: Path, pid: "Optional[int]",
                             started_at: str, ended_at: str,
-                            terminal: TerminalState) -> None:
+                            terminal: TerminalState,
+                            *,
+                            terminal_reason: str = "") -> None:
     """v1.5.7 108: collector's terminal status.json write
     (the orphan-polling path can't recover exit_code, so it
-    records -1 + the inferred terminal_state)."""
+    records -1 + the inferred terminal_state).
+
+    v1.5.7 112: ``terminal_reason`` carries the AUP / API-error
+    body when ``terminal == BLOCKED``. Empty for other states.
+    """
     status_path = run_dir / "status.json"
     tmp = status_path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps({
@@ -2027,6 +2053,7 @@ def _write_terminal_status(run_dir: Path, pid: "Optional[int]",
         "ended_at": ended_at,
         "exit_code": -1,
         "terminal_state": terminal.value,
+        "terminal_reason": terminal_reason,
     }, indent=2) + "\n", encoding="utf-8")
     os.replace(tmp, status_path)
 

@@ -472,6 +472,61 @@ def launch_run_async(spec: LaunchSpec) -> SpawnResult:
     )
 
 
+def _stream_ended_in_api_error(
+        stream_path: Path) -> "tuple[bool, str]":
+    """v1.5.7 112: detect an AUP / API-error termination by
+    reading the LAST ``result`` event from ``stream.ndjson``.
+
+    Claude Code's AUP refusal looks like:
+      ``{"type":"result", "subtype":"success",
+         "is_error":true,
+         "result":"API Error: Claude Code is unable to respond
+                   to this request, which appears to violate
+                   our Usage Policy (…/aup) …"}``
+
+    The robust key is ``is_error:true`` — NOT ``subtype``
+    (AUP refusals report ``subtype:"success"`` with
+    ``is_error:true``). The process also exits 0, so the
+    pre-112 ``COMPLETED if exit_code == 0`` logic mis-marked
+    AUP-blocked runs COMPLETED, which then graded the
+    partial ``quality/`` tree as substantive failures (first
+    live run showed "18 substantive fails" from this).
+
+    Returns ``(blocked, reason)`` where ``reason`` is the
+    ``result`` body text (or empty when no result event found
+    or ``is_error`` is absent / false).
+    """
+    if not stream_path.is_file():
+        return (False, "")
+    try:
+        text = stream_path.read_text(
+            encoding="utf-8", errors="ignore"
+        )
+    except OSError:
+        return (False, "")
+    last_result: "dict | None" = None
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        if obj.get("type") == "result":
+            last_result = obj
+    if last_result is None:
+        return (False, "")
+    if not last_result.get("is_error"):
+        return (False, "")
+    reason = last_result.get("result", "")
+    if not isinstance(reason, str):
+        reason = json.dumps(reason)
+    return (True, reason)
+
+
 def collect_one_process(spec: LaunchSpec,
                          spawn: SpawnResult) -> LaunchResult:
     """v1.5.7 108: in-process collector — waits for a child
@@ -533,6 +588,22 @@ def collect_one_process(spec: LaunchSpec,
             terminal_state = TerminalState.TIMED_OUT
             break
         time.sleep(0.05)
+    # v1.5.7 112: AUP / API-error refusal overrides exit-code
+    # logic — Claude Code's AUP refusal exits 0 with a
+    # `result` event carrying `is_error:true`, so the
+    # exit-code-only logic above mis-marked it COMPLETED
+    # (which then graded the partial quality/ tree as
+    # substantive failures). TIMED_OUT still wins (a kill is
+    # a kill, regardless of stream content); otherwise an
+    # API-error stream ⇒ BLOCKED.
+    terminal_reason = ""
+    if terminal_state != TerminalState.TIMED_OUT:
+        blocked, reason = _stream_ended_in_api_error(
+            spawn.stream_path
+        )
+        if blocked:
+            terminal_state = TerminalState.BLOCKED
+            terminal_reason = reason
     ended_at = _utc_now_iso()
     _write_status(spec.run_dir, {
         "state": "DONE",
@@ -542,6 +613,10 @@ def collect_one_process(spec: LaunchSpec,
         "ended_at": ended_at,
         "exit_code": exit_code,
         "terminal_state": terminal_state.value,
+        # v1.5.7 112: record the AUP / API-error body when
+        # we hit the BLOCKED path so the operator can see
+        # WHY a run was marked N/A. Empty for non-BLOCKED.
+        "terminal_reason": terminal_reason,
     })
     return LaunchResult(
         pid=spawn.pid,
@@ -579,6 +654,7 @@ __all__ = [
     "launch_run",
     "launch_run_async",
     "collect_one_process",
+    "_stream_ended_in_api_error",
     # Exposed for tests + downstream reuse:
     "_claude_command",
     "_codex_command",
