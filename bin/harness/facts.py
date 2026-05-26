@@ -237,16 +237,31 @@ def parse_gate_stdout(stdout: str) -> "tuple[GateFacts, VerdictFacts, Provenance
     # ----- GateFacts -----
     total_line: str = ""
     cleanup_gaps = 0
+    # v1.5.7 097: parse the substantive / record-keeping fail
+    # counts independently from the gate's `Total:` line — they
+    # feed the de-circularized no_false_pass / no_false_fail
+    # checks in the grader.
+    substantive_fail_count = 0
+    record_keeping_fail_count = 0
     m_failed = _RE_TOTAL_FAILED.search(stdout)
     m_cleanup = _RE_TOTAL_CLEANUP.search(stdout)
     m_pass = _RE_TOTAL_PASS.search(stdout)
     if m_failed is not None:
         total_line = m_failed.group(0)
+        # ``Total: N FAIL (M substantive, K record-keeping), W
+        # WARN`` — the 089c three-state FAIL form.
+        substantive_fail_count = int(m_failed.group("sub"))
+        record_keeping_fail_count = int(m_failed.group("rk"))
     elif m_cleanup is not None:
         total_line = m_cleanup.group(0)
         cleanup_gaps = int(m_cleanup.group("cleanup"))
+        # CLEANUP path: by 089c construction substantive ==
+        # 0 (otherwise the gate would have routed to FAIL); the
+        # cleanup_gaps count IS the record-keeping count.
+        record_keeping_fail_count = cleanup_gaps
     elif m_pass is not None:
         total_line = m_pass.group(0)
+        # ``Total: 0 FAIL, W WARN`` — both counts are 0.
     else:
         raise FactsError(
             "could not find canonical Total: line in gate stdout "
@@ -263,6 +278,8 @@ def parse_gate_stdout(stdout: str) -> "tuple[GateFacts, VerdictFacts, Provenance
         gate_total=total_line,
         gate_result=gate_result,
         cleanup_gaps=cleanup_gaps,
+        substantive_fail_count=substantive_fail_count,
+        record_keeping_fail_count=record_keeping_fail_count,
     )
 
     # ----- VerdictFacts (090v / 090x) -----

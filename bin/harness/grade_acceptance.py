@@ -235,33 +235,27 @@ def _ext_no_false_pass(facts: RunFacts, axes: RunAxes) -> bool:
     PASS/CLEANUP while substantive (non-record-keeping) FAILs
     exist.
 
-    The fact object doesn't carry the substantive-fail count
-    directly, but it carries `gate_result` AND `gate.cleanup_
-    gaps`. The check is: if `gate_result` is PASS, there should
-    be NO non-record-keeping FAILs (otherwise the gate would
-    have routed to CLEANUP or FAIL); if `gate_result` is
-    CLEANUP, the only FAILs should be record-keeping (so
-    `cleanup_gaps` > 0 is consistent — substantive count == 0
-    is implicit because CLEANUP routes there only when n_sub
-    == 0 per the 089c three-state).
+    v1.5.7 097 (DE-CIRCULARIZED): uses the
+    ``substantive_fail_count`` independently parsed by
+    ``facts.py`` from the gate's ``Total:`` line, NOT inferred
+    from the gate's own routing. Pre-097 this check was
+    circular — it asked "did the gate route to PASS while
+    substantive fails exist" by reading the gate's own
+    PASS/CLEANUP routing, so a buggy gate that falsely PASSed
+    couldn't be caught (the contradiction shape was checked
+    against verdict_state, a different axis). The 097 fix:
 
-    Practical implementation: trust the gate's own three-state
-    routing (089c) — gate_result encodes the substantive split.
-    Conservative direction: this assertion passes IFF
-    `gate_result ∈ {PASS, CLEANUP, FAIL}` and the gate's
-    three-state mapping is intact (which the load-bearing 090v
-    tests pin). For the grader, this becomes a tautological
-    True UNLESS the harness saw a verdict block that contradicts
-    its own gate_result line.
+      no_false_pass = NOT (substantive_fail_count > 0
+                           AND gate_result ∈ {PASS, CLEANUP})
 
-    The contradiction shape: gate_result=PASS but
-    `verdict_state=failed` would mean the gate said PASS while
-    the verdict layer said the run failed — a tool-correctness
-    bug. Per F-note 2, that's a `no_false_pass=False` signal.
-    Same for CLEANUP→failed.
+    This catches a gate that REPORTS substantive fails on its
+    ``Total:`` line yet routes to PASS — the genuine tool-
+    correctness bug.
     """
-    if facts.gate.gate_result in (GateResult.PASS, GateResult.CLEANUP):
-        return facts.verdict.verdict_state != VerdictState.FAILED
+    if facts.gate.substantive_fail_count > 0:
+        if facts.gate.gate_result in (GateResult.PASS,
+                                        GateResult.CLEANUP):
+            return False
     return True
 
 
@@ -270,13 +264,21 @@ def _ext_no_false_fail(facts: RunFacts, axes: RunAxes) -> bool:
     """F-note 2 sibling: the gate never reports FAIL on a run
     with zero substantive FAILs.
 
-    Same logic as `no_false_pass`: if `gate_result=FAIL`, the
-    verdict layer should agree the run failed; a contradiction
-    (gate FAILED but verdict solid/shallow) is a tool-
-    correctness bug.
+    v1.5.7 097 (DE-CIRCULARIZED): uses the
+    ``substantive_fail_count`` independently parsed by
+    ``facts.py``. Pre-097 this checked verdict_state agreement,
+    which is a different axis (F-note 1 — verdict_state ⊥
+    gate_result independence). The 097 fix:
+
+      no_false_fail = NOT (gate_result == FAIL
+                           AND substantive_fail_count == 0)
+
+    A FAIL gate with zero substantive fails is a tool-
+    correctness bug regardless of verdict_state.
     """
     if facts.gate.gate_result == GateResult.FAIL:
-        return facts.verdict.verdict_state == VerdictState.FAILED
+        if facts.gate.substantive_fail_count == 0:
+            return False
     return True
 
 

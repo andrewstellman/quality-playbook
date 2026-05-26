@@ -363,22 +363,25 @@ class InternalConsistencyTests(unittest.TestCase):
         self.assertEqual(result.observed, True)
 
     def test_no_false_pass_FALSE_PASS_DETECTED(self) -> None:
-        """v1.5.7 092 F-note 2 MUTATION BITE: the gate reports
-        PASS but the verdict-layer says failed → that's a tool-
-        correctness bug, and `no_false_pass=False` surfaces it.
+        """v1.5.7 097 (de-circularized) MUTATION BITE: the gate
+        reports PASS while its own `Total:` line says
+        substantive fails exist → that's a tool-correctness
+        bug, and `no_false_pass=False` surfaces it.
 
-        Fixture: synthesized PASS + failed verdict. The grader
-        must observe `no_false_pass=False` AND a case asserting
-        `no_false_pass==True` must FAIL.
+        Fixture: PASS routing + ``substantive_fail_count=2``.
+        Pre-097 this was checked against verdict_state (which is
+        independent per F-note 1 — circular logic). Post-097 the
+        check uses the count independently parsed from the gate's
+        ``Total:`` line.
 
-        Mutation bite: replace the
-        `verdict_state != FAILED` check with a tautological
-        `True` → this test FAILs (the false-PASS contradiction
-        is no longer surfaced).
+        Mutation bite: revert to the count-free (circular)
+        check → this test FAILs (the false-PASS contradiction
+        is no longer surfaced because the old check looked at
+        verdict_state instead of the count).
         """
         facts = _mk_facts(
             **{"gate.gate_result": S.GateResult.PASS,
-                "verdict.verdict_state": S.VerdictState.FAILED},
+                "gate.substantive_fail_count": 2},
         )
         result = G.grade_assertion(
             _expected("no_false_pass", S.Comparator.EQ, True),
@@ -386,16 +389,20 @@ class InternalConsistencyTests(unittest.TestCase):
         )
         self.assertFalse(
             result.passed,
-            "v1.5.7 092 F-note 2: PASS gate + verdict=failed is "
-            "a tool-correctness contradiction; "
-            "no_false_pass MUST be False.",
+            "v1.5.7 097: PASS gate + substantive_fail_count > 0 "
+            "is a tool-correctness contradiction; "
+            "no_false_pass MUST be False (independent count, "
+            "not gate's own routing).",
         )
         self.assertEqual(result.observed, False)
 
     def test_no_false_fail_consistent_on_fail(self) -> None:
-        """FAIL gate + verdict_state=failed → consistent."""
+        """FAIL gate with substantive_fail_count > 0 →
+        consistent → no_false_fail=True. (v1.5.7 097
+        de-circularized: uses the count, not verdict_state.)"""
         facts = _mk_facts(
             **{"gate.gate_result": S.GateResult.FAIL,
+                "gate.substantive_fail_count": 3,
                 "verdict.verdict_state": S.VerdictState.FAILED},
         )
         result = G.grade_assertion(
@@ -405,12 +412,13 @@ class InternalConsistencyTests(unittest.TestCase):
         self.assertTrue(result.passed)
 
     def test_no_false_fail_FALSE_FAIL_DETECTED(self) -> None:
-        """v1.5.7 092 F-note 2 sibling MUTATION BITE: the gate
-        reports FAIL but verdict-layer says solid → false fail
-        → `no_false_fail=False`."""
+        """v1.5.7 097 (de-circularized) MUTATION BITE: the gate
+        reports FAIL with `substantive_fail_count=0` →
+        `no_false_fail=False`. Uses the independent count, not
+        a verdict_state agreement check."""
         facts = _mk_facts(
             **{"gate.gate_result": S.GateResult.FAIL,
-                "verdict.verdict_state": S.VerdictState.SOLID},
+                "gate.substantive_fail_count": 0},
         )
         result = G.grade_assertion(
             _expected("no_false_fail", S.Comparator.EQ, True),

@@ -416,10 +416,24 @@ class ProvenanceFacts:
 
 @dataclass
 class GateFacts:
-    """Gate-derived — the three-state verdict."""
+    """Gate-derived — the three-state verdict.
+
+    v1.5.7 097: ``substantive_fail_count`` and
+    ``record_keeping_fail_count`` are parsed independently from
+    the gate's ``Total:`` line (the three-state form carries
+    them as ``N FAIL (M substantive, K record-keeping)``). They
+    feed the acceptance grader's `no_false_pass` / `no_false_fail`
+    checks — which were CIRCULAR pre-097 (they inferred "no
+    substantive fails" from the gate's own PASS/CLEANUP routing,
+    so a buggy gate that falsely PASSed couldn't be caught). The
+    089c three-state verdict logic populates both counts; clean
+    PASS lines (``Total: 0 FAIL, M WARN``) set both to 0.
+    """
     gate_total: str  # the canonical 'Total: ...' line
     gate_result: GateResult
     cleanup_gaps: int
+    substantive_fail_count: int = 0  # v1.5.7 097
+    record_keeping_fail_count: int = 0  # v1.5.7 097
 
 
 @dataclass
@@ -877,6 +891,12 @@ def run_facts_to_json(facts: RunFacts) -> dict:
             "gate_total": facts.gate.gate_total,
             "gate_result": facts.gate.gate_result.value,
             "cleanup_gaps": facts.gate.cleanup_gaps,
+            # v1.5.7 097: independent counts (de-circularize
+            # no_false_pass / no_false_fail in the grader).
+            "substantive_fail_count":
+                facts.gate.substantive_fail_count,
+            "record_keeping_fail_count":
+                facts.gate.record_keeping_fail_count,
         },
         "install": asdict(facts.install),
         "run_meta": asdict(facts.run_meta),
@@ -940,6 +960,14 @@ def parse_run_facts(raw: dict, where: str = "facts") -> RunFacts:
             ),
             cleanup_gaps=_required(gt, "cleanup_gaps",
                                      f"{where}.gate"),
+            # v1.5.7 097 — fall back to 0 on legacy facts.json
+            # without these counts (e.g. older receipts).
+            substantive_fail_count=gt.get(
+                "substantive_fail_count", 0,
+            ),
+            record_keeping_fail_count=gt.get(
+                "record_keeping_fail_count", 0,
+            ),
         ),
         install=InstallSurfaceFacts(
             banner_rendered=_required(inst, "banner_rendered",
