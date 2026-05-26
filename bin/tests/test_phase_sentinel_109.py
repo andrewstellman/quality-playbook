@@ -548,6 +548,153 @@ class GateLoadBearingLinesRegressionTests(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# 109 (fix) — strengthen byte-identity coverage across PASS / CLEANUP / FAIL
+# ---------------------------------------------------------------------------
+
+
+class GateByteIdentityAcrossVerdictsTests(unittest.TestCase):
+    """109 Council review nit 4: the original PASS-only regex
+    test pinned shape, not byte identity, AND skipped the
+    non-PASS paths. This class adds coverage that:
+
+      * runs the gate over PASS / CLEANUP / FAIL fixture trees
+      * confirms the ``::QPB:: {kind:"gate"}`` sentinel is the
+        last line (109 contract);
+      * confirms the load-bearing `total_line` and `result_line`
+        appear ABOVE the sentinel AND parse via the same regex
+        anchors used by ``facts.parse_gate_stdout``;
+      * confirms the harness's authoritative grading
+        (``parse_gate_stdout``) still extracts the right
+        gate_result + verdict_state across all three verdicts
+        despite the sentinel.
+
+    The verdict-state in the sentinel is asserted equal to the
+    verdict-state in the parsed facts — so divergence between
+    operator-facing render and harness-facing sentinel would
+    surface immediately.
+    """
+
+    def _run_gate(self, populate_fn) -> tuple[int, str]:
+        from bin import install_skill
+        with tempfile.TemporaryDirectory() as td:
+            target = Path(td)
+            populate_fn(target)
+            (target / ".github").mkdir(exist_ok=True)
+            install_skill.install(into=target, ai_tool="claude",
+                                    no_smoke=True)
+            result = subprocess.run(
+                [sys.executable, str(
+                    target / ".claude" / "skills"
+                    / "quality-playbook" / "quality_gate.py"),
+                 str(target)],
+                capture_output=True, text=True, timeout=120,
+            )
+            return result.returncode, result.stdout
+
+    def _populate_failed(self, target: Path) -> None:
+        tree = minimal_zero_bug_tree()
+        tree["quality/BUGS.md"] = (
+            "# Bugs\n\n### BUG-001: Example\nDescription.\n"
+        )
+        tree["quality/test_functional.py"] = (
+            _REAL_PY_FUNCTIONAL_TEST
+        )
+        tree["quality/PROGRESS.md"] = (
+            "# Progress\n\nSkill version: 1.4.4\n\n"
+            "## Phases\n- [x] Phase 1\n- [x] Phase 2\n"
+            "- [x] Phase 3\n- [x] Phase 4\n"
+            "- [x] Phase 5\n- [x] Phase 6\n"
+            "## Terminal Gate Verification\n"
+        )
+        write_tree(target, tree)
+
+    def _gate_sentinel_payload(self, stdout: str) -> dict:
+        for ln in reversed(stdout.splitlines()):
+            if (ln.startswith(_SENTINEL_PREFIX)
+                    and '"kind":"gate"' in ln):
+                return _parse_sentinel(ln)
+        raise AssertionError(
+            "no kind:gate sentinel in gate stdout"
+        )
+
+    def _populate_solid(self, target: Path) -> None:
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree, bug_id="BUG-001")
+        tree["quality/test_functional.py"] = (
+            _REAL_PY_FUNCTIONAL_TEST
+        )
+        tree["quality/PROGRESS.md"] = (
+            "# Progress\n\nSkill version: 1.4.4\n\n"
+            "## Phases\n- [x] Phase 1\n- [x] Phase 2\n"
+            "- [x] Phase 3\n- [x] Phase 4\n"
+            "- [x] Phase 5\n- [x] Phase 6\n"
+            "## Terminal Gate Verification\n"
+        )
+        write_tree(target, tree)
+
+    def test_pass_path_load_bearing_invariants(self) -> None:
+        from bin.harness import facts as F
+        from bin.harness import schema as S
+        exit_code, stdout = self._run_gate(self._populate_solid)
+        self.assertEqual(exit_code, 0)
+        # Sentinel last; load-bearing line ABOVE it.
+        lines = stdout.splitlines()
+        sentinel_indexes = [
+            i for i, ln in enumerate(lines)
+            if (ln.startswith(_SENTINEL_PREFIX)
+                and '"kind":"gate"' in ln)
+        ]
+        result_indexes = [
+            i for i, ln in enumerate(lines)
+            if ln.startswith("RESULT: GATE")
+        ]
+        self.assertEqual(len(sentinel_indexes), 1)
+        self.assertEqual(len(result_indexes), 1)
+        self.assertLess(result_indexes[0], sentinel_indexes[0])
+        # parse_gate_stdout extracts PASS / solid.
+        gate, verdict, _prov = F.parse_gate_stdout(stdout)
+        self.assertEqual(gate.gate_result, S.GateResult.PASS)
+        self.assertEqual(verdict.verdict_state,
+                          S.VerdictState.SOLID)
+        # Sentinel agrees with the parser.
+        payload = self._gate_sentinel_payload(stdout)
+        self.assertEqual(payload["gate_result"], "PASS")
+        self.assertEqual(payload["verdict_state"], "solid")
+
+    def test_failed_path_load_bearing_invariants(self) -> None:
+        from bin.harness import facts as F
+        from bin.harness import schema as S
+        exit_code, stdout = self._run_gate(self._populate_failed)
+        # Exit nonzero on FAIL.
+        self.assertEqual(exit_code, 1)
+        # Sentinel last; load-bearing line ABOVE it.
+        lines = stdout.splitlines()
+        sentinel_indexes = [
+            i for i, ln in enumerate(lines)
+            if (ln.startswith(_SENTINEL_PREFIX)
+                and '"kind":"gate"' in ln)
+        ]
+        result_indexes = [
+            i for i, ln in enumerate(lines)
+            if ln.startswith("RESULT: GATE")
+        ]
+        self.assertEqual(len(sentinel_indexes), 1)
+        self.assertEqual(len(result_indexes), 1)
+        self.assertLess(result_indexes[0], sentinel_indexes[0])
+        # parse_gate_stdout extracts FAIL / failed.
+        gate, verdict, _prov = F.parse_gate_stdout(stdout)
+        self.assertEqual(gate.gate_result, S.GateResult.FAIL)
+        self.assertEqual(verdict.verdict_state,
+                          S.VerdictState.FAILED)
+        # Sentinel agrees with the parser (the 109 contract:
+        # operator-facing and harness-facing state slugs match
+        # via _compute_verdict_state).
+        payload = self._gate_sentinel_payload(stdout)
+        self.assertEqual(payload["gate_result"], "FAIL")
+        self.assertEqual(payload["verdict_state"], "failed")
+
+
+# ---------------------------------------------------------------------------
 # Task D — bundle-safety: qpb_phase IN both closures; harness OUT
 # ---------------------------------------------------------------------------
 

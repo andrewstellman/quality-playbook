@@ -1080,6 +1080,50 @@ def phase_label(phase: str) -> str:
     }[phase]
 
 
+def _read_gate_verdict_from_log(log_path: Path) -> str:
+    """v1.5.7 109 (fix): scan ``quality-gate.log`` for the LAST
+    canonical ``RESULT: GATE …`` line. Returns the matching
+    line stripped, or the file's last line as a degenerate
+    fallback, or ``"unknown"`` when the log is empty/absent.
+
+    Pre-fix, ``_handle_phase_complete`` for phase 6 read
+    ``lines[-1]`` directly, but the gate's stdout grew
+    non-RESULT trailing lines twice during 1.5.7:
+
+      * 090v appended the Operator Verdict block (multi-line
+        prose) AFTER the ``RESULT:`` line — so since 090v
+        ``lines[-1]`` was operator-block prose, never the
+        verdict line. The ``"WITH CLEANUP NEEDED"`` tag check
+        in the phase-6 handler therefore couldn't detect
+        cleanup since 090v (pre-109 latent break).
+      * 109 added the trailing ``::QPB:: {...}`` sentinel JSON,
+        making ``lines[-1]`` raw JSON.
+
+    The fix anchors on the load-bearing ``RESULT: GATE …``
+    pattern that ``facts.py`` / ``phase_prompts/phase6.md`` /
+    ``references/what_just_happened.md`` already match on. The
+    ``::QPB::`` sentinel + operator-verdict prose are both
+    skipped by construction (they don't start with
+    ``RESULT:``).
+    """
+    if not log_path.is_file():
+        return "unknown"
+    lines = log_path.read_text(
+        encoding="utf-8", errors="ignore",
+    ).splitlines()
+    if not lines:
+        return "unknown"
+    for line in reversed(lines):
+        stripped = line.strip()
+        if stripped.startswith("RESULT: GATE "):
+            return stripped
+    # Degenerate fallback: no RESULT: line. Preserve historical
+    # behavior so the rest of the phase-6 fallbacks (gate-
+    # report-latest.json, finalizer_status) still have
+    # something to inspect.
+    return lines[-1]
+
+
 SKILL_FALLBACK_GUIDE = (
     "Read the quality playbook skill using the documented install-location fallback list: "
     "SKILL.md, .claude/skills/quality-playbook/SKILL.md, "
@@ -3909,11 +3953,13 @@ def _log_phase_completion(
             log_file=log_file,
         )
         gate_log = quality_dir / "results" / "quality-gate.log"
-        gate_result = "unknown"
-        if gate_log.is_file():
-            lines = gate_log.read_text(encoding="utf-8", errors="ignore").splitlines()
-            if lines:
-                gate_result = lines[-1]
+        # v1.5.7 109 (fix): the verdict reader scans for the
+        # last canonical `RESULT: GATE …` line, ignoring the
+        # 090v operator-verdict block and the 109 ::QPB::
+        # sentinel that both trail `RESULT:` in the gate's
+        # stdout. See `_read_gate_verdict_from_log` for the
+        # full rationale.
+        gate_result = _read_gate_verdict_from_log(gate_log)
         lib.logboth(log_file, lib.log(f"  Phase 6 complete: {gate_result}"))
         gate_passed = _gate_pass(gate_result, quality_dir)
         # v1.5.2 (C13.9): map the finalizer's status into INDEX's

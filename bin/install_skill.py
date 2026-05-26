@@ -458,9 +458,14 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     # status layer (107/108) parses the emitted ``::QPB::`` line
     # to track which phase a run is in.
     #
-    # Import closure: qpb_phase.py is stdlib-only (argparse, json,
-    # sys, datetime, typing) and has no `from bin` imports — the
-    # 090c cross-bin-import discipline is preserved. v1.5.7 090b
+    # Import closure: qpb_phase.py imports only stdlib (argparse,
+    # json, sys, datetime, typing, pathlib) directly AND the
+    # canonical ``bin._purpose.print_command_intro`` for the 089x
+    # purpose-banner output, via the standard 3-step anchored
+    # fallback (``from bin._purpose`` → ``from _purpose`` →
+    # path-load from this file's directory) so the import resolves
+    # at any install layout without breaking the 090c isolation.
+    # No other ``bin/`` modules are imported. v1.5.7 090b
     # mandatory-bundle pattern applies: missing file would break
     # the adopter's first phase-boundary call (FileNotFoundError).
     files.append((
