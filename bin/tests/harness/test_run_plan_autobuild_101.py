@@ -266,20 +266,35 @@ class BuildFailureAbortsTests(unittest.TestCase):
             self.assertIn("wheel build failed", str(ctx.exception))
             self.assertIn("pip-build crashed", str(ctx.exception))
 
-    def test_default_builder_raises_not_implemented_via_build_error(
+    def test_default_builder_failure_with_subprocess_patched(
             self) -> None:
-        """Default (no builder injected) raises BuildError that
-        wraps the NotImplementedError from `_default_build_*` —
-        production launch is operator-triggered; tests pass
-        BuilderHooks.
+        """v1.5.7 102 retired the 'default raises
+        NotImplementedError' assertion: the default builder is
+        now live (shells out). With ``subprocess.run`` patched
+        to return non-zero, the default-builder code path still
+        raises a BuildError that carries the captured stderr.
+        The deeper coverage (correct argv / cwd / one-build-per-
+        artifact) lives in ``test_default_builder_wired_102.py``.
         """
+        import subprocess as _sub
+        import unittest.mock as _mock
+
+        def _fake_run(cmd, **kwargs):
+            return _sub.CompletedProcess(
+                args=cmd, returncode=1,
+                stdout="", stderr="simulated build failure",
+            )
         plan = _mk_plan(["pip-local-wheel"])
         with tempfile.TemporaryDirectory() as tmp:
             harness_run = Path(tmp) / "h"
             harness_run.mkdir()
-            with self.assertRaises(PR.BuildError) as ctx:
-                PR.build_artifacts(harness_run, plan)
+            with _mock.patch("bin.harness.plan_runner.subprocess.run",
+                             side_effect=_fake_run):
+                with self.assertRaises(PR.BuildError) as ctx:
+                    PR.build_artifacts(harness_run, plan)
             self.assertIn("wheel build failed",
+                            str(ctx.exception))
+            self.assertIn("simulated build failure",
                             str(ctx.exception))
 
     def test_run_plan_aborts_no_runs_no_summary(self) -> None:

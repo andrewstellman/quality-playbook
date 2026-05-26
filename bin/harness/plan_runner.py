@@ -445,16 +445,20 @@ class BuilderHooks:
 
     Tests pass mock callables (no real `python -m build` /
     `npm pack` — those are slow and out-of-scope for unit tests).
-    Production: the operator-triggered live path supplies a real
-    builder that shells out to `bin/build_channel_package.py
-    --stage` + `python3 -m build --outdir <artifacts>` / `npm
-    pack --pack-destination <artifacts>` (matches design §D's
-    pre-publish lane).
+    v1.5.7 102: when no builder is injected, the default helpers
+    ``_default_build_wheel`` / ``_default_build_tgz`` SHELL OUT
+    to the live build commands per design §D's pre-publish lane:
+      * wheel: ``python3 bin/build_channel_package.py --stage`` +
+        ``python3 -m build --wheel --outdir <artifacts>``;
+      * tgz: ``npm pack --pack-destination <artifacts>``.
+    Tests for the default code path (102) patch ``subprocess.run``
+    so the live builds don't actually run in unit tests.
 
     Each callable accepts the harness-run's ``artifacts`` dir and
     returns the path of the built file (which must live inside
-    that dir). The default ``_default_build_*`` helpers raise
-    NotImplementedError per the 099 halt-condition pattern.
+    that dir). Non-zero exit ⇒ raise with the captured stderr;
+    ``build_artifacts`` wraps that in ``BuildError`` and aborts
+    the harness run cleanly.
     """
     build_wheel: "Optional[Callable[[Path], Path]]" = None
     build_tgz: "Optional[Callable[[Path], Path]]" = None
@@ -470,22 +474,87 @@ def _sha256_of(path: Path) -> str:
     return h.hexdigest()
 
 
-def _default_build_wheel(artifacts_dir: Path) -> Path:
-    raise NotImplementedError(
-        "production wheel build is operator-triggered. Tests "
-        "pass BuilderHooks.build_wheel; live operation shells "
-        "out to `python3 bin/build_channel_package.py --stage` "
-        "+ `python3 -m build --outdir " + str(artifacts_dir) +
-        "`."
+def _repo_root() -> Path:
+    """The QPB clone root — the cwd from which
+    ``build_channel_package.py``, ``python -m build``, and
+    ``npm pack`` all run. ``plan_runner.py`` lives at
+    ``<root>/bin/harness/plan_runner.py``."""
+    return Path(__file__).resolve().parents[2]
+
+
+def _run_build_step(cmd: "list[str]", *, cwd: Path,
+                     step_label: str) -> "subprocess.CompletedProcess":
+    """Run one build step and raise with captured stderr on
+    non-zero. The caller catches and re-raises as the right
+    `<kind> build failed: …` so the BuildError message points
+    at the actual subprocess output."""
+    proc = subprocess.run(
+        cmd, cwd=str(cwd),
+        capture_output=True, text=True,
     )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"{step_label} exited {proc.returncode}: "
+            f"{(proc.stderr or proc.stdout or '').strip()[-1200:]}"
+        )
+    return proc
+
+
+def _default_build_wheel(artifacts_dir: Path) -> Path:
+    """v1.5.7 102: real wheel build. Stages the QPB bundle via
+    ``bin/build_channel_package.py --stage`` (matches the design
+    §D pre-publish lane), then runs ``python -m build --wheel
+    --outdir <artifacts_dir>`` from the clone root. Returns the
+    produced ``.whl`` path inside ``artifacts_dir``.
+
+    Subprocess failures raise RuntimeError with the captured
+    stderr; ``build_artifacts`` wraps that into ``BuildError``
+    so the caller aborts the harness run cleanly.
+    """
+    repo_root = _repo_root()
+    _run_build_step(
+        [sys.executable, "bin/build_channel_package.py", "--stage"],
+        cwd=repo_root, step_label="build_channel_package --stage",
+    )
+    _run_build_step(
+        [sys.executable, "-m", "build", "--wheel",
+         "--outdir", str(artifacts_dir)],
+        cwd=repo_root, step_label="python -m build --wheel",
+    )
+    wheels = sorted(Path(artifacts_dir).glob("*.whl"))
+    if len(wheels) != 1:
+        raise RuntimeError(
+            f"expected exactly one .whl in {artifacts_dir} after "
+            f"python -m build; found {len(wheels)}: "
+            f"{[w.name for w in wheels]}"
+        )
+    return wheels[0]
 
 
 def _default_build_tgz(artifacts_dir: Path) -> Path:
-    raise NotImplementedError(
-        "production tgz build is operator-triggered. Tests pass "
-        "BuilderHooks.build_tgz; live operation shells out to "
-        "`npm pack --pack-destination " + str(artifacts_dir) + "`."
+    """v1.5.7 102: real tgz build. Runs ``npm pack
+    --pack-destination <artifacts_dir>`` from the clone root.
+    npm pack's ``prepack`` hook stages the npm bundle if the
+    package.json wires it; the QPB repo's top-level package.json
+    is what npm operates on.
+
+    Returns the produced ``.tgz`` path inside ``artifacts_dir``.
+    Subprocess failure raises RuntimeError with the captured
+    stderr.
+    """
+    repo_root = _repo_root()
+    _run_build_step(
+        ["npm", "pack", "--pack-destination", str(artifacts_dir)],
+        cwd=repo_root, step_label="npm pack",
     )
+    tarballs = sorted(Path(artifacts_dir).glob("*.tgz"))
+    if len(tarballs) != 1:
+        raise RuntimeError(
+            f"expected exactly one .tgz in {artifacts_dir} after "
+            f"npm pack; found {len(tarballs)}: "
+            f"{[t.name for t in tarballs]}"
+        )
+    return tarballs[0]
 
 
 def _required_local_channels(plan: Plan) -> "set[InstallChannel]":
