@@ -67,6 +67,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shlex
 import shutil
@@ -1485,12 +1486,657 @@ def _execute_one_run_production(
     )
 
 
+# ---------------------------------------------------------------------------
+# v1.5.7 108: detached launch + background collector
+# ---------------------------------------------------------------------------
+
+
+def _pid_is_alive(pid: int) -> bool:
+    """v1.5.7 108: liveness check for orphaned AI-CLI processes
+    (the collector polls these — it can't ``waitpid`` because
+    the AI-CLIs are children of the now-exited run_plan parent).
+    Wrapped so tests can patch it cleanly.
+    """
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Process exists but we can't signal it. Treat as
+        # alive — it's not gone.
+        return True
+    except OSError:
+        return False
+    return True
+
+
+def _launch_one_run_detached(
+        plan_run: PlanRun, harness_run_dir: Path,
+        run_dir: Path, target_dir: Path, *,
+        artifact_map: "dict[InstallChannel, dict]",
+        local_artifact_info: "Optional[dict]",
+        log: "Optional[_ProgressLog]" = None,
+        tag: "Optional[str]" = None,
+) -> dict:
+    """v1.5.7 108: spawn-only half of the per-run flow. Does
+    prepare (clone+install, or reuse workspace_root per 107),
+    spawns the detached AI-CLI via ``runner.launch_run_async``,
+    writes a RUNNING-state ``invocation.json`` placeholder, and
+    returns a ManifestEntry dict that the collector picks up.
+
+    Does NOT wait for the AI-CLI to finish. The detached
+    collector (``collect_harness_run``) polls the PID via
+    ``_pid_is_alive`` and grades the run when the process
+    terminates.
+
+    Returns ``None`` when prepare fails — the manifest entry
+    records ABORTED_PREP terminal state so the collector skips
+    it on a later sweep.
+    """
+    from bin import _purpose as _purpose_mod
+    from bin.harness import prepare as _prepare_mod
+    from bin.harness import runner as _runner_mod
+    from bin.harness.schema import (
+        Case, CaseInputs, CaseType, PrepPolicy,
+    )
+
+    case_type = (CaseType.SECURITY_EVAL
+                  if plan_run.prep == "security"
+                  else CaseType.ACCEPTANCE)
+    prep_policy = (PrepPolicy.SECURITY
+                    if plan_run.prep == "security"
+                    else PrepPolicy.ACCEPTANCE)
+    case = Case(
+        id=f"plan-{plan_run.index:02d}",
+        type=case_type,
+        title=plan_run.description,
+        inputs=CaseInputs(
+            repo_url=plan_run.repo,
+            prep=prep_policy,
+            target_ref=plan_run.ref,
+            reference_docs_source=plan_run.docs,
+        ),
+        expected=[],
+    )
+    axes = RunAxes(
+        runner=plan_run.runner,
+        mode=plan_run.mode,
+        install_channel=plan_run.channel,
+        install_version=plan_run.install_version,
+        model=plan_run.model,
+    )
+    run_id = _utc_now_run_id()
+    local_artifact = (
+        Path(local_artifact_info["path"])
+        if local_artifact_info else None
+    )
+    qpb_version = _purpose_mod.get_version()
+    effective_max_duration_s = (
+        plan_run.max_duration_s
+        if plan_run.max_duration_s is not None
+        else _DEFAULT_MAX_DURATION_S
+    )
+
+    def _log(msg: str) -> None:
+        if log is not None:
+            log.log(msg, run_dir=run_dir, tag=tag or "run")
+
+    # ----- PREPARE (clone/install or reuse workspace_root) -----
+    if plan_run.workspace_root is not None:
+        actual_target_dir = (
+            Path(plan_run.workspace_root)
+            .expanduser().resolve()
+        )
+        workspace_already_prepared = _is_workspace_prepared(
+            actual_target_dir
+        )
+    else:
+        actual_target_dir = target_dir
+        workspace_already_prepared = False
+
+    started_at = datetime.now(timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+    if workspace_already_prepared:
+        _log(
+            f"reuse workspace {actual_target_dir} "
+            f"(skill already installed; no clone/install)"
+        )
+        target_sha = _resolve_workspace_sha(actual_target_dir)
+        prep_target_dir = actual_target_dir
+    else:
+        _log(f"clone {plan_run.repo}@{plan_run.ref}")
+        _log(f"install ({plan_run.channel.value})")
+        if (plan_run.workspace_root is not None
+                and actual_target_dir.exists()
+                and actual_target_dir.is_dir()
+                and not any(actual_target_dir.iterdir())):
+            actual_target_dir.rmdir()
+        try:
+            prep_result = _prepare_mod.prepare(
+                case, actual_target_dir,
+                ai_tool=plan_run.runner.value,
+                axes=axes,
+                local_artifact=local_artifact,
+            )
+            prep_target_dir = prep_result.target_dir
+            target_sha = prep_result.target_sha
+        except _prepare_mod.PrepError as exc:
+            # Prep failed — emit ABORTED_PREP manifest entry so
+            # the collector knows to skip the wait + run grade
+            # with N/A. The receipts mirror the synchronous
+            # ABORTED_PREP path.
+            ended_at = datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+            inv_dict = {
+                "run_id": run_id,
+                "case_id": case.id,
+                "axes": {
+                    "runner": axes.runner.value,
+                    "mode": axes.mode.value,
+                    "install_channel":
+                        axes.install_channel.value,
+                    "install_version": axes.install_version,
+                    "model": axes.model,
+                    "thinking": axes.thinking,
+                },
+                "qpb_version": qpb_version,
+                "target_sha": "",
+                "cli_command": "",
+                "cwd": str(actual_target_dir),
+                "env_snapshot": {},
+                "started_at": started_at,
+                "ended_at": ended_at,
+                "exit_code": -1,
+                "terminal_state":
+                    TerminalState.ABORTED_PREP.value,
+                "scrubbed_docs_manifest": None,
+                "leakage_gate": (
+                    "ABORTED" if exc.leakage_terms else None
+                ),
+                "local_artifact": local_artifact_info,
+                "prep_error": exc.reason,
+            }
+            run_dir.mkdir(parents=True, exist_ok=True)
+            (run_dir / "invocation.json").write_text(
+                json.dumps(inv_dict, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            _log(f"ABORTED_PREP: {exc.reason}")
+            return {
+                "index": plan_run.index,
+                "description": plan_run.description,
+                "repo": plan_run.repo,
+                "runner": plan_run.runner.value,
+                "model": plan_run.model,
+                "channel": plan_run.channel.value,
+                "mode": plan_run.mode.value,
+                "target_dir": str(actual_target_dir),
+                "run_dir": str(run_dir),
+                "run_id": run_id,
+                "pid": None,
+                "started_at": started_at,
+                "terminal_state":
+                    TerminalState.ABORTED_PREP.value,
+                "prep_error": exc.reason,
+                "status_path": str(run_dir / "status.json"),
+            }
+
+    # ----- LAUNCH (detached AI-CLI spawn) -----
+    if plan_run.mode == Mode.A:
+        launch_prompt = (
+            plan_run.prompt if plan_run.prompt
+            else _MODE_A_FULL_RUN_PROMPT
+        )
+    else:
+        launch_prompt = "(Mode B — run_playbook drives the phases)"
+    launch_spec = _runner_mod.LaunchSpec(
+        target_dir=prep_target_dir,
+        run_dir=run_dir,
+        axes=axes,
+        case_id=case.id,
+        run_id=run_id,
+        max_duration_s=effective_max_duration_s,
+        prompt=launch_prompt,
+        parameters=(plan_run.parameters or None),
+    )
+    _log(
+        f"launch {plan_run.runner.value}/{plan_run.model} "
+        f"(mode={plan_run.mode.value}, "
+        f"max_duration={int(effective_max_duration_s)}s)"
+    )
+    spawn = _runner_mod.launch_run_async(launch_spec)
+    _log(
+        f"launched (pid={spawn.pid}) — detached; collector "
+        f"will reap. stream={spawn.stream_path}"
+    )
+
+    # Write the RUNNING-state invocation.json placeholder so a
+    # status observer (110 layer) sees something coherent
+    # before the collector finalizes it.
+    inv_placeholder = {
+        "run_id": run_id,
+        "case_id": case.id,
+        "axes": {
+            "runner": axes.runner.value,
+            "mode": axes.mode.value,
+            "install_channel": axes.install_channel.value,
+            "install_version": axes.install_version,
+            "model": axes.model,
+            "thinking": axes.thinking,
+        },
+        "qpb_version": qpb_version,
+        "target_sha": target_sha,
+        "cli_command": spawn.cli_command,
+        "cwd": spawn.cwd,
+        "env_snapshot": spawn.env_snapshot,
+        "started_at": spawn.started_at,
+        "ended_at": None,
+        "exit_code": None,
+        "terminal_state": None,
+        "scrubbed_docs_manifest": None,
+        "leakage_gate": None,
+        "local_artifact": local_artifact_info,
+    }
+    (run_dir / "invocation.json").write_text(
+        json.dumps(inv_placeholder, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return {
+        "index": plan_run.index,
+        "description": plan_run.description,
+        "repo": plan_run.repo,
+        "runner": plan_run.runner.value,
+        "model": plan_run.model,
+        "channel": plan_run.channel.value,
+        "mode": plan_run.mode.value,
+        "target_dir": str(prep_target_dir),
+        "run_dir": str(run_dir),
+        "run_id": run_id,
+        "pid": spawn.pid,
+        "started_at": spawn.started_at,
+        "stream_path": str(spawn.stream_path),
+        "status_path": str(run_dir / "status.json"),
+        "max_duration_s": effective_max_duration_s,
+        # The plan_run expect map is what the grader needs.
+        "expect": plan_run.expect,
+        # Per-run prompt for receipt completeness.
+        "prompt": (plan_run.prompt
+                    if plan_run.prompt else launch_prompt),
+    }
+
+
+def _collect_one_run_detached(
+        entry: dict, harness_run_dir: Path,
+        log: "Optional[_ProgressLog]" = None,
+) -> RunOutcome:
+    """v1.5.7 108: collect ONE manifest entry. Idempotent:
+    if ``grading.json`` already exists, returns the existing
+    outcome without re-running facts/grade. Otherwise polls
+    the AI-CLI PID until termination (or ``max_duration_s``
+    elapses), then runs facts + grade and writes the final
+    receipts.
+
+    Orphan-polling: the AI-CLIs are children of the now-
+    exited run_plan; the collector polls liveness via
+    ``_pid_is_alive`` (``os.kill(pid, 0)``). Exit code can't
+    be recovered for orphans; terminal_state is inferred from
+    artifacts (gate-report-latest.json present ⇒ COMPLETED;
+    absent + process gone ⇒ FAILED). Max-duration enforced
+    via ``runner._kill_process_tree``.
+    """
+    from bin.harness import facts as _facts_mod
+    from bin.harness import runner as _runner_mod
+    from bin.harness.schema import (
+        Runner, Mode as _Mode, InstallChannel,
+        run_facts_to_json,
+    )
+
+    run_dir = Path(entry["run_dir"])
+    target_dir = Path(entry["target_dir"])
+    grading_path = run_dir / "grading.json"
+
+    # Re-hydrate a minimal PlanRun for grading + axes for
+    # facts extraction. The manifest carries enough to re-
+    # build the axes; the plan_run is reconstructed for
+    # grade_expect.
+    plan_run = PlanRun(
+        index=entry["index"],
+        description=entry["description"],
+        repo=entry["repo"],
+        ref="",  # unused at collect time
+        runner=Runner(entry["runner"]),
+        model=entry["model"],
+        channel=InstallChannel(entry["channel"]),
+        expect=entry.get("expect", {}),
+        mode=_Mode(entry.get("mode", "A")),
+    )
+    axes = RunAxes(
+        runner=plan_run.runner,
+        mode=plan_run.mode,
+        install_channel=plan_run.channel,
+        model=plan_run.model,
+    )
+
+    tag = _run_tag(plan_run)
+
+    def _log(msg: str) -> None:
+        if log is not None:
+            log.log(msg, run_dir=run_dir, tag=tag)
+
+    # ----- IDEMPOTENCY: already collected → return existing -----
+    if grading_path.is_file():
+        try:
+            grading_dict = json.loads(
+                grading_path.read_text(encoding="utf-8"))
+            facts_path = run_dir / "facts.json"
+            facts_dict = (
+                json.loads(facts_path.read_text(encoding="utf-8"))
+                if facts_path.is_file() else None
+            )
+            # Reconstruct outcome from receipts.
+            gate_verdict_str = "N/A"
+            terminal_str = entry.get(
+                "terminal_state",
+                TerminalState.COMPLETED.value,
+            )
+            if facts_dict and "gate" in facts_dict:
+                gate_verdict_str = {
+                    "PASS": "PASSED", "CLEANUP": "CLEANUP",
+                    "FAIL": "FAILED",
+                }.get(facts_dict["gate"].get("gate_result"),
+                       "?")
+            return RunOutcome(
+                index=plan_run.index,
+                description=plan_run.description,
+                repo=plan_run.repo,
+                runner=plan_run.runner.value,
+                model=plan_run.model,
+                phase_yn={f"P{i}": "-" for i in range(7)},
+                gate_verdict=gate_verdict_str,
+                result=grading_dict.get("verdict", "N/A"),
+                terminal_state=terminal_str,
+                grading=grading_dict,
+                facts=facts_dict,
+            )
+        except (json.JSONDecodeError, KeyError):
+            # Corrupt receipt — fall through to re-collect.
+            pass
+
+    # ----- ABORTED_PREP from launch → grade as N/A immediately -----
+    if entry.get("terminal_state") == TerminalState.ABORTED_PREP.value:
+        outcome = RunOutcome(
+            index=plan_run.index,
+            description=plan_run.description,
+            repo=plan_run.repo,
+            runner=plan_run.runner.value,
+            model=plan_run.model,
+            phase_yn={f"P{i}": "-" for i in range(7)},
+            gate_verdict="N/A",
+            result="N/A",
+            terminal_state=TerminalState.ABORTED_PREP.value,
+            grading={"prep_error": entry.get("prep_error",
+                                                "unknown")},
+        )
+        # Write a grading.json marker so a re-sweep skips.
+        (run_dir / "grading.json").write_text(
+            json.dumps({"verdict": "N/A",
+                        "prep_error": entry.get(
+                            "prep_error", "unknown")},
+                        indent=2) + "\n",
+            encoding="utf-8",
+        )
+        _log("DONE: gate=N/A result=N/A (ABORTED_PREP)")
+        return outcome
+
+    # ----- ORPHAN POLLING: wait for the AI-CLI to terminate -----
+    pid = entry.get("pid")
+    started_at = entry.get("started_at", "")
+    max_duration_s = float(
+        entry.get("max_duration_s", _DEFAULT_MAX_DURATION_S)
+    )
+    deadline = (time.monotonic()
+                + max(0.0, max_duration_s))
+    terminal: TerminalState
+    while True:
+        if pid is None or not _pid_is_alive(pid):
+            # Process terminated. Infer terminal_state from
+            # artifacts.
+            gate_report = (
+                target_dir / "quality" / "results"
+                / "gate-report-latest.json"
+            )
+            quality_dir = target_dir / "quality"
+            if gate_report.is_file():
+                terminal = TerminalState.COMPLETED
+            elif quality_dir.is_dir() and any(quality_dir.iterdir()):
+                # Partial work — treat as FAILED.
+                terminal = TerminalState.FAILED
+            else:
+                terminal = TerminalState.FAILED
+            break
+        if time.monotonic() >= deadline:
+            # Timeout — kill the process tree + record
+            # TIMED_OUT.
+            _runner_mod._kill_process_tree(pid)
+            terminal = TerminalState.TIMED_OUT
+            break
+        time.sleep(0.25)
+
+    ended_at = datetime.now(timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+    # Write terminal status.json.
+    _write_terminal_status(run_dir, pid, started_at,
+                            ended_at, terminal)
+
+    # ----- FACTS + GRADE -----
+    facts = None
+    grading = None
+    result_label = "N/A"
+    transcript = ""
+    stream_path = Path(entry.get("stream_path", ""))
+    if stream_path.is_file():
+        try:
+            transcript = stream_path.read_text(
+                encoding="utf-8", errors="ignore"
+            )
+        except OSError:
+            transcript = ""
+    if terminal == TerminalState.COMPLETED:
+        _log("facts (re-run installed gate)")
+        try:
+            facts = _facts_mod.extract_facts(
+                target_dir=target_dir,
+                axes=axes,
+                transcript=transcript,
+                exit_code=0,
+                raw_receipt=stream_path.name,
+            )
+            (run_dir / "facts.json").write_text(
+                json.dumps(run_facts_to_json(facts),
+                           indent=2) + "\n",
+                encoding="utf-8",
+            )
+            _log("grade")
+            grading = grade_expect(plan_run, facts, axes)
+            (run_dir / "grading.json").write_text(
+                json.dumps(grading.to_json(), indent=2)
+                + "\n", encoding="utf-8",
+            )
+            result_label = grading.verdict
+        except _facts_mod.FactsError as exc:
+            _log(f"facts error: {exc}")
+            grading = {"facts_error": str(exc)}
+            result_label = "N/A"
+            (run_dir / "grading.json").write_text(
+                json.dumps(grading, indent=2) + "\n",
+                encoding="utf-8",
+            )
+    else:
+        # Non-COMPLETED: write a grading.json sentinel so a
+        # re-sweep doesn't re-poll a long-gone process.
+        (run_dir / "grading.json").write_text(
+            json.dumps({
+                "verdict": "N/A",
+                "terminal_state": terminal.value,
+            }, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+    phase_yn = capture_phase_yn(transcript,
+                                  target_dir / "quality")
+    if terminal != TerminalState.COMPLETED:
+        for p in ("P3", "P4", "P5", "P6"):
+            if phase_yn.get(p) == "N":
+                phase_yn[p] = "-"
+    gate_verdict = _gate_verdict_str(terminal, facts)
+    _log(f"DONE: gate={gate_verdict} result={result_label}")
+    return RunOutcome(
+        index=plan_run.index,
+        description=plan_run.description,
+        repo=plan_run.repo,
+        runner=plan_run.runner.value,
+        model=plan_run.model,
+        phase_yn=phase_yn,
+        gate_verdict=gate_verdict,
+        result=result_label,
+        terminal_state=terminal.value,
+        grading=(grading.to_json() if hasattr(grading, "to_json")
+                  else grading),
+        facts=(run_facts_to_json(facts) if facts else None),
+    )
+
+
+def _write_terminal_status(run_dir: Path, pid: "Optional[int]",
+                            started_at: str, ended_at: str,
+                            terminal: TerminalState) -> None:
+    """v1.5.7 108: collector's terminal status.json write
+    (the orphan-polling path can't recover exit_code, so it
+    records -1 + the inferred terminal_state)."""
+    status_path = run_dir / "status.json"
+    tmp = status_path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps({
+        "state": "DONE",
+        "pid": pid,
+        "started_at": started_at,
+        "heartbeat": ended_at,
+        "ended_at": ended_at,
+        "exit_code": -1,
+        "terminal_state": terminal.value,
+    }, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp, status_path)
+
+
+def collect_harness_run(harness_run_dir: Path,
+                          log: "Optional[_ProgressLog]" = None,
+                          ) -> "list[RunOutcome]":
+    """v1.5.7 108: the detached collector entry point. Reads
+    ``<harness-run>/manifest.json``, iterates every entry,
+    collects each non-finished run (polling its PID +
+    grading), rewrites ``SUMMARY.md`` incrementally, and
+    returns the final list of outcomes.
+
+    Idempotent: re-running over a harness-run with all runs
+    already collected is a no-op for each (the per-run helper
+    short-circuits when ``grading.json`` is present). Invoked
+    by ``qpb_harness collect <dir>`` and auto-spawned by
+    ``run_plan`` in production mode.
+    """
+    manifest_path = harness_run_dir / "manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(
+            f"collect_harness_run: no manifest.json at "
+            f"{manifest_path}"
+        )
+    manifest = json.loads(
+        manifest_path.read_text(encoding="utf-8"))
+    outcomes: list[RunOutcome] = []
+    pool_total = max(1, len(manifest.get("runs", [])))
+    with ThreadPoolExecutor(max_workers=pool_total) as ex:
+        futures = [
+            ex.submit(_collect_one_run_detached, entry,
+                       harness_run_dir, log)
+            for entry in manifest.get("runs", [])
+        ]
+        for f in futures:
+            outcomes.append(f.result())
+    # Final SUMMARY rewrite (idempotent — same outcomes
+    # produce same SUMMARY).
+    plan_for_summary = manifest.get("plan", {})
+    if plan_for_summary:
+        try:
+            from bin.harness.schema import Mode as _Mode
+            # Re-build a minimal Plan-like object just for the
+            # summary table header.
+            class _PoolStub:
+                def __init__(self, pools: dict) -> None:
+                    self.pools = pools
+                    self.runs = []
+            stub = _PoolStub(
+                plan_for_summary.get("pools", {}))
+            (harness_run_dir / "SUMMARY.md").write_text(
+                render_summary(stub, outcomes),  # type: ignore[arg-type]
+                encoding="utf-8",
+            )
+        except Exception:
+            # Best-effort; the per-run receipts are the
+            # authoritative artifacts.
+            pass
+    return outcomes
+
+
+def _spawn_collector(harness_run_dir: Path,
+                       log: "Optional[_ProgressLog]" = None,
+                       ) -> int:
+    """v1.5.7 108: spawn the detached collector subprocess.
+    Anti-SIGTTIN: ``start_new_session=True`` + stdin from
+    ``/dev/null`` + stdout/stderr to
+    ``<harness-run>/collector.log``. Returns the collector's
+    PID so run_plan can print it for the operator.
+    """
+    collector_log = harness_run_dir / "collector.log"
+    cmd = [
+        sys.executable, "-m", "bin.qpb_harness",
+        "collect", str(harness_run_dir),
+    ]
+    log_fp = open(collector_log, "ab")
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(_repo_root_for_collector()),
+            stdout=log_fp,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    finally:
+        log_fp.close()
+    if log is not None:
+        log.log(
+            f"collector spawned (pid={proc.pid}); "
+            f"log={collector_log}"
+        )
+    return proc.pid
+
+
+def _repo_root_for_collector() -> Path:
+    """v1.5.7 108: the QPB clone root — the cwd the collector
+    must run from so ``python -m bin.qpb_harness`` resolves."""
+    # plan_runner.py lives at <root>/bin/harness/plan_runner.py.
+    return Path(__file__).resolve().parents[2]
+
+
 def run_plan(plan: Plan, harness_runs_root: Path,
               hooks: "Optional[PlanRunnerHooks]" = None,
               *,
               builder: "Optional[BuilderHooks]" = None,
               wheel_override: "Optional[Path]" = None,
               tgz_override: "Optional[Path]" = None,
+              detach: bool = True,
               ) -> "list[RunOutcome]":
     """Execute a parsed Plan end-to-end. Returns the list of
     RunOutcomes in plan-array order.
@@ -1588,6 +2234,46 @@ def run_plan(plan: Plan, harness_runs_root: Path,
     )
 
     gate = _PoolGate(plan.pools)
+    pool_total = max(1, sum(plan.pools.values())) if plan.pools else len(plan.runs)
+    pool_total = min(pool_total, len(plan.runs)) or 1
+
+    # v1.5.7 108: branch on hooks.fake_run AND the explicit
+    # `detach` parameter.
+    #   * fake_run set OR detach=False: synchronous flow —
+    #     launches + grades inline. Used by tests + the
+    #     existing direct-call paths. ``detach=False`` is the
+    #     opt-out used by tests that exercise the live
+    #     composition end-to-end without spawning a real
+    #     collector subprocess.
+    #   * fake_run None AND detach=True (production default):
+    #     detached flow — launches all AI-CLIs without waiting,
+    #     writes manifest.json, spawns the detached collector
+    #     subprocess (anti-SIGTTIN per 108), and returns
+    #     RUNNING placeholder outcomes. The collector runs
+    #     facts + grade + SUMMARY out of the blocking path.
+    if hooks.fake_run is not None or not detach:
+        return _run_plan_synchronous(
+            plan, harness_run_dir, hooks, artifact_map,
+            gate, pool_total, log,
+        )
+    return _run_plan_detached(
+        plan, harness_run_dir, artifact_map, gate, pool_total,
+        log,
+    )
+
+
+def _run_plan_synchronous(
+        plan: Plan, harness_run_dir: Path,
+        hooks: PlanRunnerHooks,
+        artifact_map: "dict[InstallChannel, dict]",
+        gate: "_PoolGate", pool_total: int,
+        log: "_ProgressLog",
+) -> "list[RunOutcome]":
+    """The pre-108 synchronous flow — launch + grade each run
+    inline via ``_execute_one_run``. Used when ``hooks.fake_run``
+    is set (the test fast-path) so existing 099-107 tests keep
+    working unchanged.
+    """
     outcomes: list[Optional[RunOutcome]] = [None] * len(plan.runs)
 
     def _wrapped(idx: int) -> None:
@@ -1602,29 +2288,135 @@ def run_plan(plan: Plan, harness_runs_root: Path,
         finally:
             gate.release(pr.runner.value)
 
-    # ThreadPoolExecutor sized to total pool capacity (sum of
-    # pools) so all threads can sit at the gate; the gate
-    # enforces per-runner caps.
-    pool_total = max(1, sum(plan.pools.values())) if plan.pools else len(plan.runs)
-    pool_total = min(pool_total, len(plan.runs)) or 1
     with ThreadPoolExecutor(max_workers=pool_total) as ex:
         futures = [ex.submit(_wrapped, i)
                    for i in range(len(plan.runs))]
         for f in futures:
             f.result()
-    # Type-narrow.
     result: list[RunOutcome] = [o for o in outcomes if o is not None]
-    # Write SUMMARY.md.
     (harness_run_dir / "SUMMARY.md").write_text(
         render_summary(plan, result), encoding="utf-8",
     )
-    # v1.5.7 104: harness-level completion line.
     met = sum(1 for o in result if o.result == "MET")
     log.log(
         f"all runs complete: {met}/{len(result)} MET — "
         f"SUMMARY={harness_run_dir / 'SUMMARY.md'}"
     )
     return result
+
+
+def _run_plan_detached(
+        plan: Plan, harness_run_dir: Path,
+        artifact_map: "dict[InstallChannel, dict]",
+        gate: "_PoolGate", pool_total: int,
+        log: "_ProgressLog",
+) -> "list[RunOutcome]":
+    """v1.5.7 108: the new detached/collector flow. Launches
+    every run via ``_launch_one_run_detached`` (parallel,
+    gated by ``pools``), writes ``manifest.json`` at the
+    harness-run root with each run's PID, auto-spawns the
+    fully-detached collector subprocess, and returns RUNNING
+    placeholder outcomes. The collector runs facts + grade +
+    SUMMARY out of the blocking path.
+    """
+    manifest_entries: list[Optional[dict]] = (
+        [None] * len(plan.runs)
+    )
+
+    def _wrapped(idx: int) -> None:
+        pr = plan.runs[idx]
+        run_dir = harness_run_dir / f"run-{pr.index:02d}"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        target_dir = run_dir / "target"
+        local_artifact_info = artifact_map.get(pr.channel)
+        # v1.5.7 101: per-run artifact_used.json (mirrors the
+        # synchronous path so the receipt set is uniform
+        # regardless of which flow ran).
+        if local_artifact_info is not None:
+            (run_dir / "artifact_used.json").write_text(
+                json.dumps({
+                    "channel": pr.channel.value,
+                    **local_artifact_info,
+                }, indent=2) + "\n", encoding="utf-8",
+            )
+        gate.acquire(pr.runner.value)
+        try:
+            manifest_entries[idx] = _launch_one_run_detached(
+                pr, harness_run_dir, run_dir, target_dir,
+                artifact_map=artifact_map,
+                local_artifact_info=local_artifact_info,
+                log=log,
+                tag=_run_tag(pr),
+            )
+        finally:
+            gate.release(pr.runner.value)
+
+    with ThreadPoolExecutor(max_workers=pool_total) as ex:
+        futures = [ex.submit(_wrapped, i)
+                   for i in range(len(plan.runs))]
+        for f in futures:
+            f.result()
+    entries = [e for e in manifest_entries if e is not None]
+
+    # Write manifest.json at the harness-run root. The
+    # collector reads this — every field is what it needs to
+    # poll + grade + render SUMMARY.
+    manifest = {
+        "harness_run_dir": str(harness_run_dir),
+        "plan": {
+            "pools": plan.pools,
+        },
+        "runs": entries,
+    }
+    (harness_run_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    log.log(
+        f"manifest written: {harness_run_dir / 'manifest.json'}"
+    )
+
+    # Spawn the detached collector (108 anti-SIGTTIN:
+    # start_new_session + stdin=/dev/null + stdout/stderr to
+    # collector.log). The collector is a separate Python
+    # subprocess that runs `qpb_harness collect <dir>`.
+    collector_pid = _spawn_collector(harness_run_dir, log)
+
+    # Return RUNNING placeholders so the CLI can print a
+    # rollup (or so a future programmatic caller can see
+    # which runs were launched).
+    placeholders: list[RunOutcome] = []
+    for entry in entries:
+        placeholders.append(RunOutcome(
+            index=entry["index"],
+            description=entry["description"],
+            repo=entry["repo"],
+            runner=entry["runner"],
+            model=entry["model"],
+            phase_yn={f"P{i}": "-" for i in range(7)},
+            gate_verdict="(running)",
+            result="(running)",
+            terminal_state=entry.get(
+                "terminal_state", "RUNNING"
+            ),
+        ))
+    # Surface the collector PID to the caller via a module-
+    # level attribute (the CLI reads this). Cleaner than
+    # adding a return-tuple that would break existing
+    # callers.
+    log.log(
+        f"detached: returning {len(placeholders)} RUNNING "
+        f"placeholders; collector pid={collector_pid}"
+    )
+    _LAST_COLLECTOR_PID["pid"] = collector_pid
+    return placeholders
+
+
+# v1.5.7 108: the CLI reads this after run_plan in detached
+# mode to print "collector pid <N>" for the operator. Module-
+# level so it survives the return + doesn't pollute the
+# RunOutcome dataclass shape.
+_LAST_COLLECTOR_PID: "dict[str, int]" = {}
 
 
 # ---------------------------------------------------------------------------
@@ -1703,4 +2495,11 @@ __all__ = [
     "_required_local_channels",
     "_resolve_workspace_sha",
     "_run_tag",
+    # v1.5.7 108 — detach + collector
+    "_LAST_COLLECTOR_PID",
+    "_collect_one_run_detached",
+    "_launch_one_run_detached",
+    "_pid_is_alive",
+    "_spawn_collector",
+    "collect_harness_run",
 ]

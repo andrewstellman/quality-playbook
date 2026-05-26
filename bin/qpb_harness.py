@@ -272,9 +272,66 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
     except _plan.BuildError as exc:
         print(f"ERROR: build failed — {exc}", file=sys.stderr)
         return 3
+    # v1.5.7 108: in production (detached) mode, run_plan
+    # returns RUNNING placeholders + spawns the collector. The
+    # operator gets the harness-run dir + collector pid so
+    # they can check status without a blocking parent.
+    collector_pid = _plan._LAST_COLLECTOR_PID.pop("pid", None)
+    if collector_pid is not None:
+        # Find the harness-run dir from the first run's
+        # receipts — runs_root contains exactly one new
+        # timestamped dir per invocation.
+        harness_run_dirs = sorted(
+            (d for d in runs_root.iterdir() if d.is_dir()),
+            key=lambda d: d.stat().st_mtime,
+        )
+        latest = (harness_run_dirs[-1]
+                  if harness_run_dirs else runs_root)
+        print(f"harness-run dir: {latest}", file=sys.stderr)
+        print(
+            f"collector pid {collector_pid}; check status with"
+            f" `python3 -m bin.qpb_harness status`",
+            file=sys.stderr,
+        )
+        return 0
+    # fake_run / synchronous path (existing 099-107 callers).
     met = sum(1 for o in outcomes if o.result == "MET")
     total = len(outcomes)
     print(f"Plan complete: {met}/{total} MET", file=sys.stderr)
+    return 0 if met == total else 1
+
+
+def _cmd_collect(args: argparse.Namespace) -> int:
+    """v1.5.7 108: collect a harness-run. Reads
+    ``<harness-run>/manifest.json`` + iterates every entry,
+    polling AI-CLI PIDs + grading each as it terminates,
+    rewriting SUMMARY.md incrementally. Idempotent — safe
+    to re-run if the auto-spawned collector died.
+
+    Used both as the auto-spawned collector (by
+    ``_run_plan_detached``) and as an operator-facing manual
+    re-entry (``qpb_harness collect <dir>``).
+    """
+    from bin.harness import plan_runner as _plan
+
+    harness_run_dir = (
+        Path(args.harness_run_dir).expanduser().resolve()
+    )
+    if not (harness_run_dir / "manifest.json").is_file():
+        print(
+            f"ERROR: no manifest.json under {harness_run_dir}",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        outcomes = _plan.collect_harness_run(harness_run_dir)
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    met = sum(1 for o in outcomes if o.result == "MET")
+    total = len(outcomes)
+    print(f"Collected {total} run(s): {met}/{total} MET",
+          file=sys.stderr)
     return 0 if met == total else 1
 
 
@@ -424,6 +481,20 @@ def _build_parser() -> argparse.ArgumentParser:
                                 "<harness-run>/artifacts/). When "
                                 "absent: build a fresh tgz."))
 
+    # v1.5.7 108: collect — invoked by the auto-spawned
+    # detached collector AND as the operator's manual
+    # re-entry. Idempotent.
+    p_collect = sub.add_parser(
+        "collect",
+        help=("v1.5.7 108: collect a detached harness-run "
+              "(reap PIDs + grade + update SUMMARY). Safe to "
+              "re-run if the auto-spawned collector died."),
+    )
+    p_collect.add_argument(
+        "harness_run_dir",
+        help="Path to the harness-run directory.",
+    )
+
     # Phase 4 subcommands.
     p_mgr = sub.add_parser(
         "manager",
@@ -456,6 +527,8 @@ def main(argv: "list[str] | None" = None) -> int:
         return _cmd_run(args)
     if args.command == "run-plan":
         return _cmd_run_plan(args)
+    if args.command == "collect":
+        return _cmd_collect(args)
     if args.command == "manager":
         return _cmd_manager(args)
     if args.command == "tui":

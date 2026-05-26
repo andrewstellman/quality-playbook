@@ -433,9 +433,15 @@ class ProductionPathProgressLoggingTests(unittest.TestCase):
                 "bin.harness.runner.launch_run",
                 side_effect=_fake_launch,
             ), mock.patch.object(sys, "stderr", captured):
+                # v1.5.7 108: detach=False keeps the synchronous
+                # live-composition path the 104 test exercises.
+                # Production default is detach=True (auto-spawn
+                # the detached collector); the synchronous path
+                # is the test-only opt-out.
                 outcomes = PR.run_plan(
                     plan, runs_root,
                     hooks=PR.PlanRunnerHooks(),  # NO fake_run
+                    detach=False,
                 )
             stderr_out = captured.getvalue()
             self.assertEqual(outcomes[0].result, "MET")

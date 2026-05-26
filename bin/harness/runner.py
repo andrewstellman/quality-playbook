@@ -107,6 +107,26 @@ class LaunchResult:
     stream_path: Path
 
 
+@dataclass
+class SpawnResult:
+    """v1.5.7 108: returned from ``launch_run_async`` — the
+    spawn-only half of the split. Carries the detached child's
+    PID + the bookkeeping the eventual ``collect_one_process``
+    (or in-process reaper) needs to write a terminal
+    ``status.json`` and produce a ``LaunchResult``.
+
+    The detached child's stdout/stderr have already been
+    redirected to ``stream_path``; the spawning process
+    closes its own end of the pipe so a later collector in a
+    different process tree never needs the file handle."""
+    pid: int
+    started_at: str
+    cli_command: str
+    cwd: str
+    env_snapshot: dict
+    stream_path: Path
+
+
 def _vendor_env_for(runner: Runner) -> "dict[str, str]":
     """Return the env var the gate's ``_RUNNER_ENV_MARKERS`` looks
     for (see ``quality_gate.py``). For Phase 1 ``CLAUDE`` →
@@ -363,61 +383,59 @@ def _kill_process_tree(pid: int) -> None:
         os.killpg(pid, signal.SIGKILL)
 
 
-def launch_run(spec: LaunchSpec) -> LaunchResult:
-    """Launch one run end-to-end. Detached subprocess, stream
-    capture, max-duration timeout, status file written.
+def launch_run_async(spec: LaunchSpec) -> SpawnResult:
+    """v1.5.7 108: spawn the detached AI-CLI child and RETURN
+    IMMEDIATELY (no wait). Writes the RUNNING ``status.json``
+    so an observer (the 110 status layer / 111 TUI / a later
+    collector) can see the run is live before it produces
+    stream output.
 
-    Phase 1 contract: returns ``LaunchResult`` once the run
-    terminates (or is killed by the timeout). Phase 4's manager
-    will own the parallel orchestration of many concurrent
-    LaunchSpecs; this function stays a single-run primitive.
+    Use ``collect_one_process(spec, spawn)`` (same process) or
+    the orphan-polling pattern in ``plan_runner.collect_
+    harness_run`` (after run_plan returns + the collector runs
+    detached) to drive the wait + terminal status. The split
+    is the 108 anti-SIGTTIN fix: a long-lived foreground
+    parent ``wait()``ing on the AI-CLI is what got suspended
+    on the first live full-pipeline run.
     """
     spec.run_dir.mkdir(parents=True, exist_ok=True)
     cmd = _command_for_axes(spec.axes, spec.prompt,
                               target_dir=spec.target_dir,
                               parameters=spec.parameters)
     cli_command = " ".join(cmd)
-    # v1.5.7 095 Phase 5: codex and cursor read the prompt on
-    # stdin (codex: via the ``-`` sentinel; cursor: implicitly
-    # when no positional arg). claude+copilot take it on argv.
-    # Mode B (run_playbook) handles its own prompt internally.
     needs_stdin = (
         spec.axes.mode != Mode.B
         and _needs_stdin_prompt(spec.axes.runner)
     )
-
-    # Snapshot env at launch time — recorded in invocation.json so
-    # the run is reproducible. Includes the vendor env var we set
-    # below so the run + the later gate re-run agree.
     env = os.environ.copy()
     env.update(_vendor_env_for(spec.axes.runner))
     if spec.extra_env:
         env.update(spec.extra_env)
     env_snapshot = {
         k: v for k, v in env.items()
-        # Keep the snapshot tight: only the vendor markers + the
-        # explicit extras. Full os.environ is noisy and may carry
-        # secrets the operator wouldn't want in receipts.
         if (k in ("CLAUDECODE", "CODEX_THREAD_ID",
                    "COPILOT_AGENT_SESSION_ID", "CURSOR")
              or (spec.extra_env and k in spec.extra_env))
     }
-
     stream_path = spec.run_dir / "stream.ndjson"
     started_at = _utc_now_iso()
-    # Pre-write the QUEUED→RUNNING status so an observer (Phase 4
-    # TUI / external watcher) can see the run is live before it
-    # produces stream output.
+    # Pre-write so a watcher sees RUNNING even before the
+    # child produces output.
     _write_status(spec.run_dir, {
         "state": "RUNNING",
-        "pid": None,  # filled in once we have it
+        "pid": None,
         "started_at": started_at,
         "heartbeat": started_at,
         "exit_code": None,
         "terminal_state": None,
     })
-
-    with open(stream_path, "wb") as stream_fp:
+    # Open the stream file, spawn the child with its stdout
+    # dup'd to the file fd, then CLOSE the parent's handle so
+    # the child keeps writing via the dup'd fd even after the
+    # parent process exits (108 anti-SIGTTIN — the parent must
+    # not retain a long-lived handle that blocks reaping).
+    stream_fp = open(stream_path, "wb")
+    try:
         proc = subprocess.Popen(
             cmd,
             cwd=str(spec.target_dir),
@@ -428,63 +446,25 @@ def launch_run(spec: LaunchSpec) -> LaunchResult:
             env=env,
             start_new_session=True,
         )
-        _write_status(spec.run_dir, {
-            "state": "RUNNING",
-            "pid": proc.pid,
-            "started_at": started_at,
-            "heartbeat": started_at,
-            "exit_code": None,
-            "terminal_state": None,
-        })
-        # codex/cursor: write the prompt to stdin then close it.
-        if needs_stdin and proc.stdin is not None:
-            try:
-                proc.stdin.write(spec.prompt.encode("utf-8"))
-                proc.stdin.close()
-            except (BrokenPipeError, OSError):
-                # Subprocess died before we wrote the prompt —
-                # the wait() below will surface the exit code +
-                # FAILED terminal state.
-                pass
-
-        terminal_state: TerminalState
-        exit_code: int
-        try:
-            exit_code = proc.wait(timeout=spec.max_duration_s)
-            # Per design §6 / lifecycle: COMPLETED requires exit-0 AND a
-            # gate verdict in the produced artifacts. Phase 1
-            # routes by exit code only — Phase 2's grader will
-            # re-classify ``COMPLETED`` vs ``FAILED`` based on
-            # whether the gate produced a verdict.
-            terminal_state = (TerminalState.COMPLETED if exit_code == 0
-                                else TerminalState.FAILED)
-        except subprocess.TimeoutExpired:
-            _kill_process_tree(proc.pid)
-            # After kill, reap the now-defunct process so PID
-            # tracking is honest.
-            with contextlib.suppress(subprocess.TimeoutExpired):
-                exit_code = proc.wait(timeout=5.0)
-            else_exit = proc.returncode
-            exit_code = else_exit if else_exit is not None else -1
-            terminal_state = TerminalState.TIMED_OUT
-
-    ended_at = _utc_now_iso()
+    finally:
+        stream_fp.close()
     _write_status(spec.run_dir, {
-        "state": "DONE",
+        "state": "RUNNING",
         "pid": proc.pid,
         "started_at": started_at,
-        "heartbeat": ended_at,
-        "ended_at": ended_at,
-        "exit_code": exit_code,
-        "terminal_state": terminal_state.value,
+        "heartbeat": started_at,
+        "exit_code": None,
+        "terminal_state": None,
     })
-
-    return LaunchResult(
+    if needs_stdin and proc.stdin is not None:
+        try:
+            proc.stdin.write(spec.prompt.encode("utf-8"))
+            proc.stdin.close()
+        except (BrokenPipeError, OSError):
+            pass
+    return SpawnResult(
         pid=proc.pid,
         started_at=started_at,
-        ended_at=ended_at,
-        exit_code=exit_code,
-        terminal_state=terminal_state,
         cli_command=cli_command,
         cwd=str(spec.target_dir),
         env_snapshot=env_snapshot,
@@ -492,11 +472,113 @@ def launch_run(spec: LaunchSpec) -> LaunchResult:
     )
 
 
+def collect_one_process(spec: LaunchSpec,
+                         spawn: SpawnResult) -> LaunchResult:
+    """v1.5.7 108: in-process collector — waits for a child
+    spawned in THIS process via the equivalent of
+    ``subprocess.Popen``. Used by the backward-compatible
+    ``launch_run`` (which does spawn + wait inline) and by
+    tests that stub the spawn.
+
+    Cross-process collection (the new ``run_plan`` detached
+    flow) uses the orphan-polling helper in ``plan_runner``
+    instead — that helper can't ``waitpid`` (orphans), so it
+    polls ``os.kill(pid, 0)`` for liveness and infers the
+    terminal state from produced artifacts.
+
+    This function expects the caller to still hold the Popen
+    handle; we don't — so we use ``os.waitpid`` to reap our
+    own child by PID, then write the terminal status.
+
+    Honors ``spec.max_duration_s``: if the process is still
+    alive past the budget, kill the process group and record
+    ``TIMED_OUT``.
+    """
+    # waitpid with WNOHANG poll until budget exhausted.
+    started = _utc_now_iso()
+    deadline = time.monotonic() + max(0.0, spec.max_duration_s)
+    exit_code = -1
+    terminal_state = TerminalState.FAILED
+    timed_out = False
+    while True:
+        try:
+            wpid, status = os.waitpid(spawn.pid, os.WNOHANG)
+        except ChildProcessError:
+            # Not our child (or already reaped). Best-effort.
+            wpid, status = (spawn.pid, 0)
+        if wpid != 0:
+            # Process exited.
+            if os.WIFEXITED(status):
+                exit_code = os.WEXITSTATUS(status)
+            elif os.WIFSIGNALED(status):
+                exit_code = -os.WTERMSIG(status)
+            else:
+                exit_code = -1
+            terminal_state = (TerminalState.COMPLETED
+                               if exit_code == 0
+                               else TerminalState.FAILED)
+            break
+        if time.monotonic() >= deadline:
+            timed_out = True
+            _kill_process_tree(spawn.pid)
+            # Reap the now-defunct process.
+            try:
+                _wpid, status = os.waitpid(spawn.pid, 0)
+                if os.WIFEXITED(status):
+                    exit_code = os.WEXITSTATUS(status)
+                elif os.WIFSIGNALED(status):
+                    exit_code = -os.WTERMSIG(status)
+            except ChildProcessError:
+                pass
+            terminal_state = TerminalState.TIMED_OUT
+            break
+        time.sleep(0.05)
+    ended_at = _utc_now_iso()
+    _write_status(spec.run_dir, {
+        "state": "DONE",
+        "pid": spawn.pid,
+        "started_at": spawn.started_at,
+        "heartbeat": ended_at,
+        "ended_at": ended_at,
+        "exit_code": exit_code,
+        "terminal_state": terminal_state.value,
+    })
+    return LaunchResult(
+        pid=spawn.pid,
+        started_at=spawn.started_at,
+        ended_at=ended_at,
+        exit_code=exit_code,
+        terminal_state=terminal_state,
+        cli_command=spawn.cli_command,
+        cwd=spawn.cwd,
+        env_snapshot=spawn.env_snapshot,
+        stream_path=spawn.stream_path,
+    )
+
+
+def launch_run(spec: LaunchSpec) -> LaunchResult:
+    """Launch one run end-to-end. Detached subprocess, stream
+    capture, max-duration timeout, status file written.
+
+    v1.5.7 108: now a thin wrapper composing ``launch_run_async``
+    + ``collect_one_process``. Existing callers (the
+    `bin.qpb_harness run` single-run entry, tests that patch
+    `launch_run`) keep the synchronous semantics; the new
+    `run_plan` detached flow uses `launch_run_async` directly
+    and a different collector (orphan polling) per 108.
+    """
+    spawn = launch_run_async(spec)
+    return collect_one_process(spec, spawn)
+
+
 __all__ = [
     "RunnerError",
     "LaunchSpec",
     "LaunchResult",
+    "SpawnResult",
     "launch_run",
+    "launch_run_async",
+    "collect_one_process",
     # Exposed for tests + downstream reuse:
     "_claude_command",
     "_codex_command",
