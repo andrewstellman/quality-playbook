@@ -34,6 +34,7 @@
       "runner": "codex",
       "model": "gpt-5.2",
       "channel": "npm-local-tgz",
+      "parameters": ["-c", "model_reasoning_effort=\"low\""],
       "expect": {
         "gate_result": "FAIL",
         "verdict_state": "failed",

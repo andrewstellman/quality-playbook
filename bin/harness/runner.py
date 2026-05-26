@@ -78,6 +78,12 @@ class LaunchSpec:
     # detection correct when we later re-run the gate for
     # gate-derived facts.
     extra_env: "dict[str, str]" = None  # type: ignore[assignment]
+    # v1.5.7 100: extra argv tokens spliced into the runner CLI at
+    # the runner-appropriate position (the harness does NOT
+    # interpret them). Example for codex low thinking:
+    # ``["-c", "model_reasoning_effort=\"low\""]`` → spliced
+    # between ``codex`` and ``exec``. Default empty list.
+    parameters: "list[str]" = None  # type: ignore[assignment]
 
 
 @dataclass
@@ -110,7 +116,9 @@ def _vendor_env_for(runner: Runner) -> "dict[str, str]":
 
 
 def _claude_command(model: str, prompt: str,
-                     thinking: "str | None" = None) -> "list[str]":
+                     thinking: "str | None" = None,
+                     parameters: "list[str] | None" = None,
+                     ) -> "list[str]":
     """Build the claude CLI invocation for a Mode A run.
 
     Uses the same flags QPB's existing ``run_playbook.py``
@@ -124,6 +132,11 @@ def _claude_command(model: str, prompt: str,
     `run_playbook.command_for_runner` doesn't pass it either;
     when claude grows a stable thinking-effort flag, both this
     helper and the production builder gain it together.
+
+    v1.5.7 100: ``parameters`` (when non-empty) is spliced
+    verbatim into the flags region — between the standard flags
+    and the trailing positional prompt — so claude reads them as
+    additional CLI flags without disturbing prompt routing.
     """
     return [
         "claude",
@@ -132,11 +145,14 @@ def _claude_command(model: str, prompt: str,
         "--model", model,
         "--output-format", "stream-json",
         "--verbose",
+        *(parameters or []),
         prompt,
     ]
 
 
-def _codex_command(model: str) -> "list[str]":
+def _codex_command(model: str,
+                    parameters: "list[str] | None" = None,
+                    ) -> "list[str]":
     """v1.5.7 095 Phase 5: codex adapter. Mirrors
     ``bin.run_playbook.command_for_runner`` for ``runner=codex``:
     ``codex exec --full-auto`` reads the prompt from stdin when
@@ -146,15 +162,23 @@ def _codex_command(model: str) -> "list[str]":
     Caller must set ``stdin_input=prompt`` on the LaunchSpec so
     the prompt reaches the subprocess on stdin (argv would hit
     shell command-line length limits on long phase prompts).
+
+    v1.5.7 100: ``parameters`` (when non-empty) is spliced
+    verbatim between ``codex`` and ``exec`` — codex reads
+    ``-c <key=value>`` (and similar global config overrides) only
+    when they precede the subcommand. The stdin sentinel ``-``
+    stays at the end so prompt routing is unchanged.
     """
-    command = ["codex", "exec", "--full-auto"]
+    command = ["codex", *(parameters or []), "exec", "--full-auto"]
     if model:
         command.extend(["-m", model])
     command.append("-")
     return command
 
 
-def _copilot_command(model: str, prompt: str) -> "list[str]":
+def _copilot_command(model: str, prompt: str,
+                      parameters: "list[str] | None" = None,
+                      ) -> "list[str]":
     """v1.5.7 095 Phase 5: copilot adapter. Mirrors the
     ``copilot_resolver`` pattern from ``bin.run_playbook``: the
     standalone ``copilot`` CLI is preferred when on PATH; the
@@ -166,13 +190,20 @@ def _copilot_command(model: str, prompt: str) -> "list[str]":
     ``gh copilot suggest`` only at launch time if the operator
     explicitly opts in (the harness defaults to the canonical
     standalone form per 089f).
+
+    v1.5.7 100: ``parameters`` (when non-empty) is spliced
+    verbatim into the flags region — after the standard flags and
+    before the ``-p <prompt>`` pair — so copilot reads them as
+    additional flags without disturbing the argv prompt route.
     """
     command = ["copilot", "--model", model, "--allow-all-tools",
-                "-p", prompt]
+                *(parameters or []), "-p", prompt]
     return command
 
 
-def _cursor_command(model: str) -> "list[str]":
+def _cursor_command(model: str,
+                     parameters: "list[str] | None" = None,
+                     ) -> "list[str]":
     """v1.5.7 095 Phase 5: cursor adapter. Mirrors
     ``bin.run_playbook.command_for_runner`` for ``runner=cursor``:
     ``cursor agent --print --force`` reads the prompt from stdin
@@ -182,10 +213,17 @@ def _cursor_command(model: str) -> "list[str]":
     for unattended runs.
 
     Caller must set ``stdin_input=prompt`` on the LaunchSpec.
+
+    v1.5.7 100: ``parameters`` (when non-empty) is appended
+    verbatim — cursor takes the prompt on stdin, so extra flags
+    can safely live at the end of the flag region without
+    disturbing prompt routing.
     """
     command = ["cursor", "agent", "--print", "--force"]
     if model:
         command.extend(["--model", model])
+    if parameters:
+        command.extend(parameters)
     return command
 
 
@@ -229,7 +267,8 @@ def _needs_stdin_prompt(runner: Runner) -> bool:
 
 
 def _command_for_axes(axes: RunAxes, prompt: str,
-                       target_dir: "Path | None" = None
+                       target_dir: "Path | None" = None,
+                       parameters: "list[str] | None" = None,
                        ) -> "list[str]":
     """v1.5.7 095 Phase 5: dispatch to the right adapter.
 
@@ -241,6 +280,13 @@ def _command_for_axes(axes: RunAxes, prompt: str,
     Mode B: ``python3 -m bin.run_playbook --<runner> --model
     <model> <target_dir>`` — the run_playbook harness drives the
     phases.
+
+    v1.5.7 100: ``parameters`` (when non-empty) is forwarded to
+    the per-runner Mode A builder which splices the tokens at
+    the runner-appropriate position. Mode B ignores parameters —
+    run_playbook owns the CLI for whichever runner it's driving;
+    operator-specific overrides land via run_playbook's own
+    flags.
     """
     if axes.runner not in _SUPPORTED_RUNNERS:
         raise RunnerError(
@@ -262,13 +308,15 @@ def _command_for_axes(axes: RunAxes, prompt: str,
         return _mode_b_command(axes.runner, target_dir, axes.model)
     # Mode A — per-runner Mode A invocation.
     if axes.runner == Runner.CLAUDE:
-        return _claude_command(axes.model, prompt, axes.thinking)
+        return _claude_command(axes.model, prompt, axes.thinking,
+                                parameters=parameters)
     if axes.runner == Runner.CODEX:
-        return _codex_command(axes.model)
+        return _codex_command(axes.model, parameters=parameters)
     if axes.runner == Runner.COPILOT:
-        return _copilot_command(axes.model, prompt)
+        return _copilot_command(axes.model, prompt,
+                                 parameters=parameters)
     if axes.runner == Runner.CURSOR:
-        return _cursor_command(axes.model)
+        return _cursor_command(axes.model, parameters=parameters)
     # Unreachable given the _SUPPORTED_RUNNERS guard above.
     raise RunnerError(f"runner {axes.runner!r} fell through dispatch")
 
@@ -307,7 +355,8 @@ def launch_run(spec: LaunchSpec) -> LaunchResult:
     """
     spec.run_dir.mkdir(parents=True, exist_ok=True)
     cmd = _command_for_axes(spec.axes, spec.prompt,
-                              target_dir=spec.target_dir)
+                              target_dir=spec.target_dir,
+                              parameters=spec.parameters)
     cli_command = " ".join(cmd)
     # v1.5.7 095 Phase 5: codex and cursor read the prompt on
     # stdin (codex: via the ``-`` sentinel; cursor: implicitly

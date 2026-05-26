@@ -67,6 +67,7 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -124,6 +125,12 @@ class PlanRun:
     prep: str = "acceptance"           # acceptance | security
     docs: str = "gather"               # path or "gather" (no-op)
     expect: "dict[str, Any]" = field(default_factory=dict)
+    # v1.5.7 100: extra argv tokens passed VERBATIM to the runner
+    # CLI at the runner-appropriate position (the harness does
+    # NOT interpret them). Example for codex low thinking:
+    # ``["-c", "model_reasoning_effort=\"low\""]``. Absent/empty
+    # ⇒ no extra tokens.
+    parameters: "list[str]" = field(default_factory=list)
     # Mode is always A for the plan-runner (Mode B would mean
     # run_playbook drives the phases — out of scope for the
     # simple flow).
@@ -219,6 +226,29 @@ def _parse_run(idx: int, raw: dict) -> PlanRun:
                 f"{key!r}; legal names are the §F vocabulary "
                 f"{sorted(valid_assertions)}"
             )
+    # v1.5.7 100: optional per-run `parameters` (array of argv
+    # tokens passed verbatim to the runner CLI). Accept either a
+    # JSON array of strings (the documented form) or a single
+    # string which is shlex.split into tokens (the optional nicety).
+    parameters_raw = raw.get("parameters", [])
+    parameters: list[str]
+    if isinstance(parameters_raw, str):
+        parameters = shlex.split(parameters_raw)
+    elif isinstance(parameters_raw, list):
+        for j, tok in enumerate(parameters_raw):
+            if not isinstance(tok, str):
+                raise PlanError(
+                    f"runs[{idx}].parameters[{j}]: must be a "
+                    f"string (argv token); got "
+                    f"{type(tok).__name__}"
+                )
+        parameters = list(parameters_raw)
+    else:
+        raise PlanError(
+            f"runs[{idx}].parameters: must be a list of argv "
+            f"tokens (strings) or a single string (shlex-split); "
+            f"got {type(parameters_raw).__name__}"
+        )
     return PlanRun(
         index=idx,
         description=raw["description"],
@@ -231,6 +261,7 @@ def _parse_run(idx: int, raw: dict) -> PlanRun:
         prep=prep,
         docs=raw.get("docs", "gather"),
         expect=expect,
+        parameters=parameters,
     )
 
 
@@ -591,6 +622,11 @@ def run_plan(plan: Plan, harness_runs_root: Path,
                 ),
                 "prep": r.prep, "docs": r.docs,
                 "expect": r.expect,
+                # v1.5.7 100: persist parameters when present so
+                # the run is reproducible; omit when empty to
+                # keep round-trips of pre-100 plans byte-stable.
+                **({"parameters": r.parameters}
+                   if r.parameters else {}),
             } for r in plan.runs],
         }, indent=2) + "\n",
         encoding="utf-8",

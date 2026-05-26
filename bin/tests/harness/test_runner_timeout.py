@@ -98,7 +98,7 @@ class TimeoutKillTests(unittest.TestCase):
         """
         # Inject: a sleep 60s command, with a tight max-duration so
         # the kill path is exercised in under 5 seconds.
-        def _fake_cmd(axes: S.RunAxes, prompt: str, target_dir=None) -> "list[str]":
+        def _fake_cmd(axes: S.RunAxes, prompt: str, target_dir=None, parameters=None) -> "list[str]":
             return ["sleep", "60"]
 
         R._command_for_axes = _fake_cmd  # type: ignore[assignment]
@@ -128,7 +128,7 @@ class TimeoutKillTests(unittest.TestCase):
         ``terminal_state=COMPLETED`` (Phase 1 routes by exit code;
         Phase 2's grader will re-classify by gate-verdict presence).
         """
-        def _fake_cmd(axes: S.RunAxes, prompt: str, target_dir=None) -> "list[str]":
+        def _fake_cmd(axes: S.RunAxes, prompt: str, target_dir=None, parameters=None) -> "list[str]":
             return ["true"]
 
         R._command_for_axes = _fake_cmd  # type: ignore[assignment]
@@ -148,7 +148,7 @@ class TimeoutKillTests(unittest.TestCase):
 
     def test_nonzero_exit_routes_to_failed(self) -> None:
         """A subprocess that exits non-zero → ``FAILED``."""
-        def _fake_cmd(axes: S.RunAxes, prompt: str, target_dir=None) -> "list[str]":
+        def _fake_cmd(axes: S.RunAxes, prompt: str, target_dir=None, parameters=None) -> "list[str]":
             return ["false"]
 
         R._command_for_axes = _fake_cmd  # type: ignore[assignment]
@@ -169,7 +169,7 @@ class TimeoutKillTests(unittest.TestCase):
         """A subprocess's stdout is captured to
         ``run_dir/stream.ndjson`` (raw — never committed; the
         ``runs/`` gitignore handles that)."""
-        def _fake_cmd(axes: S.RunAxes, prompt: str, target_dir=None) -> "list[str]":
+        def _fake_cmd(axes: S.RunAxes, prompt: str, target_dir=None, parameters=None) -> "list[str]":
             return [sys.executable, "-c",
                      "import sys; sys.stdout.write('hello\\nworld\\n'); sys.stdout.flush()"]
 
