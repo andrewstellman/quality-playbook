@@ -30,6 +30,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Callable
 
 from bin.harness.schema import Runner
@@ -103,6 +104,46 @@ class SchedulerConfig:
 
     def cooldown_for(self, vendor: Vendor) -> float:
         return self.vendor_cooldown_s.get(vendor, 0.0)
+
+
+def load_config(runner_root: "Path | None" = None) -> SchedulerConfig:
+    """v1.5.7 098: load the harness scheduler config with the
+    live → example fallback.
+
+    Resolution order:
+      1. ``<runner_root>/config.json`` (the live, gitignored
+         operator config — when present).
+      2. ``bin/harness/config.example.json`` (the tracked
+         sanitized template — fallback).
+      3. ``SchedulerConfig()`` defaults (when neither file is
+         present or readable).
+
+    Returns a populated ``SchedulerConfig``. Tolerant of
+    missing files, partial JSON, and unknown vendor names
+    (forward-compat per ``config_from_dict``).
+    """
+    import json
+    candidates: list[Path] = []
+    if runner_root is not None:
+        candidates.append(Path(runner_root) / "config.json")
+    example = (Path(__file__).resolve().parent
+               / "config.example.json")
+    candidates.append(example)
+    for p in candidates:
+        if not p.is_file():
+            continue
+        try:
+            raw = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        # The doc may carry top-level metadata ($schema_note,
+        # channels, paths) alongside the "scheduler" subobject —
+        # config_from_dict reads from the scheduler subobject if
+        # present, otherwise falls through to the top level.
+        sched_section = (raw.get("scheduler")
+                          if isinstance(raw, dict) else None)
+        return config_from_dict(sched_section or raw or {})
+    return SchedulerConfig()
 
 
 def config_from_dict(raw: dict) -> SchedulerConfig:
@@ -327,5 +368,6 @@ __all__ = [
     "vendor_for_runner",
     "SchedulerConfig",
     "config_from_dict",
+    "load_config",
     "Scheduler",
 ]

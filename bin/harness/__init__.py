@@ -30,7 +30,8 @@ are segregated from the skill-release gate per
 See also:
 - ``docs/design/QPB_Test_Harness_1.5.7_Design.md`` (architecture,
   the §F closed assertion vocabulary, two-sourced facts §C).
-- ``repos/security-test-cases/SCHEMA.md`` (LOCKED contract).
+- ``bin/harness/SCHEMA.md`` (LOCKED contract — v1.5.7 098 moved
+  it under the code it specifies; tracked but bundle-excluded).
 """
 
 __all__ = [

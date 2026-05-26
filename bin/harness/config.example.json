@@ -1,0 +1,34 @@
+{
+  "$schema_note": "v1.5.7 098 — sanitized example harness config. Tracked in git under bin/harness/. The LIVE config.json lives at repos/security-test-cases/config.json (gitignored top-level by `.gitignore:25 (repos/)` — it carries local paths). The harness config-loader prefers the live config.json; if absent, falls back to this example file (and may copy it to the live location on first run).",
+
+  "scheduler": {
+    "vendor_caps": {
+      "anthropic": 1,
+      "openai":    1,
+      "github":    1,
+      "cursor":    1
+    },
+    "global_cap": 4,
+    "vendor_cooldown_s": {
+      "anthropic": 0,
+      "openai":    0,
+      "github":    0,
+      "cursor":    0
+    }
+  },
+
+  "channels": {
+    "$comment": "Per-channel defaults. Operators override per-run via the qpb_harness CLI; this file just seeds reasonable starting values.",
+    "default_install_channel": "clone",
+    "default_ai_tool": "claude",
+    "max_duration_s": 1800
+  },
+
+  "paths": {
+    "$comment": "Use repo-relative defaults — NO machine-specific absolute paths in the tracked example. The loader resolves these against the runner-root (typically repos/security-test-cases/).",
+    "runs_dir":      "runs",
+    "mirrors_dir":   "mirrors",
+    "control_dir":   "control",
+    "reference_docs_default": "gather"
+  }
+}

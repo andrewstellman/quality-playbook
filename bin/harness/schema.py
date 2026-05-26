@@ -1,7 +1,9 @@
 """QPB Test Harness — schema dataclasses, enums, and (de)serialization.
 
-Built to match ``repos/security-test-cases/SCHEMA.md`` exactly
-(LOCKED 2026-05-25). The §F closed assertion vocabulary, the
+Built to match ``bin/harness/SCHEMA.md`` exactly (LOCKED
+2026-05-25; v1.5.7 098 moved it from
+``repos/security-test-cases/`` to live with the code it
+specifies — tracked, bundle-excluded). The §F closed assertion vocabulary, the
 three-state ``gate_result`` (PASS|CLEANUP|FAIL), the
 ``install_channel`` enum, the §5 fact object, and the §6 terminal
 states all live here. If SCHEMA.md says something can't be free-
