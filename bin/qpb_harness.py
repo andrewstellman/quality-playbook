@@ -301,6 +301,96 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
     return 0 if met == total else 1
 
 
+def _cmd_status(args: argparse.Namespace) -> int:
+    """v1.5.7 110: read-only status view.
+
+    No args / ``--runs-root <DIR>``: table of in-flight + recent
+    harness-runs (dir, age, R/D/F/T/AP/P counts, collector-
+    live?). With a harness-run dir: per-repo drill-down (index,
+    repo, runner/model, state, current phase + state + last
+    note, result, pid(live?)).
+    """
+    from bin.harness import status as _status
+
+    harness_run_dir = getattr(args, "harness_run_dir", None)
+    if harness_run_dir:
+        target = Path(harness_run_dir).expanduser().resolve()
+        if not (target / "manifest.json").is_file():
+            print(
+                f"ERROR: no manifest.json under {target} "
+                f"(not a harness-run dir, or no run-plan has "
+                f"been launched there)",
+                file=sys.stderr,
+            )
+            return 2
+        runs = _status.read_run_status(target)
+        if not runs:
+            print(
+                f"harness-run dir: {target} (empty manifest)",
+                file=sys.stderr,
+            )
+            return 0
+        print(f"harness-run dir: {target}")
+        print("")
+        for rs in runs:
+            print(_status.format_run_status(rs))
+            if rs.last_note:
+                print(f"     note: {rs.last_note}")
+        return 0
+
+    # No drill-down: list all harness-runs.
+    runs_root = Path(
+        getattr(args, "runs_root", "harness-runs")
+    ).expanduser().resolve()
+    summaries = _status.list_harness_runs(runs_root)
+    if not summaries:
+        print(
+            f"No harness-runs under {runs_root}",
+            file=sys.stderr,
+        )
+        return 0
+    print(f"runs-root: {runs_root}")
+    print(
+        "harness-run                    "
+        "started-at             "
+        "runs  R  D  F  T AP  P  collector"
+    )
+    for s in summaries:
+        print(_status.format_harness_run_summary(s))
+    return 0
+
+
+def _cmd_tail(args: argparse.Namespace) -> int:
+    """v1.5.7 110: tail a run's ``stream.ndjson`` (optionally
+    ``-f`` to follow). Sentinel lines (``::QPB::``) are
+    rendered human-readably; other lines pass through.
+    """
+    from bin.harness import status as _status
+
+    run_dir = Path(args.run_dir).expanduser().resolve()
+    if not run_dir.is_dir():
+        print(f"ERROR: {run_dir} is not a directory",
+              file=sys.stderr)
+        return 2
+    stream_path = run_dir / "stream.ndjson"
+    if not stream_path.is_file():
+        print(
+            f"NOTE: {stream_path} doesn't exist yet "
+            f"(run hasn't launched, or stream wasn't "
+            f"captured)",
+            file=sys.stderr,
+        )
+        return 0
+    try:
+        for line in _status.tail_stream(
+                run_dir, follow=bool(getattr(args, "follow", False))
+        ):
+            print(line)
+    except KeyboardInterrupt:
+        return 0
+    return 0
+
+
 def _cmd_collect(args: argparse.Namespace) -> int:
     """v1.5.7 108: collect a harness-run. Reads
     ``<harness-run>/manifest.json`` + iterates every entry,
@@ -495,6 +585,41 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to the harness-run directory.",
     )
 
+    # v1.5.7 110: status (no-arg + per-harness-run) + tail.
+    p_status = sub.add_parser(
+        "status",
+        help=("v1.5.7 110: list in-flight + recent harness-"
+              "runs OR drill into one harness-run's per-repo "
+              "state, current phase, result, pid-liveness."),
+    )
+    p_status.add_argument(
+        "harness_run_dir", nargs="?", default=None,
+        help=("Optional harness-run directory for the per-repo "
+              "drill-down view. Omit for the runs-root list."),
+    )
+    p_status.add_argument(
+        "--runs-root", default="harness-runs",
+        help=("Root directory containing harness-run folders "
+              "(default: harness-runs). Ignored when a "
+              "harness-run-dir is provided."),
+    )
+
+    p_tail = sub.add_parser(
+        "tail",
+        help=("v1.5.7 110: print a run's live stream.ndjson "
+              "with sentinel lines rendered human-readably. "
+              "``--follow`` keeps polling for new content "
+              "(tail -f semantics)."),
+    )
+    p_tail.add_argument(
+        "run_dir",
+        help="Path to the run-NN directory inside a harness-run.",
+    )
+    p_tail.add_argument(
+        "-f", "--follow", action="store_true",
+        help="Poll for new content (tail -f).",
+    )
+
     # Phase 4 subcommands.
     p_mgr = sub.add_parser(
         "manager",
@@ -529,6 +654,10 @@ def main(argv: "list[str] | None" = None) -> int:
         return _cmd_run_plan(args)
     if args.command == "collect":
         return _cmd_collect(args)
+    if args.command == "status":
+        return _cmd_status(args)
+    if args.command == "tail":
+        return _cmd_tail(args)
     if args.command == "manager":
         return _cmd_manager(args)
     if args.command == "tui":
