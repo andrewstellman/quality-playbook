@@ -190,6 +190,15 @@ class PlanRun:
     # raised from 1800s so a full Mode A 6-phase pipeline can
     # finish unattended.
     max_duration_s: "Optional[float]" = None
+    # v1.5.7 107: optional per-run shared workspace. When set,
+    # the run targets ``workspace_root`` instead of cloning
+    # into ``run-NN/target``. First run in a shared sequence
+    # preps the workspace (clone + install); subsequent runs
+    # reuse it as-is (no re-clone, no re-install, no wipe of
+    # the existing ``quality/`` tree — phase N can read phase
+    # N-1's artifacts). The run's own receipts still write
+    # under ``run-NN/``; only the TARGET is shared.
+    workspace_root: "Optional[str]" = None
 
 
 @dataclass
@@ -331,6 +340,28 @@ def _parse_run(idx: int, raw: dict) -> PlanRun:
             f"number or absent; got "
             f"{type(max_duration_raw).__name__}"
         )
+    # v1.5.7 107: optional per-run `workspace_root` (path-as-
+    # string). Absent ⇒ standard `run-NN/target` behavior.
+    # Present ⇒ first run clones+installs into it; later runs
+    # reuse without clobbering.
+    workspace_root_raw = raw.get("workspace_root", None)
+    workspace_root_value: "Optional[str]"
+    if workspace_root_raw is None:
+        workspace_root_value = None
+    elif isinstance(workspace_root_raw, str):
+        if not workspace_root_raw.strip():
+            raise PlanError(
+                f"runs[{idx}].workspace_root: empty string is "
+                f"not a valid path; omit the field or supply "
+                f"a real path"
+            )
+        workspace_root_value = workspace_root_raw
+    else:
+        raise PlanError(
+            f"runs[{idx}].workspace_root: must be a path string "
+            f"or absent; got "
+            f"{type(workspace_root_raw).__name__}"
+        )
     return PlanRun(
         index=idx,
         description=raw["description"],
@@ -346,6 +377,7 @@ def _parse_run(idx: int, raw: dict) -> PlanRun:
         parameters=parameters,
         mode=mode_value,
         max_duration_s=max_duration_value,
+        workspace_root=workspace_root_value,
     )
 
 
@@ -873,6 +905,47 @@ def _utc_now_run_id() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
 
+def _is_workspace_prepared(target_dir: Path) -> bool:
+    """v1.5.7 107: is ``target_dir`` already a prepared QPB
+    workspace? Reuses ``benchmark_lib.find_installed_skill`` —
+    the canonical detector that searches the 10 install
+    layouts for QPB's SKILL.md. Returns False when the dir
+    doesn't exist OR isn't a directory OR contains no
+    QPB-installed skill.
+
+    The 105-hardened ``clone_worktree`` raises if dest exists,
+    so 107's shared-workspace logic checks here FIRST and
+    skips the clone/install when the workspace is already
+    prepared (later runs in a sequential phase-by-phase
+    sequence reuse the workspace verbatim — no clobbering of
+    the prior phases' ``quality/`` tree).
+    """
+    if not target_dir.exists() or not target_dir.is_dir():
+        return False
+    try:
+        from bin import benchmark_lib as _bl
+    except ImportError:
+        return False
+    return _bl.find_installed_skill(target_dir) is not None
+
+
+def _resolve_workspace_sha(target_dir: Path) -> str:
+    """v1.5.7 107: when reusing an already-prepared workspace,
+    we still want ``invocation.json.target_sha`` populated so
+    the receipt is auditable. ``git rev-parse HEAD`` against
+    the workspace; empty string if the workspace isn't a git
+    checkout (e.g. operator pointed at a non-git tree)."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(target_dir),
+            capture_output=True, text=True, check=False,
+        )
+        return result.stdout.strip() if result.returncode == 0 else ""
+    except (OSError, FileNotFoundError):
+        return ""
+
+
 @dataclass
 class PlanRunnerHooks:
     """Test-injection point: a fake/echo runner + stub gate +
@@ -1135,63 +1208,109 @@ def _execute_one_run_production(
             log.log(msg, run_dir=run_dir, tag=tag or "run")
 
     # ----- STEP 1: PREPARE (clone + docs + install) -----
+    # v1.5.7 107: when `workspace_root` is set, use it as the
+    # target instead of `run-NN/target`. The first run in a
+    # shared-workspace sequence preps it (clone + install);
+    # subsequent runs detect the installed skill and reuse the
+    # workspace as-is (no re-clone, no re-install, no wipe of
+    # the existing ``quality/`` tree — phase N reads phase
+    # N-1's artifacts). The 105-hardened ``clone_worktree``
+    # raises if dest exists, so we check first and skip prep
+    # cleanly.
     started_at = _now_iso()
-    _log(f"clone {plan_run.repo}@{plan_run.ref}")
-    _log(f"install ({plan_run.channel.value})")
-    try:
-        prep_result = _prepare_mod.prepare(
-            case, target_dir,
-            ai_tool=plan_run.runner.value,
-            axes=axes,
-            local_artifact=local_artifact,
+    if plan_run.workspace_root is not None:
+        actual_target_dir = (
+            Path(plan_run.workspace_root)
+            .expanduser().resolve()
         )
-    except _prepare_mod.PrepError as exc:
-        ended_at = _now_iso()
-        inv_dict = {
-            "run_id": run_id,
-            "case_id": case.id,
-            "axes": {
-                "runner": axes.runner.value,
-                "mode": axes.mode.value,
-                "install_channel": axes.install_channel.value,
-                "install_version": axes.install_version,
-                "model": axes.model,
-                "thinking": axes.thinking,
-            },
-            "qpb_version": qpb_version,
-            "target_sha": "",
-            "cli_command": "",
-            "cwd": str(target_dir),
-            "env_snapshot": {},
-            "started_at": started_at,
-            "ended_at": ended_at,
-            "exit_code": -1,
-            "terminal_state": TerminalState.ABORTED_PREP.value,
-            "scrubbed_docs_manifest": None,
-            "leakage_gate": (
-                "ABORTED" if exc.leakage_terms else None
-            ),
-            "local_artifact": local_artifact_info,
-            "prep_error": exc.reason,
-        }
-        (run_dir / "invocation.json").write_text(
-            json.dumps(inv_dict, indent=2) + "\n",
-            encoding="utf-8",
+        workspace_already_prepared = _is_workspace_prepared(
+            actual_target_dir
         )
-        _log(f"ABORTED_PREP: {exc.reason}")
-        _log("DONE: gate=N/A result=N/A")
-        return RunOutcome(
-            index=plan_run.index,
-            description=plan_run.description,
-            repo=plan_run.repo,
-            runner=plan_run.runner.value,
-            model=plan_run.model,
-            phase_yn=phase_yn_all_dashes,
-            gate_verdict="N/A",
-            result="N/A",
-            terminal_state=TerminalState.ABORTED_PREP.value,
-            grading={"prep_error": exc.reason},
+    else:
+        actual_target_dir = target_dir
+        workspace_already_prepared = False
+
+    if workspace_already_prepared:
+        _log(
+            f"reuse workspace {actual_target_dir} "
+            f"(skill already installed; no clone/install)"
         )
+        target_sha = _resolve_workspace_sha(actual_target_dir)
+        prep_result = _prepare_mod.PrepResult(
+            target_dir=actual_target_dir,
+            target_sha=target_sha,
+            scrubbed_docs_manifest=None,
+            leakage_gate=None,
+        )
+    else:
+        _log(f"clone {plan_run.repo}@{plan_run.ref}")
+        _log(f"install ({plan_run.channel.value})")
+        # If workspace_root is set + empty-existing-dir, clear
+        # it so clone_worktree (105) can create it; if non-
+        # empty without an installed skill, that's an operator
+        # error — fall through to prepare() and let
+        # clone_worktree raise its standard message.
+        if (plan_run.workspace_root is not None
+                and actual_target_dir.exists()
+                and actual_target_dir.is_dir()
+                and not any(actual_target_dir.iterdir())):
+            actual_target_dir.rmdir()
+        try:
+            prep_result = _prepare_mod.prepare(
+                case, actual_target_dir,
+                ai_tool=plan_run.runner.value,
+                axes=axes,
+                local_artifact=local_artifact,
+            )
+        except _prepare_mod.PrepError as exc:
+            ended_at = _now_iso()
+            inv_dict = {
+                "run_id": run_id,
+                "case_id": case.id,
+                "axes": {
+                    "runner": axes.runner.value,
+                    "mode": axes.mode.value,
+                    "install_channel":
+                        axes.install_channel.value,
+                    "install_version": axes.install_version,
+                    "model": axes.model,
+                    "thinking": axes.thinking,
+                },
+                "qpb_version": qpb_version,
+                "target_sha": "",
+                "cli_command": "",
+                "cwd": str(actual_target_dir),
+                "env_snapshot": {},
+                "started_at": started_at,
+                "ended_at": ended_at,
+                "exit_code": -1,
+                "terminal_state":
+                    TerminalState.ABORTED_PREP.value,
+                "scrubbed_docs_manifest": None,
+                "leakage_gate": (
+                    "ABORTED" if exc.leakage_terms else None
+                ),
+                "local_artifact": local_artifact_info,
+                "prep_error": exc.reason,
+            }
+            (run_dir / "invocation.json").write_text(
+                json.dumps(inv_dict, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            _log(f"ABORTED_PREP: {exc.reason}")
+            _log("DONE: gate=N/A result=N/A")
+            return RunOutcome(
+                index=plan_run.index,
+                description=plan_run.description,
+                repo=plan_run.repo,
+                runner=plan_run.runner.value,
+                model=plan_run.model,
+                phase_yn=phase_yn_all_dashes,
+                gate_verdict="N/A",
+                result="N/A",
+                terminal_state=TerminalState.ABORTED_PREP.value,
+                grading={"prep_error": exc.reason},
+            )
 
     # ----- STEP 2: LAUNCH (detached AI-CLI subprocess) -----
     # v1.5.7 106: Mode A uses the full-pipeline prompt that
@@ -1411,6 +1530,10 @@ def run_plan(plan: Plan, harness_runs_root: Path,
                    if r.mode != Mode.A else {}),
                 **({"max_duration_s": r.max_duration_s}
                    if r.max_duration_s is not None else {}),
+                # v1.5.7 107: persist workspace_root only when
+                # set; absent keeps pre-107 plans byte-stable.
+                **({"workspace_root": r.workspace_root}
+                   if r.workspace_root is not None else {}),
             } for r in plan.runs],
         }, indent=2) + "\n",
         encoding="utf-8",
@@ -1528,6 +1651,8 @@ __all__ = [
     "_ProgressLog",
     "_execute_one_run",
     "_execute_one_run_production",
+    "_is_workspace_prepared",
     "_required_local_channels",
+    "_resolve_workspace_sha",
     "_run_tag",
 ]
