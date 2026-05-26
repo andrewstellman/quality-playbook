@@ -304,4 +304,329 @@ __all__ = [
     "render_overview",
     "render_run_drilldown",
     "build_app",
+    # v1.5.7 111 — live status TUI on top of 110's status.py.
+    "build_runs_list_rows",
+    "build_run_detail_rows",
+    "build_output_lines",
+    "launch_status_tui",
 ]
+
+
+# ---------------------------------------------------------------------------
+# v1.5.7 111 — live status TUI (stdlib curses) over 110's status.py
+# ---------------------------------------------------------------------------
+#
+# The TUI is a thin presentation layer: all data reads go through
+# `bin/harness/status.py` (the pure read-model layer from 110).
+# The view-model builders below produce strings that the curses
+# event loop renders verbatim — keeps the testable boundary
+# unambiguous (the view-models are pure functions; the curses
+# entry is only called from the CLI).
+#
+# Three navigation levels:
+#   1. Harness-runs list — newest first; per run: dir/age,
+#      R/D/F/T/AP/P counts, collector-live?
+#   2. Run detail — per-repo rows: index, repo, runner/model,
+#      state, current phase + name + state, result, pid(live?).
+#   3. Live output — `status.tail_stream` on the selected run.
+#
+# Auto-refresh ~2s at list + detail levels; `r` forces refresh;
+# `q`/Esc goes back / quits; arrows navigate. Read-only —
+# never mutates run state. Curses `wrapper(...)` guarantees
+# terminal restore on exit/exception.
+
+
+def build_runs_list_rows(runs_root: Path) -> "list[str]":
+    """v1.5.7 111: view-model for the top-level harness-runs
+    list. Returns the lines the TUI renders verbatim. Reads
+    via ``status.list_harness_runs``.
+
+    Header row + one line per harness-run (newest first) +
+    a footer with the count. Returns just a header + footer
+    message when ``runs_root`` is empty/missing.
+    """
+    from bin.harness import status as _status
+
+    summaries = _status.list_harness_runs(runs_root)
+    lines: list[str] = []
+    lines.append(
+        f"Harness runs under {runs_root}  "
+        f"(↑/↓ navigate · Enter drill in · q quit · r refresh)"
+    )
+    lines.append("")
+    if not summaries:
+        lines.append("(no harness-runs yet)")
+        return lines
+    lines.append(
+        f"{'harness-run':30}  {'started-at':22}  "
+        f"{'runs':>4}  {'R':>2} {'D':>2} {'F':>2} "
+        f"{'T':>2} {'AP':>2} {'P':>2}  {'collector':9}"
+    )
+    for s in summaries:
+        coll = "live" if s.collector_alive else "—"
+        lines.append(
+            f"{s.harness_run_dir.name:30}  "
+            f"{s.started_at:22}  "
+            f"{s.total_runs:>4}  "
+            f"{s.running:>2} {s.completed:>2} "
+            f"{s.failed:>2} {s.timed_out:>2} "
+            f"{s.aborted_prep:>2} {s.pending:>2}  "
+            f"{coll:9}"
+        )
+    lines.append("")
+    lines.append(f"{len(summaries)} harness-run(s)")
+    return lines
+
+
+def build_run_detail_rows(harness_run_dir: Path) -> "list[str]":
+    """v1.5.7 111: view-model for the drill-down of one
+    harness-run. Per-repo state + current phase + result +
+    pid(live?). Returns the lines the TUI renders verbatim.
+
+    Degrades gracefully: missing/empty manifest ⇒ a single
+    "(no manifest)" line so the renderer always has content.
+    """
+    from bin.harness import status as _status
+
+    runs = _status.read_run_status(harness_run_dir)
+    lines: list[str] = []
+    lines.append(
+        f"Harness run: {harness_run_dir.name}  "
+        f"(↑/↓ navigate · Enter watch output · "
+        f"q/Esc back · r refresh)"
+    )
+    lines.append("")
+    if not runs:
+        lines.append(
+            "(no manifest.json yet — run mid-launch, "
+            "or run-plan hasn't completed launch)"
+        )
+        return lines
+    lines.append(
+        f"{'#':>3}  {'repo':18}  "
+        f"{'runner/model':22}  "
+        f"{'state':14}  {'phase':28}  "
+        f"{'result':10}  {'pid':12}"
+    )
+    for rs in runs:
+        repo_tail = (
+            rs.repo.rstrip("/").split("/")[-1] or rs.repo
+        )
+        phase_part = (
+            f"{rs.current_phase} "
+            f"{rs.current_phase_name} "
+            f"{rs.current_phase_state}"
+            if rs.current_phase != "—"
+            else "—"
+        )
+        pid_part = (
+            f"{rs.pid}(live)" if rs.pid_alive
+            else (f"{rs.pid}(dead)" if rs.pid else "—")
+        )
+        lines.append(
+            f"{rs.index:>3}  {repo_tail[:18]:18}  "
+            f"{(rs.runner + '/' + rs.model)[:22]:22}  "
+            f"{rs.state[:14]:14}  {phase_part[:28]:28}  "
+            f"{rs.result[:10]:10}  {pid_part[:12]:12}"
+        )
+        if rs.last_note:
+            # Indented note line — operator-friendly.
+            lines.append(f"     note: {rs.last_note[:80]}")
+    return lines
+
+
+def build_output_lines(run_dir: Path,
+                        max_lines: int = 200) -> "list[str]":
+    """v1.5.7 111: view-model for the live-output pane.
+    Returns up to ``max_lines`` lines from
+    ``<run_dir>/stream.ndjson`` (newest at the end), each
+    rendered via ``status.render_stream_line`` so sentinels
+    are human-readable.
+
+    Robust to missing stream.ndjson — returns a header + a
+    "(no stream yet)" line. The TUI tails the file; if it
+    grows during render, a subsequent refresh picks up new
+    lines.
+    """
+    from bin.harness import status as _status
+
+    lines: list[str] = []
+    lines.append(
+        f"Live output: {run_dir.name}  "
+        f"(q/Esc back · auto-refreshes)"
+    )
+    lines.append("")
+    stream_path = run_dir / "stream.ndjson"
+    if not stream_path.is_file():
+        lines.append("(no stream.ndjson yet)")
+        return lines
+    # Use tail_stream with follow=False; cap at max_lines.
+    rendered = list(_status.tail_stream(run_dir, follow=False))
+    if not rendered:
+        lines.append("(stream.ndjson is empty)")
+        return lines
+    if len(rendered) > max_lines:
+        lines.append(
+            f"(showing last {max_lines} of {len(rendered)} "
+            f"lines)"
+        )
+        rendered = rendered[-max_lines:]
+    lines.extend(rendered)
+    return lines
+
+
+def launch_status_tui(runs_root: Path) -> int:
+    """v1.5.7 111: the curses entry point. Three navigation
+    levels: harness-runs list → run detail → live output.
+
+    Side-effect-free import: this function is only called from
+    the CLI (``qpb_harness tui --runs-root <DIR>``); importing
+    ``bin.harness.tui`` does NOT start curses. The
+    ``curses.wrapper`` ensures the terminal is restored on
+    exit AND on any uncaught exception.
+    """
+    import curses
+
+    def _main(stdscr: "curses._CursesWindow") -> int:  # type: ignore[name-defined]
+        curses.curs_set(0)
+        stdscr.nodelay(True)
+        stdscr.timeout(2000)  # auto-refresh ~2s
+        return _event_loop(stdscr, runs_root)
+
+    return curses.wrapper(_main)
+
+
+# Navigation states.
+_NAV_LIST = "list"
+_NAV_DETAIL = "detail"
+_NAV_OUTPUT = "output"
+
+
+def _event_loop(stdscr, runs_root: Path) -> int:
+    """v1.5.7 111: the TUI's main loop. NOT directly unit
+    tested (curses is hard to fixture); the view-model
+    builders ABOVE are what tests exercise. This function is
+    a thin glue layer: read keys → update nav state → call a
+    view-model builder → render lines."""
+    import curses
+
+    nav = _NAV_LIST
+    selected_idx = 0
+    current_dir: "Optional[Path]" = None
+    current_run_dir: "Optional[Path]" = None
+
+    while True:
+        try:
+            stdscr.erase()
+            max_y, max_x = stdscr.getmaxyx()
+            if nav == _NAV_LIST:
+                from bin.harness import status as _status
+                summaries = _status.list_harness_runs(runs_root)
+                lines = build_runs_list_rows(runs_root)
+                # Visual selection cursor on data rows
+                # (skip the 3 header rows: title, blank,
+                # column header).
+                _render_lines(stdscr, lines, max_x, max_y,
+                                selectable_first_row=3,
+                                selected_idx=selected_idx,
+                                n_data_rows=len(summaries))
+            elif nav == _NAV_DETAIL and current_dir is not None:
+                from bin.harness import status as _status
+                runs = _status.read_run_status(current_dir)
+                lines = build_run_detail_rows(current_dir)
+                # Header: 3 lines (title, blank, column hdr);
+                # each run row has an optional indented note
+                # line after it, so we can't just pick rows by
+                # index — for simplicity, the cursor advances
+                # by 1 per arrow press, clamped to len(runs).
+                _render_lines(stdscr, lines, max_x, max_y,
+                                selectable_first_row=3,
+                                selected_idx=selected_idx,
+                                n_data_rows=len(runs))
+            elif nav == _NAV_OUTPUT and current_run_dir is not None:
+                lines = build_output_lines(current_run_dir)
+                _render_lines(stdscr, lines, max_x, max_y,
+                                selectable_first_row=0,
+                                selected_idx=0,
+                                n_data_rows=0)
+            stdscr.refresh()
+            ch = stdscr.getch()
+            if ch == -1:
+                continue
+            if ch in (ord("q"), 27):  # q, Esc
+                if nav == _NAV_OUTPUT:
+                    nav = _NAV_DETAIL
+                    selected_idx = 0
+                elif nav == _NAV_DETAIL:
+                    nav = _NAV_LIST
+                    current_dir = None
+                    selected_idx = 0
+                else:
+                    return 0
+                continue
+            if ch == ord("r"):
+                continue  # falls through to next refresh
+            if ch == curses.KEY_UP and selected_idx > 0:
+                selected_idx -= 1
+                continue
+            if ch == curses.KEY_DOWN:
+                selected_idx += 1
+                continue
+            if ch in (curses.KEY_ENTER, 10, 13):
+                if nav == _NAV_LIST:
+                    from bin.harness import status as _status
+                    summaries = _status.list_harness_runs(
+                        runs_root
+                    )
+                    if 0 <= selected_idx < len(summaries):
+                        current_dir = summaries[
+                            selected_idx
+                        ].harness_run_dir
+                        nav = _NAV_DETAIL
+                        selected_idx = 0
+                    continue
+                if nav == _NAV_DETAIL and current_dir:
+                    from bin.harness import status as _status
+                    runs = _status.read_run_status(
+                        current_dir
+                    )
+                    if 0 <= selected_idx < len(runs):
+                        current_run_dir = runs[
+                            selected_idx
+                        ].run_dir
+                        nav = _NAV_OUTPUT
+                    continue
+        except KeyboardInterrupt:
+            return 0
+
+
+def _render_lines(stdscr, lines: "list[str]",
+                   max_x: int, max_y: int, *,
+                   selectable_first_row: int,
+                   selected_idx: int,
+                   n_data_rows: int) -> None:
+    """v1.5.7 111: blit a list of strings to the curses screen,
+    truncating to terminal width. Highlights the selected data
+    row (when there is one) via curses A_REVERSE.
+
+    Terminal-resize tolerant: redraws every event-loop cycle
+    so a SIGWINCH between iterations is handled by the next
+    pass.
+    """
+    import curses
+    for i, line in enumerate(lines):
+        if i >= max_y - 1:
+            break
+        truncated = line[:max_x - 1]
+        try:
+            if (n_data_rows > 0
+                    and i == selectable_first_row + selected_idx
+                    and i < selectable_first_row + n_data_rows):
+                stdscr.attron(curses.A_REVERSE)
+                stdscr.addstr(i, 0, truncated)
+                stdscr.attroff(curses.A_REVERSE)
+            else:
+                stdscr.addstr(i, 0, truncated)
+        except curses.error:
+            # Hit the bottom-right corner; harmless.
+            pass

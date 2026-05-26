@@ -476,32 +476,31 @@ def _cmd_manager(args: argparse.Namespace) -> int:
 
 
 def _cmd_tui(args: argparse.Namespace) -> int:
-    """Launch the read-mostly Textual TUI (Phase 4)."""
+    """v1.5.7 111: launch the live status TUI over 110's
+    ``bin/harness/status.py`` model layer.
+
+    Three navigation levels: harness-runs list → run detail →
+    live output. Stdlib ``curses``; no Textual / Rich
+    dependency. Auto-refresh ~2s at the list + detail levels.
+    Read-only. ``curses.wrapper`` restores the terminal on
+    exit AND on any uncaught exception.
+
+    Pre-111, this subcommand opened the 094 manager TUI over
+    ``<root>/control/queue.json``. The 094 manager path was
+    superseded by 108's detach + auto-collector model;
+    ``--root`` is retained as a deprecated alias that maps to
+    ``--runs-root`` for compatibility with operator muscle
+    memory.
+    """
     from bin.harness import tui as _tui
 
-    root = Path(args.root).expanduser().resolve()
-    snapshot_file = root / "control" / "queue.json"
-    if not snapshot_file.is_file():
-        print(f"ERROR: no manager snapshot at {snapshot_file}. "
-              f"Start the manager first.", file=sys.stderr)
-        return 2
-    try:
-        snapshot = json.loads(snapshot_file.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        print(f"ERROR: failed to read snapshot: {exc}",
-              file=sys.stderr)
-        return 2
-    try:
-        app = _tui.build_app(snapshot)
-    except RuntimeError as exc:
-        # Textual isn't installed — fall back to printing the
-        # data-shaping output so the operator still gets state.
-        print(f"NOTE: {exc}", file=sys.stderr)
-        for line in _tui.render_overview(snapshot):
-            print(line)
-        return 0
-    app.run()
-    return 0
+    runs_root_raw = (
+        getattr(args, "runs_root", None)
+        or getattr(args, "root", None)
+        or "harness-runs"
+    )
+    runs_root = Path(runs_root_raw).expanduser().resolve()
+    return _tui.launch_status_tui(runs_root)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -633,10 +632,24 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_tui = sub.add_parser(
         "tui",
-        help="Open the Textual TUI (read-mostly client; Phase 4).",
+        help=("v1.5.7 111: open the live status TUI (stdlib "
+              "curses) over the 110 status.py model layer. "
+              "Three nav levels: harness-runs → run detail → "
+              "live output."),
     )
-    p_tui.add_argument("--root", required=True,
-                        help="Harness runner root.")
+    p_tui.add_argument(
+        "--runs-root", default="harness-runs",
+        help=("Root directory containing harness-run folders "
+              "(default: harness-runs)."),
+    )
+    p_tui.add_argument(
+        "--root", default=None,
+        help=("v1.5.7 111: deprecated alias for --runs-root "
+              "(pre-111 the tui subcommand opened the 094 "
+              "manager TUI over <root>/control/queue.json; "
+              "that path was superseded by 108's detached "
+              "collector model)."),
+    )
     return p
 
 
