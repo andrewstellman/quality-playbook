@@ -1,6 +1,6 @@
 """QPB Test Harness — two-sourced fact extraction.
 
-Per ``QPB_Test_Harness_1.5.7_Design.md`` §C / SCHEMA.md §5:
+Per ``QPB_Test_Harness_1.5.7_Design.md`` §C / design §C/§5:
 
   * **Gate-derived facts** come from RE-RUNNING **the run's own
     installed ``quality_gate.py``** (NOT the dev clone's gate)
@@ -229,7 +229,7 @@ def parse_gate_stdout(stdout: str) -> "tuple[GateFacts, VerdictFacts, Provenance
     would surface here as a fact regression.
 
     Returns a tuple ``(gate, verdict, provenance)`` matching the
-    SCHEMA.md §5 structure. Defensive: missing optional pieces
+    design §C/§5 structure. Defensive: missing optional pieces
     (e.g. provenance not emitted) yield safe defaults rather than
     raising — the assertion grader can then surface
     "fact unknown" rather than the harness crashing.
@@ -302,7 +302,7 @@ def parse_gate_stdout(stdout: str) -> "tuple[GateFacts, VerdictFacts, Provenance
     elif bugs_unverified:
         attribution = Attribution.INCOMPLETE_VERIFICATION
     elif has_env_failure:
-        # The env-failure bucket doesn't map directly to a SCHEMA.md
+        # The env-failure bucket doesn't map directly to a the design doc
         # §4.1 attribution value (the enum has weak_model /
         # incomplete_verification / none). Conservative direction:
         # treat env-failure-only as ``none`` for the attribution
@@ -407,7 +407,7 @@ def parse_transcript(transcript: str) -> "tuple[Phase0Facts, InstallSurfaceFacts
 
     Returns ``(phase0, install_surface, blocked, stop_reason)``.
     ``blocked`` + ``stop_reason`` feed ``RunMetaFacts``; the rest
-    is per-named-tuple per SCHEMA.md §5.
+    is per-named-tuple per design §C/§5.
     """
     # Phase 0 status
     if _RE_PHASE0_OK.search(transcript):

@@ -228,6 +228,32 @@ def _qpb_version() -> str:
     return "unknown"
 
 
+def _cmd_run_plan(args: argparse.Namespace) -> int:
+    """v1.5.7 099 — simplified plan-runner entry. Reads a flat
+    plan.json, creates a timestamped harness-run folder, runs
+    each run gated per-runner by ``pools``, writes the
+    SUMMARY.md table."""
+    from bin.harness import plan_runner as _plan
+
+    plan_path = Path(args.plan_file).expanduser().resolve()
+    if not plan_path.is_file():
+        print(f"ERROR: plan file not found: {plan_path}",
+              file=sys.stderr)
+        return 2
+    runs_root = Path(args.runs_root).expanduser().resolve()
+    runs_root.mkdir(parents=True, exist_ok=True)
+    try:
+        plan = _plan.load_plan(plan_path)
+    except _plan.PlanError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    outcomes = _plan.run_plan(plan, runs_root)
+    met = sum(1 for o in outcomes if o.result == "MET")
+    total = len(outcomes)
+    print(f"Plan complete: {met}/{total} MET", file=sys.stderr)
+    return 0 if met == total else 1
+
+
 def _cmd_manager(args: argparse.Namespace) -> int:
     """Start the manager daemon (Phase 4 substrate).
 
@@ -348,6 +374,20 @@ def _build_parser() -> argparse.ArgumentParser:
                              "npm-local-tgz). Required for those "
                              "channels; ignored otherwise.")
 
+    # v1.5.7 099 simplified plan-runner.
+    p_plan = sub.add_parser(
+        "run-plan",
+        help=("Run a simplified harness plan (v1.5.7 099): one "
+              "flat plan.json → one timestamped output folder → "
+              "one SUMMARY.md table."),
+    )
+    p_plan.add_argument("plan_file",
+                          help="Path to the plan.json document.")
+    p_plan.add_argument("--runs-root", default="harness-runs",
+                          help="Root directory for harness-run "
+                               "output folders (gitignored by "
+                               "convention).")
+
     # Phase 4 subcommands.
     p_mgr = sub.add_parser(
         "manager",
@@ -378,6 +418,8 @@ def main(argv: "list[str] | None" = None) -> int:
     args = parser.parse_args(argv_list)
     if args.command == "run":
         return _cmd_run(args)
+    if args.command == "run-plan":
+        return _cmd_run_plan(args)
     if args.command == "manager":
         return _cmd_manager(args)
     if args.command == "tui":

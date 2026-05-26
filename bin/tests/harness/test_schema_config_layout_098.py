@@ -56,42 +56,39 @@ _OLD_SCHEMA_PATH = _REPO_ROOT / "repos" / "security-test-cases" / "SCHEMA.md"
 
 class SchemaMdLocationTests(unittest.TestCase):
 
-    def test_new_tracked_location_exists(self) -> None:
-        """v1.5.7 098 Task A: ``bin/harness/SCHEMA.md`` exists +
-        carries the canonical LOCKED contract content."""
-        self.assertTrue(
+    def test_schema_md_deleted_at_both_locations(self) -> None:
+        """v1.5.7 099 update: SCHEMA.md was DELETED per the
+        simplified plan-runner model (design's ⚠️ SIMPLIFIED
+        RUNNER MODEL section). The §F vocabulary now lives in
+        code (closed enums in schema.py); the one-line header in
+        the plan file is self-documenting. These tests pin the
+        deletion at BOTH the original `repos/` path (removed by
+        098) and the brief `bin/harness/` path (added by 098,
+        deleted by 099)."""
+        self.assertFalse(
             _SCHEMA_MD.is_file(),
-            f"v1.5.7 098: SCHEMA.md must live at {_SCHEMA_MD}.",
+            f"v1.5.7 099: bin/harness/SCHEMA.md must be DELETED "
+            f"per the simplified plan-runner model.",
         )
-        text = _SCHEMA_MD.read_text(encoding="utf-8")
-        # The "LOCKED 2026-05-25" + "SCHEMA (authoritative
-        # contract)" markers pin this is the right file.
-        self.assertIn(
-            "QPB Test Harness — SCHEMA (authoritative contract)",
-            text,
-        )
-        self.assertIn("LOCKED 2026-05-25", text)
-
-    def test_old_repos_path_no_longer_present(self) -> None:
-        """The old ``repos/security-test-cases/SCHEMA.md``
-        location is removed (only the new tracked location is
-        the source of truth)."""
         self.assertFalse(
             _OLD_SCHEMA_PATH.is_file(),
-            f"v1.5.7 098: the old SCHEMA.md location "
-            f"{_OLD_SCHEMA_PATH} must be removed (file has "
-            f"moved to {_SCHEMA_MD}).",
+            f"v1.5.7 098+099: old repos/ path also removed.",
         )
 
-    def test_schema_md_references_in_code_use_new_path(self) -> None:
-        """No tracked file in bin/harness/ points at the old
-        ``repos/security-test-cases/SCHEMA.md`` path."""
+    def test_no_dangling_schema_md_references_in_code(self) -> None:
+        """No tracked .py under bin/harness/ references the
+        deleted SCHEMA.md (either path)."""
         for py in _HARNESS_DIR.glob("*.py"):
             text = py.read_text(encoding="utf-8")
             self.assertNotIn(
                 "repos/security-test-cases/SCHEMA.md", text,
-                f"v1.5.7 098: {py.name} still references the old "
-                f"SCHEMA.md path — update to bin/harness/SCHEMA.md.",
+                f"v1.5.7 099: {py.name} still references the "
+                f"deleted repos/ SCHEMA.md path.",
+            )
+            self.assertNotIn(
+                "bin/harness/SCHEMA.md", text,
+                f"v1.5.7 099: {py.name} still references the "
+                f"deleted bin/harness/SCHEMA.md path.",
             )
 
 

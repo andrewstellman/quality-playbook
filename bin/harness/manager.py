@@ -15,7 +15,7 @@ Owns queue + execution per design "Manager daemon + TUI":
   * **Crash recovery**: on restart, scans
     ``runs/*/*/status.json`` for entries left in state=RUNNING
     whose PID is no longer alive AND no terminal_state was
-    written → marks them ``FAILED (orphaned)`` per SCHEMA.md
+    written → marks them ``FAILED (orphaned)`` per the design doc
     §6.
 
 The manager is intentionally a SINGLE-THREADED POLL LOOP — N
@@ -174,7 +174,7 @@ def recover_orphaned_runs(runs_dir: Path) -> list:
     entries whose state is RUNNING but whose PID is no longer
     alive AND no terminal_state was written. Rewrite the
     status to ``terminal_state=FAILED`` with the
-    ``reason="orphaned"`` note per SCHEMA.md §6.
+    ``reason="orphaned"`` note per design §6.
 
     Returns the list of recovered run_ids — used by the manager's
     boot log + by tests.
@@ -191,7 +191,7 @@ def recover_orphaned_runs(runs_dir: Path) -> list:
             data = json.loads(status_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
-        # SCHEMA.md §6: the orphan signature is state=RUNNING +
+        # design §6: the orphan signature is state=RUNNING +
         # terminal_state=None + PID dead.
         if data.get("terminal_state") is not None:
             continue

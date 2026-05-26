@@ -12,7 +12,7 @@ Two sibling prep policies for the same engine (per
 The leakage-gate is the load-bearing security invariant: it
 prevents the harness itself from accidentally feeding the answer
 key into the run (e.g. a CVE number left in a scrubbed doc).
-``ABORTED_PREP`` is the SCHEMA.md §6 terminal state set when
+``ABORTED_PREP`` is the design §6 terminal state set when
 this fires; the run never starts.
 
 Phase 1 supports ``install_channel=clone`` only (Phase 2 wires
@@ -148,7 +148,7 @@ def scrub_reference_docs(reference_docs_dir: Path,
     substring match). Records each removed file + its pre-scrub
     SHA-256 in the returned manifest.
 
-    Per design §B / SCHEMA.md §1: this is the SECURITY prep step.
+    Per design §B / design §1: this is the SECURITY prep step.
     Acceptance runs skip it entirely.
     """
     manifest_entries: list[dict] = []
@@ -186,7 +186,7 @@ def leakage_gate(target_dir: Path, scrub_terms: "list[str]",
     """Re-scan the worktree post-scrub for any remaining occurrence
     of a scrub term. If any term still appears, returns the list of
     terms that leaked; the caller raises ``PrepError`` with the
-    list to set ``ABORTED_PREP`` (SCHEMA.md §6).
+    list to set ``ABORTED_PREP`` (design §6).
 
     Conservative scan: text files only (binary content is skipped
     by the ``errors='ignore'`` decode + the case-insensitive
@@ -233,7 +233,7 @@ def _qpb_clone_root() -> Path:
 def install_skill_clone_channel(target_dir: Path, *,
                                   ai_tool: str = "claude",
                                   no_smoke: bool = True) -> None:
-    """SCHEMA.md §3 ``clone`` channel: invoke
+    """design §3 ``clone`` channel: invoke
     ``python3 -m bin.install_skill --into <target> --ai-tool <tool>``
     from the QPB clone root.
 
@@ -275,7 +275,7 @@ def build_install_command(channel: "InstallChannel",
                            force: bool = False,
                            ) -> "list[str]":
     """v1.5.7 096 Phase 6: build the install command for any of
-    the SCHEMA.md §3 channels. The returned argv list is exactly
+    the design §3 channels. The returned argv list is exactly
     what the harness shells out to install the skill into
     ``target_dir`` for the given channel.
 
@@ -450,7 +450,7 @@ def populate_reference_docs(target_dir: Path,
     """Acceptance prep: ensure ``reference_docs/`` is present in
     the target before the install step.
 
-    Two source shapes per SCHEMA.md §1:
+    Two source shapes per design §1:
       * a path → copy the directory's contents into
         ``<target>/reference_docs/``;
       * the literal ``"gather"`` → no-op (the run is expected to
@@ -527,7 +527,7 @@ def prepare_acceptance(case: Case, worktree_dest: Path, *,
                         axes: "RunAxes | None" = None,
                         local_artifact: "Path | None" = None,
                         ) -> PrepResult:
-    """SCHEMA.md §1 acceptance prep: worktree → docs present →
+    """design §1 acceptance prep: worktree → docs present →
     Phase-0 install. No scrub, no leakage gate.
 
     v1.5.7 096 Phase 6: accepts an optional ``axes`` so the
@@ -563,7 +563,7 @@ def prepare_security(case: Case, worktree_dest: Path, *,
                       axes: "RunAxes | None" = None,
                       local_artifact: "Path | None" = None,
                       ) -> PrepResult:
-    """SCHEMA.md §1 / design §B security prep: worktree → scrub
+    """design §1 / design §B security prep: worktree → scrub
     reference_docs of leakage terms → leakage-gate → install.
 
     The leakage-gate is load-bearing: if ANY scrub term remains in

@@ -1,11 +1,11 @@
 """QPB Test Harness — security grader (Phase 2).
 
-Answer-key-match grading per design §B / SCHEMA.md §4.2:
+Answer-key-match grading per design §B / design §F/§4.2:
 ``DETECTED | PARTIAL | MISSED | BLOCKED``. The grader reads the
 run's `quality/BUGS.md` and writeup files and matches against
 the case's `answer_key` (CWE / file / symbol / behavior).
 
-F-NOTES (LOCKED at SCHEMA.md §4.3):
+F-NOTES (LOCKED at design §F-note):
 
 * **F-note 3**: ``BLOCKED`` (AUP/usage-policy stop in the
   stream) is graded **N/A**, NEVER ``MISSED``. The harness sees
@@ -50,7 +50,7 @@ class SecurityGraderError(RuntimeError):
 
 @dataclass
 class SecurityGrading:
-    """Top-level grading record per SCHEMA.md §4.2 + §7."""
+    """Top-level grading record per design §F/§4.2 + §7."""
     case_id: str
     run_id: str
     case_type: str = CaseType.SECURITY_EVAL.value
@@ -239,7 +239,7 @@ def grade_security(case: Case, facts: RunFacts, quality_dir: Path,
         grading.note = (
             "Run BLOCKED by AUP/usage-policy stop "
             f"({facts.run_meta.stop_reason!r}); graded N/A per "
-            f"SCHEMA.md §4.3 F-note 3."
+            f"design §F-note F-note 3."
         )
         return grading
 

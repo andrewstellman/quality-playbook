@@ -231,7 +231,7 @@ class Scheduler:
 
     def enqueue(self, run_id: str, vendor: Vendor) -> None:
         """Append a run to the queue. ``run_id`` is the caller's
-        identity (typically the SCHEMA.md §2 ``YYYYMMDDTHHMMSSZ``
+        identity (typically the design §2 ``YYYYMMDDTHHMMSSZ``
         token); the scheduler treats it as opaque."""
         # Duplicate-add detection — a run already in queue or
         # in-flight raises so the caller's bookkeeping doesn't

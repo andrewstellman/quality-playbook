@@ -1,7 +1,7 @@
 """QPB Test Harness — acceptance grader (Phase 2).
 
 Evaluates an acceptance case's `expected` list against the
-normalized run-fact object (SCHEMA.md §5) per the §4 closed
+normalized run-fact object (design §C/§5) per the §4 closed
 assertion vocabulary and the §4.3 F-notes.
 
 Architecture per design §C / §B:
@@ -12,7 +12,7 @@ Architecture per design §C / §B:
     reasoning, not just a verdict.
   * `reviewed:false` on auto-grade — human review sets it later.
 
-THE F-NOTES (LOCKED at SCHEMA.md §4.3):
+THE F-NOTES (LOCKED at design §F-note):
 
 1. **`verdict_state` ⊥ `gate_result` are INDEPENDENT axes — do
    NOT cross-couple.** A `CLEANUP` gate may pair with either
@@ -81,7 +81,7 @@ class AssertionResult:
 
 @dataclass
 class AcceptanceGrading:
-    """Top-level grading record per SCHEMA.md §7 grading.json
+    """Top-level grading record per design §7 grading.json
     shape. Acceptance-only; security uses ``SecurityGrading``."""
     case_id: str
     run_id: str
@@ -115,7 +115,7 @@ class AcceptanceGrading:
 # ---------------------------------------------------------------------------
 
 
-# Maps SCHEMA.md §4.1 assertion names to a fact-extractor callable
+# Maps design §F/§4.1 assertion names to a fact-extractor callable
 # that takes ``(facts, axes)`` and returns the assertion's observed
 # value (in the closed-domain shape matching its `value`).
 _FACT_EXTRACTORS: "dict[str, Any]" = {}
@@ -130,7 +130,7 @@ def _register(assertion: str):
 
 @_register(AcceptanceAssertion.GATE_RESULT.value)
 def _ext_gate_result(facts: RunFacts, axes: RunAxes) -> str:
-    """SCHEMA.md §4.1: enum PASS|CLEANUP|FAIL. The grader
+    """design §F/§4.1: enum PASS|CLEANUP|FAIL. The grader
     compares enum-value strings, not enum members, so the
     `expected` list in JSON can stay declarative."""
     return facts.gate.gate_result.value
@@ -138,7 +138,7 @@ def _ext_gate_result(facts: RunFacts, axes: RunAxes) -> str:
 
 @_register(AcceptanceAssertion.VERDICT_STATE.value)
 def _ext_verdict_state(facts: RunFacts, axes: RunAxes) -> str:
-    """SCHEMA.md §4.1: enum solid|shallow|failed.
+    """design §F/§4.1: enum solid|shallow|failed.
 
     F-note 1: INDEPENDENT of gate_result. The grader treats this
     as its own axis — does NOT cross-couple to gate_result."""
@@ -152,7 +152,7 @@ def _ext_attribution(facts: RunFacts, axes: RunAxes) -> str:
 
 @_register(AcceptanceAssertion.RECOMMENDS_STRONGER_MODEL.value)
 def _ext_recommends_stronger(facts: RunFacts, axes: RunAxes) -> bool:
-    """SCHEMA.md §4.1: bool (true ONLY when attribution=weak_model
+    """design §F/§4.1: bool (true ONLY when attribution=weak_model
     — but the grader doesn't enforce that here; it just reads the
     fact. The 090v code is what guarantees the gating; the
     grader's job is to PIN that contract by comparing both
@@ -183,7 +183,7 @@ def _ext_gitignore_followed(facts: RunFacts, axes: RunAxes) -> bool:
 @_register(AcceptanceAssertion.PROVENANCE_RUNNER_MATCHES.value)
 def _ext_provenance_runner_matches(facts: RunFacts,
                                      axes: RunAxes) -> bool:
-    """SCHEMA.md §4.1: bool — `provenance.detected_runner ==
+    """design §F/§4.1: bool — `provenance.detected_runner ==
     axes.runner`. The Runner enum values are "claude" /
     "copilot" / "codex" / "cursor"; the gate emits "claude-code"
     (with the "-code" suffix) for CLAUDECODE. Tolerate that
@@ -210,7 +210,7 @@ def _ext_provenance_runner_matches(facts: RunFacts,
 @_register(AcceptanceAssertion.PROVENANCE_MODEL_LABELED_SELFREPORT.value)
 def _ext_provenance_model_labeled(facts: RunFacts,
                                     axes: RunAxes) -> bool:
-    """SCHEMA.md §4.1: bool — `provenance.selfreport_model_label
+    """design §F/§4.1: bool — `provenance.selfreport_model_label
     present+labeled`. The fact carries None when the run-metadata
     `model` field was absent / non-string — i.e. the gate
     correctly emitted "Model: not recorded". Otherwise, the
@@ -222,7 +222,7 @@ def _ext_provenance_model_labeled(facts: RunFacts,
 @_register(AcceptanceAssertion.PROVENANCE_BUGCOUNT_VS_GATE.value)
 def _ext_provenance_bugcount_vs_gate(facts: RunFacts,
                                        axes: RunAxes) -> str:
-    """SCHEMA.md §4.1: enum match|expect_mismatch. Maps the
+    """design §F/§4.1: enum match|expect_mismatch. Maps the
     boolean `provenance_mismatch` to the enum value."""
     if facts.provenance.provenance_mismatch:
         return ProvenanceBugcountVsGate.EXPECT_MISMATCH.value
@@ -296,7 +296,7 @@ def _apply_comparator(observed: Any, comparator: Comparator,
                        expected: Any) -> bool:
     """Apply the §4.3-note-3 closed-comparator vocabulary. The
     `in` comparator interprets `expected` as a collection (per
-    SCHEMA.md §4 — used e.g. for
+    design §4 — used e.g. for
     `{assertion: "gate_result", comparator: "in",
      value: ["PASS", "CLEANUP"]}`).
     """
@@ -361,7 +361,7 @@ def grade_acceptance(case: Case, facts: RunFacts, axes: RunAxes,
     run's normalized facts. Returns ``AcceptanceGrading`` ready
     to be serialized to ``grading.json``.
 
-    Per design §B / SCHEMA.md: grading is automatic + non-
+    Per design §B / the design doc: grading is automatic + non-
     blocking; the result carries `reviewed=False` for later
     human override.
     """

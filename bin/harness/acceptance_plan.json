@@ -1,0 +1,66 @@
+{
+  "$header_note": "QPB Test Harness — simplified plan (v1.5.7 099). pools = per-runner concurrency. runs[].expect is a FLAT MAP assertion->value (list value = 'one of'). Assertion names = §F vocabulary from grade_acceptance.py. Operator: fill the pre-fix-SHA placeholders before running.",
+
+  "pools": {
+    "claude": 2,
+    "codex": 1,
+    "copilot": 1
+  },
+
+  "runs": [
+    {
+      "description": "Finds + verifies known gson duplicate-key bug — should reach solid",
+      "repo": "https://github.com/google/gson",
+      "ref": "<set-pre-fix-sha>",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": "PASS",
+        "verdict_state": "solid",
+        "attribution": "none",
+        "recommends_stronger_model": false,
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true
+      }
+    },
+    {
+      "description": "Weak model cuts corners — should fail with weak-model attribution",
+      "repo": "https://github.com/go-chi/chi",
+      "ref": "main",
+      "runner": "codex",
+      "model": "gpt-5.2",
+      "channel": "npm-local-tgz",
+      "expect": {
+        "gate_result": "FAIL",
+        "verdict_state": "failed",
+        "attribution": "weak_model",
+        "recommends_stronger_model": true,
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "banner_rendered": true
+      }
+    },
+    {
+      "description": "Capable model on meaty authz repo — honest verdict, clean install surface",
+      "repo": "https://github.com/ory/keto",
+      "ref": "master",
+      "runner": "copilot",
+      "model": "gpt-5.4",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true,
+        "provenance_model_labeled_selfreport": true
+      }
+    }
+  ]
+}

@@ -1,12 +1,12 @@
 """QPB Test Harness — schema dataclasses, enums, and (de)serialization.
 
-Built to match ``bin/harness/SCHEMA.md`` exactly (LOCKED
+Built to match ``docs/design/QPB_Test_Harness_1.5.7_Design.md`` exactly (LOCKED
 2026-05-25; v1.5.7 098 moved it from
 ``repos/security-test-cases/`` to live with the code it
 specifies — tracked, bundle-excluded). The §F closed assertion vocabulary, the
 three-state ``gate_result`` (PASS|CLEANUP|FAIL), the
 ``install_channel`` enum, the §5 fact object, and the §6 terminal
-states all live here. If SCHEMA.md says something can't be free-
+states all live here. If the design doc says something can't be free-
 form, the corresponding type here MUST be a closed enum or a
 dataclass with documented fields.
 
@@ -40,7 +40,7 @@ from typing import Any
 
 
 class SchemaError(ValueError):
-    """A case/run JSON document violates SCHEMA.md.
+    """A case/run JSON document violates design doc.
 
     Always carries the offending field path (e.g. ``"cases[2].type"``)
     so the operator can locate the bad entry without re-grepping.
@@ -53,13 +53,13 @@ class SchemaError(ValueError):
 
 
 class CaseType(str, Enum):
-    """SCHEMA.md §1: the only two case types."""
+    """design §A: the only two case types."""
     ACCEPTANCE = "acceptance"
     SECURITY_EVAL = "security_eval"
 
 
 class PrepPolicy(str, Enum):
-    """SCHEMA.md §1 ``inputs.prep``. The acceptance/security split
+    """design §A ``inputs.prep``. The acceptance/security split
     drives ``prepare.py``: ``acceptance`` keeps docs present;
     ``security`` scrubs ``reference_docs/`` and applies the
     leakage-gate before launching the run."""
@@ -73,7 +73,7 @@ class PrepPolicy(str, Enum):
 
 
 class Runner(str, Enum):
-    """SCHEMA.md §2 ``axes.runner`` — the four supported CLIs.
+    """design §E ``axes.runner`` — the four supported CLIs.
     Phase 1 supports ``CLAUDE`` only; the rest are Phase 5."""
     CLAUDE = "claude"
     COPILOT = "copilot"
@@ -82,7 +82,7 @@ class Runner(str, Enum):
 
 
 class Mode(str, Enum):
-    """SCHEMA.md §2 ``axes.mode``. Mode A = agent drives the
+    """design §E ``axes.mode``. Mode A = agent drives the
     phases inline; Mode B = ``bin/run_playbook.py`` harness drives
     them (Phase 5)."""
     A = "A"
@@ -90,7 +90,7 @@ class Mode(str, Enum):
 
 
 class InstallChannel(str, Enum):
-    """SCHEMA.md §3 ``install_channel`` enum.
+    """design §D ``install_channel`` enum.
 
     Phase 1 supports ``CLONE`` end-to-end. ``PIP_LOCAL_WHEEL`` /
     ``NPM_LOCAL_TGZ`` (pre-publish acceptance) are wired into the
@@ -110,7 +110,7 @@ class InstallChannel(str, Enum):
 
 
 class TerminalState(str, Enum):
-    """SCHEMA.md §6 — run lifecycle terminal states. Grading runs
+    """design §6 / lifecycle — run lifecycle terminal states. Grading runs
     only on ``COMPLETED``; all others grade ``N/A (run incomplete)``
     with the reason."""
     COMPLETED = "COMPLETED"
@@ -122,7 +122,7 @@ class TerminalState(str, Enum):
 
 
 class RunState(str, Enum):
-    """SCHEMA.md §6 — pre-terminal run states (the manager-daemon
+    """design §6 / lifecycle — pre-terminal run states (the manager-daemon
     state machine; Phase 1 only exercises QUEUED/PREPARING/RUNNING
     on a single case, but the enum is complete for downstream
     phases)."""
@@ -137,7 +137,7 @@ class RunState(str, Enum):
 
 
 class AcceptanceAssertion(str, Enum):
-    """SCHEMA.md §4.1 — acceptance assertions. The names are
+    """design §F/§4.1 — acceptance assertions. The names are
     LOAD-BEARING: graders match on these exact strings."""
     GATE_RESULT = "gate_result"
     VERDICT_STATE = "verdict_state"
@@ -157,13 +157,13 @@ class AcceptanceAssertion(str, Enum):
 
 
 class SecurityAssertion(str, Enum):
-    """SCHEMA.md §4.2 — security assertions."""
+    """design §F/§4.2 — security assertions."""
     ANSWER_KEY_CITED = "answer_key_cited"
     OUTCOME = "outcome"
 
 
 class Comparator(str, Enum):
-    """SCHEMA.md §F-note 3 / §4 ``expected``-entry shape. The
+    """design §F-note 3 / §4 ``expected``-entry shape. The
     only legal comparators in an `expected` entry."""
     EQ = "=="
     NE = "!="
@@ -175,9 +175,9 @@ class Comparator(str, Enum):
 # entry (e.g. ``"value": "Solid"`` vs ``"solid"``) is caught by
 # the loader, not silently passed to the grader.
 class GateResult(str, Enum):
-    """SCHEMA.md §4.1 / §5 — the three-state gate verdict.
+    """design §F/§4.1 / §5 — the three-state gate verdict.
 
-    Raw lines map per SCHEMA.md §5: ``GATE PASSED`` → ``PASS``,
+    Raw lines map per design §C/§5: ``GATE PASSED`` → ``PASS``,
     ``GATE PASSED WITH CLEANUP NEEDED`` → ``CLEANUP``,
     ``GATE FAILED`` → ``FAIL``.
     """
@@ -187,7 +187,7 @@ class GateResult(str, Enum):
 
 
 class VerdictState(str, Enum):
-    """SCHEMA.md §4.1 — the 090v operator-verdict lead-line state.
+    """design §F/§4.1 — the 090v operator-verdict lead-line state.
 
     F-note 1 (LOCKED): ``verdict_state`` ⊥ ``gate_result`` —
     independent axes. A ``CLEANUP`` gate may pair with either a
@@ -201,7 +201,7 @@ class VerdictState(str, Enum):
 
 
 class Attribution(str, Enum):
-    """SCHEMA.md §4.1 — the 090v three-bucket attribution
+    """design §F/§4.1 — the 090v three-bucket attribution
     (extended by 090x to include the ``incomplete_verification``
     case for ``bugs_unverified`` runs)."""
     WEAK_MODEL = "weak_model"
@@ -210,7 +210,7 @@ class Attribution(str, Enum):
 
 
 class ProvenanceBugcountVsGate(str, Enum):
-    """SCHEMA.md §4.1 — the 090w provenance bug-count mismatch
+    """design §F/§4.1 — the 090w provenance bug-count mismatch
     assertion. ``match`` = self-report agrees with gate;
     ``expect_mismatch`` = the self-report is expected to disagree
     (the NATS run2 fixture shape)."""
@@ -219,7 +219,7 @@ class ProvenanceBugcountVsGate(str, Enum):
 
 
 class SecurityOutcome(str, Enum):
-    """SCHEMA.md §4.2 — the security grader's verdict.
+    """design §F/§4.2 — the security grader's verdict.
 
     F-note 3 (LOCKED): ``BLOCKED`` (AUP/usage-policy stop) is
     graded ``N/A``, NEVER ``MISSED``. F-note 4: ``DETECTED`` /
@@ -239,7 +239,7 @@ class SecurityOutcome(str, Enum):
 
 @dataclass
 class CaseInputs:
-    """SCHEMA.md §1 ``inputs`` — the run inputs. Physically
+    """design §A ``inputs`` — the run inputs. Physically
     separated from the answer key / expected assertions so the
     run agent cannot cheat by reading them.
 
@@ -256,13 +256,13 @@ class CaseInputs:
     prep: PrepPolicy
     target_ref: "str | None" = None
     reference_docs_source: "str | None" = None
-    # SCHEMA.md §1: security_eval cases also carry doc_sources +
+    # design §A: security_eval cases also carry doc_sources +
     # scrub_terms + run_prompt at the inputs level (the existing
     # 10 cases). Acceptance cases use reference_docs_source only.
     doc_sources: "list[str] | None" = None
     scrub_terms: "list[str] | None" = None
     run_prompt: "str | None" = None
-    # SCHEMA.md §1.1: security cases physically separate the
+    # design §A.1: security cases physically separate the
     # vulnerable_parent SHA into inputs (the harness target_ref)
     # — distinct from answer_key.vulnerable_parent. Kept optional
     # on the dataclass so acceptance cases don't need it.
@@ -271,11 +271,11 @@ class CaseInputs:
 
 @dataclass
 class ExpectedAssertion:
-    """SCHEMA.md §4 ``expected``-entry shape:
+    """design §4 ``expected``-entry shape:
     ``{assertion, comparator, value}``. The assertion name is
     drawn from §4.1 / §4.2; the comparator is one of
     ``==`` / ``!=`` / ``in``; the value's legal domain is
-    enumerated per assertion in SCHEMA.md (and enforced by the
+    enumerated per assertion in the design doc (and enforced by the
     closed-domain enums above when applicable)."""
     assertion: str
     comparator: Comparator
@@ -291,7 +291,7 @@ class ExpectedAssertion:
 
 @dataclass
 class AnswerKey:
-    """SCHEMA.md §1.1 — the SECURITY_EVAL answer key. Carries the
+    """design §A.1 — the SECURITY_EVAL answer key. Carries the
     planted-defect facts the grader matches BUGS.md / writeups
     against. NEVER appears in inputs (the run never reads this).
     """
@@ -300,7 +300,7 @@ class AnswerKey:
     file: str
     symbol: str
     behavior: str
-    # SCHEMA.md security cases also carry these extended fields
+    # the design doc security cases also carry these extended fields
     # in the existing 10 cases (fix_commit / locus / mechanism /
     # pass_criterion / advisory). Optional on the dataclass.
     fix_commit: "str | None" = None
@@ -313,7 +313,7 @@ class AnswerKey:
 
 @dataclass
 class Case:
-    """SCHEMA.md §1 — a case = identity + prep policy + expected
+    """design §A — a case = identity + prep policy + expected
     outcome. ``expected`` is set on ACCEPTANCE cases (and
     ``answer_key`` is None); ``answer_key`` is set on
     SECURITY_EVAL cases (and ``expected`` is None).
@@ -327,7 +327,7 @@ class Case:
     inputs: CaseInputs
     expected: "list[ExpectedAssertion] | None" = None
     answer_key: "AnswerKey | None" = None
-    # SCHEMA.md security_eval existing cases carry these top-level
+    # the design doc security_eval existing cases carry these top-level
     # discovery fields; keep them on the dataclass as optional so
     # the existing 10 cases round-trip cleanly.
     category: "str | None" = None
@@ -347,7 +347,7 @@ class Case:
 
 @dataclass
 class RunAxes:
-    """SCHEMA.md §2 ``axes`` — the run matrix point a run binds
+    """design §E ``axes`` — the run matrix point a run binds
     to. ``install_version`` is parsed off the channel suffix for
     registry channels (e.g. ``pip-registry@1.5.7`` →
     ``install_channel=PIP_REGISTRY, install_version="1.5.7"``);
@@ -362,7 +362,7 @@ class RunAxes:
 
 @dataclass
 class RunInvocation:
-    """SCHEMA.md §2 — the full run invocation record written to
+    """design §E — the full run invocation record written to
     ``runs/<case-id>/<run-id>/invocation.json``."""
     run_id: str        # UTC YYYYMMDDTHHMMSSZ
     case_id: str
@@ -457,7 +457,7 @@ class RunMetaFacts:
 
 @dataclass
 class RunFacts:
-    """SCHEMA.md §5 — the normalized fact object both graders
+    """design §C/§5 — the normalized fact object both graders
     consume. Two-sourced: ``phase0`` and ``install`` are live-
     behavior (transcript-derived); ``verdict``, ``provenance``,
     and ``gate`` are gate-derived (re-running the run's OWN
@@ -479,7 +479,7 @@ class RunFacts:
 
 
 # Mapping for the raw "Total: ..." line / "RESULT: ..." line →
-# GateResult. SCHEMA.md §5 pins these exactly.
+# GateResult. design §C/§5 pins these exactly.
 _GATE_RESULT_RAW_MAP = {
     "GATE PASSED WITH CLEANUP NEEDED": GateResult.CLEANUP,
     "GATE PASSED": GateResult.PASS,
@@ -567,7 +567,7 @@ def _parse_expected(raw_list: list, where: str
 
 def _parse_answer_key(raw: dict, where: str,
                        case_top_level: "dict | None" = None) -> AnswerKey:
-    # SCHEMA.md §1.1: cwe / vulnerable_parent / file / symbol /
+    # design §A.1: cwe / vulnerable_parent / file / symbol /
     # behavior are required. The legacy 10 cases keep ``cwe`` at the
     # case top level (not inside answer_key) and use richer keys
     # (fix_commit / files / locus / mechanism / pass_criterion /
@@ -591,7 +591,7 @@ def _parse_answer_key(raw: dict, where: str,
     vulnerable_parent = raw.get("vulnerable_parent")
     if vulnerable_parent is None and case_top_level is not None:
         # Legacy 10 cases keep vulnerable_parent in inputs (not
-        # answer_key). SCHEMA.md §1.1 puts it under answer_key —
+        # answer_key). design §A.1 puts it under answer_key —
         # accept both, prefer answer_key when present.
         inputs = case_top_level.get("inputs") or {}
         vulnerable_parent = inputs.get("vulnerable_parent")
@@ -617,7 +617,7 @@ def _parse_answer_key(raw: dict, where: str,
 
 
 def parse_case(raw: dict, where: str = "case") -> Case:
-    """Parse one case dict per SCHEMA.md §1 → ``Case``. Raises
+    """Parse one case dict per design §A → ``Case``. Raises
     ``SchemaError`` with the offending field path on bad input.
 
     Enforces §1's "type is mandatory" + the
@@ -645,7 +645,7 @@ def parse_case(raw: dict, where: str = "case") -> Case:
         if "answer_key" in raw and raw["answer_key"] is not None:
             raise SchemaError(
                 f"{where}: acceptance cases MUST NOT carry an "
-                f"answer_key (SCHEMA.md §1)"
+                f"answer_key (design §A)"
             )
     else:  # SECURITY_EVAL
         answer_key_raw = _required(raw, "answer_key", where)
@@ -656,7 +656,7 @@ def parse_case(raw: dict, where: str = "case") -> Case:
         if "expected" in raw and raw["expected"] is not None:
             raise SchemaError(
                 f"{where}: security_eval cases MUST NOT carry an "
-                f"expected list (SCHEMA.md §1)"
+                f"expected list (design §A)"
             )
 
     # title is required for acceptance; legacy security_eval cases
@@ -689,7 +689,7 @@ def parse_case(raw: dict, where: str = "case") -> Case:
 
 
 def parse_cases_file(raw_doc: dict) -> "list[Case]":
-    """Parse the full ``cases.json`` doc per SCHEMA.md (the existing
+    """Parse the full ``cases.json`` doc per the design doc (the existing
     file shape is ``{"schema_version": "1", "note": "...",
     "cases": [...]}``)."""
     if not isinstance(raw_doc, dict):
@@ -723,7 +723,7 @@ def _enum_to_str(v):
 
 
 def case_to_json(case: Case) -> dict:
-    """Serialize a ``Case`` back to the JSON shape SCHEMA.md
+    """Serialize a ``Case`` back to the JSON shape the design doc
     defines. Round-trip: ``parse_case(case_to_json(c)) == c`` for
     all enum-typed fields; optional fields with value ``None`` are
     dropped (cleaner JSON; round-trip is tolerant)."""
@@ -771,10 +771,10 @@ def case_to_json(case: Case) -> dict:
 
 
 def run_invocation_to_json(inv: RunInvocation) -> dict:
-    """Serialize a ``RunInvocation`` per SCHEMA.md §2.
+    """Serialize a ``RunInvocation`` per design §E.
 
     Note: the registry-channel ``@<version>`` suffix is re-attached
-    to ``install_channel`` on serialization, matching the SCHEMA.md
+    to ``install_channel`` on serialization, matching the the design doc
     §3 raw shape: ``"pip-registry@1.5.7"`` etc.
     """
     channel_raw = inv.axes.install_channel.value
@@ -811,7 +811,7 @@ def parse_run_invocation(raw: dict, where: str = "invocation"
                          ) -> RunInvocation:
     """Parse an ``invocation.json`` document → ``RunInvocation``.
 
-    Handles the SCHEMA.md §3 ``pip-registry@<version>`` channel-
+    Handles the design §D ``pip-registry@<version>`` channel-
     with-suffix shape: splits the suffix off into
     ``axes.install_version`` and stores the enum on
     ``axes.install_channel``.
@@ -877,7 +877,7 @@ def parse_run_invocation(raw: dict, where: str = "invocation"
 
 
 def run_facts_to_json(facts: RunFacts) -> dict:
-    """Serialize ``RunFacts`` per SCHEMA.md §5."""
+    """Serialize ``RunFacts`` per design §C/§5."""
     return {
         "phase0": asdict(facts.phase0),
         "verdict": {

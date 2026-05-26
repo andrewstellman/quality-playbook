@@ -383,7 +383,7 @@ def launch_run(spec: LaunchSpec) -> LaunchResult:
         exit_code: int
         try:
             exit_code = proc.wait(timeout=spec.max_duration_s)
-            # Per SCHEMA.md §6: COMPLETED requires exit-0 AND a
+            # Per design §6 / lifecycle: COMPLETED requires exit-0 AND a
             # gate verdict in the produced artifacts. Phase 1
             # routes by exit code only — Phase 2's grader will
             # re-classify ``COMPLETED`` vs ``FAILED`` based on
