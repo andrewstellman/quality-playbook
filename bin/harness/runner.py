@@ -233,13 +233,15 @@ def _cursor_command(model: str,
 
 
 def _mode_b_command(runner: Runner, target_dir: Path,
-                     model: str) -> "list[str]":
+                     model: str,
+                     parameters: "list[str] | None" = None,
+                     ) -> "list[str]":
     """v1.5.7 095 Phase 5: Mode B reuses ``bin.run_playbook`` as
     the canonical harness (per design §G — "run_playbook.py IS
     the Mode B harness"). The shell-out invocation is:
 
         python3 -m bin.run_playbook --<runner> --model <model> \
-            <target_dir>
+            [<parameters...>] <target_dir>
 
     The runner flag matches the run_playbook arg parser
     (``--claude``/``--copilot``/``--codex``/``--cursor``);
@@ -247,6 +249,15 @@ def _mode_b_command(runner: Runner, target_dir: Path,
     captures stream output the same way as Mode A; the difference
     is just *who drives the phases* — Mode A is the CLI agent,
     Mode B is the run_playbook harness.
+
+    v1.5.7 106: ``parameters`` in Mode B is spliced into the
+    ``run_playbook`` argv (before the trailing ``<target_dir>``
+    positional). This lets a plan select phases in Mode B —
+    e.g. ``parameters=["--phase", "3"]`` builds
+    ``python3 -m bin.run_playbook --copilot --model X --phase
+    3 <target>``. In Mode A the same field routes to the runner
+    CLI (per 100); the contract is "``parameters`` routes to
+    whichever subprocess this run launches".
     """
     flag = {
         Runner.CLAUDE: "--claude",
@@ -256,7 +267,9 @@ def _mode_b_command(runner: Runner, target_dir: Path,
     }[runner]
     return [
         sys.executable, "-m", "bin.run_playbook",
-        flag, "--model", model, str(target_dir),
+        flag, "--model", model,
+        *(parameters or []),
+        str(target_dir),
     ]
 
 
@@ -308,7 +321,10 @@ def _command_for_axes(axes: RunAxes, prompt: str,
                 "Mode B requires target_dir (run_playbook drives "
                 "the phases against the target tree)"
             )
-        return _mode_b_command(axes.runner, target_dir, axes.model)
+        # v1.5.7 106: forward `parameters` so plan runs can
+        # select phases (e.g. `--phase 3`) in Mode B.
+        return _mode_b_command(axes.runner, target_dir, axes.model,
+                                parameters=parameters)
     # Mode A — per-runner Mode A invocation.
     if axes.runner == Runner.CLAUDE:
         return _claude_command(axes.model, prompt, axes.thinking,

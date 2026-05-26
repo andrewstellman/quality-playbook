@@ -115,6 +115,42 @@ class BuildError(RuntimeError):
 
 
 # ---------------------------------------------------------------------------
+# v1.5.7 106: launch-mode constants
+# ---------------------------------------------------------------------------
+
+
+# The Mode A full-pipeline launch prompt. Pre-106, the harness
+# sent a bare "Run the Quality Playbook on this project." — that
+# does NOT match SKILL.md:413's "run all phases" trigger, so the
+# agent did the DEFAULT single-phase-at-a-time behavior
+# (SKILL.md:403), completed Phase 1, and ended its turn waiting
+# for a human "continue." Result on the first live 4-repo run:
+# 0/4 MET — gson stopped after Phase 1; keto stopped after Phase
+# 2 ("The exact prompt is: `Run quality playbook phase 3.`").
+# This prompt explicitly hits the all-phases trigger, scopes it
+# unattended, and excludes the 4 iteration strategies that
+# SKILL.md:141 chains onto a bare full run (the acceptance
+# harness wants phases 1-6 + gate only).
+_MODE_A_FULL_RUN_PROMPT = (
+    "Run the full Quality Playbook pipeline on this project: "
+    "run all phases (1 through 6) sequentially in a single "
+    "session and then run the quality gate. Do not stop "
+    "between phases and do not wait for confirmation — this "
+    "is an unattended run. Do not run the iteration "
+    "strategies (gap / unfiltered / parity / adversarial); "
+    "stop after the Phase 6 gate."
+)
+
+# v1.5.7 106: default per-run max-duration raised from 1800s
+# (30 min) to 7200s (120 min). A full 6-phase Mode A run is
+# substantially longer than the 2 phases that timed express out
+# at 1800s. Operators can override per-run via the optional
+# ``max_duration_s`` plan field; this constant is the default
+# when the field is absent.
+_DEFAULT_MAX_DURATION_S = 7200.0
+
+
+# ---------------------------------------------------------------------------
 # Dataclasses
 # ---------------------------------------------------------------------------
 
@@ -140,10 +176,20 @@ class PlanRun:
     # ``["-c", "model_reasoning_effort=\"low\""]``. Absent/empty
     # ⇒ no extra tokens.
     parameters: "list[str]" = field(default_factory=list)
-    # Mode is always A for the plan-runner (Mode B would mean
-    # run_playbook drives the phases — out of scope for the
-    # simple flow).
+    # v1.5.7 106: per-run launch mode. "A" (default) ⇒ the
+    # AI-CLI agent reads SKILL.md + drives phases itself, with
+    # ``parameters`` routed to the per-runner CLI argv. "B" ⇒
+    # ``bin/run_playbook`` drives the phases against the
+    # target's channel-installed skill, with ``parameters``
+    # routed to run_playbook's argv (so `["--phase", "3"]`
+    # selects Phase 3 in Mode B).
     mode: Mode = Mode.A
+    # v1.5.7 106: optional per-run max-duration override
+    # (seconds). When None, ``_execute_one_run_production`` uses
+    # ``_DEFAULT_MAX_DURATION_S`` (7200s = 120 min) — the value
+    # raised from 1800s so a full Mode A 6-phase pipeline can
+    # finish unattended.
+    max_duration_s: "Optional[float]" = None
 
 
 @dataclass
@@ -258,6 +304,33 @@ def _parse_run(idx: int, raw: dict) -> PlanRun:
             f"tokens (strings) or a single string (shlex-split); "
             f"got {type(parameters_raw).__name__}"
         )
+    # v1.5.7 106: optional per-run `mode` ("A" default; "B" ⇒
+    # run_playbook drives the phases).
+    mode_raw = raw.get("mode", "A")
+    if mode_raw not in ("A", "B"):
+        raise PlanError(
+            f"runs[{idx}].mode: must be 'A' or 'B'; got "
+            f"{mode_raw!r}"
+        )
+    mode_value = Mode.A if mode_raw == "A" else Mode.B
+    # v1.5.7 106: optional per-run `max_duration_s` override.
+    max_duration_raw = raw.get("max_duration_s", None)
+    max_duration_value: "Optional[float]"
+    if max_duration_raw is None:
+        max_duration_value = None
+    elif isinstance(max_duration_raw, (int, float)):
+        if max_duration_raw <= 0:
+            raise PlanError(
+                f"runs[{idx}].max_duration_s: must be > 0; got "
+                f"{max_duration_raw!r}"
+            )
+        max_duration_value = float(max_duration_raw)
+    else:
+        raise PlanError(
+            f"runs[{idx}].max_duration_s: must be a positive "
+            f"number or absent; got "
+            f"{type(max_duration_raw).__name__}"
+        )
     return PlanRun(
         index=idx,
         description=raw["description"],
@@ -271,6 +344,8 @@ def _parse_run(idx: int, raw: dict) -> PlanRun:
         docs=raw.get("docs", "gather"),
         expect=expect,
         parameters=parameters,
+        mode=mode_value,
+        max_duration_s=max_duration_value,
     )
 
 
@@ -1119,17 +1194,37 @@ def _execute_one_run_production(
         )
 
     # ----- STEP 2: LAUNCH (detached AI-CLI subprocess) -----
+    # v1.5.7 106: Mode A uses the full-pipeline prompt that
+    # actually triggers all-phases-in-one-session (the bare
+    # pre-106 prompt produced 0/4 MET on the first live run).
+    # Mode B doesn't use a prompt (run_playbook builds its own
+    # phase-prompt sequence); we still set it for the
+    # invocation receipt's cli_command field but it never
+    # reaches the subprocess.
+    effective_max_duration_s = (
+        plan_run.max_duration_s
+        if plan_run.max_duration_s is not None
+        else _DEFAULT_MAX_DURATION_S
+    )
+    launch_prompt = (
+        _MODE_A_FULL_RUN_PROMPT if plan_run.mode == Mode.A
+        else "(Mode B — run_playbook drives the phases)"
+    )
     launch_spec = _runner_mod.LaunchSpec(
         target_dir=prep_result.target_dir,
         run_dir=run_dir,
         axes=axes,
         case_id=case.id,
         run_id=run_id,
-        max_duration_s=1800.0,
-        prompt="Run the Quality Playbook on this project.",
+        max_duration_s=effective_max_duration_s,
+        prompt=launch_prompt,
         parameters=(plan_run.parameters or None),
     )
-    _log(f"launch {plan_run.runner.value}/{plan_run.model}")
+    _log(
+        f"launch {plan_run.runner.value}/{plan_run.model} "
+        f"(mode={plan_run.mode.value}, "
+        f"max_duration={int(effective_max_duration_s)}s)"
+    )
     launch = _runner_mod.launch_run(launch_spec)
     terminal = launch.terminal_state
     _log(
@@ -1309,6 +1404,13 @@ def run_plan(plan: Plan, harness_runs_root: Path,
                 # keep round-trips of pre-100 plans byte-stable.
                 **({"parameters": r.parameters}
                    if r.parameters else {}),
+                # v1.5.7 106: persist mode + max_duration_s only
+                # when non-default; absent fields keep pre-106
+                # plan files round-trip byte-stable.
+                **({"mode": r.mode.value}
+                   if r.mode != Mode.A else {}),
+                **({"max_duration_s": r.max_duration_s}
+                   if r.max_duration_s is not None else {}),
             } for r in plan.runs],
         }, indent=2) + "\n",
         encoding="utf-8",
