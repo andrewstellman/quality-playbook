@@ -280,6 +280,48 @@ def _mode_b_phase_from_stream(stream_text: str) -> "Optional[dict]":
     }
 
 
+def _resolve_manifest_path(
+        entry_value: str, harness_run_dir: Path) -> Path:
+    """v1.5.7 118: resolve a manifest entry's path field
+    against the harness-run dir we were handed, so a copied/
+    moved harness-run folder reads correctly on any machine.
+
+    Order:
+      1. Empty value ⇒ return ``harness_run_dir`` (caller
+         typically derives a sub-path).
+      2. Relative path ⇒ ``harness_run_dir / value``. This is
+         the 118 default for new manifests.
+      3. Absolute path that EXISTS ⇒ use as-is (back-compat
+         for legacy 108-117 manifests on their original
+         machine — nothing breaks for the unmoved case).
+      4. Absolute path that does NOT exist ⇒ a legacy
+         manifest whose folder has been moved/copied to a new
+         location. Try to extract the part of the absolute
+         path AFTER the harness-run dir's name and re-attach
+         it under the new ``harness_run_dir``. Example:
+         entry ``/Users/foo/qpb/aup-exp/20260527T145902Z/run-00/stream.ndjson``,
+         new dir ``/tmp/copied/20260527T145902Z`` ⇒
+         ``/tmp/copied/20260527T145902Z/run-00/stream.ndjson``.
+      5. Failing that, fall through to ``harness_run_dir /
+         basename`` — a polite degradation."""
+    if not entry_value:
+        return harness_run_dir
+    p = Path(entry_value)
+    if not p.is_absolute():
+        return harness_run_dir / p
+    if p.exists():
+        return p
+    hr_name = harness_run_dir.name
+    parts = list(p.parts)
+    if hr_name in parts:
+        idx = parts.index(hr_name)
+        tail_parts = parts[idx + 1:]
+        if tail_parts:
+            return harness_run_dir.joinpath(*tail_parts)
+        return harness_run_dir
+    return harness_run_dir / p.name
+
+
 def _safe_read(path: Path) -> str:
     """Read a file, returning '' on any OSError. Used to swallow
     races against a half-written file (collector writing while
@@ -345,10 +387,21 @@ def read_run_status(harness_run_dir: Path) -> "list[RunStatus]":
 
 def _read_one_run_status(entry: dict,
                            harness_run_dir: Path) -> RunStatus:
-    run_dir = Path(entry.get("run_dir", ""))
-    stream_path = Path(entry.get("stream_path",
-                                   str(run_dir / "stream.ndjson")))
-    status_path = run_dir / "status.json"
+    # v1.5.7 118: resolve manifest path entries against the
+    # harness-run dir we were handed. New (post-118) manifests
+    # store relative paths so the folder is portable; legacy
+    # 108-117 manifests stored absolute paths — both work
+    # through `_resolve_manifest_path`.
+    run_dir = _resolve_manifest_path(
+        entry.get("run_dir", ""), harness_run_dir)
+    stream_path = _resolve_manifest_path(
+        entry.get("stream_path", ""), harness_run_dir,
+    ) if entry.get("stream_path") else (
+        run_dir / "stream.ndjson")
+    status_path = _resolve_manifest_path(
+        entry.get("status_path", ""), harness_run_dir,
+    ) if entry.get("status_path") else (
+        run_dir / "status.json")
     grading_path = run_dir / "grading.json"
 
     # State + pid: status.json wins; manifest entry is the

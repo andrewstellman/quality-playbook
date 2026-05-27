@@ -1769,6 +1769,68 @@ def _launch_one_run_detached(
     }
 
 
+def _relpath_for_manifest(path_value: str,
+                            harness_run_dir: Path) -> str:
+    """v1.5.7 118: convert an absolute path to its relative
+    form under ``harness_run_dir`` for manifest writes, so a
+    copied/moved harness-run folder reads correctly on any
+    machine. If the path isn't under ``harness_run_dir`` (e.g.
+    a target_dir on a different mount), leave it absolute.
+
+    Used at manifest-write time; the read side resolves via
+    ``status._resolve_manifest_path``, which knows about both
+    relative (new) and absolute (legacy) forms."""
+    if not path_value:
+        return path_value
+    p = Path(path_value)
+    if not p.is_absolute():
+        return path_value
+    try:
+        return str(p.relative_to(harness_run_dir))
+    except ValueError:
+        return path_value
+
+
+def _relativize_manifest_entry(entry: dict,
+                                  harness_run_dir: Path) -> dict:
+    """v1.5.7 118: convert path-bearing fields in a manifest
+    entry to be relative to ``harness_run_dir``. Returns a NEW
+    dict; the caller's entry is unchanged."""
+    if entry is None:
+        return entry
+    out = dict(entry)
+    for field in ("run_dir", "stream_path", "status_path",
+                    "target_dir"):
+        if field in out:
+            out[field] = _relpath_for_manifest(
+                out[field], harness_run_dir)
+    return out
+
+
+def _resolve_entry_path(entry_value: str,
+                          harness_run_dir: Path) -> Path:
+    """v1.5.7 118: collector-side resolver. Same semantics as
+    ``status._resolve_manifest_path`` — kept local so
+    plan_runner doesn't need to import from status.py
+    (avoid a circular import at module load)."""
+    if not entry_value:
+        return harness_run_dir
+    p = Path(entry_value)
+    if not p.is_absolute():
+        return harness_run_dir / p
+    if p.exists():
+        return p
+    hr_name = harness_run_dir.name
+    parts = list(p.parts)
+    if hr_name in parts:
+        idx = parts.index(hr_name)
+        tail = parts[idx + 1:]
+        if tail:
+            return harness_run_dir.joinpath(*tail)
+        return harness_run_dir
+    return harness_run_dir / p.name
+
+
 def _collect_one_run_detached(
         entry: dict, harness_run_dir: Path,
         log: "Optional[_ProgressLog]" = None,
@@ -1795,8 +1857,14 @@ def _collect_one_run_detached(
         run_facts_to_json,
     )
 
-    run_dir = Path(entry["run_dir"])
-    target_dir = Path(entry["target_dir"])
+    # v1.5.7 118: resolve manifest path entries against the
+    # harness-run dir so a copied/moved harness-run folder is
+    # collectable from any machine. Back-compat: legacy
+    # absolute paths still work when the folder hasn't moved.
+    run_dir = _resolve_entry_path(
+        entry.get("run_dir", ""), harness_run_dir)
+    target_dir = _resolve_entry_path(
+        entry.get("target_dir", ""), harness_run_dir)
     grading_path = run_dir / "grading.json"
 
     # Re-hydrate a minimal PlanRun for grading + axes for
@@ -1924,9 +1992,16 @@ def _collect_one_run_detached(
             #   fall back to artifact inference (Mode B path:
             #   run_playbook doesn't emit a Claude `result`
             #   envelope, so this branch keeps Mode B working).
-            stream_path_for_classify = Path(entry.get(
-                "stream_path",
-                str(run_dir / "stream.ndjson")))
+            # v1.5.7 118: resolve through the manifest helper
+            # so a moved/copied harness-run folder still finds
+            # its stream.
+            stream_path_for_classify = (
+                _resolve_entry_path(
+                    entry.get("stream_path", ""),
+                    harness_run_dir)
+                if entry.get("stream_path")
+                else run_dir / "stream.ndjson"
+            )
             stream_state, stream_reason = (
                 _runner_mod._classify_stream_terminal(
                     stream_path_for_classify)
@@ -1973,7 +2048,12 @@ def _collect_one_run_detached(
     grading = None
     result_label = "N/A"
     transcript = ""
-    stream_path = Path(entry.get("stream_path", ""))
+    stream_path = (
+        _resolve_entry_path(
+            entry.get("stream_path", ""), harness_run_dir)
+        if entry.get("stream_path")
+        else run_dir / "stream.ndjson"
+    )
     if stream_path.is_file():
         try:
             transcript = stream_path.read_text(
@@ -2403,12 +2483,31 @@ def _run_plan_detached(
     # Write manifest.json at the harness-run root. The
     # collector reads this — every field is what it needs to
     # poll + grade + render SUMMARY.
+    #
+    # v1.5.7 118: per-run path fields (run_dir, stream_path,
+    # status_path, target_dir) are relativized against
+    # harness_run_dir so a copied/moved folder is portable.
+    # The reader (status._resolve_manifest_path /
+    # plan_runner._resolve_entry_path) resolves against the
+    # dir it's handed.
+    #
+    # PID portability boundary: ``status.json``'s ``pid`` is
+    # machine-specific — a still-RUNNING run copied mid-flight
+    # will show stale pid-liveness on the other machine.
+    # That's expected; the portability target is finished
+    # (terminal) runs copied for analysis, where status.json
+    # carries ``terminal_state`` and pid-liveness is
+    # irrelevant.
+    relative_entries = [
+        _relativize_manifest_entry(e, harness_run_dir)
+        for e in entries
+    ]
     manifest = {
         "harness_run_dir": str(harness_run_dir),
         "plan": {
             "pools": plan.pools,
         },
-        "runs": entries,
+        "runs": relative_entries,
     }
     (harness_run_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n",
