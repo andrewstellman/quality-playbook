@@ -309,6 +309,8 @@ __all__ = [
     "build_run_detail_rows",
     "build_output_lines",
     "launch_status_tui",
+    # v1.5.7 116 — exported for the cursor-clamp unit tests.
+    "_clamp_cursor",
 ]
 
 
@@ -502,6 +504,34 @@ _NAV_DETAIL = "detail"
 _NAV_OUTPUT = "output"
 
 
+def _clamp_cursor(idx: int, n_rows: int) -> int:
+    """v1.5.7 116: clamp the TUI selection cursor to the
+    selectable range ``[0, max(0, n_rows - 1)]``.
+
+    Pure helper extracted so the curses event loop's nav math
+    can be unit-tested without spinning up curses. Used both at
+    KEY_DOWN/KEY_UP press time (so the cursor doesn't visibly
+    overshoot) and at the top of each event-loop iteration
+    after the row count is recomputed (so a refresh that
+    SHRINKS the list — a run dir disappearing, a view switch —
+    can't leave the cursor pointing past the new last row).
+
+    ``n_rows == 0`` ⇒ return 0 (no-selection sentinel; the
+    render layer's ``i == selectable_first_row + selected_idx``
+    check still has nothing to highlight when ``n_data_rows``
+    is also 0). Negative ``idx`` ⇒ return 0 (KEY_UP guard
+    sanity-check).
+
+    Pre-116 KEY_DOWN incremented unconditionally; pressing ↓
+    past the last row made the cursor drift off the end and
+    the highlight disappear until KEY_UP brought it back into
+    range one press at a time.
+    """
+    if n_rows <= 0:
+        return 0
+    return max(0, min(idx, n_rows - 1))
+
+
 def _event_loop(stdscr, runs_root: Path) -> int:
     """v1.5.7 111: the TUI's main loop. NOT directly unit
     tested (curses is hard to fixture); the view-model
@@ -514,6 +544,11 @@ def _event_loop(stdscr, runs_root: Path) -> int:
     selected_idx = 0
     current_dir: "Optional[Path]" = None
     current_run_dir: "Optional[Path]" = None
+    # v1.5.7 116: tracked across loop iterations so KEY_DOWN /
+    # KEY_UP can clamp using the row count from the just-
+    # rendered view. Re-set to the live count after each view's
+    # row-build step below.
+    n_data_rows = 0
 
     while True:
         try:
@@ -523,28 +558,40 @@ def _event_loop(stdscr, runs_root: Path) -> int:
                 from bin.harness import status as _status
                 summaries = _status.list_harness_runs(runs_root)
                 lines = build_runs_list_rows(runs_root)
+                n_data_rows = len(summaries)
+                # v1.5.7 116: re-clamp BEFORE render so a
+                # refresh-shrink (a run dir disappeared since
+                # the last tick) can't leave the cursor
+                # pointing past the new last row.
+                selected_idx = _clamp_cursor(
+                    selected_idx, n_data_rows)
                 # Visual selection cursor on data rows
                 # (skip the 3 header rows: title, blank,
                 # column header).
                 _render_lines(stdscr, lines, max_x, max_y,
                                 selectable_first_row=3,
                                 selected_idx=selected_idx,
-                                n_data_rows=len(summaries))
+                                n_data_rows=n_data_rows)
             elif nav == _NAV_DETAIL and current_dir is not None:
                 from bin.harness import status as _status
                 runs = _status.read_run_status(current_dir)
                 lines = build_run_detail_rows(current_dir)
+                n_data_rows = len(runs)
+                # v1.5.7 116: same re-clamp for the DETAIL view.
+                selected_idx = _clamp_cursor(
+                    selected_idx, n_data_rows)
                 # Header: 3 lines (title, blank, column hdr);
                 # each run row has an optional indented note
                 # line after it, so we can't just pick rows by
                 # index — for simplicity, the cursor advances
-                # by 1 per arrow press, clamped to len(runs).
+                # by 1 per arrow press, clamped to n_data_rows.
                 _render_lines(stdscr, lines, max_x, max_y,
                                 selectable_first_row=3,
                                 selected_idx=selected_idx,
-                                n_data_rows=len(runs))
+                                n_data_rows=n_data_rows)
             elif nav == _NAV_OUTPUT and current_run_dir is not None:
                 lines = build_output_lines(current_run_dir)
+                n_data_rows = 0
                 _render_lines(stdscr, lines, max_x, max_y,
                                 selectable_first_row=0,
                                 selected_idx=0,
@@ -566,11 +613,24 @@ def _event_loop(stdscr, runs_root: Path) -> int:
                 continue
             if ch == ord("r"):
                 continue  # falls through to next refresh
-            if ch == curses.KEY_UP and selected_idx > 0:
-                selected_idx -= 1
+            if ch == curses.KEY_UP:
+                # v1.5.7 116: clamp on press so the cursor
+                # doesn't visibly under-run on row 0. (Pre-116
+                # the `> 0` guard prevented under-run but
+                # KEY_DOWN had no upper guard.)
+                selected_idx = _clamp_cursor(
+                    selected_idx - 1, n_data_rows)
                 continue
             if ch == curses.KEY_DOWN:
-                selected_idx += 1
+                # v1.5.7 116: clamp on press so the cursor
+                # doesn't overrun past the last row. Pre-116
+                # the unclamped `+= 1` made the highlight
+                # disappear when the cursor exceeded
+                # n_data_rows; KEY_UP only clamped the low
+                # end, so the user had to press ↑ several
+                # extra times to bring the cursor back.
+                selected_idx = _clamp_cursor(
+                    selected_idx + 1, n_data_rows)
                 continue
             if ch in (curses.KEY_ENTER, 10, 13):
                 if nav == _NAV_LIST:
