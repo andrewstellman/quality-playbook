@@ -276,19 +276,29 @@ class ModeBParametersForwardingTests(unittest.TestCase):
     def test_mode_a_parameters_still_go_to_runner_cli(
             self) -> None:
         """Mode A keeps the 100 contract: ``parameters`` routes
-        to the runner CLI (not run_playbook)."""
+        to the runner CLI (not run_playbook).
+
+        v1.5.7 124: ``_command_for_axes(codex, Mode.A)``
+        rejects (single-turn semantics). Test now uses
+        CLAUDE (still Mode A-compatible) to pin the
+        ``parameters`` splice — codex's argv splice is
+        tested directly against ``_codex_command`` in
+        ``test_parameters_passthrough_100.py``."""
         axes = S.RunAxes(
-            runner=S.Runner.CODEX, mode=S.Mode.A,
+            runner=S.Runner.CLAUDE, mode=S.Mode.A,
             install_channel=S.InstallChannel.CLONE,
-            model="gpt-5.2",
+            model="opus",
         )
         cmd = RUN._command_for_axes(
-            axes, "prompt", parameters=["-c", "k=v"],
+            axes, "prompt", parameters=["--extra-flag", "x"],
         )
-        # codex spec: codex -c k=v exec --full-auto -m model -
-        self.assertEqual(cmd[:1], ["codex"])
-        self.assertEqual(cmd[1:3], ["-c", "k=v"])
-        self.assertEqual(cmd[3], "exec")
+        # claude spec: claude --model opus -p <prompt>
+        # --dangerously-skip-permissions [parameters] —
+        # parameters splice into the flags region.
+        self.assertEqual(cmd[0], "claude")
+        self.assertIn("--extra-flag", cmd)
+        self.assertEqual(
+            cmd[cmd.index("--extra-flag") + 1], "x")
 
 
 class ModeBChannelInstalledTargetVerificationTests(

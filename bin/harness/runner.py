@@ -190,9 +190,18 @@ def _codex_command(model: str,
                     ) -> "list[str]":
     """v1.5.7 095 Phase 5: codex adapter. Mirrors
     ``bin.run_playbook.command_for_runner`` for ``runner=codex``:
-    ``codex exec --full-auto`` reads the prompt from stdin when
-    no positional prompt is provided (codex-cli 0.125+). The
-    trailing ``"-"`` is the explicit stdin sentinel.
+    ``codex exec --sandbox workspace-write`` reads the prompt
+    from stdin when no positional prompt is provided
+    (codex-cli 0.125+). The trailing ``"-"`` is the explicit
+    stdin sentinel.
+
+    v1.5.7 124: replaced ``--full-auto`` with
+    ``--sandbox workspace-write``. Codex v0.133.0+ deprecated
+    ``--full-auto`` (CLI prints "warning: --full-auto is
+    deprecated; use --sandbox workspace-write"). The
+    workspace-write sandbox is codex's documented replacement
+    — preserves the non-interactive + workspace-write-allowed
+    semantics ``--full-auto`` carried.
 
     Caller must set ``stdin_input=prompt`` on the LaunchSpec so
     the prompt reaches the subprocess on stdin (argv would hit
@@ -204,7 +213,8 @@ def _codex_command(model: str,
     when they precede the subcommand. The stdin sentinel ``-``
     stays at the end so prompt routing is unchanged.
     """
-    command = ["codex", *(parameters or []), "exec", "--full-auto"]
+    command = ["codex", *(parameters or []),
+                "exec", "--sandbox", "workspace-write"]
     if model:
         command.extend(["-m", model])
     command.append("-")
@@ -618,6 +628,39 @@ def _command_for_axes(axes: RunAxes, prompt: str,
         raise RunnerError(
             f"runner {axes.runner.value!r} is not in the supported "
             f"set {sorted(r.value for r in _SUPPORTED_RUNNERS)}"
+        )
+    # v1.5.7 124: codex `exec` is SINGLE-TURN — it runs one
+    # turn against the prompt and exits, regardless of how
+    # the prompt requests "all 6 phases unattended". So the
+    # Mode A contract ("one session runs the whole
+    # pipeline") doesn't fit codex; a Mode A codex run
+    # produces exactly what the first cross-runner run
+    # surfaced: codex reads the prompt, replies with a
+    # one-turn answer (often "I can proceed with the
+    # fallback of manually executing Mode A phase prompts
+    # 1→6" or similar hedge), and exits. The right way to
+    # drive codex through the pipeline is Mode B —
+    # run_playbook invokes a FRESH `codex exec` per phase,
+    # which matches codex's single-turn nature.
+    #
+    # Reject codex Mode A at command-build time with a
+    # clear, operator-actionable message rather than
+    # launching a doomed single-exec that hedges and exits.
+    # Plans should specify ``mode: B`` for codex; the
+    # rejection message documents this for any plan author.
+    if axes.runner == Runner.CODEX and axes.mode == Mode.A:
+        raise RunnerError(
+            "124: codex Mode A is not supported. `codex exec` "
+            "is single-turn (runs ONE turn against the "
+            "prompt and exits, regardless of how the prompt "
+            "requests a multi-phase pipeline), so a Mode A "
+            "expectation of 'one session drives all 6 "
+            "phases' doesn't fit codex. Use Mode B for "
+            "codex — set ``mode: B`` on the plan run + "
+            "run_playbook will drive codex per-phase via "
+            "fresh `codex exec` invocations (each phase is "
+            "a single turn, which is exactly what codex "
+            "supports)."
         )
     # v1.5.7 104: install_channel does NOT affect the launch
     # argv (prepare already installed the skill); the old

@@ -71,15 +71,22 @@ class ChannelGuardRemovedTests(unittest.TestCase):
         self.assertEqual(cmd[-1], "do thing")
 
     def test_npm_local_tgz_axes_produces_valid_command(self) -> None:
+        """v1.5.7 124: ``_command_for_axes(codex, Mode.A)`` now
+        rejects (codex `exec` is single-turn). Switched to
+        Runner.CLAUDE to keep the original test's intent
+        (channel-independent argv build); codex per-channel
+        argv is exercised by `_codex_command` directly in
+        the 100/095 tests."""
         axes = S.RunAxes(
-            runner=S.Runner.CODEX, mode=S.Mode.A,
+            runner=S.Runner.CLAUDE, mode=S.Mode.A,
             install_channel=S.InstallChannel.NPM_LOCAL_TGZ,
-            model="gpt-5",
+            model="opus",
         )
         cmd = RUN._command_for_axes(axes, "long prompt")
-        # codex shape unchanged.
-        self.assertEqual(cmd[:3], ["codex", "exec", "--full-auto"])
-        self.assertEqual(cmd[-1], "-")
+        # claude shape unchanged.
+        self.assertEqual(cmd[0], "claude")
+        self.assertIn("--print", cmd)
+        self.assertEqual(cmd[-1], "long prompt")
 
     def test_pip_registry_axes_produces_valid_command(self) -> None:
         axes = S.RunAxes(

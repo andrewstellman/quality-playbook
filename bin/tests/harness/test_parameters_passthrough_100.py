@@ -12,8 +12,10 @@ Coverage:
     raises PlanError with the offending field path.
   * Each Mode-A adapter splices ``parameters`` at the runner-
     appropriate position:
-      - codex: ``codex <parameters…> exec --full-auto …``
-        (``-c key=val`` overrides must precede the subcommand)
+      - codex: ``codex <parameters…> exec --sandbox
+        workspace-write …`` (``-c key=val`` overrides must
+        precede the subcommand; v1.5.7 124 replaced the
+        deprecated ``--full-auto`` flag)
       - claude: spliced between the standard flags and the
         trailing positional prompt
       - copilot: spliced between the flags and ``-p <prompt>``
@@ -138,16 +140,23 @@ class CodexParametersPlacementTests(unittest.TestCase):
         """For codex, ``-c key=val`` is a global config override
         — it MUST precede the ``exec`` subcommand or codex will
         not read it. Verify the splice point is between
-        ``codex`` and ``exec``."""
+        ``codex`` and ``exec``.
+
+        v1.5.7 124: tests ``_codex_command`` directly because
+        ``_command_for_axes(codex, Mode.A)`` now rejects
+        per the 124 single-turn semantics. v1.5.7 124 also
+        replaced ``--full-auto`` with
+        ``--sandbox workspace-write``."""
         params = ["-c", "model_reasoning_effort=\"low\""]
-        cmd = R._command_for_axes(_mk_axes(S.Runner.CODEX), "p",
-                                    parameters=params)
-        # Order check: codex → -c → ... → exec → --full-auto → -m → model → -.
+        cmd = R._codex_command("gpt-5.2", parameters=params)
+        # Order check: codex → -c → ... → exec → --sandbox
+        # → workspace-write → -m → model → -.
         self.assertEqual(cmd[0], "codex")
         self.assertEqual(cmd[1], "-c")
         self.assertEqual(cmd[2], 'model_reasoning_effort="low"')
         self.assertEqual(cmd[3], "exec")
-        self.assertEqual(cmd[4], "--full-auto")
+        self.assertEqual(cmd[4], "--sandbox")
+        self.assertEqual(cmd[5], "workspace-write")
         # Stdin sentinel still trailing.
         self.assertEqual(cmd[-1], "-")
         # Prompt routing unchanged (long prompt off argv).
@@ -156,23 +165,29 @@ class CodexParametersPlacementTests(unittest.TestCase):
     def test_codex_long_prompt_still_routes_to_stdin(self) -> None:
         """Splicing parameters must NOT regress the 095 prompt-
         routing contract: the long prompt stays OFF argv for
-        codex (shell length limits)."""
+        codex (shell length limits). v1.5.7 124: tests
+        ``_codex_command`` directly (sees the same builder
+        the rejected ``_command_for_axes`` route would have
+        called)."""
+        # _codex_command doesn't take a prompt at all — the
+        # prompt is always piped via the `-` sentinel.
+        cmd = R._codex_command(
+            "gpt-5.2", parameters=["-c", "k=v"])
+        # No long-prompt slot to leak — argv is fixed shape.
         long_prompt = "x" * 10_000
-        cmd = R._command_for_axes(_mk_axes(S.Runner.CODEX),
-                                    long_prompt,
-                                    parameters=["-c", "k=v"])
         self.assertNotIn(long_prompt, cmd)
         self.assertEqual(cmd[-1], "-")
 
     def test_codex_no_parameters_unchanged(self) -> None:
-        """No parameters ⇒ command identical to pre-100 baseline
-        (095 contract)."""
-        baseline = ["codex", "exec", "--full-auto",
+        """No parameters ⇒ command identical to the
+        post-124 baseline (the 124 update to the codex
+        adapter — ``--sandbox workspace-write``)."""
+        baseline = ["codex", "exec", "--sandbox",
+                     "workspace-write",
                      "-m", "gpt-5.2", "-"]
-        cmd = R._command_for_axes(_mk_axes(S.Runner.CODEX), "p")
+        cmd = R._codex_command("gpt-5.2")
         self.assertEqual(cmd, baseline)
-        cmd2 = R._command_for_axes(_mk_axes(S.Runner.CODEX), "p",
-                                     parameters=[])
+        cmd2 = R._codex_command("gpt-5.2", parameters=[])
         self.assertEqual(cmd2, baseline)
 
 
@@ -298,9 +313,14 @@ class LaunchSpecParametersForwardingTests(unittest.TestCase):
         )
         self.assertIsNone(spec.parameters)
         # And per-runner builder with None == [] semantics.
-        cmd = R._command_for_axes(spec.axes, spec.prompt,
-                                    parameters=spec.parameters)
-        self.assertEqual(cmd, ["codex", "exec", "--full-auto",
+        # v1.5.7 124: tests ``_codex_command`` directly since
+        # ``_command_for_axes(codex, Mode.A)`` now rejects;
+        # also updated the expected argv for the
+        # ``--sandbox workspace-write`` post-deprecation flag.
+        cmd = R._codex_command(
+            spec.axes.model, parameters=spec.parameters)
+        self.assertEqual(cmd, ["codex", "exec", "--sandbox",
+                                "workspace-write",
                                 "-m", "gpt-5.2", "-"])
 
 

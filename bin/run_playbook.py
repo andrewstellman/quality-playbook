@@ -389,7 +389,7 @@ def build_parser() -> argparse.ArgumentParser:
     runner_group = parser.add_mutually_exclusive_group()
     runner_group.add_argument("--claude", dest="runner", action="store_const", const="claude", default="copilot", help="Use claude -p instead of the Copilot CLI.")
     runner_group.add_argument("--copilot", dest="runner", action="store_const", const="copilot", help="Use the GitHub Copilot CLI (default; auto-detects new standalone `copilot` with deprecated `gh copilot` extension as fallback per v1.5.7 089f).")
-    runner_group.add_argument("--codex", dest="runner", action="store_const", const="codex", help="Use codex exec --full-auto instead of the Copilot CLI.")
+    runner_group.add_argument("--codex", dest="runner", action="store_const", const="codex", help="Use codex exec --sandbox workspace-write instead of the Copilot CLI.")
     runner_group.add_argument("--cursor", dest="runner", action="store_const", const="cursor", help="Use cursor agent --print --force instead of the Copilot CLI (cursor-cli 3.1+).")
 
     # v1.5.7 Phase 6c: --council-roster override flag. Resolution order:
@@ -1528,13 +1528,22 @@ def command_for_runner(runner: str, prompt: str, model: Optional[str]) -> List[s
         command.extend(["-p", prompt, "--dangerously-skip-permissions"])
         return _resolve_runner_command(command)
     if runner == "codex":
-        # `codex exec --full-auto` reads instructions from stdin when
-        # no positional prompt is given (codex-cli 0.125+). Putting
-        # the prompt on argv would hit shell command-line length
-        # limits on long phase prompts; the caller must pipe the
-        # prompt on stdin instead. The "-" sentinel below makes the
+        # `codex exec --sandbox workspace-write` reads
+        # instructions from stdin when no positional prompt is
+        # given (codex-cli 0.125+). Putting the prompt on argv
+        # would hit shell command-line length limits on long
+        # phase prompts; the caller must pipe the prompt on
+        # stdin instead. The "-" sentinel below makes the
         # intent explicit.
-        command = ["codex", "exec", "--full-auto"]
+        #
+        # v1.5.7 124: replaced ``--full-auto`` with
+        # ``--sandbox workspace-write``. Codex v0.133.0+
+        # deprecated ``--full-auto`` (CLI prints "warning:
+        # --full-auto is deprecated; use --sandbox
+        # workspace-write"). Same semantics; the new flag is
+        # the documented replacement.
+        command = ["codex", "exec", "--sandbox",
+                    "workspace-write"]
         if model:
             command.extend(["-m", model])
         command.append("-")

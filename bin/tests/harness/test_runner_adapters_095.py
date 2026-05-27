@@ -81,13 +81,23 @@ class ClaudeAdapterTests(unittest.TestCase):
 
 class CodexAdapterTests(unittest.TestCase):
 
-    def test_codex_command_starts_with_codex_exec_full_auto(
+    def test_codex_command_starts_with_codex_exec_sandbox(
             self) -> None:
         """Mirror ``run_playbook.command_for_runner`` codex path:
-        ``codex exec --full-auto -m <model> -``. The trailing
-        ``"-"`` is the stdin-sentinel."""
-        cmd = R._command_for_axes(_mk_axes(S.Runner.CODEX), "p")
-        self.assertEqual(cmd[:3], ["codex", "exec", "--full-auto"])
+        ``codex exec --sandbox workspace-write -m <model> -``.
+        The trailing ``"-"`` is the stdin-sentinel.
+
+        v1.5.7 124: pre-124 this asserted ``--full-auto``;
+        codex v0.133.0+ deprecated that in favor of
+        ``--sandbox workspace-write``. Test calls
+        ``_codex_command`` directly (the underlying builder)
+        because ``_command_for_axes(codex, Mode.A)`` now
+        rejects per the 124 single-turn semantics — see
+        ``test_codex_mode_a_rejected_with_message``."""
+        cmd = R._codex_command("opus")
+        self.assertEqual(
+            cmd[:4],
+            ["codex", "exec", "--sandbox", "workspace-write"])
         self.assertIn("-m", cmd)
         self.assertEqual(cmd[cmd.index("-m") + 1], "opus")
         # Trailing stdin sentinel.
@@ -98,11 +108,40 @@ class CodexAdapterTests(unittest.TestCase):
 
     def test_codex_command_omits_positional_prompt(self) -> None:
         """The prompt MUST NOT appear on argv (shell length
-        limits on long phase prompts). It's piped on stdin."""
-        long_prompt = "x" * 10_000
-        cmd = R._command_for_axes(_mk_axes(S.Runner.CODEX),
-                                    long_prompt)
-        self.assertNotIn(long_prompt, cmd)
+        limits on long phase prompts). It's piped on stdin.
+        v1.5.7 124: tests ``_codex_command`` directly — see
+        the rationale on
+        ``test_codex_command_starts_with_codex_exec_sandbox``."""
+        # _codex_command doesn't take a prompt at all — it
+        # builds the argv that pipes prompt on stdin via the
+        # `-` sentinel. So there's no prompt argv to leak.
+        cmd = R._codex_command("opus")
+        # Confirm no positional prompt slot exists between
+        # `-m <model>` and the `-` sentinel.
+        self.assertEqual(cmd[-1], "-")
+        self.assertEqual(cmd[-2], "opus")
+        self.assertEqual(cmd[-3], "-m")
+
+    def test_codex_mode_a_rejected_with_message(self) -> None:
+        """v1.5.7 124: a Mode A codex run is REJECTED at
+        command-build time with a clear operator-actionable
+        message. ``codex exec`` is single-turn so the Mode A
+        contract ("one session drives all 6 phases") doesn't
+        fit codex; plans must specify ``mode: B`` for codex.
+
+        Mutation-bite: drop the rejection and codex Mode A
+        would launch a doomed single-exec (the cross-runner
+        run-05 case: codex reads SKILL.md, replies in one
+        turn, exits)."""
+        with self.assertRaises(R.RunnerError) as ctx:
+            R._command_for_axes(
+                _mk_axes(S.Runner.CODEX, mode=S.Mode.A),
+                "(unused prompt)",
+            )
+        msg = str(ctx.exception)
+        self.assertIn("codex Mode A is not supported", msg)
+        self.assertIn("single-turn", msg)
+        self.assertIn("Mode B", msg)
 
 
 class CopilotAdapterTests(unittest.TestCase):

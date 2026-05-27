@@ -46,16 +46,23 @@ class CommandConstructionTests(unittest.TestCase):
         self.assertIn("--verbose", cmd)
         self.assertEqual(cmd[-1], "do thing")
 
-    def test_codex_adapter_now_supported_post_095(self) -> None:
+    def test_codex_adapter_builder_supported_post_095(
+            self) -> None:
         """v1.5.7 095 Phase 5 lifted the Phase 1 claude-only
         restriction; codex / copilot / cursor adapters are now
-        supported. The Phase-1 rejection-message tests were
-        replaced by the broader-adapter coverage in
-        test_runner_adapters_095.py."""
-        cmd = R._command_for_axes(_mk_axes(S.Runner.CODEX),
-                                    "prompt")
-        # codex command starts with 'codex exec --full-auto'
-        self.assertEqual(cmd[:3], ["codex", "exec", "--full-auto"])
+        supported.
+
+        v1.5.7 124: ``_command_for_axes(codex, Mode.A)``
+        now rejects (codex `exec` is single-turn — see the
+        124 rejection test in test_runner_adapters_095.py).
+        This test exercises the underlying ``_codex_command``
+        builder directly to confirm the adapter still produces
+        a valid argv with the 124 ``--sandbox workspace-write``
+        flag."""
+        cmd = R._codex_command("opus")
+        self.assertEqual(
+            cmd[:4],
+            ["codex", "exec", "--sandbox", "workspace-write"])
 
     def test_local_channel_no_longer_rejected_post_104(
             self) -> None:
