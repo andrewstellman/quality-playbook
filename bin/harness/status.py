@@ -44,7 +44,14 @@ _COLLECTOR_LIVENESS_WINDOW_S = 60.0
 
 @dataclass
 class HarnessRunSummary:
-    """One row of the ``qpb_harness status`` table."""
+    """One row of the ``qpb_harness status`` table.
+
+    v1.5.7 113: gained ``blocked``. Pre-113 a BLOCKED run
+    (112's AUP / API-error terminal state) fell through to
+    ``pending`` in ``_summarize_harness_run`` (no explicit
+    branch), so the AUP experiment's blocked run-00 showed
+    as ``P`` instead of being surfaced. Now counted on its
+    own column."""
     harness_run_dir: Path
     started_at: str
     total_runs: int
@@ -54,6 +61,7 @@ class HarnessRunSummary:
     failed: int
     timed_out: int
     aborted_prep: int
+    blocked: int
     collector_alive: bool
 
 
@@ -263,6 +271,7 @@ def _summarize_harness_run(harness_run_dir: Path) -> HarnessRunSummary:
     counts = {
         "pending": 0, "running": 0, "completed": 0,
         "failed": 0, "timed_out": 0, "aborted_prep": 0,
+        "blocked": 0,
     }
     for r in runs:
         if r.state == "RUNNING":
@@ -275,6 +284,13 @@ def _summarize_harness_run(harness_run_dir: Path) -> HarnessRunSummary:
             counts["timed_out"] += 1
         elif r.state == "ABORTED_PREP":
             counts["aborted_prep"] += 1
+        # v1.5.7 113: BLOCKED is its own column. Pre-113 this
+        # branch was missing, so 112's AUP/API-error runs fell
+        # through to the `else` (counted as pending) — the
+        # AUP-experiment's run-00 showed `P=1` for a finished-
+        # BLOCKED run.
+        elif r.state == "BLOCKED":
+            counts["blocked"] += 1
         else:
             counts["pending"] += 1
     # Collector liveness: the collector polls every ~0.25s and
@@ -385,7 +401,12 @@ def render_stream_line(line: str) -> str:
 
 def format_harness_run_summary(
         summary: HarnessRunSummary) -> str:
-    """Render one HarnessRunSummary as a one-line table row."""
+    """Render one HarnessRunSummary as a one-line table row.
+
+    v1.5.7 113: includes ``B=<blocked>`` between ``T`` and
+    ``AP``. The B column makes 112's BLOCKED terminal state
+    visible in the per-harness-run summary; pre-113 a
+    BLOCKED run was silently miscounted as pending."""
     dir_name = summary.harness_run_dir.name
     coll = ("yes" if summary.collector_alive
             else "no")
@@ -394,6 +415,7 @@ def format_harness_run_summary(
         f"runs={summary.total_runs:>2}  "
         f"R={summary.running:>2} D={summary.completed:>2} "
         f"F={summary.failed:>2} T={summary.timed_out:>2} "
+        f"B={summary.blocked:>2} "
         f"AP={summary.aborted_prep:>2} P={summary.pending:>2}  "
         f"collector={coll}"
     )

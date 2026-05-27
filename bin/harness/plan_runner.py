@@ -1904,8 +1904,40 @@ def _collect_one_run_detached(
     terminal_reason = ""
     while True:
         if pid is None or not _pid_is_alive(pid):
-            # Process terminated. Infer terminal_state from
-            # artifacts.
+            # Process terminated. Determine terminal_state in
+            # priority order:
+            #
+            # v1.5.7 113: the LAST `result` event in the stream
+            #   is the authoritative signal when present —
+            #   `is_error:false` ⇒ COMPLETED (a clean Claude
+            #   result is "the run finished its turn"),
+            #   `is_error:true` ⇒ BLOCKED (AUP/api-error; 112
+            #   behavior preserved). Pre-113, the orphan
+            #   collector required `gate-report-latest.json`
+            #   for COMPLETED — the AUP-experiment showed two
+            #   Mode A gson runs completed cleanly (full
+            #   quality/ tree) WITHOUT that file and were
+            #   mislabeled FAILED. The `result` event closes
+            #   that gap.
+            #
+            #   No parseable `result` event ⇒ inconclusive →
+            #   fall back to artifact inference (Mode B path:
+            #   run_playbook doesn't emit a Claude `result`
+            #   envelope, so this branch keeps Mode B working).
+            stream_path_for_classify = Path(entry.get(
+                "stream_path",
+                str(run_dir / "stream.ndjson")))
+            stream_state, stream_reason = (
+                _runner_mod._classify_stream_terminal(
+                    stream_path_for_classify)
+            )
+            if stream_state is not None:
+                terminal = stream_state
+                terminal_reason = stream_reason
+                break
+            # Fallback: artifact inference (Mode B / pre-113
+            # path). gate-report-latest.json present ⇒
+            # COMPLETED; otherwise FAILED.
             gate_report = (
                 target_dir / "quality" / "results"
                 / "gate-report-latest.json"
@@ -1926,23 +1958,6 @@ def _collect_one_run_detached(
             terminal = TerminalState.TIMED_OUT
             break
         time.sleep(0.25)
-
-    # v1.5.7 112: AUP / API-error refusal overrides
-    # exit-code / artifact-inference. Claude Code's AUP
-    # refusal can leave a `gate-report-latest.json` from an
-    # earlier phase (so the artifact-inference path would
-    # mis-mark COMPLETED). The stream's last `result` event
-    # with `is_error:true` is the authoritative signal.
-    # TIMED_OUT (max-duration kill) still wins; otherwise
-    # an API-error stream ⇒ BLOCKED.
-    if terminal != TerminalState.TIMED_OUT:
-        blocked, reason = _runner_mod._stream_ended_in_api_error(
-            Path(entry.get("stream_path",
-                            str(run_dir / "stream.ndjson")))
-        )
-        if blocked:
-            terminal = TerminalState.BLOCKED
-            terminal_reason = reason
 
     ended_at = datetime.now(timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"

@@ -472,6 +472,70 @@ def launch_run_async(spec: LaunchSpec) -> SpawnResult:
     )
 
 
+def _classify_stream_terminal(
+        stream_path: Path,
+) -> "tuple[TerminalState | None, str]":
+    """v1.5.7 113: classify a run's terminal state from the
+    LAST ``result`` event in ``stream.ndjson``.
+
+    Returns ``(terminal_state, reason)``:
+      * ``(TerminalState.BLOCKED, reason)`` when the last
+        ``result`` event has ``is_error: true`` (AUP / API
+        error). ``reason`` is the result body text — the
+        operator-facing receipt of WHY the run was blocked.
+      * ``(TerminalState.COMPLETED, "")`` when the last
+        ``result`` event has ``is_error: false``. A clean
+        Claude ``result`` event is the authoritative "the
+        run finished its turn" signal — pre-113, the 108
+        orphan-collector REQUIRED ``gate-report-latest.json``
+        for COMPLETED, but the AUP experiment showed that
+        two clean Mode A gson runs produced full ``quality/``
+        trees (all 6 phases) WITHOUT that file (the
+        report-writer step ran inconsistently), and the
+        artifact-only inference mislabeled them FAILED.
+      * ``(None, "")`` when the stream has no parseable
+        ``result`` event — inconclusive. Callers fall back to
+        the artifact-based heuristic. Notably, Mode B
+        (``run_playbook``) streams do NOT emit Claude's
+        ``result`` envelope, so the classifier is a no-op
+        there and the artifact heuristic still drives the
+        decision.
+
+    Robust to: missing file, malformed JSON lines (skipped),
+    multiple ``result`` events (LAST wins — a recovered run
+    that ended cleanly is NOT misclassified as BLOCKED).
+    """
+    if not stream_path.is_file():
+        return (None, "")
+    try:
+        text = stream_path.read_text(
+            encoding="utf-8", errors="ignore"
+        )
+    except OSError:
+        return (None, "")
+    last_result: "dict | None" = None
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        if obj.get("type") == "result":
+            last_result = obj
+    if last_result is None:
+        return (None, "")
+    if last_result.get("is_error"):
+        reason = last_result.get("result", "")
+        if not isinstance(reason, str):
+            reason = json.dumps(reason)
+        return (TerminalState.BLOCKED, reason)
+    return (TerminalState.COMPLETED, "")
+
+
 def _stream_ended_in_api_error(
         stream_path: Path) -> "tuple[bool, str]":
     """v1.5.7 112: detect an AUP / API-error termination by
@@ -492,39 +556,16 @@ def _stream_ended_in_api_error(
     partial ``quality/`` tree as substantive failures (first
     live run showed "18 substantive fails" from this).
 
-    Returns ``(blocked, reason)`` where ``reason`` is the
-    ``result`` body text (or empty when no result event found
-    or ``is_error`` is absent / false).
+    Returns ``(blocked, reason)``.
+
+    v1.5.7 113: thin wrapper over ``_classify_stream_terminal``
+    that preserves the (bool, reason) shape callers of the 112
+    API depend on. New code should use
+    ``_classify_stream_terminal`` directly to also get the
+    COMPLETED signal (a clean ``is_error:false`` result event).
     """
-    if not stream_path.is_file():
-        return (False, "")
-    try:
-        text = stream_path.read_text(
-            encoding="utf-8", errors="ignore"
-        )
-    except OSError:
-        return (False, "")
-    last_result: "dict | None" = None
-    for raw_line in text.splitlines():
-        line = raw_line.strip()
-        if not line:
-            continue
-        try:
-            obj = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(obj, dict):
-            continue
-        if obj.get("type") == "result":
-            last_result = obj
-    if last_result is None:
-        return (False, "")
-    if not last_result.get("is_error"):
-        return (False, "")
-    reason = last_result.get("result", "")
-    if not isinstance(reason, str):
-        reason = json.dumps(reason)
-    return (True, reason)
+    state, reason = _classify_stream_terminal(stream_path)
+    return (state == TerminalState.BLOCKED, reason)
 
 
 def collect_one_process(spec: LaunchSpec,
@@ -655,6 +696,7 @@ __all__ = [
     "launch_run_async",
     "collect_one_process",
     "_stream_ended_in_api_error",
+    "_classify_stream_terminal",
     # Exposed for tests + downstream reuse:
     "_claude_command",
     "_codex_command",
