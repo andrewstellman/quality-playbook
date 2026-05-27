@@ -826,11 +826,21 @@ def build_rendered_output_lines(
         run_dir: Path,
         *,
         max_lines: int = _DEFAULT_OUTPUT_MAX_LINES,
+        rendered: bool = True,
 ) -> "list[str]":
     """v1.5.7 119: read ``run_dir/stream.ndjson``, render each
     line via ``status.render_stream_line`` (so 109 sentinels
     show human-readably instead of as raw JSON), and return
     the last ``max_lines`` lines.
+
+    v1.5.7 122 ``rendered`` toggle (default True):
+      * True ⇒ each line goes through
+        ``render_stream_line`` (Claude stream-json events
+        templated into clean log lines via the 122 renderer;
+        ::QPB:: sentinels rendered human-readably; non-Claude
+        plain text passes through).
+      * False ⇒ each line verbatim (raw debugging mode; the
+        TUI `j` toggle and CLI `--raw` flag set this).
 
     Returns ``[]`` when the stream doesn't exist yet —
     callers should display "(no output yet)" rather than
@@ -850,10 +860,13 @@ def build_rendered_output_lines(
     except OSError:
         return []
     lines = text.splitlines()
-    rendered = [_status.render_stream_line(ln) for ln in lines]
-    if max_lines is not None and len(rendered) > max_lines:
-        rendered = rendered[-max_lines:]
-    return rendered
+    if rendered:
+        out = [_status.render_stream_line(ln) for ln in lines]
+    else:
+        out = list(lines)
+    if max_lines is not None and len(out) > max_lines:
+        out = out[-max_lines:]
+    return out
 
 
 # v1.5.7 121: pure text formatters used by BOTH the Textual
@@ -916,14 +929,19 @@ def format_detail_as_text(harness_run_dir: Path) -> str:
 
 def format_output_as_text(run_dir: Path, *,
                             max_lines: int = _DEFAULT_OUTPUT_MAX_LINES,
+                            rendered: bool = True,
                             ) -> str:
-    """v1.5.7 121: render the live-output view as plain text.
-    Each line goes through `status.render_stream_line` (109
-    sentinels become human-readable). Tail-anchored: the LAST
-    `max_lines` lines (newest at the bottom)."""
+    """v1.5.7 121 + 122: render the live-output view as plain
+    text. v1.5.7 122 ``rendered`` toggle (default True): when
+    True, lines go through ``status.render_stream_line``
+    (Claude stream-json templated into clean log lines; 109
+    sentinels human-readable; non-Claude plain text
+    passthrough). When False, lines verbatim — the ``--raw``
+    CLI / TUI ``j``-toggle mode."""
     lines = build_rendered_output_lines(
-        run_dir, max_lines=max_lines)
-    header = f"output: {run_dir.name}"
+        run_dir, max_lines=max_lines, rendered=rendered)
+    mode = "" if rendered else " [RAW]"
+    header = f"output: {run_dir.name}{mode}"
     if not lines:
         return header + "\n(no output yet)"
     return header + "\n" + "\n".join(lines)
@@ -976,6 +994,11 @@ def launch_textual_tui(runs_root: Path) -> int:
             # Prefs → General → "Applications in terminal may
             # access clipboard"; xterm: `allowWindowOps`).
             Binding("c", "copy_screen", "Copy"),
+            # v1.5.7 122: toggle output-view rendering mode
+            # (rendered ⇔ raw). Default is RENDERED (the 122
+            # Claude stream-json templating); raw shows the
+            # wire-format JSON for debugging.
+            Binding("j", "toggle_rendered", "Raw/Render"),
         ]
 
         CSS = """
@@ -1003,6 +1026,11 @@ def launch_textual_tui(runs_root: Path) -> int:
             # Follow-mode default: tail at bottom, auto-scroll
             # on refresh. Operator toggles with f / End.
             self._follow_mode = True
+            # v1.5.7 122: output-view render mode. True =
+            # human-readable (Claude stream-json templated);
+            # False = raw wire-format lines. Operator toggles
+            # with `j`. Default True.
+            self._rendered_mode = True
 
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
@@ -1084,7 +1112,9 @@ def launch_textual_tui(runs_root: Path) -> int:
             self._table.display = False
             self._log.display = True
             lines = build_rendered_output_lines(
-                self._current_run_dir)
+                self._current_run_dir,
+                rendered=self._rendered_mode,
+            )
             # Rewrite the buffer each tick so we don't leak
             # duplicated lines across refreshes. RichLog's
             # write() is cheap enough for ~5k lines (the
@@ -1101,11 +1131,13 @@ def launch_textual_tui(runs_root: Path) -> int:
                 self._log.scroll_end(animate=False)
             mode = ("FOLLOW" if self._follow_mode
                     else "PAUSED")
+            render_mode = ("RENDERED" if self._rendered_mode
+                            else "RAW")
             self._status_bar.update(
-                f"output [{mode}]: "
+                f"output [{mode}|{render_mode}]: "
                 f"{self._current_run_dir.name}   "
-                f"f: toggle follow   End: follow+bottom   "
-                f"Esc: back"
+                f"f: toggle follow   j: rendered/raw   "
+                f"End: follow+bottom   Esc: back"
             )
 
         # -- timer dispatch -------------------------------------
@@ -1149,6 +1181,16 @@ def launch_textual_tui(runs_root: Path) -> int:
             if self._nav == _NAV_OUTPUT:
                 self._render_output_tail()
 
+        def action_toggle_rendered(self) -> None:
+            """v1.5.7 122 — `j` key: flip the output view
+            between RENDERED (clean log lines via
+            ``render_stream_line``) and RAW (wire-format
+            JSON, for debugging). Only meaningful on
+            NAV_OUTPUT; on other screens it's a no-op."""
+            self._rendered_mode = not self._rendered_mode
+            if self._nav == _NAV_OUTPUT:
+                self._render_output_tail()
+
         def action_copy_screen(self) -> None:
             """v1.5.7 121: copy the current screen's rendered
             text to the system clipboard via OSC 52
@@ -1186,7 +1228,14 @@ def launch_textual_tui(runs_root: Path) -> int:
                 return format_detail_as_text(self._current_dir)
             if (self._nav == _NAV_OUTPUT
                     and self._current_run_dir is not None):
-                return format_output_as_text(self._current_run_dir)
+                # v1.5.7 122: `c` copy reflects the active
+                # render mode — copying RAW gives the wire-
+                # format JSON; copying RENDERED gives the
+                # log-style lines.
+                return format_output_as_text(
+                    self._current_run_dir,
+                    rendered=self._rendered_mode,
+                )
             return "(empty)"
 
         # -- navigation (row selection) -------------------------

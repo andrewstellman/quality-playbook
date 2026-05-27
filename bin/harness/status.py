@@ -689,12 +689,20 @@ def _summarize_harness_run(harness_run_dir: Path) -> HarnessRunSummary:
 
 
 def tail_stream(run_dir: Path, *,
-                 follow: bool = False) -> Iterator[str]:
+                 follow: bool = False,
+                 rendered: bool = True) -> Iterator[str]:
     """Yield rendered lines from ``<run_dir>/stream.ndjson``.
 
-    Sentinel lines (both ``kind:"phase"`` and ``kind:"gate"``)
-    are rendered human-readably; non-sentinel lines pass through
-    verbatim.
+    v1.5.7 122 ``rendered`` toggle (default True):
+      * True  ⇒ each line goes through ``render_stream_line``
+        — Claude stream-json events become clean log-style
+        lines (▶/·/⚙/←/■/↳/⏳ icons); bare ::QPB:: sentinels
+        keep their 109/117 human-readable form; non-Claude
+        plain text (codex/copilot/run_playbook) passes
+        through unchanged.
+      * False ⇒ each line is yielded verbatim (the pre-122
+        ``tail -f`` raw behavior; for debugging the wire
+        format).
 
     ``follow=False`` (default): emit everything currently in the
     file and stop. ``follow=True``: emit current content, then
@@ -712,7 +720,8 @@ def tail_stream(run_dir: Path, *,
         for raw in f:
             yield render_stream_line(
                 raw.decode("utf-8", errors="ignore")
-                .rstrip("\n")
+                .rstrip("\n"),
+                rendered=rendered,
             )
         if not follow:
             return
@@ -721,24 +730,17 @@ def tail_stream(run_dir: Path, *,
             if raw:
                 yield render_stream_line(
                     raw.decode("utf-8", errors="ignore")
-                    .rstrip("\n")
+                    .rstrip("\n"),
+                    rendered=rendered,
                 )
             else:
                 time.sleep(0.5)
 
 
-def render_stream_line(line: str) -> str:
-    """Render one stream line. Sentinels become human-readable
-    one-liners; everything else passes through unchanged."""
-    if not line.startswith(_SENTINEL_PREFIX):
-        return line
-    m = _SENTINEL_RE.match(line)
-    if not m:
-        return line
-    try:
-        payload = json.loads(m.group(1))
-    except json.JSONDecodeError:
-        return line
+def _format_sentinel_line(payload: dict) -> "str | None":
+    """Render a parsed ``::QPB::`` payload as the 109/117
+    human-readable log line. Returns None for unknown kinds
+    (caller falls back to the verbatim line)."""
     kind = payload.get("kind", "?")
     ts = payload.get("ts", "")
     if kind == "phase":
@@ -754,7 +756,271 @@ def render_stream_line(line: str) -> str:
         verdict_state = payload.get("verdict_state", "?")
         return (f"[{ts}] GATE {gate_result} "
                 f"(verdict_state={verdict_state})")
-    return line
+    return None
+
+
+# v1.5.7 122: Claude --print --output-format stream-json
+# emits a fixed event vocabulary. Templating each known
+# (type, subtype) into a clean log line removes the noise
+# the raw JSON pours into tail/TUI/--dump output.
+
+
+def _summarize_tool_input(name: str,
+                            inp: "dict | None") -> str:
+    """v1.5.7 122: short, operator-readable preview of a
+    Claude tool_use's ``input``. Known tools (Bash / Read /
+    Edit / Write / Grep / Glob / Skill) get a focused field;
+    unknown tools fall through to the first key=value pair."""
+    if not isinstance(inp, dict) or not inp:
+        return ""
+    if name == "Bash":
+        cmd = str(inp.get("command", ""))
+        return cmd.replace("\n", " ")[:120]
+    if name in ("Read", "Edit", "Write", "NotebookEdit"):
+        return str(inp.get("file_path", ""))[:120]
+    if name == "Glob":
+        return str(inp.get("pattern", ""))[:120]
+    if name == "Grep":
+        return str(inp.get("pattern", ""))[:120]
+    if name == "Skill":
+        return str(inp.get("skill", ""))[:120]
+    if name == "WebFetch":
+        return str(inp.get("url", ""))[:120]
+    if name == "WebSearch":
+        return str(inp.get("query", ""))[:120]
+    if name in ("Task", "TaskCreate"):
+        return str(inp.get("description",
+                            inp.get("prompt", "")))[:120]
+    # Default: first key=value pair.
+    k, v = next(iter(inp.items()))
+    val = str(v)
+    if len(val) > 60:
+        val = val[:60] + "…"
+    return f"{k}={val}"
+
+
+def _render_assistant_event(obj: dict) -> str:
+    """Render a Claude assistant event. ``message.content`` is
+    a list of items (text / thinking / tool_use). Emit one
+    log line per salient item, joined by ``\\n``. Skip
+    ``thinking`` items (internal reasoning — noise for the
+    operator-facing tail)."""
+    content = (obj.get("message", {}) or {}).get("content", [])
+    if not isinstance(content, list):
+        return _dejsonify_event(obj)
+    lines: list[str] = []
+    for item in content:
+        if not isinstance(item, dict):
+            continue
+        it = item.get("type", "")
+        if it == "thinking":
+            continue
+        if it == "text":
+            text = str(item.get("text", "")).strip()
+            if not text:
+                continue
+            # Collapse newlines for one-line rendering;
+            # cap at 200 chars so long replies don't tile.
+            text = text.replace("\n", " ")
+            if len(text) > 200:
+                text = text[:200] + "…"
+            lines.append(f"· {text}")
+        elif it == "tool_use":
+            name = item.get("name", "?")
+            preview = _summarize_tool_input(
+                name, item.get("input"))
+            lines.append(f"⚙ {name}: {preview}".rstrip(": "))
+    return "\n".join(lines) if lines else ""
+
+
+def _render_user_event(obj: dict) -> str:
+    """Render a Claude user event. ``message.content`` is a
+    list of ``tool_result`` items. If the result body
+    contains an embedded ``::QPB::`` sentinel (the 117
+    case — qpb_phase / quality_gate stdout captured as a
+    tool_result), render the sentinel line instead of a
+    plain ``← <snippet>``."""
+    content = (obj.get("message", {}) or {}).get("content", [])
+    if not isinstance(content, list):
+        return _dejsonify_event(obj)
+    lines: list[str] = []
+    for item in content:
+        if not isinstance(item, dict):
+            continue
+        it = item.get("type", "")
+        if it != "tool_result":
+            continue
+        result_val = item.get("content", "")
+        if isinstance(result_val, list):
+            # multi-content tool_result; flatten text bits.
+            result_val = " ".join(
+                str(x.get("text", ""))
+                for x in result_val
+                if isinstance(x, dict)
+            )
+        result_str = str(result_val)
+        # Check for embedded ::QPB:: sentinel (117) — render
+        # the phase/gate line in preference to the raw
+        # tool_result snippet.
+        sentinel_rendered: "str | None" = None
+        for m in _SENTINEL_INLINE_RE.finditer(result_str):
+            try:
+                payload = json.loads(m.group(1))
+                rendered = _format_sentinel_line(payload)
+                if rendered is not None:
+                    sentinel_rendered = rendered
+                    break
+            except json.JSONDecodeError:
+                continue
+        if sentinel_rendered is not None:
+            lines.append(sentinel_rendered)
+        else:
+            snippet = result_str.replace("\n", " ").strip()
+            if len(snippet) > 200:
+                snippet = snippet[:200] + "…"
+            is_err = item.get("is_error", False)
+            prefix = "✗" if is_err else "←"
+            if snippet:
+                lines.append(f"{prefix} {snippet}")
+    return "\n".join(lines) if lines else ""
+
+
+def _dejsonify_event(obj: dict) -> str:
+    """v1.5.7 122: render an UNKNOWN Claude event type as
+    ``«type=… key=val key=val»`` (no raw JSON). Picks up to
+    6 top-level scalar fields, skipping noisy ones
+    (uuid/session_id) and nested structures."""
+    parts: list[str] = [f"type={obj.get('type', '?')}"]
+    if obj.get("subtype"):
+        parts.append(f"subtype={obj['subtype']}")
+    for k, v in obj.items():
+        if k in ("type", "subtype", "uuid", "session_id",
+                  "parent_tool_use_id", "timestamp"):
+            continue
+        if isinstance(v, (dict, list)):
+            continue
+        val = str(v)
+        if len(val) > 60:
+            val = val[:60] + "…"
+        parts.append(f"{k}={val}")
+        if len(parts) >= 6:
+            break
+    return "«" + " ".join(parts) + "»"
+
+
+def _render_claude_event(obj: dict) -> "str | None":
+    """v1.5.7 122: render one Claude --print stream-json
+    event to a clean log line (or multi-line; one input
+    line → zero-or-more output lines joined by ``\\n``).
+
+    Returns ``None`` for events that should fall through to
+    the original line (e.g. malformed shape). Caller is
+    ``render_stream_line``."""
+    t = obj.get("type", "")
+    st = obj.get("subtype", "")
+    if t == "system":
+        if st == "init":
+            model = (obj.get("model")
+                     or (obj.get("system", {}) or {})
+                         .get("model")
+                     or "")
+            tool_count = len(obj.get("tools") or [])
+            session = obj.get("session_id", "")[:8]
+            return (f"▶ session start "
+                    f"— model={model} tools={tool_count} "
+                    f"session={session}").rstrip()
+        if st == "task_started":
+            task_id = obj.get("task_id", "?")
+            desc = obj.get("description", "")
+            return f"↳ subagent {task_id} START: {desc}"
+        if st == "task_notification":
+            task_id = obj.get("task_id", "?")
+            status = obj.get("status", "?")
+            summary = obj.get("summary", "")
+            return (f"↳ subagent {task_id} {status}: "
+                    f"{summary}").rstrip(": ")
+        if st == "task_progress":
+            task_id = obj.get("task_id", "?")
+            desc = obj.get("description", "")
+            usage = obj.get("usage", {}) or {}
+            tokens = usage.get("total_tokens", "?")
+            return (f"↳ subagent {task_id} progress "
+                    f"({tokens} tokens): {desc}")
+        # Unknown system subtype.
+        return _dejsonify_event(obj)
+    if t == "assistant":
+        rendered = _render_assistant_event(obj)
+        return rendered if rendered else _dejsonify_event(obj)
+    if t == "user":
+        rendered = _render_user_event(obj)
+        return rendered if rendered else _dejsonify_event(obj)
+    if t == "result":
+        is_err = bool(obj.get("is_error", False))
+        reason = ""
+        if is_err:
+            reason_text = str(obj.get("result", ""))[:120]
+            reason_text = reason_text.replace("\n", " ")
+            if reason_text:
+                reason = f" — {reason_text}"
+        return (f"■ DONE: {st or '?'} "
+                f"is_error={is_err}{reason}")
+    if t == "rate_limit_event":
+        info = obj.get("rate_limit_info", {}) or {}
+        status = info.get("status", "?")
+        kind = info.get("rateLimitType", "?")
+        return f"⏳ rate-limit event — {status} ({kind})"
+    # Truly unknown top-level type.
+    return _dejsonify_event(obj)
+
+
+def render_stream_line(line: str, *,
+                         rendered: bool = True) -> str:
+    """Render one stream line.
+
+    v1.5.7 122 ``rendered`` toggle (default True):
+      * False  ⇒ pass through verbatim (raw mode, for
+        debugging the wire format).
+      * True (default) ⇒ if the line is a bare ``::QPB::``
+        sentinel (109 form), render the phase/gate one-
+        liner; if it JSON-decodes to a Claude stream-json
+        event (``{"type": ...}``), render via
+        ``_render_claude_event`` (templated for known
+        types, ``«type=… key=val …»`` for unknown); if
+        non-JSON plain text (codex/copilot/run_playbook
+        output), pass through unchanged.
+
+    Robust to malformed lines: any unexpected shape falls
+    back to the verbatim line."""
+    if not rendered:
+        return line
+    # Bare-line ::QPB:: sentinel (109/117 fixture form,
+    # and what `qpb_phase` writes when invoked outside a
+    # Claude wrapper).
+    if line.startswith(_SENTINEL_PREFIX):
+        m = _SENTINEL_RE.match(line)
+        if m:
+            try:
+                payload = json.loads(m.group(1))
+                rendered_sentinel = _format_sentinel_line(
+                    payload)
+                if rendered_sentinel is not None:
+                    return rendered_sentinel
+            except json.JSONDecodeError:
+                pass
+        return line
+    # v1.5.7 122: Claude --print stream-json event detection.
+    # An event line is a JSON dict with a "type" key.
+    try:
+        obj = json.loads(line)
+    except (json.JSONDecodeError, ValueError):
+        # Non-JSON plain text — codex / copilot CLI /
+        # run_playbook output. Passthrough.
+        return line
+    if not isinstance(obj, dict) or "type" not in obj:
+        # JSON but not a Claude event — passthrough.
+        return line
+    rendered_event = _render_claude_event(obj)
+    return rendered_event if rendered_event else line
 
 
 # ---------------------------------------------------------------------------

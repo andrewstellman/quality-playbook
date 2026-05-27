@@ -333,14 +333,18 @@ class BuildRenderedOutputLinesTests(unittest.TestCase):
             # Plain line passes through.
             self.assertEqual(lines[1], "plain text line")
 
-    def test_non_sentinel_json_passes_through(self) -> None:
-        """A line that's JSON but not a sentinel
-        (e.g. a Claude stream-json event line) passes through
-        verbatim — render_stream_line returns it unchanged."""
+    def test_non_claude_json_passes_through(self) -> None:
+        """v1.5.7 122 inverted this contract: a JSON line WITH
+        a ``type`` field is now interpreted as a Claude
+        stream-json event and rendered to a clean log line.
+        A JSON line WITHOUT a ``type`` field (e.g. an
+        arbitrary structured log entry from a non-Claude
+        runner) still passes through verbatim — that's the
+        passthrough contract this test now pins."""
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp)
             json_line = json.dumps(
-                {"type": "system", "subtype": "init"})
+                {"event": "something", "value": 42})
             (run_dir / "stream.ndjson").write_text(
                 json_line + "\n", encoding="utf-8")
             lines = TUI.build_rendered_output_lines(run_dir)

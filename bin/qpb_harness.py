@@ -361,9 +361,13 @@ def _cmd_status(args: argparse.Namespace) -> int:
 
 
 def _cmd_tail(args: argparse.Namespace) -> int:
-    """v1.5.7 110: tail a run's ``stream.ndjson`` (optionally
-    ``-f`` to follow). Sentinel lines (``::QPB::``) are
-    rendered human-readably; other lines pass through.
+    """v1.5.7 110 + 122: tail a run's ``stream.ndjson``
+    (optionally ``-f`` to follow). By default each line goes
+    through ``status.render_stream_line`` — Claude
+    stream-json events become clean log lines, ``::QPB::``
+    sentinels render human-readably, non-Claude plain text
+    passes through. ``--raw`` emits verbatim lines for
+    debugging the wire format.
     """
     from bin.harness import status as _status
 
@@ -381,9 +385,12 @@ def _cmd_tail(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 0
+    rendered = not bool(getattr(args, "raw", False))
     try:
         for line in _status.tail_stream(
-                run_dir, follow=bool(getattr(args, "follow", False))
+                run_dir,
+                follow=bool(getattr(args, "follow", False)),
+                rendered=rendered,
         ):
             print(line)
     except KeyboardInterrupt:
@@ -508,9 +515,13 @@ def _cmd_tui_dump(args: argparse.Namespace,
             )
             return 2
         lines = int(getattr(args, "lines", 2000))
+        # v1.5.7 122: --raw flips off the renderer; default
+        # is rendered (clean log lines).
+        rendered = not bool(getattr(args, "raw", False))
         text = _tui.format_output_as_text(
             Path(path).expanduser().resolve(),
             max_lines=lines,
+            rendered=rendered,
         )
     else:  # pragma: no cover - argparse choices guard
         sys.stderr.write(f"unknown --dump mode: {mode}\n")
@@ -696,6 +707,13 @@ def _build_parser() -> argparse.ArgumentParser:
         "-f", "--follow", action="store_true",
         help="Poll for new content (tail -f).",
     )
+    p_tail.add_argument(
+        "--raw", action="store_true",
+        help=("v1.5.7 122: emit verbatim stream lines (no "
+              "Claude stream-json templating, no ::QPB:: "
+              "sentinel translation). For debugging the "
+              "wire format. Default is rendered."),
+    )
 
     # Phase 4 subcommands.
     p_mgr = sub.add_parser(
@@ -762,6 +780,13 @@ def _build_parser() -> argparse.ArgumentParser:
               "output` (default 2000, tail-anchored). Caps "
               "the rendered tail so a long stream renders "
               "in bounded time."),
+    )
+    p_tui.add_argument(
+        "--raw", action="store_true",
+        help=("v1.5.7 122: with `--dump output`, emit "
+              "verbatim wire-format lines (Claude stream-"
+              "json events as raw JSON; ::QPB:: sentinels "
+              "as their bare forms). Default is rendered."),
     )
     return p
 
