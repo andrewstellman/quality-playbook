@@ -320,6 +320,11 @@ __all__ = [
     "RUNS_TABLE_COLUMNS",
     "DETAIL_TABLE_COLUMNS",
     "launch_textual_tui",
+    # v1.5.7 121 — pure text formatters (used by `c` copy
+    # AND `--dump <page>`; no textual dependency).
+    "format_runs_list_as_text",
+    "format_detail_as_text",
+    "format_output_as_text",
 ]
 
 
@@ -851,6 +856,79 @@ def build_rendered_output_lines(
     return rendered
 
 
+# v1.5.7 121: pure text formatters used by BOTH the Textual
+# `c` (copy current screen) action AND the `--dump <page>`
+# CLI form. textual is NOT required — these are plain text
+# transforms over the status.py model. The `--dump` form is
+# the testability hook: cowork / the worker can dump a page
+# headlessly and verify rendering without an interactive
+# terminal.
+
+
+def _format_table_as_text(headers: "tuple[str, ...]",
+                            rows: "list[tuple[str, ...]]") -> str:
+    """Render a header + rows tuple as an aligned plain-text
+    table (one column per element, padded to the widest cell
+    in that column). Used by ``format_runs_list_as_text`` +
+    ``format_detail_as_text``."""
+    if not rows:
+        return " | ".join(headers) + "\n(no rows)"
+    widths = [len(h) for h in headers]
+    for r in rows:
+        for i, cell in enumerate(r):
+            if i >= len(widths):
+                break
+            widths[i] = max(widths[i], len(str(cell)))
+    fmt = " | ".join(f"{{:<{w}}}" for w in widths)
+    lines: list[str] = [
+        fmt.format(*headers),
+        " | ".join("-" * w for w in widths),
+    ]
+    for r in rows:
+        lines.append(fmt.format(
+            *[str(c) for c in r[:len(widths)]]))
+    return "\n".join(lines)
+
+
+def format_runs_list_as_text(runs_root: Path) -> str:
+    """v1.5.7 121: render the runs-list view as plain text.
+    Used by the TUI's `c` (copy current screen) action AND
+    by the `qpb_harness tui --dump runs` CLI form. Both call
+    this so a screenshot-via-clipboard matches what `--dump`
+    prints — single text representation.
+
+    NO textual dependency."""
+    rows = build_runs_table_rows(runs_root)
+    header = f"runs-root: {runs_root}"
+    return header + "\n" + _format_table_as_text(
+        RUNS_TABLE_COLUMNS, rows)
+
+
+def format_detail_as_text(harness_run_dir: Path) -> str:
+    """v1.5.7 121: render the detail view as plain text.
+    Mirror of format_runs_list_as_text for the drill-down
+    page."""
+    rows = build_detail_table_rows(harness_run_dir)
+    header = f"harness-run: {harness_run_dir.name}"
+    return header + "\n" + _format_table_as_text(
+        DETAIL_TABLE_COLUMNS, rows)
+
+
+def format_output_as_text(run_dir: Path, *,
+                            max_lines: int = _DEFAULT_OUTPUT_MAX_LINES,
+                            ) -> str:
+    """v1.5.7 121: render the live-output view as plain text.
+    Each line goes through `status.render_stream_line` (109
+    sentinels become human-readable). Tail-anchored: the LAST
+    `max_lines` lines (newest at the bottom)."""
+    lines = build_rendered_output_lines(
+        run_dir, max_lines=max_lines)
+    header = f"output: {run_dir.name}"
+    if not lines:
+        return header + "\n(no output yet)"
+    return header + "\n" + "\n".join(lines)
+
+
 def launch_textual_tui(runs_root: Path) -> int:
     """v1.5.7 119: launch the Textual TUI. Lazy-imports
     textual so this module's import stays clean when textual
@@ -889,6 +967,15 @@ def launch_textual_tui(runs_root: Path) -> int:
             Binding("r", "refresh", "Refresh"),
             Binding("end", "follow", "Follow"),
             Binding("f", "toggle_follow", "Toggle follow"),
+            # v1.5.7 121: copy the active screen's rendered
+            # text to the system clipboard via OSC 52
+            # (Textual's `App.copy_to_clipboard`). Works over
+            # SSH and most modern terminals — no new
+            # dependency. OPERATOR NOTE: some terminals require
+            # OSC-52 clipboard-write to be enabled (iTerm2:
+            # Prefs → General → "Applications in terminal may
+            # access clipboard"; xterm: `allowWindowOps`).
+            Binding("c", "copy_screen", "Copy"),
         ]
 
         CSS = """
@@ -1061,6 +1148,46 @@ def launch_textual_tui(runs_root: Path) -> int:
             self._follow_mode = not self._follow_mode
             if self._nav == _NAV_OUTPUT:
                 self._render_output_tail()
+
+        def action_copy_screen(self) -> None:
+            """v1.5.7 121: copy the current screen's rendered
+            text to the system clipboard via OSC 52
+            (Textual's ``App.copy_to_clipboard``).
+
+            Uses the same pure formatters the ``--dump <page>``
+            CLI uses, so what's on screen matches what gets
+            copied. Flashes a brief confirmation in the
+            status bar; the next 2s refresh tick restores
+            the normal status line."""
+            text = self._assemble_current_screen_text()
+            line_count = len(text.splitlines())
+            try:
+                # Textual's App.copy_to_clipboard emits OSC 52.
+                self.copy_to_clipboard(text)
+                self._status_bar.update(
+                    f"copied {line_count} lines to clipboard "
+                    f"(OSC 52; next refresh restores status)"
+                )
+            except Exception as exc:  # pragma: no cover - terminal-specific
+                self._status_bar.update(
+                    f"copy failed: {exc} "
+                    f"(terminal may not support OSC 52)"
+                )
+
+        def _assemble_current_screen_text(self) -> str:
+            """v1.5.7 121: build the plain-text representation
+            of the active screen. Used by ``action_copy_screen``.
+            Delegates to the same formatters the ``--dump <page>``
+            CLI uses so the two views agree."""
+            if self._nav == _NAV_LIST:
+                return format_runs_list_as_text(self._runs_root)
+            if (self._nav == _NAV_DETAIL
+                    and self._current_dir is not None):
+                return format_detail_as_text(self._current_dir)
+            if (self._nav == _NAV_OUTPUT
+                    and self._current_run_dir is not None):
+                return format_output_as_text(self._current_run_dir)
+            return "(empty)"
 
         # -- navigation (row selection) -------------------------
 

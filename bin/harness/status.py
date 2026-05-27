@@ -32,6 +32,17 @@ from pathlib import Path
 from typing import Iterator, Optional
 
 
+# v1.5.7 121: the set of TerminalState values that indicate
+# a run has STOPPED — the phase-state display must NOT show
+# the live-state ("running"/"start"/"done"-mid-stride) when
+# the run is no longer live. PENDING + RUNNING are the
+# non-terminal states.
+_TERMINAL_RUN_STATES = frozenset({
+    "COMPLETED", "FAILED", "TIMED_OUT", "BLOCKED",
+    "ABORTED_PREP", "KILLED",
+})
+
+
 _SENTINEL_PREFIX = "::QPB:: "
 # v1.5.7 109 / 110 bare-line form (anchored). Used by
 # ``render_stream_line`` for the tail-output path, where each
@@ -465,6 +476,23 @@ def _read_one_run_status(entry: dict,
                 current_phase_name = mode_b["name"]
                 current_phase_state = mode_b["state"]
                 last_note = mode_b.get("note", "")
+
+    # v1.5.7 121: phase-state reconciliation. When the run is
+    # in a TERMINAL state (FAILED / COMPLETED / TIMED_OUT /
+    # BLOCKED / ABORTED_PREP), the phase-state must NOT show
+    # the live-state — a stopped run should read
+    # "P1 exploration stopped", not "P1 exploration running".
+    # The 117 Mode B parser ALWAYS reports "running" (run_playbook
+    # has no done-state in its banner line); the 109 Mode A
+    # sentinels emit start/done/running. If the run has since
+    # gone terminal but the last marker is "running" or "start"
+    # (started a phase but didn't finish it), override to
+    # "stopped". A "done" marker stays as-is (the phase
+    # completed — that's correct mid-run AND post-terminal).
+    if (state in _TERMINAL_RUN_STATES
+            and current_phase != "—"
+            and current_phase_state in ("running", "start")):
+        current_phase_state = "stopped"
 
     # v1.5.7 117: stream-activity + elapsed (operator-facing
     # liveness signal). Last-activity is the stream.ndjson

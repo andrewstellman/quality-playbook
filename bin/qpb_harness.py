@@ -475,6 +475,50 @@ def _cmd_manager(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_tui_dump(args: argparse.Namespace,
+                     runs_root: Path) -> int:
+    """v1.5.7 121: render a TUI page to stdout
+    non-interactively. Works WITHOUT textual installed —
+    delegates to the pure text formatters in
+    ``bin.harness.tui`` (which read via status.py and don't
+    touch textual).
+
+    Returns 0 on success, 2 on missing args (e.g. detail/
+    output without --dump-path)."""
+    from bin.harness import tui as _tui
+    mode = args.dump
+    if mode == "runs":
+        text = _tui.format_runs_list_as_text(runs_root)
+    elif mode == "detail":
+        path = getattr(args, "dump_path", None)
+        if not path:
+            sys.stderr.write(
+                "qpb_harness tui --dump detail: requires "
+                "--dump-path <harness-run-dir>\n"
+            )
+            return 2
+        text = _tui.format_detail_as_text(
+            Path(path).expanduser().resolve())
+    elif mode == "output":
+        path = getattr(args, "dump_path", None)
+        if not path:
+            sys.stderr.write(
+                "qpb_harness tui --dump output: requires "
+                "--dump-path <run-NN-dir>\n"
+            )
+            return 2
+        lines = int(getattr(args, "lines", 2000))
+        text = _tui.format_output_as_text(
+            Path(path).expanduser().resolve(),
+            max_lines=lines,
+        )
+    else:  # pragma: no cover - argparse choices guard
+        sys.stderr.write(f"unknown --dump mode: {mode}\n")
+        return 2
+    print(text)
+    return 0
+
+
 def _cmd_tui(args: argparse.Namespace) -> int:
     """v1.5.7 119: launch the live status TUI over 110/117's
     ``bin/harness/status.py`` model layer. Default is the
@@ -508,6 +552,13 @@ def _cmd_tui(args: argparse.Namespace) -> int:
         or "harness-runs"
     )
     runs_root = Path(runs_root_raw).expanduser().resolve()
+
+    # v1.5.7 121: --dump <page> non-interactive render.
+    # Works WITHOUT textual installed — re-uses the pure
+    # view-model builders. The testability hook.
+    dump_mode = getattr(args, "dump", None)
+    if dump_mode:
+        return _cmd_tui_dump(args, runs_root)
 
     # v1.5.7 119: Textual by default; curses on --curses or
     # textual ImportError.
@@ -685,6 +736,32 @@ def _build_parser() -> argparse.ArgumentParser:
               "111/116/117 implementation). Default is the "
               "Textual app; this flag opts back into the "
               "dependency-free fallback."),
+    )
+    # v1.5.7 121: non-interactive page renderer. Works
+    # WITHOUT textual installed — re-uses the pure view-model
+    # builders + plain-text formatters. The testability hook
+    # for verifying TUI rendering headlessly.
+    p_tui.add_argument(
+        "--dump", choices=["runs", "detail", "output"],
+        default=None,
+        help=("v1.5.7 121: render a specific TUI page to "
+              "stdout (plain text) and exit. Works WITHOUT "
+              "textual installed. Options: `runs` (uses "
+              "--runs-root), `detail` (uses --dump-path "
+              "<harness-run-dir>), `output` (uses --dump-path "
+              "<harness-run-dir>/run-NN, with optional --lines)."),
+    )
+    p_tui.add_argument(
+        "--dump-path", default=None,
+        help=("v1.5.7 121: path for `--dump detail` (harness-"
+              "run dir) or `--dump output` (run-NN dir)."),
+    )
+    p_tui.add_argument(
+        "--lines", type=int, default=2000,
+        help=("v1.5.7 121: max output lines for `--dump "
+              "output` (default 2000, tail-anchored). Caps "
+              "the rendered tail so a long stream renders "
+              "in bounded time."),
     )
     return p
 
