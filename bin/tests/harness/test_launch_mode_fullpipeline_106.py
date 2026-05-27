@@ -39,6 +39,12 @@ from bin.harness import runner as RUN
 from bin.harness import schema as S
 
 
+_QPB_CLONE_ROOT_106 = Path(__file__).resolve().parents[3]
+_EXPECTED_RUN_PLAYBOOK_SCRIPT_106 = (
+    _QPB_CLONE_ROOT_106 / "bin" / "run_playbook.py"
+)
+
+
 # ---------------------------------------------------------------------------
 # Task A — the Mode A full-pipeline prompt constant
 # ---------------------------------------------------------------------------
@@ -227,10 +233,14 @@ class ModeBParametersForwardingTests(unittest.TestCase):
             axes, "(unused-in-mode-b)", target_dir=target,
             parameters=["--phase", "3"],
         )
-        # Shape: python -m bin.run_playbook --copilot --model X
-        # [...parameters...] <target>
+        # v1.5.7 114: shape is `python3
+        # <qpb_clone>/bin/run_playbook.py --copilot --model X
+        # [...parameters...] <target>` — the absolute-path
+        # script form (the install bundle excludes
+        # run_playbook.py, so we name the QPB-clone script).
         self.assertEqual(cmd[0], sys.executable)
-        self.assertEqual(cmd[1:3], ["-m", "bin.run_playbook"])
+        self.assertEqual(
+            cmd[1], str(_EXPECTED_RUN_PLAYBOOK_SCRIPT_106))
         self.assertIn("--copilot", cmd)
         self.assertEqual(
             cmd[cmd.index("--model") + 1], "gpt-5.4",
@@ -241,14 +251,14 @@ class ModeBParametersForwardingTests(unittest.TestCase):
         )
         # Target dir trails.
         self.assertEqual(cmd[-1], str(target))
-        # And `--phase` lands BEFORE the target positional, not
-        # after.
+        # And `--phase` lands BEFORE the target positional,
+        # not after.
         self.assertLess(cmd.index("--phase"),
                          cmd.index(str(target)))
 
     def test_mode_b_no_parameters_unchanged_baseline(self) -> None:
-        """No parameters ⇒ command identical to the 095
-        baseline."""
+        """No parameters ⇒ baseline argv shape (with the 114
+        absolute-script-path form)."""
         axes = S.RunAxes(
             runner=S.Runner.COPILOT, mode=S.Mode.B,
             install_channel=S.InstallChannel.CLONE,
@@ -259,7 +269,7 @@ class ModeBParametersForwardingTests(unittest.TestCase):
             axes, "(unused)", target_dir=target,
         )
         self.assertEqual(cmd, [
-            sys.executable, "-m", "bin.run_playbook",
+            sys.executable, str(_EXPECTED_RUN_PLAYBOOK_SCRIPT_106),
             "--copilot", "--model", "gpt-5.4", str(target),
         ])
 

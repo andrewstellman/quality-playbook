@@ -252,32 +252,114 @@ def _cursor_command(model: str,
     return command
 
 
+def _resolve_run_playbook_script(
+        target_dir: "Path | None" = None) -> Path:
+    """v1.5.7 114: locate ``bin/run_playbook.py`` by its
+    absolute path in the QPB clone, then invoke it as a
+    direct script. Returns the absolute path to the script.
+
+    **Design note (worth documenting; the 114 instruction's
+    wording is incorrect on this point):** the install bundle
+    DELIBERATELY excludes ``bin/run_playbook.py`` —
+    ``install_skill.py:397-398`` comments: "minus
+    `bin.run_playbook` (the Mode-B harness invoked from the
+    QPB clone, NOT from install_root)". So we cannot find
+    run_playbook.py at ``<target>/.claude/skills/.../bin/``
+    (the 114 instruction assumed it lives there; it doesn't,
+    by design).
+
+    What we CAN do, and what fixes the AUP-experiment's
+    "No module named bin.run_playbook" failure, is invoke
+    run_playbook.py by its absolute path inside the QPB
+    clone — the same clone the harness runs from. The
+    runner.py module file (this file) lives at
+    ``<qpb_clone>/bin/harness/runner.py``, so the script is
+    reliably at ``<qpb_clone>/bin/run_playbook.py``
+    (``__file__.parents[2] / "bin" / "run_playbook.py"``).
+
+    run_playbook.py injects QPB root into ``sys.path`` when
+    invoked as a direct script (its module header:
+    ``sys.path.insert(0, str(_Path(__file__).resolve().parent
+    .parent))``), so its sibling imports (``benchmark_lib``,
+    ``archive_lib``, ``copilot_resolver``) resolve regardless
+    of the subprocess's cwd. This is the ESSENTIAL invariant
+    the 114 instruction calls out: "the subprocess MUST be
+    able to import run_playbook's siblings (no `No module
+    named …`)."
+
+    Pre-114 the launch hardcoded ``python3 -m bin.run_playbook``,
+    which only resolves when ``cwd`` is the QPB clone root.
+    ``launch_run_async`` uses ``cwd=target_dir`` (the channel-
+    installed target) per the lifecycle contract, so the ``-m``
+    form died immediately with ``No module named bin.run_playbook``
+    — the 79-byte streams the AUP experiment surfaced on the
+    first Mode B run.
+
+    The ``target_dir`` parameter is accepted for forward
+    compatibility (callers pass it through 095/106 contracts)
+    but ignored: run_playbook is the same script regardless of
+    which target it drives.
+    """
+    del target_dir  # unused; see docstring
+    qpb_clone_root = Path(__file__).resolve().parents[2]
+    script_path = qpb_clone_root / "bin" / "run_playbook.py"
+    if not script_path.is_file():
+        raise RunnerError(
+            f"114: cannot locate `bin/run_playbook.py` "
+            f"relative to runner.py — expected at {script_path}. "
+            "The harness must run from a QPB clone (the install "
+            "bundle excludes run_playbook.py — see "
+            "`install_skill.py:397-398`)."
+        )
+    return script_path
+
+
 def _mode_b_command(runner: Runner, target_dir: Path,
                      model: str,
                      parameters: "list[str] | None" = None,
                      ) -> "list[str]":
     """v1.5.7 095 Phase 5: Mode B reuses ``bin.run_playbook`` as
     the canonical harness (per design §G — "run_playbook.py IS
-    the Mode B harness"). The shell-out invocation is:
+    the Mode B harness").
 
-        python3 -m bin.run_playbook --<runner> --model <model> \
+    v1.5.7 114: invocation switched from the bare ``-m
+    bin.run_playbook`` to the absolute-script-path form:
+
+        python3 <qpb_clone>/bin/run_playbook.py \
+            --<runner> --model <model> \
             [<parameters...>] <target_dir>
+
+    Pre-114 used ``python3 -m bin.run_playbook …``, which only
+    resolves when the working directory contains ``bin/`` as an
+    importable package — i.e. when launched from the QPB clone
+    root. ``launch_run_async`` launches with ``cwd=target_dir``
+    (the channel-installed target), so the ``-m`` form died
+    immediately with ``No module named bin.run_playbook`` on
+    the first live Mode B run (AUP experiment, three 79-byte
+    streams). The absolute-path script form sidesteps that
+    failure mode: run_playbook's own module header injects QPB
+    root into ``sys.path`` so its sibling imports
+    (``benchmark_lib``, ``archive_lib``, ``copilot_resolver``)
+    resolve regardless of cwd. See
+    ``_resolve_run_playbook_script`` for why we use the
+    QPB-clone path rather than the install path the 114
+    instruction text implied (the install bundle deliberately
+    excludes run_playbook.py).
 
     The runner flag matches the run_playbook arg parser
     (``--claude``/``--copilot``/``--codex``/``--cursor``);
     ``--model`` is the per-runner model override. The harness
-    captures stream output the same way as Mode A; the difference
-    is just *who drives the phases* — Mode A is the CLI agent,
-    Mode B is the run_playbook harness.
+    captures stream output the same way as Mode A; the
+    difference is just *who drives the phases* — Mode A is the
+    CLI agent, Mode B is the run_playbook harness.
 
     v1.5.7 106: ``parameters`` in Mode B is spliced into the
     ``run_playbook`` argv (before the trailing ``<target_dir>``
     positional). This lets a plan select phases in Mode B —
-    e.g. ``parameters=["--phase", "3"]`` builds
-    ``python3 -m bin.run_playbook --copilot --model X --phase
-    3 <target>``. In Mode A the same field routes to the runner
-    CLI (per 100); the contract is "``parameters`` routes to
-    whichever subprocess this run launches".
+    e.g. ``parameters=["--phase", "3"]``. In Mode A the same
+    field routes to the runner CLI (per 100); the contract is
+    "``parameters`` routes to whichever subprocess this run
+    launches".
     """
     flag = {
         Runner.CLAUDE: "--claude",
@@ -285,8 +367,9 @@ def _mode_b_command(runner: Runner, target_dir: Path,
         Runner.COPILOT: "--copilot",
         Runner.CURSOR: "--cursor",
     }[runner]
+    script_path = _resolve_run_playbook_script(target_dir)
     return [
-        sys.executable, "-m", "bin.run_playbook",
+        sys.executable, str(script_path),
         flag, "--model", model,
         *(parameters or []),
         str(target_dir),
@@ -703,6 +786,7 @@ __all__ = [
     "_copilot_command",
     "_cursor_command",
     "_mode_b_command",
+    "_resolve_run_playbook_script",
     "_command_for_axes",
     "_needs_stdin_prompt",
     "_vendor_env_for",

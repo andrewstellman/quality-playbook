@@ -47,6 +47,12 @@ def _mk_axes(runner: S.Runner = S.Runner.CLAUDE, *,
     )
 
 
+_QPB_CLONE_ROOT = Path(__file__).resolve().parents[3]
+_EXPECTED_RUN_PLAYBOOK_SCRIPT = (
+    _QPB_CLONE_ROOT / "bin" / "run_playbook.py"
+)
+
+
 # ---------------------------------------------------------------------------
 # Per-adapter command construction (Mode A)
 # ---------------------------------------------------------------------------
@@ -163,16 +169,23 @@ class ModeBLaunchTests(unittest.TestCase):
 
     def test_mode_b_shells_out_to_run_playbook(self) -> None:
         with tempfile.TemporaryDirectory() as td:
+            target = Path(td)
             axes = _mk_axes(S.Runner.CLAUDE, mode=S.Mode.B)
             cmd = R._command_for_axes(axes, "p",
-                                        target_dir=Path(td))
-            # Invocation is `python -m bin.run_playbook --claude
-            # --model <model> <target>`.
+                                        target_dir=target)
+            # v1.5.7 114: invocation is `python3
+            # <qpb_clone>/bin/run_playbook.py --claude --model
+            # <model> <target>` — absolute-path script form,
+            # NOT the pre-114 `-m bin.run_playbook` (which died
+            # with `No module named bin.run_playbook` when
+            # launched with cwd=target_dir, because the install
+            # bundle deliberately excludes run_playbook.py).
             self.assertEqual(cmd[0], sys.executable)
-            self.assertEqual(cmd[1:3], ["-m", "bin.run_playbook"])
+            self.assertEqual(
+                cmd[1], str(_EXPECTED_RUN_PLAYBOOK_SCRIPT))
             self.assertIn("--claude", cmd)
             self.assertEqual(cmd[cmd.index("--model") + 1], "opus")
-            self.assertEqual(cmd[-1], str(Path(td)))
+            self.assertEqual(cmd[-1], str(target))
 
     def test_mode_b_runner_flag_per_runner(self) -> None:
         for runner, expected_flag in (
@@ -182,9 +195,10 @@ class ModeBLaunchTests(unittest.TestCase):
             (S.Runner.CURSOR, "--cursor"),
         ):
             with tempfile.TemporaryDirectory() as td:
+                target = Path(td)
                 axes = _mk_axes(runner, mode=S.Mode.B)
                 cmd = R._command_for_axes(axes, "p",
-                                            target_dir=Path(td))
+                                            target_dir=target)
                 self.assertIn(expected_flag, cmd,
                               f"Mode B for {runner.value} must "
                               f"pass {expected_flag} to run_playbook")
