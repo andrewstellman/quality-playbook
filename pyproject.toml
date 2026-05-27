@@ -61,6 +61,23 @@ classifiers = [
 [project.scripts]
 quality-playbook = "quality_playbook_cli:main"
 
+# v1.5.7 119: optional `harness` extra. The Test Harness
+# (`bin/harness/*`) is a DEV-ONLY tool, excluded from the
+# shipped channel closure (91 invariant; bundle-safety
+# enforced by `_bundle_files`). 119 rebuilds the live TUI
+# (`qpb_harness tui`) on `textual` for scroll/mouse/follow-
+# tail behavior; the curses fallback remains available via
+# `qpb_harness tui --curses` for users who prefer the
+# dependency-free path.
+#
+# Adopters who only use the shipped skill don't pay for
+# textual — it isn't a hard dependency anywhere in the
+# shipped surface (verified: no shipped `bin/` module
+# imports textual at module load; the launch fn in
+# `bin/harness/tui.py` lazy-imports).
+[project.optional-dependencies]
+harness = ["textual>=0.50"]
+
 [project.urls]
 Homepage = "https://github.com/andrewstellman/quality-playbook"
 Source = "https://github.com/andrewstellman/quality-playbook"

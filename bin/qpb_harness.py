@@ -476,14 +476,22 @@ def _cmd_manager(args: argparse.Namespace) -> int:
 
 
 def _cmd_tui(args: argparse.Namespace) -> int:
-    """v1.5.7 111: launch the live status TUI over 110's
-    ``bin/harness/status.py`` model layer.
+    """v1.5.7 119: launch the live status TUI over 110/117's
+    ``bin/harness/status.py`` model layer. Default is the
+    Textual app (scrollable/mouse-aware output with follow-
+    tail + auto-refresh on a ~2s timer); ``--curses`` forces
+    the dependency-free 111/116/117-era stdlib-curses
+    implementation.
 
     Three navigation levels: harness-runs list → run detail →
-    live output. Stdlib ``curses``; no Textual / Rich
-    dependency. Auto-refresh ~2s at the list + detail levels.
-    Read-only. ``curses.wrapper`` restores the terminal on
+    live output. Read-only. The Textual app exits cleanly on
+    Ctrl+C / q; the curses wrapper restores the terminal on
     exit AND on any uncaught exception.
+
+    When ``textual`` isn't importable and ``--curses`` wasn't
+    requested, prints an actionable install message and falls
+    back to the curses path so the operator never gets a
+    hard failure.
 
     Pre-111, this subcommand opened the 094 manager TUI over
     ``<root>/control/queue.json``. The 094 manager path was
@@ -500,7 +508,26 @@ def _cmd_tui(args: argparse.Namespace) -> int:
         or "harness-runs"
     )
     runs_root = Path(runs_root_raw).expanduser().resolve()
-    return _tui.launch_status_tui(runs_root)
+
+    # v1.5.7 119: Textual by default; curses on --curses or
+    # textual ImportError.
+    force_curses = bool(getattr(args, "curses", False))
+    if force_curses:
+        return _tui.launch_status_tui(runs_root)
+    try:
+        import textual  # noqa: F401 — availability probe only
+    except ImportError:
+        sys.stderr.write(
+            "qpb_harness tui: 'textual' not installed; falling "
+            "back to the stdlib-curses TUI.\n"
+            "To get the richer Textual UI (scroll/mouse/follow"
+            "-tail + auto-refresh), run:\n"
+            "  pip install textual\n"
+            "or install the harness extra:\n"
+            "  pip install 'quality-playbook[harness]'\n"
+        )
+        return _tui.launch_status_tui(runs_root)
+    return _tui.launch_textual_tui(runs_root)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -632,10 +659,12 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_tui = sub.add_parser(
         "tui",
-        help=("v1.5.7 111: open the live status TUI (stdlib "
-              "curses) over the 110 status.py model layer. "
+        help=("v1.5.7 119: open the live status TUI (Textual "
+              "by default — scroll/mouse/follow-tail + auto-"
+              "refresh) over the 110 status.py model layer. "
               "Three nav levels: harness-runs → run detail → "
-              "live output."),
+              "live output. Use --curses for the 111-era "
+              "stdlib-curses fallback (no extra dependency)."),
     )
     p_tui.add_argument(
         "--runs-root", default="harness-runs",
@@ -649,6 +678,13 @@ def _build_parser() -> argparse.ArgumentParser:
               "manager TUI over <root>/control/queue.json; "
               "that path was superseded by 108's detached "
               "collector model)."),
+    )
+    p_tui.add_argument(
+        "--curses", action="store_true",
+        help=("v1.5.7 119: force the stdlib-curses TUI (the "
+              "111/116/117 implementation). Default is the "
+              "Textual app; this flag opts back into the "
+              "dependency-free fallback."),
     )
     return p
 

@@ -311,6 +311,15 @@ __all__ = [
     "launch_status_tui",
     # v1.5.7 116 — exported for the cursor-clamp unit tests.
     "_clamp_cursor",
+    # v1.5.7 119 — Textual rebuild: view-model builders +
+    # launch entry. Textual is a dev/harness-only optional
+    # dependency; the launch fn lazy-imports it.
+    "build_runs_table_rows",
+    "build_detail_table_rows",
+    "build_rendered_output_lines",
+    "RUNS_TABLE_COLUMNS",
+    "DETAIL_TABLE_COLUMNS",
+    "launch_textual_tui",
 ]
 
 
@@ -690,3 +699,393 @@ def _render_lines(stdscr, lines: "list[str]",
         except curses.error:
             # Hit the bottom-right corner; harmless.
             pass
+
+
+# ---------------------------------------------------------------------------
+# v1.5.7 119 — Textual rebuild (scroll/mouse/follow-tail + auto-refresh)
+# ---------------------------------------------------------------------------
+#
+# Architecture:
+#   * **Pure view-model builders** (this section, immediately
+#     below) shape the status.py model output into the table-
+#     row tuples + rendered output lines the Textual widgets
+#     consume. They have no textual dependency — testable
+#     independently.
+#   * **Textual App** (``launch_textual_tui`` at the bottom) is
+#     a thin presentation layer with lazy textual import. The
+#     module import stays side-effect-free + textual-optional
+#     (111 invariant preserved); only the launch entry pulls
+#     textual in.
+#
+# Dependency hygiene: `textual` is an OPTIONAL harness extra
+# (`pip install quality-playbook[harness]`). The shipped
+# channel closure excludes `bin/harness/` entirely (091
+# invariant + a 119 bundle-safety re-pin), so no shipped
+# module ever imports textual. Adopters who only consume the
+# skill don't pay for it.
+
+
+# Column headers for the Textual DataTable widgets. Exported so
+# tests can pin their shape without instantiating the app.
+RUNS_TABLE_COLUMNS = (
+    "dir", "started", "total",
+    "R", "D", "F", "T", "B", "AP", "P",
+    "progress", "last_activity", "collector",
+)
+
+DETAIL_TABLE_COLUMNS = (
+    "#", "repo", "runner/model", "state",
+    "phase", "name", "phase-state", "result",
+    "pid", "elapsed", "last_activity",
+)
+
+
+def build_runs_table_rows(runs_root: Path) -> "list[tuple[str, ...]]":
+    """v1.5.7 119: build the per-harness-run table rows for
+    the Textual ``DataTable`` widget. Each row is a tuple of
+    string cells matching ``RUNS_TABLE_COLUMNS`` 1:1.
+
+    Pure transform over ``status.list_harness_runs`` — the
+    same model layer the curses TUI + CLI ``status``
+    consume. Surfaces 113's BLOCKED column and 117's
+    ``progress`` + ``last_activity_iso`` so the operator
+    sees the same data through both TUI implementations.
+    """
+    from bin.harness import status as _status
+    summaries = _status.list_harness_runs(runs_root)
+    rows: "list[tuple[str, ...]]" = []
+    for s in summaries:
+        rows.append((
+            s.harness_run_dir.name,
+            s.started_at,
+            str(s.total_runs),
+            str(s.running),
+            str(s.completed),
+            str(s.failed),
+            str(s.timed_out),
+            str(s.blocked),
+            str(s.aborted_prep),
+            str(s.pending),
+            s.progress,
+            s.last_activity_iso,
+            "yes" if s.collector_alive else "no",
+        ))
+    return rows
+
+
+def _format_pid_for_table(pid: "Optional[int]",
+                            pid_alive: bool) -> str:
+    if pid is None:
+        return "—"
+    return f"{pid}(live)" if pid_alive else f"{pid}(dead)"
+
+
+def build_detail_table_rows(
+        harness_run_dir: Path) -> "list[tuple[str, ...]]":
+    """v1.5.7 119: build the per-run drill-down table rows
+    matching ``DETAIL_TABLE_COLUMNS``. Includes 117's
+    ``current_phase`` / ``current_phase_name`` / phase state
+    AND 117's ``elapsed_s`` / ``last_activity_iso`` columns so
+    operators see live phase progress + liveness without
+    dropping into the output view."""
+    from bin.harness import status as _status
+    runs = _status.read_run_status(harness_run_dir)
+    rows: "list[tuple[str, ...]]" = []
+    for r in runs:
+        repo_tail = (r.repo.rstrip("/").split("/")[-1]
+                     or r.repo)
+        rows.append((
+            str(r.index),
+            repo_tail,
+            f"{r.runner}/{r.model}",
+            r.state,
+            r.current_phase,
+            r.current_phase_name,
+            r.current_phase_state,
+            r.result,
+            _format_pid_for_table(r.pid, r.pid_alive),
+            _status._format_elapsed(r.elapsed_s),
+            r.last_activity_iso,
+        ))
+    return rows
+
+
+# v1.5.7 119: a generous default cap so a long run's stream
+# (~10k lines for a 4-repo Mode A run) renders without
+# blowing memory or rendering latency. Operators who need
+# the full stream can `qpb_harness tail` it.
+_DEFAULT_OUTPUT_MAX_LINES = 5000
+
+
+def build_rendered_output_lines(
+        run_dir: Path,
+        *,
+        max_lines: int = _DEFAULT_OUTPUT_MAX_LINES,
+) -> "list[str]":
+    """v1.5.7 119: read ``run_dir/stream.ndjson``, render each
+    line via ``status.render_stream_line`` (so 109 sentinels
+    show human-readably instead of as raw JSON), and return
+    the last ``max_lines`` lines.
+
+    Returns ``[]`` when the stream doesn't exist yet —
+    callers should display "(no output yet)" rather than
+    erroring.
+
+    Bottom-anchored by construction: the last entry of the
+    returned list is the newest. The Textual ``RichLog``
+    widget then auto-scrolls to it under follow-mode.
+    """
+    from bin.harness import status as _status
+    stream = run_dir / "stream.ndjson"
+    if not stream.is_file():
+        return []
+    try:
+        text = stream.read_text(
+            encoding="utf-8", errors="ignore")
+    except OSError:
+        return []
+    lines = text.splitlines()
+    rendered = [_status.render_stream_line(ln) for ln in lines]
+    if max_lines is not None and len(rendered) > max_lines:
+        rendered = rendered[-max_lines:]
+    return rendered
+
+
+def launch_textual_tui(runs_root: Path) -> int:
+    """v1.5.7 119: launch the Textual TUI. Lazy-imports
+    textual so this module's import stays clean when textual
+    isn't installed (111 invariant preserved).
+
+    ``ImportError`` for textual surfaces a clear actionable
+    message to the operator (the CLI's ``_cmd_tui`` catches
+    it and falls back to the curses path). Inside the
+    function we assume textual is importable — the caller
+    has already probed availability.
+    """
+    # Lazy imports — textual is dev/harness-optional.
+    from textual.app import App, ComposeResult
+    from textual.binding import Binding
+    from textual.containers import Vertical
+    from textual.widgets import (
+        Header, Footer, DataTable, RichLog, Static,
+    )
+
+    _NAV_LIST = "list"
+    _NAV_DETAIL = "detail"
+    _NAV_OUTPUT = "output"
+
+    class QPBHarnessApp(App):
+        """v1.5.7 119: live status TUI.
+
+        Three navigable screens (re-using one DataTable +
+        one RichLog widget — cheaper than a full screen
+        stack). All reads go through status.py. Auto-refresh
+        on a 2s timer. Follow-mode tail in the output view
+        (toggleable via End / f)."""
+
+        BINDINGS = [
+            Binding("q", "quit_app", "Quit"),
+            Binding("escape", "back", "Back"),
+            Binding("r", "refresh", "Refresh"),
+            Binding("end", "follow", "Follow"),
+            Binding("f", "toggle_follow", "Toggle follow"),
+        ]
+
+        CSS = """
+        DataTable {
+            height: 1fr;
+        }
+        RichLog {
+            height: 1fr;
+            border: solid $accent;
+        }
+        .status-bar {
+            dock: bottom;
+            height: 1;
+            color: $text-muted;
+        }
+        """
+
+        def __init__(self,
+                      app_runs_root: Path) -> None:
+            super().__init__()
+            self._runs_root = app_runs_root
+            self._nav = _NAV_LIST
+            self._current_dir: "Optional[Path]" = None
+            self._current_run_dir: "Optional[Path]" = None
+            # Follow-mode default: tail at bottom, auto-scroll
+            # on refresh. Operator toggles with f / End.
+            self._follow_mode = True
+
+        def compose(self) -> ComposeResult:
+            yield Header(show_clock=True)
+            self._table = DataTable(
+                zebra_stripes=True,
+                cursor_type="row",
+                id="runs-table",
+            )
+            self._log = RichLog(
+                highlight=False,
+                markup=False,
+                wrap=False,
+                auto_scroll=False,
+                id="run-log",
+            )
+            self._log.display = False
+            yield self._table
+            yield self._log
+            self._status_bar = Static(
+                "", classes="status-bar", id="status-bar")
+            yield self._status_bar
+            yield Footer()
+
+        def on_mount(self) -> None:
+            self._render_runs_list()
+            # v1.5.7 119 Task C: ~2s auto-refresh on ALL
+            # screens. set_interval fires on the App's main
+            # event loop; refresh_view dispatches to the
+            # active screen's renderer.
+            self.set_interval(2.0, self.refresh_view)
+
+        # -- screen renderers -----------------------------------
+
+        def _render_runs_list(self) -> None:
+            self._table.display = True
+            self._log.display = False
+            prior_cursor = (self._table.cursor_row
+                            if self._table.row_count else 0)
+            self._table.clear(columns=True)
+            self._table.add_columns(*RUNS_TABLE_COLUMNS)
+            rows = build_runs_table_rows(self._runs_root)
+            for r in rows:
+                self._table.add_row(*r)
+            if self._table.row_count and 0 <= prior_cursor < self._table.row_count:
+                try:
+                    self._table.move_cursor(row=prior_cursor)
+                except Exception:
+                    pass
+            self._status_bar.update(
+                f"runs root: {self._runs_root}   "
+                f"Enter: detail   r: refresh   q: quit"
+            )
+
+        def _render_run_detail(self) -> None:
+            if self._current_dir is None:
+                return
+            self._table.display = True
+            self._log.display = False
+            prior_cursor = (self._table.cursor_row
+                            if self._table.row_count else 0)
+            self._table.clear(columns=True)
+            self._table.add_columns(*DETAIL_TABLE_COLUMNS)
+            rows = build_detail_table_rows(self._current_dir)
+            for r in rows:
+                self._table.add_row(*r)
+            if self._table.row_count and 0 <= prior_cursor < self._table.row_count:
+                try:
+                    self._table.move_cursor(row=prior_cursor)
+                except Exception:
+                    pass
+            self._status_bar.update(
+                f"detail: {self._current_dir.name}   "
+                f"Enter: live output   Esc: back   r: refresh"
+            )
+
+        def _render_output_tail(self) -> None:
+            if self._current_run_dir is None:
+                return
+            self._table.display = False
+            self._log.display = True
+            lines = build_rendered_output_lines(
+                self._current_run_dir)
+            # Rewrite the buffer each tick so we don't leak
+            # duplicated lines across refreshes. RichLog's
+            # write() is cheap enough for ~5k lines (the
+            # default cap).
+            self._log.clear()
+            if not lines:
+                self._log.write("(no output yet)")
+            else:
+                for line in lines:
+                    self._log.write(line)
+            if self._follow_mode:
+                # Pin the viewport to the newest line —
+                # tail -f semantics.
+                self._log.scroll_end(animate=False)
+            mode = ("FOLLOW" if self._follow_mode
+                    else "PAUSED")
+            self._status_bar.update(
+                f"output [{mode}]: "
+                f"{self._current_run_dir.name}   "
+                f"f: toggle follow   End: follow+bottom   "
+                f"Esc: back"
+            )
+
+        # -- timer dispatch -------------------------------------
+
+        def refresh_view(self) -> None:
+            if self._nav == _NAV_LIST:
+                self._render_runs_list()
+            elif self._nav == _NAV_DETAIL:
+                self._render_run_detail()
+            elif self._nav == _NAV_OUTPUT:
+                self._render_output_tail()
+
+        # -- actions --------------------------------------------
+
+        def action_quit_app(self) -> None:
+            self.exit(0)
+
+        def action_back(self) -> None:
+            if self._nav == _NAV_OUTPUT:
+                self._nav = _NAV_DETAIL
+                self._render_run_detail()
+            elif self._nav == _NAV_DETAIL:
+                self._nav = _NAV_LIST
+                self._current_dir = None
+                self._render_runs_list()
+            else:
+                self.exit(0)
+
+        def action_refresh(self) -> None:
+            self.refresh_view()
+
+        def action_follow(self) -> None:
+            """End key: re-engage follow + scroll to bottom."""
+            self._follow_mode = True
+            if self._nav == _NAV_OUTPUT:
+                self._render_output_tail()
+
+        def action_toggle_follow(self) -> None:
+            """f key: flip follow on/off."""
+            self._follow_mode = not self._follow_mode
+            if self._nav == _NAV_OUTPUT:
+                self._render_output_tail()
+
+        # -- navigation (row selection) -------------------------
+
+        def on_data_table_row_selected(self, event) -> None:
+            row_idx = event.cursor_row
+            from bin.harness import status as _status
+            if self._nav == _NAV_LIST:
+                summaries = _status.list_harness_runs(
+                    self._runs_root)
+                if 0 <= row_idx < len(summaries):
+                    self._current_dir = (
+                        summaries[row_idx].harness_run_dir)
+                    self._nav = _NAV_DETAIL
+                    self._render_run_detail()
+            elif self._nav == _NAV_DETAIL and self._current_dir:
+                runs = _status.read_run_status(
+                    self._current_dir)
+                if 0 <= row_idx < len(runs):
+                    self._current_run_dir = (
+                        runs[row_idx].run_dir)
+                    self._nav = _NAV_OUTPUT
+                    # Default to follow on entry; operator can
+                    # toggle with f / End.
+                    self._follow_mode = True
+                    self._render_output_tail()
+
+    app = QPBHarnessApp(runs_root)
+    return app.run() or 0
