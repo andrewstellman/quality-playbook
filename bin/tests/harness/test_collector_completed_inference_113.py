@@ -568,14 +568,21 @@ class CollectorCompletedInferenceTests(unittest.TestCase):
                 S.TerminalState.FAILED.value,
             )
 
-    def test_timed_out_precedence_preserved(self) -> None:
-        """A max-duration kill marks TIMED_OUT — the stream
-        check happens only when the PID dies naturally
-        (inside the polling loop's pid-dead branch), so
-        TIMED_OUT (the deadline branch) is never overridden
-        by a stream classification. Confirm explicitly: an
-        AUP-shaped stream + a live PID + a very short
-        deadline ⇒ TIMED_OUT, not BLOCKED."""
+    def test_stream_classifier_wins_over_max_duration_kill(
+            self) -> None:
+        """v1.5.7 120 inverted the precedence: a terminal
+        `result` event in the stream WINS OVER the
+        max-duration kill, because the kill is just reaping
+        a hung-at-exit process (not interrupting work).
+        Pre-120 (113's original assertion), this test
+        asserted TIMED_OUT; the AUP-experiment showed why
+        that was wrong (clean GATE-PASSED runs hit the
+        claude --print exit-hang and were recorded
+        TIMED_OUT). 120 fixes the precedence.
+
+        For an AUP refusal stream specifically, the
+        classifier returns BLOCKED — that's the recorded
+        terminal state even when the deadline branch fires."""
         with tempfile.TemporaryDirectory() as tmp:
             harness_run = Path(tmp)
             run_dir = harness_run / "run-00"
@@ -606,12 +613,18 @@ class CollectorCompletedInferenceTests(unittest.TestCase):
                 return_value=None,
             ):
                 outcomes = PR.collect_harness_run(harness_run)
+            # v1.5.7 120: stream classifier wins. AUP-shaped
+            # stream ⇒ BLOCKED (NOT TIMED_OUT). Pre-120 the
+            # exit-hang made this fail when the run was
+            # actually clean.
             self.assertEqual(
                 outcomes[0].terminal_state,
-                S.TerminalState.TIMED_OUT.value,
-                "113: TIMED_OUT (max-duration kill) MUST win "
-                "over the stream classifier — a kill is a "
-                "kill, regardless of what the stream said.",
+                S.TerminalState.BLOCKED.value,
+                "120: a terminal `result` event in the stream "
+                "MUST win over the max-duration kill — the "
+                "kill is just reaping a hung-at-exit process, "
+                "not interrupting work. The AUP stream "
+                "classifies BLOCKED.",
             )
 
 

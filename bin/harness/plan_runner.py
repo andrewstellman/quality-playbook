@@ -1968,51 +1968,52 @@ def _collect_one_run_detached(
     )
     deadline = (time.monotonic()
                 + max(0.0, max_duration_s))
+    # v1.5.7 118: resolve through the manifest helper so a
+    # moved/copied harness-run folder still finds its stream.
+    stream_path_for_classify = (
+        _resolve_entry_path(
+            entry.get("stream_path", ""),
+            harness_run_dir)
+        if entry.get("stream_path")
+        else run_dir / "stream.ndjson"
+    )
     terminal: TerminalState
     terminal_reason = ""
     while True:
+        # v1.5.7 120: PROACTIVE REAP on terminal result event.
+        # Claude --print emits exactly one terminal `result`
+        # envelope at the end of its turn; once it appears,
+        # the run is done semantically. Kill any exit-hang
+        # process and classify from the stream — instead of
+        # burning the full max_duration on the exit-hang.
+        # The AUP-experiment's Mode A gson runs hit this:
+        # GATE PASSED, is_error:false, but the claude --print
+        # process hung at exit; pre-120 they burned the full
+        # 2h max_duration and were recorded TIMED_OUT despite
+        # the clean completion.
+        stream_state, stream_reason = (
+            _runner_mod._classify_stream_terminal(
+                stream_path_for_classify)
+        )
+        if stream_state is not None:
+            # Reap the exit-hang if still alive.
+            if pid is not None and _pid_is_alive(pid):
+                _runner_mod._kill_process_tree(pid)
+            terminal = stream_state
+            terminal_reason = stream_reason
+            break
         if pid is None or not _pid_is_alive(pid):
-            # Process terminated. Determine terminal_state in
-            # priority order:
+            # Process terminated WITHOUT a terminal result
+            # event — Mode B path (run_playbook doesn't emit
+            # a Claude `result` envelope) or a Claude run
+            # that died before emitting its result. Use the
+            # artifact heuristic: gate-report-latest.json
+            # present ⇒ COMPLETED; otherwise FAILED.
             #
-            # v1.5.7 113: the LAST `result` event in the stream
-            #   is the authoritative signal when present —
-            #   `is_error:false` ⇒ COMPLETED (a clean Claude
-            #   result is "the run finished its turn"),
-            #   `is_error:true` ⇒ BLOCKED (AUP/api-error; 112
-            #   behavior preserved). Pre-113, the orphan
-            #   collector required `gate-report-latest.json`
-            #   for COMPLETED — the AUP-experiment showed two
-            #   Mode A gson runs completed cleanly (full
-            #   quality/ tree) WITHOUT that file and were
-            #   mislabeled FAILED. The `result` event closes
-            #   that gap.
-            #
-            #   No parseable `result` event ⇒ inconclusive →
-            #   fall back to artifact inference (Mode B path:
-            #   run_playbook doesn't emit a Claude `result`
-            #   envelope, so this branch keeps Mode B working).
-            # v1.5.7 118: resolve through the manifest helper
-            # so a moved/copied harness-run folder still finds
-            # its stream.
-            stream_path_for_classify = (
-                _resolve_entry_path(
-                    entry.get("stream_path", ""),
-                    harness_run_dir)
-                if entry.get("stream_path")
-                else run_dir / "stream.ndjson"
-            )
-            stream_state, stream_reason = (
-                _runner_mod._classify_stream_terminal(
-                    stream_path_for_classify)
-            )
-            if stream_state is not None:
-                terminal = stream_state
-                terminal_reason = stream_reason
-                break
-            # Fallback: artifact inference (Mode B / pre-113
-            # path). gate-report-latest.json present ⇒
-            # COMPLETED; otherwise FAILED.
+            # The 113 stream-classifier check is folded into
+            # the proactive-reap branch above; this branch is
+            # only reached when the classifier returned None
+            # (no terminal result event).
             gate_report = (
                 target_dir / "quality" / "results"
                 / "gate-report-latest.json"
@@ -2027,10 +2028,24 @@ def _collect_one_run_detached(
                 terminal = TerminalState.FAILED
             break
         if time.monotonic() >= deadline:
-            # Timeout — kill the process tree + record
-            # TIMED_OUT.
+            # Max-duration kill. v1.5.7 120: race-safe
+            # re-check the stream after the kill — the
+            # result event may have appeared between the
+            # last poll iteration and the deadline. Stream
+            # wins (the kill was reaping the exit-hang, not
+            # interrupting work). If still no result event,
+            # this is a GENUINE TIMED_OUT (no completion
+            # signal).
             _runner_mod._kill_process_tree(pid)
-            terminal = TerminalState.TIMED_OUT
+            stream_state, stream_reason = (
+                _runner_mod._classify_stream_terminal(
+                    stream_path_for_classify)
+            )
+            if stream_state is not None:
+                terminal = stream_state
+                terminal_reason = stream_reason
+            else:
+                terminal = TerminalState.TIMED_OUT
             break
         time.sleep(0.25)
 

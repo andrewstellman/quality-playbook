@@ -761,12 +761,61 @@ def collect_one_process(spec: LaunchSpec,
     ``TIMED_OUT``.
     """
     # waitpid with WNOHANG poll until budget exhausted.
+    #
+    # v1.5.7 120 — RE-ORDERED PRECEDENCE: a clean terminal
+    # `result` event (is_error:false) WINS OVER the
+    # max-duration kill. Pre-120 (112/113), TIMED_OUT took
+    # precedence over the stream classifier — so a run that
+    # completed cleanly but whose `claude --print` process
+    # hung at exit and got killed at the deadline (known
+    # behavior on long-running streams) was recorded
+    # TIMED_OUT → N/A despite emitting a successful result
+    # event. The AUP-experiment showed both Mode A gson
+    # runs hit this: GATE PASSED, is_error:false, but
+    # killed at 7200s and graded N/A.
+    #
+    # 120 also adds PROACTIVE REAP: the loop checks the
+    # stream for a terminal result event on every poll;
+    # when present, it kills any lingering process and
+    # classifies from the stream — instead of burning the
+    # full max_duration on the exit-hang.
     started = _utc_now_iso()
     deadline = time.monotonic() + max(0.0, spec.max_duration_s)
     exit_code = -1
     terminal_state = TerminalState.FAILED
+    terminal_reason = ""
     timed_out = False
     while True:
+        # v1.5.7 120: proactive reap on terminal result
+        # event. claude --print emits exactly one terminal
+        # `result` envelope at the end of its turn; once it
+        # appears, the run is done semantically — kill any
+        # exit-hang and classify from the stream.
+        stream_state, stream_reason = (
+            _classify_stream_terminal(spawn.stream_path))
+        if stream_state is not None:
+            # Reap (kill if still alive — exit-hang case).
+            try:
+                wpid, status = os.waitpid(
+                    spawn.pid, os.WNOHANG)
+            except ChildProcessError:
+                wpid, status = (spawn.pid, 0)
+            if wpid == 0:
+                # Still alive: kill it.
+                _kill_process_tree(spawn.pid)
+                try:
+                    _wpid, status = os.waitpid(spawn.pid, 0)
+                except ChildProcessError:
+                    status = 0
+            if os.WIFEXITED(status):
+                exit_code = os.WEXITSTATUS(status)
+            elif os.WIFSIGNALED(status):
+                exit_code = -os.WTERMSIG(status)
+            else:
+                exit_code = 0  # didn't really execute; clean state
+            terminal_state = stream_state
+            terminal_reason = stream_reason
+            break
         try:
             wpid, status = os.waitpid(spawn.pid, os.WNOHANG)
         except ChildProcessError:
@@ -780,9 +829,18 @@ def collect_one_process(spec: LaunchSpec,
                 exit_code = -os.WTERMSIG(status)
             else:
                 exit_code = -1
-            terminal_state = (TerminalState.COMPLETED
-                               if exit_code == 0
-                               else TerminalState.FAILED)
+            # v1.5.7 120: race-safe re-check — the result
+            # event may have appeared between the previous
+            # stream-check and waitpid. Stream wins.
+            stream_state, stream_reason = (
+                _classify_stream_terminal(spawn.stream_path))
+            if stream_state is not None:
+                terminal_state = stream_state
+                terminal_reason = stream_reason
+            else:
+                terminal_state = (TerminalState.COMPLETED
+                                   if exit_code == 0
+                                   else TerminalState.FAILED)
             break
         if time.monotonic() >= deadline:
             timed_out = True
@@ -796,25 +854,19 @@ def collect_one_process(spec: LaunchSpec,
                     exit_code = -os.WTERMSIG(status)
             except ChildProcessError:
                 pass
-            terminal_state = TerminalState.TIMED_OUT
+            # v1.5.7 120: stream wins over the deadline kill
+            # — a clean result event present at deadline
+            # means the run COMPLETED before the kill;
+            # the kill was just reaping the exit-hang.
+            stream_state, stream_reason = (
+                _classify_stream_terminal(spawn.stream_path))
+            if stream_state is not None:
+                terminal_state = stream_state
+                terminal_reason = stream_reason
+            else:
+                terminal_state = TerminalState.TIMED_OUT
             break
         time.sleep(0.05)
-    # v1.5.7 112: AUP / API-error refusal overrides exit-code
-    # logic — Claude Code's AUP refusal exits 0 with a
-    # `result` event carrying `is_error:true`, so the
-    # exit-code-only logic above mis-marked it COMPLETED
-    # (which then graded the partial quality/ tree as
-    # substantive failures). TIMED_OUT still wins (a kill is
-    # a kill, regardless of stream content); otherwise an
-    # API-error stream ⇒ BLOCKED.
-    terminal_reason = ""
-    if terminal_state != TerminalState.TIMED_OUT:
-        blocked, reason = _stream_ended_in_api_error(
-            spawn.stream_path
-        )
-        if blocked:
-            terminal_state = TerminalState.BLOCKED
-            terminal_reason = reason
     ended_at = _utc_now_iso()
     _write_status(spec.run_dir, {
         "state": "DONE",

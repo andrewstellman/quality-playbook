@@ -319,11 +319,23 @@ class CollectOneProcessAupBlockedTests(unittest.TestCase):
                 S.TerminalState.COMPLETED,
             )
 
-    def test_timed_out_precedence_over_blocked(self) -> None:
-        """If the run is killed by max-duration, terminal_state
-        is TIMED_OUT regardless of stream content. The kill is
-        the kill — even if the AI-CLI happened to write an AUP
-        refusal before being killed."""
+    def test_aup_stream_wins_over_max_duration_kill(
+            self) -> None:
+        """v1.5.7 120 reordered precedence: a terminal `result`
+        event WINS OVER the max-duration kill, because the kill
+        is just reaping a hung-at-exit process — it didn't
+        interrupt work that the stream already declared done.
+
+        Pre-120 (112's behavior, NOW SUPERSEDED): this test
+        asserted TIMED_OUT when the stream ended in AUP and
+        the process was killed at max_duration. The AUP-
+        experiment showed why that was wrong: two GATE-PASSED
+        Mode A gson runs hit the exit-hang and were graded
+        N/A. 120 inverts the precedence: stream wins.
+
+        For an AUP refusal specifically, the stream classifier
+        returns BLOCKED — that's now the recorded terminal
+        state even when the process needed killing."""
         with tempfile.TemporaryDirectory() as tmp:
             tmp_p = Path(tmp)
             run_dir = tmp_p / "run"
@@ -356,7 +368,7 @@ class CollectOneProcessAupBlockedTests(unittest.TestCase):
                     model="opus",
                 ),
                 case_id="c", run_id="r",
-                max_duration_s=0.5,  # 500ms — will time out
+                max_duration_s=0.5,  # 500ms — will trigger kill
                 prompt="(test)",
             )
             try:
@@ -365,13 +377,27 @@ class CollectOneProcessAupBlockedTests(unittest.TestCase):
                 proc.kill()
                 proc.wait(timeout=5)
                 raise
+            # v1.5.7 120: stream classifier wins. The AUP-
+            # shaped result event maps to BLOCKED; the
+            # max-duration kill doesn't override it.
             self.assertEqual(
                 result.terminal_state,
-                S.TerminalState.TIMED_OUT,
-                "112: TIMED_OUT precedence — max-duration kill "
-                "wins over BLOCKED even when the stream ended "
-                "in an AUP refusal",
+                S.TerminalState.BLOCKED,
+                "120: a terminal `result` event in the stream "
+                "MUST win over the max-duration kill — the kill "
+                "is just reaping the hung process; the stream "
+                "already classified the run.",
             )
+            # And terminal_reason (on status.json) carries the
+            # AUP body — same as 112's clean BLOCKED path.
+            status = json.loads(
+                (run_dir / "status.json").read_text(
+                    encoding="utf-8"))
+            self.assertEqual(
+                status["terminal_state"], "BLOCKED")
+            self.assertIn(
+                "Usage Policy",
+                status.get("terminal_reason", ""))
 
 
 # ---------------------------------------------------------------------------
