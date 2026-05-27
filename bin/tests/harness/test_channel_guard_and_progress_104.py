@@ -141,7 +141,7 @@ class ChannelIndependenceLaunchRunSmokeTests(unittest.TestCase):
             )
             # Patch command builder to return a no-op echo.
             def _fake_cmd(axes, prompt, target_dir=None,
-                           parameters=None):
+                           parameters=None, **kwargs):
                 return [sys.executable, "-c", "pass"]
             with mock.patch(
                 "bin.harness.runner._command_for_axes",

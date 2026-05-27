@@ -358,7 +358,8 @@ class StdinRoutingE2ETests(unittest.TestCase):
     def test_codex_axis_routes_prompt_to_stdin(self) -> None:
         # Synthetic command that echoes stdin to stdout — exits
         # cleanly. Used as a codex stand-in.
-        def _fake(axes, prompt, target_dir=None, parameters=None):
+        def _fake(axes, prompt, target_dir=None,
+                   parameters=None, **kwargs):
             return [sys.executable, "-c",
                      "import sys; sys.stdout.write(sys.stdin.read())"]
         R._command_for_axes = _fake  # type: ignore[assignment]

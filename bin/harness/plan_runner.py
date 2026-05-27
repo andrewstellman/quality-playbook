@@ -1693,6 +1693,31 @@ def _launch_one_run_detached(
         )
     else:
         launch_prompt = "(Mode B — run_playbook drives the phases)"
+    # v1.5.7 123: materialize a PRISTINE QPB worktree at HEAD
+    # for Mode B runs ONLY, so run_playbook's source-guard
+    # (`_check_qpb_source_unchanged`) sees a clean tree and
+    # doesn't abort Phase 1 — even when the live harness clone
+    # has uncommitted dev changes (the AUP-experiment's
+    # Mode B failure mode). Lifecycle: created at launch
+    # here, removed at collect time in
+    # `_collect_one_run_detached`. Mode A doesn't go through
+    # run_playbook → doesn't need a pristine worktree.
+    pristine_root: "Optional[Path]" = None
+    if plan_run.mode == Mode.B:
+        try:
+            pristine_root = (
+                _runner_mod._materialize_pristine_qpb_tree())
+            _log(
+                f"123: pristine QPB worktree materialized at "
+                f"{pristine_root} for Mode B run "
+                f"(immune to live dev-tree dirtiness)"
+            )
+        except _runner_mod.RunnerError as exc:
+            _log(
+                f"123: pristine worktree materialization "
+                f"failed: {exc} — falling back to live clone "
+                f"(may abort at Phase 1 if dev tree is dirty)"
+            )
     launch_spec = _runner_mod.LaunchSpec(
         target_dir=prep_target_dir,
         run_dir=run_dir,
@@ -1702,6 +1727,7 @@ def _launch_one_run_detached(
         max_duration_s=effective_max_duration_s,
         prompt=launch_prompt,
         parameters=(plan_run.parameters or None),
+        pristine_root=pristine_root,
     )
     _log(
         f"launch {plan_run.runner.value}/{plan_run.model} "
@@ -1766,6 +1792,13 @@ def _launch_one_run_detached(
         # Per-run prompt for receipt completeness.
         "prompt": (plan_run.prompt
                     if plan_run.prompt else launch_prompt),
+        # v1.5.7 123: per-run pristine Mode B worktree
+        # (created at launch above; removed at collect-time
+        # in `_collect_one_run_detached`). Manifest carries
+        # the path so the collector can find + remove it.
+        # None for Mode A runs.
+        "pristine_root": (str(pristine_root)
+                          if pristine_root is not None else None),
     }
 
 
@@ -2124,6 +2157,21 @@ def _collect_one_run_detached(
             if phase_yn.get(p) == "N":
                 phase_yn[p] = "-"
     gate_verdict = _gate_verdict_str(terminal, facts)
+    # v1.5.7 123: tear down the per-run pristine Mode B
+    # worktree (if any). Created at launch in
+    # `_launch_one_run_detached`; removed here so a
+    # long-lived harness session doesn't leak worktrees.
+    # Best-effort — a failed teardown is logged but doesn't
+    # block the grade result.
+    pristine = entry.get("pristine_root")
+    if pristine:
+        try:
+            _runner_mod._remove_pristine_qpb_tree(
+                Path(pristine))
+            _log(f"123: removed pristine worktree {pristine}")
+        except Exception as exc:  # pragma: no cover
+            _log(f"123: pristine worktree cleanup "
+                 f"failed (best-effort): {exc}")
     _log(f"DONE: gate={gate_verdict} result={result_label}")
     return RunOutcome(
         index=plan_run.index,

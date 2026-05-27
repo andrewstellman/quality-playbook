@@ -21,9 +21,11 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -89,6 +91,14 @@ class LaunchSpec:
     # ``["-c", "model_reasoning_effort=\"low\""]`` → spliced
     # between ``codex`` and ``exec``. Default empty list.
     parameters: "list[str]" = None  # type: ignore[assignment]
+    # v1.5.7 123: Mode B per-run pristine QPB worktree path.
+    # Set by the launch site (`_launch_one_run_detached`) for
+    # Mode B runs ONLY; cleared after collect via
+    # `_remove_pristine_qpb_tree`. Threaded through
+    # `_command_for_axes` ⇒ `_mode_b_command` so the argv
+    # names the worktree's `bin/run_playbook.py`. Mode A
+    # ignores this field.
+    pristine_root: "Path | None" = None
 
 
 @dataclass
@@ -388,9 +398,111 @@ def _resolve_run_playbook_script(
     return script_path
 
 
+def _qpb_clone_root_for_mode_b() -> Path:
+    """v1.5.7 123: the QPB clone root the harness runs from
+    (where ``runner.py`` lives at ``<root>/bin/harness/``).
+    Used as the source for the per-run pristine worktree
+    materialization."""
+    return Path(__file__).resolve().parents[2]
+
+
+def _materialize_pristine_qpb_tree() -> Path:
+    """v1.5.7 123: materialize a PRISTINE QPB source tree at
+    HEAD via ``git worktree add --detach <tmp> HEAD``,
+    return the worktree path.
+
+    Why: run_playbook's source-guard
+    (``_check_qpb_source_unchanged`` in bin/run_playbook.py)
+    compares the QPB checkout against committed HEAD and
+    aborts Phase 1 if ANY tracked source file differs. The
+    harness dev tree almost always has uncommitted changes
+    (``bin/harness/acceptance_plan.json``, etc.), so the
+    pre-123 Mode B launch from the live clone (114) ALWAYS
+    aborted at Phase 1 with "QPB source files modified
+    during run" — even though nothing changed during the
+    run, the pre-existing uncommitted state vs HEAD tripped
+    the guard.
+
+    A worktree at HEAD starts CLEAN (no uncommitted
+    changes), so run_playbook's guard sees a clean tree and
+    proceeds. Per-Mode-B-run: materialize at launch, remove
+    at collect.
+
+    Returns the absolute path to the worktree directory.
+    Raises ``RunnerError`` on git failure (clone isn't a
+    repo, etc.). Cleans up the tmp directory on partial
+    failure to avoid leaking.
+    """
+    qpb_clone = _qpb_clone_root_for_mode_b()
+    tmp = Path(tempfile.mkdtemp(
+        prefix="qpb-mode-b-pristine-"))
+    try:
+        # git worktree add --detach <path> HEAD: creates a
+        # linked worktree at <path>, detached at the current
+        # HEAD commit. Detached so it doesn't conflict with
+        # branches in the main repo.
+        subprocess.run(
+            ["git", "worktree", "add", "--detach",
+              str(tmp), "HEAD"],
+            cwd=str(qpb_clone),
+            check=True, capture_output=True, text=True,
+            timeout=60,
+        )
+    except subprocess.CalledProcessError as exc:
+        # Clean up the empty tmp dir + propagate.
+        with contextlib.suppress(Exception):
+            shutil.rmtree(tmp, ignore_errors=True)
+        raise RunnerError(
+            f"123: git worktree add failed for "
+            f"pristine Mode B tree: "
+            f"{exc.stderr[-300:] if exc.stderr else exc}"
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        with contextlib.suppress(Exception):
+            shutil.rmtree(tmp, ignore_errors=True)
+        raise RunnerError(
+            f"123: pristine worktree materialization "
+            f"failed: {exc}"
+        )
+    # Verify the worktree has the run_playbook script we
+    # need (defense against an incomplete checkout).
+    script = tmp / "bin" / "run_playbook.py"
+    if not script.is_file():
+        _remove_pristine_qpb_tree(tmp)
+        raise RunnerError(
+            f"123: pristine worktree at {tmp} missing "
+            f"bin/run_playbook.py — checkout incomplete?"
+        )
+    return tmp
+
+
+def _remove_pristine_qpb_tree(tree: Path) -> None:
+    """v1.5.7 123: tear down a pristine Mode B worktree.
+    Best-effort: ``git worktree remove --force`` from the
+    main QPB clone (so the worktree registration is cleaned
+    up too — without this `git worktree list` would leak
+    entries), then ``shutil.rmtree`` as a belt-and-
+    suspenders cleanup. Both steps suppress errors so a
+    failed teardown doesn't break the collect path."""
+    qpb_clone = _qpb_clone_root_for_mode_b()
+    with contextlib.suppress(Exception):
+        subprocess.run(
+            ["git", "worktree", "remove", "--force",
+              str(tree)],
+            cwd=str(qpb_clone),
+            check=False, capture_output=True, text=True,
+            timeout=30,
+        )
+    with contextlib.suppress(Exception):
+        if tree.exists():
+            shutil.rmtree(tree, ignore_errors=True)
+
+
 def _mode_b_command(runner: Runner, target_dir: Path,
                      model: str,
                      parameters: "list[str] | None" = None,
+                     *,
+                     pristine_root: "Path | None" = None,
                      ) -> "list[str]":
     """v1.5.7 095 Phase 5: Mode B reuses ``bin.run_playbook`` as
     the canonical harness (per design §G — "run_playbook.py IS
@@ -441,7 +553,24 @@ def _mode_b_command(runner: Runner, target_dir: Path,
         Runner.COPILOT: "--copilot",
         Runner.CURSOR: "--cursor",
     }[runner]
-    script_path = _resolve_run_playbook_script(target_dir)
+    # v1.5.7 123: when a per-Mode-B pristine HEAD worktree
+    # was materialized at launch (the harness lifecycle —
+    # see ``_materialize_pristine_qpb_tree``), invoke
+    # run_playbook from THERE. The pristine tree is clean
+    # vs HEAD so run_playbook's source-guard
+    # (`_check_qpb_source_unchanged`) sees no diff and
+    # doesn't abort Phase 1 — even when the live harness
+    # clone has uncommitted dev changes.
+    #
+    # Falls back to the QPB-clone path (114) when no
+    # pristine_root is supplied (e.g. unit tests for the
+    # argv shape that don't need a real materialization).
+    if pristine_root is not None:
+        script_path = (Path(pristine_root)
+                        / "bin" / "run_playbook.py")
+    else:
+        script_path = _resolve_run_playbook_script(
+            target_dir)
     return [
         sys.executable, str(script_path),
         flag, "--model", model,
@@ -464,6 +593,8 @@ def _needs_stdin_prompt(runner: Runner) -> bool:
 def _command_for_axes(axes: RunAxes, prompt: str,
                        target_dir: "Path | None" = None,
                        parameters: "list[str] | None" = None,
+                       *,
+                       pristine_root: "Path | None" = None,
                        ) -> "list[str]":
     """v1.5.7 095 Phase 5: dispatch to the right adapter.
 
@@ -500,8 +631,12 @@ def _command_for_axes(axes: RunAxes, prompt: str,
             )
         # v1.5.7 106: forward `parameters` so plan runs can
         # select phases (e.g. `--phase 3`) in Mode B.
+        # v1.5.7 123: forward `pristine_root` so Mode B runs
+        # run_playbook from the per-run pristine HEAD
+        # worktree instead of the (possibly-dirty) live clone.
         return _mode_b_command(axes.runner, target_dir, axes.model,
-                                parameters=parameters)
+                                parameters=parameters,
+                                pristine_root=pristine_root)
     # Mode A — per-runner Mode A invocation.
     if axes.runner == Runner.CLAUDE:
         return _claude_command(axes.model, prompt, axes.thinking,
@@ -558,7 +693,8 @@ def launch_run_async(spec: LaunchSpec) -> SpawnResult:
     spec.run_dir.mkdir(parents=True, exist_ok=True)
     cmd = _command_for_axes(spec.axes, spec.prompt,
                               target_dir=spec.target_dir,
-                              parameters=spec.parameters)
+                              parameters=spec.parameters,
+                              pristine_root=spec.pristine_root)
     cli_command = " ".join(cmd)
     needs_stdin = (
         spec.axes.mode != Mode.B
@@ -928,6 +1064,9 @@ __all__ = [
     "_resolve_run_playbook_script",
     "_sanitize_mode_b_env",
     "_mode_b_agent_marker_vars",
+    "_qpb_clone_root_for_mode_b",
+    "_materialize_pristine_qpb_tree",
+    "_remove_pristine_qpb_tree",
     "_command_for_axes",
     "_needs_stdin_prompt",
     "_vendor_env_for",

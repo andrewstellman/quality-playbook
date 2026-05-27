@@ -98,7 +98,7 @@ class LaunchRunAsyncTests(unittest.TestCase):
             # no-op subprocess (so the SpawnResult has a real
             # PID).
             def _fake_cmd(axes, prompt, target_dir=None,
-                           parameters=None):
+                           parameters=None, **kwargs):
                 return [sys.executable, "-c",
                         "import time; time.sleep(0.05)"]
 
