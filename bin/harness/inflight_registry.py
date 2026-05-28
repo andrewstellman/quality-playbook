@@ -45,7 +45,7 @@ invocations + the collector all touch the same file).
 {
   "entries": [
     {
-      "pid": <int>,                   # subprocess pid; 0 = reserving (pre-launch)
+      "pid": <int>,                   # subprocess pid; 0 = reserving (pre-launch); entries older than QPB_HARNESS_PID0_MAX_AGE_S (default 300 s) are reaped as crash-leak phantoms by the next read_active_runs (v1.5.7 126 — recovery is now AUTOMATIC, no manual rm needed)
       "runner": "claude" | "codex" | "copilot" | "cursor",
       "provider": "anthropic" | "openai" | "github" | "cursor",
       "harness_run_dir": "<absolute path>",
@@ -82,6 +82,7 @@ import fcntl
 import json
 import os
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -117,6 +118,23 @@ DEFAULT_MAX_PER_PROVIDER: "dict[str, int]" = {
 _DEFAULT_REGISTRY_PATH = (
     Path.home() / ".qpb_harness" / "inflight.json"
 )
+
+
+# v1.5.7 126: age-out for ``pid=0`` reservations. The
+# legitimate acquire_run_slot→update_pid window is
+# microseconds; 5 minutes is conservatively beyond any
+# realistic Popen latency (including a heavy
+# ``git worktree add --detach`` Mode B preflight). A
+# ``pid=0`` entry older than this is a phantom reservation
+# left by a launcher HARD-killed (SIGKILL/OOM/power-loss)
+# between acquire and update_pid — bypassing the
+# ``except BaseException → release_run_slot`` cleanup — so
+# it gets reaped on the next ``read_active_runs``. Without
+# this, such a phantom over-counts the provider cap FOREVER
+# (fails SAFE — blocks launches, never over-fans-out — but
+# requires manual ``rm`` of the registry to recover).
+# Override per-invocation via ``QPB_HARNESS_PID0_MAX_AGE_S``.
+_PID_ZERO_MAX_AGE_S: float = 300.0
 
 
 # ---------------------------------------------------------------------------
@@ -257,18 +275,71 @@ def _locked_registry(path: Path):
             fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
 
+def _pid_zero_max_age_s() -> float:
+    """v1.5.7 126: resolve the ``pid=0`` age-out threshold.
+    Read ``QPB_HARNESS_PID0_MAX_AGE_S`` at CALL time (not
+    import) so operators can set it per-invocation. Permissive
+    (mirrors ``parse_max_per_provider_spec``): an unset,
+    malformed, or non-positive value falls through to the
+    ``_PID_ZERO_MAX_AGE_S`` default rather than raising."""
+    raw = os.environ.get("QPB_HARNESS_PID0_MAX_AGE_S")
+    if raw is None:
+        return _PID_ZERO_MAX_AGE_S
+    try:
+        val = float(raw)
+    except (ValueError, TypeError):
+        return _PID_ZERO_MAX_AGE_S
+    if val <= 0:
+        return _PID_ZERO_MAX_AGE_S
+    return val
+
+
+def _parse_iso_utc(value: "object") -> "Optional[datetime]":
+    """Parse an ISO-8601 UTC timestamp (the
+    ``%Y-%m-%dT%H:%M:%SZ`` shape the harness writes for
+    ``started_at``) into an aware ``datetime``. Returns
+    ``None`` on any parse failure — the caller treats that
+    as 'leave alone', NOT 'reap'."""
+    if not isinstance(value, str) or not value:
+        return None
+    text = value
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        dt = datetime.fromisoformat(text)
+    except (ValueError, TypeError):
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
 def _entry_is_active(entry: dict) -> bool:
     """An entry is ACTIVE when:
       - ``pid == 0`` (reserved — slot held during the
         microseconds between ``acquire_run_slot`` and
-        ``update_pid``), OR
+        ``update_pid``) AND it's younger than the
+        ``pid=0`` age-out threshold (v1.5.7 126), OR
       - the pid is alive per ``_pid_alive``.
 
     A dead-pid entry is INACTIVE and gets pruned on the
-    next read_active_runs call."""
+    next read_active_runs call.
+
+    v1.5.7 126: a ``pid=0`` entry older than
+    ``_pid_zero_max_age_s()`` is a phantom reservation left
+    by a launcher HARD-killed between acquire and update_pid
+    (bypassing the ``except BaseException`` release). It's
+    reaped so the provider cap recovers automatically. A
+    missing/malformed ``started_at`` is treated as fresh
+    (return True) — never mass-reap on a parse failure."""
     pid = entry.get("pid", 0)
     if pid == 0:
-        return True
+        started = _parse_iso_utc(entry.get("started_at"))
+        if started is None:
+            return True
+        age = (datetime.now(timezone.utc)
+               - started).total_seconds()
+        return age <= _pid_zero_max_age_s()
     return _pid_alive(pid)
 
 
@@ -494,4 +565,7 @@ __all__ = [
     "_pid_alive",
     "_entry_is_active",
     "_locked_registry",
+    "_pid_zero_max_age_s",
+    "_parse_iso_utc",
+    "_PID_ZERO_MAX_AGE_S",
 ]

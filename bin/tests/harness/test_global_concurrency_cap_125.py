@@ -72,11 +72,13 @@ from __future__ import annotations
 import argparse
 import io
 import os
+import json
 import threading
 import time
 import unittest
 import unittest.mock as mock
 from contextlib import redirect_stdout
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -87,6 +89,33 @@ def _registry_in(tmp: Path) -> Path:
     """Per-test registry path so tests don't interfere with
     each other or the operator's real registry."""
     return tmp / "inflight.json"
+
+
+def _iso(dt: datetime) -> str:
+    """v1.5.7 126: render a UTC datetime in the
+    ``%Y-%m-%dT%H:%M:%SZ`` shape the harness writes for
+    ``started_at`` (so age-out parse matches production)."""
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _now_iso() -> str:
+    """v1.5.7 126: a FRESH ``started_at`` — production's
+    ``acquire_run_slot`` always passes ``now``, so a legitimate
+    ``pid=0`` placeholder is always within the age-out window.
+    Tests that plant pid=0 reservations and read them back as
+    active MUST use this (a fixed past date would be reaped as
+    a crash-leak phantom by the 126 age-out)."""
+    return _iso(datetime.now(timezone.utc))
+
+
+def _write_registry(reg: Path, entries: "list[dict]") -> None:
+    """v1.5.7 126: write a registry file with the given
+    entries directly — lets a test plant a phantom ``pid=0``
+    entry with a controlled ``started_at`` without sleeping."""
+    reg.parent.mkdir(parents=True, exist_ok=True)
+    reg.write_text(
+        json.dumps({"entries": entries}, indent=2) + "\n",
+        encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +190,7 @@ class AcquireUpdateReleaseTests(unittest.TestCase):
                 runner="claude",
                 harness_run_dir=tmp / "h1",
                 run_index=0,
-                started_at="2026-05-27T00:00:00Z",
+                started_at=_now_iso(),
                 max_per_provider={"anthropic": 2},
                 registry_path=reg,
             )
@@ -180,7 +209,7 @@ class AcquireUpdateReleaseTests(unittest.TestCase):
                 runner="claude",
                 harness_run_dir=tmp / "h1",
                 run_index=0,
-                started_at="2026-05-27T00:00:00Z",
+                started_at=_now_iso(),
                 max_per_provider={"anthropic": 2},
                 registry_path=reg,
             )
@@ -202,7 +231,7 @@ class AcquireUpdateReleaseTests(unittest.TestCase):
                 runner="claude",
                 harness_run_dir=tmp / "h1",
                 run_index=0,
-                started_at="2026-05-27T00:00:00Z",
+                started_at=_now_iso(),
                 max_per_provider={"anthropic": 2},
                 registry_path=reg,
             )
@@ -249,7 +278,7 @@ class DeadPidReapTests(unittest.TestCase):
                 runner="claude",
                 harness_run_dir=tmp / "h1",
                 run_index=0,
-                started_at="2026-05-27T00:00:00Z",
+                started_at=_now_iso(),
                 max_per_provider={"anthropic": 2},
                 registry_path=reg,
             )
@@ -264,6 +293,189 @@ class DeadPidReapTests(unittest.TestCase):
             )
             self.assertEqual(
                 IR.read_active_runs(registry_path=reg), [])
+
+
+# ---------------------------------------------------------------------------
+# v1.5.7 126 — pid=0 reservation age-out (crash-leak recovery)
+# ---------------------------------------------------------------------------
+
+
+class Pid0AgeOutTests(unittest.TestCase):
+    """v1.5.7 126: a ``pid=0`` reservation is held under the
+    lock between ``acquire_run_slot`` and ``update_pid`` (a
+    microsecond window). If the launcher is HARD-killed
+    (SIGKILL/OOM/power-loss) in that window — bypassing the
+    ``except BaseException → release_run_slot`` cleanup — the
+    ``pid=0`` entry leaks FOREVER and over-counts the provider
+    cap (fails SAFE, but blocks new launches until the operator
+    manually ``rm``s the registry). 126 reaps ``pid=0`` entries
+    older than ``QPB_HARNESS_PID0_MAX_AGE_S`` (default 300 s)
+    on the next ``read_active_runs`` — recovery is automatic.
+
+    Time is mocked by writing ``started_at`` strings computed
+    from a fixed ``now`` — no sleeping."""
+
+    def test_pid_zero_within_window_stays_active(self) -> None:
+        # A fresh pid=0 reservation (started just now) is the
+        # LEGITIMATE placeholder — must NOT be reaped.
+        # Mutation-bite: an over-eager age-out that reaps fresh
+        # pid=0 entries fails this.
+        with TemporaryDirectory() as td:
+            reg = _registry_in(Path(td))
+            now = datetime.now(timezone.utc)
+            _write_registry(reg, [{
+                "pid": 0,
+                "runner": "claude",
+                "provider": "anthropic",
+                "harness_run_dir": str(Path(td) / "h1"),
+                "run_index": 0,
+                "started_at": _iso(now),
+            }])
+            active = IR.read_active_runs(registry_path=reg)
+            self.assertEqual(len(active), 1)
+            self.assertEqual(active[0]["pid"], 0)
+
+    def test_pid_zero_aged_out_is_pruned(self) -> None:
+        # A pid=0 entry older than the 300 s default is a
+        # phantom — reaped, AND the file rewritten without it.
+        # Mutation-bite: remove the age check ⇒ stale pid=0
+        # survives ⇒ this FAILS.
+        with TemporaryDirectory() as td:
+            reg = _registry_in(Path(td))
+            stale = datetime.now(timezone.utc) - timedelta(
+                minutes=10)
+            _write_registry(reg, [{
+                "pid": 0,
+                "runner": "claude",
+                "provider": "anthropic",
+                "harness_run_dir": str(Path(td) / "h1"),
+                "run_index": 0,
+                "started_at": _iso(stale),
+            }])
+            active = IR.read_active_runs(
+                registry_path=reg, prune_dead=True)
+            self.assertEqual(active, [])
+            # File rewritten without the phantom.
+            on_disk = json.loads(reg.read_text(encoding="utf-8"))
+            self.assertEqual(on_disk["entries"], [])
+
+    def test_pid_zero_threshold_env_override(self) -> None:
+        # With QPB_HARNESS_PID0_MAX_AGE_S=60, an entry aged
+        # 120 s is reaped (would survive under the 300 s
+        # default).
+        with TemporaryDirectory() as td:
+            reg = _registry_in(Path(td))
+            aged = datetime.now(timezone.utc) - timedelta(
+                seconds=120)
+            _write_registry(reg, [{
+                "pid": 0,
+                "runner": "claude",
+                "provider": "anthropic",
+                "harness_run_dir": str(Path(td) / "h1"),
+                "run_index": 0,
+                "started_at": _iso(aged),
+            }])
+            # Sanity: survives under the default.
+            self.assertEqual(
+                len(IR.read_active_runs(registry_path=reg)), 1)
+            # Reaped under the tighter env override.
+            with mock.patch.dict(
+                    os.environ,
+                    {"QPB_HARNESS_PID0_MAX_AGE_S": "60"}):
+                self.assertEqual(
+                    IR.read_active_runs(registry_path=reg), [])
+
+    def test_pid_zero_with_malformed_started_at_left_alone(
+            self) -> None:
+        # Don't mass-reap on a parse failure — a malformed
+        # started_at is treated as fresh (errs toward keeping
+        # legitimate entries).
+        with TemporaryDirectory() as td:
+            reg = _registry_in(Path(td))
+            _write_registry(reg, [{
+                "pid": 0,
+                "runner": "claude",
+                "provider": "anthropic",
+                "harness_run_dir": str(Path(td) / "h1"),
+                "run_index": 0,
+                "started_at": "not-an-iso-string",
+            }])
+            active = IR.read_active_runs(registry_path=reg)
+            self.assertEqual(len(active), 1)
+
+    def test_pid_zero_after_update_pid_unaffected(self) -> None:
+        # The legitimate path: acquire → update_pid with a live
+        # pid. The pid swap supersedes the pid=0 age check, so
+        # even a stale started_at doesn't matter — _pid_alive is
+        # the sole decider once pid > 0.
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            reg = _registry_in(tmp)
+            stale = datetime.now(timezone.utc) - timedelta(
+                minutes=10)
+            IR.acquire_run_slot(
+                runner="claude",
+                harness_run_dir=tmp / "h1",
+                run_index=0,
+                started_at=_iso(stale),
+                max_per_provider={"anthropic": 2},
+                registry_path=reg,
+            )
+            IR.update_pid(
+                harness_run_dir=tmp / "h1",
+                run_index=0,
+                pid=os.getpid(),  # this test — guaranteed alive
+                registry_path=reg,
+            )
+            active = IR.read_active_runs(registry_path=reg)
+            self.assertEqual(len(active), 1)
+            self.assertEqual(active[0]["pid"], os.getpid())
+
+    def test_acquire_after_phantom_reap_succeeds(self) -> None:
+        # **Load-bearing operator-experience test.** Cap=2 with
+        # two entries: one healthy (live pid) + one phantom
+        # pid=0 aged 10 min. A new acquire SUCCEEDS because the
+        # phantom is reaped under the lock during the
+        # active-count read — proving the leak is recoverable
+        # WITHOUT a manual rm.
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            reg = _registry_in(tmp)
+            now = datetime.now(timezone.utc)
+            stale = now - timedelta(minutes=10)
+            _write_registry(reg, [
+                {
+                    "pid": os.getpid(),   # healthy, alive
+                    "runner": "claude",
+                    "provider": "anthropic",
+                    "harness_run_dir": str(tmp / "h1"),
+                    "run_index": 0,
+                    "started_at": _iso(now),
+                },
+                {
+                    "pid": 0,             # phantom, aged out
+                    "runner": "claude",
+                    "provider": "anthropic",
+                    "harness_run_dir": str(tmp / "h2"),
+                    "run_index": 0,
+                    "started_at": _iso(stale),
+                },
+            ])
+            # Without the age-out, anthropic count = 2 = cap ⇒
+            # this would TimeoutError. With it, the phantom is
+            # reaped ⇒ count drops to 1 ⇒ acquire succeeds.
+            IR.acquire_run_slot(
+                runner="claude",
+                harness_run_dir=tmp / "h3",
+                run_index=0,
+                started_at=_iso(now),
+                max_per_provider={"anthropic": 2},
+                registry_path=reg,
+                poll_interval_s=0.01,
+                max_wait_s=0.2,
+            )
+            counts = IR.counts_by_provider(registry_path=reg)
+            self.assertEqual(counts.get("anthropic"), 2)
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +503,7 @@ class PerPlanPoolLifetimeSlotTests(unittest.TestCase):
                     runner="claude",
                     harness_run_dir=tmp / "h1",
                     run_index=i,
-                    started_at="2026-05-27T00:00:00Z",
+                    started_at=_now_iso(),
                     max_per_provider={"anthropic": 10},
                     plan_pool_cap=2,
                     registry_path=reg,
@@ -306,7 +518,7 @@ class PerPlanPoolLifetimeSlotTests(unittest.TestCase):
                     runner="claude",
                     harness_run_dir=tmp / "h1",
                     run_index=2,
-                    started_at="2026-05-27T00:00:00Z",
+                    started_at=_now_iso(),
                     max_per_provider={"anthropic": 10},
                     plan_pool_cap=2,
                     registry_path=reg,
@@ -326,7 +538,7 @@ class PerPlanPoolLifetimeSlotTests(unittest.TestCase):
                     runner="claude",
                     harness_run_dir=tmp / "h1",
                     run_index=i,
-                    started_at="2026-05-27T00:00:00Z",
+                    started_at=_now_iso(),
                     max_per_provider={"anthropic": 10},
                     plan_pool_cap=2,
                     registry_path=reg,
@@ -345,7 +557,7 @@ class PerPlanPoolLifetimeSlotTests(unittest.TestCase):
                         runner="claude",
                         harness_run_dir=tmp / "h1",
                         run_index=2,
-                        started_at="2026-05-27T00:00:00Z",
+                        started_at=_now_iso(),
                         max_per_provider={"anthropic": 10},
                         plan_pool_cap=2,
                         registry_path=reg,
@@ -402,7 +614,7 @@ class GlobalPerProviderCapTests(unittest.TestCase):
                     runner="claude",
                     harness_run_dir=tmp / plan,
                     run_index=0,
-                    started_at="2026-05-27T00:00:00Z",
+                    started_at=_now_iso(),
                     max_per_provider={"anthropic": 2},
                     registry_path=reg,
                 )
@@ -418,7 +630,7 @@ class GlobalPerProviderCapTests(unittest.TestCase):
                     runner="claude",
                     harness_run_dir=tmp / "h3",
                     run_index=0,
-                    started_at="2026-05-27T00:00:00Z",
+                    started_at=_now_iso(),
                     max_per_provider={"anthropic": 2},
                     registry_path=reg,
                     poll_interval_s=0.01,
@@ -438,7 +650,7 @@ class GlobalPerProviderCapTests(unittest.TestCase):
                     runner="claude",
                     harness_run_dir=tmp / f"h{i}",
                     run_index=0,
-                    started_at="2026-05-27T00:00:00Z",
+                    started_at=_now_iso(),
                     max_per_provider={
                         "anthropic": 2, "openai": 3},
                     registry_path=reg,
@@ -455,7 +667,7 @@ class GlobalPerProviderCapTests(unittest.TestCase):
                 runner="codex",
                 harness_run_dir=tmp / "h-oai",
                 run_index=0,
-                started_at="2026-05-27T00:00:00Z",
+                started_at=_now_iso(),
                 max_per_provider={
                     "anthropic": 2, "openai": 3},
                 registry_path=reg,
@@ -490,7 +702,7 @@ class LockSafetyTests(unittest.TestCase):
                 runner="claude",
                 harness_run_dir=tmp / "h0",
                 run_index=0,
-                started_at="2026-05-27T00:00:00Z",
+                started_at=_now_iso(),
                 max_per_provider={"anthropic": 2},
                 registry_path=reg,
             )
@@ -512,7 +724,7 @@ class LockSafetyTests(unittest.TestCase):
                         runner="claude",
                         harness_run_dir=tmp / plan_name,
                         run_index=0,
-                        started_at="2026-05-27T00:00:00Z",
+                        started_at=_now_iso(),
                         max_per_provider={"anthropic": 2},
                         registry_path=reg,
                         poll_interval_s=0.01,
@@ -560,7 +772,7 @@ class GlobalSummaryTests(unittest.TestCase):
                 runner="claude",
                 harness_run_dir=tmp / "h1",
                 run_index=0,
-                started_at="2026-05-27T00:00:00Z",
+                started_at=_now_iso(),
                 max_per_provider={"anthropic": 2},
                 registry_path=reg,
             )
@@ -573,7 +785,7 @@ class GlobalSummaryTests(unittest.TestCase):
                 runner="claude",
                 harness_run_dir=tmp / "h2",
                 run_index=0,
-                started_at="2026-05-27T00:00:00Z",
+                started_at=_now_iso(),
                 max_per_provider={"anthropic": 2},
                 registry_path=reg,
             )
@@ -586,7 +798,7 @@ class GlobalSummaryTests(unittest.TestCase):
                 runner="codex",
                 harness_run_dir=tmp / "h-oai",
                 run_index=0,
-                started_at="2026-05-27T00:00:00Z",
+                started_at=_now_iso(),
                 max_per_provider={"openai": 3},
                 registry_path=reg,
             )
@@ -659,7 +871,7 @@ class CLIIntegrationTests(unittest.TestCase):
                     runner="claude",
                     harness_run_dir=tmp / "h1",
                     run_index=0,
-                    started_at="2026-05-27T00:00:00Z",
+                    started_at=_now_iso(),
                     max_per_provider={"anthropic": 2},
                     registry_path=reg,
                 )
