@@ -556,6 +556,14 @@ def _mode_b_command(runner: Runner, target_dir: Path,
     field routes to the runner CLI (per 100); the contract is
     "``parameters`` routes to whichever subprocess this run
     launches".
+
+    v1.5.7 129: to forward runner-CLI args (e.g. codex
+    ``-c model_reasoning_effort=low``) through Mode B, use
+    ``parameters=["--runner-extra-args", "<shell-quoted string>"]``
+    — run_playbook now recognizes ``--runner-extra-args`` and
+    shlex-splits the value into the runner argv. No code change
+    here; the existing ``parameters``→run_playbook splice carries
+    the new flag because run_playbook understands it.
     """
     flag = {
         Runner.CLAUDE: "--claude",

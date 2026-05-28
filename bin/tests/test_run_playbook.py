@@ -3002,7 +3002,8 @@ class IterationProgressHeartbeatTests(unittest.TestCase):
             (repo / "quality" / "EXPLORATION.md").write_text("ok\n")
 
             def fake_run_prompt(repo_dir, prompt, pass_name, output_file,
-                                log_file, runner, model):
+                                log_file, runner, model,
+                                runner_extra_args=None):
                 output_file.parent.mkdir(parents=True, exist_ok=True)
                 output_file.write_text(f"[stub] {pass_name}\n")
                 return 0

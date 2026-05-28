@@ -503,6 +503,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--model", help="Runner model override (copilot: gpt-5.5, claude: sonnet/opus/etc, codex: gpt-5-codex/etc).")
     parser.add_argument(
+        "--runner-extra-args",
+        dest="runner_extra_args",
+        default=None,
+        help=(
+            "Extra argv tokens passed VERBATIM to the runner CLI "
+            "(codex/claude/copilot/cursor), parsed via shlex. "
+            "Example: --runner-extra-args '-c "
+            "model_reasoning_effort=\\\"low\\\"' to forward codex's "
+            "config flag. Run_playbook does NOT interpret these "
+            "tokens — they go through unchanged. v1.5.7 instruction "
+            "129."
+        ),
+    )
+    parser.add_argument(
         "--no-formal-docs",
         dest="no_formal_docs",
         action="store_true",
@@ -1520,11 +1534,42 @@ def _resolve_runner_command(argv: List[str]) -> List[str]:
     return [resolved] + list(argv[1:])
 
 
-def command_for_runner(runner: str, prompt: str, model: Optional[str]) -> List[str]:
+def _splice_copilot_extra(
+        base: List[str], extra: List[str]) -> List[str]:
+    """v1.5.7 129: insert runner-extra-args into a resolved copilot
+    command (``["copilot", "-p", PROMPT, "--model", M, "--allow-all"]``
+    or the ``gh copilot`` form) AFTER the ``--model <value>`` pair and
+    BEFORE the trailing ``--allow-all``/``--yolo`` flag — keeping the
+    splice position consistent with codex/claude/cursor (after the
+    model, before the terminal tool-approval/sentinel token). Falls
+    back to appending when ``--model`` isn't present (defensive — the
+    resolver always emits it)."""
+    if not extra:
+        return base
+    cmd = list(base)
+    try:
+        insert_at = cmd.index("--model") + 2
+    except ValueError:
+        insert_at = len(cmd)
+    return cmd[:insert_at] + list(extra) + cmd[insert_at:]
+
+
+def command_for_runner(runner: str, prompt: str, model: Optional[str],
+                        runner_extra_args: "Optional[str]" = None
+                        ) -> List[str]:
+    # v1.5.7 129: forward operator-supplied runner-CLI flags. The
+    # single shell-quoted string is shlex-split into argv tokens and
+    # spliced into the runner command BEFORE the stdin/positional
+    # sentinel (codex/claude/cursor) or before the tool-approval flag
+    # (copilot). shlex.split raises ValueError on malformed quoting —
+    # we let it PROPAGATE so a plan with bad quoting fails loudly
+    # rather than silently dropping the flag. None/empty ⇒ no-op.
+    extra = shlex.split(runner_extra_args) if runner_extra_args else []
     if runner == "claude":
         command = ["claude"]
         if model:
             command.extend(["--model", model])
+        command.extend(extra)
         command.extend(["-p", prompt, "--dangerously-skip-permissions"])
         return _resolve_runner_command(command)
     if runner == "codex":
@@ -1546,6 +1591,7 @@ def command_for_runner(runner: str, prompt: str, model: Optional[str]) -> List[s
                     "workspace-write"]
         if model:
             command.extend(["-m", model])
+        command.extend(extra)
         command.append("-")
         return _resolve_runner_command(command)
     if runner == "cursor":
@@ -1565,14 +1611,18 @@ def command_for_runner(runner: str, prompt: str, model: Optional[str]) -> List[s
         command = ["cursor", "agent", "--print", "--force"]
         if model:
             command.extend(["--model", model])
+        command.extend(extra)
         return _resolve_runner_command(command)
     copilot_model = model or lib.DEFAULT_MODEL
     # v1.5.7 089f: route through copilot_resolver so the new standalone
     # `copilot` CLI is preferred when on PATH, with the deprecated
     # `gh copilot` extension as fallback during the grace period.
+    # v1.5.7 129: splice runner-extra-args after `--model <value>`.
     return _resolve_runner_command(
-        copilot_resolver.resolve_copilot_command(
-            prompt, copilot_model, allow_all=True))
+        _splice_copilot_extra(
+            copilot_resolver.resolve_copilot_command(
+                prompt, copilot_model, allow_all=True),
+            extra))
 
 
 def command_preview(command: Sequence[str]) -> str:
@@ -2052,8 +2102,8 @@ def print_completion_banner() -> None:
     _print_attrib()
 
 
-def run_prompt(repo_dir: Path, prompt: str, pass_name: str, output_file: Path, log_file: Path, runner: str, model: Optional[str]) -> int:
-    command = command_for_runner(runner, prompt, model)
+def run_prompt(repo_dir: Path, prompt: str, pass_name: str, output_file: Path, log_file: Path, runner: str, model: Optional[str], runner_extra_args: "Optional[str]" = None) -> int:
+    command = command_for_runner(runner, prompt, model, runner_extra_args)
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with log_file.open("a", encoding="utf-8") as handle:
         handle.write("\n")
@@ -3610,7 +3660,7 @@ def run_one_phase(
         lib.logboth(log_file, lib.log(
             "  ============================================================"
         ))
-    exit_code = run_prompt(repo_dir, prompt, f"phase{phase}", output_file, log_file, args.runner, args.model)
+    exit_code = run_prompt(repo_dir, prompt, f"phase{phase}", output_file, log_file, args.runner, args.model, getattr(args, "runner_extra_args", None))
     if exit_code:
         lib.logboth(log_file, lib.log(f"  ABORT Phase {phase}: child runner exited {exit_code}"))
         return False
@@ -3896,6 +3946,7 @@ def run_one_phase_group(
         log_file,
         args.runner,
         args.model,
+        getattr(args, "runner_extra_args", None),
     )
     if exit_code:
         lib.logboth(log_file, lib.log(f"  ABORT Phase group {group_label}: child runner exited {exit_code}"))
@@ -4558,7 +4609,7 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         repo_dir, args=args, timestamp=timestamp,
     )
     output_file = control_prompts / "playbook_run.output.txt"
-    exit_code = run_prompt(repo_dir, prompt, pass_label, output_file, log_file, args.runner, args.model)
+    exit_code = run_prompt(repo_dir, prompt, pass_label, output_file, log_file, args.runner, args.model, getattr(args, "runner_extra_args", None))
 
     # v1.5.2 (C13.9): label distinguishes the iteration branch (which goes
     # through this function via --next-iteration --strategy X) from the
@@ -5137,6 +5188,7 @@ def run_one_iterations(
             exit_code = run_prompt(
                 repo_dir, prompt, pass_label, output_file, log_file,
                 args.runner, args.model,
+                getattr(args, "runner_extra_args", None),
             )
             if exit_code:
                 lib.logboth(log_file, lib.log(f"  ABORT iteration {strategy}: child runner exited {exit_code}"))
