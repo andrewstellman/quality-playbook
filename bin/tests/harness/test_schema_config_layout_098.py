@@ -173,11 +173,41 @@ class LoadConfigFallbackTests(unittest.TestCase):
         """live config.json absent → loader falls back to
         ``harness_plans/config.example.json``. The example has
         anthropic cap=1, global_cap=4 (the defaults a fresh
-        install starts at)."""
+        install starts at).
+
+        v1.5.7 134: the example's values COINCIDE with
+        ``SchedulerConfig()`` defaults, so the value assertions
+        alone couldn't tell "read the example" from "fell through
+        to defaults" — which masked the 133 move breaking
+        scheduler.py's example path. We now SPY on the file read:
+        the test fails unless ``load_config`` actually reads
+        ``harness_plans/config.example.json``. Mutation-bite:
+        revert scheduler.py's path to ``parent/config.example.json``
+        ⇒ the example isn't read ⇒ this test FAILS (was passing
+        spuriously via defaults)."""
+        reads: list[str] = []
+        _orig_read_text = Path.read_text
+
+        def _spy_read_text(self, *args, **kwargs):
+            reads.append(str(self))
+            return _orig_read_text(self, *args, **kwargs)
+
         with tempfile.TemporaryDirectory() as td:
             runner_root = Path(td)
             # No config.json in runner_root — fallback path.
-            cfg = SCH.load_config(runner_root)
+            Path.read_text = _spy_read_text
+            try:
+                cfg = SCH.load_config(runner_root)
+            finally:
+                Path.read_text = _orig_read_text
+            # The fallback must have ACTUALLY read the tracked
+            # example (not silently fallen through to defaults).
+            self.assertTrue(
+                any(r.endswith("harness_plans/config.example.json")
+                    for r in reads),
+                f"load_config must read the tracked example at "
+                f"harness_plans/config.example.json; reads={reads}",
+            )
             # The example's anthropic cap is 1 + global_cap 4.
             self.assertEqual(cfg.cap_for(SCH.Vendor.ANTHROPIC), 1)
             self.assertEqual(cfg.global_cap, 4)

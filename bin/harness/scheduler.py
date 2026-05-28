@@ -122,8 +122,8 @@ def load_config(runner_root: "Path | None" = None) -> SchedulerConfig:
     Resolution order:
       1. ``<runner_root>/config.json`` (the live, gitignored
          operator config — when present).
-      2. ``bin/harness/config.example.json`` (the tracked
-         sanitized template — fallback).
+      2. ``harness_plans/config.example.json`` (the tracked
+         sanitized template — fallback; moved here in v1.5.7 133).
       3. ``SchedulerConfig()`` defaults (when neither file is
          present or readable).
 
@@ -135,8 +135,16 @@ def load_config(runner_root: "Path | None" = None) -> SchedulerConfig:
     candidates: list[Path] = []
     if runner_root is not None:
         candidates.append(Path(runner_root) / "config.json")
-    example = (Path(__file__).resolve().parent
-               / "config.example.json")
+    # v1.5.7 134: config.example.json moved to harness_plans/ in 133
+    # (code/data separation). scheduler.py is at <repo>/bin/harness/
+    # scheduler.py, so parents[2] is the repo root; harness_plans/ is a
+    # peer of bin/ there. (parents[0]=bin/harness/, [1]=bin/, [2]=repo.)
+    # v1.5.7 134: config.example.json moved to harness_plans/ in 133
+    # (code/data separation). scheduler.py is at <repo>/bin/harness/
+    # scheduler.py, so parents[2] is the repo root; harness_plans/ is a
+    # peer of bin/ there. (parents[0]=bin/harness/, [1]=bin/, [2]=repo.)
+    example = (Path(__file__).resolve().parents[2]
+               / "harness_plans" / "config.example.json")
     candidates.append(example)
     for p in candidates:
         if not p.is_file():

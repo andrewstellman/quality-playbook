@@ -333,10 +333,18 @@ class AcceptancePlanShipsParametersTests(unittest.TestCase):
 
     def test_acceptance_plan_codex_run_has_low_thinking_param(
             self) -> None:
-        """The sample plan that ships in-bundle carries the
-        documented codex low-thinking parameters on the chi/codex
-        (weak-model) run. Other runs continue without parameters
-        per Task C."""
+        """The acceptance plan carries the documented codex
+        low-thinking parameters on the chi/codex (weak-model) run.
+        Other runs continue without parameters.
+
+        v1.5.7 134: the chi codex run was switched to Mode B + the
+        129 ``--runner-extra-args`` form (commit 245152d) — codex
+        Mode A is rejected at launch (124), so the run must be
+        Mode B to actually exercise gpt-5.3-codex at low reasoning.
+        In Mode B, ``parameters`` go to run_playbook, so the
+        low-thinking flag is forwarded via ``--runner-extra-args``
+        (the 129 passthrough), single-quote-wrapped to preserve the
+        TOML quotes for codex's ``-c``."""
         path = (Path(__file__).resolve().parents[3]
                 / "harness_plans" / "acceptance_plan.json")
         plan = PR.load_plan(path)
@@ -346,9 +354,12 @@ class AcceptancePlanShipsParametersTests(unittest.TestCase):
         self.assertEqual(len(codex_runs), 1,
                           "acceptance_plan should have exactly "
                           "one codex run (the chi/weak-model run)")
+        # Mode B (124: codex Mode A is rejected at launch).
+        self.assertEqual(codex_runs[0].mode, S.Mode.B)
         self.assertEqual(
             codex_runs[0].parameters,
-            ["-c", "model_reasoning_effort=\"low\""],
+            ["--runner-extra-args",
+             "-c 'model_reasoning_effort=\"low\"'"],
         )
         # Other runs stay parameter-less.
         for r in plan.runs:
