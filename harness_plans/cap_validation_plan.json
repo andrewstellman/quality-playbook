@@ -46,7 +46,7 @@
       "model": "gpt-5.2",
       "channel": "clone",
       "mode": "B",
-      "parameters": ["-c", "model_reasoning_effort=\"low\""],
+      "parameters": ["--runner-extra-args", "-c 'model_reasoning_effort=\"low\"'"],
       "expect": {}
     },
     {

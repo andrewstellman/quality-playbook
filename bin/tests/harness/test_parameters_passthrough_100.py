@@ -338,7 +338,7 @@ class AcceptancePlanShipsParametersTests(unittest.TestCase):
         (weak-model) run. Other runs continue without parameters
         per Task C."""
         path = (Path(__file__).resolve().parents[3]
-                / "bin" / "harness" / "acceptance_plan.json")
+                / "harness_plans" / "acceptance_plan.json")
         plan = PR.load_plan(path)
         # Find the codex run.
         codex_runs = [r for r in plan.runs

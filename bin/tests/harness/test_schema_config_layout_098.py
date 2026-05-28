@@ -16,13 +16,13 @@ Test surfaces:
     old path no longer ships content under tracked code; the
     file is intentionally NOT in the install closure.
   ConfigExampleTrackedTests — the example exists at
-    ``bin/harness/config.example.json``, parses as JSON,
+    ``harness_plans/config.example.json``, parses as JSON,
     carries no machine-specific absolute paths.
   LoadConfigFallbackTests — live config.json present → used;
     live absent → falls back to the tracked example; both
     absent → SchedulerConfig defaults.
   BundleSafetyStillGreenTests — `bin/harness/SCHEMA.md` and
-    `bin/harness/config.example.json` are NOT in
+    `harness_plans/config.example.json` are NOT in
     ``_bundle_files()``; ``bin/__init__.py`` carries no
     'harness' substring.
   CasesJsonStillPrivateTests — `repos/security-test-cases/
@@ -45,7 +45,10 @@ from bin.harness import scheduler as SCH
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _HARNESS_DIR = _REPO_ROOT / "bin" / "harness"
 _SCHEMA_MD = _HARNESS_DIR / "SCHEMA.md"
-_CONFIG_EXAMPLE = _HARNESS_DIR / "config.example.json"
+# v1.5.7 133: config.example.json moved bin/harness/ → harness_plans/
+# (code/data separation). _HARNESS_DIR stays bin/harness/ for the
+# SCHEMA.md-deleted / no-cases.json / *.py-glob checks below.
+_CONFIG_EXAMPLE = _REPO_ROOT / "harness_plans" / "config.example.json"
 _OLD_SCHEMA_PATH = _REPO_ROOT / "repos" / "security-test-cases" / "SCHEMA.md"
 
 
@@ -168,7 +171,7 @@ class LoadConfigFallbackTests(unittest.TestCase):
     def test_fallback_to_tracked_example_when_live_absent(
             self) -> None:
         """live config.json absent → loader falls back to
-        ``bin/harness/config.example.json``. The example has
+        ``harness_plans/config.example.json``. The example has
         anthropic cap=1, global_cap=4 (the defaults a fresh
         install starts at)."""
         with tempfile.TemporaryDirectory() as td:
@@ -223,7 +226,7 @@ class BundleSafetyStillGreenTests(unittest.TestCase):
         for p in dests:
             self.assertNotIn(
                 "config.example.json", p,
-                f"v1.5.7 098: bin/harness/config.example.json "
+                f"v1.5.7 098: harness_plans/config.example.json "
                 f"MUST NOT enter the install closure. Leaked: "
                 f"{p!r}",
             )

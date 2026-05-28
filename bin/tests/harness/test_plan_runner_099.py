@@ -644,13 +644,15 @@ class RenderSummaryTests(unittest.TestCase):
 class AcceptancePlanShipsTests(unittest.TestCase):
 
     def test_acceptance_plan_json_parses(self) -> None:
-        """The shipped `bin/harness/acceptance_plan.json` parses
-        via parse_plan + carries gson + chi + keto runs."""
+        """The tracked `harness_plans/acceptance_plan.json` parses
+        via parse_plan + carries gson + chi + keto runs.
+        (v1.5.7 133: moved from bin/harness/ → harness_plans/ for
+        code/data separation.)"""
         path = (Path(__file__).resolve().parents[3]
-                 / "bin" / "harness" / "acceptance_plan.json")
+                 / "harness_plans" / "acceptance_plan.json")
         self.assertTrue(
             path.is_file(),
-            f"v1.5.7 099 Task B: acceptance_plan.json must ship "
+            f"v1.5.7 133: acceptance_plan.json must exist "
             f"at {path}",
         )
         plan = PR.load_plan(path)
