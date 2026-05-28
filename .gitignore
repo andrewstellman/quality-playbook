@@ -67,8 +67,13 @@ Thumbs.db
 *.swo
 *~
 
-# Council review artifacts (prompts, responses, briefings)
-council-reviews/
+# All review artifacts (Council, DOC_GATHERING_PROMPT, future artifact reviews
+# of TOOLKIT.md / phase prompts / the rubric / etc.). Each reviewed artifact
+# gets a subdir: reviews/council/, reviews/doc-gathering-prompt/, …
+# Async harness review-requests/results live OUTSIDE QPB at
+# v1.5.7_runner/reviews/ in the Cowork session folder — those are not
+# affected by this rule.
+reviews/
 
 # Pattern discovery working files
 pattern-discovery/
