@@ -1,5 +1,14 @@
 """QPB Test Harness — parallel scheduler (Phase 3).
 
+NOTE FOR REVIEWERS: this module governs the ``qpb_harness
+manager`` flow's concurrency (per-daemon, in-process). The
+``qpb_harness run-plan`` flow uses a DIFFERENT mechanism:
+``inflight_registry.py`` (machine-global, file-backed,
+fcntl.flock). See ``manager.py``'s banner for the full two-flow
+map. The v1.5.7 125 cross-host per-provider cap is in
+``inflight_registry.py``, NOT here — this scheduler's caps are
+PURE STATE for the daemon flow only.
+
 Concurrency-aware scheduler per design §H:
 
   * **Per-vendor caps** (anthropic / openai / github / cursor —

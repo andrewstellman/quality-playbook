@@ -1,5 +1,36 @@
 """QPB Test Harness — manager daemon (Phase 4).
 
+═══════════════════════════════════════════════════════════════
+ TWO FLOWS, ONE HARNESS — read this before reasoning about
+ concurrency, because it's an easy place to get confused.
+═══════════════════════════════════════════════════════════════
+
+This file is the entry point for the ``qpb_harness manager``
+subcommand: a queued-daemon execution flow with command files,
+queue snapshots, atomic-rename state writes, and orphan
+recovery. Concurrency in THIS flow is governed by
+``scheduler.py``'s config object (a per-daemon, in-process
+mechanism). The single-daemon-per-folder constraint is enforced
+via the ``control/manager.pid`` claim with an ``os.kill(pid, 0)``
+liveness check.
+
+For the **other** flow — the ``qpb_harness run-plan``
+subcommand, which is one-shot detached spawn with a background
+collector — see ``plan_runner.py``. That flow's concurrency is
+governed by ``inflight_registry.py``: a MACHINE-GLOBAL,
+file-backed, ``fcntl.flock``-protected registry at
+``~/.qpb_harness/inflight.json`` (per-provider caps across all
+run-plan invocations + per-plan pool slots held for the run's
+lifetime).
+
+The two flows DO NOT share concurrency state. A reviewer
+inspecting ``scheduler.py`` alone might conclude "the
+concurrency cap is per-daemon"; that is true OF THIS FLOW ONLY.
+The cross-host cap that prevents provider-rate-limit blowout
+(v1.5.7 instruction 125) lives in ``inflight_registry.py``, not
+here.
+═══════════════════════════════════════════════════════════════
+
 Owns queue + execution per design "Manager daemon + TUI":
 
   * Writes ``control/manager.pid`` + heartbeat so the TUI (and

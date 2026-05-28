@@ -5,6 +5,19 @@ facts; graders/scheduler/manager/tui are Phases 2–4). It is
 PROTECTED QPB SOURCE — built by the worker, dual-chat reviewed —
 and MUST be excluded from the install bundle.
 
+Two execution flows coexist in this package — they share grading
++ facts + status surfaces but use SEPARATE concurrency
+mechanisms:
+
+  - ``qpb_harness run-plan`` → ``plan_runner.py`` (one-shot
+    detached spawn + auto-background collector) +
+    ``inflight_registry.py`` (machine-global, file-backed cap;
+    instruction 125).
+  - ``qpb_harness manager`` → ``manager.py`` (queued daemon,
+    Phase 4 substrate) + ``scheduler.py`` (per-daemon config).
+
+A reviewer reasoning about concurrency MUST pick the flow first.
+
 Bundle-safety contract (per
 ``docs/design/QPB_Test_Harness_1.5.7_Implementation_Plan.md`` §1):
 
