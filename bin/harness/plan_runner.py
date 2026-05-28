@@ -1885,6 +1885,7 @@ def _collect_one_run_detached(
     """
     from bin.harness import facts as _facts_mod
     from bin.harness import runner as _runner_mod
+    from bin.harness import inflight_registry as _inflight
     from bin.harness.schema import (
         Runner, Mode as _Mode, InstallChannel,
         run_facts_to_json,
@@ -1899,6 +1900,18 @@ def _collect_one_run_detached(
     target_dir = _resolve_entry_path(
         entry.get("target_dir", ""), harness_run_dir)
     grading_path = run_dir / "grading.json"
+
+    # v1.5.7 125: release the lifetime-slot from the global
+    # registry once the run reaches a terminal state. Called
+    # at every return path (idempotent — release_run_slot is
+    # a no-op if no matching entry).
+    _run_index = entry["index"]
+
+    def _release_slot() -> None:
+        _inflight.release_run_slot(
+            harness_run_dir=harness_run_dir,
+            run_index=_run_index,
+        )
 
     # Re-hydrate a minimal PlanRun for grading + axes for
     # facts extraction. The manifest carries enough to re-
@@ -1950,6 +1963,7 @@ def _collect_one_run_detached(
                     "FAIL": "FAILED",
                 }.get(facts_dict["gate"].get("gate_result"),
                        "?")
+            _release_slot()
             return RunOutcome(
                 index=plan_run.index,
                 description=plan_run.description,
@@ -1991,6 +2005,7 @@ def _collect_one_run_detached(
             encoding="utf-8",
         )
         _log("DONE: gate=N/A result=N/A (ABORTED_PREP)")
+        _release_slot()
         return outcome
 
     # ----- ORPHAN POLLING: wait for the AI-CLI to terminate -----
@@ -2173,6 +2188,7 @@ def _collect_one_run_detached(
             _log(f"123: pristine worktree cleanup "
                  f"failed (best-effort): {exc}")
     _log(f"DONE: gate={gate_verdict} result={result_label}")
+    _release_slot()
     return RunOutcome(
         index=plan_run.index,
         description=plan_run.description,
@@ -2322,6 +2338,7 @@ def run_plan(plan: Plan, harness_runs_root: Path,
               wheel_override: "Optional[Path]" = None,
               tgz_override: "Optional[Path]" = None,
               detach: bool = True,
+              max_per_provider: "Optional[dict[str, int]]" = None,
               ) -> "list[RunOutcome]":
     """Execute a parsed Plan end-to-end. Returns the list of
     RunOutcomes in plan-array order.
@@ -2436,6 +2453,21 @@ def run_plan(plan: Plan, harness_runs_root: Path,
     #     subprocess (anti-SIGTTIN per 108), and returns
     #     RUNNING placeholder outcomes. The collector runs
     #     facts + grade + SUMMARY out of the blocking path.
+    # v1.5.7 125: resolve the global per-provider cap from
+    # the operator's spec (CLI/env), merged with the
+    # conservative defaults in inflight_registry. Threaded
+    # through to the detached path so the registry's
+    # acquire_run_slot enforces both per-plan pool caps AND
+    # the global per-provider cap under one lock.
+    from bin.harness import inflight_registry as _inflight
+    effective_max_per_provider = (
+        max_per_provider
+        if max_per_provider is not None
+        else _inflight.parse_max_per_provider_spec(
+            os.environ.get(
+                "QPB_HARNESS_MAX_PER_PROVIDER"))
+    )
+
     if hooks.fake_run is not None or not detach:
         return _run_plan_synchronous(
             plan, harness_run_dir, hooks, artifact_map,
@@ -2443,7 +2475,7 @@ def run_plan(plan: Plan, harness_runs_root: Path,
         )
     return _run_plan_detached(
         plan, harness_run_dir, artifact_map, gate, pool_total,
-        log,
+        log, effective_max_per_provider,
     )
 
 
@@ -2495,6 +2527,7 @@ def _run_plan_detached(
         artifact_map: "dict[InstallChannel, dict]",
         gate: "_PoolGate", pool_total: int,
         log: "_ProgressLog",
+        max_per_provider: "dict[str, int]",
 ) -> "list[RunOutcome]":
     """v1.5.7 108: the new detached/collector flow. Launches
     every run via ``_launch_one_run_detached`` (parallel,
@@ -2503,7 +2536,19 @@ def _run_plan_detached(
     fully-detached collector subprocess, and returns RUNNING
     placeholder outcomes. The collector runs facts + grade +
     SUMMARY out of the blocking path.
+
+    v1.5.7 125: replaces the pre-125 ``_PoolGate`` (which
+    released the per-runner semaphore at SPAWN time —
+    causing per-plan over-fan-out: 4 claude runs launched
+    simultaneously with ``pools={claude:2}``) with the
+    machine-global ``inflight_registry``. The registry
+    enforces BOTH the per-plan pool cap (Task A.0) AND the
+    cross-plan per-provider cap (Task B) under one file
+    lock. The slot is held for the run's LIFETIME — released
+    by the collector when the run reaches a terminal state.
     """
+    from bin.harness import inflight_registry as _inflight
+
     manifest_entries: list[Optional[dict]] = (
         [None] * len(plan.runs)
     )
@@ -2524,17 +2569,53 @@ def _run_plan_detached(
                     **local_artifact_info,
                 }, indent=2) + "\n", encoding="utf-8",
             )
-        gate.acquire(pr.runner.value)
+        # v1.5.7 125: reserve the slot BEFORE launching the
+        # subprocess. Both caps checked under one lock:
+        #   * global per-provider cap (Task B)
+        #   * per-plan pool cap (Task A.0 — was the
+        #     release-at-spawn bug pre-125)
+        # The slot stays in the registry until the collector
+        # calls release_run_slot when terminal.
+        plan_pool_cap = (plan.pools.get(pr.runner.value)
+                          if plan.pools else None)
+        started_at_iso = datetime.now(timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ")
+        _inflight.acquire_run_slot(
+            runner=pr.runner.value,
+            harness_run_dir=harness_run_dir,
+            run_index=pr.index,
+            started_at=started_at_iso,
+            max_per_provider=max_per_provider,
+            plan_pool_cap=plan_pool_cap,
+        )
         try:
-            manifest_entries[idx] = _launch_one_run_detached(
+            entry = _launch_one_run_detached(
                 pr, harness_run_dir, run_dir, target_dir,
                 artifact_map=artifact_map,
                 local_artifact_info=local_artifact_info,
                 log=log,
                 tag=_run_tag(pr),
             )
-        finally:
-            gate.release(pr.runner.value)
+            manifest_entries[idx] = entry
+            # Update the registry with the real PID now that
+            # we have it from launch.
+            if entry is not None:
+                pid_val = entry.get("pid")
+                if pid_val is not None:
+                    _inflight.update_pid(
+                        harness_run_dir=harness_run_dir,
+                        run_index=pr.index,
+                        pid=int(pid_val),
+                    )
+        except BaseException:
+            # Failed to launch — release the reservation so
+            # the cap doesn't leak. The collector won't see
+            # this slot since no manifest entry was written.
+            _inflight.release_run_slot(
+                harness_run_dir=harness_run_dir,
+                run_index=pr.index,
+            )
+            raise
 
     with ThreadPoolExecutor(max_workers=pool_total) as ex:
         futures = [ex.submit(_wrapped, i)

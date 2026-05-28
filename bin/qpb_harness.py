@@ -263,11 +263,24 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
         Path(args.tgz).expanduser().resolve()
         if getattr(args, "tgz", None) else None
     )
+    # v1.5.7 125: global per-provider concurrency cap. CLI
+    # spec (--max-per-provider) takes precedence over the env
+    # var (QPB_HARNESS_MAX_PER_PROVIDER); falling through to
+    # the registry's conservative defaults when neither is
+    # set.
+    from bin.harness import inflight_registry as _inflight
+    cli_mpp = getattr(args, "max_per_provider", None)
+    if cli_mpp:
+        max_per_provider = (
+            _inflight.parse_max_per_provider_spec(cli_mpp))
+    else:
+        max_per_provider = None  # plan_runner resolves from env
     try:
         outcomes = _plan.run_plan(
             plan, runs_root,
             wheel_override=wheel_override,
             tgz_override=tgz_override,
+            max_per_provider=max_per_provider,
         )
     except _plan.BuildError as exc:
         print(f"ERROR: build failed — {exc}", file=sys.stderr)
@@ -309,8 +322,38 @@ def _cmd_status(args: argparse.Namespace) -> int:
     live?). With a harness-run dir: per-repo drill-down (index,
     repo, runner/model, state, current phase + state + last
     note, result, pid(live?)).
+
+    v1.5.7 125: prints the global per-provider in-flight
+    summary at the top of every status invocation. With
+    ``--global``: lists EVERY in-flight run across all
+    harness-runs on this machine (registry-backed).
     """
     from bin.harness import status as _status
+    from bin.harness import inflight_registry as _inflight
+
+    # v1.5.7 125 Task C: global summary is always shown.
+    print(_inflight.format_global_summary())
+
+    if getattr(args, "global_view", False):
+        # v1.5.7 125: --global lists every in-flight run from
+        # the registry across all harness-runs on this machine.
+        active = _inflight.read_active_runs()
+        if not active:
+            return 0
+        print("")
+        print(
+            "provider     runner    pid       harness-run-dir"
+            "                                   started-at"
+        )
+        for e in active:
+            print(
+                f"{e.get('provider', '?'):<12} "
+                f"{e.get('runner', '?'):<9} "
+                f"{str(e.get('pid', 0)):<9} "
+                f"{e.get('harness_run_dir', ''):<50} "
+                f"{e.get('started_at', '')}"
+            )
+        return 0
 
     harness_run_dir = getattr(args, "harness_run_dir", None)
     if harness_run_dir:
@@ -658,6 +701,18 @@ def _build_parser() -> argparse.ArgumentParser:
                                 "runs (still copied into "
                                 "<harness-run>/artifacts/). When "
                                 "absent: build a fresh tgz."))
+    p_plan.add_argument(
+        "--max-per-provider", default=None,
+        help=(
+            "v1.5.7 125: global per-provider concurrency cap "
+            "spec, comma-separated. Example: "
+            "--max-per-provider anthropic=1,openai=3,github=2. "
+            "Caps apply ACROSS all run-plan invocations on "
+            "this machine (file-backed registry at "
+            "~/.qpb_harness/inflight.json). Per-plan `pools` "
+            "still apply on top — whichever is tighter wins. "
+            "Defaults: anthropic=2 openai=3 github=3 cursor=3."),
+    )
 
     # v1.5.7 108: collect — invoked by the auto-spawned
     # detached collector AND as the operator's manual
@@ -690,6 +745,15 @@ def _build_parser() -> argparse.ArgumentParser:
         help=("Root directory containing harness-run folders "
               "(default: harness-runs). Ignored when a "
               "harness-run-dir is provided."),
+    )
+    p_status.add_argument(
+        "--global", dest="global_view", action="store_true",
+        help=(
+            "v1.5.7 125: list EVERY in-flight run from the "
+            "global registry (across all harness-runs on this "
+            "machine). The global per-provider summary line "
+            "is always printed; this flag adds the full "
+            "registry listing."),
     )
 
     p_tail = sub.add_parser(
