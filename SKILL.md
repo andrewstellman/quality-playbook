@@ -443,6 +443,14 @@ Every playbook run creates a timestamped metadata file at `quality/results/run-Y
 
 Then proceed with Phase 1 — don't block on this, just make sure the user sees the warning.
 
+### Doc gathering (pre-audit)
+
+QPB derives a project's invariants from background documentation in its `reference_docs/` directory — without it, QPB falls back to source-only evidence (Tier 3) and finds only shallow defects. QPB knows how to gather these docs itself.
+
+When the user asks to gather background documentation, prepare `reference_docs/`, collect pre-audit context, or any equivalent ("get the docs ready for an audit of X", "build the reference corpus for X"), follow the protocol in `references/DOC_GATHERING_PROMPT.md`. Open that file, find the section "## The prompt (copy everything in this block)", and follow the boxed instructions inside the triple-backtick fences step by step (Step 0 grounding through Step 4 source-summary handback).
+
+The same protocol works in two modes — the boxed prompt handles both without modification: when QPB is installed (you are now), Step 0 option (c) reads the local `ai_context/TOOLKIT.md`; when pasted into a fresh AI chat outside QPB, Step 0 option (a) handles the URL fetch.
+
 ### Running a specific phase
 
 The user can request any individual phase:

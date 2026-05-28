@@ -247,6 +247,15 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
         # appends the full sentinel block on the first try.
         (_require_bundle_file(source_root / "skill-template.gitignore"),
          Path("skill-template.gitignore")),
+        # v1.5.7 132: ai_context/TOOLKIT.md ships so the doc-gathering
+        # protocol (references/DOC_GATHERING_PROMPT.md, Step 0 option c)
+        # can resolve its grounding doc from disk in install mode. In
+        # clone mode the file is already at ai_context/TOOLKIT.md; the
+        # bundle preserves the same relative path. Only TOOLKIT.md ships
+        # from ai_context/ — the rest (DEVELOPMENT_CONTEXT.md, etc.) is
+        # developer-facing, not adopter-facing.
+        (_require_bundle_file(source_root / "ai_context" / "TOOLKIT.md"),
+         Path("ai_context") / "TOOLKIT.md"),
     ]
     # v1.5.7 090b: references/ is mandatory (the bundled directory
     # ships the Phase 1 ingest sources; without it Phase 1 has

@@ -132,6 +132,15 @@ INSTALL_CLOSURE = [
     {"path": "quality_gate.py", "kind": "gate_script", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "skill-template.gitignore", "kind": "scaffolding_template", "min_version": None, "expected_sha256": None, "source_glob": None},
 
+    # ---- ai_context/ (1 — v1.5.7 132 explicitly bundled
+    #      ai_context/TOOLKIT.md so the doc-gathering protocol
+    #      (references/DOC_GATHERING_PROMPT.md, Step 0 option c) can
+    #      resolve its grounding doc from disk in install mode. Only
+    #      TOOLKIT.md ships from ai_context/; kind=reference_file
+    #      (a doc the tool reads as reference material — generic
+    #      existence check, no min_version/sha special-casing). ----
+    {"path": "ai_context/TOOLKIT.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+
     # ---- agents/ (3 — sorted glob "*.md", NOT "*.agent.md") ----
     {"path": "agents/calibration_orchestrator.md", "kind": "agent_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "agents/quality-playbook-claude.agent.md", "kind": "agent_file", "min_version": None, "expected_sha256": None, "source_glob": None},
@@ -173,8 +182,12 @@ INSTALL_CLOSURE = [
     {"path": "phase_prompts/phase6_auditor.md", "kind": "phase_prompt_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "phase_prompts/single_pass.md", "kind": "phase_prompt_file", "min_version": None, "expected_sha256": None, "source_glob": None},
 
-    # ---- references/ (23 — sorted glob "*.md"; v1.5.7 089 F8 added
-    #      qpb_validate_event_schema.md) ----
+    # ---- references/ (24 — sorted glob "*.md"; v1.5.7 089 F8 added
+    #      qpb_validate_event_schema.md; v1.5.7 132 added
+    #      DOC_GATHERING_PROMPT.md, moved here from the repo root so it
+    #      auto-ships via the references/*.md glob — uppercase 'D'
+    #      sorts first under sorted()) ----
+    {"path": "references/DOC_GATHERING_PROMPT.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/challenge_gate.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/code-only-mode.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/constitution.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},

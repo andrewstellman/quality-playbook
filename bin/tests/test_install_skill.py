@@ -737,19 +737,25 @@ class PathlibCrossPlatformTests(unittest.TestCase):
                 # channel install (root cause of the 2026-05-25 Keto
                 # run5 + NATS run2 Phase-0 friction).
                 regions_seen.add(top)
-            elif top in ("references", "phase_prompts", "agents", "bin"):
+            elif top in ("references", "phase_prompts", "agents", "bin",
+                          "ai_context"):
                 # v1.5.6 BUG-005: bin/ joined the bundle to ship
                 # citation_verifier.py at the install destination so
                 # quality_gate.py's soft-import resolves there instead
                 # of falling back to WARN.
+                # v1.5.7 132: ai_context/ joined the bundle for the
+                # single file ai_context/TOOLKIT.md (the doc-gathering
+                # protocol's Step 0 grounding doc); only TOOLKIT.md
+                # ships from ai_context/ (explicit allowlist entry, not
+                # a glob).
                 regions_seen.add(top)
             else:
                 self.fail(
                     f"unexpected top-level destination region: {top!r} "
-                    f"(in {dst!r}). Seven regions are supported: "
+                    f"(in {dst!r}). Eight regions are supported: "
                     f"SKILL.md, quality_gate.py, "
                     f"skill-template.gitignore, references/, "
-                    f"phase_prompts/, agents/, bin/."
+                    f"phase_prompts/, agents/, bin/, ai_context/."
                 )
             # Joined with a Windows root, the result is a well-formed
             # Windows path with no doubled separators and the drive
@@ -784,9 +790,10 @@ class PathlibCrossPlatformTests(unittest.TestCase):
             regions_seen,
             {"SKILL.md", "quality_gate.py",
              "skill-template.gitignore", "references",
-             "phase_prompts", "agents", "bin"},
-            f"expected all seven bundle regions (v1.5.7 090u added "
-            f"skill-template.gitignore); got {regions_seen}",
+             "phase_prompts", "agents", "bin", "ai_context"},
+            f"expected all eight bundle regions (v1.5.7 090u added "
+            f"skill-template.gitignore; 132 added ai_context/ for "
+            f"TOOLKIT.md); got {regions_seen}",
         )
 
     def test_install_path_separator_independence(self) -> None:

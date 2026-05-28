@@ -81,8 +81,11 @@ class InstallClosureNoDriftTests(unittest.TestCase):
         truth and the drift test pins INSTALL_CLOSURE to it."""
         # v1.5.7 109: 54 → 55 (bin/qpb_phase.py shipped for the
         # SKILL.md phase-boundary sentinel).
+        # v1.5.7 132: 55 → 57 (+ai_context/TOOLKIT.md explicit entry,
+        # +references/DOC_GATHERING_PROMPT.md moved here from repo root
+        # so it auto-ships via the references/*.md glob).
         from bin.qpb_validate import INSTALL_CLOSURE
-        self.assertEqual(len(INSTALL_CLOSURE), 55)
+        self.assertEqual(len(INSTALL_CLOSURE), 57)
         paths = [e["path"] for e in INSTALL_CLOSURE]
         self.assertEqual(len(paths), len(set(paths)),
                          "duplicate path in INSTALL_CLOSURE")

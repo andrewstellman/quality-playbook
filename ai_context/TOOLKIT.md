@@ -85,7 +85,7 @@ The user wants to run the quality playbook on a codebase. Here's what to do:
 
 2. **Add documentation (strongly recommended).**
 
-   **The easy way — let an AI gather it for you.** Download `DOC_GATHERING_PROMPT.md` from the
+   **The easy way — let an AI gather it for you.** Download `references/DOC_GATHERING_PROMPT.md` from the
    Quality Playbook repo, open the user's project in any AI tool with web access (Claude Code,
    Codex, Copilot, ChatGPT, …), paste it in, and run it. It confirms the project, then crawls its
    docs, issues, and advisories into `reference_docs/` automatically — no manual gathering needed.
@@ -712,7 +712,7 @@ If the project's test runner genuinely isn't available (e.g., a C kernel module 
 
 ## Gathered documentation
 
-**Easiest path:** download `DOC_GATHERING_PROMPT.md` from the Quality Playbook repo, paste it into any AI tool with web access, and run it — it gathers the project's docs, issues, and advisories into `reference_docs/` for you. The rest of this section explains what good gathered docs look like, for when you'd rather do it by hand.
+**Easiest path:** download `references/DOC_GATHERING_PROMPT.md` from the Quality Playbook repo, paste it into any AI tool with web access, and run it — it gathers the project's docs, issues, and advisories into `reference_docs/` for you. The rest of this section explains what good gathered docs look like, for when you'd rather do it by hand.
 
 The playbook works best when it has access to project documentation — specs, RFCs, API docs, design docs. If you have these, put them in a `reference_docs/` directory in the repo root before running the playbook (citable specs under `reference_docs/cite/`, everything else at the top level). The playbook will use them as the ground truth for what the code should do, which dramatically improves bug-finding accuracy.
 
