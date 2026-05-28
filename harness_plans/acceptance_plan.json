@@ -1,5 +1,5 @@
 {
-  "$header_note": "QPB Test Harness — simplified plan (v1.5.7 099). pools = per-runner concurrency. runs[].expect is a FLAT MAP assertion->value (list value = 'one of'). Assertion names = §F vocabulary from grade_acceptance.py. Operator: fill the pre-fix-SHA placeholders before running.",
+  "$header_note": "QPB Test Harness — simplified plan (v1.5.7). pools = per-runner concurrency. runs[].expect is a FLAT MAP assertion->value (list value = 'one of'). Assertion names = §F vocabulary from grade_acceptance.py. parameters = extra argv tokens passed verbatim to the runner CLI. Operator: fill the gson pre-fix-SHA placeholder before running.",
 
   "pools": {
     "claude": 2,
@@ -9,9 +9,9 @@
 
   "runs": [
     {
-      "description": "Finds + verifies known gson duplicate-key bug — should reach solid",
+      "description": "A capable model (Claude Opus) reviews a version of gson that contains a known real defect: MapTypeAdapterFactory's duplicate-key check used Map.put()'s return value (`if (replaced != null)`), which silently missed duplicates when the first value was null (e.g. {\"a\":null,\"a\":1}). Pinned to commit 27d9ba1, the parent of the fix (#3006), so the bug is present. The Quality Playbook should find it, prove it with a red-then-green test, and pass cleanly with a verified finding.",
       "repo": "https://github.com/google/gson",
-      "ref": "<set-pre-fix-sha>",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
       "runner": "claude",
       "model": "opus",
       "channel": "pip-local-wheel",
@@ -28,13 +28,31 @@
       }
     },
     {
-      "description": "Weak model cuts corners — should fail with weak-model attribution",
+      "description": "A second capable Claude run, started in parallel with the first to exercise the two-slot Claude pool. It reviews the Express web framework. We do not predict a specific verdict here; we only require that whatever verdict the gate reaches is internally consistent (it never passes while real problems are present, and never fails a clean run) and that the install completed cleanly.",
+      "repo": "https://github.com/expressjs/express",
+      "ref": "master",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "A deliberately weak run: GPT-5.3-Codex at low reasoning effort, the configuration most likely to cut corners. This checks that the gate catches a sloppy run instead of rubber-stamping it. It should fail, attribute the failure to the weak model, and tell the operator to re-run with a stronger model.",
       "repo": "https://github.com/go-chi/chi",
-      "ref": "main",
+      "ref": "master",
       "runner": "codex",
-      "model": "gpt-5.2",
+      "model": "gpt-5.3-codex",
       "channel": "npm-local-tgz",
-      "parameters": ["-c", "model_reasoning_effort=\"low\""],
+      "mode": "B",
+      "parameters": ["--runner-extra-args", "-c 'model_reasoning_effort=\"low\"'"],
       "expect": {
         "gate_result": "FAIL",
         "verdict_state": "failed",
@@ -46,7 +64,7 @@
       }
     },
     {
-      "description": "Capable model on meaty authz repo — honest verdict, clean install surface",
+      "description": "A capable model (GPT-5.4 via Copilot) reviews the Ory Keto authorization server, a larger and more complex codebase than the others. As with the Express run, we do not predict the exact verdict, only that it is honest and internally consistent and that the install behaved correctly.",
       "repo": "https://github.com/ory/keto",
       "ref": "master",
       "runner": "copilot",
