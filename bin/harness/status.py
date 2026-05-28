@@ -252,6 +252,55 @@ _MODE_B_PHASE_NAME_BY_NUM: "dict[int, str]" = {
 }
 
 
+# v1.5.7 127: canonical phase-number → primary-artifact map.
+# The Tier-3 phase fallback (``_infer_phase_from_artifacts``)
+# keys on these: when an agent skips ``qpb_phase`` sentinel
+# emission in Mode A AND there's no Mode B progress line, the
+# presence of a phase's PRIMARY gate artifact under
+# ``<target>/quality/`` is evidence that phase finished writing.
+# Each value is a TUPLE — some phases land under more than one
+# name (the gate accepts any). Source-of-truth: the run_playbook
+# gate-check sites that REQUIRE these artifacts.
+#
+# Intentionally NOT exhaustive: only the PRIMARY phase-boundary
+# marker per phase. Secondary artifacts (EXPLORATION_ITER*.md,
+# EXPLORATION_MERGED.md, exploration_role_map.json, code_reviews/)
+# are deliberately excluded so a half-finished phase that wrote
+# an iteration file isn't misclassified as complete.
+_PHASE_ARTIFACTS: "dict[int, tuple[str, ...]]" = {
+    # Phase 1: run_playbook.py:1297 — the Phase-2 gate fails
+    # unless quality/EXPLORATION.md exists, so it's the Phase-1
+    # boundary marker.
+    1: ("EXPLORATION.md",),
+    # Phase 2: run_playbook.py:1451-1460 — the Phase-4 gate
+    # requires REQUIREMENTS.md; CONTRACTS.md + COVERAGE_MATRIX.md
+    # are the other Phase-2 outputs the gate enumerates. Any one
+    # present ⇒ Phase 2 produced output.
+    2: ("REQUIREMENTS.md", "CONTRACTS.md", "COVERAGE_MATRIX.md"),
+    # Phase 3: run_playbook.py:1486-1491 — BUGS.md is the
+    # bugs-found landing; RUN_CODE_REVIEW.md is the
+    # review-summary landing. Either counts as evidence Phase 3
+    # ran (a clean review may produce RUN_CODE_REVIEW.md without
+    # BUGS.md).
+    3: ("RUN_CODE_REVIEW.md", "BUGS.md"),
+    # Phase 4: run_playbook.py:1452 / 3307 — COMPLETENESS_REPORT.md
+    # is the spec-audit output.
+    4: ("COMPLETENESS_REPORT.md",),
+    # Phase 5: run_playbook.py:3309 — QUALITY.md is the
+    # reconciliation output.
+    5: ("QUALITY.md",),
+    # Phase 6: run_playbook.py:4316 — the gate writes its verdict
+    # to quality/results/gate-report-latest.json (a `results/`
+    # SUBDIR, not directly under quality/, unlike the Phase 1-5
+    # markers). Stored as the relative subpath so the single
+    # ``(quality_dir / artifact).is_file()`` check resolves it.
+    # (The instruction's table wrote the bare filename; the real
+    # artifact is under results/ per run_playbook — implemented
+    # against the real path. Also exercises the non-.md case.)
+    6: ("results/gate-report-latest.json",),
+}
+
+
 def _mode_b_phase_from_stream(stream_text: str) -> "Optional[dict]":
     """v1.5.7 117: parse the last ``Phase N/6 (Name)`` line
     from a Mode B run_playbook stream. Returns a phase-shaped
@@ -289,6 +338,52 @@ def _mode_b_phase_from_stream(stream_text: str) -> "Optional[dict]":
         "state": "running",
         "note": "",
     }
+
+
+def _infer_phase_from_artifacts(
+        target_dir: "Optional[Path]") -> "Optional[dict]":
+    """v1.5.7 127: last-resort phase resolution when no
+    sentinel and no Mode-B progress file is available.
+
+    Scans ``<target_dir>/quality/`` for known phase-boundary
+    artifacts (per ``_PHASE_ARTIFACTS``). Returns a dict
+    matching the sentinel shape used elsewhere in this
+    module:
+      {"phase": int, "name": str, "state": "done"}
+    where ``phase`` is the HIGHEST-numbered phase with at
+    least one of its artifacts present, ``name`` is the
+    canonical ``_MODE_B_PHASE_NAME_BY_NUM`` slug, and
+    ``state`` is always ``"done"`` (the artifact's presence
+    means the phase has finished writing its primary output).
+
+    Returns ``None`` when target_dir is None, no ``quality/``
+    subdir exists, or no artifacts are present (a brand-new
+    run; current_phase stays ``—``).
+    """
+    if target_dir is None:
+        return None
+    quality_dir = target_dir / "quality"
+    try:
+        if not quality_dir.is_dir():
+            return None
+        # High → low: the highest-numbered phase with evidence
+        # wins. First hit returns immediately (we report the
+        # highest EVIDENCE found, not what we infer about
+        # earlier phases — never fabricate skipped progress).
+        for phase in sorted(_PHASE_ARTIFACTS, reverse=True):
+            for artifact in _PHASE_ARTIFACTS[phase]:
+                if (quality_dir / artifact).is_file():
+                    return {
+                        "phase": phase,
+                        "name": _MODE_B_PHASE_NAME_BY_NUM.get(
+                            phase, "—"),
+                        "state": "done",
+                    }
+    except OSError:
+        # A transiently-unreadable target_dir must not crash
+        # the status path — degrade to "no signal".
+        return None
+    return None
 
 
 def _resolve_manifest_path(
@@ -414,6 +509,12 @@ def _read_one_run_status(entry: dict,
     ) if entry.get("status_path") else (
         run_dir / "status.json")
     grading_path = run_dir / "grading.json"
+    # v1.5.7 127: resolve the target dir for the Tier-3
+    # artifact-presence phase fallback (only used if both the
+    # sentinel and Mode B tiers come up empty).
+    target_dir = _resolve_manifest_path(
+        entry.get("target_dir", ""), harness_run_dir,
+    ) if entry.get("target_dir") else None
 
     # State + pid: status.json wins; manifest entry is the
     # fallback (the launch-side ABORTED_PREP case writes the
@@ -476,6 +577,21 @@ def _read_one_run_status(entry: dict,
                 current_phase_name = mode_b["name"]
                 current_phase_state = mode_b["state"]
                 last_note = mode_b.get("note", "")
+
+    # v1.5.7 127: Tier-3 fallback — scan quality/ artifacts when
+    # the agent skipped sentinel emission (Mode A) AND no Mode B
+    # progress line was found. Tier 1 (sentinel) and Tier 2 (Mode
+    # B) still WIN when present — this only fires when both came
+    # up empty, so there's no regression on the happy path. Sits
+    # OUTSIDE the `stream_path.is_file()` block: an agent can
+    # write quality/ artifacts even when the stream is absent or
+    # carries no phase signal.
+    if current_phase == "—":
+        artifact_inferred = _infer_phase_from_artifacts(target_dir)
+        if artifact_inferred is not None:
+            current_phase = f"P{artifact_inferred['phase']}"
+            current_phase_name = artifact_inferred["name"]
+            current_phase_state = artifact_inferred["state"]
 
     # v1.5.7 121: phase-state reconciliation. When the run is
     # in a TERMINAL state (FAILED / COMPLETED / TIMED_OUT /
