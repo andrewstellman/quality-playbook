@@ -63,7 +63,7 @@
       }
     },
     {
-      "description": "A capable model (GPT-5.4 via Copilot) reviews the Ory Keto authorization server, a larger and more complex codebase than the others. As with the Express run, we do not predict the exact verdict, only that it is honest and internally consistent and that the install behaved correctly. NOTE (v1.5.7 143 B′): phase0_first_probe and gitignore_remediation_followed are intentionally NOT asserted for this run because copilot's boxed-TUI stream format doesn't capture the validator's event= lines that parse_transcript needs to extract those facts. This is a harness observability gap (not a copilot capability issue) — copilot DID run the validator 6 times, DID engage remediation, and DID complete all 6 phases (confirmed via the gate log + disk witnesses). 145 will close the gap at the root by extending the witness format + adding artifact-based fact extraction, after which these assertions can be re-tightened.",
+      "description": "A capable model (GPT-5.4 via Copilot) reviews the Ory Keto authorization server, a larger and more complex codebase than the others. As with the Express run, we do not predict the exact verdict, only that it is honest and internally consistent and that the install behaved correctly. NOTE (v1.5.7 143 B′ + post-2026-05-29 retest extension): phase0_first_probe, gitignore_remediation_followed, AND banner_rendered are intentionally NOT asserted for this run because copilot's boxed-TUI stream format doesn't capture the validator's event= lines OR the installer's banner output that parse_transcript needs to extract those facts. This is the same harness observability class as the 143 phase0 finding — copilot DID complete the audit (gate PASSED with 0 substantive issues on the 2026-05-29T15:14 retest); the missing assertions are stream-capture false negatives, not copilot misbehavior. 145 closed the phase0 gap via witness-based artifact fallback; 148 closes the banner gap via install.log-based artifact fallback (parallel design, reuses 146's install.log capture). After 148 lands, all three assertions can be re-tightened.",
       "repo": "https://github.com/ory/keto",
       "ref": "master",
       "runner": "copilot",
@@ -73,7 +73,6 @@
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
-        "banner_rendered": true,
         "provenance_runner_matches": true,
         "provenance_model_labeled_selfreport": true
       }
