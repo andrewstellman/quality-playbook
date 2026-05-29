@@ -200,12 +200,16 @@ class NpmLocalTgzTemplateTests(unittest.TestCase):
             ai_tool="copilot",
             local_artifact=tgz,
         )
-        # v1.5.7 142: --prefer-offline is a global npm config flag,
-        # positioned immediately after `npx` (before --package).
+        # v1.5.7 142/150: npx, then global flags (--yes,
+        # --prefer-offline), then --package <tgz>, then the binary +
+        # init. Index-agnostic (robust to future flag additions).
         self.assertEqual(cmd[0], "npx")
-        self.assertEqual(cmd[1], "--prefer-offline")
-        self.assertEqual(cmd[2], "--package")
-        self.assertEqual(cmd[3], str(tgz))
+        for flag in ("--yes", "--prefer-offline", "--package"):
+            self.assertIn(flag, cmd)
+            self.assertLess(cmd.index(flag), cmd.index(str(tgz)))
+        self.assertLess(cmd.index("--package") + 1,
+                        len(cmd))  # tgz follows --package
+        self.assertEqual(cmd[cmd.index("--package") + 1], str(tgz))
         self.assertIn("quality-playbook", cmd)
         self.assertIn("init", cmd)
         self.assertIn("--ai-tool=copilot", cmd)

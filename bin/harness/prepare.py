@@ -400,24 +400,27 @@ def build_install_command(channel: "InstallChannel",
                 "npm-local-tgz channel requires local_artifact "
                 "(path to the `npm pack` output)"
             )
-        # v1.5.7 142: --prefer-offline so npx uses the local npm
-        # cache for any registry checks instead of hitting the
-        # network. QPB's npm package has ZERO runtime dependencies
-        # (no `dependencies` field in package.json — confirmed
-        # against the in-tarball package.json), AND the shim does no
-        # network work (verbatim subprocess.spawn to
-        # `python3 -m quality_playbook_cli install`). So a 15-min
-        # "install" timeout (the 138-bumped value that STILL failed
-        # on the 2026-05-29 acceptance retest) was npx itself
-        # consulting the registry for package metadata / version
-        # checks. With --prefer-offline + a one-time cache warm this
-        # drops back to seconds. --offline (stricter — never hit the
-        # registry, fail on a cache miss) was rejected: a clean
-        # adopter's first-ever install is the acceptable tradeoff
-        # for one slow first run. The flag is a global npm config
-        # option (verified accepted by npx 11.x in this position).
+        # v1.5.7 142 + 150: --yes auto-confirms npx's "Need to
+        # install the following packages — Ok to proceed? (y)"
+        # prompt, which would otherwise block on stdin forever (the
+        # subprocess has no TTY) and fire the prep timeout. This was
+        # the REAL cause of the 138-symptom timeout — observed
+        # verbatim in 146's install.log on the first post-146 chi
+        # codex run (`Ok to proceed? (y)`). --prefer-offline (the 142
+        # wisdom) stays as an honest optimization on top: npx still
+        # does a quick registry-metadata check before installing, and
+        # --prefer-offline uses the local cache when present. QPB's
+        # npm package has ZERO runtime dependencies (verified against
+        # the in-tarball package.json) and the shim does no network
+        # work (verbatim subprocess.spawn to `python3 -m
+        # quality_playbook_cli install`), so once --yes unblocks the
+        # prompt the install finishes in seconds. Flag ordering
+        # --yes → --prefer-offline → --package is conventional
+        # (general, then registry-policy, then spec) and verified
+        # accepted by npx 11.x.
         cmd = [
-            "npx", "--prefer-offline", "--package", str(local_artifact),
+            "npx", "--yes", "--prefer-offline",
+            "--package", str(local_artifact),
             "quality-playbook", "init",
             f"--ai-tool={ai_tool}",
         ]
