@@ -9,11 +9,11 @@
 
   "runs": [
     {
-      "description": "A capable model (Claude Opus) reviews a version of gson that contains a known real defect: MapTypeAdapterFactory's duplicate-key check used Map.put()'s return value (`if (replaced != null)`), which silently missed duplicates when the first value was null (e.g. {\"a\":null,\"a\":1}). Pinned to commit 27d9ba1, the parent of the fix (#3006), so the bug is present. The Quality Playbook should find it, prove it with a red-then-green test, and pass cleanly with a verified finding.",
+      "description": "Harness-validation run (NOT a capability test): claude/haiku reviews a version of gson that contains a known real defect — MapTypeAdapterFactory's duplicate-key check used Map.put()'s return value (`if (replaced != null)`), which silently missed duplicates when the first value was null (e.g. {\"a\":null,\"a\":1}). Pinned to commit 27d9ba1, the parent of the fix (#3006), so the bug is present. Originally framed around opus/sonnet finding the bug; we've stepped down to haiku because v1.5.7 retests are exercising harness mechanics (install layer, phase0 facts, banner observability, kill) — not model capability. Haiku may or may not find the bug; the expects are permissive (any of PASS/CLEANUP/FAIL is acceptable as long as the verdict is internally consistent). When v1.5.7 ships and we move to the actual capability tests, this row gets bumped back up.",
       "repo": "https://github.com/google/gson",
       "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
       "runner": "claude",
-      "model": "sonnet",
+      "model": "haiku",
       "channel": "pip-local-wheel",
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
@@ -26,11 +26,11 @@
       }
     },
     {
-      "description": "A second capable Claude run, started in parallel with the first to exercise the two-slot Claude pool. It reviews the Express web framework. We do not predict a specific verdict here; we only require that whatever verdict the gate reaches is internally consistent (it never passes while real problems are present, and never fails a clean run) and that the install completed cleanly.",
+      "description": "Second claude/haiku run started in parallel with the first to exercise the two-slot Claude pool. Reviews the Express web framework. Like the gson row, this is a harness-validation run; we do not predict a specific verdict — only that whatever verdict the gate reaches is internally consistent (it never passes while real problems are present, and never fails a clean run) and that the install completed cleanly. Stepped down from sonnet to haiku for fast retest iteration on v1.5.7 harness fixes.",
       "repo": "https://github.com/expressjs/express",
       "ref": "master",
       "runner": "claude",
-      "model": "sonnet",
+      "model": "haiku",
       "channel": "pip-local-wheel",
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
