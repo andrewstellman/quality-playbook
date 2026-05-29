@@ -1122,12 +1122,56 @@ def _build_parser() -> argparse.ArgumentParser:
     return p
 
 
+_KNOWN_SUBCOMMANDS = frozenset({
+    "run", "run-plan", "collect", "status", "tail",
+    "manager", "tui", "kill",
+})
+
+
+def _maybe_plan_file_shortcut(argv: "list[str]") -> "list[str]":
+    """v1.5.7 149: plan-file shortcut. Rewrite
+    ``<plan.json> [<runs-root>] [flags...]`` →
+    ``run-plan <plan.json> [--runs-root <runs-root>] [flags...]``.
+
+    Conservative — triggers ONLY when ALL hold: argv non-empty;
+    argv[0] is NOT a known subcommand (explicit subcommand wins);
+    argv[0] ends ``.json`` AND is an existing file; and
+    ``load_plan`` parses it without raising. Any failure leaves
+    argv unchanged → argparse produces its normal error (right for
+    typos like ``rinplan plan.json`` or a bogus ``.json``).
+    """
+    if not argv or argv[0] in _KNOWN_SUBCOMMANDS:
+        return argv
+    first = argv[0]
+    if not first.endswith(".json"):
+        return argv
+    path = Path(first)
+    if not path.is_file():
+        return argv
+    try:
+        from bin.harness.plan_runner import load_plan
+        load_plan(path)  # read-only validation
+    except Exception:
+        # PlanError / OSError / JSONDecodeError — not a valid plan;
+        # let argparse error normally.
+        return argv
+    rest = list(argv[1:])
+    new = ["run-plan", str(path)]
+    if rest and not rest[0].startswith("-"):
+        new += ["--runs-root", rest[0]]
+        rest = rest[1:]
+    new += rest
+    return new
+
+
 def main(argv: "list[str] | None" = None) -> int:
     argv_list = list(sys.argv[1:] if argv is None else argv)
     if not argv_list:
         # 089x — self-describing no-args.
         _print_intro_minimal()
         return 0
+    # v1.5.7 149: plan-file shortcut (before argparse dispatch).
+    argv_list = _maybe_plan_file_shortcut(argv_list)
     parser = _build_parser()
     args = parser.parse_args(argv_list)
     if args.command == "run":
