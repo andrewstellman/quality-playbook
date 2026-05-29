@@ -477,6 +477,59 @@ def install_skill_channel(channel: "InstallChannel",
 # ---------------------------------------------------------------------------
 
 
+def _resolve_docs_source(reference_docs_source: str,
+                          repo: str,
+                          runs_root: "Optional[Path]" = None) -> str:
+    """v1.5.7 144 (Option 2 ruling): resolve the effective ``docs``
+    value before ``populate_reference_docs`` runs.
+
+    Explicit paths pass through unchanged — operator opt-in always
+    wins. For the ``"gather"`` default, auto-pick up gathered docs
+    at the DOCUMENTED convention
+    ``<runs_root|./repos>/docs_gathered/<repo>/`` when it exists and
+    is non-empty; otherwise return ``"gather"`` (the pre-144 no-op
+    fallback — same experience when nothing's gathered).
+
+    Only ``docs_gathered/<repo>/`` is consulted — it's the
+    source-of-truth the doc-gathering protocol + ``setup_repos.sh``
+    use. The versioned ``<repo>-<version>/reference_docs/`` dirs are
+    per-run MIRRORS (and ambiguous across versions / ``.bak``), so
+    they're deliberately NOT candidates (the 144 halt surfaced a
+    gson case where the mirror diverged from the gathered source).
+
+    Pure / read-only: ``is_dir()`` + a non-empty probe; no network,
+    no writes. An existing-but-empty ``docs_gathered/<repo>/`` is
+    treated as "not present" (falls through to ``"gather"``) so an
+    empty dir can't starve Phase 1 of the Tier-3 source fallback.
+
+    ``repo`` → ``<repo_name>``: last URL path segment, ``.git``
+    suffix stripped, lowercased
+    (``https://github.com/google/gson`` → ``gson``;
+    ``git@github.com:foo/bar.git`` → ``bar``).
+    """
+    if reference_docs_source != "gather":
+        return reference_docs_source
+    repo_name = repo.rstrip("/").rsplit("/", 1)[-1]
+    if repo_name.endswith(".git"):
+        repo_name = repo_name[:-4]
+    repo_name = repo_name.lower()
+    if not repo_name:
+        return "gather"
+    candidates: "list[Path]" = []
+    if runs_root is not None:
+        candidates.append(
+            Path(runs_root) / "docs_gathered" / repo_name)
+    candidates.append(Path("repos") / "docs_gathered" / repo_name)
+    for cand in candidates:
+        cand = cand.expanduser()
+        try:
+            if cand.is_dir() and any(cand.iterdir()):
+                return str(cand)
+        except OSError:
+            continue
+    return "gather"
+
+
 def populate_reference_docs(target_dir: Path,
                               reference_docs_source: str) -> None:
     """Acceptance prep: ensure ``reference_docs/`` is present in

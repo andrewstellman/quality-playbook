@@ -1244,7 +1244,9 @@ def _execute_one_run_production(
             repo_url=plan_run.repo,
             prep=prep_policy,
             target_ref=plan_run.ref,
-            reference_docs_source=plan_run.docs,
+            reference_docs_source=_prepare_mod._resolve_docs_source(
+                plan_run.docs, plan_run.repo,
+                harness_run_dir.parent),
         ),
         expected=[],
     )
@@ -1590,7 +1592,9 @@ def _launch_one_run_detached(
             repo_url=plan_run.repo,
             prep=prep_policy,
             target_ref=plan_run.ref,
-            reference_docs_source=plan_run.docs,
+            reference_docs_source=_prepare_mod._resolve_docs_source(
+                plan_run.docs, plan_run.repo,
+                harness_run_dir.parent),
         ),
         expected=[],
     )
