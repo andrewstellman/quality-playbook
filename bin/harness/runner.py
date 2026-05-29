@@ -713,17 +713,146 @@ def _write_status(run_dir: Path, status: dict) -> None:
     os.replace(tmp, target)
 
 
-def _kill_process_tree(pid: int) -> None:
-    """SIGTERM the process group started by ``start_new_session``.
-    Falls through to SIGKILL after a short grace period. Phase 4's
-    manager will own this; Phase 1 just needs it for the timeout
-    path here.
+def _kill_process_tree(pid: int, sig: "int | None" = None) -> None:
+    """Kill the process group started by ``start_new_session``.
+
+    v1.5.7 147 (additive, ruled): ``sig=None`` (default) preserves
+    the original SIGTERM → 2s-grace → SIGKILL escalation — the
+    max-duration timeout path passes nothing and is UNCHANGED. An
+    explicit ``sig`` (e.g. ``signal.SIGKILL`` / ``signal.SIGTERM``
+    from ``kill_run``) sends that signal to the group ONCE, no
+    escalation, no grace — the caller owns what happens if the
+    process doesn't respond (operator semantics: `--graceful`
+    re-run without it to force-kill).
     """
+    if sig is not None:
+        with contextlib.suppress(ProcessLookupError, PermissionError):
+            os.killpg(pid, sig)
+        return
     with contextlib.suppress(ProcessLookupError, PermissionError):
         os.killpg(pid, signal.SIGTERM)
     time.sleep(2.0)
     with contextlib.suppress(ProcessLookupError, PermissionError):
         os.killpg(pid, signal.SIGKILL)
+
+
+def _pid_alive(pid: "int | None") -> bool:
+    """v1.5.7 147: liveness probe via ``os.kill(pid, 0)``.
+    ProcessLookupError ⇒ dead; PermissionError ⇒ exists (alive, not
+    ours)."""
+    if not pid:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+class KillError(RuntimeError):
+    """v1.5.7 147: ``kill_run`` refused — e.g. the run is already
+    collected (grading.json present). Don't rewrite a reaped run."""
+
+
+@dataclass
+class KillResult:
+    """v1.5.7 147: outcome of a ``kill_run``."""
+    run_dir: Path
+    pid: "int | None"
+    was_alive: bool
+    signal_sent: "int | None"
+    terminal_state: str
+    still_alive_after_grace: bool = False
+
+
+def _release_slot_for_run_dir(run_dir: Path) -> None:
+    """v1.5.7 147: release the 125 inflight-registry slot for the
+    run at ``run_dir`` (looked up by run-NN name in the parent
+    harness-run's manifest). Best-effort + idempotent."""
+    from bin.harness import inflight_registry as _reg
+    hr = run_dir.parent
+    manifest = hr / "manifest.json"
+    if not manifest.is_file():
+        return
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return
+    for entry in data.get("runs", []):
+        ed = str(entry.get("run_dir", ""))
+        if Path(ed).name == run_dir.name or ed == str(run_dir):
+            idx = entry.get("index")
+            if idx is not None:
+                with contextlib.suppress(Exception):
+                    _reg.release_run_slot(
+                        harness_run_dir=hr, run_index=idx)
+            return
+
+
+def kill_run(run_dir: Path, *, sig: int = signal.SIGKILL,
+             grace_poll_s: float = 5.0) -> KillResult:
+    """v1.5.7 147: operator-initiated termination of a run. Signals
+    the run's process group (if alive), writes a ``KILLED``
+    status.json, and releases the 125 registry slot.
+
+    ``sig`` defaults to ``SIGKILL`` (kill -9 semantics); pass
+    ``SIGTERM`` for a single graceful signal (no escalation — ruled
+    in 147). Raises ``KillError`` if the run is already collected
+    (grading.json present). The action does NOT block on
+    termination beyond a brief liveness re-poll (``grace_poll_s``)
+    used only to report whether a graceful signal was honored; the
+    next status refresh observes the real outcome.
+
+    Caveat: pid identity relies on the spawned-in-our-session
+    coupling (108 ``start_new_session=True``); a pid reassigned to
+    an unrelated host process can't be reliably distinguished, but
+    that aliasing is unlikely in the harness's window.
+    """
+    if (run_dir / "grading.json").exists():
+        raise KillError(
+            f"{run_dir.name} is already collected (grading.json "
+            f"exists); not re-killing")
+    status: dict = {}
+    sp = run_dir / "status.json"
+    if sp.is_file():
+        with contextlib.suppress(OSError, json.JSONDecodeError):
+            status = json.loads(sp.read_text(encoding="utf-8"))
+    pid = status.get("pid")
+    was_alive = _pid_alive(pid)
+    signal_sent: "int | None" = None
+    still_alive = False
+    if was_alive:
+        _kill_process_tree(pid, sig=sig)
+        signal_sent = int(sig)
+        deadline = time.monotonic() + grace_poll_s
+        while time.monotonic() < deadline:
+            if not _pid_alive(pid):
+                break
+            time.sleep(0.2)
+        still_alive = _pid_alive(pid)
+    now = _utc_now_iso()
+    try:
+        signame = signal.Signals(sig).name
+    except ValueError:
+        signame = str(sig)
+    _write_status(run_dir, {
+        "state": "DONE",
+        "pid": pid,
+        "started_at": status.get("started_at", ""),
+        "heartbeat": status.get("heartbeat", now),
+        "ended_at": now,
+        "exit_code": -int(sig),
+        "terminal_state": TerminalState.KILLED.value,
+        "terminal_reason": f"killed by operator ({signame})",
+    })
+    _release_slot_for_run_dir(run_dir)
+    return KillResult(
+        run_dir=run_dir, pid=pid, was_alive=was_alive,
+        signal_sent=signal_sent,
+        terminal_state=TerminalState.KILLED.value,
+        still_alive_after_grace=still_alive)
 
 
 def launch_run_async(spec: LaunchSpec) -> SpawnResult:

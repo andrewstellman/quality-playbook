@@ -585,6 +585,15 @@ def _should_pause_follow(
     return currently_paused
 
 
+def _confirm_kill_decision(input_char: str) -> bool:
+    """v1.5.7 147: pure confirm decision for the TUI `k` kill flow —
+    True iff the operator pressed ``y`` (case-INsensitive). Any
+    other key cancels. The testable seam; the textual key-event
+    wiring that calls it is closure-local (119 no-textual invariant,
+    per 139/140)."""
+    return input_char.strip().lower() == "y"
+
+
 def _clamp_cursor(idx: int, n_rows: int) -> int:
     """v1.5.7 116: clamp the TUI selection cursor to the
     selectable range ``[0, max(0, n_rows - 1)]``.
@@ -1080,6 +1089,10 @@ def launch_textual_tui(
             # Claude stream-json templating); raw shows the
             # wire-format JSON for debugging.
             Binding("j", "toggle_rendered", "Raw/Render"),
+            # v1.5.7 147: kill the focused run (output page) or the
+            # highlighted run (detail page) — SIGKILL, with an inline
+            # y/N confirm. No-op on the runs-list (too broad).
+            Binding("k", "kill_run", "Kill"),
         ]
 
         CSS = """
@@ -1117,6 +1130,10 @@ def launch_textual_tui(
             # False = raw wire-format lines. Operator toggles
             # with `j`. Default True.
             self._rendered_mode = True
+            # v1.5.7 147: when set (to a run_dir Path), the NEXT
+            # keypress confirms (y) / cancels the kill. Consumed in
+            # ``on_key`` via ``_confirm_kill_decision``.
+            self._kill_pending: "Optional[Path]" = None
 
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
@@ -1334,6 +1351,54 @@ def launch_textual_tui(
             self._rendered_mode = not self._rendered_mode
             if self._nav == _NAV_OUTPUT:
                 self._render_output_tail()
+
+        def action_kill_run(self) -> None:
+            """v1.5.7 147: `k` — arm an inline y/N confirm to kill a
+            run. Output page → the focused run; detail page → the
+            highlighted run; runs-list → no-op (too broad)."""
+            from bin.harness import status as _status
+            if (self._nav == _NAV_OUTPUT
+                    and self._current_run_dir is not None):
+                self._kill_pending = self._current_run_dir
+                self._status_bar.update(
+                    f"Kill {self._current_run_dir.name}? (y/N)")
+            elif (self._nav == _NAV_DETAIL
+                    and self._current_dir is not None):
+                runs = _status.read_run_status(self._current_dir)
+                idx = (self._table.cursor_row
+                       if self._table.row_count else -1)
+                if 0 <= idx < len(runs):
+                    rs = runs[idx]
+                    self._kill_pending = rs.run_dir
+                    self._status_bar.update(
+                        f"Kill {rs.run_dir.name} ({rs.runner}/"
+                        f"{rs.model})? (y/N)")
+            else:
+                self._status_bar.update(
+                    "kill is not available on the runs list")
+
+        def on_key(self, event) -> None:
+            # v1.5.7 147: when a kill is armed, the next key confirms
+            # (y) or cancels. Consume it so it doesn't also trigger a
+            # normal binding.
+            if self._kill_pending is not None:
+                target = self._kill_pending
+                self._kill_pending = None
+                if _confirm_kill_decision(event.key):
+                    self._do_kill(target)
+                else:
+                    self._status_bar.update("kill cancelled")
+                event.stop()
+
+        def _do_kill(self, run_dir: "Path") -> None:
+            from bin.harness import runner as _runner
+            try:
+                _runner.kill_run(run_dir)
+                self._status_bar.update(
+                    f"killed {run_dir.name} (SIGKILL)")
+            except Exception as exc:  # pragma: no cover - terminal
+                self._status_bar.update(f"kill failed: {exc}")
+            self.refresh_view()
 
         def action_copy_screen(self) -> None:
             """v1.5.7 121: copy the current screen's rendered

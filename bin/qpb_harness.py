@@ -605,6 +605,124 @@ def _cmd_manager(args: argparse.Namespace) -> int:
     return 0
 
 
+def _kill_label(rs) -> str:
+    """v1.5.7 147: a one-line descriptor for a kill target —
+    ``run-NN (repo runner/model, pid=N, elapsed=MMmSSs)``."""
+    name = rs.run_dir.name
+    repo = rs.repo.rstrip("/").rsplit("/", 1)[-1] or rs.repo
+    el = rs.elapsed_s
+    if isinstance(el, (int, float)) and el:
+        elapsed = f"{int(el // 60)}m{int(el % 60):02d}s"
+    else:
+        elapsed = "—"
+    return (f"{name} ({repo} {rs.runner}/{rs.model}, "
+            f"pid={rs.pid}, elapsed={elapsed})")
+
+
+def _cmd_kill(args: argparse.Namespace) -> int:
+    """v1.5.7 147: operator-initiated kill of a run (RUN_NN) or all
+    running runs in a harness-run (HARNESS_RUN). SIGKILL by default;
+    ``--graceful`` sends a single SIGTERM (no escalation). Prompts
+    unless ``-y``. RUNS_ROOT is rejected (too broad)."""
+    import signal as _signal
+    from bin.harness import status as _status
+    from bin.harness import runner as _runner
+
+    path = Path(args.path).expanduser().resolve()
+    try:
+        kind = _status.classify_tui_path(path)
+    except FileNotFoundError:
+        print(f"ERROR: {path} is not a directory", file=sys.stderr)
+        return 2
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 2
+    if kind is _status.TuiPathKind.RUNS_ROOT:
+        print("ERROR: kill across an entire runs-root is too broad; "
+              "pick a harness-run (<runs-root>/<harness-run>) or a "
+              "specific run (.../run-NN).", file=sys.stderr)
+        return 2
+
+    sig = (_signal.SIGTERM if getattr(args, "graceful", False)
+           else _signal.SIGKILL)
+    signame = "SIGTERM" if sig == _signal.SIGTERM else "SIGKILL"
+
+    targets: "list[tuple[Path, str]]" = []
+    skipped: "list[tuple[str, str]]" = []
+    if kind is _status.TuiPathKind.RUN_NN:
+        rs = _status.read_one_run_status_for_dir(path)
+        if rs is None:
+            print(f"ERROR: {path} is a run dir but its parent "
+                  f"manifest doesn't list it", file=sys.stderr)
+            return 2
+        if rs.state == "RUNNING":
+            targets.append((path, _kill_label(rs)))
+        else:
+            skipped.append((_kill_label(rs),
+                            f"not running: {rs.state}"))
+    else:  # HARNESS_RUN — kill every RUNNING run.
+        for rs in _status.read_run_status(path):
+            if rs.state == "RUNNING":
+                targets.append((rs.run_dir, _kill_label(rs)))
+            else:
+                skipped.append((_kill_label(rs),
+                                f"not running: {rs.state}"))
+
+    if not targets:
+        print("No running runs to kill.")
+        for label, reason in skipped:
+            print(f"  skip {label} ({reason})")
+        return 0
+
+    if not getattr(args, "yes", False):
+        print(f"About to KILL (sending {signame}):")
+        for _rd, label in targets:
+            print(f"  {label}")
+        try:
+            resp = input("Type 'y' to confirm: ")
+        except EOFError:
+            resp = ""
+        if resp.strip() != "y":
+            print("no runs killed")
+            return 0
+
+    killed: "list[tuple[str, str]]" = []
+    rc = 0
+    graceful_hung = False
+    for run_dir, label in targets:
+        try:
+            res = _runner.kill_run(run_dir, sig=sig)
+        except _runner.KillError as exc:
+            skipped.append((label, str(exc)))
+            continue
+        except Exception as exc:  # pragma: no cover - unexpected
+            print(f"ERROR killing {label}: {exc}", file=sys.stderr)
+            rc = 3
+            continue
+        if res.was_alive:
+            note = (f"sent {signame} to pid {res.pid}; "
+                    f"new terminal_state=KILLED")
+            if res.still_alive_after_grace:
+                note += " — process did not exit within 5s"
+                graceful_hung = True
+            killed.append((label, note))
+        else:
+            killed.append((label, "pid already dead; recorded KILLED"))
+
+    if killed:
+        print("Killed:")
+        for label, note in killed:
+            print(f"  {label}: {note}")
+    if skipped:
+        print("Skipped:")
+        for label, reason in skipped:
+            print(f"  {label} ({reason})")
+    if graceful_hung:
+        print("  If you want to force-kill, re-run without "
+              "--graceful (sends SIGKILL).")
+    return rc
+
+
 def _cmd_tui_dump(path: Path, kind, *,
                     max_lines: int = 2000,
                     rendered: bool = True) -> int:
@@ -887,6 +1005,28 @@ def _build_parser() -> argparse.ArgumentParser:
               "wire format. Default is rendered."),
     )
 
+    p_kill = sub.add_parser(
+        "kill",
+        help=("v1.5.7 147: kill a run (run-NN) or all running runs "
+              "in a harness-run. SIGKILL by default; --graceful "
+              "sends a single SIGTERM. Prompts unless -y."),
+    )
+    p_kill.add_argument(
+        "path",
+        help=("run-NN dir → kill that run; harness-run dir → kill "
+              "all RUNNING runs; runs-root → error (too broad)."),
+    )
+    p_kill.add_argument(
+        "-y", "--yes", action="store_true",
+        help="Skip the confirmation prompt.",
+    )
+    p_kill.add_argument(
+        "--graceful", action="store_true",
+        help=("Send a single SIGTERM instead of SIGKILL (no "
+              "escalation; re-run without --graceful to "
+              "force-kill)."),
+    )
+
     # Phase 4 subcommands.
     p_mgr = sub.add_parser(
         "manager",
@@ -1000,6 +1140,8 @@ def main(argv: "list[str] | None" = None) -> int:
         return _cmd_status(args)
     if args.command == "tail":
         return _cmd_tail(args)
+    if args.command == "kill":
+        return _cmd_kill(args)
     if args.command == "manager":
         return _cmd_manager(args)
     if args.command == "tui":
