@@ -49,13 +49,23 @@ class PrepError(RuntimeError):
     """Prep failed — caller maps to ``ABORTED_PREP``. The reason
     string is human-readable and ends up in ``status.json``."""
 
-    def __init__(self, reason: str, *, leakage_terms: "list[str] | None" = None):
+    def __init__(self, reason: str, *,
+                 leakage_terms: "list[str] | None" = None,
+                 install_log_path: "str | None" = None,
+                 install_log_tail: "list[str] | None" = None):
         super().__init__(reason)
         self.reason = reason
         # Populated when the leakage-gate fires; carries the
         # specific terms that leaked so the operator can fix the
         # case or extend the scrub list.
         self.leakage_terms = leakage_terms or []
+        # v1.5.7 146: install-observability. On an install
+        # failure/timeout, carry the path to the teed install.log
+        # and its last-N lines so the caller can surface them in
+        # the ABORTED_PREP message + grading.json without re-reading
+        # the file.
+        self.install_log_path = install_log_path
+        self.install_log_tail = install_log_tail or []
 
 
 # ---------------------------------------------------------------------------
@@ -418,13 +428,41 @@ def build_install_command(channel: "InstallChannel",
     raise PrepError(f"unknown install channel: {channel!r}")
 
 
+def _write_install_log(install_log_path: "Path | None",
+                        stdout: "str | None",
+                        stderr: "str | None") -> "list[str]":
+    """v1.5.7 146: tee captured install stdout/stderr to
+    ``install.log`` and return the last 30 lines (the tail used in
+    ABORTED_PREP messages). ``capture_output`` keeps the two
+    streams separate, so they're written stdout-then-stderr with a
+    divider rather than truly interleaved. Best-effort — never
+    raises (an install-log I/O error must not mask the real install
+    result). Returns ``[]`` when ``install_log_path`` is None."""
+    if install_log_path is None:
+        return []
+    parts: "list[str]" = []
+    if stdout:
+        parts.append(stdout.rstrip("\n"))
+    if stderr:
+        parts.append("--- stderr ---\n" + stderr.rstrip("\n"))
+    combined = "\n".join(parts)
+    try:
+        install_log_path.parent.mkdir(parents=True, exist_ok=True)
+        install_log_path.write_text(combined, encoding="utf-8")
+    except OSError:
+        pass
+    lines = combined.splitlines()
+    return lines[-30:]
+
+
 def install_skill_channel(channel: "InstallChannel",
                             target_dir: Path, *,
                             ai_tool: str = "claude",
                             install_version: "str | None" = None,
                             local_artifact: "Path | None" = None,
                             force: bool = False,
-                            timeout_s: float = 300.0) -> None:
+                            timeout_s: float = 300.0,
+                            install_log_path: "Path | None" = None) -> None:
     """v1.5.7 096 Phase 6: dispatch install per channel.
 
     Wraps ``build_install_command`` + ``subprocess.run`` with
@@ -446,22 +484,35 @@ def install_skill_channel(channel: "InstallChannel",
     )
     cwd = (str(_qpb_clone_root())
            if channel == InstallChannel.CLONE else None)
+    _logp = str(install_log_path) if install_log_path else None
     try:
-        subprocess.run(
+        result = subprocess.run(
             cmd, cwd=cwd, check=True,
             capture_output=True, text=True,
             timeout=timeout_s,
         )
     except subprocess.CalledProcessError as exc:
+        tail = _write_install_log(
+            install_log_path, exc.stdout, exc.stderr)
         raise PrepError(
             f"install_skill ({channel.value}) failed: "
-            f"{(exc.stderr or exc.stdout or '').strip()[-500:]}"
+            f"{(exc.stderr or exc.stdout or '').strip()[-500:]}",
+            install_log_path=_logp, install_log_tail=tail,
         )
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
+        # v1.5.7 146: ``exc.stdout``/``exc.stderr`` carry whatever
+        # was captured before the kill (str under text=True; may be
+        # None). Tee it so the timeout isn't a black box.
+        _so = exc.stdout.decode("utf-8", "ignore") if isinstance(
+            exc.stdout, bytes) else exc.stdout
+        _se = exc.stderr.decode("utf-8", "ignore") if isinstance(
+            exc.stderr, bytes) else exc.stderr
+        tail = _write_install_log(install_log_path, _so, _se)
         raise PrepError(
             f"install_skill ({channel.value}) timed out after "
             f"{timeout_s}s — registry channels can be slow on a "
-            f"cold cache, raise --timeout if needed."
+            f"cold cache, raise --timeout if needed.",
+            install_log_path=_logp, install_log_tail=tail,
         )
     except FileNotFoundError as exc:
         # uvx / npx not on PATH — operator-actionable.
@@ -470,6 +521,10 @@ def install_skill_channel(channel: "InstallChannel",
             f"{exc}. Install the required runtime (uvx for pip "
             f"channels; npx for npm channels)."
         )
+    # v1.5.7 146: success — tee the install output too (so a clean
+    # install.log is available for confirming e.g. whether
+    # --prefer-offline actually hit the cache).
+    _write_install_log(install_log_path, result.stdout, result.stderr)
 
 
 # ---------------------------------------------------------------------------
@@ -590,6 +645,7 @@ def _run_install_for_axes(
     ai_tool: str = "claude",
     local_artifact: "Path | None" = None,
     prep_timeout_s: "float | None" = None,
+    install_log_path: "Path | None" = None,
 ) -> None:
     """v1.5.7 096 Phase 6: route the install step by axes.install_
     channel. When ``axes`` is None (no axes provided — Phase 1
@@ -600,6 +656,10 @@ def _run_install_for_axes(
     default install timeout for THIS run when set (codex's
     npm-local-tgz on a cold cache exceeds the 300s default). None ⇒
     the channel default.
+
+    v1.5.7 146: ``install_log_path`` tees the install stdout/stderr
+    to that file (and carries the tail on a timeout/failure). None ⇒
+    no install log (pre-146 behavior).
     """
     if axes is None:
         install_skill_clone_channel(target_dir, ai_tool=ai_tool)
@@ -610,6 +670,7 @@ def _run_install_for_axes(
         ai_tool=ai_tool,
         install_version=axes.install_version,
         local_artifact=local_artifact,
+        install_log_path=install_log_path,
         **({"timeout_s": prep_timeout_s}
            if prep_timeout_s is not None else {}),
     )
@@ -620,6 +681,7 @@ def prepare_acceptance(case: Case, worktree_dest: Path, *,
                         axes: "RunAxes | None" = None,
                         local_artifact: "Path | None" = None,
                         prep_timeout_s: "float | None" = None,
+                        install_log_path: "Path | None" = None,
                         ) -> PrepResult:
     """design §1 acceptance prep: worktree → docs present →
     Phase-0 install. No scrub, no leakage gate.
@@ -644,6 +706,7 @@ def prepare_acceptance(case: Case, worktree_dest: Path, *,
         worktree_dest, axes=axes, ai_tool=ai_tool,
         local_artifact=local_artifact,
         prep_timeout_s=prep_timeout_s,
+        install_log_path=install_log_path,
     )
     return PrepResult(
         target_dir=worktree_dest,
@@ -658,6 +721,7 @@ def prepare_security(case: Case, worktree_dest: Path, *,
                       axes: "RunAxes | None" = None,
                       local_artifact: "Path | None" = None,
                       prep_timeout_s: "float | None" = None,
+                      install_log_path: "Path | None" = None,
                       ) -> PrepResult:
     """design §1 / design §B security prep: worktree → scrub
     reference_docs of leakage terms → leakage-gate → install.
@@ -695,6 +759,7 @@ def prepare_security(case: Case, worktree_dest: Path, *,
         worktree_dest, axes=axes, ai_tool=ai_tool,
         local_artifact=local_artifact,
         prep_timeout_s=prep_timeout_s,
+        install_log_path=install_log_path,
     )
     return PrepResult(
         target_dir=worktree_dest,
@@ -709,6 +774,7 @@ def prepare(case: Case, worktree_dest: Path, *,
              axes: "RunAxes | None" = None,
              local_artifact: "Path | None" = None,
              prep_timeout_s: "float | None" = None,
+             install_log_path: "Path | None" = None,
              ) -> PrepResult:
     """Top-level dispatch: routes by ``case.inputs.prep``. The
     case's prep policy MUST match its type (the loader pins this
@@ -724,12 +790,14 @@ def prepare(case: Case, worktree_dest: Path, *,
             case, worktree_dest, ai_tool=ai_tool,
             axes=axes, local_artifact=local_artifact,
             prep_timeout_s=prep_timeout_s,
+            install_log_path=install_log_path,
         )
     elif case.inputs.prep == PrepPolicy.SECURITY:
         return prepare_security(
             case, worktree_dest, ai_tool=ai_tool,
             axes=axes, local_artifact=local_artifact,
             prep_timeout_s=prep_timeout_s,
+            install_log_path=install_log_path,
         )
     else:
         raise PrepError(

@@ -1176,6 +1176,34 @@ def _execute_one_run(plan_run: PlanRun, harness_run_dir: Path,
     )
 
 
+def _prep_error_fields(exc) -> "dict":
+    """v1.5.7 146: the prep_error block for invocation.json /
+    grading.json — the reason plus (on an install timeout/failure)
+    the install.log path + tail, so a post-mortem doesn't require
+    re-reading the log."""
+    out: "dict" = {"prep_error": exc.reason}
+    path = getattr(exc, "install_log_path", None)
+    if path:
+        out["install_log_path"] = path
+        out["install_log_tail"] = getattr(exc, "install_log_tail", [])
+    return out
+
+
+def _aborted_prep_log_msg(exc) -> str:
+    """v1.5.7 146: the run.log/harness.log ABORTED_PREP line — the
+    reason plus a 5-line inline install.log tail + full-log path, so
+    a `tail run.log` shows the install's last words inline."""
+    msg = f"ABORTED_PREP: {exc.reason}"
+    tail = getattr(exc, "install_log_tail", None)
+    if tail:
+        last = "\n".join(f"    {ln}" for ln in tail[-5:])
+        msg += f"\n  Last 5 lines of install.log:\n{last}"
+        path = getattr(exc, "install_log_path", None)
+        if path:
+            msg += f"\n  Full install log: {path}"
+    return msg
+
+
 def _execute_one_run_production(
         plan_run: PlanRun, harness_run_dir: Path,
         run_dir: Path, target_dir: Path, *,
@@ -1332,6 +1360,7 @@ def _execute_one_run_production(
                 axes=axes,
                 local_artifact=local_artifact,
                 prep_timeout_s=plan_run.prep_timeout_s,
+                install_log_path=run_dir / "install.log",
             )
         except _prepare_mod.PrepError as exc:
             ended_at = _now_iso()
@@ -1362,13 +1391,13 @@ def _execute_one_run_production(
                     "ABORTED" if exc.leakage_terms else None
                 ),
                 "local_artifact": local_artifact_info,
-                "prep_error": exc.reason,
+                **_prep_error_fields(exc),
             }
             (run_dir / "invocation.json").write_text(
                 json.dumps(inv_dict, indent=2) + "\n",
                 encoding="utf-8",
             )
-            _log(f"ABORTED_PREP: {exc.reason}")
+            _log(_aborted_prep_log_msg(exc))
             _log("DONE: gate=N/A result=N/A")
             return RunOutcome(
                 index=plan_run.index,
@@ -1380,7 +1409,7 @@ def _execute_one_run_production(
                 gate_verdict="N/A",
                 result="N/A",
                 terminal_state=TerminalState.ABORTED_PREP.value,
-                grading={"prep_error": exc.reason},
+                grading=_prep_error_fields(exc),
             )
 
     # ----- STEP 2: LAUNCH (detached AI-CLI subprocess) -----
@@ -1659,6 +1688,7 @@ def _launch_one_run_detached(
                 axes=axes,
                 local_artifact=local_artifact,
                 prep_timeout_s=plan_run.prep_timeout_s,
+                install_log_path=run_dir / "install.log",
             )
             prep_target_dir = prep_result.target_dir
             target_sha = prep_result.target_sha
@@ -1697,14 +1727,14 @@ def _launch_one_run_detached(
                     "ABORTED" if exc.leakage_terms else None
                 ),
                 "local_artifact": local_artifact_info,
-                "prep_error": exc.reason,
+                **_prep_error_fields(exc),
             }
             run_dir.mkdir(parents=True, exist_ok=True)
             (run_dir / "invocation.json").write_text(
                 json.dumps(inv_dict, indent=2) + "\n",
                 encoding="utf-8",
             )
-            _log(f"ABORTED_PREP: {exc.reason}")
+            _log(_aborted_prep_log_msg(exc))
             return {
                 "index": plan_run.index,
                 "description": plan_run.description,
@@ -1720,7 +1750,7 @@ def _launch_one_run_detached(
                 "started_at": started_at,
                 "terminal_state":
                     TerminalState.ABORTED_PREP.value,
-                "prep_error": exc.reason,
+                **_prep_error_fields(exc),
                 "status_path": str(run_dir / "status.json"),
             }
 
