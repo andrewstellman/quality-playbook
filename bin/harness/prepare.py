@@ -390,8 +390,24 @@ def build_install_command(channel: "InstallChannel",
                 "npm-local-tgz channel requires local_artifact "
                 "(path to the `npm pack` output)"
             )
+        # v1.5.7 142: --prefer-offline so npx uses the local npm
+        # cache for any registry checks instead of hitting the
+        # network. QPB's npm package has ZERO runtime dependencies
+        # (no `dependencies` field in package.json — confirmed
+        # against the in-tarball package.json), AND the shim does no
+        # network work (verbatim subprocess.spawn to
+        # `python3 -m quality_playbook_cli install`). So a 15-min
+        # "install" timeout (the 138-bumped value that STILL failed
+        # on the 2026-05-29 acceptance retest) was npx itself
+        # consulting the registry for package metadata / version
+        # checks. With --prefer-offline + a one-time cache warm this
+        # drops back to seconds. --offline (stricter — never hit the
+        # registry, fail on a cache miss) was rejected: a clean
+        # adopter's first-ever install is the acceptable tradeoff
+        # for one slow first run. The flag is a global npm config
+        # option (verified accepted by npx 11.x in this position).
         cmd = [
-            "npx", "--package", str(local_artifact),
+            "npx", "--prefer-offline", "--package", str(local_artifact),
             "quality-playbook", "init",
             f"--ai-tool={ai_tool}",
         ]

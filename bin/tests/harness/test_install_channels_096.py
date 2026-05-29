@@ -200,12 +200,30 @@ class NpmLocalTgzTemplateTests(unittest.TestCase):
             ai_tool="copilot",
             local_artifact=tgz,
         )
+        # v1.5.7 142: --prefer-offline is a global npm config flag,
+        # positioned immediately after `npx` (before --package).
         self.assertEqual(cmd[0], "npx")
-        self.assertEqual(cmd[1], "--package")
-        self.assertEqual(cmd[2], str(tgz))
+        self.assertEqual(cmd[1], "--prefer-offline")
+        self.assertEqual(cmd[2], "--package")
+        self.assertEqual(cmd[3], str(tgz))
         self.assertIn("quality-playbook", cmd)
         self.assertIn("init", cmd)
         self.assertIn("--ai-tool=copilot", cmd)
+
+    def test_npm_local_tgz_uses_prefer_offline(self) -> None:
+        """v1.5.7 142: --prefer-offline present AND before
+        --package (the root-cause fix for the 138 prep-timeout —
+        npx was consulting the registry for a zero-dep local
+        tarball). Mutation-bite: drop the flag ⇒ this fails."""
+        cmd = P.build_install_command(
+            S.InstallChannel.NPM_LOCAL_TGZ,
+            Path("/tmp/target"),
+            ai_tool="claude",
+            local_artifact=Path("/abs/quality-playbook-1.5.7.tgz"),
+        )
+        self.assertIn("--prefer-offline", cmd)
+        self.assertLess(cmd.index("--prefer-offline"),
+                        cmd.index("--package"))
 
     def test_missing_artifact_raises(self) -> None:
         with self.assertRaises(P.PrepError) as ctx:
