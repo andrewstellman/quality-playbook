@@ -1197,6 +1197,27 @@ def _write_witness(target: Path, nonce: str, iso_ts: str,
     return witness
 
 
+def _append_witness_status(witness: Path, status: str,
+                            findings: int) -> None:
+    """v1.5.7 145: append the FINAL ``status=`` / ``findings=`` to
+    the (start-of-run) witness once the validator has determined
+    them. Additive — pre-145 readers ignore the extra lines.
+
+    Closes the 143 observability gap: non-Claude runners (copilot /
+    codex / cursor) emit boxed-TUI streams that don't capture the
+    validator's ``event=validation_complete status=…`` stdout, so
+    ``facts.parse_transcript`` can't see Phase-0 outcomes from the
+    stream. The witness — which the validator always writes to disk
+    — becomes the fallback source for those facts. Best-effort:
+    never fail the validator on witness I/O.
+    """
+    try:
+        with witness.open("a", encoding="utf-8") as fh:
+            fh.write(f"status={status}\nfindings={findings}\n")
+    except OSError:
+        pass
+
+
 # ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
@@ -1400,6 +1421,16 @@ def main(argv: "list[str] | None" = None) -> int:
     em.emit("invocation_context", location=ctx, root=root,
             witness=witness.name)
 
+    # v1.5.7 145: emit the terminal validation_complete AND persist
+    # status/findings to the witness in one place (same computed
+    # values), so the witness is an authoritative Phase-0 fact source
+    # for non-Claude streams that don't capture the validator stdout.
+    def _complete(status: str, findings: int) -> int:
+        em.emit("validation_complete", status=status,
+                findings=findings, ts=iso_ts)
+        _append_witness_status(witness, status, findings)
+        return {"ok": 0, "remediable": 1, "blocked": 2}[status]
+
     plat = platform_kind()
     shell = windows_shell_kind() if plat == "windows" else "n/a"
     em.emit("platform_detected", kind=plat, shell=shell)
@@ -1412,9 +1443,7 @@ def main(argv: "list[str] | None" = None) -> int:
                 command=command_for_platform("multiple_ai_tool_markers"),
                 rationale=FINDING_CATALOG["multiple_ai_tool_markers"]["rationale"],
                 verify_with=FINDING_CATALOG["multiple_ai_tool_markers"]["verify_with"])
-        em.emit("validation_complete", status="blocked", findings=1,
-                ts=iso_ts)
-        return 2
+        return _complete("blocked", 1)
 
     marker, tool = detect_ai_tool(markers, args.ai_tool)
     em.emit("target_resolved", target=target,
@@ -1493,16 +1522,11 @@ def main(argv: "list[str] | None" = None) -> int:
 
     n = len(findings)
     if n == 0:
-        em.emit("validation_complete", status="ok", findings=0, ts=iso_ts)
-        return 0
+        return _complete("ok", 0)
     if any(FINDING_CATALOG[f["code"]]["severity"] == "blocked"
            for f in findings):
-        em.emit("validation_complete", status="blocked", findings=n,
-                ts=iso_ts)
-        return 2
-    em.emit("validation_complete", status="remediable", findings=n,
-            ts=iso_ts)
-    return 1
+        return _complete("blocked", n)
+    return _complete("remediable", n)
 
 
 if __name__ == "__main__":

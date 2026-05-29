@@ -419,13 +419,73 @@ _RE_BLOCKED = re.compile(
 )
 
 
-def parse_transcript(transcript: str) -> "tuple[Phase0Facts, InstallSurfaceFacts, bool, str | None]":
+def _phase0_probes_from_witnesses(
+        target_dir: "Path") -> "tuple[list[str], bool]":
+    """v1.5.7 145: reconstruct the ordered, deduped Phase-0 probe
+    statuses from the validator's on-disk witnesses under
+    ``<target_dir>/quality/.qpb_validation_<ts>_<nonce>.txt``.
+
+    Each witness carries ``nonce=`` always and (145-format)
+    ``status=``/``findings=``. Pre-145 witnesses (no ``status=``)
+    are silently skipped. Files are processed in filename order
+    (the ``<ts>`` prefix is chronological), deduped by nonce —
+    matching the stream path's dedup. Returns
+    ``(probe_statuses, bare_path_fail)``.
+    """
+    qdir = Path(target_dir) / "quality"
+    if not qdir.is_dir():
+        return [], False
+    probes: "list[str]" = []
+    seen: "set[str]" = set()
+    bare_path = False
+    try:
+        witnesses = sorted(qdir.glob(".qpb_validation_*.txt"))
+    except OSError:
+        return [], False
+    for wf in witnesses:
+        try:
+            text = wf.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        fields: "dict[str, str]" = {}
+        for line in text.splitlines():
+            if "=" in line:
+                k, v = line.split("=", 1)
+                fields[k] = v
+        status = fields.get("status")
+        nonce = fields.get("nonce")
+        if status is None or nonce is None:
+            continue  # pre-145 witness — no status field; skip
+        if status == "bare-path-fail":
+            bare_path = True
+        if nonce not in seen:
+            seen.add(nonce)
+            probes.append(status)
+    return probes, bare_path
+
+
+def parse_transcript(
+        transcript: str,
+        target_dir: "Path | None" = None,
+) -> "tuple[Phase0Facts, InstallSurfaceFacts, bool, str | None]":
     """Parse the agent's transcript / stream for the live-behavior
     facts the gate-derived path doesn't carry.
 
     Returns ``(phase0, install_surface, blocked, stop_reason)``.
     ``blocked`` + ``stop_reason`` feed ``RunMetaFacts``; the rest
     is per-named-tuple per design §C/§5.
+
+    v1.5.7 145: ``target_dir`` enables an artifact fallback for the
+    Phase-0 facts. Non-Claude runners (copilot / codex / cursor)
+    emit boxed-TUI streams that don't capture the validator's
+    ``event=validation_complete`` stdout, so the stream yields zero
+    probes and the facts would default to ``blocked`` / not-ok. When
+    the stream has NO probes AND ``target_dir`` is given, fall back
+    to the validator's on-disk witnesses
+    (``<target>/quality/.qpb_validation_*.txt``, 145-format with
+    ``status=``/``findings=``). None / no post-145 witnesses ⇒
+    pre-145 behavior preserved. Stream probes always win when
+    present.
     """
     # Phase 0 status / probe_attempts / first_probe_ok.
     #
@@ -453,6 +513,17 @@ def parse_transcript(transcript: str) -> "tuple[Phase0Facts, InstallSurfaceFacts
             real_probes.append(_pm.group("status"))
 
     bare_path_fail = _RE_PHASE0_BARE_PATH_FAIL.search(transcript) is not None
+
+    # v1.5.7 145: artifact fallback — when the STREAM carried no
+    # probes (non-Claude TUI streams), reconstruct the probe sequence
+    # from the validator's on-disk witnesses. Stream probes win when
+    # present (this only fires on an empty stream-probe list).
+    if not real_probes and target_dir is not None:
+        _wit_probes, _wit_bare = _phase0_probes_from_witnesses(
+            target_dir)
+        if _wit_probes:
+            real_probes = _wit_probes
+            bare_path_fail = bare_path_fail or _wit_bare
 
     if real_probes:
         # v1.5.7 141: scope to the PHASE-0 prefix. Phase 0 ends the
@@ -563,7 +634,8 @@ def extract_facts(target_dir: Path, *, axes: RunAxes,
     if gate_stdout is None:
         gate_stdout = rerun_installed_gate(target_dir, axes=axes)
     gate, verdict, provenance = parse_gate_stdout(gate_stdout)
-    phase0, install, blocked, stop_reason = parse_transcript(transcript)
+    phase0, install, blocked, stop_reason = parse_transcript(
+        transcript, target_dir=target_dir)
     run_meta = RunMetaFacts(
         blocked=blocked,
         stop_reason=stop_reason,
