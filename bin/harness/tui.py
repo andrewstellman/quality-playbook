@@ -554,6 +554,37 @@ def _resolve_initial_nav_state(
     return (_NAV_LIST, None, None)
 
 
+def _should_pause_follow(
+        scroll_y: int, max_scroll_y: int, *,
+        manual_scroll_event: bool, currently_paused: bool,
+        user_pressed_f: bool) -> bool:
+    """v1.5.7 140: pure follow-pause decision for the output
+    screen. Shared, unit-testable seam — the textual integration
+    that calls it (focus + scroll capture/restore) is
+    operator-confirmable via a TTY, per the 139 pattern.
+
+    The 'less +F' / chat-log idiom: follow the tail until the
+    operator scrolls up, then pause (preserve their viewport) until
+    they return to the bottom or press ``f``.
+
+      * ``user_pressed_f`` → explicit toggle (the manual override).
+      * paused AND back at the bottom (``scroll_y >= max_scroll_y``)
+        → resume (return False).
+      * following AND a manual scroll-up (``scroll_y <
+        max_scroll_y``) → pause (return True).
+      * otherwise → unchanged.
+    """
+    if user_pressed_f:
+        return not currently_paused
+    at_bottom = scroll_y >= max_scroll_y
+    if currently_paused and at_bottom:
+        return False
+    if (not currently_paused and manual_scroll_event
+            and scroll_y < max_scroll_y):
+        return True
+    return currently_paused
+
+
 def _clamp_cursor(idx: int, n_rows: int) -> int:
     """v1.5.7 116: clamp the TUI selection cursor to the
     selectable range ``[0, max(0, n_rows - 1)]``.
@@ -1164,11 +1195,40 @@ def launch_textual_tui(
                 f"Enter: live output   Esc: back   r: refresh"
             )
 
-        def _render_output_tail(self) -> None:
+        def _render_output_tail(
+                self, *, auto_follow_check: bool = False) -> None:
             if self._current_run_dir is None:
                 return
             self._table.display = False
             self._log.display = True
+            # v1.5.7 140: focus the log so arrow / page / home keys
+            # scroll it (built-in ScrollView actions). Idempotent —
+            # a no-op once focused, so it just grabs focus on the
+            # first output render. End stays App-bound to
+            # `action_follow` (jump to live).
+            if not self._log.has_focus:
+                self._log.focus()
+            # v1.5.7 140: on the periodic timer refresh
+            # (auto_follow_check), auto-update follow state from the
+            # scroll position BEFORE the rewrite: if the operator
+            # scrolled up (not at the bottom), pause so the refresh
+            # doesn't yank them back; when they return to the
+            # bottom, resume. Explicit actions (f / End / entry)
+            # pass auto_follow_check=False so they aren't
+            # immediately re-paused before the scroll-to-bottom
+            # lands. `_follow_mode` True == NOT paused.
+            prior_scroll_y = self._log.scroll_y
+            if auto_follow_check:
+                paused = _should_pause_follow(
+                    self._log.scroll_y, self._log.max_scroll_y,
+                    manual_scroll_event=(
+                        self._log.scroll_y < self._log.max_scroll_y),
+                    currently_paused=not self._follow_mode,
+                    user_pressed_f=False,
+                )
+                self._follow_mode = not paused
+            else:
+                paused = not self._follow_mode
             lines = build_rendered_output_lines(
                 self._current_run_dir,
                 rendered=self._rendered_mode,
@@ -1187,14 +1247,28 @@ def launch_textual_tui(
                 # Pin the viewport to the newest line —
                 # tail -f semantics.
                 self._log.scroll_end(animate=False)
+            else:
+                # v1.5.7 140: paused — preserve the operator's
+                # viewport across the clear+rewrite (the snap-back
+                # bug was the rewrite resetting scroll then
+                # scroll_end re-anchoring). Restore the prior
+                # offset (validate_scroll_y clamps to the new
+                # content height).
+                self._log.scroll_y = prior_scroll_y
             mode = ("FOLLOW" if self._follow_mode
-                    else "PAUSED")
+                    else "PAUSED ⏸")
             render_mode = ("RENDERED" if self._rendered_mode
                             else "RAW")
+            # v1.5.7 140: distinct hint when paused so the operator
+            # sees they're scrolled back off the live tail. (Plain
+            # text — no Rich markup — to avoid any literal-bracket
+            # display; the mode field already shows PAUSED ⏸.)
+            follow_hint = ("»f/End: resume live«" if paused
+                           else "f: toggle follow")
             self._status_bar.update(
                 f"output [{mode}|{render_mode}]: "
                 f"{self._current_run_dir.name}   "
-                f"f: toggle follow   j: rendered/raw   "
+                f"{follow_hint}   j: rendered/raw   "
                 f"End: follow+bottom   Esc: back"
             )
 
@@ -1206,7 +1280,9 @@ def launch_textual_tui(
             elif self._nav == _NAV_DETAIL:
                 self._render_run_detail()
             elif self._nav == _NAV_OUTPUT:
-                self._render_output_tail()
+                # v1.5.7 140: the periodic refresh evaluates
+                # auto-pause from the operator's scroll position.
+                self._render_output_tail(auto_follow_check=True)
 
         # -- actions --------------------------------------------
 
@@ -1234,9 +1310,19 @@ def launch_textual_tui(
                 self._render_output_tail()
 
         def action_toggle_follow(self) -> None:
-            """f key: flip follow on/off."""
-            self._follow_mode = not self._follow_mode
+            """f key: explicit follow on/off override (v1.5.7 140 —
+            routed through the shared `_should_pause_follow` so the
+            toggle semantics live in one place)."""
+            paused = _should_pause_follow(
+                self._log.scroll_y, self._log.max_scroll_y,
+                manual_scroll_event=False,
+                currently_paused=not self._follow_mode,
+                user_pressed_f=True,
+            )
+            self._follow_mode = not paused
             if self._nav == _NAV_OUTPUT:
+                # auto_follow_check=False: honor the explicit choice
+                # (if now following, the render scroll_end's to live).
                 self._render_output_tail()
 
         def action_toggle_rendered(self) -> None:
