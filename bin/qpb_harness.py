@@ -698,35 +698,28 @@ def _cmd_tui(args: argparse.Namespace) -> int:
         )
 
     # Interactive: derive the runs-root the TUI navigates from the
-    # classified path. v1.5.7 135 NOTE: the interactive TUI opens
-    # at the TOP (runs-list) page of that runs-root; opening
-    # directly at the detail/output page for a HARNESS_RUN/RUN_NN
-    # path needs an initial-nav-state change in BOTH the textual
-    # app and the curses event loop (flagged in the 135 review-
-    # request as a deferred TUI-internals change, per the halt
-    # rule against refactoring TUI internals as a CLI side effect).
-    # Use --dump for the exact-page headless view in the meantime.
+    # classified path, plus (v1.5.7 139, closes 135 FLAG 3) the
+    # initial-focus so the TUI opens at the page the path indicates
+    # — RUN_NN → output page, HARNESS_RUN → detail page, RUNS_ROOT
+    # → runs-list (top). The existing q/esc back-nav walks UP from
+    # the deep-entry page to its parent(s). (135's interim stderr
+    # "navigate into …" hint is gone — deep-entry makes it moot.)
+    initial_focus: "Optional[tuple]" = None
     if kind is _status.TuiPathKind.RUNS_ROOT:
         runs_root = path
     elif kind is _status.TuiPathKind.HARNESS_RUN:
         runs_root = path.parent
-        sys.stderr.write(
-            f"qpb_harness tui: opening the runs-list at "
-            f"{runs_root} (navigate into {path.name}); "
-            f"`--dump` renders the detail page directly.\n")
+        initial_focus = (kind, path)
     else:  # RUN_NN
         runs_root = path.parent.parent
-        sys.stderr.write(
-            f"qpb_harness tui: opening the runs-list at "
-            f"{runs_root} (navigate into "
-            f"{path.parent.name}/{path.name}); `--dump` renders "
-            f"the output page directly.\n")
+        initial_focus = (kind, path)
 
     # v1.5.7 119: Textual by default; curses on --curses or
     # textual ImportError.
     force_curses = bool(getattr(args, "curses", False))
     if force_curses:
-        return _tui.launch_status_tui(runs_root)
+        return _tui.launch_status_tui(
+            runs_root, initial_focus=initial_focus)
     try:
         import textual  # noqa: F401 — availability probe only
     except ImportError:
@@ -739,8 +732,10 @@ def _cmd_tui(args: argparse.Namespace) -> int:
             "or install the harness extra:\n"
             "  pip install 'quality-playbook[harness]'\n"
         )
-        return _tui.launch_status_tui(runs_root)
-    return _tui.launch_textual_tui(runs_root)
+        return _tui.launch_status_tui(
+            runs_root, initial_focus=initial_focus)
+    return _tui.launch_textual_tui(
+        runs_root, initial_focus=initial_focus)
 
 
 def _build_parser() -> argparse.ArgumentParser:

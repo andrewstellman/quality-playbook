@@ -491,7 +491,11 @@ def build_output_lines(run_dir: Path,
     return lines
 
 
-def launch_status_tui(runs_root: Path) -> int:
+def launch_status_tui(
+        runs_root: Path,
+        *,
+        initial_focus: "Optional[tuple]" = None,
+) -> int:
     """v1.5.7 111: the curses entry point. Three navigation
     levels: harness-runs list → run detail → live output.
 
@@ -500,6 +504,10 @@ def launch_status_tui(runs_root: Path) -> int:
     ``bin.harness.tui`` does NOT start curses. The
     ``curses.wrapper`` ensures the terminal is restored on
     exit AND on any uncaught exception.
+
+    v1.5.7 139: ``initial_focus`` (``(TuiPathKind, Path)`` or None)
+    opens the loop at a deeper screen — see
+    ``_resolve_initial_nav_state``. None ⇒ pre-139 runs-list.
     """
     import curses
 
@@ -507,7 +515,8 @@ def launch_status_tui(runs_root: Path) -> int:
         curses.curs_set(0)
         stdscr.nodelay(True)
         stdscr.timeout(2000)  # auto-refresh ~2s
-        return _event_loop(stdscr, runs_root)
+        return _event_loop(stdscr, runs_root,
+                            initial_focus=initial_focus)
 
     return curses.wrapper(_main)
 
@@ -516,6 +525,33 @@ def launch_status_tui(runs_root: Path) -> int:
 _NAV_LIST = "list"
 _NAV_DETAIL = "detail"
 _NAV_OUTPUT = "output"
+
+
+def _resolve_initial_nav_state(
+        initial_focus: "Optional[tuple]" = None,
+) -> "tuple[str, Optional[Path], Optional[Path]]":
+    """v1.5.7 139: derive the initial ``(nav, current_dir,
+    current_run_dir)`` for a deep-entry, shared by the textual App
+    (``on_mount``) and the curses ``_event_loop`` so both open at
+    the same screen AND wire the same back-nav parent targets.
+
+    ``initial_focus`` is ``(TuiPathKind, Path)`` or None:
+      * None / RUNS_ROOT      → ``(LIST, None, None)`` — pre-139.
+      * (HARNESS_RUN, path)   → ``(DETAIL, path, None)``.
+      * (RUN_NN, path)        → ``(OUTPUT, path.parent, path)`` —
+        ``current_dir`` is the parent harness-run so q/esc from the
+        output page lands on its detail page (then runs-list, then
+        exit), exactly as a manual drill-down would.
+    """
+    if initial_focus is None:
+        return (_NAV_LIST, None, None)
+    from bin.harness.status import TuiPathKind
+    kind, path = initial_focus
+    if kind is TuiPathKind.RUN_NN:
+        return (_NAV_OUTPUT, path.parent, path)
+    if kind is TuiPathKind.HARNESS_RUN:
+        return (_NAV_DETAIL, path, None)
+    return (_NAV_LIST, None, None)
 
 
 def _clamp_cursor(idx: int, n_rows: int) -> int:
@@ -546,18 +582,23 @@ def _clamp_cursor(idx: int, n_rows: int) -> int:
     return max(0, min(idx, n_rows - 1))
 
 
-def _event_loop(stdscr, runs_root: Path) -> int:
+def _event_loop(stdscr, runs_root: Path,
+                *, initial_focus: "Optional[tuple]" = None) -> int:
     """v1.5.7 111: the TUI's main loop. NOT directly unit
     tested (curses is hard to fixture); the view-model
     builders ABOVE are what tests exercise. This function is
     a thin glue layer: read keys → update nav state → call a
-    view-model builder → render lines."""
+    view-model builder → render lines.
+
+    v1.5.7 139: ``initial_focus`` seeds the initial nav state via
+    the shared ``_resolve_initial_nav_state`` (same semantics as
+    the textual App), so q/esc back-nav from a deep-entry walks up
+    to the parent screens identically."""
     import curses
 
-    nav = _NAV_LIST
+    nav, current_dir, current_run_dir = _resolve_initial_nav_state(
+        initial_focus)
     selected_idx = 0
-    current_dir: "Optional[Path]" = None
-    current_run_dir: "Optional[Path]" = None
     # v1.5.7 116: tracked across loop iterations so KEY_DOWN /
     # KEY_UP can clamp using the row count from the just-
     # rendered view. Re-set to the live count after each view's
@@ -947,7 +988,11 @@ def format_output_as_text(run_dir: Path, *,
     return header + "\n" + "\n".join(lines)
 
 
-def launch_textual_tui(runs_root: Path) -> int:
+def launch_textual_tui(
+        runs_root: Path,
+        *,
+        initial_focus: "Optional[tuple]" = None,
+) -> int:
     """v1.5.7 119: launch the Textual TUI. Lazy-imports
     textual so this module's import stays clean when textual
     isn't installed (111 invariant preserved).
@@ -957,6 +1002,11 @@ def launch_textual_tui(runs_root: Path) -> int:
     it and falls back to the curses path). Inside the
     function we assume textual is importable — the caller
     has already probed availability.
+
+    v1.5.7 139: ``initial_focus`` (``(TuiPathKind, Path)`` or None)
+    opens the app at a deeper screen than the runs-list — see
+    ``_resolve_initial_nav_state``. None ⇒ pre-139 behavior. The
+    focused path must be a child of ``runs_root``.
     """
     # Lazy imports — textual is dev/harness-optional.
     from textual.app import App, ComposeResult
@@ -1017,12 +1067,17 @@ def launch_textual_tui(runs_root: Path) -> int:
         """
 
         def __init__(self,
-                      app_runs_root: Path) -> None:
+                      app_runs_root: Path,
+                      app_initial_focus: "Optional[tuple]" = None,
+                      ) -> None:
             super().__init__()
             self._runs_root = app_runs_root
-            self._nav = _NAV_LIST
-            self._current_dir: "Optional[Path]" = None
-            self._current_run_dir: "Optional[Path]" = None
+            # v1.5.7 139: deep-entry initial nav state (shared
+            # derivation with the curses loop). None ⇒ runs-list.
+            (self._nav,
+             self._current_dir,
+             self._current_run_dir) = _resolve_initial_nav_state(
+                app_initial_focus)
             # Follow-mode default: tail at bottom, auto-scroll
             # on refresh. Operator toggles with f / End.
             self._follow_mode = True
@@ -1055,7 +1110,10 @@ def launch_textual_tui(runs_root: Path) -> int:
             yield Footer()
 
         def on_mount(self) -> None:
-            self._render_runs_list()
+            # v1.5.7 139: open at the screen the initial nav state
+            # indicates (deep-entry) — default is the runs-list.
+            # refresh_view already dispatches by ``self._nav``.
+            self.refresh_view()
             # v1.5.7 119 Task C: ~2s auto-refresh on ALL
             # screens. set_interval fires on the App's main
             # event loop; refresh_view dispatches to the
@@ -1263,5 +1321,5 @@ def launch_textual_tui(runs_root: Path) -> int:
                     self._follow_mode = True
                     self._render_output_tail()
 
-    app = QPBHarnessApp(runs_root)
+    app = QPBHarnessApp(runs_root, initial_focus)
     return app.run() or 0
