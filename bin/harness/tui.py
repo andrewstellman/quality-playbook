@@ -1033,28 +1033,84 @@ def launch_textual_tui(
         *,
         initial_focus: "Optional[tuple]" = None,
 ) -> int:
-    """v1.5.7 119: launch the Textual TUI. Lazy-imports
-    textual so this module's import stays clean when textual
-    isn't installed (111 invariant preserved).
+    """v1.5.7 119: launch the Textual TUI (build via
+    ``_build_textual_app`` + run the event loop).
 
-    ``ImportError`` for textual surfaces a clear actionable
-    message to the operator (the CLI's ``_cmd_tui`` catches
-    it and falls back to the curses path). Inside the
-    function we assume textual is importable — the caller
-    has already probed availability.
+    Lazy-imports textual (via the factory) so this module's import
+    stays clean when textual isn't installed (111 invariant). The
+    CLI's ``_cmd_tui`` catches ImportError and falls back to curses.
+
+    v1.5.7 151: the build/run split lets ``App.run_test()`` drive
+    the app headlessly in interaction tests (the factory returns the
+    constructed App; this wrapper runs it)."""
+    return _build_textual_app(
+        runs_root, initial_focus=initial_focus).run() or 0
+
+
+def _build_textual_app(
+        runs_root: Path,
+        initial_focus: "Optional[tuple]" = None,
+):
+    """v1.5.7 151: construct (but do NOT run) the Textual app.
+    Lazy-imports textual inside the function so importing
+    ``bin.harness.tui`` stays clean without textual (119 invariant).
+    Returns the ``QPBHarnessApp`` instance — production runs it via
+    ``launch_textual_tui``; tests drive it via ``app.run_test()``.
 
     v1.5.7 139: ``initial_focus`` (``(TuiPathKind, Path)`` or None)
-    opens the app at a deeper screen than the runs-list — see
-    ``_resolve_initial_nav_state``. None ⇒ pre-139 behavior. The
-    focused path must be a child of ``runs_root``.
+    opens the app at a deeper screen than the runs-list.
     """
     # Lazy imports — textual is dev/harness-optional.
     from textual.app import App, ComposeResult
     from textual.binding import Binding
-    from textual.containers import Vertical
+    from textual.containers import Vertical, Center, Middle
+    from textual.screen import ModalScreen
     from textual.widgets import (
-        Header, Footer, DataTable, RichLog, Static,
+        Header, Footer, DataTable, RichLog, Static, Label,
     )
+
+    class _KillConfirmScreen(ModalScreen):
+        """v1.5.7 151: modal y/N confirm for the kill action. Owns
+        the screen until dismissed, so the 2s ``refresh_view`` (whose
+        renderers update the status bar on the screen BEHIND it)
+        cannot paint over the prompt — fixes 147's Bug A. A second
+        `k` while it's up is swallowed by the modal (not re-armed) —
+        fixes Bug B. ``y`` → dismiss(True); ``n``/Esc/other →
+        dismiss(False). Caller wires push_screen(..., callback=...)."""
+
+        BINDINGS = [
+            Binding("y", "confirm", "Kill", show=True),
+            Binding("Y", "confirm", "Kill", show=False),
+            Binding("n", "cancel", "Cancel", show=True),
+            Binding("N", "cancel", "Cancel", show=False),
+            Binding("escape", "cancel", "Cancel", show=False),
+        ]
+
+        CSS = """
+        _KillConfirmScreen {
+            align: center middle;
+        }
+        _KillConfirmScreen Label {
+            width: auto;
+            min-width: 40;
+            padding: 1 4;
+            border: thick $warning;
+            background: $surface;
+        }
+        """
+
+        def __init__(self, prompt: str) -> None:
+            super().__init__()
+            self._prompt = prompt
+
+        def compose(self) -> "ComposeResult":
+            yield Middle(Center(Label(self._prompt)))
+
+        def action_confirm(self) -> None:
+            self.dismiss(True)
+
+        def action_cancel(self) -> None:
+            self.dismiss(False)
 
     _NAV_LIST = "list"
     _NAV_DETAIL = "detail"
@@ -1130,10 +1186,10 @@ def launch_textual_tui(
             # False = raw wire-format lines. Operator toggles
             # with `j`. Default True.
             self._rendered_mode = True
-            # v1.5.7 147: when set (to a run_dir Path), the NEXT
-            # keypress confirms (y) / cancels the kill. Consumed in
-            # ``on_key`` via ``_confirm_kill_decision``.
-            self._kill_pending: "Optional[Path]" = None
+            # v1.5.7 151: the kill y/N confirm is now a ModalScreen
+            # (action_kill_run → push_screen), so there's no
+            # _kill_pending / on_key state to track — the modal owns
+            # the flow until dismissed (fixes 147's Bugs A/B).
 
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
@@ -1353,42 +1409,61 @@ def launch_textual_tui(
                 self._render_output_tail()
 
         def action_kill_run(self) -> None:
-            """v1.5.7 147: `k` — arm an inline y/N confirm to kill a
-            run. Output page → the focused run; detail page → the
-            highlighted run; runs-list → no-op (too broad)."""
+            """v1.5.7 147 + 151: `k` — push a modal y/N confirm.
+            Output page → the focused run; detail page → the
+            highlighted run; runs-list → all RUNNING runs in the
+            highlighted harness run. The modal owns the screen (no
+            status-bar overwrite, no second-`k` re-arm — fixes 147's
+            Bugs A/B)."""
             from bin.harness import status as _status
+
             if (self._nav == _NAV_OUTPUT
                     and self._current_run_dir is not None):
-                self._kill_pending = self._current_run_dir
-                self._status_bar.update(
-                    f"Kill {self._current_run_dir.name}? (y/N)")
-            elif (self._nav == _NAV_DETAIL
+                run_dir = self._current_run_dir
+                self.push_screen(
+                    _KillConfirmScreen(f"Kill {run_dir.name}? (y/N)"),
+                    callback=lambda ok, rd=run_dir: (
+                        self._do_kill(rd) if ok else None))
+                return
+
+            if (self._nav == _NAV_DETAIL
                     and self._current_dir is not None):
                 runs = _status.read_run_status(self._current_dir)
                 idx = (self._table.cursor_row
                        if self._table.row_count else -1)
                 if 0 <= idx < len(runs):
                     rs = runs[idx]
-                    self._kill_pending = rs.run_dir
-                    self._status_bar.update(
-                        f"Kill {rs.run_dir.name} ({rs.runner}/"
-                        f"{rs.model})? (y/N)")
-            else:
-                self._status_bar.update(
-                    "kill is not available on the runs list")
+                    self.push_screen(
+                        _KillConfirmScreen(
+                            f"Kill {rs.run_dir.name} "
+                            f"({rs.runner}/{rs.model})? (y/N)"),
+                        callback=lambda ok, rd=rs.run_dir: (
+                            self._do_kill(rd) if ok else None))
+                return
 
-        def on_key(self, event) -> None:
-            # v1.5.7 147: when a kill is armed, the next key confirms
-            # (y) or cancels. Consume it so it doesn't also trigger a
-            # normal binding.
-            if self._kill_pending is not None:
-                target = self._kill_pending
-                self._kill_pending = None
-                if _confirm_kill_decision(event.key):
-                    self._do_kill(target)
-                else:
-                    self._status_bar.update("kill cancelled")
-                event.stop()
+            # v1.5.7 151: runs-list — kill all RUNNING runs in the
+            # HIGHLIGHTED harness run (the cursor scopes it to one
+            # harness run, NOT the whole runs-root; matches the CLI's
+            # `kill <HARNESS_RUN>` semantic). Bug C fix.
+            if self._nav == _NAV_LIST:
+                summaries = _status.list_harness_runs(self._runs_root)
+                idx = (self._table.cursor_row
+                       if self._table.row_count else -1)
+                if not (0 <= idx < len(summaries)):
+                    return
+                hr_dir = summaries[idx].harness_run_dir
+                running = [rs for rs in _status.read_run_status(hr_dir)
+                           if rs.state == "RUNNING"]
+                if not running:
+                    self._status_bar.update(
+                        f"{hr_dir.name}: no RUNNING runs to kill")
+                    return
+                self.push_screen(
+                    _KillConfirmScreen(
+                        f"Kill {len(running)} RUNNING run(s) in "
+                        f"{hr_dir.name}? (y/N)"),
+                    callback=lambda ok, rl=running: (
+                        self._do_kill_many(rl) if ok else None))
 
         def _do_kill(self, run_dir: "Path") -> None:
             from bin.harness import runner as _runner
@@ -1398,6 +1473,23 @@ def launch_textual_tui(
                     f"killed {run_dir.name} (SIGKILL)")
             except Exception as exc:  # pragma: no cover - terminal
                 self._status_bar.update(f"kill failed: {exc}")
+            self.refresh_view()
+
+        def _do_kill_many(self, run_statuses) -> None:
+            """v1.5.7 151: kill each RUNNING run in a harness run
+            (runs-list `k`). Accumulates a killed/failed count."""
+            from bin.harness import runner as _runner
+            killed = failed = 0
+            for rs in run_statuses:
+                try:
+                    _runner.kill_run(rs.run_dir)
+                    killed += 1
+                except Exception:  # pragma: no cover - terminal
+                    failed += 1
+            msg = f"killed {killed} run(s)"
+            if failed:
+                msg += f", {failed} failed"
+            self._status_bar.update(msg)
             self.refresh_view()
 
         def action_copy_screen(self) -> None:
@@ -1472,5 +1564,4 @@ def launch_textual_tui(
                     self._follow_mode = True
                     self._render_output_tail()
 
-    app = QPBHarnessApp(runs_root, initial_focus)
-    return app.run() or 0
+    return QPBHarnessApp(runs_root, initial_focus)

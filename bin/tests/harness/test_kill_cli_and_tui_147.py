@@ -183,14 +183,24 @@ class TuiKillBindingTests(unittest.TestCase):
         self.assertIn('Binding("k", "kill_run"', self._TUI_SRC)
 
     def test_kill_action_and_confirm_wiring_present(self) -> None:
+        # v1.5.7 151: the y/N confirm is now a ModalScreen pushed by
+        # action_kill_run (the 147 on_key/_kill_pending flow was
+        # replaced — fixes Bugs A/B). _confirm_kill_decision is kept
+        # (vestigial) so 147's unit tests still import it.
         self.assertIn("def action_kill_run", self._TUI_SRC)
-        self.assertIn("def on_key", self._TUI_SRC)
+        self.assertIn("push_screen", self._TUI_SRC)
         self.assertIn("_confirm_kill_decision", self._TUI_SRC)
 
-    def test_runs_list_has_no_kill(self) -> None:
-        # action_kill_run guards NAV_LIST → "not available" message.
-        self.assertIn("kill is not available on the runs list",
-                      self._TUI_SRC)
+    def test_runs_list_kill_scoped_to_highlighted_harness_run(
+            self) -> None:
+        # v1.5.7 151 (Bug C): runs-list `k` now kills all RUNNING in
+        # the HIGHLIGHTED harness run (no longer a no-op); a harness
+        # run with none shows "no RUNNING runs to kill".
+        self.assertIn("no RUNNING runs to kill", self._TUI_SRC)
+        self.assertIn("_do_kill_many", self._TUI_SRC)
+        # The old 147 "not available on the runs list" no-op is gone.
+        self.assertNotIn("kill is not available on the runs list",
+                         self._TUI_SRC)
 
 
 if __name__ == "__main__":  # pragma: no cover
