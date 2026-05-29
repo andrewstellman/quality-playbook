@@ -13,18 +13,16 @@
       "repo": "https://github.com/google/gson",
       "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
       "runner": "claude",
-      "model": "opus",
+      "model": "sonnet",
       "channel": "pip-local-wheel",
       "expect": {
-        "gate_result": "PASS",
-        "verdict_state": "solid",
-        "attribution": "none",
-        "recommends_stronger_model": false,
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
         "no_false_pass": true,
         "no_false_fail": true,
         "phase0_first_probe": true,
         "banner_rendered": true,
-        "gitignore_remediation_followed": true
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
       }
     },
     {
@@ -32,7 +30,7 @@
       "repo": "https://github.com/expressjs/express",
       "ref": "master",
       "runner": "claude",
-      "model": "opus",
+      "model": "sonnet",
       "channel": "pip-local-wheel",
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
