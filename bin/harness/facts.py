@@ -364,14 +364,32 @@ def parse_gate_stdout(stdout: str) -> "tuple[GateFacts, VerdictFacts, Provenance
 # refine per-adapter parsing as the other CLIs land (their stream
 # shapes differ from claude's clean stream-json).
 
+# v1.5.7 136: nonce-tolerant. The real validator emits
+# ``event=validation_complete nonce=<UUID> status=…`` (the §3.4
+# anti-fabrication run-nonce sits between event= and status=);
+# the optional ``nonce=\S+`` group matches BOTH the real
+# nonce-bearing output AND the bare ``event=validation_complete
+# status=…`` form used by AGENTS.md narration / older streams /
+# test fixtures. Used by the no-nonce fallback path in
+# ``parse_transcript``; the nonce-bearing primary path uses
+# ``_RE_PHASE0_PROBE`` below.
 _RE_PHASE0_OK = re.compile(
-    r"event=validation_complete\s+status=ok",
+    r"event=validation_complete\s+(?:nonce=\S+\s+)?status=ok",
 )
 _RE_PHASE0_REMEDIABLE = re.compile(
-    r"event=validation_complete\s+status=remediable",
+    r"event=validation_complete\s+(?:nonce=\S+\s+)?status=remediable",
 )
 _RE_PHASE0_BLOCKED = re.compile(
-    r"event=validation_complete\s+status=blocked",
+    r"event=validation_complete\s+(?:nonce=\S+\s+)?status=blocked",
+)
+# v1.5.7 136: the REAL probe matcher — requires a nonce, so it
+# matches only genuine validator emissions, NEVER the AGENTS.md
+# instructional quote (which has no nonce). Captures the nonce
+# (to dedupe the echo+result double-emission) and the status (to
+# build the ordered probe sequence).
+_RE_PHASE0_PROBE = re.compile(
+    r"event=validation_complete\s+nonce=(?P<nonce>\S+)\s+"
+    r"status=(?P<status>\w+)",
 )
 _RE_PHASE0_BARE_PATH_FAIL = re.compile(
     r"python3 bin/qpb_validate\.py.*FileNotFoundError|"
@@ -409,31 +427,74 @@ def parse_transcript(transcript: str) -> "tuple[Phase0Facts, InstallSurfaceFacts
     ``blocked`` + ``stop_reason`` feed ``RunMetaFacts``; the rest
     is per-named-tuple per design §C/§5.
     """
-    # Phase 0 status
-    if _RE_PHASE0_OK.search(transcript):
-        status = "ok"
-    elif _RE_PHASE0_REMEDIABLE.search(transcript):
-        status = "remediable"
-    elif _RE_PHASE0_BLOCKED.search(transcript):
-        status = "blocked"
+    # Phase 0 status / probe_attempts / first_probe_ok.
+    #
+    # v1.5.7 136: the real validator emits nonce-bearing lines
+    # (§3.4 anti-fabrication); AGENTS.md:212 carries a non-nonce
+    # instructional QUOTE of ``event=validation_complete status=ok``
+    # that pre-136 the regexes matched by accident (making
+    # ``status`` resolve "ok" regardless of the real probes). The
+    # nonce-bearing PRIMARY path below derives every fact from the
+    # ordered, deduped sequence of REAL probes only; the no-nonce
+    # FALLBACK preserves pre-136 behavior for older streams / test
+    # fixtures using the bare form.
+    #
+    # Each real validator line appears twice in a stream (the
+    # tool_use command echo + the tool_result body), so dedupe by
+    # nonce preserving first-seen order to get the true probe
+    # sequence (e.g. a fresh target's designed remediation flow:
+    # blocked → remediable → ok).
+    real_probes: "list[str]" = []
+    _seen_nonces: "set[str]" = set()
+    for _pm in _RE_PHASE0_PROBE.finditer(transcript):
+        _nonce = _pm.group("nonce")
+        if _nonce not in _seen_nonces:
+            _seen_nonces.add(_nonce)
+            real_probes.append(_pm.group("status"))
+
+    bare_path_fail = _RE_PHASE0_BARE_PATH_FAIL.search(transcript) is not None
+
+    if real_probes:
+        last = real_probes[-1]
+        status = last if last in ("ok", "remediable", "blocked") else "blocked"
+        probe_attempts = len(real_probes)
+        # v1.5.7 136 NEW semantic: the run reached a clean probe,
+        # no bare-path failure occurred, and any probes BEFORE the
+        # final clean one were legitimate remediation cases
+        # (blocked / remediable — the designed 090u flow), NOT
+        # bare-path retries. This stops penalizing a fresh-target
+        # run for the extra probes its own remediation requires
+        # (which the SAME run is rewarded for via
+        # ``gitignore_remediation_followed``).
+        first_probe_ok = (
+            last == "ok"
+            and not bare_path_fail
+            and all(p in ("blocked", "remediable")
+                    for p in real_probes[:-1])
+        )
     else:
-        # Defensive default: no validator-event seen → "blocked"
-        # rather than silently "ok". The grader can surface this
-        # as a missing-evidence case.
-        status = "blocked"
-    # Probe attempts — Phase 1: count the number of
-    # ``event=validation_complete`` lines. First-probe-ok is True
-    # if exactly one attempt AND that attempt was ``status=ok``,
-    # AND the bare-path-from-repo-root failure mode (090t) was NOT
-    # observed.
-    probe_attempts = len(re.findall(
-        r"event=validation_complete", transcript,
-    )) or 1  # min 1 — if the agent ran the gate, it attempted at least once
-    first_probe_ok = (
-        probe_attempts == 1
-        and status == "ok"
-        and _RE_PHASE0_BARE_PATH_FAIL.search(transcript) is None
-    )
+        # No nonce-bearing probes — older stream / test fixture
+        # using the bare ``event=validation_complete status=…``
+        # form. Pre-136 logic (the nonce-tolerant regexes match
+        # the bare form too).
+        if _RE_PHASE0_OK.search(transcript):
+            status = "ok"
+        elif _RE_PHASE0_REMEDIABLE.search(transcript):
+            status = "remediable"
+        elif _RE_PHASE0_BLOCKED.search(transcript):
+            status = "blocked"
+        else:
+            # Defensive default: no validator-event seen →
+            # "blocked" rather than silently "ok".
+            status = "blocked"
+        probe_attempts = len(re.findall(
+            r"event=validation_complete", transcript,
+        )) or 1  # min 1 — running the gate is at least one attempt
+        first_probe_ok = (
+            probe_attempts == 1
+            and status == "ok"
+            and not bare_path_fail
+        )
     phase0 = Phase0Facts(
         status=status,
         probe_attempts=probe_attempts,
