@@ -630,13 +630,29 @@ class CliStatusSmokeTests(unittest.TestCase):
             self.assertIn("phase 0", result.stdout)
             self.assertIn("validation", result.stdout)
 
-    def test_status_with_bogus_dir_errors_clean(self) -> None:
+    def test_status_with_no_manifest_dir_lists_as_empty_runs_root(
+            self) -> None:
+        """v1.5.7 135: under the single-positional classifier, an
+        existing dir with no manifest / run markers is no longer
+        distinguishable (by a flag) from a fresh empty runs-root,
+        so ``status`` degrades to the graceful "No harness-runs"
+        runs-root view (exit 0) rather than the pre-135 "no
+        manifest.json" error. Only a NON-existent path errors."""
         with tempfile.TemporaryDirectory() as tmp:
             bogus = Path(tmp) / "no-manifest"
             bogus.mkdir()
             result = self._run("status", str(bogus))
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("No harness-runs", result.stderr)
+
+    def test_status_with_nonexistent_dir_errors_clean(self) -> None:
+        """A path that doesn't exist still errors cleanly
+        (FileNotFoundError → exit 2)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = Path(tmp) / "does-not-exist"
+            result = self._run("status", str(missing))
             self.assertEqual(result.returncode, 2)
-            self.assertIn("no manifest.json", result.stderr)
+            self.assertIn("not a directory", result.stderr)
 
 
 # ---------------------------------------------------------------------------

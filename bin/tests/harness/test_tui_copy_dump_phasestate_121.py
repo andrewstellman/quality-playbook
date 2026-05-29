@@ -491,25 +491,35 @@ class DumpCliInvocationTests(unittest.TestCase):
             self.assertIn("phase 1", proc.stdout)
             self.assertIn("exploration", proc.stdout)
 
-    def test_dump_detail_without_path_exits_2(self) -> None:
+    def test_dump_enum_detail_without_path_falls_back_not_errors(
+            self) -> None:
+        """v1.5.7 135: the deprecated ``--dump detail`` enum form
+        no longer REQUIRES a separate ``--dump-path`` (the pre-135
+        'exit 2 / --dump-path' guard is gone). With no path it
+        falls back to the default runs-root resolution and dumps
+        the inferred page (exit 0) instead of erroring."""
         proc = subprocess.run(
             [sys.executable, "-m", "bin.qpb_harness",
               "tui", "--dump", "detail"],
             cwd=str(_REPO_ROOT),
             capture_output=True, text=True, timeout=30,
         )
-        self.assertEqual(proc.returncode, 2)
-        self.assertIn("--dump-path", proc.stderr)
+        self.assertEqual(
+            proc.returncode, 0, f"stderr={proc.stderr[:400]!r}")
+        self.assertNotIn("--dump-path", proc.stderr)
 
-    def test_dump_output_without_path_exits_2(self) -> None:
+    def test_dump_enum_output_without_path_falls_back_not_errors(
+            self) -> None:
+        """As above for the ``--dump output`` enum form."""
         proc = subprocess.run(
             [sys.executable, "-m", "bin.qpb_harness",
               "tui", "--dump", "output"],
             cwd=str(_REPO_ROOT),
             capture_output=True, text=True, timeout=30,
         )
-        self.assertEqual(proc.returncode, 2)
-        self.assertIn("--dump-path", proc.stderr)
+        self.assertEqual(
+            proc.returncode, 0, f"stderr={proc.stderr[:400]!r}")
+        self.assertNotIn("--dump-path", proc.stderr)
 
 
 class DumpCliNoTextualTests(unittest.TestCase):

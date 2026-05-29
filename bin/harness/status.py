@@ -22,6 +22,7 @@ Design contract:
 """
 from __future__ import annotations
 
+import enum
 import json
 import os
 import re
@@ -472,6 +473,80 @@ def pid_is_alive(pid: "Optional[int]") -> bool:
 # ---------------------------------------------------------------------------
 # Per-run status read
 # ---------------------------------------------------------------------------
+
+
+class TuiPathKind(enum.Enum):
+    """v1.5.7 135: the three directory levels the TUI/status/tail
+    commands navigate, inferred from a single positional path."""
+    RUNS_ROOT = "runs_root"      # contains harness-run subdirs (manifest.json each)
+    HARNESS_RUN = "harness_run"  # contains manifest.json directly (108 marker)
+    RUN_NN = "run_nn"            # contains stream.ndjson OR target/ (per-run artifacts)
+
+
+def classify_tui_path(path: Path) -> "TuiPathKind":
+    """v1.5.7 135: infer the TUI/status/tail page kind from the
+    directory's structure, so the commands take ONE positional
+    path instead of the --runs-root / --dump-mode / --dump-path
+    flag triple.
+
+    Distinctive markers per kind:
+      RUN_NN       → contains ``stream.ndjson`` OR a ``target/``
+                     subdir (the per-run artifacts).
+      HARNESS_RUN  → contains ``manifest.json`` (the 108 harness-run
+                     marker).
+      RUNS_ROOT    → contains at least one subdir that classifies as
+                     HARNESS_RUN (one recursive step).
+
+    Order matters: RUN_NN is checked FIRST (a run-NN dir might
+    coincidentally have a subdir; we don't want to misread it as a
+    runs-root), then HARNESS_RUN, then RUNS_ROOT.
+
+    Raises ``FileNotFoundError`` if the path doesn't exist / isn't a
+    directory. Raises ``ValueError`` if it exists but matches none of
+    the three kinds (caller surfaces the expected markers)."""
+    if not path.is_dir():
+        raise FileNotFoundError(
+            f"classify_tui_path: {path} is not a directory")
+    # 1. RUN_NN — per-run artifacts.
+    if (path / "stream.ndjson").exists() or (path / "target").is_dir():
+        return TuiPathKind.RUN_NN
+    # 2. HARNESS_RUN — the manifest marker.
+    if (path / "manifest.json").is_file():
+        return TuiPathKind.HARNESS_RUN
+    # 3. RUNS_ROOT — any immediate subdir is a harness-run.
+    try:
+        for child in path.iterdir():
+            if child.is_dir() and (child / "manifest.json").is_file():
+                return TuiPathKind.RUNS_ROOT
+    except OSError:
+        pass
+    raise ValueError(
+        f"classify_tui_path: {path} matches none of RUN_NN "
+        f"(stream.ndjson / target/), HARNESS_RUN (manifest.json), "
+        f"or RUNS_ROOT (a subdir with manifest.json). Pass a "
+        f"runs-root, a harness-run dir, or a run-NN dir.")
+
+
+def read_one_run_status_for_dir(
+        run_dir: Path) -> "Optional[RunStatus]":
+    """v1.5.7 135: build the single-run status block for a RUN_NN
+    dir (e.g. ``repos/<TS>/run-00``). Resolves the parent
+    harness-run's manifest, finds the entry whose resolved
+    ``run_dir`` matches ``run_dir``, and returns its ``RunStatus``
+    (so the run-NN ``status`` view reuses the exact per-run row the
+    detail page renders). Returns None if the parent manifest is
+    missing or no entry matches."""
+    harness_run_dir = run_dir.parent
+    manifest = _safe_json(harness_run_dir / "manifest.json")
+    if not manifest:
+        return None
+    target = run_dir.resolve()
+    for entry in manifest.get("runs", []):
+        entry_run_dir = _resolve_manifest_path(
+            entry.get("run_dir", ""), harness_run_dir)
+        if entry_run_dir.resolve() == target:
+            return _read_one_run_status(entry, harness_run_dir)
+    return None
 
 
 def read_run_status(harness_run_dir: Path) -> "list[RunStatus]":

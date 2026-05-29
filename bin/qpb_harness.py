@@ -314,19 +314,45 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
     return 0 if met == total else 1
 
 
+def _default_runs_root() -> Path:
+    """v1.5.7 135: the default path when none is given —
+    ``./repos/`` if it exists, else ``./harness-runs/`` if it
+    exists, else the cwd. Matches the QPB runs-root convention."""
+    for name in ("repos", "harness-runs"):
+        p = Path(name)
+        if p.is_dir():
+            return p.resolve()
+    return Path.cwd()
+
+
+def _resolve_tui_path(args: argparse.Namespace) -> Path:
+    """v1.5.7 135: resolve the single positional path for
+    tui/status, falling back to the deprecated flags
+    (``--runs-root`` for both; ``--dump-path`` for tui) then the
+    default runs-root. Positional wins."""
+    raw = (
+        getattr(args, "path", None)
+        or getattr(args, "dump_path", None)
+        or getattr(args, "runs_root", None)
+        or getattr(args, "root", None)
+    )
+    if raw:
+        return Path(raw).expanduser().resolve()
+    return _default_runs_root()
+
+
 def _cmd_status(args: argparse.Namespace) -> int:
-    """v1.5.7 110: read-only status view.
+    """v1.5.7 110 + 135: read-only status view over a single
+    positional path, classified by directory shape:
+      RUNS_ROOT   → table of in-flight + recent harness-runs.
+      HARNESS_RUN → per-repo drill-down (index, repo,
+                    runner/model, state, phase, result, pid).
+      RUN_NN      → a single-run status block (135 — new).
 
-    No args / ``--runs-root <DIR>``: table of in-flight + recent
-    harness-runs (dir, age, R/D/F/T/AP/P counts, collector-
-    live?). With a harness-run dir: per-repo drill-down (index,
-    repo, runner/model, state, current phase + state + last
-    note, result, pid(live?)).
-
-    v1.5.7 125: prints the global per-provider in-flight
-    summary at the top of every status invocation. With
-    ``--global``: lists EVERY in-flight run across all
-    harness-runs on this machine (registry-backed).
+    v1.5.7 125: the global per-provider in-flight summary prints
+    at the top of every invocation; ``--global`` lists every
+    in-flight run from the registry. ``--runs-root`` is a
+    deprecated alias for the positional path.
     """
     from bin.harness import status as _status
     from bin.harness import inflight_registry as _inflight
@@ -335,8 +361,6 @@ def _cmd_status(args: argparse.Namespace) -> int:
     print(_inflight.format_global_summary())
 
     if getattr(args, "global_view", False):
-        # v1.5.7 125: --global lists every in-flight run from
-        # the registry across all harness-runs on this machine.
         active = _inflight.read_active_runs()
         if not active:
             return 0
@@ -355,25 +379,49 @@ def _cmd_status(args: argparse.Namespace) -> int:
             )
         return 0
 
-    harness_run_dir = getattr(args, "harness_run_dir", None)
-    if harness_run_dir:
-        target = Path(harness_run_dir).expanduser().resolve()
-        if not (target / "manifest.json").is_file():
+    path = _resolve_tui_path(args)
+    try:
+        kind = _status.classify_tui_path(path)
+    except FileNotFoundError:
+        print(f"ERROR: {path} is not a directory", file=sys.stderr)
+        return 2
+    except ValueError:
+        # v1.5.7 135: an existing-but-unclassifiable dir (no
+        # manifest, no run markers) is treated as an empty
+        # runs-root, preserving the pre-135 graceful "No
+        # harness-runs under X" for a fresh/empty runs-root rather
+        # than erroring. Only a non-existent path errors
+        # (FileNotFoundError above). The single-positional
+        # classifier can no longer use the old --runs-root-vs-
+        # positional split to tell "empty runs-root" from "bogus
+        # dir", so it favours the common case. (Flagged in the 135
+        # review-request as a deliberate soft-back-compat loss.)
+        kind = _status.TuiPathKind.RUNS_ROOT
+
+    if kind is _status.TuiPathKind.RUN_NN:
+        # v1.5.7 135: single-run status block.
+        rs = _status.read_one_run_status_for_dir(path)
+        if rs is None:
             print(
-                f"ERROR: no manifest.json under {target} "
-                f"(not a harness-run dir, or no run-plan has "
-                f"been launched there)",
+                f"ERROR: {path} is a run dir but its parent "
+                f"harness-run manifest doesn't list it",
                 file=sys.stderr,
             )
             return 2
-        runs = _status.read_run_status(target)
+        print(f"run: {path.parent.name}/{path.name}")
+        print("")
+        print(_status.format_run_status(rs))
+        if rs.last_note:
+            print(f"     note: {rs.last_note}")
+        return 0
+
+    if kind is _status.TuiPathKind.HARNESS_RUN:
+        runs = _status.read_run_status(path)
         if not runs:
-            print(
-                f"harness-run dir: {target} (empty manifest)",
-                file=sys.stderr,
-            )
+            print(f"harness-run dir: {path} (empty manifest)",
+                  file=sys.stderr)
             return 0
-        print(f"harness-run dir: {target}")
+        print(f"harness-run dir: {path}")
         print("")
         for rs in runs:
             print(_status.format_run_status(rs))
@@ -381,18 +429,12 @@ def _cmd_status(args: argparse.Namespace) -> int:
                 print(f"     note: {rs.last_note}")
         return 0
 
-    # No drill-down: list all harness-runs.
-    runs_root = Path(
-        getattr(args, "runs_root", "harness-runs")
-    ).expanduser().resolve()
-    summaries = _status.list_harness_runs(runs_root)
+    # RUNS_ROOT — list all harness-runs.
+    summaries = _status.list_harness_runs(path)
     if not summaries:
-        print(
-            f"No harness-runs under {runs_root}",
-            file=sys.stderr,
-        )
+        print(f"No harness-runs under {path}", file=sys.stderr)
         return 0
-    print(f"runs-root: {runs_root}")
+    print(f"runs-root: {path}")
     print(
         "harness-run                    "
         "started-at             "
@@ -419,6 +461,44 @@ def _cmd_tail(args: argparse.Namespace) -> int:
         print(f"ERROR: {run_dir} is not a directory",
               file=sys.stderr)
         return 2
+
+    # v1.5.7 135: classifier-aware error when given the wrong
+    # kind of dir. tail needs a RUN_NN dir; a HARNESS_RUN /
+    # RUNS_ROOT dir gets a message naming what to tail instead.
+    try:
+        kind = _status.classify_tui_path(run_dir)
+    except (FileNotFoundError, ValueError):
+        kind = None  # fall through to the stream.ndjson check
+    if kind is _status.TuiPathKind.HARNESS_RUN:
+        manifest = _status._safe_json(run_dir / "manifest.json") or {}
+        runs = manifest.get("runs", [])
+        parts = []
+        for i, e in enumerate(runs):
+            name = Path(e.get("run_dir", "")).name or f"run-{i:02d}"
+            repo = e.get("repo", "?").rsplit("/", 1)[-1]
+            parts.append(
+                f"{name} ({repo} "
+                f"{e.get('runner', '?')}/{e.get('model', '?')})")
+        listing = ", ".join(parts) or "(none in manifest)"
+        first = (Path(runs[0].get("run_dir", "")).name
+                 if runs else "run-00")
+        print(
+            f"qpb_harness tail: '{run_dir}' is a harness-run dir, "
+            f"not a run. Specify which run to tail; available: "
+            f"{listing}. Example: qpb_harness tail "
+            f"'{run_dir}'/{first} -f",
+            file=sys.stderr,
+        )
+        return 2
+    if kind is _status.TuiPathKind.RUNS_ROOT:
+        print(
+            f"qpb_harness tail: '{run_dir}' is a runs-root dir. "
+            f"Specify a specific run to tail (path of the form "
+            f"<runs-root>/<harness-run>/run-NN).",
+            file=sys.stderr,
+        )
+        return 2
+
     stream_path = run_dir / "stream.ndjson"
     if not stream_path.is_file():
         print(
@@ -525,50 +605,28 @@ def _cmd_manager(args: argparse.Namespace) -> int:
     return 0
 
 
-def _cmd_tui_dump(args: argparse.Namespace,
-                     runs_root: Path) -> int:
-    """v1.5.7 121: render a TUI page to stdout
+def _cmd_tui_dump(path: Path, kind, *,
+                    max_lines: int = 2000,
+                    rendered: bool = True) -> int:
+    """v1.5.7 121 + 135: render a TUI page to stdout
     non-interactively. Works WITHOUT textual installed —
-    delegates to the pure text formatters in
-    ``bin.harness.tui`` (which read via status.py and don't
-    touch textual).
+    delegates to the pure text formatters in ``bin.harness.tui``
+    (which read via status.py and don't touch textual).
 
-    Returns 0 on success, 2 on missing args (e.g. detail/
-    output without --dump-path)."""
+    v1.5.7 135: the page is chosen by the classified ``kind`` of
+    the single positional ``path`` (RUNS_ROOT→runs list,
+    HARNESS_RUN→detail, RUN_NN→output), not a separate
+    --dump-mode + --dump-path. ``max_lines``/``rendered`` apply
+    only to the RUN_NN output page."""
     from bin.harness import tui as _tui
-    mode = args.dump
-    if mode == "runs":
-        text = _tui.format_runs_list_as_text(runs_root)
-    elif mode == "detail":
-        path = getattr(args, "dump_path", None)
-        if not path:
-            sys.stderr.write(
-                "qpb_harness tui --dump detail: requires "
-                "--dump-path <harness-run-dir>\n"
-            )
-            return 2
-        text = _tui.format_detail_as_text(
-            Path(path).expanduser().resolve())
-    elif mode == "output":
-        path = getattr(args, "dump_path", None)
-        if not path:
-            sys.stderr.write(
-                "qpb_harness tui --dump output: requires "
-                "--dump-path <run-NN-dir>\n"
-            )
-            return 2
-        lines = int(getattr(args, "lines", 2000))
-        # v1.5.7 122: --raw flips off the renderer; default
-        # is rendered (clean log lines).
-        rendered = not bool(getattr(args, "raw", False))
+    from bin.harness import status as _status
+    if kind is _status.TuiPathKind.RUNS_ROOT:
+        text = _tui.format_runs_list_as_text(path)
+    elif kind is _status.TuiPathKind.HARNESS_RUN:
+        text = _tui.format_detail_as_text(path)
+    else:  # RUN_NN
         text = _tui.format_output_as_text(
-            Path(path).expanduser().resolve(),
-            max_lines=lines,
-            rendered=rendered,
-        )
-    else:  # pragma: no cover - argparse choices guard
-        sys.stderr.write(f"unknown --dump mode: {mode}\n")
-        return 2
+            path, max_lines=max_lines, rendered=rendered)
     print(text)
     return 0
 
@@ -599,20 +657,70 @@ def _cmd_tui(args: argparse.Namespace) -> int:
     memory.
     """
     from bin.harness import tui as _tui
+    from bin.harness import status as _status
 
-    runs_root_raw = (
-        getattr(args, "runs_root", None)
-        or getattr(args, "root", None)
-        or "harness-runs"
-    )
-    runs_root = Path(runs_root_raw).expanduser().resolve()
+    # v1.5.7 135: one positional path, classified by directory
+    # shape. Replaces the --runs-root / --dump-mode / --dump-path
+    # triple (still accepted as deprecated aliases via
+    # _resolve_tui_path).
+    path = _resolve_tui_path(args)
+    try:
+        kind = _status.classify_tui_path(path)
+    except FileNotFoundError:
+        sys.stderr.write(f"qpb_harness tui: {path} is not a "
+                         f"directory\n")
+        return 2
+    except ValueError:
+        # v1.5.7 135: existing-but-unclassifiable dir → empty
+        # runs-root (graceful), matching _cmd_status. Only a
+        # non-existent path errors (FileNotFoundError above).
+        kind = _status.TuiPathKind.RUNS_ROOT
 
-    # v1.5.7 121: --dump <page> non-interactive render.
-    # Works WITHOUT textual installed — re-uses the pure
-    # view-model builders. The testability hook.
-    dump_mode = getattr(args, "dump", None)
-    if dump_mode:
-        return _cmd_tui_dump(args, runs_root)
+    # --dump is now a boolean toggle (135). The old enum forms
+    # (runs|detail|output) are still accepted but the path's
+    # shape is authoritative — warn if a passed enum disagrees.
+    dump = getattr(args, "dump", None)
+    if dump is not None:
+        _expected = {
+            _status.TuiPathKind.RUNS_ROOT: "runs",
+            _status.TuiPathKind.HARNESS_RUN: "detail",
+            _status.TuiPathKind.RUN_NN: "output",
+        }[kind]
+        if isinstance(dump, str) and dump != _expected:
+            sys.stderr.write(
+                f"qpb_harness tui: --dump {dump} disagrees with "
+                f"the path's shape ({kind.value} ⇒ {_expected}); "
+                f"using {_expected}.\n")
+        return _cmd_tui_dump(
+            path, kind,
+            max_lines=int(getattr(args, "lines", 2000)),
+            rendered=not bool(getattr(args, "raw", False)),
+        )
+
+    # Interactive: derive the runs-root the TUI navigates from the
+    # classified path. v1.5.7 135 NOTE: the interactive TUI opens
+    # at the TOP (runs-list) page of that runs-root; opening
+    # directly at the detail/output page for a HARNESS_RUN/RUN_NN
+    # path needs an initial-nav-state change in BOTH the textual
+    # app and the curses event loop (flagged in the 135 review-
+    # request as a deferred TUI-internals change, per the halt
+    # rule against refactoring TUI internals as a CLI side effect).
+    # Use --dump for the exact-page headless view in the meantime.
+    if kind is _status.TuiPathKind.RUNS_ROOT:
+        runs_root = path
+    elif kind is _status.TuiPathKind.HARNESS_RUN:
+        runs_root = path.parent
+        sys.stderr.write(
+            f"qpb_harness tui: opening the runs-list at "
+            f"{runs_root} (navigate into {path.name}); "
+            f"`--dump` renders the detail page directly.\n")
+    else:  # RUN_NN
+        runs_root = path.parent.parent
+        sys.stderr.write(
+            f"qpb_harness tui: opening the runs-list at "
+            f"{runs_root} (navigate into "
+            f"{path.parent.name}/{path.name}); `--dump` renders "
+            f"the output page directly.\n")
 
     # v1.5.7 119: Textual by default; curses on --curses or
     # textual ImportError.
@@ -736,15 +844,17 @@ def _build_parser() -> argparse.ArgumentParser:
               "state, current phase, result, pid-liveness."),
     )
     p_status.add_argument(
-        "harness_run_dir", nargs="?", default=None,
-        help=("Optional harness-run directory for the per-repo "
-              "drill-down view. Omit for the runs-root list."),
+        "path", nargs="?", default=None,
+        help=("v1.5.7 135: a runs-root, a harness-run dir, OR a "
+              "run-NN dir — the view is inferred from the path's "
+              "shape (run-NN shows a single-run block). Omit to "
+              "default to ./repos/ (else ./harness-runs/)."),
     )
     p_status.add_argument(
-        "--runs-root", default="harness-runs",
-        help=("Root directory containing harness-run folders "
-              "(default: harness-runs). Ignored when a "
-              "harness-run-dir is provided."),
+        "--runs-root", default=None,
+        help=("DEPRECATED (v1.5.7 135): pass the path positionally "
+              "instead. Still accepted — treated as the positional "
+              "path when none is given."),
     )
     p_status.add_argument(
         "--global", dest="global_view", action="store_true",
@@ -765,7 +875,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_tail.add_argument(
         "run_dir",
-        help="Path to the run-NN directory inside a harness-run.",
+        help=("Path to the run-NN directory inside a harness-run "
+              "(contains stream.ndjson). v1.5.7 135: if given a "
+              "harness-run or runs-root dir instead, a "
+              "classifier-aware error lists the available runs."),
     )
     p_tail.add_argument(
         "-f", "--follow", action="store_true",
@@ -799,10 +912,23 @@ def _build_parser() -> argparse.ArgumentParser:
               "live output. Use --curses for the 111-era "
               "stdlib-curses fallback (no extra dependency)."),
     )
+    # v1.5.7 135: single positional path, classified by directory
+    # shape (RUNS_ROOT / HARNESS_RUN / RUN_NN) → the TUI opens at /
+    # --dump renders the corresponding page. Replaces the
+    # --runs-root / --dump-mode / --dump-path flag triple (those
+    # stay accepted, deprecated, below).
     p_tui.add_argument(
-        "--runs-root", default="harness-runs",
-        help=("Root directory containing harness-run folders "
-              "(default: harness-runs)."),
+        "path", nargs="?", default=None,
+        help=("v1.5.7 135: a runs-root, a harness-run dir, or a "
+              "run-NN dir — the page is inferred from the path's "
+              "shape. Omit to default to ./repos/ (else "
+              "./harness-runs/, else cwd)."),
+    )
+    p_tui.add_argument(
+        "--runs-root", default=None,
+        help=("DEPRECATED (v1.5.7 135): pass the path positionally "
+              "instead. Still accepted — treated as the positional "
+              "path when none is given."),
     )
     p_tui.add_argument(
         "--root", default=None,
@@ -823,20 +949,26 @@ def _build_parser() -> argparse.ArgumentParser:
     # WITHOUT textual installed — re-uses the pure view-model
     # builders + plain-text formatters. The testability hook
     # for verifying TUI rendering headlessly.
+    # v1.5.7 135: --dump is now a BOOLEAN toggle — the page is
+    # inferred from the positional path's shape. `--dump` alone →
+    # headless render of the classified page. Back-compat: the old
+    # `--dump runs|detail|output` enum strings are still accepted
+    # (nargs="?" captures them) but the path's structure is
+    # authoritative (a stderr warning fires if they disagree).
     p_tui.add_argument(
-        "--dump", choices=["runs", "detail", "output"],
-        default=None,
-        help=("v1.5.7 121: render a specific TUI page to "
-              "stdout (plain text) and exit. Works WITHOUT "
-              "textual installed. Options: `runs` (uses "
-              "--runs-root), `detail` (uses --dump-path "
-              "<harness-run-dir>), `output` (uses --dump-path "
-              "<harness-run-dir>/run-NN, with optional --lines)."),
+        "--dump", nargs="?", const=True, default=None,
+        help=("v1.5.7 135: render the page for the positional path "
+              "to stdout (plain text) and exit, instead of "
+              "launching the interactive TUI. Works WITHOUT "
+              "textual installed. (DEPRECATED forms: `--dump "
+              "runs|detail|output` still accepted; the path's "
+              "shape wins.)"),
     )
     p_tui.add_argument(
         "--dump-path", default=None,
-        help=("v1.5.7 121: path for `--dump detail` (harness-"
-              "run dir) or `--dump output` (run-NN dir)."),
+        help=("DEPRECATED (v1.5.7 135): pass the path positionally "
+              "instead. Still accepted as the positional path for "
+              "`--dump detail`/`--dump output`."),
     )
     p_tui.add_argument(
         "--lines", type=int, default=2000,
