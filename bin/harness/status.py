@@ -478,9 +478,40 @@ def pid_is_alive(pid: "Optional[int]") -> bool:
 class TuiPathKind(enum.Enum):
     """v1.5.7 135: the three directory levels the TUI/status/tail
     commands navigate, inferred from a single positional path."""
-    RUNS_ROOT = "runs_root"      # contains harness-run subdirs (manifest.json each)
-    HARNESS_RUN = "harness_run"  # contains manifest.json directly (108 marker)
+    RUNS_ROOT = "runs_root"      # contains timestamp-shaped harness-run subdirs
+    HARNESS_RUN = "harness_run"  # manifest.json OR (152) run-NN children
     RUN_NN = "run_nn"            # contains stream.ndjson OR target/ (per-run artifacts)
+
+
+# v1.5.7 152: regex markers for the classifier's fallback shapes.
+# _RE_RUN_NN matches per-run child dirs ("run-0", "run-00", ...);
+# _RE_HARNESS_RUN_NAME matches the timestamp-shaped name every
+# harness-run dir has carried since the late-2025 reorg
+# (YYYYMMDDTHHMMSSZ). Used with re.fullmatch so legacy `*.bak-<TS>`
+# checkpoint dirs in repos/ don't pass.
+_RE_RUN_NN = re.compile(r"run-\d+")
+_RE_HARNESS_RUN_NAME = re.compile(r"\d{8}T\d{6}Z")
+
+
+def _dir_is_harness_run_shape(path: Path) -> bool:
+    """v1.5.7 152: True iff ``path`` contains at least one
+    ``run-NN/`` child with the RUN_NN shape (``stream.ndjson`` OR
+    a ``target/`` subdir). Used by ``classify_tui_path`` to
+    recognize harness-runs whose orchestrator was killed before
+    the late-stage manifest.json write
+    (``plan_runner.py:2700–2734``), and to gate the RUNS_ROOT scan
+    so infrastructure subdirs like ``artifacts/`` don't false-
+    positive on their own bundle manifest.json."""
+    try:
+        for child in path.iterdir():
+            if (child.is_dir()
+                    and _RE_RUN_NN.fullmatch(child.name)
+                    and ((child / "stream.ndjson").exists()
+                         or (child / "target").is_dir())):
+                return True
+    except OSError:
+        pass
+    return False
 
 
 def classify_tui_path(path: Path) -> "TuiPathKind":
@@ -493,9 +524,16 @@ def classify_tui_path(path: Path) -> "TuiPathKind":
       RUN_NN       → contains ``stream.ndjson`` OR a ``target/``
                      subdir (the per-run artifacts).
       HARNESS_RUN  → contains ``manifest.json`` (the 108 harness-run
-                     marker).
-      RUNS_ROOT    → contains at least one subdir that classifies as
-                     HARNESS_RUN (one recursive step).
+                     marker), OR (152 fallback) contains one or more
+                     ``run-NN/`` subdirs with the RUN_NN shape. The
+                     fallback covers harness-runs whose orchestrator
+                     was killed before the late-stage manifest write
+                     (``plan_runner.py:2700–2734``).
+      RUNS_ROOT    → contains at least one timestamp-shaped subdir
+                     (``YYYYMMDDTHHMMSSZ``) that classifies as
+                     HARNESS_RUN. Excludes infrastructure subdirs like
+                     ``artifacts/`` (which carry their own bundle
+                     manifest.json but aren't harness-runs).
 
     Order matters: RUN_NN is checked FIRST (a run-NN dir might
     coincidentally have a subdir; we don't want to misread it as a
@@ -510,21 +548,32 @@ def classify_tui_path(path: Path) -> "TuiPathKind":
     # 1. RUN_NN — per-run artifacts.
     if (path / "stream.ndjson").exists() or (path / "target").is_dir():
         return TuiPathKind.RUN_NN
-    # 2. HARNESS_RUN — the manifest marker.
+    # 2. HARNESS_RUN — manifest marker, or (152) run-NN-children fallback.
     if (path / "manifest.json").is_file():
         return TuiPathKind.HARNESS_RUN
-    # 3. RUNS_ROOT — any immediate subdir is a harness-run.
+    if _dir_is_harness_run_shape(path):
+        return TuiPathKind.HARNESS_RUN
+    # 3. RUNS_ROOT — at least one timestamp-shaped immediate child
+    # classifies as HARNESS_RUN (manifest OR the 152 fallback). The
+    # name filter excludes infrastructure subdirs like artifacts/
+    # whose own bundle manifest.json used to false-positive here.
     try:
         for child in path.iterdir():
-            if child.is_dir() and (child / "manifest.json").is_file():
+            if not child.is_dir():
+                continue
+            if not _RE_HARNESS_RUN_NAME.fullmatch(child.name):
+                continue
+            if ((child / "manifest.json").is_file()
+                    or _dir_is_harness_run_shape(child)):
                 return TuiPathKind.RUNS_ROOT
     except OSError:
         pass
     raise ValueError(
         f"classify_tui_path: {path} matches none of RUN_NN "
-        f"(stream.ndjson / target/), HARNESS_RUN (manifest.json), "
-        f"or RUNS_ROOT (a subdir with manifest.json). Pass a "
-        f"runs-root, a harness-run dir, or a run-NN dir.")
+        f"(stream.ndjson / target/), HARNESS_RUN (manifest.json OR "
+        f"run-NN children with the RUN_NN shape), or RUNS_ROOT (a "
+        f"timestamp-shaped subdir with the harness-run shape). Pass "
+        f"a runs-root, a harness-run dir, or a run-NN dir.")
 
 
 def read_one_run_status_for_dir(
