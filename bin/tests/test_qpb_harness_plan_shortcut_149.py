@@ -11,6 +11,9 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout, redirect_stderr
@@ -136,6 +139,70 @@ class MainDispatchTests(unittest.TestCase):
             self.assertEqual(rc, 0)
             self.assertEqual(m_rp.call_args.args[0].plan_file, str(p))
             self.assertEqual(m_rp.call_args.args[0].runs_root, tmp)
+
+
+class RunsRootDefaultUnificationTests(unittest.TestCase):
+    """v1.5.7 149 Task A0 — unify the runs-root default to
+    ./harness_runs/ (underscore) across run-plan + _default_runs_root
+    + .gitignore."""
+
+    def test_run_plan_default_runs_root_is_harness_runs(self) -> None:
+        # A0.1: --runs-root default is None → _cmd_run_plan resolves
+        # it to ./harness_runs/. Assert the EFFECTIVE default.
+        parser = Q._build_parser()
+        args = parser.parse_args(["run-plan", "x.json"])
+        self.assertIsNone(args.runs_root)  # argparse default
+        effective = Path(args.runs_root or "harness_runs")
+        self.assertEqual(effective.name, "harness_runs")
+
+    def test_default_runs_root_helper_returns_harness_runs(
+            self) -> None:
+        # A0.2: unconditional ./harness_runs/ (no repos/ chain).
+        self.assertEqual(Q._default_runs_root(),
+                         Path("harness_runs"))
+
+    def test_gitignore_contains_harness_runs_rule(self) -> None:
+        # A0.3: .gitignore excludes harness_runs/.
+        gitignore = (Path(__file__).resolve().parents[2]
+                     / ".gitignore")
+        lines = [ln.strip()
+                 for ln in gitignore.read_text(
+                     encoding="utf-8").splitlines()]
+        self.assertIn("harness_runs/", lines)
+
+
+class GracefulAbsentDefaultTests(unittest.TestCase):
+    """v1.5.7 149 A0 (Option 1) — the read commands fall back to
+    ./harness_runs/ when no path is given; when that DEFAULT dir is
+    absent they degrade to a soft "No harness-runs" (exit 0), not a
+    hard "is not a directory" (exit 2). An EXPLICIT absent path still
+    errors exit 2 (covered by the 110/135 suites). Pinned to a clean
+    temp cwd so a stray ./harness_runs/ on the dev box can't flake it."""
+
+    def test_no_arg_tui_dump_graceful_when_default_absent(
+            self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as tmp:
+            # No harness_runs/ in this cwd → the default resolves to a
+            # nonexistent dir, exercising the from_default soft path.
+            self.assertFalse((Path(tmp) / "harness_runs").exists())
+            env = dict(os.environ, PYTHONPATH=str(repo_root))
+            proc = subprocess.run(
+                [sys.executable, "-m", "bin.qpb_harness",
+                 "tui", "--dump", "detail"],
+                cwd=tmp, env=env,
+                capture_output=True, text=True, timeout=30,
+            )
+            self.assertEqual(
+                proc.returncode, 0,
+                f"stdout={proc.stdout[:300]!r} "
+                f"stderr={proc.stderr[:300]!r}")
+            combined = proc.stdout + proc.stderr
+            # Mutation-bite: dropping the from_default special-case
+            # sends this down the explicit-path branch → exit 2 +
+            # "is not a directory", failing BOTH assertions below.
+            self.assertIn("No harness-runs under", combined)
+            self.assertNotIn("is not a directory", combined)
 
 
 if __name__ == "__main__":  # pragma: no cover

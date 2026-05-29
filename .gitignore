@@ -24,6 +24,12 @@ informal_docs/
 # Test repos and run artifacts (used for playbook evaluation, not part of the skill)
 repos/
 
+# v1.5.7 149: harness run output (timestamped run folders) — the
+# canonical output convention going forward. Never tracked.
+harness_runs/
+# legacy hyphen variant (older operators may still have it on disk)
+harness-runs/
+
 # docs_gathered/ is NEVER tracked — it contains AI chat history and other
 # private reference material that must not be published. This rule applies at
 # every depth (root-level bootstrap docs AND any repos/*/docs_gathered/).

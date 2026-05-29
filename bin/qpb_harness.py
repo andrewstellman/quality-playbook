@@ -29,6 +29,7 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import NamedTuple
 
 
 _HARNESS_NAME = "qpb_harness"
@@ -248,7 +249,10 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
         print(f"ERROR: plan file not found: {plan_path}",
               file=sys.stderr)
         return 2
-    runs_root = Path(args.runs_root).expanduser().resolve()
+    # v1.5.7 149 (A0.1): default --runs-root None → ./harness_runs/,
+    # created on demand (the QPB output convention).
+    runs_root = Path(
+        args.runs_root or "harness_runs").expanduser().resolve()
     runs_root.mkdir(parents=True, exist_ok=True)
     try:
         plan = _plan.load_plan(plan_path)
@@ -315,21 +319,35 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
 
 
 def _default_runs_root() -> Path:
-    """v1.5.7 135: the default path when none is given —
-    ``./repos/`` if it exists, else ``./harness-runs/`` if it
-    exists, else the cwd. Matches the QPB runs-root convention."""
-    for name in ("repos", "harness-runs"):
-        p = Path(name)
-        if p.is_dir():
-            return p.resolve()
-    return Path.cwd()
+    """v1.5.7 149: the QPB convention default — ``./harness_runs/``
+    (underscore, plural), the single primary output location that
+    tui/status/tail/run-plan all use when no explicit ``--runs-root``
+    is given. run-plan creates it on demand; tui/status/tail read
+    from it. (Pre-149 this tried ``./repos/`` → ``./harness-runs/``
+    → cwd; that conflated benchmark SOURCES with run OUTPUT — 149
+    splits them: outputs → harness_runs/, sources → repos/.)
+    Operators with legacy content pass ``--runs-root`` explicitly."""
+    return Path("harness_runs")
 
 
-def _resolve_tui_path(args: argparse.Namespace) -> Path:
+class _ResolvedTuiPath(NamedTuple):
+    """v1.5.7 149 A0: a resolved read-path for status/tui/--dump plus
+    ``from_default`` — True means the caller passed no path and
+    ``_default_runs_root()`` supplied it. Callers use this to decide
+    whether an absent dir is a hard error (explicit path → exit 2) or
+    a soft "no runs yet" (default → exit 0)."""
+
+    path: Path
+    from_default: bool
+
+
+def _resolve_tui_path(args: argparse.Namespace) -> _ResolvedTuiPath:
     """v1.5.7 135: resolve the single positional path for
     tui/status, falling back to the deprecated flags
     (``--runs-root`` for both; ``--dump-path`` for tui) then the
-    default runs-root. Positional wins."""
+    default runs-root. Positional wins. v1.5.7 149 A0: returns
+    ``(path, from_default)`` so callers can soften the absent-dir
+    error when the default helper supplied the path."""
     raw = (
         getattr(args, "path", None)
         or getattr(args, "dump_path", None)
@@ -337,8 +355,9 @@ def _resolve_tui_path(args: argparse.Namespace) -> Path:
         or getattr(args, "root", None)
     )
     if raw:
-        return Path(raw).expanduser().resolve()
-    return _default_runs_root()
+        return _ResolvedTuiPath(
+            Path(raw).expanduser().resolve(), False)
+    return _ResolvedTuiPath(_default_runs_root(), True)
 
 
 def _cmd_status(args: argparse.Namespace) -> int:
@@ -379,10 +398,16 @@ def _cmd_status(args: argparse.Namespace) -> int:
             )
         return 0
 
-    path = _resolve_tui_path(args)
+    path, from_default = _resolve_tui_path(args)
     try:
         kind = _status.classify_tui_path(path)
     except FileNotFoundError:
+        if from_default:
+            # v1.5.7 149 A0: the default runs-root simply doesn't
+            # exist yet (no runs written) — a soft empty state, not
+            # an error. Matches the empty-RUNS_ROOT UX below.
+            print(f"No harness-runs under {path}", file=sys.stderr)
+            return 0
         print(f"ERROR: {path} is not a directory", file=sys.stderr)
         return 2
     except ValueError:
@@ -781,10 +806,15 @@ def _cmd_tui(args: argparse.Namespace) -> int:
     # shape. Replaces the --runs-root / --dump-mode / --dump-path
     # triple (still accepted as deprecated aliases via
     # _resolve_tui_path).
-    path = _resolve_tui_path(args)
+    path, from_default = _resolve_tui_path(args)
     try:
         kind = _status.classify_tui_path(path)
     except FileNotFoundError:
+        if from_default:
+            # v1.5.7 149 A0: default runs-root absent ⇒ no runs yet
+            # (soft empty state, exit 0), not a hard error.
+            sys.stderr.write(f"No harness-runs under {path}\n")
+            return 0
         sys.stderr.write(f"qpb_harness tui: {path} is not a "
                          f"directory\n")
         return 2
@@ -906,10 +936,12 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_plan.add_argument("plan_file",
                           help="Path to the plan.json document.")
-    p_plan.add_argument("--runs-root", default="harness-runs",
+    p_plan.add_argument("--runs-root", default=None,
                           help="Root directory for harness-run "
                                "output folders (gitignored by "
-                               "convention).")
+                               "convention). Default: "
+                               "./harness_runs/ (created if "
+                               "missing).")
     p_plan.add_argument("--wheel", default=None,
                           help=("v1.5.7 101: pre-built pip wheel "
                                 "path to use for pip-local-wheel "
