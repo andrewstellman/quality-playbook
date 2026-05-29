@@ -2047,7 +2047,7 @@ def _collect_one_run_detached(
         # the clean completion.
         stream_state, stream_reason = (
             _runner_mod._classify_stream_terminal(
-                stream_path_for_classify)
+                stream_path_for_classify, target_dir=target_dir)
         )
         if stream_state is not None:
             # Reap the exit-hang if still alive.
@@ -2093,7 +2093,7 @@ def _collect_one_run_detached(
             _runner_mod._kill_process_tree(pid)
             stream_state, stream_reason = (
                 _runner_mod._classify_stream_terminal(
-                    stream_path_for_classify)
+                    stream_path_for_classify, target_dir=target_dir)
             )
             if stream_state is not None:
                 terminal = stream_state

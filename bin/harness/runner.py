@@ -829,8 +829,36 @@ def launch_run_async(spec: LaunchSpec) -> SpawnResult:
     )
 
 
+def _gate_log_verdict(target_dir: "Path | None") -> "str | None":
+    """v1.5.7 137: return the gate verdict from
+    ``<target_dir>/quality/results/quality-gate.log``'s canonical
+    ``RESULT: GATE …`` line (``GATE PASSED`` / ``GATE PASSED WITH
+    CLEANUP NEEDED`` / ``GATE FAILED …``), or None when the log is
+    absent or carries no RESULT line (a partial run that never
+    reached the Phase 6 verdict).
+
+    Reuses ``facts._RE_RESULT_LINE`` — the single canonical
+    matcher — via a lazy import (facts isn't imported at
+    runner.py module load; the lazy import also sidesteps any
+    import-order coupling) rather than re-deriving the regex.
+    """
+    if target_dir is None:
+        return None
+    log = target_dir / "quality" / "results" / "quality-gate.log"
+    if not log.is_file():
+        return None
+    try:
+        text = log.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return None
+    from bin.harness import facts as _facts
+    m = _facts._RE_RESULT_LINE.search(text)
+    return m.group("rest") if m else None
+
+
 def _classify_stream_terminal(
         stream_path: Path,
+        target_dir: "Path | None" = None,
 ) -> "tuple[TerminalState | None, str]":
     """v1.5.7 113: classify a run's terminal state from the
     LAST ``result`` event in ``stream.ndjson``.
@@ -851,12 +879,22 @@ def _classify_stream_terminal(
         report-writer step ran inconsistently), and the
         artifact-only inference mislabeled them FAILED.
       * ``(None, "")`` when the stream has no parseable
-        ``result`` event — inconclusive. Callers fall back to
-        the artifact-based heuristic. Notably, Mode B
-        (``run_playbook``) streams do NOT emit Claude's
-        ``result`` envelope, so the classifier is a no-op
-        there and the artifact heuristic still drives the
-        decision.
+        ``result`` event AND (137) no recognizable gate log —
+        inconclusive; callers fall back to their own artifact
+        heuristic.
+
+    v1.5.7 137: when the stream yields no Claude ``result`` event
+    (copilot/codex/cursor emit plain text; Mode B ``run_playbook``
+    streams have no ``result`` envelope) AND ``target_dir`` is
+    given with a ``quality/results/quality-gate.log`` carrying a
+    ``RESULT: GATE …`` line, the run is classified ``COMPLETED``
+    (``reason="completed (gate log: <verdict>)"``). All three
+    verdicts (PASSED / CLEANUP / FAILED) ⇒ COMPLETED — the run
+    finished Phase 6; the PASS/FAIL GRADE is decided downstream.
+    The Claude ``result`` event is checked FIRST, so it always
+    wins over the gate-log fallback when present (faster,
+    authoritative). When ``target_dir`` is None or the log is
+    absent/partial, the classifier behaves exactly as pre-137.
 
     Robust to: missing file, malformed JSON lines (skipped),
     multiple ``result`` events (LAST wins — a recovered run
@@ -884,6 +922,14 @@ def _classify_stream_terminal(
         if obj.get("type") == "result":
             last_result = obj
     if last_result is None:
+        # v1.5.7 137: no Claude `result` envelope — fall back to
+        # the gate log. A `RESULT: GATE …` line means Phase 6
+        # finished cleanly ⇒ COMPLETED. (The Claude result event,
+        # checked above, always wins when present.)
+        verdict = _gate_log_verdict(target_dir)
+        if verdict is not None:
+            return (TerminalState.COMPLETED,
+                    f"completed (gate log: {verdict})")
         return (None, "")
     if last_result.get("is_error"):
         reason = last_result.get("result", "")
@@ -979,7 +1025,8 @@ def collect_one_process(spec: LaunchSpec,
         # appears, the run is done semantically — kill any
         # exit-hang and classify from the stream.
         stream_state, stream_reason = (
-            _classify_stream_terminal(spawn.stream_path))
+            _classify_stream_terminal(
+                spawn.stream_path, target_dir=spec.target_dir))
         if stream_state is not None:
             # Reap (kill if still alive — exit-hang case).
             try:
@@ -1020,7 +1067,8 @@ def collect_one_process(spec: LaunchSpec,
             # event may have appeared between the previous
             # stream-check and waitpid. Stream wins.
             stream_state, stream_reason = (
-                _classify_stream_terminal(spawn.stream_path))
+                _classify_stream_terminal(
+                    spawn.stream_path, target_dir=spec.target_dir))
             if stream_state is not None:
                 terminal_state = stream_state
                 terminal_reason = stream_reason
@@ -1046,7 +1094,8 @@ def collect_one_process(spec: LaunchSpec,
             # means the run COMPLETED before the kill;
             # the kill was just reaping the exit-hang.
             stream_state, stream_reason = (
-                _classify_stream_terminal(spawn.stream_path))
+                _classify_stream_terminal(
+                    spawn.stream_path, target_dir=spec.target_dir))
             if stream_state is not None:
                 terminal_state = stream_state
                 terminal_reason = stream_reason
