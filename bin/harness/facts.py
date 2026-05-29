@@ -455,22 +455,37 @@ def parse_transcript(transcript: str) -> "tuple[Phase0Facts, InstallSurfaceFacts
     bare_path_fail = _RE_PHASE0_BARE_PATH_FAIL.search(transcript) is not None
 
     if real_probes:
-        last = real_probes[-1]
+        # v1.5.7 141: scope to the PHASE-0 prefix. Phase 0 ends the
+        # moment the agent reaches a clean probe ("ok") and proceeds
+        # to Phase 1 — so the phase-0 sequence is the prefix UP TO
+        # AND INCLUDING the first "ok". Probes AFTER the first ok are
+        # LATER-PHASE validations (Phase 1/2 artifact validators emit
+        # the same ``event=validation_complete nonce=… status=…``
+        # shape); 136 v2 wrongly swept them into the phase-0 count.
+        # That mis-attribution was the express sonnet false-negative:
+        # its real phase-0 flow was blocked → remediable → ok (3
+        # probes, identical to gson), but a Phase-1 ``status=ok``
+        # validation made it look like a 4-probe sequence whose
+        # non-final "ok" failed the all-blocked/remediable check.
+        if "ok" in real_probes:
+            phase0_probes = real_probes[:real_probes.index("ok") + 1]
+        else:
+            phase0_probes = real_probes
+        last = phase0_probes[-1]
         status = last if last in ("ok", "remediable", "blocked") else "blocked"
-        probe_attempts = len(real_probes)
-        # v1.5.7 136 NEW semantic: the run reached a clean probe,
-        # no bare-path failure occurred, and any probes BEFORE the
-        # final clean one were legitimate remediation cases
-        # (blocked / remediable — the designed 090u flow), NOT
-        # bare-path retries. This stops penalizing a fresh-target
-        # run for the extra probes its own remediation requires
-        # (which the SAME run is rewarded for via
-        # ``gitignore_remediation_followed``).
+        probe_attempts = len(phase0_probes)
+        # v1.5.7 136 semantic (preserved): the run reached a clean
+        # probe, no bare-path failure occurred, and any probes BEFORE
+        # the clean one were legitimate remediation cases (blocked /
+        # remediable — the designed 090u flow), NOT bare-path
+        # retries. This stops penalizing a fresh-target run for the
+        # extra probes its own remediation requires (which the SAME
+        # run is rewarded for via ``gitignore_remediation_followed``).
         first_probe_ok = (
             last == "ok"
             and not bare_path_fail
             and all(p in ("blocked", "remediable")
-                    for p in real_probes[:-1])
+                    for p in phase0_probes[:-1])
         )
     else:
         # No nonce-bearing probes — older stream / test fixture

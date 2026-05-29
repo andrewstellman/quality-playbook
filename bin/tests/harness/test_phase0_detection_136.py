@@ -175,5 +175,76 @@ class LiveTranscriptTests(unittest.TestCase):
             self.assertTrue(ph.first_probe_ok, run)
 
 
+class FourthProbeScoping141Tests(unittest.TestCase):
+    """v1.5.7 141 — phase-0 detection is scoped to the prefix up to
+    the FIRST ok. Later-phase artifact validators (Phase 1/2) emit
+    the same ``event=validation_complete nonce=… status=…`` shape;
+    136 v2 wrongly counted them as phase-0 probes, producing the
+    express sonnet false-negative (real phase-0 flow was the same
+    3-probe blocked→remediable→ok as gson, but a Phase-1 status=ok
+    made it look like a 4-probe sequence whose non-final ok failed
+    the all-blocked/remediable check)."""
+
+    def test_later_phase_ok_after_clean_probe_is_scoped_out(
+            self) -> None:
+        # express shape: phase-0 blocked→remediable→ok, then a
+        # Phase-1 validator status=ok. Scoped to phase-0 ⇒ 3 probes,
+        # first_probe_ok True.
+        txt = (_NARRATION
+               + _probe("p1", "blocked", 1)
+               + _probe("p2", "remediable", 3)
+               + _probe("p3", "ok", 0)       # phase-0 clean — ends here
+               + _probe("p4", "ok", 0))      # Phase-1 validation
+        ph, _i, _b, _s = F.parse_transcript(txt)
+        self.assertEqual(ph.probe_attempts, 3)  # scoped, not 4
+        self.assertEqual(ph.status, "ok")
+        self.assertTrue(ph.first_probe_ok)
+
+    def test_later_phase_remediable_after_clean_does_not_demote(
+            self) -> None:
+        # A later-phase validator returning remediable must NOT drag
+        # the phase-0 status back from ok.
+        txt = (_probe("p1", "blocked", 1)
+               + _probe("p2", "ok", 0)            # phase-0 clean
+               + _probe("p3", "remediable", 2))   # later phase
+        ph, _i, _b, _s = F.parse_transcript(txt)
+        self.assertEqual(ph.status, "ok")
+        self.assertEqual(ph.probe_attempts, 2)
+        self.assertTrue(ph.first_probe_ok)
+
+    def test_bare_path_before_first_ok_still_false(self) -> None:
+        # Scoping must not let a bare-path failure slip through.
+        txt = (
+            "$ python3 bin/qpb_validate.py .\n"
+            "[Errno 2] No such file or directory: "
+            "'bin/qpb_validate.py'\n"
+            + _probe("p1", "ok", 0)
+            + _probe("p2", "ok", 0))
+        ph, _i, _b, _s = F.parse_transcript(txt)
+        self.assertFalse(ph.first_probe_ok)
+
+
+class LiveSonnetRetestTests(unittest.TestCase):
+    """v1.5.7 141 — the live sonnet retest that motivated this fix.
+    Skips when the transient run dir is absent."""
+
+    _BASE = Path(__file__).resolve().parents[3] / (
+        "repos/20260529T040543Z")
+
+    @unittest.skipUnless(
+        (_BASE / "run-01/stream.ndjson").is_file(),
+        "live sonnet retest streams not present (transient repos/)")
+    def test_real_sonnet_gson_and_express_first_probe_ok(self) -> None:
+        # gson (run-00, 3 phase-0 probes) AND express (run-01, 3
+        # phase-0 probes + 1 later-phase ok) both ⇒ True after 141.
+        for run in ("run-00", "run-01"):
+            txt = (self._BASE / run / "stream.ndjson").read_text(
+                encoding="utf-8", errors="replace")
+            ph, _i, _b, _s = F.parse_transcript(txt)
+            self.assertEqual(ph.status, "ok", run)
+            self.assertEqual(ph.probe_attempts, 3, run)
+            self.assertTrue(ph.first_probe_ok, run)
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
