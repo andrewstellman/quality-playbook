@@ -53,6 +53,7 @@
       "channel": "npm-local-tgz",
       "mode": "B",
       "parameters": ["--runner-extra-args", "-c 'model_reasoning_effort=\"low\"'"],
+      "prep_timeout_s": 900,
       "expect": {
         "gate_result": "FAIL",
         "verdict_state": "failed",

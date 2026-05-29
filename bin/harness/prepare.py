@@ -520,11 +520,17 @@ def _run_install_for_axes(
     axes: "RunAxes | None" = None,
     ai_tool: str = "claude",
     local_artifact: "Path | None" = None,
+    prep_timeout_s: "float | None" = None,
 ) -> None:
     """v1.5.7 096 Phase 6: route the install step by axes.install_
     channel. When ``axes`` is None (no axes provided — Phase 1
     smoke entry pre-096), defaults to the clone channel for
     backward compatibility.
+
+    v1.5.7 138: ``prep_timeout_s`` overrides ``install_skill_channel``'s
+    default install timeout for THIS run when set (codex's
+    npm-local-tgz on a cold cache exceeds the 300s default). None ⇒
+    the channel default.
     """
     if axes is None:
         install_skill_clone_channel(target_dir, ai_tool=ai_tool)
@@ -535,6 +541,8 @@ def _run_install_for_axes(
         ai_tool=ai_tool,
         install_version=axes.install_version,
         local_artifact=local_artifact,
+        **({"timeout_s": prep_timeout_s}
+           if prep_timeout_s is not None else {}),
     )
 
 
@@ -542,6 +550,7 @@ def prepare_acceptance(case: Case, worktree_dest: Path, *,
                         ai_tool: str = "claude",
                         axes: "RunAxes | None" = None,
                         local_artifact: "Path | None" = None,
+                        prep_timeout_s: "float | None" = None,
                         ) -> PrepResult:
     """design §1 acceptance prep: worktree → docs present →
     Phase-0 install. No scrub, no leakage gate.
@@ -565,6 +574,7 @@ def prepare_acceptance(case: Case, worktree_dest: Path, *,
     _run_install_for_axes(
         worktree_dest, axes=axes, ai_tool=ai_tool,
         local_artifact=local_artifact,
+        prep_timeout_s=prep_timeout_s,
     )
     return PrepResult(
         target_dir=worktree_dest,
@@ -578,6 +588,7 @@ def prepare_security(case: Case, worktree_dest: Path, *,
                       ai_tool: str = "claude",
                       axes: "RunAxes | None" = None,
                       local_artifact: "Path | None" = None,
+                      prep_timeout_s: "float | None" = None,
                       ) -> PrepResult:
     """design §1 / design §B security prep: worktree → scrub
     reference_docs of leakage terms → leakage-gate → install.
@@ -614,6 +625,7 @@ def prepare_security(case: Case, worktree_dest: Path, *,
     _run_install_for_axes(
         worktree_dest, axes=axes, ai_tool=ai_tool,
         local_artifact=local_artifact,
+        prep_timeout_s=prep_timeout_s,
     )
     return PrepResult(
         target_dir=worktree_dest,
@@ -627,6 +639,7 @@ def prepare(case: Case, worktree_dest: Path, *,
              ai_tool: str = "claude",
              axes: "RunAxes | None" = None,
              local_artifact: "Path | None" = None,
+             prep_timeout_s: "float | None" = None,
              ) -> PrepResult:
     """Top-level dispatch: routes by ``case.inputs.prep``. The
     case's prep policy MUST match its type (the loader pins this
@@ -641,11 +654,13 @@ def prepare(case: Case, worktree_dest: Path, *,
         return prepare_acceptance(
             case, worktree_dest, ai_tool=ai_tool,
             axes=axes, local_artifact=local_artifact,
+            prep_timeout_s=prep_timeout_s,
         )
     elif case.inputs.prep == PrepPolicy.SECURITY:
         return prepare_security(
             case, worktree_dest, ai_tool=ai_tool,
             axes=axes, local_artifact=local_artifact,
+            prep_timeout_s=prep_timeout_s,
         )
     else:
         raise PrepError(

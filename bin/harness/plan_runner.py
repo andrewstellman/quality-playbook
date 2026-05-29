@@ -219,6 +219,13 @@ class PlanRun:
     # subprocess (Mode B's LaunchSpec.prompt is a sentinel
     # string that's never consumed).
     prompt: "Optional[str]" = None
+    # v1.5.7 138: optional per-run override for the install_skill
+    # prep timeout (seconds). When None, the prep step uses
+    # install_skill_channel's 300s default — fine for
+    # pip-local-wheel, but codex's npm-local-tgz on a cold cache
+    # exceeds it (npm fetch + extract + dependency resolve). When
+    # set, overrides the default for THIS run only.
+    prep_timeout_s: "Optional[float]" = None
 
 
 @dataclass
@@ -380,6 +387,25 @@ def _parse_run(idx: int, raw: dict) -> PlanRun:
             f"runs[{idx}].prompt: must be a string or absent; "
             f"got {type(prompt_raw).__name__}"
         )
+    # v1.5.7 138: optional per-run `prep_timeout_s` override for
+    # the install step. Same shape/validation as max_duration_s.
+    prep_timeout_raw = raw.get("prep_timeout_s", None)
+    prep_timeout_value: "Optional[float]"
+    if prep_timeout_raw is None:
+        prep_timeout_value = None
+    elif isinstance(prep_timeout_raw, (int, float)):
+        if prep_timeout_raw <= 0:
+            raise PlanError(
+                f"runs[{idx}].prep_timeout_s: must be > 0; got "
+                f"{prep_timeout_raw!r}"
+            )
+        prep_timeout_value = float(prep_timeout_raw)
+    else:
+        raise PlanError(
+            f"runs[{idx}].prep_timeout_s: must be a positive "
+            f"number or absent; got "
+            f"{type(prep_timeout_raw).__name__}"
+        )
     # v1.5.7 107: optional per-run `workspace_root` (path-as-
     # string). Absent ⇒ standard `run-NN/target` behavior.
     # Present ⇒ first run clones+installs into it; later runs
@@ -419,6 +445,7 @@ def _parse_run(idx: int, raw: dict) -> PlanRun:
         max_duration_s=max_duration_value,
         workspace_root=workspace_root_value,
         prompt=prompt_value,
+        prep_timeout_s=prep_timeout_value,
     )
 
 
@@ -1302,6 +1329,7 @@ def _execute_one_run_production(
                 ai_tool=plan_run.runner.value,
                 axes=axes,
                 local_artifact=local_artifact,
+                prep_timeout_s=plan_run.prep_timeout_s,
             )
         except _prepare_mod.PrepError as exc:
             ended_at = _now_iso()
@@ -1626,6 +1654,7 @@ def _launch_one_run_detached(
                 ai_tool=plan_run.runner.value,
                 axes=axes,
                 local_artifact=local_artifact,
+                prep_timeout_s=plan_run.prep_timeout_s,
             )
             prep_target_dir = prep_result.target_dir
             target_sha = prep_result.target_sha
@@ -2436,6 +2465,10 @@ def run_plan(plan: Plan, harness_runs_root: Path,
                 # plans byte-stable.
                 **({"prompt": r.prompt}
                    if r.prompt is not None else {}),
+                # v1.5.7 138: persist prep_timeout_s only when
+                # set; absent keeps pre-138 plans byte-stable.
+                **({"prep_timeout_s": r.prep_timeout_s}
+                   if r.prep_timeout_s is not None else {}),
             } for r in plan.runs],
         }, indent=2) + "\n",
         encoding="utf-8",
