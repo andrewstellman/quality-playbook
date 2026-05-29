@@ -411,25 +411,30 @@ def _cmd_status(args: argparse.Namespace) -> int:
         print(f"ERROR: {path} is not a directory", file=sys.stderr)
         return 2
     except ValueError:
-        # v1.5.7 135: an existing-but-unclassifiable dir (no
-        # manifest, no run markers) is treated as an empty
-        # runs-root, preserving the pre-135 graceful "No
-        # harness-runs under X" for a fresh/empty runs-root rather
-        # than erroring. Only a non-existent path errors
-        # (FileNotFoundError above). The single-positional
-        # classifier can no longer use the old --runs-root-vs-
-        # positional split to tell "empty runs-root" from "bogus
-        # dir", so it favours the common case. (Flagged in the 135
-        # review-request as a deliberate soft-back-compat loss.)
-        kind = _status.TuiPathKind.RUNS_ROOT
+        # v1.5.7 153 Task B: a ``run-NN``-shaped dir with no spawn
+        # markers is a PENDING/queued run (scheduler created the
+        # dir before the worker spawned, then Ctrl-C). The
+        # classifier correctly says "no markers" — the run-NN name
+        # itself is the marker the CLI uses. Treat it as RUN_NN so
+        # the single-run path renders the synthesized row.
+        if _status._RE_RUN_NN.fullmatch(path.name):
+            kind = _status.TuiPathKind.RUN_NN
+        else:
+            # v1.5.7 135: an existing-but-unclassifiable dir (no
+            # manifest, no run markers, not a run-NN name) is
+            # treated as an empty runs-root, preserving the
+            # pre-135 graceful "No harness-runs under X" for a
+            # fresh/empty runs-root rather than erroring.
+            kind = _status.TuiPathKind.RUNS_ROOT
 
     if kind is _status.TuiPathKind.RUN_NN:
-        # v1.5.7 135: single-run status block.
+        # v1.5.7 135: single-run status block. 153 Task A:
+        # synthesizes from on-disk artifacts when the manifest
+        # doesn't list it; None only on a phantom dir.
         rs = _status.read_one_run_status_for_dir(path)
         if rs is None:
             print(
-                f"ERROR: {path} is a run dir but its parent "
-                f"harness-run manifest doesn't list it",
+                f"ERROR: {path} is not a usable run dir",
                 file=sys.stderr,
             )
             return 2
@@ -443,7 +448,11 @@ def _cmd_status(args: argparse.Namespace) -> int:
     if kind is _status.TuiPathKind.HARNESS_RUN:
         runs = _status.read_run_status(path)
         if not runs:
-            print(f"harness-run dir: {path} (empty manifest)",
+            # v1.5.7 153 Task A: enumeration is manifest-INDEPENDENT,
+            # so an empty list now means "no run-NN dirs at all" —
+            # not just "no manifest." The old "(empty manifest)"
+            # wording was misleading on Ctrl-C'd harness-runs.
+            print(f"harness-run dir: {path} (no run dirs)",
                   file=sys.stderr)
             return 0
         print(f"harness-run dir: {path}")
@@ -660,8 +669,17 @@ def _cmd_kill(args: argparse.Namespace) -> int:
         print(f"ERROR: {path} is not a directory", file=sys.stderr)
         return 2
     except ValueError as exc:
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 2
+        # v1.5.7 153 Task B: a PENDING (queued, never-spawned) run-NN
+        # dir genuinely has no markers — the classifier is right to
+        # raise — but the run-NN name itself IS the marker for the
+        # kill UX. Treat it as RUN_NN; the synthesized RunStatus
+        # below will say state=PENDING and the kill is a no-op +
+        # informational ("not running: PENDING").
+        if _status._RE_RUN_NN.fullmatch(path.name):
+            kind = _status.TuiPathKind.RUN_NN
+        else:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 2
     if kind is _status.TuiPathKind.RUNS_ROOT:
         print("ERROR: kill across an entire runs-root is too broad; "
               "pick a harness-run (<runs-root>/<harness-run>) or a "
@@ -675,10 +693,13 @@ def _cmd_kill(args: argparse.Namespace) -> int:
     targets: "list[tuple[Path, str]]" = []
     skipped: "list[tuple[str, str]]" = []
     if kind is _status.TuiPathKind.RUN_NN:
+        # v1.5.7 153 Task A: synthesizes from on-disk artifacts
+        # when manifest is missing/incomplete; None only on a
+        # phantom dir.
         rs = _status.read_one_run_status_for_dir(path)
         if rs is None:
-            print(f"ERROR: {path} is a run dir but its parent "
-                  f"manifest doesn't list it", file=sys.stderr)
+            print(f"ERROR: {path} is not a usable run dir",
+                  file=sys.stderr)
             return 2
         if rs.state == "RUNNING":
             targets.append((path, _kill_label(rs)))

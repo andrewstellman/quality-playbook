@@ -320,11 +320,30 @@ class SingleRunStatusTests(unittest.TestCase):
             self.assertEqual(rs.repo,
                              "https://github.com/x/repo1")
 
-    def test_returns_none_when_no_parent_manifest(self) -> None:
+    def test_returns_synthesized_when_no_parent_manifest(self) -> None:
+        # v1.5.7 153 Task A — contract change: a run-NN dir without a
+        # parent manifest.json now synthesizes a RunStatus from the
+        # dir's own on-disk artifacts (was: returned None pre-153,
+        # which broke kill/status on Ctrl-C'd harness-runs). The
+        # synthesized entry surfaces partial metadata rather than
+        # leaving the row invisible.
         with tempfile.TemporaryDirectory() as td:
             rd = Path(td) / "run-00"
-            _make_run_nn(rd)  # no parent manifest.json
-            self.assertIsNone(ST.read_one_run_status_for_dir(rd))
+            _make_run_nn(rd)  # has stream.ndjson; no parent manifest
+            rs = ST.read_one_run_status_for_dir(rd)
+            self.assertIsNotNone(rs)
+            self.assertEqual(rs.index, 0)
+            # No manifest ⇒ repo unknown; synthesized "?" sentinel.
+            self.assertEqual(rs.repo, "?")
+            # No status.json ⇒ default to the PENDING sentinel.
+            self.assertEqual(rs.state, "PENDING")
+
+    def test_returns_none_when_run_dir_does_not_exist(self) -> None:
+        # The new "None" case in 153: only when the run-NN dir itself
+        # is absent. A queued-but-empty dir still synthesizes.
+        with tempfile.TemporaryDirectory() as td:
+            self.assertIsNone(
+                ST.read_one_run_status_for_dir(Path(td) / "run-99"))
 
 
 # ---------------------------------------------------------------------------

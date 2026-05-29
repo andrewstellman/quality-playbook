@@ -150,6 +150,20 @@ class RunStatus:
     """Seconds between started_at and last_activity_iso (or
     "now" for a running run). None when the start time is
     unknown."""
+    # v1.5.7 153 — status.json fields the CLI/TUI now surface so
+    # operators don't have to read status.json by hand.
+    terminal_state: "Optional[str]" = None
+    """The explicit terminal state from status.json's
+    ``terminal_state`` field (KILLED / COMPLETED / FAILED /
+    TIMED_OUT / BLOCKED / ABORTED_PREP). None pre-terminal."""
+    ended_at: str = "—"
+    """status.json's ``ended_at`` (ISO8601 UTC) — the moment
+    the per-run worker reached its terminal state. "—" until
+    then."""
+    heartbeat: str = "—"
+    """status.json's ``heartbeat`` (ISO8601 UTC) — the last
+    write by the per-run worker. Useful for diagnosing stuck
+    Mode B runs whose pid is alive but quiet between phases."""
 
 
 # ---------------------------------------------------------------------------
@@ -576,43 +590,232 @@ def classify_tui_path(path: Path) -> "TuiPathKind":
         f"a runs-root, a harness-run dir, or a run-NN dir.")
 
 
+def _synthesize_run_status_from_dir(
+        run_dir: Path) -> "Optional[RunStatus]":
+    """v1.5.7 153 Task A+B: build a ``RunStatus`` for a ``run-NN/``
+    dir directly from its on-disk artifacts (``invocation.json`` +
+    ``status.json`` + stream/target presence), without going through
+    ``manifest.json``. Used when the parent harness-run was Ctrl-C'd
+    before the late-stage manifest write (``plan_runner.py:2700–
+    2734``) so the manifest is missing or doesn't list this run.
+
+    Returns ``None`` only when the dir has none of the markers a
+    real run dir carries — no ``status.json``, no
+    ``invocation.json``, no ``stream.ndjson``, no ``target/``. A dir
+    that exists with no artifacts at all isn't a real run; it's a
+    typo or stray dir. Anything else synthesizes a row, with metadata
+    degraded to ``"?"`` when ``invocation.json`` is missing — partial
+    information is better than a missing row."""
+    if not run_dir.exists():
+        return None
+    status = _safe_json(run_dir / "status.json")
+    invocation = _safe_json(run_dir / "invocation.json")
+    stream_path = run_dir / "stream.ndjson"
+    has_stream = stream_path.exists()
+    has_target = (run_dir / "target").is_dir()
+    # v1.5.7 153 Task B: a ``run-NN/`` dir created by the scheduler
+    # but never spawned (Ctrl-C'd during queueing) carries only
+    # ``artifact_used.json`` — no status, no stream, no target. The
+    # mere existence of a ``run-NN``-named dir under the harness-run
+    # is the PENDING marker; we synthesize a row with degraded
+    # metadata so kill/status can address it.
+
+    # Index: parse from "run-NN" name (152's regex already enforces
+    # \d+ tail). Fall back to -1 so even an off-pattern dir caller
+    # surfaces something rather than nothing.
+    try:
+        index = int(run_dir.name.split("-", 1)[1])
+    except (IndexError, ValueError):
+        index = -1
+
+    # Metadata from invocation.json (axes.runner / axes.model /
+    # case_id). repo isn't in invocation.json; the harness records
+    # it in the manifest entry. Without the manifest, we emit "?"
+    # — Task A's contract.
+    runner = "?"
+    model = "?"
+    case_id = "?"
+    if invocation:
+        axes = invocation.get("axes") or {}
+        runner = axes.get("runner") or runner
+        model = axes.get("model") or model
+        case_id = invocation.get("case_id") or case_id
+
+    # State + pid from status.json. No status.json AND no stream
+    # ⇒ PENDING (Task B: dir was created when the run was queued
+    # but the worker never spawned; matches the existing
+    # ``state = "PENDING"`` sentinel used elsewhere in this file).
+    state = "PENDING"
+    pid: "Optional[int]" = None
+    terminal_state_field: "Optional[str]" = None
+    ended_at_field = "—"
+    heartbeat_field = "—"
+    started_at_iso = ""
+    if status:
+        if status.get("terminal_state"):
+            state = status["terminal_state"]
+            terminal_state_field = status["terminal_state"]
+        elif status.get("state") == "RUNNING":
+            state = "RUNNING"
+        # Some recorded state may be neither RUNNING nor a known
+        # terminal — surface it verbatim rather than masking.
+        elif status.get("state"):
+            state = str(status["state"])
+        raw_pid = status.get("pid")
+        if isinstance(raw_pid, int):
+            pid = raw_pid
+        if status.get("ended_at"):
+            ended_at_field = status["ended_at"]
+        if status.get("heartbeat"):
+            heartbeat_field = status["heartbeat"]
+        if status.get("started_at"):
+            started_at_iso = status["started_at"]
+    pid_alive = pid_is_alive(pid) if isinstance(pid, int) else False
+
+    # last-activity: stream mtime when present, else the run-dir's
+    # own mtime (when the dir was created — useful for PENDING).
+    last_activity_iso = "—"
+    src_mtime: "Optional[float]" = None
+    if has_stream:
+        try:
+            src_mtime = stream_path.stat().st_mtime
+        except OSError:
+            pass
+    if src_mtime is None:
+        try:
+            src_mtime = run_dir.stat().st_mtime
+        except OSError:
+            pass
+    if src_mtime is not None:
+        last_activity_iso = datetime.fromtimestamp(
+            src_mtime, tz=timezone.utc,
+        ).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    # Elapsed: only when started_at is known.
+    elapsed_s: "Optional[int]" = None
+    if started_at_iso:
+        try:
+            t0 = datetime.strptime(
+                started_at_iso, "%Y-%m-%dT%H:%M:%SZ",
+            ).replace(tzinfo=timezone.utc)
+            t1: "Optional[datetime]" = None
+            if ended_at_field != "—":
+                try:
+                    t1 = datetime.strptime(
+                        ended_at_field, "%Y-%m-%dT%H:%M:%SZ",
+                    ).replace(tzinfo=timezone.utc)
+                except ValueError:
+                    t1 = None
+            if t1 is None and src_mtime is not None:
+                t1 = datetime.fromtimestamp(
+                    src_mtime, tz=timezone.utc)
+            if t1 is None:
+                t1 = datetime.now(timezone.utc)
+            elapsed_s = max(0, int((t1 - t0).total_seconds()))
+        except ValueError:
+            elapsed_s = None
+
+    # Result: "(running)" while live; otherwise "N/A" (no grading
+    # parse in this synthesis path — the caller can add per-row
+    # detail if needed for a synthesized row).
+    result = "(running)" if state == "RUNNING" else "N/A"
+
+    return RunStatus(
+        index=index,
+        description=case_id,
+        repo="?",
+        runner=runner,
+        model=model,
+        state=state,
+        result=result,
+        current_phase="—",
+        current_phase_name="—",
+        current_phase_state="—",
+        last_note="",
+        pid=pid,
+        pid_alive=pid_alive,
+        stream_path=stream_path,
+        run_dir=run_dir,
+        last_activity_iso=last_activity_iso,
+        elapsed_s=elapsed_s,
+        terminal_state=terminal_state_field,
+        ended_at=ended_at_field,
+        heartbeat=heartbeat_field,
+    )
+
+
 def read_one_run_status_for_dir(
         run_dir: Path) -> "Optional[RunStatus]":
     """v1.5.7 135: build the single-run status block for a RUN_NN
-    dir (e.g. ``repos/<TS>/run-00``). Resolves the parent
+    dir (e.g. ``harness_runs/<TS>/run-00``). Resolves the parent
     harness-run's manifest, finds the entry whose resolved
-    ``run_dir`` matches ``run_dir``, and returns its ``RunStatus``
-    (so the run-NN ``status`` view reuses the exact per-run row the
-    detail page renders). Returns None if the parent manifest is
-    missing or no entry matches."""
+    ``run_dir`` matches ``run_dir``, and returns its ``RunStatus``.
+
+    v1.5.7 153 Task A: when the manifest is missing OR doesn't list
+    this run (Ctrl-C'd-mid-spawn case), fall back to synthesizing a
+    row from the run dir's own ``invocation.json`` / ``status.json``
+    so kill/status keep working on manifest-incomplete harness-runs.
+    Returns None only when the dir has no artifacts at all."""
     harness_run_dir = run_dir.parent
     manifest = _safe_json(harness_run_dir / "manifest.json")
-    if not manifest:
-        return None
-    target = run_dir.resolve()
-    for entry in manifest.get("runs", []):
-        entry_run_dir = _resolve_manifest_path(
-            entry.get("run_dir", ""), harness_run_dir)
-        if entry_run_dir.resolve() == target:
-            return _read_one_run_status(entry, harness_run_dir)
-    return None
+    if manifest:
+        target = run_dir.resolve()
+        for entry in manifest.get("runs", []):
+            entry_run_dir = _resolve_manifest_path(
+                entry.get("run_dir", ""), harness_run_dir)
+            if entry_run_dir.resolve() == target:
+                return _read_one_run_status(entry, harness_run_dir)
+    return _synthesize_run_status_from_dir(run_dir)
 
 
 def read_run_status(harness_run_dir: Path) -> "list[RunStatus]":
-    """Read ``manifest.json`` + per-run ``status.json`` + parse
-    the last ``::QPB:: kind:"phase"`` line from each run's
+    """Read ``manifest.json`` + per-run ``status.json`` + parse the
+    last ``::QPB:: kind:"phase"`` line from each run's
     ``stream.ndjson``.
 
-    Returns an empty list when the manifest is missing or
-    unparseable. Never raises on partially-written input.
-    """
+    v1.5.7 153 Task A: enumeration is manifest-INDEPENDENT. Manifest
+    entries provide canonical metadata (repo / runner / model / pid
+    seed) when present; for run-NN/ subdirs NOT listed in the
+    manifest (Ctrl-C'd-mid-spawn case) we synthesize entries from
+    each dir's own ``invocation.json`` + ``status.json``. The single
+    result list is sorted by index. Manifest entries win on
+    duplicate index (they're authoritative); dir-scan only fills
+    gaps. Never raises on partially-written input."""
     manifest = _safe_json(harness_run_dir / "manifest.json")
-    if not manifest:
-        return []
-    return [
-        _read_one_run_status(entry, harness_run_dir)
-        for entry in manifest.get("runs", [])
-    ]
+    by_index: "dict[int, RunStatus]" = {}
+    seen_dirs: "set[Path]" = set()
+    if manifest:
+        for entry in manifest.get("runs", []):
+            rs = _read_one_run_status(entry, harness_run_dir)
+            by_index[rs.index] = rs
+            try:
+                seen_dirs.add(rs.run_dir.resolve())
+            except OSError:
+                pass
+    # 153 Task A: scan for run-NN/ children not covered by the
+    # manifest. Reuses 152's _RE_RUN_NN regex.
+    try:
+        for child in sorted(harness_run_dir.iterdir()):
+            if not (child.is_dir()
+                    and _RE_RUN_NN.fullmatch(child.name)):
+                continue
+            try:
+                if child.resolve() in seen_dirs:
+                    continue
+            except OSError:
+                continue
+            rs = _synthesize_run_status_from_dir(child)
+            if rs is None:
+                continue
+            # Manifest wins on index conflict (defensive — sorted
+            # iterdir means we'd hit a duplicate only if the
+            # manifest didn't record the dir but the index
+            # collides, which would itself be a harness bug).
+            if rs.index not in by_index:
+                by_index[rs.index] = rs
+    except OSError:
+        pass
+    return [by_index[i] for i in sorted(by_index)]
 
 
 def _read_one_run_status(entry: dict,
@@ -790,6 +993,24 @@ def _read_one_run_status(entry: dict,
         except ValueError:
             elapsed_s = None
 
+    # v1.5.7 153 Task C: status.json fields the operator-grade
+    # status/TUI now surface so the worker doesn't have to read
+    # status.json by hand.
+    terminal_state_field: "Optional[str]" = None
+    ended_at_field = "—"
+    heartbeat_field = "—"
+    if status:
+        if status.get("terminal_state"):
+            terminal_state_field = status["terminal_state"]
+        if status.get("ended_at"):
+            ended_at_field = status["ended_at"]
+        if status.get("heartbeat"):
+            heartbeat_field = status["heartbeat"]
+    # Manifest entry can also carry terminal_state (the
+    # launch-side ABORTED_PREP path writes it there directly).
+    if terminal_state_field is None and entry.get("terminal_state"):
+        terminal_state_field = entry["terminal_state"]
+
     return RunStatus(
         index=entry.get("index", -1),
         description=entry.get("description", ""),
@@ -808,6 +1029,9 @@ def _read_one_run_status(entry: dict,
         run_dir=run_dir,
         last_activity_iso=last_activity_iso,
         elapsed_s=elapsed_s,
+        terminal_state=terminal_state_field,
+        ended_at=ended_at_field,
+        heartbeat=heartbeat_field,
     )
 
 
@@ -1317,7 +1541,10 @@ def format_run_status(rs: RunStatus) -> str:
 
     v1.5.7 117: includes ``elapsed=...`` + ``last=<iso>`` so
     operators can see per-run liveness without dropping into
-    the live tail."""
+    the live tail. v1.5.7 153 Task C: appends ``terminal=…``,
+    ``ended=…``, ``heartbeat=…`` so the status output is
+    self-sufficient on manifest-incomplete harness-runs (no
+    need to read status.json by hand)."""
     repo_tail = rs.repo.rstrip("/").split("/")[-1] or rs.repo
     pid_part = (
         f"{rs.pid}(live)" if rs.pid_alive
@@ -1328,13 +1555,16 @@ def format_run_status(rs: RunStatus) -> str:
         f"{rs.current_phase_state}"
         if rs.current_phase != "—" else "—"
     )
+    terminal_part = rs.terminal_state if rs.terminal_state else "—"
     return (
         f"#{rs.index:<2} {repo_tail:18} "
         f"{rs.runner}/{rs.model:14} "
         f"{rs.state:14} {phase_part:34} "
         f"result={rs.result:10} pid={pid_part} "
         f"elapsed={_format_elapsed(rs.elapsed_s):>7} "
-        f"last={rs.last_activity_iso}"
+        f"last={rs.last_activity_iso} "
+        f"ended={rs.ended_at} terminal={terminal_part} "
+        f"heartbeat={rs.heartbeat}"
     )
 
 
