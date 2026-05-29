@@ -22,6 +22,7 @@ seam); the only filesystem effect downstream is
 from __future__ import annotations
 
 import contextlib
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -29,6 +30,19 @@ from pathlib import Path
 from bin.harness.prepare import _resolve_docs_source
 
 GSON = "https://github.com/google/gson"
+
+
+@contextlib.contextmanager
+def _chdir(path):
+    """3.10-compatible cwd context manager — ``contextlib.chdir``
+    is 3.11+ but QPB supports ``>=3.10`` (pyproject). os.chdir +
+    try/finally restore."""
+    old = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(old)
 
 
 def _mk(p: Path, *, files=("01_overview.md",)) -> Path:
@@ -49,7 +63,7 @@ class ResolveDocsSourceTests(unittest.TestCase):
 
     def test_gather_no_dirs_present_is_gather(self) -> None:
         with tempfile.TemporaryDirectory() as cwd, \
-                contextlib.chdir(cwd):
+                _chdir(cwd):
             rr = Path(cwd) / "runs"
             rr.mkdir()
             self.assertEqual(
@@ -57,7 +71,7 @@ class ResolveDocsSourceTests(unittest.TestCase):
 
     def test_gather_picks_up_runs_root_docs_gathered(self) -> None:
         with tempfile.TemporaryDirectory() as cwd, \
-                contextlib.chdir(cwd):
+                _chdir(cwd):
             rr = Path(cwd) / "runs"
             want = _mk(rr / "docs_gathered" / "gson")
             self.assertEqual(
@@ -65,7 +79,7 @@ class ResolveDocsSourceTests(unittest.TestCase):
 
     def test_gather_repos_fallback_when_no_runs_root(self) -> None:
         with tempfile.TemporaryDirectory() as cwd, \
-                contextlib.chdir(cwd):
+                _chdir(cwd):
             want = _mk(Path("repos") / "docs_gathered" / "gson")
             self.assertEqual(
                 _resolve_docs_source("gather", GSON, None), str(want))
@@ -74,7 +88,7 @@ class ResolveDocsSourceTests(unittest.TestCase):
         """Both candidates exist → the runs_root candidate wins.
         Mutation-bite: swap the candidate list order ⇒ this fails."""
         with tempfile.TemporaryDirectory() as cwd, \
-                contextlib.chdir(cwd):
+                _chdir(cwd):
             rr = Path(cwd) / "runs"
             runs_root_docs = _mk(rr / "docs_gathered" / "gson")
             _mk(Path("repos") / "docs_gathered" / "gson")  # fallback also exists
@@ -87,7 +101,7 @@ class ResolveDocsSourceTests(unittest.TestCase):
         # An existing-but-empty docs_gathered/<repo>/ must NOT be
         # picked up (it'd starve Phase 1 of its source fallback).
         with tempfile.TemporaryDirectory() as cwd, \
-                contextlib.chdir(cwd):
+                _chdir(cwd):
             rr = Path(cwd) / "runs"
             (rr / "docs_gathered" / "gson").mkdir(parents=True)  # empty
             self.assertEqual(
@@ -95,7 +109,7 @@ class ResolveDocsSourceTests(unittest.TestCase):
 
     def test_repo_name_strips_git_suffix(self) -> None:
         with tempfile.TemporaryDirectory() as cwd, \
-                contextlib.chdir(cwd):
+                _chdir(cwd):
             rr = Path(cwd) / "runs"
             want = _mk(rr / "docs_gathered" / "bar")
             self.assertEqual(
@@ -105,7 +119,7 @@ class ResolveDocsSourceTests(unittest.TestCase):
 
     def test_repo_name_lowercased(self) -> None:
         with tempfile.TemporaryDirectory() as cwd, \
-                contextlib.chdir(cwd):
+                _chdir(cwd):
             rr = Path(cwd) / "runs"
             want = _mk(rr / "docs_gathered" / "bar")
             self.assertEqual(
@@ -134,7 +148,7 @@ class LiveReposTreeTests(unittest.TestCase):
          / "repos/docs_gathered/gson").is_dir(),
         "live repos/docs_gathered/gson not present")
     def test_resolver_finds_gson_docs_at_real_location(self) -> None:
-        with contextlib.chdir(self._REPO_ROOT):
+        with _chdir(self._REPO_ROOT):
             resolved = _resolve_docs_source(
                 "gather", GSON, Path("repos"))
         self.assertEqual(Path(resolved),
