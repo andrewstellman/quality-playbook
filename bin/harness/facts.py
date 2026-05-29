@@ -589,6 +589,27 @@ def parse_transcript(
 
     # Install surface
     banner_rendered = _RE_BANNER_RULE.search(transcript) is not None
+    # v1.5.7 148: artifact fallback (parallel to 145's phase-0
+    # witness fallback). Non-Claude TUI streams (copilot/codex/
+    # cursor) don't capture the install subprocess's output, so the
+    # ═{80} attribution banner — emitted on stderr at the end of a
+    # SUCCESSFUL install and captured by 146's install.log — is
+    # invisible in the stream and banner_rendered defaults False
+    # even when the install (and banner) clearly succeeded. When the
+    # stream has no banner AND target_dir is given, read
+    # <run-NN>/install.log (= target_dir.parent/install.log per the
+    # 145/146 wiring) and apply the SAME _RE_BANNER_RULE. The stream
+    # match always wins (this only fires when the stream had none).
+    if not banner_rendered and target_dir is not None:
+        install_log = Path(target_dir).parent / "install.log"
+        if install_log.is_file():
+            try:
+                _log_text = install_log.read_text(
+                    encoding="utf-8", errors="ignore")
+            except OSError:
+                _log_text = ""
+            if _RE_BANNER_RULE.search(_log_text):
+                banner_rendered = True
     # Remediation followed: saw the canonical form AND did NOT
     # see the run5-style improvisation. Conservative: an agent
     # that did the canonical form THEN improvised on top is still
