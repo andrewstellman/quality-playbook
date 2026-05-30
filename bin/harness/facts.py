@@ -410,6 +410,44 @@ _RE_GITIGNORE_IMPROVISATION = re.compile(
     r"printf\s+['\"]\\nquality/\\n['\"]\s+>>\s+\.gitignore|"
     r"echo\s+['\"]quality/['\"]\s+>>\s+\.gitignore",
 )
+# v1.5.7 157: outcome-based gitignore remediation detection — the
+# minimal intersection of the 3 entries observed in every successful
+# 2026-05-29 copilot run (keto bash + chi/express Edit/Write). The
+# full skill-template.gitignore has 5 entries (these 3 plus
+# `!quality/RUN_INDEX.md` and `quality/logs/`); the empirical chi run
+# only appended 3, so the conservative intersection is the right
+# threshold to call the remediation "followed". A runner that adds
+# more (keto added all 5) trivially passes.
+_GITIGNORE_LOAD_BEARING_ENTRIES = (
+    "docs_gathered/",
+    "**/docs_gathered/",
+    "quality/runs/",
+)
+
+
+def _gitignore_outcome_check(
+        target_dir: "Path | None") -> bool:
+    """v1.5.7 157: detect successful gitignore remediation by reading
+    ``target_dir/.gitignore`` directly and checking for the load-
+    bearing entries from ``skill-template.gitignore``. Replaces the
+    pre-157 stream-regex check, which missed runners that used
+    structured editing tools instead of `cat ... >>`. The caller
+    combines this with the improvisation regex (improvisation still
+    counts as not-followed even if the outcome happens to be correct).
+    Conservative: requires ALL load-bearing entries — a partial
+    append is still flagged as not-followed."""
+    if target_dir is None:
+        return False
+    gitignore = Path(target_dir) / ".gitignore"
+    if not gitignore.is_file():
+        return False
+    try:
+        content = gitignore.read_text(
+            encoding="utf-8", errors="ignore")
+    except OSError:
+        return False
+    return all(entry in content
+               for entry in _GITIGNORE_LOAD_BEARING_ENTRIES)
 # Vendor AUP-stop heuristics — generic; refined per-adapter in
 # Phase 5.
 _RE_BLOCKED = re.compile(
@@ -610,13 +648,32 @@ def parse_transcript(
                 _log_text = ""
             if _RE_BANNER_RULE.search(_log_text):
                 banner_rendered = True
-    # Remediation followed: saw the canonical form AND did NOT
-    # see the run5-style improvisation. Conservative: an agent
-    # that did the canonical form THEN improvised on top is still
-    # marked "improvised" (a quality bug).
-    saw_canonical = _RE_GITIGNORE_REMEDIATION.search(transcript) is not None
+    # v1.5.7 157: outcome-based detection. We read target/.gitignore
+    # directly (when target_dir is provided AND the file exists) and
+    # check for the load-bearing entries from skill-template.gitignore.
+    # The pre-157 stream-regex check (`cat skill-template.gitignore
+    # >> .gitignore`) only matched runners using the canonical bash
+    # form; capable runners (notably copilot gpt-5.4 — empirically
+    # `harness_runs/20260529T235425Z/run-05` express + `run-06` chi)
+    # use their structured editing tools (Edit/Write) that achieve the
+    # same outcome without emitting the canonical line. The
+    # improvisation regex stays as a stream-side check because the
+    # `printf '\nquality/\n' >> .gitignore` shortcut is a quality bug
+    # regardless of outcome — it usually means the runner skipped
+    # reading the template. Fallback: when target_dir is None or
+    # target_dir/.gitignore is missing, fall back to the pre-157
+    # stream-regex check so existing tests and call sites that don't
+    # pass target_dir keep their behavior.
     saw_improvise = _RE_GITIGNORE_IMPROVISATION.search(transcript) is not None
-    gitignore_followed = saw_canonical and not saw_improvise
+    if (target_dir is not None
+            and (Path(target_dir) / ".gitignore").is_file()):
+        gitignore_followed = (
+            _gitignore_outcome_check(target_dir)
+            and not saw_improvise)
+    else:
+        saw_canonical = _RE_GITIGNORE_REMEDIATION.search(
+            transcript) is not None
+        gitignore_followed = saw_canonical and not saw_improvise
     install = InstallSurfaceFacts(
         banner_rendered=banner_rendered,
         gitignore_remediation_followed=gitignore_followed,
