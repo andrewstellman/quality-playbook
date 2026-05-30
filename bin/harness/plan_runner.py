@@ -2401,6 +2401,28 @@ def _repo_root_for_collector() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+# v1.5.7 159: acquire_run_slot defensive timeout — read once per
+# spawn so an operator can tune via env var without a re-import.
+# Default 300s (5 min) matches the instruction's recommendation;
+# operators who deliberately want long waits can bump it up, and
+# tests can drop it to a fraction of a second.
+_ACQUIRE_RUN_SLOT_TIMEOUT_DEFAULT_S = 300.0
+
+
+def _acquire_run_slot_timeout_s() -> float:
+    """v1.5.7 159: defensive timeout for ``acquire_run_slot``.
+    Default 300s; operator-tunable via ``QPB_HARNESS_ACQUIRE_TIMEOUT_S``.
+    A non-numeric / non-positive value falls back to the default."""
+    raw = os.environ.get("QPB_HARNESS_ACQUIRE_TIMEOUT_S")
+    if raw is None:
+        return _ACQUIRE_RUN_SLOT_TIMEOUT_DEFAULT_S
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return _ACQUIRE_RUN_SLOT_TIMEOUT_DEFAULT_S
+    return v if v > 0 else _ACQUIRE_RUN_SLOT_TIMEOUT_DEFAULT_S
+
+
 def _install_orchestrator_signal_handlers() -> None:
     """v1.5.7 155: ignore SIGHUP so the orchestrator survives the
     operator's launching shell closing (session-leader exit
@@ -2692,14 +2714,38 @@ def _run_plan_detached(
                           if plan.pools else None)
         started_at_iso = datetime.now(timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%SZ")
-        _inflight.acquire_run_slot(
-            runner=pr.runner.value,
-            harness_run_dir=harness_run_dir,
-            run_index=pr.index,
-            started_at=started_at_iso,
-            max_per_provider=max_per_provider,
-            plan_pool_cap=plan_pool_cap,
-        )
+        # v1.5.7 159: pass a defensive timeout so a starved slot
+        # (plan asks for N runs of a provider whose global cap is
+        # < N — 2026-05-30 04:26 ship-readiness retest had
+        # plan claude=3 vs anthropic cap=2) fails fast instead of
+        # blocking the ThreadPoolExecutor's f.result() forever.
+        # Pre-159 the orchestrator hung at the launch barrier and
+        # never reached manifest-write/collector-spawn, leaving
+        # the 6 successfully-launched workers orphaned. Post-159
+        # the starved thread raises TimeoutError → we leave its
+        # manifest_entries slot None → the post-barrier filter
+        # ([e for e in manifest_entries if e is not None])
+        # naturally drops it → manifest + collector ship for the
+        # runs that DID launch.
+        acquire_timeout_s = _acquire_run_slot_timeout_s()
+        try:
+            _inflight.acquire_run_slot(
+                runner=pr.runner.value,
+                harness_run_dir=harness_run_dir,
+                run_index=pr.index,
+                started_at=started_at_iso,
+                max_per_provider=max_per_provider,
+                plan_pool_cap=plan_pool_cap,
+                max_wait_s=acquire_timeout_s,
+            )
+        except TimeoutError as exc:
+            log.log(
+                f"slot starvation: run-{pr.index:02d} "
+                f"({pr.runner.value}) — no slot within "
+                f"{acquire_timeout_s}s; skipping launch so the "
+                f"orchestrator can proceed. ({exc})"
+            )
+            return
         try:
             entry = _launch_one_run_detached(
                 pr, harness_run_dir, run_dir, target_dir,
