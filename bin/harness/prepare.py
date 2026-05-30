@@ -319,14 +319,20 @@ def build_install_command(channel: "InstallChannel",
       ``npx quality-playbook@<version> init --ai-tool=<tool>``.
       (npm syntax uses ``=`` for ai-tool, matching the
       ``_RUN_INSTALLER_NPM`` template + the README's published
-      npx incantation.)
+      npx incantation.) v1.5.7 156: the harness MUST run this
+      subprocess with ``cwd=<target_dir>`` — the npm shim
+      auto-injects ``--into <cwd>`` (intended for end-user "install
+      into here" UX), so leaving cwd inherited from the harness
+      installs into QPB's own source tree.
     * ``pip-local-wheel`` → ``uvx --from <wheel-path>
       quality-playbook install --into <target> --ai-tool <tool>``.
       ``local_artifact`` is the path to the freshly-built wheel
       (``dist/quality_playbook-<version>-py3-none-any.whl``).
     * ``npm-local-tgz`` → ``npx --package <tgz-path>
       quality-playbook init --ai-tool=<tool>``.
-      ``local_artifact`` is the path to ``npm pack`` output.
+      ``local_artifact`` is the path to ``npm pack`` output. As
+      with npm-registry, ``install_skill_channel`` must invoke
+      with ``cwd=<target_dir>`` (156).
 
     ``force=True`` appends ``--force`` to overwrite an existing
     target install (matches the ``_RUN_INSTALLER_*_FORCE``
@@ -485,8 +491,32 @@ def install_skill_channel(channel: "InstallChannel",
         install_version=install_version,
         local_artifact=local_artifact, force=force,
     )
-    cwd = (str(_qpb_clone_root())
-           if channel == InstallChannel.CLONE else None)
+    # v1.5.7 156: per-channel cwd convention.
+    # * CLONE: ``_qpb_clone_root()`` (the harness's QPB clone provides
+    #   the source tree that ``install_skill.py`` reads from).
+    # * NPM channels: ``str(target_dir)``. The npm shim
+    #   (``bin/quality-playbook.js::translateArgv``) auto-injects
+    #   ``--into <cwd>`` for the install verb, so pointing cwd at the
+    #   target IS how the install gets to the right place. Without
+    #   this, cwd defaulted to None ⇒ subprocess inherited the
+    #   harness's working directory (QPB's source tree, which already
+    #   contains skill marker dirs) ⇒ shim injected
+    #   ``--into <QPB-source-tree>`` ⇒ every file copy reported
+    #   ``status=skipped`` and the run target got nothing. This was
+    #   the 2026-05-29 ship-readiness retest's chi/gson codex Mode B
+    #   failure mode (`harness_runs/20260529T235425Z/run-03` →
+    #   `verdict=None`, `facts_error=installed quality_gate.py not
+    #   found under .../target`).
+    # * PIP / PIP_REGISTRY: ``None``. The pip channels pass
+    #   ``--into <target>`` explicitly in build_install_command, so
+    #   cwd doesn't matter.
+    if channel == InstallChannel.CLONE:
+        cwd = str(_qpb_clone_root())
+    elif channel in (InstallChannel.NPM_LOCAL_TGZ,
+                     InstallChannel.NPM_REGISTRY):
+        cwd = str(target_dir)
+    else:
+        cwd = None
     _logp = str(install_log_path) if install_log_path else None
     try:
         result = subprocess.run(
