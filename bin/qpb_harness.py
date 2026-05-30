@@ -229,6 +229,69 @@ def _qpb_version() -> str:
     return "unknown"
 
 
+_LAUNCH_BANNER_RULE = "=" * 64
+
+
+def _format_pools_for_banner(pools: "dict[str, int]") -> str:
+    """v1.5.7 158 Task A: render ``{"claude":3,"codex":2}`` as
+    ``claude=3 codex=2`` for the banner's pool-summary line.
+    Order: by insertion (which is the order the plan author wrote
+    them); falls back gracefully on a non-mapping input."""
+    if not isinstance(pools, dict):
+        return ""
+    return " ".join(f"{k}={v}" for k, v in pools.items())
+
+
+def _relpath_for_banner(p: Path) -> str:
+    """v1.5.7 158 Task A: render the harness-run dir as a path
+    relative to the operator's likely cwd when possible — easier to
+    scan and copy-paste than the absolute form. Falls back to the
+    absolute path string if the relative computation fails (e.g.,
+    the dir is outside cwd's tree)."""
+    try:
+        rel = p.relative_to(Path.cwd())
+        return str(rel)
+    except ValueError:
+        return str(p)
+
+
+def _render_launch_banner(harness_run_dir: Path,
+                            collector_pid: "int | None",
+                            run_count: int,
+                            pools: "dict[str, int]",
+                            ) -> str:
+    """v1.5.7 158 Task A: render the done-banner the orchestrator
+    prints at the end of ``run-plan`` so operators can scan the
+    next-step commands without re-typing the harness-run path. The
+    banner is plain ASCII (copy-pasteable across terminals that
+    strip color) and goes to STDERR (per Task C); STDOUT carries
+    just the relative path for scripted use."""
+    rel = _relpath_for_banner(harness_run_dir)
+    pool_str = _format_pools_for_banner(pools)
+    collector_line = (
+        f"  collector pid {collector_pid}"
+        if collector_pid is not None else "  collector spawned"
+    )
+    lines = [
+        _LAUNCH_BANNER_RULE,
+        f"  Launched: {run_count} runs"
+        + (f"  pools: {pool_str}" if pool_str else ""),
+        f"  {rel}",
+        f"{collector_line}  this shell can close safely",
+        "",
+        "Monitor:",
+        f"  python3 -m bin.qpb_harness tui {rel}",
+        "",
+        "Status snapshot:",
+        f"  python3 -m bin.qpb_harness status {rel}",
+        "",
+        "Kill all RUNNING in this harness-run:",
+        f"  python3 -m bin.qpb_harness kill {rel}",
+        _LAUNCH_BANNER_RULE,
+    ]
+    return "\n".join(lines)
+
+
 def _cmd_run_plan(args: argparse.Namespace) -> int:
     """v1.5.7 099 — simplified plan-runner entry. Reads a flat
     plan.json, creates a timestamped harness-run folder, runs
@@ -304,12 +367,18 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
         )
         latest = (harness_run_dirs[-1]
                   if harness_run_dirs else runs_root)
-        print(f"harness-run dir: {latest}", file=sys.stderr)
-        print(
-            f"collector pid {collector_pid}; check status with"
-            f" `python3 -m bin.qpb_harness status`",
-            file=sys.stderr,
-        )
+        # v1.5.7 158 Task A + C: launch UX banner. The banner goes
+        # to STDERR (human-readable scannable next-step output);
+        # STDOUT carries ONLY the relative harness-run path so
+        # scripted callers can do
+        # ``HRD=$(qpb_harness <plan>)`` without parsing the banner.
+        # Replaces the pre-158 two-line terse output ("harness-run
+        # dir: ..." + "collector pid ...; check status with ...").
+        print(_render_launch_banner(
+            latest, collector_pid,
+            run_count=len(outcomes), pools=plan.pools),
+              file=sys.stderr)
+        print(_relpath_for_banner(latest))  # stdout — script-parseable
         return 0
     # fake_run / synchronous path (existing 099-107 callers).
     met = sum(1 for o in outcomes if o.result == "MET")
