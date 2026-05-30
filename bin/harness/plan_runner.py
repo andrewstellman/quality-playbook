@@ -2286,8 +2286,32 @@ def _write_terminal_status(run_dir: Path, pid: "Optional[int]",
 
     v1.5.7 112: ``terminal_reason`` carries the AUP / API-error
     body when ``terminal == BLOCKED``. Empty for other states.
-    """
+
+    v1.5.7 166 (closes 164's production gap): when the on-disk
+    status.json ALREADY carries a ``terminal_state``, DO NOT
+    overwrite. The supervisor's 164 abort writer beat us here and
+    its authoritative values (real ``exit_code``, populated
+    ``terminal_reason``, ``phase_aborted``) are richer than the
+    collector's inference. The 2026-05-30 19:42 retest's run-02
+    (chi codex Mode B, Phase 2 abort on ChatGPT quota) is the
+    empirical: supervisor wrote ABORTED_PHASE + exit_code=1 +
+    phase_aborted=2; this function then overwrote it with FAILED
+    + exit_code=-1 + terminal_reason="". 166 makes the collector
+    respect the supervisor's write — the 164 plumbing reaches
+    production correctly."""
     status_path = run_dir / "status.json"
+    # 166: respect an existing terminal_state (supervisor or
+    # prior collector pass wrote it). Best-effort read; any error
+    # falls through to the existing inference write.
+    if status_path.is_file():
+        try:
+            existing = json.loads(
+                status_path.read_text(encoding="utf-8"))
+            if (isinstance(existing, dict)
+                    and existing.get("terminal_state")):
+                return  # supervisor's write wins
+        except (OSError, ValueError):
+            pass
     tmp = status_path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps({
         "state": "DONE",
