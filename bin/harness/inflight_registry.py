@@ -320,6 +320,33 @@ def _parse_iso_utc(value: "object") -> "Optional[datetime]":
     return dt
 
 
+def _assert_parseable_started_at(value: "object") -> None:
+    """v1.5.7 170: enforce the "every pid=0 reservation carries a
+    parseable ISO-8601 UTC ``started_at``" invariant at write time.
+
+    The read-path defensive default in :func:`_entry_is_active`
+    intentionally returns True on parse failure (never mass-reap on
+    a transient FS glitch / corruption), which leaves a phantom-slot
+    risk on the read side that the bootstrap (BUG-005, 2026-05-30)
+    flagged. The orchestrator's ruling: harden the invariant at WRITE
+    sites, not flip the defensive default. After 170, the parse-
+    failure branch in ``_entry_is_active`` is unreachable for legit
+    state — it remains as defense-in-depth against disk corruption.
+
+    Canonical format: the ``%Y-%m-%dT%H:%M:%SZ`` shape the harness
+    writes (e.g. ``2026-05-30T20:50:11Z``). The check delegates to
+    :func:`_parse_iso_utc` (the inverse of the writer), so any value
+    the harness produces for ``started_at`` round-trips by definition.
+
+    Raises ``ValueError`` (mentioning ``started_at``) on unparseable
+    input; returns None on success."""
+    if _parse_iso_utc(value) is None:
+        raise ValueError(
+            f"started_at must be a parseable ISO-8601 UTC string "
+            f"(canonical: %Y-%m-%dT%H:%M:%SZ); got {value!r}"
+        )
+
+
 def _entry_is_active(entry: dict) -> bool:
     """An entry is ACTIVE when:
       - ``pid == 0`` (reserved — slot held during the
@@ -337,7 +364,17 @@ def _entry_is_active(entry: dict) -> bool:
     (bypassing the ``except BaseException`` release). It's
     reaped so the provider cap recovers automatically. A
     missing/malformed ``started_at`` is treated as fresh
-    (return True) — never mass-reap on a parse failure."""
+    (return True) — never mass-reap on a parse failure.
+
+    v1.5.7 170: the parse-failure branch (``started is None ⇒
+    return True``) is now UNREACHABLE for legitimate state because
+    :func:`_assert_parseable_started_at` is called at the single
+    registry write site (:func:`acquire_run_slot`). It survives as
+    defense-in-depth against operator-side disk corruption — if the
+    registry JSON is hand-edited or partially overwritten and a
+    malformed ``started_at`` appears on disk, the read path still
+    refuses to mass-reap (the BUG-005 design tradeoff: phantom-slot
+    detection risk < transient-glitch mass-reap risk)."""
     pid = entry.get("pid", 0)
     if pid == 0:
         started = _parse_iso_utc(entry.get("started_at"))
@@ -444,6 +481,11 @@ def acquire_run_slot(
     ``TimeoutError`` if no slot opens within the budget.
     Useful for tests + operator-side safeguards.
     """
+    # v1.5.7 170 BUG-005 invariant: every pid=0 reservation MUST
+    # carry a parseable ISO-8601 UTC ``started_at``. Validate before
+    # the slot-acquire wait so a malformed input fails fast (no slot
+    # is held, no caller-state assumptions are broken).
+    _assert_parseable_started_at(started_at)
     provider = provider_for_runner(runner)
     global_cap = max_per_provider.get(provider, 1)
     path = resolve_registry_path(registry_path)

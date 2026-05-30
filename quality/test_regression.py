@@ -71,10 +71,26 @@ def test_bug_004_phase2_artifacts_resolve_to_phase2(tmp_path):
     assert inferred is not None and inferred["phase"] == 2
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-005: pid=0 + malformed started_at active forever — confirmed open (no fix patch)")
-def test_bug_005_pid0_malformed_started_at_not_active_forever():
-    entry = {"pid": 0, "started_at": "not-a-real-timestamp", "provider": "anthropic"}
-    assert IR._entry_is_active(entry) is False
+def test_bug_005_pid0_reservation_write_rejects_unparseable_started_at(tmp_path):
+    """v1.5.7 170 (BUG-005, orchestrator ruling option b): the
+    "every pid=0 reservation carries a parseable ISO-8601 UTC
+    started_at" invariant is enforced at the WRITE site
+    (acquire_run_slot), not at the read site. The bootstrap's
+    original test asserted a read-side fix (return False on parse
+    failure); the orchestrator chose the write-side option to
+    preserve _entry_is_active's defensive default for disk-
+    corruption recovery."""
+    with pytest.raises(ValueError, match=r"started_at"):
+        IR.acquire_run_slot(
+            runner="claude",
+            harness_run_dir=tmp_path,
+            run_index=0,
+            started_at="not-a-real-timestamp",
+            max_per_provider={"anthropic": 2},
+            plan_pool_cap=None,
+            registry_path=tmp_path / "inflight.json",
+            max_wait_s=0.1,
+        )
 
 
 def test_bug_006_council_response_trailing_bracket_parses():
