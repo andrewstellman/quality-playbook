@@ -60,7 +60,6 @@ def test_bug_003_launch_entry_sets_running_state():
     assert '"state"' in body
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-004: _PHASE_ARTIFACTS maps Phase-2 outputs to P4/P5 — unskip after BUG-004-fix.patch")
 def test_bug_004_phase2_artifacts_resolve_to_phase2(tmp_path):
     q = tmp_path / "quality"
     q.mkdir()
@@ -89,7 +88,6 @@ def test_bug_006_council_response_trailing_bracket_parses():
     assert [(e.req_id, e.verdict) for e in entries] == [("REQ-001", "supports")]
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-007: capture_phase_yn marks P3-P6 Y from Phase-2 artifacts — unskip after BUG-007-fix.patch")
 def test_bug_007_capture_phase_yn_no_false_completion(tmp_path):
     q = tmp_path / "quality"
     q.mkdir()

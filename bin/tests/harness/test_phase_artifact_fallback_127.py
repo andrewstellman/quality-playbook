@@ -168,18 +168,24 @@ class InferPhaseFromArtifactsTests(unittest.TestCase):
                 out, {"phase": 1, "name": "exploration",
                        "state": "done"})
 
-    def test_phase_4_present_phase_3_missing(self) -> None:
+    def test_higher_phase_present_skips_phase_3(self) -> None:
         # Reports the HIGHEST evidence found — does NOT fabricate
-        # progress for the skipped Phase 3.
+        # progress for the skipped Phase 3. v1.5.7 168 update:
+        # COMPLETENESS_REPORT.md is now a Phase-2 output (per the
+        # canonical Phase-3 prerequisite gate at
+        # run_playbook.py:1522-1530), and Phase 4 is intentionally
+        # not artifact-inferable (empty tuple in PHASE_ARTIFACTS).
+        # Rewritten with Phase 5's marker (results/tdd-results.json)
+        # to preserve the original skip-phase-3 semantics.
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp)
             q = _quality(target)
             _touch(q / "EXPLORATION.md")
             _touch(q / "REQUIREMENTS.md")
-            _touch(q / "COMPLETENESS_REPORT.md")  # phase 4
+            _touch(q / "results" / "tdd-results.json", "{}\n")
             out = ST._infer_phase_from_artifacts(target)
-            self.assertEqual(out["phase"], 4)
-            self.assertEqual(out["name"], "spec-audit")
+            self.assertEqual(out["phase"], 5)
+            self.assertEqual(out["name"], "reconciliation")
 
     def test_phase_3_bugs_md_alone(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -189,12 +195,17 @@ class InferPhaseFromArtifactsTests(unittest.TestCase):
             self.assertEqual(out["phase"], 3)
             self.assertEqual(out["name"], "code-review")
 
-    def test_phase_3_run_code_review_alone(self) -> None:
+    def test_phase_2_run_code_review_alone(self) -> None:
+        # v1.5.7 168: RUN_CODE_REVIEW.md is a Phase-2 Generate output
+        # (per run_playbook.py:1522-1530 Phase-3 prerequisite gate),
+        # not a Phase-3 artifact. Pre-168 the inferrer mis-mapped it
+        # to Phase 3 (BUG-004). Phase 3's canonical marker is
+        # BUGS.md (test_phase_3_bugs_md_alone above).
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp)
             _touch(_quality(target) / "RUN_CODE_REVIEW.md")
             out = ST._infer_phase_from_artifacts(target)
-            self.assertEqual(out["phase"], 3)
+            self.assertEqual(out["phase"], 2)
 
     def test_phase_6_gate_report_present(self) -> None:
         # gate-report-latest.json lives under quality/results/

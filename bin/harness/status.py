@@ -290,38 +290,13 @@ _MODE_B_PHASE_NAME_BY_NUM: "dict[int, str]" = {
 # EXPLORATION_MERGED.md, exploration_role_map.json, code_reviews/)
 # are deliberately excluded so a half-finished phase that wrote
 # an iteration file isn't misclassified as complete.
-_PHASE_ARTIFACTS: "dict[int, tuple[str, ...]]" = {
-    # Phase 1: run_playbook.py:1297 — the Phase-2 gate fails
-    # unless quality/EXPLORATION.md exists, so it's the Phase-1
-    # boundary marker.
-    1: ("EXPLORATION.md",),
-    # Phase 2: run_playbook.py:1451-1460 — the Phase-4 gate
-    # requires REQUIREMENTS.md; CONTRACTS.md + COVERAGE_MATRIX.md
-    # are the other Phase-2 outputs the gate enumerates. Any one
-    # present ⇒ Phase 2 produced output.
-    2: ("REQUIREMENTS.md", "CONTRACTS.md", "COVERAGE_MATRIX.md"),
-    # Phase 3: run_playbook.py:1486-1491 — BUGS.md is the
-    # bugs-found landing; RUN_CODE_REVIEW.md is the
-    # review-summary landing. Either counts as evidence Phase 3
-    # ran (a clean review may produce RUN_CODE_REVIEW.md without
-    # BUGS.md).
-    3: ("RUN_CODE_REVIEW.md", "BUGS.md"),
-    # Phase 4: run_playbook.py:1452 / 3307 — COMPLETENESS_REPORT.md
-    # is the spec-audit output.
-    4: ("COMPLETENESS_REPORT.md",),
-    # Phase 5: run_playbook.py:3309 — QUALITY.md is the
-    # reconciliation output.
-    5: ("QUALITY.md",),
-    # Phase 6: run_playbook.py:4316 — the gate writes its verdict
-    # to quality/results/gate-report-latest.json (a `results/`
-    # SUBDIR, not directly under quality/, unlike the Phase 1-5
-    # markers). Stored as the relative subpath so the single
-    # ``(quality_dir / artifact).is_file()`` check resolves it.
-    # (The instruction's table wrote the bare filename; the real
-    # artifact is under results/ per run_playbook — implemented
-    # against the real path. Also exercises the non-.md case.)
-    6: ("results/gate-report-latest.json",),
-}
+# v1.5.7 168: the canonical phase→artifact map now lives in
+# ``bin/harness/phase_artifacts.py`` (single source of truth across
+# this module AND plan_runner.py::capture_phase_yn). The local
+# binding is preserved as a backward-compat alias for any external
+# import that pinned the old name.
+from bin.harness import phase_artifacts as _phase_artifacts_mod
+_PHASE_ARTIFACTS = _phase_artifacts_mod.PHASE_ARTIFACTS
 
 
 def _mode_b_phase_from_stream(stream_text: str) -> "Optional[dict]":
@@ -387,21 +362,16 @@ def _infer_phase_from_artifacts(
         return None
     quality_dir = target_dir / "quality"
     try:
-        if not quality_dir.is_dir():
-            return None
-        # High → low: the highest-numbered phase with evidence
-        # wins. First hit returns immediately (we report the
-        # highest EVIDENCE found, not what we infer about
-        # earlier phases — never fabricate skipped progress).
-        for phase in sorted(_PHASE_ARTIFACTS, reverse=True):
-            for artifact in _PHASE_ARTIFACTS[phase]:
-                if (quality_dir / artifact).is_file():
-                    return {
-                        "phase": phase,
-                        "name": _MODE_B_PHASE_NAME_BY_NUM.get(
-                            phase, "—"),
-                        "state": "done",
-                    }
+        # v1.5.7 168: delegate to the canonical helper.
+        phase = _phase_artifacts_mod.infer_phase_from_artifacts(
+            quality_dir)
+        if phase is not None:
+            return {
+                "phase": phase,
+                "name": _MODE_B_PHASE_NAME_BY_NUM.get(
+                    phase, "—"),
+                "state": "done",
+            }
     except OSError:
         # A transiently-unreadable target_dir must not crash
         # the status path — degrade to "no signal".

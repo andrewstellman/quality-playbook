@@ -588,23 +588,29 @@ def capture_phase_yn(transcript: str,
     transcript looks complete; "-" if the run didn't get that
     far (no transcript content past that point).
     """
+    # v1.5.7 168: delegate artifact-presence lookup to the canonical
+    # phase_artifacts helper. Pre-168 the inline map here mis-mapped
+    # Phase-2 Generate outputs (RUN_CODE_REVIEW.md, RUN_SPEC_AUDIT.md,
+    # RUN_TDD_TESTS.md, COMPLETENESS_REPORT.md) to P3-P6, so a run
+    # that finished only Phase 2 was reported as P3-P6=Y (BUG-007).
+    # The helper encodes the canonical Phase-3 prerequisite gate from
+    # run_playbook.py:1522-1530 as the single source of truth shared
+    # with status.py::_infer_phase_from_artifacts (BUG-004).
+    from bin.harness import phase_artifacts as _pa
+    artifact_grid = _pa.phase_yn_grid_artifact(quality_dir)
     out: dict[str, str] = {}
     transcript_lower = transcript or ""
     for phase, patterns in _PHASE_MARKER_RES.items():
         hit = any(p.search(transcript_lower) for p in patterns)
-        if not hit and quality_dir is not None and quality_dir.is_dir():
-            # Look for the phase's canonical artifact in
-            # quality/. The markers above already encode the
-            # filenames; we just check presence.
-            artifact = {
-                "P1": "EXPLORATION.md",
-                "P2": "REQUIREMENTS.md",
-                "P3": "RUN_CODE_REVIEW.md",
-                "P4": "RUN_SPEC_AUDIT.md",
-                "P5": "RUN_TDD_TESTS.md",
-                "P6": "COMPLETENESS_REPORT.md",
-            }.get(phase)
-            if artifact and (quality_dir / artifact).is_file():
+        if not hit:
+            # _PHASE_MARKER_RES keys are "P1".."P6"; the helper
+            # uses int keys. Convert; non-conformant keys (none
+            # at present) fall through with hit=False.
+            try:
+                phase_num = int(phase[1:])
+            except (ValueError, IndexError):
+                phase_num = -1
+            if artifact_grid.get(phase_num):
                 hit = True
         out[phase] = "Y" if hit else "N"
     return out
