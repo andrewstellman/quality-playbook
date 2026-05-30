@@ -2557,6 +2557,16 @@ def _retry_pending_runs_once(
             )
             _update_manifest_entry_atomic(
                 manifest_path, pr.index, entry)
+            # BUG-002 fix: record the real PID so the pid=0 reservation made
+            # by acquire_run_slot above is converted before it ages out at
+            # _PID_ZERO_MAX_AGE_S (300s). Without this the slot frees while
+            # the retry-spawned run is still alive and the per-provider cap
+            # is exceeded — matching the orchestrator launch path (3078).
+            _retry_pid = entry.get("pid")
+            if _retry_pid is not None:
+                _inflight.update_pid(
+                    harness_run_dir=harness_run_dir,
+                    run_index=pr.index, pid=int(_retry_pid))
             if log is not None:
                 log.log(
                     f"retried starved run: "

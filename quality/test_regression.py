@@ -50,7 +50,6 @@ def test_bug_001_pending_pidless_not_graded_failed(tmp_path):
     assert outcome.terminal_state != TerminalState.FAILED.value
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-002: retry-launch omits update_pid — unskip after BUG-002-fix.patch")
 def test_bug_002_retry_launch_calls_update_pid():
     body = _func_source(REPO / "bin" / "harness" / "plan_runner.py", "_retry_pending_runs_once")
     assert "update_pid" in body
