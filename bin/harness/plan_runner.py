@@ -2302,6 +2302,246 @@ def _write_terminal_status(run_dir: Path, pid: "Optional[int]",
     os.replace(tmp, status_path)
 
 
+# v1.5.7 165: collector retry + ABANDONED_STARVED deadline. Builds
+# on 161 Task A (which writes PENDING manifest entries on
+# starvation). Per the 161-A halt ruling, the artifact_map is
+# resolved from ``<harness-run>/artifacts/manifest.json`` on disk
+# (the canonical artifact-bundle manifest that `_build_artifacts`
+# writes at run startup; verified shape via 152's evidence
+# directory).
+_PENDING_DEADLINE_DEFAULT_S = 3600.0
+
+
+def _pending_deadline_s() -> float:
+    """v1.5.7 165: PENDING-deadline threshold (seconds). After this
+    long without a slot, a starved entry becomes
+    ``ABANDONED_STARVED``. Default 3600s; env-tunable via
+    ``QPB_HARNESS_PENDING_DEADLINE_S``."""
+    raw = os.environ.get("QPB_HARNESS_PENDING_DEADLINE_S")
+    if raw is None:
+        return _PENDING_DEADLINE_DEFAULT_S
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return _PENDING_DEADLINE_DEFAULT_S
+    return v if v > 0 else _PENDING_DEADLINE_DEFAULT_S
+
+
+def _resolve_artifact_map_from_disk(
+        harness_run_dir: Path,
+        ) -> "dict[str, dict]":
+    """v1.5.7 165: read ``<harness-run>/artifacts/manifest.json``
+    and return the artifact_map dict keyed by channel name (the
+    same shape ``_build_artifacts`` writes in memory + persists to
+    disk). Empty dict when the manifest is absent / unparseable
+    (the collector still tries to retry; ``_launch_one_run_detached``
+    will fail clearly if the artifact it needs is missing — caught
+    by the retry's broader exception handler)."""
+    manifest_path = harness_run_dir / "artifacts" / "manifest.json"
+    if not manifest_path.is_file():
+        return {}
+    try:
+        return json.loads(
+            manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _update_manifest_entry_atomic(
+        manifest_path: Path, run_index: int,
+        update: "dict") -> None:
+    """v1.5.7 165: atomically update a single manifest entry by
+    index via the write-tmp + rename pattern (matches the inflight
+    registry's locking discipline; the manifest read in
+    collect_harness_run races with the collector's parallel reads
+    but the rename is atomic on POSIX). Merges ``update`` into the
+    matching entry; preserves other entries unchanged. Best-effort
+    on filesystem errors (the retry retries next cycle)."""
+    try:
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"))
+        runs = manifest.get("runs", [])
+        for i, e in enumerate(runs):
+            if e.get("index") == run_index:
+                runs[i] = {**e, **update}
+                break
+        manifest["runs"] = runs
+        tmp = manifest_path.with_suffix(".tmp")
+        tmp.write_text(
+            json.dumps(manifest, indent=2) + "\n",
+            encoding="utf-8")
+        os.replace(tmp, manifest_path)
+    except OSError:
+        pass
+
+
+def _entry_to_plan_run(entry: dict) -> "PlanRun":
+    """v1.5.7 165: reconstruct a ``PlanRun`` from a PENDING
+    manifest entry (the orchestrator's 161-A writer populates all
+    the required fields). Used by the collector's retry loop to
+    call ``_launch_one_run_detached``."""
+    from bin.harness.schema import (
+        InstallChannel, Mode, Runner)
+    return PlanRun(
+        index=int(entry.get("index", 0)),
+        description=str(entry.get("description", "")),
+        repo=str(entry.get("repo", "")),
+        ref=str(entry.get("ref", "main")),
+        runner=Runner(entry.get("runner", "claude")),
+        model=str(entry.get("model", "opus")),
+        channel=InstallChannel(
+            entry.get("channel", "clone")),
+        mode=Mode(entry.get("mode", "A")),
+        expect=dict(entry.get("expect", {}) or {}),
+    )
+
+
+def _retry_pending_runs_once(
+        harness_run_dir: Path,
+        log: "Optional[_ProgressLog]" = None,
+        ) -> int:
+    """v1.5.7 165 Tasks A+B: ONE pass of the collector's PENDING-
+    retry loop. For each PENDING entry:
+
+    1. Check the deadline: if ``starved_since`` is older than
+       ``_pending_deadline_s()`` → mark ``ABANDONED_STARVED`` and
+       move on.
+    2. Otherwise try ``acquire_run_slot(max_wait_s=5.0)``. On
+       success, call ``_launch_one_run_detached`` and update the
+       manifest entry IN PLACE with the spawned run's fields.
+       On TimeoutError, mark ``starved_since`` if not already
+       set and continue. On launch failure, mark the entry
+       terminal as ``FAILED`` (don't retry forever on broken
+       artifacts).
+
+    Returns the number of state transitions (spawned + abandoned +
+    failed) in this pass — caller uses it as a "made progress"
+    signal for the multi-pass collector loop. The collector's
+    existing parallel-collect path then handles the newly-RUNNING
+    entries on its next sweep."""
+    manifest_path = harness_run_dir / "manifest.json"
+    if not manifest_path.is_file():
+        return 0
+    try:
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return 0
+    pending_entries = [
+        e for e in manifest.get("runs", [])
+        if e.get("state") == "PENDING"
+        and e.get("pid") is None
+    ]
+    if not pending_entries:
+        return 0
+    plan_pools = manifest.get("plan", {}).get("pools", {}) or {}
+    # Per-provider cap: re-derive at retry time. None → use the
+    # registry's default behavior (matches the orchestrator's
+    # behavior when --max-per-provider isn't passed).
+    max_per_provider = manifest.get(
+        "plan", {}).get("max_per_provider") or {}
+    artifact_map = _resolve_artifact_map_from_disk(
+        harness_run_dir)
+    deadline_s = _pending_deadline_s()
+    now = datetime.now(timezone.utc)
+    transitions = 0
+    for pending in pending_entries:
+        pr = _entry_to_plan_run(pending)
+        plan_pool_cap = plan_pools.get(pr.runner.value)
+        run_dir = harness_run_dir / Path(
+            pending.get("run_dir", "")).name
+        target_dir = run_dir / "target"
+        # 165 Task B: deadline check.
+        starved_since = pending.get("starved_since")
+        if starved_since:
+            try:
+                ts = datetime.fromisoformat(
+                    starved_since.replace("Z", "+00:00"))
+            except ValueError:
+                ts = None
+            if (ts is not None
+                    and (now - ts).total_seconds() > deadline_s):
+                _update_manifest_entry_atomic(
+                    manifest_path, pr.index, {
+                        "state": "DONE",
+                        "terminal_state": "ABANDONED_STARVED",
+                        "terminal_reason":
+                            f"PENDING for "
+                            f"{(now - ts).total_seconds():.0f}s "
+                            f"(deadline {deadline_s:.0f}s) — "
+                            f"abandoned",
+                        "ended_at": now.strftime(
+                            "%Y-%m-%dT%H:%M:%SZ"),
+                    })
+                if log is not None:
+                    log.log(
+                        f"abandoned starved run: "
+                        f"run-{pr.index:02d}")
+                transitions += 1
+                continue
+        # 165 Task A: try to acquire a slot.
+        try:
+            from bin.harness import inflight_registry as _inflight
+            _inflight.acquire_run_slot(
+                runner=pr.runner.value,
+                harness_run_dir=harness_run_dir,
+                run_index=pr.index,
+                started_at=now.strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"),
+                max_per_provider=max_per_provider,
+                plan_pool_cap=plan_pool_cap,
+                max_wait_s=5.0,
+            )
+        except TimeoutError:
+            # Still starved; set starved_since on first observation.
+            if pending.get("starved_since") is None:
+                _update_manifest_entry_atomic(
+                    manifest_path, pr.index, {
+                        "starved_since": now.strftime(
+                            "%Y-%m-%dT%H:%M:%SZ"),
+                    })
+            continue
+        # Slot acquired — spawn the worker.
+        try:
+            entry = _launch_one_run_detached(
+                pr, harness_run_dir, run_dir, target_dir,
+                artifact_map=artifact_map,
+                local_artifact_info=artifact_map.get(
+                    pr.channel.value),
+                log=log,
+                tag=None,
+            )
+            _update_manifest_entry_atomic(
+                manifest_path, pr.index, entry)
+            if log is not None:
+                log.log(
+                    f"retried starved run: "
+                    f"run-{pr.index:02d} ⇒ spawned "
+                    f"pid={entry.get('pid')}")
+            transitions += 1
+        except BaseException as exc:
+            # Launch failed — terminal FAILED, release the slot
+            # so it doesn't leak.
+            _update_manifest_entry_atomic(
+                manifest_path, pr.index, {
+                    "state": "DONE",
+                    "terminal_state": "FAILED",
+                    "terminal_reason":
+                        f"relaunch failed: {exc!r}",
+                    "ended_at": now.strftime(
+                        "%Y-%m-%dT%H:%M:%SZ"),
+                })
+            try:
+                from bin.harness import inflight_registry as _ir
+                _ir.release_run_slot(
+                    harness_run_dir=harness_run_dir,
+                    run_index=pr.index)
+            except Exception:
+                pass
+            transitions += 1
+    return transitions
+
+
 def collect_harness_run(harness_run_dir: Path,
                           log: "Optional[_ProgressLog]" = None,
                           ) -> "list[RunOutcome]":
@@ -2323,6 +2563,18 @@ def collect_harness_run(harness_run_dir: Path,
             f"collect_harness_run: no manifest.json at "
             f"{manifest_path}"
         )
+    # v1.5.7 165: retry PENDING entries before the parallel
+    # collect — 161-A wrote PENDING manifest entries for starved
+    # runs; this gives them a chance to spawn into RUNNING (or be
+    # marked ABANDONED_STARVED if past deadline) before the
+    # collector grades them. Best-effort: failures are swallowed
+    # (the collector still runs its normal collect; abandoned
+    # entries grade N/A). Runs once before the parallel collect;
+    # operators can re-invoke `qpb_harness collect <dir>` to
+    # retry again.
+    _retry_pending_runs_once(harness_run_dir, log)
+    # Re-read manifest after the retry pass — newly-spawned
+    # entries have RUNNING state + a pid we need.
     manifest = json.loads(
         manifest_path.read_text(encoding="utf-8"))
     outcomes: list[RunOutcome] = []

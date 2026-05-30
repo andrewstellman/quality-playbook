@@ -125,6 +125,15 @@ class TerminalState(str, Enum):
     # identify which phase aborted. Grading produces N/A
     # (incomplete) — the run didn't reach the grading phase.
     ABORTED_PHASE = "ABORTED_PHASE"
+    # v1.5.7 165: a PENDING run that the collector's retry loop
+    # couldn't spawn within ``QPB_HARNESS_PENDING_DEADLINE_S``
+    # (default 3600s — global cap permanently lower than the plan
+    # asked for, OR a downstream cap holder never releasing).
+    # Grading produces N/A; the manifest entry's terminal_reason
+    # explains the deadline. Operators see "abandoned" as an
+    # actionable disposition (raise the cap, shrink the pool, or
+    # accept the abandonment).
+    ABANDONED_STARVED = "ABANDONED_STARVED"
 
 
 class RunState(str, Enum):
