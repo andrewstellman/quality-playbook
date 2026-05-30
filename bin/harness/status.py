@@ -1568,6 +1568,131 @@ def format_run_status(rs: RunStatus) -> str:
     )
 
 
+_TERMINAL_COMPLETED_STATES = {"COMPLETED"}
+_TERMINAL_FAILED_STATES = {
+    "FAILED", "TIMED_OUT", "BLOCKED", "KILLED", "ABORTED_PREP"}
+
+
+def _format_run_row_for_group(rs: "RunStatus", group: str) -> str:
+    """v1.5.7 160 Task B + C: render a single RunStatus row in the
+    tight per-group format. The group header carries the state
+    (RUNNING / PENDING / COMPLETED / FAILED) so the row doesn't
+    repeat it. Task C: a RUNNING row whose pid is NOT alive (worker
+    died but state.json wasn't updated to terminal) gets a
+    ``pid=N(DEAD — orphan?)`` warning so operators see the
+    inconsistency at a glance."""
+    repo_tail = rs.repo.rstrip("/").split("/")[-1] or rs.repo
+    runner_model = f"{rs.runner}/{rs.model}"
+    if group == "RUNNING":
+        # Task C dead-pid warning.
+        if rs.pid and not rs.pid_alive:
+            pid_part = f"pid={rs.pid}(DEAD — orphan?)"
+        elif rs.pid_alive:
+            pid_part = f"pid={rs.pid}(live)"
+        elif rs.pid:
+            pid_part = f"pid={rs.pid}(dead)"
+        else:
+            pid_part = "pid=—"
+        phase_part = (
+            f"{rs.current_phase} {rs.current_phase_name} "
+            f"{rs.current_phase_state}"
+            if rs.current_phase != "—" else "—"
+        )
+        return (
+            f"  #{rs.index:<2} {repo_tail:18} "
+            f"{runner_model:22} {pid_part:24} "
+            f"{phase_part:30} "
+            f"elapsed={_format_elapsed(rs.elapsed_s):>7} "
+            f"last={rs.last_activity_iso}"
+        )
+    if group == "PENDING":
+        # If the manifest/stream surfaced phase info (rare but
+        # real: a run whose status.json hasn't been written yet
+        # but whose stream already has a sentinel), show it so the
+        # operator sees forward progress instead of a flat
+        # "waiting" line.
+        if rs.current_phase != "—":
+            phase_part = (
+                f"{rs.current_phase} {rs.current_phase_name} "
+                f"{rs.current_phase_state}"
+            )
+            return (
+                f"  #{rs.index:<2} {repo_tail:18} "
+                f"{runner_model:22} {phase_part:30} "
+                f"(waiting for {rs.runner} pool slot)"
+            )
+        return (
+            f"  #{rs.index:<2} {repo_tail:18} "
+            f"{runner_model:22} "
+            f"(waiting for {rs.runner} pool slot)"
+        )
+    if group == "COMPLETED":
+        return (
+            f"  #{rs.index:<2} {repo_tail:18} "
+            f"{runner_model:22} {rs.result:14} "
+            f"ended={rs.ended_at} "
+            f"elapsed={_format_elapsed(rs.elapsed_s):>7}"
+        )
+    if group == "FAILED":
+        reason = rs.terminal_state or rs.state
+        return (
+            f"  #{rs.index:<2} {repo_tail:18} "
+            f"{runner_model:22} {reason:18} "
+            f"ended={rs.ended_at} "
+            f"elapsed={_format_elapsed(rs.elapsed_s):>7}"
+        )
+    # Fallback for unanticipated buckets — keep the verbose form.
+    return f"  {format_run_status(rs)}"
+
+
+def _classify_run_for_grouping(rs: "RunStatus") -> str:
+    """v1.5.7 160 Task B: bucket a RunStatus into one of four
+    operator-facing groups (RUNNING / PENDING / COMPLETED / FAILED).
+    FAILED catches all non-COMPLETED terminal states (FAILED,
+    TIMED_OUT, BLOCKED, KILLED, ABORTED_PREP) so operators see one
+    "things to look at" pile rather than parsing five state names."""
+    if rs.state == "RUNNING":
+        return "RUNNING"
+    if rs.state == "PENDING":
+        return "PENDING"
+    if rs.state in _TERMINAL_COMPLETED_STATES:
+        return "COMPLETED"
+    if rs.state in _TERMINAL_FAILED_STATES:
+        return "FAILED"
+    # An unknown state still surfaces — bucket as FAILED so the
+    # operator at least sees the row.
+    return "FAILED"
+
+
+def format_runs_grouped(runs: "list[RunStatus]") -> str:
+    """v1.5.7 160 Task B: format the per-run status table grouped
+    by state with section headers + counts. Empty groups are
+    skipped. Each row uses ``_format_run_row_for_group`` (tight
+    per-row format that doesn't repeat the state). Output order is
+    operator-prioritized: active first (RUNNING, PENDING), then
+    completed (the happy-path snapshot), then failed (the "look at
+    this" pile)."""
+    by_group: "dict[str, list[RunStatus]]" = {
+        "RUNNING": [], "PENDING": [],
+        "COMPLETED": [], "FAILED": [],
+    }
+    for rs in runs:
+        by_group[_classify_run_for_grouping(rs)].append(rs)
+    sections: "list[str]" = []
+    for group in ("RUNNING", "PENDING", "COMPLETED", "FAILED"):
+        rows = sorted(by_group[group], key=lambda r: r.index)
+        if not rows:
+            continue
+        sections.append(f"{group} ({len(rows)}):")
+        for rs in rows:
+            sections.append(
+                _format_run_row_for_group(rs, group))
+            if rs.last_note:
+                sections.append(f"     note: {rs.last_note}")
+        sections.append("")  # blank line between groups
+    return "\n".join(sections).rstrip()
+
+
 __all__ = [
     "HarnessRunSummary",
     "RunStatus",
@@ -1579,4 +1704,5 @@ __all__ = [
     "pid_is_alive",
     "format_harness_run_summary",
     "format_run_status",
+    "format_runs_grouped",
 ]

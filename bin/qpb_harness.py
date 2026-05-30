@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -410,13 +411,40 @@ class _ResolvedTuiPath(NamedTuple):
     from_default: bool
 
 
+# v1.5.7 160: timestamp path shortcuts. Operators currently type
+# `harness_runs/<TS>` for every command; the shortcut lets them type
+# just `<TS>` (the timestamp the 158 banner surfaced prominently) or
+# `<TS>/run-NN`. Conservative: only triggers when (a) the path does
+# NOT exist literally and (b) the pattern matches exactly. So a real
+# directory named `20260530T134322Z` in cwd (unlikely) still wins.
+_RE_TS_SHORTCUT = re.compile(
+    r"^\d{8}T\d{6}Z(?:/run-\d+)?$")
+
+
+def _looks_like_timestamp_shortcut(s: str) -> bool:
+    """v1.5.7 160: True iff ``s`` matches ``<TS>`` or
+    ``<TS>/run-NN`` (the two shortcut forms _resolve_tui_path
+    expands by prepending the runs-root). The regex matches the
+    same ``\\d{8}T\\d{6}Z`` timestamp shape as 152's
+    ``_RE_HARNESS_RUN_NAME``."""
+    return bool(_RE_TS_SHORTCUT.fullmatch(s))
+
+
 def _resolve_tui_path(args: argparse.Namespace) -> _ResolvedTuiPath:
     """v1.5.7 135: resolve the single positional path for
     tui/status, falling back to the deprecated flags
     (``--runs-root`` for both; ``--dump-path`` for tui) then the
     default runs-root. Positional wins. v1.5.7 149 A0: returns
     ``(path, from_default)`` so callers can soften the absent-dir
-    error when the default helper supplied the path."""
+    error when the default helper supplied the path.
+
+    v1.5.7 160: timestamp path shortcut. When the raw positional
+    matches the ``<TS>`` or ``<TS>/run-NN`` pattern AND the literal
+    path doesn't exist AND the ``<runs-root>/<TS>...`` prepend
+    exists, resolve to the prepended path. Halt #4: respects an
+    explicitly-passed ``--runs-root`` (composes
+    ``<--runs-root>/<TS>`` instead of always using
+    ``harness_runs/``)."""
     raw = (
         getattr(args, "path", None)
         or getattr(args, "dump_path", None)
@@ -424,8 +452,21 @@ def _resolve_tui_path(args: argparse.Namespace) -> _ResolvedTuiPath:
         or getattr(args, "root", None)
     )
     if raw:
+        literal = Path(raw).expanduser()
+        # 160: timestamp shortcut. Only triggers when the literal
+        # path doesn't exist AND the pattern matches. Honors an
+        # explicit --runs-root (composes correctly per Halt #4).
+        if (not literal.exists()
+                and _looks_like_timestamp_shortcut(raw)):
+            base = getattr(args, "runs_root", None)
+            base_path = (Path(base).expanduser() if base
+                         else _default_runs_root())
+            shortcut = base_path / raw
+            if shortcut.exists():
+                return _ResolvedTuiPath(
+                    shortcut.resolve(), False)
         return _ResolvedTuiPath(
-            Path(raw).expanduser().resolve(), False)
+            literal.resolve(), False)
     return _ResolvedTuiPath(_default_runs_root(), True)
 
 
@@ -526,10 +567,12 @@ def _cmd_status(args: argparse.Namespace) -> int:
             return 0
         print(f"harness-run dir: {path}")
         print("")
-        for rs in runs:
-            print(_status.format_run_status(rs))
-            if rs.last_note:
-                print(f"     note: {rs.last_note}")
+        # v1.5.7 160 Task B + C: state-grouped output (RUNNING /
+        # PENDING / COMPLETED / FAILED) with counts + a dead-pid
+        # warning inline on RUNNING rows whose pid is no longer
+        # alive. format_run_status (the per-row verbose form) stays
+        # in use for RUN_NN drill-downs (line 549 above).
+        print(_status.format_runs_grouped(runs))
         return 0
 
     # RUNS_ROOT — list all harness-runs.
@@ -731,7 +774,18 @@ def _cmd_kill(args: argparse.Namespace) -> int:
     from bin.harness import status as _status
     from bin.harness import runner as _runner
 
-    path = Path(args.path).expanduser().resolve()
+    # v1.5.7 160: timestamp path shortcut for kill (same UX as
+    # status/tui/tail via _resolve_tui_path). `<TS>` or
+    # `<TS>/run-NN` expands to `<runs-root>/<TS>...` when the
+    # literal path doesn't exist and the shortcut path does.
+    raw_path = args.path
+    literal = Path(raw_path).expanduser()
+    if (not literal.exists()
+            and _looks_like_timestamp_shortcut(raw_path)):
+        shortcut = _default_runs_root() / raw_path
+        if shortcut.exists():
+            literal = shortcut
+    path = literal.resolve()
     try:
         kind = _status.classify_tui_path(path)
     except FileNotFoundError:
@@ -786,7 +840,8 @@ def _cmd_kill(args: argparse.Namespace) -> int:
     if not targets:
         print("No running runs to kill.")
         for label, reason in skipped:
-            print(f"  skip {label} ({reason})")
+            # v1.5.7 160 Task D: ✗ for skip (no-op).
+            print(f"  ✗ {label} ({reason})")
         return 0
 
     if not getattr(args, "yes", False):
@@ -824,14 +879,17 @@ def _cmd_kill(args: argparse.Namespace) -> int:
         else:
             killed.append((label, "pid already dead; recorded KILLED"))
 
+    # v1.5.7 160 Task D: ✓/✗ symbols for visible kill outcomes.
+    # Unicode (modern terminals); if needed, an ASCII fallback
+    # could be added behind a flag in a follow-up.
     if killed:
         print("Killed:")
         for label, note in killed:
-            print(f"  {label}: {note}")
+            print(f"  ✓ {label}: {note}")
     if skipped:
         print("Skipped:")
         for label, reason in skipped:
-            print(f"  {label} ({reason})")
+            print(f"  ✗ {label} ({reason})")
     if graceful_hung:
         print("  If you want to force-kill, re-run without "
               "--graceful (sends SIGKILL).")
