@@ -204,15 +204,21 @@ def _pid_alive(pid: "int | None") -> bool:
     PIDs are treated as 'not-pid-checkable' — the caller
     handles them per its semantics (the registry treats
     pid=0 entries as 'reserving' — alive — until the pid is
-    set post-launch)."""
+    set post-launch).
+
+    v1.5.7 155 policy: ``PermissionError`` ⇒ NOT alive (entry
+    evicted). EPERM from ``os.kill(pid, 0)`` means the pid
+    exists but is owned by another user — on the single-user
+    harness shape v1.5.7 ships for, that means the pid was
+    reused by another process; retaining the entry as 'active'
+    would block future harness invocations. Revisit if we
+    ship to multi-user shared infra."""
     if pid is None or pid <= 0:
         return False
     try:
         os.kill(pid, 0)
-    except ProcessLookupError:
+    except (ProcessLookupError, PermissionError):
         return False
-    except PermissionError:
-        return True
     except OSError:
         return False
     return True
@@ -340,7 +346,27 @@ def _entry_is_active(entry: dict) -> bool:
         age = (datetime.now(timezone.utc)
                - started).total_seconds()
         return age <= _pid_zero_max_age_s()
-    return _pid_alive(pid)
+    if not _pid_alive(pid):
+        return False
+    # v1.5.7 155 Task C-zombie: pid is alive per os.kill(pid, 0), but
+    # the OS table can hold a defunct (zombie) entry until launchd /
+    # init reaps it. ``os.kill`` succeeds on a zombie because the pid
+    # is in the table; the existing dead-pid reaper misses it. Cross-
+    # check the run's status.json — if the worker has written
+    # terminal_state, its work is done regardless of zombie-vs-alive
+    # ambiguity, and the registry entry is stale.
+    harness_run_dir = entry.get("harness_run_dir")
+    run_index = entry.get("run_index")
+    if harness_run_dir and isinstance(run_index, int):
+        status_path = (Path(harness_run_dir)
+                       / f"run-{run_index:02d}" / "status.json")
+        try:
+            status = json.loads(status_path.read_text(encoding="utf-8"))
+            if isinstance(status, dict) and status.get("terminal_state"):
+                return False
+        except (OSError, ValueError):
+            pass  # missing/malformed status.json ⇒ still potentially in flight
+    return True
 
 
 # ---------------------------------------------------------------------------

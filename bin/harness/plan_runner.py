@@ -77,6 +77,7 @@ import os
 import re
 import shlex
 import shutil
+import signal
 import subprocess
 import sys
 import threading
@@ -2400,6 +2401,35 @@ def _repo_root_for_collector() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _install_orchestrator_signal_handlers() -> None:
+    """v1.5.7 155: ignore SIGHUP so the orchestrator survives the
+    operator's launching shell closing (session-leader exit
+    propagates SIGHUP to processes in the session — the orchestrator
+    inherits that signal otherwise). Idempotent: calling multiple
+    times is safe.
+
+    The original 155 instruction proposed also calling ``os.setsid()``
+    early as defense in depth. Deferred per the ruling's "worker's
+    call; SIGHUP-IGN alone is sufficient" — adding setsid here would
+    detach the process from the controlling terminal AT IMPORT TIME
+    if a test imports plan_runner, breaking pytest output capture.
+    Operators who want full session detachment should use the
+    documented bridge: ``nohup python3 -m bin.qpb_harness <plan.json>
+    > /tmp/log 2>&1 & disown``.
+
+    See ``reviews/155-orchestrator-sighup-resilience-HALT-RULING.md``
+    for the 5-zombie-wave diagnosis (start_new_session already in
+    place at every Popen site; stdio already file-redirected; the
+    SIGPIPE-via-inherited-TTY hypothesis ruled out by code reading)."""
+    try:
+        signal.signal(signal.SIGHUP, signal.SIG_IGN)
+    except (ValueError, OSError):
+        # SIGHUP not available on this platform (Windows) or we're
+        # in a thread without signal-handling privilege. Either way
+        # the call is best-effort; no-op gracefully.
+        pass
+
+
 def run_plan(plan: Plan, harness_runs_root: Path,
               hooks: "Optional[PlanRunnerHooks]" = None,
               *,
@@ -2432,6 +2462,15 @@ def run_plan(plan: Plan, harness_runs_root: Path,
         ``<harness-run>/artifacts/`` is the forensic trail of
         what was attempted.
     """
+    # v1.5.7 155 Task A: ignore SIGHUP so closing the launching
+    # shell doesn't take the orchestrator with it. Children are
+    # already spawned with start_new_session=True at every Popen
+    # site (runner.py:925, plan_runner.py:2378) and their stdio
+    # is file-redirected (not inherited from the parent's TTY),
+    # so SIGHUP-IGN on the orchestrator alone closes the
+    # walk-away-able gap.
+    _install_orchestrator_signal_handlers()
+
     hooks = hooks or PlanRunnerHooks()
     harness_runs_root.mkdir(parents=True, exist_ok=True)
     harness_run_dir = harness_runs_root / _utc_now_run_id()
