@@ -77,7 +77,6 @@ def test_bug_005_pid0_malformed_started_at_not_active_forever():
     assert IR._entry_is_active(entry) is False
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-006: greedy JSON-array extraction drops a valid Council response with trailing bracketed prose — unskip after BUG-006-fix.patch")
 def test_bug_006_council_response_trailing_bracket_parses():
     resp = (
         "Here is my review:\n"

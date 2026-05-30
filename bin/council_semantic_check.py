@@ -333,14 +333,39 @@ def _extract_first_json_array(text: str):
             return json.loads(stripped)
         except json.JSONDecodeError:
             pass
-    # Fallback: find the outermost `[...]` that parses.
-    match = _JSON_ARRAY_PATTERN.search(text)
-    if not match:
-        return None
-    try:
-        return json.loads(match.group(0))
-    except json.JSONDecodeError:
-        return None
+    # Fallback (BUG-006 fix): find the FIRST balanced `[...]` substring that
+    # parses as JSON. The previous greedy regex `\[[\s\S]*\]` matched from
+    # the first `[` to the LAST `]`, so a valid array followed by trailing
+    # prose containing any `]` (e.g. "see item [2]") failed to parse and the
+    # whole reviewer response was dropped — contradicting this function's
+    # "first balanced block / outermost that parses" docstring.
+    start = text.find("[")
+    while start != -1:
+        depth = 0
+        in_str = False
+        esc = False
+        for i in range(start, len(text)):
+            c = text[i]
+            if in_str:
+                if esc:
+                    esc = False
+                elif c == "\\":
+                    esc = True
+                elif c == '"':
+                    in_str = False
+            elif c == '"':
+                in_str = True
+            elif c == "[":
+                depth += 1
+            elif c == "]":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[start:i + 1])
+                    except json.JSONDecodeError:
+                        break
+        start = text.find("[", start + 1)
+    return None
 
 
 # ---------------------------------------------------------------------------
