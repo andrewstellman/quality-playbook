@@ -87,7 +87,7 @@ The minimum to **automate** the Tier 0–3 acceptance gate is **Phases 1–2** (
 2. **Build directly on `1.5.7`** (not a feature branch) — see §2; safe via segregated tests (#3).
 3. **Harness tests segregated** from the skill release suite (own discover path / `bin/tests/harness/`); CI'd, dual-env where env-detection matters, but they do NOT gate the skill release.
 4. **`stream.ndjson` always retained per run, externalized from git** — every run keeps its full raw stream as an auditable log (we don't know in advance which run matters), stored in the gitignored `runs/` tree (never selectively dropped, never committed). The small structured receipts (`invocation.json`, `facts.json`, `grading.json`, `summary.md`, the rebuildable index) ARE committed as the in-repo evidence. So: complete auditable raw log on disk, lean git history.
-5. **One worker command** points the worker at the design + this plan + `SCHEMA.md` to self-sequence build-order M, **halting at each per-phase review checkpoint** (§6) before proceeding.
+5. **Split dispatch (DECIDED 2026-05-25, revising the earlier one-command lean).** The release-gating **Phases 1–2 are dispatched tightly** — one command scoped to *Phase 1 → HARD STOP → review → Phase 2 → HARD STOP → review* (or two per-phase commands). Do NOT rely on the worker self-halting on the release-critical code: this project's own history (Mode A→B drift, run4 scavenging, "run the playbook" read as the full pipeline) shows agents over-run boundaries. Only the lower-stakes post-publish **Phases 3–6 ride a single self-sequencing command** with per-phase review checkpoints. Concentrate the dispatch rigor where the release depends on it.
 
 ## 8. Definition of done (whole harness)
 

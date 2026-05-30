@@ -18,6 +18,74 @@ serves **two case types** on one engine:
 Built to be ready the moment QPB v1.5.7 + the pip/npm installers ship, and reusable for every
 future release's acceptance gate.
 
+---
+
+## ⚠️ SIMPLIFIED RUNNER MODEL (2026-05-26 — supersedes the file-format + SCHEMA.md complexity below)
+
+Owner decision: collapse the case/run-plan/SCHEMA split into **one plain file → one self-contained
+output folder → one summary table**. The assertion *vocabulary* (§F) is unchanged; everything about
+*how it's expressed and run* simplifies. **`SCHEMA.md` is deleted** — the file below is self-evident
+with its one-line header.
+
+**One input file** = a `pools` header (per-runner concurrency) + a `runs` array. No `id` (runs are
+identified by array index; a `description` is the human justification, drillable in the TUI). `expect`
+is a **flat map** of `assertion -> value` (no `{assertion, comparator, value}` triples); a **list
+value means "one of"**.
+
+```json
+{
+  "pools": { "claude": 2, "codex": 1, "copilot": 1 },
+  "runs": [
+    { "description": "Finds + verifies the known gson duplicate-key bug — should reach solid",
+      "repo": "gson", "ref": "<pre-fix-sha>", "runner": "claude", "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": { "gate_result": "PASS", "verdict_state": "solid", "no_false_pass": true } },
+    { "description": "Weak model cuts corners — should fail with weak-model attribution",
+      "repo": "chi", "ref": "main", "runner": "codex", "model": "gpt-5.2", "channel": "npm-local-tgz",
+      "expect": { "gate_result": "FAIL", "attribution": "weak_model", "recommends_stronger_model": true } },
+    { "description": "Capable model on a meaty authz repo — honest verdict, clean install surface",
+      "repo": "keto", "ref": "master", "runner": "copilot", "model": "gpt-5.4", "channel": "pip-local-wheel",
+      "expect": { "gate_result": ["PASS","CLEANUP","FAIL"], "no_false_pass": true, "no_false_fail": true,
+                  "phase0_first_probe": true, "banner_rendered": true, "gitignore_remediation_followed": true } }
+  ]
+}
+```
+
+**One harness-run folder** (self-contained, created per harness run, timestamped):
+```
+<harness-run>/
+├── SUMMARY.md       ← the result table (below) — how the whole run turned out
+├── plan.json        ← copy of the input file that was run
+├── run-00/  target/ (cloned repo + QPB installed) · invocation.json · stream.ndjson · facts.json · grading.json · summary.md
+├── run-01/  …
+└── run-02/  …
+```
+
+**Each run** does exactly five steps: clone `repo@ref` into `run-NN/target` → `npx`/`pipx` install via
+`channel` → run with the run's `runner`+`model` → grade facts against `expect` → log MET/NOT. Runs
+execute in parallel up to the **per-runner pool** sizes (reuse the existing `scheduler.Scheduler`
+for gating; the manager daemon + TUI are optional bells-and-whistles, NOT required for this flow).
+
+**One table** at the end (`SUMMARY.md`), run_playbook-style Y/N per phase + the acceptance result.
+The phase columns show what *mechanically* happened (a weak run shows N's + `FAILED`); the **`result`**
+column is the acceptance verdict — *did it match `expect`?* — so a `gate=FAILED` run reads `✓ MET`
+when failing was the prediction:
+```
+#  description                         repo  runner  model    P0 P1 P2 P3 P4 P5 P6  gate     result
+0  Finds + verifies gson dup-key bug   gson  claude  opus     Y  Y  Y  Y  Y  Y  Y   PASSED   ✓ MET
+1  Weak model cuts corners…            chi   codex   5.2-low  Y  Y  Y  N  -  -  -   FAILED   ✓ MET
+2  Capable model on meaty authz…       keto  copilot 5.4      Y  Y  Y  Y  Y  Y  Y   FAILED   ✓ MET
+=> 3/3 MET — acceptance PASSED
+```
+
+**Terminology:** GATE PASS/FAIL is QPB's judgment of the run; the acceptance **result** is MET/NOT-MET
+= "did QPB behave as the run's `expect` predicted." A predicted failure that fails = MET.
+
+*The sections below (case/run schema split, SCHEMA.md, §C–§N component framing) are the prior, more
+elaborate design; they're retained for the contract details (esp. the §F assertion vocabulary and the
+two-sourced fact extraction, both still valid) but the input/output/SCHEMA mechanics are superseded by
+this simplified model.*
+
 ## Decisions locked (2026-05-25)
 
 - **One engine, two case types** (`type` field per case). Each type owns a **prep policy** and a

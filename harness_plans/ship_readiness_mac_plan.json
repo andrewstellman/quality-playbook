@@ -1,0 +1,135 @@
+{
+  "$header_note": "QPB v1.5.7 Test 2 — Mac ship-readiness acceptance. 7-run matrix exercising runner × tier × channel (pip-local-wheel + npm-local-tgz) with a pool=2 copilot exercise. Capable models only (no deliberate weakening). Pools: claude=3 (haiku+sonnet+opus parallel), codex=2, copilot=2. All expects permissive on gate_result + tight on observability assertions. The point is to validate that v1.5.7's channel + runner infrastructure works under production-like conditions across the matrix — NOT to predict capability outcomes.",
+
+  "pools": {
+    "claude": 3,
+    "codex": 2,
+    "copilot": 2
+  },
+
+  "runs": [
+    {
+      "description": "Cheap-tier smoke check: claude/haiku reviews gson via pip-local-wheel (Mode A). Exercises the claude runner + pip channel with the lowest-cost model. Permissive gate_result expect.",
+      "repo": "https://github.com/google/gson",
+      "ref": "main",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Mid-tier: claude/sonnet reviews Express via npm-local-tgz (Mode A). Exercises the claude runner + npm channel — different repo + different channel + different tier from row 1.",
+      "repo": "https://github.com/expressjs/express",
+      "ref": "master",
+      "runner": "claude",
+      "model": "sonnet",
+      "channel": "npm-local-tgz",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Top-tier: claude/opus reviews Ory Keto via pip-local-wheel (Mode A). Largest repo in the matrix; capable model exercises the full pipeline against a complex Go codebase.",
+      "repo": "https://github.com/ory/keto",
+      "ref": "master",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Capable codex: gpt-5.4-codex reviews chi via npm-local-tgz (Mode B). Mode B is the production pattern for codex (run_playbook drives one phase per fresh invocation). Validates 150's npx --yes fix end-to-end with a capable model — install should finish in seconds.",
+      "repo": "https://github.com/go-chi/chi",
+      "ref": "master",
+      "runner": "codex",
+      "model": "gpt-5.3-codex",
+      "channel": "npm-local-tgz",
+      "mode": "B",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Capable codex on the other channel: gpt-5.4-codex reviews gson via pip-local-wheel (Mode B). Same model + different channel from row 4 — pins the channel-vs-runner orthogonality.",
+      "repo": "https://github.com/google/gson",
+      "ref": "main",
+      "runner": "codex",
+      "model": "gpt-5.3-codex",
+      "channel": "pip-local-wheel",
+      "mode": "B",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Copilot capable on pip-local-wheel: gpt-5.4 reviews Express. First of the two copilot runs designed to exercise pool=2. Validates 145 witness fallback + 148 install.log banner fallback in production conditions.",
+      "repo": "https://github.com/expressjs/express",
+      "ref": "master",
+      "runner": "copilot",
+      "model": "gpt-5.4",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true,
+        "provenance_model_labeled_selfreport": true
+      }
+    },
+    {
+      "description": "Copilot capable on npm-local-tgz: gpt-5.4 reviews chi. Second of the two copilot runs — same model + different channel + different repo from row 5. With pool=2, this and row 5 should run concurrently — pins 125's per-runner concurrency cap.",
+      "repo": "https://github.com/go-chi/chi",
+      "ref": "master",
+      "runner": "copilot",
+      "model": "gpt-5.4",
+      "channel": "npm-local-tgz",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true,
+        "provenance_model_labeled_selfreport": true
+      }
+    }
+  ]
+}

@@ -101,7 +101,7 @@ quality-playbook/
 └── council-reviews/                   ← Council review briefings and responses (not distributed)
 ```
 
-**Automation note:** benchmark automation lives in `bin/` and uses only the Python standard library so sandboxed AI agents can run it without creating a virtual environment or installing packages. The shell scripts remaining in `repos/` (`setup_repos.sh`, `_benchmark_lib.sh`, `run_tdd.sh`) handle repo setup and TDD plumbing — they no longer include a runner.
+**Automation note:** benchmark automation lives in `bin/` and uses only the Python standard library so sandboxed AI agents can run it without creating a virtual environment or installing packages. The shell scripts remaining in `repos/` (`setup_repos.sh`, `_benchmark_lib.sh`, `run_tdd.sh`) handle repo setup and TDD plumbing — they no longer include a runner. The **test harness** (`bin/harness/`, run via `python3 -m bin.qpb_harness`) automates multi-repo/multi-runner runs and provides the status TUI — it is dev-only (excluded from the shipped skill); see "The test harness (`bin/harness`) + status TUI" below.
 
 **Running the tests:**
 
@@ -193,6 +193,59 @@ Key points a maintainer should know without opening it:
 - **Bootstrap (the playbook auditing QPB itself) is always in the active set.** It's the only target that catches the self-referential class of bug (the gate validating its own artifacts) and the only one we can verify every finding against our own intent. See `BENCHMARK_PROTOCOL.md` → "Why bootstrap is a benchmark target".
 - **Model capability dominates results.** A weak model produces clean-looking artifacts and passes gates while finding zero real bugs (the pass-process / fail-recall failure mode). The per-agent capability table and the v1.5.7 `## What just happened` UX contract that surfaces this live in `BENCHMARK_PROTOCOL.md` → "Known agent behavior differences".
 - **Bug counts vary between runs** (exploration non-determinism); compare across 5+ runs or use iteration cycles, and spot-check new versions against real source. See `BENCHMARK_PROTOCOL.md` → "Interpreting results".
+
+## The test harness (`bin/harness`) + status TUI
+
+The **test harness** (`bin/harness/`, driven by `python3 -m bin.qpb_harness`) automates running the playbook across multiple repos/runners and recording the results. It is a **dev/maintainer-only tool** — it is *excluded* from the shipped skill (the pip/npm channels and `install_skill.py` deliberately do not bundle `bin/harness/`), so adopters never see it. Open *this* doc (not the adopter-facing TOOLKIT.md) when you want to run or read a harness run.
+
+### What a run is
+
+You write one **plan file** (JSON) and run it. The harness creates one timestamped, self-contained **run folder** under `--runs-root`, clones each target repo into it, installs the skill, launches the AI CLI, re-runs the installed gate, grades against `expect`, and writes a `SUMMARY.md`. **Always point `--runs-root` under `repos/`** (gitignored, Cowork-writable) so run output never pollutes the repo root, e.g. `--runs-root repos/harness-runs`.
+
+```bash
+python3 -m bin.qpb_harness run-plan bin/harness/<plan>.json --runs-root repos/<name>
+```
+
+`run-plan` is **fire-and-forget**: it launches every run detached, writes `manifest.json` (with PIDs), spawns a detached background **collector** (which reaps each run, runs facts+grade, and writes `SUMMARY.md` as runs finish), and **returns immediately**. Check on it with `status`/`tui` (below); no terminal stays tied up. `python3 -m bin.qpb_harness collect <run-dir>` is a safe, idempotent manual reap if the collector ever dies.
+
+### Plan file format
+
+Top level: `pools` (per-runner concurrency, e.g. `{"claude": 2, "copilot": 1, "codex": 1}`) and `runs` (an array; the array index identifies a run — there is no `id` field). Per-run fields:
+
+- `repo`, `ref` — git URL + branch/tag/SHA (a SHA pins a bug-present commit).
+- `runner` — `claude` / `copilot` / `codex` / `cursor`.
+- `model` — e.g. `opus`, `gpt-5.4`, `gpt-5.3-codex`.
+- `channel` — how the skill is installed into the target: `clone` (simplest), `pip-local-wheel`, or `npm-local-tgz` (the last two build a fresh local artifact and test the published-package install path).
+- `mode` — `A` or `B` (see below; default `A`).
+- `parameters` — extra argv passed verbatim to the runner (Mode A) or to `run_playbook` (Mode B), e.g. `["-c", "model_reasoning_effort=\"low\""]` for codex low-thinking, or `["--phase", "3"]` for a single Mode-B phase.
+- `prompt` — override the default Mode A launch prompt (e.g. `"Run quality playbook phase 1."` to run one phase, or to test alternate phrasings). Absent ⇒ the default full-pipeline prompt.
+- `workspace_root` — point the run at an existing/shared target instead of cloning fresh (lets several pool=1 runs share one workspace, each running a different phase).
+- `max_duration_s` — per-run timeout (default 7200s / 120 min).
+- `expect` — a **flat** assertion map (a list value means "one of"); empty `{}` is an observational run (read the SUMMARY/verdicts, don't grade).
+
+### Mode A vs Mode B (and which runner uses which)
+
+- **Mode A** — the AI CLI drives all six phases itself in one session (the default full-pipeline prompt). This works for **claude** (`claude --print` sustains a multi-phase agentic loop). It does **not** work for **codex/cursor**, whose `exec`/`agent` invocations are single-turn and exit after one turn — so a Mode A codex run hedges and quits early.
+- **Mode B** — `run_playbook` drives the phases, each phase its own clean-context session (QPB's recommended flow, and the way to run codex/cursor through the full pipeline). Mode B runs `run_playbook` from a **pristine `git worktree` at HEAD** (so an uncommitted/dirty QPB dev tree doesn't trip run_playbook's source-guard). `run_playbook` itself is intentionally not in the shipped bundle, so Mode B always uses the QPB clone's committed `run_playbook`.
+
+### Monitoring a run
+
+- **`python3 -m bin.qpb_harness status --runs-root repos/<name>`** — table of recent runs: per-state counts (`R` running / `D` done / `F` failed / `T` timed-out / `B` blocked / `AP` aborted-prep / `P` pending), `progress` (`P<max>/P6`), last-activity, collector-alive.
+- **`python3 -m bin.qpb_harness status <run-dir>`** — per-repo drill-down: state, current phase + state + note, result, pid(live?), elapsed, last-activity.
+- **`python3 -m bin.qpb_harness tail <run-dir>/run-NN [-f]`** — follow one run's output (`-f` = tail).
+- **`python3 -m bin.qpb_harness tui --runs-root repos/<name>`** — the live **Textual TUI** (optional `textual` dep; `--curses` is a no-dependency fallback). Three levels: runs list → per-repo detail (phase/state) → live output. Keys: ↑/↓ navigate, **Enter** drill in / watch output, **q/Esc** back, **`j`** toggle rendered ↔ raw JSON in the output view, **`c`** copy the current screen to the clipboard, scroll/mouse + follow-tail (jumps to newest; scroll up to read history). All screens auto-refresh every ~2s.
+- **`python3 -m bin.qpb_harness tui --dump runs | detail | output [--dump-path <dir>] [--lines N] [--raw]`** — render a TUI page as plain text to stdout (no terminal/textual needed) — useful for scripting, logs, or having an AI inspect a page.
+
+Claude `stream-json` output is rendered into readable log lines by default (`⚙` tool, `←` result, `■ DONE`, `::QPB::` phase markers, etc.); `--raw`/`j` shows the verbatim JSON. codex/copilot/run_playbook output is plain text and passes through unchanged.
+
+### Reading the result
+
+Each run folder holds per-run receipts (`status.json`, `invocation.json`, `facts.json`, `grading.json`, `stream.ndjson`, per-run logs) plus the harness-run `SUMMARY.md` and `manifest.json`. The manifest stores **relative paths**, so a finished run folder is **portable** — run on one machine, copy the folder elsewhere (e.g. Windows → Mac) and `status`/`tui`/`--dump` read it fine. Terminal states: `COMPLETED` is graded (`MET`/`NOT-MET`); `BLOCKED` (an AUP/usage-policy refusal, weekly-limit cutoff, or socket error — read `terminal_reason` to tell which), `TIMED_OUT`, `FAILED`, and `ABORTED_PREP` all grade `N/A`.
+
+### Gotchas
+
+- **Quota.** The claude runs draw on the Anthropic weekly limit; copilot (GitHub) and codex (OpenAI) go through other providers and aren't blocked by Claude quota.
+- **`status`/`tui` default to `harness-runs`** (the repo root). Always pass `--runs-root repos/<name>` to see runs you put under `repos/`.
 
 ## Current known issues
 

@@ -22,6 +22,7 @@
   - [ ] `env -i PATH="$PATH" HOME="$HOME" python3 -m unittest discover bin/tests` → OK
   - [ ] `CODEX_THREAD_ID=x COPILOT_AGENT_SESSION_ID=x CLAUDECODE=1 python3 -m unittest discover bin/tests` → OK
   - [ ] `python3 -m unittest discover .github/skills/quality_gate/tests` → OK
+  - [ ] **Re-confirm in a real npm + normal-perms env:** `test_cold_npm_pack_dry_run_contains_full_bundle` (publish-safety suite) passes. It errors with a `PermissionError` during tempdir teardown in restricted sandboxes — environmental, not a regression (adversarial-review Finding 3) — but must be verified green where npm exists before the gate is trusted.
 - [ ] **Rebuild both channel artifacts** (mandatory — bundled files changed through 090x):
   - [ ] `python3 bin/build_channel_package.py --stage`
   - [ ] `python3 -m build` → fresh `dist/quality_playbook-1.5.7-py3-none-any.whl`

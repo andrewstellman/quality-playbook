@@ -1,0 +1,27 @@
+{
+  "$header_note": "QPB v1.5.7 BOOTSTRAP self-review plan. First authoritative QPB-on-QPB run. Uses opus (most capable Claude tier) Mode A (single-session for the full pipeline) on the local 1.5.7 branch — captures all the work since the last push to origin. Clone channel (simplest install path for self-review; recursion of QPB-inside-QPB is fine because the installed skill at <target>/.claude/skills/quality-playbook/ is at a different path than the source under review at <target>/bin/, <target>/quality_playbook_cli/, etc.). Pool: claude=1 (single row). Expects are permissive on gate_result — we don't predict the verdict; the value is in seeing what QPB derives + finds + confirms about itself.\n\nWhat QPB has to work from (this is the goldmine for Phase 2 derivation):\n  • docs/design/QPB_Test_Harness_1.5.7_Design.md + Implementation_Plan.md — canonical harness spec\n  • 65+ instruction files in Quality Playbook/v1.5.7_runner/instructions/ (109 through 165) — per-feature acceptance criteria. NOTE: these are NOT in the QPB repo; QPB will derive REQs from the in-repo design docs, SKILL.md, references/, ai_context/. The instruction files live in the orchestrator's runner folder.\n  • ai_context/AI_ORCHESTRATION_PATTERNS.md, DEVELOPMENT_PROCESS.md, IMPROVEMENT_LOOP.md — process docs\n  • references/*.md — runtime guides for the shipped skill\n  • SKILL.md, schemas.md, agents/*.md — the shipped contract\n  • bin/harness/, bin/qpb_validate.py, bin/run_playbook.py, quality_playbook_cli/ — the implementation under review\n  • The git log itself (semantic commit messages from the 1.5.7 cycle)\n\nExpected timing: 60-90 minutes (opus on a codebase of QPB's size). Substantial token cost.",
+
+  "pools": {
+    "claude": 1
+  },
+
+  "runs": [
+    {
+      "description": "BOOTSTRAP QPB-on-QPB self-review. claude/opus reviews the local 1.5.7 branch via clone channel (Mode A — single-session for the full Phase 1-6 pipeline). Repo source: /Users/andrewstellman/Documents/QPB (local path; captures all work since the last push to origin). Ref: 1.5.7 (the active branch). Phase 1 explores the full repo; Phase 2 derives REQs from docs/design/, ai_context/, references/, SKILL.md, schemas.md — comprehensive spec material; Phases 3-6 code-review and verify against derived REQs. We don't predict the verdict — the value is in seeing what QPB independently derives + finds + confirms about itself. Likely yields: drift between design docs and implementation, missing test coverage in newer subsystems (harness 159/161/164/165 just landed), edge cases we missed, maybe some self-spotted bugs. The 1.5.7 ship-readiness fixes (152 classifier, 153 manifest-independence, 159 non-blocking, 161-A + 165 PENDING/abandonment, 164 ABORTED_PHASE, etc.) should all show up as derived REQs from the design docs and instruction-equivalent prose in the in-repo design files. If QPB MET on itself, that's a strong validation signal; if NOT-MET, the dispositions tell us what we missed documenting or implementing.",
+      "repo": "/Users/andrewstellman/Documents/QPB",
+      "ref": "1.5.7",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "clone",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    }
+  ]
+}
