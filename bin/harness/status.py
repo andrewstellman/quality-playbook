@@ -591,7 +591,9 @@ def classify_tui_path(path: Path) -> "TuiPathKind":
 
 
 def _synthesize_run_status_from_dir(
-        run_dir: Path) -> "Optional[RunStatus]":
+        run_dir: Path,
+        manifest: "Optional[dict]" = None,
+        ) -> "Optional[RunStatus]":
     """v1.5.7 153 Task A+B: build a ``RunStatus`` for a ``run-NN/``
     dir directly from its on-disk artifacts (``invocation.json`` +
     ``status.json`` + stream/target presence), without going through
@@ -599,13 +601,25 @@ def _synthesize_run_status_from_dir(
     before the late-stage manifest write (``plan_runner.py:2700–
     2734``) so the manifest is missing or doesn't list this run.
 
+    v1.5.7 160 D-prime: when the manifest IS available (the caller
+    passes it explicitly), synthesis falls back to the manifest
+    entry by ``run_index`` for ``repo`` / ``runner`` / ``model`` /
+    ``description`` when ``invocation.json`` is absent — the
+    expected case for PENDING runs (scheduler created the dir +
+    listed the entry, but the worker never spawned). Resolution
+    chain: ``invocation.json`` wins ⇒ then manifest entry by index
+    ⇒ then ``"?"``. The unparseable-manifest case (parent's
+    manifest.json is invalid JSON; caller passes ``manifest=None``
+    via ``_safe_json``) degrades gracefully to ``"?"``.
+
     Returns ``None`` only when the dir has none of the markers a
     real run dir carries — no ``status.json``, no
     ``invocation.json``, no ``stream.ndjson``, no ``target/``. A dir
     that exists with no artifacts at all isn't a real run; it's a
     typo or stray dir. Anything else synthesizes a row, with metadata
-    degraded to ``"?"`` when ``invocation.json`` is missing — partial
-    information is better than a missing row."""
+    degraded to ``"?"`` when BOTH ``invocation.json`` AND a manifest
+    entry are missing — partial information is better than a
+    missing row."""
     if not run_dir.exists():
         return None
     status = _safe_json(run_dir / "status.json")
@@ -630,16 +644,49 @@ def _synthesize_run_status_from_dir(
 
     # Metadata from invocation.json (axes.runner / axes.model /
     # case_id). repo isn't in invocation.json; the harness records
-    # it in the manifest entry. Without the manifest, we emit "?"
-    # — Task A's contract.
+    # it in the manifest entry.
+    # 160 D-prime: when the caller passes the parent's parsed
+    # manifest, look up the matching entry by index and fall back
+    # to its repo/runner/model/description fields. This is the
+    # PENDING-run case — the scheduler wrote a manifest entry with
+    # the plan's repo/runner/model BEFORE the worker spawned, so
+    # the entry has authoritative metadata even when there's no
+    # invocation.json yet.
+    manifest_entry: "Optional[dict]" = None
+    if manifest and isinstance(manifest.get("runs"), list):
+        for e in manifest["runs"]:
+            if isinstance(e, dict) and e.get("index") == index:
+                manifest_entry = e
+                break
+
     runner = "?"
     model = "?"
     case_id = "?"
+    repo = "?"
+    description = ""
     if invocation:
         axes = invocation.get("axes") or {}
         runner = axes.get("runner") or runner
         model = axes.get("model") or model
         case_id = invocation.get("case_id") or case_id
+    if manifest_entry:
+        # Fall back to the manifest entry for fields invocation
+        # didn't supply (PENDING case: no invocation.json yet, but
+        # the scheduler-written manifest entry has full metadata).
+        if runner == "?":
+            mr = manifest_entry.get("runner")
+            if mr:
+                runner = str(mr)
+        if model == "?":
+            mm = manifest_entry.get("model")
+            if mm:
+                model = str(mm)
+        mrepo = manifest_entry.get("repo")
+        if mrepo:
+            repo = str(mrepo)
+        mdesc = manifest_entry.get("description")
+        if mdesc:
+            description = str(mdesc)
 
     # State + pid from status.json. No status.json AND no stream
     # ⇒ PENDING (Task B: dir was created when the run was queued
@@ -722,8 +769,11 @@ def _synthesize_run_status_from_dir(
 
     return RunStatus(
         index=index,
-        description=case_id,
-        repo="?",
+        # 160 D-prime: manifest entry's description (if present)
+        # wins over the case_id from invocation.json — manifest is
+        # the scheduler-written authoritative source.
+        description=description or case_id,
+        repo=repo,
         runner=runner,
         model=model,
         state=state,
@@ -765,7 +815,12 @@ def read_one_run_status_for_dir(
                 entry.get("run_dir", ""), harness_run_dir)
             if entry_run_dir.resolve() == target:
                 return _read_one_run_status(entry, harness_run_dir)
-    return _synthesize_run_status_from_dir(run_dir)
+    # 160 D-prime: pass the parent manifest so synthesis can fall
+    # back to the manifest entry's repo/runner/model/description
+    # for PENDING runs (the scheduler-written manifest entry IS the
+    # authoritative metadata source when invocation.json is absent).
+    return _synthesize_run_status_from_dir(
+        run_dir, manifest=manifest)
 
 
 def read_run_status(harness_run_dir: Path) -> "list[RunStatus]":
@@ -804,7 +859,11 @@ def read_run_status(harness_run_dir: Path) -> "list[RunStatus]":
                     continue
             except OSError:
                 continue
-            rs = _synthesize_run_status_from_dir(child)
+            # 160 D-prime: pass the manifest so synthesis can pull
+            # repo/runner/model from the scheduler-written entry
+            # when the run's invocation.json is absent (PENDING).
+            rs = _synthesize_run_status_from_dir(
+                child, manifest=manifest)
             if rs is None:
                 continue
             # Manifest wins on index conflict (defensive — sorted

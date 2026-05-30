@@ -319,5 +319,164 @@ class KillUxSymbolsTests(unittest.TestCase):
                        src.replace("f'", '"').replace("'", '"'))
 
 
+class PendingRunManifestMetadataTests(unittest.TestCase):
+    """v1.5.7 160 D-prime (follow-up per the review): PENDING runs
+    that have a manifest entry but no invocation.json should surface
+    the manifest's repo/runner/model rather than falling back to
+    ``?/?``. The scheduler-written manifest entry IS the authoritative
+    metadata source for PENDING runs (the worker hasn't spawned yet,
+    so invocation.json doesn't exist)."""
+
+    def _write(self, p: Path, doc) -> None:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(doc) + "\n", encoding="utf-8")
+
+    def test_pending_run_surfaces_manifest_metadata(self) -> None:
+        # Manifest lists run-02 (keto claude/opus). No
+        # invocation.json (PENDING — never spawned). Synthesis
+        # must pull repo/runner/model from the manifest entry.
+        with tempfile.TemporaryDirectory() as td:
+            hr = Path(td) / "20260530T134322Z"
+            hr.mkdir()
+            # Manifest with full metadata for run-02.
+            self._write(hr / "manifest.json", {
+                "harness_run_dir": str(hr),
+                "plan": {"pools": {"claude": 1}},
+                "runs": [{
+                    "index": 2, "description": "keto-test",
+                    "repo": "https://github.com/ory/keto",
+                    "runner": "claude", "model": "opus",
+                    "channel": "pip-local-wheel", "mode": "A",
+                    "target_dir": str(hr / "run-02/target"),
+                    "run_dir": str(hr / "run-02"),
+                    "run_id": "r2", "pid": 0,
+                    "started_at": "2026-05-30T13:43:22Z",
+                    "stream_path": str(hr / "run-02/stream.ndjson"),
+                    "status_path": str(hr / "run-02/status.json"),
+                    "max_duration_s": 60.0, "expect": {},
+                }],
+            })
+            # PENDING run-02 with only artifact_used.json.
+            (hr / "run-02").mkdir()
+            self._write(hr / "run-02/artifact_used.json",
+                        {"filename": "wheel.whl"})
+            # The manifest covers run-02 via _read_one_run_status,
+            # so read_run_status returns that — but the bug surfaces
+            # in the dir-scan SYNTHESIS path. We exercise it
+            # directly via the private helper to pin the contract.
+            manifest = json.loads(
+                (hr / "manifest.json").read_text())
+            rs = ST._synthesize_run_status_from_dir(
+                hr / "run-02", manifest=manifest)
+            self.assertIsNotNone(rs)
+            self.assertEqual(rs.runner, "claude",
+                             "expected 'claude' from manifest")
+            self.assertEqual(rs.model, "opus",
+                             "expected 'opus' from manifest")
+            self.assertEqual(
+                rs.repo, "https://github.com/ory/keto")
+            self.assertEqual(rs.description, "keto-test")
+
+    def test_invocation_json_wins_over_manifest_for_axes(
+            self) -> None:
+        # When BOTH invocation.json and a manifest entry are
+        # present, invocation.json's axes.runner/model wins (it's
+        # the actual runtime record). Manifest fills in the gaps
+        # (repo, description) that invocation doesn't have.
+        with tempfile.TemporaryDirectory() as td:
+            hr = Path(td) / "20260530T134322Z"
+            hr.mkdir()
+            self._write(hr / "manifest.json", {
+                "runs": [{
+                    "index": 0, "description": "manifest-desc",
+                    "repo": "https://github.com/x/from-manifest",
+                    "runner": "claude", "model": "opus",
+                }],
+            })
+            (hr / "run-00").mkdir()
+            self._write(hr / "run-00/invocation.json", {
+                "case_id": "invocation-case",
+                "axes": {"runner": "codex", "model": "gpt-5.4"},
+            })
+            manifest = json.loads(
+                (hr / "manifest.json").read_text())
+            rs = ST._synthesize_run_status_from_dir(
+                hr / "run-00", manifest=manifest)
+            self.assertEqual(rs.runner, "codex")
+            self.assertEqual(rs.model, "gpt-5.4")
+            # repo only exists in the manifest entry.
+            self.assertEqual(
+                rs.repo, "https://github.com/x/from-manifest")
+
+    def test_pending_run_falls_back_to_question_marks_when_no_manifest_entry(
+            self) -> None:
+        # Manifest exists but doesn't list run-99 — genuine orphan.
+        with tempfile.TemporaryDirectory() as td:
+            hr = Path(td) / "20260530T134322Z"
+            hr.mkdir()
+            self._write(hr / "manifest.json", {
+                "runs": [{"index": 0, "repo": "x",
+                          "runner": "claude", "model": "opus"}],
+            })
+            (hr / "run-99").mkdir()
+            self._write(hr / "run-99/artifact_used.json",
+                        {"x": 1})
+            manifest = json.loads(
+                (hr / "manifest.json").read_text())
+            rs = ST._synthesize_run_status_from_dir(
+                hr / "run-99", manifest=manifest)
+            self.assertEqual(rs.runner, "?")
+            self.assertEqual(rs.model, "?")
+            self.assertEqual(rs.repo, "?")
+
+    def test_pending_run_falls_back_when_manifest_unparseable(
+            self) -> None:
+        # manifest=None (caller's _safe_json returned None on
+        # invalid JSON). Synthesis still works; metadata is "?".
+        with tempfile.TemporaryDirectory() as td:
+            hr = Path(td) / "20260530T134322Z"
+            hr.mkdir()
+            (hr / "run-00").mkdir()
+            self._write(hr / "run-00/artifact_used.json",
+                        {"x": 1})
+            rs = ST._synthesize_run_status_from_dir(
+                hr / "run-00", manifest=None)
+            self.assertEqual(rs.runner, "?")
+            self.assertEqual(rs.model, "?")
+
+    def test_read_run_status_threads_manifest_to_synthesis(
+            self) -> None:
+        # End-to-end through read_run_status: manifest lists run-01
+        # but the seen_dirs path-resolve doesn't match (e.g., the
+        # manifest's relative run_dir points elsewhere) → synthesis
+        # fires for run-01 and must surface manifest metadata. This
+        # is the empirical D-prime case the reviewer caught.
+        with tempfile.TemporaryDirectory() as td:
+            hr = Path(td) / "20260530T134322Z"
+            hr.mkdir()
+            (hr / "run-01").mkdir()
+            self._write(hr / "run-01/artifact_used.json",
+                        {"x": 1})
+            # Manifest with a NON-matching run_dir (so seen_dirs
+            # won't include run-01's path → dir-scan fires).
+            self._write(hr / "manifest.json", {
+                "runs": [{
+                    "index": 1, "description": "express-test",
+                    "repo": "https://github.com/expressjs/express",
+                    "runner": "copilot", "model": "gpt-5.4",
+                    "run_dir": str(hr / "OTHER-PATH"),
+                }],
+            })
+            runs = ST.read_run_status(hr)
+            # The dir-scan path returns 1 entry via synthesis.
+            self.assertEqual(len(runs), 1)
+            rs = runs[0]
+            self.assertEqual(rs.index, 1)
+            self.assertEqual(rs.runner, "copilot")
+            self.assertEqual(rs.model, "gpt-5.4")
+            self.assertEqual(
+                rs.repo, "https://github.com/expressjs/express")
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
