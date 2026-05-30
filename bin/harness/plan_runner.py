@@ -2751,6 +2751,39 @@ def _run_plan_detached(
                 f"{acquire_timeout_s}s; skipping launch so the "
                 f"orchestrator can proceed. ({exc})"
             )
+            # v1.5.7 161 Task A: write a PENDING manifest entry for
+            # the starved run instead of leaving manifest_entries
+            # [idx]=None. This means (a) the post-barrier
+            # ``[e for e in manifest_entries if e is not None]``
+            # filter no longer DROPS starved runs from the
+            # manifest, (b) the operator's status output (per 160's
+            # grouped emitter) sees the PENDING row with full
+            # metadata, and (c) the upcoming 161 Tasks B+C
+            # (collector retry + ABANDONED_STARVED deadline) have a
+            # manifest entry to read for retry. Note: this is the
+            # FOUNDATIONAL piece of 161; Tasks B (collector retry
+            # loop in _cmd_collect) and C (deadline-based
+            # ABANDONED_STARVED) are deferred to a 161-followup —
+            # see review-request for the split rationale.
+            manifest_entries[idx] = {
+                "index": pr.index,
+                "description": pr.description,
+                "repo": pr.repo,
+                "runner": pr.runner.value,
+                "model": pr.model,
+                "channel": pr.channel.value,
+                "mode": pr.mode.value,
+                "target_dir": str(target_dir),
+                "run_dir": str(run_dir),
+                "run_id": f"r{pr.index}",
+                "pid": None,
+                "started_at": "",
+                "stream_path": str(run_dir / "stream.ndjson"),
+                "status_path": str(run_dir / "status.json"),
+                "max_duration_s": 0.0,
+                "expect": pr.expect,
+                "state": "PENDING",
+            }
             return
         try:
             entry = _launch_one_run_detached(

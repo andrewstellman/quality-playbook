@@ -239,10 +239,13 @@ class WrappedTimeoutBehaviorTests(unittest.TestCase):
         # at the acquire call would make the test hang.
         self.assertLess(elapsed, 10.0,
                         f"run_plan took too long: {elapsed}s")
-        # One run launched, one starved → 2 outcomes (RUNNING + a
-        # placeholder for the starved one is NOT emitted since
-        # manifest_entries[1] is None).
-        self.assertEqual(len(outcomes), 1)
+        # v1.5.7 161 Task A: starved entries now write a PENDING
+        # manifest entry (instead of leaving manifest_entries[idx]
+        # None), so outcomes includes BOTH the launched run AND the
+        # PENDING one. Pre-161 this was 1; post-161 it's 2.
+        self.assertEqual(len(outcomes), 2)
+        # The launched outcome is the first; the second is PENDING.
+        self.assertEqual(outcomes[1].terminal_state, "RUNNING")
 
 
 # ---------------------------------------------------------------------------
@@ -310,10 +313,103 @@ class EmpiricalRegressionTests(unittest.TestCase):
 
         self.assertLess(elapsed, 10.0,
                         f"04:26-shape plan still hangs: {elapsed}s")
-        # 2 launched + 1 starved → 2 outcomes (the starved run's
-        # manifest_entries slot stays None).
-        self.assertEqual(len(outcomes), 2,
-                         "expected 2 launched + 1 starved")
+        # v1.5.7 161 Task A: starved entries now produce PENDING
+        # manifest entries → outcomes includes ALL 3 (2 launched +
+        # 1 PENDING). Pre-161 this was 2.
+        self.assertEqual(len(outcomes), 3,
+                         "expected 2 launched + 1 PENDING")
+
+
+class PendingManifestEntryTests(unittest.TestCase):
+    """v1.5.7 161 Task A: when ``_wrapped`` catches TimeoutError
+    (starvation), it now writes a PENDING manifest entry with full
+    metadata (repo / runner / model / channel / description / paths)
+    instead of leaving manifest_entries[idx]=None. This unblocks
+    160 D-prime's manifest-metadata lookup for PENDING rows AND
+    gives the upcoming 161 Tasks B+C (collector retry +
+    ABANDONED_STARVED) a manifest entry to read.
+
+    Tasks B (collector retry loop) + C (ABANDONED_STARVED deadline)
+    are deferred to a 161-followup; Task A here is the foundational
+    piece they need."""
+
+    def test_starved_run_writes_pending_manifest_entry_with_full_metadata(
+            self) -> None:
+        from bin.harness.schema import (
+            InstallChannel, Mode, Runner)
+        runs = [
+            PR.PlanRun(
+                index=i, description=f"d{i}",
+                repo=f"https://github.com/x/r{i}", ref="main",
+                runner=Runner.CLAUDE, model="opus",
+                channel=InstallChannel.CLONE, mode=Mode.A,
+                expect={},
+            ) for i in range(2)
+        ]
+        plan = PR.Plan(pools={"claude": 2}, runs=runs)
+
+        call_count = [0]
+        def fake_acquire(**kwargs):
+            call_count[0] += 1
+            if call_count[0] == 2:
+                raise TimeoutError("starved (test mock)")
+
+        with tempfile.TemporaryDirectory() as td:
+            runs_root = Path(td) / "harness_runs"
+            runs_root.mkdir()
+            with mock.patch.object(IR, "acquire_run_slot",
+                                    side_effect=fake_acquire), \
+                 mock.patch.object(PR, "_launch_one_run_detached",
+                                    return_value={
+                                        "index": 0, "description": "d0",
+                                        "repo": "https://github.com/x/r0",
+                                        "runner": "claude", "model": "opus",
+                                        "channel": "clone", "mode": "A",
+                                        "target_dir": "/tmp/x",
+                                        "run_dir": "/tmp/rd",
+                                        "run_id": "r0", "pid": 1,
+                                        "started_at":
+                                            "2026-05-30T13:43:00Z",
+                                        "stream_path": "/tmp/s",
+                                        "status_path": "/tmp/st",
+                                        "max_duration_s": 1.0,
+                                        "expect": {},
+                                    }), \
+                 mock.patch.object(IR, "update_pid"), \
+                 mock.patch.object(IR, "release_run_slot"), \
+                 mock.patch.object(PR, "_spawn_collector",
+                                    return_value=9999), \
+                 mock.patch.object(PR, "_required_local_channels",
+                                    return_value=set()):
+                outcomes = PR.run_plan(plan, runs_root)
+
+            # Find the harness-run dir + its manifest.
+            hr_dirs = list(runs_root.iterdir())
+            self.assertEqual(len(hr_dirs), 1)
+            manifest_path = hr_dirs[0] / "manifest.json"
+            self.assertTrue(manifest_path.is_file())
+            manifest = json.loads(manifest_path.read_text())
+            runs_in_manifest = manifest.get("runs", [])
+
+        # 2 entries (1 launched + 1 PENDING).
+        self.assertEqual(len(runs_in_manifest), 2,
+                         "manifest should include the PENDING entry")
+        pending_entries = [
+            e for e in runs_in_manifest
+            if e.get("state") == "PENDING"]
+        # Mutation-bite target: removing the
+        # ``manifest_entries[idx] = {...}`` write makes this empty.
+        self.assertEqual(len(pending_entries), 1)
+        pe = pending_entries[0]
+        # Full metadata present (160 D-prime requires this for PENDING
+        # rows to display correctly + 161 Tasks B+C will read it).
+        self.assertEqual(pe["index"], 1)
+        self.assertEqual(pe["repo"], "https://github.com/x/r1")
+        self.assertEqual(pe["runner"], "claude")
+        self.assertEqual(pe["model"], "opus")
+        self.assertEqual(pe["channel"], "clone")
+        self.assertEqual(pe["description"], "d1")
+        self.assertIsNone(pe["pid"])
 
 
 if __name__ == "__main__":  # pragma: no cover
