@@ -119,6 +119,12 @@ class TerminalState(str, Enum):
     BLOCKED = "BLOCKED"
     KILLED = "KILLED"
     ABORTED_PREP = "ABORTED_PREP"
+    # v1.5.7 164: Mode B supervisor aborted on a phase failure
+    # (child runner exited non-zero, gate-failed, --require-docs
+    # guard, etc.). status.json carries ``phase_aborted: N`` to
+    # identify which phase aborted. Grading produces N/A
+    # (incomplete) — the run didn't reach the grading phase.
+    ABORTED_PHASE = "ABORTED_PHASE"
 
 
 class RunState(str, Enum):

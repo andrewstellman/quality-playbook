@@ -896,6 +896,17 @@ def launch_run_async(spec: LaunchSpec) -> SpawnResult:
     # it to detect which runner produced the gate-report).
     if spec.axes.mode == Mode.B:
         env = _sanitize_mode_b_env(env)
+        # v1.5.7 164: tell the Mode B supervisor where to write
+        # status.json on abort. run_playbook.py reads this env var
+        # at each abort site; when set, it writes a terminal-shaped
+        # status.json (terminal_state=ABORTED_PHASE, phase_aborted,
+        # exit_code, ended_at) BEFORE returning. The collector then
+        # sees the status and grades accordingly — no more
+        # 4-hour-alive zombies whose status never updates. When the
+        # env var is absent (operator running run_playbook.py
+        # manually), behavior is unchanged.
+        env["QPB_HARNESS_STATUS_PATH"] = str(
+            spec.run_dir / "status.json")
     env_snapshot = {
         k: v for k, v in env.items()
         if (k in ("CLAUDECODE", "CODEX_THREAD_ID",

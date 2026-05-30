@@ -57,6 +57,63 @@ ALL_STRATEGIES = ["gap", "unfiltered", "parity", "adversarial"]
 VALID_STRATEGIES = frozenset(ALL_STRATEGIES)
 PID_FILE = lib.QPB_DIR / ".run_pids"
 
+
+def _write_harness_abort_status(phase, exit_code, reason: str) -> None:
+    """v1.5.7 164: when the Mode B supervisor aborts on a phase
+    failure, write a terminal-shaped status.json to the path the
+    harness pre-pinned via ``QPB_HARNESS_STATUS_PATH``. The
+    collector reads status.json to grade; without this write the
+    collector sees an in-flight RUNNING state with no terminal_state
+    and either grades N/A from inference (the 13:43:22Z scenario)
+    or waits forever (the 04:26 4-hour-alive zombie). Best-effort:
+    filesystem errors are swallowed so a failed write doesn't crash
+    the supervisor's abort path. The env var is set ONLY when
+    run_playbook is invoked by the harness (``bin/harness/runner.py``
+    adds it to Mode B Popen env). Operator-direct invocations of
+    run_playbook (no env var) get the existing behavior — log +
+    return — with no status.json write."""
+    import json as _json
+    path = os.environ.get("QPB_HARNESS_STATUS_PATH")
+    if not path:
+        return
+    try:
+        existing: dict = {}
+        if os.path.isfile(path):
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    existing = _json.load(fh)
+            except (OSError, ValueError):
+                existing = {}
+        try:
+            phase_num = int(str(phase).split("+")[0])
+        except (ValueError, TypeError):
+            phase_num = -1
+        try:
+            code = int(exit_code) if exit_code is not None else -1
+        except (ValueError, TypeError):
+            code = -1
+        existing.update({
+            "state": "DONE",
+            "terminal_state": "ABORTED_PHASE",
+            "terminal_reason":
+                f"Phase {phase} aborted: {reason}",
+            "exit_code": code,
+            "ended_at": datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"),
+            "phase_aborted": phase_num,
+            "pid": os.getpid(),
+        })
+        # Atomic-ish: write to a sibling, rename. The collector's
+        # read may race with our write; tmp + rename avoids torn
+        # reads.
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            _json.dump(existing, fh, indent=2)
+        os.replace(tmp, path)
+    except OSError:
+        pass  # best-effort; don't crash the abort path
+
+
 # v1.5.7 A-22 structural defense (instruction 084). Live ship-validation
 # (copilot httpx, 2026-05-18) surfaced an agent honoring Phase 0 then
 # invoking the runner itself for Phases 1-6 — a Mode A -> Mode B drift
@@ -3579,6 +3636,9 @@ def run_one_phase(
                     "reference_docs/ is empty (see "
                     "references/code-only-mode.md)."
                 ))
+                _write_harness_abort_status(  # v1.5.7 164
+                    1, -1,
+                    "--require-docs set but reference_docs/ empty")
                 return False
             _emit_documentation_state_event(
                 repo_dir, "code_only", "reference_docs/ empty",
@@ -3663,6 +3723,9 @@ def run_one_phase(
     exit_code = run_prompt(repo_dir, prompt, f"phase{phase}", output_file, log_file, args.runner, args.model, getattr(args, "runner_extra_args", None))
     if exit_code:
         lib.logboth(log_file, lib.log(f"  ABORT Phase {phase}: child runner exited {exit_code}"))
+        _write_harness_abort_status(  # v1.5.7 164
+            phase, exit_code,
+            f"child runner exited {exit_code}")
         return False
 
     # v1.5.4 Phase 3.6.1 Section A.4.b (codex-prevention): structural
@@ -3950,6 +4013,9 @@ def run_one_phase_group(
     )
     if exit_code:
         lib.logboth(log_file, lib.log(f"  ABORT Phase group {group_label}: child runner exited {exit_code}"))
+        _write_harness_abort_status(  # v1.5.7 164
+            group_label, exit_code,
+            f"phase group child runner exited {exit_code}")
         return False
 
     # v1.5.4 Phase 3.6.1 Section A.4.b: same structural backstop as
@@ -4525,6 +4591,9 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
                 repo_dir, group, phase_groups, args, log_file, timestamp, monitor
             ):
                 lib.logboth(log_file, lib.log(f"ABORT: Phase group {'+'.join(group)} gate failed for {repo_dir.name}"))
+                _write_harness_abort_status(  # v1.5.7 164
+                    "+".join(group), 1,
+                    f"phase group gate failed for {repo_dir.name}")
                 exit_status = 1
                 break
             # v1.5.1 Item 3.2: inter-group pacing. Skipped after the
@@ -4620,6 +4689,9 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
 
     if exit_code:
         lib.logboth(log_file, lib.log(f"ABORT: child runner exited {exit_code}"))
+        _write_harness_abort_status(  # v1.5.7 164
+            "?", exit_code,
+            f"top-level child runner exited {exit_code}")
         # v1.5.2 (C13.9, site 4): orchestrator-authoritative finalization
         # on abort. Captures state-at-abort even when the LLM session ended
         # before its Phase 5 step 7. This is the express-1.5.1 case in
@@ -5192,6 +5264,10 @@ def run_one_iterations(
             )
             if exit_code:
                 lib.logboth(log_file, lib.log(f"  ABORT iteration {strategy}: child runner exited {exit_code}"))
+                _write_harness_abort_status(  # v1.5.7 164
+                    "?", exit_code,
+                    f"iteration {strategy} child runner "
+                    f"exited {exit_code}")
                 # v1.5.2 (C13.9, site 2): orchestrator-authoritative
                 # finalization on abort. Captures state-at-abort even when
                 # the LLM session ended before its Phase 5 step 7.
