@@ -391,9 +391,28 @@ _RE_PHASE0_PROBE = re.compile(
     r"event=validation_complete\s+nonce=(?P<nonce>\S+)\s+"
     r"status=(?P<status>\w+)",
 )
+# v1.5.7 163: tighten the second alternative so it ONLY matches
+# the canonical bare-relative-path failure pattern
+# (``[Errno 2]`` with a RELATIVE ``bin/qpb_validate.py`` reference),
+# NOT an ABSOLUTE path that happens to contain the substring
+# ``qpb_validate`` later in the line. The pre-163 regex
+# (``.*qpb_validate``) over-matched on cases where the agent
+# fumbled the install path (e.g., looking for
+# ``.../run-00/.claude/skills/.../bin/qpb_validate.py``
+# instead of ``.../target/.claude/skills/...``) — that's a
+# different bug (target-resolution, not bare-path) and shouldn't
+# trip the phase-0 bare-path-fail check. Empirical: 2026-05-30
+# 13:43:22Z run-00 haiku — witnesses clean (blocked → remediable
+# → ok), code wrongly computed ``bare_path_fail=True`` because the
+# agent's mis-located absolute path contained ``qpb_validate``.
 _RE_PHASE0_BARE_PATH_FAIL = re.compile(
     r"python3 bin/qpb_validate\.py.*FileNotFoundError|"
-    r"\[Errno 2\] No such file or directory.*qpb_validate",
+    # 163: require an UNQUOTED-OR-bare-quoted relative
+    # ``bin/qpb_validate.py`` (not preceded by a path separator
+    # such as ``/`` or ``\``) — this is the bare-relative-path
+    # signature of the bug.
+    r"\[Errno 2\] No such file or directory[^/\\]*?(?<![/\\])"
+    r"bin/qpb_validate\.py",
 )
 # 090m/090n canonical banner — the 80-wide ═══ rule is the
 # Markdown-inert signal that the agent actually printed the
