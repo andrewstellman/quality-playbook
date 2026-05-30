@@ -210,13 +210,58 @@ def _ext_provenance_runner_matches(facts: RunFacts,
 @_register(AcceptanceAssertion.PROVENANCE_MODEL_LABELED_SELFREPORT.value)
 def _ext_provenance_model_labeled(facts: RunFacts,
                                     axes: RunAxes) -> bool:
-    """design §F/§4.1: bool — `provenance.selfreport_model_label
-    present+labeled`. The fact carries None when the run-metadata
-    `model` field was absent / non-string — i.e. the gate
-    correctly emitted "Model: not recorded". Otherwise, the
-    label is present (and 090w guarantees the
-    "self-reported — not verified" disclaimer renders alongside)."""
-    return facts.provenance.selfreport_model_label is not None
+    """v1.5.7 162 (same pattern as 157's gitignore outcome check):
+    outcome-based assertion that the run was launched with the
+    expected model. The pre-162 stream-side check (the agent's
+    voluntary "Model: <X> (self-reported by the agent — not
+    verified)" line) only matched runs where the agent self-
+    reported; capable copilot/gpt-5.4 sometimes emits "Model: not
+    recorded" even though the harness invoked it with the planned
+    model (the 2026-05-30 13:43:22Z retest's run-05 express was a
+    clean example — identical config to run-06 chi which DID
+    self-report).
+
+    The harness ALREADY KNOWS the planned model: ``axes.model`` is
+    the value the run was launched with. The new contract:
+
+    - TRUE when the agent self-reported a model that MATCHES
+      ``axes.model``, OR the agent didn't self-report (we know
+      from the plan what was invoked), OR ``axes.model`` is
+      unknown (defensive — preserves pre-162 behavior).
+    - FALSE only when the agent self-reported a model that
+      CONTRADICTS ``axes.model`` (real bug — surfaces via the
+      complementary
+      ``provenance_model_labeled_selfreport_mismatch`` assertion)."""
+    selfreport = facts.provenance.selfreport_model_label
+    planned = axes.model
+    if planned is None:
+        # Fall back to pre-162 behavior when the plan doesn't
+        # carry the model (defensive — RunAxes.model is normally
+        # always set).
+        return selfreport is not None
+    if selfreport is None:
+        # Agent didn't self-report; the harness still invoked
+        # the planned model. Outcome OK.
+        return True
+    return selfreport == planned
+
+
+@_register(
+    AcceptanceAssertion.PROVENANCE_MODEL_LABELED_SELFREPORT_MISMATCH.value)
+def _ext_provenance_model_labeled_mismatch(
+        facts: RunFacts, axes: RunAxes) -> bool:
+    """v1.5.7 162: TRUE iff the agent self-reported a model
+    DIFFERENT from ``axes.model`` (the planned model). This is the
+    real contradiction signal — when the agent claims to be a
+    model OTHER than what the harness invoked, something is wrong
+    (CLI bug, model routing issue, agent lying). When the agent
+    didn't self-report OR ``axes.model`` is unknown, no mismatch
+    is possible."""
+    selfreport = facts.provenance.selfreport_model_label
+    planned = axes.model
+    if selfreport is None or planned is None:
+        return False
+    return selfreport != planned
 
 
 @_register(AcceptanceAssertion.PROVENANCE_BUGCOUNT_VS_GATE.value)

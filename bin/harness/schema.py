@@ -150,6 +150,12 @@ class AcceptanceAssertion(str, Enum):
     PROVENANCE_RUNNER_MATCHES = "provenance_runner_matches"
     PROVENANCE_MODEL_LABELED_SELFREPORT = \
         "provenance_model_labeled_selfreport"
+    # v1.5.7 162: the contradiction signal complementing the
+    # outcome-based assertion above — TRUE iff the agent self-
+    # reported a model DIFFERENT from axes.model. The real "agent
+    # is lying or routing is broken" check.
+    PROVENANCE_MODEL_LABELED_SELFREPORT_MISMATCH = \
+        "provenance_model_labeled_selfreport_mismatch"
     PROVENANCE_BUGCOUNT_VS_GATE = "provenance_bugcount_vs_gate"
     NO_FALSE_PASS = "no_false_pass"
     NO_FALSE_FAIL = "no_false_fail"

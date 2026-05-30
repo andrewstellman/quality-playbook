@@ -508,16 +508,100 @@ class ProvenanceTests(unittest.TestCase):
         )
         self.assertTrue(result.passed)
 
-    def test_provenance_model_labeled_selfreport_absent(self) -> None:
+    def test_provenance_model_labeled_when_self_report_absent_but_plan_known_returns_true(
+            self) -> None:
+        # v1.5.7 162 contract change: the agent didn't self-report
+        # but the plan knows the model (axes.model="opus"). Pre-162:
+        # False (stream-side check failed). Post-162: True (outcome
+        # OK — harness invoked the planned model). The 2026-05-30
+        # 13:43:22Z run-05 (express copilot/gpt-5.4) was this case
+        # in production.
         facts = _mk_facts(
             **{"provenance.selfreport_model_label": None},
         )
         result = G.grade_assertion(
             _expected("provenance_model_labeled_selfreport",
                        S.Comparator.EQ, True),
-            facts, _mk_axes(),
+            facts, _mk_axes(),  # default model="opus"
         )
+        self.assertTrue(result.passed)
+
+    def test_provenance_model_labeled_when_self_report_contradicts_plan_returns_false(
+            self) -> None:
+        # 162: the real contradiction case. Plan asked for "opus"
+        # but the agent self-reported "gpt-3.5-turbo". The OUTCOME
+        # assertion is False (model invoked ≠ self-reported).
+        facts = _mk_facts(
+            **{"provenance.selfreport_model_label": "gpt-3.5-turbo"},
+        )
+        result = G.grade_assertion(
+            _expected("provenance_model_labeled_selfreport",
+                       S.Comparator.EQ, True),
+            facts, _mk_axes(model="opus"),
+        )
+        # Mutation-bite target: dropping the `if selfreport is
+        # None: return True` branch makes the absent-but-plan-known
+        # test fail; dropping the final `return selfreport ==
+        # planned` makes this contradiction test fail.
         self.assertFalse(result.passed)
+
+    def test_provenance_model_labeled_when_self_report_matches_plan_returns_true(
+            self) -> None:
+        # Happy path: agent self-reported "opus", plan asked for
+        # "opus", they match.
+        facts = _mk_facts(
+            **{"provenance.selfreport_model_label": "opus"},
+        )
+        result = G.grade_assertion(
+            _expected("provenance_model_labeled_selfreport",
+                       S.Comparator.EQ, True),
+            facts, _mk_axes(model="opus"),
+        )
+        self.assertTrue(result.passed)
+
+    def test_provenance_model_labeled_mismatch_true_on_contradiction(
+            self) -> None:
+        # 162: complementary `_mismatch` assertion is the real
+        # contradiction signal. When self-report ≠ planned, mismatch
+        # is True (and operators can grade on this as a quality bug).
+        facts = _mk_facts(
+            **{"provenance.selfreport_model_label": "gpt-3.5-turbo"},
+        )
+        result = G.grade_assertion(
+            _expected(
+                "provenance_model_labeled_selfreport_mismatch",
+                S.Comparator.EQ, True),
+            facts, _mk_axes(model="opus"),
+        )
+        self.assertTrue(result.passed)
+
+    def test_provenance_model_labeled_mismatch_false_when_self_report_absent(
+            self) -> None:
+        # No contradiction possible when agent didn't self-report.
+        facts = _mk_facts(
+            **{"provenance.selfreport_model_label": None},
+        )
+        result = G.grade_assertion(
+            _expected(
+                "provenance_model_labeled_selfreport_mismatch",
+                S.Comparator.EQ, False),
+            facts, _mk_axes(model="opus"),
+        )
+        self.assertTrue(result.passed)
+
+    def test_provenance_model_labeled_mismatch_false_when_self_report_matches(
+            self) -> None:
+        # No mismatch when agent's self-report matches the plan.
+        facts = _mk_facts(
+            **{"provenance.selfreport_model_label": "opus"},
+        )
+        result = G.grade_assertion(
+            _expected(
+                "provenance_model_labeled_selfreport_mismatch",
+                S.Comparator.EQ, False),
+            facts, _mk_axes(model="opus"),
+        )
+        self.assertTrue(result.passed)
 
     def test_provenance_bugcount_match(self) -> None:
         facts = _mk_facts()  # provenance_mismatch=False
