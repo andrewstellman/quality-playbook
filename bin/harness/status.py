@@ -41,6 +41,14 @@ from typing import Iterator, Optional
 _TERMINAL_RUN_STATES = frozenset({
     "COMPLETED", "FAILED", "TIMED_OUT", "BLOCKED",
     "ABORTED_PREP", "KILLED",
+    # v1.5.7 167 drive-by: 164 + 165 added these terminal states
+    # but didn't extend this constant; the 121 phase-state
+    # reconciliation test enforces coverage. Without them, a Mode
+    # B run that aborted on a phase OR a perpetually-starved
+    # run that exceeded the 165 deadline would have its phase-
+    # state stuck on "running" in the TUI.
+    "ABORTED_PHASE",        # 164
+    "ABANDONED_STARVED",    # 165
 })
 
 
