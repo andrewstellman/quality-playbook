@@ -256,17 +256,30 @@ def _relpath_for_banner(p: Path) -> str:
         return str(p)
 
 
-def _render_launch_banner(harness_run_dir: Path,
-                            collector_pid: "int | None",
-                            run_count: int,
-                            pools: "dict[str, int]",
-                            ) -> str:
-    """v1.5.7 158 Task A: render the done-banner the orchestrator
-    prints at the end of ``run-plan`` so operators can scan the
-    next-step commands without re-typing the harness-run path. The
-    banner is plain ASCII (copy-pasteable across terminals that
-    strip color) and goes to STDERR (per Task C); STDOUT carries
-    just the relative path for scripted use."""
+def _render_launch_banner(
+        harness_run_dir: Path,
+        collector_pid: "int | None",
+        run_count: int,
+        pools: "dict[str, int]",
+        *,
+        per_run_entries: "list[dict] | None" = None,
+        log_file_path: "Path | None" = None,
+        foreground: bool = False,
+        ) -> str:
+    """v1.5.7 158 (revised): render the done-banner the orchestrator
+    prints at the end of ``run-plan``. Plain ASCII, copy-pasteable.
+    Goes to STDERR; STDOUT carries just the relative path for
+    scripted use.
+
+    v1.5.7 158-revised additions:
+      * Per-run command lines (``per_run_entries``) — one line per
+        planned run, with ``#N repo runner/model`` + a
+        copy-pasteable per-run status command.
+      * ``tail -f <log>`` line (auto-detach default) or a
+        "running in foreground" note (``--foreground`` opt-out).
+      * "Whole-suite commands:" / "Per-run commands:" section
+        headers to make the banner navigable.
+    """
     rel = _relpath_for_banner(harness_run_dir)
     pool_str = _format_pools_for_banner(pools)
     collector_line = (
@@ -280,16 +293,35 @@ def _render_launch_banner(harness_run_dir: Path,
         f"  {rel}",
         f"{collector_line}  this shell can close safely",
         "",
-        "Monitor:",
+        "Whole-suite commands:",
         f"  python3 -m bin.qpb_harness tui {rel}",
-        "",
-        "Status snapshot:",
         f"  python3 -m bin.qpb_harness status {rel}",
-        "",
-        "Kill all RUNNING in this harness-run:",
         f"  python3 -m bin.qpb_harness kill {rel}",
-        _LAUNCH_BANNER_RULE,
     ]
+    # Per-run section (revised Task B).
+    if per_run_entries:
+        lines.append("")
+        lines.append("Per-run commands:")
+        for entry in per_run_entries:
+            idx = entry.get("index", 0)
+            repo = entry.get("repo", "?")
+            repo_tail = repo.rstrip("/").split("/")[-1] or repo
+            runner = entry.get("runner", "?")
+            model = entry.get("model", "?")
+            lines.append(
+                f"  #{idx:<2} {repo_tail:18} {runner}/{model}  "
+                f"  python3 -m bin.qpb_harness status "
+                f"{rel}/run-{idx:02d}")
+    # Log/foreground line (revised Task C).
+    lines.append("")
+    if foreground:
+        lines.append(
+            "Live orchestrator log:"
+            "  (running in foreground; output is on this shell)")
+    elif log_file_path is not None:
+        lines.append("Live orchestrator log:")
+        lines.append(f"  tail -f {log_file_path}")
+    lines.append(_LAUNCH_BANNER_RULE)
     return "\n".join(lines)
 
 
@@ -323,6 +355,56 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
     except _plan.PlanError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
+
+    # v1.5.7 158 (revised): auto-detach as default. The orchestrator
+    # self-daemonizes so the operator's shell returns immediately;
+    # stdout/stderr go to /tmp/qpb-harness-<TS>.log. Pass
+    # ``--foreground`` to opt out (useful for debugging).
+    #
+    # Already in the detached child? (QPB_HARNESS_DETACHED set by
+    # our own fork) — skip the fork to avoid infinite recursion.
+    foreground = bool(getattr(args, "foreground", False))
+    detached_child = bool(os.environ.get("QPB_HARNESS_DETACHED"))
+    if (not foreground) and (not detached_child):
+        from datetime import datetime as _dt, timezone as _tz
+        forced_run_id = _dt.now(_tz.utc).strftime(
+            "%Y%m%dT%H%M%SZ")
+        predicted_hrd = runs_root / forced_run_id
+        log_path = Path("/tmp") / f"qpb-harness-{forced_run_id}.log"
+        per_run_entries = [
+            {"index": pr.index, "repo": pr.repo,
+             "runner": pr.runner.value, "model": pr.model}
+            for pr in plan.runs
+        ]
+        log_fp = open(log_path, "ab")
+        pid = os.fork()
+        if pid != 0:
+            # Parent: print banner + relative path + exit.
+            log_fp.close()
+            banner = _render_launch_banner(
+                predicted_hrd, collector_pid=None,
+                run_count=len(plan.runs), pools=plan.pools,
+                per_run_entries=per_run_entries,
+                log_file_path=log_path,
+                foreground=False,
+            )
+            print(banner, file=sys.stderr)
+            print(_relpath_for_banner(predicted_hrd))
+            return 0
+        # Child: full daemonization — own session, stdio redirected
+        # to the log file, env marker so a nested run_plan call
+        # (shouldn't happen but defensive) skips re-detach, forced
+        # run id so the harness-run dir matches the parent's banner.
+        try:
+            os.setsid()
+        except OSError:
+            pass  # already a session leader (unusual)
+        os.dup2(log_fp.fileno(), sys.stdout.fileno())
+        os.dup2(log_fp.fileno(), sys.stderr.fileno())
+        log_fp.close()
+        os.environ["QPB_HARNESS_DETACHED"] = "1"
+        os.environ["QPB_HARNESS_FORCED_RUN_ID"] = forced_run_id
+
     wheel_override = (
         Path(args.wheel).expanduser().resolve()
         if getattr(args, "wheel", None) else None
@@ -1113,6 +1195,18 @@ def _build_parser() -> argparse.ArgumentParser:
             "~/.qpb_harness/inflight.json). Per-plan `pools` "
             "still apply on top — whichever is tighter wins. "
             "Defaults: anthropic=2 openai=3 github=3 cursor=3."),
+    )
+    p_plan.add_argument(
+        "--foreground", action="store_true", default=False,
+        help=(
+            "v1.5.7 158 (revised): keep the orchestrator in the "
+            "foreground (skip the default auto-detach fork). "
+            "Default behavior is auto-detach: the orchestrator "
+            "self-daemonizes, the operator's shell returns "
+            "immediately, and stdout/stderr are redirected to "
+            "/tmp/qpb-harness-<TS>.log. Pass --foreground for "
+            "debugging when you want the orchestrator's progress "
+            "log inline."),
     )
 
     # v1.5.7 108: collect — invoked by the auto-spawned

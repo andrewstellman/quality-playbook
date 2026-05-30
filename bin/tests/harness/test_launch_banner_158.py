@@ -23,6 +23,7 @@ replaced — no information lost; all of it is folded into the banner.
 from __future__ import annotations
 
 import io
+import os
 import unittest
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
@@ -147,9 +148,14 @@ class RenderLaunchBannerTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
-def _make_args(plan_file: str, runs_root: str = None) -> object:
+def _make_args(plan_file: str, runs_root: str = None,
+               foreground: bool = True) -> object:
     """Build a minimal argparse.Namespace-shaped object for the
-    _cmd_run_plan dispatch (we mock plan_runner entirely)."""
+    _cmd_run_plan dispatch (we mock plan_runner entirely). v1.5.7
+    158 (revised) test default: ``foreground=True`` skips the
+    auto-detach fork so the existing 17 tests exercise the
+    single-process path. Tests for the revised behavior set
+    ``foreground=False`` explicitly and mock ``os.fork``."""
     class _A:
         pass
     a = _A()
@@ -158,6 +164,7 @@ def _make_args(plan_file: str, runs_root: str = None) -> object:
     a.wheel = None
     a.tgz = None
     a.max_per_provider = None
+    a.foreground = foreground
     return a
 
 
@@ -228,6 +235,182 @@ class CmdRunPlanStderrStdoutSplitTests(unittest.TestCase):
                 ln for ln in out.splitlines() if ln.strip()]
             self.assertEqual(len(non_empty), 1,
                              f"stdout has extra lines: {out!r}")
+
+
+class RenderLaunchBannerRevisedTests(unittest.TestCase):
+    """v1.5.7 158-revised (follow-up): the revised banner contract
+    adds per-run command lines, a `tail -f` log line (or foreground
+    note), and "Whole-suite commands:" / "Per-run commands:" section
+    headers."""
+
+    def _render(self, **kwargs) -> str:
+        defaults = dict(
+            harness_run_dir=(Path.cwd()
+                             / "harness_runs"
+                             / "20260530T134322Z"),
+            collector_pid=None, run_count=3,
+            pools={"claude": 1, "codex": 1, "copilot": 1},
+            per_run_entries=[
+                {"index": 0, "repo": "https://github.com/x/gson",
+                 "runner": "claude", "model": "opus"},
+                {"index": 1, "repo": "https://github.com/x/chi",
+                 "runner": "codex", "model": "gpt-5.4"},
+                {"index": 2, "repo": "https://github.com/x/express",
+                 "runner": "copilot", "model": "gpt-5.4"},
+            ],
+            log_file_path=Path(
+                "/tmp/qpb-harness-20260530T134322Z.log"),
+            foreground=False,
+        )
+        defaults.update(kwargs)
+        return Q._render_launch_banner(**defaults)
+
+    def test_banner_includes_per_run_command_lines(self) -> None:
+        # Mutation-bite target: dropping the per-run loop removes
+        # the per-run status commands.
+        b = self._render()
+        for idx in (0, 1, 2):
+            self.assertIn(
+                f"python3 -m bin.qpb_harness status "
+                f"harness_runs/20260530T134322Z/run-{idx:02d}", b)
+
+    def test_banner_has_whole_suite_and_per_run_section_headers(
+            self) -> None:
+        b = self._render()
+        self.assertIn("Whole-suite commands:", b)
+        self.assertIn("Per-run commands:", b)
+
+    def test_banner_includes_tail_f_log_line(self) -> None:
+        b = self._render()
+        self.assertIn(
+            "tail -f /tmp/qpb-harness-20260530T134322Z.log", b)
+
+    def test_banner_omits_tail_f_when_foreground(self) -> None:
+        b = self._render(foreground=True, log_file_path=None)
+        self.assertNotIn("tail -f", b)
+        self.assertIn("running in foreground", b)
+
+    def test_per_run_line_shape(self) -> None:
+        # Repo tail extracted from URL; runner/model present.
+        b = self._render()
+        self.assertIn("gson", b)
+        self.assertIn("claude/opus", b)
+        self.assertIn("copilot/gpt-5.4", b)
+
+    def test_no_per_run_section_when_entries_empty(self) -> None:
+        b = self._render(per_run_entries=[])
+        self.assertNotIn("Per-run commands:", b)
+
+
+class CmdRunPlanAutoDetachTests(unittest.TestCase):
+    """v1.5.7 158-revised: when ``--foreground`` is NOT passed
+    (default), ``_cmd_run_plan`` calls ``os.fork``. The parent
+    prints the banner + exits; the child redirects stdio and
+    continues. Tests mock os.fork to verify dispatch without
+    actually forking the test process."""
+
+    def test_default_behavior_calls_os_fork(self) -> None:
+        # foreground=False (revised default) → os.fork called.
+        # Mutation-bite target: removing the fork branch makes
+        # os.fork not called.
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            plan_path = Path(td) / "plan.json"
+            plan_path.write_text("{}", encoding="utf-8")
+            fake_plan = mock.MagicMock(
+                pools={"claude": 1},
+                runs=[mock.MagicMock(
+                    index=0,
+                    repo="https://github.com/x/r",
+                    runner=mock.MagicMock(value="claude"),
+                    model="opus")])
+            with mock.patch.object(Q.os, "fork",
+                                    return_value=12345) as m_fork, \
+                 mock.patch.object(Q, "open",
+                                    mock.mock_open(),
+                                    create=True), \
+                 mock.patch("bin.harness.plan_runner.load_plan",
+                             return_value=fake_plan), \
+                 mock.patch.object(Q.sys, "stdout",
+                                    new=io.StringIO()), \
+                 mock.patch.object(Q.sys, "stderr",
+                                    new=io.StringIO()):
+                args = _make_args(
+                    str(plan_path), str(Path(td) / "runs"),
+                    foreground=False)
+                rc = Q._cmd_run_plan(args)
+            self.assertEqual(rc, 0)
+            m_fork.assert_called_once()
+
+    def test_foreground_flag_skips_fork(self) -> None:
+        # foreground=True → os.fork NOT called.
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            plan_path = Path(td) / "plan.json"
+            plan_path.write_text("{}", encoding="utf-8")
+            hrd = Path(td) / "runs" / "20260530T134322Z"
+            hrd.mkdir(parents=True)
+            fake_plan = mock.MagicMock(
+                pools={"claude": 1},
+                runs=[mock.MagicMock(
+                    index=0,
+                    repo="https://github.com/x/r",
+                    runner=mock.MagicMock(value="claude"),
+                    model="opus")])
+            outcomes = [object()]
+            with mock.patch.object(Q.os, "fork") as m_fork, \
+                 mock.patch("bin.harness.plan_runner.load_plan",
+                             return_value=fake_plan), \
+                 mock.patch("bin.harness.plan_runner.run_plan",
+                             return_value=outcomes), \
+                 mock.patch("bin.harness.plan_runner._LAST_COLLECTOR_PID",
+                             {"pid": 9999}), \
+                 redirect_stdout(io.StringIO()), \
+                 redirect_stderr(io.StringIO()):
+                rc = Q._cmd_run_plan(_make_args(
+                    str(plan_path), str(Path(td) / "runs"),
+                    foreground=True))
+            self.assertEqual(rc, 0)
+            m_fork.assert_not_called()
+
+    def test_detached_env_marker_prevents_re_fork(self) -> None:
+        # If QPB_HARNESS_DETACHED is set, _cmd_run_plan skips the
+        # fork (treats itself as already-the-child). Prevents
+        # infinite recursion if a child somehow re-enters.
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            plan_path = Path(td) / "plan.json"
+            plan_path.write_text("{}", encoding="utf-8")
+            hrd = Path(td) / "runs" / "20260530T134322Z"
+            hrd.mkdir(parents=True)
+            fake_plan = mock.MagicMock(
+                pools={"claude": 1},
+                runs=[mock.MagicMock(
+                    index=0,
+                    repo="https://github.com/x/r",
+                    runner=mock.MagicMock(value="claude"),
+                    model="opus")])
+            prev = os.environ.get("QPB_HARNESS_DETACHED")
+            os.environ["QPB_HARNESS_DETACHED"] = "1"
+            try:
+                with mock.patch.object(Q.os, "fork") as m_fork, \
+                     mock.patch("bin.harness.plan_runner.load_plan",
+                                 return_value=fake_plan), \
+                     mock.patch("bin.harness.plan_runner.run_plan",
+                                 return_value=[object()]), \
+                     mock.patch("bin.harness.plan_runner._LAST_COLLECTOR_PID",
+                                 {"pid": 9999}), \
+                     redirect_stdout(io.StringIO()), \
+                     redirect_stderr(io.StringIO()):
+                    Q._cmd_run_plan(_make_args(
+                        str(plan_path), str(Path(td) / "runs"),
+                        foreground=False))
+                m_fork.assert_not_called()
+            finally:
+                if prev is None:
+                    os.environ.pop("QPB_HARNESS_DETACHED", None)
+                else:
+                    os.environ["QPB_HARNESS_DETACHED"] = prev
 
 
 if __name__ == "__main__":  # pragma: no cover

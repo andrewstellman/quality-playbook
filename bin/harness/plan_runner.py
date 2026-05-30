@@ -2495,7 +2495,13 @@ def run_plan(plan: Plan, harness_runs_root: Path,
 
     hooks = hooks or PlanRunnerHooks()
     harness_runs_root.mkdir(parents=True, exist_ok=True)
-    harness_run_dir = harness_runs_root / _utc_now_run_id()
+    # v1.5.7 158 (revised): when the auto-detach parent process set
+    # QPB_HARNESS_FORCED_RUN_ID, use that timestamp so the parent's
+    # banner (printed BEFORE the fork) names the same harness-run
+    # dir the child creates. Otherwise generate fresh.
+    forced_id = os.environ.get("QPB_HARNESS_FORCED_RUN_ID")
+    harness_run_dir = (harness_runs_root / forced_id if forced_id
+                       else harness_runs_root / _utc_now_run_id())
     harness_run_dir.mkdir(parents=True, exist_ok=False)
 
     # v1.5.7 104: progress logger — stderr + harness.log
