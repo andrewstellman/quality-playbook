@@ -55,7 +55,6 @@ def test_bug_002_retry_launch_calls_update_pid():
     assert "update_pid" in body
 
 
-@pytest.mark.xfail(strict=True, reason="BUG-003: relaunched entry keeps state=PENDING — unskip after BUG-003-fix.patch")
 def test_bug_003_launch_entry_sets_running_state():
     body = _func_source(REPO / "bin" / "harness" / "plan_runner.py", "_launch_one_run_detached")
     assert '"state"' in body

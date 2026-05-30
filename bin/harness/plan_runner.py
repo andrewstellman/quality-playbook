@@ -1843,6 +1843,11 @@ def _launch_one_run_detached(
     )
     return {
         "index": plan_run.index,
+        # BUG-003 fix: mark the spawned run RUNNING so a relaunch over a
+        # PENDING manifest entry (the _retry_pending_runs_once merge)
+        # transitions it out of PENDING instead of leaving a live run
+        # tagged PENDING in the manifest + status surfaces.
+        "state": "RUNNING",
         "description": plan_run.description,
         "repo": plan_run.repo,
         "runner": plan_run.runner.value,
