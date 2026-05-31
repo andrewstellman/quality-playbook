@@ -71,6 +71,7 @@ grades ``N/A``, never silently MET.
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import os
@@ -2403,16 +2404,161 @@ def _resolve_artifact_map_from_disk(
         return {}
 
 
-def _update_manifest_entry_atomic(
+def _manifest_lock_path(harness_run_dir: Path) -> Path:
+    """v1.5.7 174: the ``.manifest.lock`` file used to serialize
+    manifest mutations across orchestrator launch threads,
+    collector retry, and watchdog state updates. Separate from
+    ``.collect.lock`` (which serializes collector body) so
+    cross-acquisition doesn't deadlock (FINDING-1 lesson — locks
+    on different files don't cross-block in the same process).
+    """
+    return harness_run_dir / ".manifest.lock"
+
+
+@contextlib.contextmanager
+def _with_manifest_lock(harness_run_dir: Path):
+    """v1.5.7 174: blocking LOCK_EX on ``.manifest.lock`` for the
+    duration of the context. Use for any manifest mutation: the
+    orchestrator launch loop's count-then-mark step, the
+    collector retry path's PENDING→RUNNING transition, the
+    watchdog's state updates. Holding briefly per-mutation (NOT
+    across slow operations like subprocess spawn or collect)
+    avoids the same-process recursion risk from 172 FINDING-1.
+    """
+    import fcntl as _fcntl
+    lock_path = _manifest_lock_path(harness_run_dir)
+    fp = open(lock_path, "w", encoding="utf-8")
+    try:
+        _fcntl.flock(fp.fileno(), _fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            try:
+                _fcntl.flock(fp.fileno(), _fcntl.LOCK_UN)
+            except OSError:
+                pass
+    finally:
+        fp.close()
+
+
+def _runner_in_flight_count(
+        manifest: dict, runner: str) -> int:
+    """v1.5.7 174: count manifest entries currently in-flight for
+    this runner — replaces inflight_registry's per-provider
+    tracking with per-plan manifest-state counting.
+
+    "In-flight" includes both ACQUIRING (slot reserved, spawn in
+    progress) and RUNNING (spawn completed, AI-CLI live). Both
+    consume a pool slot.
+    """
+    count = 0
+    for e in manifest.get("runs", []) or []:
+        if e.get("runner") != runner:
+            continue
+        st = e.get("state")
+        if st in ("ACQUIRING", "RUNNING"):
+            count += 1
+    return count
+
+
+def _try_acquire_pool_slot(
+        manifest_path: Path,
+        runner: str,
+        pool_size: int,
+        run_index: int,
+        started_at: str) -> bool:
+    """v1.5.7 174: pool-only slot acquisition under
+    ``.manifest.lock``. Atomically:
+
+    1. Re-read manifest.
+    2. Count RUNNING + ACQUIRING entries for ``runner``.
+    3. If ``< pool_size``: mark the entry ``state="ACQUIRING"``
+       + ``started_at`` (no pid yet — caller spawns next).
+       Return True.
+    4. Else: leave the entry as-is. Return False.
+
+    Caller MUST follow up True with either:
+      - ``_finalize_pool_slot_running(manifest_path, run_index,
+        pid)`` after successful spawn, OR
+      - ``_finalize_pool_slot_failed(manifest_path, run_index,
+        reason)`` if spawn fails.
+
+    Race-free pool-cap enforcement via the lock + the ACQUIRING
+    sentinel: any concurrent launcher counts this entry as
+    in-flight even before its pid is recorded.
+    """
+    harness_run_dir = manifest_path.parent
+    with _with_manifest_lock(harness_run_dir):
+        try:
+            manifest = json.loads(
+                manifest_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False
+        in_flight = _runner_in_flight_count(manifest, runner)
+        if in_flight >= pool_size:
+            return False
+        runs = manifest.get("runs", [])
+        for i, e in enumerate(runs):
+            if e.get("index") == run_index:
+                runs[i] = {
+                    **e,
+                    "state": "ACQUIRING",
+                    "started_at": started_at,
+                }
+                break
+        manifest["runs"] = runs
+        try:
+            tmp = manifest_path.with_suffix(".tmp")
+            tmp.write_text(
+                json.dumps(manifest, indent=2) + "\n",
+                encoding="utf-8")
+            os.replace(tmp, manifest_path)
+        except OSError:
+            return False
+        return True
+
+
+def _finalize_pool_slot_running(
+        manifest_path: Path, run_index: int,
+        pid: int, extra: "Optional[dict]" = None) -> None:
+    """v1.5.7 174: confirm ACQUIRING→RUNNING after a successful
+    spawn. Records pid + any extra entry fields (target_dir,
+    stream_path, etc.) the spawn produced. Under
+    ``.manifest.lock``."""
+    update = {"state": "RUNNING", "pid": int(pid)}
+    if extra:
+        update.update(extra)
+    harness_run_dir = manifest_path.parent
+    with _with_manifest_lock(harness_run_dir):
+        _update_manifest_entry_no_lock(
+            manifest_path, run_index, update)
+
+
+def _finalize_pool_slot_failed(
+        manifest_path: Path, run_index: int,
+        reason: str) -> None:
+    """v1.5.7 174: ACQUIRING→DONE+FAILED when spawn raises. Under
+    ``.manifest.lock``."""
+    update = {
+        "state": "DONE",
+        "terminal_state": "FAILED",
+        "terminal_reason": reason,
+        "ended_at": datetime.now(timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"),
+    }
+    harness_run_dir = manifest_path.parent
+    with _with_manifest_lock(harness_run_dir):
+        _update_manifest_entry_no_lock(
+            manifest_path, run_index, update)
+
+
+def _update_manifest_entry_no_lock(
         manifest_path: Path, run_index: int,
         update: "dict") -> None:
-    """v1.5.7 165: atomically update a single manifest entry by
-    index via the write-tmp + rename pattern (matches the inflight
-    registry's locking discipline; the manifest read in
-    collect_harness_run races with the collector's parallel reads
-    but the rename is atomic on POSIX). Merges ``update`` into the
-    matching entry; preserves other entries unchanged. Best-effort
-    on filesystem errors (the retry retries next cycle)."""
+    """v1.5.7 174: the locked body of
+    ``_update_manifest_entry_atomic``. CALLER MUST HOLD
+    ``.manifest.lock``. Used by helpers that already hold the
+    lock for an atomic read-modify-write sequence."""
     try:
         manifest = json.loads(
             manifest_path.read_text(encoding="utf-8"))
@@ -2427,6 +2573,24 @@ def _update_manifest_entry_atomic(
             json.dumps(manifest, indent=2) + "\n",
             encoding="utf-8")
         os.replace(tmp, manifest_path)
+    except OSError:
+        pass
+
+
+def _update_manifest_entry_atomic(
+        manifest_path: Path, run_index: int,
+        update: "dict") -> None:
+    """v1.5.7 165: update a single manifest entry by index.
+
+    v1.5.7 174: now acquires ``.manifest.lock`` around the
+    read-modify-write so concurrent launch / retry / watchdog
+    paths don't clobber each other. Best-effort on filesystem
+    errors (the retry retries next cycle)."""
+    harness_run_dir = manifest_path.parent
+    try:
+        with _with_manifest_lock(harness_run_dir):
+            _update_manifest_entry_no_lock(
+                manifest_path, run_index, update)
     except OSError:
         pass
 
