@@ -112,3 +112,64 @@ def test_bug_007_capture_phase_yn_no_false_completion(tmp_path):
     yn = PR.capture_phase_yn("", q)
     assert [p for p in ("P3", "P4", "P5", "P6") if yn.get(p) == "Y"] == [], (
         "Phase-2-only tree must not mark P3-P6 complete")
+
+
+def test_bug_008_collector_retries_pending_on_each_running_terminate(tmp_path, monkeypatch):
+    """v1.5.7 171: when a collector is reaping multiple RUNNING
+    entries and one of them terminates, _retry_pending_runs_once
+    must fire again so a starved PENDING entry can be picked up
+    while OTHER RUNNING entries are still being awaited. The 165
+    design ran the retry exactly ONCE at collect_harness_run entry;
+    this fix ensures the retry fires on every RUNNING termination,
+    so a slot freed mid-collection actually unsticks a starved
+    PENDING entry. Pre-171 reproduction: harness_runs/20260531T014027Z
+    — run-01 (claude/sonnet/express) sat PENDING for 35+ minutes
+    after haiku freed its anthropic slot at 01:47:08Z because the
+    collector had already done its one retry at 01:45:31Z (before
+    haiku exited)."""
+    manifest = {
+        "plan": {"pools": {"claude": 3},
+                 "max_per_provider": {"anthropic": 2}},
+        "runs": [
+            {
+                "index": i, "description": f"d{i}", "repo": "r",
+                "runner": "claude", "model": "opus", "channel": "clone",
+                "mode": "A", "state": "RUNNING", "pid": 100 + i,
+                "run_dir": str(tmp_path / f"run-{i:02d}"),
+                "target_dir": str(tmp_path / f"run-{i:02d}" / "target"),
+                "started_at": "2026-05-31T00:00:00Z", "expect": {},
+                "max_duration_s": 3600.0,
+                "stream_path": str(tmp_path / f"run-{i:02d}" / "stream.ndjson"),
+            }
+            for i in range(3)
+        ],
+    }
+    (tmp_path / "manifest.json").write_text(json.dumps(manifest))
+    for i in range(3):
+        (tmp_path / f"run-{i:02d}").mkdir()
+
+    retry_calls = []
+    def spy_retry(hrd, log=None):
+        retry_calls.append(1)
+        return 0
+    monkeypatch.setattr(PR, "_retry_pending_runs_once", spy_retry)
+
+    def stub_collect(entry, hrd, log=None):
+        return PR.RunOutcome(
+            index=entry["index"],
+            description=entry.get("description", ""),
+            repo=entry.get("repo", ""),
+            runner=entry.get("runner", ""),
+            model=entry.get("model", ""),
+            phase_yn={}, gate_verdict="N/A", result="N/A",
+            terminal_state="COMPLETED",
+        )
+    monkeypatch.setattr(PR, "_collect_one_run_detached", stub_collect)
+
+    PR.collect_harness_run(tmp_path)
+
+    assert len(retry_calls) >= 2, (
+        f"_retry_pending_runs_once was called {len(retry_calls)} "
+        f"times; expected >= 2 (once at entry + once after each "
+        f"RUNNING terminate)"
+    )
