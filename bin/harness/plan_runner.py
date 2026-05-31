@@ -2435,19 +2435,44 @@ def _entry_to_plan_run(entry: dict) -> "PlanRun":
     """v1.5.7 165: reconstruct a ``PlanRun`` from a PENDING
     manifest entry (the orchestrator's 161-A writer populates all
     the required fields). Used by the collector's retry loop to
-    call ``_launch_one_run_detached``."""
+    call ``_launch_one_run_detached``.
+
+    v1.5.7 177 (BUG-010): the required fields are now ENFORCED at
+    read time. Pre-177 every missing field silently defaulted
+    (ref → "main", runner → "claude", model → "opus", channel →
+    "clone", mode → "A"). The 161-A writer is responsible for
+    setting all of them; a missing field is a data-integrity bug
+    that must surface immediately rather than masquerade as the
+    default and cause confusing downstream failures (e.g.
+    `git switch main` against an `express/master` repo).
+
+    Methodology: same shape as 170's `_assert_parseable_started_at`
+    — enforce invariant at write site (161-A includes the field)
+    + raise loudly at read site (no silent default). After 177 the
+    "missing field" branch is unreachable for legitimate state.
+    """
     from bin.harness.schema import (
         InstallChannel, Mode, Runner)
+    required_fields = (
+        "ref", "runner", "model", "channel", "mode",
+    )
+    missing = [f for f in required_fields if f not in entry]
+    if missing:
+        raise ValueError(
+            f"manifest entry index={entry.get('index')} missing "
+            f"required field(s) {missing}; the 161-A PENDING "
+            f"writer must preserve them for the retry path. "
+            f"Entry keys present: {sorted(entry.keys())}"
+        )
     return PlanRun(
         index=int(entry.get("index", 0)),
         description=str(entry.get("description", "")),
         repo=str(entry.get("repo", "")),
-        ref=str(entry.get("ref", "main")),
-        runner=Runner(entry.get("runner", "claude")),
-        model=str(entry.get("model", "opus")),
-        channel=InstallChannel(
-            entry.get("channel", "clone")),
-        mode=Mode(entry.get("mode", "A")),
+        ref=str(entry["ref"]),
+        runner=Runner(entry["runner"]),
+        model=str(entry["model"]),
+        channel=InstallChannel(entry["channel"]),
+        mode=Mode(entry["mode"]),
         expect=dict(entry.get("expect", {}) or {}),
     )
 
@@ -3208,6 +3233,13 @@ def _run_plan_detached(
                 "index": pr.index,
                 "description": pr.description,
                 "repo": pr.repo,
+                # v1.5.7 177 BUG-010: preserve `ref` so the
+                # collector's retry path (`_entry_to_plan_run`)
+                # spawns against the original branch. Pre-177
+                # this field was omitted; non-main-branch repos
+                # (express/master, chi/master) ABORTED_PREP via
+                # silent default to 'main' at the read site.
+                "ref": pr.ref,
                 "runner": pr.runner.value,
                 "model": pr.model,
                 "channel": pr.channel.value,
