@@ -175,6 +175,46 @@ def test_bug_008_collector_retries_pending_on_each_running_terminate(tmp_path, m
     )
 
 
+def test_bug_010_entry_to_plan_run_requires_ref():
+    """v1.5.7 177 BUG-010: _entry_to_plan_run must raise on a
+    manifest entry that omits the `ref` field. Pre-177 it
+    silently defaulted to ref='main', masking the 161-A
+    writer's omission. Live reproduction on
+    harness_runs/20260531T194216Z run-02 (express/master):
+    PENDING entry was written without ref → retry path read
+    ref='main' silently → prepare's `git switch main` failed
+    against express's `master` default branch → ABORTED_PREP
+    with terminal_reason "switch 'main' failed: fatal:
+    invalid reference: main"."""
+    entry = {
+        "index": 0, "description": "d", "repo": "r",
+        "runner": "claude", "model": "haiku",
+        "channel": "clone", "mode": "A",
+        # intentionally no "ref" key — mimics the pre-177
+        # 161-A writer output that masked the bug.
+    }
+    with pytest.raises(ValueError, match=r"ref"):
+        PR._entry_to_plan_run(entry)
+
+
+def test_bug_010_pending_manifest_writer_preserves_ref():
+    """v1.5.7 177 BUG-010: the 161-A PENDING manifest writer at
+    plan_runner.py:3207-3225 must include `ref` so the retry
+    path can spawn the run against the original branch. Pre-177
+    the writer omitted ref; _entry_to_plan_run silently
+    defaulted to 'main'; non-main-branch repos (express/master,
+    chi/master) ABORTED_PREP at clone time. Source-inspection
+    check: ref must appear in the entry-dict literal."""
+    body = _func_source(REPO / "bin" / "harness" / "plan_runner.py", "_run_plan_detached")
+    # The PENDING manifest_entries[idx] = {...} literal must
+    # include "ref": pr.ref (or similar pr.ref reference).
+    assert '"ref"' in body and "pr.ref" in body, (
+        "_run_plan_detached's PENDING manifest writer must "
+        "include `\"ref\": pr.ref` so retry-spawn has the "
+        "original branch. Pre-177 the writer omitted ref."
+    )
+
+
 def test_bug_009_pending_shortcircuit_does_not_prevent_retry_collect(tmp_path, monkeypatch):
     """v1.5.7 172: when collect_harness_run's parallel-collect loop
     encounters a PENDING+pid=None entry, BUG-001's shortcircuit
