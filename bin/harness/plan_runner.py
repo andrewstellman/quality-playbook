@@ -2577,6 +2577,83 @@ def _update_manifest_entry_no_lock(
         pass
 
 
+def _make_pending_manifest_entry(
+        plan_run: "PlanRun",
+        harness_run_dir: Path) -> dict:
+    """v1.5.7 174: build a canonical PENDING manifest entry for
+    one PlanRun. The pre-write step calls this for each entry
+    BEFORE the launch loop; the launch loop later updates the
+    entry in place (PENDING → ACQUIRING → RUNNING + pid → DONE
+    + terminal_state).
+
+    Carries all fields needed for the retry path's
+    ``_entry_to_plan_run`` reconstruction (177 BUG-010 hardened
+    the required-fields contract; this writer must include
+    ref / runner / model / channel / mode AND the per-run path
+    fields the collector/watchdog need)."""
+    run_dir = harness_run_dir / f"run-{plan_run.index:02d}"
+    target_dir = run_dir / "target"
+    return {
+        "index": plan_run.index,
+        "description": plan_run.description,
+        "repo": plan_run.repo,
+        "ref": plan_run.ref,
+        "runner": plan_run.runner.value,
+        "model": plan_run.model,
+        "channel": plan_run.channel.value,
+        "mode": plan_run.mode.value,
+        "target_dir": str(target_dir),
+        "run_dir": str(run_dir),
+        "run_id": f"r{plan_run.index}",
+        "pid": None,
+        "started_at": "",
+        "stream_path": str(run_dir / "stream.ndjson"),
+        "status_path": str(run_dir / "status.json"),
+        "max_duration_s": float(
+            plan_run.max_duration_s or 0.0),
+        "expect": plan_run.expect,
+        "state": "PENDING",
+    }
+
+
+def _prewrite_manifest_pending(
+        plan: "Plan", harness_run_dir: Path) -> Path:
+    """v1.5.7 174: write ``manifest.json`` BEFORE the orchestrator
+    launch loop, with EVERY entry in state="PENDING". The launch
+    loop then uses ``.manifest.lock`` + ``_try_acquire_pool_slot``
+    to atomically count + transition entries to ACQUIRING (then
+    spawn outside the lock + RUNNING under lock again).
+
+    Single atomic write — no lock needed because nothing else is
+    reading yet (the collector + watchdog are spawned AFTER the
+    launch loop completes per the 174 ruling).
+
+    Returns the manifest path."""
+    manifest_path = harness_run_dir / "manifest.json"
+    entries = [
+        _make_pending_manifest_entry(pr, harness_run_dir)
+        for pr in plan.runs
+    ]
+    relative_entries = [
+        _relativize_manifest_entry(e, harness_run_dir)
+        for e in entries
+    ]
+    manifest = {
+        "harness_run_dir": str(harness_run_dir),
+        "plan": {
+            "pools": plan.pools,
+        },
+        "runs": relative_entries,
+    }
+    tmp = manifest_path.with_suffix(".tmp")
+    tmp.write_text(
+        json.dumps(manifest, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    os.replace(tmp, manifest_path)
+    return manifest_path
+
+
 def _update_manifest_entry_atomic(
         manifest_path: Path, run_index: int,
         update: "dict") -> None:
@@ -3295,7 +3372,7 @@ def _run_plan_detached(
         artifact_map: "dict[InstallChannel, dict]",
         gate: "_PoolGate", pool_total: int,
         log: "_ProgressLog",
-        max_per_provider: "dict[str, int]",
+        max_per_provider: "Optional[dict[str, int]]" = None,
 ) -> "list[RunOutcome]":
     """v1.5.7 108: the new detached/collector flow. Launches
     every run via ``_launch_one_run_detached`` (parallel,
@@ -3305,21 +3382,23 @@ def _run_plan_detached(
     placeholder outcomes. The collector runs facts + grade +
     SUMMARY out of the blocking path.
 
-    v1.5.7 125: replaces the pre-125 ``_PoolGate`` (which
-    released the per-runner semaphore at SPAWN time —
-    causing per-plan over-fan-out: 4 claude runs launched
-    simultaneously with ``pools={claude:2}``) with the
-    machine-global ``inflight_registry``. The registry
-    enforces BOTH the per-plan pool cap (Task A.0) AND the
-    cross-plan per-provider cap (Task B) under one file
-    lock. The slot is held for the run's LIFETIME — released
-    by the collector when the run reaches a terminal state.
+    v1.5.7 174: replaces the pre-174 file-backed
+    ``inflight_registry`` with manifest-based per-plan pool
+    tracking. Pre-writes manifest.json with all entries in
+    state="PENDING" BEFORE the launch loop; each launch thread
+    then uses ``_try_acquire_pool_slot`` (which takes
+    ``.manifest.lock``) to atomically count + transition to
+    ACQUIRING + spawn + finalize RUNNING. Starved entries are
+    left as PENDING; the 165 retry path picks them up when
+    slots free. ``max_per_provider`` is accepted for back-
+    compat with pre-174 callers but is now IGNORED — per-plan
+    pools are the only concurrency knob.
     """
-    from bin.harness import inflight_registry as _inflight
-
-    manifest_entries: list[Optional[dict]] = (
-        [None] * len(plan.runs)
-    )
+    # v1.5.7 174: pre-write manifest.json with all entries in
+    # PENDING state. The launch loop atomically transitions
+    # each entry through PENDING → ACQUIRING → RUNNING.
+    manifest_path = _prewrite_manifest_pending(
+        plan, harness_run_dir)
 
     def _wrapped(idx: int) -> None:
         pr = plan.runs[idx]
@@ -3337,89 +3416,41 @@ def _run_plan_detached(
                     **local_artifact_info,
                 }, indent=2) + "\n", encoding="utf-8",
             )
-        # v1.5.7 125: reserve the slot BEFORE launching the
-        # subprocess. Both caps checked under one lock:
-        #   * global per-provider cap (Task B)
-        #   * per-plan pool cap (Task A.0 — was the
-        #     release-at-spawn bug pre-125)
-        # The slot stays in the registry until the collector
-        # calls release_run_slot when terminal.
-        plan_pool_cap = (plan.pools.get(pr.runner.value)
-                          if plan.pools else None)
+        # v1.5.7 174: per-plan pool size is the ONLY concurrency
+        # knob. Missing runner ⇒ default pool=1 (safe-by-default).
+        plan_pool_size = (plan.pools.get(pr.runner.value, 1)
+                            if plan.pools else 1)
         started_at_iso = datetime.now(timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%SZ")
-        # v1.5.7 159: pass a defensive timeout so a starved slot
-        # (plan asks for N runs of a provider whose global cap is
-        # < N — 2026-05-30 04:26 ship-readiness retest had
-        # plan claude=3 vs anthropic cap=2) fails fast instead of
-        # blocking the ThreadPoolExecutor's f.result() forever.
-        # Pre-159 the orchestrator hung at the launch barrier and
-        # never reached manifest-write/collector-spawn, leaving
-        # the 6 successfully-launched workers orphaned. Post-159
-        # the starved thread raises TimeoutError → we leave its
-        # manifest_entries slot None → the post-barrier filter
-        # ([e for e in manifest_entries if e is not None])
-        # naturally drops it → manifest + collector ship for the
-        # runs that DID launch.
-        acquire_timeout_s = _acquire_run_slot_timeout_s()
-        try:
-            _inflight.acquire_run_slot(
-                runner=pr.runner.value,
-                harness_run_dir=harness_run_dir,
-                run_index=pr.index,
-                started_at=started_at_iso,
-                max_per_provider=max_per_provider,
-                plan_pool_cap=plan_pool_cap,
-                max_wait_s=acquire_timeout_s,
-            )
-        except TimeoutError as exc:
+        # v1.5.7 174: pool-only acquisition. Fast non-blocking
+        # check under .manifest.lock — if at capacity, leave the
+        # entry as PENDING for the 165 retry path to pick up
+        # when slots free. No 300s waits. The launch loop
+        # completes in seconds; orchestrator detaches
+        # immediately. Obsoletes 159's defensive timeout.
+        acquired = _try_acquire_pool_slot(
+            manifest_path,
+            runner=pr.runner.value,
+            pool_size=plan_pool_size,
+            run_index=pr.index,
+            started_at=started_at_iso,
+        )
+        if not acquired:
             log.log(
-                f"slot starvation: run-{pr.index:02d} "
-                f"({pr.runner.value}) — no slot within "
-                f"{acquire_timeout_s}s; skipping launch so the "
-                f"orchestrator can proceed. ({exc})"
+                f"pool full: run-{pr.index:02d} "
+                f"({pr.runner.value}) — pool_size="
+                f"{plan_pool_size}; left PENDING for retry"
             )
-            # v1.5.7 161 Task A: write a PENDING manifest entry for
-            # the starved run instead of leaving manifest_entries
-            # [idx]=None. This means (a) the post-barrier
-            # ``[e for e in manifest_entries if e is not None]``
-            # filter no longer DROPS starved runs from the
-            # manifest, (b) the operator's status output (per 160's
-            # grouped emitter) sees the PENDING row with full
-            # metadata, and (c) the upcoming 161 Tasks B+C
-            # (collector retry + ABANDONED_STARVED deadline) have a
-            # manifest entry to read for retry. Note: this is the
-            # FOUNDATIONAL piece of 161; Tasks B (collector retry
-            # loop in _cmd_collect) and C (deadline-based
-            # ABANDONED_STARVED) are deferred to a 161-followup —
-            # see review-request for the split rationale.
-            manifest_entries[idx] = {
-                "index": pr.index,
-                "description": pr.description,
-                "repo": pr.repo,
-                # v1.5.7 177 BUG-010: preserve `ref` so the
-                # collector's retry path (`_entry_to_plan_run`)
-                # spawns against the original branch. Pre-177
-                # this field was omitted; non-main-branch repos
-                # (express/master, chi/master) ABORTED_PREP via
-                # silent default to 'main' at the read site.
-                "ref": pr.ref,
-                "runner": pr.runner.value,
-                "model": pr.model,
-                "channel": pr.channel.value,
-                "mode": pr.mode.value,
-                "target_dir": str(target_dir),
-                "run_dir": str(run_dir),
-                "run_id": f"r{pr.index}",
-                "pid": None,
-                "started_at": "",
-                "stream_path": str(run_dir / "stream.ndjson"),
-                "status_path": str(run_dir / "status.json"),
-                "max_duration_s": 0.0,
-                "expect": pr.expect,
-                "state": "PENDING",
-            }
+            # v1.5.7 174: entry stays PENDING in the pre-written
+            # manifest. The 165 retry path inside the collector
+            # picks it up when a slot frees (or marks
+            # ABANDONED_STARVED past the deadline).
             return
+        # v1.5.7 174: ACQUIRING was set by _try_acquire_pool_slot
+        # under .manifest.lock. Now spawn the run OUTSIDE the
+        # lock (slow operation), then finalize the entry to
+        # RUNNING+pid (or DONE+FAILED on failure) under the
+        # lock again.
         try:
             entry = _launch_one_run_detached(
                 pr, harness_run_dir, run_dir, target_dir,
@@ -3428,25 +3459,42 @@ def _run_plan_detached(
                 log=log,
                 tag=_run_tag(pr),
             )
-            manifest_entries[idx] = entry
-            # Update the registry with the real PID now that
-            # we have it from launch.
             if entry is not None:
                 pid_val = entry.get("pid")
+                # Relativize the spawn-time entry fields so the
+                # manifest stays portable per 118.
+                rel_entry = _relativize_manifest_entry(
+                    entry, harness_run_dir)
+                # Strip the fields we don't want to overwrite
+                # (state + started_at were set by the launch
+                # helper; we want our own RUNNING + the
+                # ACQUIRING-time started_at).
+                extra = {
+                    k: v for k, v in rel_entry.items()
+                    if k not in (
+                        "index", "state", "pid",
+                        "started_at")
+                }
                 if pid_val is not None:
-                    _inflight.update_pid(
-                        harness_run_dir=harness_run_dir,
-                        run_index=pr.index,
-                        pid=int(pid_val),
-                    )
-        except BaseException:
-            # Failed to launch — release the reservation so
-            # the cap doesn't leak. The collector won't see
-            # this slot since no manifest entry was written.
-            _inflight.release_run_slot(
-                harness_run_dir=harness_run_dir,
-                run_index=pr.index,
-            )
+                    _finalize_pool_slot_running(
+                        manifest_path, pr.index,
+                        int(pid_val), extra=extra)
+                else:
+                    # No pid returned (ABORTED_PREP path) —
+                    # mark terminal so the collector grades.
+                    extra["terminal_state"] = (
+                        rel_entry.get("terminal_state")
+                        or "ABORTED_PREP")
+                    extra["state"] = "DONE"
+                    _update_manifest_entry_atomic(
+                        manifest_path, pr.index, extra)
+        except BaseException as exc:
+            # Spawn raised — finalize as DONE+FAILED so the
+            # entry doesn't sit ACQUIRING forever (which would
+            # consume a pool slot from the retry path's count).
+            _finalize_pool_slot_failed(
+                manifest_path, pr.index,
+                f"launch raised: {exc!r}")
             raise
 
     with ThreadPoolExecutor(max_workers=pool_total) as ex:
@@ -3454,43 +3502,13 @@ def _run_plan_detached(
                    for i in range(len(plan.runs))]
         for f in futures:
             f.result()
-    entries = [e for e in manifest_entries if e is not None]
-
-    # Write manifest.json at the harness-run root. The
-    # collector reads this — every field is what it needs to
-    # poll + grade + render SUMMARY.
-    #
-    # v1.5.7 118: per-run path fields (run_dir, stream_path,
-    # status_path, target_dir) are relativized against
-    # harness_run_dir so a copied/moved folder is portable.
-    # The reader (status._resolve_manifest_path /
-    # plan_runner._resolve_entry_path) resolves against the
-    # dir it's handed.
-    #
-    # PID portability boundary: ``status.json``'s ``pid`` is
-    # machine-specific — a still-RUNNING run copied mid-flight
-    # will show stale pid-liveness on the other machine.
-    # That's expected; the portability target is finished
-    # (terminal) runs copied for analysis, where status.json
-    # carries ``terminal_state`` and pid-liveness is
-    # irrelevant.
-    relative_entries = [
-        _relativize_manifest_entry(e, harness_run_dir)
-        for e in entries
-    ]
-    manifest = {
-        "harness_run_dir": str(harness_run_dir),
-        "plan": {
-            "pools": plan.pools,
-        },
-        "runs": relative_entries,
-    }
-    (harness_run_dir / "manifest.json").write_text(
-        json.dumps(manifest, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    # v1.5.7 174: manifest.json was pre-written by
+    # _prewrite_manifest_pending and updated incrementally
+    # under .manifest.lock by each launch thread. No final
+    # write needed.
     log.log(
-        f"manifest written: {harness_run_dir / 'manifest.json'}"
+        f"launch loop complete; manifest at "
+        f"{harness_run_dir / 'manifest.json'}"
     )
 
     # Spawn the detached collector (108 anti-SIGTTIN:
@@ -3508,19 +3526,28 @@ def _run_plan_detached(
     # Return RUNNING placeholders so the CLI can print a
     # rollup (or so a future programmatic caller can see
     # which runs were launched).
+    # v1.5.7 174: re-read the (now pre-written + incrementally
+    # updated) manifest to build the placeholders. Skip entries
+    # that ended up DONE+FAILED at launch (the collector grades
+    # them N/A from the manifest).
     placeholders: list[RunOutcome] = []
-    for entry in entries:
+    try:
+        on_disk = json.loads(
+            manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        on_disk = {"runs": []}
+    for entry in on_disk.get("runs", []):
         placeholders.append(RunOutcome(
             index=entry["index"],
-            description=entry["description"],
-            repo=entry["repo"],
-            runner=entry["runner"],
-            model=entry["model"],
+            description=entry.get("description", ""),
+            repo=entry.get("repo", ""),
+            runner=entry.get("runner", ""),
+            model=entry.get("model", ""),
             phase_yn={f"P{i}": "-" for i in range(7)},
             gate_verdict="(running)",
             result="(running)",
             terminal_state=entry.get(
-                "terminal_state", "RUNNING"
+                "terminal_state", entry.get("state", "RUNNING")
             ),
         ))
     # Surface the collector PID to the caller via a module-

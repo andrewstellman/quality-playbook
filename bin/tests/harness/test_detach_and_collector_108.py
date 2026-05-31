@@ -244,10 +244,25 @@ class RunPlanDetachedReturnsImmediatelyTests(unittest.TestCase):
                 manifest_path.read_text(encoding="utf-8")
             )
             self.assertEqual(len(manifest["runs"]), 2)
-            self.assertIn(manifest["runs"][0]["pid"],
-                           fake_pids)
-            self.assertIn(manifest["runs"][1]["pid"],
-                           fake_pids)
+            # v1.5.7 174: pool-only model with claude=1 means
+            # exactly ONE entry launches (state=RUNNING, has a
+            # pid from fake_pids) and the OTHER stays PENDING
+            # (no pid; collector retry picks it up). Pre-174
+            # both got pids because acquire_run_slot blocked
+            # the second entry until the first released —
+            # post-174 the launch loop is non-blocking.
+            pids_seen = [
+                r.get("pid") for r in manifest["runs"]
+                if r.get("pid") is not None]
+            pending_count = sum(
+                1 for r in manifest["runs"]
+                if r.get("state") == "PENDING")
+            self.assertEqual(
+                len(pids_seen), 1,
+                f"expected exactly 1 launched entry; got "
+                f"pids={pids_seen}")
+            self.assertIn(pids_seen[0], fake_pids)
+            self.assertEqual(pending_count, 1)
             # Collector pid surfaced via _LAST_COLLECTOR_PID.
             self.assertEqual(
                 PR._LAST_COLLECTOR_PID.get("pid"), 12345,

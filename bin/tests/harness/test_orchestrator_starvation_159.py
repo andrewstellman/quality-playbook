@@ -346,20 +346,17 @@ class PendingManifestEntryTests(unittest.TestCase):
                 expect={},
             ) for i in range(2)
         ]
-        plan = PR.Plan(pools={"claude": 2}, runs=runs)
-
-        call_count = [0]
-        def fake_acquire(**kwargs):
-            call_count[0] += 1
-            if call_count[0] == 2:
-                raise TimeoutError("starved (test mock)")
+        # v1.5.7 174: pool-only model. pool=1 + 2 runs ⇒ exactly
+        # one launches, the other stays PENDING. Pre-174 this
+        # test mocked acquire_run_slot to raise TimeoutError;
+        # post-174 there's no acquire_run_slot — the pool-count
+        # under .manifest.lock is the source of truth.
+        plan = PR.Plan(pools={"claude": 1}, runs=runs)
 
         with tempfile.TemporaryDirectory() as td:
             runs_root = Path(td) / "harness_runs"
             runs_root.mkdir()
-            with mock.patch.object(IR, "acquire_run_slot",
-                                    side_effect=fake_acquire), \
-                 mock.patch.object(PR, "_launch_one_run_detached",
+            with mock.patch.object(PR, "_launch_one_run_detached",
                                     return_value={
                                         "index": 0, "description": "d0",
                                         "repo": "https://github.com/x/r0",
@@ -375,8 +372,6 @@ class PendingManifestEntryTests(unittest.TestCase):
                                         "max_duration_s": 1.0,
                                         "expect": {},
                                     }), \
-                 mock.patch.object(IR, "update_pid"), \
-                 mock.patch.object(IR, "release_run_slot"), \
                  mock.patch.object(PR, "_spawn_collector",
                                     return_value=9999), \
                  mock.patch.object(PR, "_required_local_channels",
@@ -397,18 +392,17 @@ class PendingManifestEntryTests(unittest.TestCase):
         pending_entries = [
             e for e in runs_in_manifest
             if e.get("state") == "PENDING"]
-        # Mutation-bite target: removing the
-        # ``manifest_entries[idx] = {...}`` write makes this empty.
+        # v1.5.7 174: pool=1 + 2 runs ⇒ exactly one PENDING +
+        # one ACQUIRING/RUNNING. The pre-write step (174) wrote
+        # ALL entries with full metadata; the launch loop
+        # transitioned one to RUNNING and left the other PENDING.
         self.assertEqual(len(pending_entries), 1)
         pe = pending_entries[0]
-        # Full metadata present (160 D-prime requires this for PENDING
-        # rows to display correctly + 161 Tasks B+C will read it).
-        self.assertEqual(pe["index"], 1)
-        self.assertEqual(pe["repo"], "https://github.com/x/r1")
+        # Full metadata present (160 D-prime + 174 pre-write).
+        self.assertIn(pe["index"], (0, 1))
         self.assertEqual(pe["runner"], "claude")
         self.assertEqual(pe["model"], "opus")
         self.assertEqual(pe["channel"], "clone")
-        self.assertEqual(pe["description"], "d1")
         self.assertIsNone(pe["pid"])
 
 
