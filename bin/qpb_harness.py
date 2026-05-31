@@ -783,6 +783,24 @@ def _cmd_collect(args: argparse.Namespace) -> int:
     return 0 if met == total else 1
 
 
+def _cmd_watchdog(args: argparse.Namespace) -> int:
+    """v1.5.7 172: watchdog daemon. Auto-spawned alongside the
+    detached collector; can also be invoked manually for an
+    abandoned harness-run (operator recovery)."""
+    from bin.harness import watchdog as _wd
+
+    harness_run_dir = (
+        Path(args.harness_run_dir).expanduser().resolve()
+    )
+    if not (harness_run_dir / "manifest.json").is_file():
+        print(
+            f"ERROR: no manifest.json under {harness_run_dir}",
+            file=sys.stderr,
+        )
+        return 2
+    return _wd.run_watchdog(harness_run_dir)
+
+
 def _cmd_manager(args: argparse.Namespace) -> int:
     """Start the manager daemon (Phase 4 substrate).
 
@@ -1223,6 +1241,20 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Path to the harness-run directory.",
     )
 
+    # v1.5.7 172: watchdog daemon — auto-spawned alongside the
+    # collector; safety net for collector-side bugs in the
+    # schedule-then-collect contract (e.g. BUG-008/009 family).
+    p_watchdog = sub.add_parser(
+        "watchdog",
+        help=("v1.5.7 172: poll for orphan runs (manifest says "
+              "RUNNING, pid dead, stream stale) and fire collect "
+              "under a file lock to self-heal."),
+    )
+    p_watchdog.add_argument(
+        "harness_run_dir",
+        help="Path to the harness-run directory.",
+    )
+
     # v1.5.7 110: status (no-arg + per-harness-run) + tail.
     p_status = sub.add_parser(
         "status",
@@ -1454,6 +1486,8 @@ def main(argv: "list[str] | None" = None) -> int:
         return _cmd_run_plan(args)
     if args.command == "collect":
         return _cmd_collect(args)
+    if args.command == "watchdog":
+        return _cmd_watchdog(args)
     if args.command == "status":
         return _cmd_status(args)
     if args.command == "tail":

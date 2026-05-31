@@ -2629,6 +2629,43 @@ def collect_harness_run(harness_run_dir: Path,
             f"collect_harness_run: no manifest.json at "
             f"{manifest_path}"
         )
+    # v1.5.7 172: acquire <harness-run>/.collect.lock so the 172
+    # watchdog and the original collector can't race on manifest /
+    # SUMMARY writes. Lock is fcntl.flock-based (POSIX) and held for
+    # the function's lifetime; release via FD close on return. The
+    # watchdog acquires LOCK_EX|LOCK_NB and skips a tick if held;
+    # the collector takes blocking LOCK_EX since it's the primary
+    # writer. If the collector dies, the OS releases the lock (FD
+    # close) and the watchdog's next tick can recovery-collect.
+    import fcntl as _fcntl  # local: keep top-of-file imports POSIX-agnostic
+    _collect_lock_path = harness_run_dir / ".collect.lock"
+    _collect_lock_fp = open(_collect_lock_path, "w",
+                              encoding="utf-8")
+    try:
+        _fcntl.flock(_collect_lock_fp.fileno(), _fcntl.LOCK_EX)
+    except OSError:
+        _collect_lock_fp.close()
+        raise
+    try:
+        return _collect_harness_run_locked(
+            harness_run_dir, manifest_path, log)
+    finally:
+        try:
+            _fcntl.flock(_collect_lock_fp.fileno(),
+                          _fcntl.LOCK_UN)
+        except OSError:
+            pass
+        _collect_lock_fp.close()
+
+
+def _collect_harness_run_locked(
+        harness_run_dir: Path,
+        manifest_path: Path,
+        log: "Optional[_ProgressLog]" = None,
+        ) -> "list[RunOutcome]":
+    """Body of :func:`collect_harness_run`. Runs INSIDE the v1.5.7
+    172 collect lock — never call this directly; go through
+    :func:`collect_harness_run`."""
     # v1.5.7 165 + 171: retry PENDING entries before the parallel
     # collect AND after each RUNNING future returns terminal (171
     # fix for BUG-008). 161-A wrote PENDING manifest entries for
