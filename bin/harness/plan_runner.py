@@ -2662,8 +2662,22 @@ def collect_harness_run(harness_run_dir: Path,
             )
             for f in done:
                 idx = futures.pop(f)
-                outcomes.append(f.result())
-                collected_indices.add(idx)
+                outcome = f.result()
+                outcomes.append(outcome)
+                # v1.5.7 172 (BUG-009 fix): only mark this index
+                # 'collected' if the future returned a TERMINAL
+                # outcome. BUG-001's PENDING shortcircuit (at
+                # _collect_one_run_detached:2101-2111) returns
+                # RunOutcome(terminal_state="PENDING"), which is
+                # the collector's way of saying "still in flight;
+                # defer judgment." Marking it collected here lets
+                # the 171 dynamic-submit block skip a retry-spawned
+                # future for the same index (`if idx in
+                # collected_indices: continue`), so the run
+                # completes silently without grading. Only true
+                # terminal states count.
+                if outcome.terminal_state != "PENDING":
+                    collected_indices.add(idx)
             # v1.5.7 171 BUG-008 fix: a future just returned
             # terminal — a slot may have freed. Retry PENDING
             # entries; submit any newly-RUNNING ones for collection
