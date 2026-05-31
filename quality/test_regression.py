@@ -173,3 +173,111 @@ def test_bug_008_collector_retries_pending_on_each_running_terminate(tmp_path, m
         f"times; expected >= 2 (once at entry + once after each "
         f"RUNNING terminate)"
     )
+
+
+def test_bug_009_pending_shortcircuit_does_not_prevent_retry_collect(tmp_path, monkeypatch):
+    """v1.5.7 172: when collect_harness_run's parallel-collect loop
+    encounters a PENDING+pid=None entry, BUG-001's shortcircuit
+    returns RunOutcome(terminal_state='PENDING') — but the run is
+    NOT actually done; it's expected to transition to RUNNING via
+    the 171 retry path. Pre-172, 171's collected_indices set was
+    mutated unconditionally on future return, so the formerly-
+    PENDING index was wrongly flagged as 'done.' When 171's retry
+    transitioned the entry to RUNNING and looked to submit a new
+    collect future for it, the `if idx in collected_indices:
+    continue` guard skipped it. The retry-spawned run completed
+    silently without grading; manifest stayed at state=RUNNING
+    forever. Reproduced on harness_runs/20260531T065821Z — run-00
+    (claude/haiku/gson) spawned at 07:41:15Z via retry, ran cleanly
+    for 5m02s with result.subtype=success, and was never collected
+    because 171's collected_indices set held idx=0 from the
+    BUG-001 PENDING shortcircuit at collector start."""
+    manifest_path = tmp_path / "manifest.json"
+    manifest = {
+        "plan": {"pools": {"claude": 3},
+                 "max_per_provider": {"anthropic": 2}},
+        "runs": [
+            {
+                "index": 0, "description": "d0", "repo": "r",
+                "runner": "claude", "model": "haiku", "channel": "clone",
+                "mode": "A", "state": "PENDING", "pid": None,
+                "run_dir": str(tmp_path / "run-00"),
+                "target_dir": str(tmp_path / "run-00" / "target"),
+                "started_at": "2026-05-31T00:00:00Z", "expect": {},
+                "max_duration_s": 3600.0,
+                "stream_path": str(tmp_path / "run-00" / "stream.ndjson"),
+            },
+            {
+                "index": 1, "description": "d1", "repo": "r",
+                "runner": "claude", "model": "opus", "channel": "clone",
+                "mode": "A", "state": "RUNNING", "pid": 12345,
+                "run_dir": str(tmp_path / "run-01"),
+                "target_dir": str(tmp_path / "run-01" / "target"),
+                "started_at": "2026-05-31T00:00:00Z", "expect": {},
+                "max_duration_s": 3600.0,
+                "stream_path": str(tmp_path / "run-01" / "stream.ndjson"),
+            },
+        ],
+    }
+    manifest_path.write_text(json.dumps(manifest))
+    for i in range(2):
+        (tmp_path / f"run-{i:02d}").mkdir()
+
+    # Stub _collect_one_run_detached: track per-index call counts +
+    # mimic BUG-001 PENDING shortcircuit for PENDING+pid=None.
+    call_log = []
+    def stub_collect(entry, hrd, log=None):
+        call_log.append((entry["index"], entry.get("state"),
+                         entry.get("pid")))
+        if (entry.get("state") == "PENDING"
+                and entry.get("pid") is None):
+            return PR.RunOutcome(
+                index=entry["index"],
+                description=entry.get("description", ""),
+                repo=entry.get("repo", ""),
+                runner=entry.get("runner", ""),
+                model=entry.get("model", ""),
+                phase_yn={f"P{i}": "-" for i in range(7)},
+                gate_verdict="N/A", result="PENDING",
+                terminal_state="PENDING",
+            )
+        return PR.RunOutcome(
+            index=entry["index"],
+            description=entry.get("description", ""),
+            repo=entry.get("repo", ""),
+            runner=entry.get("runner", ""),
+            model=entry.get("model", ""),
+            phase_yn={}, gate_verdict="N/A", result="N/A",
+            terminal_state="COMPLETED",
+        )
+    monkeypatch.setattr(PR, "_collect_one_run_detached", stub_collect)
+
+    # Stub _retry_pending_runs_once: first call (entry) no-op; any
+    # subsequent call transitions run-00 from PENDING to RUNNING in
+    # the manifest. Simulates the orchestrator-side slot free.
+    retry_calls = [0]
+    def stub_retry(hrd, log=None):
+        retry_calls[0] += 1
+        if retry_calls[0] >= 2:
+            m = json.loads(manifest_path.read_text())
+            if m["runs"][0]["state"] == "PENDING":
+                m["runs"][0]["state"] = "RUNNING"
+                m["runs"][0]["pid"] = 999
+                manifest_path.write_text(json.dumps(m))
+                return 1
+        return 0
+    monkeypatch.setattr(PR, "_retry_pending_runs_once", stub_retry)
+
+    PR.collect_harness_run(tmp_path)
+
+    # Count how many times index 0 was sent through the collector.
+    # Pre-172: 1 call (PENDING shortcircuit only; retry transition
+    # skipped because idx 0 in collected_indices).
+    # Post-172: 2 calls (PENDING shortcircuit + re-submitted after
+    # retry transitions to RUNNING).
+    idx0_calls = [c for c in call_log if c[0] == 0]
+    assert len(idx0_calls) >= 2, (
+        f"_collect_one_run_detached was called {len(idx0_calls)} "
+        f"times for index 0; expected >= 2 (PENDING shortcircuit + "
+        f"retry-spawned RUNNING resubmit). Call log: {call_log!r}"
+    )
