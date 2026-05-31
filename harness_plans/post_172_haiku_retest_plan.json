@@ -1,0 +1,112 @@
+{
+  "$header_note": "QPB v1.5.7 post-172 BUG-009 retest — 6 claude/haiku runs validating that the schedule-then-collect contract is end-to-end honored after the 167-172 stack landed. Pool=2 matches the current default anthropic cap so the test runs with NO CLI overrides (no --max-per-provider). v1.5.7 174 (queued, currently halted at scope review) will delete the cap subsystem entirely and pool becomes the only knob; this plan is forward-compatible with that change. The 3-repo × 2-channel matrix gives 6 total runs at pool=2: 2 spawn immediately; 4 starve at orchestrator launch and write PENDING manifest entries (161-A); as each of the first 2 finishes (haiku ≈ 5-7 min), 171's on-terminate retry path spawns the next PENDING entry; the 172 BUG-009 fix ensures retry-spawned futures are actually submitted for collection (pre-172 the formerly-PENDING idx was wrongly in collected_indices). Expected: all 6 grade cleanly in one collector lifetime across 3 batches of 2, no manual `collect` invocations, watchdog quiet throughout (no orphans expected; watchdog deadlock from 172 FINDING-1 is dormant on the happy path).",
+
+  "pools": {
+    "claude": 2
+  },
+
+  "runs": [
+    {
+      "description": "Row 1 — claude/haiku reviews gson via pip-local-wheel (Mode A). Cheap-tier across the pip channel; expect ~5-7 min runtime; first batch.",
+      "repo": "https://github.com/google/gson",
+      "ref": "main",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 2 — claude/haiku reviews gson via npm-local-tgz (Mode A). Same repo + npm channel; exercises the npx --yes / --prefer-offline install path under haiku.",
+      "repo": "https://github.com/google/gson",
+      "ref": "main",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "npm-local-tgz",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 3 — claude/haiku reviews Express via pip-local-wheel (Mode A). Different repo (Node ecosystem); pip channel.",
+      "repo": "https://github.com/expressjs/express",
+      "ref": "master",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 4 — claude/haiku reviews Express via npm-local-tgz (Mode A). Different repo from rows 1-2; npm channel.",
+      "repo": "https://github.com/expressjs/express",
+      "ref": "master",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "npm-local-tgz",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 5 — claude/haiku reviews chi via pip-local-wheel (Mode A). Go ecosystem; pip channel; third distinct repo for variance in finish times.",
+      "repo": "https://github.com/go-chi/chi",
+      "ref": "master",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 6 — claude/haiku reviews chi via npm-local-tgz (Mode A). Same repo as row 5 + npm channel; rounds out the 3-repo × 2-channel matrix.",
+      "repo": "https://github.com/go-chi/chi",
+      "ref": "master",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "npm-local-tgz",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    }
+  ]
+}
