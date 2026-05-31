@@ -7,7 +7,7 @@
 > The project accompanies the O'Reilly Radar article [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/).
 > The README was coauthored with Claude Cowork.
 >
-> *Last updated: 2026-05-23 (v1.5.7). For the full per-release changelog see `CHANGELOG.md`; for the curated evolution narrative (v1.3.13 → present) see `ai_context/VERSION_HISTORY.md`. This file is kept current with the skill's architecture, not its release log.*
+> *Last updated: 2026-05-31 (v1.5.7 after 167-177 harness work). For the full per-release changelog see `CHANGELOG.md`; for the curated evolution narrative (v1.3.13 → present) see `ai_context/VERSION_HISTORY.md`. This file is kept current with the skill's architecture, not its release log.*
 
 ## How to read this doc
 
@@ -200,17 +200,17 @@ The **test harness** (`bin/harness/`, driven by `python3 -m bin.qpb_harness`) au
 
 ### What a run is
 
-You write one **plan file** (JSON) and run it. The harness creates one timestamped, self-contained **run folder** under `--runs-root`, clones each target repo into it, installs the skill, launches the AI CLI, re-runs the installed gate, grades against `expect`, and writes a `SUMMARY.md`. **Always point `--runs-root` under `repos/`** (gitignored, Cowork-writable) so run output never pollutes the repo root, e.g. `--runs-root repos/harness-runs`.
+You write one **plan file** (JSON) and run it. The harness creates one timestamped, self-contained **run folder** under `--runs-root`, clones each target repo into it, installs the skill, launches the AI CLI, re-runs the installed gate, grades against `expect`, and writes a `SUMMARY.md`. The default `--runs-root` is `./harness_runs/` (gitignored), so you usually don't need to pass it. Plan files live in `harness_plans/` (tracked, hand-edited).
 
 ```bash
-python3 -m bin.qpb_harness run-plan bin/harness/<plan>.json --runs-root repos/<name>
+python3 -m bin.qpb_harness run-plan harness_plans/<plan>.json
 ```
 
-`run-plan` is **fire-and-forget**: it launches every run detached, writes `manifest.json` (with PIDs), spawns a detached background **collector** (which reaps each run, runs facts+grade, and writes `SUMMARY.md` as runs finish), and **returns immediately**. Check on it with `status`/`tui` (below); no terminal stays tied up. `python3 -m bin.qpb_harness collect <run-dir>` is a safe, idempotent manual reap if the collector ever dies.
+`run-plan` is **fire-and-forget**: it launches every run detached, writes `manifest.json` (with PIDs), spawns a detached background **collector** (reaps each run, runs facts+grade, writes `SUMMARY.md`) **and a `watchdog` daemon (172) that polls every 60s for orphaned RUNNING entries and re-fires `collect_harness_run` under file lock as a safety net**, and **returns immediately**. Check on it with `status`/`tui` (below); no terminal stays tied up. `python3 -m bin.qpb_harness collect <run-dir>` is a safe, idempotent manual reap if both the collector and watchdog ever die.
 
 ### Plan file format
 
-Top level: `pools` (per-runner concurrency, e.g. `{"claude": 2, "copilot": 1, "codex": 1}`) and `runs` (an array; the array index identifies a run — there is no `id` field). Per-run fields:
+Top level: `pools` (per-runner concurrency, e.g. `{"claude": 2, "copilot": 1, "codex": 1}`; runners not listed default to `1` per v1.5.7 174's pool-only model — there is no longer a separate global per-provider cap) and `runs` (an array; the array index identifies a run — there is no `id` field). Per-run fields:
 
 - `repo`, `ref` — git URL + branch/tag/SHA (a SHA pins a bug-present commit).
 - `runner` — `claude` / `copilot` / `codex` / `cursor`.
@@ -230,22 +230,22 @@ Top level: `pools` (per-runner concurrency, e.g. `{"claude": 2, "copilot": 1, "c
 
 ### Monitoring a run
 
-- **`python3 -m bin.qpb_harness status --runs-root repos/<name>`** — table of recent runs: per-state counts (`R` running / `D` done / `F` failed / `T` timed-out / `B` blocked / `AP` aborted-prep / `P` pending), `progress` (`P<max>/P6`), last-activity, collector-alive.
-- **`python3 -m bin.qpb_harness status <run-dir>`** — per-repo drill-down: state, current phase + state + note, result, pid(live?), elapsed, last-activity.
+- **`python3 -m bin.qpb_harness status [<run-dir>]`** — table of recent runs (default `./harness_runs/`): per-state counts (`R` running / `D` done / `F` failed / `T` timed-out / `B` blocked / `AP` aborted-prep / `AS` abandoned-starved / `AB` aborted-phase / `P` pending), `progress` (`P<max>/P6`), last-activity, collector-alive, **watchdog-alive**.
+- **`python3 -m bin.qpb_harness status <run-dir>`** — per-repo drill-down: state, current phase + state + note, result, pid(live?), elapsed, last-activity. Post-175 every entry (RUNNING, PENDING, DONE) shows `repo` + `runner/model` from `plan.json`; per-run `status.json` / `invocation.json` contribute runtime state only.
 - **`python3 -m bin.qpb_harness tail <run-dir>/run-NN [-f]`** — follow one run's output (`-f` = tail).
-- **`python3 -m bin.qpb_harness tui --runs-root repos/<name>`** — the live **Textual TUI** (optional `textual` dep; `--curses` is a no-dependency fallback). Three levels: runs list → per-repo detail (phase/state) → live output. Keys: ↑/↓ navigate, **Enter** drill in / watch output, **q/Esc** back, **`j`** toggle rendered ↔ raw JSON in the output view, **`c`** copy the current screen to the clipboard, scroll/mouse + follow-tail (jumps to newest; scroll up to read history). All screens auto-refresh every ~2s.
+- **`python3 -m bin.qpb_harness tui [<run-dir>]`** — the live **Textual TUI** (optional `textual` dep; `--curses` is a no-dependency fallback). Three levels: runs list → per-repo detail (phase/state) → live output. Keys: ↑/↓ navigate, **Enter** drill in / watch output, **q/Esc** back, **`j`** toggle rendered ↔ raw JSON in the output view, **`c`** copy the current screen to the clipboard, scroll/mouse + follow-tail (jumps to newest; scroll up to read history). All screens auto-refresh every ~2s.
 - **`python3 -m bin.qpb_harness tui --dump runs | detail | output [--dump-path <dir>] [--lines N] [--raw]`** — render a TUI page as plain text to stdout (no terminal/textual needed) — useful for scripting, logs, or having an AI inspect a page.
 
-Claude `stream-json` output is rendered into readable log lines by default (`⚙` tool, `←` result, `■ DONE`, `::QPB::` phase markers, etc.); `--raw`/`j` shows the verbatim JSON. codex/copilot/run_playbook output is plain text and passes through unchanged.
+Claude `stream-json` output is rendered Claude-Code-style by default (per v1.5.7 173: `⏺` tool calls, `⎿` tool results with indented continuation, `━━━ session ended` terminal banner, `⟨thinking⟩` blocks, `::QPB::` phase markers preserved both bare-line and inline-in-tool_result); `--raw`/`j` shows the verbatim JSON. codex/copilot/run_playbook output is plain text and passes through unchanged.
 
 ### Reading the result
 
-Each run folder holds per-run receipts (`status.json`, `invocation.json`, `facts.json`, `grading.json`, `stream.ndjson`, per-run logs) plus the harness-run `SUMMARY.md` and `manifest.json`. The manifest stores **relative paths**, so a finished run folder is **portable** — run on one machine, copy the folder elsewhere (e.g. Windows → Mac) and `status`/`tui`/`--dump` read it fine. Terminal states: `COMPLETED` is graded (`MET`/`NOT-MET`); `BLOCKED` (an AUP/usage-policy refusal, weekly-limit cutoff, or socket error — read `terminal_reason` to tell which), `TIMED_OUT`, `FAILED`, and `ABORTED_PREP` all grade `N/A`.
+Each run folder holds per-run receipts (`status.json`, `invocation.json`, `facts.json`, `grading.json`, `stream.ndjson`, per-run logs) plus the harness-run `SUMMARY.md` and `manifest.json`. The manifest stores **relative paths**, so a finished run folder is **portable** — run on one machine, copy the folder elsewhere (e.g. Windows → Mac) and `status`/`tui`/`--dump` read it fine. Terminal states: `COMPLETED` is graded (`MET`/`NOT-MET`); `BLOCKED` (an AUP/usage-policy refusal, weekly-limit cutoff, or socket error — read `terminal_reason` to tell which), `TIMED_OUT`, `FAILED`, `ABORTED_PREP`, **`ABANDONED_STARVED`** (v1.5.7 165: PENDING run exceeded the 3600s deadline waiting for a slot), and **`ABORTED_PHASE`** (v1.5.7 164: Mode B supervisor aborted mid-phase) all grade `N/A`. **Post-v1.5.7 174 the manifest's `state` field is updated through PENDING → ACQUIRING → RUNNING → DONE+terminal_state as the entry transitions, so `manifest.json` is the source of truth for liveness; the watchdog reads it directly.**
 
 ### Gotchas
 
 - **Quota.** The claude runs draw on the Anthropic weekly limit; copilot (GitHub) and codex (OpenAI) go through other providers and aren't blocked by Claude quota.
-- **`status`/`tui` default to `harness-runs`** (the repo root). Always pass `--runs-root repos/<name>` to see runs you put under `repos/`.
+- **`status`/`tui` default to `./harness_runs/`** in the cwd. If you want to read a run from a different location, pass the run-dir as a positional arg.
 
 ## Current known issues
 
