@@ -1988,13 +1988,31 @@ def _collect_one_run_detached(
     # registry once the run reaches a terminal state. Called
     # at every return path (idempotent — release_run_slot is
     # a no-op if no matching entry).
+    # v1.5.7 174 Phase 4 (BUG-011 fix): ALSO mark the manifest
+    # entry as DONE + terminal_state so the watchdog's
+    # _is_orphan reads "not orphan" via the manifest's source-
+    # of-truth state. Pre-174 BUG-011: watchdog re-detected
+    # graded RUNNING entries as orphans because the collector
+    # wrote terminal_state to status.json/grading.json but NOT
+    # to the manifest.
     _run_index = entry["index"]
+    _manifest_path = harness_run_dir / "manifest.json"
 
-    def _release_slot() -> None:
+    def _release_slot(
+            terminal_state: "Optional[str]" = None) -> None:
         _inflight.release_run_slot(
             harness_run_dir=harness_run_dir,
             run_index=_run_index,
         )
+        if terminal_state is not None:
+            _update_manifest_entry_atomic(
+                _manifest_path, _run_index, {
+                    "state": "DONE",
+                    "terminal_state": terminal_state,
+                    "ended_at": datetime.now(
+                        timezone.utc).strftime(
+                            "%Y-%m-%dT%H:%M:%SZ"),
+                })
 
     # Re-hydrate a minimal PlanRun for grading + axes for
     # facts extraction. The manifest carries enough to re-
@@ -2046,7 +2064,7 @@ def _collect_one_run_detached(
                     "FAIL": "FAILED",
                 }.get(facts_dict["gate"].get("gate_result"),
                        "?")
-            _release_slot()
+            _release_slot(terminal_state=terminal_str)
             return RunOutcome(
                 index=plan_run.index,
                 description=plan_run.description,
@@ -2088,7 +2106,8 @@ def _collect_one_run_detached(
             encoding="utf-8",
         )
         _log("DONE: gate=N/A result=N/A (ABORTED_PREP)")
-        _release_slot()
+        _release_slot(
+            terminal_state=TerminalState.ABORTED_PREP.value)
         return outcome
 
     # ----- BUG-001 fix: a still-PENDING entry with no pid has not launched
@@ -2291,7 +2310,7 @@ def _collect_one_run_detached(
             _log(f"123: pristine worktree cleanup "
                  f"failed (best-effort): {exc}")
     _log(f"DONE: gate={gate_verdict} result={result_label}")
-    _release_slot()
+    _release_slot(terminal_state=terminal.value)
     return RunOutcome(
         index=plan_run.index,
         description=plan_run.description,
