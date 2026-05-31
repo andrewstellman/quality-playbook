@@ -82,7 +82,8 @@ import subprocess
 import sys
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, Future
+from concurrent.futures import (
+    FIRST_COMPLETED, Future, ThreadPoolExecutor, wait)
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -2628,30 +2629,66 @@ def collect_harness_run(harness_run_dir: Path,
             f"collect_harness_run: no manifest.json at "
             f"{manifest_path}"
         )
-    # v1.5.7 165: retry PENDING entries before the parallel
-    # collect — 161-A wrote PENDING manifest entries for starved
-    # runs; this gives them a chance to spawn into RUNNING (or be
-    # marked ABANDONED_STARVED if past deadline) before the
-    # collector grades them. Best-effort: failures are swallowed
-    # (the collector still runs its normal collect; abandoned
-    # entries grade N/A). Runs once before the parallel collect;
-    # operators can re-invoke `qpb_harness collect <dir>` to
-    # retry again.
+    # v1.5.7 165 + 171: retry PENDING entries before the parallel
+    # collect AND after each RUNNING future returns terminal (171
+    # fix for BUG-008). 161-A wrote PENDING manifest entries for
+    # starved runs; this gives them a chance to spawn into RUNNING
+    # (or be marked ABANDONED_STARVED if past deadline) before the
+    # collector grades them. 171 closes the gap where a slot freed
+    # mid-collection (e.g., a fast claude/haiku run terminating
+    # while a slow claude/opus run was still alive) left starved
+    # PENDING entries orphaned because the retry only fired once
+    # at entry. Now the retry fires on every RUNNING terminate
+    # and newly-RUNNING entries are dynamically added to the
+    # in-flight collect set.
     _retry_pending_runs_once(harness_run_dir, log)
     # Re-read manifest after the retry pass — newly-spawned
     # entries have RUNNING state + a pid we need.
     manifest = json.loads(
         manifest_path.read_text(encoding="utf-8"))
     outcomes: list[RunOutcome] = []
+    collected_indices: "set[int]" = set()
     pool_total = max(1, len(manifest.get("runs", [])))
     with ThreadPoolExecutor(max_workers=pool_total) as ex:
-        futures = [
+        futures: "dict[Future, int]" = {
             ex.submit(_collect_one_run_detached, entry,
-                       harness_run_dir, log)
+                       harness_run_dir, log): entry["index"]
             for entry in manifest.get("runs", [])
-        ]
-        for f in futures:
-            outcomes.append(f.result())
+        }
+        while futures:
+            done, _pending = wait(
+                list(futures.keys()),
+                return_when=FIRST_COMPLETED,
+            )
+            for f in done:
+                idx = futures.pop(f)
+                outcomes.append(f.result())
+                collected_indices.add(idx)
+            # v1.5.7 171 BUG-008 fix: a future just returned
+            # terminal — a slot may have freed. Retry PENDING
+            # entries; submit any newly-RUNNING ones for collection
+            # on this same sweep so we don't lose them to the
+            # operator-must-re-invoke trap that 165 fell into.
+            transitions = _retry_pending_runs_once(
+                harness_run_dir, log)
+            if transitions:
+                manifest = json.loads(
+                    manifest_path.read_text(encoding="utf-8"))
+                in_flight = set(futures.values())
+                for entry in manifest.get("runs", []):
+                    idx = entry.get("index")
+                    if (idx in collected_indices
+                            or idx in in_flight):
+                        continue
+                    # 171: a retry-spawned entry now has state
+                    # RUNNING (165 launch path) or DONE (e.g.,
+                    # ABANDONED_STARVED via deadline). Either way
+                    # submit it so it gets graded on this sweep.
+                    if entry.get("state") in ("RUNNING", "DONE"):
+                        fut = ex.submit(
+                            _collect_one_run_detached, entry,
+                            harness_run_dir, log)
+                        futures[fut] = idx
     # Final SUMMARY rewrite (idempotent — same outcomes
     # produce same SUMMARY).
     plan_for_summary = manifest.get("plan", {})
