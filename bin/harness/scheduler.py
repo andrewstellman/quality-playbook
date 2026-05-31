@@ -2,12 +2,13 @@
 
 NOTE FOR REVIEWERS: this module governs the ``qpb_harness
 manager`` flow's concurrency (per-daemon, in-process). The
-``qpb_harness run-plan`` flow uses a DIFFERENT mechanism:
-``inflight_registry.py`` (machine-global, file-backed,
-fcntl.flock). See ``manager.py``'s banner for the full two-flow
-map. The v1.5.7 125 cross-host per-provider cap is in
-``inflight_registry.py``, NOT here — this scheduler's caps are
-PURE STATE for the daemon flow only.
+``qpb_harness run-plan`` flow uses a DIFFERENT mechanism: the
+per-plan ``pools`` field + ``.manifest.lock`` (v1.5.7 174). See
+``manager.py``'s banner for the full two-flow map. Pre-174 the
+file-backed ``inflight_registry.py`` provided cross-plan global
+caps for the run-plan flow; that module was deleted along with
+the pid=0 reservation model. This scheduler's per-vendor caps
+remain in place for the daemon flow only.
 
 Concurrency-aware scheduler per design §H:
 

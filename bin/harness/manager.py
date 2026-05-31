@@ -17,18 +17,16 @@ liveness check.
 For the **other** flow — the ``qpb_harness run-plan``
 subcommand, which is one-shot detached spawn with a background
 collector — see ``plan_runner.py``. That flow's concurrency is
-governed by ``inflight_registry.py``: a MACHINE-GLOBAL,
-file-backed, ``fcntl.flock``-protected registry at
-``~/.qpb_harness/inflight.json`` (per-provider caps across all
-run-plan invocations + per-plan pool slots held for the run's
-lifetime).
+per-plan via the ``pools`` field in the plan JSON +
+``.manifest.lock`` (v1.5.7 174). Pre-174 the file-backed
+``inflight_registry.py`` provided cross-plan global caps; that
+module was deleted along with the pid=0 reservation model.
+Operators who want to coordinate multiple ``run-plan``
+invocations are expected to run one plan at a time.
 
 The two flows DO NOT share concurrency state. A reviewer
 inspecting ``scheduler.py`` alone might conclude "the
 concurrency cap is per-daemon"; that is true OF THIS FLOW ONLY.
-The cross-host cap that prevents provider-rate-limit blowout
-(v1.5.7 instruction 125) lives in ``inflight_registry.py``, not
-here.
 ═══════════════════════════════════════════════════════════════
 
 Owns queue + execution per design "Manager daemon + TUI":

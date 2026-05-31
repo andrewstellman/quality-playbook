@@ -10,9 +10,11 @@ Two execution flows coexist in this package — they share grading
 mechanisms:
 
   - ``qpb_harness run-plan`` → ``plan_runner.py`` (one-shot
-    detached spawn + auto-background collector) +
-    ``inflight_registry.py`` (machine-global, file-backed cap;
-    instruction 125).
+    detached spawn + auto-background collector). Concurrency
+    is per-plan via ``pools`` + ``.manifest.lock`` (v1.5.7 174;
+    pre-174 the file-backed ``inflight_registry.py`` provided
+    cross-plan global caps — deleted along with the pid=0
+    reservation model).
   - ``qpb_harness manager`` → ``manager.py`` (queued daemon,
     Phase 4 substrate) + ``scheduler.py`` (per-daemon config).
 

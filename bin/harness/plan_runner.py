@@ -9,9 +9,11 @@ domain). The ``qpb_harness manager`` subcommand is a separate,
 still-active daemon-queue model with its own concurrency
 mechanism (``scheduler.py`` config) — see ``bin/harness/manager.py``'s
 docstring for that flow's domain. The two flows DO NOT share
-concurrency state: this flow's machine-global per-provider cap
-(v1.5.7 125) lives in ``inflight_registry.py``, NOT in the
-scheduler.
+concurrency state: this flow's per-plan pool tracking
+(v1.5.7 174) lives in ``.manifest.lock`` + manifest state.
+Pre-174 the file-backed ``inflight_registry.py`` held the
+machine-global per-provider cap; that module is now deleted
+and cross-plan caps are not tracked.
 
 Input file (`plan.json`):
 
