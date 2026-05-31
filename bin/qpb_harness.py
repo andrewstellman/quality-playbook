@@ -265,6 +265,7 @@ def _render_launch_banner(
         per_run_entries: "list[dict] | None" = None,
         log_file_path: "Path | None" = None,
         foreground: bool = False,
+        watchdog_pid: "int | None" = None,
         ) -> str:
     """v1.5.7 158 (revised): render the done-banner the orchestrator
     prints at the end of ``run-plan``. Plain ASCII, copy-pasteable.
@@ -279,6 +280,10 @@ def _render_launch_banner(
         "running in foreground" note (``--foreground`` opt-out).
       * "Whole-suite commands:" / "Per-run commands:" section
         headers to make the banner navigable.
+
+    v1.5.7 172: ``watchdog_pid`` adds a second daemon-pid token
+    next to the collector pid so the operator sees both processes
+    were spawned (and what to grep for if either dies).
     """
     rel = _relpath_for_banner(harness_run_dir)
     pool_str = _format_pools_for_banner(pools)
@@ -286,6 +291,11 @@ def _render_launch_banner(
         f"  collector pid {collector_pid}"
         if collector_pid is not None else "  collector spawned"
     )
+    # v1.5.7 172: watchdog appended to the same line for compactness.
+    if watchdog_pid is not None:
+        collector_line += f"  watchdog pid {watchdog_pid}"
+    elif watchdog_pid is None and collector_pid is not None:
+        collector_line += "  watchdog spawned"
     lines = [
         _LAUNCH_BANNER_RULE,
         f"  Launched: {run_count} runs"
@@ -440,6 +450,8 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
     # operator gets the harness-run dir + collector pid so
     # they can check status without a blocking parent.
     collector_pid = _plan._LAST_COLLECTOR_PID.pop("pid", None)
+    # v1.5.7 172: watchdog pid surfaced alongside the collector.
+    watchdog_pid = _plan._LAST_WATCHDOG_PID.pop("pid", None)
     if collector_pid is not None:
         # Find the harness-run dir from the first run's
         # receipts — runs_root contains exactly one new
@@ -459,7 +471,8 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
         # dir: ..." + "collector pid ...; check status with ...").
         print(_render_launch_banner(
             latest, collector_pid,
-            run_count=len(outcomes), pools=plan.pools),
+            run_count=len(outcomes), pools=plan.pools,
+            watchdog_pid=watchdog_pid),
               file=sys.stderr)
         print(_relpath_for_banner(latest))  # stdout — script-parseable
         return 0

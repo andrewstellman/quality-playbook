@@ -252,5 +252,55 @@ class CliWiringTests(unittest.TestCase):
         self.assertIn('add_parser(\n        "watchdog"', src)
 
 
+class AutoSpawnWiringTests(unittest.TestCase):
+    """v1.5.7 172 Task D: the orchestrator's detached-launch path
+    auto-spawns the watchdog alongside the collector. Source-
+    inspection only — the live spawn is exercised by end-to-end
+    ship-readiness runs."""
+
+    def test_run_plan_calls_spawn_watchdog(self) -> None:
+        src = (Path(__file__).resolve().parents[3]
+                / "bin" / "harness" / "plan_runner.py").read_text(
+                    encoding="utf-8")
+        self.assertIn("def _spawn_watchdog(", src)
+        self.assertIn(
+            "watchdog_pid = _spawn_watchdog(harness_run_dir, log)",
+            src)
+        self.assertIn("_LAST_WATCHDOG_PID", src)
+
+    def test_banner_includes_watchdog_pid(self) -> None:
+        src = (Path(__file__).resolve().parents[3]
+                / "bin" / "qpb_harness.py").read_text(
+                    encoding="utf-8")
+        self.assertIn("watchdog_pid", src)
+        self.assertIn('"  watchdog pid {watchdog_pid}"'
+                       .replace('"', '').replace("{watchdog_pid}",
+                                                  "watchdog_pid"),
+                       src.replace('"', '').replace(
+                           "{watchdog_pid}", "watchdog_pid"))
+
+
+class StatusDisplayTests(unittest.TestCase):
+    """v1.5.7 172 Task E: status.py surfaces watchdog liveness."""
+
+    def test_harness_run_summary_has_watchdog_alive_field(
+            self) -> None:
+        from bin.harness import status as ST  # noqa: PLC0415
+        # The dataclass should accept watchdog_alive kwarg.
+        import dataclasses as _dc
+        fields = {f.name for f in _dc.fields(ST.HarnessRunSummary)}
+        self.assertIn("watchdog_alive", fields)
+
+    def test_format_harness_run_includes_watchdog_token(
+            self) -> None:
+        src = (Path(__file__).resolve().parents[3]
+                / "bin" / "harness" / "status.py").read_text(
+                    encoding="utf-8")
+        # The format string must emit a watchdog= token alongside
+        # the existing collector= token.
+        self.assertIn("watchdog=", src)
+        self.assertIn("summary.watchdog_alive", src)
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()

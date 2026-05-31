@@ -120,6 +120,9 @@ class HarnessRunSummary:
     # v1.5.7 117 — list-view progress + liveness.
     progress: str = "—"
     last_activity_iso: str = "—"
+    # v1.5.7 172 — watchdog daemon liveness. Same age-based rule
+    # as collector_alive: recent watchdog.log mtime ⇒ alive.
+    watchdog_alive: bool = False
 
 
 @dataclass
@@ -1132,6 +1135,19 @@ def _summarize_harness_run(harness_run_dir: Path) -> HarnessRunSummary:
             collector_alive = age < _COLLECTOR_LIVENESS_WINDOW_S
         except OSError:
             collector_alive = False
+    # v1.5.7 172: watchdog liveness. Same age-based rule against
+    # watchdog.log mtime (the watchdog writes at least every
+    # interval, default 60s; plus a status line every 5 ticks
+    # when no orphans are found).
+    watchdog_alive = False
+    watchdog_log = harness_run_dir / "watchdog.log"
+    if watchdog_log.is_file():
+        try:
+            mtime = watchdog_log.stat().st_mtime
+            age = datetime.now(timezone.utc).timestamp() - mtime
+            watchdog_alive = age < _COLLECTOR_LIVENESS_WINDOW_S
+        except OSError:
+            watchdog_alive = False
     started_at = "—"
     try:
         started_at = datetime.fromtimestamp(
@@ -1181,6 +1197,7 @@ def _summarize_harness_run(harness_run_dir: Path) -> HarnessRunSummary:
         collector_alive=collector_alive,
         progress=progress,
         last_activity_iso=newest_activity_iso,
+        watchdog_alive=watchdog_alive,
     )
 
 
@@ -1548,6 +1565,8 @@ def format_harness_run_summary(
     dir_name = summary.harness_run_dir.name
     coll = ("yes" if summary.collector_alive
             else "no")
+    # v1.5.7 172: watchdog token alongside the collector token.
+    wd = ("yes" if summary.watchdog_alive else "no")
     return (
         f"{dir_name:30} {summary.started_at:22} "
         f"runs={summary.total_runs:>2}  "
@@ -1557,7 +1576,7 @@ def format_harness_run_summary(
         f"AP={summary.aborted_prep:>2} P={summary.pending:>2}  "
         f"progress={summary.progress:>5} "
         f"active={summary.last_activity_iso}  "
-        f"collector={coll}"
+        f"collector={coll} watchdog={wd}"
     )
 
 

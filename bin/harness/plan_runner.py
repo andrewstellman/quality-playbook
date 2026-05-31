@@ -2799,6 +2799,40 @@ def _spawn_collector(harness_run_dir: Path,
     return proc.pid
 
 
+def _spawn_watchdog(harness_run_dir: Path,
+                      log: "Optional[_ProgressLog]" = None,
+                      ) -> int:
+    """v1.5.7 172: spawn the detached watchdog subprocess.
+    Mirrors :func:`_spawn_collector` exactly — same anti-SIGTTIN
+    pattern (start_new_session + stdin=/dev/null + stdout/stderr
+    to ``<harness-run>/watchdog.log``). Returns the watchdog's PID
+    so the launch banner can display it alongside the collector's.
+    """
+    watchdog_log = harness_run_dir / "watchdog.log"
+    cmd = [
+        sys.executable, "-m", "bin.qpb_harness",
+        "watchdog", str(harness_run_dir),
+    ]
+    log_fp = open(watchdog_log, "ab")
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(_repo_root_for_collector()),
+            stdout=log_fp,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    finally:
+        log_fp.close()
+    if log is not None:
+        log.log(
+            f"watchdog spawned (pid={proc.pid}); "
+            f"log={watchdog_log}"
+        )
+    return proc.pid
+
+
 def _repo_root_for_collector() -> Path:
     """v1.5.7 108: the QPB clone root — the cwd the collector
     must run from so ``python -m bin.qpb_harness`` resolves."""
@@ -3268,6 +3302,12 @@ def _run_plan_detached(
     # collector.log). The collector is a separate Python
     # subprocess that runs `qpb_harness collect <dir>`.
     collector_pid = _spawn_collector(harness_run_dir, log)
+    # v1.5.7 172: spawn the watchdog daemon alongside the
+    # collector. Safety net for collector-side accounting bugs
+    # (165/171/etc.). Same anti-SIGTTIN pattern; runs
+    # `qpb_harness watchdog <dir>` and exits cleanly when all
+    # runs reach terminal state.
+    watchdog_pid = _spawn_watchdog(harness_run_dir, log)
 
     # Return RUNNING placeholders so the CLI can print a
     # rollup (or so a future programmatic caller can see
@@ -3293,9 +3333,11 @@ def _run_plan_detached(
     # callers.
     log.log(
         f"detached: returning {len(placeholders)} RUNNING "
-        f"placeholders; collector pid={collector_pid}"
+        f"placeholders; collector pid={collector_pid} "
+        f"watchdog pid={watchdog_pid}"
     )
     _LAST_COLLECTOR_PID["pid"] = collector_pid
+    _LAST_WATCHDOG_PID["pid"] = watchdog_pid
     return placeholders
 
 
@@ -3304,6 +3346,9 @@ def _run_plan_detached(
 # level so it survives the return + doesn't pollute the
 # RunOutcome dataclass shape.
 _LAST_COLLECTOR_PID: "dict[str, int]" = {}
+# v1.5.7 172: companion to _LAST_COLLECTOR_PID — CLI banner reads
+# this to display the watchdog's pid alongside the collector's.
+_LAST_WATCHDOG_PID: "dict[str, int]" = {}
 
 
 # ---------------------------------------------------------------------------
