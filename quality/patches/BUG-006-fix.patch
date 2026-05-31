@@ -1,11 +1,52 @@
---- a/bin/archive_lib.py
-+++ b/bin/archive_lib.py
-@@ -66,7 +66,7 @@
- PARTIAL_SENTINEL_NAME = ".partial"
+diff --git a/bin/council_semantic_check.py b/bin/council_semantic_check.py
+index 7bba2e3..c9b7d33 100644
+--- a/bin/council_semantic_check.py
++++ b/bin/council_semantic_check.py
+@@ -333,14 +333,39 @@ def _extract_first_json_array(text: str):
+             return json.loads(stripped)
+         except json.JSONDecodeError:
+             pass
+-    # Fallback: find the outermost `[...]` that parses.
+-    match = _JSON_ARRAY_PATTERN.search(text)
+-    if not match:
+-        return None
+-    try:
+-        return json.loads(match.group(0))
+-    except json.JSONDecodeError:
+-        return None
++    # Fallback (BUG-006 fix): find the FIRST balanced `[...]` substring that
++    # parses as JSON. The previous greedy regex `\[[\s\S]*\]` matched from
++    # the first `[` to the LAST `]`, so a valid array followed by trailing
++    # prose containing any `]` (e.g. "see item [2]") failed to parse and the
++    # whole reviewer response was dropped — contradicting this function's
++    # "first balanced block / outermost that parses" docstring.
++    start = text.find("[")
++    while start != -1:
++        depth = 0
++        in_str = False
++        esc = False
++        for i in range(start, len(text)):
++            c = text[i]
++            if in_str:
++                if esc:
++                    esc = False
++                elif c == "\\":
++                    esc = True
++                elif c == '"':
++                    in_str = False
++            elif c == '"':
++                in_str = True
++            elif c == "[":
++                depth += 1
++            elif c == "]":
++                depth -= 1
++                if depth == 0:
++                    try:
++                        return json.loads(text[start:i + 1])
++                    except json.JSONDecodeError:
++                        break
++        start = text.find("[", start + 1)
++    return None
  
- _VERSION_HEADER_PATTERN = re.compile(r"Quality Playbook v([0-9]+(?:\.[0-9]+)+)", re.IGNORECASE)
--_BUG_HEADING_PATTERN = re.compile(r"^###\s+BUG-([A-Za-z0-9]+)\s*$", re.MULTILINE)
-+_BUG_HEADING_PATTERN = re.compile(r"^###\s+BUG-([A-Za-z0-9]+)(?::\s+.+)?\s*$", re.MULTILINE)
- _REQ_HEADING_PATTERN = re.compile(r"^###\s+REQ-([A-Za-z0-9]+)", re.MULTILINE)
- _SEVERITY_PATTERN = re.compile(r"\*\*Severity\*\*\s*[:.-]\s*(HIGH|MEDIUM|LOW)", re.IGNORECASE)
- _PHASE_CHECK_PATTERN = re.compile(r"^-\s*\[x\]\s*Phase\s*([0-9a-zA-Z]+)", re.MULTILINE)
+ 
+ # ---------------------------------------------------------------------------

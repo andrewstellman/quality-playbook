@@ -1,8 +1,8 @@
 {
   "schema_version": "1.1",
-  "skill_version": "1.5.6",
-  "date": "2026-05-07",
-  "project": "QPB",
+  "skill_version": "1.5.7",
+  "date": "2026-05-30",
+  "project": "quality-playbook",
   "bugs": [
     {
       "id": "BUG-001",
@@ -15,10 +15,8 @@
       "fix_patch_present": true,
       "patch_gate_passed": true,
       "writeup_path": "quality/writeups/BUG-001.md",
-      "junit_red": null,
-      "junit_green": null,
       "junit_available": false,
-      "notes": "Executed in a disposable temp-copy harness to preserve the live source tree."
+      "notes": ""
     },
     {
       "id": "BUG-002",
@@ -31,10 +29,8 @@
       "fix_patch_present": true,
       "patch_gate_passed": true,
       "writeup_path": "quality/writeups/BUG-002.md",
-      "junit_red": null,
-      "junit_green": null,
       "junit_available": false,
-      "notes": "Executed in a disposable temp-copy harness to preserve the live source tree."
+      "notes": ""
     },
     {
       "id": "BUG-003",
@@ -47,10 +43,8 @@
       "fix_patch_present": true,
       "patch_gate_passed": true,
       "writeup_path": "quality/writeups/BUG-003.md",
-      "junit_red": null,
-      "junit_green": null,
       "junit_available": false,
-      "notes": "Executed in a disposable temp-copy harness to preserve the live source tree."
+      "notes": ""
     },
     {
       "id": "BUG-004",
@@ -63,30 +57,25 @@
       "fix_patch_present": true,
       "patch_gate_passed": true,
       "writeup_path": "quality/writeups/BUG-004.md",
-      "junit_red": null,
-      "junit_green": null,
       "junit_available": false,
-      "notes": "Executed in a disposable temp-copy harness to preserve the live source tree."
+      "notes": ""
     },
     {
       "id": "BUG-005",
       "requirement": "REQ-005",
       "red_phase": "fail",
-      "green_phase": "pass",
-      "verdict": "TDD verified",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
       "regression_patch": "quality/patches/BUG-005-regression-test.patch",
-      "fix_patch": "quality/patches/BUG-005-fix.patch",
-      "fix_patch_present": true,
-      "patch_gate_passed": true,
+      "fix_patch_present": false,
+      "patch_gate_passed": null,
       "writeup_path": "quality/writeups/BUG-005.md",
-      "junit_red": null,
-      "junit_green": null,
       "junit_available": false,
-      "notes": "Executed in a disposable temp-copy harness to preserve the live source tree."
+      "notes": "Fix deferred to maintainer (Human Gate) per documented 'never mass-reap on parse failure' design tension; red phase confirms the bug."
     },
     {
       "id": "BUG-006",
-      "requirement": "REQ-006",
+      "requirement": "REQ-010",
       "red_phase": "fail",
       "green_phase": "pass",
       "verdict": "TDD verified",
@@ -95,16 +84,28 @@
       "fix_patch_present": true,
       "patch_gate_passed": true,
       "writeup_path": "quality/writeups/BUG-006.md",
-      "junit_red": null,
-      "junit_green": null,
       "junit_available": false,
-      "notes": "Executed in a disposable temp-copy harness to preserve the live source tree."
+      "notes": "gap-iteration net-new"
+    },
+    {
+      "id": "BUG-007",
+      "requirement": "REQ-004",
+      "red_phase": "fail",
+      "green_phase": "pass",
+      "verdict": "TDD verified",
+      "regression_patch": "quality/patches/BUG-007-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-007-fix.patch",
+      "fix_patch_present": true,
+      "patch_gate_passed": true,
+      "writeup_path": "quality/writeups/BUG-007.md",
+      "junit_available": false,
+      "notes": "unfiltered-iteration net-new; same class as BUG-004 in the grading path"
     }
   ],
   "summary": {
-    "total": 6,
+    "total": 7,
     "verified": 6,
-    "confirmed_open": 0,
+    "confirmed_open": 1,
     "red_failed": 0,
     "green_failed": 0
   }

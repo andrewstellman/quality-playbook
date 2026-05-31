@@ -1,124 +1,97 @@
 {
-  "schema_version": "1.5.3",
-  "generated_at": "2026-05-08T02:21:08Z",
+  "schema_version": "1.5.7",
+  "generated_at": "2026-05-30T21:35:00Z",
   "records": [
     {
       "id": "UC-01",
-      "title": "Cite-only docs-backed run",
-      "description": "An operator runs the playbook against a repository that contains only plaintext docs under reference_docs/cite/ and expects every startup surface to treat the run as docs-backed.",
+      "title": "Adopter installs QPB into a target repo and validates the install",
+      "description": "An adopter (or AI agent) installs QPB into a target repo and runs the Phase-0 install validator before any phase work. The validator must report status=ok only when the install layout is canonical and any populated quality/ carries a fresh active-run marker; ambiguous AI-tool markers must block until --ai-tool is given.",
       "actors": [
-        "Operator",
-        "bin.run_playbook"
+        "Adopter",
+        "AI agent"
       ],
       "steps": [
-        "Operator prepares reference_docs/cite/spec.md with no top-level reference_docs file",
-        "The runner evaluates documentation state and warning conditions",
-        "The run proceeds as docs-backed without a code-only warning"
+        "Adopter installs QPB into the target repo",
+        "Agent runs python3 <install_root>/bin/qpb_validate.py <target> --ai-tool claude",
+        "Validator emits event= lines and a validation_complete status",
+        "Agent proceeds only on status=ok"
       ],
       "formal_doc_refs": []
     },
     {
       "id": "UC-02",
-      "title": "README-only or binary-only docs tree",
-      "description": "An operator points the playbook at a repository whose reference_docs tree contains only README or binary files and expects the documentation-state surfaces to agree that no recognized docs are present.",
+      "title": "Operator runs a Mode-B benchmark plan and the detached collector reaps and grades every run",
+      "description": "A harness operator runs a benchmark plan; the orchestrator spawns detached AI-CLI runs and a detached collector reaps and grades each one. Every run must reach a correct terminal state and receipt; a still-waiting run must not be graded FAILED and a completed run must not be mislabeled.",
       "actors": [
-        "Operator",
-        "bin.run_playbook"
+        "Benchmark operator",
+        "AI agent"
       ],
       "steps": [
-        "Operator prepares a README-only or PDF-only reference_docs tree",
-        "The runner evaluates documentation state and warning conditions",
-        "All operator-visible surfaces report code-only mode consistently"
+        "Operator invokes qpb_harness run-plan with a plan file",
+        "Orchestrator launches each run detached and writes manifest.json",
+        "Collector polls each run's PID, classifies a terminal state, and grades it",
+        "Operator reads SUMMARY.md and per-run grading.json"
       ],
       "formal_doc_refs": []
     },
     {
       "id": "UC-03",
-      "title": "Tier 4 ingest of reference docs",
-      "description": "Phase 1 loads Tier 4 context from reference_docs/ and should receive only the documented top-level plaintext files, not nested archival folders.",
+      "title": "Operator caps concurrency per provider and the harness honors it under starvation",
+      "description": "An operator with a metered API budget caps concurrency per provider. The harness must never run more than the cap of concurrent AI-CLIs per provider, including for retry-spawned (previously starved) runs.",
       "actors": [
-        "Phase 1 agent",
-        "bin.reference_docs_ingest"
+        "Benchmark operator"
       ],
       "steps": [
-        "Phase 1 loads Tier 4 context from reference_docs/",
-        "The ingest helper enumerates top-level plaintext files",
-        "Nested non-cite directories are excluded from the returned context"
+        "Operator passes --max-per-provider with per-provider caps",
+        "Harness reserves an inflight slot per run before spawning",
+        "Starved runs wait, then retry when a slot frees",
+        "Active-run count per provider never exceeds the cap"
       ],
       "formal_doc_refs": []
     },
     {
       "id": "UC-04",
-      "title": "Bootstrap self-audit doc mirroring",
-      "description": "A maintainer mirrors curated bootstrap docs into reference_docs/ and expects both top-level context files and cite/ formal docs to remain available in their proper locations.",
+      "title": "Operator watches live status to decide whether to intervene in a run",
+      "description": "An operator watches the live status surface (qpb_harness status / TUI) to decide whether to intervene in a stuck run. The reported current phase must never exceed the phase actually completed.",
       "actors": [
-        "Maintainer",
-        "bin.bootstrap_self_audit_docs"
+        "Benchmark operator"
       ],
       "steps": [
-        "Maintainer populates docs_gathered/ with top-level docs and cite/ docs",
-        "The bootstrap helper mirrors the source corpus into reference_docs/",
-        "The resulting tree preserves top-level and cite/ placement"
+        "Operator runs qpb_harness status against a live harness run",
+        "Status surface resolves the current phase from sentinels or artifacts",
+        "Operator sees a phase number that reflects real progress",
+        "Operator intervenes if a run is wedged"
       ],
       "formal_doc_refs": []
     },
     {
       "id": "UC-05",
-      "title": "Phase 1 completion gate",
-      "description": "The runner validates quality/EXPLORATION.md at the end of Phase 1 and must block progression if mandatory sections or content depth are missing.",
+      "title": "Adopter overrides the Council roster",
+      "description": "An adopter overrides the Phase-4 Council roster via ~/.qpb/config.json. A valid roster is used; a malformed override falls back safely to defaults; the Layer-2 2-of-3 majority remains well-defined.",
       "actors": [
-        "Runner",
-        "bin.run_state_lib"
+        "Adopter"
       ],
       "steps": [
-        "Phase 1 writes quality/EXPLORATION.md",
-        "The validator checks the required exploration shape",
-        "Phase 2 remains blocked until the artifact is structurally complete"
+        "Adopter sets council_members in ~/.qpb/config.json",
+        "council_members() validates and returns the roster",
+        "A malformed value emits a WARN and falls back to defaults",
+        "Phase-4 Layer-2 majority is computed over the roster"
       ],
       "formal_doc_refs": []
     },
     {
       "id": "UC-06",
-      "title": "Archived bug-summary generation",
-      "description": "Archive rendering reads BUGS.md from a finished run and must preserve the bug count encoded by canonical titled headings.",
+      "title": "A new run archives the prior run's quality/ as reference and starts clean",
+      "description": "An operator (or AI) starts a new run on a repo with a populated quality/. The prior run is preserved under previous_runs/<ts>/ and the live quality/ starts clean, with no data loss and no hard abort on a recoverable collision.",
       "actors": [
-        "bin.archive_lib",
-        "Later auditor"
+        "Benchmark operator",
+        "AI agent"
       ],
       "steps": [
-        "An archived run contains a canonical BUGS.md file",
-        "Archive helpers extract bug sections and severity totals",
-        "INDEX.md and RUN_INDEX.md reflect the real bug counts"
-      ],
-      "formal_doc_refs": []
-    },
-    {
-      "id": "UC-07",
-      "title": "Direct Phase 1 role-map writeout",
-      "description": "A direct skill-driven run writes quality/exploration_role_map.json before any runner-specific post-processing and still reaches a valid gate-ready role map shape.",
-      "actors": [
-        "Direct-mode agent",
-        "bin.role_map"
-      ],
-      "steps": [
-        "Phase 1 writes a raw role map with files[] and provenance",
-        "Normalization or validation produces the canonical role-map shape",
-        "Gate validation accepts the normalized output"
-      ],
-      "formal_doc_refs": []
-    },
-    {
-      "id": "UC-08",
-      "title": "Historical-output-heavy repository inventory",
-      "description": "Phase 1 inventories a repository dominated by prior quality/ artifacts and must continue to distinguish intrinsic source from historical playbook output.",
-      "actors": [
-        "Phase 1 agent",
-        "bin.role_map"
-      ],
-      "steps": [
-        "Tracked files include large quantities of historical quality output",
-        "Role-map accounting classifies those files as playbook-output",
-        "Surface percentages keep historical artifacts out of code and skill shares"
+        "A run starts with a populated quality/ present",
+        "The prior quality/ is archived under quality/previous_runs/<timestamp>/",
+        "A fresh quality/ tree is created for the new run",
+        "No source outside quality/ is modified"
       ],
       "formal_doc_refs": []
     }

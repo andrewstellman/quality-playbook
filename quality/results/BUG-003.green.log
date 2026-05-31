@@ -1,9 +1,9 @@
 GREEN
-Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_003_tier4_context_excludes_nested_non_cite_archives after git apply quality/patches/BUG-003-fix.patch
-Patch apply exit code: 0
+--- BUG-003 green phase ---
+Command: pytest test_regression.py::test_bug_003_launch_entry_sets_running_state --runxfail (fix applied)
 Exit code: 0
-
-Full test output:
-test_bug_003_tier4_context_excludes_nested_non_cite_archives (quality.test_regression.CodeReviewRegressionTests.test_bug_003_tier4_context_excludes_nested_non_cite_archives) ... ok
-
-OK
+.                                                                        [100%]
+==================================== PASSES ====================================
+=========================== short test summary info ============================
+PASSED ../../Users/andrewstellman/Documents/QPB/quality/test_regression.py::test_bug_003_launch_entry_sets_running_state
+1 passed in 0.05s

@@ -1,0 +1,111 @@
+{
+  "schema_version": "1.5.3",
+  "generated_at": "2026-05-08T02:21:08Z",
+  "records": [
+    {
+      "id": "REQ-001",
+      "title": "Treat cite-only docs as docs-backed input",
+      "description": "Any startup path that decides whether a run is docs-backed or code-only must treat plaintext files under reference_docs/cite/ as valid documentation input, so cite-only repos are not downgraded to code-only mode or warned as such.",
+      "tier": 3,
+      "functional_section": "Documentation State and Intake",
+      "use_cases": [
+        "UC-01"
+      ],
+      "pattern": "parity",
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-002",
+      "title": "Use one recognized-docs predicate for warnings and state evaluation",
+      "description": "Operator-visible warnings, documentation-state evaluation, and the formal-doc banner must share the same recognized-plaintext rules so README-only, binary-only, cite-only, and top-level plaintext trees produce one consistent classification.",
+      "tier": 3,
+      "functional_section": "Documentation State and Intake",
+      "use_cases": [
+        "UC-01",
+        "UC-02"
+      ],
+      "pattern": "parity",
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-003",
+      "title": "Limit Tier 4 ingest to the documented reference-docs surface",
+      "description": "Only top-level plaintext files under reference_docs/ may be treated as Tier 4 context unless the documented contract is explicitly widened; nested archival folders outside reference_docs/cite/ must not silently join Phase 1 context.",
+      "tier": 3,
+      "functional_section": "Documentation State and Intake",
+      "use_cases": [
+        "UC-03"
+      ],
+      "pattern": "whitelist",
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-004",
+      "title": "Preserve citable-vs-context placement during bootstrap mirroring",
+      "description": "The bootstrap self-audit helper must mirror both top-level context docs and cite/ formal docs into reference_docs/ while preserving their placement, so self-audit runs keep the same evidence tiers as the source bootstrap corpus.",
+      "tier": 3,
+      "functional_section": "Bootstrap and Install Parity",
+      "use_cases": [
+        "UC-04"
+      ],
+      "pattern": "parity",
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-005",
+      "title": "Enforce the full Phase 1 exploration gate mechanically",
+      "description": "Phase 1 validation must reject quality/EXPLORATION.md files that omit the exact mandatory sections and minimum analytical content named by the playbook's Phase 2 gate, so later phases cannot proceed on structurally shallow exploration artifacts.",
+      "tier": 3,
+      "functional_section": "Phase Gates and Role Map Integrity",
+      "use_cases": [
+        "UC-05"
+      ],
+      "pattern": "whitelist",
+      "source_type": "skill-section",
+      "skill_section": "Phase 2: Generate the Quality Playbook"
+    },
+    {
+      "id": "REQ-006",
+      "title": "Parse canonical titled BUG headings in archive summaries",
+      "description": "Archive and index rendering must count bugs from the canonical heading form `### BUG-NNN: Title`, so archived severity and disposition totals remain aligned with the BUGS.md format the rest of the playbook requires.",
+      "tier": 3,
+      "functional_section": "Archive and Reporting Integrity",
+      "use_cases": [
+        "UC-06"
+      ],
+      "pattern": "whitelist",
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-007",
+      "title": "Normalize direct Phase 1 role maps before gate validation",
+      "description": "A freshly written Phase 1 role map must either validate directly or be normalized automatically on every execution path before validation runs, so direct skill-mode and runner-driven paths converge on the same canonical role-map schema.",
+      "tier": 3,
+      "functional_section": "Phase Gates and Role Map Integrity",
+      "use_cases": [
+        "UC-07"
+      ],
+      "pattern": "parity",
+      "source_type": "code-derived",
+      "skill_section": null
+    },
+    {
+      "id": "REQ-008",
+      "title": "Keep historical playbook output out of intrinsic surface accounting",
+      "description": "Phase 1 inventory and downstream reasoning must continue to classify prior quality/ artifacts as playbook-output and bucket them into other_share, so historical output never inflates the repository's apparent code or skill surface.",
+      "tier": 3,
+      "functional_section": "Phase Gates and Role Map Integrity",
+      "use_cases": [
+        "UC-08"
+      ],
+      "pattern": "whitelist",
+      "source_type": "code-derived",
+      "skill_section": null
+    }
+  ]
+}

@@ -1,11 +1,52 @@
 RED
-Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_006_archive_bug_count_accepts_titled_bug_headings
+--- BUG-006 red phase ---
+Command: pytest test_regression.py::test_bug_006_council_response_trailing_bracket_parses --runxfail
 Exit code: 1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_bug_006_council_response_trailing_bracket_parses _____________
 
-Traceback excerpt:
-AssertionError: 0 != 1
+    @pytest.mark.xfail(strict=True, reason="BUG-006: greedy JSON-array extraction drops a valid Council response with trailing bracketed prose — unskip after BUG-006-fix.patch")
+    def test_bug_006_council_response_trailing_bracket_parses():
+        resp = (
+            "Here is my review:\n"
+            '[{"req_id": "REQ-001", "verdict": "supports", "reasoning": "ok"}]\n'
+            "Note: REQ-001 relates to item [2] in the spec."
+        )
+>       entries = CS.parse_member_response("claude-opus-4.7", resp, ["REQ-001"])
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Full test output:
-test_bug_006_archive_bug_count_accepts_titled_bug_headings (quality.test_regression.CodeReviewRegressionTests.test_bug_006_archive_bug_count_accepts_titled_bug_headings) ... FAIL
+/Users/andrewstellman/Documents/QPB/quality/test_regression.py:91: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
 
-FAILED (failures=1)
+member_id = 'claude-opus-4.7'
+response_text = 'Here is my review:\n[{"req_id": "REQ-001", "verdict": "supports", "reasoning": "ok"}]\nNote: REQ-001 relates to item [2] in the spec.'
+expected_req_ids = ['REQ-001']
+
+    def parse_member_response(
+        member_id: str,
+        response_text: str,
+        expected_req_ids: Iterable[str],
+    ) -> List[ReviewEntry]:
+        """Parse a Council member's JSON-array response into review entries.
+    
+        Validation:
+          - Response is (or contains) a JSON array.
+          - Each element is a dict with `req_id`, `verdict`, `reasoning`.
+          - `verdict` is in the `VALID_VERDICTS` enum.
+          - Every `expected_req_ids` member appears in the response.
+    
+        Missing / invalid entries raise SemanticCheckError with a specific
+        message naming the offending REQ id.
+        """
+        payload = _extract_first_json_array(response_text)
+        if payload is None:
+>           raise SemanticCheckError(
+                f"{member_id}: response does not contain a JSON array"
+            )
+E           bin.council_semantic_check.SemanticCheckError: claude-opus-4.7: response does not contain a JSON array
+
+/Users/andrewstellman/Documents/QPB/bin/council_semantic_check.py:270: SemanticCheckError
+=========================== short test summary info ============================
+FAILED ../../Users/andrewstellman/Documents/QPB/quality/test_regression.py::test_bug_006_council_response_trailing_bracket_parses
+1 failed in 0.05s

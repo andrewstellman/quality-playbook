@@ -1,0 +1,20 @@
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@ -35,3 +35,17 @@
+ 
+ 
+ class CodeReviewRegressionTests(unittest.TestCase):
++    @xfail(
++        reason=(
++            "BUG-001: docs_present() ignores cite-only docs-backed trees; "
++            "remove after applying quality/patches/BUG-001-fix.patch"
++        )
++    )
++    def test_bug_001_docs_present_recognizes_cite_only_docs(self) -> None:
++        with TemporaryDirectory() as tmp:
++            repo = Path(tmp)
++            cite = repo / "reference_docs" / "cite"
++            cite.mkdir(parents=True)
++            (cite / "spec.md").write_text("# Spec\n", encoding="utf-8")
++            self.assertTrue(run_playbook.docs_present(repo))
++

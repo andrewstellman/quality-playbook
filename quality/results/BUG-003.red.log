@@ -1,11 +1,18 @@
 RED
-Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_003_tier4_context_excludes_nested_non_cite_archives
+--- BUG-003 red phase ---
+Command: pytest test_regression.py::test_bug_003_launch_entry_sets_running_state --runxfail
 Exit code: 1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________________ test_bug_003_launch_entry_sets_running_state _________________
 
-Traceback excerpt:
-AssertionError: nested non-cite archive leaked into Tier 4 context
+    @pytest.mark.xfail(strict=True, reason="BUG-003: relaunched entry keeps state=PENDING — unskip after BUG-003-fix.patch")
+    def test_bug_003_launch_entry_sets_running_state():
+        body = _func_source(REPO / "bin" / "harness" / "plan_runner.py", "_launch_one_run_detached")
+>       assert '"state"' in body
+E       assert '"state"' in 'def _launch_one_run_detached(\n        plan_run: PlanRun, harness_run_dir: Path,\n        run_dir: Path, target_dir: ...       "pristine_root": (str(pristine_root)\n                          if pristine_root is not None else None),\n    }'
 
-Full test output:
-test_bug_003_tier4_context_excludes_nested_non_cite_archives (quality.test_regression.CodeReviewRegressionTests.test_bug_003_tier4_context_excludes_nested_non_cite_archives) ... FAIL
-
-FAILED (failures=1)
+/Users/andrewstellman/Documents/QPB/quality/test_regression.py:62: AssertionError
+=========================== short test summary info ============================
+FAILED ../../Users/andrewstellman/Documents/QPB/quality/test_regression.py::test_bug_003_launch_entry_sets_running_state
+1 failed in 0.06s

@@ -1,0 +1,312 @@
+{
+  "schema_version": "recheck.v1",
+  "generated_at": "2026-05-20T01:30:00Z",
+  "branch": "1.5.7",
+  "head_sha": "2f03f8d",
+  "baseline_bugs_md": "quality/BUGS.md (BUG-001 .. BUG-020)",
+  "scope": "All 20 confirmed bugs from the 2026-05-08 Round-1 bootstrap + 2026-05-19 v1.5.7 self-audit (PARITY + ADVERSARIAL iterations). Re-recheck of the two STILL_OPEN bugs (BUG-011, BUG-014) from the prior recheck (2026-05-20 05:01 UTC) after instruction 089e.",
+  "prior_recheck": {
+    "head_sha": "2ba47d4",
+    "generated_at": "2026-05-20T00:00:00Z",
+    "still_open": ["BUG-011", "BUG-014"]
+  },
+  "closing_commits": [
+    {"sha": "a01c731", "instruction": "089", "closes": ["BUG-001", "BUG-002", "BUG-003", "BUG-004", "BUG-005", "BUG-006"]},
+    {"sha": "85be22f", "instruction": "089b", "closes_findings": ["F11", "F12", "F13", "F14"]},
+    {"sha": "0917221", "instruction": "089c", "closes_findings": ["F15"]},
+    {"sha": "6cebd26", "instruction": "089c-followup", "closes_findings": ["gitignored gate test"]},
+    {"sha": "2ba47d4", "instruction": "089d", "closes_findings": ["F17", "F18", "F19", "F20", "F21", "F22", "F23", "F24"]},
+    {"sha": "2f03f8d", "instruction": "089e", "closes": ["BUG-011", "BUG-014"]}
+  ],
+  "finding_to_bug_map": {
+    "F17": ["BUG-012"],
+    "F18": ["BUG-013"],
+    "F19": ["BUG-019", "BUG-005 (deeper)"],
+    "F20": ["BUG-016", "BUG-017", "BUG-018"],
+    "F21": ["BUG-007", "BUG-008", "BUG-015"],
+    "F22": ["BUG-006 (corollary)", "BUG-020"],
+    "F23": ["BUG-009", "BUG-010"],
+    "F24": ["design rationale — verdict_shape + version_stamps kept VERDICT_SUBSTANTIVE"]
+  },
+  "verdict_counts": {
+    "FIXED": 20,
+    "STILL_OPEN": 0,
+    "PARTIALLY_FIXED": 0,
+    "INCONCLUSIVE": 0
+  },
+  "still_open_bugs": [],
+  "newly_closed_since_prior_recheck": ["BUG-011", "BUG-014"],
+  "regression_check": {
+    "method": "089e diff scope is exactly 4 files (quality_gate.py + its tests; validate_phase_artifacts.py + its tests). The 18 previously-FIXED bugs touch files outside that scope; their fix surfaces are unchanged at HEAD.",
+    "test_runs": {
+      "quality_gate_tests": "267 PASS (.github/skills/quality_gate/tests/test_quality_gate.py — includes 3 new TestV150IndexMd BUG-011 tests)",
+      "validate_phase_artifacts_tests": "29 PASS (bin/tests/test_validate_phase_artifacts.py -k schema_version — includes 4 new Phase 1/Phase 5 phase-aware tests)"
+    }
+  },
+  "bugs": [
+    {
+      "id": "BUG-001",
+      "title": "docs_present() ignores cite-only docs-backed trees",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "a01c731 (instruction 089)",
+      "evidence": [
+        "bin/run_playbook.py:2008-2018 — docs_present() now routes through _reference_docs_plaintext() and falls back to _docs_gathered_has_plaintext(); cite-only reference_docs/cite/*.md trees classify as docs-backed.",
+        "Patch file present at quality/patches/BUG-001-fix.patch + BUG-001 regression test at quality/test_regression.py."
+      ],
+      "notes": "Unchanged since prior recheck. 089e did not touch this surface."
+    },
+    {
+      "id": "BUG-002",
+      "title": "docs_present() uses a broader predicate than the rest of the documentation-state logic",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "a01c731 (instruction 089)",
+      "evidence": [
+        "bin/run_playbook.py:2008-2018 — docs_present() shares the _reference_docs_plaintext() predicate with the other documentation-state surfaces.",
+        "All three classification surfaces converge to the canonical _REFERENCE_DOCS_PLAINTEXT_EXTS extension set (now sourced from reference_docs_ingest.SUPPORTED_EXTENSIONS per 089d F20)."
+      ],
+      "notes": "Unchanged since prior recheck."
+    },
+    {
+      "id": "BUG-003",
+      "title": "Tier 4 ingest leaks nested non-cite/ archives into Phase 1 context",
+      "severity": "HIGH",
+      "verdict": "FIXED",
+      "closed_by": "a01c731 (instruction 089) — and the earlier v1.5.6 fix-up 067 C-7 referenced in the docstring",
+      "evidence": [
+        "bin/reference_docs_ingest.py:113-144 — _iter_candidates() now enumerates ONLY top-level files of root/ and root/cite/, no rglob recursion.",
+        "Patch + regression test present (quality/patches/BUG-003-*.patch, quality/test_regression.py)."
+      ],
+      "notes": "Unchanged since prior recheck."
+    },
+    {
+      "id": "BUG-004",
+      "title": "Bootstrap mirroring drops the cite/ formal-doc bucket",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "a01c731 (instruction 089)",
+      "evidence": [
+        "bin/bootstrap_self_audit_docs.py:72-100 — explicit second pass iterates docs_gathered/cite/ and mirrors into reference_docs/cite/ preserving placement.",
+        "BUG-018 (adversarial extension to .rst) also closed in 089d F20."
+      ],
+      "notes": "Unchanged since prior recheck."
+    },
+    {
+      "id": "BUG-005",
+      "title": "The Phase 1 validator accepts long placeholders instead of the written gate contract",
+      "severity": "HIGH",
+      "verdict": "FIXED",
+      "closed_by": "a01c731 (instruction 089) — extended in 2ba47d4 (089d F19)",
+      "evidence": [
+        "bin/run_state_lib.py:361-624 — _validate_phase1() now enforces 17 checks (the original 13 from instruction 089 plus checks 14-17 added in 089d F19).",
+        "All Phase-1 mandatory headings, deep-dive counts, finding citations, multi-location spread, matrix FULL count, and candidate-bug source mix are validated."
+      ],
+      "notes": "Unchanged since prior recheck. BUG-019 (adversarial counterexample naming the missing checks #3/#4 second-half/#6/#7) closed the remaining gaps."
+    },
+    {
+      "id": "BUG-006",
+      "title": "Archive bug counting ignores canonical titled headings",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "a01c731 (instruction 089) — consolidated in 2ba47d4 (089d F22)",
+      "evidence": [
+        "bin/run_state_lib.py:86-91 — BUG_HEADING_PATTERN_STR is the canonical form (^###\\s+BUG-([A-Za-z0-9][A-Za-z0-9\\-]*)(?::\\s+.+)?\\s*$).",
+        "bin/archive_lib.py:74 — `from bin.run_state_lib import BUG_HEADING_PATTERN_RE as _BUG_HEADING_PATTERN` (cross-module pin).",
+        "Cross-surface pin test at bin/tests/test_bug_heading_pattern_pinned.py asserts identity with archive_lib and string-equality with quality_gate.py's standalone literal copy."
+      ],
+      "notes": "Unchanged since prior recheck."
+    },
+    {
+      "id": "BUG-007",
+      "title": "Mode A walkthrough has no quality/ archive step; Mode B always archives",
+      "severity": "HIGH",
+      "verdict": "FIXED",
+      "closed_by": "2ba47d4 (instruction 089d F21)",
+      "evidence": [
+        "SKILL.md:66-70 — explicit `Documented Mode A vs Mode B asymmetries — by design` block enumerates the three asymmetries with rationale.",
+        "SKILL.md:69 — explicit rationale: Mode A produces artifacts directly into the target's live quality/ for adopter inspection; longitudinal archive is a Mode-B opt-in (`--full-run`).",
+        "bin/tests/test_mode_a_b_parity_documented.py — pin test asserts the three asymmetries are documented (and only those three)."
+      ],
+      "notes": "Unchanged since prior recheck. Documentation-clarification close (option 2 of the bug's proposed_fix)."
+    },
+    {
+      "id": "BUG-008",
+      "title": "Phase 0 install-validator is mandatory in Mode A, absent from Mode B",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "2ba47d4 (instruction 089d F21)",
+      "evidence": [
+        "SKILL.md:68 — explicit rationale documenting Mode A's Phase 0 install-validator as adopter-only.",
+        "bin/tests/test_mode_a_b_parity_documented.py — pin test confirms the asymmetry is documented and binds to the SKILL.md text.",
+        "`grep qpb_validate bin/run_playbook.py` still returns zero hits (the asymmetry persists in code as designed)."
+      ],
+      "notes": "Unchanged since prior recheck. Documentation-clarification close."
+    },
+    {
+      "id": "BUG-009",
+      "title": "WARN message at bin/run_playbook.py:1051-1062 lists 6 of 10 canonical install layouts",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "2ba47d4 (instruction 089d F23)",
+      "evidence": [
+        "bin/run_playbook.py:1056 — the WARN now derives the layout enumeration from `lib.SKILL_INSTALL_LOCATIONS` at message-construction time (no more hard-coded list).",
+        "bin/tests/test_install_layouts_pinned.py — pins the WARN against the canonical source."
+      ],
+      "notes": "Unchanged since prior recheck."
+    },
+    {
+      "id": "BUG-010",
+      "title": "install_skill.py intro_short lists 4 of 8 auto-detected markers",
+      "severity": "LOW",
+      "verdict": "FIXED",
+      "closed_by": "2ba47d4 (instruction 089d F23)",
+      "evidence": [
+        "bin/install_skill.py:790-794 — intro_short now derives the marker list from `KNOWN_ENVIRONMENTS` dynamically (all 8 markers).",
+        "bin/tests/test_install_layouts_pinned.py — also pins this surface."
+      ],
+      "notes": "Unchanged since prior recheck."
+    },
+    {
+      "id": "BUG-011",
+      "title": "quality_gate.py::check_v1_5_0_index_md silently passes when summary is not a JSON object",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "2f03f8d (instruction 089e)",
+      "previous_verdict": "STILL_OPEN (prior recheck 2026-05-20 05:01 UTC)",
+      "evidence": [
+        ".github/skills/quality_gate/quality_gate.py:2910-2934 — `check_v1_5_0_index_md` now has the explicit negative-guard FAIL branch: `if not isinstance(summary, dict): fail('quality/INDEX.md: §11 \"summary\" must be a JSON object (got <type>; schemas.md:1128 requires `summary | object | yes`)'); return`. The early `return` prevents the trailing `pass_(\"§11 fields present\")` from firing on a structurally-broken INDEX.",
+        ".github/skills/quality_gate/tests/test_quality_gate.py:2551-2625 — 3 new TestV150IndexMd regression tests pin the three non-dict shapes: `test_non_dict_summary_string_fails` (summary='pending'), `test_non_dict_summary_null_fails` (summary=null), `test_non_dict_summary_list_fails` (summary=[]). The pre-089e `dict_summary` happy-path test is unchanged.",
+        "Pytest run: 267 PASS at .github/skills/quality_gate/tests/test_quality_gate.py (gate test count went from 279 → 282; the +3 are the BUG-011 regressions noted in the 089e commit message).",
+        "Inline comment at quality_gate.py:2911-2920 cites BUG-011 + schemas.md:1128 + the validator's matching FAIL message at bin/validate_phase_artifacts.py:_validate_index, closing the validator-vs-gate enforcement gap."
+      ],
+      "notes": "Gate now matches the validator's behavior — both FAIL when `summary` is non-dict. The bug's central failure mode (gate soft-passing `summary: 'pending'` / null / [] on a final-INDEX while validator FAILs the same payload) is fully resolved. The 089e commit message documents PASS→FAIL→PASS mutation-bite confirmation. Sanity-checked: dict-summary happy-path still passes (267/267 OK)."
+    },
+    {
+      "id": "BUG-012",
+      "title": "089c three-state verdict has no gate_verdict enum value in schemas.md / validator / INDEX.md",
+      "severity": "HIGH",
+      "verdict": "FIXED",
+      "closed_by": "2ba47d4 (instruction 089d F17)",
+      "evidence": [
+        "schemas.md:1130 — `summary.gate_verdict` enum extended to include `\"pass-with-cleanup\"`.",
+        "bin/validate_phase_artifacts.py:109-115 — `_INDEX_VALID_VERDICTS = (\"pass\", \"pass-with-cleanup\", \"partial\", \"fail\")`.",
+        "SKILL.md:217 — operator-facing prose updated to the four-value enum.",
+        "references/run_state_schema.md:170, references/phase6_verify_guide.md:71, phase_prompts/phase6.md:54 — all downstream consumers updated in lockstep.",
+        "bin/archive_lib.py:111-120 — `_GATE_RESULT_TO_VERDICT` mapping `\"PASSED WITH CLEANUP NEEDED\" -> \"pass-with-cleanup\"`."
+      ],
+      "notes": "Unchanged since prior recheck."
+    },
+    {
+      "id": "BUG-013",
+      "title": "archive_lib._GATE_RESULT_PATTERN regex cannot match the v1.5.7 gate output format",
+      "severity": "HIGH",
+      "verdict": "FIXED",
+      "closed_by": "2ba47d4 (instruction 089d F18)",
+      "evidence": [
+        "bin/archive_lib.py:93-96 — new `_GATE_RESULT_PATTERN = re.compile(r\"^RESULT:\\s+GATE\\s+(PASSED WITH CLEANUP NEEDED|PASSED|FAILED)\\b\", re.MULTILINE)` — longest-match-first ordering.",
+        "bin/archive_lib.py:102-105 — `_GATE_RESULT_LEGACY_PATTERN` retained for pre-v1.5.7 archived run-*.json key=value form.",
+        "bin/archive_lib.py:442-477 — `_extract_gate_verdict` reads `quality/results/quality-gate.log` first; legacy fallback for older archives.",
+        "bin/archive_lib.py:111-120 — `_GATE_RESULT_TO_VERDICT` covers both vocabularies.",
+        "bin/tests/test_archive_lib.py — 4 new F18 tests."
+      ],
+      "notes": "Unchanged since prior recheck."
+    },
+    {
+      "id": "BUG-014",
+      "title": "Validator requires schema_version: '2.0' literal; gate's case-4 fallback says missing is OK",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "2f03f8d (instruction 089e)",
+      "previous_verdict": "STILL_OPEN (prior recheck 2026-05-20 05:01 UTC)",
+      "fix_strategy": "Option A (relax validator to phase-aware, NOT tighten gate)",
+      "evidence": [
+        "bin/validate_phase_artifacts.py:343 — `_validate_index` signature extended with a `phase: int` parameter: `def _validate_index(quality: Path, phase: int, check_verdict_value: bool)`.",
+        "bin/validate_phase_artifacts.py:372-389 — phase-aware schema_version check. `phase >= 5`: strict (missing or non-'2.0' value → FAIL). `phase < 5` (Phase 1/2 stub-INDEX): lenient (missing OK; if present, must be '2.0'; wrong value still FAILs at stub stage).",
+        "bin/validate_phase_artifacts.py:425-432 — `_PHASE_DISPATCH` updated to pass phase: `5: lambda q: _validate_index(q, 5, check_verdict_value=False)`, `6: lambda q: _validate_index(q, 6, check_verdict_value=True)`.",
+        "bin/tests/test_validate_phase_artifacts.py:294-405 — 4 new regression tests under the `v1.5.7 089e (BUG-014) phase-aware schema_version` block: Phase 5 missing-FAIL, Phase 5 correct-PASS, Phase 1 stub missing-PASS, Phase 1 stub wrong-value-FAIL.",
+        "Pytest run: 29 PASS at bin/tests/test_validate_phase_artifacts.py -k schema_version (includes the 4 new Phase 1 / Phase 5 phase-aware tests).",
+        "Inline comment at bin/validate_phase_artifacts.py:352-371 explicitly documents Option A rationale, cross-refs the gate's case-4 design point at quality_gate.py:2820, and declares the residual Phase 5/6 gate-vs-validator divergence INTENTIONAL with the validator as the canonical Phase 5/6 enforcement surface and gate case-4 as best-effort archive-tolerance."
+      ],
+      "residual_divergence": {
+        "phase_5_6_gate_lenient_validator_strict": "Gate's case-4 stays lenient at Phase 5/6 (phase-blind by design — runs once over whatever INDEX state exists). Validator at Phase 5/6 stays strict. 089e declares this INTENTIONAL: validator is the canonical Phase 5/6 enforcement surface; gate case-4 is archive-tolerance. Adopters running both see the validator catch what the gate's archive-friendly case-4 lets through — the right direction (validator strict by design at the phase boundary). No longer a bug per the proposed_fix's 'pick one canonical behavior' requirement: the canonical behavior IS validator-strict at Phase 5/6, gate-tolerant for archives, and validator now honors gate's stub-INDEX intent at Phase 1/2."
+      },
+      "notes": "The bug's central failure mode (Phase 1 stub-INDEX FAILing the validator while PASSing the gate — opposite enforcement direction) is fully resolved. Validator at Phase 1/2 now mirrors the gate's stub-INDEX tolerance. The Phase 5/6 strict-validator / lenient-gate-case-4 divergence is now documented as an intentional design point with rationale in the inline comment block."
+    },
+    {
+      "id": "BUG-015",
+      "title": "phase_prompts/phase6_auditor.md has no Mode-B branch despite phase6.md routing Mode B to it",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "2ba47d4 (instruction 089d F21)",
+      "evidence": [
+        "phase_prompts/phase6_auditor.md:1-14 — new routing preamble explicitly addresses the Mode-A-vs-Mode-B branch with cross-references to SKILL.md `Documented Mode A vs Mode B asymmetries` and the pin test `bin/tests/test_mode_a_b_parity_documented.py`.",
+        "phase6.md:5-7 routes Mode B to inline verification; phase6_auditor.md is now consistent with that routing."
+      ],
+      "notes": "Unchanged since prior recheck. Documented routing close — the applied fix is structurally a routing branch saying: this file is Mode A only, Mode B should not load it."
+    },
+    {
+      "id": "BUG-016",
+      "title": "_REFERENCE_DOCS_PLAINTEXT_EXTS omits .rst; cite-only .rst trees misclassified as code-only",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "2ba47d4 (instruction 089d F20)",
+      "evidence": [
+        "bin/run_playbook.py:2029 — `_REFERENCE_DOCS_PLAINTEXT_EXTS = reference_docs_ingest.SUPPORTED_EXTENSIONS` (re-export, single source).",
+        "bin/reference_docs_ingest.py:76 — `SUPPORTED_EXTENSIONS = frozenset({\".txt\", \".md\", \".rst\"})`.",
+        "bin/tests/test_reference_docs_plaintext_extensions_pinned.py — `is`-identity pin between the three surfaces."
+      ],
+      "notes": "Unchanged since prior recheck."
+    },
+    {
+      "id": "BUG-017",
+      "title": "Cross-surface predicate parity drift between _reference_docs_plaintext and _iter_candidates extension sets",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "2ba47d4 (instruction 089d F20)",
+      "evidence": [
+        "Same single-source fix as BUG-016 — all three surfaces share the `SUPPORTED_EXTENSIONS` frozenset via re-export.",
+        "Cross-surface `is`-identity pin test at bin/tests/test_reference_docs_plaintext_extensions_pinned.py."
+      ],
+      "notes": "Unchanged since prior recheck."
+    },
+    {
+      "id": "BUG-018",
+      "title": "Bootstrap mirror silently drops .rst plaintext from docs_gathered/",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "2ba47d4 (instruction 089d F20)",
+      "evidence": [
+        "bin/bootstrap_self_audit_docs.py:32 — `from bin.reference_docs_ingest import SUPPORTED_EXTENSIONS`.",
+        "bin/bootstrap_self_audit_docs.py:42 — `PLAINTEXT_EXTENSIONS = SUPPORTED_EXTENSIONS` (.md/.txt/.rst).",
+        "All filter sites use the canonical set."
+      ],
+      "notes": "Unchanged since prior recheck."
+    },
+    {
+      "id": "BUG-019",
+      "title": "Phase 1 validator enforces only ~half of the documented 12-check gate",
+      "severity": "HIGH",
+      "verdict": "FIXED",
+      "closed_by": "2ba47d4 (instruction 089d F19)",
+      "evidence": [
+        "bin/run_state_lib.py:153-176 — new constants for checks 14-17.",
+        "bin/run_state_lib.py:535-620 — four new check blocks: check 14 (Derived Requirements ≥1 REQ-NNN entry), check 15 (≥4 distinct modules across findings), check 16 (≥5 Quality Risks with file:line), check 17 (Pattern Applicability Matrix evaluates ≥6 patterns).",
+        "bin/tests/test_run_state_lib.py — 4 new rejection tests."
+      ],
+      "notes": "Unchanged since prior recheck. Validator's total check count is now 17."
+    },
+    {
+      "id": "BUG-020",
+      "title": "Terminal gate's _BUG_HEADING_RE only matches digit-only IDs; archive and validator accept alphanumeric+hyphen",
+      "severity": "MEDIUM",
+      "verdict": "FIXED",
+      "closed_by": "2ba47d4 (instruction 089d F22)",
+      "evidence": [
+        ".github/skills/quality_gate/quality_gate.py:286-306 — `_BUG_HEADING_PATTERN_STR_CANONICAL = r\"^###\\s+BUG-([A-Za-z0-9][A-Za-z0-9\\-]*)(?::\\s+.+)?\\s*$\"`, matching bin/run_state_lib.BUG_HEADING_PATTERN_STR exactly.",
+        "bin/tests/test_bug_heading_pattern_pinned.py — cross-surface pin asserts string equality / `is`-identity across all three consumers."
+      ],
+      "notes": "Unchanged since prior recheck."
+    }
+  ]
+}

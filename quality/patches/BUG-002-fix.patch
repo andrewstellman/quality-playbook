@@ -1,30 +1,21 @@
---- a/bin/run_playbook.py
-+++ b/bin/run_playbook.py
-@@ -1565,13 +1565,21 @@
-     # archived benchmarks with that layout don't suddenly report
-     # "code-only" — but operator-facing prose now routes new users to
-     # `reference_docs/` exclusively.
--    for name in ("reference_docs", "docs_gathered"):
--        docs_dir = repo_dir / name
--        if not docs_dir.is_dir():
-+    if _reference_docs_plaintext(repo_dir / "reference_docs"):
-+        return True
-+
-+    docs_dir = repo_dir / "docs_gathered"
-+    if not docs_dir.is_dir():
-+        return False
-+    for f in sorted(docs_dir.iterdir()):
-+        if not f.is_file() or f.name.startswith("."):
-             continue
--        for f in docs_dir.iterdir():
--            if f.is_file() and not f.name.startswith(".") and f.stat().st_size > 0:
--                return True
-+        if f.name in _REFERENCE_DOCS_SKIPPED:
-+            continue
-+        if f.suffix.lower() not in _REFERENCE_DOCS_PLAINTEXT_EXTS:
-+            continue
-+        if f.stat().st_size > 0:
-+            return True
-     return False
- 
- 
+diff --git a/bin/harness/plan_runner.py b/bin/harness/plan_runner.py
+index 99ad05a..463b8a7 100644
+--- a/bin/harness/plan_runner.py
++++ b/bin/harness/plan_runner.py
+@@ -2537,6 +2537,16 @@ def _retry_pending_runs_once(
+             )
+             _update_manifest_entry_atomic(
+                 manifest_path, pr.index, entry)
++            # BUG-002 fix: record the real PID so the pid=0 reservation made
++            # by acquire_run_slot above is converted before it ages out at
++            # _PID_ZERO_MAX_AGE_S (300s). Without this the slot frees while
++            # the retry-spawned run is still alive and the per-provider cap
++            # is exceeded — matching the orchestrator launch path (3078).
++            _retry_pid = entry.get("pid")
++            if _retry_pid is not None:
++                _inflight.update_pid(
++                    harness_run_dir=harness_run_dir,
++                    run_index=pr.index, pid=int(_retry_pid))
+             if log is not None:
+                 log.log(
+                     f"retried starved run: "
