@@ -216,32 +216,58 @@ def run_watchdog(harness_run_dir: Path) -> int:
                 f"run-{e.get('index'):02d}" for e in orphans
             ]
             _log(log_fp,
-                  f"orphan(s) detected: {orphan_names}; firing "
-                  f"collect under lock")
-            with open(lock_path, "w", encoding="utf-8") as lock_fp:
-                try:
-                    fcntl.flock(
-                        lock_fp.fileno(),
-                        fcntl.LOCK_EX | fcntl.LOCK_NB)
-                except BlockingIOError:
-                    _log(log_fp,
-                          "collect already in progress; "
-                          "skipping this tick")
-                    continue
-                try:
-                    from bin.harness.plan_runner import (
-                        collect_harness_run)
-                    collect_harness_run(harness_run_dir)
-                    _log(log_fp, "recovery collect completed")
-                except Exception as exc:
-                    _log(log_fp,
-                          f"recovery collect failed: {exc!r}")
-                finally:
+                  f"orphan(s) detected: {orphan_names}; "
+                  f"probing collect lock")
+            # v1.5.7 172 FIX (FINDING-1): the LOCK_NB probe is a
+            # "is collect busy?" check — don't HOLD it across the
+            # collect_harness_run call. collect_harness_run
+            # acquires its own LOCK_EX on the same .collect.lock
+            # via a different FD; ``fcntl.flock`` is per open file
+            # description, so two FDs in the same process count as
+            # independent lock holders. Holding the probe lock here
+            # would deadlock the collect_harness_run acquire
+            # (blocking LOCK_EX waits for ALL holders to release,
+            # including the same-process probe). Release the probe
+            # immediately after the success path, then call collect
+            # (which acquires its own blocking lock cleanly).
+            busy = False
+            try:
+                with open(lock_path, "w",
+                           encoding="utf-8") as probe_fp:
                     try:
                         fcntl.flock(
-                            lock_fp.fileno(), fcntl.LOCK_UN)
-                    except OSError:
-                        pass
+                            probe_fp.fileno(),
+                            fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        # Probe succeeded — collect is free.
+                        # Release immediately so the upcoming
+                        # collect_harness_run call can acquire
+                        # its own blocking LOCK_EX on a fresh FD
+                        # without deadlocking against this probe.
+                        fcntl.flock(
+                            probe_fp.fileno(), fcntl.LOCK_UN)
+                    except BlockingIOError:
+                        busy = True
+            except OSError as exc:
+                _log(log_fp,
+                      f"lock probe failed: {exc!r}")
+                continue
+            if busy:
+                _log(log_fp,
+                      "collect already in progress; "
+                      "skipping this tick")
+                continue
+            # Lock was free at probe time. Tiny race window: another
+            # process could grab .collect.lock between probe-release
+            # and collect's acquire — harmless, collect just blocks
+            # briefly until that holder finishes.
+            try:
+                from bin.harness.plan_runner import (
+                    collect_harness_run)
+                collect_harness_run(harness_run_dir)
+                _log(log_fp, "recovery collect completed")
+            except Exception as exc:
+                _log(log_fp,
+                      f"recovery collect failed: {exc!r}")
     finally:
         _log(log_fp, "watchdog exiting")
         log_fp.close()

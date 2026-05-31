@@ -302,5 +302,163 @@ class StatusDisplayTests(unittest.TestCase):
         self.assertIn("summary.watchdog_alive", src)
 
 
+class RecoveryNoDeadlockTests(unittest.TestCase):
+    """v1.5.7 172 FINDING-1 (FIX-REQUIRED): the watchdog's orphan-
+    recovery path must not deadlock when calling
+    ``collect_harness_run``. Pre-fix the watchdog held LOCK_EX on
+    ``.collect.lock`` and ``collect_harness_run``'s blocking
+    LOCK_EX (different FD, same process) deadlocked because
+    ``fcntl.flock`` is per open file description, not per inode.
+
+    Test design: stub ``collect_harness_run`` to a sentinel-touch
+    no-op; spin up the recovery branch in a thread under
+    ``QPB_WATCHDOG_INTERVAL_S=0.5``; assert the thread exits
+    within 5s with the sentinel file created. Pre-fix the thread
+    would hang in ``fcntl.flock``."""
+
+    def test_recovery_collect_does_not_deadlock(self) -> None:
+        import json as _json
+        import threading
+        import time as _time
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            hrd = Path(tmp)
+            # Minimal manifest with one orphan entry:
+            # state=RUNNING, pid=dead, stream stale.
+            (hrd / "run-00").mkdir()
+            stream = hrd / "run-00" / "stream.ndjson"
+            stream.write_text("x\n", encoding="utf-8")
+            # Make stream stale (> default 30s stale threshold).
+            old = _time.time() - 600
+            import os as _os
+            _os.utime(stream, (old, old))
+            manifest = {
+                "runs": [{
+                    "index": 0, "state": "RUNNING",
+                    "pid": 999999,  # dead pid
+                    "run_dir": "run-00",
+                }],
+            }
+            (hrd / "manifest.json").write_text(
+                _json.dumps(manifest), encoding="utf-8")
+
+            # Stub collect_harness_run to a sentinel-touch no-op
+            # that also acquires its own LOCK_EX on .collect.lock
+            # (same as the real one), proving the watchdog
+            # released the probe before calling it.
+            sentinel = hrd / "recovery-fired.txt"
+
+            def stub_collect(harness_run_dir, log=None):
+                # Mimic real collect_harness_run's lock acquire.
+                lock_path = (
+                    harness_run_dir / ".collect.lock")
+                with open(lock_path, "w",
+                            encoding="utf-8") as fp:
+                    fcntl.flock(
+                        fp.fileno(), fcntl.LOCK_EX)
+                    sentinel.write_text("ok\n",
+                                          encoding="utf-8")
+                    fcntl.flock(
+                        fp.fileno(), fcntl.LOCK_UN)
+                return []
+
+            from bin.harness import plan_runner as _pr
+            from bin.harness import watchdog as _wd
+            saved = _pr.collect_harness_run
+            _pr.collect_harness_run = stub_collect
+            # signal.signal() only works from the main thread —
+            # patch the watchdog's import target to a no-op so
+            # run_watchdog can run inside our test thread.
+            import signal as _signal
+            saved_signal = _wd.signal
+            class _StubSignal:
+                SIGTERM = _signal.SIGTERM
+                SIGINT = _signal.SIGINT
+                @staticmethod
+                def signal(signum, handler):
+                    return None
+            _wd.signal = _StubSignal()
+
+            # Drive a SHORT watchdog interval so the loop fires
+            # quickly. We send SIGTERM after the sentinel exists
+            # so the watchdog exits cleanly.
+            saved_envs = {
+                k: os.environ.get(k)
+                for k in ("QPB_WATCHDOG_INTERVAL_S",
+                           "QPB_WATCHDOG_STALE_S")
+            }
+            os.environ["QPB_WATCHDOG_INTERVAL_S"] = "0.5"
+            os.environ["QPB_WATCHDOG_STALE_S"] = "1"
+
+            try:
+                # Run the watchdog in a thread; assert it returns
+                # within 5s after firing the recovery collect.
+                # Signals can't reach a non-main thread, so we
+                # instead let the watchdog naturally exit when
+                # all_terminal becomes true. The stub doesn't set
+                # terminal_state, so we patch the all_terminal
+                # check by transitioning the manifest after the
+                # sentinel touches.
+                done = threading.Event()
+                result = {"err": None}
+
+                def transition_after_sentinel():
+                    deadline = _time.monotonic() + 4.0
+                    while _time.monotonic() < deadline:
+                        if sentinel.is_file():
+                            # Transition the manifest so the
+                            # watchdog's next tick sees
+                            # _all_terminal and exits cleanly.
+                            m = _json.loads(
+                                (hrd / "manifest.json").read_text())
+                            m["runs"][0]["terminal_state"] = (
+                                "COMPLETED")
+                            m["runs"][0]["state"] = "DONE"
+                            (hrd / "manifest.json").write_text(
+                                _json.dumps(m))
+                            return
+                        _time.sleep(0.1)
+
+                from bin.harness import watchdog as _wd
+
+                def run_it():
+                    try:
+                        _wd.run_watchdog(hrd)
+                    except BaseException as exc:
+                        result["err"] = exc
+                    finally:
+                        done.set()
+
+                helper = threading.Thread(
+                    target=transition_after_sentinel,
+                    daemon=True)
+                helper.start()
+                thread = threading.Thread(
+                    target=run_it, daemon=True)
+                thread.start()
+                # 5s timeout. Pre-fix the watchdog hangs in
+                # fcntl.flock and this wait times out.
+                done.wait(timeout=10.0)
+                self.assertTrue(
+                    done.is_set(),
+                    "watchdog did not exit within 10s — "
+                    "deadlock regression?")
+                self.assertIsNone(result["err"],
+                                   f"watchdog raised: "
+                                   f"{result['err']!r}")
+                self.assertTrue(
+                    sentinel.is_file(),
+                    "recovery collect was not called")
+            finally:
+                _pr.collect_harness_run = saved
+                _wd.signal = saved_signal
+                for k, v in saved_envs.items():
+                    if v is None:
+                        os.environ.pop(k, None)
+                    else:
+                        os.environ[k] = v
+
+
 if __name__ == "__main__":  # pragma: no cover
     unittest.main()
