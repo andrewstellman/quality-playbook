@@ -26,7 +26,8 @@ from pathlib import Path
 from unittest import mock
 
 from bin.harness import plan_runner as PR
-from bin.harness import inflight_registry as IR
+# v1.5.7 174 Phase 6: inflight_registry deleted; tests now
+# mock PR._try_acquire_pool_slot directly.
 from bin.harness.schema import (
     InstallChannel, Mode, Runner, TerminalState)
 
@@ -298,7 +299,8 @@ class RetryPendingRunsOnceTests(unittest.TestCase):
                 "runner": "claude", "model": "opus",
                 "repo": "https://github.com/x/r0",
             }
-            with mock.patch.object(IR, "acquire_run_slot"), \
+            with mock.patch.object(PR, "_try_acquire_pool_slot",
+                                    return_value=True), \
                  mock.patch.object(PR,
                                     "_launch_one_run_detached",
                                     return_value=spawned_entry):
@@ -311,14 +313,13 @@ class RetryPendingRunsOnceTests(unittest.TestCase):
 
     def test_launch_failure_marks_entry_terminal_failed(
             self) -> None:
-        # Launch fails after slot acquisition → entry becomes
-        # terminal FAILED (not stuck retrying forever) and the
-        # slot is released.
+        # v1.5.7 174: launch fails after slot acquisition →
+        # _finalize_pool_slot_failed marks entry DONE+FAILED.
         with tempfile.TemporaryDirectory() as td:
             hr = Path(td) / "20260530T134322Z"
             mp = _write_manifest(hr, [_pending_entry(0)])
-            with mock.patch.object(IR, "acquire_run_slot"), \
-                 mock.patch.object(IR, "release_run_slot"), \
+            with mock.patch.object(PR, "_try_acquire_pool_slot",
+                                    return_value=True), \
                  mock.patch.object(
                     PR, "_launch_one_run_detached",
                     side_effect=RuntimeError("test failure")):

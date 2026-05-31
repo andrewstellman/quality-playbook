@@ -423,24 +423,15 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
         Path(args.tgz).expanduser().resolve()
         if getattr(args, "tgz", None) else None
     )
-    # v1.5.7 125: global per-provider concurrency cap. CLI
-    # spec (--max-per-provider) takes precedence over the env
-    # var (QPB_HARNESS_MAX_PER_PROVIDER); falling through to
-    # the registry's conservative defaults when neither is
-    # set.
-    from bin.harness import inflight_registry as _inflight
-    cli_mpp = getattr(args, "max_per_provider", None)
-    if cli_mpp:
-        max_per_provider = (
-            _inflight.parse_max_per_provider_spec(cli_mpp))
-    else:
-        max_per_provider = None  # plan_runner resolves from env
+    # v1.5.7 174 Phase 5: removed --max-per-provider CLI spec
+    # parsing (was 125 inflight_registry territory). Per-plan
+    # pools are the only concurrency knob in the pool-only
+    # model.
     try:
         outcomes = _plan.run_plan(
             plan, runs_root,
             wheel_override=wheel_override,
             tgz_override=tgz_override,
-            max_per_provider=max_per_provider,
         )
     except _plan.BuildError as exc:
         print(f"ERROR: build failed — {exc}", file=sys.stderr)
@@ -579,28 +570,13 @@ def _cmd_status(args: argparse.Namespace) -> int:
     deprecated alias for the positional path.
     """
     from bin.harness import status as _status
-    from bin.harness import inflight_registry as _inflight
-
-    # v1.5.7 125 Task C: global summary is always shown.
-    print(_inflight.format_global_summary())
-
+    # v1.5.7 174 Phase 5: removed inflight_registry's global
+    # in-flight summary and --global view (was 125 territory).
+    # Concurrency is now per-plan; cross-plan view obsoleted.
     if getattr(args, "global_view", False):
-        active = _inflight.read_active_runs()
-        if not active:
-            return 0
-        print("")
-        print(
-            "provider     runner    pid       harness-run-dir"
-            "                                   started-at"
-        )
-        for e in active:
-            print(
-                f"{e.get('provider', '?'):<12} "
-                f"{e.get('runner', '?'):<9} "
-                f"{str(e.get('pid', 0)):<9} "
-                f"{e.get('harness_run_dir', ''):<50} "
-                f"{e.get('started_at', '')}"
-            )
+        print("--global is obsoleted by v1.5.7 174 pool-only "
+              "concurrency model; cross-plan registry removed",
+              file=sys.stderr)
         return 0
 
     path, from_default = _resolve_tui_path(args)
@@ -1215,18 +1191,9 @@ def _build_parser() -> argparse.ArgumentParser:
                                 "runs (still copied into "
                                 "<harness-run>/artifacts/). When "
                                 "absent: build a fresh tgz."))
-    p_plan.add_argument(
-        "--max-per-provider", default=None,
-        help=(
-            "v1.5.7 125: global per-provider concurrency cap "
-            "spec, comma-separated. Example: "
-            "--max-per-provider anthropic=1,openai=3,github=2. "
-            "Caps apply ACROSS all run-plan invocations on "
-            "this machine (file-backed registry at "
-            "~/.qpb_harness/inflight.json). Per-plan `pools` "
-            "still apply on top — whichever is tighter wins. "
-            "Defaults: anthropic=2 openai=3 github=3 cursor=3."),
-    )
+    # v1.5.7 174 Phase 5: removed --max-per-provider. The
+    # pool-only model uses per-plan ``pools`` exclusively;
+    # cross-plan concurrency is deliberately not tracked.
     p_plan.add_argument(
         "--foreground", action="store_true", default=False,
         help=(

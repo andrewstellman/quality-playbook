@@ -99,18 +99,21 @@ class KillRunTests(unittest.TestCase):
                     R.kill_run(run_dir)
             m_kill.assert_not_called()  # never touched a collected run
 
-    def test_releases_inflight_registry_slot(self) -> None:
+    def test_release_slot_helper_is_called(self) -> None:
+        # v1.5.7 174 Phase 5: pre-174 this asserted that kill_run
+        # called inflight_registry.release_run_slot. Post-174 the
+        # release semantic is "write KILLED to the manifest entry"
+        # — handled by kill_run's status.json write + manifest
+        # transition. _release_slot_for_run_dir is now a no-op
+        # back-compat stub; we only assert it's still called
+        # (so the wiring point remains observable).
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = _fixture(tmp)
-            from bin.harness import inflight_registry as reg
             with mock.patch.object(R, "_pid_alive", return_value=False), \
-                 mock.patch.object(reg, "release_run_slot") as m_rel:
+                 mock.patch.object(R,
+                                    "_release_slot_for_run_dir") as m_rel:
                 R.kill_run(run_dir)
-            m_rel.assert_called_once()
-            self.assertEqual(
-                m_rel.call_args.kwargs["harness_run_dir"],
-                run_dir.parent)
-            self.assertEqual(m_rel.call_args.kwargs["run_index"], 0)
+            m_rel.assert_called_once_with(run_dir)
 
     def test_records_negative_signal_as_exit_code(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

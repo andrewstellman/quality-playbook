@@ -768,27 +768,15 @@ class KillResult:
 
 
 def _release_slot_for_run_dir(run_dir: Path) -> None:
-    """v1.5.7 147: release the 125 inflight-registry slot for the
-    run at ``run_dir`` (looked up by run-NN name in the parent
-    harness-run's manifest). Best-effort + idempotent."""
-    from bin.harness import inflight_registry as _reg
-    hr = run_dir.parent
-    manifest = hr / "manifest.json"
-    if not manifest.is_file():
-        return
-    try:
-        data = json.loads(manifest.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return
-    for entry in data.get("runs", []):
-        ed = str(entry.get("run_dir", ""))
-        if Path(ed).name == run_dir.name or ed == str(run_dir):
-            idx = entry.get("index")
-            if idx is not None:
-                with contextlib.suppress(Exception):
-                    _reg.release_run_slot(
-                        harness_run_dir=hr, run_index=idx)
-            return
+    """v1.5.7 147: release the slot for the run at ``run_dir``.
+
+    v1.5.7 174 Phase 5: the pool-only model uses manifest state
+    as source of truth — there is no separate registry slot to
+    release. The kill_run flow writes KILLED to the manifest
+    entry which makes the slot count drop naturally. This
+    function is now a no-op; preserved for back-compat with
+    147-era callers."""
+    return
 
 
 def kill_run(run_dir: Path, *, sig: int = signal.SIGKILL,

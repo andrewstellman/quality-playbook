@@ -1968,7 +1968,6 @@ def _collect_one_run_detached(
     """
     from bin.harness import facts as _facts_mod
     from bin.harness import runner as _runner_mod
-    from bin.harness import inflight_registry as _inflight
     from bin.harness.schema import (
         Runner, Mode as _Mode, InstallChannel,
         run_facts_to_json,
@@ -1984,26 +1983,21 @@ def _collect_one_run_detached(
         entry.get("target_dir", ""), harness_run_dir)
     grading_path = run_dir / "grading.json"
 
-    # v1.5.7 125: release the lifetime-slot from the global
-    # registry once the run reaches a terminal state. Called
-    # at every return path (idempotent — release_run_slot is
-    # a no-op if no matching entry).
-    # v1.5.7 174 Phase 4 (BUG-011 fix): ALSO mark the manifest
-    # entry as DONE + terminal_state so the watchdog's
-    # _is_orphan reads "not orphan" via the manifest's source-
-    # of-truth state. Pre-174 BUG-011: watchdog re-detected
-    # graded RUNNING entries as orphans because the collector
-    # wrote terminal_state to status.json/grading.json but NOT
-    # to the manifest.
+    # v1.5.7 174 Phase 4/5 (BUG-011 fix): on terminal, mark the
+    # manifest entry as DONE + terminal_state so the watchdog's
+    # _is_orphan reads "not orphan" via the manifest's source-of-
+    # truth state. Pre-174 BUG-011: watchdog re-detected graded
+    # RUNNING entries as orphans because the collector wrote
+    # terminal_state to status.json/grading.json but NOT to the
+    # manifest. Phase 5: removed the inflight_registry.release_run_slot
+    # call — the manifest state transition IS the release in the
+    # pool-only model (other launchers count manifest-state, not
+    # registry entries).
     _run_index = entry["index"]
     _manifest_path = harness_run_dir / "manifest.json"
 
     def _release_slot(
             terminal_state: "Optional[str]" = None) -> None:
-        _inflight.release_run_slot(
-            harness_run_dir=harness_run_dir,
-            run_index=_run_index,
-        )
         if terminal_state is not None:
             _update_manifest_entry_atomic(
                 _manifest_path, _run_index, {
@@ -3126,26 +3120,11 @@ def _repo_root_for_collector() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-# v1.5.7 159: acquire_run_slot defensive timeout — read once per
-# spawn so an operator can tune via env var without a re-import.
-# Default 300s (5 min) matches the instruction's recommendation;
-# operators who deliberately want long waits can bump it up, and
-# tests can drop it to a fraction of a second.
-_ACQUIRE_RUN_SLOT_TIMEOUT_DEFAULT_S = 300.0
-
-
-def _acquire_run_slot_timeout_s() -> float:
-    """v1.5.7 159: defensive timeout for ``acquire_run_slot``.
-    Default 300s; operator-tunable via ``QPB_HARNESS_ACQUIRE_TIMEOUT_S``.
-    A non-numeric / non-positive value falls back to the default."""
-    raw = os.environ.get("QPB_HARNESS_ACQUIRE_TIMEOUT_S")
-    if raw is None:
-        return _ACQUIRE_RUN_SLOT_TIMEOUT_DEFAULT_S
-    try:
-        v = float(raw)
-    except (TypeError, ValueError):
-        return _ACQUIRE_RUN_SLOT_TIMEOUT_DEFAULT_S
-    return v if v > 0 else _ACQUIRE_RUN_SLOT_TIMEOUT_DEFAULT_S
+# v1.5.7 174 Phase 5: removed _ACQUIRE_RUN_SLOT_TIMEOUT_DEFAULT_S +
+# _acquire_run_slot_timeout_s. Both were 159-era defensive timeouts
+# for inflight_registry.acquire_run_slot, which is no longer called
+# from any code path post-Phase-2 (launch loop uses
+# _try_acquire_pool_slot non-blocking).
 
 
 def _install_orchestrator_signal_handlers() -> None:
@@ -3185,6 +3164,9 @@ def run_plan(plan: Plan, harness_runs_root: Path,
               tgz_override: "Optional[Path]" = None,
               detach: bool = True,
               max_per_provider: "Optional[dict[str, int]]" = None,
+              # ^ v1.5.7 174 Phase 5: accepted for back-compat,
+              #   now IGNORED. Per-plan pools are the only
+              #   concurrency knob in the pool-only model.
               ) -> "list[RunOutcome]":
     """Execute a parsed Plan end-to-end. Returns the list of
     RunOutcomes in plan-array order.
@@ -3318,21 +3300,9 @@ def run_plan(plan: Plan, harness_runs_root: Path,
     #     subprocess (anti-SIGTTIN per 108), and returns
     #     RUNNING placeholder outcomes. The collector runs
     #     facts + grade + SUMMARY out of the blocking path.
-    # v1.5.7 125: resolve the global per-provider cap from
-    # the operator's spec (CLI/env), merged with the
-    # conservative defaults in inflight_registry. Threaded
-    # through to the detached path so the registry's
-    # acquire_run_slot enforces both per-plan pool caps AND
-    # the global per-provider cap under one lock.
-    from bin.harness import inflight_registry as _inflight
-    effective_max_per_provider = (
-        max_per_provider
-        if max_per_provider is not None
-        else _inflight.parse_max_per_provider_spec(
-            os.environ.get(
-                "QPB_HARNESS_MAX_PER_PROVIDER"))
-    )
-
+    # v1.5.7 174 Phase 5: removed the cross-plan per-provider
+    # cap resolution (was 125 inflight_registry territory).
+    # Per-plan pools are now the only concurrency knob.
     if hooks.fake_run is not None or not detach:
         return _run_plan_synchronous(
             plan, harness_run_dir, hooks, artifact_map,
@@ -3340,7 +3310,7 @@ def run_plan(plan: Plan, harness_runs_root: Path,
         )
     return _run_plan_detached(
         plan, harness_run_dir, artifact_map, gate, pool_total,
-        log, effective_max_per_provider,
+        log,
     )
 
 
@@ -3392,7 +3362,6 @@ def _run_plan_detached(
         artifact_map: "dict[InstallChannel, dict]",
         gate: "_PoolGate", pool_total: int,
         log: "_ProgressLog",
-        max_per_provider: "Optional[dict[str, int]]" = None,
 ) -> "list[RunOutcome]":
     """v1.5.7 108: the new detached/collector flow. Launches
     every run via ``_launch_one_run_detached`` (parallel,
@@ -3410,7 +3379,7 @@ def _run_plan_detached(
     ``.manifest.lock``) to atomically count + transition to
     ACQUIRING + spawn + finalize RUNNING. Starved entries are
     left as PENDING; the 165 retry path picks them up when
-    slots free. ``max_per_provider`` is accepted for back-
+    slots free. Pre-Phase-5 ``max_per_provider`` was accepted for back-
     compat with pre-174 callers but is now IGNORED — per-plan
     pools are the only concurrency knob.
     """

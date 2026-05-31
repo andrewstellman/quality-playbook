@@ -21,7 +21,8 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 from bin.harness import plan_runner as PR  # noqa: E402
-from bin.harness import inflight_registry as IR  # noqa: E402
+# v1.5.7 174 Phase 6: inflight_registry deleted; this import
+# was used by test_bug_005 which is also deleted.
 from bin.harness import status as ST  # noqa: E402
 from bin.harness.schema import TerminalState  # noqa: E402
 import bin.council_semantic_check as CS  # noqa: E402
@@ -50,9 +51,14 @@ def test_bug_001_pending_pidless_not_graded_failed(tmp_path):
     assert outcome.terminal_state != TerminalState.FAILED.value
 
 
-def test_bug_002_retry_launch_calls_update_pid():
-    body = _func_source(REPO / "bin" / "harness" / "plan_runner.py", "_retry_pending_runs_once")
-    assert "update_pid" in body
+# v1.5.7 174 Phase 6: test_bug_002_retry_launch_calls_update_pid
+# DELETED. The `update_pid` mechanism it asserted is gone — the
+# 174 pool-only model uses manifest-state transitions instead of
+# inflight_registry pid=0 reservations + update_pid. The
+# underlying contract (retry path records the spawned pid) is
+# now preserved by `_finalize_pool_slot_running` which writes
+# state=RUNNING + pid under .manifest.lock; that's covered by
+# the broader integration tests in test_collector_retry_165.py.
 
 
 def test_bug_003_launch_entry_sets_running_state():
@@ -71,26 +77,14 @@ def test_bug_004_phase2_artifacts_resolve_to_phase2(tmp_path):
     assert inferred is not None and inferred["phase"] == 2
 
 
-def test_bug_005_pid0_reservation_write_rejects_unparseable_started_at(tmp_path):
-    """v1.5.7 170 (BUG-005, orchestrator ruling option b): the
-    "every pid=0 reservation carries a parseable ISO-8601 UTC
-    started_at" invariant is enforced at the WRITE site
-    (acquire_run_slot), not at the read site. The bootstrap's
-    original test asserted a read-side fix (return False on parse
-    failure); the orchestrator chose the write-side option to
-    preserve _entry_is_active's defensive default for disk-
-    corruption recovery."""
-    with pytest.raises(ValueError, match=r"started_at"):
-        IR.acquire_run_slot(
-            runner="claude",
-            harness_run_dir=tmp_path,
-            run_index=0,
-            started_at="not-a-real-timestamp",
-            max_per_provider={"anthropic": 2},
-            plan_pool_cap=None,
-            registry_path=tmp_path / "inflight.json",
-            max_wait_s=0.1,
-        )
+# v1.5.7 174 Phase 6: test_bug_005_pid0_reservation_write_rejects_unparseable_started_at
+# DELETED. The invariant it tested (pid=0 reservations carry
+# parseable started_at) lived in inflight_registry which is
+# now deleted. The pool-only model has no pid=0 reservations
+# — entries transition PENDING → ACQUIRING → RUNNING with pid
+# set in one shot on spawn. The 170 methodology (no silent
+# defaults) lives on in 177's _entry_to_plan_run hardening
+# (test_bug_010_entry_to_plan_run_requires_ref).
 
 
 def test_bug_006_council_response_trailing_bracket_parses():
@@ -205,12 +199,15 @@ def test_bug_010_pending_manifest_writer_preserves_ref():
     defaulted to 'main'; non-main-branch repos (express/master,
     chi/master) ABORTED_PREP at clone time. Source-inspection
     check: ref must appear in the entry-dict literal."""
-    body = _func_source(REPO / "bin" / "harness" / "plan_runner.py", "_run_plan_detached")
-    # The PENDING manifest_entries[idx] = {...} literal must
-    # include "ref": pr.ref (or similar pr.ref reference).
-    assert '"ref"' in body and "pr.ref" in body, (
-        "_run_plan_detached's PENDING manifest writer must "
-        "include `\"ref\": pr.ref` so retry-spawn has the "
+    # v1.5.7 174: PENDING-entry writer was extracted to a helper.
+    body = _func_source(REPO / "bin" / "harness" / "plan_runner.py", "_make_pending_manifest_entry")
+    # The PENDING entry-dict literal must include "ref" with
+    # the PlanRun's ref attribute (v1.5.7 174 renamed pr → plan_run
+    # in _make_pending_manifest_entry).
+    assert '"ref"' in body and (
+        "pr.ref" in body or "plan_run.ref" in body), (
+        "_make_pending_manifest_entry must include "
+        "`\"ref\": plan_run.ref` so retry-spawn has the "
         "original branch. Pre-177 the writer omitted ref."
     )
 
