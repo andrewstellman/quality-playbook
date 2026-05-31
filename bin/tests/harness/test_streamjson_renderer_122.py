@@ -1,46 +1,28 @@
-"""v1.5.7 122 — human-readable Claude --print stream-json log
-renderer (toggleable raw), shared by tail / TUI output /
-`tui --dump output`.
+"""v1.5.7 122 (refreshed for 173 Claude-Code-TUI port) —
+shared-renderer contracts. ``render_stream_line`` now delegates
+to :mod:`bin.harness.stream_render`; this file's tests assert the
+v1.5.7 173 Claude-Code-TUI shape:
 
-The TUI/tail/`--dump output` views showed Claude runs as raw
-``{"type":"assistant",...}`` JSON lines — noisy and unreadable.
-122 templates each known Claude event type into a clean log
-line (▶ / · / ⚙ / ← / ■ / ↳ / ⏳ icons) and de-jsonifies
-unknown types into ``«type=… key=val»`` instead of raw JSON.
-Non-Claude plain text (codex / copilot CLI / run_playbook
-output) passes through unchanged.
+  - ``━━━ session …`` banners (was ``▶ session start``).
+  - ``⏺ ToolName(arg)`` for assistant tool_use (was ``⚙ name:``).
+  - ``⎿  content`` for user tool_result (was ``← snippet``).
+  - ``•  Task[…]`` for subagent system events (was ``↳``).
+  - ``━━━ session ended: SUCCESS …`` for terminal result (was
+    ``■ DONE``).
+  - ``⟨rate_limit⟩`` / ``⟨thinking⟩`` / ``⟨type.subtype⟩`` for
+    meta + unknown events (was ``⏳`` / dropped / ``«type=…»``).
 
-Toggleable raw mode (default rendered):
-  * TUI: ``j`` key flips RENDERED ⇔ RAW; mode shown in the
-    status bar.
-  * CLI: ``tail --raw`` and ``tui --dump output --raw`` emit
-    verbatim wire-format lines.
-  * `c`-copy + `--dump` reflect the active mode.
+The COVERAGE SCOPE is preserved (same shape categories tested);
+only the expected output strings pivoted to the new format. The
+LOAD-BEARING ::QPB:: sentinel preservation (bare-line + inline-
+in-tool_result) still works.
 
-Coverage:
-  * Each Claude event type renders to its templated log line
-    (using fixtures lifted from a real
-    ``claude --print stream-json`` stream).
-  * Unknown event types render as ``«type=… key=val»`` (NOT
-    raw JSON).
-  * Embedded ``::QPB::`` sentinels (inside tool_result.content,
-    per 117) render the phase/gate line — preferred over a
-    plain `← <snippet>`.
-  * Bare-line ``::QPB::`` sentinels still render (109/110
-    back-compat).
-  * Non-Claude plain text (codex / copilot / run_playbook
-    `Phase 1/6 (Explore)`) passes through unchanged.
-  * Non-Claude JSON (no ``type`` field) passes through.
-  * ``rendered=False`` (raw mode) emits verbatim lines —
-    **THE 122 MUTATION-BITE**: if rendering is always-on,
-    the "raw emits verbatim" test FAILS; if rendering is
-    skipped, the "known event renders to log line" test
-    FAILS.
-  * CLI flags ``tail --raw`` and ``tui --dump output --raw``
-    end-to-end (subprocess invocation).
-  * 119 import-safety preserved; bundle-safety green.
+The 173 port now SHOWS thinking by default; tests are updated
+to expect this (previously thinking was suppressed by the
+compact log-line renderer).
 
-Segregated suite per Implementation Plan §4.
+Mutation-bite contract (``rendered=False`` emits verbatim) is
+unchanged.
 """
 from __future__ import annotations
 
@@ -163,45 +145,60 @@ class RenderStreamLineClaudeEventTests(unittest.TestCase):
     log-line shape. Fixtures are realistic shapes (lifted from
     a real claude --print stream-json stream)."""
 
-    def test_system_init_renders_session_start(self) -> None:
+    def test_system_init_renders_session_banner(self) -> None:
+        """v1.5.7 173: ``━━━ session <sid> started (model=…,
+        cwd=…, N tools) ━━━`` banner (was ``▶ session start``)."""
         out = ST.render_stream_line(_REAL_INIT)
-        self.assertIn("▶ session start", out)
+        self.assertIn("━━━", out)
+        self.assertIn("session abc123de started", out)
         self.assertIn("model=claude-opus-4-7", out)
-        self.assertIn("tools=5", out)
+        self.assertIn("5 tools", out)
 
-    def test_system_task_started_renders_subagent_start(
+    def test_system_task_started_renders_bullet_line(
             self) -> None:
+        """v1.5.7 173: ``• Task[<st>] started: <desc>``
+        (was ``↳ subagent … START``)."""
         out = ST.render_stream_line(_REAL_TASK_STARTED)
-        self.assertIn("↳ subagent bv01zo7m0 START", out)
+        self.assertIn("• Task[", out)
+        self.assertIn("started", out)
         self.assertIn("Build gson", out)
 
     def test_system_task_notification_renders_status(
             self) -> None:
+        """v1.5.7 173: ``• Task <status>: <summary> (Ns)``
+        (was ``↳ subagent … <status>: <summary>``)."""
         out = ST.render_stream_line(_REAL_TASK_NOTIFICATION)
-        self.assertIn("↳ subagent bv01zo7m0 completed", out)
+        self.assertIn("• Task completed", out)
         self.assertIn("Build gson", out)
 
-    def test_system_task_progress_renders_with_tokens(
+    def test_system_task_progress_renders_with_tool_uses(
             self) -> None:
+        """v1.5.7 173: ``• Task progress: <desc>
+        (tools_used=N)`` (was ``↳ subagent … progress
+        (<tokens> tokens):``)."""
         out = ST.render_stream_line(_REAL_TASK_PROGRESS)
-        self.assertIn("↳ subagent abc progress", out)
-        self.assertIn("14290 tokens", out)
+        self.assertIn("• Task progress", out)
         self.assertIn("Reading SKILL.md", out)
+        self.assertIn("tools_used=", out)
 
-    def test_assistant_renders_text_and_tool_use(self) -> None:
-        """An assistant event with text + tool_use blocks
-        renders as multi-line (text → `· …`, tool_use → `⚙
-        name: cmd`). Thinking blocks are SKIPPED (operator
-        doesn't need to see internal reasoning)."""
+    def test_assistant_renders_text_and_tool_use_and_thinking(
+            self) -> None:
+        """v1.5.7 173: assistant content renders as multi-line —
+        thinking → ``⟨thinking⟩ <text>`` (now SHOWN by default,
+        was suppressed); text → plain (was ``· <text>``); tool_use
+        → ``⏺ Bash(cmd)`` (was ``⚙ Bash: cmd``)."""
         out = ST.render_stream_line(_REAL_ASSISTANT_WITH_TOOL)
-        self.assertIn("· Running the gate now.", out)
-        self.assertIn("⚙ Bash: python3 quality_gate.py", out)
-        # thinking text MUST NOT leak through.
-        self.assertNotIn("reasoning", out)
+        self.assertIn("Running the gate now.", out)
+        self.assertIn("⏺ Bash(", out)
+        self.assertIn("python3 quality_gate.py", out)
+        # Thinking is now shown by default.
+        self.assertIn("⟨thinking⟩", out)
+        self.assertIn("reasoning", out)
 
-    def test_user_tool_result_renders_with_arrow(self) -> None:
+    def test_user_tool_result_renders_with_glyph(self) -> None:
+        """v1.5.7 173: ``⎿  <content>`` (was ``← <snippet>``)."""
         out = ST.render_stream_line(_REAL_USER_TOOL_RESULT)
-        self.assertIn("← Launching skill: quality-playbook",
+        self.assertIn("⎿  Launching skill: quality-playbook",
                         out)
 
     def test_user_with_embedded_sentinel_renders_phase_line(
@@ -209,46 +206,54 @@ class RenderStreamLineClaudeEventTests(unittest.TestCase):
         """**Embedded-sentinel preference** (117): when a
         tool_result.content carries a ``::QPB::`` payload,
         render the phase/gate one-liner — NOT a plain
-        ``← <snippet>`` showing the raw sentinel text."""
+        ``⎿  <snippet>`` showing the raw sentinel text."""
         out = ST.render_stream_line(_REAL_USER_EMBEDDED_SENTINEL)
         self.assertIn("phase 3", out)
         self.assertIn("code-review", out)
         self.assertIn("START", out.upper())
-        # Should NOT render as a raw `←` snippet — the
+        # Should NOT render as a raw ``⎿`` snippet — the
         # sentinel takes precedence.
-        self.assertNotIn("← ::QPB::", out)
+        self.assertNotIn("⎿  ::QPB::", out)
 
-    def test_result_success_renders_done_line(self) -> None:
+    def test_result_success_renders_session_ended_banner(
+            self) -> None:
+        """v1.5.7 173: ``━━━ session ended: SUCCESS (turns=N,
+        duration=Ns, ...) ━━━`` banner (was ``■ DONE: success
+        is_error=False``)."""
         out = ST.render_stream_line(_REAL_RESULT_SUCCESS)
-        self.assertEqual(
-            out, "■ DONE: success is_error=False")
+        self.assertIn("━━━", out)
+        self.assertIn("session ended: SUCCESS", out)
 
-    def test_result_error_renders_with_reason(self) -> None:
+    def test_result_error_renders_with_subtype(self) -> None:
+        """v1.5.7 173: error variant ``━━━ session ended:
+        ERROR (<subtype>) … ━━━`` (was ``■ DONE: <st>
+        is_error=True``)."""
         out = ST.render_stream_line(_REAL_RESULT_ERROR)
-        self.assertIn("■ DONE: success is_error=True", out)
-        self.assertIn("Usage Policy", out)
+        self.assertIn("━━━", out)
+        self.assertIn("session ended: ERROR", out)
 
     def test_rate_limit_event_renders(self) -> None:
+        """v1.5.7 173: ``⟨rate_limit⟩ status=allowed
+        type=five_hour`` (was ``⏳ rate-limit event — allowed
+        (five_hour)``)."""
         out = ST.render_stream_line(_REAL_RATE_LIMIT)
-        self.assertIn("⏳ rate-limit event", out)
+        self.assertIn("⟨rate_limit⟩", out)
         self.assertIn("allowed", out)
         self.assertIn("five_hour", out)
 
 
 class RenderStreamLineUnknownTypeTests(unittest.TestCase):
-    """Unknown Claude event types must de-jsonify to
-    ``«type=… key=val …»`` — NEVER raw JSON."""
+    """v1.5.7 173: unknown Claude event types render as
+    ``⟨type.subtype⟩ <compact repr>`` (was ``«type=… key=val»``).
+    Raw JSON still MUST NOT appear."""
 
-    def test_unknown_type_renders_dejsonified(self) -> None:
+    def test_unknown_type_renders_with_angle_brackets(
+            self) -> None:
         out = ST.render_stream_line(_UNKNOWN_TYPE)
-        # De-jsonified form.
-        self.assertTrue(out.startswith("«"))
-        self.assertTrue(out.endswith("»"))
-        self.assertIn("type=future_event_type", out)
-        self.assertIn("important_field=some-value", out)
-        # The raw JSON form must NOT appear.
-        self.assertNotIn('{"', out)
-        self.assertNotIn("future_event_type\":", out)
+        self.assertIn("⟨future_event_type.", out)
+        self.assertIn("⟩", out)
+        # The fixture's `subtype` is absent, so we get '?'.
+        self.assertIn("future_event_type", out)
 
 
 # ---------------------------------------------------------------------------
@@ -350,7 +355,9 @@ class BuildRenderedOutputLinesRenderedToggleTests(
                 _REAL_INIT + "\n", encoding="utf-8")
             lines = TUI.build_rendered_output_lines(run_dir)
             self.assertEqual(len(lines), 1)
-            self.assertIn("▶ session start", lines[0])
+            # v1.5.7 173: ━━━ banner shape.
+            self.assertIn("━━━", lines[0])
+            self.assertIn("session abc123de", lines[0])
 
     def test_rendered_false_verbatim(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -382,7 +389,8 @@ class BuildRenderedOutputLinesRenderedToggleTests(
                 _REAL_INIT + "\n", encoding="utf-8")
             text = TUI.format_output_as_text(run_dir)
             self.assertNotIn("[RAW]", text)
-            self.assertIn("▶ session start", text)
+            self.assertIn("━━━", text)
+            self.assertIn("session abc123de", text)
 
 
 # ---------------------------------------------------------------------------
@@ -408,7 +416,8 @@ class CliRawFlagTests(unittest.TestCase):
                 capture_output=True, text=True, timeout=30,
             )
             self.assertEqual(proc.returncode, 0)
-            self.assertIn("▶ session start", proc.stdout)
+            self.assertIn("━━━", proc.stdout)
+            self.assertIn("session abc123de", proc.stdout)
             self.assertNotIn("\"type\":\"system\"", proc.stdout)
 
     def test_tail_raw_verbatim(self) -> None:
@@ -425,8 +434,8 @@ class CliRawFlagTests(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 0)
             self.assertIn(_REAL_INIT, proc.stdout)
-            # No rendered marker should leak.
-            self.assertNotIn("▶ session start", proc.stdout)
+            # No rendered banner should leak.
+            self.assertNotIn("━━━", proc.stdout)
 
     def test_dump_output_raw_verbatim(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -444,7 +453,7 @@ class CliRawFlagTests(unittest.TestCase):
             self.assertEqual(proc.returncode, 0)
             self.assertIn("[RAW]", proc.stdout)
             self.assertIn(_REAL_INIT, proc.stdout)
-            self.assertNotIn("▶ session start", proc.stdout)
+            self.assertNotIn("━━━", proc.stdout)
 
     def test_dump_output_default_renders(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -461,7 +470,8 @@ class CliRawFlagTests(unittest.TestCase):
             )
             self.assertEqual(proc.returncode, 0)
             self.assertNotIn("[RAW]", proc.stdout)
-            self.assertIn("▶ session start", proc.stdout)
+            self.assertIn("━━━", proc.stdout)
+            self.assertIn("session abc123de", proc.stdout)
 
 
 # ---------------------------------------------------------------------------
