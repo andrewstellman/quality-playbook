@@ -574,6 +574,7 @@ def classify_tui_path(path: Path) -> "TuiPathKind":
 def _synthesize_run_status_from_dir(
         run_dir: Path,
         manifest: "Optional[dict]" = None,
+        plan_meta: "Optional[dict[int, dict]]" = None,
         ) -> "Optional[RunStatus]":
     """v1.5.7 153 Task A+B: build a ``RunStatus`` for a ``run-NN/``
     dir directly from its on-disk artifacts (``invocation.json`` +
@@ -601,13 +602,28 @@ def _synthesize_run_status_from_dir(
     degraded to ``"?"`` when BOTH ``invocation.json`` AND a manifest
     entry are missing — partial information is better than a
     missing row."""
-    if not run_dir.exists():
-        return None
-    status = _safe_json(run_dir / "status.json")
-    invocation = _safe_json(run_dir / "invocation.json")
+    # v1.5.7 175: if the run-NN/ dir doesn't exist on disk, we
+    # may still have plan.json metadata for this index (pre-
+    # launch PENDING entry the orchestrator promised but
+    # hasn't created on disk). Synthesize a PENDING row when
+    # plan_meta covers this index; return None only when there
+    # is truly nothing to display.
+    dir_exists = run_dir.exists()
+    if not dir_exists:
+        try:
+            _idx = int(run_dir.name.split("-", 1)[1])
+        except (IndexError, ValueError):
+            return None
+        if not plan_meta or _idx not in plan_meta:
+            return None
+    status = (_safe_json(run_dir / "status.json")
+              if dir_exists else None)
+    invocation = (_safe_json(run_dir / "invocation.json")
+                  if dir_exists else None)
     stream_path = run_dir / "stream.ndjson"
-    has_stream = stream_path.exists()
-    has_target = (run_dir / "target").is_dir()
+    has_stream = stream_path.exists() if dir_exists else False
+    has_target = ((run_dir / "target").is_dir()
+                  if dir_exists else False)
     # v1.5.7 153 Task B: a ``run-NN/`` dir created by the scheduler
     # but never spawned (Ctrl-C'd during queueing) carries only
     # ``artifact_used.json`` — no status, no stream, no target. The
@@ -668,6 +684,31 @@ def _synthesize_run_status_from_dir(
         mdesc = manifest_entry.get("description")
         if mdesc:
             description = str(mdesc)
+    # v1.5.7 175: plan.json[index] is the third-tier fallback
+    # (when invocation AND manifest entry are absent OR don't
+    # carry the field — repo is the canonical example, since
+    # invocation.json never carries the upstream Git URL).
+    # plan.json is written by the orchestrator at the top of
+    # the launch path, BEFORE any per-run launches, so it's
+    # the authoritative source for PENDING entries.
+    if plan_meta and index in plan_meta:
+        plan_entry = plan_meta[index]
+        if runner == "?":
+            pr = plan_entry.get("runner")
+            if pr:
+                runner = str(pr)
+        if model == "?":
+            pm = plan_entry.get("model")
+            if pm:
+                model = str(pm)
+        if repo == "?":
+            prepo = plan_entry.get("repo")
+            if prepo:
+                repo = str(prepo)
+        if not description:
+            pdesc = plan_entry.get("description")
+            if pdesc:
+                description = str(pdesc)
 
     # State + pid from status.json. No status.json AND no stream
     # ⇒ PENDING (Task B: dir was created when the run was queued
@@ -789,19 +830,66 @@ def read_one_run_status_for_dir(
     Returns None only when the dir has no artifacts at all."""
     harness_run_dir = run_dir.parent
     manifest = _safe_json(harness_run_dir / "manifest.json")
+    # v1.5.7 175: plan.json is the third-tier metadata fallback.
+    plan_meta = _load_plan_metadata(harness_run_dir)
     if manifest:
         target = run_dir.resolve()
         for entry in manifest.get("runs", []):
             entry_run_dir = _resolve_manifest_path(
                 entry.get("run_dir", ""), harness_run_dir)
             if entry_run_dir.resolve() == target:
-                return _read_one_run_status(entry, harness_run_dir)
+                return _read_one_run_status(
+                    entry, harness_run_dir,
+                    plan_meta=plan_meta)
     # 160 D-prime: pass the parent manifest so synthesis can fall
     # back to the manifest entry's repo/runner/model/description
     # for PENDING runs (the scheduler-written manifest entry IS the
     # authoritative metadata source when invocation.json is absent).
+    # 175: plan_meta also passed for the pre-launch PENDING case
+    # (no manifest entry yet, no invocation.json yet).
     return _synthesize_run_status_from_dir(
-        run_dir, manifest=manifest)
+        run_dir, manifest=manifest, plan_meta=plan_meta)
+
+
+def _load_plan_metadata(
+        harness_run_dir: Path) -> "dict[int, dict]":
+    """v1.5.7 175: load ``plan.json`` and index by run index.
+
+    plan.json is the AUTHORITATIVE source for entry metadata
+    (description / repo / runner / model / channel / mode) for
+    ALL entries regardless of state. It's written by the
+    orchestrator at the top of the launch path
+    (``plan_runner.py:2974``) BEFORE any per-run launches, so it
+    is present even when the operator inspects an in-progress
+    harness-run (PENDING entries that don't yet have
+    invocation.json + status.json).
+
+    Per-run ``invocation.json`` carries axes (runner/model/
+    install_channel) but NOT the upstream Git URL — relying on it
+    for repo silently degrades to "?" for every entry. The
+    pre-175 display chain (manifest entry → invocation.json) had
+    no plan.json fallback; this helper supplies it.
+
+    Returns an empty dict when plan.json is missing or
+    unparseable — callers fall back to "?" gracefully."""
+    plan_path = harness_run_dir / "plan.json"
+    if not plan_path.is_file():
+        return {}
+    try:
+        plan = json.loads(plan_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    runs = plan.get("runs", []) if isinstance(plan, dict) else []
+    out: "dict[int, dict]" = {}
+    for i, r in enumerate(runs):
+        if not isinstance(r, dict):
+            continue
+        idx = r.get("index", i)
+        try:
+            out[int(idx)] = r
+        except (TypeError, ValueError):
+            continue
+    return out
 
 
 def read_run_status(harness_run_dir: Path) -> "list[RunStatus]":
@@ -816,13 +904,31 @@ def read_run_status(harness_run_dir: Path) -> "list[RunStatus]":
     each dir's own ``invocation.json`` + ``status.json``. The single
     result list is sorted by index. Manifest entries win on
     duplicate index (they're authoritative); dir-scan only fills
-    gaps. Never raises on partially-written input."""
+    gaps. Never raises on partially-written input.
+
+    v1.5.7 175: plan.json is now consulted as a third fallback
+    for entry metadata (description / repo / runner / model /
+    channel / mode). plan.json is written by the orchestrator
+    BEFORE any per-run launches, so an in-progress harness-run
+    with PENDING entries (no invocation.json yet) still surfaces
+    full per-entry metadata in the operator-facing status /
+    --dump output. Resolution chain (highest priority first):
+    manifest entry ⇒ invocation.json (axes only) ⇒ plan.json
+    ⇒ "?". Runtime state (pid, started_at, terminal_state) still
+    comes from status.json only — plan.json contributes BASE
+    metadata, never runtime."""
     manifest = _safe_json(harness_run_dir / "manifest.json")
+    # v1.5.7 175: load plan.json once and pass it down so each
+    # entry's metadata can fall back to plan.json[index] when
+    # neither the manifest entry nor invocation.json supplies
+    # the field.
+    plan_meta = _load_plan_metadata(harness_run_dir)
     by_index: "dict[int, RunStatus]" = {}
     seen_dirs: "set[Path]" = set()
     if manifest:
         for entry in manifest.get("runs", []):
-            rs = _read_one_run_status(entry, harness_run_dir)
+            rs = _read_one_run_status(
+                entry, harness_run_dir, plan_meta=plan_meta)
             by_index[rs.index] = rs
             try:
                 seen_dirs.add(rs.run_dir.resolve())
@@ -843,8 +949,11 @@ def read_run_status(harness_run_dir: Path) -> "list[RunStatus]":
             # 160 D-prime: pass the manifest so synthesis can pull
             # repo/runner/model from the scheduler-written entry
             # when the run's invocation.json is absent (PENDING).
+            # 175: also pass plan_meta — for entries the manifest
+            # doesn't list yet (pre-manifest PENDING), plan.json
+            # is the authoritative metadata source.
             rs = _synthesize_run_status_from_dir(
-                child, manifest=manifest)
+                child, manifest=manifest, plan_meta=plan_meta)
             if rs is None:
                 continue
             # Manifest wins on index conflict (defensive — sorted
@@ -855,11 +964,26 @@ def read_run_status(harness_run_dir: Path) -> "list[RunStatus]":
                 by_index[rs.index] = rs
     except OSError:
         pass
+    # v1.5.7 175: also synthesize PENDING entries that DON'T have
+    # a run-NN/ dir yet — pre-launch entries the orchestrator
+    # promised in plan.json but hasn't created on disk. Surfaces
+    # them as PENDING with full plan.json metadata.
+    for idx, plan_entry in plan_meta.items():
+        if idx in by_index:
+            continue
+        synthetic_dir = harness_run_dir / f"run-{idx:02d}"
+        rs = _synthesize_run_status_from_dir(
+            synthetic_dir, manifest=manifest,
+            plan_meta=plan_meta)
+        if rs is not None:
+            by_index[idx] = rs
     return [by_index[i] for i in sorted(by_index)]
 
 
 def _read_one_run_status(entry: dict,
-                           harness_run_dir: Path) -> RunStatus:
+                           harness_run_dir: Path,
+                           plan_meta: "Optional[dict[int, dict]]" = None,
+                           ) -> RunStatus:
     # v1.5.7 118: resolve manifest path entries against the
     # harness-run dir we were handed. New (post-118) manifests
     # store relative paths so the folder is portable; legacy
@@ -1051,12 +1175,31 @@ def _read_one_run_status(entry: dict,
     if terminal_state_field is None and entry.get("terminal_state"):
         terminal_state_field = entry["terminal_state"]
 
+    # v1.5.7 175: fall back to plan.json[index] for entry
+    # metadata when the manifest entry omits it (rare —
+    # well-formed manifest entries carry these). plan.json is
+    # the authoritative source AT LAUNCH TIME; the manifest
+    # entry is the post-launch view. For metadata-only fields
+    # (description / repo / runner / model) prefer the manifest
+    # if non-empty, else plan.json, else "".
+    entry_index = entry.get("index", -1)
+    plan_entry = (plan_meta or {}).get(entry_index, {})
+
+    def _resolve(field: str) -> str:
+        m = entry.get(field)
+        if m:
+            return str(m)
+        p = plan_entry.get(field)
+        if p:
+            return str(p)
+        return ""
+
     return RunStatus(
-        index=entry.get("index", -1),
-        description=entry.get("description", ""),
-        repo=entry.get("repo", ""),
-        runner=entry.get("runner", ""),
-        model=entry.get("model", ""),
+        index=entry_index,
+        description=_resolve("description"),
+        repo=_resolve("repo"),
+        runner=_resolve("runner"),
+        model=_resolve("model"),
         state=state,
         result=result,
         current_phase=current_phase,

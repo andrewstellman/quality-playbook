@@ -92,11 +92,14 @@ class RunningEntryReadsRepoFromPlanTests(unittest.TestCase):
             _write_status(hrd / "run-00", state="RUNNING",
                             pid=12345)
             runs = ST.read_run_status(hrd)
-            self.assertEqual(len(runs), 1)
-            self.assertEqual(runs[0].index, 0)
+            # plan.json has 2 entries → both shown (the second is
+            # synthesized as PENDING from plan_meta).
+            by_idx = {r.index: r for r in runs}
+            self.assertIn(0, by_idx)
             self.assertEqual(
-                runs[0].repo,
+                by_idx[0].repo,
                 "https://github.com/google/gson")
+            self.assertEqual(by_idx[0].state, "RUNNING")
 
 
 class PendingEntryReadsAllFromPlanTests(unittest.TestCase):
@@ -115,13 +118,13 @@ class PendingEntryReadsAllFromPlanTests(unittest.TestCase):
             # PENDING entry the orchestrator hasn't spawned yet.
             (hrd / "run-00").mkdir()
             runs = ST.read_run_status(hrd)
-            self.assertEqual(len(runs), 1)
-            self.assertEqual(runs[0].index, 0)
+            by_idx = {r.index: r for r in runs}
+            self.assertIn(0, by_idx)
             self.assertEqual(
-                runs[0].repo,
+                by_idx[0].repo,
                 "https://github.com/google/gson")
-            self.assertEqual(runs[0].runner, "claude")
-            self.assertEqual(runs[0].model, "haiku")
+            self.assertEqual(by_idx[0].runner, "claude")
+            self.assertEqual(by_idx[0].model, "haiku")
 
 
 class RuntimeStateStillFromPerRunFilesTests(unittest.TestCase):
@@ -138,9 +141,10 @@ class RuntimeStateStillFromPerRunFilesTests(unittest.TestCase):
             _write_status(hrd / "run-00", state="RUNNING",
                             pid=99887)
             runs = ST.read_run_status(hrd)
-            self.assertEqual(runs[0].pid, 99887)
+            by_idx = {r.index: r for r in runs}
+            self.assertEqual(by_idx[0].pid, 99887)
             self.assertEqual(
-                runs[0].repo,
+                by_idx[0].repo,
                 "https://github.com/google/gson")
 
 
