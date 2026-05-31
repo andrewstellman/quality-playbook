@@ -2728,19 +2728,25 @@ def _retry_pending_runs_once(
     1. Check the deadline: if ``starved_since`` is older than
        ``_pending_deadline_s()`` → mark ``ABANDONED_STARVED`` and
        move on.
-    2. Otherwise try ``acquire_run_slot(max_wait_s=5.0)``. On
-       success, call ``_launch_one_run_detached`` and update the
-       manifest entry IN PLACE with the spawned run's fields.
-       On TimeoutError, mark ``starved_since`` if not already
-       set and continue. On launch failure, mark the entry
-       terminal as ``FAILED`` (don't retry forever on broken
-       artifacts).
+    2. Otherwise try ``_try_acquire_pool_slot``. On True (slot
+       free), call ``_launch_one_run_detached`` and finalize the
+       entry to RUNNING + pid via ``_finalize_pool_slot_running``.
+       On False (still starved), set ``starved_since`` if not
+       already set. On launch failure, ``_finalize_pool_slot_failed``
+       (don't retry forever on broken artifacts).
 
     Returns the number of state transitions (spawned + abandoned +
     failed) in this pass — caller uses it as a "made progress"
     signal for the multi-pass collector loop. The collector's
     existing parallel-collect path then handles the newly-RUNNING
-    entries on its next sweep."""
+    entries on its next sweep.
+
+    v1.5.7 174: replaced inflight_registry's per-provider cap
+    machinery with manifest-based pool tracking under
+    ``.manifest.lock``. The retry runs INSIDE
+    ``_collect_harness_run_locked`` which holds ``.collect.lock``;
+    ``.manifest.lock`` is a DIFFERENT file so the two-lock design
+    avoids the FINDING-1 same-process recursion pattern."""
     manifest_path = harness_run_dir / "manifest.json"
     if not manifest_path.is_file():
         return 0
@@ -2757,11 +2763,6 @@ def _retry_pending_runs_once(
     if not pending_entries:
         return 0
     plan_pools = manifest.get("plan", {}).get("pools", {}) or {}
-    # Per-provider cap: re-derive at retry time. None → use the
-    # registry's default behavior (matches the orchestrator's
-    # behavior when --max-per-provider isn't passed).
-    max_per_provider = manifest.get(
-        "plan", {}).get("max_per_provider") or {}
     artifact_map = _resolve_artifact_map_from_disk(
         harness_run_dir)
     deadline_s = _pending_deadline_s()
@@ -2769,7 +2770,9 @@ def _retry_pending_runs_once(
     transitions = 0
     for pending in pending_entries:
         pr = _entry_to_plan_run(pending)
-        plan_pool_cap = plan_pools.get(pr.runner.value)
+        # v1.5.7 174: pool size defaults to 1 if runner not in
+        # plan["pools"] (safe-by-default per the HALT-RULING).
+        plan_pool_size = plan_pools.get(pr.runner.value, 1)
         run_dir = harness_run_dir / Path(
             pending.get("run_dir", "")).name
         target_dir = run_dir / "target"
@@ -2801,29 +2804,27 @@ def _retry_pending_runs_once(
                         f"run-{pr.index:02d}")
                 transitions += 1
                 continue
-        # 165 Task A: try to acquire a slot.
-        try:
-            from bin.harness import inflight_registry as _inflight
-            _inflight.acquire_run_slot(
-                runner=pr.runner.value,
-                harness_run_dir=harness_run_dir,
-                run_index=pr.index,
-                started_at=now.strftime(
-                    "%Y-%m-%dT%H:%M:%SZ"),
-                max_per_provider=max_per_provider,
-                plan_pool_cap=plan_pool_cap,
-                max_wait_s=5.0,
-            )
-        except TimeoutError:
-            # Still starved; set starved_since on first observation.
+        # v1.5.7 174: try to acquire a slot via manifest-count.
+        started_at_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
+        acquired = _try_acquire_pool_slot(
+            manifest_path,
+            runner=pr.runner.value,
+            pool_size=plan_pool_size,
+            run_index=pr.index,
+            started_at=started_at_iso,
+        )
+        if not acquired:
+            # Still starved; set starved_since on first
+            # observation so the deadline check has a baseline.
             if pending.get("starved_since") is None:
                 _update_manifest_entry_atomic(
                     manifest_path, pr.index, {
-                        "starved_since": now.strftime(
-                            "%Y-%m-%dT%H:%M:%SZ"),
+                        "starved_since": started_at_iso,
                     })
             continue
-        # Slot acquired — spawn the worker.
+        # Slot acquired (entry now in ACQUIRING state) — spawn
+        # OUTSIDE any lock (slow operation), then finalize
+        # ACQUIRING → RUNNING + pid under .manifest.lock.
         try:
             entry = _launch_one_run_detached(
                 pr, harness_run_dir, run_dir, target_dir,
@@ -2833,43 +2834,43 @@ def _retry_pending_runs_once(
                 log=log,
                 tag=None,
             )
-            _update_manifest_entry_atomic(
-                manifest_path, pr.index, entry)
-            # BUG-002 fix: record the real PID so the pid=0 reservation made
-            # by acquire_run_slot above is converted before it ages out at
-            # _PID_ZERO_MAX_AGE_S (300s). Without this the slot frees while
-            # the retry-spawned run is still alive and the per-provider cap
-            # is exceeded — matching the orchestrator launch path (3078).
-            _retry_pid = entry.get("pid")
-            if _retry_pid is not None:
-                _inflight.update_pid(
-                    harness_run_dir=harness_run_dir,
-                    run_index=pr.index, pid=int(_retry_pid))
+            if entry is not None:
+                pid_val = entry.get("pid")
+                # Relativize the spawn-time fields per 118.
+                rel_entry = _relativize_manifest_entry(
+                    entry, harness_run_dir)
+                extra = {
+                    k: v for k, v in rel_entry.items()
+                    if k not in (
+                        "index", "state", "pid",
+                        "started_at")
+                }
+                if pid_val is not None:
+                    _finalize_pool_slot_running(
+                        manifest_path, pr.index,
+                        int(pid_val), extra=extra)
+                else:
+                    # No pid (ABORTED_PREP) — mark terminal
+                    # so the collector grades.
+                    extra["terminal_state"] = (
+                        rel_entry.get("terminal_state")
+                        or "ABORTED_PREP")
+                    extra["state"] = "DONE"
+                    _update_manifest_entry_atomic(
+                        manifest_path, pr.index, extra)
             if log is not None:
                 log.log(
                     f"retried starved run: "
                     f"run-{pr.index:02d} ⇒ spawned "
-                    f"pid={entry.get('pid')}")
+                    f"pid={entry.get('pid') if entry else None}")
             transitions += 1
         except BaseException as exc:
-            # Launch failed — terminal FAILED, release the slot
-            # so it doesn't leak.
-            _update_manifest_entry_atomic(
-                manifest_path, pr.index, {
-                    "state": "DONE",
-                    "terminal_state": "FAILED",
-                    "terminal_reason":
-                        f"relaunch failed: {exc!r}",
-                    "ended_at": now.strftime(
-                        "%Y-%m-%dT%H:%M:%SZ"),
-                })
-            try:
-                from bin.harness import inflight_registry as _ir
-                _ir.release_run_slot(
-                    harness_run_dir=harness_run_dir,
-                    run_index=pr.index)
-            except Exception:
-                pass
+            # Launch failed — mark terminal FAILED so the slot
+            # reservation (ACQUIRING) doesn't sit forever
+            # consuming pool capacity.
+            _finalize_pool_slot_failed(
+                manifest_path, pr.index,
+                f"relaunch failed: {exc!r}")
             transitions += 1
     return transitions
 

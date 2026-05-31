@@ -218,13 +218,16 @@ class RetryPendingRunsOnceTests(unittest.TestCase):
 
     def test_pending_run_starved_again_sets_starved_since(
             self) -> None:
-        # Slot still unavailable → TimeoutError → no spawn; the
-        # entry gets `starved_since` so the deadline clock starts.
+        # v1.5.7 174: pool full ⇒ _try_acquire_pool_slot returns
+        # False ⇒ no spawn; entry gets `starved_since` so the
+        # deadline clock starts. (Pre-174 used
+        # acquire_run_slot+TimeoutError; pool-only model returns
+        # False directly.)
         with tempfile.TemporaryDirectory() as td:
             hr = Path(td) / "20260530T134322Z"
             mp = _write_manifest(hr, [_pending_entry(0)])
-            with mock.patch.object(IR, "acquire_run_slot",
-                                    side_effect=TimeoutError):
+            with mock.patch.object(PR, "_try_acquire_pool_slot",
+                                    return_value=False):
                 transitions = PR._retry_pending_runs_once(hr)
             self.assertEqual(transitions, 0)
             on_disk = json.loads(mp.read_text())
