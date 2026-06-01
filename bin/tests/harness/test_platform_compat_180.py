@@ -664,6 +664,58 @@ class PsutilIdentityAndWaitTests(unittest.TestCase):
             _platform.wait_for_process(99999999, timeout=0.5))
 
 
+class CollectorPsutilWiringTests(unittest.TestCase):
+    """v1.5.7 182 (commit 5/5): plan_runner uses the new
+    psutil-enabled capabilities — spawn-time create_time
+    snapshot in the manifest entry; recycling-safe identity
+    check via pid_alive_with_identity; exit-code recovery via
+    wait_for_process in _write_terminal_status."""
+
+    def test_launch_entry_includes_create_time(self) -> None:
+        # Source-pin: _launch_one_run_detached's return dict
+        # has a "create_time" field — captured via
+        # _platform.process_create_time at spawn time.
+        src = (_REPO / "bin" / "harness" / "plan_runner.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn(
+            '"create_time": spawn_create_time', src,
+            "_launch_one_run_detached must capture create_time "
+            "in the manifest entry (182 commit 5/5).")
+        self.assertIn(
+            "_platform_mod.process_create_time(", src,
+            "_launch_one_run_detached must call "
+            "_platform.process_create_time at spawn.")
+
+    def test_collector_uses_pid_alive_with_identity(
+            self) -> None:
+        # Source-pin: at least one call to
+        # pid_alive_with_identity must appear in the collector
+        # path; the bare _pid_is_alive(pid) calls used pre-182
+        # are not recycling-safe.
+        src = (_REPO / "bin" / "harness" / "plan_runner.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn(
+            "_platform_mod.pid_alive_with_identity(", src,
+            "Collector must use pid_alive_with_identity for "
+            "recycling-safe liveness (182 commit 5/5).")
+
+    def test_write_terminal_status_uses_wait_for_process(
+            self) -> None:
+        # Source-pin: the orphan-terminal write path tries to
+        # recover the actual exit code via wait_for_process.
+        # The literal `"exit_code": -1` hardcoded fallback may
+        # still appear (it's the fallback when wait_for_process
+        # returns None) but the call MUST be there.
+        src = (_REPO / "bin" / "harness" / "plan_runner.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn(
+            "_platform_mod.wait_for_process(", src,
+            "_write_terminal_status must call wait_for_process "
+            "to recover the actual exit code from orphans "
+            "(182 commit 5/5; replaces the pre-182 hardcoded "
+            "-1).")
+
+
 class SkillBundleHarnessOnlyDepTests(unittest.TestCase):
     """v1.5.7 182: psutil is a harness-ONLY dependency. The
     QPB skill bundle MUST NOT depend on it because skill

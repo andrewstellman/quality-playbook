@@ -1883,6 +1883,14 @@ def _launch_one_run_detached(
         encoding="utf-8",
     )
     step_log("launch complete")
+    # v1.5.7 182: snapshot the spawned process's create_time
+    # for recycling-safe identity tracking. None for entries
+    # whose pid is already gone by the time we look (race);
+    # the collector treats None as "no identity check
+    # available — use plain liveness."
+    from bin.harness import _platform as _platform_mod
+    spawn_create_time = _platform_mod.process_create_time(
+        spawn.pid) if spawn.pid is not None else None
     return {
         "index": plan_run.index,
         # BUG-003 fix: mark the spawned run RUNNING so a relaunch over a
@@ -1900,6 +1908,10 @@ def _launch_one_run_detached(
         "run_dir": str(run_dir),
         "run_id": run_id,
         "pid": spawn.pid,
+        # v1.5.7 182: (pid, create_time) tuple for recycling
+        # defense. The collector uses
+        # _platform.pid_alive_with_identity to check liveness.
+        "create_time": spawn_create_time,
         "started_at": spawn.started_at,
         "stream_path": str(spawn.stream_path),
         "status_path": str(run_dir / "status.json"),
@@ -2195,13 +2207,23 @@ def _collect_one_run_detached(
                 stream_path_for_classify, target_dir=target_dir)
         )
         if stream_state is not None:
-            # Reap the exit-hang if still alive.
-            if pid is not None and _pid_is_alive(pid):
+            # Reap the exit-hang if still alive. v1.5.7 182:
+            # use the recycling-safe identity check so a pid
+            # the OS has recycled to a different process
+            # doesn't get tree-killed by mistake. Falls back
+            # to plain pid_alive when create_time is None
+            # (pre-182 manifest entries).
+            from bin.harness import _platform as _platform_mod
+            if pid is not None and _platform_mod.pid_alive_with_identity(
+                    pid, entry.get("create_time")):
                 _runner_mod._kill_process_tree(pid)
             terminal = stream_state
             terminal_reason = stream_reason
             break
-        if pid is None or not _pid_is_alive(pid):
+        # v1.5.7 182: recycling-safe identity check.
+        from bin.harness import _platform as _platform_mod
+        if pid is None or not _platform_mod.pid_alive_with_identity(
+                pid, entry.get("create_time")):
             # Process terminated WITHOUT a terminal result
             # event — Mode B path (run_playbook doesn't emit
             # a Claude `result` envelope) or a Claude run
@@ -2361,9 +2383,17 @@ def _write_terminal_status(run_dir: Path, pid: "Optional[int]",
                             terminal: TerminalState,
                             *,
                             terminal_reason: str = "") -> None:
-    """v1.5.7 108: collector's terminal status.json write
-    (the orphan-polling path can't recover exit_code, so it
-    records -1 + the inferred terminal_state).
+    """v1.5.7 108 / 182: collector's terminal status.json write.
+
+    Pre-182 this path hardcoded ``exit_code=-1`` because
+    ``waitpid`` only works on direct children and the
+    orphan-polled AI CLIs are children of the now-exited
+    run_plan parent. 182 commit 5/5 replaces the hardcode
+    with ``_platform.wait_for_process(pid, timeout=0.1)``
+    which uses OS-native polling (psutil) to recover the
+    actual exit code from orphans. Falls back to -1 when the
+    wait returns None (process already reaped + no exit code
+    available, or the wait timed out).
 
     v1.5.7 112: ``terminal_reason`` carries the AUP / API-error
     body when ``terminal == BLOCKED``. Empty for other states.
@@ -2393,6 +2423,23 @@ def _write_terminal_status(run_dir: Path, pid: "Optional[int]",
                 return  # supervisor's write wins
         except (OSError, ValueError):
             pass
+    # v1.5.7 182: try to recover the actual exit code from the
+    # orphan via psutil's OS-native wait (works on orphans;
+    # waitpid does not). Tiny timeout — collector's outer loop
+    # already determined the process is terminal. Falls back
+    # to -1 on None (already reaped without recoverable code,
+    # or timeout — both indistinguishable from the operator's
+    # POV pre-182).
+    recovered_exit_code = -1
+    if pid is not None:
+        try:
+            from bin.harness import _platform as _platform_mod
+            wait_result = _platform_mod.wait_for_process(
+                pid, timeout=0.1)
+            if wait_result is not None:
+                recovered_exit_code = wait_result
+        except Exception:
+            pass  # best-effort; preserve the -1 fallback
     tmp = status_path.with_suffix(".json.tmp")
     tmp.write_text(json.dumps({
         "state": "DONE",
@@ -2400,7 +2447,7 @@ def _write_terminal_status(run_dir: Path, pid: "Optional[int]",
         "started_at": started_at,
         "heartbeat": ended_at,
         "ended_at": ended_at,
-        "exit_code": -1,
+        "exit_code": recovered_exit_code,
         "terminal_state": terminal.value,
         "terminal_reason": terminal_reason,
     }, indent=2) + "\n", encoding="utf-8")
