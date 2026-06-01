@@ -921,6 +921,55 @@ class SkillBundleHarnessOnlyDepTests(unittest.TestCase):
         for f in skill_dir.rglob("*.py"):
             self._check_no_psutil_import(f)
 
+    def test_184_built_bundle_contains_no_psutil_imports(
+            self) -> None:
+        # v1.5.7 184 FINDING-25: source-pin tests can miss
+        # transitive psutil imports via bundled modules. Use
+        # ``install_skill._bundle_files`` to enumerate EVERY
+        # file that ships in the install bundle (the
+        # authoritative source-of-truth — this is what gets
+        # copied at install time), then scan each .py source
+        # for `import psutil` / `from psutil`. Equivalent to
+        # building the bundle to a tempdir and scanning — but
+        # simpler and faster (no actual copy needed).
+        from bin import install_skill
+        try:
+            bundle_pairs = install_skill._bundle_files(_REPO)
+        except Exception as exc:
+            self.skipTest(
+                f"_bundle_files() failed in this layout: "
+                f"{exc}")
+        offenders: list[str] = []
+        for source_path, dest_path in bundle_pairs:
+            if source_path.suffix != ".py":
+                continue
+            if not source_path.is_file():
+                continue
+            try:
+                src = source_path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            import re
+            # Detect `import psutil` / `from psutil ...` at the
+            # start of any non-comment line.
+            for lineno, line in enumerate(src.splitlines(), 1):
+                stripped = line.strip()
+                if stripped.startswith("#"):
+                    continue
+                if re.match(r"^(import psutil|from psutil)\b",
+                            stripped):
+                    offenders.append(
+                        f"{source_path} (→ {dest_path}):"
+                        f"{lineno}")
+                    break
+        self.assertFalse(
+            offenders,
+            f"Built skill bundle contains psutil imports: "
+            f"{offenders}; psutil is harness-only (184 "
+            f"FINDING-25). Move the import into "
+            f"bin/harness/_platform.py or use a stdlib "
+            f"alternative.")
+
 
 class NoResidualPidAliveDivergenceTests(unittest.TestCase):
     """v1.5.7 184 FINDING-23: closes the methodology-lesson #28
