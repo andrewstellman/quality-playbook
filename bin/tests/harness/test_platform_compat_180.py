@@ -55,6 +55,19 @@ class SpawnDetachedTests(unittest.TestCase):
                  "import sys; sys.exit(0)"],
                 log_path=log_path,
             )
+            # v1.5.7 180 FIX (FINDING-1): on POSIX, spawn_detached
+            # calls os.fork() and returns 0 in the forked child.
+            # The child must NOT continue running pytest/unittest
+            # assertions — it would re-enter the test framework's
+            # session state, polluting output (pytest: 11 spurious
+            # errors) and producing false failures
+            # (assertGreater(0, 0) fails in the child). Exit
+            # immediately via os._exit so atexit handlers and
+            # framework teardown DO NOT run in the child.
+            if not P.IS_WINDOWS and pid == 0:
+                import os as _os
+                _os._exit(0)
+            # Parent (POSIX) or only caller (Windows).
             self.assertIsInstance(pid, int)
             self.assertGreater(pid, 0)
         finally:
