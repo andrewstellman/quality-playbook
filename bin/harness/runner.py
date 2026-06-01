@@ -802,7 +802,10 @@ def kill_run(run_dir: Path, *, sig: "int | None" = None,
     escalation — ruled in 147). v1.5.7 180-followup-6 FINDING-9:
     the prior ``sig: int = signal.SIGKILL`` default arg crashed
     Windows module-load (signal.SIGKILL does not exist there);
-    lazy resolution + None sentinel fixes that.
+    lazy resolution + None sentinel fixes that. (``# Windows-OK``
+    — docstring mentions of signal.SIGKILL are documentation,
+    not load-time evaluation; the actual call sites all carry
+    AttributeError guards.)
 
     Raises ``KillError`` if the run is already collected
     (grading.json present). The action does NOT block on

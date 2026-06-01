@@ -180,30 +180,12 @@ class SignalGuardTests(unittest.TestCase):
                 "Snippet: " + snippet[:200],
             )
 
-    def test_180_no_unguarded_posix_signal_attributes(
-            self) -> None:
-        import re
-        posix_signals = [
-            "SIGHUP", "SIGUSR1", "SIGUSR2", "SIGCHLD",
-            "SIGPIPE", "SIGTTIN", "SIGTTOU", "SIGTSTP",
-        ]
-        pattern = re.compile(
-            r"signal\.(" + "|".join(posix_signals) + r")\b")
-        for f in (_REPO / "bin").rglob("*.py"):
-            if "test" in f.name:
-                continue
-            src = f.read_text(encoding="utf-8")
-            for m in pattern.finditer(src):
-                start = max(0, m.start() - 600)
-                end = min(len(src), m.end() + 600)
-                window = src[start:end]
-                self.assertTrue(
-                    "AttributeError" in window
-                    or "hasattr(signal" in window,
-                    f"{f}:{m.group(0)} is unguarded for "
-                    f"Windows. Surrounding window: "
-                    f"{window[:400]}",
-                )
+    # v1.5.7 180-followup-6 FINDING-9: the enumerated-list sweep
+    # that lived here was REPLACED by
+    # ``ComprehensiveSweepTests::test_180_no_unguarded_posix_signals_anywhere``
+    # which uses inverse-membership against the Windows-available
+    # frozenset. The enumerated list missed SIGKILL — Andrew's
+    # 5th Windows fire. See [[methodology_lesson_16]].
 
 
 class SpawnVerifyTests(unittest.TestCase):
@@ -445,29 +427,42 @@ class ComprehensiveSweepTests(unittest.TestCase):
                 continue
             yield f
 
+    # v1.5.7 180-followup-6 FINDING-9: inverse-membership check.
+    # The prior enumerated-list approach (180-followup-5
+    # FINDING-8) missed signal.SIGKILL — Andrew's 5th Windows
+    # fire failed all 4 runs at launch. Methodology lesson #16:
+    # for cross-platform symbol sweeps, enumerate the SMALLER
+    # set (what's available on the constrained platform) and
+    # flag anything outside it. The Windows-available signal
+    # list is short and well-bounded.
+    WINDOWS_AVAILABLE_SIGNALS = frozenset({
+        "SIGABRT", "SIGFPE", "SIGILL", "SIGINT", "SIGSEGV",
+        "SIGTERM", "SIGBREAK", "NSIG",
+    })
+
     def test_180_no_unguarded_posix_signals_anywhere(
             self) -> None:
         import re
-        posix_signals = [
-            "SIGHUP", "SIGUSR1", "SIGUSR2", "SIGCHLD",
-            "SIGPIPE", "SIGTTIN", "SIGTTOU", "SIGTSTP",
-            "SIGWINCH", "SIGPROF", "SIGTRAP", "SIGBUS",
-            "SIGSYS",
-        ]
-        pattern = re.compile(
-            r"signal\.(" + "|".join(posix_signals) + r")\b")
+        # Match every signal.SIG* attribute access.
+        pattern = re.compile(r"signal\.(SIG[A-Z][A-Z0-9_]*)\b")
         guards = ["AttributeError", "hasattr(signal",
-                  "# Windows-OK"]
+                  "IS_WINDOWS", "# Windows-OK"]
         for f in self._iter_non_test_bin_py():
             src = f.read_text(encoding="utf-8")
             for m in pattern.finditer(src):
+                sig_name = m.group(1)
+                if sig_name in self.WINDOWS_AVAILABLE_SIGNALS:
+                    continue  # Windows-portable; no guard
                 if not self._windowed_guards_present(
                         src, m.start(), m.end(), guards):
                     self.fail(
-                        f"{f}:{m.group(0)} unguarded for "
-                        f"Windows (need AttributeError catch "
-                        f"or hasattr(signal,...) guard within "
-                        f"±800 chars)")
+                        f"{f}:signal.{sig_name} unguarded for "
+                        f"Windows (POSIX-only — Windows-"
+                        f"available set is "
+                        f"{sorted(self.WINDOWS_AVAILABLE_SIGNALS)}). "
+                        f"Need AttributeError catch / "
+                        f"hasattr(signal,...) / IS_WINDOWS "
+                        f"branch within ±800 chars.")
 
     def test_180_no_unguarded_start_new_session_true(
             self) -> None:
