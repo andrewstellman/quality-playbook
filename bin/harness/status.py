@@ -460,20 +460,16 @@ def _safe_json(path: Path) -> "Optional[dict]":
 # ---------------------------------------------------------------------------
 
 
-def pid_is_alive(pid: "Optional[int]") -> bool:
-    """``os.kill(pid, 0)`` semantics. Wrapped so tests can patch
-    cleanly. Returns False for None/0/negative pids."""
-    if pid is None or pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except OSError:
-        return False
-    return True
+# v1.5.7 184 FINDING-23: consolidated to _platform.pid_alive.
+# Pre-184 the local body used the POSIX signal-0 probe which
+# is broken on Windows for the reasons FINDING-20 documented
+# in plan_runner. The PUBLIC name here is ``pid_is_alive``
+# (not ``_pid_alive``) — the alias preserves the public
+# spelling so the status renderer's call sites are
+# unchanged.
+from bin.harness._platform import (
+    pid_alive as pid_is_alive,
+)
 
 
 # ---------------------------------------------------------------------------

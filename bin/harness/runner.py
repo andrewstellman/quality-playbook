@@ -746,19 +746,15 @@ def _kill_process_tree(pid: int, sig: "int | None" = None) -> None:
     _platform_mod.kill_process_tree(pid, force=True)
 
 
-def _pid_alive(pid: "int | None") -> bool:
-    """v1.5.7 147: liveness probe via ``os.kill(pid, 0)``.
-    ProcessLookupError ⇒ dead; PermissionError ⇒ exists (alive, not
-    ours)."""
-    if not pid:
-        return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    return True
+# v1.5.7 184 FINDING-23: consolidated to _platform.pid_alive.
+# Pre-184 the 147 body used the POSIX signal-0 probe which is
+# broken on Windows for the reasons FINDING-20 documented in
+# plan_runner. Same FINDING-18 alias pattern: delete the body;
+# symbol preserved as the alias target so kill_run's existing
+# `_pid_alive(pid)` call site keeps working unchanged.
+from bin.harness._platform import (
+    pid_alive as _pid_alive,
+)
 
 
 class KillError(RuntimeError):
@@ -1161,8 +1157,9 @@ def collect_one_process(spec: LaunchSpec,
     Cross-process collection (the new ``run_plan`` detached
     flow) uses the orphan-polling helper in ``plan_runner``
     instead — that helper can't ``waitpid`` (orphans), so it
-    polls ``os.kill(pid, 0)`` for liveness and infers the
-    terminal state from produced artifacts.
+    polls liveness via ``_platform.pid_alive`` (cross-platform
+    psutil) and infers the terminal state from produced
+    artifacts.
 
     This function expects the caller to still hold the Popen
     handle; we don't — so we use ``os.waitpid`` to reap our

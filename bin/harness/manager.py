@@ -11,8 +11,9 @@ queue snapshots, atomic-rename state writes, and orphan
 recovery. Concurrency in THIS flow is governed by
 ``scheduler.py``'s config object (a per-daemon, in-process
 mechanism). The single-daemon-per-folder constraint is enforced
-via the ``control/manager.pid`` claim with an ``os.kill(pid, 0)``
-liveness check.
+via the ``control/manager.pid`` claim with a cross-platform
+liveness check (``_platform.pid_alive``; pre-184 used the
+POSIX signal-0 idiom which is broken on Windows).
 
 For the **other** flow — the ``qpb_harness run-plan``
 subcommand, which is one-shot detached spawn with a background
@@ -127,25 +128,15 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _pid_alive(pid: int) -> bool:
-    """Return True iff a process with this PID exists. Defensive
-    on edge cases (pid=0 / negative / process owned by another
-    user / permission denied → treat as alive unless we can
-    prove it's dead)."""
-    if pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-        return True
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        # Process exists, owned by another user.
-        return True
-    except OSError:
-        # Unexpected — conservative: treat as alive so we don't
-        # wrongly mark its run FAILED-orphaned.
-        return True
+# v1.5.7 184 FINDING-23: consolidated to _platform.pid_alive.
+# Pre-184 the local body used the POSIX signal-0 probe which
+# is broken on Windows for the reasons FINDING-20 documented
+# in plan_runner. Same FINDING-18 alias pattern; symbol
+# preserved so the manager's existing call sites work
+# unchanged.
+from bin.harness._platform import (
+    pid_alive as _pid_alive,
+)
 
 
 # ---------------------------------------------------------------------------

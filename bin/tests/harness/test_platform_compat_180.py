@@ -858,6 +858,80 @@ class SkillBundleHarnessOnlyDepTests(unittest.TestCase):
             self._check_no_psutil_import(f)
 
 
+class NoResidualPidAliveDivergenceTests(unittest.TestCase):
+    """v1.5.7 184 FINDING-23: closes the methodology-lesson #28
+    hole exposed by Council review of 182+183. When
+    180-followup-10 consolidated ``plan_runner._pid_is_alive``,
+    its source-pin sweep test only checked ``plan_runner.py``
+    — four sibling divergent helpers in
+    ``bin/harness/watchdog.py``, ``runner.py``, ``status.py``,
+    and ``manager.py`` continued using ``os.kill(pid, 0)``
+    which is broken on Windows.
+
+    No non-test, non-_platform.py module in bin/ may contain a
+    local ``_pid_alive`` / ``pid_is_alive`` / ``_pid_is_alive``
+    definition. All such helpers must be aliased imports from
+    ``_platform.pid_alive`` so a single canonical
+    implementation backs the entire harness."""
+
+    def test_184_no_local_pid_alive_definitions_in_bin(
+            self) -> None:
+        import re
+        forbidden_pattern = re.compile(
+            r"^def (_pid_alive|pid_is_alive|_pid_is_alive)\(",
+            re.MULTILINE)
+        for f in (_REPO / "bin").rglob("*.py"):
+            if "test" in f.name:
+                continue
+            if f.name == "_platform.py":
+                continue  # canonical home for the primitive
+            src = f.read_text(encoding="utf-8")
+            matches = forbidden_pattern.findall(src)
+            self.assertFalse(
+                matches,
+                f"{f} contains a local {matches} definition; "
+                f"alias from _platform.pid_alive instead. See "
+                f"[[methodology_lesson_28]] + 184 FINDING-23.")
+
+    def test_184_no_os_kill_pid_zero_outside_platform(
+            self) -> None:
+        # Inverse sweep: no ``os.kill(<anything>, 0)`` in
+        # non-test, non-_platform.py code. The signal-0 idiom
+        # is broken on Windows; route through
+        # _platform.pid_alive.
+        import re
+        pattern = re.compile(r"os\.kill\(\s*[^,]+,\s*0\s*\)")
+        for f in (_REPO / "bin").rglob("*.py"):
+            if "test" in f.name:
+                continue
+            if f.name == "_platform.py":
+                continue
+            src = f.read_text(encoding="utf-8")
+            matches = pattern.findall(src)
+            self.assertFalse(
+                matches,
+                f"{f} contains os.kill(..., 0) liveness "
+                f"probe {matches}; use _platform.pid_alive "
+                f"instead (184 FINDING-23).")
+
+    def test_184_all_pid_alive_helpers_share_one_implementation(
+            self) -> None:
+        # Runtime check: every module-level public/private
+        # pid_alive helper in the harness is the SAME function
+        # object as _platform.pid_alive. Catches a regression
+        # where someone re-introduces a local body.
+        from bin.harness import (
+            plan_runner, watchdog, runner, status, manager,
+            _platform,
+        )
+        self.assertIs(
+            plan_runner._pid_is_alive, _platform.pid_alive)
+        self.assertIs(watchdog._pid_alive, _platform.pid_alive)
+        self.assertIs(runner._pid_alive, _platform.pid_alive)
+        self.assertIs(status.pid_is_alive, _platform.pid_alive)
+        self.assertIs(manager._pid_alive, _platform.pid_alive)
+
+
 class PidIsAliveConsolidationTests(unittest.TestCase):
     """v1.5.7 180-followup-10 FINDING-20: plan_runner._pid_is_alive
     is consolidated to delegate to _platform.pid_alive. The

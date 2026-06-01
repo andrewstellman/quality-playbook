@@ -66,19 +66,15 @@ def _stale_s() -> float:
         return _DEFAULT_STALE_S
 
 
-def _pid_alive(pid: int) -> bool:
-    """True iff the pid responds to a 0-signal. POSIX."""
-    if pid is None or pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-        return True
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        return True
-    except OSError:
-        return False
+# v1.5.7 184 FINDING-23: consolidated to _platform.pid_alive.
+# Pre-184 the local body used the POSIX signal-0 probe which
+# is broken on Windows for the reasons FINDING-20 documented
+# in plan_runner. Same FINDING-18 alias pattern: delete the
+# body; symbol preserved as the alias target so existing
+# tests / call sites work unchanged.
+from bin.harness._platform import (
+    pid_alive as _pid_alive,
+)
 
 
 def _is_orphan(entry: dict, harness_run_dir: Path,
