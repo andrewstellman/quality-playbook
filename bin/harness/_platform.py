@@ -346,6 +346,96 @@ def kill_process_tree(pid: int, *, force: bool = True) -> None:
         pass
 
 
+def process_create_time(pid: int) -> "Optional[float]":
+    """v1.5.7 182: snapshot a process's start time for the
+    identity tuple used in recycling-defense liveness checks.
+    psutil exposes Unix-epoch float seconds; comparison via
+    exact equality (not subject to clock drift since both
+    measurements come from the same boot).
+
+    Returns None on ``NoSuchProcess`` / ``AccessDenied`` /
+    invalid pid. The collector calls this at spawn time and
+    stores the result in the manifest entry; later liveness
+    checks compare the live process's current create_time
+    against the snapshot.
+    """
+    if pid is None or int(pid) <= 0:
+        return None
+    import psutil
+    try:
+        return psutil.Process(int(pid)).create_time()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
+        return None
+
+
+def pid_alive_with_identity(
+        pid: int,
+        original_create_time: "Optional[float]") -> bool:
+    """v1.5.7 182: recycling-safe liveness. True iff the pid
+    exists AND its current create_time matches the snapshot.
+    On Windows, pid numbers recycle far more aggressively
+    than POSIX; a launched-at-T0 process might be replaced
+    by an unrelated process at the same pid by T0+5min. The
+    ``(pid, create_time)`` tuple is psutil's idiomatic
+    process identity.
+
+    When ``original_create_time is None`` (manifest entry
+    predates 182 — backward-compat), falls back to plain
+    ``pid_alive`` semantics. New runs MUST always snapshot
+    create_time at spawn so the strong identity check is in
+    play.
+    """
+    if pid is None or int(pid) <= 0:
+        return False
+    if original_create_time is None:
+        return pid_alive(pid)
+    import psutil
+    try:
+        proc = psutil.Process(int(pid))
+        if not proc.is_running():
+            return False
+        return proc.create_time() == original_create_time
+    except psutil.NoSuchProcess:
+        return False
+    except psutil.AccessDenied:
+        # Match pid_alive's permission-boundary semantics —
+        # process exists but we can't introspect, treat as
+        # alive.
+        return True
+
+
+def wait_for_process(
+        pid: int,
+        timeout: "Optional[float]" = None) -> "Optional[int]":
+    """v1.5.7 182: recover an actual exit code from an orphan-
+    polled process. Pre-182 the collector hardcoded
+    ``exit_code=-1`` for orphans (the comment at
+    plan_runner.py:2402 was explicit: "the orphan-polling
+    path can't recover exit_code"). psutil's ``Process.wait()``
+    works on orphans because it polls via OS-native handles
+    rather than ``waitpid`` (which is restricted to direct
+    children of the calling process).
+
+    Returns the exit code on clean exit, None on
+    ``NoSuchProcess`` (already reaped — no exit code
+    recoverable) or ``TimeoutExpired``.
+
+    Negative exit codes on POSIX indicate signal termination
+    (``-N`` where N is the signal number — matches subprocess
+    semantics). On Windows, exit codes are non-negative
+    integers.
+    """
+    if pid is None or int(pid) <= 0:
+        return None
+    import psutil
+    try:
+        return psutil.Process(int(pid)).wait(timeout=timeout)
+    except psutil.NoSuchProcess:
+        return None
+    except psutil.TimeoutExpired:
+        return None
+
+
 def release_file_lock(fp) -> None:
     """Release the lock held on ``fp``. POSIX:
     ``fcntl.flock(LOCK_UN)``. Windows:

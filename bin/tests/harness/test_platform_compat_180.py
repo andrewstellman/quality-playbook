@@ -559,6 +559,111 @@ class PsutilMigrationTests(unittest.TestCase):
                 pass
 
 
+class PsutilIdentityAndWaitTests(unittest.TestCase):
+    """v1.5.7 182 (commit 4/5): the 3 new psutil-enabled
+    capabilities — process_create_time, pid_alive_with_identity,
+    wait_for_process."""
+
+    def test_process_create_time_returns_float_for_self(
+            self) -> None:
+        import os
+        from bin.harness import _platform
+        ct = _platform.process_create_time(os.getpid())
+        self.assertIsNotNone(ct)
+        self.assertIsInstance(ct, float)
+        # The current process started before "now".
+        import time
+        self.assertLess(ct, time.time() + 1)
+
+    def test_process_create_time_returns_none_for_dead_pid(
+            self) -> None:
+        from bin.harness import _platform
+        self.assertIsNone(
+            _platform.process_create_time(99999999))
+        self.assertIsNone(
+            _platform.process_create_time(0))
+        self.assertIsNone(
+            _platform.process_create_time(-1))
+
+    def test_pid_alive_with_identity_matches_snapshot(
+            self) -> None:
+        import os
+        from bin.harness import _platform
+        pid = os.getpid()
+        ct = _platform.process_create_time(pid)
+        self.assertTrue(
+            _platform.pid_alive_with_identity(pid, ct))
+
+    def test_pid_alive_with_identity_rejects_mismatched_ctime(
+            self) -> None:
+        import os
+        from bin.harness import _platform
+        pid = os.getpid()
+        # A different create_time means "different process
+        # despite same pid number" — pid was recycled.
+        wrong_ct = 1.0  # epoch + 1 second, clearly not us
+        self.assertFalse(
+            _platform.pid_alive_with_identity(pid, wrong_ct))
+
+    def test_pid_alive_with_identity_backward_compat_none_ctime(
+            self) -> None:
+        # Backward-compat: pre-182 manifest entries don't have
+        # create_time. The helper falls back to plain pid_alive
+        # so existing harness_runs/ folders keep working.
+        import os
+        from bin.harness import _platform
+        self.assertTrue(
+            _platform.pid_alive_with_identity(os.getpid(), None))
+        self.assertFalse(
+            _platform.pid_alive_with_identity(99999999, None))
+
+    def test_wait_for_process_recovers_exit_code(self) -> None:
+        # Spawn a subprocess that exits with code 42; call
+        # wait_for_process; assert it returns 42. THIS is the
+        # capability the pre-182 hardcoded `exit_code=-1`
+        # could not provide for orphans.
+        import subprocess
+        import sys
+        from bin.harness import _platform
+        proc = subprocess.Popen(
+            [sys.executable, "-c", "import sys; sys.exit(42)"])
+        rc = _platform.wait_for_process(proc.pid, timeout=5)
+        self.assertEqual(rc, 42)
+        # Reap so no zombie leaks out.
+        try:
+            proc.wait(timeout=1)
+        except subprocess.TimeoutExpired:
+            pass
+
+    def test_wait_for_process_returns_none_on_timeout(
+            self) -> None:
+        # Spawn a long-running process; wait with a tiny
+        # timeout; expect None.
+        import subprocess
+        import sys
+        from bin.harness import _platform
+        proc = subprocess.Popen(
+            [sys.executable, "-c",
+             "import time; time.sleep(30)"])
+        try:
+            rc = _platform.wait_for_process(proc.pid, timeout=0.1)
+            self.assertIsNone(rc)
+        finally:
+            proc.kill()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                pass
+
+    def test_wait_for_process_returns_none_for_invalid_pid(
+            self) -> None:
+        from bin.harness import _platform
+        self.assertIsNone(_platform.wait_for_process(0))
+        self.assertIsNone(_platform.wait_for_process(-1))
+        self.assertIsNone(
+            _platform.wait_for_process(99999999, timeout=0.5))
+
+
 class SkillBundleHarnessOnlyDepTests(unittest.TestCase):
     """v1.5.7 182: psutil is a harness-ONLY dependency. The
     QPB skill bundle MUST NOT depend on it because skill
