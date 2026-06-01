@@ -212,6 +212,31 @@ def test_bug_010_pending_manifest_writer_preserves_ref():
     )
 
 
+def test_178_skill_md_mandates_qpb_phase_first_call():
+    """v1.5.7 178 Fix A: SKILL.md's qpb_phase emission must be a
+    hard MUST, not a soft instruction. Pre-178 the wording said
+    'at phase entry' which agents interpreted as 'when I've done
+    something meaningful,' leading to 5-10 min of phase=— in
+    Mode A status output. Surfaced on
+    harness_runs/20260531T234613Z."""
+    skill = (REPO / "SKILL.md").read_text(encoding="utf-8")
+    assert "qpb_phase" in skill, "SKILL.md missing qpb_phase reference"
+    # Locate the canonical instruction section; check for any
+    # mandate-strength phrasing within a 1500-char window.
+    qpb_section_start = skill.find("qpb_phase")
+    qpb_section = skill[qpb_section_start:qpb_section_start + 1500]
+    mandate_phrases = [
+        "MUST be the first tool call",
+        "before any other tool call",
+        "first action after the skill is invoked",
+        "first invocation after skill load",
+    ]
+    assert any(p in qpb_section for p in mandate_phrases), (
+        f"SKILL.md qpb_phase instruction lacks mandate phrasing. "
+        f"Expected one of {mandate_phrases!r} in the section."
+    )
+
+
 def test_bug_009_pending_shortcircuit_does_not_prevent_retry_collect(tmp_path, monkeypatch):
     """v1.5.7 172: when collect_harness_run's parallel-collect loop
     encounters a PENDING+pid=None entry, BUG-001's shortcircuit
