@@ -464,6 +464,80 @@ class KillProcessTreeTests(unittest.TestCase):
                         f"Match: {sig_text[:200]}")
 
 
+class SkillBundleHarnessOnlyDepTests(unittest.TestCase):
+    """v1.5.7 182: psutil is a harness-ONLY dependency. The
+    QPB skill bundle MUST NOT depend on it because skill
+    bundles install into arbitrary target repos and extra
+    deps pollute the target's install. This test fails the
+    build at commit time if `import psutil` or `from psutil
+    import ...` slips into any skill-bundled artifact.
+
+    Lands BEFORE the actual psutil imports (commit 3/5 of
+    182) so the isolation guard is in place before the deps
+    arrive — defense-in-depth against accidental leak."""
+
+    SKILL_FILES = [
+        "bin/run_playbook.py",          # skill entry point
+        "bin/install_skill.py",         # bundler — MUST NOT
+                                        # bundle psutil INTO the
+                                        # skill
+        ".github/skills/quality-playbook/SKILL.md",
+        ".github/skills/quality-playbook/quality_gate.py",
+    ]
+
+    def _check_no_psutil_import(self, path) -> None:
+        if not path.is_file():
+            self.skipTest(f"{path} not present in this layout")
+        src = path.read_text(encoding="utf-8")
+        # Allow comment / docstring mentions; disallow actual
+        # imports.
+        import re
+        # Look for ``import psutil`` or ``from psutil ...`` at
+        # the START of any line (after optional whitespace) —
+        # but NOT inside a comment.
+        for lineno, line in enumerate(src.splitlines(), 1):
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            if re.match(r"^(import psutil|from psutil)\b",
+                        stripped):
+                self.fail(
+                    f"{path}:{lineno} imports psutil — that's "
+                    f"a skill-bundle dep leak. psutil is "
+                    f"harness-only (instruction 182). Move the "
+                    f"call into bin/harness/_platform.py or use "
+                    f"a stdlib alternative.")
+
+    def test_182_psutil_does_not_leak_into_skill_bundle(
+            self) -> None:
+        for rel in self.SKILL_FILES:
+            self._check_no_psutil_import(_REPO / rel)
+
+    def test_182_psutil_not_in_references_dir(self) -> None:
+        # references/ holds skill reference docs (markdown
+        # mostly, but some .py); if any python file there
+        # imports psutil, the skill could pick it up at
+        # runtime via reference_docs_ingest paths.
+        refs = _REPO / "references"
+        if not refs.is_dir():
+            self.skipTest("references/ not present")
+        for f in refs.rglob("*.py"):
+            self._check_no_psutil_import(f)
+
+    def test_182_psutil_not_in_skill_bundle_install_dir(
+            self) -> None:
+        # The skill bundle when installed lives under
+        # .github/skills/quality-playbook/. Sweep every .py
+        # under it.
+        skill_dir = (
+            _REPO / ".github" / "skills" / "quality-playbook"
+        )
+        if not skill_dir.is_dir():
+            self.skipTest("skill bundle dir not present")
+        for f in skill_dir.rglob("*.py"):
+            self._check_no_psutil_import(f)
+
+
 class PidIsAliveConsolidationTests(unittest.TestCase):
     """v1.5.7 180-followup-10 FINDING-20: plan_runner._pid_is_alive
     is consolidated to delegate to _platform.pid_alive. The
