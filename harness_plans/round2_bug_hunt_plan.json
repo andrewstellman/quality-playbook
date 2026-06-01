@@ -1,0 +1,65 @@
+{
+  "$header_note": "QPB v1.5.7 round-2 bug-hunting plan — 3 NEW repos following the proven copilot+codex success pattern from harness_runs/20260531T234613Z (where copilot/gpt-5.4 + codex/gpt-5.4-Mode-B produced 11 verified bugs across sidekiq + Newtonsoft.Json). Skips claude/opus pending validation that 179's parallel-call hygiene + qpb_validate first-call + gitignore mandates resolve opus's tokio failure pattern. Three different domains likely to surface different bug classes: Hangfire (.NET BG jobs, similar success domain as sidekiq), zod (TypeScript schema validation, edge-case rich), akka (Scala actors, concurrency-heavy like sidekiq). Branch defaults confirmed via git ls-remote on 2026-06-01: all three are 'main'. Concurrency: pool={copilot:2, codex:1} — all 3 run in parallel after the v1.5.7 174 manifest-based pool model. Runtime bound by codex Mode B akka (~60-80 min based on sidekiq baseline). Goal: expand the bug pile beyond the current 11 candidates. All bugs found go through BUG_REPORT_WORKFLOW.md for upstream filing.",
+
+  "pools": {
+    "copilot": 2,
+    "codex": 1
+  },
+
+  "runs": [
+    {
+      "description": "Row 0 — copilot/gpt-5.4 reviews Hangfire (.NET background-job processor, ref=main) via pip-local-wheel (Mode A). Same domain as sidekiq (which copilot would also have likely handled well) but in C# instead of Ruby. Hangfire's retry/state-machine/extension logic is rich in edge cases and the .NET ecosystem analogy to sidekiq's 10 bugs suggests this surface is similarly productive.",
+      "repo": "https://github.com/HangfireIO/Hangfire",
+      "ref": "main",
+      "runner": "copilot",
+      "model": "gpt-5.4",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true,
+        "provenance_model_labeled_selfreport": true
+      }
+    },
+    {
+      "description": "Row 1 — copilot/gpt-5.4 reviews zod (TypeScript schema validation, ref=main) via npm-local-tgz (Mode A). zod's type-narrowing edge cases + parser combinator logic are a different bug class from .NET / Ruby — likely to surface validation contract mismatches, refinement edge cases, transform composition bugs. npm channel matches the TS ecosystem cleanly.",
+      "repo": "https://github.com/colinhacks/zod",
+      "ref": "main",
+      "runner": "copilot",
+      "model": "gpt-5.4",
+      "channel": "npm-local-tgz",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true,
+        "provenance_model_labeled_selfreport": true
+      }
+    },
+    {
+      "description": "Row 2 — codex/gpt-5.4 reviews akka (Scala/Java actors, ref=main) via clone channel (Mode B). codex requires Mode B; sidekiq codex Mode B found 10 bugs. akka's actor model + ask pattern + supervision hierarchy is concurrency-heavy in the same family as sidekiq's job-queue / retry / state-management surface. Different language (Scala) increases the chance of finding different bug shapes than sidekiq's Ruby bugs.",
+      "repo": "https://github.com/akka/akka",
+      "ref": "main",
+      "runner": "codex",
+      "model": "gpt-5.4",
+      "channel": "clone",
+      "mode": "B",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    }
+  ]
+}
