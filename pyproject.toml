@@ -76,7 +76,16 @@ quality-playbook = "quality_playbook_cli:main"
 # imports textual at module load; the launch fn in
 # `bin/harness/tui.py` lazy-imports).
 [project.optional-dependencies]
-harness = ["textual>=0.50"]
+# v1.5.7 182: psutil added as a harness-only dep for cross-
+# platform process management (pid liveness, tree-kill on
+# Windows, exit-code recovery from orphans, recycling-safe
+# identity via (pid, create_time) tuples). psutil is harness-
+# ONLY — the skill bundle MUST NOT depend on it (skill bundles
+# install into arbitrary target repos and extra deps pollute
+# the target's install). The harness-only enforcement is
+# pinned by test_182_psutil_does_not_leak_into_skill_bundle in
+# bin/tests/harness/test_platform_compat_180.py.
+harness = ["textual>=0.50", "psutil>=5.9"]
 
 [project.urls]
 Homepage = "https://github.com/andrewstellman/quality-playbook"
