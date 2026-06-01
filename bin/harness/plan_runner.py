@@ -85,6 +85,7 @@ import subprocess
 import sys
 import threading
 import time
+import traceback
 from concurrent.futures import (
     FIRST_COMPLETED, Future, ThreadPoolExecutor, wait)
 from dataclasses import dataclass, field, asdict
@@ -2554,6 +2555,37 @@ def _finalize_pool_slot_running(
             manifest_path, run_index, update)
 
 
+def _format_launch_failure_summary(
+        exc: BaseException, tb_text: str) -> str:
+    """v1.5.7 180-followup-7 FINDING-11: compact one-line summary
+    for the manifest's terminal_reason field. Format:
+    ``<exc-repr> at <file>:<line> in <qualname>``. The last frame
+    is the killer — for module-load-time failures the qualname
+    is ``<module>`` which tells the operator immediately this is
+    an import failure, not a call failure. Falls back to bare
+    repr when no traceback is available (synthetic exceptions)."""
+    base = repr(exc)
+    try:
+        tb_obj = exc.__traceback__
+        if tb_obj is None:
+            return base
+        last_frame = traceback.extract_tb(tb_obj)[-1]
+        # extract_tb returns FrameSummary(filename, lineno, name,
+        # line). ``name`` is the qualname / function name —
+        # ``<module>`` for module-load-time failures.
+        repo_root = Path(__file__).resolve().parents[2]
+        try:
+            rel = Path(last_frame.filename).resolve().relative_to(
+                repo_root)
+            location = str(rel)
+        except (ValueError, OSError):
+            location = last_frame.filename
+        return (f"{base} at {location}:{last_frame.lineno} "
+                f"in {last_frame.name}")
+    except Exception:
+        return base
+
+
 def _finalize_pool_slot_failed(
         manifest_path: Path, run_index: int,
         reason: str) -> None:
@@ -3501,9 +3533,25 @@ def _run_plan_detached(
             # Spawn raised — finalize as DONE+FAILED so the
             # entry doesn't sit ACQUIRING forever (which would
             # consume a pool slot from the retry path's count).
+            # v1.5.7 180-followup-7 FINDING-11: capture the full
+            # traceback to run-NN/launch_error.txt for forensic
+            # inspection and embed a compact ``exc + last frame
+            # file:line:qualname`` summary in the manifest's
+            # terminal_reason. Without this the operator has
+            # only ``repr(exc)`` to grep — when the exception
+            # message doesn't carry the source location (most
+            # of the time) the failure becomes a blind hunt.
+            tb_text = traceback.format_exc()
+            try:
+                (run_dir / "launch_error.txt").write_text(
+                    tb_text, encoding="utf-8")
+            except OSError:
+                pass  # best-effort; don't double-fault
+            summary = _format_launch_failure_summary(
+                exc, tb_text)
             _finalize_pool_slot_failed(
                 manifest_path, pr.index,
-                f"launch raised: {exc!r}")
+                f"launch raised: {summary}")
             raise
 
     with ThreadPoolExecutor(max_workers=pool_total) as ex:
