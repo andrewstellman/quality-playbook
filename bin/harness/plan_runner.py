@@ -1574,25 +1574,25 @@ def _execute_one_run_production(
 # ---------------------------------------------------------------------------
 
 
-def _pid_is_alive(pid: int) -> bool:
-    """v1.5.7 108: liveness check for orphaned AI-CLI processes
-    (the collector polls these — it can't ``waitpid`` because
-    the AI-CLIs are children of the now-exited run_plan parent).
-    Wrapped so tests can patch it cleanly.
-    """
-    if pid <= 0:
-        return False
-    try:
-        os.kill(pid, 0)
-    except ProcessLookupError:
-        return False
-    except PermissionError:
-        # Process exists but we can't signal it. Treat as
-        # alive — it's not gone.
-        return True
-    except OSError:
-        return False
-    return True
+# v1.5.7 180-followup-10 FINDING-20: the prior body used the
+# POSIX signal-0 liveness probe which is broken on Windows —
+# CPython's ``os.kill`` only accepts SIGTERM / CTRL_C_EVENT /
+# CTRL_BREAK_EVENT, so a 0-signal raises OSError(
+# ERROR_INVALID_PARAMETER) and the bare ``except OSError:
+# return False`` swallowed it, returning False for EVERY pid
+# on Windows. Andrew's 6th Windows fire saw 4/4 runs marked
+# DONE+FAILED within seconds because the collector's
+# liveness polls all returned False against actually-live
+# AI-CLI children. Consolidated to delegate to
+# ``_platform.pid_alive`` (uses ``OpenProcess`` +
+# ``GetExitCodeProcess`` on Windows, the POSIX signal-0
+# probe on POSIX). Same shape as FINDING-18 consolidation;
+# module-level symbol preserved as the alias target so
+# existing ``mock.patch.object(plan_runner, "_pid_is_alive")``
+# calls in tests keep working unchanged.
+from bin.harness._platform import (
+    pid_alive as _pid_is_alive,
+)
 
 
 def _launch_one_run_detached(
@@ -1994,8 +1994,9 @@ def _collect_one_run_detached(
 
     Orphan-polling: the AI-CLIs are children of the now-
     exited run_plan; the collector polls liveness via
-    ``_pid_is_alive`` (``os.kill(pid, 0)``). Exit code can't
-    be recovered for orphans; terminal_state is inferred from
+    ``_pid_is_alive`` (cross-platform via
+    ``_platform.pid_alive``). Exit code can't be recovered
+    for orphans; terminal_state is inferred from
     artifacts (gate-report-latest.json present ⇒ COMPLETED;
     absent + process gone ⇒ FAILED). Max-duration enforced
     via ``runner._kill_process_tree``.

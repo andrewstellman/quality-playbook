@@ -464,6 +464,57 @@ class KillProcessTreeTests(unittest.TestCase):
                         f"Match: {sig_text[:200]}")
 
 
+class PidIsAliveConsolidationTests(unittest.TestCase):
+    """v1.5.7 180-followup-10 FINDING-20: plan_runner._pid_is_alive
+    is consolidated to delegate to _platform.pid_alive. The
+    pre-fix body used os.kill(pid, 0) which on Windows returns
+    False for every pid because CPython's os.kill only accepts
+    SIGTERM / CTRL_C_EVENT / CTRL_BREAK_EVENT — anything else
+    raises OSError(ERROR_INVALID_PARAMETER) which the bare
+    `except OSError: return False` swallowed. Andrew's 6th
+    Windows fire saw 4/4 runs marked DONE+FAILED within
+    seconds because of this."""
+
+    def test_plan_runner_pid_is_alive_is_platform_pid_alive(
+            self) -> None:
+        from bin.harness import plan_runner
+        from bin.harness import _platform
+        self.assertIs(
+            plan_runner._pid_is_alive,
+            _platform.pid_alive,
+            "plan_runner._pid_is_alive must be the "
+            "_platform.pid_alive function (FINDING-20 "
+            "consolidation). Pre-fix the local body used "
+            "os.kill(pid, 0) which is broken on Windows.")
+
+    def test_no_residual_os_kill_zero_in_plan_runner(
+            self) -> None:
+        # The OLD POSIX-only liveness pattern. Post-fix the
+        # body is gone; the literal `os.kill(pid, 0)` MUST
+        # NOT reappear in plan_runner.py.
+        src = (_REPO / "bin" / "harness" / "plan_runner.py"
+               ).read_text(encoding="utf-8")
+        self.assertNotIn(
+            "os.kill(pid, 0)", src,
+            "plan_runner.py contains POSIX-only "
+            "os.kill(pid, 0); use _platform.pid_alive "
+            "instead (FINDING-20). CPython's os.kill on "
+            "Windows raises OSError for any sig that isn't "
+            "SIGTERM / CTRL_C_EVENT / CTRL_BREAK_EVENT.")
+
+    def test_no_def_pid_is_alive_in_plan_runner(self) -> None:
+        # The function body should be GONE — only the alias
+        # import remains. Catches a regression where someone
+        # re-introduces the POSIX-only helper.
+        src = (_REPO / "bin" / "harness" / "plan_runner.py"
+               ).read_text(encoding="utf-8")
+        self.assertNotIn(
+            "def _pid_is_alive(", src,
+            "plan_runner.py still defines _pid_is_alive "
+            "locally; should be an aliased import from "
+            "_platform (FINDING-20).")
+
+
 class TuiCursesFallbackTests(unittest.TestCase):
     """v1.5.7 180-followup-5 FINDING-7: ``import curses`` is not
     available on Windows Python; tui.py must detect the failure
