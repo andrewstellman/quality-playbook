@@ -487,5 +487,56 @@ class StepLogSwallowsAllExceptionsTests(unittest.TestCase):
             "load-bearing failure path (FINDING-15).")
 
 
+class BreadcrumbCoverageSourceSweepTests(unittest.TestCase):
+    """v1.5.7 180-followup-8 FINDING-16: every launch-shaped
+    function in bin/harness/plan_runner.py must emit at least
+    3 step_log breadcrumb calls (start / mid / end) so a hang
+    or crash inside ANY launch path surfaces its 'where am I'
+    signal. Without this sweep, a future PR could add a new
+    launch path with no breadcrumbs and silently regress
+    diagnosability."""
+
+    def test_180_followup_8_all_launch_shaped_functions_emit_step_log_breadcrumbs(
+            self) -> None:
+        import re
+        src = (_REPO / "bin" / "harness" / "plan_runner.py").read_text(
+            encoding="utf-8")
+        # Launch-shaped pattern: ``_launch_*_detached`` /
+        # ``_launch_one_*``. Tightened to module-scope defs
+        # only (^ at MULTILINE) so nested defs don't get
+        # double-counted.
+        func_pattern = re.compile(
+            r"^def (_launch_(?:[a-z0-9_]+_detached"
+            r"|one_[a-z0-9_]+))\(",
+            re.MULTILINE)
+        breadcrumb_pattern = re.compile(r"\bstep_log\(")
+        matches = list(func_pattern.finditer(src))
+        self.assertGreater(
+            len(matches), 0,
+            "no launch-shaped functions detected — pattern may "
+            "be stale. If launch entry points were renamed, "
+            "update the regex here AND "
+            "[[methodology_lesson_22]].")
+        for m in matches:
+            func_name = m.group(1)
+            start = m.end()
+            # Extract function body by scanning to the next
+            # top-level def/class (or EOF).
+            next_top_level = re.search(
+                r"\n(?:def |class )", src[start:])
+            body_end = (start + next_top_level.start()
+                        if next_top_level else len(src))
+            body = src[start:body_end]
+            count = len(breadcrumb_pattern.findall(body))
+            self.assertGreaterEqual(
+                count, 3,
+                f"{func_name} emits {count} step_log() "
+                f"breadcrumbs (need ≥3 to cover start, mid, "
+                f"end). Without breadcrumbs a hang or crash "
+                f"inside this launch path loses its 'where "
+                f"am I' signal — see "
+                f"[[methodology_lesson_22]].")
+
+
 if __name__ == "__main__":
     unittest.main()
