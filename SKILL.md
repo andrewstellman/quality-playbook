@@ -501,7 +501,17 @@ Each phase produces files on disk that the next phase reads. This is how context
 
 The pattern for each phase boundary: finish the current phase, write everything to disk, then print the end-of-phase message and stop. When the user starts the next phase, read back the files you need before proceeding. This "write then read" cycle is the phase boundary — it lets you drop exploration context from working memory before loading review context, for example.
 
-**Phase sentinel markers (v1.5.7 109, strengthened in v1.5.7 178).** The very FIRST tool call you make after the skill is invoked — before reading any files, before running any Bash commands, before any Glob/Grep — MUST be the first qpb_phase emission:
+**Phase 0 entry protocol (v1.5.7 179, extending 178).** The VERY first Bash call you make after the skill is invoked — before pwd, before ls, before any other Bash command — MUST be:
+
+`python3 <install_root>/bin/qpb_validate.py .`
+
+This is the Phase 0 first-probe contract. The `phase0_first_probe` assertion in the harness grading checks that qpb_validate.py is the LITERAL first Bash call — the first probe MUST be qpb_validate, before pwd, before ls, before any other Bash invocation.
+
+If qpb_validate returns `status=blocked` (the target has both `.claude` and `.github` markers and you must disambiguate), DO NOT continue with any other tool call until you've re-invoked qpb_validate with the explicit `--ai-tool=<tool>` flag and confirmed it returns `status=ok`. Resolving the block is the only legitimate next action.
+
+**Phase 0 gitignore remediation (v1.5.7 179).** After qpb_validate returns `status=ok` and before any artifact Writes, you must add `quality/` to `.gitignore` in the target repo. If the file does not exist, create it; if it exists but does not contain a `quality/` line, append `quality/` on its own line. The `gitignore_remediation_followed` assertion in the harness grading verifies this step ran to completion. Do not skip this step — it prevents the playbook's own artifacts from polluting the target repo's git history.
+
+**Phase sentinel markers (v1.5.7 109, strengthened in v1.5.7 178).** After qpb_validate returns `status=ok` and the gitignore remediation lands, the next tool call you make MUST be the first qpb_phase emission:
 
 `python3 <install_root>/bin/qpb_phase.py 1 start`
 
@@ -510,6 +520,12 @@ This is non-negotiable. The Test Harness status layer uses this sentinel to trac
 At each subsequent phase boundary:
 - **On phase entry:** `python3 <install_root>/bin/qpb_phase.py <n> start` (no `--note`). This MUST be the first tool call of that phase.
 - **On phase exit:** `python3 <install_root>/bin/qpb_phase.py <n> done --note "<1-3 sentence summary of what happened in this phase>"`. The note is your own free-text summary — what you did, what you found, what's notable. No rigid schema.
+
+**Tool-use protocol — parallel-call hygiene (v1.5.7 179).** Phase-artifact Writes — REQUIREMENTS.md, CONTRACTS.md, BUGS.md, QUALITY.md, COVERAGE_MATRIX.md, COMPLETENESS_REPORT.md, RUN_CODE_REVIEW.md, RUN_SPEC_AUDIT.md, RUN_TDD_TESTS.md, RUN_INTEGRATION_TESTS.md, and tdd-results.json — must NEVER be issued in a parallel batch with other tool calls. Each phase-artifact Write must be its own assistant turn — each phase-artifact Write must be a standalone tool call.
+
+After every artifact Write, your VERY NEXT tool call must immediately Read the same file path to verify the file exists on disk. If the Read returns "file not found," the previous Write was cancelled (typically because a sibling Bash or other tool call in the same parallel batch errored, and Claude's parallel-call cancellation propagates the failure to the Write). When this happens you must retry the Write as a standalone tool call in its own turn.
+
+This is non-negotiable. Pre-v1.5.7 179, agents that issued Write+Bash in parallel batches saw the Write silently cancelled when the Bash sibling errored — artifacts went missing, the Phase 6 gate FAILed with "missing artifact" issues, and the agent often misdiagnosed the symptom as "tool output delivered out of order" rather than "Write cancelled by sibling failure."
 
 Each invocation prints exactly one `::QPB:: {json}` line; the helper is install-bundled. The sentinel is observability only — it does NOT change any phase output, gate verdict, or grading.
 
