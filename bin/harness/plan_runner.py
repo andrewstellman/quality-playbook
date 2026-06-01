@@ -1668,7 +1668,19 @@ def _launch_one_run_detached(
         if log is not None:
             log.log(msg, run_dir=run_dir, tag=tag or "run")
 
+    # v1.5.7 180-followup-7 FINDING-12: per-run launch-step
+    # breadcrumbs. Best-effort; never raises.
+    run_dir.mkdir(parents=True, exist_ok=True)
+    step_log = _StepLog(run_dir / "launch.log")
+    step_log("launch starting",
+             run_index=plan_run.index,
+             runner=plan_run.runner.value,
+             model=plan_run.model,
+             repo=plan_run.repo,
+             channel=plan_run.channel.value)
+
     # ----- PREPARE (clone/install or reuse workspace_root) -----
+    step_log("resolving target workspace")
     if plan_run.workspace_root is not None:
         actual_target_dir = (
             Path(plan_run.workspace_root)
@@ -1685,6 +1697,8 @@ def _launch_one_run_detached(
         "%Y-%m-%dT%H:%M:%SZ"
     )
     if workspace_already_prepared:
+        step_log("reusing prepared workspace",
+                 workspace=str(actual_target_dir))
         _log(
             f"reuse workspace {actual_target_dir} "
             f"(skill already installed; no clone/install)"
@@ -1692,6 +1706,9 @@ def _launch_one_run_detached(
         target_sha = _resolve_workspace_sha(actual_target_dir)
         prep_target_dir = actual_target_dir
     else:
+        step_log("cloning + installing",
+                 repo=plan_run.repo, ref=plan_run.ref,
+                 channel=plan_run.channel.value)
         _log(f"clone {plan_run.repo}@{plan_run.ref}")
         _log(f"install ({plan_run.channel.value})")
         if (plan_run.workspace_root is not None
@@ -1816,12 +1833,19 @@ def _launch_one_run_detached(
         parameters=(plan_run.parameters or None),
         pristine_root=pristine_root,
     )
+    step_log("spawning detached child process",
+             runner=plan_run.runner.value,
+             model=plan_run.model,
+             mode=plan_run.mode.value,
+             max_duration_s=int(effective_max_duration_s))
     _log(
         f"launch {plan_run.runner.value}/{plan_run.model} "
         f"(mode={plan_run.mode.value}, "
         f"max_duration={int(effective_max_duration_s)}s)"
     )
     spawn = _runner_mod.launch_run_async(launch_spec)
+    step_log("child spawned", pid=spawn.pid,
+             stream_path=str(spawn.stream_path))
     _log(
         f"launched (pid={spawn.pid}) — detached; collector "
         f"will reap. stream={spawn.stream_path}"
@@ -1858,6 +1882,7 @@ def _launch_one_run_detached(
         json.dumps(inv_placeholder, indent=2) + "\n",
         encoding="utf-8",
     )
+    step_log("launch complete")
     return {
         "index": plan_run.index,
         # BUG-003 fix: mark the spawned run RUNNING so a relaunch over a
@@ -2553,6 +2578,67 @@ def _finalize_pool_slot_running(
     with _with_manifest_lock(harness_run_dir):
         _update_manifest_entry_no_lock(
             manifest_path, run_index, update)
+
+
+class _StepLog:
+    """v1.5.7 180-followup-7 FINDING-12: per-run launch-step
+    breadcrumb log. JSON lines, one per step, appended to
+    ``run-NN/launch.log``. The TUI/status renderer can read
+    the last line to surface "currently at step: X" for
+    in-flight runs (hangs); the launch catch site reads it to
+    surface "last step before crash" for failures.
+
+    Each line: ``{"t_relative": <s>, "t_absolute": "<iso>",
+    "step": "<step name>", ...kwargs}``. Best-effort writes:
+    any OSError is swallowed (breadcrumbs are diagnostic, not
+    correctness-critical)."""
+
+    def __init__(self, log_path: Path) -> None:
+        self.log_path = log_path
+        self._t0 = time.monotonic()
+        try:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.touch(exist_ok=True)
+        except OSError:
+            pass
+
+    def __call__(self, step: str, **fields: Any) -> None:
+        try:
+            now_mono = time.monotonic()
+            entry = {
+                "t_relative": round(now_mono - self._t0, 4),
+                "t_absolute": datetime.now(
+                    timezone.utc).isoformat(timespec="milliseconds"
+                                            ).replace("+00:00", "Z"),
+                "step": step,
+                **fields,
+            }
+            line = json.dumps(entry, default=str) + "\n"
+            with open(self.log_path, "a", encoding="utf-8") as f:
+                f.write(line)
+        except OSError:
+            pass
+
+
+def _read_last_launch_step(log_path: Path) -> "Optional[str]":
+    """v1.5.7 180-followup-7 FINDING-12: read the most recent
+    breadcrumb's ``step`` field from a launch.log file. Returns
+    None when the file is missing, empty, unreadable, or its
+    last non-empty line is not valid JSON. Best-effort —
+    callers must tolerate None."""
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            lines = [ln for ln in f.read().splitlines() if ln.strip()]
+    except OSError:
+        return None
+    if not lines:
+        return None
+    try:
+        entry = json.loads(lines[-1])
+        step = entry.get("step")
+        return step if isinstance(step, str) else None
+    except (json.JSONDecodeError, ValueError):
+        return None
 
 
 def _format_launch_failure_summary(
@@ -3537,18 +3623,30 @@ def _run_plan_detached(
             # traceback to run-NN/launch_error.txt for forensic
             # inspection and embed a compact ``exc + last frame
             # file:line:qualname`` summary in the manifest's
-            # terminal_reason. Without this the operator has
-            # only ``repr(exc)`` to grep — when the exception
-            # message doesn't carry the source location (most
-            # of the time) the failure becomes a blind hunt.
+            # terminal_reason. v1.5.7 180-followup-7 FINDING-12:
+            # also append a "launch FAILED" breadcrumb and read
+            # the LAST step from launch.log so the manifest
+            # summary surfaces BOTH "what was in flight" AND
+            # "what crashed it" — three correlated forensic
+            # records (manifest terminal_reason / launch_error.txt
+            # / launch.log).
             tb_text = traceback.format_exc()
             try:
                 (run_dir / "launch_error.txt").write_text(
                     tb_text, encoding="utf-8")
             except OSError:
                 pass  # best-effort; don't double-fault
+            try:
+                _StepLog(run_dir / "launch.log")(
+                    "launch FAILED", exception=repr(exc))
+            except Exception:
+                pass
+            last_step = _read_last_launch_step(
+                run_dir / "launch.log")
             summary = _format_launch_failure_summary(
                 exc, tb_text)
+            if last_step:
+                summary = f"{summary} [last step: {last_step}]"
             _finalize_pool_slot_failed(
                 manifest_path, pr.index,
                 f"launch raised: {summary}")

@@ -143,5 +143,108 @@ class LaunchErrorTracebackPersistenceTests(unittest.TestCase):
             "for FINDING-11's diagnosability work.")
 
 
+class StepLogBreadcrumbsTests(unittest.TestCase):
+    """v1.5.7 180-followup-7 FINDING-12: per-run launch-step
+    breadcrumb log. JSON lines, one per step, appended to
+    ``run-NN/launch.log``."""
+
+    def test_step_log_class_exists(self) -> None:
+        from bin.harness import plan_runner
+        self.assertTrue(hasattr(plan_runner, "_StepLog"))
+
+    def test_step_log_writes_json_lines(self) -> None:
+        from bin.harness import plan_runner
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            slog = plan_runner._StepLog(log_path)
+            slog("starting launch", run_index=0)
+            slog("spawning child", pid=999)
+            self.assertTrue(log_path.is_file())
+            lines = [
+                json.loads(ln)
+                for ln in log_path.read_text().splitlines()
+                if ln.strip()
+            ]
+            self.assertEqual(len(lines), 2)
+            self.assertEqual(lines[0]["step"], "starting launch")
+            self.assertEqual(lines[0]["run_index"], 0)
+            self.assertEqual(lines[1]["step"], "spawning child")
+            self.assertEqual(lines[1]["pid"], 999)
+            # Each line carries monotonic + absolute timestamps.
+            self.assertIn("t_relative", lines[0])
+            self.assertIn("t_absolute", lines[0])
+            self.assertGreaterEqual(
+                lines[1]["t_relative"], lines[0]["t_relative"])
+
+    def test_step_log_swallows_oserror(self) -> None:
+        # An unwritable target must NOT raise — breadcrumbs are
+        # diagnostic, not correctness-critical.
+        from bin.harness import plan_runner
+        bogus = pathlib.Path("/nonexistent/qpb-180-7/launch.log")
+        # Don't even rely on the __init__ touch behavior; the
+        # call should also tolerate the unwritable path.
+        slog = plan_runner._StepLog(bogus)
+        slog("starting launch")  # no raise
+
+    def test_read_last_launch_step_returns_most_recent(
+            self) -> None:
+        from bin.harness import plan_runner
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            slog = plan_runner._StepLog(log_path)
+            slog("starting launch")
+            slog("cloning + installing")
+            slog("spawning child")
+            last = plan_runner._read_last_launch_step(log_path)
+            self.assertEqual(last, "spawning child")
+
+    def test_read_last_launch_step_returns_none_on_missing(
+            self) -> None:
+        from bin.harness import plan_runner
+        self.assertIsNone(
+            plan_runner._read_last_launch_step(
+                pathlib.Path("/nonexistent/qpb-180-7")))
+
+    def test_read_last_launch_step_returns_none_on_garbage(
+            self) -> None:
+        from bin.harness import plan_runner
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            log_path.write_text(
+                "not json\nstill not json\n", encoding="utf-8")
+            self.assertIsNone(
+                plan_runner._read_last_launch_step(log_path))
+
+    def test_launch_chain_calls_step_log(self) -> None:
+        # Source-pin: _launch_one_run_detached must call
+        # step_log("starting launch" ...) at the entry of the
+        # function. Also pin that the breadcrumb appears at the
+        # spawn step ("spawning detached child process") and the
+        # complete step ("launch complete").
+        src = (_REPO / "bin" / "harness" / "plan_runner.py").read_text(
+            encoding="utf-8")
+        self.assertIn('step_log("launch starting"', src)
+        self.assertIn('step_log("spawning detached child process"', src)
+        self.assertIn('step_log("launch complete"', src)
+
+    def test_launch_catch_site_appends_failed_breadcrumb(
+            self) -> None:
+        # Source-pin: the catch site appends "launch FAILED" so
+        # the breadcrumb tail surfaces the crash even when the
+        # exception bypassed the in-function step_log path.
+        src = (_REPO / "bin" / "harness" / "plan_runner.py").read_text(
+            encoding="utf-8")
+        self.assertIn('"launch FAILED"', src)
+
+    def test_launch_catch_site_embeds_last_step_in_summary(
+            self) -> None:
+        # Source-pin: terminal_reason in the catch site includes
+        # the "[last step: <X>]" suffix from _read_last_launch_step.
+        src = (_REPO / "bin" / "harness" / "plan_runner.py").read_text(
+            encoding="utf-8")
+        self.assertIn("_read_last_launch_step(", src)
+        self.assertIn("last step:", src)
+
+
 if __name__ == "__main__":
     unittest.main()
