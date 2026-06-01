@@ -434,3 +434,151 @@ The `security_eval` cases ride the same engine throughout.
   separate from this design.
 - Decide whether `stream.ndjson` is committed for canonical acceptance runs or always externalized.
 - Confirm the `_bundle_files()` exclusion test lives in the existing bundle-completeness suite.
+
+## O. Cross-platform support (Linux + macOS + Windows)
+
+*Added 2026-06-01 (post-180 Windows-compat work). The harness was originally written POSIX-first;
+nine iterations of Windows acceptance testing (instruction 180 + 180-followups-1 through 9)
+surfaced eight categories of cross-platform concern that the original audit missed. This section
+documents the contract so future maintenance and QPB-on-QPB self-audits catch cross-platform
+issues at design-review time, not at operator-fire time.*
+
+### Supported platforms (committed contract)
+
+The harness MUST run end-to-end on:
+
+1. **Linux** — Ubuntu 22.04+ tested manually; Debian-family general.
+2. **macOS** — 12+ tested in development; uses BSD-shaped POSIX.
+3. **Windows** — 11 tested via operator acceptance fires; PowerShell + Command Prompt; Python
+   3.10+ from python.org or Microsoft Store.
+
+Adding a fourth platform (BSD variants, ARM Linux distros, Alpine-musl, etc.) requires running the
+audit checklist below against that platform's stdlib variants and extending `bin/harness/_platform.py`
+where the existing abstractions don't cover the new platform's idiom.
+
+### Cross-platform abstraction seam: `bin/harness/_platform.py`
+
+All platform-conditional logic routes through `bin/harness/_platform.py`. Direct use of
+platform-specific symbols (`os.fork`, `signal.SIGHUP`, `fcntl.flock`, `msvcrt.locking`, etc.) in
+non-test `bin/*.py` files outside this module is FORBIDDEN unless explicitly annotated
+`# Windows-OK: <reason>` (e.g., `sys.executable` is always a full path so direct subprocess use
+is safe). The `# Windows-OK` annotation is the explicit-exception escape hatch the source-pin
+sweep test in §O.4 accepts.
+
+The module exposes:
+
+- `IS_WINDOWS` — module-level boolean (`sys.platform == "win32"`).
+- `get_tmp_dir()` — cross-platform temp dir (POSIX: `/tmp`; Windows: `tempfile.gettempdir()`).
+- `get_orchestrator_log_path(run_id)` — auto-detach orchestrator log path.
+- `popen_kwargs_detached()` — subprocess kwargs for detaching (POSIX: `start_new_session=True`;
+  Windows: `creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP`).
+- `spawn_detached(args, log_path, env)` — cross-platform detached spawn (POSIX:
+  `fork`+`setsid`+`dup2`; Windows: `subprocess.Popen` with detached creationflags).
+- `acquire_file_lock(fp, blocking)` / `release_file_lock(fp)` — cross-platform file lock (POSIX:
+  `fcntl.flock`; Windows: `msvcrt.locking`).
+- `pid_alive(pid)` — cross-platform liveness probe (POSIX: `os.kill(pid, 0)`; Windows:
+  `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION) + GetExitCodeProcess`).
+- `resolve_executable(name)` — `shutil.which` wrapper that returns the full path with extension
+  on Windows (handles PATHEXT for `.cmd` / `.bat` / `.exe`).
+- `kill_process_tree(pid, *, force)` — cross-platform forced termination (POSIX: `os.killpg`
+  with `SIGKILL`/`SIGTERM`; Windows: `OpenProcess(PROCESS_TERMINATE) + TerminateProcess`).
+
+### Categories of cross-platform concern (the audit checklist)
+
+When introducing or reviewing code in `bin/`, the following eight categories MUST be checked
+against cross-platform compatibility:
+
+1. **Subprocess invocation by bare name** — `subprocess.Popen([cmd, ...])` where `cmd` is a bare
+   name (no path). Windows does NOT extension-walk `PATHEXT`; `npm` fails as `npm.cmd` because
+   `CreateProcess` looks for a literal `npm` executable. Route through
+   `_platform.resolve_executable` for any external CLI tool (`npm`/`npx`/`git`/`claude`/`copilot`/
+   `codex`/`cursor`/`node`). `sys.executable` is already a full path; `shutil.which("python")` is
+   fine too.
+
+2. **POSIX-only signals** — `signal.SIGHUP`, `SIGUSR1`, `SIGUSR2`, `SIGCHLD`, `SIGPIPE`,
+   `SIGTTIN`, `SIGTTOU`, `SIGTSTP`, `SIGWINCH`, `SIGPROF`, `SIGTRAP`, `SIGBUS`, `SIGSYS`,
+   `SIGKILL`, `SIGQUIT`, `SIGSTOP`, and others. Accessing the attribute on Windows raises
+   `AttributeError` (NOT `OSError`). Must be guarded with `except AttributeError` OR
+   `hasattr(signal, "SIGXXX")` OR an `IS_WINDOWS` branch. Pay particular attention to function
+   default arguments: `def f(sig=signal.SIGKILL):` evaluates at module-load time and crashes
+   Windows imports.
+
+3. **POSIX-only stdlib modules** — `fcntl`, `pwd`, `grp`, `resource`, `termios`, `tty`. A
+   top-level `import fcntl` crashes Windows at module-import time even when the call site never
+   runs. Must be lazy/conditional inside `_platform.py` helper bodies. Outside `_platform.py`,
+   never import these at module scope.
+
+4. **Windows-only stdlib modules** — `msvcrt`, `winreg`. Top-level import crashes POSIX. Must be
+   lazy/conditional inside `_platform.py` (or guarded by `if IS_WINDOWS:`).
+
+5. **Hardcoded paths** — `/tmp/`, `/var/`, `/proc/`, `/dev/` are POSIX-only. Route through
+   `_platform.get_tmp_dir()` for tempdir use; flag any other POSIX-rooted path against the
+   Windows equivalent (`%TEMP%`, `%ProgramData%`, etc.). Also applies to docstring / argparse
+   help text — argparse's `%` formatter interprets `%TEMP%` literally and crashes `--help`;
+   escape as `%%TEMP%%`.
+
+6. **POSIX-only `os` calls** — `os.fork`, `os.setsid`, `os.setpgid`, `os.setpgrp`, `os.killpg`,
+   `os.wait3`, `os.wait4`, `os.chroot`, `os.chown`, `os.ttyname`. Must route through
+   `_platform.spawn_detached` / `_platform.kill_process_tree` or be guarded by `IS_WINDOWS`
+   branches.
+
+7. **Subprocess kwargs** — `start_new_session=True` (POSIX-only), `preexec_fn=` (POSIX-only),
+   `creationflags=` (Windows-only). Route through `_platform.popen_kwargs_detached` which
+   returns the right kwargs for the current platform.
+
+8. **Curses / TTY** — `import curses` works on POSIX (stdlib `_curses` C extension); Windows
+   Python doesn't ship `_curses` by default. The TUI must `try: import curses` and on Windows
+   `ImportError` print an install hint (`pip install textual` recommended; `pip install
+   windows-curses` minimum) and fall back to the non-interactive `--dump runs` text renderer.
+
+### Test contract
+
+- **Unit + integration suite MUST pass on all three platforms** (Linux/macOS via developer
+  machines; Windows via Andrew's acceptance fire until automated CI exists).
+- **Subprocess/fork tests MUST be verified under BOTH `unittest discover` AND `pytest`**
+  (methodology lesson from 180-FINDING-1: pytest's collector forks differently from
+  `unittest`'s discoverer; a re-entry path that works under one runner can deadlock under the
+  other).
+- **Source-pin sweep tests in `bin/tests/harness/test_platform_compat_180.py`** catch new
+  platform-conditional symbol uses at commit time:
+  - POSIX-only signals (inverse-membership check against the Windows-available set
+    `{SIGABRT, SIGFPE, SIGILL, SIGINT, SIGSEGV, SIGTERM, SIGBREAK, NSIG}` — anything else needs
+    a guard).
+  - `start_new_session=True` literals.
+  - Hardcoded `/tmp/` / `/var/` / `/proc/` / `/dev/` paths.
+  - POSIX-only `os` calls.
+  - Top-level POSIX-only / Windows-only module imports.
+  Mirror this pattern for any new platform-related abstraction added.
+- **Auto-detach UX MUST verify the spawned child is alive AND has produced its post-launch
+  marker before declaring success to the operator** (methodology lesson from FINDING-4 + 6: the
+  parent's banner is a contract — banner only fires when the child has reached a verifiable
+  post-launch state).
+- **Launch-failure diagnosability**: any launch path failure must leave four correlated forensic
+  records: `manifest.json` `terminal_reason` (compact `<exc-repr> at <file>:<line> in <qualname>
+  [last step: <X>]`), `run-NN/launch_error.txt` (full traceback), `run-NN/launch.log` (per-step
+  JSON-lines breadcrumbs), and `harness_env.json` (python/platform/env-filtered/module-hashes
+  snapshot). FINDING-11 through 17 in the 180 chain established this contract.
+
+### QPB-self-audit responsibility
+
+Future QPB-on-QPB bootstrap runs MUST verify cross-platform support as part of the audit:
+
+- **Phase 1 (Explore)** identifies which categories above are exercised by the source under
+  review.
+- **Phase 3 (Code Review)** checks each subprocess/signal/path/import site against the eight
+  categories. Findings of unguarded POSIX-only symbols in non-test production code paths are
+  BUG-class findings (not deferrals).
+- **Phase 4 (Spec Audit)** confirms the design contract above is honored by the code.
+- **Phase 6 (Gate)** — the source-pin sweep tests are the structural enforcement; any new
+  POSIX-only or Windows-only symbol use without a guard/annotation fails the gate.
+
+### Adding a new platform
+
+If a fourth platform is added (e.g., FreeBSD, ARM64 Linux variants, Alpine-musl):
+
+1. Extend `bin/harness/_platform.py` to handle the platform's variants of each abstraction.
+2. Run the source-pin sweep tests against the new platform's classification — adjust the
+   Windows-available signal frozenset (or add a platform-available frozenset) to cover the new
+   platform's available signal set.
+3. Add the new platform to the supported list at the top of this section.
+4. Update `reference_docs/33_cross_platform_support.md` with the new platform's specifics.
