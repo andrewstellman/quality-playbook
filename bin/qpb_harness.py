@@ -423,7 +423,39 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
         pid = _platform_mod.spawn_detached(
             child_args, log_path=log_path, env=spawn_env)
         if pid != 0:
-            # Parent: print banner + relative path + exit.
+            # v1.5.7 180-followup-3 FINDING-4: spawn-then-verify.
+            # Pre-fix the parent printed "this shell can close
+            # safely" based purely on the returned pid; if the
+            # child crashed at startup (Windows SIGHUP attribute
+            # error pre-FINDING-3) the operator saw a happy
+            # banner but `status` reported no harness-run dir.
+            # Now: sleep briefly to let the child reach the
+            # harness-run mkdir, check pid liveness AND
+            # predicted_hrd existence; if either fails surface
+            # the child log on stderr and exit non-zero.
+            import time as _time
+            _time.sleep(1.5)
+            child_alive = _platform_mod.pid_alive(pid)
+            run_dir_exists = predicted_hrd.is_dir()
+            if not child_alive or not run_dir_exists:
+                print(
+                    f"ERROR: spawned child (pid={pid}) did not "
+                    f"complete startup "
+                    f"(alive={child_alive}, "
+                    f"run_dir_exists={run_dir_exists}). "
+                    f"Log contents:",
+                    file=sys.stderr)
+                try:
+                    with open(log_path, "r",
+                              encoding="utf-8") as lf:
+                        tail = lf.read()[-4000:]
+                    print(tail, file=sys.stderr)
+                except OSError as exc:
+                    print(f"(could not read log {log_path}: "
+                          f"{exc})", file=sys.stderr)
+                return 1
+            # Child is alive and the run dir exists. Banner is
+            # honest.
             banner = _render_launch_banner(
                 predicted_hrd, collector_pid=None,
                 run_count=len(plan.runs), pools=plan.pools,

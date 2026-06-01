@@ -3154,10 +3154,16 @@ def _install_orchestrator_signal_handlers() -> None:
     SIGPIPE-via-inherited-TTY hypothesis ruled out by code reading)."""
     try:
         signal.signal(signal.SIGHUP, signal.SIG_IGN)
-    except (ValueError, OSError):
-        # SIGHUP not available on this platform (Windows) or we're
-        # in a thread without signal-handling privilege. Either way
-        # the call is best-effort; no-op gracefully.
+    except (AttributeError, ValueError, OSError):
+        # v1.5.7 180-followup-3 FINDING-3: catch AttributeError
+        # too — ``signal.SIGHUP`` doesn't exist as an attribute
+        # on Windows, raising AttributeError at attribute access
+        # time (pre-fix the existing (ValueError, OSError) clause
+        # missed it and the orchestrator crashed at startup on
+        # Windows 11). ValueError / OSError still cover the
+        # POSIX-side cases (thread without signal-handling
+        # privilege; already-installed handler). Best-effort; no-
+        # op gracefully on any of the three.
         pass
 
 

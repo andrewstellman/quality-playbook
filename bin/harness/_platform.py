@@ -208,6 +208,54 @@ def acquire_file_lock(fp, blocking: bool = True) -> bool:
         raise
 
 
+def pid_alive(pid: int) -> bool:
+    """v1.5.7 180-followup-3 FINDING-4: cross-platform pid
+    liveness check. Used by the orchestrator's spawn-then-verify
+    pattern — after ``spawn_detached`` returns a child pid, the
+    parent confirms the child is still alive before declaring
+    "this shell can close safely."
+
+    POSIX: ``os.kill(pid, 0)`` — raises ``ProcessLookupError``
+    if dead, ``PermissionError`` if alive but we lack signal
+    rights (treated as alive). Other ``OSError`` → False.
+
+    Windows: ``OpenProcess`` + ``GetExitCodeProcess`` via
+    ctypes. A process whose exit code is ``STILL_ACTIVE`` (259)
+    is alive; any other exit code means it terminated. A
+    ``NULL`` handle from ``OpenProcess`` means dead-or-
+    inaccessible — treated as dead (operator surfaces error).
+    """
+    if pid is None or pid <= 0:
+        return False
+    if IS_WINDOWS:
+        import ctypes
+        STILL_ACTIVE = 259
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        h = kernel32.OpenProcess(
+            PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+        if not h:
+            return False
+        try:
+            exit_code = ctypes.c_ulong(0)
+            ok = kernel32.GetExitCodeProcess(
+                h, ctypes.byref(exit_code))
+            if not ok:
+                return False
+            return exit_code.value == STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(h)
+    try:
+        os.kill(int(pid), 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
+
+
 def release_file_lock(fp) -> None:
     """Release the lock held on ``fp``. POSIX:
     ``fcntl.flock(LOCK_UN)``. Windows:

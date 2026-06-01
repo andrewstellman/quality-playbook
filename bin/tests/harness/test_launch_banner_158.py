@@ -324,6 +324,11 @@ class CmdRunPlanAutoDetachTests(unittest.TestCase):
                     repo="https://github.com/x/r",
                     runner=mock.MagicMock(value="claude"),
                     model="opus")])
+            # v1.5.7 180-followup-3 FINDING-4: after spawn_detached
+            # returns a pid, the parent calls _platform.pid_alive(pid)
+            # and predicted_hrd.is_dir() before printing the banner.
+            # Mock both so the happy-path returns 0.
+            from bin.harness import _platform as _platform_mod
             with mock.patch.object(Q.os, "fork",
                                     return_value=12345) as m_fork, \
                  mock.patch.object(Q, "open",
@@ -331,6 +336,11 @@ class CmdRunPlanAutoDetachTests(unittest.TestCase):
                                     create=True), \
                  mock.patch("bin.harness.plan_runner.load_plan",
                              return_value=fake_plan), \
+                 mock.patch.object(_platform_mod, "pid_alive",
+                                    return_value=True), \
+                 mock.patch.object(Path, "is_dir",
+                                    return_value=True), \
+                 mock.patch("time.sleep", return_value=None), \
                  mock.patch.object(Q.sys, "stdout",
                                     new=io.StringIO()), \
                  mock.patch.object(Q.sys, "stderr",

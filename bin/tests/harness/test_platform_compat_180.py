@@ -157,6 +157,94 @@ class ChildArgsReinvocationTests(unittest.TestCase):
         self.assertIn('"bin.qpb_harness"', src)
 
 
+class SignalGuardTests(unittest.TestCase):
+    """v1.5.7 180-followup-3 FINDING-3: any reference to a
+    POSIX-only signal attribute in bin/ must be guarded for
+    Windows (either an AttributeError-catching except clause
+    or a hasattr(signal, "SIG…") pre-check)."""
+
+    def test_180_signal_sighup_guarded_with_attribute_error(
+            self) -> None:
+        src = (
+            _REPO / "bin" / "harness" / "plan_runner.py"
+        ).read_text(encoding="utf-8")
+        if "signal.SIGHUP" in src:
+            sighup_idx = src.find("signal.SIGHUP")
+            snippet = src[sighup_idx:sighup_idx + 800]
+            self.assertTrue(
+                "AttributeError" in snippet
+                or "hasattr(signal" in snippet,
+                "signal.SIGHUP handler must catch "
+                "AttributeError (Windows) or use "
+                "hasattr(signal, 'SIGHUP') guard. "
+                "Snippet: " + snippet[:200],
+            )
+
+    def test_180_no_unguarded_posix_signal_attributes(
+            self) -> None:
+        import re
+        posix_signals = [
+            "SIGHUP", "SIGUSR1", "SIGUSR2", "SIGCHLD",
+            "SIGPIPE", "SIGTTIN", "SIGTTOU", "SIGTSTP",
+        ]
+        pattern = re.compile(
+            r"signal\.(" + "|".join(posix_signals) + r")\b")
+        for f in (_REPO / "bin").rglob("*.py"):
+            if "test" in f.name:
+                continue
+            src = f.read_text(encoding="utf-8")
+            for m in pattern.finditer(src):
+                start = max(0, m.start() - 600)
+                end = min(len(src), m.end() + 600)
+                window = src[start:end]
+                self.assertTrue(
+                    "AttributeError" in window
+                    or "hasattr(signal" in window,
+                    f"{f}:{m.group(0)} is unguarded for "
+                    f"Windows. Surrounding window: "
+                    f"{window[:400]}",
+                )
+
+
+class SpawnVerifyTests(unittest.TestCase):
+    """v1.5.7 180-followup-3 FINDING-4: after spawn_detached
+    returns a child pid, the parent MUST verify the child is
+    alive before declaring success. Source-pin check."""
+
+    def test_180_spawn_detached_followed_by_liveness_check(
+            self) -> None:
+        src = (
+            _REPO / "bin" / "qpb_harness.py"
+        ).read_text(encoding="utf-8")
+        self.assertTrue(
+            "pid_alive" in src
+            or "_verify_child_started" in src
+            or "child_alive" in src,
+            "qpb_harness.py must verify spawned child is alive "
+            "before declaring success. See 180 FINDING-4.",
+        )
+
+
+class PidAliveTests(unittest.TestCase):
+    """v1.5.7 180-followup-3: P.pid_alive contract on the
+    running platform."""
+
+    def test_180_pid_alive_self_is_alive(self) -> None:
+        import os as _os
+        self.assertTrue(P.pid_alive(_os.getpid()))
+
+    def test_180_pid_alive_zero_is_dead(self) -> None:
+        self.assertFalse(P.pid_alive(0))
+
+    def test_180_pid_alive_unlikely_pid_is_dead(self) -> None:
+        # 999_999_999 is well above the practical max pid range
+        # on Linux/Mac/Windows. May very rarely be alive on a
+        # truly long-running machine — skip if so.
+        if P.pid_alive(999_999_999):
+            self.skipTest("999_999_999 happened to be live")
+        self.assertFalse(P.pid_alive(999_999_999))
+
+
 class PopenKwargsTests(unittest.TestCase):
 
     def test_180_popen_kwargs_detached_posix(self) -> None:
