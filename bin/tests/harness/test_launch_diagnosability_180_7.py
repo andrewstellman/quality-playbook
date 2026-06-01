@@ -348,5 +348,144 @@ class HarnessEnvSnapshotTests(unittest.TestCase):
             f"creation (FINDING-13). Found {occ}; need ≥2.")
 
 
+class StepLogReattachTests(unittest.TestCase):
+    """v1.5.7 180-followup-8 FINDING-14: catch-site reattach
+    preserves the launch.log timeline instead of resetting
+    t_relative=0 on the 'launch FAILED' breadcrumb."""
+
+    def test_reattach_anchors_t0_to_first_entry_t_absolute(
+            self) -> None:
+        from bin.harness import plan_runner
+        from datetime import datetime, timezone, timedelta
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            # Seed the log with a "launch starting" entry 5s ago.
+            then = (datetime.now(timezone.utc)
+                    - timedelta(seconds=5.0))
+            iso = then.isoformat(
+                timespec="milliseconds").replace("+00:00", "Z")
+            log_path.write_text(json.dumps({
+                "t_relative": 0.0,
+                "t_absolute": iso,
+                "step": "launch starting",
+            }) + "\n", encoding="utf-8")
+            # Reattach + emit.
+            slog = plan_runner._StepLog.reattach(log_path)
+            slog("synthetic next step")
+            entries = [
+                json.loads(ln)
+                for ln in log_path.read_text().splitlines()
+                if ln.strip()
+            ]
+            self.assertEqual(len(entries), 2)
+            # The second entry's t_relative should be ~5.0
+            # (within a generous ±1s tolerance for clock skew /
+            # test scheduling latency).
+            self.assertAlmostEqual(
+                entries[1]["t_relative"], 5.0, delta=1.0)
+
+    def test_reattach_on_missing_log_returns_fresh_steplog(
+            self) -> None:
+        from bin.harness import plan_runner
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "no_such.log"
+            slog = plan_runner._StepLog.reattach(log_path)
+            self.assertIsInstance(slog, plan_runner._StepLog)
+            # No anchor → _t0 is approximately current monotonic.
+            import time as _t
+            self.assertAlmostEqual(
+                slog._t0, _t.monotonic(), delta=1.0)
+
+    def test_reattach_on_garbage_first_line_returns_fresh_steplog(
+            self) -> None:
+        from bin.harness import plan_runner
+        import time as _t
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            log_path.write_text(
+                "not json at all\n", encoding="utf-8")
+            slog = plan_runner._StepLog.reattach(log_path)
+            # No usable anchor → fresh _t0.
+            self.assertAlmostEqual(
+                slog._t0, _t.monotonic(), delta=1.0)
+
+    def test_reattach_on_empty_log_returns_fresh_steplog(
+            self) -> None:
+        from bin.harness import plan_runner
+        import time as _t
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            log_path.write_text("", encoding="utf-8")
+            slog = plan_runner._StepLog.reattach(log_path)
+            self.assertAlmostEqual(
+                slog._t0, _t.monotonic(), delta=1.0)
+
+    def test_catch_site_uses_reattach(self) -> None:
+        # Source-pin: plan_runner.py contains
+        # "_StepLog.reattach(" within ~400 chars of the LAST
+        # "launch FAILED" string (the actual catch site, NOT
+        # the docstring mention on the reattach method).
+        src = (_REPO / "bin" / "harness" / "plan_runner.py").read_text(
+            encoding="utf-8")
+        idx = src.rfind('"launch FAILED"')
+        self.assertGreater(idx, 0)
+        window = src[max(0, idx - 400):idx + 400]
+        self.assertIn(
+            "_StepLog.reattach(", window,
+            "catch site must use _StepLog.reattach to preserve "
+            "the launch.log timeline (FINDING-14).")
+
+
+class StepLogSwallowsAllExceptionsTests(unittest.TestCase):
+    """v1.5.7 180-followup-8 FINDING-15: breadcrumbs must never
+    abort the launch chain. The __call__ swallow is broadened
+    from OSError to Exception so a pathological kwarg's
+    __str__/__repr__ raise can't bubble up."""
+
+    def test_call_with_non_serializable_kwarg_does_not_raise(
+            self) -> None:
+        from bin.harness import plan_runner
+        # An object whose __str__ raises. json.dumps with
+        # default=str will call str() which raises → __call__
+        # must swallow it.
+        class _Pathological:
+            def __str__(self) -> str:
+                raise TypeError("synthetic __str__ failure")
+            __repr__ = __str__
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            slog = plan_runner._StepLog(log_path)
+            # No raise (would propagate up to the launch chain
+            # and cause spurious "launch failed" diagnoses).
+            slog("synthetic", bad=_Pathological())
+
+    def test_source_pin_swallow_is_exception_not_oserror(
+            self) -> None:
+        # Source-pin: _StepLog.__call__'s except clause matches
+        # ``except Exception`` (not ``except OSError``). Search
+        # within the class body for the pattern.
+        src = (_REPO / "bin" / "harness" / "plan_runner.py").read_text(
+            encoding="utf-8")
+        # Find the _StepLog class block and look for "def
+        # __call__" inside it, then check the except clause.
+        class_idx = src.find("class _StepLog:")
+        self.assertGreater(class_idx, 0)
+        # Class body ends at the next top-level def/class.
+        rest = src[class_idx:]
+        import re
+        m = re.search(r"\n(def |class )", rest[1:])
+        body_end = m.start() + 1 if m else len(rest)
+        body = rest[:body_end]
+        call_idx = body.find("def __call__")
+        self.assertGreater(call_idx, 0)
+        call_body = body[call_idx:]
+        self.assertIn(
+            "except Exception", call_body,
+            "_StepLog.__call__ must `except Exception` (not "
+            "`except OSError`) — breadcrumbs are diagnostic, "
+            "any swallow narrower than Exception leaves a "
+            "load-bearing failure path (FINDING-15).")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2590,8 +2590,9 @@ class _StepLog:
 
     Each line: ``{"t_relative": <s>, "t_absolute": "<iso>",
     "step": "<step name>", ...kwargs}``. Best-effort writes:
-    any OSError is swallowed (breadcrumbs are diagnostic, not
-    correctness-critical)."""
+    ANY exception is swallowed (180-followup-8 FINDING-15:
+    breadcrumbs are diagnostic, never correctness-critical;
+    a broken kwarg __str__ must NOT abort the launch chain)."""
 
     def __init__(self, log_path: Path) -> None:
         self.log_path = log_path
@@ -2601,6 +2602,53 @@ class _StepLog:
             log_path.touch(exist_ok=True)
         except OSError:
             pass
+
+    @classmethod
+    def reattach(cls, log_path: Path) -> "_StepLog":
+        """v1.5.7 180-followup-8 FINDING-14: construct a
+        _StepLog anchored to an EXISTING launch.log timeline.
+        Reads the first existing entry's ``t_absolute`` and
+        back-computes ``_t0`` so subsequent breadcrumbs continue
+        the trail instead of resetting to ``t_relative=0``. The
+        catch site uses this for the "launch FAILED" breadcrumb
+        so the entry shows actual elapsed time from launch
+        start, not a misleading 0.000.
+
+        Falls back to a fresh _StepLog (default __init__
+        semantics) if the log is missing / empty / first line
+        is non-JSON / first entry lacks a parseable
+        ``t_absolute`` — the cosmetic "0 timeline" issue is
+        preserved only when there's no anchor to use.
+        """
+        inst = cls(log_path)
+        try:
+            with open(log_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line_s = line.strip()
+                    if not line_s:
+                        continue
+                    try:
+                        first = json.loads(line_s)
+                    except (json.JSONDecodeError, ValueError):
+                        break  # garbage first line ⇒ no anchor
+                    iso = first.get("t_absolute") if isinstance(
+                        first, dict) else None
+                    if isinstance(iso, str):
+                        try:
+                            iso_norm = iso.replace("Z", "+00:00")
+                            first_dt = datetime.fromisoformat(
+                                iso_norm)
+                            now_dt = datetime.now(timezone.utc)
+                            elapsed = (
+                                now_dt - first_dt).total_seconds()
+                            inst._t0 = (
+                                time.monotonic() - elapsed)
+                        except (ValueError, TypeError):
+                            pass
+                    break  # only consider the first line
+        except OSError:
+            pass
+        return inst
 
     def __call__(self, step: str, **fields: Any) -> None:
         try:
@@ -2616,7 +2664,14 @@ class _StepLog:
             line = json.dumps(entry, default=str) + "\n"
             with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(line)
-        except OSError:
+        except Exception:
+            # v1.5.7 180-followup-8 FINDING-15: broadened from
+            # OSError → Exception so a pathological kwarg's
+            # __str__/__repr__ raise (or any other diagnostic-
+            # path failure) cannot abort the launch chain.
+            # Breadcrumbs are diagnostic; their failure must
+            # never affect correctness. Trade-off: a future
+            # silent bug here is harder to spot — accepted.
             pass
 
 
@@ -3716,7 +3771,11 @@ def _run_plan_detached(
             except OSError:
                 pass  # best-effort; don't double-fault
             try:
-                _StepLog(run_dir / "launch.log")(
+                # v1.5.7 180-followup-8 FINDING-14: reattach to
+                # the existing launch.log timeline so the
+                # "launch FAILED" entry's t_relative reflects
+                # actual elapsed time, not a misleading 0.
+                _StepLog.reattach(run_dir / "launch.log")(
                     "launch FAILED", exception=repr(exc))
             except Exception:
                 pass
