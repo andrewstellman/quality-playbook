@@ -17,12 +17,16 @@ the run's lifetime; if the collector dies, the OS releases the lock
 (FD close) and the watchdog's next tick can acquire and recovery-
 collect.
 
-POSIX-only — ``fcntl.flock``. Windows harness compatibility was
-deferred earlier in v1.5.7.
+Cross-platform via ``bin/harness/_platform.py`` (POSIX:
+``fcntl.flock``; Windows: ``msvcrt.locking``) since v1.5.7 180.
+The probe-and-release pattern from 172 FINDING-1 fix is
+preserved exactly: a brief ``LOCK_NB`` acquire on
+``.collect.lock`` (skip tick if held by the collector) followed
+by an immediate release before calling ``collect_harness_run``,
+which acquires its own blocking lock on a fresh FD.
 """
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 import signal
@@ -230,22 +234,26 @@ def run_watchdog(harness_run_dir: Path) -> int:
             # including the same-process probe). Release the probe
             # immediately after the success path, then call collect
             # (which acquires its own blocking lock cleanly).
+            # v1.5.7 180: cross-platform probe-and-release via
+            # _platform shim. acquire_file_lock(blocking=False)
+            # returns True/False instead of raising
+            # BlockingIOError.
+            from bin.harness import _platform as _platform_mod
             busy = False
             try:
                 with open(lock_path, "w",
                            encoding="utf-8") as probe_fp:
-                    try:
-                        fcntl.flock(
-                            probe_fp.fileno(),
-                            fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    ok = _platform_mod.acquire_file_lock(
+                        probe_fp, blocking=False)
+                    if ok:
                         # Probe succeeded — collect is free.
                         # Release immediately so the upcoming
                         # collect_harness_run call can acquire
-                        # its own blocking LOCK_EX on a fresh FD
+                        # its own blocking lock on a fresh FD
                         # without deadlocking against this probe.
-                        fcntl.flock(
-                            probe_fp.fileno(), fcntl.LOCK_UN)
-                    except BlockingIOError:
+                        _platform_mod.release_file_lock(
+                            probe_fp)
+                    else:
                         busy = True
             except OSError as exc:
                 _log(log_fp,

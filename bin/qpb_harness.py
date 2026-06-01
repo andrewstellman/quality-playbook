@@ -377,20 +377,45 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
     detached_child = bool(os.environ.get("QPB_HARNESS_DETACHED"))
     if (not foreground) and (not detached_child):
         from datetime import datetime as _dt, timezone as _tz
+        from bin.harness import _platform as _platform_mod
         forced_run_id = _dt.now(_tz.utc).strftime(
             "%Y%m%dT%H%M%SZ")
         predicted_hrd = runs_root / forced_run_id
-        log_path = Path("/tmp") / f"qpb-harness-{forced_run_id}.log"
+        # v1.5.7 180: use _platform.get_orchestrator_log_path
+        # for cross-platform temp dir resolution (Windows can't
+        # open ``/tmp/...``).
+        log_path = _platform_mod.get_orchestrator_log_path(
+            forced_run_id)
         per_run_entries = [
             {"index": pr.index, "repo": pr.repo,
              "runner": pr.runner.value, "model": pr.model}
             for pr in plan.runs
         ]
-        log_fp = open(log_path, "ab")
-        pid = os.fork()
+        # v1.5.7 180: cross-platform detach. POSIX path forks +
+        # setsid + dup2 stdio + returns 0 in the child. Windows
+        # path Popen-spawns a fresh ``qpb_harness run-plan ...``
+        # invocation with QPB_HARNESS_DETACHED=1 in the env so
+        # the spawn block is skipped on re-entry, then returns
+        # the child pid (parent never sees 0).
+        child_env = {
+            "QPB_HARNESS_DETACHED": "1",
+            "QPB_HARNESS_FORCED_RUN_ID": forced_run_id,
+        }
+        if _platform_mod.IS_WINDOWS:
+            # On Windows the child re-runs the orchestrator
+            # entry point from argv. The current argv is good
+            # enough because QPB_HARNESS_DETACHED short-circuits
+            # the spawn block on re-entry.
+            child_args = list(sys.argv)
+            spawn_env = {**os.environ, **child_env}
+        else:
+            # POSIX: same process continues; args ignored.
+            child_args = []
+            spawn_env = child_env
+        pid = _platform_mod.spawn_detached(
+            child_args, log_path=log_path, env=spawn_env)
         if pid != 0:
             # Parent: print banner + relative path + exit.
-            log_fp.close()
             banner = _render_launch_banner(
                 predicted_hrd, collector_pid=None,
                 run_count=len(plan.runs), pools=plan.pools,
@@ -401,19 +426,9 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
             print(banner, file=sys.stderr)
             print(_relpath_for_banner(predicted_hrd))
             return 0
-        # Child: full daemonization — own session, stdio redirected
-        # to the log file, env marker so a nested run_plan call
-        # (shouldn't happen but defensive) skips re-detach, forced
-        # run id so the harness-run dir matches the parent's banner.
-        try:
-            os.setsid()
-        except OSError:
-            pass  # already a session leader (unusual)
-        os.dup2(log_fp.fileno(), sys.stdout.fileno())
-        os.dup2(log_fp.fileno(), sys.stderr.fileno())
-        log_fp.close()
-        os.environ["QPB_HARNESS_DETACHED"] = "1"
-        os.environ["QPB_HARNESS_FORCED_RUN_ID"] = forced_run_id
+        # Child (POSIX): setsid + dup2 already done by
+        # spawn_detached; env overrides applied. Continue
+        # inline with the orchestrator's real work.
 
     wheel_override = (
         Path(args.wheel).expanduser().resolve()

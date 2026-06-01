@@ -2440,18 +2440,17 @@ def _with_manifest_lock(harness_run_dir: Path):
     across slow operations like subprocess spawn or collect)
     avoids the same-process recursion risk from 172 FINDING-1.
     """
-    import fcntl as _fcntl
+    # v1.5.7 180: cross-platform via _platform shim
+    # (POSIX: fcntl.flock; Windows: msvcrt.locking).
+    from bin.harness import _platform as _platform_mod
     lock_path = _manifest_lock_path(harness_run_dir)
     fp = open(lock_path, "w", encoding="utf-8")
     try:
-        _fcntl.flock(fp.fileno(), _fcntl.LOCK_EX)
+        _platform_mod.acquire_file_lock(fp, blocking=True)
         try:
             yield
         finally:
-            try:
-                _fcntl.flock(fp.fileno(), _fcntl.LOCK_UN)
-            except OSError:
-                pass
+            _platform_mod.release_file_lock(fp)
     finally:
         fp.close()
 
@@ -2919,12 +2918,14 @@ def collect_harness_run(harness_run_dir: Path,
     # the collector takes blocking LOCK_EX since it's the primary
     # writer. If the collector dies, the OS releases the lock (FD
     # close) and the watchdog's next tick can recovery-collect.
-    import fcntl as _fcntl  # local: keep top-of-file imports POSIX-agnostic
+    # v1.5.7 180: cross-platform via _platform shim.
+    from bin.harness import _platform as _platform_mod
     _collect_lock_path = harness_run_dir / ".collect.lock"
     _collect_lock_fp = open(_collect_lock_path, "w",
                               encoding="utf-8")
     try:
-        _fcntl.flock(_collect_lock_fp.fileno(), _fcntl.LOCK_EX)
+        _platform_mod.acquire_file_lock(
+            _collect_lock_fp, blocking=True)
     except OSError:
         _collect_lock_fp.close()
         raise
@@ -2932,11 +2933,7 @@ def collect_harness_run(harness_run_dir: Path,
         return _collect_harness_run_locked(
             harness_run_dir, manifest_path, log)
     finally:
-        try:
-            _fcntl.flock(_collect_lock_fp.fileno(),
-                          _fcntl.LOCK_UN)
-        except OSError:
-            pass
+        _platform_mod.release_file_lock(_collect_lock_fp)
         _collect_lock_fp.close()
 
 
@@ -3047,6 +3044,12 @@ def _collect_harness_run_locked(
     return outcomes
 
 
+def _platform_kwargs_detached() -> dict:
+    """v1.5.7 180: cross-platform Popen detach kwargs."""
+    from bin.harness import _platform as _platform_mod
+    return _platform_mod.popen_kwargs_detached()
+
+
 def _spawn_collector(harness_run_dir: Path,
                        log: "Optional[_ProgressLog]" = None,
                        ) -> int:
@@ -3069,7 +3072,7 @@ def _spawn_collector(harness_run_dir: Path,
             stdout=log_fp,
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,
-            start_new_session=True,
+            **_platform_kwargs_detached(),
         )
     finally:
         log_fp.close()
@@ -3103,7 +3106,7 @@ def _spawn_watchdog(harness_run_dir: Path,
             stdout=log_fp,
             stderr=subprocess.STDOUT,
             stdin=subprocess.DEVNULL,
-            start_new_session=True,
+            **_platform_kwargs_detached(),
         )
     finally:
         log_fp.close()
