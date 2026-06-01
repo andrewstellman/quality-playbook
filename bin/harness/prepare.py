@@ -77,9 +77,25 @@ def _git(*args: str, cwd: "Path | None" = None,
          check: bool = True) -> subprocess.CompletedProcess:
     """Thin wrapper for git subprocess calls. Captures stdout +
     stderr so prep failures carry context in the PrepError reason
-    string."""
+    string.
+
+    v1.5.7 180-followup-10 FINDING-21: prepends
+    ``-c core.longpaths=true`` to every git invocation so the
+    working-tree materialization (clone, checkout, switch)
+    handles Windows MAX_PATH (260-char limit) defensively.
+    Webpack's asset-modules test fixtures exceed 260 chars
+    when checked out under ``harness_runs/<ts>/run-NN/target/``
+    and crash the clone with ``unable to create file ...:
+    Filename too long``. The ``-c`` form is per-invocation
+    (no persistent config change to the operator's git).
+    Also routes through ``_platform.resolve_executable`` for
+    the FINDING-5 PATHEXT fix on Windows.
+    """
+    from bin.harness import _platform as _platform_mod
     return subprocess.run(
-        ["git", *args],
+        [_platform_mod.resolve_executable("git"),
+         "-c", "core.longpaths=true",
+         *args],
         cwd=str(cwd) if cwd is not None else None,
         capture_output=True, text=True, check=check,
     )

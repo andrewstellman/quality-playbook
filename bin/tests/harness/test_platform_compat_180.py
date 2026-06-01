@@ -515,6 +515,39 @@ class PidIsAliveConsolidationTests(unittest.TestCase):
             "_platform (FINDING-20).")
 
 
+class GitLongPathsTests(unittest.TestCase):
+    """v1.5.7 180-followup-10 FINDING-21: git clone invocations
+    pass ``-c core.longpaths=true`` to handle Windows MAX_PATH
+    (260-char limit) fixtures. Webpack's asset-modules test
+    fixtures exceed 260 chars when checked out under
+    ``harness_runs/<ts>/run-NN/target/`` and crash the clone
+    with ``unable to create file ...: Filename too long``."""
+
+    def test_prepare_clone_passes_core_longpaths_true(
+            self) -> None:
+        src = (_REPO / "bin" / "harness" / "prepare.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn(
+            "core.longpaths=true", src,
+            "prepare.py must pass core.longpaths=true to git "
+            "invocations for Windows MAX_PATH defensive "
+            "coverage (FINDING-21).")
+
+    def test_prepare_git_helper_uses_minus_c_form(
+            self) -> None:
+        # The ``-c <key>=<value>`` form is per-invocation
+        # (no persistent operator-config change). Source-pin
+        # that the flag appears with the ``-c`` form, not as
+        # a `git config core.longpaths true` mutation.
+        src = (_REPO / "bin" / "harness" / "prepare.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn(
+            '"-c", "core.longpaths=true"', src,
+            "FINDING-21 flag MUST be passed via the per-"
+            "invocation `-c <key>=<value>` form, not as a "
+            "persistent config mutation.")
+
+
 class TuiCursesFallbackTests(unittest.TestCase):
     """v1.5.7 180-followup-5 FINDING-7: ``import curses`` is not
     available on Windows Python; tui.py must detect the failure
