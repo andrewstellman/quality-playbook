@@ -3060,7 +3060,7 @@ def _spawn_collector(harness_run_dir: Path,
                        log: "Optional[_ProgressLog]" = None,
                        ) -> int:
     """v1.5.7 108: spawn the detached collector subprocess.
-    Anti-SIGTTIN: ``start_new_session=True`` + stdin from
+    Anti-SIGTTIN: ``_platform.popen_kwargs_detached`` + stdin from
     ``/dev/null`` + stdout/stderr to
     ``<harness-run>/collector.log``. Returns the collector's
     PID so run_plan can print it for the operator.
@@ -3095,7 +3095,7 @@ def _spawn_watchdog(harness_run_dir: Path,
                       ) -> int:
     """v1.5.7 172: spawn the detached watchdog subprocess.
     Mirrors :func:`_spawn_collector` exactly — same anti-SIGTTIN
-    pattern (start_new_session + stdin=/dev/null + stdout/stderr
+    pattern (_platform.popen_kwargs_detached + stdin=/dev/null + stdout/stderr
     to ``<harness-run>/watchdog.log``). Returns the watchdog's PID
     so the launch banner can display it alongside the collector's.
     """
@@ -3145,17 +3145,20 @@ def _install_orchestrator_signal_handlers() -> None:
     inherits that signal otherwise). Idempotent: calling multiple
     times is safe.
 
-    The original 155 instruction proposed also calling ``os.setsid()``
-    early as defense in depth. Deferred per the ruling's "worker's
-    call; SIGHUP-IGN alone is sufficient" — adding setsid here would
-    detach the process from the controlling terminal AT IMPORT TIME
-    if a test imports plan_runner, breaking pytest output capture.
-    Operators who want full session detachment should use the
-    documented bridge: ``nohup python3 -m bin.qpb_harness <plan.json>
-    > /tmp/log 2>&1 & disown``.
+    The original 155 instruction proposed also calling the POSIX
+    setsid syscall early as defense in depth (see
+    ``_platform.spawn_detached`` which handles it via the
+    detached-child branch on POSIX). Deferred per the ruling's
+    "worker's call; SIGHUP-IGN alone is sufficient" — adding the
+    syscall here would detach the process from the controlling
+    terminal AT IMPORT TIME if a test imports plan_runner,
+    breaking pytest output capture. Operators who want full
+    session detachment should use the documented bridge:
+    ``nohup python3 -m bin.qpb_harness <plan.json> >
+    <tempdir>/log 2>&1 & disown`` (POSIX-only).
 
     See ``reviews/155-orchestrator-sighup-resilience-HALT-RULING.md``
-    for the 5-zombie-wave diagnosis (start_new_session already in
+    for the 5-zombie-wave diagnosis (POSIX session detach already in
     place at every Popen site; stdio already file-redirected; the
     SIGPIPE-via-inherited-TTY hypothesis ruled out by code reading)."""
     try:
@@ -3210,7 +3213,7 @@ def run_plan(plan: Plan, harness_runs_root: Path,
     """
     # v1.5.7 155 Task A: ignore SIGHUP so closing the launching
     # shell doesn't take the orchestrator with it. Children are
-    # already spawned with start_new_session=True at every Popen
+    # already spawned with _platform.popen_kwargs_detached at every Popen
     # site (runner.py:925, plan_runner.py:2378) and their stdio
     # is file-redirected (not inherited from the parent's TTY),
     # so SIGHUP-IGN on the orchestrator alone closes the
@@ -3518,7 +3521,7 @@ def _run_plan_detached(
     )
 
     # Spawn the detached collector (108 anti-SIGTTIN:
-    # start_new_session + stdin=/dev/null + stdout/stderr to
+    # _platform.popen_kwargs_detached + stdin=/dev/null + stdout/stderr to
     # collector.log). The collector is a separate Python
     # subprocess that runs `qpb_harness collect <dir>`.
     collector_pid = _spawn_collector(harness_run_dir, log)

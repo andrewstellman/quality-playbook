@@ -508,8 +508,39 @@ def launch_status_tui(
     v1.5.7 139: ``initial_focus`` (``(TuiPathKind, Path)`` or None)
     opens the loop at a deeper screen — see
     ``_resolve_initial_nav_state``. None ⇒ pre-139 runs-list.
+
+    v1.5.7 180-followup-5 FINDING-7: ``curses`` is not part of
+    the Python stdlib on Windows (the ``_curses`` C extension
+    isn't shipped). When the import fails AND we're on Windows,
+    print an install hint (``pip install textual`` or
+    ``pip install windows-curses``) and degrade gracefully to
+    the ``--dump runs`` non-interactive renderer. On POSIX the
+    ImportError is re-raised — curses is part of stdlib there
+    and a missing ``_curses`` is a real installation problem.
     """
-    import curses
+    import sys
+    from bin.harness import _platform as _platform_mod
+    try:
+        import curses
+    except ImportError:
+        if _platform_mod.IS_WINDOWS:
+            print(
+                "qpb_harness tui: 'curses' is not available on "
+                "this Windows Python installation (_curses C "
+                "extension not shipped).\n"
+                "Install one of the following:\n"
+                "  pip install textual          # recommended — "
+                "richer UI\n"
+                "  pip install windows-curses   # smaller — "
+                "provides _curses\n"
+                "\nFalling back to `tui --dump runs` output:\n",
+                file=sys.stderr,
+            )
+            print(format_runs_list_as_text(runs_root))
+            return 0
+        # POSIX: curses should be present. Re-raise so the
+        # operator sees the real install error.
+        raise
 
     def _main(stdscr: "curses._CursesWindow") -> int:  # type: ignore[name-defined]
         curses.curs_set(0)

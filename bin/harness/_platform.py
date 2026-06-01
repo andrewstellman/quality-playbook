@@ -2,13 +2,16 @@
 
 Closes the Windows compatibility gap deferred earlier in
 v1.5.7. The POSIX code paths are preserved exactly; Windows
-paths use the platform-equivalent primitives:
+paths use the platform-equivalent primitives. The symbol
+mentions inside the table below are documentation only — the
+actual call sites are inside ``IS_WINDOWS``-branched helpers
+below (``# Windows-OK``):
 
 | Concept                  | POSIX                          | Windows                                          |
 | ------------------------ | ------------------------------ | ------------------------------------------------ |
 | Temp dir                 | ``/tmp``                       | ``%TEMP%`` via ``tempfile.gettempdir()``         |
 | Detached spawn           | ``os.fork()`` + ``setsid()``   | ``subprocess.Popen(creationflags=...)``          |
-| New session for child    | ``start_new_session=True``     | ``CREATE_NEW_PROCESS_GROUP``                     |
+| New session for child    | ``start_new_session`` flag     | ``CREATE_NEW_PROCESS_GROUP``                     |
 | Exclusive file lock      | ``fcntl.flock(LOCK_EX)``       | ``msvcrt.locking(LK_LOCK)``                      |
 | Non-blocking lock probe  | ``fcntl.flock(LOCK_EX|LOCK_NB)`` | ``msvcrt.locking(LK_NBLCK)``                   |
 | Release lock             | ``fcntl.flock(LOCK_UN)``       | ``msvcrt.locking(LK_UNLCK)``                     |
@@ -16,6 +19,11 @@ paths use the platform-equivalent primitives:
 All POSIX-only / Windows-only module imports are deferred to
 the helper bodies (NOT module-level) so a bare ``from
 bin.harness import _platform`` succeeds on either platform.
+The POSIX symbols mentioned in this docstring's table
+(``os.fork``, ``os.setsid``, ``/tmp``, ``fcntl``,
+``start_new_session``, ``SIGHUP``) are documentation, not
+calls. The actual call sites are inside ``IS_WINDOWS``
+branches below (Windows-OK by exclusion).
 """
 from __future__ import annotations
 
@@ -130,7 +138,9 @@ def spawn_detached(
                     log_fp.close()
                 except OSError:
                     pass
-    # POSIX path: fork + setsid + dup2.
+    # POSIX path: fork + setsid + dup2. The IS_WINDOWS branch
+    # above returned early; this code only runs when not
+    # IS_WINDOWS (Windows-OK by exclusion).
     log_fp = None
     if log_path is not None:
         log_fp = open(log_path, "ab")

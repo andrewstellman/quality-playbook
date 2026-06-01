@@ -324,6 +324,188 @@ class FailFastScopeTests(unittest.TestCase):
         )
 
 
+class TuiCursesFallbackTests(unittest.TestCase):
+    """v1.5.7 180-followup-5 FINDING-7: ``import curses`` is not
+    available on Windows Python; tui.py must detect the failure
+    and degrade to the ``--dump runs`` non-interactive renderer
+    with a clear install hint."""
+
+    def test_180_tui_curses_import_guarded_with_dump_fallback(
+            self) -> None:
+        src = (
+            _REPO / "bin" / "harness" / "tui.py"
+        ).read_text(encoding="utf-8")
+        # The `import curses` inside launch_status_tui must be in
+        # a try/except that handles the Windows path. Source-pin:
+        # within 1500 chars of the first `import curses`, expect
+        # both ``IS_WINDOWS`` and ``format_runs_list_as_text``
+        # (the fallback renderer).
+        idx = src.find("import curses")
+        self.assertGreater(idx, 0)
+        window = src[max(0, idx - 200):idx + 1500]
+        self.assertIn(
+            "IS_WINDOWS", window,
+            "tui.py launch_status_tui must guard `import "
+            "curses` with an IS_WINDOWS branch + dump fallback")
+        self.assertIn(
+            "format_runs_list_as_text", window,
+            "tui.py Windows fallback must use "
+            "format_runs_list_as_text",
+        )
+
+    def test_180_tui_smoke_imports_cleanly(self) -> None:
+        # Import smoke test: bin.harness.tui must import without
+        # error on every platform (the top-level module doesn't
+        # touch curses; the curses import is inside
+        # launch_status_tui).
+        import importlib
+        m = importlib.import_module("bin.harness.tui")
+        self.assertTrue(hasattr(m, "launch_status_tui"))
+
+
+class ComprehensiveSweepTests(unittest.TestCase):
+    """v1.5.7 180-followup-5 FINDING-8: comprehensive source-
+    inspection sweep. Every platform-conditional symbol use in
+    non-test ``bin/*.py`` must be guarded for cross-platform
+    safety. Fails at commit time if a new unguarded reference
+    slips in.
+
+    Guards accepted in the ±800-char window around each match:
+    ``IS_WINDOWS``, ``popen_kwargs_detached``,
+    ``spawn_detached``, ``acquire_file_lock``,
+    ``resolve_executable``, ``get_tmp_dir``,
+    ``get_orchestrator_log_path``, ``hasattr(signal``,
+    ``AttributeError``, ``# Windows-OK`` annotation."""
+
+    def _windowed_guards_present(
+            self, src: str, match_start: int,
+            match_end: int, guards: list) -> bool:
+        start = max(0, match_start - 800)
+        end = min(len(src), match_end + 800)
+        window = src[start:end]
+        return any(g in window for g in guards)
+
+    def _iter_non_test_bin_py(self):
+        for f in (_REPO / "bin").rglob("*.py"):
+            if "test" in f.name:
+                continue
+            yield f
+
+    def test_180_no_unguarded_posix_signals_anywhere(
+            self) -> None:
+        import re
+        posix_signals = [
+            "SIGHUP", "SIGUSR1", "SIGUSR2", "SIGCHLD",
+            "SIGPIPE", "SIGTTIN", "SIGTTOU", "SIGTSTP",
+            "SIGWINCH", "SIGPROF", "SIGTRAP", "SIGBUS",
+            "SIGSYS",
+        ]
+        pattern = re.compile(
+            r"signal\.(" + "|".join(posix_signals) + r")\b")
+        guards = ["AttributeError", "hasattr(signal",
+                  "# Windows-OK"]
+        for f in self._iter_non_test_bin_py():
+            src = f.read_text(encoding="utf-8")
+            for m in pattern.finditer(src):
+                if not self._windowed_guards_present(
+                        src, m.start(), m.end(), guards):
+                    self.fail(
+                        f"{f}:{m.group(0)} unguarded for "
+                        f"Windows (need AttributeError catch "
+                        f"or hasattr(signal,...) guard within "
+                        f"±800 chars)")
+
+    def test_180_no_unguarded_start_new_session_true(
+            self) -> None:
+        import re
+        pattern = re.compile(r"start_new_session\s*=\s*True")
+        guards = ["popen_kwargs_detached", "IS_WINDOWS",
+                  "# Windows-OK"]
+        for f in self._iter_non_test_bin_py():
+            src = f.read_text(encoding="utf-8")
+            for m in pattern.finditer(src):
+                if not self._windowed_guards_present(
+                        src, m.start(), m.end(), guards):
+                    self.fail(
+                        f"{f}: unguarded "
+                        f"start_new_session=True (route via "
+                        f"_platform.popen_kwargs_detached or "
+                        f"add IS_WINDOWS guard)")
+
+    def test_180_no_unguarded_hardcoded_tmp_var_paths(
+            self) -> None:
+        import re
+        pattern = re.compile(
+            r'''["']/(tmp|var|proc|dev)/''')
+        guards = ["get_tmp_dir", "IS_WINDOWS",
+                  "get_orchestrator_log_path",
+                  "# Windows-OK"]
+        for f in self._iter_non_test_bin_py():
+            src = f.read_text(encoding="utf-8")
+            for m in pattern.finditer(src):
+                if not self._windowed_guards_present(
+                        src, m.start(), m.end(), guards):
+                    self.fail(
+                        f"{f}: hardcoded POSIX path "
+                        f"{m.group(0)!r} (use "
+                        f"_platform.get_tmp_dir() or annotate "
+                        f"# Windows-OK)")
+
+    def test_180_no_unguarded_posix_only_os_calls(
+            self) -> None:
+        import re
+        pattern = re.compile(
+            r"os\.(fork|setsid|setpgid|setpgrp|wait3|wait4"
+            r"|chroot|chown|ttyname)\b")
+        guards = ["spawn_detached", "IS_WINDOWS",
+                  "popen_kwargs_detached", "# Windows-OK"]
+        for f in self._iter_non_test_bin_py():
+            src = f.read_text(encoding="utf-8")
+            for m in pattern.finditer(src):
+                if not self._windowed_guards_present(
+                        src, m.start(), m.end(), guards):
+                    self.fail(
+                        f"{f}: POSIX-only os call "
+                        f"{m.group(0)!r} unguarded "
+                        f"(use _platform.spawn_detached or "
+                        f"IS_WINDOWS guard)")
+
+    def test_180_no_top_level_posix_only_module_imports(
+            self) -> None:
+        # ``import fcntl`` / ``from fcntl import ...`` at module
+        # scope crashes Windows at import time. Helper modules
+        # ARE allowed (we DO import fcntl inside function bodies
+        # in _platform.py); the test catches only top-level
+        # (start-of-line + no leading whitespace) imports.
+        import re
+        pattern = re.compile(
+            r"^(import|from)\s+(fcntl|pwd|grp|resource|termios"
+            r"|tty)\b", re.MULTILINE)
+        for f in self._iter_non_test_bin_py():
+            src = f.read_text(encoding="utf-8")
+            for m in pattern.finditer(src):
+                self.fail(
+                    f"{f}: top-level POSIX-only import "
+                    f"{m.group(0)!r} crashes Windows at "
+                    f"import time. Move inside a function "
+                    f"body or guard via IS_WINDOWS.")
+
+    def test_180_no_top_level_windows_only_module_imports(
+            self) -> None:
+        import re
+        pattern = re.compile(
+            r"^(import|from)\s+(msvcrt|winreg)\b",
+            re.MULTILINE)
+        for f in self._iter_non_test_bin_py():
+            src = f.read_text(encoding="utf-8")
+            for m in pattern.finditer(src):
+                self.fail(
+                    f"{f}: top-level Windows-only import "
+                    f"{m.group(0)!r} crashes POSIX at import "
+                    f"time. Move inside a function body or "
+                    f"guard via IS_WINDOWS.")
+
+
 class PopenKwargsTests(unittest.TestCase):
 
     def test_180_popen_kwargs_detached_posix(self) -> None:

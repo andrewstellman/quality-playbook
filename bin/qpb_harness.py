@@ -1302,9 +1302,11 @@ def _build_parser() -> argparse.ArgumentParser:
             "Default behavior is auto-detach: the orchestrator "
             "self-daemonizes, the operator's shell returns "
             "immediately, and stdout/stderr are redirected to "
-            "/tmp/qpb-harness-<TS>.log. Pass --foreground for "
-            "debugging when you want the orchestrator's progress "
-            "log inline."),
+            "<tempdir>/qpb-harness-<TS>.log (POSIX: /tmp; "
+            "Windows: %%TEMP%%). Pass --foreground for "
+            "debugging "
+            "when you want the orchestrator's progress log "
+            "inline."),
     )
 
     # v1.5.7 108: collect — invoked by the auto-spawned

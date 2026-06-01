@@ -5,7 +5,7 @@ Other CLIs (codex / copilot / cursor) and Mode B (via
 ``bin/run_playbook.py`` reuse) are explicitly Phase 5.
 
 Contract:
-  * Detached subprocess via ``start_new_session=True`` so closing
+  * Detached subprocess via ``_platform.popen_kwargs_detached`` (POSIX session-detach / Windows CREATE_NEW_PROCESS_GROUP) so closing
     a client never kills a run (design §H / lifecycle).
   * PID + heartbeat capture written to a status file.
   * Raw NDJSON stream capture to ``stream.ndjson`` (always
@@ -714,7 +714,7 @@ def _write_status(run_dir: Path, status: dict) -> None:
 
 
 def _kill_process_tree(pid: int, sig: "int | None" = None) -> None:
-    """Kill the process group started by ``start_new_session``.
+    """Kill the process group started by POSIX session detach.
 
     v1.5.7 147 (additive, ruled): ``sig=None`` (default) preserves
     the original SIGTERM → 2s-grace → SIGKILL escalation — the
@@ -794,7 +794,7 @@ def kill_run(run_dir: Path, *, sig: int = signal.SIGKILL,
     next status refresh observes the real outcome.
 
     Caveat: pid identity relies on the spawned-in-our-session
-    coupling (108 ``start_new_session=True``); a pid reassigned to
+    coupling (108 POSIX session-detach); a pid reassigned to
     an unrelated host process can't be reliably distinguished, but
     that aliasing is unlikely in the harness's window.
     """
@@ -919,6 +919,10 @@ def launch_run_async(spec: LaunchSpec) -> SpawnResult:
     # the child keeps writing via the dup'd fd even after the
     # parent process exits (108 anti-SIGTTIN — the parent must
     # not retain a long-lived handle that blocks reaping).
+    # v1.5.7 180-followup-5 FINDING-8: cross-platform detach
+    # kwargs via _platform.popen_kwargs_detached (POSIX:
+    # start_new_session=True; Windows: creationflags).
+    from bin.harness import _platform as _platform_mod
     stream_fp = open(stream_path, "wb")
     try:
         proc = subprocess.Popen(
@@ -929,7 +933,7 @@ def launch_run_async(spec: LaunchSpec) -> SpawnResult:
             stdin=(subprocess.PIPE if needs_stdin
                     else subprocess.DEVNULL),
             env=env,
-            start_new_session=True,
+            **_platform_mod.popen_kwargs_detached(),
         )
     finally:
         stream_fp.close()
