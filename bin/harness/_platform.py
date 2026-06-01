@@ -52,10 +52,40 @@ def get_orchestrator_log_path(run_id: str) -> Path:
 
 
 def popen_kwargs_detached() -> dict:
-    """Popen kwargs that detach the child from the parent's
-    session/console. POSIX: ``{"start_new_session": True}``.
-    Windows: ``{"creationflags": DETACHED_PROCESS |
+    """v1.5.7 180-followup-4 + 183 FINDING-22: Popen kwargs
+    that detach the child from the parent's session/console
+    AND (on Windows) suppress visible console-window flashes
+    from child processes. POSIX:
+    ``{"start_new_session": True}``. Windows:
+    ``{"creationflags": CREATE_NO_WINDOW |
     CREATE_NEW_PROCESS_GROUP}``.
+
+    Pre-183 Windows used ``DETACHED_PROCESS |
+    CREATE_NEW_PROCESS_GROUP``. The ``DETACHED_PROCESS`` flag
+    (0x8) means "don't inherit the parent's console" — for
+    console applications (which ``claude.exe`` /
+    ``copilot.exe`` / ``codex.exe`` and most of their
+    downstream children are), Windows then allocates a NEW
+    console for the child. That new console flashes visibly
+    during the brief moment between allocation and process
+    termination/detach. Andrew observed this in run
+    ``20260601T201924Z``: command windows kept popping up
+    during the harness lifecycle (orchestrator spawn,
+    collector, watchdog, AI CLI launches, AND the AI CLI's
+    downstream children — hooks, node.exe, MCP servers).
+
+    ``CREATE_NO_WINDOW`` (``0x08000000``) is the correct
+    "background process, no visible UI" flag. CRITICAL: it
+    propagates to child processes through inherited
+    creationflags, so when the AI CLI launches sub-shells or
+    MCP servers they inherit the no-window behavior too —
+    cuts down most of the AI CLI's downstream flashes, not
+    just the harness's own spawns.
+
+    MSDN mutual exclusivity: ``CREATE_NO_WINDOW`` and
+    ``DETACHED_PROCESS`` cannot be combined. Pick
+    ``CREATE_NO_WINDOW`` for background-process / no-UI
+    semantics.
 
     Used by ``_spawn_collector`` and ``_spawn_watchdog`` to
     spread into their ``subprocess.Popen`` call:
@@ -63,11 +93,12 @@ def popen_kwargs_detached() -> dict:
         subprocess.Popen(args, **popen_kwargs_detached(), ...)
     """
     if IS_WINDOWS:
-        # subprocess.DETACHED_PROCESS / CREATE_NEW_PROCESS_GROUP
+        # subprocess.CREATE_NO_WINDOW / CREATE_NEW_PROCESS_GROUP
         # only exist on Windows builds of Python's subprocess
-        # module. Lazy access via getattr in case of CI quirks.
+        # module. Lazy access via getattr with the literal
+        # MSDN-documented flag values as fallbacks.
         flags = (
-            getattr(subprocess, "DETACHED_PROCESS", 0x00000008)
+            getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
             | getattr(subprocess,
                        "CREATE_NEW_PROCESS_GROUP", 0x00000200)
         )

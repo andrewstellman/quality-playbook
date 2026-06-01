@@ -486,6 +486,16 @@ stdlib `subprocess.Popen` still owns the launch path. `psutil.Popen` is a wrappe
 replacement — stdlib subprocess is correct for launching, psutil is correct for managing
 post-launch.
 
+### Windows console-window suppression (post-183)
+
+The harness uses `CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP` (not the earlier
+`DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP`) as the Windows creationflags for detached
+subprocesses. `DETACHED_PROCESS` causes new-console allocation for console apps (flashing UI
+artifact during the brief moment between allocation and process termination); `CREATE_NO_WINDOW`
+correctly suppresses console-window creation AND propagates the no-window behavior to inherited
+child processes — so the AI CLI's downstream children (hooks, node.exe, MCP servers) inherit the
+no-window behavior too. The two flags are mutually exclusive per MSDN.
+
 ### Cross-platform abstraction seam: `bin/harness/_platform.py`
 
 All platform-conditional logic routes through `bin/harness/_platform.py`. Direct use of

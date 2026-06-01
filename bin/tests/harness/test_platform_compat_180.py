@@ -464,6 +464,74 @@ class KillProcessTreeTests(unittest.TestCase):
                         f"Match: {sig_text[:200]}")
 
 
+class PopenNoWindowTests(unittest.TestCase):
+    """v1.5.7 183 FINDING-22: Windows creationflags use
+    CREATE_NO_WINDOW (suppresses console-window flashes from
+    inherited child processes) NOT DETACHED_PROCESS (which
+    allocates a new flashing console for console apps).
+
+    Andrew observed in run 20260601T201924Z that command
+    windows kept popping up during the harness lifecycle —
+    not just from our own spawns, but ALSO from the AI CLI's
+    downstream children (hooks, node.exe, MCP servers).
+    CREATE_NO_WINDOW propagates through inherited
+    creationflags, so the AI CLI's children inherit the
+    no-window behavior too."""
+
+    def test_create_no_window_present_in_platform_py(
+            self) -> None:
+        src = (_REPO / "bin" / "harness" / "_platform.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn(
+            "CREATE_NO_WINDOW", src,
+            "_platform.py must reference CREATE_NO_WINDOW; "
+            "pre-183 used DETACHED_PROCESS which doesn't "
+            "suppress new-console allocation for console "
+            "apps.")
+
+    def test_detached_process_not_in_popen_kwargs_body(
+            self) -> None:
+        # DETACHED_PROCESS may appear in the docstring/comment
+        # explaining the pre-183 history; must NOT appear in
+        # the ACTIVE code of popen_kwargs_detached.
+        import re
+        src = (_REPO / "bin" / "harness" / "_platform.py"
+               ).read_text(encoding="utf-8")
+        m = re.search(
+            r"def popen_kwargs_detached.*?(?=\ndef |\nclass )",
+            src, re.DOTALL)
+        self.assertIsNotNone(
+            m, "popen_kwargs_detached function not found")
+        body = m.group(0)
+        # Strip triple-quoted docstrings before checking.
+        body_no_doc = re.sub(
+            r'""".*?"""', "", body, flags=re.DOTALL)
+        # Strip single-line comments.
+        for line in body_no_doc.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                continue
+            self.assertNotIn(
+                "DETACHED_PROCESS", stripped,
+                "popen_kwargs_detached active code uses "
+                "DETACHED_PROCESS; should use "
+                "CREATE_NO_WINDOW (FINDING-22).")
+
+    def test_windows_creationflags_value_assert(self) -> None:
+        # Verify the flag value 0x08000000 (CREATE_NO_WINDOW)
+        # is the getattr fallback default — guards against a
+        # future Python build where subprocess.CREATE_NO_WINDOW
+        # isn't available leading us to silently fall back to
+        # a wrong value.
+        src = (_REPO / "bin" / "harness" / "_platform.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn(
+            "0x08000000", src,
+            "Expected the literal CREATE_NO_WINDOW flag value "
+            "(0x08000000) as the getattr fallback default in "
+            "popen_kwargs_detached.")
+
+
 class PsutilMigrationTests(unittest.TestCase):
     """v1.5.7 182: psutil-backed process management."""
 
