@@ -316,6 +316,29 @@ def test_179_skill_md_mandates_gitignore_remediation_step():
         f"Expected one of {gitignore_phrases!r}.")
 
 
+def test_180_qpb_harness_does_not_hardcode_tmp_for_orchestrator_log():
+    """v1.5.7 180: qpb_harness.py's orchestrator log path must
+    come from _platform.get_orchestrator_log_path, NOT a
+    hardcoded `/tmp/`. Pre-180 the literal `Path("/tmp")` at
+    `:383` crashed on Windows with FileNotFoundError."""
+    src = (REPO / "bin" / "qpb_harness.py").read_text(encoding="utf-8")
+    assert 'Path("/tmp")' not in src and "Path('/tmp')" not in src, (
+        "bin/qpb_harness.py must not hardcode Path('/tmp'); "
+        "use _platform.get_orchestrator_log_path()")
+
+
+def test_180_qpb_harness_does_not_use_os_fork_unconditionally():
+    """v1.5.7 180: qpb_harness.py's auto-detach must use the
+    cross-platform _platform.spawn_detached, not a bare
+    os.fork() (which doesn't exist on Windows)."""
+    src = (REPO / "bin" / "qpb_harness.py").read_text(encoding="utf-8")
+    if "os.fork()" in src:
+        # Allow only if under a platform guard.
+        assert "IS_WINDOWS" in src or "_platform" in src, (
+            "bin/qpb_harness.py uses os.fork() without a "
+            "platform guard; wrap in _platform.spawn_detached()")
+
+
 def test_bug_009_pending_shortcircuit_does_not_prevent_retry_collect(tmp_path, monkeypatch):
     """v1.5.7 172: when collect_harness_run's parallel-collect loop
     encounters a PENDING+pid=None entry, BUG-001's shortcircuit
