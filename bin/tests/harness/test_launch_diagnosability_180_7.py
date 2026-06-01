@@ -246,5 +246,107 @@ class StepLogBreadcrumbsTests(unittest.TestCase):
         self.assertIn("last step:", src)
 
 
+class HarnessEnvSnapshotTests(unittest.TestCase):
+    """v1.5.7 180-followup-7 FINDING-13: harness-run env
+    snapshot written immediately after the harness-run dir is
+    created. Cross-platform / cross-version bug paper trail."""
+
+    def test_sha256_first_4k_returns_hex_digest(self) -> None:
+        from bin.harness import plan_runner
+        with tempfile.NamedTemporaryFile(
+                "wb", delete=False, suffix=".tmp") as f:
+            f.write(b"hello world" * 100)
+            path = pathlib.Path(f.name)
+        try:
+            h = plan_runner._sha256_first_4k(path)
+            self.assertIsNotNone(h)
+            self.assertEqual(len(h), 64)  # hex sha256
+            int(h, 16)  # parses as hex
+        finally:
+            path.unlink()
+
+    def test_sha256_first_4k_returns_none_on_missing(
+            self) -> None:
+        from bin.harness import plan_runner
+        self.assertIsNone(
+            plan_runner._sha256_first_4k(
+                pathlib.Path("/nonexistent/qpb-180-7-hash")))
+
+    def test_write_harness_env_snapshot_creates_file(
+            self) -> None:
+        from bin.harness import plan_runner
+        with tempfile.TemporaryDirectory() as td:
+            hrd = pathlib.Path(td)
+            plan_runner._write_harness_env_snapshot(hrd)
+            snap_path = hrd / "harness_env.json"
+            self.assertTrue(snap_path.is_file())
+            snap = json.loads(snap_path.read_text())
+            for key in (
+                    "python_version", "python_executable",
+                    "platform", "system", "machine",
+                    "release", "cwd", "argv",
+                    "env_filtered", "module_hashes"):
+                self.assertIn(
+                    key, snap,
+                    f"harness_env.json must include {key!r} "
+                    f"(FINDING-13)")
+            # module_hashes must include at least the core
+            # platform / harness modules.
+            self.assertIn("bin/qpb_harness.py",
+                          snap["module_hashes"])
+            self.assertIn("bin/harness/_platform.py",
+                          snap["module_hashes"])
+
+    def test_env_snapshot_excludes_unallowed_env_vars(
+            self) -> None:
+        # Sanity: secrets / tokens MUST NOT leak into the
+        # snapshot. The helper filters by an allow-list; this
+        # test confirms a representative non-allowed env var
+        # doesn't appear.
+        from bin.harness import plan_runner
+        import os as _os
+        sentinel_key = "QPB_180_7_TEST_SENTINEL_TOKEN"
+        sentinel_val = "should-not-appear-in-snapshot"
+        _os.environ[sentinel_key] = sentinel_val
+        try:
+            with tempfile.TemporaryDirectory() as td:
+                hrd = pathlib.Path(td)
+                plan_runner._write_harness_env_snapshot(hrd)
+                snap = json.loads(
+                    (hrd / "harness_env.json").read_text())
+                self.assertNotIn(
+                    sentinel_key, snap["env_filtered"],
+                    "env_filtered must use an allow-list to "
+                    "prevent secret leakage")
+                # Belt + suspenders: the value mustn't appear
+                # anywhere serialized.
+                serialized = json.dumps(snap)
+                self.assertNotIn(sentinel_val, serialized)
+        finally:
+            _os.environ.pop(sentinel_key, None)
+
+    def test_write_harness_env_snapshot_swallows_oserror(
+            self) -> None:
+        from bin.harness import plan_runner
+        # Best-effort: unwritable target must NOT raise.
+        plan_runner._write_harness_env_snapshot(
+            pathlib.Path("/nonexistent/qpb-180-7"))
+
+    def test_plan_runner_calls_env_snapshot_at_dir_creation(
+            self) -> None:
+        # Source-pin: _run_plan_detached calls
+        # _write_harness_env_snapshot right after the
+        # harness_run_dir.mkdir line. Occurrence-count check:
+        # def + call ⇒ ≥2.
+        src = (_REPO / "bin" / "harness" / "plan_runner.py").read_text(
+            encoding="utf-8")
+        occ = src.count("_write_harness_env_snapshot(")
+        self.assertGreaterEqual(
+            occ, 2,
+            f"plan_runner.py must CALL "
+            f"_write_harness_env_snapshot at harness-run dir "
+            f"creation (FINDING-13). Found {occ}; need ≥2.")
+
+
 if __name__ == "__main__":
     unittest.main()

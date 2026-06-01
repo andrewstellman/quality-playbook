@@ -2620,6 +2620,80 @@ class _StepLog:
             pass
 
 
+def _sha256_first_4k(path: Path) -> "Optional[str]":
+    """v1.5.7 180-followup-7 FINDING-13: cheap, deterministic
+    fingerprint of a source file's first 4KB. Distinguishes
+    "different code" from "same source, just installed
+    differently." None on read error (path missing / not
+    readable) — the env snapshot still gets written without
+    that hash entry."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(4096)
+    except OSError:
+        return None
+    return hashlib.sha256(head).hexdigest()
+
+
+def _write_harness_env_snapshot(harness_run_dir: Path) -> None:
+    """v1.5.7 180-followup-7 FINDING-13: write
+    ``<harness-run-dir>/harness_env.json`` with the system
+    context: python version, platform, filtered env vars, and
+    first-4KB SHA-256 hashes of key source files. Captured once
+    per harness-run at dir creation so cross-platform /
+    cross-version bug investigations have a paper trail.
+
+    Env filter: only PATH/PYTHONPATH/HOME/USERPROFILE/
+    VIRTUAL_ENV/CONDA_PREFIX/TMPDIR/TMP/LANG/LC_ALL/SHELL/
+    COMSPEC. Skips anything that might carry tokens (TOKEN,
+    KEY, SECRET, PASSWORD substrings excluded by allow-list
+    discipline).
+
+    Best-effort: any OSError during write is swallowed (the
+    snapshot is diagnostic, not correctness-critical).
+    """
+    import platform as _platform_mod
+    repo_root = Path(__file__).resolve().parents[2]
+    _ALLOWED_ENV_KEYS = (
+        "PATH", "PYTHONPATH", "HOME", "USERPROFILE",
+        "VIRTUAL_ENV", "CONDA_PREFIX", "TMPDIR", "TMP",
+        "LANG", "LC_ALL", "SHELL", "COMSPEC",
+    )
+    _HASHED_SOURCES = (
+        "bin/qpb_harness.py",
+        "bin/harness/runner.py",
+        "bin/harness/plan_runner.py",
+        "bin/harness/_platform.py",
+        "bin/harness/prepare.py",
+    )
+    snapshot = {
+        "python_version": sys.version,
+        "python_executable": sys.executable,
+        "platform": _platform_mod.platform(),
+        "system": _platform_mod.system(),
+        "machine": _platform_mod.machine(),
+        "release": _platform_mod.release(),
+        "cwd": os.getcwd(),
+        "argv": sys.argv,
+        "env_filtered": {
+            k: os.environ.get(k)
+            for k in _ALLOWED_ENV_KEYS
+            if k in os.environ
+        },
+        "module_hashes": {
+            rel: _sha256_first_4k(repo_root / rel)
+            for rel in _HASHED_SOURCES
+        },
+    }
+    try:
+        (harness_run_dir / "harness_env.json").write_text(
+            json.dumps(snapshot, indent=2,
+                       default=str) + "\n",
+            encoding="utf-8")
+    except OSError:
+        pass
+
+
 def _read_last_launch_step(log_path: Path) -> "Optional[str]":
     """v1.5.7 180-followup-7 FINDING-12: read the most recent
     breadcrumb's ``step`` field from a launch.log file. Returns
@@ -3348,6 +3422,11 @@ def run_plan(plan: Plan, harness_runs_root: Path,
     harness_run_dir = (harness_runs_root / forced_id if forced_id
                        else harness_runs_root / _utc_now_run_id())
     harness_run_dir.mkdir(parents=True, exist_ok=False)
+
+    # v1.5.7 180-followup-7 FINDING-13: env snapshot first so
+    # the paper trail exists even if anything below fails. Best-
+    # effort write.
+    _write_harness_env_snapshot(harness_run_dir)
 
     # v1.5.7 104: progress logger — stderr + harness.log
     # (per-run log added when each run-NN dir is created).
