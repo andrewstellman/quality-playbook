@@ -402,11 +402,19 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
             "QPB_HARNESS_FORCED_RUN_ID": forced_run_id,
         }
         if _platform_mod.IS_WINDOWS:
-            # On Windows the child re-runs the orchestrator
-            # entry point from argv. The current argv is good
-            # enough because QPB_HARNESS_DETACHED short-circuits
-            # the spawn block on re-entry.
-            child_args = list(sys.argv)
+            # v1.5.7 180 FIX (FINDING-2): re-invoke via the
+            # Python interpreter, NOT raw sys.argv. sys.argv[0]
+            # is the .py path which Windows ``CreateProcess``
+            # rejects with WinError 193 (``%1 is not a valid
+            # Win32 application``). The canonical re-invocation
+            # form is the same shape the operator used:
+            # ``python -m bin.qpb_harness <subcommand> ...``.
+            # QPB_HARNESS_DETACHED in the spawned env short-
+            # circuits the spawn block on re-entry.
+            child_args = (
+                [sys.executable, "-m", "bin.qpb_harness"]
+                + sys.argv[1:]
+            )
             spawn_env = {**os.environ, **child_env}
         else:
             # POSIX: same process continues; args ignored.

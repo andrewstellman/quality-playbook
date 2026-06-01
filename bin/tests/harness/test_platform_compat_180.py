@@ -129,6 +129,34 @@ class ModuleSurfaceTests(unittest.TestCase):
         self.assertTrue(hasattr(P, "get_orchestrator_log_path"))
 
 
+class ChildArgsReinvocationTests(unittest.TestCase):
+    """v1.5.7 180 FIX (FINDING-2): qpb_harness.py's Windows
+    spawn path must construct child_args as
+    ``[sys.executable, "-m", "bin.qpb_harness"] + sys.argv[1:]``,
+    NOT ``list(sys.argv)``. Pre-fix the latter caused
+    ``WinError 193 ("%1 is not a valid Win32 application")``
+    because sys.argv[0] is the .py path which Windows
+    CreateProcess can't execute directly."""
+
+    def test_180_child_args_uses_explicit_module_invocation(
+            self) -> None:
+        src = (
+            _REPO / "bin" / "qpb_harness.py"
+        ).read_text(encoding="utf-8")
+        self.assertNotIn(
+            "child_args = list(sys.argv)", src,
+            "qpb_harness.py: child_args must NOT be "
+            "`list(sys.argv)` — Windows CreateProcess can't "
+            "execute the .py path. Use "
+            "`[sys.executable, '-m', 'bin.qpb_harness']`.",
+        )
+        # Positively assert the correct form appears in the
+        # spawn block.
+        self.assertIn("sys.executable", src)
+        self.assertIn('"-m"', src)
+        self.assertIn('"bin.qpb_harness"', src)
+
+
 class PopenKwargsTests(unittest.TestCase):
 
     def test_180_popen_kwargs_detached_posix(self) -> None:
