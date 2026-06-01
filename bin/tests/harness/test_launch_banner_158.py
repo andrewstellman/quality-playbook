@@ -324,10 +324,13 @@ class CmdRunPlanAutoDetachTests(unittest.TestCase):
                     repo="https://github.com/x/r",
                     runner=mock.MagicMock(value="claude"),
                     model="opus")])
-            # v1.5.7 180-followup-3 FINDING-4: after spawn_detached
-            # returns a pid, the parent calls _platform.pid_alive(pid)
-            # and predicted_hrd.is_dir() before printing the banner.
-            # Mock both so the happy-path returns 0.
+            # v1.5.7 180-followup-3 FINDING-4 + followup-4
+            # FINDING-6: the spawn-then-verify path now polls
+            # ``predicted_hrd / "manifest.json"`` until it
+            # exists OR pid_alive returns False OR the deadline
+            # passes. Mock pid_alive → True + Path.is_file →
+            # True (manifest detected immediately) + time.sleep
+            # → no-op, so the happy-path returns 0 fast.
             from bin.harness import _platform as _platform_mod
             with mock.patch.object(Q.os, "fork",
                                     return_value=12345) as m_fork, \
@@ -339,6 +342,8 @@ class CmdRunPlanAutoDetachTests(unittest.TestCase):
                  mock.patch.object(_platform_mod, "pid_alive",
                                     return_value=True), \
                  mock.patch.object(Path, "is_dir",
+                                    return_value=True), \
+                 mock.patch.object(Path, "is_file",
                                     return_value=True), \
                  mock.patch("time.sleep", return_value=None), \
                  mock.patch.object(Q.sys, "stdout",

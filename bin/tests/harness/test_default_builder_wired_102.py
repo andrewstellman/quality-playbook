@@ -180,7 +180,13 @@ class DefaultTgzBuilderWiredTests(unittest.TestCase):
                 tgz = PR._default_build_tgz(artifacts_dir)
             self.assertEqual(len(fake.calls), 1)
             pack_call = fake.calls[0]["cmd"]
-            self.assertEqual(pack_call[0], "npm")
+            # v1.5.7 180-followup-4 FINDING-5: pack_call[0] is now
+            # the resolved npm path (full executable path with
+            # extension on Windows; .../npm on POSIX).
+            import os as _os
+            self.assertEqual(
+                _os.path.basename(pack_call[0]).split(".")[0],
+                "npm")
             self.assertEqual(pack_call[1], "pack")
             self.assertEqual(
                 pack_call[pack_call.index("--pack-destination") + 1],

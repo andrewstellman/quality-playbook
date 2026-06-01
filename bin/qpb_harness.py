@@ -423,28 +423,62 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
         pid = _platform_mod.spawn_detached(
             child_args, log_path=log_path, env=spawn_env)
         if pid != 0:
-            # v1.5.7 180-followup-3 FINDING-4: spawn-then-verify.
-            # Pre-fix the parent printed "this shell can close
-            # safely" based purely on the returned pid; if the
-            # child crashed at startup (Windows SIGHUP attribute
-            # error pre-FINDING-3) the operator saw a happy
-            # banner but `status` reported no harness-run dir.
-            # Now: sleep briefly to let the child reach the
-            # harness-run mkdir, check pid liveness AND
-            # predicted_hrd existence; if either fails surface
-            # the child log on stderr and exit non-zero.
+            # v1.5.7 180-followup-3 FINDING-4 + 180-followup-4
+            # FINDING-6: spawn-then-verify. The parent must
+            # confirm the child reached POST-LAUNCH state — not
+            # just "child is alive at T+1.5s" — before printing
+            # the success banner.
+            #
+            # The child's lifecycle:
+            #   T+0       process spawns
+            #   T+~0.5    creates predicted_hrd (mkdir -p)
+            #   T+0.5..N  artifact build (npm pack, pip wheel)
+            #             — can fail (FINDING-5 npm WinError 2)
+            #   T+N       run_plan_detached writes manifest.json
+            #   T+N+      collector/watchdog spawn; returns to
+            #             caller
+            #
+            # ``manifest.json`` is the post-launch marker —
+            # written only AFTER artifact build + all runs
+            # transitioned to PENDING in the manifest. Pre-
+            # FINDING-6 the verify just checked predicted_hrd
+            # at T+1.5s; the run-dir exists by then even when
+            # the child dies during artifact build. Banner was
+            # a lie.
+            #
+            # Now: poll for manifest.json with a deadline,
+            # exiting fast if the child dies meanwhile.
             import time as _time
-            _time.sleep(1.5)
-            child_alive = _platform_mod.pid_alive(pid)
-            run_dir_exists = predicted_hrd.is_dir()
-            if not child_alive or not run_dir_exists:
+            _DEADLINE_S = float(
+                os.environ.get(
+                    "QPB_HARNESS_SPAWN_DEADLINE_S", "60"))
+            _POLL_S = 0.5
+            expected_manifest = (
+                predicted_hrd / "manifest.json")
+            deadline_at = _time.monotonic() + _DEADLINE_S
+            reason: "Optional[str]" = None
+            while _time.monotonic() < deadline_at:
+                if not _platform_mod.pid_alive(pid):
+                    reason = (
+                        f"child (pid={pid}) died before "
+                        f"writing manifest.json")
+                    break
+                if expected_manifest.is_file():
+                    break
+                _time.sleep(_POLL_S)
+            else:
+                reason = (
+                    f"child (pid={pid}) did not write "
+                    f"manifest.json within "
+                    f"{_DEADLINE_S:.0f}s deadline")
+            if reason is not None:
                 print(
-                    f"ERROR: spawned child (pid={pid}) did not "
-                    f"complete startup "
-                    f"(alive={child_alive}, "
-                    f"run_dir_exists={run_dir_exists}). "
-                    f"Log contents:",
+                    f"ERROR: spawned child failed startup: "
+                    f"{reason}. Log contents:",
                     file=sys.stderr)
+                # Read both the orchestrator log AND
+                # harness.log (in the run-dir if it exists) so
+                # the operator gets full context.
                 try:
                     with open(log_path, "r",
                               encoding="utf-8") as lf:
@@ -453,8 +487,19 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
                 except OSError as exc:
                     print(f"(could not read log {log_path}: "
                           f"{exc})", file=sys.stderr)
+                harness_log = predicted_hrd / "harness.log"
+                if harness_log.is_file():
+                    try:
+                        with open(harness_log, "r",
+                                  encoding="utf-8") as hlf:
+                            print("--- harness.log tail ---",
+                                  file=sys.stderr)
+                            print(hlf.read()[-2000:],
+                                  file=sys.stderr)
+                    except OSError:
+                        pass
                 return 1
-            # Child is alive and the run dir exists. Banner is
+            # Child reached post-launch state. Banner is
             # honest.
             banner = _render_launch_banner(
                 predicted_hrd, collector_pid=None,

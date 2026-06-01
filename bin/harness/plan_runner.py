@@ -729,8 +729,14 @@ def _default_build_tgz(artifacts_dir: Path) -> Path:
     stderr.
     """
     repo_root = _repo_root()
+    # v1.5.7 180-followup-4 FINDING-5: resolve npm via
+    # _platform.resolve_executable so the Popen call gets the
+    # full path with extension on Windows (npm.cmd; subprocess
+    # doesn't extension-walk without shell=True).
+    from bin.harness import _platform as _platform_mod
     _run_build_step(
-        ["npm", "pack", "--pack-destination", str(artifacts_dir)],
+        [_platform_mod.resolve_executable("npm"),
+         "pack", "--pack-destination", str(artifacts_dir)],
         cwd=repo_root, step_label="npm pack",
     )
     tarballs = sorted(Path(artifacts_dir).glob("*.tgz"))

@@ -256,6 +256,36 @@ def pid_alive(pid: int) -> bool:
     return True
 
 
+def resolve_executable(name: str) -> str:
+    """v1.5.7 180-followup-4 FINDING-5: cross-platform executable
+    resolution. ``shutil.which`` returns the full path with
+    extension on Windows (handles ``PATHEXT`` for ``.cmd`` /
+    ``.bat`` / ``.exe``), which ``subprocess.Popen`` requires
+    when ``shell=False`` — bare ``Popen(["npm", ...])`` raises
+    ``WinError 2: The system cannot find the file specified``
+    on Windows because ``CreateProcess`` does NOT extension-
+    walk.
+
+    Use for any subprocess invocation of an external CLI tool
+    (npm / npx / git / claude / copilot / codex / cursor / node)
+    that isn't already a full path. ``sys.executable`` is
+    already a full path; ``shutil.which("python")`` etc. are
+    fine too.
+
+    Raises ``FileNotFoundError`` if the executable isn't on
+    PATH; callers usually want to surface this immediately so
+    the operator sees a clear "not installed" message.
+    """
+    import shutil
+    resolved = shutil.which(name)
+    if resolved is None:
+        raise FileNotFoundError(
+            f"executable {name!r} not found on PATH. "
+            f"Check installation and PATH configuration."
+        )
+    return resolved
+
+
 def release_file_lock(fp) -> None:
     """Release the lock held on ``fp``. POSIX:
     ``fcntl.flock(LOCK_UN)``. Windows:

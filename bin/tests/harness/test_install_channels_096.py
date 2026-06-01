@@ -123,7 +123,11 @@ class NpmRegistryTemplateTests(unittest.TestCase):
             ai_tool="copilot",
             install_version="1.5.7",
         )
-        self.assertEqual(cmd[0], "npx")
+        # v1.5.7 180-followup-4 FINDING-5: cmd[0] is now the
+        # resolved npx path (full executable; npx.cmd on Windows).
+        import os as _os
+        self.assertEqual(
+            _os.path.basename(cmd[0]).split(".")[0], "npx")
         self.assertEqual(cmd[1], "quality-playbook@1.5.7")
         self.assertIn("init", cmd)
         # npm syntax uses --ai-tool=<value> (matches the
@@ -203,7 +207,11 @@ class NpmLocalTgzTemplateTests(unittest.TestCase):
         # v1.5.7 142/150: npx, then global flags (--yes,
         # --prefer-offline), then --package <tgz>, then the binary +
         # init. Index-agnostic (robust to future flag additions).
-        self.assertEqual(cmd[0], "npx")
+        # v1.5.7 180-followup-4 FINDING-5: cmd[0] resolved by
+        # _platform.resolve_executable (full path; .cmd on Windows).
+        import os as _os
+        self.assertEqual(
+            _os.path.basename(cmd[0]).split(".")[0], "npx")
         for flag in ("--yes", "--prefer-offline", "--package"):
             self.assertIn(flag, cmd)
             self.assertLess(cmd.index(flag), cmd.index(str(tgz)))

@@ -375,8 +375,12 @@ def build_install_command(channel: "InstallChannel",
 
     if channel == InstallChannel.NPM_REGISTRY:
         version = install_version or "latest"
+        # v1.5.7 180-followup-4 FINDING-5: resolve npx via
+        # _platform.resolve_executable (Windows: npx.cmd).
+        from bin.harness import _platform as _platform_mod
         cmd = [
-            "npx", f"quality-playbook@{version}",
+            _platform_mod.resolve_executable("npx"),
+            f"quality-playbook@{version}",
             "init",
             f"--ai-tool={ai_tool}",
         ]
@@ -424,8 +428,12 @@ def build_install_command(channel: "InstallChannel",
         # --yes → --prefer-offline → --package is conventional
         # (general, then registry-policy, then spec) and verified
         # accepted by npx 11.x.
+        # v1.5.7 180-followup-4 FINDING-5: resolve npx via
+        # _platform.resolve_executable (Windows: npx.cmd).
+        from bin.harness import _platform as _platform_mod
         cmd = [
-            "npx", "--yes", "--prefer-offline",
+            _platform_mod.resolve_executable("npx"),
+            "--yes", "--prefer-offline",
             "--package", str(local_artifact),
             "quality-playbook", "init",
             f"--ai-tool={ai_tool}",

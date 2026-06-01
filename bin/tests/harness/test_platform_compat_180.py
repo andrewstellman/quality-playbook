@@ -245,6 +245,85 @@ class PidAliveTests(unittest.TestCase):
         self.assertFalse(P.pid_alive(999_999_999))
 
 
+class ResolveExecutableTests(unittest.TestCase):
+    """v1.5.7 180-followup-4 FINDING-5: resolve_executable wraps
+    shutil.which so subprocess.Popen gets a full path with the
+    correct extension on Windows."""
+
+    def test_180_resolve_executable_finds_python(self) -> None:
+        resolved = None
+        for name in ("python3", "python"):
+            try:
+                resolved = P.resolve_executable(name)
+                break
+            except FileNotFoundError:
+                continue
+        self.assertIsNotNone(
+            resolved,
+            "neither python3 nor python on PATH — "
+            "test prerequisite failed",
+        )
+        self.assertTrue(pathlib.Path(resolved).is_file())
+
+    def test_180_resolve_executable_raises_on_missing(
+            self) -> None:
+        with self.assertRaises(FileNotFoundError):
+            P.resolve_executable(
+                "nonexistent_executable_xyz_12345")
+
+
+class NoBareNpmOrNpxTests(unittest.TestCase):
+    """v1.5.7 180-followup-4 FINDING-5: source-pin check that
+    no bin/*.py file passes a bare 'npm' or 'npx' as the first
+    list element to subprocess.run / Popen / call / etc. Pre-
+    fix this caused WinError 2 on Windows because subprocess
+    doesn't extension-walk PATHEXT for ``npm.cmd`` /
+    ``npx.cmd``."""
+
+    def test_180_no_bare_npm_or_npx_in_subprocess_calls(
+            self) -> None:
+        import re
+        npm_pattern = re.compile(
+            r"subprocess\.(run|Popen|call|check_call"
+            r"|check_output)\s*\([^)]*\[\s*[\"']npm[\"']")
+        npx_pattern = re.compile(
+            r"subprocess\.(run|Popen|call|check_call"
+            r"|check_output)\s*\([^)]*\[\s*[\"']npx[\"']")
+        for f in (_REPO / "bin").rglob("*.py"):
+            if "test" in f.name:
+                continue
+            src = f.read_text(encoding="utf-8")
+            for m in npm_pattern.finditer(src):
+                self.fail(
+                    f"{f} contains bare 'npm' in subprocess "
+                    f"call: {m.group(0)}")
+            for m in npx_pattern.finditer(src):
+                self.fail(
+                    f"{f} contains bare 'npx' in subprocess "
+                    f"call: {m.group(0)}")
+
+
+class FailFastScopeTests(unittest.TestCase):
+    """v1.5.7 180-followup-4 FINDING-6: qpb_harness.py spawn
+    verify must wait for ``manifest.json`` (post-launch marker)
+    rather than just ``predicted_hrd.is_dir()`` (a pre-launch
+    setup marker that exists during artifact build)."""
+
+    def test_180_fail_fast_waits_for_manifest_json(
+            self) -> None:
+        src = (
+            _REPO / "bin" / "qpb_harness.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn(
+            "manifest.json", src,
+            "qpb_harness.py must wait for manifest.json as "
+            "the post-launch marker per FINDING-6. The "
+            "run-dir-existence check alone is insufficient — "
+            "it passes during artifact build, before any "
+            "runs launch.",
+        )
+
+
 class PopenKwargsTests(unittest.TestCase):
 
     def test_180_popen_kwargs_detached_posix(self) -> None:
