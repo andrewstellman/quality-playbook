@@ -1,0 +1,64 @@
+{
+  "$header_note": "QPB v1.5.7 longer-Windows bug-hunting plan — 3-run claude+copilot variant of longer_mac_bug_hunt_plan.json. Drops the codex Mode B sidekiq row because codex Mode B has historically been fragile on Windows (Ruby toolchain + Mode B's per-phase exec pattern surfaces Windows path/encoding issues). Runs the same tokio (opus) + webpack (copilot npm) + Newtonsoft.Json (copilot pip) on Windows to validate the v1.5.7 174 manifest-based pool model and the Phase 8 docstring cleanup across the cross-platform install paths. Branch refs confirmed via git ls-remote on 2026-05-31: tokio=master, webpack=main, Newtonsoft.Json=master. Concurrency: pool={claude:1, copilot:2} — all 3 run in parallel; ~30-50 min wall clock bounded by claude/opus on tokio. Pre-flight: on Windows, ensure (a) git, (b) python 3.10+, (c) node + npm for the npm-local-tgz row, (d) the QPB clone is at branch 1.5.7 HEAD, and (e) the claude / copilot CLIs are installed + authenticated.",
+
+  "pools": {
+    "claude": 1,
+    "copilot": 2
+  },
+
+  "runs": [
+    {
+      "description": "Row 0 — claude/opus reviews tokio (Rust async runtime, ref=master) via pip-local-wheel (Mode A). Same row as Mac plan row 0. Tests pip-local-wheel install on Windows + cross-platform tokio review.",
+      "repo": "https://github.com/tokio-rs/tokio",
+      "ref": "master",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 1 — copilot/gpt-5.4 reviews webpack (JavaScript module bundler, ref=main) via npm-local-tgz (Mode A). Same row as Mac plan row 1. Tests the npm-local-tgz (npx --yes --prefer-offline) install path on Windows; this is the install path most likely to surface Windows-specific issues if any remain.",
+      "repo": "https://github.com/webpack/webpack",
+      "ref": "main",
+      "runner": "copilot",
+      "model": "gpt-5.4",
+      "channel": "npm-local-tgz",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true,
+        "provenance_model_labeled_selfreport": true
+      }
+    },
+    {
+      "description": "Row 2 — copilot/gpt-5.4 reviews Newtonsoft.Json (C# JSON serializer, ref=master) via pip-local-wheel (Mode A). Same row as Mac plan row 2. C# repo on Windows is a natural fit; tests pip-local-wheel on Windows + a Mode A run on a non-main ref via the post-177 BUG-010 fix path.",
+      "repo": "https://github.com/JamesNK/Newtonsoft.Json",
+      "ref": "master",
+      "runner": "copilot",
+      "model": "gpt-5.4",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true,
+        "provenance_model_labeled_selfreport": true
+      }
+    }
+  ]
+}

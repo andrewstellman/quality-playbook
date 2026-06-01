@@ -1,0 +1,83 @@
+{
+  "$header_note": "QPB v1.5.7 longer-Mac bug-hunting plan — 4 runs across 4 languages (Rust + JS + C# + Ruby), 4 domains (async runtime + bundler + JSON serializer + job queue), and 4 default branches confirmed via git ls-remote on 2026-05-31. Concurrency: pool={claude:1, copilot:2, codex:1} — all 4 run in parallel after the post-174 simplified manifest-based pool model. Runtime bound by claude/opus on tokio (~30-50 min); other runs finish in parallel. Goal: surface real bugs in active upstream repos that we can log via BUG_REPORT_WORKFLOW. All 4 repos have public issue trackers and active dev. Expects are permissive on gate_result + tight on the v1.5.7 observability assertions (158 banner, 157 gitignore outcome, 162 selfreport, 163 phase0). post-177 BUG-010 fix exercised by tokio (ref=master) and Newtonsoft.Json (ref=master) clones via the retry path if pool starvation hits.",
+
+  "pools": {
+    "claude": 1,
+    "copilot": 2,
+    "codex": 1
+  },
+
+  "runs": [
+    {
+      "description": "Row 0 — claude/opus reviews tokio (Rust async runtime, ref=master) via pip-local-wheel (Mode A). Largest/most complex target in the plan; opus's capability needed for tokio's 70k+ LOC and concurrency-heavy code. Expect: ~30-50 min runtime, real bug surface in scheduler/runtime/futures/sync primitives.",
+      "repo": "https://github.com/tokio-rs/tokio",
+      "ref": "master",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 1 — copilot/gpt-5.4 reviews webpack (JavaScript module bundler, ref=main) via npm-local-tgz (Mode A). Complex transform/loader/plugin pipeline; bugs often in source map generation, resolution, or HMR.",
+      "repo": "https://github.com/webpack/webpack",
+      "ref": "main",
+      "runner": "copilot",
+      "model": "gpt-5.4",
+      "channel": "npm-local-tgz",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true,
+        "provenance_model_labeled_selfreport": true
+      }
+    },
+    {
+      "description": "Row 2 — copilot/gpt-5.4 reviews Newtonsoft.Json (C# JSON serializer, ref=master) via pip-local-wheel (Mode A). Classic edge-case-heavy library; bugs often in deserialization, type coercion, or roundtrip fidelity. Same channel as row 0 (different runner + different repo) for orthogonality.",
+      "repo": "https://github.com/JamesNK/Newtonsoft.Json",
+      "ref": "master",
+      "runner": "copilot",
+      "model": "gpt-5.4",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true,
+        "provenance_model_labeled_selfreport": true
+      }
+    },
+    {
+      "description": "Row 3 — codex/gpt-5.4 reviews sidekiq (Ruby background-job processor, ref=main) via clone channel (Mode B). codex requires Mode B (single-turn exec). sidekiq's retry/queue/middleware logic is rich in edge cases. clone channel is simplest for Mode B since the bundled run_playbook drives phases directly from the QPB clone.",
+      "repo": "https://github.com/sidekiq/sidekiq",
+      "ref": "main",
+      "runner": "codex",
+      "model": "gpt-5.4",
+      "channel": "clone",
+      "mode": "B",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    }
+  ]
+}
