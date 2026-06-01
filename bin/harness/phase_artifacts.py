@@ -44,6 +44,23 @@ from typing import Optional
 # empty tuple means "no fixed-path marker; not artifact-inferable"
 # (Phase 4, per the BUG-004 fix design).
 PHASE_ARTIFACTS: "dict[int, tuple[str, ...]]" = {
+    # Phase 0 (Prep): early-run indicators. v1.5.7 178: lets Tier 3
+    # detect that a Mode A run is in setup/early-Phase-1 work even
+    # when the agent hasn't emitted qpb_phase yet. These artifacts
+    # appear in the first 0-5 minutes (PROGRESS.md is updated as
+    # the agent works; RUN_INDEX.md is created by the qpb_validate
+    # bootstrap; formal_docs_manifest.json by the v1.5.3 doc-
+    # gathering step). EXPLORATION.md — the Phase-1-DONE marker —
+    # doesn't appear until ~10 min. Pre-178 Tier 3 returned None
+    # for this window and status showed phase=— for 5-10 min.
+    # Per 168's highest-phase-wins semantic, Phase 0 only fires
+    # when NO higher phase has artifacts present (i.e., before
+    # EXPLORATION.md exists).
+    0: (
+        "PROGRESS.md",
+        "RUN_INDEX.md",
+        "formal_docs_manifest.json",
+    ),
     # Phase 1: run_playbook.py:1297 — the Phase-2 gate fails unless
     # quality/EXPLORATION.md exists, so it's the Phase-1 boundary.
     1: ("EXPLORATION.md",),

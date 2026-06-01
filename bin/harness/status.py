@@ -269,6 +269,11 @@ def parse_sentinels(stream_text: str) -> "list[dict]":
 # ("exploration", "generation", "code-review", …). Map them so
 # the display surface is consistent across modes.
 _MODE_B_PHASE_NAME_BY_NUM: "dict[int, str]" = {
+    # v1.5.7 178: Phase 0 is implicit setup (doc-gathering, file
+    # scan, role_map invocation) — fires when only PROGRESS.md /
+    # RUN_INDEX.md / formal_docs_manifest.json are present and
+    # no higher phase has produced its artifacts yet.
+    0: "prep",
     1: "exploration",
     2: "generation",
     3: "code-review",
@@ -369,11 +374,17 @@ def _infer_phase_from_artifacts(
         phase = _phase_artifacts_mod.infer_phase_from_artifacts(
             quality_dir)
         if phase is not None:
+            # v1.5.7 178: Phase 0 is implicit setup — never
+            # discretely "done." Display as state="running" so
+            # operators see "P0 prep running" not "P0 prep done."
+            # Phases 1+ retain "done" semantics: their artifacts
+            # mark phase completion.
+            state = "running" if phase == 0 else "done"
             return {
                 "phase": phase,
                 "name": _MODE_B_PHASE_NAME_BY_NUM.get(
                     phase, "—"),
-                "state": "done",
+                "state": state,
             }
     except OSError:
         # A transiently-unreadable target_dir must not crash

@@ -501,8 +501,14 @@ Each phase produces files on disk that the next phase reads. This is how context
 
 The pattern for each phase boundary: finish the current phase, write everything to disk, then print the end-of-phase message and stop. When the user starts the next phase, read back the files you need before proceeding. This "write then read" cycle is the phase boundary — it lets you drop exploration context from working memory before loading review context, for example.
 
-**Phase sentinel markers (v1.5.7 109).** At each phase boundary, emit a machine-readable marker so the Test Harness status layer can tell which phase a run is in. Resolve the install root the same way Phase 0 / Phase 1 do (the 10-layout fallback list documented below), then:
-- **On phase entry:** `python3 <install_root>/bin/qpb_phase.py <n> start` (no `--note`).
+**Phase sentinel markers (v1.5.7 109, strengthened in v1.5.7 178).** The very FIRST tool call you make after the skill is invoked — before reading any files, before running any Bash commands, before any Glob/Grep — MUST be the first qpb_phase emission:
+
+`python3 <install_root>/bin/qpb_phase.py 1 start`
+
+This is non-negotiable. The Test Harness status layer uses this sentinel to track which phase your run is in; without it, observers see your run as `phase=—` for 5-10 minutes while you do real work. Resolve `<install_root>` via the 10-layout fallback list documented below.
+
+At each subsequent phase boundary:
+- **On phase entry:** `python3 <install_root>/bin/qpb_phase.py <n> start` (no `--note`). This MUST be the first tool call of that phase.
 - **On phase exit:** `python3 <install_root>/bin/qpb_phase.py <n> done --note "<1-3 sentence summary of what happened in this phase>"`. The note is your own free-text summary — what you did, what you found, what's notable. No rigid schema.
 
 Each invocation prints exactly one `::QPB:: {json}` line; the helper is install-bundled. The sentinel is observability only — it does NOT change any phase output, gate verdict, or grading.
