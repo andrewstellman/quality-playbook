@@ -2749,25 +2749,16 @@ def _write_harness_env_snapshot(harness_run_dir: Path) -> None:
         pass
 
 
-def _read_last_launch_step(log_path: Path) -> "Optional[str]":
-    """v1.5.7 180-followup-7 FINDING-12: read the most recent
-    breadcrumb's ``step`` field from a launch.log file. Returns
-    None when the file is missing, empty, unreadable, or its
-    last non-empty line is not valid JSON. Best-effort —
-    callers must tolerate None."""
-    try:
-        with open(log_path, "r", encoding="utf-8") as f:
-            lines = [ln for ln in f.read().splitlines() if ln.strip()]
-    except OSError:
-        return None
-    if not lines:
-        return None
-    try:
-        entry = json.loads(lines[-1])
-        step = entry.get("step")
-        return step if isinstance(step, str) else None
-    except (json.JSONDecodeError, ValueError):
-        return None
+# v1.5.7 180-followup-9 FINDING-18: the prior body (which read
+# launch.log directly) is consolidated into
+# ``_launch_log.read_last_step``. Catch-site call site
+# ``_read_last_launch_step(...)`` preserved via aliased import
+# so the catch block (and any tests that import the symbol via
+# ``getattr(plan_runner, "_read_last_launch_step")``) keep
+# working without source-touch.
+from bin.harness._launch_log import (
+    read_last_step as _read_last_launch_step,
+)
 
 
 def _format_launch_failure_summary(

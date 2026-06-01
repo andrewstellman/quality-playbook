@@ -698,5 +698,179 @@ class InFlightStepSurfacingTests(unittest.TestCase):
             self.assertEqual(rows[0][-1], "—")
 
 
+class HelperConsolidationTests(unittest.TestCase):
+    """v1.5.7 180-followup-9 FINDING-18: plan_runner's
+    _read_last_launch_step is consolidated to delegate to
+    _launch_log.read_last_step."""
+
+    def test_plan_runner_read_last_launch_step_delegates(
+            self) -> None:
+        # Source-pin: plan_runner.py must NOT contain a
+        # standalone body that reads launch.log directly. The
+        # symbol may stay as an aliased import — that's fine —
+        # but the duplicated implementation must be gone.
+        src = (_REPO / "bin" / "harness" / "plan_runner.py"
+               ).read_text(encoding="utf-8")
+        # Catch site still references the symbol (the import
+        # alias keeps the call site stable).
+        self.assertTrue(
+            "_read_last_launch_step" in src,
+            "catch site must still surface last step in "
+            "summary — symbol may be aliased but the name "
+            "must appear")
+        # The OLD inline body's signature: the splitlines
+        # comprehension that lived in plan_runner.py before
+        # consolidation.
+        old_body_signature = (
+            'lines = [ln for ln in f.read().splitlines() '
+            'if ln.strip()]')
+        self.assertNotIn(
+            old_body_signature, src,
+            "plan_runner.py still contains the duplicated "
+            "launch.log read body. Consolidate by deleting "
+            "_read_last_launch_step's body and importing "
+            "from _launch_log.")
+
+    def test_alias_target_is_launch_log_read_last_step(
+            self) -> None:
+        # Runtime check: the symbol resolves to the
+        # _launch_log.read_last_step function.
+        from bin.harness import plan_runner
+        from bin.harness import _launch_log
+        self.assertIs(
+            plan_runner._read_last_launch_step,
+            _launch_log.read_last_step,
+            "plan_runner._read_last_launch_step must be the "
+            "_launch_log.read_last_step function (FINDING-18 "
+            "consolidation). If a different shape is needed, "
+            "update both this test and the import alias.")
+
+
+class CachedLaunchLogReadTests(unittest.TestCase):
+    """v1.5.7 180-followup-9 FINDING-19: read_last_breadcrumb
+    uses an mtime-keyed cache."""
+
+    def setUp(self) -> None:
+        from bin.harness import _launch_log
+        _launch_log.clear_cache()
+
+    def tearDown(self) -> None:
+        from bin.harness import _launch_log
+        _launch_log.clear_cache()
+
+    def test_cache_hit_skips_uncached_reader(self) -> None:
+        from bin.harness import _launch_log
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            log_path.write_text(json.dumps({
+                "t_relative": 1.0,
+                "t_absolute": "2026-06-01T00:00:01.000Z",
+                "step": "cached step",
+            }) + "\n", encoding="utf-8")
+            # First call populates cache; subsequent calls hit.
+            with mock.patch.object(
+                    _launch_log,
+                    "_read_last_breadcrumb_uncached",
+                    wraps=_launch_log._read_last_breadcrumb_uncached
+            ) as m:
+                first = _launch_log.read_last_breadcrumb(log_path)
+                second = _launch_log.read_last_breadcrumb(log_path)
+                third = _launch_log.read_last_breadcrumb(log_path)
+            self.assertEqual(first, second)
+            self.assertEqual(second, third)
+            self.assertEqual(
+                m.call_count, 1,
+                f"uncached reader called {m.call_count}x; "
+                f"expected 1 — cache hit should skip re-read")
+
+    def test_cache_miss_on_mtime_change(self) -> None:
+        from bin.harness import _launch_log
+        from unittest import mock
+        import time as _t
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            log_path.write_text(json.dumps({
+                "t_relative": 0.0,
+                "step": "first step",
+            }) + "\n", encoding="utf-8")
+            with mock.patch.object(
+                    _launch_log,
+                    "_read_last_breadcrumb_uncached",
+                    wraps=_launch_log._read_last_breadcrumb_uncached
+            ) as m:
+                first = _launch_log.read_last_breadcrumb(log_path)
+                self.assertEqual(first["step"], "first step")
+                # Force mtime to advance. st_mtime_ns has ns
+                # granularity but actual fs may quantize to
+                # microseconds — sleep enough to be safe.
+                _t.sleep(0.05)
+                log_path.write_text(json.dumps({
+                    "t_relative": 2.0,
+                    "step": "second step",
+                }) + "\n", encoding="utf-8")
+                second = _launch_log.read_last_breadcrumb(log_path)
+                self.assertEqual(second["step"], "second step")
+            # Cache miss on second call ⇒ uncached reader
+            # called twice.
+            self.assertEqual(
+                m.call_count, 2,
+                f"uncached reader called {m.call_count}x; "
+                f"expected 2 — mtime change should bust cache")
+
+    def test_cache_bypass_on_stat_error(self) -> None:
+        # A nonexistent path stat-fails, so the cache layer
+        # falls through to the uncached reader every call. Both
+        # calls invoke it (no spurious cache write on missing).
+        from bin.harness import _launch_log
+        from unittest import mock
+        missing = pathlib.Path(
+            "/nonexistent/qpb-180-9-cache-bypass")
+        with mock.patch.object(
+                _launch_log,
+                "_read_last_breadcrumb_uncached",
+                wraps=_launch_log._read_last_breadcrumb_uncached
+        ) as m:
+            first = _launch_log.read_last_breadcrumb(missing)
+            second = _launch_log.read_last_breadcrumb(missing)
+        self.assertIsNone(first)
+        self.assertIsNone(second)
+        self.assertEqual(
+            m.call_count, 2,
+            f"uncached reader called {m.call_count}x; "
+            f"expected 2 — stat-failed reads must NOT "
+            f"populate the cache")
+        # Verify the cache is empty (no entry written for the
+        # missing path).
+        self.assertNotIn(
+            str(missing), _launch_log._LAUNCH_LOG_CACHE,
+            "cache must NOT carry an entry for a stat-failed "
+            "path — a subsequent stat success needs a fresh "
+            "read")
+
+    def test_clear_cache_resets_state(self) -> None:
+        from bin.harness import _launch_log
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            log_path.write_text(json.dumps({
+                "step": "only step",
+            }) + "\n", encoding="utf-8")
+            with mock.patch.object(
+                    _launch_log,
+                    "_read_last_breadcrumb_uncached",
+                    wraps=_launch_log._read_last_breadcrumb_uncached
+            ) as m:
+                _launch_log.read_last_breadcrumb(log_path)
+                _launch_log.read_last_breadcrumb(log_path)
+                _launch_log.clear_cache()
+                _launch_log.read_last_breadcrumb(log_path)
+            self.assertEqual(
+                m.call_count, 2,
+                f"clear_cache should force one more uncached "
+                f"call; got {m.call_count} (expected 2: one "
+                f"pre-clear, one post-clear)")
+
+
 if __name__ == "__main__":
     unittest.main()
