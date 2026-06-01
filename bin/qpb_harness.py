@@ -335,6 +335,64 @@ def _render_launch_banner(
     return "\n".join(lines)
 
 
+def _at_least_one_running(manifest_path: Path) -> bool:
+    """v1.5.7 180-followup-6 FINDING-10: a manifest with all-
+    FAILED entries doesn't mean the launch succeeded — it just
+    means the launch tried and recorded the failures. The post-
+    launch check requires at least one entry with state=RUNNING
+    (or PENDING — same intent: not yet terminal)."""
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            manifest = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return False
+    for entry in manifest.get("runs", []):
+        if entry.get("state") in ("RUNNING", "PENDING"):
+            return True
+    return False
+
+
+def _surface_all_failed_at_launch(manifest_path: Path) -> None:
+    """v1.5.7 180-followup-6 FINDING-10: structured per-run
+    terminal_reason table for the operator. Pre-fix the
+    operator had to hunt through harness.log to find why no
+    runs were actually running. The table goes to stderr."""
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as f:
+            manifest = json.load(f)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"(could not read manifest {manifest_path}: "
+              f"{exc})", file=sys.stderr)
+        return
+    runs = manifest.get("runs", [])
+    if not runs:
+        print("(manifest has no runs)", file=sys.stderr)
+        return
+    terminal_count = sum(
+        1 for r in runs
+        if r.get("state") not in ("RUNNING", "PENDING"))
+    print(
+        f"ERROR: launch failed — {terminal_count}/{len(runs)} "
+        f"runs in manifest are terminal at deadline:",
+        file=sys.stderr)
+    for r in runs:
+        idx = r.get("index", "?")
+        target = r.get("target", r.get("run_dir", "?"))
+        if isinstance(target, str) and "/" in target:
+            target = target.rsplit("/", 1)[-1]
+        runner_name = r.get("runner", "?")
+        model = r.get("model", "?")
+        state = r.get("state", "?")
+        reason = r.get("terminal_reason", "(no reason)")
+        if state in ("RUNNING", "PENDING"):
+            # Highlight the survivor so the operator sees it.
+            print(f"  #{idx} {target} ({runner_name}/{model}): "
+                  f"{state}", file=sys.stderr)
+        else:
+            print(f"  #{idx} {target} ({runner_name}/{model}): "
+                  f"{state} — {reason}", file=sys.stderr)
+
+
 def _cmd_run_plan(args: argparse.Namespace) -> int:
     """v1.5.7 099 — simplified plan-runner entry. Reads a flat
     plan.json, creates a timestamped harness-run folder, runs
@@ -446,8 +504,16 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
             # the child dies during artifact build. Banner was
             # a lie.
             #
-            # Now: poll for manifest.json with a deadline,
-            # exiting fast if the child dies meanwhile.
+            # Now: poll for manifest.json AND at least one
+            # state=RUNNING entry, with a deadline.
+            # v1.5.7 180-followup-6 FINDING-10: pre-fix the
+            # check was "manifest exists" — but a manifest with
+            # all-FAILED entries (Andrew's 5th Windows fire saw
+            # 4/4 FAILED with SIGKILL AttributeError) PASSED the
+            # check. Strengthened to also require an active
+            # state=RUNNING entry; on deadline-exceeded with
+            # all-terminal entries, surface the per-run
+            # terminal_reason values to stderr.
             import time as _time
             _DEADLINE_S = float(
                 os.environ.get(
@@ -464,21 +530,42 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
                         f"writing manifest.json")
                     break
                 if expected_manifest.is_file():
-                    break
+                    if _at_least_one_running(expected_manifest):
+                        break  # honest banner allowed
+                    # Manifest exists but no RUNNING — wait;
+                    # runs may still be transitioning.
                 _time.sleep(_POLL_S)
             else:
-                reason = (
-                    f"child (pid={pid}) did not write "
-                    f"manifest.json within "
-                    f"{_DEADLINE_S:.0f}s deadline")
+                # Deadline expired. Two failure modes:
+                # (a) manifest exists with all-terminal entries
+                #     → surface terminal_reason per run.
+                # (b) manifest doesn't exist → child stalled
+                #     somewhere before writing it.
+                if expected_manifest.is_file():
+                    reason = (
+                        f"child (pid={pid}) wrote manifest.json "
+                        f"but no run reached state=RUNNING "
+                        f"within {_DEADLINE_S:.0f}s deadline. "
+                        f"All runs are terminal at launch.")
+                else:
+                    reason = (
+                        f"child (pid={pid}) did not write "
+                        f"manifest.json within "
+                        f"{_DEADLINE_S:.0f}s deadline")
             if reason is not None:
                 print(
                     f"ERROR: spawned child failed startup: "
-                    f"{reason}. Log contents:",
+                    f"{reason}",
                     file=sys.stderr)
-                # Read both the orchestrator log AND
-                # harness.log (in the run-dir if it exists) so
-                # the operator gets full context.
+                # If the manifest is on disk, surface the per-
+                # run terminal_reason table FIRST — the most
+                # actionable signal for the operator.
+                if expected_manifest.is_file():
+                    _surface_all_failed_at_launch(
+                        expected_manifest)
+                print(
+                    "Log contents:",
+                    file=sys.stderr)
                 try:
                     with open(log_path, "r",
                               encoding="utf-8") as lf:

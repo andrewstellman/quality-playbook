@@ -306,6 +306,110 @@ class FailFastScopeTests(unittest.TestCase):
         )
 
 
+class ManifestRunningStateTests(unittest.TestCase):
+    """v1.5.7 180-followup-6 FINDING-10: a manifest with all-
+    FAILED entries doesn't mean the launch succeeded. The post-
+    launch verify now requires at least one state=RUNNING (or
+    PENDING) entry; on deadline-exceeded with all-terminal,
+    the per-run terminal_reason is surfaced to stderr."""
+
+    def test_180_at_least_one_running_helper_exists(
+            self) -> None:
+        from bin import qpb_harness
+        self.assertTrue(
+            hasattr(qpb_harness, "_at_least_one_running"))
+
+    def test_180_at_least_one_running_returns_false_on_all_failed(
+            self) -> None:
+        import tempfile, json as _json
+        from bin import qpb_harness
+        with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False) as f:
+            _json.dump({"runs": [
+                {"index": 0, "state": "DONE",
+                 "terminal_state": "FAILED"},
+                {"index": 1, "state": "DONE",
+                 "terminal_state": "FAILED"},
+            ]}, f)
+            path = pathlib.Path(f.name)
+        try:
+            self.assertFalse(
+                qpb_harness._at_least_one_running(path))
+        finally:
+            path.unlink()
+
+    def test_180_at_least_one_running_returns_true_on_mixed(
+            self) -> None:
+        import tempfile, json as _json
+        from bin import qpb_harness
+        with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False) as f:
+            _json.dump({"runs": [
+                {"index": 0, "state": "DONE",
+                 "terminal_state": "FAILED"},
+                {"index": 1, "state": "RUNNING"},
+            ]}, f)
+            path = pathlib.Path(f.name)
+        try:
+            self.assertTrue(
+                qpb_harness._at_least_one_running(path))
+        finally:
+            path.unlink()
+
+    def test_180_at_least_one_running_returns_true_on_pending(
+            self) -> None:
+        # PENDING is acceptable — runs may be mid-spawn but not
+        # yet RUNNING; the launch has not failed.
+        import tempfile, json as _json
+        from bin import qpb_harness
+        with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".json", delete=False) as f:
+            _json.dump({"runs": [
+                {"index": 0, "state": "PENDING"},
+            ]}, f)
+            path = pathlib.Path(f.name)
+        try:
+            self.assertTrue(
+                qpb_harness._at_least_one_running(path))
+        finally:
+            path.unlink()
+
+    def test_180_at_least_one_running_handles_missing_or_garbage(
+            self) -> None:
+        from bin import qpb_harness
+        self.assertFalse(
+            qpb_harness._at_least_one_running(
+                pathlib.Path("/nonexistent/qpb-test")))
+
+    def test_180_surface_all_failed_helper_exists(self) -> None:
+        from bin import qpb_harness
+        self.assertTrue(
+            hasattr(qpb_harness,
+                    "_surface_all_failed_at_launch"))
+
+    def test_180_qpb_harness_uses_running_state_check_not_just_exists(
+            self) -> None:
+        # Source-pin: qpb_harness.py's _cmd_run_plan must CALL
+        # the stronger check (_at_least_one_running) inside the
+        # post-launch verify loop, not just check is_file().
+        # The function definition is `def _at_least_one_running`
+        # — the call is `_at_least_one_running(<expr>)`. We need
+        # at least one CALL beyond the def. Counting occurrences
+        # of `_at_least_one_running(` requires ≥2: one for def,
+        # at least one for call.
+        src = (_REPO / "bin" / "qpb_harness.py").read_text(
+            encoding="utf-8")
+        occurrences = src.count("_at_least_one_running(")
+        self.assertGreaterEqual(
+            occurrences, 2,
+            f"qpb_harness.py must CALL _at_least_one_running in "
+            f"the post-launch verify loop (FINDING-10). Found "
+            f"{occurrences} occurrence(s) of "
+            f"`_at_least_one_running(` — expected ≥2 (one for "
+            f"def, ≥1 for call). Pre-fix the manifest-existence "
+            f"check passed when all 4 runs failed at launch.")
+
+
 class KillProcessTreeTests(unittest.TestCase):
     """v1.5.7 180-followup-6 FINDING-9: ``_platform.kill_process_tree``
     abstracts the SIGKILL/TerminateProcess primitive. Andrew's
