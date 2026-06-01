@@ -464,6 +464,101 @@ class KillProcessTreeTests(unittest.TestCase):
                         f"Match: {sig_text[:200]}")
 
 
+class PsutilMigrationTests(unittest.TestCase):
+    """v1.5.7 182: psutil-backed process management."""
+
+    def test_pid_alive_uses_psutil(self) -> None:
+        # Source-pin: _platform.py imports psutil (lazily
+        # inside pid_alive) and the body references
+        # psutil.Process. Catches a revert.
+        src = (_REPO / "bin" / "harness" / "_platform.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn("import psutil", src)
+        self.assertIn("psutil.Process", src)
+        # The pre-182 hand-rolled Windows implementations must
+        # be gone — match the actual function CALLS (``(``
+        # suffix), not bare names (which can legitimately
+        # appear in docstrings describing the pre-182 history).
+        self.assertNotIn(
+            "OpenProcess(", src,
+            "ctypes OpenProcess( call remains in _platform.py; "
+            "should have migrated to psutil "
+            "(182 commit 3/5).")
+        self.assertNotIn("GetExitCodeProcess(", src)
+        self.assertNotIn("TerminateProcess(", src)
+
+    def test_kill_process_tree_walks_descendants(self) -> None:
+        # Functional: spawn a parent that spawns a child; kill
+        # the parent via kill_process_tree(force=True); verify
+        # both pids are dead. This is the empirical evidence
+        # that the Windows leader-only bug is fixed (POSIX has
+        # always tree-killed via os.killpg, but the test
+        # validates the new psutil shape on this platform too).
+        import subprocess
+        import sys
+        import time
+        from bin.harness import _platform
+        # Parent spawns a child via Python that just sleeps.
+        parent_code = (
+            "import subprocess, sys, time; "
+            "p = subprocess.Popen([sys.executable, '-c', "
+            "'import time; time.sleep(60)']); "
+            "print(p.pid, flush=True); "
+            "time.sleep(60)")
+        parent = subprocess.Popen(
+            [sys.executable, "-c", parent_code],
+            stdout=subprocess.PIPE)
+        try:
+            child_pid_line = parent.stdout.readline().strip()
+            child_pid = int(child_pid_line)
+            # Let psutil settle.
+            time.sleep(0.2)
+            self.assertTrue(
+                _platform.pid_alive(parent.pid),
+                f"parent {parent.pid} should be alive")
+            self.assertTrue(
+                _platform.pid_alive(child_pid),
+                f"child {child_pid} should be alive")
+            # Now tree-kill from the parent.
+            _platform.kill_process_tree(parent.pid, force=True)
+            # Reap the parent so its pid no longer appears as a
+            # zombie (POSIX-only; on Windows TerminateProcess
+            # cleanly removes the entry). psutil.is_running()
+            # returns True for zombies; the kill is real but
+            # the OS hasn't yet been told to drop the entry.
+            try:
+                parent.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                pass
+            # Now both should be dead. Allow brief settle for
+            # the orphaned child whose parent (now reaped) is
+            # init / launchd.
+            for _ in range(30):
+                if (not _platform.pid_alive(parent.pid)
+                        and not _platform.pid_alive(child_pid)):
+                    break
+                time.sleep(0.1)
+            self.assertFalse(
+                _platform.pid_alive(parent.pid),
+                f"parent {parent.pid} should be dead after "
+                f"tree-kill + wait")
+            self.assertFalse(
+                _platform.pid_alive(child_pid),
+                f"child {child_pid} should be dead after "
+                f"tree-kill (pre-182 the Windows leg killed "
+                f"only the leader; the child would survive).")
+        finally:
+            # Defensive cleanup.
+            try:
+                parent.kill()
+            except Exception:
+                pass
+            try:
+                parent.wait(timeout=2)
+            except Exception:
+                pass
+
+
 class SkillBundleHarnessOnlyDepTests(unittest.TestCase):
     """v1.5.7 182: psutil is a harness-ONLY dependency. The
     QPB skill bundle MUST NOT depend on it because skill

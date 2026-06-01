@@ -134,25 +134,44 @@ class KillRunTests(unittest.TestCase):
 
 
 class KillProcessTreeSigTests(unittest.TestCase):
-    """The additive sig kwarg on the shared primitive (Ruling 1)."""
+    """The additive sig kwarg on the shared primitive (Ruling 1).
+
+    v1.5.7 180-followup-6 FINDING-9 / 182: `_kill_process_tree`
+    now routes through `_platform.kill_process_tree(pid,
+    force=...)` instead of directly calling `os.killpg`. 182
+    commit 3/5 swapped `_platform.kill_process_tree`'s body to
+    use psutil. Tests mock at the `_platform.kill_process_tree`
+    boundary — the runner-internal call chain is what 147
+    actually pins (one-shot vs escalation), and that's
+    preserved across both refactors."""
 
     def test_explicit_sig_sends_once_no_escalation(self) -> None:
-        with mock.patch.object(R.os, "killpg") as m_killpg, \
+        # Explicit sig=SIGKILL → one-shot force-kill, no
+        # escalation. _kill_process_tree maps non-SIGTERM sigs
+        # to force=True per the FINDING-9 6a routing.
+        from bin.harness import _platform as _platform_mod
+        with mock.patch.object(
+                _platform_mod, "kill_process_tree") as m_kpt, \
              mock.patch.object(R.time, "sleep") as m_sleep:
             R._kill_process_tree(123, sig=signal.SIGKILL)
-        m_killpg.assert_called_once_with(123, signal.SIGKILL)
+        m_kpt.assert_called_once_with(123, force=True)
         m_sleep.assert_not_called()  # no grace period
 
     def test_default_preserves_escalation(self) -> None:
-        with mock.patch.object(R.os, "killpg") as m_killpg, \
+        # sig=None → 2-step escalation: graceful (force=False)
+        # → 2s grace → force-kill (force=True).
+        from bin.harness import _platform as _platform_mod
+        with mock.patch.object(
+                _platform_mod, "kill_process_tree") as m_kpt, \
              mock.patch.object(R.time, "sleep"):
-            R._kill_process_tree(123)  # no sig → timeout-path behavior
-        # SIGTERM then SIGKILL (escalation) — 2 killpg calls.
-        self.assertEqual(m_killpg.call_count, 2)
-        self.assertEqual(m_killpg.call_args_list[0].args,
-                         (123, signal.SIGTERM))
-        self.assertEqual(m_killpg.call_args_list[1].args,
-                         (123, signal.SIGKILL))
+            R._kill_process_tree(123)  # no sig → escalation
+        self.assertEqual(m_kpt.call_count, 2)
+        self.assertEqual(m_kpt.call_args_list[0].args, (123,))
+        self.assertEqual(
+            m_kpt.call_args_list[0].kwargs, {"force": False})
+        self.assertEqual(m_kpt.call_args_list[1].args, (123,))
+        self.assertEqual(
+            m_kpt.call_args_list[1].kwargs, {"force": True})
 
 
 if __name__ == "__main__":  # pragma: no cover

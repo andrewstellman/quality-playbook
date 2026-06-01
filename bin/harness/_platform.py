@@ -219,51 +219,41 @@ def acquire_file_lock(fp, blocking: bool = True) -> bool:
 
 
 def pid_alive(pid: int) -> bool:
-    """v1.5.7 180-followup-3 FINDING-4: cross-platform pid
-    liveness check. Used by the orchestrator's spawn-then-verify
-    pattern — after ``spawn_detached`` returns a child pid, the
-    parent confirms the child is still alive before declaring
-    "this shell can close safely."
+    """v1.5.7 180-followup-3 FINDING-4 / 182: cross-platform
+    pid liveness check via psutil. Pre-182 implementations:
 
-    POSIX: ``os.kill(pid, 0)`` — raises ``ProcessLookupError``
-    if dead, ``PermissionError`` if alive but we lack signal
-    rights (treated as alive). Other ``OSError`` → False.
+    - POSIX used ``os.kill(pid, 0)`` (the signal-0 idiom).
+    - Windows used ctypes ``OpenProcess`` +
+      ``GetExitCodeProcess``.
 
-    Windows: ``OpenProcess`` + ``GetExitCodeProcess`` via
-    ctypes. A process whose exit code is ``STILL_ACTIVE`` (259)
-    is alive; any other exit code means it terminated. A
-    ``NULL`` handle from ``OpenProcess`` means dead-or-
-    inaccessible — treated as dead (operator surfaces error).
+    psutil internally uses the same OS-native APIs but handles
+    edge cases (zombie states, permission boundaries, pid 0
+    sentinel) and exposes a cleaner contract. The 21-finding
+    180 chain surfaced 4 process-management bugs (FINDING-9
+    signal-default load-time bomb, FINDING-20 broken Windows
+    os.kill, latent kill-tree-only-leader on Windows, latent
+    hardcoded exit_code=-1 for orphans) — per methodology
+    lesson #31, that's the bug count threshold at which
+    library adoption is the right strategic answer.
+
+    Returns True iff a process with this pid currently exists.
+    Note: this does NOT defend against pid recycling — use
+    ``pid_alive_with_identity`` for that (added by 182 commit
+    4/5).
     """
-    if pid is None or pid <= 0:
+    if pid is None or int(pid) <= 0:
         return False
-    if IS_WINDOWS:
-        import ctypes
-        STILL_ACTIVE = 259
-        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
-        h = kernel32.OpenProcess(
-            PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
-        if not h:
-            return False
-        try:
-            exit_code = ctypes.c_ulong(0)
-            ok = kernel32.GetExitCodeProcess(
-                h, ctypes.byref(exit_code))
-            if not ok:
-                return False
-            return exit_code.value == STILL_ACTIVE
-        finally:
-            kernel32.CloseHandle(h)
+    import psutil
     try:
-        os.kill(int(pid), 0)
-    except ProcessLookupError:
+        return psutil.Process(int(pid)).is_running()
+    except psutil.NoSuchProcess:
         return False
-    except PermissionError:
+    except psutil.AccessDenied:
+        # Process exists but we lack rights — treat as alive
+        # (matches the pre-182 PermissionError → True behavior
+        # for POSIX and the OpenProcess NULL-handle path
+        # divergence on Windows).
         return True
-    except OSError:
-        return False
-    return True
 
 
 def resolve_executable(name: str) -> str:
@@ -297,47 +287,62 @@ def resolve_executable(name: str) -> str:
 
 
 def kill_process_tree(pid: int, *, force: bool = True) -> None:
-    """v1.5.7 180-followup-6 FINDING-9: cross-platform process-
-    tree termination. The harness spawns each run as the leader
-    of a new process group (POSIX session detach / Windows
-    CREATE_NEW_PROCESS_GROUP). This helper terminates the
-    leader; on POSIX the group goes with it (``os.killpg``);
-    on Windows ``TerminateProcess`` only kills the leader (the
-    Win32 API has no killpg analogue without Job objects), which
-    is acceptable for the harness's leader-driven runs.
+    """v1.5.7 180-followup-6 FINDING-9 / 182: cross-platform
+    process-tree termination via psutil.
 
-    ``force=True`` (default) → POSIX ``SIGKILL`` / Windows
-    ``TerminateProcess``. ``force=False`` → POSIX ``SIGTERM``;
-    on Windows there is no signal-equivalent, so graceful
-    collapses to ``TerminateProcess`` as well (the caller is
-    expected to NOT call this helper for the graceful path on
-    Windows — the harness escalation loop chooses force=True
-    after the grace period).
+    Pre-182 the Windows leg used ``TerminateProcess`` on the
+    leader pid only — descendants stayed alive. Andrew
+    OBSERVED this in run 20260601T201924Z: command windows
+    continued popping up well after the "failure" because
+    node.exe / MCP / sub-shells were orphaned. The pre-182
+    docstring's "acceptable for leader-driven runs"
+    assumption was wrong — Windows AI CLIs spawn descendants
+    that DO outlive the leader.
 
-    Swallows ``ProcessLookupError`` / ``PermissionError`` (the
-    process may have exited between the liveness check and the
-    kill call — operator already observed the outcome).
+    psutil's ``children(recursive=True)`` walks the process
+    tree via OS-native APIs (procfs on Linux, ``kqueue`` on
+    macOS, ``Process32First/Next`` on Windows). The
+    Windows leg now actually kills the tree.
+
+    ``force=True`` (default) → ``proc.kill()`` (POSIX
+    ``SIGKILL`` / Windows ``TerminateProcess``).
+    ``force=False`` → ``proc.terminate()`` (POSIX
+    ``SIGTERM`` / Windows still ``TerminateProcess`` — no
+    signal distinction on Windows; preserved for API
+    parity).
+
+    Best-effort: any ``psutil.NoSuchProcess`` or
+    ``psutil.AccessDenied`` is swallowed (the process may
+    have exited between the liveness check and the kill
+    call; tree-kill is operationally diagnostic — a missed
+    descendant still leaves the leader dead, which is the
+    main correctness contract).
     """
     if pid is None or int(pid) <= 0:
         return
-    if IS_WINDOWS:
-        import ctypes
-        PROCESS_TERMINATE = 0x0001
-        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
-        handle = kernel32.OpenProcess(
-            PROCESS_TERMINATE, False, int(pid))
-        if not handle:
-            return
-        try:
-            kernel32.TerminateProcess(handle, 1)
-        finally:
-            kernel32.CloseHandle(handle)
-        return
-    import signal as _signal
-    sig = _signal.SIGKILL if force else _signal.SIGTERM
+    import psutil
     try:
-        os.killpg(int(pid), sig)
-    except (ProcessLookupError, PermissionError):
+        parent = psutil.Process(int(pid))
+    except psutil.NoSuchProcess:
+        return
+    try:
+        children = parent.children(recursive=True)
+    except psutil.NoSuchProcess:
+        children = []
+    for child in children:
+        try:
+            if force:
+                child.kill()
+            else:
+                child.terminate()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+    try:
+        if force:
+            parent.kill()
+        else:
+            parent.terminate()
+    except (psutil.NoSuchProcess, psutil.AccessDenied):
         pass
 
 
