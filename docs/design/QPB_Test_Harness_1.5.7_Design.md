@@ -463,7 +463,9 @@ declared in `pyproject.toml`'s `[project.optional-dependencies] harness` extra; 
 bundle — enforced by `SkillBundleHarnessOnlyDepTests` in `bin/tests/harness/test_platform_compat_180.py`).
 
 - **pid liveness**: `psutil.Process(pid).is_running()` — replaces the pre-182 hand-rolled
-  `os.kill(pid, 0)` (POSIX) / `OpenProcess + GetExitCodeProcess` (Windows) implementations.
+  POSIX signal-0 probe / Windows `OpenProcess + GetExitCodeProcess` implementations.
+  Post-184 (FINDING-23): the four sibling divergent helpers in `watchdog.py`, `runner.py`,
+  `status.py`, and `manager.py` are also consolidated to alias `_platform.pid_alive`.
 - **process-tree kill**: `parent.children(recursive=True)` + `proc.kill()` for each — the Windows
   leg now actually kills descendants, not just the leader (fixes the latent bug Andrew observed
   in run `20260601T201924Z`: command windows continued popping up after the "failure" because
@@ -511,13 +513,16 @@ The module exposes:
 - `get_tmp_dir()` — cross-platform temp dir (POSIX: `/tmp`; Windows: `tempfile.gettempdir()`).
 - `get_orchestrator_log_path(run_id)` — auto-detach orchestrator log path.
 - `popen_kwargs_detached()` — subprocess kwargs for detaching (POSIX: `start_new_session=True`;
-  Windows: `creationflags=DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP`).
+  Windows post-183: `creationflags=CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP`).
 - `spawn_detached(args, log_path, env)` — cross-platform detached spawn (POSIX:
   `fork`+`setsid`+`dup2`; Windows: `subprocess.Popen` with detached creationflags).
 - `acquire_file_lock(fp, blocking)` / `release_file_lock(fp)` — cross-platform file lock (POSIX:
   `fcntl.flock`; Windows: `msvcrt.locking`).
-- `pid_alive(pid)` — cross-platform liveness probe (POSIX: `os.kill(pid, 0)`; Windows:
-  `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION) + GetExitCodeProcess`).
+- `pid_alive(pid)` — cross-platform liveness probe via `psutil.Process(pid).is_running()`
+  (post-182). Pre-182 used hand-rolled `os.kill(pid, 0)` (POSIX) and
+  `OpenProcess + GetExitCodeProcess` (Windows). All five harness-side `_pid_alive` / `pid_is_alive`
+  helpers (in plan_runner / watchdog / runner / status / manager) are now aliased imports of
+  this one canonical function (184 FINDING-23 closes the lesson #28 hole).
 - `resolve_executable(name)` — `shutil.which` wrapper that returns the full path with extension
   on Windows (handles PATHEXT for `.cmd` / `.bat` / `.exe`).
 - `kill_process_tree(pid, *, force)` — cross-platform forced termination via `psutil`
