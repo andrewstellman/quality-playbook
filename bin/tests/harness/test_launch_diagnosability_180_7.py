@@ -538,5 +538,165 @@ class BreadcrumbCoverageSourceSweepTests(unittest.TestCase):
                 f"[[methodology_lesson_22]].")
 
 
+class InFlightStepSurfacingTests(unittest.TestCase):
+    """v1.5.7 180-followup-8 FINDING-17: status / tui surface
+    the last breadcrumb's step + elapsed time for RUNNING
+    entries via the new ``read_last_breadcrumb`` helper."""
+
+    def test_launch_log_module_exposes_public_helpers(
+            self) -> None:
+        from bin.harness import _launch_log
+        for name in (
+                "read_last_breadcrumb",
+                "read_last_step",
+                "format_inflight_step"):
+            self.assertTrue(
+                hasattr(_launch_log, name),
+                f"_launch_log must expose {name}")
+
+    def test_read_last_breadcrumb_returns_full_entry(
+            self) -> None:
+        from bin.harness import _launch_log
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            entries = [
+                {"t_relative": 0.0, "t_absolute": "2026-06-01T00:00:00.000Z",
+                 "step": "launch starting", "run_index": 0},
+                {"t_relative": 2.341, "t_absolute": "2026-06-01T00:00:02.341Z",
+                 "step": "cloning + installing"},
+            ]
+            log_path.write_text(
+                "\n".join(json.dumps(e) for e in entries) + "\n",
+                encoding="utf-8")
+            last = _launch_log.read_last_breadcrumb(log_path)
+            self.assertIsNotNone(last)
+            self.assertEqual(last["step"], "cloning + installing")
+            self.assertAlmostEqual(last["t_relative"], 2.341)
+            self.assertIn("t_absolute", last)
+
+    def test_read_last_breadcrumb_returns_none_on_missing(
+            self) -> None:
+        from bin.harness import _launch_log
+        self.assertIsNone(
+            _launch_log.read_last_breadcrumb(
+                pathlib.Path("/nonexistent/qpb-180-8-rlb")))
+
+    def test_read_last_breadcrumb_returns_none_on_garbage(
+            self) -> None:
+        from bin.harness import _launch_log
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            log_path.write_text(
+                "not json\nstill not json\n",
+                encoding="utf-8")
+            self.assertIsNone(
+                _launch_log.read_last_breadcrumb(log_path))
+
+    def test_format_inflight_step_renders_step_and_elapsed(
+            self) -> None:
+        from bin.harness import _launch_log
+        with tempfile.TemporaryDirectory() as td:
+            log_path = pathlib.Path(td) / "launch.log"
+            log_path.write_text(json.dumps({
+                "t_relative": 2.341,
+                "t_absolute": "2026-06-01T00:00:02.341Z",
+                "step": "spawning detached child process",
+            }) + "\n", encoding="utf-8")
+            rendered = _launch_log.format_inflight_step(log_path)
+            self.assertIsNotNone(rendered)
+            self.assertIn(
+                "spawning detached child process", rendered)
+            self.assertIn("T+2.3s", rendered)
+
+    def test_format_inflight_step_returns_none_on_missing(
+            self) -> None:
+        from bin.harness import _launch_log
+        self.assertIsNone(
+            _launch_log.format_inflight_step(
+                pathlib.Path("/nonexistent/qpb-180-8-fis")))
+
+    def test_detail_table_columns_includes_step(self) -> None:
+        from bin.harness import tui
+        self.assertIn(
+            "step", tui.DETAIL_TABLE_COLUMNS,
+            "DETAIL_TABLE_COLUMNS must include 'step' for "
+            "FINDING-17 in-flight step surfacing.")
+
+    def test_detail_table_row_arity_matches_columns(
+            self) -> None:
+        # Mirror the 119 arity contract test post-column-add
+        # so the row builder kept in sync.
+        from bin.harness import tui
+        cols = tui.DETAIL_TABLE_COLUMNS
+        with tempfile.TemporaryDirectory() as td:
+            hr = pathlib.Path(td) / "20260601T000000Z"
+            run_dir = hr / "run-00"
+            run_dir.mkdir(parents=True)
+            (hr / "manifest.json").write_text(json.dumps({
+                "harness_run_dir": str(hr),
+                "runs": [{
+                    "index": 0,
+                    "run_dir": str(run_dir),
+                    "pid": 7777,
+                    "state": "RUNNING",
+                    "started_at": "2026-06-01T00:00:00Z",
+                    "runner": "claude",
+                    "model": "opus",
+                    "repo": "https://github.com/x/y",
+                }],
+            }) + "\n", encoding="utf-8")
+            (run_dir / "status.json").write_text(json.dumps({
+                "state": "RUNNING", "pid": 7777,
+                "started_at": "2026-06-01T00:00:00Z",
+            }) + "\n", encoding="utf-8")
+            (run_dir / "launch.log").write_text(json.dumps({
+                "t_relative": 2.341,
+                "t_absolute": "2026-06-01T00:00:02.341Z",
+                "step": "spawning detached child process",
+            }) + "\n", encoding="utf-8")
+            rows = tui.build_detail_table_rows(hr)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(len(rows[0]), len(cols))
+            # The step cell is the LAST cell.
+            self.assertIn(
+                "spawning detached child process", rows[0][-1])
+            self.assertIn("T+2.3s", rows[0][-1])
+
+    def test_detail_table_step_cell_is_dash_for_terminal(
+            self) -> None:
+        # DONE/FAILED/COMPLETED entries get "—" — launch.log
+        # is forensic at that point, not live status.
+        from bin.harness import tui
+        with tempfile.TemporaryDirectory() as td:
+            hr = pathlib.Path(td) / "20260601T000000Z"
+            run_dir = hr / "run-00"
+            run_dir.mkdir(parents=True)
+            (hr / "manifest.json").write_text(json.dumps({
+                "harness_run_dir": str(hr),
+                "runs": [{
+                    "index": 0, "run_dir": str(run_dir),
+                    "pid": 8888, "state": "DONE",
+                    "terminal_state": "FAILED",
+                    "started_at": "2026-06-01T00:00:00Z",
+                    "ended_at": "2026-06-01T00:00:05Z",
+                    "runner": "claude", "model": "opus",
+                    "repo": "https://github.com/x/y",
+                }],
+            }) + "\n", encoding="utf-8")
+            (run_dir / "status.json").write_text(json.dumps({
+                "state": "DONE", "pid": 8888,
+                "terminal_state": "FAILED",
+            }) + "\n", encoding="utf-8")
+            (run_dir / "launch.log").write_text(json.dumps({
+                "t_relative": 5.0,
+                "t_absolute": "2026-06-01T00:00:05.000Z",
+                "step": "launch FAILED",
+            }) + "\n", encoding="utf-8")
+            (run_dir / "grading.json").write_text(
+                "{}", encoding="utf-8")
+            rows = tui.build_detail_table_rows(hr)
+            self.assertEqual(rows[0][-1], "—")
+
+
 if __name__ == "__main__":
     unittest.main()

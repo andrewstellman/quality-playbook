@@ -854,6 +854,11 @@ DETAIL_TABLE_COLUMNS = (
     "#", "repo", "runner/model", "state",
     "phase", "name", "phase-state", "result",
     "pid", "elapsed", "last_activity",
+    # v1.5.7 180-followup-8 FINDING-17: in-flight launch step
+    # for RUNNING entries (from run-NN/launch.log). Cell is
+    # "—" for terminal entries (DONE/FAILED/etc.) — the
+    # launch.log is forensic at that point, not status.
+    "step",
 )
 
 
@@ -906,11 +911,22 @@ def build_detail_table_rows(
     operators see live phase progress + liveness without
     dropping into the output view."""
     from bin.harness import status as _status
+    from bin.harness import _launch_log as _ll
     runs = _status.read_run_status(harness_run_dir)
     rows: "list[tuple[str, ...]]" = []
     for r in runs:
         repo_tail = (r.repo.rstrip("/").split("/")[-1]
                      or r.repo)
+        # v1.5.7 180-followup-8 FINDING-17: surface the last
+        # launch breadcrumb's step for RUNNING entries so
+        # operators see "where am I" for hangs without
+        # opening launch.log.
+        step_cell = "—"
+        if r.state in ("RUNNING", "PENDING"):
+            inflight = _ll.format_inflight_step(
+                r.run_dir / "launch.log")
+            if inflight is not None:
+                step_cell = inflight
         rows.append((
             str(r.index),
             repo_tail,
@@ -923,6 +939,7 @@ def build_detail_table_rows(
             _format_pid_for_table(r.pid, r.pid_alive),
             _status._format_elapsed(r.elapsed_s),
             r.last_activity_iso,
+            step_cell,
         ))
     return rows
 
