@@ -456,6 +456,36 @@ Adding a fourth platform (BSD variants, ARM Linux distros, Alpine-musl, etc.) re
 audit checklist below against that platform's stdlib variants and extending `bin/harness/_platform.py`
 where the existing abstractions don't cover the new platform's idiom.
 
+### Process management: `psutil` (post-182)
+
+The harness routes process-management primitives through `psutil` (harness-only dependency,
+declared in `pyproject.toml`'s `[project.optional-dependencies] harness` extra; NOT in the skill
+bundle — enforced by `SkillBundleHarnessOnlyDepTests` in `bin/tests/harness/test_platform_compat_180.py`).
+
+- **pid liveness**: `psutil.Process(pid).is_running()` — replaces the pre-182 hand-rolled
+  `os.kill(pid, 0)` (POSIX) / `OpenProcess + GetExitCodeProcess` (Windows) implementations.
+- **process-tree kill**: `parent.children(recursive=True)` + `proc.kill()` for each — the Windows
+  leg now actually kills descendants, not just the leader (fixes the latent bug Andrew observed
+  in run `20260601T201924Z`: command windows continued popping up after the "failure" because
+  node.exe / MCP / sub-shells were orphaned).
+- **exit-code recovery from orphans**: `psutil.Process(pid).wait(timeout)` — recovers the actual
+  exit code from processes that aren't direct children of the calling process. Replaces the
+  pre-182 hardcoded `exit_code=-1` for orphan-collected runs.
+- **recycling-safe identity**: `(pid, psutil.Process(pid).create_time())` tuple. Windows recycles
+  pid numbers fast enough for long-running plans to hit a pid that the OS has reassigned to a
+  different process; the create_time anchor distinguishes "still our launched process" from
+  "different process at the same pid."
+
+`bin/harness/_platform.py` still owns non-process platform shims: filesystem (`get_tmp_dir`,
+`get_orchestrator_log_path`), file locks (`acquire_file_lock` / `release_file_lock` — fcntl vs
+msvcrt), executable resolution (`resolve_executable` — PATHEXT), subprocess kwargs
+(`popen_kwargs_detached` — detach flags), detached spawn (`spawn_detached` — fork vs
+CreateProcess), and platform sentinels (`IS_WINDOWS`, signal-constant availability).
+
+stdlib `subprocess.Popen` still owns the launch path. `psutil.Popen` is a wrapper, not a
+replacement — stdlib subprocess is correct for launching, psutil is correct for managing
+post-launch.
+
 ### Cross-platform abstraction seam: `bin/harness/_platform.py`
 
 All platform-conditional logic routes through `bin/harness/_platform.py`. Direct use of
@@ -480,8 +510,17 @@ The module exposes:
   `OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION) + GetExitCodeProcess`).
 - `resolve_executable(name)` — `shutil.which` wrapper that returns the full path with extension
   on Windows (handles PATHEXT for `.cmd` / `.bat` / `.exe`).
-- `kill_process_tree(pid, *, force)` — cross-platform forced termination (POSIX: `os.killpg`
-  with `SIGKILL`/`SIGTERM`; Windows: `OpenProcess(PROCESS_TERMINATE) + TerminateProcess`).
+- `kill_process_tree(pid, *, force)` — cross-platform forced termination via `psutil`
+  (post-182: tree-walks descendants on both platforms; pre-182 the Windows leg killed only the
+  leader).
+- `process_create_time(pid)` — snapshot start time as Unix-epoch float (psutil); the
+  spawn-side capture for recycling-defense identity tuples.
+- `pid_alive_with_identity(pid, original_create_time)` — recycling-safe liveness; matches
+  `(pid, create_time)` tuple. Falls back to plain `pid_alive` when `create_time is None` for
+  pre-182 manifest backward-compat.
+- `wait_for_process(pid, timeout)` — recovers actual exit code from orphans via psutil
+  (works on non-direct-children, unlike `waitpid`); returns `None` on already-reaped or
+  timeout.
 
 ### Categories of cross-platform concern (the audit checklist)
 
