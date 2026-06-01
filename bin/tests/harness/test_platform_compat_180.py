@@ -532,6 +532,70 @@ class PopenNoWindowTests(unittest.TestCase):
             "popen_kwargs_detached.")
 
 
+class KillProcessTreeExceptionSurfaceTests(unittest.TestCase):
+    """v1.5.7 184 FINDING-24: kill_process_tree's exception
+    surface widened from `(NoSuchProcess,)` to
+    `(NoSuchProcess, AccessDenied, PermissionError,
+    psutil.Error)`. Council reviewer's test run hit a
+    `PermissionError: Operation not permitted` from
+    `Process.children()` — NOT a subclass of NoSuchProcess,
+    so it propagated up the kill path and broke best-effort
+    semantics."""
+
+    def test_kill_process_tree_swallows_permission_error(
+            self) -> None:
+        from bin.harness import _platform as _pmod
+        from unittest import mock
+        import psutil
+        # Mock psutil.Process to raise PermissionError on
+        # children() — exercises the widened catch.
+        fake = mock.MagicMock()
+        fake.children.side_effect = PermissionError(
+            "synthetic permission denied")
+        fake.kill.side_effect = PermissionError(
+            "synthetic permission denied")
+        with mock.patch.object(psutil, "Process",
+                                return_value=fake):
+            # Must NOT raise — best-effort semantics.
+            _pmod.kill_process_tree(12345, force=True)
+
+    def test_kill_process_tree_swallows_access_denied(
+            self) -> None:
+        from bin.harness import _platform as _pmod
+        from unittest import mock
+        import psutil
+        fake = mock.MagicMock()
+        fake.children.side_effect = psutil.AccessDenied(
+            pid=12345, name="synthetic")
+        fake.kill.side_effect = psutil.AccessDenied(
+            pid=12345, name="synthetic")
+        with mock.patch.object(psutil, "Process",
+                                return_value=fake):
+            _pmod.kill_process_tree(12345, force=True)
+
+    def test_kill_process_tree_source_pins_widened_catch(
+            self) -> None:
+        # Source-pin: the catch tuple in _platform.py's
+        # kill_process_tree must include PermissionError.
+        src = (_REPO / "bin" / "harness" / "_platform.py"
+               ).read_text(encoding="utf-8")
+        # Find kill_process_tree body.
+        import re
+        m = re.search(
+            r"def kill_process_tree.*?(?=\ndef |\nclass )",
+            src, re.DOTALL)
+        self.assertIsNotNone(m)
+        body = m.group(0)
+        self.assertIn(
+            "PermissionError", body,
+            "kill_process_tree must catch PermissionError "
+            "(184 FINDING-24).")
+        self.assertIn(
+            "psutil.Error", body,
+            "kill_process_tree must catch psutil.Error "
+            "(184 FINDING-24).")
+
+
 class PsutilMigrationTests(unittest.TestCase):
     """v1.5.7 182: psutil-backed process management."""
 

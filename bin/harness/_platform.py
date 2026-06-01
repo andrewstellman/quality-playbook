@@ -352,13 +352,26 @@ def kill_process_tree(pid: int, *, force: bool = True) -> None:
     if pid is None or int(pid) <= 0:
         return
     import psutil
+    # v1.5.7 184 FINDING-24: widened exception surface.
+    # Council reviewer's test run hit
+    # ``PermissionError: Operation not permitted`` from
+    # ``Process.children()`` — NOT a subclass of
+    # ``NoSuchProcess``, so it would propagate up the kill
+    # path and break best-effort semantics. ``psutil.Error``
+    # is the base class for psutil-specific exceptions;
+    # catching it AND ``PermissionError`` (the stdlib type
+    # that wraps OS-level permission denials on some
+    # platforms) covers the observed failure mode + future
+    # platform-specific variants.
     try:
         parent = psutil.Process(int(pid))
-    except psutil.NoSuchProcess:
+    except (psutil.NoSuchProcess, psutil.AccessDenied,
+            PermissionError, psutil.Error):
         return
     try:
         children = parent.children(recursive=True)
-    except psutil.NoSuchProcess:
+    except (psutil.NoSuchProcess, psutil.AccessDenied,
+            PermissionError, psutil.Error):
         children = []
     for child in children:
         try:
@@ -366,14 +379,16 @@ def kill_process_tree(pid: int, *, force: bool = True) -> None:
                 child.kill()
             else:
                 child.terminate()
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
+        except (psutil.NoSuchProcess, psutil.AccessDenied,
+                PermissionError, psutil.Error):
             pass
     try:
         if force:
             parent.kill()
         else:
             parent.terminate()
-    except (psutil.NoSuchProcess, psutil.AccessDenied):
+    except (psutil.NoSuchProcess, psutil.AccessDenied,
+            PermissionError, psutil.Error):
         pass
 
 
