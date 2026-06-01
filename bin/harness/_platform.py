@@ -296,6 +296,51 @@ def resolve_executable(name: str) -> str:
     return resolved
 
 
+def kill_process_tree(pid: int, *, force: bool = True) -> None:
+    """v1.5.7 180-followup-6 FINDING-9: cross-platform process-
+    tree termination. The harness spawns each run as the leader
+    of a new process group (POSIX session detach / Windows
+    CREATE_NEW_PROCESS_GROUP). This helper terminates the
+    leader; on POSIX the group goes with it (``os.killpg``);
+    on Windows ``TerminateProcess`` only kills the leader (the
+    Win32 API has no killpg analogue without Job objects), which
+    is acceptable for the harness's leader-driven runs.
+
+    ``force=True`` (default) → POSIX ``SIGKILL`` / Windows
+    ``TerminateProcess``. ``force=False`` → POSIX ``SIGTERM``;
+    on Windows there is no signal-equivalent, so graceful
+    collapses to ``TerminateProcess`` as well (the caller is
+    expected to NOT call this helper for the graceful path on
+    Windows — the harness escalation loop chooses force=True
+    after the grace period).
+
+    Swallows ``ProcessLookupError`` / ``PermissionError`` (the
+    process may have exited between the liveness check and the
+    kill call — operator already observed the outcome).
+    """
+    if pid is None or int(pid) <= 0:
+        return
+    if IS_WINDOWS:
+        import ctypes
+        PROCESS_TERMINATE = 0x0001
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        handle = kernel32.OpenProcess(
+            PROCESS_TERMINATE, False, int(pid))
+        if not handle:
+            return
+        try:
+            kernel32.TerminateProcess(handle, 1)
+        finally:
+            kernel32.CloseHandle(handle)
+        return
+    import signal as _signal
+    sig = _signal.SIGKILL if force else _signal.SIGTERM
+    try:
+        os.killpg(int(pid), sig)
+    except (ProcessLookupError, PermissionError):
+        pass
+
+
 def release_file_lock(fp) -> None:
     """Release the lock held on ``fp``. POSIX:
     ``fcntl.flock(LOCK_UN)``. Windows:

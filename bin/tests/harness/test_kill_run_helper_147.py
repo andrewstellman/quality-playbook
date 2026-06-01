@@ -49,16 +49,24 @@ class KillRunTests(unittest.TestCase):
 
     def test_alive_pid_sends_signal_and_writes_killed_status(
             self) -> None:
+        # v1.5.7 180-followup-6 FINDING-9: default kill_run now
+        # routes through _platform.kill_process_tree(pid,
+        # force=True) instead of _kill_process_tree(pid,
+        # sig=SIGKILL). The semantics are the same (one-shot
+        # force-kill, no escalation per 147 ruling) but the path
+        # is now cross-platform — SIGKILL is lazy-resolved inside
+        # the helper, not at runner.py module load.
+        from bin.harness import _platform as _platform_mod
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = _fixture(tmp, pid=999)
             with mock.patch.object(R, "_pid_alive", return_value=True), \
-                 mock.patch.object(R, "_kill_process_tree") as m_kill, \
+                 mock.patch.object(_platform_mod, "kill_process_tree") as m_kill, \
                  mock.patch.object(R, "_release_slot_for_run_dir"):
                 res = R.kill_run(run_dir, grace_poll_s=0.0)
             m_kill.assert_called_once()
             self.assertEqual(m_kill.call_args.args[0], 999)
-            self.assertEqual(m_kill.call_args.kwargs["sig"],
-                             signal.SIGKILL)
+            self.assertEqual(m_kill.call_args.kwargs["force"],
+                             True)
             self.assertTrue(res.was_alive)
             st = _read_status(run_dir)
             self.assertEqual(st["terminal_state"],

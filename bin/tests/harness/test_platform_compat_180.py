@@ -324,6 +324,60 @@ class FailFastScopeTests(unittest.TestCase):
         )
 
 
+class KillProcessTreeTests(unittest.TestCase):
+    """v1.5.7 180-followup-6 FINDING-9: ``_platform.kill_process_tree``
+    abstracts the SIGKILL/TerminateProcess primitive. Andrew's
+    5th Windows fire saw all 4 runs FAIL with
+    ``AttributeError("module 'signal' has no attribute 'SIGKILL'")``
+    — the prior code path evaluated ``signal.SIGKILL`` at
+    runner.py module-load time via a default arg
+    (``def kill_run(... sig=signal.SIGKILL ...)``)."""
+
+    def test_180_kill_process_tree_helper_exists(self) -> None:
+        from bin.harness import _platform as _pmod
+        self.assertTrue(hasattr(_pmod, "kill_process_tree"))
+
+    def test_180_kill_process_tree_no_op_on_invalid_pid(
+            self) -> None:
+        from bin.harness import _platform as _pmod
+        _pmod.kill_process_tree(0, force=True)
+        _pmod.kill_process_tree(-1, force=True)
+
+    def test_180_runner_kill_run_no_load_time_sigkill_default(
+            self) -> None:
+        src = (_REPO / "bin" / "harness" / "runner.py").read_text(
+            encoding="utf-8")
+        import re
+        m = re.search(
+            r"def kill_run\([^)]*sig[^)]*\)", src, re.DOTALL)
+        self.assertIsNotNone(
+            m, "runner.py must define kill_run with a sig param")
+        sig_param = m.group(0)
+        self.assertNotIn(
+            "signal.SIGKILL", sig_param,
+            "kill_run's sig default MUST NOT be signal.SIGKILL "
+            "(crashes Windows module-load — see "
+            "180-followup-6 FINDING-9). Use None sentinel + "
+            "lazy resolution inside _platform.kill_process_tree.")
+
+    def test_180_no_sigkill_in_default_args(self) -> None:
+        import re
+        for f in (_REPO / "bin").rglob("*.py"):
+            if "test" in f.name:
+                continue
+            src = f.read_text(encoding="utf-8")
+            for m in re.finditer(
+                    r"^def\s+\w+\([^)]*\)\s*(->\s*[^:]+)?\s*:",
+                    src, re.MULTILINE | re.DOTALL):
+                sig_text = m.group(0)
+                if "signal.SIGKILL" in sig_text:
+                    self.fail(
+                        f"{f}: function signature contains "
+                        f"signal.SIGKILL as default arg — "
+                        f"crashes Windows module-load. "
+                        f"Match: {sig_text[:200]}")
+
+
 class TuiCursesFallbackTests(unittest.TestCase):
     """v1.5.7 180-followup-5 FINDING-7: ``import curses`` is not
     available on Windows Python; tui.py must detect the failure

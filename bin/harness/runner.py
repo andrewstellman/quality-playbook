@@ -714,26 +714,36 @@ def _write_status(run_dir: Path, status: dict) -> None:
 
 
 def _kill_process_tree(pid: int, sig: "int | None" = None) -> None:
-    """Kill the process group started by POSIX session detach.
+    """Kill the process group started by POSIX session detach
+    (or Windows CREATE_NEW_PROCESS_GROUP).
 
     v1.5.7 147 (additive, ruled): ``sig=None`` (default) preserves
     the original SIGTERM → 2s-grace → SIGKILL escalation — the
     max-duration timeout path passes nothing and is UNCHANGED. An
-    explicit ``sig`` (e.g. ``signal.SIGKILL`` / ``signal.SIGTERM``
-    from ``kill_run``) sends that signal to the group ONCE, no
+    explicit ``sig`` sends that signal to the group ONCE, no
     escalation, no grace — the caller owns what happens if the
-    process doesn't respond (operator semantics: `--graceful`
+    process doesn't respond (operator semantics: ``--graceful``
     re-run without it to force-kill).
+
+    v1.5.7 180-followup-6 FINDING-9: routes through
+    ``_platform.kill_process_tree(pid, force=...)`` so the
+    SIGKILL primitive is lazy-resolved inside that helper (which
+    branches on IS_WINDOWS). On Windows ``signal.SIGKILL`` does
+    not exist — referencing it at module-load time crashes the
+    runner.py import.
     """
+    from bin.harness import _platform as _platform_mod
     if sig is not None:
-        with contextlib.suppress(ProcessLookupError, PermissionError):
-            os.killpg(pid, sig)
+        # Explicit signal: SIGTERM-only path (graceful single-
+        # shot). force=False maps to SIGTERM on POSIX; on Windows
+        # there is no signal-equivalent so it still terminates.
+        _platform_mod.kill_process_tree(
+            pid, force=(sig != signal.SIGTERM))
         return
-    with contextlib.suppress(ProcessLookupError, PermissionError):
-        os.killpg(pid, signal.SIGTERM)
+    # Default escalation: graceful → grace period → force.
+    _platform_mod.kill_process_tree(pid, force=False)
     time.sleep(2.0)
-    with contextlib.suppress(ProcessLookupError, PermissionError):
-        os.killpg(pid, signal.SIGKILL)
+    _platform_mod.kill_process_tree(pid, force=True)
 
 
 def _pid_alive(pid: "int | None") -> bool:
@@ -779,15 +789,22 @@ def _release_slot_for_run_dir(run_dir: Path) -> None:
     return
 
 
-def kill_run(run_dir: Path, *, sig: int = signal.SIGKILL,
+def kill_run(run_dir: Path, *, sig: "int | None" = None,
              grace_poll_s: float = 5.0) -> KillResult:
     """v1.5.7 147: operator-initiated termination of a run. Signals
     the run's process group (if alive), writes a ``KILLED``
     status.json, and releases the 125 registry slot.
 
-    ``sig`` defaults to ``SIGKILL`` (kill -9 semantics); pass
-    ``SIGTERM`` for a single graceful signal (no escalation — ruled
-    in 147). Raises ``KillError`` if the run is already collected
+    ``sig=None`` (default) → force-kill (lazy-resolved to
+    ``SIGKILL`` on POSIX inside ``_platform.kill_process_tree``,
+    or ``TerminateProcess`` on Windows). Pass an explicit
+    ``signal.SIGTERM`` for a single graceful signal (no
+    escalation — ruled in 147). v1.5.7 180-followup-6 FINDING-9:
+    the prior ``sig: int = signal.SIGKILL`` default arg crashed
+    Windows module-load (signal.SIGKILL does not exist there);
+    lazy resolution + None sentinel fixes that.
+
+    Raises ``KillError`` if the run is already collected
     (grading.json present). The action does NOT block on
     termination beyond a brief liveness re-poll (``grace_poll_s``)
     used only to report whether a graceful signal was honored; the
@@ -811,9 +828,32 @@ def kill_run(run_dir: Path, *, sig: int = signal.SIGKILL,
     was_alive = _pid_alive(pid)
     signal_sent: "int | None" = None
     still_alive = False
+    # v1.5.7 180-followup-6 FINDING-9: lazy-resolve SIGKILL only
+    # when the caller asked for default-force-kill; signal.SIGKILL
+    # does not exist on Windows so module-load-time evaluation
+    # would crash the runner.py import.
+    resolved_sig: "int | None"
+    if sig is None:
+        try:
+            resolved_sig = int(signal.SIGKILL)  # POSIX
+        except AttributeError:
+            resolved_sig = None  # Windows: TerminateProcess
+    else:
+        resolved_sig = int(sig)
     if was_alive:
-        _kill_process_tree(pid, sig=sig)
-        signal_sent = int(sig)
+        # v1.5.7 180-followup-6 FINDING-9: when sig is None
+        # (kill_run default) preserve the 147 "force-kill, no
+        # escalation" contract by routing directly through
+        # _platform.kill_process_tree. The _kill_process_tree
+        # sig=None path is the max-duration escalation loop and
+        # MUST NOT be triggered here (147 ruling: kill_run is
+        # one-shot, no grace).
+        if sig is None:
+            from bin.harness import _platform as _platform_mod
+            _platform_mod.kill_process_tree(pid, force=True)
+        else:
+            _kill_process_tree(pid, sig=sig)
+        signal_sent = resolved_sig
         deadline = time.monotonic() + grace_poll_s
         while time.monotonic() < deadline:
             if not _pid_alive(pid):
@@ -821,17 +861,21 @@ def kill_run(run_dir: Path, *, sig: int = signal.SIGKILL,
             time.sleep(0.2)
         still_alive = _pid_alive(pid)
     now = _utc_now_iso()
-    try:
-        signame = signal.Signals(sig).name
-    except ValueError:
-        signame = str(sig)
+    if resolved_sig is None:
+        signame = "TerminateProcess"
+    else:
+        try:
+            signame = signal.Signals(resolved_sig).name
+        except ValueError:
+            signame = str(resolved_sig)
+    exit_code = -resolved_sig if resolved_sig is not None else 1
     _write_status(run_dir, {
         "state": "DONE",
         "pid": pid,
         "started_at": status.get("started_at", ""),
         "heartbeat": status.get("heartbeat", now),
         "ended_at": now,
-        "exit_code": -int(sig),
+        "exit_code": exit_code,
         "terminal_state": TerminalState.KILLED.value,
         "terminal_reason": f"killed by operator ({signame})",
     })

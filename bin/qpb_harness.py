@@ -998,9 +998,21 @@ def _cmd_kill(args: argparse.Namespace) -> int:
               "specific run (.../run-NN).", file=sys.stderr)
         return 2
 
-    sig = (_signal.SIGTERM if getattr(args, "graceful", False)
-           else _signal.SIGKILL)
-    signame = "SIGTERM" if sig == _signal.SIGTERM else "SIGKILL"
+    # v1.5.7 180-followup-6 FINDING-9: signal.SIGKILL does not
+    # exist on Windows. Lazy-resolve with AttributeError guard so
+    # the --graceful path keeps using SIGTERM (which IS Windows-
+    # available) and the default force-kill path passes None to
+    # kill_run (which lazy-resolves inside _platform).
+    if getattr(args, "graceful", False):
+        sig = _signal.SIGTERM
+        signame = "SIGTERM"
+    else:
+        try:
+            sig = _signal.SIGKILL
+            signame = "SIGKILL"
+        except AttributeError:
+            sig = None  # Windows: lazy-resolved to TerminateProcess
+            signame = "TerminateProcess"
 
     targets: "list[tuple[Path, str]]" = []
     skipped: "list[tuple[str, str]]" = []
