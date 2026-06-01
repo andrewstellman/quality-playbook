@@ -237,6 +237,85 @@ def test_178_skill_md_mandates_qpb_phase_first_call():
     )
 
 
+def test_179_skill_md_mandates_parallel_call_hygiene():
+    """v1.5.7 179 Fix A: SKILL.md must mandate that Phase-artifact
+    Writes (REQUIREMENTS.md, CONTRACTS.md, BUGS.md, etc.) are
+    NEVER issued in parallel batches with other tool calls. Each
+    artifact Write must be its own assistant turn. After every
+    Write, the agent must immediately Read the same file path to
+    verify it exists; if missing, retry as a standalone Write.
+    Pre-179, opus on tokio (harness_runs/20260531T234613Z/run-00)
+    had multiple artifact Writes silently cancelled by sibling
+    Bash errors and didn't notice — Phase 2-5 artifacts went
+    missing and the gate FAILed."""
+    skill = (REPO / "SKILL.md").read_text(encoding="utf-8")
+    mandate_phrases = [
+        "NEVER be issued in a parallel batch",
+        "must be its own assistant turn",
+        "never bundle a Write with other tool calls",
+        "each phase-artifact Write must be a standalone tool call",
+    ]
+    verification_phrases = [
+        "immediately Read",
+        "immediately verify",
+        "Read-verify",
+        "verify the file exists on disk",
+        "verify that the file is on disk",
+    ]
+    assert any(p in skill for p in mandate_phrases), (
+        f"SKILL.md must mandate parallel-call hygiene for phase "
+        f"artifact Writes. Expected one of {mandate_phrases!r}.")
+    assert any(p in skill for p in verification_phrases), (
+        f"SKILL.md must mandate post-Write verification. "
+        f"Expected one of {verification_phrases!r}.")
+
+
+def test_179_skill_md_mandates_qpb_validate_first_call():
+    """v1.5.7 179 Fix B: SKILL.md must mandate qpb_validate as
+    the LITERAL first Bash call — before pwd, before ls, before
+    any other tool use. Pre-179 opus on tokio ran `pwd && ls -la`
+    and `ls quality/` before `qpb_validate.py`, causing
+    `phase0_first_probe = False` in grading.json."""
+    skill = (REPO / "SKILL.md").read_text(encoding="utf-8")
+    mandate_phrases = [
+        "qpb_validate.py` must be the FIRST",
+        "qpb_validate.py is the LITERAL first",
+        "qpb_validate as the literal first",
+        "first Bash call MUST be `python3 <install_root>/bin/qpb_validate.py",
+        "first probe MUST be qpb_validate",
+    ]
+    assert any(p in skill for p in mandate_phrases), (
+        f"SKILL.md must mandate qpb_validate as the literal first "
+        f"Bash call. Expected one of {mandate_phrases!r}.")
+    blocked_phrases = [
+        "status=blocked",
+        "if qpb_validate returns",
+        "DO NOT continue with any other tool call until",
+    ]
+    assert any(p in skill for p in blocked_phrases), (
+        f"SKILL.md must explicitly handle qpb_validate's "
+        f"`status=blocked` return. Expected one of "
+        f"{blocked_phrases!r}.")
+
+
+def test_179_skill_md_mandates_gitignore_remediation_step():
+    """v1.5.7 179 Fix B (cont.): SKILL.md must include an
+    explicit instruction that `quality/` must be added to the
+    target repo's .gitignore as part of Phase 0 setup. Pre-179
+    opus on tokio left this step undone and
+    `gitignore_remediation_followed = False` in grading.json."""
+    skill = (REPO / "SKILL.md").read_text(encoding="utf-8")
+    gitignore_phrases = [
+        "add `quality/` to `.gitignore`",
+        "add quality/ to .gitignore",
+        ".gitignore must include `quality/`",
+        "add the `quality/` directory to `.gitignore`",
+    ]
+    assert any(p in skill for p in gitignore_phrases), (
+        f"SKILL.md must include explicit gitignore remediation. "
+        f"Expected one of {gitignore_phrases!r}.")
+
+
 def test_bug_009_pending_shortcircuit_does_not_prevent_retry_collect(tmp_path, monkeypatch):
     """v1.5.7 172: when collect_harness_run's parallel-collect loop
     encounters a PENDING+pid=None entry, BUG-001's shortcircuit
