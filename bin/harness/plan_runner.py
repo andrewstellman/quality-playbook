@@ -2454,31 +2454,20 @@ def _write_terminal_status(run_dir: Path, pid: "Optional[int]",
     os.replace(tmp, status_path)
 
 
-# v1.5.7 165: collector retry + ABANDONED_STARVED deadline. Builds
-# on 161 Task A (which writes PENDING manifest entries on
-# starvation). Per the 161-A halt ruling, the artifact_map is
-# resolved from ``<harness-run>/artifacts/manifest.json`` on disk
-# (the canonical artifact-bundle manifest that `_build_artifacts`
-# writes at run startup; verified shape via 152's evidence
-# directory).
-_PENDING_DEADLINE_DEFAULT_S = 3600.0
-
-
-def _pending_deadline_s() -> float:
-    """v1.5.7 165: PENDING-deadline threshold (seconds). After this
-    long without a slot, a starved entry becomes
-    ``ABANDONED_STARVED``. Default 3600s; env-tunable via
-    ``QPB_HARNESS_PENDING_DEADLINE_S``."""
-    raw = os.environ.get("QPB_HARNESS_PENDING_DEADLINE_S")
-    if raw is None:
-        return _PENDING_DEADLINE_DEFAULT_S
-    try:
-        v = float(raw)
-    except (TypeError, ValueError):
-        return _PENDING_DEADLINE_DEFAULT_S
-    return v if v > 0 else _PENDING_DEADLINE_DEFAULT_S
-
-
+# v1.5.7 165 + 186: collector retry path. Builds on 161 Task A
+# (which writes PENDING manifest entries on starvation). Per
+# the 161-A halt ruling, the artifact_map is resolved from
+# ``<harness-run>/artifacts/manifest.json`` on disk.
+#
+# 186 FINDING-30: the pre-186 1-hour PENDING auto-kill +
+# its env-var override + the ABANDONED_STARVED write path
+# were ALL REMOVED. The deadline killed legitimate pool=1
+# sequential plans (run 20260602T051446Z: 7 x 45min rows,
+# rows #3-#6 hit the deadline before they could start). The
+# replacement: pending-duration display + collector-health
+# heartbeat (FINDING-31) + force-run UX (FINDING-32 / 33).
+# The slot-free retry behavior remains intact — when a slot
+# frees, the collector still picks up the next-up PENDING.
 def _resolve_artifact_map_from_disk(
         harness_run_dir: Path,
         ) -> "dict[str, dict]":
@@ -3028,24 +3017,22 @@ def _retry_pending_runs_once(
         harness_run_dir: Path,
         log: "Optional[_ProgressLog]" = None,
         ) -> int:
-    """v1.5.7 165 Tasks A+B: ONE pass of the collector's PENDING-
+    """v1.5.7 165 Task A + 186: ONE pass of the collector's PENDING-
     retry loop. For each PENDING entry:
 
-    1. Check the deadline: if ``starved_since`` is older than
-       ``_pending_deadline_s()`` → mark ``ABANDONED_STARVED`` and
-       move on.
-    2. Otherwise try ``_try_acquire_pool_slot``. On True (slot
-       free), call ``_launch_one_run_detached`` and finalize the
-       entry to RUNNING + pid via ``_finalize_pool_slot_running``.
-       On False (still starved), set ``starved_since`` if not
+    1. Try ``_try_acquire_pool_slot``. On True (slot free), call
+       ``_launch_one_run_detached`` and finalize the entry to
+       RUNNING + pid via ``_finalize_pool_slot_running``. On
+       False (still starved), set ``starved_since`` if not
        already set. On launch failure, ``_finalize_pool_slot_failed``
        (don't retry forever on broken artifacts).
 
-    Returns the number of state transitions (spawned + abandoned +
-    failed) in this pass — caller uses it as a "made progress"
-    signal for the multi-pass collector loop. The collector's
-    existing parallel-collect path then handles the newly-RUNNING
-    entries on its next sweep.
+    Returns the number of state transitions (spawned + failed) in
+    this pass — caller uses it as a "made progress" signal for the
+    multi-pass collector loop. The collector's existing parallel-
+    collect path then handles the newly-RUNNING entries on its
+    next sweep. v1.5.7 186 FINDING-30: removed the "abandoned"
+    transition that the deleted deadline path used to emit.
 
     v1.5.7 174: replaced inflight_registry's per-provider cap
     machinery with manifest-based pool tracking under
@@ -3071,7 +3058,6 @@ def _retry_pending_runs_once(
     plan_pools = manifest.get("plan", {}).get("pools", {}) or {}
     artifact_map = _resolve_artifact_map_from_disk(
         harness_run_dir)
-    deadline_s = _pending_deadline_s()
     now = datetime.now(timezone.utc)
     transitions = 0
     for pending in pending_entries:
@@ -3082,34 +3068,14 @@ def _retry_pending_runs_once(
         run_dir = harness_run_dir / Path(
             pending.get("run_dir", "")).name
         target_dir = run_dir / "target"
-        # 165 Task B: deadline check.
-        starved_since = pending.get("starved_since")
-        if starved_since:
-            try:
-                ts = datetime.fromisoformat(
-                    starved_since.replace("Z", "+00:00"))
-            except ValueError:
-                ts = None
-            if (ts is not None
-                    and (now - ts).total_seconds() > deadline_s):
-                _update_manifest_entry_atomic(
-                    manifest_path, pr.index, {
-                        "state": "DONE",
-                        "terminal_state": "ABANDONED_STARVED",
-                        "terminal_reason":
-                            f"PENDING for "
-                            f"{(now - ts).total_seconds():.0f}s "
-                            f"(deadline {deadline_s:.0f}s) — "
-                            f"abandoned",
-                        "ended_at": now.strftime(
-                            "%Y-%m-%dT%H:%M:%SZ"),
-                    })
-                if log is not None:
-                    log.log(
-                        f"abandoned starved run: "
-                        f"run-{pr.index:02d}")
-                transitions += 1
-                continue
+        # v1.5.7 186 FINDING-30: deadline auto-kill REMOVED.
+        # PENDING entries stay PENDING until a slot frees and
+        # this retry path acquires it, OR an operator
+        # explicitly force-runs the row via the TUI 'E'
+        # keybinding (FINDING-32) or the CLI ``force-run``
+        # subcommand (FINDING-33). The pending-duration
+        # display + collector-health heartbeat (FINDING-31)
+        # surface the wait time to the operator.
         # v1.5.7 174: try to acquire a slot via manifest-count.
         started_at_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
         acquired = _try_acquire_pool_slot(

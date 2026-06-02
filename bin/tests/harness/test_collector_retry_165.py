@@ -50,36 +50,12 @@ class AbandonedStarvedEnumTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
-class PendingDeadlineHelperTests(unittest.TestCase):
-
-    def setUp(self) -> None:
-        self._prev = os.environ.get(
-            "QPB_HARNESS_PENDING_DEADLINE_S")
-        os.environ.pop("QPB_HARNESS_PENDING_DEADLINE_S", None)
-
-    def tearDown(self) -> None:
-        if self._prev is None:
-            os.environ.pop(
-                "QPB_HARNESS_PENDING_DEADLINE_S", None)
-        else:
-            os.environ[
-                "QPB_HARNESS_PENDING_DEADLINE_S"] = self._prev
-
-    def test_default_is_3600s(self) -> None:
-        self.assertEqual(PR._pending_deadline_s(), 3600.0)
-
-    def test_env_var_overrides_default(self) -> None:
-        os.environ["QPB_HARNESS_PENDING_DEADLINE_S"] = "10"
-        self.assertEqual(PR._pending_deadline_s(), 10.0)
-
-    def test_non_numeric_falls_back(self) -> None:
-        os.environ[
-            "QPB_HARNESS_PENDING_DEADLINE_S"] = "not-a-number"
-        self.assertEqual(PR._pending_deadline_s(), 3600.0)
-
-    def test_zero_or_negative_falls_back(self) -> None:
-        os.environ["QPB_HARNESS_PENDING_DEADLINE_S"] = "0"
-        self.assertEqual(PR._pending_deadline_s(), 3600.0)
+# v1.5.7 186 FINDING-30: PendingDeadlineHelperTests REMOVED
+# along with the `_pending_deadline_s` function it tested.
+# The 1-hour PENDING deadline auto-killed legitimate
+# sequential pool=1 plans (run 20260602T051446Z fire).
+# Replacement: operator-visible pending duration + collector
+# heartbeat + explicit force-run UX (FINDING-31/32/33).
 
 
 # ---------------------------------------------------------------------------
@@ -235,57 +211,43 @@ class RetryPendingRunsOnceTests(unittest.TestCase):
             self.assertIsNotNone(
                 on_disk["runs"][0].get("starved_since"))
 
-    def test_pending_run_past_deadline_marked_abandoned_starved(
+    def test_186_pending_past_old_deadline_is_NOT_killed(
             self) -> None:
-        # LOAD-BEARING (Task B): a PENDING entry whose
-        # starved_since is older than the deadline becomes
-        # terminal as ABANDONED_STARVED — mutation-bite target.
-        # Set deadline very low + use a past starved_since.
+        # v1.5.7 186 FINDING-30: replaces the pre-186
+        # test_pending_run_past_deadline_marked_abandoned_starved
+        # + test_pending_deadline_env_var_overrides_default.
+        # A PENDING entry whose starved_since is hours in the
+        # past stays PENDING — no auto-kill. The collector's
+        # slot-free retry path still picks it up when a slot
+        # frees; operator force-runs it explicitly via the TUI
+        # or CLI if they don't want to wait.
         with tempfile.TemporaryDirectory() as td:
-            hr = Path(td) / "20260530T134322Z"
-            past = (datetime.now(timezone.utc)
-                    - timedelta(hours=2)).strftime(
-                        "%Y-%m-%dT%H:%M:%SZ")
+            hr = Path(td) / "20260602T134322Z"
+            way_past = (datetime.now(timezone.utc)
+                        - timedelta(hours=5)).strftime(
+                            "%Y-%m-%dT%H:%M:%SZ")
             mp = _write_manifest(hr, [
-                _pending_entry(0, starved_since=past)])
-            # Default deadline = 3600s; 2 hours past is well over.
-            transitions = PR._retry_pending_runs_once(hr)
-            self.assertEqual(transitions, 1)
+                _pending_entry(0, starved_since=way_past)])
+            # Mock the slot-acquire to fail (pool full) so the
+            # only thing that COULD transition the entry is the
+            # old deadline path — and that path is now gone.
+            with mock.patch.object(
+                    PR, "_try_acquire_pool_slot",
+                    return_value=False):
+                transitions = PR._retry_pending_runs_once(hr)
+            self.assertEqual(
+                transitions, 0,
+                "PENDING entry past the pre-186 deadline must "
+                "NOT auto-transition. The 186 FINDING-30 "
+                "removal deleted the auto-kill path.")
             on_disk = json.loads(mp.read_text())
             self.assertEqual(
-                on_disk["runs"][0]["terminal_state"],
-                "ABANDONED_STARVED")
-            self.assertIn(
-                "deadline",
-                on_disk["runs"][0]["terminal_reason"])
-
-    def test_pending_deadline_env_var_overrides_default(
-            self) -> None:
-        # QPB_HARNESS_PENDING_DEADLINE_S=1 + starved_since 5s ago
-        # → past deadline → abandoned.
-        prev = os.environ.get("QPB_HARNESS_PENDING_DEADLINE_S")
-        os.environ["QPB_HARNESS_PENDING_DEADLINE_S"] = "1"
-        try:
-            with tempfile.TemporaryDirectory() as td:
-                hr = Path(td) / "20260530T134322Z"
-                past = (datetime.now(timezone.utc)
-                        - timedelta(seconds=5)).strftime(
-                            "%Y-%m-%dT%H:%M:%SZ")
-                mp = _write_manifest(hr, [
-                    _pending_entry(0, starved_since=past)])
-                transitions = PR._retry_pending_runs_once(hr)
-                self.assertEqual(transitions, 1)
-                on_disk = json.loads(mp.read_text())
-                self.assertEqual(
-                    on_disk["runs"][0]["terminal_state"],
-                    "ABANDONED_STARVED")
-        finally:
-            if prev is None:
-                os.environ.pop(
-                    "QPB_HARNESS_PENDING_DEADLINE_S", None)
-            else:
-                os.environ[
-                    "QPB_HARNESS_PENDING_DEADLINE_S"] = prev
+                on_disk["runs"][0]["state"], "PENDING",
+                "State must stay PENDING (no terminal write).")
+            self.assertNotIn(
+                "terminal_state", on_disk["runs"][0],
+                "No terminal_state may be written by the "
+                "retry path post-186 (FINDING-30).")
 
     def test_pending_run_spawned_when_slot_acquired(self) -> None:
         # LOAD-BEARING (Task A): slot acquired → spawn → manifest
