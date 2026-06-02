@@ -126,5 +126,103 @@ class NoDeadlineDeathTests(unittest.TestCase):
                 "No terminal_state may be written.")
 
 
+class PendingDurationDisplayTests(unittest.TestCase):
+    """v1.5.7 186 FINDING-31a: status / TUI surface
+    ``pending Nh Mm`` for PENDING rows so the operator sees
+    how long a row has waited — replaces the pre-186
+    deadline auto-kill with explicit information."""
+
+    def test_format_pending_duration_renders_hours_minutes(
+            self) -> None:
+        from bin.harness import status as _status
+        from datetime import datetime, timezone, timedelta
+        past = (datetime.now(timezone.utc)
+                - timedelta(hours=4, minutes=12)).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ")
+        rendered = _status._format_pending_duration(past)
+        self.assertEqual(rendered, "pending 4h12m")
+
+    def test_format_pending_duration_renders_minutes_only(
+            self) -> None:
+        from bin.harness import status as _status
+        from datetime import datetime, timezone, timedelta
+        past = (datetime.now(timezone.utc)
+                - timedelta(minutes=45)).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ")
+        rendered = _status._format_pending_duration(past)
+        self.assertEqual(rendered, "pending 45m")
+
+    def test_format_pending_duration_handles_none_and_garbage(
+            self) -> None:
+        from bin.harness import status as _status
+        self.assertEqual(
+            _status._format_pending_duration(None), "")
+        self.assertEqual(
+            _status._format_pending_duration("not iso"), "")
+        # Negative age (clock skew) → empty.
+        self.assertEqual(
+            _status._format_pending_duration("2099-01-01T00:00:00Z"),
+            "")
+
+    def test_run_status_dataclass_carries_pending_duration(
+            self) -> None:
+        # The dataclass must have a `pending_duration` field
+        # with empty-string default (only populated for
+        # PENDING rows).
+        from bin.harness import status as _status
+        import dataclasses
+        rs_fields = {
+            f.name: f for f in
+            dataclasses.fields(_status.RunStatus)}
+        self.assertIn("pending_duration", rs_fields)
+        self.assertEqual(
+            rs_fields["pending_duration"].default, "")
+
+
+class CollectorHeartbeatHealthTests(unittest.TestCase):
+    """v1.5.7 186 FINDING-31b: status surfaces collector +
+    watchdog heartbeat age (`last heartbeat 2s ago (alive)`
+    / `last heartbeat 8h2m ago (DIED?)`) so the operator
+    sees the actual signal the pre-186 ABANDONED_STARVED
+    deadline was implicitly proxying for."""
+
+    def test_format_heartbeat_health_alive(self) -> None:
+        from bin.harness import status as _status
+        out = _status.format_heartbeat_health(2.5)
+        self.assertEqual(out, "last heartbeat 2s ago (alive)")
+
+    def test_format_heartbeat_health_died_long(self) -> None:
+        from bin.harness import status as _status
+        out = _status.format_heartbeat_health(8 * 3600 + 120)
+        self.assertEqual(
+            out, "last heartbeat 8h02m ago (DIED?)")
+
+    def test_format_heartbeat_health_died_minutes(
+            self) -> None:
+        from bin.harness import status as _status
+        # 5 minutes (300s) > 60s window → DIED.
+        out = _status.format_heartbeat_health(300)
+        self.assertEqual(out, "last heartbeat 5m ago (DIED?)")
+
+    def test_format_heartbeat_health_not_started(
+            self) -> None:
+        from bin.harness import status as _status
+        self.assertEqual(
+            _status.format_heartbeat_health(None),
+            "not started")
+
+    def test_harness_run_summary_carries_heartbeat_ages(
+            self) -> None:
+        # The dataclass gained two optional Float fields for
+        # collector + watchdog heartbeat age in seconds.
+        from bin.harness import status as _status
+        import dataclasses
+        s_fields = {
+            f.name: f for f in
+            dataclasses.fields(_status.HarnessRunSummary)}
+        self.assertIn("collector_heartbeat_age_s", s_fields)
+        self.assertIn("watchdog_heartbeat_age_s", s_fields)
+
+
 if __name__ == "__main__":
     unittest.main()

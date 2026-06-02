@@ -120,6 +120,18 @@ class HarnessRunSummary:
     # v1.5.7 117 — list-view progress + liveness.
     progress: str = "—"
     last_activity_iso: str = "—"
+    # v1.5.7 186 FINDING-31b — collector + watchdog heartbeat
+    # ages (in seconds). The pre-186
+    # ``collector_alive`` / ``watchdog_alive`` booleans say
+    # "live or not"; the heartbeat ages let the renderer say
+    # exactly HOW LONG ago the heartbeat was. None when the
+    # log file is missing (the daemon never wrote to it).
+    # Renderer formats as ``last heartbeat 2s ago (alive)``
+    # or ``last heartbeat 8h2m ago (DIED?)`` — replaces the
+    # pre-186 ABANDONED_STARVED deadline by giving the
+    # operator the actual signal directly.
+    collector_heartbeat_age_s: "Optional[float]" = None
+    watchdog_heartbeat_age_s: "Optional[float]" = None
     # v1.5.7 172 — watchdog daemon liveness. Same age-based rule
     # as collector_alive: recent watchdog.log mtime ⇒ alive.
     watchdog_alive: bool = False
@@ -175,6 +187,17 @@ class RunStatus:
     """status.json's ``heartbeat`` (ISO8601 UTC) — the last
     write by the per-run worker. Useful for diagnosing stuck
     Mode B runs whose pid is alive but quiet between phases."""
+    # v1.5.7 186 FINDING-31a — pending duration display.
+    pending_duration: str = ""
+    """Human-readable pending wait time (``"pending 4h12m"``)
+    for entries where ``state == "PENDING"``. Computed as
+    ``now - starved_since`` and formatted via
+    ``_format_pending_duration``. Empty string for non-PENDING
+    rows. Replaces the pre-186 deadline auto-kill — operators
+    now see how long a row has waited and decide whether to
+    force-run (via the TUI 'E' keybinding or
+    ``qpb_harness force-run`` CLI subcommand) instead of the
+    harness silently killing the row."""
 
 
 # ---------------------------------------------------------------------------
@@ -796,6 +819,15 @@ def _synthesize_run_status_from_dir(
     # detail if needed for a synthesized row).
     result = "(running)" if state == "RUNNING" else "N/A"
 
+    # v1.5.7 186 FINDING-31a: pending-duration string from
+    # manifest entry's starved_since (set by the launch-time
+    # pool-starvation path or by the collector retry path).
+    # Empty string for non-PENDING rows or when starved_since
+    # is missing.
+    pending_duration = ""
+    if state == "PENDING" and manifest_entry:
+        pending_duration = _format_pending_duration(
+            manifest_entry.get("starved_since"))
     return RunStatus(
         index=index,
         # 160 D-prime: manifest entry's description (if present)
@@ -820,6 +852,7 @@ def _synthesize_run_status_from_dir(
         terminal_state=terminal_state_field,
         ended_at=ended_at_field,
         heartbeat=heartbeat_field,
+        pending_duration=pending_duration,
     )
 
 
@@ -1201,6 +1234,11 @@ def _read_one_run_status(entry: dict,
             return str(p)
         return ""
 
+    # v1.5.7 186 FINDING-31a: pending-duration string.
+    pending_duration = ""
+    if state == "PENDING":
+        pending_duration = _format_pending_duration(
+            entry.get("starved_since"))
     return RunStatus(
         index=entry_index,
         description=_resolve("description"),
@@ -1222,6 +1260,7 @@ def _read_one_run_status(entry: dict,
         terminal_state=terminal_state_field,
         ended_at=ended_at_field,
         heartbeat=heartbeat_field,
+        pending_duration=pending_duration,
     )
 
 
@@ -1276,28 +1315,38 @@ def _summarize_harness_run(harness_run_dir: Path) -> HarnessRunSummary:
             counts["pending"] += 1
     # Collector liveness: the collector polls every ~0.25s and
     # writes to collector.log; recent mtime ⇒ alive.
+    # v1.5.7 186 FINDING-31b: capture the heartbeat AGE (not
+    # just alive/dead) so the renderer can show
+    # ``last heartbeat 2s ago (alive)`` vs
+    # ``last heartbeat 8h2m ago (DIED?)``.
     collector_alive = False
+    collector_heartbeat_age_s: "Optional[float]" = None
     collector_log = harness_run_dir / "collector.log"
     if collector_log.is_file():
         try:
             mtime = collector_log.stat().st_mtime
             age = datetime.now(timezone.utc).timestamp() - mtime
+            collector_heartbeat_age_s = max(0.0, age)
             collector_alive = age < _COLLECTOR_LIVENESS_WINDOW_S
         except OSError:
             collector_alive = False
+            collector_heartbeat_age_s = None
     # v1.5.7 172: watchdog liveness. Same age-based rule against
     # watchdog.log mtime (the watchdog writes at least every
     # interval, default 60s; plus a status line every 5 ticks
     # when no orphans are found).
     watchdog_alive = False
+    watchdog_heartbeat_age_s: "Optional[float]" = None
     watchdog_log = harness_run_dir / "watchdog.log"
     if watchdog_log.is_file():
         try:
             mtime = watchdog_log.stat().st_mtime
             age = datetime.now(timezone.utc).timestamp() - mtime
+            watchdog_heartbeat_age_s = max(0.0, age)
             watchdog_alive = age < _COLLECTOR_LIVENESS_WINDOW_S
         except OSError:
             watchdog_alive = False
+            watchdog_heartbeat_age_s = None
     started_at = "—"
     try:
         started_at = datetime.fromtimestamp(
@@ -1348,6 +1397,8 @@ def _summarize_harness_run(harness_run_dir: Path) -> HarnessRunSummary:
         progress=progress,
         last_activity_iso=newest_activity_iso,
         watchdog_alive=watchdog_alive,
+        collector_heartbeat_age_s=collector_heartbeat_age_s,
+        watchdog_heartbeat_age_s=watchdog_heartbeat_age_s,
     )
 
 
@@ -1504,6 +1555,63 @@ def _format_elapsed(seconds: "Optional[int]") -> str:
     return f"{seconds // 3600}h{(seconds % 3600) // 60:02d}m"
 
 
+def format_heartbeat_health(
+        age_s: "Optional[float]") -> str:
+    """v1.5.7 186 FINDING-31b: render a daemon's heartbeat
+    state. Format: ``last heartbeat 2s ago (alive)`` when
+    inside the liveness window; ``last heartbeat 8h2m ago
+    (DIED?)`` when stale. ``not started`` when the daemon's
+    log file is missing entirely. Replaces the implicit
+    pre-186 signal of ``ABANDONED_STARVED`` runs piling up
+    in the manifest — operator now sees the actual cause."""
+    if age_s is None:
+        return "not started"
+    if age_s < 60:
+        age_label = f"{int(age_s)}s"
+    elif age_s < 3600:
+        age_label = f"{int(age_s // 60)}m"
+    else:
+        hours = int(age_s // 3600)
+        mins = int((age_s % 3600) // 60)
+        age_label = f"{hours}h{mins:02d}m"
+    state = ("alive" if age_s < _COLLECTOR_LIVENESS_WINDOW_S
+             else "DIED?")
+    return f"last heartbeat {age_label} ago ({state})"
+
+
+def _format_pending_duration(
+        starved_since_iso: "Optional[str]") -> str:
+    """v1.5.7 186 FINDING-31a: render a PENDING row's wait
+    time. Format: ``pending Nh Mm`` (e.g. ``pending 4h12m``)
+    when ≥1 hour; ``pending Mm`` (e.g. ``pending 45m``) when
+    under an hour; ``pending Ns`` when under a minute. Empty
+    string when ``starved_since`` is missing / unparseable —
+    the renderer just shows the bare ``PENDING`` state.
+
+    Replaces the pre-186 deadline auto-kill: the operator now
+    sees how long a row has waited and decides whether to
+    force-run it (TUI ``E`` keybinding or
+    ``qpb_harness force-run`` CLI). Pure information; no
+    action implied."""
+    if not starved_since_iso:
+        return ""
+    try:
+        ts = datetime.strptime(
+            starved_since_iso, "%Y-%m-%dT%H:%M:%SZ"
+        ).replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return ""
+    age = int(
+        (datetime.now(timezone.utc) - ts).total_seconds())
+    if age < 0:
+        return ""
+    if age < 60:
+        return f"pending {age}s"
+    if age < 3600:
+        return f"pending {age // 60}m"
+    return f"pending {age // 3600}h{(age % 3600) // 60:02d}m"
+
+
 def format_run_status(rs: RunStatus) -> str:
     """Render one RunStatus row for the drill-down table.
 
@@ -1524,10 +1632,16 @@ def format_run_status(rs: RunStatus) -> str:
         if rs.current_phase != "—" else "—"
     )
     terminal_part = rs.terminal_state if rs.terminal_state else "—"
+    # v1.5.7 186 FINDING-31a: surface pending-duration after the
+    # state column for PENDING rows. Empty string elsewhere
+    # keeps the format intact for non-PENDING rows.
+    pending_suffix = (
+        f"  {rs.pending_duration}" if rs.pending_duration
+        else "")
     return (
         f"#{rs.index:<2} {repo_tail:18} "
         f"{rs.runner}/{rs.model:14} "
-        f"{rs.state:14} {phase_part:34} "
+        f"{rs.state:14}{pending_suffix} {phase_part:34} "
         f"result={rs.result:10} pid={pid_part} "
         f"elapsed={_format_elapsed(rs.elapsed_s):>7} "
         f"last={rs.last_activity_iso} "
