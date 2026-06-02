@@ -224,5 +224,195 @@ class CollectorHeartbeatHealthTests(unittest.TestCase):
         self.assertIn("watchdog_heartbeat_age_s", s_fields)
 
 
+class ForceRunHelperTests(unittest.TestCase):
+    """v1.5.7 186 FINDING-33: force_launch_pending_run +
+    force_launch_all_pending_in_dir helpers launch PENDING
+    rows OUT OF POOL (bypassing _try_acquire_pool_slot)."""
+
+    def test_force_run_helper_exists(self) -> None:
+        from bin.harness import plan_runner
+        self.assertTrue(hasattr(
+            plan_runner, "force_launch_pending_run"))
+        self.assertTrue(hasattr(
+            plan_runner, "force_launch_all_pending_in_dir"))
+        self.assertTrue(hasattr(plan_runner, "ForceRunError"))
+
+    def test_force_run_raises_on_missing_manifest(
+            self) -> None:
+        from bin.harness import plan_runner
+        import tempfile
+        with tempfile.TemporaryDirectory() as td:
+            hr = pathlib.Path(td) / "20260602T000000Z"
+            hr.mkdir()
+            with self.assertRaises(plan_runner.ForceRunError):
+                plan_runner.force_launch_pending_run(hr, 0)
+
+    def test_force_run_raises_on_unknown_index(self) -> None:
+        from bin.harness import plan_runner
+        import tempfile, json
+        with tempfile.TemporaryDirectory() as td:
+            hr = pathlib.Path(td) / "20260602T000000Z"
+            hr.mkdir()
+            (hr / "manifest.json").write_text(json.dumps({
+                "harness_run_dir": str(hr),
+                "runs": [{"index": 0, "state": "PENDING"}],
+            }) + "\n", encoding="utf-8")
+            with self.assertRaises(plan_runner.ForceRunError):
+                plan_runner.force_launch_pending_run(hr, 999)
+
+    def test_force_run_raises_on_non_pending_entry(
+            self) -> None:
+        from bin.harness import plan_runner
+        import tempfile, json
+        with tempfile.TemporaryDirectory() as td:
+            hr = pathlib.Path(td) / "20260602T000000Z"
+            hr.mkdir()
+            (hr / "manifest.json").write_text(json.dumps({
+                "harness_run_dir": str(hr),
+                "runs": [{
+                    "index": 0,
+                    "state": "RUNNING",
+                    "pid": 12345,
+                }],
+            }) + "\n", encoding="utf-8")
+            with self.assertRaises(
+                    plan_runner.ForceRunError) as ctx:
+                plan_runner.force_launch_pending_run(hr, 0)
+            self.assertIn("not PENDING", str(ctx.exception))
+
+    def test_force_run_bypasses_pool_acquire(self) -> None:
+        # Functional: synthesize a PENDING entry with pool=1
+        # AND a RUNNING entry already consuming the slot.
+        # force_launch_pending_run should launch the PENDING
+        # without calling _try_acquire_pool_slot.
+        from bin.harness import plan_runner
+        from unittest import mock
+        import tempfile, json
+        with tempfile.TemporaryDirectory() as td:
+            hr = pathlib.Path(td) / "20260602T000000Z"
+            hr.mkdir()
+            (hr / "run-00").mkdir()
+            (hr / "run-01").mkdir()
+            (hr / "manifest.json").write_text(json.dumps({
+                "harness_run_dir": str(hr),
+                "plan": {"pools": {"claude": 1}},
+                "runs": [
+                    {"index": 0, "state": "RUNNING",
+                     "pid": 7777, "runner": "claude",
+                     "model": "opus",
+                     "repo": "https://github.com/x/y0",
+                     "run_dir": str(hr / "run-00")},
+                    {"index": 1, "state": "PENDING",
+                     "pid": None, "runner": "claude",
+                     "model": "opus",
+                     "mode": "A", "channel": "pip-local-wheel",
+                     "repo": "https://github.com/x/y1",
+                     "ref": "HEAD",
+                     "description": "force-run target",
+                     "run_dir": str(hr / "run-01")},
+                ],
+            }) + "\n", encoding="utf-8")
+            # Mock the spawn helper so we don't actually spawn.
+            mock_spawn_result = {
+                "index": 1, "pid": 9999,
+                "runner": "claude", "model": "opus",
+                "repo": "https://github.com/x/y1",
+                "channel": "pip-local-wheel",
+                "mode": "A", "run_dir": str(hr / "run-01"),
+            }
+            with mock.patch.object(
+                    plan_runner, "_launch_one_run_detached",
+                    return_value=mock_spawn_result) as m_spawn, \
+                 mock.patch.object(
+                    plan_runner, "_try_acquire_pool_slot"
+                 ) as m_acquire:
+                result = plan_runner.force_launch_pending_run(
+                    hr, 1)
+            # CRITICAL: _try_acquire_pool_slot must NOT have
+            # been called — that's the whole point of force-run.
+            m_acquire.assert_not_called()
+            m_spawn.assert_called_once()
+            self.assertEqual(result["index"], 1)
+            self.assertEqual(result["pid"], 9999)
+            # Manifest should now show the entry as RUNNING.
+            on_disk = json.loads(
+                (hr / "manifest.json").read_text())
+            entry = next(
+                e for e in on_disk["runs"]
+                if e["index"] == 1)
+            self.assertEqual(entry["state"], "RUNNING")
+            # Live count after = 2 (the pre-existing RUNNING
+            # + the force-launched one).
+            self.assertEqual(result["live_count_after"], 2)
+
+    def test_force_run_all_pending_ignores_non_pending(
+            self) -> None:
+        # Mixed manifest: 1 RUNNING + 2 PENDING + 1 DONE.
+        # force_launch_all should launch ONLY the 2 PENDING.
+        from bin.harness import plan_runner
+        from unittest import mock
+        import tempfile, json
+        with tempfile.TemporaryDirectory() as td:
+            hr = pathlib.Path(td) / "20260602T000000Z"
+            hr.mkdir()
+            for i in range(4):
+                (hr / f"run-{i:02d}").mkdir()
+            (hr / "manifest.json").write_text(json.dumps({
+                "harness_run_dir": str(hr),
+                "plan": {"pools": {"claude": 1}},
+                "runs": [
+                    {"index": 0, "state": "RUNNING",
+                     "pid": 1, "runner": "claude",
+                     "model": "opus",
+                     "repo": "https://github.com/x/y0",
+                     "run_dir": str(hr / "run-00")},
+                    {"index": 1, "state": "PENDING",
+                     "pid": None, "runner": "claude",
+                     "model": "opus", "mode": "A",
+                     "channel": "pip-local-wheel",
+                     "repo": "https://github.com/x/y1",
+                     "ref": "HEAD",
+                     "description": "row1",
+                     "run_dir": str(hr / "run-01")},
+                    {"index": 2, "state": "PENDING",
+                     "pid": None, "runner": "claude",
+                     "model": "opus", "mode": "A",
+                     "channel": "pip-local-wheel",
+                     "repo": "https://github.com/x/y2",
+                     "ref": "HEAD",
+                     "description": "row2",
+                     "run_dir": str(hr / "run-02")},
+                    {"index": 3, "state": "DONE",
+                     "terminal_state": "COMPLETED",
+                     "runner": "claude", "model": "opus",
+                     "repo": "https://github.com/x/y3",
+                     "run_dir": str(hr / "run-03")},
+                ],
+            }) + "\n", encoding="utf-8")
+            call_count = [0]
+            def _spawn_mock(pr, *a, **kw):
+                call_count[0] += 1
+                return {
+                    "index": pr.index, "pid": 9000 + pr.index,
+                    "runner": "claude", "model": "opus",
+                    "repo": f"https://github.com/x/y{pr.index}",
+                    "channel": "pip-local-wheel",
+                    "mode": "A",
+                    "run_dir": str(hr / f"run-{pr.index:02d}"),
+                }
+            with mock.patch.object(
+                    plan_runner, "_launch_one_run_detached",
+                    side_effect=_spawn_mock):
+                results = (
+                    plan_runner.force_launch_all_pending_in_dir(
+                        hr))
+            # Only the 2 PENDING rows attempted.
+            self.assertEqual(call_count[0], 2)
+            self.assertEqual(len(results), 2)
+            self.assertEqual(
+                {r["index"] for r in results},
+                {1, 2})
+
+
 if __name__ == "__main__":
     unittest.main()

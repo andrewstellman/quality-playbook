@@ -1184,6 +1184,125 @@ def _cmd_kill(args: argparse.Namespace) -> int:
     return rc
 
 
+def _cmd_force_run(args: argparse.Namespace) -> int:
+    """v1.5.7 186 FINDING-33: force-launch one or many
+    PENDING runs OUT OF POOL.
+
+    Single-row form: ``path`` is a ``run-NN`` directory under
+    a harness-run. Launches that single row, bypassing the
+    pool acquire. No confirmation prompt by default (the
+    operator typed ``force-run`` explicitly); ``--confirm``
+    adds the prompt.
+
+    Whole-dir form: ``path`` is a harness-run directory.
+    Prints the count of PENDING rows + live runner counts,
+    prompts ``y/N`` once, then launches all PENDING rows in
+    parallel.
+    """
+    from bin.harness import plan_runner as _pr
+    from bin.harness import status as _status_mod
+    raw_path = Path(args.path).expanduser().resolve()
+    if not raw_path.exists():
+        print(f"ERROR: path {raw_path} not found",
+              file=sys.stderr)
+        return 2
+    # Classify path: single run-NN OR whole harness-run dir.
+    if raw_path.is_dir() and raw_path.name.startswith("run-"):
+        # Single-row form. The harness-run dir is the parent.
+        harness_run_dir = raw_path.parent
+        try:
+            run_index = int(raw_path.name.split("-")[1])
+        except (IndexError, ValueError):
+            print(
+                f"ERROR: cannot parse run-index from "
+                f"{raw_path.name!r}",
+                file=sys.stderr)
+            return 2
+        if getattr(args, "confirm", False):
+            try:
+                resp = input(
+                    f"Force-run {raw_path.name} out of pool? "
+                    f"[y/N]: ").strip().lower()
+            except EOFError:
+                resp = ""
+            if resp != "y":
+                print("aborted")
+                return 0
+        try:
+            result = _pr.force_launch_pending_run(
+                harness_run_dir, run_index)
+        except _pr.ForceRunError as exc:
+            print(f"ERROR: {exc}", file=sys.stderr)
+            return 1
+        print(
+            f"Force-launched run-{run_index:02d} "
+            f"({result['runner']}/{result['model']}); "
+            f"pid={result['pid']}; live {result['runner']} "
+            f"count now {result['live_count_after']}")
+        return 0
+    # Whole-dir form.
+    harness_run_dir = raw_path
+    manifest_path = harness_run_dir / "manifest.json"
+    if not manifest_path.is_file():
+        print(
+            f"ERROR: {harness_run_dir} has no manifest.json — "
+            f"not a harness-run directory",
+            file=sys.stderr)
+        return 2
+    try:
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        print(f"ERROR: cannot read manifest: {exc!r}",
+              file=sys.stderr)
+        return 2
+    pending = [
+        e for e in manifest.get("runs", [])
+        if e.get("state") == "PENDING"
+    ]
+    if not pending:
+        print(
+            f"No PENDING rows in "
+            f"{harness_run_dir.name}; nothing to force-run.")
+        return 0
+    # Per-runner live count snapshot.
+    live_per_runner: "dict[str, int]" = {}
+    for e in manifest.get("runs", []):
+        if e.get("state") in ("RUNNING", "ACQUIRING"):
+            r = e.get("runner")
+            if isinstance(r, str):
+                live_per_runner[r] = (
+                    live_per_runner.get(r, 0) + 1)
+    print(
+        f"Force-run all {len(pending)} PENDING rows in "
+        f"{harness_run_dir.name}?")
+    print(
+        f"  Live per runner: "
+        f"{dict(sorted(live_per_runner.items())) or '(none)'}")
+    try:
+        resp = input("Confirm [y/N]: ").strip().lower()
+    except EOFError:
+        resp = ""
+    if resp != "y":
+        print("aborted")
+        return 0
+    results = _pr.force_launch_all_pending_in_dir(
+        harness_run_dir)
+    succeeded = [r for r in results if "error" not in r]
+    failed = [r for r in results if "error" in r]
+    print(
+        f"Launched {len(succeeded)}/{len(results)} PENDING "
+        f"rows; failed {len(failed)}.")
+    for r in succeeded:
+        print(
+            f"  OK run-{r['index']:02d} "
+            f"({r['runner']}/{r['model']}); pid={r['pid']}")
+    for r in failed:
+        print(
+            f"  FAIL run-{r['index']:02d}: {r['error']}")
+    return 0 if not failed else 1
+
+
 def _cmd_tui_dump(path: Path, kind, *,
                     max_lines: int = 2000,
                     rendered: bool = True) -> int:
@@ -1514,6 +1633,30 @@ def _build_parser() -> argparse.ArgumentParser:
               "force-kill)."),
     )
 
+    # v1.5.7 186 FINDING-33: force-run subcommand.
+    p_force_run = sub.add_parser(
+        "force-run",
+        help=("v1.5.7 186: launch a PENDING run OUT OF POOL "
+              "(bypasses _try_acquire_pool_slot). Single-row "
+              "form: pass a run-NN dir. Whole-dir form: pass "
+              "a harness-run dir; all PENDING rows under it "
+              "launch in parallel after a single confirmation "
+              "prompt."),
+    )
+    p_force_run.add_argument(
+        "path",
+        help=("run-NN dir → force-launch that single PENDING "
+              "row, no prompt. harness-run dir → force-launch "
+              "all PENDING rows after a single y/N prompt."),
+    )
+    p_force_run.add_argument(
+        "--confirm", action="store_true",
+        help=("Single-row form: add a confirmation prompt "
+              "(default is no prompt — the operator typed "
+              "force-run explicitly). Ignored for the whole-"
+              "dir form which always prompts."),
+    )
+
     # Phase 4 subcommands.
     p_mgr = sub.add_parser(
         "manager",
@@ -1675,6 +1818,8 @@ def main(argv: "list[str] | None" = None) -> int:
         return _cmd_tail(args)
     if args.command == "kill":
         return _cmd_kill(args)
+    if args.command == "force-run":
+        return _cmd_force_run(args)
     if args.command == "manager":
         return _cmd_manager(args)
     if args.command == "tui":

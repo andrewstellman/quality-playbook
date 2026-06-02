@@ -3147,6 +3147,175 @@ def _retry_pending_runs_once(
     return transitions
 
 
+class ForceRunError(RuntimeError):
+    """v1.5.7 186 FINDING-33: raised when force-run can't
+    satisfy its preconditions — manifest missing, run_index
+    not in manifest, or the entry is not in PENDING state.
+    Carries a human-readable message for the CLI / TUI to
+    surface."""
+
+
+def force_launch_pending_run(
+        harness_run_dir: Path,
+        run_index: int,
+        log: "Optional[_ProgressLog]" = None,
+) -> dict:
+    """v1.5.7 186 FINDING-33: launch ONE PENDING entry OUT
+    OF POOL — bypasses ``_try_acquire_pool_slot``. The
+    operator typed ``force-run`` (or confirmed the TUI 'E'
+    modal) explicitly; the pool cap is what they're
+    deliberately overriding.
+
+    Sets state directly to ``ACQUIRING`` via the unlocked
+    update helper, calls ``_launch_one_run_detached``, and
+    finalizes via ``_finalize_pool_slot_running`` on
+    success or ``_finalize_pool_slot_failed`` on raise.
+
+    Returns a dict with ``{"index": N, "pid": M, "live_count_after": K}``
+    on success (where K is the post-launch RUNNING+ACQUIRING
+    count for this runner — operator sees how far they've
+    exceeded the pool). Raises ``ForceRunError`` with a
+    human-readable reason when preconditions fail."""
+    manifest_path = harness_run_dir / "manifest.json"
+    if not manifest_path.is_file():
+        raise ForceRunError(
+            f"manifest.json missing under {harness_run_dir}")
+    try:
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ForceRunError(
+            f"manifest.json unreadable: {exc!r}")
+    entry: "Optional[dict]" = None
+    for e in manifest.get("runs", []):
+        if e.get("index") == run_index:
+            entry = e
+            break
+    if entry is None:
+        raise ForceRunError(
+            f"no manifest entry with index={run_index}")
+    if entry.get("state") != "PENDING":
+        raise ForceRunError(
+            f"run-{run_index:02d} is in state="
+            f"{entry.get('state')!r}, not PENDING — "
+            f"force-run only applies to PENDING rows")
+    pr = _entry_to_plan_run(entry)
+    run_dir = harness_run_dir / Path(
+        entry.get("run_dir", "")).name
+    target_dir = run_dir / "target"
+    artifact_map = _resolve_artifact_map_from_disk(
+        harness_run_dir)
+    now_iso = datetime.now(timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ")
+    # Directly mark ACQUIRING — bypass pool check entirely.
+    _update_manifest_entry_atomic(
+        manifest_path, run_index, {
+            "state": "ACQUIRING",
+            "started_at": now_iso,
+        })
+    if log is not None:
+        log.log(
+            f"force-launch: run-{run_index:02d} "
+            f"({pr.runner.value}/{pr.model}) bypassing "
+            f"pool acquire")
+    try:
+        spawned = _launch_one_run_detached(
+            pr, harness_run_dir, run_dir, target_dir,
+            artifact_map=artifact_map,
+            local_artifact_info=artifact_map.get(
+                pr.channel.value),
+            log=log,
+            tag=None,
+        )
+    except BaseException as exc:
+        _finalize_pool_slot_failed(
+            manifest_path, run_index,
+            f"force-launch failed: {exc!r}")
+        raise
+    if spawned is None:
+        raise ForceRunError(
+            "_launch_one_run_detached returned None")
+    pid_val = spawned.get("pid")
+    rel_entry = _relativize_manifest_entry(
+        spawned, harness_run_dir)
+    extra = {
+        k: v for k, v in rel_entry.items()
+        if k not in (
+            "index", "state", "pid", "started_at")
+    }
+    if pid_val is not None:
+        _finalize_pool_slot_running(
+            manifest_path, run_index, int(pid_val),
+            extra=extra)
+    else:
+        extra["terminal_state"] = (
+            rel_entry.get("terminal_state")
+            or "ABORTED_PREP")
+        extra["state"] = "DONE"
+        _update_manifest_entry_atomic(
+            manifest_path, run_index, extra)
+    # Re-read manifest to compute the post-launch live count
+    # for the operator. Best-effort; the launch already
+    # succeeded.
+    try:
+        post_manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"))
+        live_count = _runner_in_flight_count(
+            post_manifest, pr.runner.value)
+    except (OSError, ValueError):
+        live_count = -1
+    return {
+        "index": run_index,
+        "pid": pid_val,
+        "runner": pr.runner.value,
+        "model": pr.model,
+        "live_count_after": live_count,
+    }
+
+
+def force_launch_all_pending_in_dir(
+        harness_run_dir: Path,
+        log: "Optional[_ProgressLog]" = None,
+) -> "list[dict]":
+    """v1.5.7 186 FINDING-33: force-launch EVERY PENDING
+    entry in the manifest. Iterates the manifest's PENDING
+    rows, calls ``force_launch_pending_run`` for each.
+    Returns a list of result dicts (one per attempted
+    launch); a launch that raises ``ForceRunError`` /
+    ``Exception`` is recorded with ``{"index": N, "error":
+    "<msg>"}`` so the CLI / TUI can surface partial-success
+    outcomes."""
+    manifest_path = harness_run_dir / "manifest.json"
+    if not manifest_path.is_file():
+        raise ForceRunError(
+            f"manifest.json missing under {harness_run_dir}")
+    try:
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ForceRunError(
+            f"manifest.json unreadable: {exc!r}")
+    pending_indices = [
+        e.get("index")
+        for e in manifest.get("runs", [])
+        if e.get("state") == "PENDING"
+        and isinstance(e.get("index"), int)
+    ]
+    results: "list[dict]" = []
+    for idx in pending_indices:
+        try:
+            results.append(
+                force_launch_pending_run(
+                    harness_run_dir, idx, log=log))
+        except ForceRunError as exc:
+            results.append({"index": idx,
+                            "error": str(exc)})
+        except Exception as exc:
+            results.append({"index": idx,
+                            "error": repr(exc)})
+    return results
+
+
 def collect_harness_run(harness_run_dir: Path,
                           log: "Optional[_ProgressLog]" = None,
                           ) -> "list[RunOutcome]":
