@@ -65,14 +65,14 @@ permit a read for it to proceed:
    `[REDACTED].has("fs.read", url)` is consulted *after*
    resolving the path with `fs.[REDACTED](path.resolve(url))`. If Node
    denies access, the read fails with `Permission denied` regardless of
-   what `allowFsRead` says.
+   what `[REDACTED]` says.
 2. **`[REDACTED]` allow-list (fallback).** A per-document
-   property (`doc.allowFsRead = [...]`) listing exact paths or glob-style
+   property (`doc.[REDACTED] = [...]`) listing exact paths or glob-style
    prefixes ending in `*`. Entries are resolved with `path.resolve` and
    the **realpath-resolved request URL** must equal one or be prefixed by
    one. The README explicitly labels this the "not recommended" path.
 
-If neither `[REDACTED]` nor `allowFsRead` is configured, the
+If neither `[REDACTED]` nor `[REDACTED]` is configured, the
 library throws an error rather than silently falling back to unrestricted
 filesystem access:
 
@@ -98,7 +98,7 @@ And for the fallback:
 ```js
 import { jsPDF } from "jspdf";
 const doc = new jsPDF();
-doc.allowFsRead = ["./fonts/*", "./images/logo.png"];
+doc.[REDACTED] = ["./fonts/*", "./images/logo.png"];
 ```
 
 The README also notes: when using `--allow-fs-read`, **all** imported JS
@@ -114,7 +114,7 @@ the recommended posture.
   `MODULE_FORMAT == 'cjs'` branches. Browser-only code paths (XHR) do
   not need filesystem allow-listing.
 - **INV-MODEL-2 (secure-by-default):** With neither `[REDACTED]`
-  nor `this.allowFsRead` set, `nodeReadFile` MUST throw before any `fs`
+  nor `this.[REDACTED]` set, `nodeReadFile` MUST throw before any `fs`
   syscall. A code path that reaches `fs.readFileSync` without one of
   those two gates being checked is the [REDACTED] regression.
 - **INV-MODEL-3 (defense-in-depth ordering):** Node's `[REDACTED]`
@@ -122,7 +122,7 @@ the recommended posture.
   symlinks. Calling permission checks against the unresolved input would
   permit `/etc/passwd` via a `./mylink → /etc/passwd` symlink. The order
   in the fixed code is: throw-if-no-gate → realpath → [REDACTED]
-  check → allowFsRead check → fs read.
+  check → [REDACTED] check → fs read.
 - **INV-MODEL-4 (don't trust the caller):** The README's general advice
   "sanitize user input before passing it to jsPDF" is necessary but not
   sufficient for the Node build. The library itself must enforce the

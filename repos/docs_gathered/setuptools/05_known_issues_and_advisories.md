@@ -45,7 +45,7 @@ expect to find a path-traversal-flavored bug in the same file.
 | CVSS v4 | 7.7 High (`AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:H/VA:N/SC:N/SI:N/SA:N`) |
 | GHSA severity | Moderate (note: GHSA scored moderate, NVD/CVSS scored high) |
 | EPSS | 0.18% (39th percentile, as of last refresh) |
-| CWE | CWE-22 — Improper Limitation of a Pathname to a Restricted Directory ('[REDACTED]') |
+| CWE | [REDACTED] — Improper Limitation of a Pathname to a Restricted Directory ('[REDACTED]') |
 | Reporter | SCH227 (via Huntr) |
 | Published | May 17, 2025 by jaraco |
 | Last updated | Jun 13, 2025 |
@@ -127,7 +127,7 @@ For QPB to pass on this target, it should:
 | Affected | setuptools < 70.0.0 |
 | Patched in | 70.0.0 |
 | CVSS v4 | 7.5 High |
-| CWE | CWE-94 (Code Injection) |
+| CWE | [REDACTED] (Code Injection) |
 | Fix commit | `88807c7062788254f654ea8c03427adc859321f0` |
 | Fix PR | pypa/setuptools#4332 |
 
@@ -156,7 +156,7 @@ re-examination.
 | Affected | setuptools < 65.5.1 |
 | Patched in | 65.5.1 |
 | CVSS v4 | 8.7 High |
-| CWE | CWE-1333 (Inefficient Regular Expression Complexity) |
+| CWE | [REDACTED] (Inefficient Regular Expression Complexity) |
 | Fix commit | `43a9c9bfa6aa626ec2a22540bea28d2ca77964be` |
 
 ### Why it matters to this audit

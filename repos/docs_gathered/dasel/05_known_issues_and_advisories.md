@@ -23,7 +23,7 @@
 - **CVE**: [REDACTED]
 - **Published**: 2026-03-19 (GitHub-reviewed); NVD published 2026-03-24
 - **Severity**: Medium / CVSS 3.1 = 6.2 (`AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H`)
-- **CWE**: CWE-674 (Uncontrolled Recursion)
+- **CWE**: [REDACTED] (Uncontrolled Recursion)
 - **Reporter**: kq5y (https://github.com/kq5y)
 - **Affected**: `github.com/tomwright/dasel/v3` from v3.0.0 up to but not including v3.3.2
 - **Fixed in**: **v3.3.2** (released 2026-03-18, [REDACTED] "Fix yaml [REDACTED]")

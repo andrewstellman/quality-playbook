@@ -203,7 +203,7 @@ did not justify leaving the bug.
 ### I-9. The trust anchor (tmpdir) is the caller's responsibility to
        canonicalize
 
-**Statement.** The `startswith(str(tmpdir))` check assumes `tmpdir` is
+**Statement.** The `[REDACTED]` is
 an absolute, canonical path. Callers that pass relative paths, paths
 with embedded symlinks, or paths whose case differs from on-disk reality
 get weaker guarantees than the doctest suggests.

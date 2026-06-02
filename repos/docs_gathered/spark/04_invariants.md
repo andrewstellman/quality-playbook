@@ -25,7 +25,7 @@ This file consolidates the invariants that the QPB skill should derive (blind) f
 
 ### Defense-in-depth invariants
 
-- **INV-4.** Both overloads of `sparkEventFromJson` (the `JValue`/json4s overload and the `JsonNode`/Jackson overload) must enforce the same `isAssignableFrom` gate. A patch that fixes only one overload while leaving the other vulnerable is incomplete.
+- **INV-4.** Both overloads of `sparkEventFromJson` (the `JValue`/json4s overload and the `JsonNode`/Jackson overload) must enforce the same `[REDACTED]` gate. A patch that fixes only one overload while leaving the other vulnerable is incomplete.
 - **INV-5.** The Jackson `ObjectMapper` used by `JsonProtocol` must not enable Default Typing globally (`enableDefaultTyping`, `activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ...)`). If polymorphic typing is needed for sub-fields, it must use an explicit `@JsonSubTypes` registry or a `PolymorphicTypeValidator` restricted to a closed root.
 - **INV-6.** No `SparkListenerEvent` subclass should declare field-level `@JsonTypeInfo(use = Id.CLASS)` or `Id.MINIMAL_CLASS` on attacker-reachable fields without a validator. (The [REDACTED] advisory explicitly cites `@JsonTypeInfo.Id.CLASS` on the top-level event as the structural problem; the same antipattern must not reappear on nested fields.)
 - **INV-7.** Event-log deserialization must not call `ObjectInputStream.readObject()`, `SerializationUtils.deserialize`, `Kryo.readClassAndObject`, or any other native deserialization sink on log content. Event logs are JSON; if any non-JSON deserializer appears on this path, treat it as a finding.
@@ -38,8 +38,8 @@ This file consolidates the invariants that the QPB skill should derive (blind) f
 
 ### Code-shape invariants the playbook can grep for
 
-- **INV-11.** Inside `core/src/main/scala/org/apache/spark/util/JsonProtocol.scala`, every call site of `mapper.readValue(*, *)` whose target-class argument is derived from JSON content must have a `classOf[SparkListenerEvent].isAssignableFrom(...)` gate on the path to that call. (Calls whose target class is a literal type — `mapper.readValue(json, classOf[SparkListenerJobStart])` — are safe.)
-- **INV-12.** Inside `JsonProtocol`, every call site of `Utils.classForName(...)` whose argument is derived from JSON content must either (a) be followed by an `isAssignableFrom` gate before any constructor / `readValue` call, or (b) be inside a method that only returns the `Class<?>` and not an instance.
+- **INV-11.** Inside `core/src/main/scala/org/apache/spark/util/JsonProtocol.scala`, every call site of `mapper.readValue(*, *)` whose target-class argument is derived from JSON content must have a `classOf[SparkListenerEvent].[REDACTED](...)` gate on the path to that call. (Calls whose target class is a literal type — `mapper.readValue(json, classOf[SparkListenerJobStart])` — are safe.)
+- **INV-12.** Inside `JsonProtocol`, every call site of `Utils.classForName(...)` whose argument is derived from JSON content must either (a) be followed by an `[REDACTED]` gate before any constructor / `readValue` call, or (b) be inside a method that only returns the `Class<?>` and not an instance.
 - **INV-13.** The History Server's classloader / `Utils.classForName` call chain has access to the full Spark + Hadoop + (optionally) Hive + transitive classpath. Restrictions cannot rely on "the gadget class won't be present" because the History Server inherits its classpath from `$SPARK_HOME/jars/` and operator-installed extras. The defense must be at the type-gate, not at the classpath.
 
 ### Observability / testability invariants

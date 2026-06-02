@@ -66,7 +66,7 @@ These are not in the immediate scope (different code paths) but they establish t
 
 - **[REDACTED]** — Spark standalone & Mesos REST submission server, similar to [REDACTED] (unauthenticated job submission).
 - **[REDACTED]** — Spark RPC authentication shared-secret bypass (Spark < 2.4.6, < 3.0.0). Not a deserialization bug per se, but in the same threat-model neighborhood.
-- **[REDACTED]** — `spark-submit` `doAs` command injection through the `groups.command` config. CWE-78, not [REDACTED], but relevant to the "untrusted input reaches code execution" pattern.
+- **[REDACTED]** — `spark-submit` `doAs` command injection through the `groups.command` config. [REDACTED], not [REDACTED], but relevant to the "untrusted input reaches code execution" pattern.
 
 These confirm that **Spark has been bitten multiple times by patterns where input or config reaches code execution without sufficient typing/authentication**. [REDACTED] is the History Server flavor of that recurring class.
 
@@ -90,5 +90,5 @@ The ASF rated [REDACTED] **low** because exploit requires event-log directory wr
 ## Invariants (advisory-derived)
 
 - **INV-ADV-1.** Any class-name-from-JSON path in the History Server / event-log replay code is a CVE candidate by precedent; the playbook should flag such patterns even before a CVE issues.
-- **INV-ADV-2.** "Blacklist bad classes" is not an acceptable mitigation in the Spark ecosystem. The Jackson CVE series demonstrates that blacklists are routinely bypassed. Allowlist by root-type (`isAssignableFrom(SparkListenerEvent)`) is the required shape.
+- **INV-ADV-2.** "Blacklist bad classes" is not an acceptable mitigation in the Spark ecosystem. The Jackson CVE series demonstrates that blacklists are routinely bypassed. Allowlist by root-type (`[REDACTED](SparkListenerEvent)`) is the required shape.
 - **INV-ADV-3.** Fixes that change error type from `ClassCastException` to `SparkException` are not just hygiene — they encode the security-relevant difference between "constructed then rejected" and "rejected before construction." The playbook should distinguish these.

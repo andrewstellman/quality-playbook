@@ -98,7 +98,7 @@ A caller checking only PCR8 in their expected `PCRs` struct (PCR0/1/2 all empty 
 
 ### CWE classification
 
-[REDACTED] ("Improper Verification of Cryptographic Signature") is the assigned CWE. Arguably the root cause is closer to CWE-1025 ("Comparison Using Wrong Factors") or CWE-754 ("Improper Check for Unusual or Exceptional Conditions") — the SDK was checking equality without first checking that the operands were valid — but the operational impact is signature-bypass-shaped, which the GitHub Reviewed labeling captured as [REDACTED].
+[REDACTED] ("Improper Verification of Cryptographic Signature") is the assigned CWE. Arguably the root cause is closer to [REDACTED] ("Comparison Using Wrong Factors") or [REDACTED] ("Improper Check for Unusual or Exceptional Conditions") — the SDK was checking equality without first checking that the operands were valid — but the operational impact is signature-bypass-shaped, which the GitHub Reviewed labeling captured as [REDACTED].
 
 ## Other security-relevant CHANGELOG items
 

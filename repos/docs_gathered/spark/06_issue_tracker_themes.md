@@ -56,7 +56,7 @@ A large secondary theme: event-log files grow unboundedly for streaming and long
 GitHub Advisories tagged `spark` returns a sparse but recurring stream of `core/`-targeting CVEs:
 
 - **[REDACTED] / [REDACTED]** — this audit's target. [REDACTED] in `JsonProtocol`.
-- **[REDACTED]** — `spark-submit` `doAs` command injection via `groups.command`. CWE-78 in `core/`.
+- **[REDACTED]** — `spark-submit` `doAs` command injection via `groups.command`. [REDACTED] in `core/`.
 - **[REDACTED]** — RPC authentication shared-secret bypass.
 - **[REDACTED] / [REDACTED]** — Standalone master REST API accepts unauthenticated code submission.
 - **[REDACTED]** — Spark Launcher API unsafe Java deserialization (`ObjectInputStream.readObject` on socket data).
@@ -86,4 +86,4 @@ Spark's `JsonProtocol` historically used `json4s` (built on Jackson); newer code
 - **INV-TRACKER-1.** New event-type additions in `JsonProtocol` must be added as named dispatcher cases with their own typed parsers, not by widening the fallback.
 - **INV-TRACKER-2.** Schema-drift fixes (per Theme 1) must not relax Jackson typing configuration; if they configure the mapper to ignore unknown fields, that's acceptable, but enabling default typing is not.
 - **INV-TRACKER-3.** Performance / scalability work on event-log replay (Theme 3) must preserve the type gate; rolling-log and compaction code paths that call `sparkEventFromJson` inherit the same invariant.
-- **INV-TRACKER-4.** The extension hatch (Theme 6) is preserved by the `isAssignableFrom(SparkListenerEvent)` allowlist. The playbook must not propose "remove the fallback" as a fix; the right fix is to gate it.
+- **INV-TRACKER-4.** The extension hatch (Theme 6) is preserved by the `[REDACTED](SparkListenerEvent)` allowlist. The playbook must not propose "remove the fallback" as a fix; the right fix is to gate it.

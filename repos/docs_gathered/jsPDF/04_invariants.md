@@ -44,15 +44,15 @@ preceding allow-list / `[REDACTED]` check.
 
 ### INV-2: Filesystem access must never extend outside the configured allow-list
 
-> When `this.allowFsRead` is set (and `[REDACTED]` is not), the
+> When `this.[REDACTED]` is set (and `[REDACTED]` is not), the
 > realpath-resolved request path must match at least one entry in
-> `allowFsRead` (exact match, or prefix match for entries containing
+> `[REDACTED]` (exact match, or prefix match for entries containing
 > `*`). No match → throw, do not read.
 
 Implementation reference (from fixed `fileloading.js`):
 ```js
-if (this.allowFsRead) {
-  const allowRead = this.allowFsRead.some(allowedUrl => { /* ... */ });
+if (this.[REDACTED]) {
+  const allowRead = this.[REDACTED].some(allowedUrl => { /* ... */ });
   if (!allowRead) {
     throw new Error(`Cannot read file '${url}'. Permission denied.`);
   }
@@ -66,7 +66,7 @@ context, and removes the audit-trail signal an exception provides.
 
 ### INV-3: Both permission systems must compose conjunctively when both are present
 
-> When both `[REDACTED]` and `this.allowFsRead` are configured,
+> When both `[REDACTED]` and `this.[REDACTED]` are configured,
 > both must independently permit the read.
 
 The fixed code structures these as **separate** `if` blocks rather than
@@ -76,7 +76,7 @@ regression.
 
 ### INV-4: Secure-by-default — refuse with no opt-in
 
-> If neither `[REDACTED]` nor `this.allowFsRead` is set,
+> If neither `[REDACTED]` nor `this.[REDACTED]` is set,
 > `nodeReadFile` MUST throw before issuing any `fs` syscall, with a
 > message instructing the user how to opt in.
 
@@ -98,7 +98,7 @@ check. This is literally the pre-fix `nodeReadFile` shape.
 ### INV-6: Realpath must precede every permission check
 
 > `fs.[REDACTED](path.resolve(url))` must be the value passed to
-> `[REDACTED].has("fs.read", ...)` and to the `allowFsRead`
+> `[REDACTED].has("fs.read", ...)` and to the `[REDACTED]`
 > comparison. Checks against pre-realpath values permit symlink bypass.
 
 The fixed code assigns
@@ -118,7 +118,7 @@ The fixed code wraps realpath in `try { } catch (e) { return / callback }`.
 
 ### INV-8: Prefix glob entries must respect directory boundaries
 
-> An `allowFsRead` entry like `"./fonts/*"` must match `./fonts/X` but
+> An `[REDACTED]` entry like `"./fonts/*"` must match `./fonts/X` but
 > not `./fonts_secret/X`. The implementation appends `path.sep` to a
 > trailing-slash fixed-part if `path.resolve` stripped it.
 
@@ -150,7 +150,7 @@ hardcoded constant.
 
 > `loadFile` must call `nodeReadFile.call(this, url, sync, callback)`.
 > A regression to `nodeReadFile(url, sync, callback)` loses access to
-> `this.allowFsRead` and collapses the allow-list path.
+> `this.[REDACTED]` and collapses the allow-list path.
 
 The fix PR changed the call site to `.call(this, ...)`. A diff that
 drops the `.call` is a regression even if the function body is
@@ -169,22 +169,22 @@ unchanged.
 
 > The XHR-based `browserRequest` function is not under the [REDACTED]
 > invariant — its threat model is the browser sandbox + CORS, not
-> jsPDF-enforced filesystem boundaries. Applying `allowFsRead` checks
+> jsPDF-enforced filesystem boundaries. Applying `[REDACTED]` checks
 > to the browser path would break legitimate use.
 
 ## V. Documentation / Contract Invariants
 
 ### INV-14: Public docs must steer users to `--permission`
 
-> README and any `allowFsRead` docs must explicitly mark
+> README and any `[REDACTED]` docs must explicitly mark
 > `--permission` / `--allow-fs-read=...` as the recommended path and
-> `allowFsRead` as the fallback. The current README does this with the
+> `[REDACTED]` as the fallback. The current README does this with the
 > "Strongly recommended" / "Fallback (not recommended)" labelling and
 > a "Warning" admonition.
 
 This matters because the runtime-enforced flag is harder for callers
 to accidentally bypass (it survives library bugs), whereas
-`allowFsRead` is a library-level convention that a future regression
+`[REDACTED]` is a library-level convention that a future regression
 could neutralise.
 
 ### INV-15: Error messages must name the failure mode
@@ -221,11 +221,11 @@ because the precedent invites future callers to bypass the gate.
 
 The advisory assigns two CWEs:
 
-- **CWE-35: [REDACTED]: `.../...//`** — doubled-triple-dot variants
+- **[REDACTED]: [REDACTED]: `.../...//`** — doubled-triple-dot variants
   that bypass naive `..` filters. `path.resolve` correctly handles
   these (they normalise to plain `..`), so the bug is not "filter
   evasion" — it's "no filter at all."
-- **CWE-73: External Control of File Name or Path** — the core class.
+- **[REDACTED]: External Control of File Name or Path** — the core class.
   Caller-controlled input dictates which file the process reads.
 
 QPB invariant signatures aimed at either CWE will trip this file.

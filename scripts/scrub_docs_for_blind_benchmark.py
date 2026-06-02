@@ -44,8 +44,10 @@ SCRUB_TERMS: List[Tuple[str, List[str]]] = [
         r"/(?:issues|pull)/4946\b",   # URL form
         r"\b250a6d17[a-f0-9]*\b",     # fix commit
         r"\b250a6d17\b",
-        # fix-symbol: the post-join guard the patch added
+        # fix-symbol: the post-join guard the patch added (any form)
         r"if not filename\.startswith\(str\(tmpdir\)\)",
+        r"\.startswith\(str\(tmpdir\)\)",
+        r"startswith.{0,30}tmpdir",
         r"\bisinstance\(name, PurePath\)",
         r"path traversal",            # category-naming the bug
         r"arbitrary file write",      # impact-naming the bug
@@ -60,6 +62,7 @@ SCRUB_TERMS: List[Tuple[str, List[str]]] = [
         r"/(?:issues|pull)/3931\b",
         r"\ba688c8f4[a-f0-9]*\b",
         r"\bjsPDF\.allowFsRead\b",
+        r"\ballowFsRead\b",
         r"\bprocess\.permission\b",
         r"\brealpathSync\b",
         r"path traversal",
@@ -96,6 +99,7 @@ SCRUB_TERMS: List[Tuple[str, List[str]]] = [
         r"SPARK-52381",
         r"\bfcf8dda2[a-f0-9]*\b",
         r"isAssignableFrom\(otherClass\)",
+        r"\bisAssignableFrom\b",
         r"only accept subclasses of",
         r"insecure deserialization",
         r"polymorphic deserialization",
@@ -191,6 +195,7 @@ GLOBAL_SCRUB_TERMS = [
     r"GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}",       # any GHSA-XXXX-XXXX-XXXX
     r"/advisories/GHSA-[a-z0-9-]+",                    # URL form
     r"/advisories/CVE-\d{4}-\d{3,7}",                  # URL form
+    r"\bCWE-\d{1,4}\b",                                # CWE category names tell QPB the bug class
 ]
 
 

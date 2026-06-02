@@ -149,7 +149,7 @@ This is the source of the URL-decode bypass that makes the
 ## The download path lifecycle, post-patch
 
 After the patch, step 7 above no longer occurs because step 6's result
-fails the `startswith(str(tmpdir))` check and the function raises
+fails the `[REDACTED]))` check and the function raises
 `ValueError`. The change is local — no other function in the chain was
 modified. This means:
 

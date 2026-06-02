@@ -37,7 +37,7 @@ This is the subset QPB needs to consider for blind detection of CASE-010. They a
 ### [REDACTED] — Cross-repository comment deletion
 
 - **GHSA**: [REDACTED]
-- **CWE**: CWE-639 ([REDACTED] Through User-Controlled Key)
+- **CWE**: [REDACTED] ([REDACTED] Through User-Controlled Key)
 - **Severity**: Moderate (CVSS 6.5)
 - **Affected**: `<= 0.13.4`; patched in `0.14.0`
 - **Reporter**: @tenbbughunters
@@ -50,7 +50,7 @@ This is the subset QPB needs to consider for blind detection of CASE-010. They a
 ### [REDACTED] — Protected branch deletion bypass
 
 - **GHSA**: [REDACTED]
-- **CWE**: CWE-863 (Incorrect Authorization)
+- **CWE**: [REDACTED] (Incorrect Authorization)
 - **Severity**: Critical
 - **Affected**: `<= 0.13.4`; patched in `0.14.0`
 - **Reporter**: @spingARbor
@@ -63,7 +63,7 @@ This is the subset QPB needs to consider for blind detection of CASE-010. They a
 ### [REDACTED] — Read-only PAT can update repository contents via API
 
 - **GHSA**: [REDACTED]
-- **CWE**: CWE-862 (Missing Authorization) + CWE-863 (Incorrect Authorization)
+- **CWE**: [REDACTED] (Missing Authorization) + [REDACTED] (Incorrect Authorization)
 - **Severity**: Moderate (CVSS 6.5)
 - **Affected**: `<= 0.13.3`; patched in `0.13.4` and `0.14.0+dev`
 - **Reporter**: @odgrso

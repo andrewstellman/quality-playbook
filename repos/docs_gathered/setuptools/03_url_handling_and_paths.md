@@ -221,7 +221,7 @@ write path under a caller-supplied directory.
 3. **String-level sanitization of `..` is not path-level
    containment.** The two are not interchangeable. A check that asserts
    the final path is inside the trust boundary is the only correct
-   defense. The patch uses `filename.startswith(str(tmpdir))` for this.
+   defense. The patch uses `filename[REDACTED]` for this.
 
 4. **URL-decoding boundaries are a security-relevant code property.**
    For an audit, every `unquote` call site is a place to check: what

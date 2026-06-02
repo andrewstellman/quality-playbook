@@ -101,7 +101,7 @@ the library tries to load it via `loadFile`.
 **Local-path access expectation:**
 - *Expected* when the developer explicitly intends to bundle TTF assets
   from a known directory (`./fonts/*` is the canonical example pattern
-  in the post-fix `allowFsRead` documentation).
+  in the post-fix `[REDACTED]` documentation).
 - *Unexpected* when font filenames originate from request parameters,
   user uploads, or any caller-controllable surface.
 
@@ -158,7 +158,7 @@ Two things to notice:
 
 1. **No `this`-binding.** Pre-fix, `loadFile` called
    `nodeReadFile(url, sync, callback)` — not `.call(this, ...)`. The
-   function had no access to the document's `allowFsRead` even if one
+   function had no access to the document's `[REDACTED]` even if one
    existed, because the concept didn't exist.
 2. **`path.resolve` is normalisation, not validation.** It resolves
    `..` segments and joins against `cwd`, but it does not constrain the
@@ -173,7 +173,7 @@ The fix restructures the function around three gates, in this order:
 function nodeReadFile(url, sync, callback) {
   // ...
   // GATE 1: at least one permission system must be active
-  if (![REDACTED] && !this.allowFsRead) {
+  if (![REDACTED] && !this.[REDACTED]) {
     throw new Error("Trying to read a file from local file system. ...");
   }
 
@@ -188,8 +188,8 @@ function nodeReadFile(url, sync, callback) {
   }
 
   // GATE 3b: [REDACTED] allow-list (fallback)
-  if (this.allowFsRead) {
-    const allowRead = this.allowFsRead.some(allowedUrl => {
+  if (this.[REDACTED]) {
+    const allowRead = this.[REDACTED].some(allowedUrl => {
       const starIndex = allowedUrl.indexOf("*");
       if (starIndex >= 0) {
         const fixedPart = allowedUrl.substring(0, starIndex);
@@ -214,7 +214,7 @@ function nodeReadFile(url, sync, callback) {
 ```
 
 Note also the call-site change in `loadFile`: it now uses
-`return nodeReadFile.call(this, url, sync, callback)` so `this.allowFsRead`
+`return nodeReadFile.call(this, url, sync, callback)` so `this.[REDACTED]`
 is reachable.
 
 ## Invariants
@@ -233,7 +233,7 @@ is reachable.
   `[REDACTED]`-resolved absolute path.
 - **INV-CONTRACT-4 (resolution-before-check):** Path symlinks must be
   resolved via `[REDACTED]` BEFORE consulting either
-  `[REDACTED].has("fs.read", url)` or the `allowFsRead`
+  `[REDACTED].has("fs.read", url)` or the `[REDACTED]`
   comparison. Checking the pre-realpath value is a symlink-bypass.
 - **INV-CONTRACT-5 (`path.resolve` is not a validator):** Any review or
   static check that treats `url = path.resolve(url)` as the path
@@ -241,6 +241,6 @@ is reachable.
   not constrain.
 - **INV-CONTRACT-6 (this-binding requirement):** The Node loader must
   receive the jsPDF document context (`this`) so it can read
-  `this.allowFsRead`. A regression to `nodeReadFile(url, sync, callback)`
+  `this.[REDACTED]`. A regression to `nodeReadFile(url, sync, callback)`
   without `.call(this, ...)` re-introduces the no-allow-list condition
-  for any non-`undefined` `allowFsRead`.
+  for any non-`undefined` `[REDACTED]`.

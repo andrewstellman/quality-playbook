@@ -26,7 +26,7 @@ Step 3 is where impact materializes. Steps 1 and 2 are harmless on their own —
 
 ```scala
 val cls = Utils.classForName(other)
-if (classOf[SparkListenerEvent].isAssignableFrom(cls)) {
+if (classOf[SparkListenerEvent].[REDACTED](cls)) {
   mapper.readValue(json.toString, cls).asInstanceOf[SparkListenerEvent]
 } else {
   throw new SparkException(s"Unknown event type: $other")
@@ -36,7 +36,7 @@ if (classOf[SparkListenerEvent].isAssignableFrom(cls)) {
 Why this is safe:
 
 - The typecheck happens on the `Class<?>` object (a reflective handle) **before** any constructor or factory runs. No bytecode from the user-named class has executed yet.
-- `isAssignableFrom` is a JVM intrinsic that walks the class hierarchy; it cannot be tricked by overridden methods on the target class because it does not invoke any methods.
+- `[REDACTED]` is a JVM intrinsic that walks the class hierarchy; it cannot be tricked by overridden methods on the target class because it does not invoke any methods.
 - The hierarchy under `SparkListenerEvent` is a closed, well-known set of Spark internal classes whose constructors / setters are auditable and do not perform IO during deserialization. (Auditors should still spot-check that none of these accept polymorphic sub-fields with their own unsafe typing, but the attack surface shrinks from "every class on the classpath" to "every class in Spark's event hierarchy.")
 
 ### The unsafe pattern
@@ -69,8 +69,8 @@ This bug is a clean instance of **[REDACTED] Deserialization of Untrusted Data**
 - **Default Typing** (`ObjectMapper.enableDefaultTyping()`) is the classic Jackson antipattern. When default typing is on, Jackson writes a `@class` field next to every polymorphic field and reads it back to drive `Class.forName`. Decades of CVEs ([REDACTED], [REDACTED], [REDACTED], [REDACTED], …) blacklist specific gadget classes one by one. Jackson 2.10 introduced `activateDefaultTyping(PolymorphicTypeValidator)` to force developers to explicitly allowlist subtypes.
 - The Spark bug is **structurally equivalent** to default-typing-without-a-validator: the `"Event"` field plays the role of `@class`, and `Utils.classForName(other)` plays the role of the default-typing resolver. The only difference is that the dispatch is hand-rolled rather than annotation-driven, which means existing Jackson hardening (PolymorphicTypeValidator, Default Typing blocklist) does not help.
 - **Mitigations that the Jackson community recommends**, mapped to this codebase:
-  - Use `@JsonTypeInfo(use = Id.NAME)` with an explicit `@JsonSubTypes` registry rather than `Id.CLASS` / `Id.MINIMAL_CLASS`. The Spark dispatcher is morally `Id.NAME`-style (a logical name like `"SparkListenerJobStart"`) for known events, but the fallback collapses to `Id.CLASS` semantics. Removing the fallback or gating it on `isAssignableFrom` collapses it back to a constrained set.
-  - Use a `PolymorphicTypeValidator` that restricts subtypes to a closed root. The `isAssignableFrom(classOf[SparkListenerEvent])` check is the hand-rolled equivalent.
+  - Use `@JsonTypeInfo(use = Id.NAME)` with an explicit `@JsonSubTypes` registry rather than `Id.CLASS` / `Id.MINIMAL_CLASS`. The Spark dispatcher is morally `Id.NAME`-style (a logical name like `"SparkListenerJobStart"`) for known events, but the fallback collapses to `Id.CLASS` semantics. Removing the fallback or gating it on `[REDACTED]` collapses it back to a constrained set.
+  - Use a `PolymorphicTypeValidator` that restricts subtypes to a closed root. The `[REDACTED](classOf[SparkListenerEvent])` check is the hand-rolled equivalent.
   - Treat the `Class<?>` argument to `readValue` as part of the trust boundary: it must come from a server-side allowlist, never from the JSON itself.
 
 ### Other unsafe patterns to watch for in the same code path
@@ -94,7 +94,7 @@ While auditing the History Server path, the playbook should also flag adjacent f
 ## Invariants
 
 - **INV-DESER-1.** Class lookup may use a caller-supplied name; class **instantiation** must not, unless the class has been verified to extend `SparkListenerEvent` first.
-- **INV-DESER-2.** `mapper.readValue(json, targetClass)` calls inside `JsonProtocol` must have `targetClass` either bound to a literal type or gated through `classOf[SparkListenerEvent].isAssignableFrom(targetClass)`.
+- **INV-DESER-2.** `mapper.readValue(json, targetClass)` calls inside `JsonProtocol` must have `targetClass` either bound to a literal type or gated through `classOf[SparkListenerEvent].[REDACTED](targetClass)`.
 - **INV-DESER-3.** Failure mode for a non-event class name must be **throw before construction**, not "construct then cast." `ClassCastException` after construction is unacceptable because constructor side effects have already fired.
 - **INV-DESER-4.** Jackson default typing (`enableDefaultTyping`, `activateDefaultTyping(LaissezFaireSubTypeValidator)`) must not be enabled on the `ObjectMapper` used by `JsonProtocol`. Use an explicit `@JsonSubTypes` registry or a hand-rolled dispatcher.
 - **INV-DESER-5.** No sub-field within a `SparkListenerEvent` subclass should declare polymorphic typing as `JsonTypeInfo.Id.CLASS` or `Id.MINIMAL_CLASS` without a `PolymorphicTypeValidator` restricting the allowed subtypes.

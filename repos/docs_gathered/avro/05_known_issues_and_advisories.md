@@ -67,7 +67,7 @@ These are the other Apache-Avro CVEs in the GitHub Advisory Database. Listed so 
 
 | CVE | GHSA | Severity | Language | Summary |
 |---|---|---|---|---|
-| [REDACTED] | [REDACTED] | Critical (9.3) | Java | Schema parsing in `org.apache.avro:avro` < 1.11.4 allowed arbitrary code execution. CWE-502 (Deserialization of Untrusted Data). Linked to AVRO-3985. Fixed in 1.11.4 / 1.12.0. **Distinct from [REDACTED]**: this is at *parse time*, not codegen; it's in the runtime `avro` package, not `avro-compiler`. |
+| [REDACTED] | [REDACTED] | Critical (9.3) | Java | Schema parsing in `org.apache.avro:avro` < 1.11.4 allowed arbitrary code execution. [REDACTED] (Deserialization of Untrusted Data). Linked to AVRO-3985. Fixed in 1.11.4 / 1.12.0. **Distinct from [REDACTED]**: this is at *parse time*, not codegen; it's in the runtime `avro` package, not `avro-compiler`. |
 | [REDACTED] | [REDACTED] | High | Java | `org.apache.avro:avro` "Improper Input Validation" — DoS via specially crafted schemas. |
 | [REDACTED] | [REDACTED] | High | C# | "Allocation of Resources Without Limits or Throttling" — DoS in the .NET implementation. |
 | [REDACTED] | [REDACTED] | High | Rust | Reader looping endlessly, CPU exhaustion. |

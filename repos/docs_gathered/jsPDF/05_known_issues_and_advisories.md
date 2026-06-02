@@ -31,7 +31,7 @@ in case detection patterns overlap with adjacent advisories.
 - **CVSS v4:** 9.2 (`AV:N/AC:L/AT:N/PR:N/UI:N/VC:H/VI:N/VA:N/SC:H/SI:N/SA:N`)
 - **Affected versions:** `<=3.0.4`
 - **Patched version:** `>=4.0.0`
-- **CWEs:** CWE-35 ([REDACTED]: `.../...//`), CWE-73 (External
+- **CWEs:** [REDACTED] ([REDACTED]: `.../...//`), [REDACTED] (External
   Control of File Name or Path)
 - **Affected methods:** `loadFile`, `addImage`, `html`, `addFont`
 - **Affected build:** Node.js builds only (`dist/jspdf.node.js`,
@@ -55,7 +55,7 @@ doc.save("test.pdf"); // the generated PDF will contain the "secret.txt" file
 
 **Fix summary ([REDACTED], title "restrict [REDACTED] in node build"):**
 - Add `[REDACTED]` property as fs read allow-list.
-- Read files only if Node `--permission` flag is set OR `allowFsRead`
+- Read files only if Node `--permission` flag is set OR `[REDACTED]`
   is configured.
 - Resolve symlinks via `fs.[REDACTED]` before all permission checks.
 - Throw with a guidance-rich error if neither permission system is

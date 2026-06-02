@@ -79,17 +79,17 @@ Three properties of this pipeline make it a clean [REDACTED] primitive:
 
 ```
 url (caller-controlled string)
-  └→ ensure [REDACTED] || this.allowFsRead is set   ← Gate 1: throw if not
+  └→ ensure [REDACTED] || this.[REDACTED] is set   ← Gate 1: throw if not
        └→ path.resolve(url)
             └→ fs.[REDACTED](...)             ← resolve symlinks
                  └→ [REDACTED].has("fs.read", url)? ← Gate 2 (if available)
-                      └→ allowFsRead match?     ← Gate 3 (if configured)
+                      └→ [REDACTED] match?     ← Gate 3 (if configured)
                            └→ fs.readFileSync(url, "latin1")
 ```
 
 ### Allow-list matching semantics
 
-The post-fix `allowFsRead` array supports two entry forms:
+The post-fix `[REDACTED]` array supports two entry forms:
 
 **Exact match.** `url === path.resolve(allowedUrl)`. The entry is
 resolved against `process.cwd()` (so `"./fonts/MyFont.ttf"` becomes
@@ -120,7 +120,7 @@ and then `url.startsWith("/srv/app/fonts")` would accept
 [REDACTED].has("fs.read", url)  // url is already realpath-resolved
 ```
 
-This is consulted **independently** of `allowFsRead`. Both checks must
+This is consulted **independently** of `[REDACTED]`. Both checks must
 pass when both are configured. Either one can refuse, and refusal
 throws synchronously.
 
@@ -133,7 +133,7 @@ instead of a generic Node permission error.
 
 ## "Permitted vs Denied" Decision Table
 
-| `[REDACTED]` | `this.allowFsRead` | Outcome |
+| `[REDACTED]` | `this.[REDACTED]` | Outcome |
 |----------------------|--------------------|---------|
 | absent               | undefined          | THROW — "Trying to read a file from local file system..." |
 | absent               | defined, no match  | THROW — "Cannot read file '<path>'. Permission denied." |
@@ -152,7 +152,7 @@ These are the regression patterns QPB should flag if a reviewer is
 modifying `fileloading.js` or anything that interacts with it:
 
 1. **Calling `nodeReadFile(url, sync, cb)` without `.call(this, ...)`.**
-   Loses the `this.allowFsRead` reference; collapses to "[REDACTED]
+   Loses the `this.[REDACTED]` reference; collapses to "[REDACTED]
    only" or, if that's absent, to the throw-everything default.
 2. **Moving the gate-1 throw inside the `try { [REDACTED](...) }`.** If
    the throw happens after a failed realpath (e.g., for a non-existent
@@ -182,16 +182,16 @@ modifying `fileloading.js` or anything that interacts with it:
 - **INV-FSACCESS-1 (`path.resolve` is normalisation):** No reviewer or
   test pattern may treat `path.resolve(userInput)` as the validation
   step. Validation requires either `[REDACTED]` or
-  `allowFsRead` matched against `[REDACTED](path.resolve(userInput))`.
+  `[REDACTED]` matched against `[REDACTED](path.resolve(userInput))`.
 - **INV-FSACCESS-2 (realpath-before-check):** `fs.[REDACTED]` must be
   invoked between `path.resolve` and any permission/allow-list check.
   Otherwise symlink-based escape is trivial.
 - **INV-FSACCESS-3 (gate-or-throw):** The presence of neither
-  `[REDACTED]` nor `this.allowFsRead` MUST cause a thrown error
+  `[REDACTED]` nor `this.[REDACTED]` MUST cause a thrown error
   before any `fs` call. A silent-fallback variant (return `undefined`,
   log a warning, etc.) is a regression.
 - **INV-FSACCESS-4 (both checks composable):** When both
-  `[REDACTED]` and `allowFsRead` are configured, both must
+  `[REDACTED]` and `[REDACTED]` are configured, both must
   permit. The fixed code enforces this by running the permission check
   independently of the allow-list match. A patch that makes them an
   "either-or" gate is a regression.

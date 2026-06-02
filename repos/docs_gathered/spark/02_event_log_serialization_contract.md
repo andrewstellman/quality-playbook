@@ -109,6 +109,6 @@ Only the History Server replay caller is exposed to attacker-controlled JSON in 
 ## Invariants
 
 - **INV-CONTRACT-1.** `sparkEventFromJson` must return only instances of `SparkListenerEvent` subclasses. The set of permissible runtime types is exactly the closed hierarchy rooted at `SparkListenerEvent`.
-- **INV-CONTRACT-2.** Class lookup (`classForName`) on caller-supplied strings is acceptable IF the resulting `Class` is gated through `isAssignableFrom(classOf[SparkListenerEvent])` BEFORE instantiation. Lookup-then-cast-after-construction is NOT acceptable, because construction has observable side effects.
+- **INV-CONTRACT-2.** Class lookup (`classForName`) on caller-supplied strings is acceptable IF the resulting `Class` is gated through `[REDACTED](classOf[SparkListenerEvent])` BEFORE instantiation. Lookup-then-cast-after-construction is NOT acceptable, because construction has observable side effects.
 - **INV-CONTRACT-3.** Both overloads of `sparkEventFromJson` (`JValue`-flavor and `JsonNode`-flavor) must enforce the same type restriction.
 - **INV-CONTRACT-4.** The fallback `case other =>` branch is the protocol's only polymorphic surface; the named-case branches deserialize fixed types and do not need a runtime typecheck.
