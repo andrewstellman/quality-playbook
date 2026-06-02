@@ -1,0 +1,8 @@
+00_README.md — OpenFGA: Project Overview. Project, language (Go), domain (ReBAC/RBAC/ABAC PDP), core terminology (store, model, tuple, relation, type, userset, contextual tuple), APIs, architecture, trust boundaries.
+01_security_model.md — OpenFGA Security Model: Allow vs Deny, Consistency Guarantees, and Non-Guarantees. Allow = set membership under rewrite; deny = absence; HIGHER_CONSISTENCY guarantee; explicit non-guarantees including cache TTL staleness.
+02_api_contract.md — OpenFGA Query API Contract: Check, ListObjects, ListUsers, BatchCheck. Request/response shapes, guarantees, the ListObjects fan-out Check pipeline and why its cache hookup is load-bearing.
+03_consistency_and_cache.md — OpenFGA Consistency, Caching, and Cache Invalidation. CacheController, LastInvalidationTime, CachedCheckResolver, and the full PR #2779 / PR #2791 history including the WithCheckCommandCache wiring inside ListObjectsQuery.evaluate.
+04_invariants.md — OpenFGA Security and Correctness Invariants. "Must always" / "must never" statements derived from docs, code, advisories, and maintainer discussion, each tagged to the bug it would (or did) cause.
+05_known_issues_and_advisories.md — OpenFGA Known Issues: Security Advisories and PR History. All nine published GHSA/CVE advisories with affected versions and root causes, plus the PR #2779/#2791 episode as the OPENFGA-2 finding.
+06_issue_tracker_themes.md — OpenFGA Issue Tracker Themes. Six recurring concerns: cache-invalidation correctness, type restrictions, condition context, ListObjects completeness, OIDC key rotation, and performance optimizations that prune evaluation.
+MANIFEST.txt — This file. One line per doc with title and one-sentence summary.

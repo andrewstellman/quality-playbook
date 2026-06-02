@@ -1,0 +1,7 @@
+00_README.md — Casbin project overview, Go authorization library, key terminology (Enforcer, model, policy, RBAC grouping policy, ABAC, matcher, effect).
+01_security_model.md — PERM metamodel evaluation semantics; what counts as Allow; model file structure; RBAC g(...) role-link function; ABAC field access; closed-by-default invariants.
+02_api_contract.md — Enforce/EnforceEx/BatchEnforce, AddPolicy/RemovePolicy, AddRoleForUser/DeleteRoleForUser, LoadPolicy/InvalidateCache; which methods are overridden on CachedEnforcer vs SyncedCachedEnforcer.
+03_caching_behavior.md — CachedEnforcer/SyncedCachedEnforcer internals; GetCacheKey "alice$$data1$$read$$" format; per-mutator invalidation matrix; DefaultCache TTL semantics; the test that didn't catch the RBAC bug.
+04_invariants.md — Flat MUST / MUST NEVER list across enforcement, mutation visibility, cache consistency, threading, API contract, defaults, and documentation, with UPHELD / VIOLATED tags.
+05_known_issues_and_advisories.md — No published GHSAs/CVEs; maintainer-acknowledged partial cache invalidation in source structure; the asymmetry between CachedEnforcer and SyncedCachedEnforcer override sets; what QPB should re-derive from code alone.
+06_issue_tracker_themes.md — Six recurring tracker themes: cache staleness after RBAC mutations (CASBIN-7 family), RBAC consistency, performance on large policies, Watcher cross-node consistency, adapter persistence ordering, matcher debugging.

@@ -1,0 +1,7 @@
+00_README.md                       Project overview — Apache Avro is a JSON-schema-driven serialization system with optional codegen; lists languages, key terms, repo layout, and where the CVE-2025-33042 surface lives.
+01_security_model.md               Trust boundaries — schemas are untrusted supply-chain input per the Apache Avro security policy; build-time codegen vs. runtime parse vs. data read; what the codegen output must guarantee.
+02_codegen_contract.md             SpecificCompiler + Velocity templates — three free-form string surfaces (javaAnnotation, doc, embedded JSON), with verbatim pre-fix vs. post-fix snippets from the AVRO-4053 commit.
+03_specific_compiler_pipeline.md   Walks the schema → Java source pipeline stage by stage, names the eight files in the fix, lists the audit checklist, and flags the misleadingly-soft Jira/PR title.
+04_invariants.md                   Eight named invariants (CG-1 through CG-8) for detecting code-injection failures in Avro-style codegen pipelines, each with a smoking-gun pattern and a safe-form pattern.
+05_known_issues_and_advisories.md  CVE-2025-33042 detail (vectors, references, timeline) plus prior Avro CVEs (2023-39410, 2024-47561, the Rust/.NET DoS family) and Apache disclosure policy.
+06_issue_tracker_themes.md         Apache Jira (project AVRO) is canonical; six themes — codegen safety, schema-parse safety, cross-language consistency, IDL quirks, dependency hygiene, and confusable tickets.

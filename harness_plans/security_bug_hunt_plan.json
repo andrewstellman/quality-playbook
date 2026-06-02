@@ -1,0 +1,97 @@
+{
+  "$header_note": "QPB v1.5.7 security-focused bug-hunting plan — 5 runs targeting Andrew's Security Research Portfolio (`AI-Driven Development/Security Research/PORTFOLIO_TRACKER.md`). 2 replay rows (already-verified real findings — validates QPB on known wins) + 3 blind benchmark rows (CASE-008 / CASE-005 / CASE-009 from `CVE_BENCHMARK_PILOT.md` — tests breadth across categories QPB hasn't demonstrated yet). Categories: broken access control ×2 (OPENFGA-2 + CASBIN-7), resource-exhaustion DoS (CVE-2026-33320 dasel), code injection (CVE-2025-33042 Apache Avro AVRO-4053), crypto misuse (CVE-2025-64186 evervault-go). 2026-06-01 build. Concurrency: pool={claude:2, codex:1} — 5 rows with 4 claude + 1 codex; runtime bounded by claude/opus on the heaviest target. Branch defaults: openfga=main, casbin=master, dasel=master, avro=main, evervault-go=main — REPLACE WITH VULNERABLE PARENT SHAs from CVE_BENCHMARK_PILOT.md for blind tests when running against vulnerable versions. Goal A: demonstrate QPB across security categories (current matrix has access-control only — this plan extends to DoS + injection + crypto). Goal B: any blind hit re-confirmed via the CVE answer key qualifies as a tool-validation milestone, not a disclosure (already-patched / already-disclosed). docs_gathered/ for all 5 repos populated 2026-06-01 (force-added; must be available on Windows clone).",
+
+  "pools": {
+    "claude": 2,
+    "codex": 1
+  },
+
+  "runs": [
+    {
+      "description": "Row 0 — claude/opus reviews openfga (Go, fine-grained authorization service, ref=main) via pip-local-wheel (Mode A). REPLAY of OPENFGA-2 (verified real, Goal-A win): ListObjects fan-out Check skips cache invalidation. opus-4.7 found it once via Claude Code; this validates QPB re-derives it on current 1.5.7. Category: broken access control / stale cache. Expected detection: flag list_objects.go:443-452 NewCheckCommand for omitting WithCheckCommandCache vs batch_check_command.go:193 which includes it. See repos/docs_gathered/openfga/ + Security Research/PORTFOLIO_TRACKER.md.",
+      "repo": "https://github.com/openfga/openfga",
+      "ref": "main",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 1 — claude/sonnet reviews casbin (Go, access-control library, ref=master) via pip-local-wheel (Mode A). REPLAY of CASBIN-7 (verified real, Goal-A win): CachedEnforcer stale-after-revocation — DeleteRoleForUser/AddRoleForUser/grouping-policy mutations not overridden + RemovePolicy's key-based invalidation builds a key shape that can't match RBAC enforce-arg keys. sonnet-4.6 found it once. This is the smallest of the 3 replays — validates QPB on a known win with minimal compute. See repos/docs_gathered/casbin/.",
+      "repo": "https://github.com/casbin/casbin",
+      "ref": "master",
+      "runner": "claude",
+      "model": "sonnet",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 2 — codex/gpt-5.4 reviews dasel (Go, multi-format query CLI/library, ref=master) via clone channel (Mode B). BLIND benchmark — CASE-008 (CVE-2026-33320 / GHSA-4fcp-jxh7-23x8). Category: resource-exhaustion DoS (a category QPB has NOT demonstrated detection on). Expected ground truth: yamlValue.UnmarshalYAML recursively follows yaml.Node.Alias with no expansion budget → billion-laughs YAML → unbounded CPU/memory. Fix shape: maxExpansionDepth=32 + maxExpansionBudget=1000 in parsing/yaml/yaml_reader.go. To run blind against the vulnerable parent, override ref to 0dd6132e0c58edbd9b1a5f7ffd00dfab1e6085ad. Mode B for codex (single-turn exec). See repos/docs_gathered/dasel/.",
+      "repo": "https://github.com/TomWright/dasel",
+      "ref": "master",
+      "runner": "codex",
+      "model": "gpt-5.4",
+      "channel": "clone",
+      "mode": "B",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 3 — claude/opus reviews Apache Avro (Java + Python + C + others; the Java codegen in lang/java/ is the security locus, ref=main) via pip-local-wheel (Mode A). BLIND benchmark — CASE-005 (CVE-2025-33042 / AVRO-4053). Category: code injection (a category QPB has NOT demonstrated detection on). Expected ground truth: javaAnnotation schema property emitted verbatim into generated Java source via Velocity template + unescaped doc strings → crafted schema injects code/annotations. Fix shape: isValidAsAnnotation() regex + escape doc in Velocity templates in lang/java/.../specific/SpecificCompiler.java. To run blind against vulnerable parent, override ref to 80400781a796bc0e90dd8ea1db42234926db33e9. opus for the JVM codegen complexity. See repos/docs_gathered/avro/.",
+      "repo": "https://github.com/apache/avro",
+      "ref": "main",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 4 — claude/opus reviews evervault-go (Go SDK for Evervault encrypted compute, ref=main) via pip-local-wheel (Mode A). BLIND benchmark — CASE-009 (CVE-2025-64186 / GHSA-88h9-77c7-p6w4). Category: crypto misuse (a category QPB has NOT demonstrated detection on). This is the LOWEST QE-catchability case in the CVE benchmark — the toughest target; classic-eyeball review is unlikely to spot it, so QPB's invariant-derivation pipeline gets a real test. Expected ground truth: attestation PCR-presence check missing (pcrNotEqual short-circuits on empty strings, plus cache stores unvalidated bytes). opus for the toughest crypto/attestation reasoning. See repos/docs_gathered/evervault-go/ — the cryptographic_contract + attestation_and_trust docs are load-bearing here.",
+      "repo": "https://github.com/evervault/evervault-go",
+      "ref": "main",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    }
+  ]
+}
