@@ -1,0 +1,8 @@
+00_README.md — Project Overview: setuptools is the PyPA-maintained Python package build/install toolchain (Python, 815k+ dependents), with a deprecated-but-still-shipped easy_install/package_index downloader that is the internet-facing attack surface for this audit.
+01_security_model.md — Security Model: trust boundaries around PackageIndex, with the tmpdir contract ("downloads stay inside the caller-supplied tmpdir") as the load-bearing path-safety invariant the patch retroactively enforces.
+02_package_index_contract.md — PackageIndex Contract: download lifecycle from PackageIndex.download(spec, tmpdir) through _resolve_download_filename to the open() call, showing the single chokepoint where URL-derived names become filesystem paths.
+03_url_handling_and_paths.md — URL Handling and Paths: the two-step footgun — urlparse-then-split-then-unquote preserves percent-encoded slashes into a filename, and os.path.join discards tmpdir when the second argument is absolute.
+04_invariants.md — Invariants: nine numbered invariants the audit should look for, anchored to patch evidence, doctest evidence, and advisory text.
+05_known_issues_and_advisories.md — Known Issues and Advisories: CVE-2025-47273 (the audit target) plus the two prior package_index CVEs (CVE-2024-6345 RCE and CVE-2022-40897 ReDoS) that establish package_index.py as a known security hotspot.
+06_issue_tracker_themes.md — Issue Tracker Themes: six themes from the GitHub issue tracker covering maintainer plans to remove package_index entirely, recurring path-traversal concerns across setuptools, and the virtualenv-bundling pressure on backport policy.
+MANIFEST.txt — This file: one line per artifact with title and a one-sentence summary of what each contains.
