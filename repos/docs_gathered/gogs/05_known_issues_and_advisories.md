@@ -14,30 +14,30 @@ Gogs follows GitHub's private security advisory workflow. Reports go through `ht
 
 All advisories below are paginated from the canonical sources listed above. CVE IDs use the format the GitHub advisory page assigns; CVE-2026-NNNNN reflects entries assigned in 2026.
 
-## The CASE-010 candidate set (broken access control)
+## The CASE-010 candidate set ([REDACTED])
 
 This is the subset QPB needs to consider for blind detection of CASE-010. They are all real, all recent, all in the same `internal/route/repo/` area, and all share the "load by ID without scoping to URL repo" shape. Each one is patched in 0.13.4 or 0.14.0.
 
-### CVE-2026-25229 — Authorization bypass allows cross-repository label modification *(primary CASE-010 candidate)*
+### [REDACTED] — [REDACTED] allows [REDACTED] modification *(primary CASE-010 candidate)*
 
-- **GHSA**: GHSA-cv22-72px-f4gh
-- **CWE**: CWE-284 (Improper Access Control)
+- **GHSA**: [REDACTED]
+- **CWE**: [REDACTED] (Improper Access Control)
 - **Severity**: Moderate
 - **Affected**: `<= 0.13.4`; patched in `0.14.0`
 - **Reporter**: @spingARbor
 - **File**: `internal/route/repo/issue.go`, function `UpdateLabel`, lines 1040-1054
 - **Endpoint**: `POST /:username/:reponame/labels/edit`
-- **Root cause** (verbatim from the advisory): `UpdateLabel` calls `database.GetLabelByID(f.ID)` (unscoped) instead of `database.GetLabelOfRepoByID(c.Repo.Repository.ID, f.ID)`. The advisory notes that the unscoped call "internally passes `repoID=0` to the ORM layer," and that according to code comments in `internal/database/issue_label.go:147-166`, `repoID=0` "causes the ORM to ignore repository restrictions." There is no `if l.RepoID != c.Repo.Repository.ID` check. The route middleware `reqRepoWriter` only validates write access to the URL-path repo, not the label's actual repo.
+- **Root cause** (verbatim from the advisory): `UpdateLabel` calls `database.[REDACTED](f.ID)` (unscoped) instead of `database.[REDACTED](c.Repo.Repository.ID, f.ID)`. The advisory notes that the unscoped call "internally passes `repoID=0` to the ORM layer," and that according to code comments in `internal/database/issue_label.go:147-166`, `repoID=0` "causes the ORM to ignore repository restrictions." There is no `if l.RepoID != c.Repo.Repository.ID` check. The route middleware `reqRepoWriter` only validates write access to the URL-path repo, not the label's actual repo.
 - **Impact**: An authenticated user with write access to *any* repo can rewrite any label on any other repo (cross-repo IDOR by integer label ID). The PoC: alice has write on `alice/repo-a`; she POSTs `id=1&title=HACKED&color=#000000` to `/alice/repo-a/labels/edit`; bob's `bob/repo-b` label with ID 1 is now renamed.
 - **Internal inconsistency**: The advisory explicitly notes that the *API* version of edit-label (`EditLabel`) uses the correctly-scoped query, and the Web UI's `NewLabel` and `DeleteLabel` are also correctly scoped. **Only `UpdateLabel` in the Web UI was vulnerable.** That's the "parity gap" pattern.
-- **Fix**: swap `GetLabelByID(f.ID)` → `GetLabelOfRepoByID(c.Repo.Repository.ID, f.ID)`. One-line.
+- **Fix**: swap `[REDACTED](f.ID)` → `[REDACTED](c.Repo.Repository.ID, f.ID)`. One-line.
 
 **Why this is the strongest CASE-010 match**: localized, well-documented, one-line fix, clear before/after, reproducible PoC, no exotic exploitation conditions (any authenticated user with write on any repo), and the surrounding code (`NewLabel`, `DeleteLabel`, API `EditLabel`) shows the correct pattern within the same file — so the bypass is unmistakable when seen.
 
-### CVE-2026-25120 — Cross-repository comment deletion
+### [REDACTED] — Cross-repository comment deletion
 
-- **GHSA**: GHSA-jj5m-h57j-5gv7
-- **CWE**: CWE-639 (Authorization Bypass Through User-Controlled Key)
+- **GHSA**: [REDACTED]
+- **CWE**: CWE-639 ([REDACTED] Through User-Controlled Key)
 - **Severity**: Moderate (CVSS 6.5)
 - **Affected**: `<= 0.13.4`; patched in `0.14.0`
 - **Reporter**: @tenbbughunters
@@ -47,9 +47,9 @@ This is the subset QPB needs to consider for blind detection of CASE-010. They a
 - **Impact**: A user who is admin of any repo (e.g., their own) can delete any comment from any other repo by knowing/guessing the comment ID. PoC: `POST /alice/attacker-repo/issues/comments/42/delete` with alice's session cookie, where comment 42 is in `bob/victim-repo`.
 - **Fix**: add the binding step that `UpdateCommentContent` already had — load the issue from `comment.IssueID`, verify `issue.RepoID == c.Repo.Repository.ID`, then proceed.
 
-### CVE-2026-25232 — Protected branch deletion bypass
+### [REDACTED] — Protected branch deletion bypass
 
-- **GHSA**: GHSA-2c6v-8r3v-gh6p
+- **GHSA**: [REDACTED]
 - **CWE**: CWE-863 (Incorrect Authorization)
 - **Severity**: Critical
 - **Affected**: `<= 0.13.4`; patched in `0.14.0`
@@ -60,9 +60,9 @@ This is the subset QPB needs to consider for blind detection of CASE-010. They a
 - **Impact**: Any writer can delete any protected branch (including default), bypassing PR review requirements. Privilege escalation from Writer → Admin-equivalent on branch lifecycle.
 - **Fix**: add `database.GetProtectBranchOfRepoByName(c.Repo.Repository.ID, branchName)` lookup and refuse if protected; also refuse if `branchName == c.Repo.Repository.DefaultBranch`.
 
-### CVE-2026-23632 — Read-only PAT can update repository contents via API
+### [REDACTED] — Read-only PAT can update repository contents via API
 
-- **GHSA**: GHSA-5qhx-gwfj-6jqr
+- **GHSA**: [REDACTED]
 - **CWE**: CWE-862 (Missing Authorization) + CWE-863 (Incorrect Authorization)
 - **Severity**: Moderate (CVSS 6.5)
 - **Affected**: `<= 0.13.3`; patched in `0.13.4` and `0.14.0+dev`
@@ -72,26 +72,26 @@ This is the subset QPB needs to consider for blind detection of CASE-010. They a
 - **Impact**: source-code tampering, backdoor injection, release-artifact compromise — all from a PAT marketed as read-only.
 - **Fix**: gate on writer permission, either through `reqRepoWriter`-equivalent middleware or an inline `if !c.Repo.IsWriter() { c.Status(403); return }`.
 
-### CVE-2025-65852 — Authorization bypass in repository deletion API
+### [REDACTED] — [REDACTED] in repository deletion API
 
-- **GHSA**: GHSA-rjv5-9px2-fqw6
+- **GHSA**: [REDACTED]
 - **Severity**: Moderate
 - **Affected**: per the advisory listing
 - **Endpoint**: API repo-deletion handler
-- **Root cause**: handler did not properly verify owner-tier access on the target repo before deletion. (Advisory page returned empty body on fetch; the listing in `https://github.com/advisories?query=gogs` confirms the title "Gogs has authorization bypass in repository deletion API" and credits @Yannis175.)
+- **Root cause**: handler did not properly verify owner-tier access on the target repo before deletion. (Advisory page returned empty body on fetch; the listing in `https://github.com/advisories?query=gogs` confirms the title "Gogs has [REDACTED] in repository deletion API" and credits @Yannis175.)
 - **Impact**: cross-tenant repo deletion.
 
-### CVE-2026-25921 — Cross-repository LFS object overwrite
+### [REDACTED] — Cross-repository LFS object overwrite
 
-- **GHSA**: GHSA-cj4v-437j-jq4c
+- **GHSA**: [REDACTED]
 - **Severity**: Critical
 - **Affected**: per the advisory listing
 - **Reporter**: @zjuchenyuan
 - **Root cause**: missing content-hash verification on LFS object PUT; an object's OID can be supplied to an endpoint scoped to repo A but the content stored against the same OID is then visible to repo B. Cross-tenant tampering through the LFS data plane.
 
-### CVE-2026-25242 — Unauthenticated file upload
+### [REDACTED] — Unauthenticated file upload
 
-- **GHSA**: GHSA-fc3h-92p8-h36f
+- **GHSA**: [REDACTED]
 - **Severity**: Moderate
 - **Root cause**: per the advisory title, a file-upload endpoint reachable without sign-in. Belongs to the same category as the BAC group because the missing middleware is the authorization defect; included here for completeness.
 
@@ -101,29 +101,29 @@ These aren't CASE-010 themselves but they shape the attack surface and inform th
 
 ### Path-traversal cluster
 
-- **CVE-2026-24135** (GHSA-jp7c-wj6q-3qf2, High): arbitrary file deletion via path traversal in wiki page update.
-- **CVE-2026-23633** (GHSA-mrph-w4hh-gx3g, Moderate): arbitrary file read/write via path traversal in Git hook editing — gate was site-admin-only but the path constraint broke, turning admin-only into full-host read/write.
-- **CVE-2024-56731** (GHSA-wj44-9vcg-wjq7, Critical): deletion of internal files leading to RCE.
+- **[REDACTED]** ([REDACTED], High): arbitrary file deletion via path traversal in wiki page update.
+- **[REDACTED]** ([REDACTED], Moderate): arbitrary file read/write via path traversal in Git hook editing — gate was site-admin-only but the path constraint broke, turning admin-only into full-host read/write.
+- **[REDACTED]** ([REDACTED], Critical): deletion of internal files leading to RCE.
 
 ### Command/argument injection
 
-- **CVE-2024-39930** (GHSA-vm62-9jw3-c8w3, Critical): argument injection in the built-in SSH server.
-- **CVE-2025-64111** (GHSA-gg64-xxr9-qhjp, Critical): `.git/config` update path → remote command execution.
-- **CVE-2026-26194** (GHSA-v9vm-r24h-6rqm, High): release tag option injection in release deletion.
+- **[REDACTED]** ([REDACTED], Critical): argument injection in the built-in SSH server.
+- **[REDACTED]** ([REDACTED], Critical): `.git/config` update path → remote command execution.
+- **[REDACTED]** ([REDACTED], High): release tag option injection in release deletion.
 
 ### Authentication weaknesses
 
-- **CVE-2025-64175** (GHSA-p6x6-9mx6-26wj, High): 2FA bypass via recovery code (replay).
-- **CVE-2026-26196** (GHSA-x9p5-w45c-7ffc, Moderate): access tokens exposed through URL params in API requests.
-- **CVE-2025-8110** (GHSA-mq8m-42gh-wq7r, High): bypass of CVE-2024-55947's fix (regressions on previous patches).
+- **[REDACTED]** ([REDACTED], High): 2FA bypass via recovery code (replay).
+- **[REDACTED]** ([REDACTED], Moderate): access tokens exposed through URL params in API requests.
+- **[REDACTED]** ([REDACTED], High): bypass of [REDACTED]'s fix (regressions on previous patches).
 
 ### XSS cluster (multiple separately reported)
 
-- CVE-2026-26276 (DOM XSS via milestone selection), CVE-2026-26195 (stored XSS in branch/wiki views via author/committer names), CVE-2026-26022 (stored XSS via data URI in issue comments), GHSA-26gq-grmh-6xm6 (stored XSS via Mermaid), CVE-2025-47943 (stored call in PDF renderer).
+- [REDACTED] (DOM XSS via milestone selection), [REDACTED] (stored XSS in branch/wiki views via author/committer names), [REDACTED] (stored XSS via data URI in issue comments), [REDACTED] (stored XSS via Mermaid), [REDACTED] (stored call in PDF renderer).
 
 ### DoS
 
-- **CVE-2026-22592** (GHSA-cr88-6mqm-4g57, Moderate): denial of service.
+- **[REDACTED]** ([REDACTED], Moderate): denial of service.
 
 ## The advisory cadence as a signal
 
@@ -137,8 +137,8 @@ Reading the published-dates column: the maintainer landed roughly a dozen adviso
 
 The patches across the BAC cluster fall into three repeating shapes:
 
-1. **Swap the unscoped query for the scoped variant.** `GetLabelByID(id)` → `GetLabelOfRepoByID(repoID, id)`. CVE-2026-25229.
-2. **Add an explicit `if obj.RepoID != c.Repo.Repository.ID { c.NotFound(); return }` after a global-ID load.** CVE-2026-25120.
-3. **Add a missing pre-action check that mirrors a check the other transport already has.** Either tier-up the middleware (`reqRepoWriter` → `reqRepoAdmin` is the cleanest), or add an inline check (`if !c.Repo.IsWriter()`, `if protectBranch.Protected`). CVE-2026-25232 (protected branch), CVE-2026-23632 (read-only PAT writes).
+1. **Swap the unscoped query for the scoped variant.** `[REDACTED](id)` → `[REDACTED](repoID, id)`. [REDACTED].
+2. **Add an explicit `if obj.RepoID != c.Repo.Repository.ID { c.NotFound(); return }` after a global-ID load.** [REDACTED].
+3. **Add a missing pre-action check that mirrors a check the other transport already has.** Either tier-up the middleware (`reqRepoWriter` → `[REDACTED]` is the cleanest), or add an inline check (`if !c.Repo.IsWriter()`, `if protectBranch.Protected`). [REDACTED] (protected branch), [REDACTED] (read-only PAT writes).
 
 For CASE-010 blind detection, **shape #1 is the easiest to spot** because the unsafe call (`GetXByID` / `GetIssueByID`) and the safe alternative (`GetXOfRepoByID`) typically live in the same file (or in the same package), making the absence diagnostic.

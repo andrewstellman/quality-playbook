@@ -27,13 +27,13 @@ The `yaml` search returned 30 results. The recurring shape is "the YAML reader h
 - **#400** `Empty string becoming null when modifying YAML` — closed. Round-trip discipline.
 - **#327** `Int instead of string added to a document` — closed. Type-tag handling.
 - **#270** `Validate doesn't correctly validate yaml files per the spec` — open.
-- **#285** `YAML anchors, aliases and references` — open. **The most relevant pre-CVE issue**: a feature/correctness discussion of how dasel handles anchors and aliases. The pre-fix code's empty-counter pattern existed in this context; the CVE-2026-33320 fix was scoped narrowly to bounds, not to write-side alias preservation.
+- **#285** `YAML anchors, aliases and references` — open. **The most relevant pre-CVE issue**: a feature/correctness discussion of how dasel handles anchors and aliases. The pre-fix code's empty-counter pattern existed in this context; the [REDACTED] fix was scoped narrowly to bounds, not to write-side alias preservation.
 - **#452** `Avoid string type quote stripping in yaml` — open.
 - **#437** `Emoji is changed to Unicode in yaml` — open.
 - **#178** `Preserve comments when editing files` — open. Round-trip comment fidelity (separate from CVE scope).
 - **#161** `Frontmatter Support` — open.
 
-**Significance for QPB**: YAML is the format with the most active edge-case maintenance. The maintainer ships YAML-reader fixes regularly, which means the file (`parsing/yaml/yaml_reader.go`) is high-churn — a setting where a future refactor could accidentally weaken the post-CVE bounds. QPB's check for "does the YAML reader still enforce both `maxExpansionDepth` and `maxExpansionBudget`?" needs to be robust to legitimate edits in nearby code.
+**Significance for QPB**: YAML is the format with the most active edge-case maintenance. The maintainer ships YAML-reader fixes regularly, which means the file (`parsing/yaml/yaml_reader.go`) is high-churn — a setting where a future refactor could accidentally weaken the post-CVE bounds. QPB's check for "does the YAML reader still enforce both `[REDACTED]` and `[REDACTED]`?" needs to be robust to legitimate edits in nearby code.
 
 ## Theme 2 — Crash and panic reports (parser robustness)
 
@@ -51,7 +51,7 @@ The `panic` search returned 11 results, all closed. These show a sustained histo
 - **#327** `Int instead of string added to a document` — closed.
 - **#133** `Merge` — closed.
 
-**Pattern**: empty/null/edge inputs across every supported format have at some point produced a crash. The project has a real history of "unhardened parser path → user-supplied input crashes the process." The CVE-2026-33320 fix is the latest entry in this history but the first one classified as a security advisory.
+**Pattern**: empty/null/edge inputs across every supported format have at some point produced a crash. The project has a real history of "unhardened parser path → user-supplied input crashes the process." The [REDACTED] fix is the latest entry in this history but the first one classified as a security advisory.
 
 **Significance for QPB**: a hunt looking for "places where adversarial input could crash or hang the parser" has a real, documented prior probability of finding something in this codebase. The current `parsing/json/json_reader.go` lacking an explicit depth cap (per `03_input_handling.md`) fits the same pattern as the panic bugs that needed fixing.
 
@@ -65,7 +65,7 @@ The `memory` search returned 9 results, all but one closed:
 - **#392** — overlap with theme 2.
 - **#381**, **#131**, **#35**, **#196** — assorted memory-tangential issues.
 
-**Significance**: there is no open issue that calls out unbounded YAML alias expansion as a memory concern. The CVE-2026-33320 advisory was filed privately rather than as a public issue (correct per `SECURITY.md`), so it would not appear in this list. But the absence of public DoS reports is consistent with the disclosure path the maintainer set up.
+**Significance**: there is no open issue that calls out [REDACTED] as a memory concern. The [REDACTED] advisory was filed privately rather than as a public issue (correct per `SECURITY.md`), so it would not appear in this list. But the absence of public DoS reports is consistent with the disclosure path the maintainer set up.
 
 ## Theme 4 — Parser/format correctness across non-YAML formats
 

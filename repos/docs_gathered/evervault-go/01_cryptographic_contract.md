@@ -124,10 +124,10 @@ The cache (`internal/attestation/attestation_cache.go`) polls `https://<enclave-
 
 ### Attestation-side
 
-- INV-ATT-1: The attestation document MUST be verified by `nitrite.Verify` AND `validatedDoc.SignatureOK` MUST be true before any PCR comparison is performed. (Enforced in `validateAttestationDoc`.)
-- INV-ATT-2: The attestation document stored in the cache MUST contain PCR0, PCR1, AND PCR2 (non-nil entries in the `PCRs` map). PCR3+ are not required. (Enforced in `validateAttestationDoc` since v1.3.2.)
-- INV-ATT-3: When verifying PCRs at TLS-dial time, the **received** attestation document's PCR0, PCR1, and PCR2 entries MUST be present, even if the **expected** PCR set only constrains PCR8. (Enforced in `mapAttestationPCRs` via the explicit `if !ok` checks since v1.3.2 — this is the **post-CVE-2025-64186 invariant**.)
-- INV-ATT-4: A non-empty expected PCR value MUST equal the corresponding received PCR value. An empty expected PCR value is treated as "don't care" (intentional partial-attestation semantics). (Enforced in `attestation.PCRs.SatisfiedBy`.)
+- INV-ATT-1: The attestation document MUST be verified by `nitrite.Verify` AND `validatedDoc.SignatureOK` MUST be true before any PCR comparison is performed. (Enforced in `[REDACTED]`.)
+- INV-ATT-2: The attestation document stored in the cache MUST contain PCR0, PCR1, AND PCR2 (non-nil entries in the `PCRs` map). PCR3+ are not required. (Enforced in `[REDACTED]` since v1.3.2.)
+- INV-ATT-3: When verifying PCRs at TLS-dial time, the **received** attestation document's PCR0, PCR1, and PCR2 entries MUST be present, even if the **expected** PCR set only constrains PCR8. (Enforced in `mapAttestationPCRs` via the explicit `if !ok` checks since v1.3.2 — this is the **post-[REDACTED] invariant**.)
+- INV-ATT-4: A non-empty expected PCR value MUST equal the corresponding received PCR value. An empty expected PCR value is treated as "don't care" (intentional [REDACTED].PCRs.[REDACTED]`.)
 - INV-ATT-5: The TLS peer certificate's public key MUST bytewise equal the attestation document's `UserData` field. (Enforced in `attestCert`.)
 - INV-ATT-6: At least one expected PCR set MUST be supplied with at least one non-empty PCR. `ErrNoPCRs` is returned otherwise. (Enforced in `createCagesClient` via `filterEmptyPCRs`.)
 - INV-ATT-7: TLS to a Cage/Enclave MUST use `InsecureSkipVerify: false`, `MinVersion: TLS 1.2`, and `ServerName: <cage-or-enclave-hostname>`. (Enforced in `cagesClient` and `enclave.go`.)

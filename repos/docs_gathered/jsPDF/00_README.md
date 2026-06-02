@@ -28,7 +28,7 @@ where they expect to run. The `dist/` directory contains:
 When importing the bare specifier `"jspdf"`, the build tool (or Node) auto-
 selects the appropriate build via `package.json` conditional exports. In
 Node, `require("jspdf")` resolves to the **node build**, which is the one
-covered by CVE-2025-68428.
+covered by [REDACTED].
 
 ## Domain Vocabulary
 
@@ -46,7 +46,7 @@ covered by CVE-2025-68428.
 ## Key APIs that Touch External Resources
 
 These four methods are the public surface that, in the Node build, can
-reach the local file system. They are the entry points the CVE-2025-68428
+reach the local file system. They are the entry points the [REDACTED]
 advisory enumerates as "affected":
 
 - **`loadFile(url, sync, callback)`** — defined in
@@ -66,9 +66,9 @@ advisory enumerates as "affected":
   Depends on the optional `html2canvas` and `dompurify` packages.
 
 In the **browser build**, these methods are confined by the browser's
-same-origin / fetch policy and pose no LFI risk to the host filesystem.
+same-origin / fetch policy and pose no [REDACTED] risk to the host filesystem.
 In the **Node build**, they have direct, unsandboxed `fs` access — which
-is what CVE-2025-68428 exploited.
+is what [REDACTED] exploited.
 
 ## Repo Layout (relevant subset)
 
@@ -77,7 +77,7 @@ jsPDF/
 ├── src/
 │   ├── jspdf.js               # core jsPDF class
 │   └── modules/
-│       ├── fileloading.js     # CVE-2025-68428 fix locus
+│       ├── fileloading.js     # [REDACTED] fix locus
 │       ├── addimage.js
 │       ├── html.js
 │       └── ttffont.js / standard_fonts_metrics.js
@@ -99,13 +99,13 @@ jsPDF/
 - **INV-OVERVIEW-1**: jsPDF ships a Node build (`dist/jspdf.node*.js`) that
   is **functionally distinct** from the browser builds — it has direct
   access to `fs`. Any analysis treating the library as "client-side only"
-  misses the entire attack surface of CVE-2025-68428.
+  misses the entire attack surface of [REDACTED].
 - **INV-OVERVIEW-2**: A path string is a valid input type for `addImage`,
   `addFont`, and `html` resource references. Therefore the library
   intentionally bridges caller-controlled strings into `loadFile`. The
   question is not "is path input accepted?" — it is "what restriction
   applies before the path reaches `fs.readFileSync`?"
-- **INV-OVERVIEW-3**: The fix locus for CVE-2025-68428 is
+- **INV-OVERVIEW-3**: The fix locus for [REDACTED] is
   `src/modules/fileloading.js` and specifically the `nodeReadFile`
   function — every other affected public method (`addImage`, `addFont`,
   `html`) reaches the filesystem through this single function.

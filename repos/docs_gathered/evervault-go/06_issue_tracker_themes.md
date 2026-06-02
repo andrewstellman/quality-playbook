@@ -26,8 +26,8 @@ A clear pattern of incremental attestation fixes:
 | #35 | 2024-11-04 | [ETR-2718] Add retry mechanism to attestation doc fetching | Retries + backoff in `getDoc` |
 | #37 | 2024-11-05 | Fix Enclave attestation document polling and decrypt API calls | Fixed a hang on `/.well-known/attestation` |
 | #39 | 2024-11-07 | Remove log line from latest version | Reduce log noise / cache state leakage |
-| #42 | 2025-09-10 | Update Enclave attestation checks to assert that locked PCRs are defined | First attempt at the CVE-2025-64186 fix (body language echoes PR #48's "the `pcrNotEqual` check is unsound") |
-| #48 | 2025-09-15 | Improve correctness of PCR check in enclaves Go SDK | **The merged CVE fix** — cache verified docs, assert PCR0/1/2 set, replace `pcrNotEqual` with `SatisfiedBy` |
+| #42 | 2025-09-10 | Update Enclave attestation checks to assert that locked PCRs are defined | First attempt at the [REDACTED] fix (body language echoes [REDACTED]'s "the `[REDACTED]` check is unsound") |
+| #48 | 2025-09-15 | Improve correctness of PCR check in enclaves Go SDK | **The merged CVE fix** — cache verified docs, assert PCR0/1/2 set, replace `[REDACTED]` with `[REDACTED]` |
 
 **Pattern:** the attestation pipeline has been rebuilt 3-4 times. Every rebuild touched the cache, the polling, OR the comparison logic. This is a high-risk subsystem.
 
@@ -70,7 +70,7 @@ Encrypted-payload representation has been extended twice:
 | #36, #43, #45, #46, #47 | Multiple iterations on test isolation, env-var gating, removing `err != nil` checks in favor of testify assertions |
 | #44 | CI matrix update to Go 1.24, 1.25 |
 
-**Pattern:** the SDK's test suite is heavily integration-flavored (env-var-gated, requires live Evervault credentials). The unit-test coverage of the attestation logic was **expanded by +86 lines in PR #48 specifically to cover the CVE case**, which suggests the prior coverage on attestation was thin. Audit angle: any new finding in the cryptographic / attestation surface MUST come with a unit test that does not require live credentials, because integration tests are gated.
+**Pattern:** the SDK's test suite is heavily integration-flavored (env-var-gated, requires live Evervault credentials). The unit-test coverage of the attestation logic was **expanded by +86 lines in [REDACTED] specifically to cover the CVE case**, which suggests the prior coverage on attestation was thin. Audit angle: any new finding in the cryptographic / attestation surface MUST come with a unit test that does not require live credentials, because integration tests are gated.
 
 ### Theme 6: Dependency hygiene (informational)
 
@@ -86,12 +86,12 @@ The single non-stdlib runtime dependency that carries cryptographic weight is `g
 2. **Wire-format metadata is hand-rolled byte-by-byte** — extension risk in `buildEncodedMetadata` / `encodeRole`.
 3. **Type-specific encrypt API replaced an `any`-typed one** — Data Roles embedded in ciphertext, but only in the GCM plaintext, not the AAD.
 4. **Functions are not attested** — only the encryption transport is attested; Function invocation is plain HTTPS to api.evervault.com.
-5. **Unit-test coverage of attestation was thin pre-CVE** — PR #48 adds +86 lines of `pcrs_test.go` to plug the gap.
+5. **Unit-test coverage of attestation was thin pre-CVE** — [REDACTED] adds +86 lines of `pcrs_test.go` to plug the gap.
 6. **One critical external crypto dep (`hf/nitrite`)** — attestation correctness inherits its correctness.
 
 ## Invariants implied by issue-tracker themes
 
-- INV-ISSUE-1: Any future attestation-cache or PCR-comparison change MUST be accompanied by unit tests that exercise the malformed-document case (missing PCR0/1/2, missing PCR8, empty PCR values). This is the test class PR #48 added in `pcrs_test.go`.
+- INV-ISSUE-1: Any future attestation-cache or PCR-comparison change MUST be accompanied by unit tests that exercise the malformed-document case (missing PCR0/1/2, missing PCR8, empty PCR values). This is the test class [REDACTED] added in `pcrs_test.go`.
 - INV-ISSUE-2: Any extension to the encrypted-payload metadata MUST keep the datatype shift math (`dataTypeNumber << 4`) within 4 bits AND MUST keep the role-length byte computation `defaultRoleNameLength | len(role)` within the lower 5 bits (i.e., role names must be < 32 bytes), OR explicitly handle the overflow.
 - INV-ISSUE-3: If a new datatype is added (e.g., decimal), the version byte's `(datatype << 4) | 1` encoding requires both the encoder and decoder (server-side) to be updated. Wire-format changes must round-trip.
 - INV-ISSUE-4: `hf/nitrite` is a load-bearing security dependency. Bumping it without re-running the attestation tests would risk regressing the attestation contract.

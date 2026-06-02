@@ -1,8 +1,8 @@
 00_README.md - Apache Spark overview, History Server role, event-log format, audit scope narrowed to core/JsonProtocol + deploy/history.
 01_security_model.md - Trust boundaries on the event-log directory; who can write event logs; History Server threat model and "event log is INPUT, not trusted" framing.
-02_event_log_serialization_contract.md - JsonProtocol.scala contract; SparkListenerEvent hierarchy; sparkEventFromJson dispatcher; the bug-surface fallback and the SPARK-52381 fix shape.
+02_event_log_serialization_contract.md - JsonProtocol.scala contract; SparkListenerEvent hierarchy; sparkEventFromJson dispatcher; the bug-surface fallback and the [REDACTED] fix shape.
 03_deserialization_safety.md - When polymorphic class instantiation occurs; safe (isAssignableFrom gate) vs unsafe (raw classForName + readValue); Jackson-family pitfalls and gadget classes.
 04_invariants.md - Consolidated invariants the QPB skill should derive from the docs/advisories: type-gate before construction, no default typing, no Java-native deserialization on log content.
-05_known_issues_and_advisories.md - CVE-2025-54920/SPARK-52381 detail; prior Spark CVEs (2017-12612 launcher deserialization, 2018-17190 standalone master); Jackson polymorphic-deserialization CVE family.
+05_known_issues_and_advisories.md - [REDACTED]/[REDACTED] detail; prior Spark CVEs (2017-12612 launcher deserialization, 2018-17190 standalone master); Jackson polymorphic-deserialization CVE family.
 06_issue_tracker_themes.md - Six recurring themes from ASF Jira (schema drift, multi-tenant log dirs, log-file scale, core/ CVE precedent, Jackson config churn, listener-bus extension hatch).
 MANIFEST.txt - This file.

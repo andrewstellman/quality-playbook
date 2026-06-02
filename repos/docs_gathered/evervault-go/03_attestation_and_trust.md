@@ -12,8 +12,8 @@
 - Nitro attestation reference: https://docs.aws.amazon.com/enclaves/latest/user/set-up-attestation.html
 - nitrite (parser/verifier dep): https://pkg.go.dev/github.com/hf/nitrite
 - Evervault Enclaves docs: https://docs.evervault.com/enclaves
-- CVE-2025-64186 advisory: https://github.com/evervault/evervault-go/security/advisories/GHSA-88h9-77c7-p6w4
-- Patch PR #48: https://github.com/evervault/evervault-go/pull/48
+- [REDACTED] advisory: https://github.com/evervault/evervault-go/security/advisories/[REDACTED]
+- Patch [REDACTED]: https://github.com/evervault/evervault-go[REDACTED]
 - CHANGELOG (v1.3.0 / 1.3.1 / 1.3.2 entries): https://github.com/evervault/evervault-go/blob/main/CHANGELOG.md
 
 ## Context
@@ -42,8 +42,8 @@ Each `EnclaveClient*` call creates an `internal/attestation.Cache` that polls `h
 
 - **Initial load:** synchronous, with a 30-second timeout (`pollTimeout`). If it fails, the cache holds a zero document and dial attempts will fail attestation.
 - **Retry policy:** up to 3 attempts (`maxRetries`) inside `getDoc`, with exponential backoff (`backoffFactor = 2`, base `retryInterval = 1s`).
-- **Validation in cache:** `validateAttestationDoc` runs `nitrite.Verify`, checks `validatedDoc.SignatureOK`, then **requires PCR0, PCR1, PCR2 to be present** in the document's PCR map. **This check was added in v1.3.2 as part of the CVE-2025-64186 fix.**
-- **What's NOT cached pre-v1.3.2:** Pre-v1.3.2, the cache stored raw byte arrays and re-verified per dial. Per PR #48 description: "Update the internal attestation doc cache to cache verified documents instead of byte arrays — this removes duplicate work in verifying the attestation documents in every TLS handshake and **ensures that invalid documents are ignored**."
+- **Validation in cache:** `[REDACTED]` runs `nitrite.Verify`, checks `validatedDoc.SignatureOK`, then **requires PCR0, PCR1, PCR2 to be present** in the document's PCR map. **This check was added in v1.3.2 as part of the [REDACTED] fix.**
+- **What's NOT cached pre-v1.3.2:** Pre-v1.3.2, the cache stored raw byte arrays and re-verified per dial. Per [REDACTED] description: "Update the internal attestation doc cache to cache verified documents instead of byte arrays — this removes duplicate work in verifying the attestation documents in every TLS handshake and **ensures that invalid documents are ignored**."
 
 ### PCR expectation providers
 
@@ -64,7 +64,7 @@ TCP dial(host) — 5 s timeout
   → cert  := tlsConn.ConnectionState().PeerCertificates[0]
   → doc   := cache.Get()
   → attestCert(cert, expectedPCRs, doc):
-        verifyPCRs(expectedPCRs, doc)        // ← THE CHECK CVE-2025-64186 BROKE
+        verifyPCRs(expectedPCRs, doc)        // ← THE CHECK [REDACTED] BROKE
         bytes.Equal(MarshalPKIX(cert.PubKey), doc.UserData)
   → if attestCert failed:
         cache.LoadDoc(ctx)                   // try refresh
@@ -81,7 +81,7 @@ verifyPCRs(expectedPCRs[], doc):
     if err != nil:
         return false                         // ← post-v1.3.2: short-circuits when any of PCR0/1/2 missing
     for _, expected := range expectedPCRs:
-        if expected.SatisfiedBy(attestationPCRs):
+        if expected.[REDACTED](attestationPCRs):
             return true
     return false
 ```
@@ -91,21 +91,21 @@ verifyPCRs(expectedPCRs[], doc):
 ### Failure semantics
 
 - **No initial attestation document** (network failure, parser failure, signature failure): the cache holds a zero `nitrite.Document`. `verifyPCRs` calls `mapAttestationPCRs(zeroDoc)` which returns `ErrMissingPCR`, so `verifyPCRs` returns `false`, so `attestCert` returns `(false, nil)`. The dial then tries `cache.LoadDoc(ctx)` once more. If that also fails, the dial returns `ErrAttestionFailure`. **Caller-visible result: HTTP request fails — fail-closed.**
-- **Signature invalid:** `validateAttestationDoc` returns an error; the document is NOT stored. Result same as above.
-- **PCRs mismatch a non-empty expected value:** `SatisfiedBy` returns `false`. If no expected set in the slice matches, dial fails closed.
+- **Signature invalid:** `[REDACTED]` returns an error; the document is NOT stored. Result same as above.
+- **PCRs mismatch a non-empty expected value:** `[REDACTED]` returns `false`. If no expected set in the slice matches, dial fails closed.
 - **Cert/UserData mismatch:** `attestCert` returns `(false, nil)`. Dial fails closed.
 
 ### What changed in v1.3.2 (the patch)
 
-PR #48 description:
+[REDACTED] description:
 > Update the internal attestation doc cache to cache verified documents instead of byte arrays — this removes duplicate work in verifying the attestation documents in every TLS handshake and **ensures that invalid documents are ignored**.
 > Update `mapAttestationPCRs` to assert that PCRs 0, 1, and 2 are set — while we enforce that all hosted images contain a valid PCR8, we are omitting this constraint in the interest of portability.
-> Update PCR comparisons to use new `SatisfiedBy` function which more accurately reflects the PCR expectation checks semantics.
+> Update PCR comparisons to use new `[REDACTED]` function which more accurately reflects the PCR expectation checks semantics.
 
-Diff metrics from PR #48:
+Diff metrics from [REDACTED]:
 - `attest.go`: +31 / −21
-- `attestation/pcrs.go`: +37 / −0 (this is where `SatisfiedBy` and `isMinimalPCRSet` were added)
-- `internal/attestation/attestation_cache.go`: +43 / −6 (this is where `validateAttestationDoc` got the PCR0/1/2 presence checks)
+- `attestation/pcrs.go`: +37 / −0 (this is where `[REDACTED]` and `[REDACTED]` were added)
+- `internal/attestation/attestation_cache.go`: +43 / −6 (this is where `[REDACTED]` got the PCR0/1/2 [REDACTED]s)
 - `attestation/pcrs_test.go`: +86 / −0
 - `error.go`: +3 / −0 (added `ErrMissingPCR`)
 
@@ -123,21 +123,21 @@ The SDK is **strict, not TOFU**. Every connection re-runs attestation. There is 
 ### Mandatory pre-verification checks
 
 - INV-TRUST-1: `nitrite.Verify` MUST be called and MUST return `SignatureOK == true` before any PCR comparison.
-- INV-TRUST-2: The verified document MUST have PCR0, PCR1, AND PCR2 present (non-nil entries) before being stored in the cache. [enforced in `validateAttestationDoc` since v1.3.2]
-- INV-TRUST-3: Before comparing expected vs received PCRs, the **received** PCRs map MUST also be re-checked for PCR0/1/2 presence (defense in depth — in case the cached document came from a path that bypassed `validateAttestationDoc`). [enforced in `mapAttestationPCRs` since v1.3.2]
-- INV-TRUST-4: PCR comparison MUST use `SatisfiedBy` (which short-circuits on `!isMinimalPCRSet`), NOT the legacy `pcrNotEqual`-based `Equal`.
+- INV-TRUST-2: The verified document MUST have PCR0, PCR1, AND PCR2 present (non-nil entries) before being stored in the cache. [enforced in `[REDACTED]` since v1.3.2]
+- INV-TRUST-3: Before comparing expected vs received PCRs, the **received** PCRs map MUST also be re-checked for PCR0/1/2 presence (defense in depth — in case the cached document came from a path that bypassed `[REDACTED]`). [enforced in `mapAttestationPCRs` since v1.3.2]
+- INV-TRUST-4: PCR comparison MUST use `[REDACTED]` (which short-circuits on `![REDACTED]`), NOT the legacy `[REDACTED]`-based `Equal`.
 
 ### Forbidden states
 
-- INV-TRUST-5: An attestation document with **only** PCR8 set (PCR0/1/2 absent) MUST NOT be accepted, regardless of how the expected PCR set is configured. This is the exact failure mode CVE-2025-64186 enabled pre-1.3.2.
-- INV-TRUST-6: A nil/zero `nitrite.Document` (empty PCRs map) MUST never pass `verifyPCRs` against any non-empty expected PCR set.
+- INV-TRUST-5: An attestation document with **only** PCR8 set (PCR0/1/2 absent) MUST NOT be accepted, regardless of how the expected PCR set is configured. This is the exact failure mode [REDACTED] enabled pre-1.3.2.
+- INV-TRUST-6: A nil/zero `nitrite.Document` ([REDACTED] map) MUST never pass `verifyPCRs` against any non-empty expected PCR set.
 - INV-TRUST-7: A successful TLS handshake to the enclave is NEVER sufficient by itself to consider the connection trusted. Attestation MUST run, and it MUST succeed.
 - INV-TRUST-8: `InsecureSkipVerify` MUST be `false` on the TLS config; downgrading it would skip WebPKI checks AND bypass the cert.PubKey/UserData binding's meaningfulness.
 
 ### Caller-supplied expectations
 
 - INV-TRUST-9: An empty PCR field in a caller-supplied expected `PCRs` struct means "don't care". A caller who only sets PCR8 still gets PCR0/1/2 presence-checked (via INV-TRUST-3) but their values are unconstrained.
-- INV-TRUST-10: Multiple PCR sets in the slice means "OR" — the connection passes if any one set is `SatisfiedBy` the received document.
+- INV-TRUST-10: Multiple PCR sets in the slice means "OR" — the connection passes if any one set is `[REDACTED]` the received document.
 - INV-TRUST-11: At least one PCR set in the slice MUST have at least one non-empty field. The SDK rejects an entirely-empty slice with `ErrNoPCRs` at client construction.
 - INV-TRUST-12: When using `*WithProvider`, the provider callback's first invocation MUST succeed before the client is usable; subsequent failures log but do not stop the polling loop.
 
@@ -152,5 +152,5 @@ The SDK is **strict, not TOFU**. Every connection re-runs attestation. There is 
 
 ### Caching
 
-- INV-TRUST-16: The cache MUST NOT store a document that failed `nitrite.Verify` or that is missing PCR0/1/2. [enforced in `validateAttestationDoc` since v1.3.2 — pre-v1.3.2 the cache stored raw bytes and re-verified, but the per-dial verification path used `nitrite.Verify` results without re-checking PCR presence, which was the proximate cause of CVE-2025-64186.]
+- INV-TRUST-16: The cache MUST NOT store a document that failed `nitrite.Verify` or that is missing PCR0/1/2. [enforced in `[REDACTED]` since v1.3.2 — pre-v1.3.2 the cache stored raw bytes and re-verified, but the per-dial verification path used `nitrite.Verify` results without re-checking PCR presence, which was the proximate cause of [REDACTED].]
 - INV-TRUST-17: A polling refresh failure MUST NOT clobber a previously-good cached document with garbage. (Verified in `LoadDoc`: on error it `log.Printf`s and returns without calling `Set`.)

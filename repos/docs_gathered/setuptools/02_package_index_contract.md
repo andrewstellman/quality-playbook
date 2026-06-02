@@ -5,10 +5,10 @@
 - Vulnerable source at parent SHA (the entire `package_index.py`):
   https://raw.githubusercontent.com/pypa/setuptools/d8390feaa99091d1ba9626bec0e4ba7072fc507a/setuptools/package_index.py
 - Patch (commit and diff):
-  https://github.com/pypa/setuptools/commit/250a6d17978f9f6ac3ac887091f2d32886fbbb0b
-- Advisory GHSA-5rjg-fvgr-3xxf: https://github.com/advisories/GHSA-5rjg-fvgr-3xxf
+  https://github.com/pypa/setuptools/commit/[REDACTED]
+- Advisory [REDACTED]: https://github.com/advisories/[REDACTED]
 - Issue tracking the fix (pypa/setuptools#4946):
-  https://github.com/pypa/setuptools/issues/4946
+  https://github.com/pypa/setuptools[REDACTED]
 - easy_install user docs (background on the host allow-list message):
   https://setuptools.pypa.io/en/latest/deprecated/easy_install.html
 

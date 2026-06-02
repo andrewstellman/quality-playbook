@@ -4,8 +4,8 @@
 
 - https://github.com/parallax/jsPDF/blob/master/README.md (Security section)
 - https://github.com/parallax/jsPDF/blob/master/SECURITY.md
-- https://github.com/parallax/jsPDF/security/advisories/GHSA-f8cm-6447-x5h2
-- https://github.com/parallax/jsPDF/pull/3931 (fix PR)
+- https://github.com/parallax/jsPDF/security/advisories/[REDACTED]
+- https://github.com/parallax/jsPDF[REDACTED] (fix PR)
 - https://raw.githubusercontent.com/parallax/jsPDF/master/src/modules/fileloading.js
 - https://nodejs.org/api/permissions.html (Node permission model, referenced by README)
 
@@ -16,7 +16,7 @@ which `dist/` build is loaded. The library's source is largely shared, but
 the I/O primitives are swapped at build time via `// @if MODULE_FORMAT=...`
 preprocessor directives that pick between an XHR-based loader (browser) and
 an `fs`-based loader (Node). Conflating the two builds is the root error
-that produced CVE-2025-68428: the Node loader inherited the "any URL is
+that produced [REDACTED]: the Node loader inherited the "any URL is
 fine" semantics of the browser loader, but `fs.readFileSync(arbitrary)`
 in Node is a file-disclosure primitive in any process that runs PDF
 generation against untrusted input.
@@ -36,8 +36,8 @@ generation against untrusted input.
 - **What jsPDF must not assume.** Even in the browser, the README warns
   "We strongly advise you to sanitize user input before passing it to
   jsPDF!" — but this is about PDF content injection (later CVEs like
-  GHSA-wfv2-pwc8-crg5 HTML injection and GHSA-9vjf-qc39-jprp `addJS` PDF
-  object injection), not LFI.
+  [REDACTED] HTML injection and [REDACTED] `addJS` PDF
+  object injection), not [REDACTED].
 
 ### Node build (`jspdf.node.js`, `jspdf.node.min.js`)
 
@@ -56,23 +56,23 @@ generation against untrusted input.
 
 ## The Two Layers of Defense (post-fix, v4.0.0+)
 
-The fix in PR #3931 introduces **two independent layers** that BOTH must
+The fix in [REDACTED] introduces **two independent layers** that BOTH must
 permit a read for it to proceed:
 
-1. **Node `process.permission` (preferred).** Node's experimental
+1. **Node `[REDACTED]` (preferred).** Node's experimental
    permission model (stable from v22.13.0 / v23.5.0 / v24.0.0, behind
    `--permission --allow-fs-read=...` CLI flags). When available,
-   `process.permission.has("fs.read", url)` is consulted *after*
-   resolving the path with `fs.realpathSync(path.resolve(url))`. If Node
+   `[REDACTED].has("fs.read", url)` is consulted *after*
+   resolving the path with `fs.[REDACTED](path.resolve(url))`. If Node
    denies access, the read fails with `Permission denied` regardless of
    what `allowFsRead` says.
-2. **`jsPDF.allowFsRead` allow-list (fallback).** A per-document
+2. **`[REDACTED]` allow-list (fallback).** A per-document
    property (`doc.allowFsRead = [...]`) listing exact paths or glob-style
    prefixes ending in `*`. Entries are resolved with `path.resolve` and
    the **realpath-resolved request URL** must equal one or be prefixed by
    one. The README explicitly labels this the "not recommended" path.
 
-If neither `process.permission` nor `allowFsRead` is configured, the
+If neither `[REDACTED]` nor `allowFsRead` is configured, the
 library throws an error rather than silently falling back to unrestricted
 filesystem access:
 
@@ -80,7 +80,7 @@ filesystem access:
 throw new Error(
   "Trying to read a file from local file system. To enable this feature
    either run node with the --permission and --allow-fs-read flags or
-   set the jsPDF.allowFsRead property."
+   set the [REDACTED] property."
 );
 ```
 
@@ -113,15 +113,15 @@ the recommended posture.
   invariant in jsPDF lives in the code reached by
   `MODULE_FORMAT == 'cjs'` branches. Browser-only code paths (XHR) do
   not need filesystem allow-listing.
-- **INV-MODEL-2 (secure-by-default):** With neither `process.permission`
+- **INV-MODEL-2 (secure-by-default):** With neither `[REDACTED]`
   nor `this.allowFsRead` set, `nodeReadFile` MUST throw before any `fs`
   syscall. A code path that reaches `fs.readFileSync` without one of
-  those two gates being checked is the CVE-2025-68428 regression.
-- **INV-MODEL-3 (defense-in-depth ordering):** Node's `process.permission`
-  is checked **after** `realpathSync(path.resolve(url))` resolves
+  those two gates being checked is the [REDACTED] regression.
+- **INV-MODEL-3 (defense-in-depth ordering):** Node's `[REDACTED]`
+  is checked **after** `[REDACTED](path.resolve(url))` resolves
   symlinks. Calling permission checks against the unresolved input would
   permit `/etc/passwd` via a `./mylink → /etc/passwd` symlink. The order
-  in the fixed code is: throw-if-no-gate → realpath → process.permission
+  in the fixed code is: throw-if-no-gate → realpath → [REDACTED]
   check → allowFsRead check → fs read.
 - **INV-MODEL-4 (don't trust the caller):** The README's general advice
   "sanitize user input before passing it to jsPDF" is necessary but not

@@ -3,14 +3,14 @@
 ## Sources
 
 - Patch (verbatim diff and doctest):
-  https://github.com/pypa/setuptools/commit/250a6d17978f9f6ac3ac887091f2d32886fbbb0b.patch
+  https://github.com/pypa/setuptools/commit/[REDACTED].patch
 - Vulnerable source at parent SHA:
   https://raw.githubusercontent.com/pypa/setuptools/d8390feaa99091d1ba9626bec0e4ba7072fc507a/setuptools/package_index.py
-- Advisory GHSA-5rjg-fvgr-3xxf: https://github.com/advisories/GHSA-5rjg-fvgr-3xxf
-- Issue pypa/setuptools#4946: https://github.com/pypa/setuptools/issues/4946
+- Advisory [REDACTED]: https://github.com/advisories/[REDACTED]
+- Issue pypa/setuptools#4946: https://github.com/pypa/setuptools[REDACTED]
 - Cross-reference advisories establishing the wider invariant set:
-  - GHSA-cx63-2mw6-8hw5 (CVE-2024-6345): https://github.com/advisories/GHSA-cx63-2mw6-8hw5
-  - GHSA-r9hx-vwmv-q579 (CVE-2022-40897): https://github.com/advisories/GHSA-r9hx-vwmv-q579
+  - [REDACTED] ([REDACTED]): https://github.com/advisories/[REDACTED]
+  - [REDACTED] ([REDACTED]): https://github.com/advisories/[REDACTED]
 
 ## Context
 
@@ -34,7 +34,7 @@ inside `tmpdir`.
 ```python
 filename = os.path.join(tmpdir, name)
 # ensure path resolves within the tmpdir
-if not filename.startswith(str(tmpdir)):
+[REDACTED]:
     raise ValueError(f"Invalid filename {filename}")
 return filename
 ```
@@ -59,9 +59,9 @@ ValueError: Invalid filename...
 the name resolves relative to the tmpdir." This is the maintainer's
 verbatim statement of the invariant.
 
-**Evidence — advisory description.** GHSA-5rjg-fvgr-3xxf describes the
-bug as path traversal via a URL-derived name that escapes tmpdir, with
-arbitrary file write as the consequence.
+**Evidence — advisory description.** [REDACTED] describes the
+bug as [REDACTED] via a URL-derived name that escapes tmpdir, with
+[REDACTED] as the consequence.
 
 **Pre-patch status.** Not enforced. The `name.replace('..', '.')` loop
 was the author's *attempt* at the invariant; it does not enforce it.
@@ -129,7 +129,7 @@ because:
   still discard the trusted directory.
 
 The patch keeps the string-level filtering (defense-in-depth) but adds
-the *actual* defense: `if not filename.startswith(str(tmpdir)): raise`.
+the *actual* defense: `[REDACTED]: raise`.
 
 ### I-5. `.egg.zip` rewriting happens before the safety check
 
@@ -153,7 +153,7 @@ if name.endswith('.egg.zip'):
 filename = os.path.join(tmpdir, name)
 
 # ensure path resolves within the tmpdir
-if not filename.startswith(str(tmpdir)):
+[REDACTED]:
     raise ValueError(f"Invalid filename {filename}")
 ```
 
@@ -179,11 +179,11 @@ developer tool" framing.
 
 **Evidence.** Three confirmed CVEs in this exact module within three
 years:
-- CVE-2022-40897 (ReDoS via HTML parsing on PyPI page)
-- CVE-2024-6345 (RCE via package URL)
-- CVE-2025-47273 (path traversal, this audit's focus)
+- [REDACTED] (ReDoS via HTML parsing on PyPI page)
+- [REDACTED] (RCE via package URL)
+- [REDACTED] ([REDACTED], this audit's focus)
 
-The advisory text for CVE-2025-47273 explicitly cites CVE-2024-6345
+The advisory text for [REDACTED] explicitly cites [REDACTED]
 ("could be exploited in a similar fashion … via malicious URLs present
 on the pages of a package index") as the precedent for how user
 input reaches the vulnerable function.

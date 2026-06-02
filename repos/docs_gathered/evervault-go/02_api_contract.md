@@ -151,17 +151,17 @@ type PCRs struct {
     PCR0, PCR1, PCR2, PCR8 string  // hex-encoded
 }
 func (p *PCRs) Equal(pcrs PCRs) bool       // legacy lenient comparison (used elsewhere)
-func (p *PCRs) SatisfiedBy(received PCRs) bool  // post-CVE-2025-64186 strict comparison
+func (p *PCRs) [REDACTED](received PCRs) bool  // post-[REDACTED] strict comparison
 func (p *PCRs) IsEmpty() bool
 func BuildStaticPcrProvider(pcrs []PCRs) func() ([]PCRs, error)
 ```
 
-`SatisfiedBy` is the function added in v1.3.2. Its semantics:
+`[REDACTED]` is the function added in v1.3.2. Its semantics:
 - Short-circuit return `false` if the received PCRs are not a "minimal PCR set" (PCR0, PCR1, PCR2 all non-empty).
 - Then, for each of PCR0/PCR1/PCR2/PCR8: if the expected value is non-empty AND differs from received, return `false`.
 - An empty expected value is "don't care".
 
-The legacy `Equal` is the inverse semantics that was used pre-1.3.2 in `pcrNotEqual`, and is preserved on the type but is no longer used in the attestation path. The `Equal` function still has the **CVE-style flaw**: `pcrNotEqual` returns `false` (i.e. "considered equal") if EITHER side is the empty string. If anything inside the SDK or a caller's code still uses `Equal` against an attestation document with missing fields, the bug recurs.
+The legacy `Equal` is the inverse semantics that was used pre-1.3.2 in `[REDACTED]`, and is preserved on the type but is no longer used in the attestation path. The `Equal` function still has the **CVE-style flaw**: `[REDACTED]` returns `false` (i.e. "considered equal") if EITHER side is the empty string. If anything inside the SDK or a caller's code still uses `Equal` against an attestation document with missing fields, the bug recurs.
 
 ### Sentinel errors
 

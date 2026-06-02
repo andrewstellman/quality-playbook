@@ -4,7 +4,7 @@
 
 - https://github.com/TomWright/dasel/blob/master/SECURITY.md
 - https://github.com/TomWright/dasel/security/advisories
-- https://github.com/TomWright/dasel/security/advisories/GHSA-4fcp-jxh7-23x8
+- https://github.com/TomWright/dasel/security/advisories/[REDACTED]
 - https://github.com/TomWright/dasel/blob/master/parsing/xml/reader.go (explicit DoS limits)
 - https://github.com/TomWright/dasel/blob/master/parsing/yaml/yaml_reader.go (post-fix bounds)
 - https://github.com/TomWright/dasel/blob/0dd6132e0c58edbd9b1a5f7ffd00dfab1e6085ad/parsing/yaml/yaml_reader.go (pre-fix, vulnerable)
@@ -52,15 +52,15 @@ const (
 
 The XML reader's `Read` method checks `len(data) > maxXMLSize` before invoking the decoder, and the comment parser tracks `totalComments` against the per-document cap. The XML decoder is also configured with `decoder.Strict = true`. This is the explicit pattern: named constants, comment justifying each value, enforcement at the entry point.
 
-Crucially, the XML reader does **not** rely on `decoder.Entity = nil` or similar to defuse "billion laughs" via XML entity expansion — but Go's `encoding/xml` does not perform external entity resolution by default, which mitigates the classic XXE/billion-laughs vector in stdlib XML.
+Crucially, the XML reader does **not** rely on `decoder.Entity = nil` or similar to defuse "[REDACTED]" via XML entity expansion — but Go's `encoding/xml` does not perform external entity resolution by default, which mitigates the classic XXE/billion-laughs vector in stdlib XML.
 
 ### YAML — post-fix has bounds; pre-fix did not (the CVE)
 
-After v3.3.2 (PR #531), `parsing/yaml/yaml_reader.go` declares:
+After v3.3.2 ([REDACTED]), `parsing/yaml/yaml_reader.go` declares:
 
 ```go
-const maxExpansionDepth = 32
-const maxExpansionBudget = 1000
+const [REDACTED] = 32
+const [REDACTED] = 1000
 ```
 
 …and threads both values through `yamlValue` so the recursive `UnmarshalYAML` can enforce them. Both errors are exported (`ErrYamlExpansionDepthExceeded`, `ErrYamlExpansionBudgetExceeded`) so callers can distinguish them.
@@ -75,7 +75,7 @@ case yaml.AliasNode:
     }
 ```
 
-— no depth counter, no budget counter, unbounded recursion. This is the CVE-2026-33320 root cause. See `05_known_issues_and_advisories.md` for the full advisory text and `04_invariants.md` for the derived bounds-invariant.
+— no depth counter, no budget counter, unbounded recursion. This is the [REDACTED] root cause. See `05_known_issues_and_advisories.md` for the full advisory text and `04_invariants.md` for the derived bounds-invariant.
 
 ### JSON — relies on the backing library (`goccy/go-json`)
 
@@ -83,11 +83,11 @@ case yaml.AliasNode:
 
 ### Other formats
 
-CSV, TOML, HCL, INI, KDL each have their own subpackage and Reader. None of them are in the CVE-2026-33320 scope, but the same trust-boundary discipline applies: each Reader is responsible for bounding its format-specific resource-exhaustion vectors.
+CSV, TOML, HCL, INI, KDL each have their own subpackage and Reader. None of them are in the [REDACTED] scope, but the same trust-boundary discipline applies: each Reader is responsible for bounding its format-specific resource-exhaustion vectors.
 
 ## What is *not* trusted to defend itself
 
-The advisory text on CVE-2026-33320 is explicit about a critical point: **go-yaml v4 enforces an alias-expansion limit only when you `Unmarshal` directly into Go values**. When the caller installs a custom `UnmarshalYAML(*yaml.Node)` hook — which dasel does — the library hands over the compact node tree (with alias nodes as pointers) and assumes the custom hook will police expansion itself.
+The advisory text on [REDACTED] is explicit about a critical point: **go-yaml v4 enforces an alias-expansion limit only when you `Unmarshal` directly into Go values**. When the caller installs a custom `UnmarshalYAML(*yaml.Node)` hook — which dasel does — the library hands over the compact node tree (with alias nodes as pointers) and assumes the custom hook will police expansion itself.
 
 The advisory captures this verbatim:
 

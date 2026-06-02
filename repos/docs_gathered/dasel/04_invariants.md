@@ -1,4 +1,4 @@
-# dasel — Invariants for Parser Bounds and Resource Exhaustion
+# dasel — Invariants for Parser Bounds and [REDACTED]
 
 ## Sources
 
@@ -6,9 +6,9 @@
 - https://github.com/TomWright/dasel/blob/master/parsing/yaml/yaml.go
 - https://github.com/TomWright/dasel/blob/master/parsing/yaml/yaml_test.go (the "bounded yaml expansion" / "yaml expansion depth boundary" / "yaml expansion budget boundary" / "yaml expansion budget resets per document" tests)
 - https://github.com/TomWright/dasel/blob/master/parsing/xml/reader.go
-- https://github.com/TomWright/dasel/security/advisories/GHSA-4fcp-jxh7-23x8
+- https://github.com/TomWright/dasel/security/advisories/[REDACTED]
 - https://github.com/TomWright/dasel/blob/0dd6132e0c58edbd9b1a5f7ffd00dfab1e6085ad/parsing/yaml/yaml_reader.go (vulnerable parent commit)
-- https://github.com/TomWright/dasel/pull/531 ("Fix yaml unbounded expansion")
+- https://github.com/TomWright/dasel[REDACTED] ("Fix yaml [REDACTED]")
 
 ## Method
 
@@ -27,11 +27,11 @@ Each invariant is paired with the source that establishes it and a brief stateme
 **Statement**: The custom `UnmarshalYAML` implementation in `parsing/yaml/yaml_reader.go` MUST track the depth of alias-chain dereferencing and reject inputs whose alias chains exceed a fixed cap.
 
 **Source**: 
-- Post-fix: `const maxExpansionDepth = 32` in `yaml_reader.go`, threaded via `yamlValue.maxExpansionDepth`, checked at the top of every `UnmarshalYAML` call.
+- Post-fix: `const [REDACTED] = 32` in `yaml_reader.go`, threaded via `yamlValue.[REDACTED]`, checked at the top of every `UnmarshalYAML` call.
 - Regression test: `yaml_test.go:484` `t.Run("yaml expansion depth boundary", ...)` — at-limit passes, over-limit returns `ErrYamlExpansionDepthExceeded`.
 
 **Detection signature**: 
-- The `AliasNode` case in `(*yamlValue).UnmarshalYAML` recurses with `expansionDepth: yv.expansionDepth + 1`. If a future commit changes that to `expansionDepth: yv.expansionDepth` (depth not incremented) or removes the `if yv.expansionDepth > yv.maxExpansionDepth` guard at the top of the function, the invariant is broken.
+- The `AliasNode` case in `(*yamlValue).UnmarshalYAML` recurses with `expansionDepth: yv.expansionDepth + 1`. If a future commit changes that to `expansionDepth: yv.expansionDepth` (depth not incremented) or removes the `if yv.expansionDepth > yv.[REDACTED]` guard at the top of the function, the invariant is broken.
 - A diff that touches `AliasNode` handling without preserving both the depth check and the depth-increment is suspect.
 
 ### V-2: YAML alias expansion must be bounded by a per-document budget
@@ -39,7 +39,7 @@ Each invariant is paired with the source that establishes it and a brief stateme
 **Statement**: The custom `UnmarshalYAML` implementation MUST decrement a shared budget on every alias resolution and reject the document when the budget falls below zero.
 
 **Source**:
-- Post-fix: `const maxExpansionBudget = 1000` in `yaml_reader.go`, `expansionBudget *int` shared via pointer across all recursive `yamlValue` instances, decremented on every AliasNode resolution.
+- Post-fix: `const [REDACTED] = 1000` in `yaml_reader.go`, `expansionBudget *int` shared via pointer across all recursive `yamlValue` instances, decremented on every AliasNode resolution.
 - Regression test: `yaml_test.go:550` `t.Run("yaml expansion budget boundary", ...)` — at-budget passes, over-budget returns `ErrYamlExpansionBudgetExceeded`.
 
 **Detection signature**: 
@@ -55,14 +55,14 @@ Each invariant is paired with the source that establishes it and a brief stateme
 - A pure linear chain (`*a` → `*a` → … 100 levels) defeats a pure-budget check that allows the full budget on a single chain.
 - Regression test: `yaml_test.go:420` `t.Run("bounded yaml expansion", ...)` — accepts an error of either kind: `if !errors.Is(gotErr, yaml.ErrYamlExpansionDepthExceeded) && !errors.Is(gotErr, yaml.ErrYamlExpansionBudgetExceeded) { t.Fatalf(...) }`. The test passes if either error fires, codifying that either bound catching the PoC is acceptable but at least one must catch it.
 
-**Detection signature**: removal of either `maxExpansionDepth` or `maxExpansionBudget` weakens the defence against one of the two attack shapes. Auditing a YAML reader that has only one bound, not both, is a yellow flag.
+**Detection signature**: removal of either `[REDACTED]` or `[REDACTED]` weakens the defence against one of the two attack shapes. Auditing a YAML reader that has only one bound, not both, is a yellow flag.
 
 ### V-4: Budget must reset per document in multi-doc streams
 
 **Statement**: In a YAML stream containing multiple documents (separated by `---`), each document gets a fresh budget. Cumulative legitimate alias use across documents must not exhaust the budget for the stream.
 
 **Source**:
-- Post-fix `Read`: at the top of each `Decode` iteration, `expansionBudget := j.maxExpansionBudget` creates a fresh per-document budget and a fresh `&yamlValue{expansionBudget: &expansionBudget}` for the decoder.
+- Post-fix `Read`: at the top of each `Decode` iteration, `expansionBudget := j.[REDACTED]` creates a fresh per-document budget and a fresh `&yamlValue{expansionBudget: &expansionBudget}` for the decoder.
 - Regression test: `yaml_test.go:677` `t.Run("yaml expansion budget resets per document", ...)`.
 
 **Detection signature**: a refactor that hoists `expansionBudget` outside the per-document loop — e.g. allocates it once on the `yamlReader` struct rather than per `Decode` — silently fails legitimate multi-doc YAML.
@@ -131,11 +131,11 @@ Each invariant is paired with the source that establishes it and a brief stateme
 
 **Source**: both `xml/reader.go` (three named constants with inline comments justifying the values) and post-fix `yaml/yaml_reader.go` (two named constants) follow this pattern.
 
-**Detection signature**: a hardcoded `if depth > 32` without a `maxExpansionDepth` constant is a regression of readability and a yellow flag for "this got patched in a hurry without proper hygiene".
+**Detection signature**: a hardcoded `if depth > 32` without a `[REDACTED]` constant is a regression of readability and a yellow flag for "this got patched in a hurry without proper hygiene".
 
 ## Detection patterns for QPB hunt
 
-Conditional on QPB hunting blind for the CVE-2026-33320-shaped flaw, the diagnostic that maximises detection probability:
+Conditional on QPB hunting blind for the [REDACTED]-shaped flaw, the diagnostic that maximises detection probability:
 
 **1. Look for `UnmarshalYAML(value *yaml.Node)` implementations that recurse on `value.Alias` (or `value.Kind == yaml.AliasNode`) without any visible counter.**
 
@@ -155,7 +155,7 @@ case yaml.AliasNode:
     }
     newVal := &yamlValue{
         expansionDepth:    yv.expansionDepth + 1,
-        maxExpansionDepth: yv.maxExpansionDepth,
+        [REDACTED]: yv.[REDACTED],
         expansionBudget:   yv.expansionBudget,
     }
 ```

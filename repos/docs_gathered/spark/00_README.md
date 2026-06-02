@@ -32,7 +32,7 @@ JsonProtocol.sparkEventFromJson(json)
 SparkListenerEvent subclass instance
 ```
 
-The bug class is **insecure polymorphic deserialization**: a JSON field names a Java class, and the deserializer instantiates that class without checking that it actually belongs to `SparkListenerEvent`'s closed hierarchy.
+The bug class is **insecure [REDACTED]**: a JSON field names a Java class, and the deserializer instantiates that class without checking that it actually belongs to `SparkListenerEvent`'s closed hierarchy.
 
 ### The Spark History Server
 
@@ -56,7 +56,7 @@ Event logs are written by Spark drivers and executors, which are themselves trus
 
 ### Why this matters for the History Server specifically
 
-The driver writes events into a file it owns; nothing on the driver-write path deserializes attacker-controlled classes. The History Server, by contrast, **deserializes the file**. The driver's trust posture and the History Server's trust posture are different even though the file is the same. The 2026 CVE-2025-54920 disclosure is the formal acknowledgement of that asymmetry.
+The driver writes events into a file it owns; nothing on the driver-write path deserializes attacker-controlled classes. The History Server, by contrast, **deserializes the file**. The driver's trust posture and the History Server's trust posture are different even though the file is the same. The 2026 [REDACTED] disclosure is the formal acknowledgement of that asymmetry.
 
 ## Invariants (overview-level)
 

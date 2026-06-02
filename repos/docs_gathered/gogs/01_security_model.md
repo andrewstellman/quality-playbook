@@ -52,7 +52,7 @@ The per-request helpers on `*context.Repository`:
 
 1. **Site admin** (`User.IsAdmin = true`)
    - Global. Crosses tenant boundaries (any user, any org, any repo).
-   - Can edit Git server-side hooks (CVE-2026-23633 was a path-traversal bypass against this gate).
+   - Can edit Git server-side hooks ([REDACTED] was a path-traversal bypass against this gate).
    - Can run the `/admin` panel: edit any user, lock accounts, view auth sources, manage applications.
    - Trust boundary: a site admin compromise is equivalent to a full Gogs root compromise.
 
@@ -75,13 +75,13 @@ The per-request helpers on `*context.Repository`:
    - Open/close/edit any issue or PR on this repo.
    - Merge PRs.
    - Add/remove labels on issues.
-   - **Must not** be able to delete protected branches (CVE-2026-25232 was a bypass), change repo settings, manage collaborators, or edit git hooks.
+   - **Must not** be able to delete protected branches ([REDACTED] was a bypass), change repo settings, manage collaborators, or edit git hooks.
 
 6. **Repository reader** (`AccessMode == AccessModeRead`)
    - Clone over HTTP/SSH.
    - Comment on issues/PRs (if the issue tracker is enabled and configured to allow it).
    - View files, branches, tags, releases.
-   - **Must not** be able to push, edit other users' comments, modify labels, or change any persistent repo state. CVE-2026-23632 was a Read-only PAT able to modify repo content through `PUT /repos/:owner/:repo/contents/*`.
+   - **Must not** be able to push, edit other users' comments, modify labels, or change any persistent repo state. [REDACTED] was a Read-only PAT able to modify repo content through `PUT /repos/:owner/:repo/contents/*`.
 
 7. **Authenticated non-collaborator** (`AccessMode == AccessModeNone`, `IsLogged = true`)
    - Can view public repositories.
@@ -94,7 +94,7 @@ The per-request helpers on `*context.Repository`:
    - Can clone public repos over HTTPS (unless disabled in config).
    - Can view public repos' UI.
    - Can read public issues if `CanGuestViewIssues()`.
-   - **Must not** reach any state-changing endpoint, `/api/v1/admin/*`, `/admin/*`, or `/user/settings/*`. CVE-2026-25242 was an unauthenticated file-upload bug on a route that should have required sign-in.
+   - **Must not** reach any state-changing endpoint, `/api/v1/admin/*`, `/admin/*`, or `/user/settings/*`. [REDACTED] was an unauthenticated file-upload bug on a route that should have required sign-in.
 
 ## Public vs private repositories
 
@@ -126,13 +126,13 @@ Anti-patterns at the org boundary:
 | Authenticated → site admin | `User.IsAdmin == true` (set out-of-band or by another admin) | `Toggle{AdminRequired: true}` middleware → `reqAdmin` |
 | Outside repo → inside repo | URL path `/:username/:reponame`, resolved by `RepoAssignment()` | computed `c.Repo.AccessMode`; helpers `HasAccess/IsWriter/IsAdmin/IsOwner` |
 | Read → write on a repo | `IsWriter()` returns true | `RequireRepoWriter()` middleware → `reqRepoWriter` |
-| Write → admin on a repo | `IsAdmin()` returns true | `RequireRepoAdmin()` middleware → `reqRepoAdmin` |
+| Write → admin on a repo | `IsAdmin()` returns true | `RequireRepoAdmin()` middleware → `[REDACTED]` |
 | Per-tenant isolation (label/comment/issue/release) | the object's `RepoID` matching `c.Repo.Repository.ID` | **inline, in each handler** — and this is where the bugs are |
 | User session → other user's data | the object's `PosterID` / `OwnerID` matching `c.UserID()` | **inline, in each handler** |
 | Trusted-proxy reverse-auth | source IP inside `conf.Auth.TrustedProxyCIDRs` + presence of `ReverseProxyAuthenticationHeader` | `isRequestFromTrustedProxy()` in `internal/context/auth.go` |
-| Built-in SSH server → shell | only via `gogs serv` / hook scripts | input must be parsed, not shelled out; CVE-2024-39930 was a missed gate here |
-| Web UI git-hook editor → fs | only site admins, only inside the repo's bare path | `GitHookService()` middleware + path normalization; CVE-2026-23633 was a path-traversal break |
-| LFS object access | belongs to the repository being requested | object OID + repo-scoped lookup; CVE-2026-25921 was a cross-tenant overwrite |
+| Built-in SSH server → shell | only via `gogs serv` / hook scripts | input must be parsed, not shelled out; [REDACTED] was a missed gate here |
+| Web UI git-hook editor → fs | only site admins, only inside the repo's bare path | `GitHookService()` middleware + path normalization; [REDACTED] was a path-traversal break |
+| LFS object access | belongs to the repository being requested | object OID + repo-scoped lookup; [REDACTED] was a cross-tenant overwrite |
 
 ## Things the security model does *not* provide
 
@@ -140,5 +140,5 @@ These are documented absences. Code that depends on them existing is making a ba
 
 - **No per-PAT scopes**. A PAT is the user. If the user is a site admin, the PAT is a site admin. Defense-in-depth around PATs (`Authorization: token …`) is single-layer.
 - **No CSRF protection on the JSON API**, by design — clients are expected to use a PAT not a cookie. CSRF middleware is applied to the *web* routes.
-- **No row-level filtering at the database layer** for most object types. `GetCommentByID(id)`, `GetLabelByID(id)`, `GetIssueByID(id)`, `GetReleaseByID(id)` all return any row matching the integer key. The repo-scoping is the *handler's* responsibility. The safer-named alternatives exist — `GetLabelOfRepoByID(repoID, id)`, `database.DeleteLabel(repoID, id)` — and the asymmetric availability of these is what makes the unsafe versions a footgun.
+- **No row-level filtering at the database layer** for most object types. `GetCommentByID(id)`, `[REDACTED](id)`, `GetIssueByID(id)`, `GetReleaseByID(id)` all return any row matching the integer key. The repo-scoping is the *handler's* responsibility. The safer-named alternatives exist — `[REDACTED](repoID, id)`, `database.DeleteLabel(repoID, id)` — and the asymmetric availability of these is what makes the unsafe versions a footgun.
 - **No structured logging of denied access**. A bypassed authorization check produces a successful 200 with the wrong row mutated; nothing distinguishes it from a legitimate action in logs.

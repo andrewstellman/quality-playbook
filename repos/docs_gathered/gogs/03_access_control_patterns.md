@@ -5,11 +5,11 @@
 - https://github.com/gogs/gogs/blob/main/internal/context/repo.go (`RequireRepoAdmin`, `RequireRepoWriter`, `Repository` permission helpers)
 - https://github.com/gogs/gogs/blob/main/internal/context/auth.go (`Toggle`)
 - https://github.com/gogs/gogs/blob/main/internal/route/repo/issue.go (canonical safe and unsafe handler shapes)
-- https://github.com/gogs/gogs/blob/main/internal/database/issue_label.go (the scoped-vs-unscoped DB helpers — referenced in CVE-2026-25229 advisory as "code comments at lines 147-166")
-- https://github.com/gogs/gogs/security/advisories/GHSA-cv22-72px-f4gh (CVE-2026-25229 — label authz bypass, gives the canonical safe/unsafe diff)
-- https://github.com/gogs/gogs/security/advisories/GHSA-jj5m-h57j-5gv7 (CVE-2026-25120 — comment IDOR, shows two-step "issue.RepoID == c.Repo.Repository.ID" pattern)
-- https://github.com/gogs/gogs/security/advisories/GHSA-2c6v-8r3v-gh6p (CVE-2026-25232 — protected branch bypass, shows the route-level vs handler-level gap)
-- https://github.com/gogs/gogs/security/advisories/GHSA-5qhx-gwfj-6jqr (CVE-2026-23632 — read-only PAT writes via API)
+- https://github.com/gogs/gogs/blob/main/internal/database/issue_label.go (the scoped-vs-unscoped DB helpers — referenced in [REDACTED] advisory as "code comments at lines 147-166")
+- https://github.com/gogs/gogs/security/advisories/[REDACTED] ([REDACTED] — label authz bypass, gives the canonical safe/unsafe diff)
+- https://github.com/gogs/gogs/security/advisories/[REDACTED] ([REDACTED] — comment IDOR, shows two-step "issue.RepoID == c.Repo.Repository.ID" pattern)
+- https://github.com/gogs/gogs/security/advisories/[REDACTED] ([REDACTED] — protected branch bypass, shows the route-level vs handler-level gap)
+- https://github.com/gogs/gogs/security/advisories/[REDACTED] ([REDACTED] — read-only PAT writes via API)
 
 ## Context
 
@@ -43,11 +43,11 @@ m.Group("/:username/:reponame", func() {
         m.Combo("").Get(repo.Settings).Post(repo.SettingsPost)
         m.Combo("/collaboration").Get(repo.Collaboration).Post(repo.CollaborationPost)
         m.Combo("/hooks").Get(repo.Webhooks).Post(repo.WebhooksPost)
-    }, reqRepoAdmin)
+    }, [REDACTED])
 }, context.RepoAssignment())
 ```
 
-The contract: a state-changing handler is only ever reached for users who already cleared the outer `RepoAssignment()` (existence + read on the URL repo) **plus** the inner `reqRepoWriter` / `reqRepoAdmin` gate.
+The contract: a state-changing handler is only ever reached for users who already cleared the outer `RepoAssignment()` (existence + read on the URL repo) **plus** the inner `reqRepoWriter` / `[REDACTED]` gate.
 
 **The full set of in-tree middleware aliases used as gates:**
 
@@ -57,15 +57,15 @@ The contract: a state-changing handler is only ever reached for users who alread
 | `reqSignOut` | `Toggle{SignOutRequired: true}` | for sign-in form etc. |
 | `reqAdmin` | `Toggle{AdminRequired: true}` | site admin only |
 | `reqRepoWriter` | `RequireRepoWriter()` | writer or site admin |
-| `reqRepoAdmin` | `RequireRepoAdmin()` | repo admin or site admin |
+| `[REDACTED]` | `RequireRepoAdmin()` | repo admin or site admin |
 | `repoAssignment()` / `RepoAssignment()` | loads `c.Repo.Repository` and `c.Repo.AccessMode`; 404 if no access | required for any per-repo handler |
 | `gitHookService()` | requires `User.CanEditGitHook()` | site admin only, additional knob |
 
-**Footgun 1A: Route declared with no gate at all.** Any `m.Post / m.Put / m.Delete` declared outside a sign-in group is anonymous-reachable. The web routes use `m.Group(..., reqSignIn, ...)` wrappers to enforce this; an `m.Post` accidentally hoisted outside a group is the bug. CVE-2026-25242 (unauthenticated file upload) was an instance.
+**Footgun 1A: Route declared with no gate at all.** Any `m.Post / m.Put / m.Delete` declared outside a sign-in group is anonymous-reachable. The web routes use `m.Group(..., reqSignIn, ...)` wrappers to enforce this; an `m.Post` accidentally hoisted outside a group is the bug. [REDACTED] (unauthenticated file upload) was an instance.
 
-**Footgun 1B: Route declared at the wrong permission tier.** Mounting an admin-level operation under `reqRepoWriter` means writers can hit it. CVE-2026-25232 (protected branch deletion) is this pattern: the route required only writer access, the operation required admin.
+**Footgun 1B: Route declared at the wrong permission tier.** Mounting an admin-level operation under `reqRepoWriter` means writers can hit it. [REDACTED] (protected branch deletion) is this pattern: the route required only writer access, the operation required admin.
 
-**Footgun 1C: API route declared with `repoAssignment()` only when the handler mutates state.** `repoAssignment()` ensures the caller can *read* the repo. CVE-2026-23632: `m.Put("/contents/*", repoAssignment(), repo.PutContents)` reached a write operation through a read gate.
+**Footgun 1C: API route declared with `repoAssignment()` only when the handler mutates state.** `repoAssignment()` ensures the caller can *read* the repo. [REDACTED]: `m.Put("/contents/*", repoAssignment(), repo.PutContents)` reached a write operation through a read gate.
 
 ## Pattern 2: Per-handler object-to-repo binding
 
@@ -75,7 +75,7 @@ The single most important pattern in the codebase. Every handler that reaches an
 
 ```go
 // SAFE
-label, err := database.GetLabelOfRepoByID(c.Repo.Repository.ID, c.QueryInt64("id"))
+label, err := database.[REDACTED](c.Repo.Repository.ID, c.QueryInt64("id"))
 if err != nil {
     c.NotFoundOrError(err, "get label by ID")
     return
@@ -85,7 +85,7 @@ if err != nil {
 
 Known scoped helpers (the safe variants):
 
-- `database.GetLabelOfRepoByID(repoID, id)` — used in `UpdateIssueLabel` (line 776 of issue.go, current main) and the API's `EditLabel`. The corresponding *unsafe* helper is `database.GetLabelByID(id)`, which the advisory's comments at `internal/database/issue_label.go:147-166` say "passes `repoID=0` to the ORM layer," with the ORM treating `repoID=0` as "no restriction."
+- `database.[REDACTED](repoID, id)` — used in `UpdateIssueLabel` (line 776 of issue.go, current main) and the API's `EditLabel`. The corresponding *unsafe* helper is `database.[REDACTED](id)`, which the advisory's comments at `internal/database/issue_label.go:147-166` say "passes `repoID=0` to the ORM layer," with the ORM treating `repoID=0` as "no restriction."
 - `database.GetIssueByIndex(repoID, index)` — note: the API uses *issue index* (the per-repo sequential number visible in URLs like `/issues/42`), which is implicitly repo-scoped. The unsafe sibling is `database.GetIssueByID(id)` which takes the global integer primary key.
 - `database.DeleteLabel(repoID, id)` — used in `DeleteLabel`. Will only delete if the row's repo matches.
 - `database.GetWebhookOfRepoByID(repoID, id)` — for webhook handlers.
@@ -117,7 +117,7 @@ if c.UserID() != comment.PosterID && !c.Repo.IsAdmin() {
 }
 ```
 
-The `if issue.RepoID != c.Repo.Repository.ID` line is the binding step. `UpdateCommentContent` has it (per the current source); `DeleteComment` did not have it pre-fix (CVE-2026-25120, GHSA-jj5m-h57j-5gv7). The advisory's own diff is the canonical example QPB can train on.
+The `if issue.RepoID != c.Repo.Repository.ID` line is the binding step. `UpdateCommentContent` has it (per the current source); `DeleteComment` did not have it pre-fix ([REDACTED], [REDACTED]). The advisory's own diff is the canonical example QPB can train on.
 
 ### Pattern 2C: Inline ownership-or-admin check for resources owned by a user
 
@@ -138,7 +138,7 @@ The condition is **"poster OR has at least write on the URL-path repo."** Three 
 **Footgun 2D: Object loaded by ID, role check uses URL-path repo, no binding.** This is the canonical CVE shape in this codebase. Pseudocode:
 
 ```go
-// UNSAFE — the shape that produced GHSA-cv22-72px-f4gh and GHSA-jj5m-h57j-5gv7
+// UNSAFE — the shape that produced [REDACTED] and [REDACTED]
 obj, err := database.GetObjectByID(c.QueryInt64("id"))   // global lookup
 if c.UserID() != obj.OwnerID && !c.Repo.IsAdmin() {       // URL-repo admin — wrong scope!
     c.NotFound()
@@ -151,7 +151,7 @@ The check approves anyone who is admin on the URL-path repo (their own repo) to 
 
 ## Pattern 3: Defense-in-depth — middleware + handler check
 
-For high-value operations, the route gate is the *necessary* condition and the handler check is the *sufficient* condition. The protected-branch case (CVE-2026-25232) is the clearest illustration of "necessary but not sufficient":
+For high-value operations, the route gate is the *necessary* condition and the handler check is the *sufficient* condition. The protected-branch case ([REDACTED]) is the clearest illustration of "necessary but not sufficient":
 
 - Route: `m.Post("/delete/*", reqSignIn, reqRepoWriter, repo.DeleteBranchPost)`
 - Necessary: caller must be signed in and have write on the repo.
@@ -220,16 +220,16 @@ The reverse-proxy auth path (`internal/context/auth.go`, `authenticatedUser`) ho
 PATs in Gogs have no scopes. A PAT is the user. An audit's job around PATs:
 
 - Every operation reachable with a PAT must be reachable through the same authorization predicates as the same operation reached via session. (No PAT-only privilege paths.)
-- A read-only PAT must not be able to perform writes. The pre-CVE-2026-23632 API let this happen because the route gate was read-level.
-- A PAT must not be logged in URL params. CVE-2026-26196 (GHSA-x9p5-w45c-7ffc): tokens were exposed through URL params in API requests — moderate, but a PAT-in-logs leak is a complete-impersonation primitive.
+- A read-only PAT must not be able to perform writes. The pre-[REDACTED] API let this happen because the route gate was read-level.
+- A PAT must not be logged in URL params. [REDACTED] ([REDACTED]): tokens were exposed through URL params in API requests — moderate, but a PAT-in-logs leak is a complete-impersonation primitive.
 
 ## Summary: the four broken-access-control shapes to grep for
 
 QPB's job for CASE-010 reduces to recognizing one of these four shapes in a Gogs handler:
 
 1. **Route declared with no `reqSignIn`** for an operation that mutates per-user or per-repo state.
-2. **Route declared with the wrong permission tier** (`reqRepoWriter` on an operation that should be `reqRepoAdmin`).
-3. **Handler loads an object via the unscoped database helper** (`GetLabelByID`, `GetCommentByID`, `GetIssueByID`, `GetReleaseByID`, ...) **and then acts on it** without (a) re-querying via the `*OfRepoByID` variant, or (b) comparing `obj.RepoID == c.Repo.Repository.ID` / `obj.OwnerID == c.User.ID`.
+2. **Route declared with the wrong permission tier** (`reqRepoWriter` on an operation that should be `[REDACTED]`).
+3. **Handler loads an object via the unscoped database helper** (`[REDACTED]`, `GetCommentByID`, `GetIssueByID`, `GetReleaseByID`, ...) **and then acts on it** without (a) re-querying via the `*OfRepoByID` variant, or (b) comparing `obj.RepoID == c.Repo.Repository.ID` / `obj.OwnerID == c.User.ID`.
 4. **Two transports of the same operation diverge** in their authorization checks (web UI lenient, API strict — or vice versa). One of them is the bug.
 
 Detection signal #3 is the highest-yield. Every recent broken-access-control CVE in the gogs/gogs history is a literal instance of it.

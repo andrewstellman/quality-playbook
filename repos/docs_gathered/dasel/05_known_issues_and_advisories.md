@@ -3,30 +3,30 @@
 ## Sources
 
 - https://github.com/TomWright/dasel/security/advisories
-- https://github.com/TomWright/dasel/security/advisories/GHSA-4fcp-jxh7-23x8
-- https://github.com/advisories/GHSA-4fcp-jxh7-23x8
-- https://nvd.nist.gov/vuln/detail/CVE-2026-33320
-- https://github.com/TomWright/dasel/pull/531 (the fix PR — "Fix yaml unbounded expansion", merged 2026-03-18)
+- https://github.com/TomWright/dasel/security/advisories/[REDACTED]
+- https://github.com/advisories/[REDACTED]
+- https://nvd.nist.gov/vuln/detail/[REDACTED]
+- https://github.com/TomWright/dasel[REDACTED] (the fix PR — "Fix yaml [REDACTED]", merged 2026-03-18)
 - https://github.com/TomWright/dasel/releases/tag/v3.3.2 (the fix release)
 - https://github.com/TomWright/dasel/blob/master/SECURITY.md
-- https://github.com/advisories/GHSA-wxc4-f4m6-wwqv (CVE-2019-11254 — go-yaml billion-laughs via Kubernetes)
-- https://github.com/advisories/GHSA-r88r-gmrh-7j83 (CVE-2021-4235 — go-yaml v2 DoS)
-- https://github.com/advisories/GHSA-6q6q-88xp-6f2r (CVE-2022-3064 — go-yaml v2 excessive CPU/memory)
-- https://github.com/advisories/GHSA-hp87-p4gw-j4gq (CVE-2022-28948 — go-yaml v3 DoS)
+- https://github.com/advisories/[REDACTED] ([REDACTED] — go-yaml billion-laughs via Kubernetes)
+- https://github.com/advisories/[REDACTED] ([REDACTED] — go-yaml v2 DoS)
+- https://github.com/advisories/[REDACTED] ([REDACTED] — go-yaml v2 excessive CPU/memory)
+- https://github.com/advisories/[REDACTED] ([REDACTED] — go-yaml v3 DoS)
 
-## The in-scope CVE: CVE-2026-33320 / GHSA-4fcp-jxh7-23x8
+## The in-scope CVE: [REDACTED] / [REDACTED]
 
 ### Summary
 
-- **Title**: "Dasel has unbounded YAML alias expansion in dasel leads to CPU/memory denial of service"
-- **GHSA**: GHSA-4fcp-jxh7-23x8
-- **CVE**: CVE-2026-33320
+- **Title**: "Dasel has [REDACTED] in dasel leads to CPU/memory denial of service"
+- **GHSA**: [REDACTED]
+- **CVE**: [REDACTED]
 - **Published**: 2026-03-19 (GitHub-reviewed); NVD published 2026-03-24
 - **Severity**: Medium / CVSS 3.1 = 6.2 (`AV:L/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H`)
 - **CWE**: CWE-674 (Uncontrolled Recursion)
 - **Reporter**: kq5y (https://github.com/kq5y)
 - **Affected**: `github.com/tomwright/dasel/v3` from v3.0.0 up to but not including v3.3.2
-- **Fixed in**: **v3.3.2** (released 2026-03-18, PR #531 "Fix yaml unbounded expansion")
+- **Fixed in**: **v3.3.2** (released 2026-03-18, [REDACTED] "Fix yaml [REDACTED]")
 - **Vulnerable parent commit cited in advisory**: `0dd6132e0c58edbd9b1a5f7ffd00dfab1e6085ad`
 - **v3.3.1 vulnerable commit cited**: `fba653c7f248aff10f2b89fca93929b64707dfc8`
 
@@ -70,14 +70,14 @@ GOARCH: arm64
 SAFE: Rejected in 824.042µs: yaml: document contains excessive aliasing
 
 === Test 2: Dasel YAML reader (VULNERABLE) ===
-CONFIRMED: did not complete within 5s; unbounded alias expansion in progress
+CONFIRMED: did not complete within 5s; [REDACTED] in progress
 ```
 
 Note the contrast: a direct `yaml.Unmarshal` rejects the same payload in under a millisecond, because the library's built-in counter activates on that path. Dasel's custom `UnmarshalYAML` bypassed it.
 
 ### Impact (per advisory)
 
-> An attacker who can supply YAML for processing by dasel can cause denial of service. The library's own `UnmarshalYAML` handler triggers unbounded recursive alias expansion from a 342-byte input. The process consumes 100% CPU and exhibits growing memory usage until externally terminated.
+> An attacker who can supply YAML for processing by dasel can cause denial of service. The library's own `UnmarshalYAML` handler triggers [REDACTED] from a 342-byte input. The process consumes 100% CPU and exhibits growing memory usage until externally terminated.
 >
 > This affects:
 > - CLI usage: when reading YAML from stdin or files via the CLI
@@ -88,18 +88,18 @@ Note the contrast: a direct `yaml.Unmarshal` rejects the same payload in under a
 
 > One likely fix is to add an alias expansion counter to `UnmarshalYAML` that limits the total number of alias resolutions, similar to go-yaml v4's internal limit. For example, track a counter across all recursive calls and return an error when it exceeds a threshold (e.g., 1,000,000 expansions).
 
-### Fix as landed (PR #531, v3.3.2)
+### Fix as landed ([REDACTED], v3.3.2)
 
 The maintainer's fix went stricter than the suggestion and used two independent bounds:
 
 ```go
-const maxExpansionDepth = 32       // chain-length cap
-const maxExpansionBudget = 1000    // total-resolution cap (per document)
+const [REDACTED] = 32       // chain-length cap
+const [REDACTED] = 1000    // total-resolution cap (per document)
 ```
 
 Both bounds enforced inside `(*yamlValue).UnmarshalYAML`; both distinguishable via separate sentinel errors. The budget is reset per document in multi-doc streams. See `02_api_contract.md` and `04_invariants.md` for the full mechanism.
 
-PR title: "Fix yaml unbounded expansion". PR merged: 2026-03-18 19:09:55 UTC. Two commits, four files changed. Release v3.3.2 published 19:15:01 UTC the same day. Other items in the release (PR #527, PR #528) are unrelated.
+PR title: "Fix yaml [REDACTED]". PR merged: 2026-03-18 19:09:55 UTC. Two commits, four files changed. Release v3.3.2 published 19:15:01 UTC the same day. Other items in the release (PR #527, PR #528) are unrelated.
 
 ### CVSS vector decoded
 
@@ -114,13 +114,13 @@ The local-AV classification matters because dasel is primarily a CLI; the attack
 
 ## Prior dasel security advisories
 
-Per https://github.com/TomWright/dasel/security/advisories — the API response for the repo's advisories list, scraped 2026-06-01, returned **only** the GHSA-4fcp-jxh7-23x8 advisory listed above. CVE-2026-33320 is the first published GitHub Security Advisory against dasel.
+Per https://github.com/TomWright/dasel/security/advisories — the API response for the repo's advisories list, scraped 2026-06-01, returned **only** the [REDACTED] advisory listed above. [REDACTED] is the first published GitHub Security Advisory against dasel.
 
-## The "billion laughs" / "billion anchors" attack family
+## The "[REDACTED]" / "billion anchors" attack family
 
 The dasel CVE is the latest in a family of resource-exhaustion attacks against parsers that follow declared back-references during decoding. The family includes:
 
-### XML billion laughs (the original)
+### XML [REDACTED] (the original)
 
 ```xml
 <!DOCTYPE lolz [
@@ -142,18 +142,18 @@ b: &b [*a,*a,*a,*a,*a,*a,*a,*a,*a]
 ...
 ```
 
-Defence (in dasel's post-fix YAML reader): two bounds on alias expansion (`maxExpansionDepth`, `maxExpansionBudget`).
+Defence (in dasel's post-fix YAML reader): two bounds on alias expansion (`[REDACTED]`, `[REDACTED]`).
 
 ### Related published CVEs in go-yaml itself
 
 | GHSA / CVE | Package | Year | Severity | Mechanism |
 | --- | --- | --- | --- | --- |
-| [GHSA-wxc4-f4m6-wwqv / CVE-2019-11254](https://github.com/advisories/GHSA-wxc4-f4m6-wwqv) | gopkg.in/yaml.v2 (via Kubernetes) | 2019 | Medium | Excessive platform resource consumption — billion-laughs-style YAML |
-| [GHSA-r88r-gmrh-7j83 / CVE-2021-4235](https://github.com/advisories/GHSA-r88r-gmrh-7j83) | gopkg.in/yaml.v2 | 2022 | Medium | Untrusted YAML → DoS |
-| [GHSA-6q6q-88xp-6f2r / CVE-2022-3064](https://github.com/advisories/GHSA-6q6q-88xp-6f2r) | gopkg.in/yaml.v2 | 2022 | High | "Parsing malicious or large YAML documents can consume excessive amounts of CPU or memory" |
-| [GHSA-hp87-p4gw-j4gq / CVE-2022-28948](https://github.com/advisories/GHSA-hp87-p4gw-j4gq) | gopkg.in/yaml.v3 | 2022 | High | Untrusted YAML → DoS |
+| [[REDACTED] / [REDACTED]](https://github.com/advisories/[REDACTED]) | gopkg.in/yaml.v2 (via Kubernetes) | 2019 | Medium | Excessive platform resource consumption — billion-laughs-style YAML |
+| [[REDACTED] / [REDACTED]](https://github.com/advisories/[REDACTED]) | gopkg.in/yaml.v2 | 2022 | Medium | Untrusted YAML → DoS |
+| [[REDACTED] / [REDACTED]](https://github.com/advisories/[REDACTED]) | gopkg.in/yaml.v2 | 2022 | High | "Parsing malicious or large YAML documents can consume excessive amounts of CPU or memory" |
+| [[REDACTED] / [REDACTED]](https://github.com/advisories/[REDACTED]) | gopkg.in/yaml.v3 | 2022 | High | Untrusted YAML → DoS |
 
-These four upstream advisories iteratively tightened the library's built-in defences against billion-laughs. By yaml.v3 (and now yaml.v4), the library refuses excessive aliasing on the `Unmarshal`-into-Go-value path with the explicit error `"yaml: document contains excessive aliasing"`. **This defence is the one bypassed by custom `UnmarshalYAML` implementations**, which is exactly the dasel CVE-2026-33320 root cause.
+These four upstream advisories iteratively tightened the library's built-in defences against billion-laughs. By yaml.v3 (and now yaml.v4), the library refuses excessive aliasing on the `Unmarshal`-into-Go-value path with the explicit error `"yaml: document contains excessive aliasing"`. **This defence is the one bypassed by custom `UnmarshalYAML` implementations**, which is exactly the dasel [REDACTED] root cause.
 
 ### Pattern lesson
 
@@ -163,7 +163,7 @@ Every time a Go YAML library tightens its internal limit, consumers who implemen
 
 The post-fix dasel code exhibits several patterns that make the fix robust to future drift:
 
-1. **Named constants** rather than magic numbers (`maxExpansionDepth = 32`, `maxExpansionBudget = 1000`).
+1. **Named constants** rather than magic numbers (`[REDACTED] = 32`, `[REDACTED] = 1000`).
 2. **Exported sentinel errors** (`ErrYamlExpansionDepthExceeded`, `ErrYamlExpansionBudgetExceeded`) so callers and tests can `errors.Is` them.
 3. **Two independent bounds** for two distinct attack shapes (deep chain vs. wide fanout).
 4. **Pointer-shared budget** across recursion so siblings can't separately exhaust their share.
@@ -173,7 +173,7 @@ The post-fix dasel code exhibits several patterns that make the fix robust to fu
 ## Disclosure timeline
 
 - **Reporter discovers**: kq5y, private report via GitHub's advisory form.
-- **Fix merged**: 2026-03-18 19:09:55 UTC (PR #531).
+- **Fix merged**: 2026-03-18 19:09:55 UTC ([REDACTED]).
 - **v3.3.2 released**: 2026-03-18 19:15:01 UTC.
 - **GHSA published / GitHub-reviewed**: 2026-03-19 12:50:57 UTC.
 - **NVD published**: 2026-03-24 01:17:02 UTC.

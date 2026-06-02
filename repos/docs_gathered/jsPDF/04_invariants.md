@@ -2,8 +2,8 @@
 
 ## Sources
 
-- https://github.com/parallax/jsPDF/security/advisories/GHSA-f8cm-6447-x5h2
-- https://github.com/parallax/jsPDF/pull/3931
+- https://github.com/parallax/jsPDF/security/advisories/[REDACTED]
+- https://github.com/parallax/jsPDF[REDACTED]
 - https://raw.githubusercontent.com/parallax/jsPDF/master/src/modules/fileloading.js
 - https://raw.githubusercontent.com/parallax/jsPDF/a504e973eeebac633351b41860945ca2a2cdf096/src/modules/fileloading.js
 - https://github.com/parallax/jsPDF/blob/master/README.md (Security and Reading-files sections)
@@ -14,15 +14,15 @@
 These invariants are the contract jsPDF intends to uphold post-v4.0.0
 for the Node build's filesystem access. Each is phrased to be directly
 testable by static analysis or behavioral probing — they are the
-"what must always be true" statements that CVE-2025-68428 violated and
-that PR #3931 restored. QPB should treat any code change that breaks
+"what must always be true" statements that [REDACTED] violated and
+that [REDACTED] restored. QPB should treat any code change that breaks
 one of these as a regression and any new code that doesn't satisfy them
 as in scope for review.
 
 Notation: invariants are tagged by category for cross-reference with
 `02_file_loading_contract.md` and `03_node_filesystem_access.md`.
 
-## I. Core LFI Invariants
+## I. Core [REDACTED] Invariants
 
 ### INV-1: User-supplied path must always be restricted in Node
 
@@ -32,7 +32,7 @@ Notation: invariants are tagged by category for cross-reference with
 
 The advisory's "Impact" section makes this the headline:
 > "User control of the first argument of the loadFile method in the
-> node.js build allows local file inclusion/path traversal."
+> node.js build allows [REDACTED]/[REDACTED]."
 
 Detection pattern (positive): `nodeReadFile` (or equivalent) starts
 with an explicit refusal-if-no-gate check.
@@ -40,11 +40,11 @@ with an explicit refusal-if-no-gate check.
 Detection pattern (negative): a call to `fs.readFileSync`, `fs.readFile`,
 `fs.promises.readFile`, `fs.createReadStream`, or `fs.openSync` whose
 path argument can be traced back to caller input and that has no
-preceding allow-list / `process.permission` check.
+preceding allow-list / `[REDACTED]` check.
 
 ### INV-2: Filesystem access must never extend outside the configured allow-list
 
-> When `this.allowFsRead` is set (and `process.permission` is not), the
+> When `this.allowFsRead` is set (and `[REDACTED]` is not), the
 > realpath-resolved request path must match at least one entry in
 > `allowFsRead` (exact match, or prefix match for entries containing
 > `*`). No match → throw, do not read.
@@ -66,7 +66,7 @@ context, and removes the audit-trail signal an exception provides.
 
 ### INV-3: Both permission systems must compose conjunctively when both are present
 
-> When both `process.permission` and `this.allowFsRead` are configured,
+> When both `[REDACTED]` and `this.allowFsRead` are configured,
 > both must independently permit the read.
 
 The fixed code structures these as **separate** `if` blocks rather than
@@ -76,20 +76,20 @@ regression.
 
 ### INV-4: Secure-by-default — refuse with no opt-in
 
-> If neither `process.permission` nor `this.allowFsRead` is set,
+> If neither `[REDACTED]` nor `this.allowFsRead` is set,
 > `nodeReadFile` MUST throw before issuing any `fs` syscall, with a
 > message instructing the user how to opt in.
 
 This is INV-1's contrapositive at the configuration level: requiring no
 configuration to read arbitrary files (the pre-fix state) was the root
-of CVE-2025-68428. The opt-in throw was the architectural change.
+of [REDACTED]. The opt-in throw was the architectural change.
 
 ## II. Path-Handling Invariants
 
 ### INV-5: `path.resolve` is normalisation, not validation
 
 > No code path may treat `path.resolve(userInput)` as the validation
-> step for an LFI-relevant input.
+> step for an [REDACTED]-relevant input.
 
 Detection pattern: a `path.resolve(url)` followed directly by
 `fs.readFileSync(url)` with no intermediate permission/allow-list
@@ -97,19 +97,19 @@ check. This is literally the pre-fix `nodeReadFile` shape.
 
 ### INV-6: Realpath must precede every permission check
 
-> `fs.realpathSync(path.resolve(url))` must be the value passed to
-> `process.permission.has("fs.read", ...)` and to the `allowFsRead`
+> `fs.[REDACTED](path.resolve(url))` must be the value passed to
+> `[REDACTED].has("fs.read", ...)` and to the `allowFsRead`
 > comparison. Checks against pre-realpath values permit symlink bypass.
 
 The fixed code assigns
 ```js
-url = fs.realpathSync(path.resolve(url));
+url = fs.[REDACTED](path.resolve(url));
 ```
 BEFORE either permission gate runs.
 
 ### INV-7: Realpath failure must fail closed
 
-> If `fs.realpathSync` throws (path does not exist, permission denied
+> If `fs.[REDACTED]` throws (path does not exist, permission denied
 > on the directory, etc.), the loader must return `undefined`
 > (sync mode) or call `callback(undefined)` (async mode) and MUST NOT
 > fall through to `fs.readFileSync` against the un-realpath'd value.
@@ -167,7 +167,7 @@ unchanged.
 
 ### INV-13: Browser build does not need allow-listing
 
-> The XHR-based `browserRequest` function is not under the LFI
+> The XHR-based `browserRequest` function is not under the [REDACTED]
 > invariant — its threat model is the browser sandbox + CORS, not
 > jsPDF-enforced filesystem boundaries. Applying `allowFsRead` checks
 > to the browser path would break legitimate use.
@@ -193,7 +193,7 @@ could neutralise.
 > uses two distinct messages:
 > - "Trying to read a file from local file system. To enable this
 >   feature either run node with the --permission and --allow-fs-read
->   flags or set the jsPDF.allowFsRead property." (no-gate case)
+>   flags or set the [REDACTED] property." (no-gate case)
 > - "Cannot read file '<path>'. Permission denied." (denied case)
 >
 > A patch that collapses these to a single generic error loses the
@@ -221,7 +221,7 @@ because the precedent invites future callers to bypass the gate.
 
 The advisory assigns two CWEs:
 
-- **CWE-35: Path Traversal: `.../...//`** — doubled-triple-dot variants
+- **CWE-35: [REDACTED]: `.../...//`** — doubled-triple-dot variants
   that bypass naive `..` filters. `path.resolve` correctly handles
   these (they normalise to plain `..`), so the bug is not "filter
   evasion" — it's "no filter at all."

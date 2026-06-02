@@ -5,8 +5,8 @@
 - Vulnerable source at parent SHA:
   https://raw.githubusercontent.com/pypa/setuptools/d8390feaa99091d1ba9626bec0e4ba7072fc507a/setuptools/package_index.py
 - Patch diff:
-  https://github.com/pypa/setuptools/commit/250a6d17978f9f6ac3ac887091f2d32886fbbb0b.patch
-- Advisory GHSA-5rjg-fvgr-3xxf: https://github.com/advisories/GHSA-5rjg-fvgr-3xxf
+  https://github.com/pypa/setuptools/commit/[REDACTED].patch
+- Advisory [REDACTED]: https://github.com/advisories/[REDACTED]
 - CPython docs for `os.path.join` (canonical statement of the absolute-path
   behavior): https://docs.python.org/3/library/os.path.html#os.path.join
 - CPython docs for `urllib.parse.unquote`:
@@ -14,7 +14,7 @@
 
 ## Context
 
-This file documents the two-step pattern that produces the path traversal
+This file documents the two-step pattern that produces the [REDACTED]
 in setuptools — the same pattern that appears under many names in many
 Python codebases. The bug is at the intersection of:
 
@@ -66,7 +66,7 @@ Tracing decode boundaries in `package_index.py`:
 | `egg_info_for_url` | `path.split('/')[-1]` | Operates on still-encoded path. Percent-encoded slashes (`%2f`) **survive** the split. |
 | `egg_info_for_url` | `urllib.parse.unquote(...)` | Decodes percent-escapes in the last segment. Slashes are reintroduced here. |
 | `_scan` (index page scanning) | `urllib.parse.unquote` on each `/`-split part | Decodes BEFORE the slash split, so this consumer is safe — but it does not feed `_resolve_download_filename`. |
-| `_encode_auth` | `urllib.parse.unquote(auth)` | Decodes credentials from the userinfo portion of a URL. Not relevant to path traversal. |
+| `_encode_auth` | `urllib.parse.unquote(auth)` | Decodes credentials from the userinfo portion of a URL. Not relevant to [REDACTED]. |
 
 The asymmetry between `egg_info_for_url` (decode AFTER split) and `_scan`
 (decode BEFORE split) is the structural bug. The "safe" pattern is
@@ -99,7 +99,7 @@ This is a known footgun across the Python ecosystem; the CPython
 in the GitHub Advisory Database trace to exactly this pattern. The
 setuptools `_resolve_download_filename` is one such case.
 
-## How the two footguns compose into CVE-2025-47273
+## How the two footguns compose into [REDACTED]
 
 Concrete walk-through with the payload from the advisory's doctest:
 
@@ -130,14 +130,14 @@ Input URL: `https://anyhost/%2fhome%2fuser%2f.ssh%2fauthorized_keys`
    (tmpdir discarded because second arg is absolute)
 
 9. (pre-patch) Return '/home/user/.ssh/authorized_keys'
-   open(...) for writing  →  ARBITRARY FILE WRITE
+   open(...) for writing  →  [REDACTED]
 ```
 
 The patch (step 9 replaced):
 
 ```python
 filename = os.path.join(tmpdir, name)
-if not filename.startswith(str(tmpdir)):
+[REDACTED]:
     raise ValueError(f"Invalid filename {filename}")
 return filename
 ```

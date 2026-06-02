@@ -2,29 +2,29 @@
 
 ## Sources
 
-- GHSA-5rjg-fvgr-3xxf (CVE-2025-47273, this audit's focus):
-  https://github.com/advisories/GHSA-5rjg-fvgr-3xxf
+- [REDACTED] ([REDACTED], this audit's focus):
+  https://github.com/advisories/[REDACTED]
 - Source advisory on the project:
-  https://github.com/pypa/setuptools/security/advisories/GHSA-5rjg-fvgr-3xxf
-- Tracking issue: https://github.com/pypa/setuptools/issues/4946
-- Patch commit: https://github.com/pypa/setuptools/commit/250a6d17978f9f6ac3ac887091f2d32886fbbb0b
-- NVD entry: https://nvd.nist.gov/vuln/detail/CVE-2025-47273
+  https://github.com/pypa/setuptools/security/advisories/[REDACTED]
+- Tracking issue: https://github.com/pypa/setuptools[REDACTED]
+- Patch commit: https://github.com/pypa/setuptools/commit/[REDACTED]
+- NVD entry: https://nvd.nist.gov/vuln/detail/[REDACTED]
 - PyPA advisory database entry:
   https://github.com/pypa/advisory-database/tree/main/vulns/setuptools/PYSEC-2025-49.yaml
 - Huntr report (initial disclosure):
   https://huntr.com/bounties/d6362117-ad57-4e83-951f-b8141c6e7ca5
 - Debian LTS announce: https://lists.debian.org/debian-lts-announce/2025/05/msg00035.html
-- GHSA-cx63-2mw6-8hw5 (CVE-2024-6345 — prior RCE in same module):
-  https://github.com/advisories/GHSA-cx63-2mw6-8hw5
-- GHSA-r9hx-vwmv-q579 (CVE-2022-40897 — prior ReDoS in same module):
-  https://github.com/advisories/GHSA-r9hx-vwmv-q579
+- [REDACTED] ([REDACTED] — prior RCE in same module):
+  https://github.com/advisories/[REDACTED]
+- [REDACTED] ([REDACTED] — prior ReDoS in same module):
+  https://github.com/advisories/[REDACTED]
 - Listing of all advisories on the project:
   https://github.com/pypa/setuptools/security/advisories
 
 ## Context
 
 setuptools' public advisory history contains exactly one open security
-advisory at the time of audit (CVE-2025-47273), but the file
+advisory at the time of audit ([REDACTED]), but the file
 `setuptools/package_index.py` has been the locus of three CVEs in three
 years. The pattern matters: each CVE found a new way to weaponize the
 same internet-facing scraping/downloader code path, and each fix has
@@ -32,24 +32,24 @@ been local to the offending function rather than a structural change.
 This is the relevant history for an audit because the QPB run should
 expect to find a path-traversal-flavored bug in the same file.
 
-## CVE-2025-47273 / GHSA-5rjg-fvgr-3xxf (THIS AUDIT'S TARGET)
+## [REDACTED] / [REDACTED] (THIS AUDIT'S TARGET)
 
 | Field | Value |
 |---|---|
-| CVE | CVE-2025-47273 |
-| GHSA | GHSA-5rjg-fvgr-3xxf |
+| CVE | [REDACTED] |
+| GHSA | [REDACTED] |
 | PYSEC | PYSEC-2025-49 |
-| Title | "setuptools has a path traversal vulnerability in PackageIndex.download that leads to Arbitrary File Write" |
+| Title | "setuptools has a [REDACTED] vulnerability in PackageIndex.download that leads to [REDACTED]" |
 | Affected | setuptools < 78.1.1 |
 | Patched in | 78.1.1 |
 | CVSS v4 | 7.7 High (`AV:N/AC:L/AT:N/PR:N/UI:N/VC:N/VI:H/VA:N/SC:N/SI:N/SA:N`) |
 | GHSA severity | Moderate (note: GHSA scored moderate, NVD/CVSS scored high) |
 | EPSS | 0.18% (39th percentile, as of last refresh) |
-| CWE | CWE-22 — Improper Limitation of a Pathname to a Restricted Directory ('Path Traversal') |
+| CWE | CWE-22 — Improper Limitation of a Pathname to a Restricted Directory ('[REDACTED]') |
 | Reporter | SCH227 (via Huntr) |
 | Published | May 17, 2025 by jaraco |
 | Last updated | Jun 13, 2025 |
-| Patch SHA | `250a6d17978f9f6ac3ac887091f2d32886fbbb0b` |
+| Patch SHA | `[REDACTED]` |
 | Parent SHA (vulnerable) | `d8390feaa99091d1ba9626bec0e4ba7072fc507a` |
 | File | `setuptools/package_index.py` |
 | Function | `PackageIndex._resolve_download_filename` |
@@ -58,7 +58,7 @@ expect to find a path-traversal-flavored bug in the same file.
 
 ### Summary
 
-Path traversal in the `package_index` download pipeline allows arbitrary
+[REDACTED] in the `package_index` download pipeline allows arbitrary
 file write outside the caller's `tmpdir`. The function
 `_resolve_download_filename` derives a download filename from a URL via
 `egg_info_for_url`, replaces literal `..` with `.`, and then calls
@@ -96,11 +96,11 @@ a `crontab`, etc.
 ### Disclosure timeline
 
 - Discovered/reported via Huntr (bounty d6362117-ad57-4e83-951f-b8141c6e7ca5).
-- GitHub private advisory GHSA-5rjg-fvgr-3xxf opened.
+- GitHub private advisory [REDACTED] opened.
 - Patch committed 2025-04-19 (Jason R. Coombs).
 - Public disclosure May 17, 2025 with setuptools 78.1.1 release.
 - Debian LTS announcement May 2025.
-- Backport question discussed in issue #4946 — see
+- Backport question discussed in [REDACTED] — see
   `06_issue_tracker_themes.md` for the backport-to-75.3.x discussion
   driven by virtualenv bundling.
 
@@ -117,12 +117,12 @@ For QPB to pass on this target, it should:
    reference) a payload that bypasses it — the `%2f`-encoded absolute
    path payload is the canonical example.
 
-## CVE-2024-6345 / GHSA-cx63-2mw6-8hw5 — prior precedent
+## [REDACTED] / [REDACTED] — prior precedent
 
 | Field | Value |
 |---|---|
-| CVE | CVE-2024-6345 |
-| GHSA | GHSA-cx63-2mw6-8hw5 |
+| CVE | [REDACTED] |
+| GHSA | [REDACTED] |
 | Title | "setuptools vulnerable to Command Injection via package URL" |
 | Affected | setuptools < 70.0.0 |
 | Patched in | 70.0.0 |
@@ -133,9 +133,9 @@ For QPB to pass on this target, it should:
 
 ### Why it matters to this audit
 
-CVE-2024-6345 is the precedent the CVE-2025-47273 advisory points at
-("could be exploited in a similar fashion like GHSA-r9hx-vwmv-q579, and
-as described by POC 4 in GHSA-cx63-2mw6-8hw5 report: via malicious URLs
+[REDACTED] is the precedent the [REDACTED] advisory points at
+("could be exploited in a similar fashion like [REDACTED], and
+as described by POC 4 in [REDACTED] report: via malicious URLs
 present on the pages of a package index"). The same `package_index`
 module, the same threat model (attacker-controlled URLs reaching
 internal pipelines), the same maintainer fix pattern (a small local
@@ -146,12 +146,12 @@ hotspot for URL-driven security bugs, and that the audit should treat
 *every* URL-→-internal-string flow in that file as a candidate for
 re-examination.
 
-## CVE-2022-40897 / GHSA-r9hx-vwmv-q579 — earlier precedent
+## [REDACTED] / [REDACTED] — earlier precedent
 
 | Field | Value |
 |---|---|
-| CVE | CVE-2022-40897 |
-| GHSA | GHSA-r9hx-vwmv-q579 |
+| CVE | [REDACTED] |
+| GHSA | [REDACTED] |
 | Title | "pypa/setuptools vulnerable to Regular Expression Denial of Service (ReDoS)" |
 | Affected | setuptools < 65.5.1 |
 | Patched in | 65.5.1 |
@@ -164,14 +164,14 @@ re-examination.
 This is the third CVE in `package_index.py` and the longest-standing one.
 It established that the HTML-parsing regexes in `package_index.py`
 (`HREF`, `PYPI_MD5`, `REL`, `EGG_FRAGMENT`) are exposed to adversarial
-input via PyPI pages. The CVE-2025-47273 advisory cites this CVE as the
+input via PyPI pages. The [REDACTED] advisory cites this CVE as the
 template for "exploited via malicious HTML on a PyPI page."
 
 ## Other setuptools-flavored security history (context only)
 
-- **CVE-2024-47081 / netrc credential leak** — affects `requests`, not
+- **[REDACTED] / netrc credential leak** — affects `requests`, not
   setuptools directly, but the PyPI ecosystem context is the same.
-- **PYSEC-2014-87 / CVE-2014-0474** — older `pkg_resources` symbolic
+- **PYSEC-2014-87 / [REDACTED]** — older `pkg_resources` symbolic
   link traversal in egg extraction. Same family of bug ("setuptools
   extracts archives that may escape their intended directory"), much
   older. Predates the current advisory database structure.
@@ -196,10 +196,10 @@ template for "exploited via malicious HTML on a PyPI page."
 
 4. **Security disclosure is via Huntr or Tidelift, not GitHub Issues.**
    The project's `SECURITY.md` and the advisory history both confirm
-   this. Issue #4946 was opened as a placeholder ("Undisclosed security
+   this. [REDACTED] was opened as a placeholder ("Undisclosed security
    vulnerability") only after the patch had landed.
 
-5. **Backports lag because of virtualenv bundling.** Issue #4946 has an
+5. **Backports lag because of virtualenv bundling.** [REDACTED] has an
    active discussion about whether to backport the fix to setuptools
    75.3.x because virtualenv still bundles that version for Python 3.8
    support. This is signal that any audit assuming "vulnerable versions

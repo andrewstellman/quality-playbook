@@ -4,7 +4,7 @@
 
 - Issue list (full text searches against GitHub Issues API):
   https://github.com/pypa/setuptools/issues
-- Tracking issue for CVE-2025-47273: https://github.com/pypa/setuptools/issues/4946
+- Tracking issue for [REDACTED]: https://github.com/pypa/setuptools[REDACTED]
 - GitHub Search API (used to surface relevant issue titles):
   `https://api.github.com/search/issues?q=repo:pypa/setuptools+package_index`
   and `…+path+traversal`
@@ -45,8 +45,8 @@ as orthogonal to "audit obligation."
 Tracker references that frame the same module as a security hotspot.
 
 Representative issue titles:
-- "Path traversal in PackageIndex.download leads to Arbitrary File Write."
-  (issue #4946 — the issue tied to this CVE)
+- "[REDACTED] in PackageIndex.download leads to [REDACTED]."
+  ([REDACTED] — the issue tied to this CVE)
 - "Possible remote code execution through package index"
 - "Undisclosed security vulnerability" (the placeholder name on #4946
   before disclosure)
@@ -64,21 +64,21 @@ docstring marks `open_url` and `process_url` and `fetch_distribution`
 each as "is too complex (12)" / "(14)" via `# noqa: C901`) is itself
 audit signal.
 
-## Theme 3 — Path traversal as a recurring concern across setuptools
+## Theme 3 — [REDACTED] as a recurring concern across setuptools
 
-Tracker history confirms path traversal is not a `package_index`-only
+Tracker history confirms [REDACTED] is not a `package_index`-only
 worry; the same family of bug appears in other setuptools surfaces.
 
 Representative issue titles:
 - "[Security] package_data (anything else?) can specify files outside
   package root"
-- "Disallow parent path traversal in resource paths, part 1
+- "Disallow parent [REDACTED] in resource paths, part 1
   (deprecation)"
-- "Disallow path traversal in console_scripts"
+- "Disallow [REDACTED] in console_scripts"
 - "ez_setup.py should validate tar file"
 - "Catch an edge case in expand._assert_local()"
 
-**Audit implication.** "Path traversal" appears in tracker titles
+**Audit implication.** "[REDACTED]" appears in tracker titles
 spanning at least four distinct setuptools subsystems:
 `package_index.py` (this audit), `package_data` declarations,
 resource-loading APIs, and `console_scripts` entry-point generation.
@@ -98,13 +98,13 @@ Representative issue titles:
 - "Python 2.6: URLs should be stripped of #egg= fragments"
 - "ez_setup.py failing sporadically when setuptools is already installed"
 - "Add support for wheels to setuptools easy_install...."
-- "Vendored wheel 0.45.1 has CVE-2026-24049 - please update to 0.46.2"
+- "Vendored wheel 0.45.1 has [REDACTED] - please update to 0.46.2"
 
 **Audit implication.** The download/install pipeline is a long chain of
 URL-parsing → name-derivation → archive-extraction → site-packages
 modification, with multiple places where adversarial inputs can be
 introduced. The current audit's narrow focus on
-`_resolve_download_filename` is correct for CVE-2025-47273 but is one
+`_resolve_download_filename` is correct for [REDACTED] but is one
 station on a longer pipeline.
 
 ## Theme 5 — Dependency vulnerabilities in vendored libraries
@@ -114,9 +114,9 @@ setuptools vendors several support libraries (under `pkg_resources` and
 for security issues.
 
 Representative issue titles:
-- "fix(security): update jaraco.context to 6.1.0 (GHSA-58pv-8j8x-9vj2)"
+- "fix(security): update jaraco.context to 6.1.0 ([REDACTED])"
 - "[BUG] jaraco.context vulnerability"
-- "Vendored wheel 0.45.1 has CVE-2026-24049 - please update to 0.46.2"
+- "Vendored wheel 0.45.1 has [REDACTED] - please update to 0.46.2"
 
 **Audit implication.** The vulnerability surface is not just first-party
 code; bundled third-party code travels with setuptools. For this audit
@@ -128,7 +128,7 @@ correct) behavior.
 
 ## Theme 6 — Backport pressure from downstream bundlers
 
-Specific to CVE-2025-47273, the tracking issue #4946 contains an
+Specific to [REDACTED], the tracking [REDACTED] contains an
 explicit backport request driven by virtualenv's bundling policy.
 
 Direct quote from #4946 (user WilliamRoyNelson, replied to by jaraco):
@@ -161,20 +161,20 @@ version has shipped.
    prompt a structural rewrite; the pattern has been "land a local
    patch, keep deprecating."
 
-2. **Path traversal is a setuptools-wide concern, not unique to
+2. **[REDACTED] is a setuptools-wide concern, not unique to
    downloads.** Tracker history covers `package_data`, resource paths,
-   and `console_scripts`. An audit hunting blind for path traversal
+   and `console_scripts`. An audit hunting blind for [REDACTED]
    bugs in setuptools should expect more than one candidate site if
    it widens its scope beyond `package_index.py`.
 
-3. **Issue #4946 was the tracking ticket for CVE-2025-47273.** It was
+3. **[REDACTED] was the tracking ticket for [REDACTED].** It was
    originally created with the placeholder title "Undisclosed security
    vulnerability" and then retitled after disclosure. Audit reviewers
    may encounter both titles in the public record.
 
 4. **Downstream bundlers extend the vulnerable lifetime of the bug.**
    virtualenv 's policy of bundling older setuptools versions for EOL
-   Python support means CVE-2025-47273 will continue to surface in
+   Python support means [REDACTED] will continue to surface in
    vulnerability scans against virtualenv-created venvs even after the
    78.1.1 release. This is not in scope for the patch itself but is
    useful audit context.

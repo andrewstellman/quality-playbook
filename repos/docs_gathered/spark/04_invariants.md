@@ -2,13 +2,13 @@
 
 ## Sources
 
-- SPARK-52381 Jira: https://issues.apache.org/jira/browse/SPARK-52381
-- SPARK-52381 fix PR (master): https://github.com/apache/spark/pull/51061
-- SPARK-52381 backport PR (4.0): https://github.com/apache/spark/pull/51312
-- CVE-2025-54920 advisory: https://seclists.org/oss-sec/2026/q1/310
-- Tenable CVE record: https://www.tenable.com/cve/CVE-2025-54920
-- Wiz CVE summary: https://www.wiz.io/vulnerability-database/cve/cve-2025-54920
-- Jackson Polymorphic Deserialization CVE Criteria: https://github.com/FasterXML/jackson/wiki/Jackson-Polymorphic-Deserialization-CVE-Criteria
+- [REDACTED] Jira: https://issues.apache.org/jira/browse/[REDACTED]
+- [REDACTED] fix PR (master): https://github.com/apache/spark[REDACTED]
+- [REDACTED] backport PR (4.0): https://github.com/apache/spark[REDACTED]
+- [REDACTED] advisory: https://seclists.org/oss-sec/2026/q1/310
+- Tenable CVE record: https://www.tenable.com/cve/[REDACTED]
+- Wiz CVE summary: https://www.wiz.io/vulnerability-database/cve/[REDACTED]
+- Jackson [REDACTED] CVE Criteria: https://github.com/FasterXML/jackson/wiki/Jackson-Polymorphic-Deserialization-CVE-Criteria
 - Spark security guide: https://spark.apache.org/docs/latest/security.html
 - Spark monitoring docs (History Server): https://spark.apache.org/docs/latest/monitoring.html
 - `JsonProtocol.scala`: https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/util/JsonProtocol.scala
@@ -17,9 +17,9 @@
 
 This file consolidates the invariants that the QPB skill should derive (blind) from the docs, the security advisory, and Jackson hardening guidance. The categorization is by **what the playbook is checking** rather than by source.
 
-### Primary invariants (the ones that catch CVE-2025-54920)
+### Primary invariants (the ones that catch [REDACTED])
 
-- **INV-1.** `JsonProtocol.sparkEventFromJson` must restrict the fallback path so that the class instantiated via `mapper.readValue(json, targetClass)` is a subtype of `SparkListenerEvent`. Concretely: between `Utils.classForName(other)` and any constructor call, there must be a guard equivalent to `if (classOf[SparkListenerEvent].isAssignableFrom(otherClass))`.
+- **INV-1.** `JsonProtocol.sparkEventFromJson` must restrict the fallback path so that the class instantiated via `mapper.readValue(json, targetClass)` is a subtype of `SparkListenerEvent`. Concretely: between `Utils.classForName(other)` and any constructor call, there must be a guard equivalent to `if (classOf[SparkListenerEvent].[REDACTED])`.
 - **INV-2.** `Utils.classForName` (or any reflective class-lookup primitive) must never be invoked with an unverified caller-supplied class name *and have the result fed into a constructor / `readValue` call* without a type-hierarchy gate. Lookup alone is benign; lookup-then-instantiate from untrusted strings is the bug class.
 - **INV-3.** When the fallback class is not a `SparkListenerEvent`, the code must **throw before construction** — not "construct then `asInstanceOf` cast then catch ClassCastException." Construction side effects must not run on rejected input.
 
@@ -27,7 +27,7 @@ This file consolidates the invariants that the QPB skill should derive (blind) f
 
 - **INV-4.** Both overloads of `sparkEventFromJson` (the `JValue`/json4s overload and the `JsonNode`/Jackson overload) must enforce the same `isAssignableFrom` gate. A patch that fixes only one overload while leaving the other vulnerable is incomplete.
 - **INV-5.** The Jackson `ObjectMapper` used by `JsonProtocol` must not enable Default Typing globally (`enableDefaultTyping`, `activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ...)`). If polymorphic typing is needed for sub-fields, it must use an explicit `@JsonSubTypes` registry or a `PolymorphicTypeValidator` restricted to a closed root.
-- **INV-6.** No `SparkListenerEvent` subclass should declare field-level `@JsonTypeInfo(use = Id.CLASS)` or `Id.MINIMAL_CLASS` on attacker-reachable fields without a validator. (The CVE-2025-54920 advisory explicitly cites `@JsonTypeInfo.Id.CLASS` on the top-level event as the structural problem; the same antipattern must not reappear on nested fields.)
+- **INV-6.** No `SparkListenerEvent` subclass should declare field-level `@JsonTypeInfo(use = Id.CLASS)` or `Id.MINIMAL_CLASS` on attacker-reachable fields without a validator. (The [REDACTED] advisory explicitly cites `@JsonTypeInfo.Id.CLASS` on the top-level event as the structural problem; the same antipattern must not reappear on nested fields.)
 - **INV-7.** Event-log deserialization must not call `ObjectInputStream.readObject()`, `SerializationUtils.deserialize`, `Kryo.readClassAndObject`, or any other native deserialization sink on log content. Event logs are JSON; if any non-JSON deserializer appears on this path, treat it as a finding.
 
 ### Trust-boundary invariants

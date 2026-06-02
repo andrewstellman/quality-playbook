@@ -6,8 +6,8 @@
 - Spark 2.2 security guide (legacy reference for event-log permission guidance): https://downloads.apache.org/spark/docs/2.2.0/security.html
 - Spark monitoring & History Server docs: https://spark.apache.org/docs/latest/monitoring.html
 - `FsHistoryProvider` source: https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/deploy/history/FsHistoryProvider.scala
-- ASF advisory for CVE-2025-54920: https://seclists.org/oss-sec/2026/q1/310
-- SPARK-52381 Jira: https://issues.apache.org/jira/browse/SPARK-52381
+- ASF advisory for [REDACTED]: https://seclists.org/oss-sec/2026/q1/310
+- [REDACTED] Jira: https://issues.apache.org/jira/browse/[REDACTED]
 
 ## Context
 
@@ -38,7 +38,7 @@ Spark provides Web UI ACLs (`spark.ui.acls.enable`, `spark.acls.enable`, `spark.
 
 ### Threat model framing the History Server fix accepts
 
-The CVE-2025-54920 advisory implicitly endorses this framing: *"an attacker with access to the Spark event logs directory"* is treated as a realistic adversary, and the History Server is expected to defend against malicious JSON in the log directory rather than relying on FS permissions to keep all writers benign. SPARK-52381's fix (restricting `mapper.readValue` to subclasses of `SparkListenerEvent`) accepts that event-log files are INPUT, not trusted data.
+The [REDACTED] advisory implicitly endorses this framing: *"an attacker with access to the Spark event logs directory"* is treated as a realistic adversary, and the History Server is expected to defend against malicious JSON in the log directory rather than relying on FS permissions to keep all writers benign. [REDACTED]'s fix (restricting `mapper.readValue` to subclasses of `SparkListenerEvent`) accepts that event-log files are INPUT, not trusted data.
 
 ### Why "low severity" still matters for QPB
 

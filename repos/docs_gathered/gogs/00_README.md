@@ -28,9 +28,9 @@
 
 The product surface QPB needs to reason about is unusually large for one binary: it is simultaneously a **Git server** (smart-HTTP and SSH endpoints that need to authenticate every push and pull), a **multi-tenant SaaS-like web app** (users, organizations, teams, repositories with collaborator roles), and a **REST API** that accepts personal access tokens. The access-control logic lives in three different places:
 
-1. A **route-level middleware chain** declared in `internal/cmd/web.go` and `internal/route/api/v1/api.go`. Each route picks its own set of guards (`reqSignIn`, `reqRepoWriter`, `reqRepoAdmin`, `reqAdmin`, `reqToken`, ...).
+1. A **route-level middleware chain** declared in `internal/cmd/web.go` and `internal/route/api/v1/api.go`. Each route picks its own set of guards (`reqSignIn`, `reqRepoWriter`, `[REDACTED]`, `reqAdmin`, `reqToken`, ...).
 2. A **per-request repository context** built in `internal/context/repo.go` by the `RepoAssignment()` macaron handler. This computes `c.Repo.AccessMode` once per request and exposes the helpers `IsOwner()`, `IsAdmin()`, `IsWriter()`, `HasAccess()` against it.
-3. **Ad-hoc inline checks** inside handler bodies — `c.UserID() != comment.PosterID && !c.Repo.IsAdmin()`, `if !c.Repo.IsWriter()`, etc. These are where the broken-access-control bugs cluster: handlers that load an object by ID without verifying the object's repository matches the URL repository, or routes that mount under `reqRepoWriter` when they should be under `reqRepoAdmin`.
+3. **Ad-hoc inline checks** inside handler bodies — `c.UserID() != comment.PosterID && !c.Repo.IsAdmin()`, `if !c.Repo.IsWriter()`, etc. These are where the broken-access-control bugs cluster: handlers that load an object by ID without verifying the object's repository matches the URL repository, or routes that mount under `reqRepoWriter` when they should be under `[REDACTED]`.
 
 ## Key Terminology
 
@@ -46,13 +46,13 @@ The product surface QPB needs to reason about is unusually large for one binary:
 | **Deploy key** | An SSH public key bound to a single repository with read-only or read/write access. Authenticates over SSH for CI/automation; *cannot* authenticate the web UI or the JSON API. |
 | **Access token** (PAT) | A SHA-1-keyed personal access token used to authenticate REST API requests. Has the same authority as its owning user — there are no per-token scopes in Gogs. |
 | **OAuth app** | A registered third-party app that can OAuth-sign-in users. |
-| **Protected branch** | A row in the `protected_branch` table marking a branch name on a repository as undeletable, with optional whitelist of users who may push, optional required PR. Enforced in the Git pre-receive hook and (when working correctly) in the web UI's branch-delete handler. Has been the locus of multiple bypasses; see CVE-2026-25232. |
+| **Protected branch** | A row in the `protected_branch` table marking a branch name on a repository as undeletable, with optional whitelist of users who may push, optional required PR. Enforced in the Git pre-receive hook and (when working correctly) in the web UI's branch-delete handler. Has been the locus of multiple bypasses; see [REDACTED]. |
 | **Webhook** | A URL fired on repository events. Has its own secret; configurable per-repo and per-org. |
-| **Git hook** (server-side) | A shell-runnable hook on the repository's bare path (pre-receive/post-receive/update). Editable from the web UI by site admins only — when the gate works, see CVE-2026-23633 for when it didn't. |
+| **Git hook** (server-side) | A shell-runnable hook on the repository's bare path (pre-receive/post-receive/update). Editable from the web UI by site admins only — when the gate works, see [REDACTED] for when it didn't. |
 | **Mirror** | A repository configured to periodically pull from a remote. |
 | **LFS** | Git Large File Storage; objects stored under `data/lfs/`. The pre-2026-25921 cross-tenant LFS overwrite vulnerability lived here. |
 | **Pull request** (PR) | An issue with `IsPull = true` and a `pull_request` row recording head/base repo + branch. |
-| **Issue / Comment / Label / Milestone** | Standard issue-tracker primitives, each owned by a repository. Multiple 2026 CVEs (CVE-2026-25120, CVE-2026-25229) exploit handlers that load these by ID without checking the URL-path repository matches. |
+| **Issue / Comment / Label / Milestone** | Standard issue-tracker primitives, each owned by a repository. Multiple 2026 CVEs ([REDACTED], [REDACTED]) exploit handlers that load these by ID without checking the URL-path repository matches. |
 
 ## High-level architecture
 
@@ -61,7 +61,7 @@ A single Go binary serves three logical surfaces:
 1. **Web UI** — Macaron-routed handlers under `internal/route/`. Templates live in `templates/`. Renders Markdown via `internal/markup/`. Cookies signed and stored via macaron sessions; session cookie name is `i_like_gogs`.
 2. **REST API v1** — Macaron-routed handlers under `internal/route/api/v1/`. Modeled on the GitHub v3 API. Authenticated via PAT (`Authorization: token <SHA1>`), HTTP Basic, or session cookie. No per-token scopes.
 3. **Git transport** —
-   - **SSH**: either OpenSSH (with `gogs serv` shim) or the built-in Go SSH server (`internal/ssh/`); the built-in server has had a critical argument-injection bug — CVE-2024-39930.
+   - **SSH**: either OpenSSH (with `gogs serv` shim) or the built-in Go SSH server (`internal/ssh/`); the built-in server has had a critical argument-injection bug — [REDACTED].
    - **HTTP smart Git**: `internal/route/lfs/` and the `*-info/refs` / `*git-upload-pack` / `*git-receive-pack` handlers.
 
 All three converge on the same `database` package (`internal/database/`) — the same `Repository`, `User`, `Access`, `Collaboration`, `ProtectBranch`, `Comment`, `Issue`, `Label`, `Milestone` tables and the same permission helpers. **Every published broken-access-control CVE in Gogs's recent history is a missing or wrong call against one of those permission helpers in one of the route handlers.**
@@ -72,7 +72,7 @@ Gogs has all four ingredients that make broken-access-control bugs common:
 
 1. **Multi-tenant identity hierarchy**: site admin → org owner → team admin → repo admin → repo writer → repo reader → authenticated user → anonymous. Eight distinct roles, with cross-tenant interactions (a user can be admin on repo A and reader on repo B at the same time).
 2. **Many object types referenced by integer primary key**: issue, comment, label, milestone, release, webhook, deploy-key, protected-branch, LFS object, OAuth-app. Every one of these is a potential IDOR vector if a handler fetches by ID without re-checking the URL's repository.
-3. **Duplicated authorization across UI and API**: the web UI route tree, the REST API route tree, and the Git transport each enforce permissions independently. The same logical operation (edit a label, delete a comment, push to a branch) can be reached through three different handler paths. CVE-2026-25229 illustrates this: the API's `EditLabel` correctly used the scoped query `database.GetLabelOfRepoByID`; the web UI's `UpdateLabel` used the unscoped `database.GetLabelByID` and was vulnerable.
+3. **Duplicated authorization across UI and API**: the web UI route tree, the REST API route tree, and the Git transport each enforce permissions independently. The same logical operation (edit a label, delete a comment, push to a branch) can be reached through three different handler paths. [REDACTED] illustrates this: the API's `EditLabel` correctly used the scoped query `database.[REDACTED]`; the web UI's `UpdateLabel` used the unscoped `database.[REDACTED]` and was vulnerable.
 4. **Middleware-handler split**: the route declaration says `reqRepoWriter`, which guarantees the *URL-path repository* is writeable — but the handler then loads an object by ID from a *different* repository and acts on it. The middleware did its job; the handler didn't. This is the canonical Gogs broken-access-control shape.
 
 The rest of these docs catalogue the exact endpoints, helpers, and patterns that QPB needs in order to detect a missed scope check.

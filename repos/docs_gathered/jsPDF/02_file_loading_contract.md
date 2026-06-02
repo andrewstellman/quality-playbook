@@ -4,13 +4,13 @@
 
 - https://raw.githubusercontent.com/parallax/jsPDF/master/src/modules/fileloading.js (current/fixed)
 - https://raw.githubusercontent.com/parallax/jsPDF/a504e973eeebac633351b41860945ca2a2cdf096/src/modules/fileloading.js (vulnerable parent SHA)
-- https://github.com/parallax/jsPDF/security/advisories/GHSA-f8cm-6447-x5h2 (advisory enumerates affected methods)
+- https://github.com/parallax/jsPDF/security/advisories/[REDACTED] (advisory enumerates affected methods)
 - https://github.com/parallax/jsPDF/blob/master/README.md (UTF-8 / addFont usage section)
 - https://artskydj.github.io/jsPDF/docs/jsPDF.html (API reference)
 
 ## Context
 
-The four public methods enumerated by the GHSA-f8cm-6447-x5h2 advisory
+The four public methods enumerated by the [REDACTED] advisory
 (`loadFile`, `addImage`, `html`, `addFont`) are the externally visible
 attack surface. All four converge on a single internal function,
 `nodeReadFile`, which is the QPB detection target. This file documents
@@ -140,7 +140,7 @@ function nodeReadFile(url, sync, callback) {
   url = path.resolve(url);            // ← no gate, no allow-list
   if (sync) {
     try {
-      result = fs.readFileSync(url, { encoding: "latin1" });  // ← LFI sink
+      result = fs.readFileSync(url, { encoding: "latin1" });  // ← [REDACTED] sink
     } catch (e) {
       return undefined;
     }
@@ -173,21 +173,21 @@ The fix restructures the function around three gates, in this order:
 function nodeReadFile(url, sync, callback) {
   // ...
   // GATE 1: at least one permission system must be active
-  if (!process.permission && !this.allowFsRead) {
+  if (![REDACTED] && !this.allowFsRead) {
     throw new Error("Trying to read a file from local file system. ...");
   }
 
   // GATE 2: resolve symlinks BEFORE checking permissions
   try {
-    url = fs.realpathSync(path.resolve(url));
+    url = fs.[REDACTED](path.resolve(url));
   } catch (e) { /* return undefined / callback(undefined) */ }
 
   // GATE 3a: Node permission model (preferred)
-  if (process.permission && !process.permission.has("fs.read", url)) {
+  if ([REDACTED] && ![REDACTED].has("fs.read", url)) {
     throw new Error(`Cannot read file '${url}'. Permission denied.`);
   }
 
-  // GATE 3b: jsPDF.allowFsRead allow-list (fallback)
+  // GATE 3b: [REDACTED] allow-list (fallback)
   if (this.allowFsRead) {
     const allowRead = this.allowFsRead.some(allowedUrl => {
       const starIndex = allowedUrl.indexOf("*");
@@ -221,7 +221,7 @@ is reachable.
 
 - **INV-CONTRACT-1 (single sink):** `nodeReadFile` is the only function
   that performs `fs.readFileSync` / `fs.readFile` for caller-supplied
-  paths in the Node build. Auditing it covers the entire LFI surface for
+  paths in the Node build. Auditing it covers the entire [REDACTED] surface for
   `loadFile`, `addImage`, `addFont`, `html`.
 - **INV-CONTRACT-2 (aliases included):** `loadImageFile === loadFile` is
   the same function. Any pattern hunting for `loadFile` usage must also
@@ -230,14 +230,14 @@ is reachable.
   `fs.readFileSync` or `fs.readFile` from caller-supplied input must be
   preceded by both (a) a check that at least one permission system is
   active and (b) a positive permission match against the
-  `realpathSync`-resolved absolute path.
+  `[REDACTED]`-resolved absolute path.
 - **INV-CONTRACT-4 (resolution-before-check):** Path symlinks must be
-  resolved via `realpathSync` BEFORE consulting either
-  `process.permission.has("fs.read", url)` or the `allowFsRead`
+  resolved via `[REDACTED]` BEFORE consulting either
+  `[REDACTED].has("fs.read", url)` or the `allowFsRead`
   comparison. Checking the pre-realpath value is a symlink-bypass.
 - **INV-CONTRACT-5 (`path.resolve` is not a validator):** Any review or
   static check that treats `url = path.resolve(url)` as the path
-  sanitiser has the same bug pattern as CVE-2025-68428. Resolution does
+  sanitiser has the same bug pattern as [REDACTED]. Resolution does
   not constrain.
 - **INV-CONTRACT-6 (this-binding requirement):** The Node loader must
   receive the jsPDF document context (`this`) so it can read

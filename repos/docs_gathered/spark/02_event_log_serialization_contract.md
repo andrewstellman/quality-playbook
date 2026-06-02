@@ -6,8 +6,8 @@
 - `JsonProtocol` JavaDoc (Spark 4.0): https://spark.apache.org/docs/latest/api/java/org/apache/spark/util/JsonProtocol.html
 - `FsHistoryProvider.scala` (master): https://github.com/apache/spark/blob/master/core/src/main/scala/org/apache/spark/deploy/history/FsHistoryProvider.scala
 - SparkListenerEvent reference (community internals book): https://wforget.github.io/apache-spark-internals/SparkListenerEvent/
-- SPARK-52381 fix PR (master): https://github.com/apache/spark/pull/51061
-- SPARK-52381 backport PR (4.0): https://github.com/apache/spark/pull/51312
+- [REDACTED] fix PR (master): https://github.com/apache/spark[REDACTED]
+- [REDACTED] backport PR (4.0): https://github.com/apache/spark[REDACTED]
 - SPARK-22264 (large-event-log replay issue, references the same code path): https://issues.apache.org/jira/browse/SPARK-22264
 
 ## Context
@@ -74,12 +74,12 @@ Any side effect in steps 2–4 — a constructor that opens a TCP connection, a 
 
 ### The fix: typecheck before instantiation
 
-The SPARK-52381 patch reshapes the fallback so that the class is **looked up but not instantiated** unless it is verifiably a `SparkListenerEvent` subclass:
+The [REDACTED] patch reshapes the fallback so that the class is **looked up but not instantiated** unless it is verifiably a `SparkListenerEvent` subclass:
 
 ```scala
 case other =>
   val otherClass = Utils.classForName(other)
-  if (classOf[SparkListenerEvent].isAssignableFrom(otherClass)) {
+  if (classOf[SparkListenerEvent].[REDACTED]) {
     mapper.readValue(json.toString, otherClass)
       .asInstanceOf[SparkListenerEvent]
   } else {
@@ -87,7 +87,7 @@ case other =>
   }
 ```
 
-The PR description (PR #51061) makes the semantic explicit: *"if you have an Event which is a class that does not extend `SparkListenerEvent` — we will create a class instance and then try to cast to `SparkListenerEvent` and get a `ClassCastException`. New code: we fail without creating a class instance — but with a `SparkException` instead."* The key behavioral difference is **no class instance is constructed** if the class is not a subclass of `SparkListenerEvent`. That closes the gadget surface.
+The PR description ([REDACTED]) makes the semantic explicit: *"if you have an Event which is a class that does not extend `SparkListenerEvent` — we will create a class instance and then try to cast to `SparkListenerEvent` and get a `ClassCastException`. New code: we fail without creating a class instance — but with a `SparkException` instead."* The key behavioral difference is **no class instance is constructed** if the class is not a subclass of `SparkListenerEvent`. That closes the gadget surface.
 
 ### Two API surfaces — both must be patched
 

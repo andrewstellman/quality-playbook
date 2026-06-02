@@ -98,7 +98,7 @@ func MultiDocumentWriter(w Writer) Writer { ... }
 
 `Format.NewWriter` automatically wraps every Writer in `MultiDocumentWriter` so that `*model.Value` branch values produce multi-document output (used by YAML and other multi-doc formats).
 
-## The YAML reader contract — the locus of CVE-2026-33320
+## The YAML reader contract — the locus of [REDACTED]
 
 ### Registration (`parsing/yaml/yaml.go`)
 
@@ -115,18 +115,18 @@ type yamlValue struct {
     value             *model.Value
     compact           bool
     expansionDepth    int
-    maxExpansionDepth int
+    [REDACTED] int
     expansionBudget   *int
 }
 ```
 
-The `yamlValue` struct is the per-node bookkeeping for recursive unmarshalling. The bottom three fields (`expansionDepth`, `maxExpansionDepth`, `expansionBudget *int`) were **added in v3.3.2** as the CVE fix; they did not exist in the vulnerable parent commit `0dd6132e0c58edbd9b1a5f7ffd00dfab1e6085ad`.
+The `yamlValue` struct is the per-node bookkeeping for recursive unmarshalling. The bottom three fields (`expansionDepth`, `[REDACTED]`, `expansionBudget *int`) were **added in v3.3.2** as the CVE fix; they did not exist in the vulnerable parent commit `0dd6132e0c58edbd9b1a5f7ffd00dfab1e6085ad`.
 
 ### `(*yamlReader).Read` — post-fix
 
 ```go
-const maxExpansionDepth = 32
-const maxExpansionBudget = 1000
+const [REDACTED] = 32
+const [REDACTED] = 1000
 
 var ErrYamlExpansionDepthExceeded   = errors.New("yaml expansion depth exceeded")
 var ErrYamlExpansionBudgetExceeded  = errors.New("yaml expansion budget exceeded")
@@ -135,10 +135,10 @@ func (j *yamlReader) Read(data []byte) (*model.Value, error) {
     d := yaml.NewDecoder(bytes.NewReader(data))
     res := make([]*yamlValue, 0)
     for {
-        expansionBudget := j.maxExpansionBudget
+        expansionBudget := j.[REDACTED]
         unmarshalled := &yamlValue{
             expansionDepth:    0,
-            maxExpansionDepth: j.maxExpansionDepth,
+            [REDACTED]: j.[REDACTED],
             expansionBudget:   &expansionBudget,
         }
         if err := d.Decode(&unmarshalled); err != nil {
@@ -150,7 +150,7 @@ func (j *yamlReader) Read(data []byte) (*model.Value, error) {
 }
 ```
 
-The critical contract: **the budget is reset per document**. A multi-document YAML stream (separated by `---`) gets a fresh `expansionBudget := j.maxExpansionBudget` for each `Decode` call. There is also a regression test for this exact behaviour (`yaml expansion budget resets per document`, `yaml_test.go:677`).
+The critical contract: **the budget is reset per document**. A multi-document YAML stream (separated by `---`) gets a fresh `expansionBudget := j.[REDACTED]` for each `Decode` call. There is also a regression test for this exact behaviour (`yaml expansion budget resets per document`, `yaml_test.go:677`).
 
 ### `(*yamlValue).UnmarshalYAML` — post-fix
 
@@ -163,7 +163,7 @@ The post-fix dasel implementation enforces both bounds on entry:
 ```go
 func (yv *yamlValue) UnmarshalYAML(value *yaml.Node) error {
     yv.node = value
-    if yv.expansionDepth > yv.maxExpansionDepth {
+    if yv.expansionDepth > yv.[REDACTED] {
         return ErrYamlExpansionDepthExceeded
     }
     switch value.Kind {
@@ -180,7 +180,7 @@ func (yv *yamlValue) UnmarshalYAML(value *yaml.Node) error {
         }
         newVal := &yamlValue{
             expansionDepth:    yv.expansionDepth + 1,  // ← depth only bumps on alias
-            maxExpansionDepth: yv.maxExpansionDepth,
+            [REDACTED]: yv.[REDACTED],
             expansionBudget:   yv.expansionBudget,     // ← budget shared across all recursion
         }
         if err := newVal.UnmarshalYAML(value.Alias); err != nil {
@@ -255,5 +255,5 @@ Distilled across all three (YAML, JSON, XML):
 - **V-API-1**: `Reader.Read` MUST return `(value, nil)` or `(nil, error)` — never panic.
 - **V-API-2**: Each format Reader is responsible for its own bounds; the upstream library is NOT assumed to enforce them on the custom-unmarshal path.
 - **V-API-3**: For YAML specifically, both `expansionDepth` (per-chain) and `expansionBudget` (per-document, shared via pointer) MUST be threaded through every recursive `yamlValue` so that the AliasNode branch can check and decrement them.
-- **V-API-4**: For YAML specifically, the `expansionBudget` MUST be reset to `maxExpansionBudget` at the start of each new document in a multi-document stream.
+- **V-API-4**: For YAML specifically, the `expansionBudget` MUST be reset to `[REDACTED]` at the start of each new document in a multi-document stream.
 - **V-API-5**: For any reader, a resource-exhaustion error MUST be a distinguishable sentinel (e.g. `ErrYamlExpansionDepthExceeded`) so callers can branch on it.

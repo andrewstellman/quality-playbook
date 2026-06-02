@@ -21,7 +21,7 @@ Schemas themselves are written in **JSON**. The IDL (`.avdl`) is a higher-level 
 
 The single `apache/avro` GitHub monorepo carries implementations for multiple languages, each under `lang/<language>/`:
 
-- **Java** (~48% of the codebase) — the reference implementation; the one most affected by CVE-2025-33042.
+- **Java** (~48% of the codebase) — the reference implementation; the one most affected by [REDACTED].
 - **C#** (~16%)
 - **C** (~10%)
 - **C++** (~9%)
@@ -42,10 +42,10 @@ CI badges in the README cover `test-lang-{c, csharp, c++, java, js, perl, ruby, 
 - **Codec** — compression mechanism for object container files (`null`, `deflate`, `snappy`, `bzip2`, `xz`, `zstandard`).
 - **IDL (`.avdl`)** — Avro Interface Definition Language. Higher-level, Java-/C-/C++-like syntax that compiles to JSON `.avsc` (schema) or `.avpr` (protocol) files. Supports `@order`, `@namespace`, `@aliases`, `@java-class`, `@java-key-class`, `@logicalType`, and arbitrary user annotations (which become JSON properties on the resulting schema).
 - **Protocol** — a named set of messages (RPC operations), plus the named types those messages reference. Files: `.avpr` (JSON) or `.avdl` (IDL source).
-- **SpecificRecord** — the Java code-generation target. Each named type in a schema becomes a generated `.java` file with a `SCHEMA$` constant, getters/setters, a `Builder`, and Javadoc derived from the schema's `doc` field. **This is the surface CVE-2025-33042 lives on.**
-- **GenericRecord / GenericData** — Java's schema-driven, no-codegen path. Records are `Map`-like at runtime. Not affected by CVE-2025-33042 because no Java source is generated.
-- **`javaAnnotation` property** — a non-spec, Java-codegen-only schema property recognised by `SpecificCompiler`. When present on a schema/record/field, its string value is emitted verbatim as a Java annotation (`@<value>`) on the generated class/field. **The taint source for CVE-2025-33042.**
-- **`doc` field** — a JSON-spec-defined optional string on records, fields, enums, etc. Surfaced into Javadoc by the templates. Also a taint source (separately patched in AVRO-4053).
+- **SpecificRecord** — the Java code-generation target. Each named type in a schema becomes a generated `.java` file with a `SCHEMA$` constant, getters/setters, a `Builder`, and Javadoc derived from the schema's `doc` field. **This is the surface [REDACTED] lives on.**
+- **GenericRecord / GenericData** — Java's schema-driven, no-codegen path. Records are `Map`-like at runtime. Not affected by [REDACTED] because no Java source is generated.
+- **`javaAnnotation` property** — a non-spec, Java-codegen-only schema property recognised by `SpecificCompiler`. When present on a schema/record/field, its string value is emitted verbatim as a Java annotation (`@<value>`) on the generated class/field. **The taint source for [REDACTED].**
+- **`doc` field** — a JSON-spec-defined optional string on records, fields, enums, etc. Surfaced into Javadoc by the templates. Also a taint source (separately patched in [REDACTED]).
 - **Velocity template** — the SpecificCompiler renders generated Java source through Apache Velocity templates living in `lang/java/compiler/src/main/velocity/org/apache/avro/compiler/specific/templates/java/classic/{record,enum,fixed,protocol}.vm`. The templates call back into compiler helper methods (`javaAnnotations(...)`, `escapeForJavadoc(...)`, `escapeForJavaString(...)`, formerly `javaEscape(...)`).
 
 ## Repo Layout (relevant subset)
@@ -58,9 +58,9 @@ apache/avro/
       avro/                         <- core Java library (schema parsing, GenericData)
       compiler/
         src/main/java/org/apache/avro/compiler/specific/
-          SpecificCompiler.java     <- the vulnerable Java codegen (CVE-2025-33042)
+          SpecificCompiler.java     <- the vulnerable Java codegen ([REDACTED])
         src/main/velocity/.../templates/java/classic/
-          enum.vm                   <- Velocity templates (patched in AVRO-4053)
+          enum.vm                   <- Velocity templates (patched in [REDACTED])
           fixed.vm
           protocol.vm
           record.vm
@@ -74,7 +74,7 @@ apache/avro/
 
 ## What QPB Is Looking For (caller's framing)
 
-The audit target is **CVE-2025-33042 / AVRO-4053**: an unsanitized-taint flow in `SpecificCompiler` (Java) where the `javaAnnotation` schema property (and the `doc` string) were emitted verbatim into generated Java source. Classic codegen injection (CWE-94). Vulnerable parent commit `80400781a796bc0e90dd8ea1db42234926db33e9`; fix commit `84bc7322ca1c04ab4a8e4e708acf1e271541aac4` (PR #3150). The fix adds a regex validator `isValidAsAnnotation()` plus an `escapeForJavadoc()` Velocity helper used throughout the templates.
+The audit target is **[REDACTED] / [REDACTED]**: an unsanitized-[REDACTED] in `SpecificCompiler` (Java) where the `javaAnnotation` schema property (and the `doc` string) were emitted [REDACTED] Java source. Classic codegen injection ([REDACTED]). Vulnerable parent commit `80400781a796bc0e90dd8ea1db42234926db33e9`; fix commit `[REDACTED]` ([REDACTED]). The fix adds a regex validator `[REDACTED]()` plus an `escapeForJavadoc()` Velocity helper used throughout the templates.
 
 ## Invariants
 

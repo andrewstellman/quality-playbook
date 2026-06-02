@@ -3,14 +3,14 @@
 ## Sources
 
 - `https://avro.apache.org/project/security/` — Apache Avro security policy.
-- `https://github.com/apache/avro/commit/84bc7322ca1c04ab4a8e4e708acf1e271541aac4` — the AVRO-4053 fix commit.
-- `https://github.com/apache/avro/pull/3150` — the PR; includes maintainer discussion confirming the regex was the load-bearing piece.
-- `https://github.com/advisories/GHSA-rp46-r563-jrc7` — the GitHub Security Advisory for CVE-2025-33042 (CWE-94, Improper Control of Generation of Code).
+- `https://github.com/apache/avro/commit/[REDACTED]` — the [REDACTED] fix commit.
+- `https://github.com/apache/avro[REDACTED]` — the PR; includes maintainer discussion confirming the regex was the load-bearing piece.
+- `https://github.com/advisories/[REDACTED]` — the GitHub Security Advisory for [REDACTED] ([REDACTED], Improper Control of Generation of Code).
 - `https://avro.apache.org/docs/1.12.0/specification/` — Avro spec; defines what is a reserved property vs. an arbitrary user property.
 
 ## Synthesizing the Invariants
 
-The invariants below are derived directly from (a) the AVRO-4053 patch, which shows the exact methods/sites that needed to change; (b) the Apache Avro security policy's statement that "if schemas are user provided, validate the parsed schema before use"; and (c) the CWE-94 classification.
+The invariants below are derived directly from (a) the [REDACTED] patch, which shows the exact methods/sites that needed to change; (b) the Apache Avro security policy's statement that "if schemas are user provided, validate the parsed schema before use"; and (c) the [REDACTED] classification.
 
 Phrased as audit checks, they should be straightforward to mechanize.
 
@@ -20,7 +20,7 @@ Phrased as audit checks, they should be straightforward to mechanize.
 
 **Statement.** No string lifted from a parsed Avro schema may reach a code-generation output stream without first passing through a context-appropriate sanitizer.
 
-**Why.** This is the canonical CWE-94 invariant. Avro's security policy classifies schemas as untrusted supply-chain input; codegen must enforce that.
+**Why.** This is the canonical [REDACTED] invariant. Avro's security policy classifies schemas as untrusted supply-chain input; codegen must enforce that.
 
 **Where to check.** `lang/java/compiler/src/main/java/org/apache/avro/compiler/specific/SpecificCompiler.java` and the four Velocity templates in `lang/java/compiler/src/main/velocity/.../templates/java/classic/{enum,fixed,protocol,record}.vm`.
 
@@ -57,7 +57,7 @@ The three lexical contexts in the templates are:
 |---|---|---|
 | Inside a Javadoc comment (`/** … */` or `* …`) | `$this.escapeForJavadoc(...)` | `*/` breakout, `@tag` injection |
 | Inside a Java string literal (`"…"`) | `$this.escapeForJavaString(...)` (or the deprecated alias `$this.javaEscape(...)`) | `"` and `\` breakout |
-| Annotation literal (`@$annotation`) | `$this.javaAnnotations(...)` (which now applies `isValidAsAnnotation`) | full Java syntax injection |
+| Annotation literal (`@$annotation`) | `$this.javaAnnotations(...)` (which now applies `[REDACTED]`) | full Java syntax injection |
 
 **Where to check.** The four templates and any other `.vm` file that gets added to `lang/java/compiler/src/main/velocity/`. Also any future templates under non-`classic` template directories — the fix only covers `classic`; future template families would need parallel coverage.
 
@@ -78,12 +78,12 @@ The three lexical contexts in the templates are:
 ```java
 public String[] javaAnnotations(JsonProperties props) {
   final Object value = props.getObjectProp("javaAnnotation");
-  if (value instanceof String && isValidAsAnnotation((String) value))   // <- the gate
+  if (value instanceof String && [REDACTED]((String) value))   // <- the gate
     return new String[] { value.toString() };
   if (value instanceof List) {
     ...
     for (Object o : list) {
-      if (isValidAsAnnotation(o.toString()))                              // <- the gate
+      if ([REDACTED](o.toString()))                              // <- the gate
         annots.add(o.toString());
     }
     ...
@@ -92,13 +92,13 @@ public String[] javaAnnotations(JsonProperties props) {
 }
 ```
 
-The `VALID_AS_ANNOTATION` `Pattern` constant must be defined and used by `isValidAsAnnotation`:
+The `VALID_AS_ANNOTATION` `Pattern` constant must be defined and used by `[REDACTED]`:
 
 ```java
 private static final Pattern VALID_AS_ANNOTATION = Pattern.compile(
     String.format("%s(?:%s)?", PATTERN_IDENTIFIER, PATTERN_PARAMETER_LIST));
 
-private boolean isValidAsAnnotation(String value) {
+private boolean [REDACTED](String value) {
   return VALID_AS_ANNOTATION.matcher(value.strip()).matches();
 }
 ```
@@ -111,7 +111,7 @@ private boolean isValidAsAnnotation(String value) {
 
 **Statement.** Every place a template renders a `doc` string — class-level, field-level, method-level, parameter-level, return-value-level — must wrap the value in `$this.escapeForJavadoc(...)`.
 
-**Why.** The `doc` field is spec-defined and arbitrary in content; it can carry `*/`, `@param`, or any other character. The pre-fix templates emit it raw, which permits Javadoc-comment-breakout code injection.
+**Why.** The `doc` field is spec-defined and arbitrary in content; it can carry `*/`, `@param`, or any other character. The pre-fix templates emit it raw, which permits Javadoc-comment-breakout [REDACTED].
 
 **Where to check.** The four templates. The fix touched fifteen distinct emission sites in `record.vm` alone (see Section 02). Spot-check by grepping each template for any reference to `$schema.getDoc()`, `$field.doc()`, `$protocol.getDoc()`, `$message.getDoc()`, `$p.doc()` and confirming each is wrapped.
 
@@ -131,7 +131,7 @@ private boolean isValidAsAnnotation(String value) {
 
 ### Invariant CG-6: Sanitization is centralized in helpers, not pushed to call sites
 
-**Statement.** Sanitization helpers — `isValidAsAnnotation`, `escapeForJavadoc`, `escapeForJavaString` — must be the *single* path through which schema strings reach generated output. Templates must not embed inline transformations.
+**Statement.** Sanitization helpers — `[REDACTED]`, `escapeForJavadoc`, `escapeForJavaString` — must be the *single* path through which schema strings reach generated output. Templates must not embed inline transformations.
 
 **Why.** Centralization makes the audit tractable. Three helpers, ~50 lines of `SpecificCompiler.java`, four `.vm` files: that's the whole surface. If a template starts doing `$schema.getDoc().replace("*/", "*&#47;")` inline, the surface grows in places greppers won't find.
 
@@ -153,7 +153,7 @@ private boolean isValidAsAnnotation(String value) {
 
 **Statement.** `lang/java/compiler/src/test/java/org/apache/avro/compiler/specific/TestSpecificCompiler.java` must contain a test named `docsAreEscaped_avro4053` (or its equivalent successor), which feeds a schema with a Javadoc-breakout `doc` value through `SpecificCompiler` and asserts the output is well-formed.
 
-**Why.** Tests are the version pin. The test name carries the Jira ID, so it's discoverable even after refactors. Absence of a test that names AVRO-4053 in a 1.12.x tree means either the fix never landed there or the test was removed.
+**Why.** Tests are the version pin. The test name carries the Jira ID, so it's discoverable even after refactors. Absence of a test that names [REDACTED] in a 1.12.x tree means either the fix never landed there or the test was removed.
 
 **Audit mechanism.** Grep `TestSpecificCompiler.java` for `avro4053` (case-insensitive). Present -> patched; absent -> suspect.
 
@@ -165,11 +165,11 @@ private boolean isValidAsAnnotation(String value) {
 |---|---|---|
 | CG-1 (no unvalidated string) | All eight files | `$.+\.getDoc()` / `$.+\.doc()` / `$.+\.getName()` substitutions outside helpers |
 | CG-2 (lexical-context escaping) | The four `.vm` files | `$schema.`, `$field.`, `$protocol.`, `$p.`, `$message.` matches in each template |
-| CG-3 (annotation regex) | `SpecificCompiler.java` | `VALID_AS_ANNOTATION`, `isValidAsAnnotation`, `PATTERN_IDENTIFIER` |
+| CG-3 (annotation regex) | `SpecificCompiler.java` | `VALID_AS_ANNOTATION`, `[REDACTED]`, `PATTERN_IDENTIFIER` |
 | CG-4 (Javadoc escaping) | The four `.vm` files | `$this.escapeForJavadoc(` count vs. raw `.doc()` references |
 | CG-5 (Java string escaping) | `enum.vm`, `fixed.vm`, `record.vm` | `escapeForJavaString` or `javaEscape` around `$schema.toString()` |
 | CG-6 (centralized helpers) | The four `.vm` files | `.replace(` / `.replaceAll(` inside templates |
 | CG-7 (codegen, not parser) | Diff between `lang/java/avro/` and `lang/java/compiler/` | Sanitization changes in `Schema.Parser` (none expected) |
 | CG-8 (regression test) | `TestSpecificCompiler.java` | `avro4053` test method |
 
-A QPB invariant-driven sweep that checks these eight will catch the CVE-2025-33042 vulnerable form, the patched form, and the most likely future regressions (e.g., a new template family added without parallel escaping, a new schema property added without parallel gating).
+A QPB invariant-driven sweep that checks these eight will catch the [REDACTED] vulnerable form, the patched form, and the most likely future regressions (e.g., a new template family added without parallel escaping, a new schema property added without parallel gating).

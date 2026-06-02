@@ -2,8 +2,8 @@
 
 ## Sources
 
-- `https://github.com/apache/avro/commit/84bc7322ca1c04ab4a8e4e708acf1e271541aac4` — the AVRO-4053 fix commit (8 files changed, +148 / -73). Verbatim diff inspected.
-- `https://github.com/apache/avro/pull/3150` — the PR that landed the fix (titled "AVRO-4053: doc consistency in velocity templates"). Includes the test name `docsAreEscaped_avro4053` and reviewer discussion.
+- `https://github.com/apache/avro/commit/[REDACTED]` — the [REDACTED] fix commit (8 files changed, +148 / -73). Verbatim diff inspected.
+- `https://github.com/apache/avro[REDACTED]` — the PR that landed the fix (titled "[REDACTED]: doc consistency in velocity templates"). Includes the test name `docsAreEscaped_avro4053` and reviewer discussion.
 - `lang/java/compiler/src/main/java/org/apache/avro/compiler/specific/SpecificCompiler.java` — the Java class under audit.
 - `lang/java/compiler/src/main/velocity/org/apache/avro/compiler/specific/templates/java/classic/{enum,fixed,protocol,record}.vm` — the Velocity templates under audit.
 - `https://avro.apache.org/docs/1.12.0/idl-language/` — IDL spec; documents that user annotations become arbitrary JSON properties (so `javaAnnotation` is reachable from both `.avsc` and `.avdl` paths).
@@ -16,7 +16,7 @@ The Java SDK produces `SpecificRecord` classes via `org.apache.avro.compiler.spe
 2. **`avro-maven-plugin`** — Maven plugin under `lang/java/maven-plugin/`; invoked at build time, walks the schema source directories, calls `SpecificCompiler` per schema, writes generated `.java` under `target/generated-sources/`.
 3. **Direct API use** — applications instantiate `SpecificCompiler` with a `Schema` or `Protocol` and call `compileToDestination(...)`. Rare but real.
 
-In all three, the same Velocity templates are rendered and the same compiler helper methods are called. There is no separate "safe" path; the AVRO-4053 fix sits between the schema and the templates and applies uniformly.
+In all three, the same Velocity templates are rendered and the same compiler helper methods are called. There is no separate "safe" path; the [REDACTED] fix sits between the schema and the templates and applies uniformly.
 
 ## How a Schema Property Becomes Generated Java
 
@@ -67,13 +67,13 @@ public String[] javaAnnotations(JsonProperties props) {
 ```java
 public String[] javaAnnotations(JsonProperties props) {
   final Object value = props.getObjectProp("javaAnnotation");
-  if (value instanceof String && isValidAsAnnotation((String) value))
+  if (value instanceof String && [REDACTED]((String) value))
     return new String[] { value.toString() };
   if (value instanceof List) {
     final List<?> list = (List<?>) value;
     final List<String> annots = new ArrayList<>(list.size());
     for (Object o : list) {
-      if (isValidAsAnnotation(o.toString()))
+      if ([REDACTED](o.toString()))
         annots.add(o.toString());        // <-- now gated
     }
     return annots.toArray(new String[0]);
@@ -102,7 +102,7 @@ private static final String PATTERN_PARAMETER_LIST = String.format(
 private static final Pattern VALID_AS_ANNOTATION = Pattern.compile(
     String.format("%s(?:%s)?", PATTERN_IDENTIFIER, PATTERN_PARAMETER_LIST));
 
-private boolean isValidAsAnnotation(String value) {
+private boolean [REDACTED](String value) {
   return VALID_AS_ANNOTATION.matcher(value.strip()).matches();
 }
 ```
@@ -171,7 +171,7 @@ This protects against schema content (names, doc strings, properties) being able
 
 ## Invariants
 
-- **`javaAnnotation` values must pass `isValidAsAnnotation` before being emitted.** `VALID_AS_ANNOTATION = PATTERN_IDENTIFIER (PATTERN_PARAMETER_LIST)?` — dotted Java identifier optionally followed by a parameterised list of literals or `name=literal` pairs. Anything else is silently dropped.
+- **`javaAnnotation` values must pass `[REDACTED]` before being emitted.** `VALID_AS_ANNOTATION = PATTERN_IDENTIFIER (PATTERN_PARAMETER_LIST)?` — dotted Java identifier optionally followed by a parameterised list of literals or `name=literal` pairs. Anything else is silently dropped.
 - **`doc` strings must pass through `escapeForJavadoc` at every Javadoc-emit site.** A pre-fix `/** $schema.getDoc() */` is a vulnerability; a post-fix `/** $this.escapeForJavadoc($schema.getDoc()) */` is the patched form. Spot-check by greping the templates for `$schema.getDoc()`, `$field.doc()`, `$protocol.getDoc()`, `$p.doc()`, `$message.getDoc()` — every match must be wrapped.
 - **Embedded schema JSON in `SCHEMA$` must use `escapeForJavaString` (formerly `javaEscape`).** Any `"...${this.…($schema.toString())}..."` literal that calls anything else is suspect.
 - **Templates must never `$variable`-substitute a raw schema string into a Java construct.** The audit pattern: for each `$variable` reference in a template, the variable must come from a helper that performs context-appropriate escaping/validation, not from a getter on the schema object directly. `${this.mangle(...)}`, `${this.escapeForJavadoc(...)}`, `${this.escapeForJavaString(...)}`, `${this.javaAnnotations(...)}` are safe; `$schema.getDoc()` / `$field.doc()` / `$protocol.getDoc()` / `$p.doc()` raw are not.

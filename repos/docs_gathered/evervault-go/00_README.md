@@ -58,7 +58,7 @@ evervault-go/
 ├── function.go                     — RunFunction + CreateFunctionRunToken
 ├── relay.go                        — OutboundRelayClient (TLS proxy)
 ├── attestation/
-│   └── pcrs.go                     — Public PCRs struct, Equal, SatisfiedBy, IsEmpty
+│   └── pcrs.go                     — Public PCRs struct, Equal, [REDACTED], IsEmpty
 ├── internal/
 │   ├── attestation/
 │   │   ├── attestation_cache.go    — Background-polled cache of verified attestation docs
@@ -71,9 +71,9 @@ evervault-go/
 ### Versioning at the time of the target CVE
 
 - **Vulnerable range:** `< 1.3.2`
-- **Patched version:** `1.3.2` (released 2025-09-15, PR #48 merged the same day)
-- **Patch PR:** https://github.com/evervault/evervault-go/pull/48 — title "Improve correctness of PCR check in enclaves Go SDK"
-- **Patch commit:** `7c824d289bba11ec0bea46a338023f5b128bbb28`
+- **Patched version:** `1.3.2` (released 2025-09-15, [REDACTED] merged the same day)
+- **Patch PR:** https://github.com/evervault/evervault-go[REDACTED] — title "Improve correctness of PCR check in enclaves Go SDK"
+- **Patch commit:** `[REDACTED]`
 
 ### What the SDK does NOT do (out of scope for this audit but worth noting)
 

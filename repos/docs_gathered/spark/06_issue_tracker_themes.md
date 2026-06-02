@@ -3,7 +3,7 @@
 ## Sources
 
 - ASF Jira — SPARK project: https://issues.apache.org/jira/projects/SPARK/issues
-- SPARK-52381 (this CVE): https://issues.apache.org/jira/browse/SPARK-52381
+- [REDACTED] (this CVE): https://issues.apache.org/jira/browse/[REDACTED]
 - SPARK-49751 — Fix deserialization of SparkListenerConnectServiceStarted: https://issues.apache.org/jira/browse/SPARK-49751
 - SPARK-42754 — 3.4 SHS SQL tab incorrectly groups SQL executions when replaying 3.3 logs: https://issues.apache.org/jira/browse/SPARK-42754
 - SPARK-18462 — SparkListenerDriverAccumUpdates does not deserialize properly: https://issues.apache.org/jira/browse/SPARK-18462
@@ -28,7 +28,7 @@ A recurring class of issue: a new Spark version emits an event field that the ol
 - **SPARK-42754** — Spark 3.4's History Server SQL tab incorrectly groups SQL executions when replaying event logs from Spark 3.3 and earlier, because Jackson's "ignore missing properties" behavior silently fills in defaults rather than raising.
 - **SPARK-18462** — `SparkListenerDriverAccumUpdates` event does not deserialize properly in the History Server; a `ClassCastException` due to oddities in Jackson object mapping breaks the SQL tab.
 
-**Audit relevance.** This theme establishes that **the JsonProtocol parser is fragile and silently coerces unexpected input**, which is exactly the failure mode the CVE-2025-54920 fix has to harden. Fixes in this theme typically add per-event missing-field defaults or per-event parser branches; the playbook should flag any such fix that adds a new `case other =>`-style fallback without a type gate, or that relaxes Jackson configuration (`@JsonIgnoreProperties(ignoreUnknown=true)` is fine; `enableDefaultTyping` is not).
+**Audit relevance.** This theme establishes that **the JsonProtocol parser is fragile and silently coerces unexpected input**, which is exactly the failure mode the [REDACTED] fix has to harden. Fixes in this theme typically add per-event missing-field defaults or per-event parser branches; the playbook should flag any such fix that adds a new `case other =>`-style fallback without a type gate, or that relaxes Jackson configuration (`@JsonIgnoreProperties(ignoreUnknown=true)` is fine; `enableDefaultTyping` is not).
 
 ### Theme 2 — Multi-tenant / shared event-log directory operations
 
@@ -55,13 +55,13 @@ A large secondary theme: event-log files grow unboundedly for streaming and long
 
 GitHub Advisories tagged `spark` returns a sparse but recurring stream of `core/`-targeting CVEs:
 
-- **CVE-2025-54920 / SPARK-52381** — this audit's target. Insecure deserialization in `JsonProtocol`.
-- **CVE-2022-33891** — `spark-submit` `doAs` command injection via `groups.command`. CWE-78 in `core/`.
-- **CVE-2020-9480** — RPC authentication shared-secret bypass.
-- **CVE-2018-17190 / CVE-2018-11770** — Standalone master REST API accepts unauthenticated code submission.
-- **CVE-2017-12612** — Spark Launcher API unsafe Java deserialization (`ObjectInputStream.readObject` on socket data).
+- **[REDACTED] / [REDACTED]** — this audit's target. [REDACTED] in `JsonProtocol`.
+- **[REDACTED]** — `spark-submit` `doAs` command injection via `groups.command`. CWE-78 in `core/`.
+- **[REDACTED]** — RPC authentication shared-secret bypass.
+- **[REDACTED] / [REDACTED]** — Standalone master REST API accepts unauthenticated code submission.
+- **[REDACTED]** — Spark Launcher API unsafe Java deserialization (`ObjectInputStream.readObject` on socket data).
 
-**Audit relevance.** Establishes the precedent that **`core/` has a recurring pattern of input-to-code-execution bugs**. Of the prior CVEs, CVE-2017-12612 is the closest analogue: untrusted bytes → Java deserialization → RCE. The Launcher API's response (kill the API, recommend `spark-submit`) is different from JsonProtocol's response (typecheck before construction), but the underlying invariant — *don't deserialize untrusted bytes into code-equivalent objects* — is the same.
+**Audit relevance.** Establishes the precedent that **`core/` has a recurring pattern of input-to-code-execution bugs**. Of the prior CVEs, [REDACTED] is the closest analogue: untrusted bytes → Java deserialization → RCE. The Launcher API's response (kill the API, recommend `spark-submit`) is different from JsonProtocol's response (typecheck before construction), but the underlying invariant — *don't deserialize untrusted bytes into code-equivalent objects* — is the same.
 
 ### Theme 5 — Jackson configuration / version churn
 
@@ -77,7 +77,7 @@ Spark's `JsonProtocol` historically used `json4s` (built on Jackson); newer code
 `SparkListenerEvent` was deliberately designed as an open extension point. Third-party code (Sparklens, Spark Atlas, custom metric exporters, vendor integrations like Cloudera Navigator) registers listeners and posts custom event classes. The History Server needs to replay those custom events to reconstruct the UI faithfully — which is **why** the `case other =>` fallback exists.
 
 - Sparklens (qubole/sparklens) and similar tools post custom events; their replay depends on the fallback path.
-- Issue threads on the SPARK-52381 PR (especially commentary from `mridulm`) debate whether removing the fallback breaks downstream extension authors. The fix preserves extension by allowing any `SparkListenerEvent` subclass while denying everything else, which is the minimal restriction.
+- Issue threads on the [REDACTED] PR (especially commentary from `mridulm`) debate whether removing the fallback breaks downstream extension authors. The fix preserves extension by allowing any `SparkListenerEvent` subclass while denying everything else, which is the minimal restriction.
 
 **Audit relevance.** The fallback is not vestigial code; it's a load-bearing extension hatch. The right invariant is "the hatch must require a `SparkListenerEvent` type contract," not "remove the hatch." The playbook should not flag the existence of the fallback — it should flag the *absence* of the type gate.
 

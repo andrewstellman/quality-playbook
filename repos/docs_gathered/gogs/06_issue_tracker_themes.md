@@ -31,14 +31,14 @@ Recurring user-facing pain. Common shapes:
 
 ## Theme 2: Protected branches don't always feel protected
 
-Pre-CVE-2026-25232 (and recurringly in older issues): users report that protected branches are still being modified or deleted in ways they didn't expect. Several issues asked why a PR could merge despite branch protection, or why a force-push got through.
+Pre-[REDACTED] (and recurringly in older issues): users report that protected branches are still being modified or deleted in ways they didn't expect. Several issues asked why a PR could merge despite branch protection, or why a force-push got through.
 
 The settled answer in the codebase is that branch protection is enforced in two places:
 
 1. The Git pre-receive hook (`internal/cmd/hook.go`) — for SSH and smart-HTTP push paths.
-2. The web-UI branch-delete handler (post-CVE-2026-25232 fix only).
+2. The web-UI branch-delete handler (post-[REDACTED] fix only).
 
-There's no third enforcement at the database layer. **Anywhere else a "delete branch" or "force update ref" operation could be invoked** is a candidate for the same class of bypass that CVE-2026-25232 closed. The audit invariant: every code path that ends in `git update-ref -d` or `git push --force` for a branch must run through one of those two gates.
+There's no third enforcement at the database layer. **Anywhere else a "delete branch" or "force update ref" operation could be invoked** is a candidate for the same class of bypass that [REDACTED] closed. The audit invariant: every code path that ends in `git update-ref -d` or `git push --force` for a branch must run through one of those two gates.
 
 ## Theme 3: Webhooks fire for actions users don't expect (or don't fire when they should)
 
@@ -51,7 +51,7 @@ Recurring class of issues. Two shapes:
 
 ## Theme 4: API behavior diverges from web-UI behavior
 
-Recurring user reports of "I can do X in the UI but the API returns 403" or vice versa. Most of these are not security bugs (they're missing API parity for features), but a subset is. CVE-2026-25229 is exactly this theme in security clothing: the API's `EditLabel` had the correct repo-scoping; the Web UI's `UpdateLabel` did not.
+Recurring user reports of "I can do X in the UI but the API returns 403" or vice versa. Most of these are not security bugs (they're missing API parity for features), but a subset is. [REDACTED] is exactly this theme in security clothing: the API's `EditLabel` had the correct repo-scoping; the Web UI's `UpdateLabel` did not.
 
 **Audit invariant** (re-stated from `04_invariants.md`): the authorization predicates for the API handler and the Web UI handler implementing the same operation must be equivalent. The shape of the bug is **always**: one side reaches a less-guarded code path than the other. The audit's job is to enumerate every (web-handler, api-handler) operation pair and verify equivalence.
 
@@ -71,7 +71,7 @@ A "partially public" repo is private but with `CanGuestViewIssues()` or `CanGues
 
 Issues report variants of: "I made my repo private but a guest can still see X." Most are configuration confusion; a small number have been real bugs (the issue surface that resolves to the CanGuestViewIssues / CanGuestViewWiki branches).
 
-**Audit relevance**: any handler that runs on a repo and is reachable anonymously needs to consult `c.Repo.HasAccess()` before exposing data that's not in the partially-public set. The bug shape: a handler that runs after `RepoAssignment()` (which let the anonymous user past the gate because of partial-public) but then reads data that's outside the partially-public window (e.g., reading file contents while only issues are guest-visible). This is the class CVE-2026-25242 was an instance of, even though the specific bug was a file-upload route.
+**Audit relevance**: any handler that runs on a repo and is reachable anonymously needs to consult `c.Repo.HasAccess()` before exposing data that's not in the partially-public set. The bug shape: a handler that runs after `RepoAssignment()` (which let the anonymous user past the gate because of partial-public) but then reads data that's outside the partially-public window (e.g., reading file contents while only issues are guest-visible). This is the class [REDACTED] was an instance of, even though the specific bug was a file-upload route.
 
 ## Pattern: maintainer's response style
 
@@ -83,4 +83,4 @@ Issues report variants of: "I made my repo private but a guest can still see X."
 
 ## What's *not* in the issue tracker that you might expect
 
-A counterpoint: there are very few user reports specifically titled "broken access control" or "IDOR" in the issue tracker. The pattern in this codebase is that BAC bugs are reported by external security researchers directly through the private-advisory workflow, *not* discovered by users hitting them in production and filing public tickets. **This means QPB cannot use issue-tracker volume as a signal of where BAC bugs cluster.** The signal lives in the advisory list (`05_known_issues_and_advisories.md`) and in the static code patterns (`03_access_control_patterns.md`). The issue tracker themes above are useful for context, not for hunting.
+A counterpoint: there are very few user reports specifically titled "[REDACTED]" or "IDOR" in the issue tracker. The pattern in this codebase is that BAC bugs are reported by external security researchers directly through the private-advisory workflow, *not* discovered by users hitting them in production and filing public tickets. **This means QPB cannot use issue-tracker volume as a signal of where BAC bugs cluster.** The signal lives in the advisory list (`05_known_issues_and_advisories.md`) and in the static code patterns (`03_access_control_patterns.md`). The issue tracker themes above are useful for context, not for hunting.

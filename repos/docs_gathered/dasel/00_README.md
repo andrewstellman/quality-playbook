@@ -58,7 +58,7 @@ dasel is positioned in the README and docs as a tool for "devops, configuration,
 - **CI / config pipelines that consume third-party data**: webhook payloads, GitHub Action outputs, external API responses normalized through dasel.
 - **Library consumers that build a service around dasel** (web service, MCP-style tool, internal API): the dasel parser becomes a parsing surface for whatever data the service accepts.
 
-Both patterns mean the parser must be hardened against adversarial input even though the CLI ergonomics suggest a "trusted user files" mindset. The published CVE in scope here (CVE-2026-33320, see `05_known_issues_and_advisories.md`) was discovered specifically because the library-usage path passes adversarial YAML into `(*yamlReader).Read` without any external bound.
+Both patterns mean the parser must be hardened against adversarial input even though the CLI ergonomics suggest a "trusted user files" mindset. The published CVE in scope here ([REDACTED], see `05_known_issues_and_advisories.md`) was discovered specifically because the library-usage path passes adversarial YAML into `(*yamlReader).Read` without any external bound.
 
 ## The parsing pipeline at 30,000 feet
 
@@ -78,7 +78,7 @@ Every Reader returns the same internal type, `*model.Value` — a tagged value (
 - License: MIT
 - Default branch: master
 - Module: `github.com/tomwright/dasel/v3`
-- Latest release at time of writing: **v3.3.2** (published 2026-03-18), which contains the fix for CVE-2026-33320 via PR #531 "Fix yaml unbounded expansion".
+- Latest release at time of writing: **v3.3.2** (published 2026-03-18), which contains the fix for [REDACTED] via [REDACTED] "Fix yaml [REDACTED]".
 - Open issues: ~20
 - Stars: ~7,963
 

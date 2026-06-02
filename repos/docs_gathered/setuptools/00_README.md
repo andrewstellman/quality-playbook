@@ -8,7 +8,7 @@
 - Security policy: https://github.com/pypa/setuptools/blob/main/SECURITY.md
 - Source of the vulnerable function (this audit's focus):
   https://raw.githubusercontent.com/pypa/setuptools/d8390feaa99091d1ba9626bec0e4ba7072fc507a/setuptools/package_index.py
-- Patch commit: https://github.com/pypa/setuptools/commit/250a6d17978f9f6ac3ac887091f2d32886fbbb0b
+- Patch commit: https://github.com/pypa/setuptools/commit/[REDACTED]
 
 ## Context
 
@@ -21,7 +21,7 @@ Coombs (`@jaraco`) with hundreds of contributors.
 
 The repository under audit is pinned at commit
 `d8390feaa99091d1ba9626bec0e4ba7072fc507a` — the **parent of the patch** for
-CVE-2025-47273 / GHSA-5rjg-fvgr-3xxf. That parent contains the vulnerable
+[REDACTED] / [REDACTED]. That parent contains the vulnerable
 `PackageIndex._resolve_download_filename` function (lines 810–825 of
 `setuptools/package_index.py`) which derives a download filename from an
 arbitrary URL and joins it onto a caller-supplied `tmpdir` with `os.path.join`
@@ -35,8 +35,8 @@ arbitrary URL and joins it onto a caller-supplied `tmpdir` with `os.path.join`
   vulnerable file is written in modern Python with `from __future__ import
   annotations`, NamedTuples, type hints, and stdlib-only HTTP (`urllib`).
 - **Test framework.** pytest (see `pytest.ini`, `conftest.py`). Doctests live
-  inline in source files — the fix for CVE-2025-47273 added a doctest exercising
-  the URL-encoded path traversal vector.
+  inline in source files — the fix for [REDACTED] added a doctest exercising
+  the URL-encoded [REDACTED] vector.
 - **Linter.** Ruff (`ruff.toml`).
 - **Release tooling.** towncrier (`towncrier.toml`, `newsfragments/`),
   bumpversion (`.bumpversion.cfg`).
@@ -83,7 +83,7 @@ packaging. Its public surface includes:
   that lets a package declare arbitrary download URLs for its dependencies.
   Historically this was a primary vector into `PackageIndex.download` from
   user-controlled input. `process_dependency_links` is one of the easy_install
-  command-line options that the advisory's referenced CVE-2024-6345 was
+  command-line options that the advisory's referenced [REDACTED] was
   triggered through.
 - **package index** — an HTTP server that exposes one HTML page per project
   with links to that project's distribution files. PyPI (`https://pypi.org/simple/`)
@@ -136,14 +136,14 @@ File-specific invariants are in `04_invariants.md`.
    inherits the bug.
 
 3. **Downloads MUST stay inside the caller-supplied tmpdir.** This is what
-   the patch (`if not filename.startswith(str(tmpdir)): raise ValueError`)
+   the patch (`[REDACTED]: raise ValueError`)
    enforces. The doctest added in the fix encodes the invariant explicitly:
    a URL containing `%2fhome%2fuser%2f.ssh%2fauthorized_keys` must raise
    `ValueError`, not silently write to `~/.ssh/authorized_keys`.
 
 4. **Security disclosures go through Tidelift, not GitHub Issues.** The
    project's `SECURITY.md` is two lines long and points at
-   https://tidelift.com/security. CVE-2025-47273 was reported via Huntr
+   https://tidelift.com/security. [REDACTED] was reported via Huntr
    (huntr.com/bounties/d6362117-ad57-4e83-951f-b8141c6e7ca5) and tracked
-   as a GitHub private advisory (GHSA-5rjg-fvgr-3xxf) before public
+   as a GitHub private advisory ([REDACTED]) before public
    disclosure on May 17, 2025.

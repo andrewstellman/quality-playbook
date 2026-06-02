@@ -2,13 +2,13 @@
 
 ## Sources
 
-- SPARK-52381 fix PR (master, with the diff and reviewer thread): https://github.com/apache/spark/pull/51061
-- SPARK-52381 backport PR (4.0): https://github.com/apache/spark/pull/51312
-- CVE-2025-54920 advisory: https://seclists.org/oss-sec/2026/q1/310
+- [REDACTED] fix PR (master, with the diff and reviewer thread): https://github.com/apache/spark[REDACTED]
+- [REDACTED] backport PR (4.0): https://github.com/apache/spark[REDACTED]
+- [REDACTED] advisory: https://seclists.org/oss-sec/2026/q1/310
 - Jackson polymorphic-deserialization CVE criteria (FasterXML wiki): https://github.com/FasterXML/jackson/wiki/Jackson-Polymorphic-Deserialization-CVE-Criteria
 - "On Jackson CVEs" (Tatu Saloranta, jackson-databind lead): https://cowtowncoder.medium.com/on-jackson-cves-dont-panic-here-is-what-you-need-to-know-54cd0d6e8062
-- jackson-databind CVE-2017-7525 issue: https://github.com/FasterXML/jackson-databind/issues/1599
-- Exploiting Jackson RCE (Adam Caudill): https://adamcaudill.com/2017/10/04/exploiting-jackson-rce-cve-2017-7525/
+- jackson-databind [REDACTED] issue: https://github.com/FasterXML/jackson-databind/issues/1599
+- Exploiting Jackson RCE (Adam Caudill): https://adamcaudill.com/2017/10/04/exploiting-jackson-rce-[REDACTED]/
 
 ## Context
 
@@ -53,7 +53,7 @@ Why this is unsafe:
 
 ### Gadget classes are the impact multiplier
 
-A "gadget" is a class whose construction (or whose setter side effects during Jackson population) does something useful to an attacker. The CVE-2025-54920 PoC uses `org.apache.hive.jdbc.HiveConnection`, whose constructor parses a JDBC URI like `jdbc:hive2://<attacker-host>:<port>/` and **opens a TCP connection** to that endpoint. Other classes commonly present on a Spark classpath that have side-effectful constructors or setters include:
+A "gadget" is a class whose construction (or whose setter side effects during Jackson population) does something useful to an attacker. The [REDACTED] PoC uses `org.apache.hive.jdbc.HiveConnection`, whose constructor parses a JDBC URI like `jdbc:hive2://<attacker-host>:<port>/` and **opens a TCP connection** to that endpoint. Other classes commonly present on a Spark classpath that have side-effectful constructors or setters include:
 
 - `org.springframework.context.support.ClassPathXmlApplicationContext` — loads a Spring config from a URL the attacker controls; the config can contain `bean` definitions with `init-method` that run arbitrary code.
 - `com.sun.rowset.JdbcRowSetImpl` — performs JNDI lookup on its `dataSourceName` setter; combine with an LDAP-based JNDI gadget for RCE.
@@ -64,9 +64,9 @@ The set of available gadgets depends entirely on the History Server's classpath.
 
 ### Standard Java / Jackson deserialization-of-untrusted-input pitfalls
 
-This bug is a clean instance of **CWE-502 Deserialization of Untrusted Data**. The Jackson community has documented its analogous footgun extensively:
+This bug is a clean instance of **[REDACTED] Deserialization of Untrusted Data**. The Jackson community has documented its analogous footgun extensively:
 
-- **Default Typing** (`ObjectMapper.enableDefaultTyping()`) is the classic Jackson antipattern. When default typing is on, Jackson writes a `@class` field next to every polymorphic field and reads it back to drive `Class.forName`. Decades of CVEs (CVE-2017-7525, CVE-2017-15095, CVE-2018-7489, CVE-2019-12086, …) blacklist specific gadget classes one by one. Jackson 2.10 introduced `activateDefaultTyping(PolymorphicTypeValidator)` to force developers to explicitly allowlist subtypes.
+- **Default Typing** (`ObjectMapper.enableDefaultTyping()`) is the classic Jackson antipattern. When default typing is on, Jackson writes a `@class` field next to every polymorphic field and reads it back to drive `Class.forName`. Decades of CVEs ([REDACTED], [REDACTED], [REDACTED], [REDACTED], …) blacklist specific gadget classes one by one. Jackson 2.10 introduced `activateDefaultTyping(PolymorphicTypeValidator)` to force developers to explicitly allowlist subtypes.
 - The Spark bug is **structurally equivalent** to default-typing-without-a-validator: the `"Event"` field plays the role of `@class`, and `Utils.classForName(other)` plays the role of the default-typing resolver. The only difference is that the dispatch is hand-rolled rather than annotation-driven, which means existing Jackson hardening (PolymorphicTypeValidator, Default Typing blocklist) does not help.
 - **Mitigations that the Jackson community recommends**, mapped to this codebase:
   - Use `@JsonTypeInfo(use = Id.NAME)` with an explicit `@JsonSubTypes` registry rather than `Id.CLASS` / `Id.MINIMAL_CLASS`. The Spark dispatcher is morally `Id.NAME`-style (a logical name like `"SparkListenerJobStart"`) for known events, but the fallback collapses to `Id.CLASS` semantics. Removing the fallback or gating it on `isAssignableFrom` collapses it back to a constrained set.
@@ -84,7 +84,7 @@ While auditing the History Server path, the playbook should also flag adjacent f
 
 ### Summary of the safe/unsafe distinction
 
-| Aspect | Unsafe (pre-SPARK-52381) | Safe (post-SPARK-52381) |
+| Aspect | Unsafe (pre-[REDACTED]) | Safe (post-[REDACTED]) |
 | --- | --- | --- |
 | Order of operations | look up class, **instantiate**, then cast | look up class, **typecheck**, then instantiate |
 | Failure mode for non-event class | `ClassCastException` after construction side effects already ran | `SparkException` thrown before construction |

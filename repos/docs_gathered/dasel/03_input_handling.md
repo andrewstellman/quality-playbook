@@ -6,11 +6,11 @@
 - https://github.com/TomWright/dasel/blob/master/parsing/json/json_reader.go
 - https://github.com/TomWright/dasel/blob/master/parsing/xml/reader.go
 - https://github.com/TomWright/dasel/blob/0dd6132e0c58edbd9b1a5f7ffd00dfab1e6085ad/parsing/yaml/yaml_reader.go (pre-fix)
-- https://github.com/TomWright/dasel/security/advisories/GHSA-4fcp-jxh7-23x8
-- https://github.com/advisories/GHSA-hp87-p4gw-j4gq (CVE-2022-28948 — go-yaml v3 DoS)
-- https://github.com/advisories/GHSA-r88r-gmrh-7j83 (CVE-2021-4235 — go-yaml v2 DoS)
-- https://github.com/advisories/GHSA-6q6q-88xp-6f2r (CVE-2022-3064 — go-yaml v2 excessive CPU/memory)
-- https://github.com/advisories/GHSA-wxc4-f4m6-wwqv (CVE-2019-11254 — billion laughs via go-yaml in Kubernetes)
+- https://github.com/TomWright/dasel/security/advisories/[REDACTED]
+- https://github.com/advisories/[REDACTED] ([REDACTED] — go-yaml v3 DoS)
+- https://github.com/advisories/[REDACTED] ([REDACTED] — go-yaml v2 DoS)
+- https://github.com/advisories/[REDACTED] ([REDACTED] — go-yaml v2 excessive CPU/memory)
+- https://github.com/advisories/[REDACTED] ([REDACTED] — [REDACTED] via go-yaml in Kubernetes)
 - https://pkg.go.dev/go.yaml.in/yaml/v4
 
 ## Per-format input-handling characteristics
@@ -41,9 +41,9 @@ c: &c [*b,*b,*b,*b,*b,*b,*b,*b,*b]            # 729 strings on expansion
 i: &i [*h,*h,*h,*h,*h,*h,*h,*h,*h]            # 9^9 = 387,420,489 strings on expansion
 ```
 
-This is the classic "billion laughs" / "billion anchors" attack from XML, ported to YAML. The pre-fix dasel reader followed `value.Alias` recursively with no bound. The advisory's 342-byte PoC did not complete within 5 seconds and consumed 100% CPU with growing memory.
+This is the classic "[REDACTED]" / "billion anchors" attack from XML, ported to YAML. The pre-fix dasel reader followed `value.Alias` recursively with no bound. The advisory's 342-byte PoC did not complete within 5 seconds and consumed 100% CPU with growing memory.
 
-**Post-fix bounds in dasel**: `maxExpansionDepth = 32`, `maxExpansionBudget = 1000` (see `02_api_contract.md` for the threading mechanism). Two errors: `ErrYamlExpansionDepthExceeded` and `ErrYamlExpansionBudgetExceeded`.
+**Post-fix bounds in dasel**: `[REDACTED] = 32`, `[REDACTED] = 1000` (see `02_api_contract.md` for the threading mechanism). Two errors: `ErrYamlExpansionDepthExceeded` and `ErrYamlExpansionBudgetExceeded`.
 
 **Other YAML inputs that are bounded by the upstream library** (not dasel's responsibility):
 
@@ -80,13 +80,13 @@ const (
 
 `maxXMLSize` is checked before decoding starts (`if len(data) > maxXMLSize { return nil, fmt.Errorf(...) }`). The `totalComments` counter is threaded via pointer through the recursive element parser, similar to the post-fix YAML budget pattern.
 
-**XML entity expansion (classic "billion laughs")**: Go's `encoding/xml` does not resolve external entity references and does not perform DTD-entity expansion by default. There is no `decoder.Entity` machinery enabled in dasel's XML reader. This means the XML billion-laughs vector is closed by the stdlib's defaults, and dasel doesn't need to add a defence beyond `maxXMLSize` and `decoder.Strict = true`.
+**XML entity expansion (classic "[REDACTED]")**: Go's `encoding/xml` does not resolve external entity references and does not perform DTD-entity expansion by default. There is no `decoder.Entity` machinery enabled in dasel's XML reader. This means the XML billion-laughs vector is closed by the stdlib's defaults, and dasel doesn't need to add a defence beyond `maxXMLSize` and `decoder.Strict = true`.
 
 **Two XML modes**: `friendly` (default, infers structure from element/attribute patterns) and `structured` (preserves the verbatim tree). Selected via `ReaderOptions.Ext["xml-mode"]`.
 
 ### TOML, CSV, HCL, INI, KDL
 
-Each has its own subpackage and Reader (registered the same way). None are in CVE-2026-33320 scope. Their input-handling characteristics are not audited in this writeup, but the trust-boundary rule from `01_security_model.md` applies: each Reader owns the bounds for its format-specific resource-exhaustion vectors.
+Each has its own subpackage and Reader (registered the same way). None are in [REDACTED] scope. Their input-handling characteristics are not audited in this writeup, but the trust-boundary rule from `01_security_model.md` applies: each Reader owns the bounds for its format-specific resource-exhaustion vectors.
 
 ## Why the YAML billion-laughs pattern is a recurring issue in Go
 
@@ -94,11 +94,11 @@ This is the third or fourth time a Go YAML consumer has had to add an alias-expa
 
 | Advisory | Affected package | Year | Mechanism |
 | --- | --- | --- | --- |
-| GHSA-wxc4-f4m6-wwqv (CVE-2019-11254) | `gopkg.in/yaml.v2` via Kubernetes | 2019 | Excessive aliasing → memory exhaustion |
-| GHSA-r88r-gmrh-7j83 (CVE-2021-4235) | `gopkg.in/yaml.v2` | 2021 | Untrusted YAML → DoS via large input |
-| GHSA-6q6q-88xp-6f2r (CVE-2022-3064) | `gopkg.in/yaml.v2` | 2022 | "Parsing malicious or large YAML documents can consume excessive amounts of CPU or memory" |
-| GHSA-hp87-p4gw-j4gq (CVE-2022-28948) | `gopkg.in/yaml.v3` | 2022 | Untrusted YAML → DoS |
-| GHSA-4fcp-jxh7-23x8 (CVE-2026-33320) | dasel | 2026 | Custom `UnmarshalYAML` bypasses go-yaml v4 internal limit |
+| [REDACTED] ([REDACTED]) | `gopkg.in/yaml.v2` via Kubernetes | 2019 | Excessive aliasing → memory exhaustion |
+| [REDACTED] ([REDACTED]) | `gopkg.in/yaml.v2` | 2021 | Untrusted YAML → DoS via large input |
+| [REDACTED] ([REDACTED]) | `gopkg.in/yaml.v2` | 2022 | "Parsing malicious or large YAML documents can consume excessive amounts of CPU or memory" |
+| [REDACTED] ([REDACTED]) | `gopkg.in/yaml.v3` | 2022 | Untrusted YAML → DoS |
+| [REDACTED] ([REDACTED]) | dasel | 2026 | Custom `UnmarshalYAML` bypasses go-yaml v4 internal limit |
 
 The upstream library has progressively tightened its built-in defences against billion-laughs — `yaml.Unmarshal` into Go values now refuses excessive aliasing with the explicit error string `"yaml: document contains excessive aliasing"`. But every time a consumer adopts a custom `UnmarshalYAML`, they reopen the hole, because the library's counters are bypassed.
 

@@ -6,13 +6,13 @@ This file consolidates invariants extracted from:
 - `00_README.md`, `01_cryptographic_contract.md`, `02_api_contract.md`, `03_attestation_and_trust.md`
 - `internal/crypto/crypto.go`, `internal/attestation/*`, `attest.go`, `attestation/pcrs.go`, `evervault.go`
 - Evervault Encryption docs: https://docs.evervault.com/developers/evervault-encryption
-- CVE-2025-64186 advisory: https://github.com/evervault/evervault-go/security/advisories/GHSA-88h9-77c7-p6w4
+- [REDACTED] advisory: https://github.com/evervault/evervault-go/security/advisories/[REDACTED]
 
 ## Context
 
 This is the **must-hold-always** list — invariants that a code review or static analysis would be checking to detect classes of bugs including the target CVE. Each invariant is named (for cross-referencing), declared as a "MUST" / "MUST NOT" / "MUST ALWAYS" statement, and tagged with where it should be enforced.
 
-The CVE-2025-64186 issue is encoded directly as `MISSING-PCR-PRESENCE-CHECK` below — the SDK pre-1.3.2 violated this invariant.
+The [REDACTED] issue is encoded directly as `[REDACTED]` below — the SDK pre-1.3.2 violated this invariant.
 
 ## Hard invariants
 
@@ -78,22 +78,22 @@ The CVE-2025-64186 issue is encoded directly as `MISSING-PCR-PRESENCE-CHECK` bel
 ### Attestation — Document validation
 
 - **VERIFY-BEFORE-CACHE** — A `nitrite.Document` MUST NOT be stored in the attestation cache unless `nitrite.Verify` succeeded AND `validatedDoc.SignatureOK` is `true` AND PCR0/PCR1/PCR2 are present.  
-  *Enforcement site:* `internal/attestation/attestation_cache.go : validateAttestationDoc` (since v1.3.2). Pre-v1.3.2 the cache stored raw bytes without this presence check, which is the proximate cause of CVE-2025-64186.
+  *Enforcement site:* `internal/attestation/attestation_cache.go : [REDACTED]` (since v1.3.2). Pre-v1.3.2 the cache stored raw bytes without this [REDACTED], which is the proximate cause of [REDACTED].
 
-- **MISSING-PCR-PRESENCE-CHECK** *(THE CVE INVARIANT)* — Before comparing expected vs received PCRs, the SDK MUST confirm that the **received** attestation document has PCR0, PCR1, AND PCR2 present and non-empty. PCR8 may be absent (for unsigned EIFs).  
-  *Enforcement site:* `attest.go : mapAttestationPCRs` AND `attestation/pcrs.go : (PCRs).isMinimalPCRSet` AND `attestation/pcrs.go : (PCRs).SatisfiedBy` (since v1.3.2).  
+- **[REDACTED]** *(THE CVE INVARIANT)* — Before comparing expected vs received PCRs, the SDK MUST confirm that the **received** attestation document has PCR0, PCR1, AND PCR2 present and non-empty. PCR8 may be absent (for unsigned EIFs).  
+  *Enforcement site:* `attest.go : mapAttestationPCRs` AND `attestation/pcrs.go : (PCRs).[REDACTED]` AND `attestation/pcrs.go : (PCRs).[REDACTED]` (since v1.3.2).  
   
-  **Pre-v1.3.2 violation:** `pcrNotEqual(p1, p2) = p1 != "" && p2 != "" && p1 != p2` returned `false` (i.e., "equal") whenever either side was empty. An attestation document that the operator served with an empty PCRs map would silently satisfy any expected PCRs struct, because every expected vs received comparison hit the `p2 == ""` short-circuit and returned "equal". The advisory's POC sets `actualDocument.PCRs = map[uint][]byte{10: make([]byte, 32)}` — a document with NO PCR0/1/2/8 set — and shows `verifyPCRs(expectedPCRs, actualDocument) == true` on the vulnerable version.
+  **Pre-v1.3.2 violation:** `[REDACTED](p1, p2) = p1 != "" && p2 != "" && p1 != p2` returned `false` (i.e., "equal") whenever either side was empty. An attestation document that the operator served with an [REDACTED] map would silently satisfy any expected PCRs struct, because every expected vs received comparison hit the `p2 == ""` short-circuit and returned "equal". The advisory's POC sets `actualDocument.PCRs = map[uint][]byte{10: make([]byte, 32)}` — a document with NO PCR0/1/2/8 set — and shows `verifyPCRs(expectedPCRs, actualDocument) == true` on the vulnerable version.
 
 ### Attestation — Comparison semantics
 
-- **EXPECTED-EMPTY-IS-DONTCARE** — An empty field in an expected PCRs struct MUST be treated as "any received value is acceptable for this field". But this freedom only applies to the **expected** side; on the **received** side, PCR0/1/2 emptiness is a hard fail (see MISSING-PCR-PRESENCE-CHECK).
+- **EXPECTED-EMPTY-IS-DONTCARE** — An empty field in an expected PCRs struct MUST be treated as "any received value is acceptable for this field". But this freedom only applies to the **expected** side; on the **received** side, PCR0/1/2 emptiness is a hard fail (see [REDACTED]).
 
 - **EXPECTED-NONEMPTY-MUST-MATCH** — A non-empty expected PCR value MUST bytewise (hex-string-wise) equal the received value.
 
-- **OR-ACROSS-EXPECTED-SET** — Multiple PCR sets in the `[]PCRs` slice are OR'd: any one `SatisfiedBy` passes.
+- **OR-ACROSS-EXPECTED-SET** — Multiple PCR sets in the `[]PCRs` slice are OR'd: any one `[REDACTED]` passes.
 
-- **REJECT-NO-EXPECTATIONS** — A `[]PCRs` slice with no non-empty PCRs MUST be rejected with `ErrNoPCRs` at client construction.
+- **REJECT-NO-EXPECTATIONS** — A `[]PCRs` slice with no non-[REDACTED] MUST be rejected with `ErrNoPCRs` at client construction.
 
 ### Attestation — Channel binding
 
@@ -126,7 +126,7 @@ The CVE-2025-64186 issue is encoded directly as `MISSING-PCR-PRESENCE-CHECK` bel
 ## Sanity invariants on test surfaces (informational)
 
 - The test suite is gated on env vars (`EV_APP_UUID`, `EV_API_KEY`, `EV_ENCLAVE_API_KEY`, `EV_SYNTHETIC_ENDPOINT_URL`, etc.) so a fresh-checkout `go test -short ./...` runs unit tests only.
-- `pcrs_test.go` gained +86 lines in PR #48 to specifically cover the missing-PCR case the CVE exploited.
+- `pcrs_test.go` gained +86 lines in [REDACTED] to specifically cover the missing-PCR case the CVE exploited.
 
 ## Invariants that QPB should derive from the docs (without source)
 

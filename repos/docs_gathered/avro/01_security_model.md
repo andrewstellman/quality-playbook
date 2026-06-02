@@ -17,7 +17,7 @@ The project's official security page (`avro.apache.org/project/security/`) is sh
 
 > **This supply chain also includes the schemas being used: if they are user provided, additional validation is strongly advised. Such validation can use the parsed schema, as schema parsing itself is safe: the parser allows SPIs, but is not otherwise configurable.**
 
-That bold sentence is the one that matters for CVE-2025-33042: the project explicitly classifies the schema as a **supply-chain input**, and explicitly says "if they are user provided, additional validation is strongly advised." The runtime/codegen path was being held to that contract; AVRO-4053 closed the gap where it wasn't.
+That bold sentence is the one that matters for [REDACTED]: the project explicitly classifies the schema as a **supply-chain input**, and explicitly says "if they are user provided, additional validation is strongly advised." The runtime/codegen path was being held to that contract; [REDACTED] closed the gap where it wasn't.
 
 The official summary, again verbatim:
 
@@ -31,7 +31,7 @@ The official summary, again verbatim:
 
 There are three concentric trust zones in any Avro deployment. They map directly onto the threat model QPB needs to test.
 
-### Zone A — Build-time / generation-time trust (CVE-2025-33042 lives here)
+### Zone A — Build-time / generation-time trust ([REDACTED] lives here)
 
 - **Inputs:** `.avsc`, `.avpr`, `.avdl` schema files fed to `SpecificCompiler` (directly, via `avro-tools compile`, or via the `avro-maven-plugin`).
 - **Outputs:** Java source files written to `outputDir`, then compiled by `javac`.
@@ -43,7 +43,7 @@ There are three concentric trust zones in any Avro deployment. They map directly
 
 - **Inputs:** Bytes claiming to be Avro JSON schema or Avro IDL, passed to `Schema.Parser` or `Idl`.
 - **Trust assumption (per security policy):** parsing itself is safe. The parser exposes SPI hooks for custom logical types but is "not otherwise configurable."
-- **Threat history:** CVE-2024-47561 (AVRO-3985) violated this — schema parsing could be coerced into arbitrary code execution. Fixed in 1.11.4 / 1.12.0. This is a different CVE than the one QPB is hunting but informs the larger pattern: untrusted schemas have historically been the attack vector of choice.
+- **Threat history:** [REDACTED] (AVRO-3985) violated this — schema parsing could be coerced into arbitrary code execution. Fixed in 1.11.4 / 1.12.0. This is a different CVE than the one QPB is hunting but informs the larger pattern: untrusted schemas have historically been the attack vector of choice.
 
 ### Zone C — Data-read-time trust
 
@@ -56,9 +56,9 @@ There are three concentric trust zones in any Avro deployment. They map directly
 The CVE pivots on a distinction QPB will need to make in any caller's deployment:
 
 - **Schemas-as-config.** Schemas live in the repo alongside the application source, are reviewed in PRs, and only ever hit `SpecificCompiler` at build time. An attacker would have to compromise the source supply chain to introduce a malicious `javaAnnotation`. Risk is non-zero (think: typosquatted Maven dependency that ships an `.avsc` in its JAR, or a build that downloads schemas from a schema registry at compile time) but bounded.
-- **Schemas-from-network.** Schemas arrive at runtime: schema-registry-driven Kafka pipelines, RPC handshakes that include peer schemas, IPC. Pre-AVRO-4053, if such a runtime path *also* invoked `SpecificCompiler` (e.g., a service that dynamically generates Java classes for incoming schemas — rare but documented in the Avro tooling ecosystem), the attacker controls the codegen input. This is the worst-case framing for CVE-2025-33042. CVSS v4 6.9 / Moderate reflects that most deployments don't expose this path; the underlying weakness (CWE-94, code injection) is severe whenever they do.
+- **Schemas-from-network.** Schemas arrive at runtime: schema-registry-driven Kafka pipelines, RPC handshakes that include peer schemas, IPC. Pre-[REDACTED], if such a runtime path *also* invoked `SpecificCompiler` (e.g., a service that dynamically generates Java classes for incoming schemas — rare but documented in the Avro tooling ecosystem), the attacker controls the codegen input. This is the worst-case framing for [REDACTED]. CVSS v4 6.9 / Moderate reflects that most deployments don't expose this path; the underlying weakness ([REDACTED], [REDACTED]) is severe whenever they do.
 
-## What Codegen Output *Must* Guarantee (the contract violated by AVRO-4053)
+## What Codegen Output *Must* Guarantee (the contract violated by [REDACTED])
 
 - A generated `.java` source file must be valid Java regardless of any string content lifted from the schema.
 - A schema must not be able to inject statements, declarations, or imports into a generated class body via *any* string property.
@@ -69,7 +69,7 @@ The CVE pivots on a distinction QPB will need to make in any caller's deployment
 ## Invariants
 
 - **Schemas are untrusted input.** The Apache Avro security policy says so in writing.
-- **The parsed-schema-string -> generated-source taint flow is the principal codegen invariant.** Every string field that ends up in a generated `.java` file must be either (a) validated against a syntactic whitelist (`javaAnnotation` -> `VALID_AS_ANNOTATION` regex) or (b) escaped for its target lexical context (`doc` -> `escapeForJavadoc`; embedded JSON -> `escapeForJavaString`).
+- **The parsed-schema-string -> generated-source [REDACTED] is the principal codegen invariant.** Every string field that ends up in a generated `.java` file must be either (a) validated against a syntactic whitelist (`javaAnnotation` -> `VALID_AS_ANNOTATION` regex) or (b) escaped for its target lexical context (`doc` -> `escapeForJavadoc`; embedded JSON -> `escapeForJavaString`).
 - **Validation must happen at codegen time, not IDL-parse time.** `.avdl` is a thin syntactic skin over JSON properties; an `@javaAnnotation("...")` IDL annotation becomes a JSON `javaAnnotation` string property indistinguishable from one a user wrote directly in `.avsc`. Sanitisation in the IDL parser would miss the JSON path entirely.
-- **Codegen failures should be silent and benign** (per the AVRO-4053 patch). Invalid annotations are dropped; valid ones are emitted. The fix does not throw on bad input.
-- **The runtime (GenericData) path is out-of-scope for this CVE** — no Java source is generated, so no codegen-injection invariant applies. (Other CVEs apply, notably CVE-2024-47561.)
+- **Codegen failures should be silent and benign** (per the [REDACTED] patch). Invalid annotations are dropped; valid ones are emitted. The fix does not throw on bad input.
+- **The runtime (GenericData) path is out-of-scope for this CVE** — no Java source is generated, so no codegen-injection invariant applies. (Other CVEs apply, notably [REDACTED].)

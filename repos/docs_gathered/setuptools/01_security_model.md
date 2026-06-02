@@ -6,12 +6,12 @@
 - SECURITY.md: https://github.com/pypa/setuptools/blob/main/SECURITY.md
 - Vulnerable source (parent SHA `d8390fea`):
   https://raw.githubusercontent.com/pypa/setuptools/d8390feaa99091d1ba9626bec0e4ba7072fc507a/setuptools/package_index.py
-- Advisory GHSA-5rjg-fvgr-3xxf: https://github.com/advisories/GHSA-5rjg-fvgr-3xxf
+- Advisory [REDACTED]: https://github.com/advisories/[REDACTED]
 - Related advisories establishing the same threat model:
-  - GHSA-r9hx-vwmv-q579 (CVE-2022-40897 — ReDoS via PyPI page):
-    https://github.com/advisories/GHSA-r9hx-vwmv-q579
-  - GHSA-cx63-2mw6-8hw5 (CVE-2024-6345 — RCE via package URL):
-    https://github.com/advisories/GHSA-cx63-2mw6-8hw5
+  - [REDACTED] ([REDACTED] — ReDoS via PyPI page):
+    https://github.com/advisories/[REDACTED]
+  - [REDACTED] ([REDACTED] — RCE via package URL):
+    https://github.com/advisories/[REDACTED]
 
 ## Context
 
@@ -35,10 +35,10 @@ HTML page served by a `--find-links` URL, a `dependency_links` entry in some
 package being installed, or any redirect target chained off a legitimate
 fetch.
 
-The CVE-2022-40897 advisory described this attack surface as "malicious HTML
-from a PyPI package or custom PackageIndex page." The CVE-2024-6345 advisory
+The [REDACTED] advisory described this attack surface as "malicious HTML
+from a PyPI package or custom PackageIndex page." The [REDACTED] advisory
 (an RCE in the same module) described it as "package URLs … exposed to
-user-controlled inputs." CVE-2025-47273 — the focus of this audit — is the
+user-controlled inputs." [REDACTED] — the focus of this audit — is the
 third member of that family.
 
 ## Trust boundaries
@@ -83,7 +83,7 @@ The contract is stated three ways in the patched code:
    well-formed URL produces a path equal to `tmpdir / 'setuptools-78.1.0.tar.gz'`,
    and that a URL containing `%2fhome%2fuser%2f.ssh%2fauthorized_keys` raises
    `ValueError: Invalid filename…`.
-2. **A runtime check.** `if not filename.startswith(str(tmpdir)): raise
+2. **A runtime check.** `[REDACTED]: raise
    ValueError(...)`. This is a string-prefix check, intentional in its choice
    not to use `os.path.realpath` — discussion in the patch comments shows the
    maintainer accepted that string prefix is sufficient because the bug
@@ -112,7 +112,7 @@ The contract is stated three ways in the patched code:
 
 | Asset | Threat | Pre-patch protection | Post-patch protection |
 |---|---|---|---|
-| Filesystem outside `tmpdir` | Path traversal via URL-derived filename | None (the `..` replacement is bypassed by URL-encoding and by absolute paths) | `ValueError` if joined path doesn't start with `tmpdir` |
+| Filesystem outside `tmpdir` | [REDACTED] via URL-derived filename | None (the `..` replacement is bypassed by URL-encoding and by absolute paths) | `ValueError` if joined path doesn't start with `tmpdir` |
 | `tmpdir` contents | Tampering by malicious filename | None | Same — the patch is scope-limited to the escape case |
 | Process integrity | Code execution via downloaded content | None at this layer — assumed handled by sdist/wheel install logic | Unchanged |
 | Network confidentiality | HTTPS downgrade | TLS is enforced by `urllib` defaults; `verify_ssl=True` is the constructor default | Unchanged |
@@ -149,6 +149,6 @@ The contract is stated three ways in the patched code:
 
 5. **Security disclosure is out-of-band.** The repository's
    `SECURITY.md` directs reporters to Tidelift; the project does not accept
-   security reports via public GitHub issues. CVE-2025-47273 was reported
+   security reports via public GitHub issues. [REDACTED] was reported
    via Huntr and triaged as a GitHub private advisory before public
    disclosure.
