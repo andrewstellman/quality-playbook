@@ -706,14 +706,21 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
     is_shallow_pass = (verdict_state == "shallow")
 
     # === Section 1: lead verdict line ===
+    # v1.5.7 185 FINDING-27: ASCII verdict markers
+    # ([PASS]/[WARN]/[FAIL]) replace the pre-185 emoji
+    # markers (✅/⚠️/❌). On Windows the stream-captured
+    # stdout path uses cp1252 codec and crashes print()
+    # with UnicodeEncodeError on the emoji. Both old and
+    # new forms parse via _RE_LEAD_* in bin/harness/facts.py
+    # (185 FINDING-28 dual-form parser).
     print("")
-    print("─── Operator Verdict ──────────────────────")
+    print("--- Operator Verdict ---")
     if exit_code != 0:
-        lead = "❌ GATE FAILED"
+        lead = "[FAIL] GATE FAILED"
     elif is_shallow_pass:
-        lead = "⚠️ GATE PASSED — but this run looks shallow"
+        lead = "[WARN] GATE PASSED -- but this run looks shallow"
     else:
-        lead = "✅ GATE PASSED — this run looks solid"
+        lead = "[PASS] GATE PASSED -- this run looks solid"
     print(lead)
 
     # === Section 2: plain-English "why + what to do" for FAILs ===

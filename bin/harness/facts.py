@@ -180,13 +180,27 @@ _RE_RESULT_LINE = re.compile(
     r"|GATE PASSED|GATE FAILED.*)$",
     re.MULTILINE,
 )
+# v1.5.7 185 FINDING-28: dual-form parser. The 090v lead
+# verdict line uses ASCII bracketed markers ([PASS]/[WARN]/
+# [FAIL]) post-185 (FINDING-27 fix for the Windows cp1252
+# print() crash). Pre-185 harness_runs/ folders have the
+# emoji forms (check mark / warning sign + VS / cross mark)
+# embedded in their captured stream.ndjson. The regexes
+# below alternate on BOTH forms so existing folders parse
+# unchanged AND fresh runs against the post-185 gate parse
+# correctly.
+#
+# Em-dash handling: the post-185 gate emits ``--`` (two
+# ASCII hyphens); the pre-185 emoji output had ``—`` (em
+# dash). Both rendered as the same logical separator; the
+# regex's ``(?:—|--)`` alternation handles both.
 _RE_LEAD_SOLID = re.compile(
-    r"✅ GATE PASSED — this run looks solid",
+    r"(?:\[PASS\]|✅) GATE PASSED (?:—|--) this run looks solid",
 )
 _RE_LEAD_SHALLOW = re.compile(
-    r"⚠️ GATE PASSED — but this run looks shallow",
+    r"(?:\[WARN\]|⚠️) GATE PASSED (?:—|--) but this run looks shallow",
 )
-_RE_LEAD_FAILED = re.compile(r"❌ GATE FAILED")
+_RE_LEAD_FAILED = re.compile(r"(?:\[FAIL\]|❌) GATE FAILED")
 _RE_WEAK_MODEL = re.compile(r"Attribution: weak-model artifact")
 _RE_ENV_FAILURE = re.compile(
     r"Attribution: environment / setup problem",
@@ -198,6 +212,24 @@ _RE_BUGS_UNVERIFIED = re.compile(
     r"\[bugs_unverified\]|"
     r"This run found bug\(s\) but didn't verify them",
 )
+def parse_verdict_state(stdout: str) -> "str | None":
+    """v1.5.7 185 FINDING-28: thin wrapper around the
+    ``_RE_LEAD_*`` regexes that returns just the verdict-
+    state string (``"solid"`` / ``"shallow"`` / ``"failed"``
+    / ``None``) without requiring the full Total/RESULT line
+    structure that ``parse_gate_stdout`` validates. Exposed
+    primarily for the 185 regression tests; production code
+    paths should call ``parse_gate_stdout`` for the full
+    fact tuple."""
+    if _RE_LEAD_FAILED.search(stdout):
+        return "failed"
+    if _RE_LEAD_SHALLOW.search(stdout):
+        return "shallow"
+    if _RE_LEAD_SOLID.search(stdout):
+        return "solid"
+    return None
+
+
 # 090w provenance lines (one per repo).
 _RE_PROV_RUNNER = re.compile(
     r"^\s*Runner:\s+(?P<runner>\S+(?:\+\S+)*)\s+\(",
@@ -292,7 +324,8 @@ def parse_gate_stdout(stdout: str) -> "tuple[GateFacts, VerdictFacts, Provenance
     else:
         raise FactsError(
             "could not find canonical 090v lead verdict line in "
-            "gate stdout (✅ / ⚠️ / ❌)"
+            "gate stdout ([PASS] / [WARN] / [FAIL] post-185; "
+            "✅ / ⚠️ / ❌ pre-185)"
         )
     has_weak_model = _RE_WEAK_MODEL.search(stdout) is not None
     has_env_failure = _RE_ENV_FAILURE.search(stdout) is not None

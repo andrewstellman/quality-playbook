@@ -79,11 +79,19 @@ BANNER_TAGLINE: tuple[str, str] = (
 )
 BANNER_LICENSE: str = "Apache License, Version 2.0"
 BANNER_BOX_WIDTH: int = 80
-BANNER_BOX_RULE: str = "═" * BANNER_BOX_WIDTH  # U+2550 BOX DRAWINGS DOUBLE HORIZONTAL — Markdown-inert (not setext H1, not a thematic break); v1.5.7 090n cosmetic fix so the bottom rule under the license line doesn't render as a heading when an agent emits the banner as Markdown at skill-load.
+# v1.5.7 185 FINDING-27: ASCII `=` separator replaces the
+# pre-185 box-drawing `═` (U+2550). On Windows the stream-
+# captured stdout path uses cp1252 codec and crashes
+# print() with UnicodeEncodeError on the box-drawing char.
+# The Markdown-inertness argument from 090n is preserved
+# (the pure ASCII `=` rule is also not a setext H1 / not a
+# thematic break since it's not preceded by content +
+# blank line in the banner block).
+BANNER_BOX_RULE: str = "=" * BANNER_BOX_WIDTH
 
 BANNER_TEXT: str = (
     f"{BANNER_BOX_RULE}\n"
-    f"  {BANNER_NAME} — by {BANNER_AUTHOR}\n"
+    f"  {BANNER_NAME} -- by {BANNER_AUTHOR}\n"
     f"  {BANNER_URL}\n"
     "\n"
     f"  {BANNER_TAGLINE[0]}\n"
