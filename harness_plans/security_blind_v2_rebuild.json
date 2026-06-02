@@ -1,5 +1,5 @@
 {
-  "$header_note": "QPB v1.5.7 BLIND CVE-benchmark v2 REBUILD — 7 rows pinned to vulnerable-parent SHAs (= fix^) from Security Research/CVE_BENCHMARK_PILOT.md. ALL claude/opus, pool=2 (two rows in parallel). This run uses the freshly-rebuilt repos/docs_gathered/ corpora produced 2026-06-02 under the v2 methodology (Security Research/CVE_BENCHMARK_METHODOLOGY_v2.md). Each corpus was rebuilt by a blinded forward-gathering subagent, passed Gate 1 (regex leakage scan: zero hits), and passed Gate 2 (blind reviewer could not localize the target CVE's subsystem). Per-repo audit files at repos/docs_gathered/<repo>/_audit.md. SUPERSEDES the 2026-06-02 run 20260602T051446Z and the retry plan security_blind_mac_retry.json — those used the now-quarantined contaminated corpus (now at repos/docs_gathered.contaminated/) and their results CANNOT be cited as blind detections per the Contamination Council finding. This is the first methodologically-trustworthy blind run of the CVE benchmark. Categories covered: insecure deserialization (spark CASE-007), crypto verification (evervault-go CASE-009), path traversal (setuptools CASE-001), LFI (jsPDF CASE-002), DoS (dasel CASE-008), broken access control (gogs CASE-010), code injection (avro CASE-005). Wall time estimate: 7 runs × ~45-75min on opus, pool=2 = ~3-4 hours.",
+  "$header_note": "QPB v1.5.7 BLIND CVE-benchmark v2 REBUILD — 7 rows pinned to vulnerable-parent SHAs (= fix^) from Security Research/CVE_BENCHMARK_PILOT.md. ALL claude/opus, pool=2 (two rows in parallel). v1.5.7 187: include_iterations=true on every row so each run executes phases 1-6 + gate + the 4 iteration strategies (gap / unfiltered / parity / adversarial) per QPB's documented default — the iterations are most likely to turn MISSED into DETECTED on harder blind targets like jsPDF (LFI) where the first run 20260602T222932Z missed without them. This run uses the freshly-rebuilt repos/docs_gathered/ corpora produced 2026-06-02 under the v2 methodology (Security Research/CVE_BENCHMARK_METHODOLOGY_v2.md). Each corpus was rebuilt by a blinded forward-gathering subagent, passed Gate 1 (regex leakage scan: zero hits), and passed Gate 2 (blind reviewer could not localize the target CVE's subsystem). Per-repo audit files at repos/docs_gathered/<repo>/_audit.md. SUPERSEDES the 2026-06-02 run 20260602T051446Z and the retry plan security_blind_mac_retry.json — those used the now-quarantined contaminated corpus (now at repos/docs_gathered.contaminated/) and their results CANNOT be cited as blind detections per the Contamination Council finding. This is the first methodologically-trustworthy blind run of the CVE benchmark. Categories covered: insecure deserialization (spark CASE-007), crypto verification (evervault-go CASE-009), path traversal (setuptools CASE-001), LFI (jsPDF CASE-002), DoS (dasel CASE-008), broken access control (gogs CASE-010), code injection (avro CASE-005). Wall time estimate (with iterations): 7 runs × ~75-120min on opus, pool=2 = ~5-7 hours.",
   "pools": {
     "claude": 2
   },
@@ -11,6 +11,7 @@
       "runner": "claude",
       "model": "opus",
       "channel": "pip-local-wheel",
+      "include_iterations": true,
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
         "no_false_pass": true,
@@ -28,6 +29,7 @@
       "runner": "claude",
       "model": "opus",
       "channel": "pip-local-wheel",
+      "include_iterations": true,
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
         "no_false_pass": true,
@@ -45,6 +47,7 @@
       "runner": "claude",
       "model": "opus",
       "channel": "pip-local-wheel",
+      "include_iterations": true,
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
         "no_false_pass": true,
@@ -62,6 +65,7 @@
       "runner": "claude",
       "model": "opus",
       "channel": "pip-local-wheel",
+      "include_iterations": true,
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
         "no_false_pass": true,
@@ -79,6 +83,7 @@
       "runner": "claude",
       "model": "opus",
       "channel": "pip-local-wheel",
+      "include_iterations": true,
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
         "no_false_pass": true,
@@ -96,6 +101,7 @@
       "runner": "claude",
       "model": "opus",
       "channel": "pip-local-wheel",
+      "include_iterations": true,
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
         "no_false_pass": true,
@@ -113,6 +119,7 @@
       "runner": "claude",
       "model": "opus",
       "channel": "pip-local-wheel",
+      "include_iterations": true,
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
         "no_false_pass": true,

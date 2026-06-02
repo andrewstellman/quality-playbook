@@ -154,6 +154,34 @@ _MODE_A_FULL_RUN_PROMPT = (
     "stop after the Phase 6 gate."
 )
 
+# v1.5.7 187 FINDING-38: opt-in launch prompt that enables
+# QPB's documented default iteration strategies (gap /
+# unfiltered / parity / adversarial). 106's
+# _MODE_A_FULL_RUN_PROMPT was correct for acceptance plans
+# (phases 1-6 + gate, no more, so the gate could grade
+# against a known fixture quickly). It is wrong for blind-
+# bug-hunt plans where the iteration strategies are the QPB
+# feature most likely to turn MISSED into DETECTED on harder
+# targets. Triggered by harness_runs/20260602T222932Z's
+# blind CVE benchmark — setuptools DETECTED its target
+# without iterations; jsPDF MISSED in a domain where the
+# adversarial pass would plausibly help.
+#
+# Selection is per-plan-row via the new ``include_iterations``
+# bool field on ``PlanRun`` (default False — acceptance
+# plans unchanged). When True, this prompt replaces
+# _MODE_A_FULL_RUN_PROMPT at the launch site.
+_MODE_A_FULL_RUN_PROMPT_WITH_ITERATIONS = (
+    "Run the full Quality Playbook pipeline on this project: "
+    "run all phases (1 through 6) sequentially in a single "
+    "session, then run the quality gate, then run all 4 "
+    "iteration strategies (gap, unfiltered, parity, "
+    "adversarial) per QPB's documented default. Do not stop "
+    "between phases, between gate and iterations, or between "
+    "iteration strategies; do not wait for confirmation — "
+    "this is an unattended run."
+)
+
 # v1.5.7 106: default per-run max-duration raised from 1800s
 # (30 min) to 7200s (120 min). A full 6-phase Mode A run is
 # substantially longer than the 2 phases that timed express out
@@ -232,6 +260,17 @@ class PlanRun:
     # exceeds it (npm fetch + extract + dependency resolve). When
     # set, overrides the default for THIS run only.
     prep_timeout_s: "Optional[float]" = None
+    # v1.5.7 187 FINDING-37: opt-in to QPB's documented default
+    # iteration strategies (gap / unfiltered / parity /
+    # adversarial) for THIS Mode A run. When False (default —
+    # acceptance plans unchanged), the launch prompt is the
+    # 106-original `_MODE_A_FULL_RUN_PROMPT` (phases 1-6 + gate,
+    # explicitly excluding iterations). When True, the prompt
+    # is `_MODE_A_FULL_RUN_PROMPT_WITH_ITERATIONS` (phases 1-6
+    # + gate + 4 iteration strategies). Has no effect on
+    # Mode B runs — run_playbook drives the phase sequence
+    # there independently of this field.
+    include_iterations: bool = False
 
 
 @dataclass
@@ -434,6 +473,19 @@ def _parse_run(idx: int, raw: dict) -> PlanRun:
             f"or absent; got "
             f"{type(workspace_root_raw).__name__}"
         )
+    # v1.5.7 187 FINDING-37: opt-in iteration strategies. Strict
+    # bool typing — accept True/False, reject everything else
+    # (including string "true" — operator typo would silently
+    # change blind-bench behavior). Absent ⇒ False (acceptance
+    # plans + every existing plan continue unchanged).
+    include_iterations_raw = raw.get("include_iterations", False)
+    if not isinstance(include_iterations_raw, bool):
+        raise PlanError(
+            f"runs[{idx}].include_iterations: must be a bool "
+            f"(true/false) or absent; got "
+            f"{type(include_iterations_raw).__name__}"
+        )
+    include_iterations_value = include_iterations_raw
     return PlanRun(
         index=idx,
         description=raw["description"],
@@ -452,6 +504,7 @@ def _parse_run(idx: int, raw: dict) -> PlanRun:
         workspace_root=workspace_root_value,
         prompt=prompt_value,
         prep_timeout_s=prep_timeout_value,
+        include_iterations=include_iterations_value,
     )
 
 
@@ -1450,10 +1503,18 @@ def _execute_one_run_production(
     # prompts. Mode B is unaffected (run_playbook builds its
     # own phase prompts).
     if plan_run.mode == Mode.A:
-        launch_prompt = (
-            plan_run.prompt if plan_run.prompt
-            else _MODE_A_FULL_RUN_PROMPT
-        )
+        # v1.5.7 187 FINDING-38: select between the original
+        # 106 prompt (acceptance plans — phases 1-6 + gate,
+        # explicitly excluding iterations) and the iterations-
+        # enabled variant (blind-bug-hunt plans — adds the 4
+        # iteration strategies per QPB's documented default).
+        # Per-row override via plan_run.prompt still wins.
+        if plan_run.prompt:
+            launch_prompt = plan_run.prompt
+        elif plan_run.include_iterations:
+            launch_prompt = _MODE_A_FULL_RUN_PROMPT_WITH_ITERATIONS
+        else:
+            launch_prompt = _MODE_A_FULL_RUN_PROMPT
     else:
         launch_prompt = "(Mode B — run_playbook drives the phases)"
     launch_spec = _runner_mod.LaunchSpec(
@@ -1791,10 +1852,15 @@ def _launch_one_run_detached(
 
     # ----- LAUNCH (detached AI-CLI spawn) -----
     if plan_run.mode == Mode.A:
-        launch_prompt = (
-            plan_run.prompt if plan_run.prompt
-            else _MODE_A_FULL_RUN_PROMPT
-        )
+        # v1.5.7 187 FINDING-38: same selection as the synchronous
+        # launch path above. Per-row override wins; otherwise pick
+        # iterations-enabled vs original based on plan_run.include_iterations.
+        if plan_run.prompt:
+            launch_prompt = plan_run.prompt
+        elif plan_run.include_iterations:
+            launch_prompt = _MODE_A_FULL_RUN_PROMPT_WITH_ITERATIONS
+        else:
+            launch_prompt = _MODE_A_FULL_RUN_PROMPT
     else:
         launch_prompt = "(Mode B — run_playbook drives the phases)"
     # v1.5.7 123: materialize a PRISTINE QPB worktree at HEAD
@@ -2911,6 +2977,16 @@ def _make_pending_manifest_entry(
             plan_run.max_duration_s or 0.0),
         "expect": plan_run.expect,
         "state": "PENDING",
+        # v1.5.7 187 FINDING-37: persist include_iterations
+        # through the manifest so the collector's retry path
+        # (and force_launch_pending_run for 186 FINDING-32/33)
+        # reconstructs the PlanRun with the same prompt
+        # selection the orchestrator made at plan-load time.
+        # Without this, every row that starts PENDING and is
+        # later acquired via the retry path silently reverts
+        # to the default prompt — defeating FINDING-40 on the
+        # blind benchmark.
+        "include_iterations": plan_run.include_iterations,
     }
 
 
@@ -3013,6 +3089,15 @@ def _entry_to_plan_run(entry: dict) -> "PlanRun":
         channel=InstallChannel(entry["channel"]),
         mode=Mode(entry["mode"]),
         expect=dict(entry.get("expect", {}) or {}),
+        # v1.5.7 187 FINDING-37: read include_iterations from
+        # the manifest entry so retry-path / force-run
+        # reconstructions carry the same prompt selection.
+        # bool() guards against any truthy non-bool value that
+        # might land here (the writer always writes a real
+        # bool); default False covers pre-187 manifests in
+        # existing harness_runs/ folders (backward-compat).
+        include_iterations=bool(
+            entry.get("include_iterations", False)),
     )
 
 
@@ -3736,6 +3821,12 @@ def run_plan(plan: Plan, harness_runs_root: Path,
                 # set; absent keeps pre-138 plans byte-stable.
                 **({"prep_timeout_s": r.prep_timeout_s}
                    if r.prep_timeout_s is not None else {}),
+                # v1.5.7 187 FINDING-37: persist
+                # include_iterations only when True. Default
+                # False keeps every pre-187 plan byte-stable
+                # in the snapshot file.
+                **({"include_iterations": True}
+                   if r.include_iterations else {}),
             } for r in plan.runs],
         }, indent=2) + "\n",
         encoding="utf-8",
