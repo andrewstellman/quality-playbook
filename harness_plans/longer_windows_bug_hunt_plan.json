@@ -1,9 +1,8 @@
 {
-  "$header_note": "QPB v1.5.7 longer-Windows bug-hunting plan — 4-run claude+copilot+codex matrix on Windows. Validates: (a) v1.5.7 174 manifest-based pool model on Windows, (b) 178+179 SKILL.md mandates on opus (first opus test post-179 — round-1 Mac tokio failed exactly because of the mandates 179 now enforces), (c) codex Mode B on Windows (first end-to-end Windows codex test post-156 install-target fix; akka was deferred from Mac round-2 due to codex quota), (d) bug-finding capacity across 4 ecosystems. Branch refs confirmed via git ls-remote: tokio=master, webpack=main, Newtonsoft.Json=master, akka=main. Concurrency: pool={claude:1, copilot:2, codex:1} — all 4 run in parallel; ~60-80 min wall clock bounded by claude/opus on tokio or codex Mode B on akka. Pre-flight: on Windows, ensure (a) git, (b) python 3.10+, (c) node + npm for the npm-local-tgz row, (d) the QPB clone is at branch 1.5.7 HEAD, (e) the claude / copilot / codex CLIs are installed + authenticated, (f) codex CLI specifically — if it fails on Windows, the akka row will ABORTED_PHASE early but the other 3 are independent.",
+  "$header_note": "QPB v1.5.7 longer-Windows bug-hunting plan — 4-run claude+codex matrix on Windows. **2026-06-01 rebalance: shifted copilot rows on webpack + Newtonsoft.Json to claude (sonnet/opus) due to Microsoft's copilot usage-based billing — copilot kept off this plan's large repos.** Validates: (a) v1.5.7 174 manifest-based pool model on Windows, (b) 178+179 SKILL.md mandates on opus (round-1 Mac tokio failed exactly because of the mandates 179 now enforces), (c) codex Mode B on Windows (first end-to-end Windows codex test post-156 install-target fix; akka was deferred from Mac round-2 due to codex quota), (d) bug-finding capacity across 4 ecosystems via claude+codex (without copilot here). Branch refs confirmed via git ls-remote: tokio=master, webpack=main, Newtonsoft.Json=master, akka=main. Concurrency: pool={claude:2, codex:1} — 4 rows with 3 claude running 2-at-a-time; ~60-80 min wall clock bounded by claude/opus on tokio or codex Mode B on akka. Pre-flight: on Windows, ensure (a) git, (b) python 3.10+, (c) node + npm for the npm-local-tgz row, (d) the QPB clone is at branch 1.5.7 HEAD, (e) the claude / codex CLIs are installed + authenticated, (f) codex CLI specifically — if it fails on Windows, the akka row will ABORTED_PHASE early but the other 3 are independent.",
 
   "pools": {
-    "claude": 1,
-    "copilot": 2,
+    "claude": 2,
     "codex": 1
   },
 
@@ -26,11 +25,11 @@
       }
     },
     {
-      "description": "Row 1 — copilot/gpt-5.4 reviews webpack (JavaScript module bundler, ref=main) via npm-local-tgz (Mode A). Same row as Mac plan row 1. Tests the npm-local-tgz (npx --yes --prefer-offline) install path on Windows; this is the install path most likely to surface Windows-specific issues if any remain.",
+      "description": "Row 1 — claude/sonnet reviews webpack (JavaScript module bundler, ref=main) via npm-local-tgz (Mode A). **2026-06-01 rebalance:** was copilot/gpt-5.4 pre-rebalance. Tests the npm-local-tgz (npx --yes --prefer-offline) install path on Windows; this is the install path most likely to surface Windows-specific issues if any remain. sonnet selected for strong JS understanding + cost vs opus.",
       "repo": "https://github.com/webpack/webpack",
       "ref": "main",
-      "runner": "copilot",
-      "model": "gpt-5.4",
+      "runner": "claude",
+      "model": "sonnet",
       "channel": "npm-local-tgz",
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
@@ -39,16 +38,15 @@
         "phase0_first_probe": true,
         "banner_rendered": true,
         "gitignore_remediation_followed": true,
-        "provenance_runner_matches": true,
-        "provenance_model_labeled_selfreport": true
+        "provenance_runner_matches": true
       }
     },
     {
-      "description": "Row 2 — copilot/gpt-5.4 reviews Newtonsoft.Json (C# JSON serializer, ref=master) via pip-local-wheel (Mode A). Same row as Mac plan row 2. C# repo on Windows is a natural fit; tests pip-local-wheel on Windows + a Mode A run on a non-main ref via the post-177 BUG-010 fix path.",
+      "description": "Row 2 — claude/opus reviews Newtonsoft.Json (C# JSON serializer, ref=master) via pip-local-wheel (Mode A). **2026-06-01 rebalance:** was copilot/gpt-5.4 pre-rebalance. C# repo on Windows is a natural fit; tests pip-local-wheel on Windows + a Mode A run on a non-main ref via the post-177 BUG-010 fix path. opus selected for edge-case-heavy serialization logic.",
       "repo": "https://github.com/JamesNK/Newtonsoft.Json",
       "ref": "master",
-      "runner": "copilot",
-      "model": "gpt-5.4",
+      "runner": "claude",
+      "model": "opus",
       "channel": "pip-local-wheel",
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
@@ -57,8 +55,7 @@
         "phase0_first_probe": true,
         "banner_rendered": true,
         "gitignore_remediation_followed": true,
-        "provenance_runner_matches": true,
-        "provenance_model_labeled_selfreport": true
+        "provenance_runner_matches": true
       }
     },
     {

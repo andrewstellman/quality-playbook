@@ -1,9 +1,8 @@
 {
-  "$header_note": "QPB v1.5.7 longer-Mac bug-hunting plan — 4 runs across 4 languages (Rust + JS + C# + Ruby), 4 domains (async runtime + bundler + JSON serializer + job queue), and 4 default branches confirmed via git ls-remote on 2026-05-31. Concurrency: pool={claude:1, copilot:2, codex:1} — all 4 run in parallel after the post-174 simplified manifest-based pool model. Runtime bound by claude/opus on tokio (~30-50 min); other runs finish in parallel. Goal: surface real bugs in active upstream repos that we can log via BUG_REPORT_WORKFLOW. All 4 repos have public issue trackers and active dev. Expects are permissive on gate_result + tight on the v1.5.7 observability assertions (158 banner, 157 gitignore outcome, 162 selfreport, 163 phase0). post-177 BUG-010 fix exercised by tokio (ref=master) and Newtonsoft.Json (ref=master) clones via the retry path if pool starvation hits.",
+  "$header_note": "QPB v1.5.7 longer-Mac bug-hunting plan — 4 runs across 4 languages (Rust + JS + C# + Ruby), 4 domains (async runtime + bundler + JSON serializer + job queue), and 4 default branches confirmed via git ls-remote on 2026-05-31. **2026-06-01 rebalance: shifted copilot rows on webpack + Newtonsoft.Json to claude (sonnet/opus) due to Microsoft's copilot usage-based billing — copilot kept off this plan's large repos.** Concurrency: pool={claude:2, codex:1} — 4 rows total with 3 claude rows running 2-at-a-time. Runtime bound by claude/opus on tokio (~30-50 min); the third claude row picks up when one finishes. Goal: surface real bugs in active upstream repos that we can log via BUG_REPORT_WORKFLOW. All 4 repos have public issue trackers and active dev. Expects are permissive on gate_result + tight on the v1.5.7 observability assertions (158 banner, 157 gitignore outcome, 162 selfreport, 163 phase0). post-177 BUG-010 fix exercised by tokio (ref=master) and Newtonsoft.Json (ref=master) clones via the retry path if pool starvation hits.",
 
   "pools": {
-    "claude": 1,
-    "copilot": 2,
+    "claude": 2,
     "codex": 1
   },
 
@@ -26,11 +25,11 @@
       }
     },
     {
-      "description": "Row 1 — copilot/gpt-5.4 reviews webpack (JavaScript module bundler, ref=main) via npm-local-tgz (Mode A). Complex transform/loader/plugin pipeline; bugs often in source map generation, resolution, or HMR.",
+      "description": "Row 1 — claude/sonnet reviews webpack (JavaScript module bundler, ref=main) via npm-local-tgz (Mode A). **2026-06-01 rebalance:** was copilot/gpt-5.4 pre-rebalance; sonnet selected for strong JS understanding + cost vs opus. Complex transform/loader/plugin pipeline; bugs often in source map generation, resolution, or HMR.",
       "repo": "https://github.com/webpack/webpack",
       "ref": "main",
-      "runner": "copilot",
-      "model": "gpt-5.4",
+      "runner": "claude",
+      "model": "sonnet",
       "channel": "npm-local-tgz",
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
@@ -39,16 +38,15 @@
         "phase0_first_probe": true,
         "banner_rendered": true,
         "gitignore_remediation_followed": true,
-        "provenance_runner_matches": true,
-        "provenance_model_labeled_selfreport": true
+        "provenance_runner_matches": true
       }
     },
     {
-      "description": "Row 2 — copilot/gpt-5.4 reviews Newtonsoft.Json (C# JSON serializer, ref=master) via pip-local-wheel (Mode A). Classic edge-case-heavy library; bugs often in deserialization, type coercion, or roundtrip fidelity. Same channel as row 0 (different runner + different repo) for orthogonality.",
+      "description": "Row 2 — claude/opus reviews Newtonsoft.Json (C# JSON serializer, ref=master) via pip-local-wheel (Mode A). **2026-06-01 rebalance:** was copilot/gpt-5.4 pre-rebalance; opus selected for capability on edge-case-heavy serialization logic. Classic edge-case-heavy library; bugs often in deserialization, type coercion, or roundtrip fidelity.",
       "repo": "https://github.com/JamesNK/Newtonsoft.Json",
       "ref": "master",
-      "runner": "copilot",
-      "model": "gpt-5.4",
+      "runner": "claude",
+      "model": "opus",
       "channel": "pip-local-wheel",
       "expect": {
         "gate_result": ["PASS", "CLEANUP", "FAIL"],
@@ -57,8 +55,7 @@
         "phase0_first_probe": true,
         "banner_rendered": true,
         "gitignore_remediation_followed": true,
-        "provenance_runner_matches": true,
-        "provenance_model_labeled_selfreport": true
+        "provenance_runner_matches": true
       }
     },
     {
