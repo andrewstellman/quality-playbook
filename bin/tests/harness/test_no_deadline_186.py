@@ -472,5 +472,113 @@ class TuiForceExecuteKeybindingTests(unittest.TestCase):
             "only available on PENDING rows).")
 
 
+class PendingDurationDisplaySurfacingTests(unittest.TestCase):
+    """v1.5.7 186 followup-1 FINDING-34 + FINDING-35: the
+    ``pending Nh Mm`` duration must appear in BOTH the CLI
+    grouped view (status output operators actually use) AND
+    the TUI detail table — not just the single-run drill-
+    down. The pre-followup commit landed the data layer
+    (RunStatus.pending_duration) but missed the display
+    surface."""
+
+    def _make_pending_runstatus(self, hours_ago: float = 4.2):
+        from bin.harness import status as _status
+        from datetime import datetime, timezone, timedelta
+        from pathlib import Path as _P
+        starved = (datetime.now(timezone.utc)
+                   - timedelta(hours=hours_ago)).strftime(
+                       "%Y-%m-%dT%H:%M:%SZ")
+        return _status.RunStatus(
+            index=3,
+            description="setuptools",
+            repo="https://github.com/x/setuptools",
+            runner="claude",
+            model="opus",
+            state="PENDING",
+            result="N/A",
+            current_phase="—",
+            current_phase_name="—",
+            current_phase_state="—",
+            last_note="",
+            pid=None,
+            pid_alive=False,
+            stream_path=_P("/dev/null"),
+            run_dir=_P("/tmp/x/run-03"),
+            pending_duration=_status._format_pending_duration(
+                starved),
+        )
+
+    def test_pending_group_renderer_shows_pending_duration(
+            self) -> None:
+        from bin.harness import status as _status
+        rs = self._make_pending_runstatus(hours_ago=4.2)
+        rendered = _status._format_run_row_for_group(
+            rs, "PENDING")
+        self.assertIn("pending 4h", rendered,
+            f"PENDING-group renderer must surface "
+            f"pending_duration (186 FINDING-34). Got: "
+            f"{rendered!r}")
+
+    def test_tui_detail_state_cell_includes_pending_duration(
+            self) -> None:
+        # Functional: synthesize a manifest with a PENDING
+        # row + starved_since; build the detail-table rows;
+        # assert the state cell contains both 'PENDING' and
+        # 'pending'.
+        from bin.harness import tui
+        from datetime import datetime, timezone, timedelta
+        import tempfile, json
+        with tempfile.TemporaryDirectory() as td:
+            hr = pathlib.Path(td) / "20260602T000000Z"
+            run_dir = hr / "run-03"
+            run_dir.mkdir(parents=True)
+            starved = (datetime.now(timezone.utc)
+                       - timedelta(hours=2, minutes=7)
+                       ).strftime("%Y-%m-%dT%H:%M:%SZ")
+            (hr / "manifest.json").write_text(json.dumps({
+                "harness_run_dir": str(hr),
+                "plan": {"pools": {"claude": 1}},
+                "runs": [{
+                    "index": 3,
+                    "state": "PENDING",
+                    "pid": None,
+                    "runner": "claude",
+                    "model": "opus",
+                    "mode": "A",
+                    "channel": "pip-local-wheel",
+                    "repo": "https://github.com/x/setuptools",
+                    "ref": "HEAD",
+                    "description": "row3",
+                    "run_dir": str(run_dir),
+                    "starved_since": starved,
+                }],
+            }) + "\n", encoding="utf-8")
+            rows = tui.build_detail_table_rows(hr)
+            self.assertEqual(len(rows), 1)
+            cells = rows[0]
+            # State cell is the 4th column (index 3) per
+            # DETAIL_TABLE_COLUMNS.
+            state_cell = cells[3]
+            self.assertIn(
+                "PENDING", state_cell,
+                f"state cell must still include 'PENDING' "
+                f"(state-name preserved). Got: "
+                f"{state_cell!r}")
+            self.assertIn(
+                "pending", state_cell,
+                f"state cell must include the pending-"
+                f"duration prefix for PENDING rows "
+                f"(186 FINDING-35). Got: {state_cell!r}")
+            self.assertIn(
+                "2h", state_cell,
+                f"state cell should include the duration "
+                f"value (2h07m here). Got: {state_cell!r}")
+            # Arity contract: row matches column count.
+            self.assertEqual(
+                len(cells), len(tui.DETAIL_TABLE_COLUMNS),
+                "row arity must match COLUMNS (no schema "
+                "change; in-state-cell augment)")
+
+
 if __name__ == "__main__":
     unittest.main()

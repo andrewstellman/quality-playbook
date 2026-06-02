@@ -927,11 +927,21 @@ def build_detail_table_rows(
                 r.run_dir / "launch.log")
             if inflight is not None:
                 step_cell = inflight
+        # v1.5.7 186 FINDING-35: augment the state cell with the
+        # pending-duration string for PENDING rows. The state
+        # cell already exists; this in-cell augment avoids a
+        # column-arity change (which would break the 119
+        # rebuild test's `len(rows[0]) == len(COLUMNS)` pin).
+        state_cell = (
+            f"{r.state} {r.pending_duration}"
+            if r.state == "PENDING" and r.pending_duration
+            else r.state
+        )
         rows.append((
             str(r.index),
             repo_tail,
             f"{r.runner}/{r.model}",
-            r.state,
+            state_cell,
             r.current_phase,
             r.current_phase_name,
             r.current_phase_state,

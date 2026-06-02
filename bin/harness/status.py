@@ -1688,6 +1688,16 @@ def _format_run_row_for_group(rs: "RunStatus", group: str) -> str:
             f"last={rs.last_activity_iso}"
         )
     if group == "PENDING":
+        # v1.5.7 186 FINDING-31a / 34: the grouped PENDING
+        # renderer surfaces ``pending Nh Mm`` for each row so
+        # the operator sees how long it's been waiting. Pre-
+        # FINDING-34 the duration was only in
+        # ``format_run_status`` (single-run drill-down view);
+        # the grouped view that operators actually use was
+        # missing it.
+        pending_suffix = (
+            f"  {rs.pending_duration}"
+            if rs.pending_duration else "")
         # If the manifest/stream surfaced phase info (rare but
         # real: a run whose status.json hasn't been written yet
         # but whose stream already has a sentinel), show it so the
@@ -1702,11 +1712,13 @@ def _format_run_row_for_group(rs: "RunStatus", group: str) -> str:
                 f"  #{rs.index:<2} {repo_tail:18} "
                 f"{runner_model:22} {phase_part:30} "
                 f"(waiting for {rs.runner} pool slot)"
+                f"{pending_suffix}"
             )
         return (
             f"  #{rs.index:<2} {repo_tail:18} "
             f"{runner_model:22} "
             f"(waiting for {rs.runner} pool slot)"
+            f"{pending_suffix}"
         )
     if group == "COMPLETED":
         return (
