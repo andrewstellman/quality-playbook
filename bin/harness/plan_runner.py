@@ -2154,9 +2154,12 @@ def _collect_one_run_detached(
     # ----- BUG-001 fix: a still-PENDING entry with no pid has not launched
     # yet (starved, awaiting a slot via _retry_pending_runs_once). It is NOT
     # a crashed run — do not grade it terminal. Leaving it ungraded lets the
-    # next collector pass retry it (or mark it ABANDONED_STARVED past the
-    # deadline). Without this guard the pid-is-None branch below grades it
-    # FAILED on the first sweep, defeating the ABANDONED_STARVED deadline. -----
+    # next collector pass retry it when a slot frees. v1.5.7 186 FINDING-30
+    # removed the prior ABANDONED_STARVED deadline auto-kill; the entry now
+    # stays PENDING until a slot acquires it or the operator force-runs it
+    # via the TUI 'E' keybinding / qpb_harness force-run subcommand. Without
+    # this guard the pid-is-None branch below would grade it FAILED on the
+    # first sweep, defeating the legitimate-PENDING-waiting case. -----
     if (entry.get("state") == "PENDING" and entry.get("pid") is None
             and not grading_path.is_file()):
         return RunOutcome(
@@ -3087,7 +3090,10 @@ def _retry_pending_runs_once(
         )
         if not acquired:
             # Still starved; set starved_since on first
-            # observation so the deadline check has a baseline.
+            # observation so the FINDING-31a pending-duration
+            # display has a baseline (186 removed the prior
+            # deadline auto-kill; starved_since is now purely
+            # operator-facing information).
             if pending.get("starved_since") is None:
                 _update_manifest_entry_atomic(
                     manifest_path, pr.index, {
@@ -3376,8 +3382,11 @@ def _collect_harness_run_locked(
     # collect AND after each RUNNING future returns terminal (171
     # fix for BUG-008). 161-A wrote PENDING manifest entries for
     # starved runs; this gives them a chance to spawn into RUNNING
-    # (or be marked ABANDONED_STARVED if past deadline) before the
-    # collector grades them. 171 closes the gap where a slot freed
+    # before the collector grades them. v1.5.7 186 FINDING-30
+    # removed the prior ABANDONED_STARVED-past-deadline branch;
+    # PENDING entries now stay PENDING until a slot acquires them
+    # or the operator force-runs them. 171 closes the gap where a
+    # slot freed
     # mid-collection (e.g., a fast claude/haiku run terminating
     # while a slow claude/opus run was still alive) left starved
     # PENDING entries orphaned because the retry only fired once
@@ -3438,9 +3447,13 @@ def _collect_harness_run_locked(
                             or idx in in_flight):
                         continue
                     # 171: a retry-spawned entry now has state
-                    # RUNNING (165 launch path) or DONE (e.g.,
-                    # ABANDONED_STARVED via deadline). Either way
-                    # submit it so it gets graded on this sweep.
+                    # RUNNING (165 launch path) or DONE (terminal
+                    # via any path). v1.5.7 186 FINDING-30
+                    # removed the prior ABANDONED_STARVED-via-
+                    # deadline DONE-emission; legitimate DONE
+                    # paths (force-run failure, supervisor abort)
+                    # still apply. Either way submit it so it
+                    # gets graded on this sweep.
                     if entry.get("state") in ("RUNNING", "DONE"):
                         fut = ex.submit(
                             _collect_one_run_detached, entry,
@@ -3878,8 +3891,11 @@ def _run_plan_detached(
             )
             # v1.5.7 174: entry stays PENDING in the pre-written
             # manifest. The 165 retry path inside the collector
-            # picks it up when a slot frees (or marks
-            # ABANDONED_STARVED past the deadline).
+            # picks it up when a slot frees; v1.5.7 186
+            # FINDING-30 removed the prior past-deadline
+            # ABANDONED_STARVED auto-kill, so a starved entry
+            # waits until a slot acquires it or the operator
+            # force-runs it.
             return
         # v1.5.7 174: ACQUIRING was set by _try_acquire_pool_slot
         # under .manifest.lock. Now spawn the run OUTSIDE the

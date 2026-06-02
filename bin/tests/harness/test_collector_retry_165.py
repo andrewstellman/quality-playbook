@@ -1,14 +1,19 @@
 """v1.5.7 165 — collector retry loop for starved PENDING +
-ABANDONED_STARVED deadline. 161 Tasks B+C follow-up.
+v1.5.7 186 FINDING-30 — deadline auto-kill REMOVED.
 
 161 Task A (commit e62ee42 CLOSED) wrote PENDING manifest entries
 for runs whose `acquire_run_slot` timed out at the launch barrier.
-165 builds on that: the collector now retries PENDING entries on
+165 builds on that: the collector retries PENDING entries on
 each invocation. When a slot frees, the collector spawns the worker
 via `_launch_one_run_detached` and updates the manifest entry in
-place. When a PENDING entry has been starved past
-`QPB_HARNESS_PENDING_DEADLINE_S` (default 3600s), it becomes
-terminal as `ABANDONED_STARVED` — no more silent forever-PENDING.
+place. v1.5.7 186 FINDING-30 removed the prior
+`QPB_HARNESS_PENDING_DEADLINE_S` auto-kill path that marked
+long-PENDING entries terminal as ABANDONED_STARVED; the entry now
+stays PENDING until a slot acquires it OR an operator force-runs
+it via the TUI 'E' keybinding or `qpb_harness force-run` CLI.
+The TerminalState.ABANDONED_STARVED enum VALUE is preserved for
+backward-compat with pre-186 harness_runs/ folders (renderer must
+still recognize entries with that terminal_state).
 
 Per the 161 Task A REVIEW-RESULT halt ruling, the `artifact_map`
 is resolved from `<harness-run>/artifacts/manifest.json` on disk

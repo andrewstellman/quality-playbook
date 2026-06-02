@@ -1755,6 +1755,10 @@ def _build_parser() -> argparse.ArgumentParser:
 _KNOWN_SUBCOMMANDS = frozenset({
     "run", "run-plan", "collect", "status", "tail",
     "manager", "tui", "kill",
+    # v1.5.7 186 FINDING-36a: force-run subcommand.
+    "force-run",
+    # v1.5.7 180 followup: watchdog subcommand.
+    "watchdog",
 })
 
 

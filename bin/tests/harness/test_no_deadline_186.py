@@ -152,6 +152,24 @@ class PendingDurationDisplayTests(unittest.TestCase):
         rendered = _status._format_pending_duration(past)
         self.assertEqual(rendered, "pending 45m")
 
+    def test_format_pending_duration_renders_seconds_only(
+            self) -> None:
+        # v1.5.7 186 followup-1 FINDING-36c: cover the
+        # ``pending Ns`` path for age < 60s. Pre-followup
+        # the formatter had this branch but no test pinned
+        # it.
+        from bin.harness import status as _status
+        from datetime import datetime, timezone, timedelta
+        past = (datetime.now(timezone.utc)
+                - timedelta(seconds=30)).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ")
+        rendered = _status._format_pending_duration(past)
+        # Allow ±1s tolerance for test-scheduling latency.
+        self.assertRegex(
+            rendered, r"^pending \d{1,2}s$",
+            f"30s-old starved_since must render as 'pending "
+            f"Ns'; got {rendered!r}")
+
     def test_format_pending_duration_handles_none_and_garbage(
             self) -> None:
         from bin.harness import status as _status
@@ -470,6 +488,19 @@ class TuiForceExecuteKeybindingTests(unittest.TestCase):
             "action_force_run must gate on rs.state == "
             "PENDING (186 FINDING-32 — the keybinding is "
             "only available on PENDING rows).")
+
+
+class ForceRunInKnownSubcommandsTests(unittest.TestCase):
+    """v1.5.7 186 followup-1 FINDING-36a: the new force-run
+    subcommand must be enumerated in `_KNOWN_SUBCOMMANDS` so
+    the plan-file shortcut + help/error text recognize it."""
+
+    def test_force_run_in_known_subcommands(self) -> None:
+        from bin import qpb_harness
+        self.assertIn(
+            "force-run", qpb_harness._KNOWN_SUBCOMMANDS,
+            "force-run subcommand must be in "
+            "_KNOWN_SUBCOMMANDS (186 followup-1 FINDING-36a).")
 
 
 class PendingDurationDisplaySurfacingTests(unittest.TestCase):
