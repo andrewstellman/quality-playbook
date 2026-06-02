@@ -214,5 +214,65 @@ class FactsParserAcceptsBothFormsTests(unittest.TestCase):
             "Some unrelated stdout with no verdict.\n"))
 
 
+class PythonIoEncodingSetInLaunchTests(unittest.TestCase):
+    """v1.5.7 185 FINDING-29: the spawned playbook child must
+    get ``PYTHONIOENCODING=utf-8`` in its env so future
+    Unicode regressions don't crash Windows cp1252 print().
+    Defensive layer — FINDING-27 stripped the known crash
+    chars from print paths, but this env var catches
+    anything FINDING-27 missed AND any future regression."""
+
+    def test_runner_sets_pythonioencoding_utf8(self) -> None:
+        # Source-pin: bin/harness/runner.py's launch-env
+        # builder sets PYTHONIOENCODING. The instruction
+        # explicitly identified runner.py as the env-build
+        # site (plan_runner.py delegates env construction to
+        # runner via LaunchSpec); the source-pin reflects that.
+        src = (_REPO / "bin" / "harness" / "runner.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn(
+            "PYTHONIOENCODING", src,
+            "bin/harness/runner.py must set "
+            "PYTHONIOENCODING in the spawned playbook child "
+            "env (185 FINDING-29).")
+        self.assertIn(
+            "utf-8", src,
+            "PYTHONIOENCODING value must be 'utf-8' (185 "
+            "FINDING-29).")
+
+    def test_runner_env_uses_setdefault_for_pythonioencoding(
+            self) -> None:
+        # Source-pin: the env var is set via setdefault so
+        # operators can override (the instruction's explicit
+        # contract). A bare `env["PYTHONIOENCODING"] = "utf-8"`
+        # would silently shadow operator config.
+        src = (_REPO / "bin" / "harness" / "runner.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn(
+            'env.setdefault("PYTHONIOENCODING"', src,
+            "bin/harness/runner.py must use env.setdefault "
+            "for PYTHONIOENCODING so operator-set values "
+            "win (185 FINDING-29).")
+
+    def test_pythonioencoding_takes_effect_at_runtime(
+            self) -> None:
+        # Functional check: spawn a small subprocess with the
+        # env var set; verify Python reports utf-8 stdout
+        # encoding inside the child.
+        import subprocess
+        import sys
+        env = {"PYTHONIOENCODING": "utf-8",
+               "PATH": "/usr/bin:/bin"}
+        proc = subprocess.run(
+            [sys.executable, "-c",
+             "import sys; print(sys.stdout.encoding)"],
+            capture_output=True, text=True, env=env,
+            timeout=10)
+        self.assertEqual(proc.returncode, 0)
+        # ``utf-8`` (Python normalizes to lowercase) on every
+        # platform when PYTHONIOENCODING is set.
+        self.assertIn("utf-8", proc.stdout.strip().lower())
+
+
 if __name__ == "__main__":
     unittest.main()

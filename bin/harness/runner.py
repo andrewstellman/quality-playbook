@@ -912,6 +912,18 @@ def launch_run_async(spec: LaunchSpec) -> SpawnResult:
         and _needs_stdin_prompt(spec.axes.runner)
     )
     env = os.environ.copy()
+    # v1.5.7 185 FINDING-29: force UTF-8 stdout/stderr in the
+    # spawned playbook child so Python doesn't fall back to
+    # cp1252 on Windows when stdout is piped (which the
+    # harness's stream-capture path always is). cp1252 cannot
+    # encode the box-drawing / arrow / emoji characters that
+    # QPB output emits; pre-185 the akka Windows fire crashed
+    # at print() in benchmark_lib.logboth on a leftwards-
+    # arrow. FINDING-27 removed the known crash chars from
+    # output paths; FINDING-29 is the defensive layer that
+    # catches anything FINDING-27 missed AND future
+    # regressions. setdefault so operators can override.
+    env.setdefault("PYTHONIOENCODING", "utf-8")
     env.update(_vendor_env_for(spec.axes.runner))
     if spec.extra_env:
         env.update(spec.extra_env)
