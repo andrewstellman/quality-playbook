@@ -1,0 +1,78 @@
+{
+  "$header_note": "QPB v1.5.7 BLIND CVE-benchmark RETRY — picks up the 4 rows that hit ABANDONED_STARVED in the original 20260602T051446Z run. Pool=2 (not pool=1) so two rows run in parallel — keeps total wall time under the harness's hardcoded 3600s ABANDONED_STARVED deadline. The original plan was 7 rows × pool=1; the 1-hour starvation deadline killed everything past row 2. This retry runs the remaining 4 rows in 2 pairs (~45min each pair = ~90min total) safely under the deadline. After this completes, you'll have all 7 results. Same vulnerable parent SHAs, same scrubbed docs.",
+
+  "pools": {
+    "claude": 2
+  },
+
+  "runs": [
+    {
+      "description": "RETRY — setuptools (path traversal blind) — was abandoned in 20260602T051446Z run-03.",
+      "repo": "https://github.com/pypa/setuptools",
+      "ref": "d8390feaa99091d1ba9626bec0e4ba7072fc507a",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "RETRY — jsPDF (LFI blind) — was abandoned in 20260602T051446Z run-04.",
+      "repo": "https://github.com/parallax/jsPDF",
+      "ref": "a504e973eeebac633351b41860945ca2a2cdf096",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "RETRY — dasel (DoS blind) — was abandoned in 20260602T051446Z run-05.",
+      "repo": "https://github.com/TomWright/dasel",
+      "ref": "0dd6132e0c58edbd9b1a5f7ffd00dfab1e6085ad",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "RETRY — gogs (BAC blind) — was abandoned in 20260602T051446Z run-06.",
+      "repo": "https://github.com/gogs/gogs",
+      "ref": "d568e048315dc9729c8518d8085cab7dbbfac80f",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    }
+  ]
+}
