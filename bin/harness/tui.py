@@ -1197,6 +1197,10 @@ def _build_textual_app(
             # highlighted run (detail page) — SIGKILL, with an inline
             # y/N confirm. No-op on the runs-list (too broad).
             Binding("k", "kill_run", "Kill"),
+            # v1.5.7 186 FINDING-32: force-execute the highlighted
+            # PENDING row OUT OF POOL. y/N confirm modal. Only
+            # activates on PENDING rows in the detail page.
+            Binding("e", "force_run", "Force-run"),
         ]
 
         CSS = """
@@ -1538,6 +1542,80 @@ def _build_textual_app(
             if failed:
                 msg += f", {failed} failed"
             self._status_bar.update(msg)
+            self.refresh_view()
+
+        def action_force_run(self) -> None:
+            """v1.5.7 186 FINDING-32: 'E' — force-execute the
+            highlighted PENDING row OUT OF POOL. Only
+            activates on PENDING rows in the detail page
+            (other states / pages no-op with a status-bar
+            note). Pushes a y/N confirmation modal whose
+            prompt shows the row's runner/repo + the
+            current live count + the post-launch live count
+            so the operator sees exactly how far they're
+            exceeding the pool."""
+            from bin.harness import status as _status
+            if self._nav != _NAV_DETAIL or self._current_dir is None:
+                self._status_bar.update(
+                    "E (force-run): only available on the "
+                    "detail page over a PENDING row")
+                return
+            runs = _status.read_run_status(self._current_dir)
+            idx = (self._table.cursor_row
+                   if self._table.row_count else -1)
+            if not (0 <= idx < len(runs)):
+                return
+            rs = runs[idx]
+            if rs.state != "PENDING":
+                self._status_bar.update(
+                    f"E (force-run): row is {rs.state}, not "
+                    f"PENDING")
+                return
+            # Compute the current + post-launch live count for
+            # rs.runner so the operator sees the consequence.
+            live_now = sum(
+                1 for r in runs
+                if r.state in ("RUNNING", "ACQUIRING")
+                and r.runner == rs.runner)
+            prompt = (
+                f"Force-run row #{rs.index} "
+                f"({rs.runner}/{rs.model} "
+                f"{rs.repo.rsplit('/', 1)[-1]}) OUT OF POOL? "
+                f"Current live {rs.runner} count: {live_now}; "
+                f"post-launch: {live_now + 1}. (y/N)"
+            )
+            self.push_screen(
+                _KillConfirmScreen(prompt),
+                callback=lambda ok, run_dir=rs.run_dir, idx=rs.index: (
+                    self._do_force_run(run_dir, idx)
+                    if ok else None))
+
+        def _do_force_run(self, run_dir: "Path",
+                            run_index: int) -> None:
+            """v1.5.7 186 FINDING-32: invoke the headless
+            force-launch helper for the confirmed row.
+            Reports outcome via the status bar."""
+            from bin.harness import plan_runner as _pr
+            harness_run_dir = run_dir.parent
+            try:
+                result = _pr.force_launch_pending_run(
+                    harness_run_dir, run_index)
+            except _pr.ForceRunError as exc:
+                self._status_bar.update(
+                    f"force-run failed: {exc}")
+                self.refresh_view()
+                return
+            except Exception as exc:  # pragma: no cover
+                self._status_bar.update(
+                    f"force-run failed: {exc}")
+                self.refresh_view()
+                return
+            self._status_bar.update(
+                f"force-launched run-{run_index:02d} "
+                f"({result['runner']}/{result['model']}); "
+                f"pid={result['pid']}; live "
+                f"{result['runner']} count now "
+                f"{result['live_count_after']}")
             self.refresh_view()
 
         def action_copy_screen(self) -> None:

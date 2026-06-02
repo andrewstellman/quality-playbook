@@ -414,5 +414,63 @@ class ForceRunHelperTests(unittest.TestCase):
                 {1, 2})
 
 
+class TuiForceExecuteKeybindingTests(unittest.TestCase):
+    """v1.5.7 186 FINDING-32: TUI 'E' keybinding pushes a
+    force-execute confirmation modal for the highlighted
+    PENDING row, then invokes
+    ``plan_runner.force_launch_pending_run`` on confirm."""
+
+    def test_tui_has_e_force_run_binding(self) -> None:
+        # Source-pin: tui.py BINDINGS list contains the
+        # ``Binding("e", "force_run", ...)`` entry.
+        src = (_REPO / "bin" / "harness" / "tui.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn(
+            'Binding("e", "force_run"', src,
+            "tui.py BINDINGS must include 'e' force-run "
+            "keybinding (186 FINDING-32).")
+
+    def test_tui_has_action_force_run_handler(self) -> None:
+        # Source-pin: the action method exists.
+        src = (_REPO / "bin" / "harness" / "tui.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn(
+            "def action_force_run(self)", src,
+            "tui.py must define action_force_run (186 "
+            "FINDING-32).")
+
+    def test_tui_force_run_calls_helper(self) -> None:
+        # Source-pin: the action invokes the headless
+        # ``plan_runner.force_launch_pending_run`` helper.
+        src = (_REPO / "bin" / "harness" / "tui.py"
+               ).read_text(encoding="utf-8")
+        self.assertIn(
+            "force_launch_pending_run(", src,
+            "tui.py must call "
+            "plan_runner.force_launch_pending_run (186 "
+            "FINDING-32 — reuses the FINDING-33 helper).")
+
+    def test_tui_force_run_only_on_pending_state(
+            self) -> None:
+        # Source-pin: the action checks `rs.state == "PENDING"`
+        # before pushing the modal. Catches a regression where
+        # the keybinding becomes always-active.
+        src = (_REPO / "bin" / "harness" / "tui.py"
+               ).read_text(encoding="utf-8")
+        # Look for the state check within the
+        # action_force_run body.
+        import re
+        m = re.search(
+            r"def action_force_run.*?(?=\n        def )",
+            src, re.DOTALL)
+        self.assertIsNotNone(m)
+        body = m.group(0)
+        self.assertIn(
+            'rs.state != "PENDING"', body,
+            "action_force_run must gate on rs.state == "
+            "PENDING (186 FINDING-32 — the keybinding is "
+            "only available on PENDING rows).")
+
+
 if __name__ == "__main__":
     unittest.main()
