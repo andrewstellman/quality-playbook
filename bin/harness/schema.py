@@ -134,6 +134,19 @@ class TerminalState(str, Enum):
     # actionable disposition (raise the cap, shrink the pool, or
     # accept the abandonment).
     ABANDONED_STARVED = "ABANDONED_STARVED"
+    # v1.5.7 188 FINDING-42: operator-initiated cancellation of
+    # a PENDING run (one that had been queued by the launch
+    # loop but hadn't yet acquired a pool slot when the
+    # operator ran ``kill <harness-run>`` / ``kill <run-NN>``).
+    # Distinct from KILLED (which signals a live process via
+    # SIGKILL or SIGTERM): there's no pid to kill — the entry
+    # is marked terminal directly in the manifest, with
+    # ``terminal_reason="cancelled by operator before
+    # launch"``. The collector's PENDING-retry loop skips
+    # CANCELLED entries so they don't get auto-launched when
+    # a slot frees. Grading produces N/A (incomplete; never
+    # started).
+    CANCELLED = "CANCELLED"
 
 
 class RunState(str, Enum):

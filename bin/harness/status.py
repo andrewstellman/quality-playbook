@@ -49,6 +49,7 @@ _TERMINAL_RUN_STATES = frozenset({
     # state stuck on "running" in the TUI.
     "ABORTED_PHASE",        # 164
     "ABANDONED_STARVED",    # 165
+    "CANCELLED",            # 188 FINDING-42
 })
 
 
@@ -116,6 +117,12 @@ class HarnessRunSummary:
     timed_out: int
     aborted_prep: int
     blocked: int
+    # v1.5.7 188 FINDING-43 (Panelist C): cancelled-row count.
+    # Pre-188 a CANCELLED row would fall through to ``pending``
+    # in ``_summarize_harness_run`` (no explicit branch),
+    # silently miscounting an operator-cancelled row as still
+    # queued. Same shape as 113's BLOCKED fix.
+    cancelled: int
     collector_alive: bool
     # v1.5.7 117 — list-view progress + liveness.
     progress: str = "—"
@@ -1292,6 +1299,8 @@ def _summarize_harness_run(harness_run_dir: Path) -> HarnessRunSummary:
         "pending": 0, "running": 0, "completed": 0,
         "failed": 0, "timed_out": 0, "aborted_prep": 0,
         "blocked": 0,
+        # v1.5.7 188 FINDING-43 (Panelist C): cancelled count.
+        "cancelled": 0,
     }
     for r in runs:
         if r.state == "RUNNING":
@@ -1311,6 +1320,13 @@ def _summarize_harness_run(harness_run_dir: Path) -> HarnessRunSummary:
         # BLOCKED run.
         elif r.state == "BLOCKED":
             counts["blocked"] += 1
+        # v1.5.7 188 FINDING-43 (Panelist C): CANCELLED is its
+        # own column. Same shape as the 113 BLOCKED fix —
+        # without this branch a CANCELLED row would fall
+        # through to ``pending``, silently miscounting an
+        # operator-cancelled row as still queued.
+        elif r.state == "CANCELLED":
+            counts["cancelled"] += 1
         else:
             counts["pending"] += 1
     # Collector liveness: the collector polls every ~0.25s and
@@ -1536,7 +1552,10 @@ def format_harness_run_summary(
         f"R={summary.running:>2} D={summary.completed:>2} "
         f"F={summary.failed:>2} T={summary.timed_out:>2} "
         f"B={summary.blocked:>2} "
-        f"AP={summary.aborted_prep:>2} P={summary.pending:>2}  "
+        f"AP={summary.aborted_prep:>2} P={summary.pending:>2} "
+        # v1.5.7 188 FINDING-43 (Panelist C): C= column for
+        # cancelled-row count.
+        f"C={summary.cancelled:>2}  "
         f"progress={summary.progress:>5} "
         f"active={summary.last_activity_iso}  "
         f"collector={coll} watchdog={wd}"
@@ -1653,6 +1672,12 @@ def format_run_status(rs: RunStatus) -> str:
 _TERMINAL_COMPLETED_STATES = {"COMPLETED"}
 _TERMINAL_FAILED_STATES = {
     "FAILED", "TIMED_OUT", "BLOCKED", "KILLED", "ABORTED_PREP"}
+# v1.5.7 188 FINDING-43: operator-cancelled PENDING rows
+# (kill <harness-run> path post-188 cancels PENDING instead
+# of leaving them queued for the collector to launch). Own
+# section in the grouped renderer so the operator sees the
+# disposition was deliberate, not a crash.
+_TERMINAL_CANCELLED_STATES = {"CANCELLED"}
 
 
 def _format_run_row_for_group(rs: "RunStatus", group: str) -> str:
@@ -1735,6 +1760,17 @@ def _format_run_row_for_group(rs: "RunStatus", group: str) -> str:
             f"ended={rs.ended_at} "
             f"elapsed={_format_elapsed(rs.elapsed_s):>7}"
         )
+    if group == "CANCELLED":
+        # v1.5.7 188 FINDING-43: cancellation-specific row.
+        # No elapsed (never started). No phase. terminal_reason
+        # is the operator-facing explanation written by
+        # cancel_pending_run.
+        reason = (
+            "cancelled by operator before launch")
+        return (
+            f"  #{rs.index:<2} {repo_tail:18} "
+            f"{runner_model:22} {reason}"
+        )
     # Fallback for unanticipated buckets — keep the verbose form.
     return f"  {format_run_status(rs)}"
 
@@ -1751,6 +1787,10 @@ def _classify_run_for_grouping(rs: "RunStatus") -> str:
         return "PENDING"
     if rs.state in _TERMINAL_COMPLETED_STATES:
         return "COMPLETED"
+    # v1.5.7 188 FINDING-43: operator-cancelled PENDING rows
+    # get their own bucket so the disposition is visible.
+    if rs.state in _TERMINAL_CANCELLED_STATES:
+        return "CANCELLED"
     if rs.state in _TERMINAL_FAILED_STATES:
         return "FAILED"
     # An unknown state still surfaces — bucket as FAILED so the
@@ -1769,11 +1809,18 @@ def format_runs_grouped(runs: "list[RunStatus]") -> str:
     by_group: "dict[str, list[RunStatus]]" = {
         "RUNNING": [], "PENDING": [],
         "COMPLETED": [], "FAILED": [],
+        # v1.5.7 188 FINDING-43: operator-cancelled rows.
+        "CANCELLED": [],
     }
     for rs in runs:
         by_group[_classify_run_for_grouping(rs)].append(rs)
     sections: "list[str]" = []
-    for group in ("RUNNING", "PENDING", "COMPLETED", "FAILED"):
+    # v1.5.7 188 FINDING-43: CANCELLED renders between
+    # COMPLETED and FAILED so the operator's deliberate
+    # cancellations are visible without being misread as
+    # crashes.
+    for group in ("RUNNING", "PENDING", "COMPLETED",
+                  "CANCELLED", "FAILED"):
         rows = sorted(by_group[group], key=lambda r: r.index)
         if not rows:
             continue

@@ -2652,6 +2652,19 @@ def _try_acquire_pool_slot(
         runs = manifest.get("runs", [])
         for i, e in enumerate(runs):
             if e.get("index") == run_index:
+                # v1.5.7 188 FINDING-41 race fix: re-check the
+                # entry is still PENDING inside the lock. The
+                # retry loop's pre-filter (outside the lock)
+                # selected this index as PENDING; an operator
+                # `kill <harness-run>` (via cancel_pending_run,
+                # also holding the lock) might have written
+                # CANCELLED in the window between pre-filter
+                # and acquire-rewrite. Without this re-check
+                # the acquire silently clobbers the CANCELLED
+                # transition. Panelists A + B both surfaced
+                # this race; fix lives here.
+                if e.get("state") != "PENDING":
+                    return False
                 runs[i] = {
                     **e,
                     "state": "ACQUIRING",
@@ -3405,6 +3418,76 @@ def force_launch_all_pending_in_dir(
             results.append({"index": idx,
                             "error": repr(exc)})
     return results
+
+
+class CancelPendingError(RuntimeError):
+    """v1.5.7 188 FINDING-42: raised when cancel_pending_run
+    can't satisfy its preconditions — manifest missing, entry
+    not at index, or entry not in PENDING state. Carries a
+    human-readable message for the CLI to surface."""
+
+
+def cancel_pending_run(
+        harness_run_dir: Path,
+        run_index: int) -> dict:
+    """v1.5.7 188 FINDING-42: mark a PENDING manifest entry
+    CANCELLED — operator-initiated cancellation of a row that
+    had been queued by the launch loop but hadn't yet
+    acquired a pool slot. Distinct from ``kill_run`` (which
+    SIGKILLs a live process): there's no pid to kill — the
+    entry is marked terminal directly in the manifest.
+
+    The collector's PENDING-retry loop skips entries with
+    ``state != "PENDING"``, so a CANCELLED entry is
+    automatically inert to the retry path (no separate
+    queue-removal needed under v1.5.7 174's manifest-as-pool
+    model).
+
+    Returns a dict ``{"index": N, "runner": "<name>", "model":
+    "<name>"}`` so the CLI can render a per-row cancel
+    receipt. Raises ``CancelPendingError`` when the entry is
+    missing or not PENDING."""
+    manifest_path = harness_run_dir / "manifest.json"
+    if not manifest_path.is_file():
+        raise CancelPendingError(
+            f"manifest.json missing under {harness_run_dir}")
+    try:
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise CancelPendingError(
+            f"manifest.json unreadable: {exc!r}")
+    entry: "Optional[dict]" = None
+    for e in manifest.get("runs", []):
+        if e.get("index") == run_index:
+            entry = e
+            break
+    if entry is None:
+        raise CancelPendingError(
+            f"no manifest entry with index={run_index}")
+    if entry.get("state") != "PENDING":
+        raise CancelPendingError(
+            f"run-{run_index:02d} is in state="
+            f"{entry.get('state')!r}, not PENDING — "
+            f"cancel only applies to PENDING rows (RUNNING "
+            f"rows use kill_run; terminal rows are already "
+            f"done)")
+    now_iso = datetime.now(timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ")
+    _update_manifest_entry_atomic(
+        manifest_path, run_index, {
+            "state": "DONE",
+            "terminal_state": "CANCELLED",
+            "terminal_reason":
+                "cancelled by operator before launch",
+            "ended_at": now_iso,
+        })
+    return {
+        "index": run_index,
+        "runner": str(entry.get("runner", "?")),
+        "model": str(entry.get("model", "?")),
+    }
+
 
 
 def collect_harness_run(harness_run_dir: Path,

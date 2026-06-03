@@ -1103,6 +1103,14 @@ def _cmd_kill(args: argparse.Namespace) -> int:
 
     targets: "list[tuple[Path, str]]" = []
     skipped: "list[tuple[str, str]]" = []
+    # v1.5.7 188 FINDING-41: PENDING rows on a harness-run
+    # kill must be cancelled in the manifest (terminal_state=
+    # CANCELLED), not skipped — otherwise the collector's
+    # post-186 PENDING-retry loop auto-launches them once a
+    # slot frees, which is the OPPOSITE of "kill stops this
+    # plan." Pending cancellation has no pid to SIGKILL; it's
+    # a manifest-level state transition.
+    pending_to_cancel: "list[tuple[int, str]]" = []
     if kind is _status.TuiPathKind.RUN_NN:
         # v1.5.7 153 Task A: synthesizes from on-disk artifacts
         # when manifest is missing/incomplete; None only on a
@@ -1114,34 +1122,50 @@ def _cmd_kill(args: argparse.Namespace) -> int:
             return 2
         if rs.state == "RUNNING":
             targets.append((path, _kill_label(rs)))
+        elif rs.state == "PENDING":
+            pending_to_cancel.append(
+                (rs.index, _kill_label(rs)))
         else:
             skipped.append((_kill_label(rs),
                             f"not running: {rs.state}"))
-    else:  # HARNESS_RUN — kill every RUNNING run.
+    else:  # HARNESS_RUN — kill every RUNNING + cancel every PENDING.
         for rs in _status.read_run_status(path):
             if rs.state == "RUNNING":
                 targets.append((rs.run_dir, _kill_label(rs)))
+            elif rs.state == "PENDING":
+                pending_to_cancel.append(
+                    (rs.index, _kill_label(rs)))
             else:
                 skipped.append((_kill_label(rs),
                                 f"not running: {rs.state}"))
 
-    if not targets:
-        print("No running runs to kill.")
+    if not targets and not pending_to_cancel:
+        print(
+            "No running runs to kill and no pending runs "
+            "to cancel.")
         for label, reason in skipped:
             # v1.5.7 160 Task D: ✗ for skip (no-op).
             print(f"  ✗ {label} ({reason})")
         return 0
 
     if not getattr(args, "yes", False):
-        print(f"About to KILL (sending {signame}):")
-        for _rd, label in targets:
-            print(f"  {label}")
+        if targets:
+            print(f"About to KILL (sending {signame}):")
+            for _rd, label in targets:
+                print(f"  {label}")
+        # v1.5.7 188 FINDING-41: surface pending cancellations
+        # in the same confirmation prompt so the operator sees
+        # exactly what "kill <harness-run>" will affect.
+        if pending_to_cancel:
+            print("About to CANCEL (pending, never launched):")
+            for _idx, label in pending_to_cancel:
+                print(f"  {label}")
         try:
             resp = input("Type 'y' to confirm: ")
         except EOFError:
             resp = ""
         if resp.strip() != "y":
-            print("no runs killed")
+            print("no runs killed or cancelled")
             return 0
 
     killed: "list[tuple[str, str]]" = []
@@ -1167,13 +1191,48 @@ def _cmd_kill(args: argparse.Namespace) -> int:
         else:
             killed.append((label, "pid already dead; recorded KILLED"))
 
-    # v1.5.7 160 Task D: ✓/✗ symbols for visible kill outcomes.
-    # Unicode (modern terminals); if needed, an ASCII fallback
-    # could be added behind a flag in a follow-up.
+    # v1.5.7 188 FINDING-41: cancel each PENDING entry. The
+    # harness-run dir lives at the parent of any RUN_NN path or
+    # IS the path for HARNESS_RUN — for HARNESS_RUN kind we use
+    # ``path`` directly; for RUN_NN the only pending case is
+    # the path itself (a single PENDING row), and its parent is
+    # the harness-run dir.
+    cancelled: "list[tuple[str, str]]" = []
+    cancel_errored: "list[tuple[str, str]]" = []
+    if pending_to_cancel:
+        from bin.harness import plan_runner as _pr
+        if kind is _status.TuiPathKind.HARNESS_RUN:
+            harness_run_dir = path
+        else:
+            harness_run_dir = path.parent
+        for run_index, label in pending_to_cancel:
+            try:
+                _pr.cancel_pending_run(
+                    harness_run_dir, run_index)
+                cancelled.append(
+                    (label,
+                     "cancelled by operator before launch"))
+            except _pr.CancelPendingError as exc:
+                cancel_errored.append((label, str(exc)))
+            except Exception as exc:  # pragma: no cover
+                cancel_errored.append((label, repr(exc)))
+                rc = 3
+
+    # v1.5.7 160 Task D + 188: ✓/✗ symbols for visible kill /
+    # cancel outcomes. Unicode (modern terminals); ASCII
+    # fallback could be added behind a flag in a follow-up.
     if killed:
         print("Killed:")
         for label, note in killed:
             print(f"  ✓ {label}: {note}")
+    if cancelled:
+        print("Cancelled:")
+        for label, note in cancelled:
+            print(f"  ✓ {label}: {note}")
+    if cancel_errored:
+        print("Cancel errors:")
+        for label, reason in cancel_errored:
+            print(f"  ✗ {label}: {reason}")
     if skipped:
         print("Skipped:")
         for label, reason in skipped:

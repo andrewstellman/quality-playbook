@@ -269,20 +269,54 @@ class PendingStateRecognitionTests(unittest.TestCase):
                 self.assertIn(f"#{i:<2}", out,
                               f"missing #{i} in:\n{out}")
 
-    def test_kill_cmd_on_pending_run_dir_is_noop_not_error(
+    def test_kill_cmd_on_pending_run_dir_cancels_it_188(
             self) -> None:
-        # 147 + 153 integration: kill on a PENDING dir returns 0 and
-        # reports "not running: PENDING" — symmetric with kill on a
-        # terminal run.
+        # v1.5.7 188 FINDING-41 + 42: kill on a PENDING dir now
+        # CANCELS the entry instead of skipping it (pre-188
+        # behavior left PENDING rows queued for the collector
+        # to launch — defeating the operator's intent when
+        # they ran `kill <harness-run>` to stop the plan).
+        # Test now requires a manifest with the PENDING entry
+        # so the cancel path can write CANCELLED back.
+        import json
         with tempfile.TemporaryDirectory() as td:
             hr = Path(td) / "20260529T215456Z"
             hr.mkdir()
             _make_pending_run(hr / "run-00")
+            # Synthesize a minimal PENDING manifest entry the
+            # 188 cancel helper can locate + transition.
+            (hr / "manifest.json").write_text(json.dumps({
+                "harness_run_dir": str(hr),
+                "runs": [{
+                    "index": 0,
+                    "state": "PENDING",
+                    "pid": None,
+                    "runner": "claude",
+                    "model": "opus",
+                    "mode": "A",
+                    "channel": "pip-local-wheel",
+                    "repo": "https://github.com/x/y",
+                    "ref": "HEAD",
+                    "description": "row0",
+                    "run_dir": str(hr / "run-00"),
+                }],
+            }) + "\n", encoding="utf-8")
             buf = io.StringIO()
             with redirect_stdout(buf), redirect_stderr(io.StringIO()):
                 rc = Q.main(["kill", "-y", str(hr / "run-00")])
             self.assertEqual(rc, 0)
-            self.assertIn("PENDING", buf.getvalue())
+            self.assertIn(
+                "Cancelled:", buf.getvalue(),
+                "post-188 kill on PENDING must report under "
+                "'Cancelled:' header (FINDING-41).")
+            # Verify the manifest entry is now CANCELLED.
+            on_disk = json.loads(
+                (hr / "manifest.json").read_text())
+            entry = on_disk["runs"][0]
+            self.assertEqual(
+                entry.get("terminal_state"), "CANCELLED",
+                "manifest entry must be CANCELLED (188 "
+                "FINDING-42).")
 
 
 # ---------------------------------------------------------------------------

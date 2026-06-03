@@ -376,7 +376,10 @@ def build_runs_list_rows(runs_root: Path) -> "list[str]":
     lines.append(
         f"{'harness-run':30}  {'started-at':22}  "
         f"{'runs':>4}  {'R':>2} {'D':>2} {'F':>2} "
-        f"{'T':>2} {'AP':>2} {'P':>2}  {'collector':9}"
+        f"{'T':>2} {'AP':>2} {'P':>2} "
+        # v1.5.7 188 FINDING-43 (Panelist C): C column.
+        f"{'C':>2}  "
+        f"{'collector':9}"
     )
     for s in summaries:
         coll = "live" if s.collector_alive else "—"
@@ -386,7 +389,9 @@ def build_runs_list_rows(runs_root: Path) -> "list[str]":
             f"{s.total_runs:>4}  "
             f"{s.running:>2} {s.completed:>2} "
             f"{s.failed:>2} {s.timed_out:>2} "
-            f"{s.aborted_prep:>2} {s.pending:>2}  "
+            f"{s.aborted_prep:>2} {s.pending:>2} "
+            # v1.5.7 188 FINDING-43: cancelled count.
+            f"{s.cancelled:>2}  "
             f"{coll:9}"
         )
     lines.append("")
@@ -847,6 +852,11 @@ def _render_lines(stdscr, lines: "list[str]",
 RUNS_TABLE_COLUMNS = (
     "dir", "started", "total",
     "R", "D", "F", "T", "B", "AP", "P",
+    # v1.5.7 188 FINDING-43 (Panelist C): C column for
+    # operator-cancelled rows (matches the status.py R/D/F/T/
+    # B/AP/P enumeration; cancelled would otherwise hide
+    # silently miscounted as pending).
+    "C",
     "progress", "last_activity", "collector",
 )
 
@@ -888,6 +898,8 @@ def build_runs_table_rows(runs_root: Path) -> "list[tuple[str, ...]]":
             str(s.blocked),
             str(s.aborted_prep),
             str(s.pending),
+            # v1.5.7 188 FINDING-43: cancelled count.
+            str(s.cancelled),
             s.progress,
             s.last_activity_iso,
             "yes" if s.collector_alive else "no",
