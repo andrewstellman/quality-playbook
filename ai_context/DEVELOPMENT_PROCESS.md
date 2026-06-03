@@ -66,6 +66,59 @@ QPB development uses Council-style review on substantial work. Three flavors, sc
 
 **Council on landed code.** Run reviews on commits that have landed in the working tree, not on briefs or proposals. Pre-implementation Council review (e.g., reviewing a brief before coding) is over-engineering — the implementing AI is competent enough that pre-review adds bureaucracy without catching what implementation review would catch anyway.
 
+### Worker self-Council protocol (v1.5.7 187+)
+
+Formalization of the "Parallel-Agent reviewers" Council flavor with stricter discipline. Used since 186-followup-1 across 187 / 188 / 189 / 190; has demonstrably caught ship-blockers a single-reviewer pass would have shipped (187's manifest round-trip persistence gap, 188's `_try_acquire_pool_slot` race, 188's 6-site `CANCELLED` display gap, 190's em-dash-IS-in-cp1252 boundary distinction). The pattern is now load-bearing methodology, not an option.
+
+**When the worker (Claude Code or equivalent implementing AI) is in-flight on a FIX-REQUIRED instruction, before filing the v1 review-request to Cowork:**
+
+1. The instruction's "Worker self-Council" section enumerates 3 panelist charters with distinct lenses (typically: correctness/spec-compliance, test sufficiency, regression-safety — adapt to instruction scope). The implementing AI spawns the three panelists in parallel via its native `Task` (or equivalent) tool, each receiving its charter as the prompt.
+
+2. Each panelist writes its full verdict to a file: `Reviews/v<NNN>_self_council/panelist_<X>_<charter>.md`. The path is part of the panelist's prompt — without explicit Write-to-file, the artifact can be lost to streaming / TUI buffering misbehavior.
+
+3. The implementing AI reads all 3 panelist files + synthesizes them to `Reviews/v<NNN>_self_council/synthesis.md`. The synthesis names where panelists agree (highest confidence), where they diverge (judgment calls), and a single SHIP / FIX-REQUIRED verdict.
+
+4. **If self-Council surfaces FIX-REQUIRED, the implementing AI iterates on the fix BEFORE filing the v1 review-request.** Only files v1 when synthesis says SHIP. This makes the internal panel the load-bearing first-pass quality gate; the external Cowork review is the second layer.
+
+**Why each panelist must write to file:** belt + suspenders. Even with `--max-turns 60` and stream-json output and tee'd stdout, transient buffering misbehavior can drop the panelist's verdict. The Write tool guarantees the artifact survives.
+
+**Why the panel must be 3 separate subagents and not the implementing AI's own context:** the worker is the implementer; self-review by the same context gives no diversity. Each panelist is a separate subagent context with no exposure to the implementer's reasoning trace.
+
+**Why FIX-REQUIRED iterates in-branch:** the protocol's whole point is that a green 1163-test suite would have shipped a regression that defeated the instruction's target plan (187's Panelist C example). Filing v1 with a known FIX-REQUIRED is shipping the bug.
+
+**Adapting panelist charters to instruction scope:** the three panelists should be orthogonal lenses, not three views of the same thing. Worked examples that have shipped:
+- 187: plan-schema correctness / launch-site correctness / regression safety
+- 188: kill-semantics correctness / collector skip-CANCELLED correctness / status-TUI display correctness
+- 189: sweep completeness / encoding-strategy correctness / regression and test quality
+- 190: sweep completeness / encoding-strategy correctness / regression safety + test quality
+
+The "sweep completeness" charter shows up specifically for AUDIT-table-pattern instructions (see next section); the "encoding-strategy correctness" charter showed up for both cp1252 instructions in the trifecta and codified the per-character boundary (Panelist B in 190 pinned that cp1252 actually maps U+2014 em-dash to byte 0x97 — only U+2265, U+2264, → and similar crash, not em-dashes).
+
+### AUDIT-table invariant test pattern (v1.5.7 184+)
+
+When a defect class shape is observed across multiple sites in the codebase, the fix is incomplete unless it includes an exhaustive-sweep invariant test that scans the entire relevant tree and asserts the contract holds at every site. Has shipped across 184 (`_pid_alive` divergence), 189 (log-read encoding fallback), 190 (subprocess stdin encoding) — three confirmed reuses graduate it from "pattern" to "standard mechanism."
+
+**The pattern:**
+
+1. **Identify the defect-class shape.** "X-shaped sites in tree Y must hold property Z."
+2. **Find all instances via grep / inspection.** Document the result as an AUDIT table in the test file or its docstring: file:line → verdict (FIXED / SAFE-with-justification / DEFERRED-with-justification).
+3. **Write a single sweep test that enumerates all sites and verifies the contract.** Use grep / regex / AST walk to find sites; check each against the AUDIT-table allow-list. Future PR readers adding new X-shaped sites must either land them with the contract OR add an explicit justified entry to the AUDIT.
+4. **The test is the durable defense.** The targeted fix at the originally-discovered site is necessary; the sweep test is sufficient against the recurrence at a sibling site that hasn't been noticed yet.
+
+**Worked examples:**
+
+- 184 `NoResidualPidAliveDivergenceTests` (test_platform_compat_180.py:974): three tests — `test_184_no_local_pid_alive_definitions_in_bin` (regex sweep for `^def (_pid_alive|pid_is_alive|_pid_is_alive)\(`), `test_184_no_os_kill_pid_zero_outside_platform` (inverse sweep for `os.kill(<anything>, 0)` literals), `test_184_all_pid_alive_helpers_share_one_implementation` (runtime `is` identity check that all 5 alias sites resolve to `_platform.pid_alive`).
+- 189 `test_no_unguarded_external_log_reads_remain` (test_log_read_encoding_189.py): 22-entry AUDIT table for `encoding="utf-8"` reads of external content; each must include `errors="replace"` OR be on the documented allow-list.
+- 190 `test_no_subprocess_run_with_text_true_lacks_utf8` (test_subprocess_encoding_190.py): 14-entry per-file AUDIT table across `bin/run_playbook.py` + `bin/harness/**/*.py`; each `subprocess.run(text=True, ...)` site must explicitly pass `encoding="utf-8"` + `errors="replace"`.
+
+**When to file an AUDIT sweep test:**
+
+- The defect class fired **a third time across QPB**. (Two instances may be coincidence; three is a pattern.)
+- The shape is identifiable via mechanical scan (regex, AST, identity-`is` check).
+- A reasonable future PR could re-introduce the same defect at a new site without anyone noticing.
+
+The cp1252-on-Windows hazard surface (185 print output + 189 log read + 190 subprocess stdin write) is the canonical worked example of a defect class fired three times: each instance was fixed at its specific site, AND each landed with its own AUDIT-table invariant test, AND the three sites together are now documented as a design contract in `docs/design/QPB_Test_Harness_1.5.7_Design.md` Section O ("Windows cp1252 hazard surface"). Future PR reviewers reference Section O before approving any new `subprocess.run` / `open(text=True)` site.
+
 ### Mutation-test discipline
 
 For every regression-pin test (a test that exists specifically to prevent a known bug from re-emerging):
