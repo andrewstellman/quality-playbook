@@ -1,7 +1,7 @@
 # Harness-time runtime dependencies for QPB v1.5.7+.
 #
 # Install via:
-#     pip install -r requirements-harness.txt
+#     pip install -r bin/harness/requirements.txt
 #
 # The QPB skill itself (what gets bundled into adopter installs via
 # bin/install_skill.py) is dependency-free — the skill runs inside arbitrary
