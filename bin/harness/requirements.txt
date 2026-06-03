@@ -28,3 +28,12 @@ psutil>=5.9
 # spawns runs. Missing on a fresh dev machine surfaces as
 # `ModuleNotFoundError: No module named build` from the wheel-build subprocess.
 build>=1.0
+
+# windows-curses — Windows-only ports of POSIX curses. The harness's legacy
+# curses TUI (bin/harness/tui_curses.py + sites that fall back to it from the
+# 119 textual rebuild) imports `_curses`, which on Linux/macOS is in the
+# stdlib but on Windows Python is NOT shipped — the stdlib doesn't include
+# any curses module at all on Windows. Marker scopes the dep to win32 so
+# Linux/macOS installs don't pull it (and would error since the wheel only
+# builds on Windows).
+windows-curses; sys_platform == 'win32'
