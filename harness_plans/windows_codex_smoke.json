@@ -1,0 +1,26 @@
+{
+  "$header_note": "QPB v1.5.7 ship-gate Windows codex Mode B smoke test. ONE row only: chi (small Go HTTP router, fastest of the acceptance repos) via codex/gpt-5.4-mini with low reasoning effort. Replaces the 20260603T171012Z chi failure (gpt-5.3-codex restricted on Andrew's ChatGPT-account Codex tier as of v0.136.0). gpt-5.4-mini is per the codex CLI's own model-availability listing for ChatGPT-account tiers. The `model_reasoning_effort=low` config override + Mode B's per-phase fresh-codex-exec invocation keeps wall time + token cost minimal — this is a binary 'does codex Mode B work end-to-end on Windows post-188/189' test, not a grading-quality run. Expected wall time: ~15-25 min on a fast model with low reasoning. If this row reaches the Phase 6 gate without crashing, codex Mode B on Windows is shipping-clean and 1.5.7 ships.",
+  "pools": {
+    "codex": 1
+  },
+  "runs": [
+    {
+      "description": "Smoke test — codex/gpt-5.4-mini Mode B on chi (go-chi HTTP router) — Windows ship-gate validation. Replaces the abandoned gpt-5.3-codex row that hit a ChatGPT-account model-restriction error. Pass criterion: child runs Phase 1 through Phase 6 gate without crashing; gate verdict may be PASS/CLEANUP/FAIL (we don't care about grading quality, just that the pipeline executes).",
+      "repo": "https://github.com/go-chi/chi",
+      "ref": "master",
+      "runner": "codex",
+      "model": "gpt-5.4-mini",
+      "channel": "npm-local-tgz",
+      "parameters": ["-c", "model_reasoning_effort=low"],
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    }
+  ]
+}
