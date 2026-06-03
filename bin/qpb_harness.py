@@ -567,23 +567,32 @@ def _cmd_run_plan(args: argparse.Namespace) -> int:
                     "Log contents:",
                     file=sys.stderr)
                 try:
+                    # v1.5.7 189 FINDING-44: errors="replace"
+                    # + catch UnicodeDecodeError. Pre-189 a
+                    # cp1252 byte (0x97 em-dash) from child
+                    # startup output crashed the orchestrator
+                    # itself and masked the real failure.
                     with open(log_path, "r",
-                              encoding="utf-8") as lf:
+                              encoding="utf-8",
+                              errors="replace") as lf:
                         tail = lf.read()[-4000:]
                     print(tail, file=sys.stderr)
-                except OSError as exc:
+                except (OSError, UnicodeDecodeError) as exc:
                     print(f"(could not read log {log_path}: "
                           f"{exc})", file=sys.stderr)
                 harness_log = predicted_hrd / "harness.log"
                 if harness_log.is_file():
                     try:
+                        # v1.5.7 189 FINDING-44: same fallback
+                        # at the harness.log surface site.
                         with open(harness_log, "r",
-                                  encoding="utf-8") as hlf:
+                                  encoding="utf-8",
+                                  errors="replace") as hlf:
                             print("--- harness.log tail ---",
                                   file=sys.stderr)
                             print(hlf.read()[-2000:],
                                   file=sys.stderr)
-                    except OSError:
+                    except (OSError, UnicodeDecodeError):
                         pass
                 return 1
             # Child reached post-launch state. Banner is
