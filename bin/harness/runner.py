@@ -456,6 +456,7 @@ def _materialize_pristine_qpb_tree() -> Path:
               str(tmp), "HEAD"],
             cwd=str(qpb_clone),
             check=True, capture_output=True, text=True,
+            encoding="utf-8", errors="replace",  # 190 FINDING-47
             timeout=60,
         )
     except subprocess.CalledProcessError as exc:
@@ -501,6 +502,7 @@ def _remove_pristine_qpb_tree(tree: Path) -> None:
               str(tree)],
             cwd=str(qpb_clone),
             check=False, capture_output=True, text=True,
+            encoding="utf-8", errors="replace",  # 190 FINDING-47
             timeout=30,
         )
     with contextlib.suppress(Exception):

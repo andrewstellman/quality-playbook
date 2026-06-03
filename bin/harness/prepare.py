@@ -97,7 +97,9 @@ def _git(*args: str, cwd: "Path | None" = None,
          "-c", "core.longpaths=true",
          *args],
         cwd=str(cwd) if cwd is not None else None,
-        capture_output=True, text=True, check=check,
+        capture_output=True, text=True,
+        encoding="utf-8", errors="replace",  # 190 FINDING-47
+        check=check,
     )
 
 
@@ -296,6 +298,7 @@ def install_skill_clone_channel(target_dir: Path, *,
         subprocess.run(
             cmd, cwd=str(qpb), check=True,
             capture_output=True, text=True,
+            encoding="utf-8", errors="replace",  # 190 FINDING-47
         )
     except subprocess.CalledProcessError as exc:
         raise PrepError(
@@ -546,6 +549,7 @@ def install_skill_channel(channel: "InstallChannel",
         result = subprocess.run(
             cmd, cwd=cwd, check=True,
             capture_output=True, text=True,
+            encoding="utf-8", errors="replace",  # 190 FINDING-47
             timeout=timeout_s,
         )
     except subprocess.CalledProcessError as exc:

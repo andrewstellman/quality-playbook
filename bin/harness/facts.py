@@ -144,7 +144,9 @@ def rerun_installed_gate(target_dir: Path, *, axes: RunAxes,
     try:
         result = subprocess.run(
             [sys.executable, str(gate_path), str(target_dir)],
-            capture_output=True, text=True, timeout=timeout_s,
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",  # 190 FINDING-47
+            timeout=timeout_s,
             env=env,
         )
     except subprocess.TimeoutExpired:

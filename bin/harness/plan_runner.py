@@ -731,6 +731,7 @@ def _run_build_step(cmd: "list[str]", *, cwd: Path,
     proc = subprocess.run(
         cmd, cwd=str(cwd),
         capture_output=True, text=True,
+        encoding="utf-8", errors="replace",  # 190 FINDING-47
     )
     if proc.returncode != 0:
         raise RuntimeError(
@@ -1078,7 +1079,9 @@ def _resolve_workspace_sha(target_dir: Path) -> str:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
             cwd=str(target_dir),
-            capture_output=True, text=True, check=False,
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",  # 190 FINDING-47
+            check=False,
         )
         return result.stdout.strip() if result.returncode == 0 else ""
     except (OSError, FileNotFoundError):

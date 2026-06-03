@@ -818,7 +818,9 @@ def smoke_check_quality_gate(target: Path, emitter: Emitter) -> bool:
                 ),
                 str(gate),
             ],
-            capture_output=True, text=True, timeout=30, check=False,
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",  # 190 FINDING-47
+            timeout=30, check=False,
         )
         if result.returncode != 0:
             emitter.emit(
@@ -983,7 +985,9 @@ def smoke_check_bundled_modules(target: Path, emitter: Emitter) -> bool:
                 ),
                 str(target),
             ],
-            capture_output=True, text=True, timeout=30, check=False,
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace",  # 190 FINDING-47
+            timeout=30, check=False,
         )
     except (subprocess.TimeoutExpired, OSError) as exc:
         emitter.emit(

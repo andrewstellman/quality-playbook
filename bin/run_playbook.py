@@ -2183,11 +2183,21 @@ def run_prompt(repo_dir: Path, prompt: str, pass_name: str, output_file: Path, l
             # the `-` sentinel from command_for_runner). Claude and
             # Copilot take the prompt on argv. Detect the codex case
             # by the trailing `-` token.
+            # v1.5.7 190 FINDING-46: explicit encoding="utf-8"
+            # + errors="replace". Without it, text=True picks the
+            # system locale codec — cp1252 on Windows — which
+            # crashes on a U+2265 (≥) char in the prompt with
+            # UnicodeEncodeError. Same fallback shape as 189's
+            # read-side defense. Inherits to the stdout/stderr
+            # capture too, so codex's TUI border-drawing / `→`
+            # reasoning markers won't crash the read side either.
             run_kwargs = dict(
                 cwd=str(repo_dir),
                 stdout=out_handle,
                 stderr=subprocess.STDOUT,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
             if runner in ("codex", "cursor"):
@@ -2727,6 +2737,8 @@ def _qpb_source_baseline_sha(qpb_dir: Path) -> Optional[str]:
             cwd=qpb_dir,
             capture_output=True,
             text=True,
+            encoding="utf-8",  # 190 FINDING-47 (durability — SHA is ASCII)
+            errors="replace",
             check=False,
         )
     except (OSError, FileNotFoundError):
@@ -2825,6 +2837,8 @@ def _verify_qpb_source_unchanged(
                 cwd=qpb_dir,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",  # 190 FINDING-47 (git output may have unicode filenames)
+                errors="replace",
                 check=False,
             )
         except (OSError, FileNotFoundError):
@@ -4975,6 +4989,8 @@ def _finalize_iteration(
                 ["python3", str(gate_script), str(repo_dir)],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",  # 190 FINDING-47 (gate output may have unicode)
+                errors="replace",
                 timeout=120,
             )
             combined = (completed.stdout or "") + (completed.stderr or "")
