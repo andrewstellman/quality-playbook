@@ -10,6 +10,7 @@
       "ref": "master",
       "runner": "codex",
       "model": "gpt-5.4-mini",
+      "mode": "B",
       "channel": "npm-local-tgz",
       "parameters": ["-c", "model_reasoning_effort=low"],
       "expect": {
