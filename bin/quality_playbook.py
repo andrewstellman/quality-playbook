@@ -24,7 +24,18 @@ from __future__ import annotations
 
 import argparse
 import sys
+from pathlib import Path
 from typing import List, Optional
+
+# v1.5.7 instruction 077 (addendum §5.2 W3 entry-point audit): put the
+# QPB clone root on sys.path BEFORE the sibling-module imports below.
+# Without this, `python <clone>/bin/quality_playbook.py …` from a
+# foreign cwd reached the `except ImportError: import
+# migrate_v1_5_0_layout` flat fallback, but migrate_v1_5_0_layout's
+# own top-level `from bin import archive_lib` then failed with
+# ModuleNotFoundError: No module named 'bin' (observed exit 1 at the
+# instruction-077 baseline). No-op under `python -m bin.quality_playbook`.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 try:
     from . import archive_lib
@@ -68,6 +79,34 @@ def _usage() -> str:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
+    if not _argv_list_089x:
+        _print_command_intro(
+            name='quality_playbook',
+            summary=(
+            "Phase 4 semantic-check entry — runs the canonical "
+            "Council-style cross-check passes (plan|assemble) "
+            "against the target's REQ/UC graph. "
+            ),
+            role=(
+            "Invoked by Phase 4 of the playbook (`python3 -m "
+            "bin.quality_playbook semantic-check plan|assemble .`) "
+            "to produce the per-target inbox of cross-check results. "
+            ),
+            usage_hint='python3 -m bin.quality_playbook semantic-check plan .',
+        )
+        return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(_argv_list_089x)
+
     if argv is None:
         argv = sys.argv[1:]
     if not argv or argv[0] in ("-h", "--help"):

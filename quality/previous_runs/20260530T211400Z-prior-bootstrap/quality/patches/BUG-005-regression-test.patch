@@ -1,0 +1,24 @@
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@ -107,3 +107,21 @@
+             self.assertTrue((dest / "notes.md").is_file())
+             self.assertTrue((dest / "cite" / "spec.md").is_file())
+ 
++    @xfail(
++        reason=(
++            "BUG-005: validate_phase_artifacts(..., 1) accepts structurally shallow exploration files; "
++            "remove after applying quality/patches/BUG-005-fix.patch"
++        )
++    )
++    def test_bug_005_phase1_validator_enforces_the_written_gate(self) -> None:
++        with TemporaryDirectory() as tmp:
++            quality = Path(tmp) / "quality"
++            quality.mkdir()
++            filler = "\n".join(f"line {i}" for i in range(1, 123))
++            _write(
++                quality / "EXPLORATION.md",
++                "# Exploration Findings\n\n## Open Exploration Findings\n\n" + filler + "\n",
++            )
++            ok, _reason = run_state_lib.validate_phase_artifacts(quality, 1)
++            self.assertFalse(ok)
++

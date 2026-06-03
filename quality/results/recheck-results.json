@@ -1,0 +1,26 @@
+{
+  "schema_version": "1.0",
+  "skill_version": "1.5.7",
+  "date": "2026-05-30",
+  "project": "quality-playbook",
+  "source_run": {
+    "bugs_md_date": "2026-05-30",
+    "total_bugs": 7
+  },
+  "results": [
+    {"id": "BUG-001", "severity": "HIGH", "summary": "collector grades still-PENDING/pid=None runs FAILED", "status": "FIXED", "evidence": "commit d973dfd (167); guard at plan_runner.py:2092-2098 (entry.state==PENDING and pid is None -> skip until ABANDONED_STARVED deadline); test_bug_001 PASSES on current source"},
+    {"id": "BUG-002", "severity": "HIGH", "summary": "retry-launch omits update_pid -> phantom pid=0 slot -> cap breach", "status": "FIXED", "evidence": "commit 5bb6a1d (167); _inflight.update_pid now called in _retry_pending_runs_once; test_bug_002 PASSES"},
+    {"id": "BUG-003", "severity": "MEDIUM", "summary": "relaunched entry keeps state=PENDING", "status": "FIXED", "evidence": "commit f5b6f78 (167); _launch_one_run_detached return dict now includes \"state\": \"RUNNING\"; test_bug_003 PASSES"},
+    {"id": "BUG-004", "severity": "MEDIUM", "summary": "_PHASE_ARTIFACTS misattributes Phase-2 outputs to P4/P5", "status": "FIXED", "evidence": "commit f98e6d0 (168); extracted shared bin/harness/phase_artifacts.py (single source of truth); status.py imports it; test_bug_004 PASSES"},
+    {"id": "BUG-005", "severity": "MEDIUM", "summary": "pid=0 + malformed started_at active forever", "status": "FIXED", "evidence": "commit 4a66e60 (170); fixed at the WRITE site (acquire_run_slot calls _assert_parseable_started_at, raises ValueError on unparseable started_at) rather than the proposed read-side change — orchestrator ruling option b; test_bug_005 (rewritten to assert the write-site raise) PASSES"},
+    {"id": "BUG-006", "severity": "MEDIUM", "summary": "greedy JSON-array extraction drops Council response with trailing bracketed prose", "status": "FIXED", "evidence": "commit 07c2fb5 (169); _extract_first_json_array now does a string-aware balanced-bracket scan; test_bug_006 PASSES. Minor leftover: the now-unused _JSON_ARRAY_PATTERN constant remains at council_semantic_check.py:319 (dead code, not a regression)"},
+    {"id": "BUG-007", "severity": "MEDIUM", "summary": "capture_phase_yn marks P3-P6 complete from Phase-2 artifacts", "status": "FIXED", "evidence": "commit f98e6d0 (168); capture_phase_yn now uses the shared bin/harness/phase_artifacts.py helper; test_bug_007 PASSES"}
+  ],
+  "summary": {
+    "total": 7,
+    "fixed": 7,
+    "partially_fixed": 0,
+    "still_open": 0,
+    "inconclusive": 0
+  }
+}

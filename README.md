@@ -1,8 +1,8 @@
 # Quality Playbook
 
-**Version:** 1.5.6 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
+**Version:** 1.5.7 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
 
-## Find the 35% of bugs that code review misses
+## Find the bugs that code review misses
 
 Most AI code review can only find structural issues: null dereferences, resource leaks, race conditions. That catches about 65% of real defects. The other 35% are intent violations -- bugs that can only be found if you know what the code is *supposed* to do. A function that silently returns null instead of throwing, a duplicate-key check that passes when the first value is null, a sanitization step that runs after the branch decision it was supposed to guard. These bugs look correct to any reviewer that doesn't know the spec.
 
@@ -10,32 +10,64 @@ The playbook closes that gap. It reads your codebase, derives behavioral require
 
 ## How to install the Quality Playbook
 
-The recommended way to install the Quality Playbook into a project is to have your AI coding tool do it for you:
+The fastest way is to let your AI coding tool do it.
 
-1. **Download or clone this repo** somewhere on your machine — for example, `git clone https://github.com/andrewstellman/quality-playbook ~/quality-playbook`. You only need to do this once; the same clone can install the playbook into any number of target projects.
+1. **Clone this repo** somewhere on your machine — for example, `git clone https://github.com/andrewstellman/quality-playbook ~/quality-playbook`. One clone installs into any number of projects.
 
-2. **Open your target project** in your favorite AI coding tool — Claude Code, Cursor, GitHub Copilot, Windsurf, or any other agent that can read files at arbitrary paths and run commands. The QPB clone doesn't need to be open in the AI tool; the agent reads its files directly from the clone path you give it.
+2. **Open your target project** in Claude Code, Cursor, GitHub Copilot, Windsurf, Continue, or another AI coding tool.
 
 3. **Ask the AI to install it.** Something like:
 
    > *"Install the Quality Playbook into this project from `~/quality-playbook`."*
 
-   The AI agent reads [`AGENTS.md`](AGENTS.md) from the QPB clone, figures out which AI tool to install for, runs `python3 -m bin.install_skill --into <this-project> --ai-tool <tool>`, and reports back. The skill files land in the canonical subdirectory for your AI tool (`.cursor/skills/quality-playbook/`, `.claude/skills/quality-playbook/`, `.github/skills/quality-playbook/`, or `.continue/skills/quality-playbook/`).
+   The agent reads [`AGENTS.md`](AGENTS.md), figures out which install location your tool uses, and runs the installer. Done.
 
-   The agent determines which tool to install for using a three-tier priority order: (a) what you told it ("install for Cursor"), (b) its own identity if it can confidently self-identify (e.g., a Cursor agent installing inside a Cursor session — it will tell you it's making this inference so you can correct), or (c) asking you if neither (a) nor (b) applies.
+Prefer to install by hand or use the script directly? See [Step 1 of the walkthrough](#step-1-install-the-skill) for the script invocation and [Step 3](#step-3-install-the-skill-manual-flow--fallback) for the manual `cp` recipes.
 
-**Currently supported tools:** Cursor, Claude Code, GitHub Copilot (`copilot` or `github` aliases), and Continue. Other AI coding tools work too, as long as they can read files at the QPB clone path and execute shell commands; they install via the explicit `--target <path>` flag if their canonical skills directory isn't yet recognized by `bin/install_skill.py`.
+**Prerequisite:** Python 3.10 or later on your `PATH`. QPB's runtime floor was raised from 3.9 to 3.10 in v1.5.7 089i — adopters must have 3.10+ available (the test suite uses 3.10-only features such as `unittest.TestCase.assertNoLogs`).
 
-**Prerequisite:** Python 3.9 or later must be on your `PATH`. The installer is a Python module (`python3 -m bin.install_skill`) and uses standard-library features that require 3.9+. Check with `python3 --version`.
+**The more documentation you give it, the better it finds bugs.** The playbook reads written specs, design docs, GitHub or Jira issues from real users, chat history, and post-mortems — then derives what your code is *supposed* to do from those sources. Without documentation it still runs (from the source tree alone), but bug recall drops materially. See [Step 2: Provide documentation (strongly recommended)](#step-2-provide-documentation-strongly-recommended) for what to gather and the best ways to gather it.
 
-If you'd rather skip the AI handoff entirely, run the installer directly from inside the QPB clone:
+**Gather it in one step.** Copy [`references/DOC_GATHERING_PROMPT.md`](references/DOC_GATHERING_PROMPT.md), open your project in Claude Code, Codex, Copilot, Cursor, Windsurf (or any capable AI tool), paste it in, and run it — it confirms your project, then crawls its docs, issues, and advisories into `reference_docs/` for you. See [Step 2](#step-2-provide-documentation-strongly-recommended) for details.
 
-```bash
-cd ~/quality-playbook
-python3 -m bin.install_skill --into /path/to/your-target-project --ai-tool <cursor|claude|copilot|continue>
+## How to run the Quality Playbook
+
+Open your project in your AI coding tool (Claude Code, Cursor, GitHub Copilot, Windsurf, Continue, etc.) and tell the agent:
+
+> *"Run the Quality Playbook on this project."*
+
+That one line is all you need — once the skill is installed, the agent auto-discovers it; you don't have to open, read, or point at `SKILL.md` or any other file. The agent runs all six phases — explore, generate requirements + tests + protocols, code review, spec audit, reconcile findings, verify — and drops the results into a `quality/` folder in your project.
+
+A full six-phase run takes a while and uses a lot of tokens. To split it up across sessions (e.g., for daily token-budget management), tell the agent to run a subset:
+
+> *"Run phases 1 to 3 of the Quality Playbook on this project."*
+
+Then later:
+
+> *"Continue the Quality Playbook from phase 4."*
+
+When the run finishes, the `quality/` folder contains:
+
+```
+quality/
+├── BUGS.md                  ← consolidated bug report with spec basis (start here)
+├── REQUIREMENTS.md          ← behavioral requirements derived from your code + docs
+├── EXPLORATION.md           ← Phase 1 findings — patterns explored, files tagged
+├── QUALITY.md               ← quality constitution for your codebase
+├── CONTRACTS.md             ← extracted behavioral contracts
+├── COVERAGE_MATRIX.md       ← contract-to-requirement traceability
+├── COMPLETENESS_REPORT.md   ← final gate report with post-reconciliation verdict
+├── PROGRESS.md              ← phase checkpoint log + cumulative bug tracker
+├── test_functional.py       ← functional tests traced to requirements
+├── test_regression.py       ← regression tests for confirmed bugs
+├── writeups/                ← per-bug detailed writeups with patches (BUG-NNN.md)
+├── patches/                 ← fix and regression-test patches
+├── code_reviews/            ← three-pass code review output
+├── spec_audits/             ← Council of Three auditor reports + triage
+└── results/                 ← TDD red/green logs, integration results, gate log
 ```
 
-Or use the manual `cp` recipes in [Step 3 of the walkthrough below](#step-3-install-the-skill-manual-flow--fallback) to copy the skill files by hand without the script.
+Start with `BUGS.md` for the headline findings. Then read `REQUIREMENTS.md` to see what the playbook learned your code is supposed to do — including requirements derived from issues and docs that you may not have realized were there. The gap between what `REQUIREMENTS.md` says and what your code actually does is exactly the bug surface the playbook is built to find.
 
 ## Need help? Just ask your AI
 
@@ -76,7 +108,7 @@ If you'd rather read the docs yourself, the rest of this README has the same inf
 
 ### Step 1: Install the skill
 
-The playbook ships as a set of files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and `bin/citation_verifier.py`) that need to land in a directory your AI coding tool reads as a skill. The recommended path is to have your AI tool do the install for you.
+The playbook ships as a complete bundle of 50 files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and 13 `bin/*.py` modules — see `bin/install_skill.py::_bundle_files()` for the authoritative list, or the Step 3 manual recipe below) that need to land in a directory your AI coding tool reads as a skill. The recommended path is to have your AI tool do the install for you.
 
 **Recommended: have your AI tool install it.** Open a chat with Claude Code, Cursor, GitHub Copilot, or another AI coding assistant inside your target repo. Ask it:
 
@@ -93,17 +125,53 @@ python3 -m bin.install_skill --target /path/to/install-root                 # li
 python3 -m bin.install_skill --verbose                                      # human-readable output
 ```
 
-`--ai-tool <name>` is the canonical way to invoke when you know which tool will use the project; values are `cursor`, `claude`, `copilot` (alias `github`), or `continue`. The script creates the marker directory if it doesn't exist and installs into the canonical subdirectory (`.cursor/skills/quality-playbook/`, `.claude/skills/quality-playbook/`, `.github/skills/quality-playbook/`, or `.continue/skills/quality-playbook/`). Bare `--into <target-repo>` falls back to auto-detecting from a marker directory inside the target — which only works if the target has been opened by your AI tool at least once. `--target <path>` treats the path as the literal install root and writes the skill files directly there; useful for operators with a non-standard install location. `--target` is mutually exclusive with both `--into` and `--ai-tool`.
+`--ai-tool <name>` is the canonical way to invoke when you know which tool will use the project; values are `cursor`, `claude`, `copilot` (alias `github`), `continue`, `codex`, `windsurf`, `cline`, and `aider` — the full 8-tool set the installer supports. The script creates the marker directory if it doesn't exist and installs into that tool's canonical subdirectory (`.cursor/skills/quality-playbook/`, `.claude/skills/quality-playbook/`, `.github/skills/quality-playbook/`, `.continue/skills/quality-playbook/`, `.codex/skills/quality-playbook/`, `.windsurf/skills/quality-playbook/`, `.cline/skills/quality-playbook/`, or `.aider/skills/quality-playbook/`). Bare `--into <target-repo>` falls back to auto-detecting from a marker directory inside the target — which only works if the target has been opened by your AI tool at least once. Codex, Windsurf, Cline, and Aider don't pre-create a project marker directory (nor do Cursor and Copilot before first project open), so bare-`--into` auto-detection won't find them — but in the recommended flow (the "How to install" section above) you don't have to worry about this: the AI agent doing the install **self-identifies its own tool and passes the matching `--ai-tool` itself**, which installs to the canonical subdirectory and creates the marker dir whether or not it exists yet. You only pass `--ai-tool <tool>` yourself when you run the installer directly, with no agent in the loop. `--target <path>` treats the path as the literal install root and writes the skill files directly there; useful for operators with a non-standard install location. `--target` is mutually exclusive with both `--into` and `--ai-tool`.
+
+**Alternative: install via pip or npm (no clone needed).** If you'd rather not clone the QPB repo, install from a package manager. The Quality Playbook ships as an **application / scaffolder** that copies the skill into your project — not a library you import:
+
+```bash
+# pip / uvx / pipx (Python):
+uvx quality-playbook install --into /path/to/target-repo --ai-tool <tool>        # one-shot, no global install
+pipx run quality-playbook install --into /path/to/target-repo --ai-tool <tool>
+pip install quality-playbook && quality-playbook install --into /path/to/target-repo --ai-tool <tool>
+
+# npx (Node):
+npx quality-playbook init --ai-tool=<tool>                                        # e.g. --ai-tool=claude
+```
+
+Both channels run the **same Python installer** (Python 3.10+ is still required at runtime — the npm package is a thin Node shim, not a reimplementation), route the skill into the tool's canonical directory, and support the same `--ai-tool` self-identification described above. The channel sets `QPB_CHANNEL` (`pip` / `npm`) so the Phase-0 validator's remediation hints are channel-aware; neither channel ships compiled `.pyc` artifacts.
 
 **Already manually copied SKILL.md to your skills directory?** Skip this step. The manual install paths described in Step 3 below continue to work — `bin/install_skill.py` is additive, not a replacement.
 
-**What the install does:** copies the skill files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and `bin/citation_verifier.py`) into the chosen install location. Runs a smoke check at the end (verifies `quality_gate.py` is loadable Python, `SKILL.md` parses with the expected frontmatter, `references/exploration_patterns.md` loads). Reports any failures in the structured output. Re-installs preserve operator-edited files as `<file>.operator-backup-<UTC-timestamp>` so your local edits aren't silently overwritten.
+**What the install does:** copies the full skill bundle (50 files: `SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and 13 `bin/*.py` modules — see `bin/install_skill.py::_bundle_files()` for the authoritative list) into the chosen install location. Runs a smoke check at the end (verifies `quality_gate.py` is loadable Python, `SKILL.md` parses with the expected frontmatter, `references/exploration_patterns.md` loads). Reports any failures in the structured output. Re-installs preserve operator-edited files as `<file>.operator-backup-<UTC-timestamp>` so your local edits aren't silently overwritten.
 
 ### Step 2: Provide documentation (strongly recommended)
 
-The playbook produces better requirements, fewer false positives, and more specific
-bugs when it has written documentation to work from. Plaintext files only —
-`.txt` and `.md`. Convert other formats first:
+The playbook produces better requirements, fewer false positives, and more specific bugs when it has written documentation to work from.
+
+**Where to find documentation worth providing.** The single biggest leverage is **issue trackers** — GitHub issues, Jira tickets, Linear, Shortcut. Bug reports and feature requests written by real users tell you what they expect the code to do, which is usually *not* fully captured in any spec you've written. Other high-value sources, in rough order of leverage:
+
+- **Issue trackers** — GitHub Issues, Jira, Linear, Shortcut. Filter for `bug` and `feature-request`; user words capture intent.
+- **Project specs and design docs** — RFCs, API contracts, architecture decision records (ADRs). Authoritative when they exist.
+- **Post-mortems and incident retrospectives** — capture intent that wasn't in the spec when the spec was written.
+- **Chat history** — Slack channels, Microsoft Teams, Discord. Especially design discussions, triage threads, and on-call rotation handoffs.
+- **AI chat logs** — Claude / ChatGPT / Cursor conversations where you reasoned through behavior.
+- **Public standards you cite** — RFCs, W3C specs, vendor API docs.
+
+**Tools that help gather these into plaintext.** Two open agent-driven tools fit this use case well:
+
+- **[Cowork](https://claude.ai/cowork)** — Anthropic's desktop tool for non-developers; can connect to GitHub, Jira, Slack, Google Drive, Notion, and similar sources via MCP connectors, search across them, and export results to files. Good fit if you're already in the Anthropic ecosystem and want a graphical workflow.
+- **[OpenClaw](https://openclaw.ai)** — open-source AI agent that runs as a local gateway connecting LLMs to your messaging platforms (Slack, Teams, Discord, IRC, plus 20+ others). Uses the same `SKILL.md`-based skills system QPB does, so you can give it tooling and ask it to traverse your channels and export the relevant threads. Good fit if your project's intent lives in chat history and you want self-hosted, open-source tooling.
+
+**The easiest way: the guided gathering prompt.** Copy [`references/DOC_GATHERING_PROMPT.md`](references/DOC_GATHERING_PROMPT.md) (or fetch it raw from `https://raw.githubusercontent.com/andrewstellman/quality-playbook/refs/heads/main/references/DOC_GATHERING_PROMPT.md`), paste it into any of the tools above, and run it — it only needs a project name to start. With QPB installed, you can also just ask your AI tool to gather docs for a project and it follows the same protocol. It identifies the project, proposes a source plan you can narrow or extend (including internal Jira/Confluence/Slack via your connectors), and writes well-structured files into `reference_docs/` (with `cite/` for authoritative specs). It grounds itself in the playbook first, so it gathers the *intent and invariants* QPB checks against rather than generic docs.
+
+**Or a quick one-liner** if you just want something fast:
+
+> *"Search [GitHub issues / Jira / Slack #project-channel / your-doc-source] for everything related to this codebase. Export to Markdown files in `reference_docs/`. Prioritize user-reported bugs and feature requests — those tell us what users expected that we may not have documented."*
+
+After the playbook runs, **read `quality/REQUIREMENTS.md`** to see what it actually learned from those sources. The requirements there are what *the documentation says* your code is supposed to do — which is frequently not what you thought it did. That gap is the bug surface the playbook finds.
+
+**File format.** Plaintext only — `.txt` and `.md`. Convert other formats first:
 
 - `pdftotext spec.pdf spec.txt`
 - `pandoc -t plain spec.docx -o spec.txt`
@@ -161,12 +229,34 @@ cp references/* .claude/skills/quality-playbook/references/
 cp phase_prompts/*.md .claude/skills/quality-playbook/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
 cp agents/*.md .claude/skills/quality-playbook/agents/
-# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
-# byte-equality citation check (without it, the gate falls back to a WARN path).
-cp bin/citation_verifier.py .claude/skills/quality-playbook/bin/citation_verifier.py
+# v1.5.7 089 (F1/A-29): the full bin/ closure SKILL.md + phase_prompts
+# hard-reference. MIRRORED from install_skill.py::_bundle_files() and
+# pinned by test_install_skill_bundle_completeness (drift recreates
+# the A-26 ship-blocker via this doc-sanctioned manual path).
+cp bin/__init__.py                          .claude/skills/quality-playbook/bin/__init__.py
+cp bin/_purpose.py                          .claude/skills/quality-playbook/bin/_purpose.py
+cp bin/archive_lib.py                       .claude/skills/quality-playbook/bin/archive_lib.py
+cp bin/benchmark_lib.py                     .claude/skills/quality-playbook/bin/benchmark_lib.py
+cp bin/citation_verifier.py                 .claude/skills/quality-playbook/bin/citation_verifier.py
+cp bin/council_config.py                    .claude/skills/quality-playbook/bin/council_config.py
+cp bin/council_semantic_check.py            .claude/skills/quality-playbook/bin/council_semantic_check.py
+cp bin/migrate_v1_5_0_layout.py             .claude/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
+cp bin/qpb_config.py                        .claude/skills/quality-playbook/bin/qpb_config.py
+cp bin/quality_playbook.py                  .claude/skills/quality-playbook/bin/quality_playbook.py
+cp bin/reference_docs_ingest.py             .claude/skills/quality-playbook/bin/reference_docs_ingest.py
+cp bin/role_map.py                          .claude/skills/quality-playbook/bin/role_map.py
+cp bin/run_state_lib.py                     .claude/skills/quality-playbook/bin/run_state_lib.py
+cp bin/validate_phase_artifacts.py          .claude/skills/quality-playbook/bin/validate_phase_artifacts.py
+cp bin/qpb_validate.py                      .claude/skills/quality-playbook/bin/qpb_validate.py
+cp bin/qpb_phase.py                         .claude/skills/quality-playbook/bin/qpb_phase.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 # No README ships — cite/ contents are adopter-provided plaintext.
 mkdir -p reference_docs reference_docs/cite
+# v1.5.7: the quality/RUN_INDEX.md sentinel for the gitignore negation
+# rule (without it run_playbook.py's pre-flight aborts "Required
+# sentinel files missing"; install_skill.py creates it too).
+mkdir -p quality
+echo "# Run Index" > quality/RUN_INDEX.md
 # Optional: append the suggested .gitignore rules for adopters (keeps bulk
 # archived runs + reference_docs content out of version control while tracking
 # the top-level RUN_INDEX.md).
@@ -185,11 +275,33 @@ cp references/* .github/skills/references/
 cp phase_prompts/*.md .github/skills/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
 cp agents/*.md .github/skills/agents/
-# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
-# byte-equality citation check (without it, the gate falls back to a WARN path).
-cp bin/citation_verifier.py .github/skills/bin/citation_verifier.py
+# v1.5.7 089 (F1/A-29): the full bin/ closure SKILL.md + phase_prompts
+# hard-reference. MIRRORED from install_skill.py::_bundle_files() and
+# pinned by test_install_skill_bundle_completeness (drift recreates
+# the A-26 ship-blocker via this doc-sanctioned manual path).
+cp bin/__init__.py                          .github/skills/bin/__init__.py
+cp bin/_purpose.py                          .github/skills/bin/_purpose.py
+cp bin/archive_lib.py                       .github/skills/bin/archive_lib.py
+cp bin/benchmark_lib.py                     .github/skills/bin/benchmark_lib.py
+cp bin/citation_verifier.py                 .github/skills/bin/citation_verifier.py
+cp bin/council_config.py                    .github/skills/bin/council_config.py
+cp bin/council_semantic_check.py            .github/skills/bin/council_semantic_check.py
+cp bin/migrate_v1_5_0_layout.py             .github/skills/bin/migrate_v1_5_0_layout.py
+cp bin/qpb_config.py                        .github/skills/bin/qpb_config.py
+cp bin/quality_playbook.py                  .github/skills/bin/quality_playbook.py
+cp bin/reference_docs_ingest.py             .github/skills/bin/reference_docs_ingest.py
+cp bin/role_map.py                          .github/skills/bin/role_map.py
+cp bin/run_state_lib.py                     .github/skills/bin/run_state_lib.py
+cp bin/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
+cp bin/qpb_validate.py                      .github/skills/bin/qpb_validate.py
+cp bin/qpb_phase.py                         .github/skills/bin/qpb_phase.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
+# v1.5.7: the quality/RUN_INDEX.md sentinel for the gitignore negation
+# rule (without it run_playbook.py's pre-flight aborts "Required
+# sentinel files missing"; install_skill.py creates it too).
+mkdir -p quality
+echo "# Run Index" > quality/RUN_INDEX.md
 cat skill-template.gitignore >> .gitignore
 ```
 
@@ -205,37 +317,59 @@ cp references/* .github/skills/quality-playbook/references/
 cp phase_prompts/*.md .github/skills/quality-playbook/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
 cp agents/*.md .github/skills/quality-playbook/agents/
-# v1.5.6 BUG-005: bin/citation_verifier.py needed for quality_gate.py's
-# byte-equality citation check (without it, the gate falls back to a WARN path).
-cp bin/citation_verifier.py .github/skills/quality-playbook/bin/citation_verifier.py
+# v1.5.7 089 (F1/A-29): the full bin/ closure SKILL.md + phase_prompts
+# hard-reference. MIRRORED from install_skill.py::_bundle_files() and
+# pinned by test_install_skill_bundle_completeness (drift recreates
+# the A-26 ship-blocker via this doc-sanctioned manual path).
+cp bin/__init__.py                          .github/skills/quality-playbook/bin/__init__.py
+cp bin/_purpose.py                          .github/skills/quality-playbook/bin/_purpose.py
+cp bin/archive_lib.py                       .github/skills/quality-playbook/bin/archive_lib.py
+cp bin/benchmark_lib.py                     .github/skills/quality-playbook/bin/benchmark_lib.py
+cp bin/citation_verifier.py                 .github/skills/quality-playbook/bin/citation_verifier.py
+cp bin/council_config.py                    .github/skills/quality-playbook/bin/council_config.py
+cp bin/council_semantic_check.py            .github/skills/quality-playbook/bin/council_semantic_check.py
+cp bin/migrate_v1_5_0_layout.py             .github/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
+cp bin/qpb_config.py                        .github/skills/quality-playbook/bin/qpb_config.py
+cp bin/quality_playbook.py                  .github/skills/quality-playbook/bin/quality_playbook.py
+cp bin/reference_docs_ingest.py             .github/skills/quality-playbook/bin/reference_docs_ingest.py
+cp bin/role_map.py                          .github/skills/quality-playbook/bin/role_map.py
+cp bin/run_state_lib.py                     .github/skills/quality-playbook/bin/run_state_lib.py
+cp bin/validate_phase_artifacts.py          .github/skills/quality-playbook/bin/validate_phase_artifacts.py
+cp bin/qpb_validate.py                      .github/skills/quality-playbook/bin/qpb_validate.py
+cp bin/qpb_phase.py                         .github/skills/quality-playbook/bin/qpb_phase.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
+# v1.5.7: the quality/RUN_INDEX.md sentinel for the gitignore negation
+# rule (without it run_playbook.py's pre-flight aborts "Required
+# sentinel files missing"; install_skill.py creates it too).
+mkdir -p quality
+echo "# Run Index" > quality/RUN_INDEX.md
 cat skill-template.gitignore >> .gitignore
 ```
 
-**Cursor, Windsurf, other tools:** Use any of the locations above, or put the skill files (`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and `bin/citation_verifier.py`) in your project root. The runner, gate, and orchestrator agents check all four locations — repo-root `SKILL.md`, Claude's `.claude/skills/quality-playbook/`, and both Copilot layouts.
+**Cursor, Windsurf, other tools:** Use any of the locations above, or put the full skill bundle (50 files: `SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and 13 `bin/*.py` modules — see `bin/install_skill.py::_bundle_files()` for the authoritative list, or the Step 3 manual recipe above) in your project root. The runner, gate, and orchestrator agents check all ten documented install layouts in order — repo-root `SKILL.md` plus the canonical `<marker>/skills/quality-playbook/` subdirectory for each of the 8 supported tools (`.claude`, `.github`, `.cursor`, `.continue`, `.codex`, `.windsurf`, `.cline`, `.aider`), with `.github/skills/` also accepted for the flat Copilot layout. The simplest path for any of these tools is still `python3 -m bin.install_skill --ai-tool <tool>`, which writes to the right subdirectory automatically.
 
 **OpenAI Codex CLI:** v1.5.3 adds the standalone [codex CLI](https://github.com/openai/codex) (codex-cli 0.125+) as a third runner alongside claude and copilot. No separate skill-install layout — codex runs the playbook from any of the locations above. To use it via `bin/run_playbook.py`, pass `--codex` (see Step 4 + the "Running everything autonomously" section below).
 
 ### Step 4: Run the playbook
 
-**Claude Code:**
-```bash
-claude --agent agents/quality-playbook.agent.md
-```
-Add `--dangerously-skip-permissions` to skip file-write approval prompts.
+**Claude Code:** Open Claude Code in your project directory and say: *"Run the QPB install validator against this project (the `qpb_validate.py` entry point inside your QPB installation). For a clone-based install, the command is `python <path-to-your-QPB-clone>/bin/qpb_validate.py <this-project-absolute-path>` (substitute `<path-to-your-QPB-clone>` with your QPB clone path and `<this-project-absolute-path>` with this project's absolute path). Paste the complete structured output — every `event=` line including the run-nonce — into chat. Do not proceed past Phase 0 until `event=validation_complete status=ok`; if `status=remediable`, run each `event=remediation_suggestion`'s command verbatim (for a missing install the validator emits the platform-correct install command, e.g. `python <path-to-your-QPB-clone>/bin/install_skill.py --into <this-project-absolute-path> --ai-tool claude` — run it from your QPB clone) and re-run the validator. Then run the playbook including all four iteration strategies (the agent auto-discovers the installed skill). Execute Phases 1-5 yourself in this session — do not delegate execution to a sub-agent; Phase 6 verification uses a fresh-context auditor sub-agent per the skill's A-13-hybrid contract."* (The validator is the mandatory Phase 0 single source of truth — without a clean `status=ok` the artifact-contract validators and the Phase 6 gate are not at canonical locations; see AGENTS.md "Mode A entry sequence".)
 
-**GitHub Copilot:** Open the chat panel in VS Code, IntelliJ, or any IDE with Copilot support and say: *"Run the quality playbook on this project."* For the CLI, use `copilot-cli` with `--yolo` to skip prompts.
+Add `--dangerously-skip-permissions` when launching `claude` to skip file-write approval prompts during execution.
+
+(For automated batch invocation — headless CI, scripted runs — use the orchestrator agent file via `claude --agent agents/quality-playbook.agent.md`. The orchestrator-agent path spawns sub-agents per phase and hides per-step output from operator chat, which is appropriate for unattended automation but NOT for interactive sessions where the operator monitors output. See `agents/quality-playbook.agent.md`'s "When to use this file" header for the full constraint.)
+
+**GitHub Copilot:** Open the chat panel in VS Code, IntelliJ, or any IDE with Copilot support and say: *"Run the QPB install validator against this project (the `qpb_validate.py` entry point inside your QPB installation). For a clone-based install, the command is `python <path-to-your-QPB-clone>/bin/qpb_validate.py <this-project-absolute-path>`. Paste the complete structured output (every `event=` line) into chat. Do not proceed past Phase 0 until `event=validation_complete status=ok`; if `status=remediable`, run each `event=remediation_suggestion` command verbatim (the validator emits the platform-correct `--ai-tool copilot` install, run from the QPB clone) and re-run the validator. Then run the quality playbook on this project (the agent auto-discovers the installed skill)."* For the CLI, install the standalone `copilot` CLI (preferred — `brew install copilot-cli` on macOS, `winget install GitHub.Copilot` on Windows, or `curl -fsSL https://gh.io/copilot-install | bash` on Linux; npm: `npm install -g @github/copilot`) and invoke it with `copilot -p "<prompt>" --allow-all`. The deprecated `gh copilot` extension (`gh extension install github/gh-copilot`, then `gh copilot -p "<prompt>" --yolo`) still works during GitHub's grace period — QPB auto-detects which CLI is on `PATH` and routes accordingly via `bin/copilot_resolver.py` (v1.5.7 089f). (The validator is the mandatory Phase 0 — see AGENTS.md "Mode A entry sequence".)
 
 **OpenAI Codex CLI:**
 ```bash
 python3 -m bin.run_playbook --codex ./my-project
 ```
-This invokes `codex exec --full-auto` (sandboxed automatic execution; the codex equivalent of `gh copilot --yolo`) for each playbook phase. Codex picks its model from `~/.codex/config.toml` unless you pass `--model gpt-5-codex` (or another model name in your codex config).
+This invokes `codex exec --full-auto` (sandboxed automatic execution; the codex equivalent of the Copilot CLI's `--allow-all` / `--yolo`) for each playbook phase. Codex picks its model from `~/.codex/config.toml` unless you pass `--model gpt-5-codex` (or another model name in your codex config).
 
-**Cursor:** Open Composer (Cmd+I / Ctrl+I) and say: *"Read SKILL.md and run the quality playbook on this project."*
+**Cursor:** Open Composer (Cmd+I / Ctrl+I) and say: *"Run the QPB install validator against this project (the `qpb_validate.py` entry point inside your QPB installation). For a clone-based install, the command is `python <path-to-your-QPB-clone>/bin/qpb_validate.py <this-project-absolute-path>`. Paste the complete structured output (every `event=` line) into chat. Do not proceed past Phase 0 until `event=validation_complete status=ok`; if `status=remediable`, run each `event=remediation_suggestion` command verbatim (the validator emits the platform-correct `--ai-tool cursor` install, run from the QPB clone) and re-run the validator. Then run the quality playbook on this project (the agent auto-discovers the installed skill)."* (The validator is the mandatory Phase 0 — see AGENTS.md "Mode A entry sequence".)
 
-**Windsurf:** Open Cascade and say: *"Read SKILL.md and run the quality playbook on this project."*
+**Windsurf:** Open Cascade and say: *"Run the QPB install validator against this project (the `qpb_validate.py` entry point inside your QPB installation). For a clone-based install, the command is `python <path-to-your-QPB-clone>/bin/qpb_validate.py <this-project-absolute-path>`. Paste the complete structured output (every `event=` line) into chat. Do not proceed past Phase 0 until `event=validation_complete status=ok`; if `status=remediable`, run each `event=remediation_suggestion` command verbatim (the validator emits the platform-correct `--ai-tool windsurf` install, run from the QPB clone) and re-run the validator. Then run the quality playbook on this project (the agent auto-discovers the installed skill)."* (The validator is the mandatory Phase 0 — see AGENTS.md "Mode A entry sequence".)
 
 <a href="images/claude-code-bootstrap-2.png"><img src="images/claude-code-bootstrap-0.png" alt="Giving Claude Code the initial prompt to start the playbook" width="700"></a>
 
@@ -291,6 +425,54 @@ The full autonomous run takes 60-180 minutes depending on codebase size and mode
 ### Step 6: Fix bugs, then recheck
 
 After fixing the bugs from BUGS.md, say *"recheck"* to verify your fixes. Recheck mode reads the existing bug report, checks each bug against the current source (reverse-applying patches, inspecting cited lines), and reports which bugs are fixed vs. still open. Takes 2-10 minutes instead of re-running the full pipeline.
+
+### Running in CI
+
+For headless / CI usage where `python3 -m bin.run_playbook` may be invoked
+from a non-interactive context, see [`docs/CI_INTEGRATION.md`](docs/CI_INTEGRATION.md)
+for the operator-side configuration steps.
+
+**Non-interactive host-CLI invocation (auto-approval flag).** Each supported
+host CLI needs its auto-approval flag (`--yolo` / `--dangerously-skip-permissions`
+/ `--full-auto`) for non-interactive runs — omitting it makes the CLI silently
+deny filesystem ops and cascade into a failed (or fabricated) run. See the
+**Canonical adopter invocations** table in `AGENTS.md` for the exact
+interactive vs non-interactive command per host CLI (Claude Code, the GitHub
+Copilot CLI — new standalone `copilot` and the deprecated `gh copilot`
+extension during the grace period per v1.5.7 089f, codex CLI, codex desktop).
+
+### Known limitations
+
+**Phase validator-invocation contracts are prose-enforced.** Phase 1, Phase 2,
+Phase 5, and Phase 6 each require the agent to invoke `validate_phase_artifacts`
+(Phase 1/2/5) or `quality_gate.py` + the fresh-context auditor (Phase 6) at phase
+boundary and quote the verbatim verdict line. This is currently prose-mandated
+in `phase_prompts/*.md` and the per-phase reference guides — agents are required
+to comply but the requirement is not mechanically enforced. Empirically:
+
+- **Phase 6** — codex desktop performs in-session verification with explicit
+  disclosure rather than dispatching the mandated fresh-context sub-agent
+  (observed 2026-05-18). Claude Code via Task tool + Copilot CLI Mode B dispatch
+  the sub-agent correctly (Copilot CLI was the deprecated `gh copilot`
+  extension at the time of observation; superseded by the standalone
+  `copilot` CLI per v1.5.7 089f).
+- **Phase 1** — codex desktop reported Phase 1 PASS while producing an
+  EXPLORATION.md the validator would have FAILed (observed 2026-05-18
+  self-bootstrap). Either the validator was not invoked, or its FAIL verdict
+  was ignored.
+
+Phase 2 and Phase 5 have the same structural shape and likely fail the same
+way under the same conditions, though they have not surfaced empirically yet.
+
+Operators reviewing phase verdicts should check for verbatim `RESULT: VALIDATION
+PASSED (phase N)` lines (Phase 1/2/5) or fresh-context framing in the auditor
+verdict (Phase 6). If absent, do not treat the verdict as load-bearing.
+
+Structural enforcement is tracked for v1.6.x — see
+`docs/design/QPB_v1.6.x_Phase6_Structural_Enforcement_Proposal.md` (filename
+retains the historical `Phase6` suffix; content covers all phase-boundary
+validator contracts via Slice 0 for Phase 1/2/5 subprocess attestation and
+Slices 1+2 for Phase 6 subprocess verifier + witness-signing).
 
 ## Running the playbook: phases, iterations, and macros
 
@@ -358,6 +540,14 @@ The playbook's value comes from requirement derivation. AI code reviewers are bo
 
 **Phase 6: Verify.** 45 self-check benchmarks validate the generated artifacts against internal consistency rules -- requirement counts match across all surfaces, no stale text remains, every finding has a closure status, and triage probes include executable evidence.
 
+The gate ends with one of **three verdicts** (v1.5.7):
+
+- **GATE PASSED** — the review completed and every audit record is in place. Nothing to do.
+- **GATE PASSED WITH CLEANUP NEEDED** — the bug findings are real, reviewed, and stand on their own; only the audit trail is incomplete (a manifest record missing a field, a per-bug challenge record absent, a cross-site pattern tag not applied). This is **not a failure** — the review is done; only the paperwork needs filling in. Ask your AI assistant to complete the audit records without changing any findings.
+- **GATE FAILED** — a substantive problem: the review didn't complete, specs are missing, the mechanical verifier never ran, or a verdict was fabricated. Fix the listed issues before treating the run as trustworthy.
+
+The split exists so you can tell *"your code is broken in N ways"* apart from *"your audit trail is incomplete in N ways"* — earlier versions reported both as a flat `GATE FAILED — N checks`, and honest record-keeping-incomplete runs (which had found real, TDD-verified bugs) looked identical to runs where the review never happened.
+
 ### Why documentation matters
 
 Adding community documentation to the pipeline produces measurably better results. In a controlled experiment across multiple repositories, documentation-enriched runs found more bugs, different bugs, and higher-confidence bugs than code-only baselines. The documentation gives auditors spec language to check against, turning "this code looks odd" into "this code contradicts the documented behavior."
@@ -392,6 +582,20 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
 
 - **v1.2 — Initial public release.** First tagged version of the playbook with the inspection-style workflow (deskcheck → walkthrough → inspection) and the bug-finding-as-divergence-detection methodology. Tag [`v1.2.16`](https://github.com/andrewstellman/quality-playbook/releases/tag/v1.2.16) (most recent v1.2.x). Design at [`docs/design/QPB_v1.2.15_Design.md`](docs/design/QPB_v1.2.15_Design.md).
 
+### What's new in v1.5.7
+
+v1.5.7 is a cleanup release that makes v1.5.6's runner output research-grade, formalizes the supporting metrics tree, aligns the skill prose with the phase architecture, and adds Council resilience and an adopter-side roster override.
+
+- **Phase 2 gate-failure artifact preservation (D1).** When the Phase 2 gate aborts, the failed `quality/` directory is now preserved as `quality.gate-failed-<UTC-timestamp>/` instead of wiped. Operators can inspect the rejected EXPLORATION.md, the malformed role map, and the partial PROGRESS.md to diagnose what the agent actually produced.
+- **Role-map query cookbook (D2).** New [`references/role_map_queries.md`](references/role_map_queries.md) gives Phase 2 agents canonical `jq` patterns against `quality/exploration_role_map.json`. Phase 2 prompts now point at it explicitly so agents stop hallucinating `.roles.source[]`-style query shapes that return empty.
+- **Centralized log emission at `quality/logs/<run-id>/` (D3).** All log emission for a given run lands under one directory inside the cell. The `--logs-flat` legacy flag is available for adopters whose tooling reads from the old scattered paths. `quality/logs/` is included in the suggested `.gitignore` template.
+- **`metrics/` formalization (D4).** The `metrics/` tree (recall data, calibration ledgers, regression-replay output) is now formally documented in [`metrics/README.md`](metrics/README.md). A reconstruction script rebuilds historical Q1+Q2 data from current artifacts so v1.7's SPC machinery has a stable input shape.
+- **`SKILL.md` trim (D5).** Phase-specific reference-grade content moved from `SKILL.md` into `references/` files (same skill, same install, same behavior). Per-phase token cost is now better aligned with the existing phase architecture's isolation principle. The awesome-copilot Skill Validator's "comprehensive skill" warning prompted this; the underlying observation that every phase invocation loaded the full SKILL.md regardless of relevance was correct. SKILL.md dropped from 66,332 to 26,162 BPE tokens via pure move (no semantic changes, mechanical equivalence verified).
+- **Council resilience and override layer (D6).** Phase 4 Council roster updated to `claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6` (replacing `gemini-2.5-pro` which the Copilot CLI silently dropped support for during the v1.5.6 sweep — observed under the then-active `gh copilot` extension and still missing under the new standalone `copilot` CLI per 089f). Adopters can now override the roster locally via `~/.qpb/config.json` (or `$XDG_CONFIG_HOME/qpb/config.json`) without editing source. v1.5.7 ships the roster modernization (sub-phase 6a) and this adopter override (6c); two further D6 sub-phases — fast-fail Council-launch availability detection (6b) and a structured failure-recovery template (6d) — are deferred to v1.5.7.x.
+- **Ship-readiness fixes (F-1 through F-8).** Install/version detection now uses canonical six-layout markers instead of accepting any root `SKILL.md` as proof of install (F-1). Operator-facing six-layout fallback prose is consistent across SKILL.md, TOOLKIT, verification, review_protocols, and challenge_gate (F-2). *(Historical: the F-1/F-2 marker set was six layouts at v1.5.6; v1.5.7 expanded it to the canonical ten-layout list per A-3 + A-10 + A-11.)* `setup_repos.sh` archives existing target dirs as `.tar.gz` rather than deleting (F-3). The workspace/ guardrail also fails on empty workspace directories (F-4 amendment). *(F-5b — a `run_playbook.sh` wrapper that `setup_repos.sh` installed into target repos — was added then later removed in v1.5.7 089z; the canonical `python3 -m bin.run_playbook <target>` / `python3 bin/run_playbook.py <target>` forms are sufficient.)* Runner hint clarity on gate-failure-preservation state (F-6). Phase 3 BUGS.md/patches consistency gate check (F-7). The Phase 5 verdict shape is mechanically enforced as `## Verdict\n<PASS|FAIL>` (F-8).
+- **Self-audit closures from ship-validation.** Three independent ship-validation runs (Codex bootstrap + chi/cobra copilot benchmarks on a fresh clone of the `v1.5.7` tag) surfaced 12 self-defects in v1.5.7 itself; all 12 are fixed (BUG-001 through BUG-007 from the bootstrap + Q1 through Q5 from the chi/cobra runs). The combined PROGRESS.md two-form schema not-in-drift test gives the deliverable-form and automation-form schemas a single shared test surface for future drift detection.
+- **Test suite.** `bin/tests`: 1661 OK / 0 fail / 7 skipped. Quality-gate tests: 298 OK.
+
 ### What's new in v1.5.6
 
 - **Adopter-facing distribution is now the default path.**
@@ -402,10 +606,12 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
   It auto-detects `.claude/`, `.github/`, `.cursor/`, and `.continue/` targets,
   and it also supports explicit `--into <target-repo>` and `--target <path>`
   flags when the operator wants to pin the destination.
-- **Cross-platform support is part of the release contract.**
+- **Cross-platform support is part of the release contract — and Windows is now directly validated.**
   The install path is written for Windows, macOS, and Linux via `pathlib`-style
-  path handling. Windows was asserted in code and tests, but not directly
-  exercised in this release environment.
+  path handling. As of v1.5.7, Windows is exercised directly, not just asserted:
+  `install_skill.py` installs cleanly on Windows (PowerShell), and full runs
+  complete in both Mode A (Claude Code — natural-language install + run) and
+  Mode B (`run_playbook.py` + the `copilot` CLI).
 - **Re-installs are idempotent and preserve operator edits.**
   Existing files are not silently clobbered; operator-modified copies are
   preserved via timestamped backup handling so install automation does not erase
@@ -455,10 +661,12 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
   on chi-1.3.45. The cycle is closed at 3 of 4 benchmarks; chi-1.5.1 is not a
   4th cell in the per-benchmark recall table.
 - **Known limitations remain in the release notes instead of being buried in validation output.**
-  Windows install behavior is `untested-infrastructure-blocked-pathlib-coverage-extended`
-  (no Windows machine, no Wine, no Windows container in the validation
-  sandbox; cluster D extended `PureWindowsPath` coverage in the install-skill
-  test surface in lieu of a direct run). The reused `chi-1.3.45` Phase 4
+  Windows install + full runs are directly validated as of v1.5.7 (PowerShell;
+  Mode A via Claude Code and Mode B via `run_playbook.py` + the `copilot` CLI).
+  The one Windows-specific note: `quality/logs/latest` is a symlink that needs
+  Developer Mode (or an elevated shell); when unavailable the runner writes a
+  cross-platform `quality/logs/latest.txt` pointer and run resolution is
+  unaffected. The reused `chi-1.3.45` Phase 4
   evidence remains code-only-mode reuse; the docs-backed re-validation was
   dropped in favor of the v1.5.6 cluster 047 architectural fix that closes
   the underlying defect class (see "Role_map architectural fix lands as the
@@ -503,8 +711,10 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
   Clusters 5 (commit `45880cb`) and B (`6a185c4`) replaced hardcoded
   `.github/skills/` paths in `phase_prompts/phase{1..6}.md` with the
   `{skill_fallback_guide}` placeholder that interpolates the canonical
-  six-layout fallback list. Adopters using `.claude/`, `.cursor/`, or
-  `.continue/` install layouts now get phase prompts that point at
+  fallback list (six layouts when clusters 5/B landed; v1.5.7 expanded
+  it to ten per A-3 + A-10 + A-11). Adopters using `.claude/`,
+  `.cursor/`, `.continue/`, `.codex/`, `.windsurf/`, `.cline/`, or
+  `.aider/` install layouts now get phase prompts that point at
   their actual install locations. The phase-prompt regression test
   surface (`PhasePromptHardcodedPathRegressionTests`) covers all six
   phases per-line; future single-layout hardcodes trip a clear failure.
@@ -589,13 +799,16 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
   Instruction 044 (commit `2230ff5`) closed two defects in
   `bin/run_playbook.py`'s post-run "Next iteration suggestion" line:
   (A) the suggestion emitted `<interpreter> <script_path>` form which the
-  runner's own package-module guard rejects with `EX_USAGE=64` —
-  self-contradictory, broke copy-paste workflows; (B) the `runner_flag`
-  dict was missing the `"copilot"` entry, so `--copilot` users got a
-  suggestion that silently dropped the flag and copy-pasted them into
-  default `--claude`. Reported during a model-comparison benchmark sweep
-  on a v1.5.5 branch; lands on `1.5.6`. Two new regression tests pin both
-  bugs.
+  v1.5.4-era package-module guard rejected with `EX_USAGE=64` at the time —
+  self-contradictory, broke copy-paste workflows. (v1.5.7 fix F-5a later
+  removed that guard via sys.path injection, so script-style invocation
+  now works alongside the module form; the suggestion still emits the
+  module form for shortness.)
+  (B) the `runner_flag` dict was missing the `"copilot"` entry, so
+  `--copilot` users got a suggestion that silently dropped the flag and
+  copy-pasted them into default `--claude`. Reported during a
+  model-comparison benchmark sweep on a v1.5.5 branch; lands on `1.5.6`.
+  Two new regression tests pin both bugs.
 - **Manual install recipes match the auto-installer (post-original-tag, instruction 062).**
   The auto-install via `python3 -m bin.install_skill` correctly bundles
   `agents/*.md` and `bin/citation_verifier.py` (per cluster A and BUG-005),
@@ -614,7 +827,7 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
   explains the recommended AI-driven install flow concisely (clone QPB →
   open clone in AI tool → ask AI to install) plus the auto-detection
   behavior, the `--ai-tool` and `--target` fallbacks when detection fails,
-  the Python 3.9+ prerequisite, and a link to the manual `cp` recipes for
+  the Python 3.10+ prerequisite, and a link to the manual `cp` recipes for
   operators who skip the AI handoff. First-time adopters now have a
   90-second readable overview before the detailed walkthrough.
 - **`--ai-tool <name>` flag for explicit AI-tool selection (post-original-tag, instruction 064).**
@@ -717,7 +930,7 @@ The Quality Playbook is developed in a two-half arc. The v1.5.x series is the QC
 - **Phase 5 source-edit guardrail.** The Codex bootstrap on 2026-05-02 went off-rails in Phase 5 and edited five source files outside `quality/` before being killed. v1.5.5 mechanizes the rule: `bin/run_state_lib.validate_no_source_edits()` shells out to `git status --porcelain -z` at run end and flags any non-`quality/` path as a violation. `_finalize_iteration()` calls it in production; on violation, the run is downgraded to `aborted`, the violations are recorded in `quality/results/quality-gate.log` and `quality/PROGRESS.md`, and the iteration is non-shippable.
 - **Calibration-cycle orchestrator.** [`agents/calibration_orchestrator.md`](agents/calibration_orchestrator.md) documents the spawn-and-resume procedure for autonomous calibration cycles — one Claude Code session reads the prompt, runs the cycle's benchmark list end-to-end, applies lever changes between pre/post-lever runs, and writes the cycle audit + `Lever_Calibration_Log.md` entry. Runs as long-lived but stateless across crashes (state IS the filesystem).
 - **Calibration visualizations.** [`bin/visualize_calibration.py`](bin/visualize_calibration.py) produces four artifacts per cycle into `<cycle-dir>/visualizations/`: per-bug × cycle heatmap (the displacement story made visible), lever × benchmark heatmap (recall delta on a red↔green diverging map), recall trajectory chart (per-benchmark line plot with lever-pull annotations), and a Mermaid lever-interaction graph. matplotlib + numpy required (install in the QPB venv).
-- **Seven v1.5.4 self-audit defects fixed.** BUG-001 (CopilotRunner now transports the prompt via stdin instead of argv — silent failure for prompts > ARG_MAX); BUG-002 (`progress_monitor` opens transcripts in binary mode and keeps every offset in bytes — UTF-8 multi-byte content no longer desyncs the monitor); BUG-003 (`_printed_headers` set guarded by a lock); BUG-004 (Claude agent's skill-resolution order corrected to match `bin/run_playbook.py:SKILL_FALLBACK_GUIDE`); BUG-005 (every README invocation example uses the package-module form `python3 -m bin.run_playbook`, since the runner exits `EX_USAGE=64` on script-style invocation); BUG-006 (every operator-facing surface — SKILL.md, agents/, references/, runner WARN messages — routes operators to `reference_docs/` instead of `docs_gathered/`); BUG-007 (`bin/quality_playbook.py` help text matches the actual `archive_lib.ARCHIVE_DIRNAME`). Each landed with a regression test under `bin/tests/`.
+- **Seven v1.5.4 self-audit defects fixed.** BUG-001 (CopilotRunner now transports the prompt via stdin instead of argv — silent failure for prompts > ARG_MAX); BUG-002 (`progress_monitor` opens transcripts in binary mode and keeps every offset in bytes — UTF-8 multi-byte content no longer desyncs the monitor); BUG-003 (`_printed_headers` set guarded by a lock); BUG-004 (Claude agent's skill-resolution order corrected to match `bin/run_playbook.py:SKILL_FALLBACK_GUIDE`); BUG-005 (README invocation examples use the package-module form `python3 -m bin.run_playbook` as the canonical form; v1.5.7 fix F-5a additionally restored script-style `python3 /path/to/QPB/bin/run_playbook.py` as a working alternative form via sys.path injection — the original script-style refusal guard is gone); BUG-006 (every operator-facing surface — SKILL.md, agents/, references/, runner WARN messages — routes operators to `reference_docs/` instead of `docs_gathered/`); BUG-007 (`bin/quality_playbook.py` help text matches the actual `archive_lib.ARCHIVE_DIRNAME`). Each landed with a regression test under `bin/tests/`.
 - **Pre-existing `test_regression_replay` failures resolved.** A new `**Citation:**` field regex extends `bin/regression_replay.py`'s parser to recognize chi-1.5.1's bold-key file-citation form (the v1.5-era variant — without it, every chi-1.5.1 record's `match_key` collapsed to None). The four fixture-count assertions now derive their expected counts from the actual fixture files at runtime so future archive growth doesn't re-stale the tests. Suite goes from 980 tests / 4 failures (inherited from v1.5.4) to 1017 tests / 0 failures.
 
 ### What's new in v1.5.4 (Part 1: Classification Redesign)
@@ -842,7 +1055,10 @@ The repository includes a standard-library Python runner at `bin/run_playbook.py
 
 Positional arguments are **directory paths** (relative or absolute). Omit positional args to run against the current directory. One convenience applies only to **bare names** (no path separators, no leading `.` / `..` / `~`): if `chi` isn't a directory, the runner retries `chi-<version>` using the `version:` line from `SKILL.md` at the QPB root. Path-like inputs (`./chi`, `/abs/chi`) are taken literally — no fallback.
 
-The runner uses package-relative imports, so always invoke it as a package module (`python3 -m bin.run_playbook`) from the quality-playbook repo root.
+Two invocation forms are supported (v1.5.7 fix F-5a):
+
+- `python3 -m bin.run_playbook <target>` — canonical package-module form, runs from the quality-playbook repo root.
+- `python3 /path/to/QPB/bin/run_playbook.py <target>` — direct script form, runs from any cwd. The runner injects QPB root into `sys.path` before importing sibling modules, so package-relative imports resolve regardless of how it's invoked. The pre-v1.5.7 script-style refusal guard is gone.
 
 ```bash
 cd /path/to/quality-playbook
@@ -884,9 +1100,9 @@ options:
   -h, --help            show this help message and exit
   --parallel            Run all targets concurrently (default).
   --sequential          Run targets one after another.
-  --claude              Use claude -p instead of gh copilot.
-  --copilot             Use gh copilot (default).
-  --codex               Use codex exec --full-auto instead of gh copilot.
+  --claude              Use claude -p instead of the Copilot CLI.
+  --copilot             Use the GitHub Copilot CLI (default; auto-detects new standalone `copilot` with deprecated `gh copilot` extension as fallback per v1.5.7 089f).
+  --codex               Use codex exec --full-auto instead of the Copilot CLI.
   --no-seeds            Skip Phase 0/0b seed injection (default).
   --with-seeds          Allow Phase 0/0b seed injection from prior or sibling runs.
   --phase PHASE         Run specific phase(s): 1-6, all, or comma-separated values like 3,4,5.
@@ -920,7 +1136,7 @@ quality-playbook/
 ├── agents/                  # Orchestrator agent files for autonomous runs
 │   ├── quality-playbook-claude.agent.md   # Claude Code orchestrator (sub-agent architecture)
 │   └── quality-playbook.agent.md          # General-purpose orchestrator
-├── bin/                     # Standard-library runner package (Python 3.8+)
+├── bin/                     # Standard-library runner package (Python 3.10+)
 │   ├── __init__.py
 │   ├── benchmark_lib.py     # Shared logging, cleanup, artifact discovery, and summary helpers
 │   ├── run_playbook.py      # Main entry point — positional args are target directories; defaults to cwd

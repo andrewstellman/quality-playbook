@@ -12,11 +12,40 @@ Read these files to get context:
 Execute Phase 3: Code Review + Regression Tests.
 Run the 3-pass code review per quality/RUN_CODE_REVIEW.md. For every confirmed bug:
 - Add to quality/BUGS.md with ### BUG-NNN heading format
+- Write the BUG record with `severity` exactly uppercase: `HIGH` / `MEDIUM` / `LOW` per schemas.md §3.3 (v1.5.7 fix Q3 mandate — Phase 6 gate WARN on case drift). Write `divergence_type` per schemas.md §3.8 (v1.5.7 fix Q2 mandate): `code-spec` / `internal-prose` / `cross-source`.
+- **MANDATORY reachability analysis** (v1.5.7 090j D1, see references/challenge_gate.md "Precision guardrails"): before confirming any HIGH or MEDIUM bug, search the cited code path for upstream guards, filters, early-returns, or compensating mechanisms that would make the defect unreachable. Record the result on the manifest as the field `reachability_analysis` (schemas.md §8.1) — either quote the guard found (and then DEMOTE the candidate, do NOT confirm) or state plainly "no guard; <defect path> reached unconditionally." The Phase 6 gate FAILs any HIGH/MEDIUM bug without this field; LOW severity gets a WARN.
+- **If the finding cites a CVE** (v1.5.7 090j D2/D3): set `cve_reference: "<CVE-id>"` AND `cve_version_applies: true | false` (boolean — `true` iff the audited version is within the CVE's affected range). If the audited version is OUTSIDE the CVE's affected range, downgrade severity to MEDIUM or below — HIGH on a CVE basis requires applicability. If the finding's sole basis is the advisory with no in-tree code defect located, set `classification: known-issue` (schemas.md §3.11) — the record is surfaced to operators but is excluded from the bug count and precision metrics.
 - Write a regression test (xfail-marked)
 - Generate quality/patches/BUG-NNN-regression-test.patch (MANDATORY for every confirmed bug)
 - Generate quality/patches/BUG-NNN-fix.patch (strongly encouraged)
 - Write code review reports to quality/code_reviews/
 - Update PROGRESS.md BUG tracker
+
+**Recommended: disposable git worktree for executable RED→GREEN verification.**
+When your regression-test patch and fix patch need to compile or
+execute to validate (Go, TypeScript, Rust — languages where `git apply
+--check` alone doesn't catch semantic regressions), use an ephemeral
+`git worktree` so the source tree is never mutated even transiently:
+
+```
+git worktree add /tmp/qpb-validate-<bug-id> HEAD
+cd /tmp/qpb-validate-<bug-id>
+git apply <path-to-regression-test>.patch
+<run the project's test command>   # expect FAIL (RED)
+git apply <path-to-fix>.patch
+<run the project's test command>   # expect ok (GREEN)
+cd <original target dir>
+git worktree remove /tmp/qpb-validate-<bug-id>
+```
+
+This is OPTIONAL — `git apply --check` is sufficient for mechanical
+patch validation per the existing source-unchanged invariant. The
+worktree pattern is preferred when patches need execution because:
+- The source tree is never modified, not even transiently
+- Multiple bugs can be validated in parallel worktrees
+- Discard is one command (`git worktree remove`)
+- 2026-05-18 Claude Code Opus 4.7 used this pattern on cobra to
+  validate 5 bugs RED→GREEN without ever touching the source tree
 
 ### MANDATORY GRID STEP (Lever 2, v1.5.2) — pattern-tagged REQs only
 
@@ -152,3 +181,5 @@ Before writing the Phase 3 completion checkpoint to PROGRESS.md, confirm each it
 Mark Phase 3 (Code review + regression tests) complete in PROGRESS.md (use the checkbox format `- [x] Phase 3 - Code Review` — do NOT switch to a table).
 
 IMPORTANT: Do NOT proceed to Phase 4 (spec audit). The next phase will run the spec audit with a fresh context window.
+
+After completing this phase, emit `## What just happened` + `### What to do next` as the LAST visible output in chat per the decision tree at `references/what_just_happened.md`. Use the State P3 template (Phase 3 just completed; next is Phase 4) — the reference file's classifier handles edge cases like stubbed reviews (State S applies later, once Phases 3-5 collectively pass with zero `### BUG-` headings).

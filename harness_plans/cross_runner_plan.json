@@ -1,0 +1,74 @@
+{
+  "$header_note": "Cross-runner + cross-mode harness run (v1.5.7). Exercises all three runners and both modes on the bug-present gson (pre-fix SHA 27d9ba1, the duplicate-key defect): claude/opus Mode A (accumulating single-session) ×2, claude/opus Mode B (run_playbook clean-context phases) ×2, copilot/gpt-5.4 Mode A, and codex/gpt-5.3-codex Mode A at LOW reasoning effort (the deliberately-weak config). pools run claude 2-at-a-time alongside one copilot + one codex (peak 4 parallel). expect is intentionally empty {} — this is an observational harness-validation + cross-runner look, not a graded acceptance; read the SUMMARY + per-run verdicts. Requires 122 (readable log renderer) + 123 (Mode B pristine-checkout) landed. NOTE: the 4 claude runs draw on the Anthropic weekly limit; copilot (GitHub) + codex (OpenAI) use other providers and won't be blocked by Claude quota. Run from a clean repos/-rooted runs-root; with 123, a dirty QPB dev tree no longer aborts Mode B.",
+
+  "pools": {
+    "claude": 2,
+    "copilot": 1,
+    "codex": 1
+  },
+
+  "runs": [
+    {
+      "description": "Claude Opus, Mode A run 1: a single session runs all six phases of the Quality Playbook on gson without stopping, accumulating the full context. The accumulating-context configuration.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "clone",
+      "mode": "A",
+      "expect": {}
+    },
+    {
+      "description": "Claude Opus, Mode A run 2: identical accumulating single-session full-pipeline gson run, repeated.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "clone",
+      "mode": "A",
+      "expect": {}
+    },
+    {
+      "description": "Claude Opus, Mode B run 1: run_playbook drives each of the six phases in its own clean-context session (the recommended QPB flow), via the 123 pristine-checkout path.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "clone",
+      "mode": "B",
+      "expect": {}
+    },
+    {
+      "description": "Claude Opus, Mode B run 2: identical run_playbook clean-context phase-by-phase gson run, repeated.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "clone",
+      "mode": "B",
+      "expect": {}
+    },
+    {
+      "description": "GitHub Copilot driving GPT-5.4, Mode A: a capable non-Claude runner reviews the same bug-present gson, exercising the copilot adapter end-to-end.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "copilot",
+      "model": "gpt-5.4",
+      "channel": "clone",
+      "mode": "A",
+      "expect": {}
+    },
+    {
+      "description": "Codex driving GPT-5.3-Codex at LOW reasoning effort, Mode B: run_playbook drives codex one fresh `codex exec` per phase (codex exec is single-turn, so Mode A is rejected per instruction 124). Exercises the codex adapter end-to-end via Mode B plus the low-thinking parameter passthrough — the live verification of codex-through-the-pipeline that CI couldn't do.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "codex",
+      "model": "gpt-5.3-codex",
+      "channel": "clone",
+      "mode": "B",
+      "parameters": ["--runner-extra-args", "-c 'model_reasoning_effort=\"low\"'"],
+      "prep_timeout_s": 120,
+      "expect": {}
+    }
+  ]
+}

@@ -540,6 +540,34 @@ def _qpb_dir() -> Path:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
+    if not _argv_list_089x:
+        _print_command_intro(
+            name='regression_replay',
+            summary=(
+            "**Superseded** apparatus (per CALIBRATION_PROTOCOL.md) "
+            "— kept for parsing historical benchmark fixtures from "
+            "earlier calibration arcs. "
+            ),
+            role=(
+            "Not called during a playbook run. Preserved for "
+            "operators inspecting pre-CALIBRATION_PROTOCOL fixture "
+            "archives. "
+            ),
+            usage_hint='python3 -m bin.regression_replay <fixture-path>',
+        )
+        return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(_argv_list_089x)
+
     args = _build_parser().parse_args(argv)
 
     qpb_dir = _qpb_dir()

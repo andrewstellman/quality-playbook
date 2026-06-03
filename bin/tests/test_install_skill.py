@@ -266,6 +266,70 @@ class EnvironmentDetectionTests(unittest.TestCase):
                 f"stderr={result.stderr!r}",
             )
 
+    def test_reference_docs_ingest_bundled_in_install(self) -> None:
+        """v1.5.7 fix F-1: bin/reference_docs_ingest.py must land at the
+        install destination so Phase 1's `python -m bin.reference_docs_ingest`
+        invocation resolves. Pre-fix every benchmark target hard-stopped at
+        Phase 1 with ModuleNotFoundError because the script lived only in
+        the QPB clone, not at the install root."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            target = tmp / "explicit-install"
+            rc, out = _capture_install(target=target, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            ingest_path = target / "bin" / "reference_docs_ingest.py"
+            self.assertTrue(
+                ingest_path.is_file(),
+                f"bin/reference_docs_ingest.py missing at install destination "
+                f"({ingest_path}); Phase 1 will hard-stop with "
+                f"ModuleNotFoundError. Output: {out}",
+            )
+            # benchmark_lib is a transitive dep (reference_docs_ingest
+            # imports it at module load) — both must be present or Phase 1
+            # fails at ImportError before it can run.
+            benchmark_lib_path = target / "bin" / "benchmark_lib.py"
+            self.assertTrue(
+                benchmark_lib_path.is_file(),
+                f"bin/benchmark_lib.py missing at install destination "
+                f"({benchmark_lib_path}); reference_docs_ingest module load "
+                f"will fail. Output: {out}",
+            )
+            self.assertIn(
+                "bin/reference_docs_ingest.py", out,
+                "expected event=copy file=...bin/reference_docs_ingest.py line "
+                "in installer output",
+            )
+
+    def test_installed_reference_docs_ingest_is_importable(self) -> None:
+        """v1.5.7 fix F-1: after install, the bundled
+        bin/reference_docs_ingest.py must load as a module
+        (`python -m bin.reference_docs_ingest --help`) from the install
+        destination. Catches the case where the module file lands but its
+        transitive imports (benchmark_lib) are missing."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            target = tmp / "explicit-install"
+            rc, out = _capture_install(target=target, source_root=REPO_ROOT)
+            self.assertEqual(rc, 0, out)
+            env = os.environ.copy()
+            # Remove PYTHONPATH so the source clone's bin/ doesn't satisfy
+            # the import — we want to verify the BUNDLED module + its
+            # transitive deps resolve at the install destination.
+            env.pop("PYTHONPATH", None)
+            result = subprocess.run(
+                [sys.executable, "-m", "bin.reference_docs_ingest", "--help"],
+                cwd=target,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            self.assertEqual(
+                result.returncode, 0,
+                f"bin.reference_docs_ingest --help failed at install "
+                f"destination: stdout={result.stdout!r} stderr={result.stderr!r}",
+            )
+
     def test_target_override(self) -> None:
         """--target wins even when an environment is detectable."""
         with TemporaryDirectory() as tmp_str:
@@ -443,11 +507,52 @@ class SmokeCheckTests(unittest.TestCase):
                 "quality_gate_help",
                 "skill_md_frontmatter",
                 "exploration_patterns_loaded",
+                "bundle_presence",  # v1.5.7 BUG-003
             ):
                 self.assertIn(
                     f"check={check} status=passed", out,
                     f"smoke check {check} did not pass; output: {out}",
                 )
+
+    def test_smoke_check_bundle_presence_catches_missing_member(self) -> None:
+        """v1.5.7 BUG-003 bite: if a bundle member is missing or empty
+        at the install destination, the new bundle-presence smoke check
+        fails with a diagnostic naming the missing file. Pre-fix the
+        smoke check covered only quality_gate.py + SKILL.md frontmatter
+        + exploration_patterns.md — silent gaps elsewhere in the bundle
+        slipped through."""
+        with TemporaryDirectory() as tmp_str:
+            tmp = Path(tmp_str)
+            target = tmp / "install"
+            # Initial clean install (smoke skipped — we'll run it
+            # ourselves after sabotaging a bundle member).
+            rc, _ = _capture_install(
+                target=target, source_root=REPO_ROOT, no_smoke=True,
+            )
+            self.assertEqual(rc, 0)
+            # Sabotage a bundle member that the old smoke check would
+            # NOT have noticed (the old 3 checks don't touch
+            # agents/quality-playbook.agent.md).
+            sabotaged = target / "agents" / "quality-playbook.agent.md"
+            self.assertTrue(
+                sabotaged.is_file(),
+                "sabotage precondition: agents/quality-playbook.agent.md "
+                "must be in the install bundle",
+            )
+            sabotaged.unlink()
+            # Re-run JUST the bundle-presence smoke check.
+            buf = io.StringIO()
+            emitter = install_skill.Emitter(verbose=False, stream=buf)
+            ok = install_skill.smoke_check_bundle_presence(
+                target, REPO_ROOT, emitter,
+            )
+            output = buf.getvalue()
+            self.assertFalse(
+                ok,
+                f"expected bundle smoke check to fail; output: {output}",
+            )
+            self.assertIn("status=failed", output)
+            self.assertIn("agents/quality-playbook.agent.md", output)
 
     def test_smoke_check_catches_broken_quality_gate(self) -> None:
         """Install with --no-smoke, deliberately break quality_gate.py
@@ -623,20 +728,34 @@ class PathlibCrossPlatformTests(unittest.TestCase):
             # Track which top-level region the destination falls
             # under for the regions_seen set.
             top = dst.parts[0]
-            if top in ("SKILL.md", "quality_gate.py"):
+            if top in ("SKILL.md", "quality_gate.py",
+                       "skill-template.gitignore"):
+                # v1.5.7 090u: skill-template.gitignore joined the
+                # top-level bundle so the
+                # ``scaffolding_missing_gitignore`` remediation can
+                # point at <root>/skill-template.gitignore on a
+                # channel install (root cause of the 2026-05-25 Keto
+                # run5 + NATS run2 Phase-0 friction).
                 regions_seen.add(top)
-            elif top in ("references", "phase_prompts", "agents", "bin"):
+            elif top in ("references", "phase_prompts", "agents", "bin",
+                          "ai_context"):
                 # v1.5.6 BUG-005: bin/ joined the bundle to ship
                 # citation_verifier.py at the install destination so
                 # quality_gate.py's soft-import resolves there instead
                 # of falling back to WARN.
+                # v1.5.7 132: ai_context/ joined the bundle for the
+                # single file ai_context/TOOLKIT.md (the doc-gathering
+                # protocol's Step 0 grounding doc); only TOOLKIT.md
+                # ships from ai_context/ (explicit allowlist entry, not
+                # a glob).
                 regions_seen.add(top)
             else:
                 self.fail(
                     f"unexpected top-level destination region: {top!r} "
-                    f"(in {dst!r}). Six regions are supported: "
-                    f"SKILL.md, quality_gate.py, references/, "
-                    f"phase_prompts/, agents/, bin/."
+                    f"(in {dst!r}). Eight regions are supported: "
+                    f"SKILL.md, quality_gate.py, "
+                    f"skill-template.gitignore, references/, "
+                    f"phase_prompts/, agents/, bin/, ai_context/."
                 )
             # Joined with a Windows root, the result is a well-formed
             # Windows path with no doubled separators and the drive
@@ -669,9 +788,12 @@ class PathlibCrossPlatformTests(unittest.TestCase):
             )
         self.assertEqual(
             regions_seen,
-            {"SKILL.md", "quality_gate.py", "references",
-             "phase_prompts", "agents", "bin"},
-            f"expected all six bundle regions; got {regions_seen}",
+            {"SKILL.md", "quality_gate.py",
+             "skill-template.gitignore", "references",
+             "phase_prompts", "agents", "bin", "ai_context"},
+            f"expected all eight bundle regions (v1.5.7 090u added "
+            f"skill-template.gitignore; 132 added ai_context/ for "
+            f"TOOLKIT.md); got {regions_seen}",
         )
 
     def test_install_path_separator_independence(self) -> None:
@@ -869,6 +991,73 @@ class AiToolFlagTests(unittest.TestCase):
             self.assertEqual(rc, 64, out)
             self.assertIn("event=refuse", out)
             self.assertIn("target-and-ai-tool-mutually-exclusive", out)
+
+
+class BundleManifestClosureTests(unittest.TestCase):
+    """v1.5.7 instruction 050 A-6.2: install_skill._bundle_files()
+    must bundle the full quality_playbook closure so an adopter
+    Mode-A run hitting Phase 4's `python3 -m bin.quality_playbook
+    semantic-check ...` (phase_prompts/phase4.md:26,43) resolves at
+    the install destination instead of ModuleNotFoundError
+    (self-bootstrap masked this — cwd is the QPB clone).
+
+    Closure traced (AST) from quality_playbook.py's imports + each
+    module's transitive `from .` imports; benchmark_lib was bundled
+    in 049 (A-6.1).
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160): delete the
+    instruction-050 A-6.2 closure block from
+    bin/install_skill.py:_bundle_files() (the `qpb_init_src` +
+    `for _mod_name in (...)` loop after the benchmark_lib_src block).
+    Expected failure: this test fails listing every missing closure
+    dest (bin/__init__.py + the six bin/<module>.py). Restore the
+    block → passes. Bite verified during instruction 050 development.
+
+    The expected set is a LIST (not a hardcoded count) so a future
+    closure addition is added here without a brittle count assertion.
+    """
+
+    # 6 modules + __init__.py. benchmark_lib.py is intentionally NOT
+    # listed — it is bundled by the separate 049 A-6.1 block; this
+    # test pins ONLY the instruction-050 closure additions.
+    EXPECTED_CLOSURE_DESTS = (
+        "bin/__init__.py",
+        "bin/quality_playbook.py",
+        "bin/archive_lib.py",
+        "bin/council_semantic_check.py",
+        "bin/migrate_v1_5_0_layout.py",
+        "bin/role_map.py",
+        "bin/council_config.py",
+    )
+
+    def test_bundle_includes_quality_playbook_closure(self) -> None:
+        manifest = install_skill._bundle_files(REPO_ROOT)
+        dests = {str(dest) for _src, dest in manifest}
+        missing = [
+            d for d in self.EXPECTED_CLOSURE_DESTS if d not in dests
+        ]
+        self.assertEqual(
+            missing, [],
+            "install_skill._bundle_files() is missing quality_playbook "
+            f"closure entries: {missing}. Adopter Mode-A Phase-4 "
+            "semantic-check would ModuleNotFoundError. (A-6.2)",
+        )
+
+    def test_closure_src_paths_resolve_in_real_qpb_tree(self) -> None:
+        """Each bundled closure entry's source path must exist in the
+        QPB tree — _bundle_files only appends when src.is_file(), so a
+        present manifest entry implies a real source; pin that for
+        the closure."""
+        manifest = install_skill._bundle_files(REPO_ROOT)
+        by_dest = {str(d): s for s, d in manifest}
+        for dest in self.EXPECTED_CLOSURE_DESTS:
+            self.assertIn(dest, by_dest)
+            self.assertTrue(
+                Path(by_dest[dest]).is_file(),
+                f"closure manifest entry {dest} points at missing "
+                f"source {by_dest[dest]}",
+            )
 
 
 if __name__ == "__main__":

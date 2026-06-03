@@ -167,3 +167,25 @@ def load_archived_runs(
                 break
         out[run_id] = gate_results
     return out
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.execution_gate_loader',
+        summary=(
+            "Loader for the skill-derivation execution-gate config (which "
+            "divergence detectors are enabled for a given target). "
+        ),
+        role=(
+            "Imported by skill_derivation passes B/C to determine which "
+            "detectors to fan out to. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

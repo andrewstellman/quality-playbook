@@ -1,11 +1,34 @@
 # Local skill installations (test copies, not the canonical source)
 .github/
 
-# Claude Code local settings (session-specific permissions, not part of the skill)
+# Per-AI-tool skill installations created by bin/install_skill.py --ai-tool <tool>.
+# QPB's canonical source-of-truth is bin/install_skill.py + .github/skills/ +
+# bin/ + phase_prompts/ + references/ + agents/ + SKILL.md. The per-flavor
+# installed directories are bootstrap artifacts from QPB auditing itself.
 .claude/
+.codex/
+.cursor/
+.continue/
+.windsurf/
+.cline/
+.aider/
+
+# install_skill.py::_ensure_sentinel_files() (v1.5.7 A-24) creates
+# informal_docs/README.md as a sentinel for the gitignore template's
+# negation rules. Adopters get the directory on install with the README
+# explaining its purpose. QPB's own repo doesn't need to track its
+# self-install copy. v1.6.x Requirements Review will activate this
+# directory as a first-class source class (informal-spec role tag).
+informal_docs/
 
 # Test repos and run artifacts (used for playbook evaluation, not part of the skill)
 repos/
+
+# v1.5.7 149: harness run output (timestamped run folders) — the
+# canonical output convention going forward. Never tracked.
+harness_runs/
+# legacy hyphen variant (older operators may still have it on disk)
+harness-runs/
 
 # docs_gathered/ is NEVER tracked — it contains AI chat history and other
 # private reference material that must not be published. This rule applies at
@@ -50,8 +73,13 @@ Thumbs.db
 *.swo
 *~
 
-# Council review artifacts (prompts, responses, briefings)
-council-reviews/
+# All review artifacts (Council, DOC_GATHERING_PROMPT, future artifact reviews
+# of TOOLKIT.md / phase prompts / the rubric / etc.). Each reviewed artifact
+# gets a subdir: reviews/council/, reviews/doc-gathering-prompt/, …
+# Async harness review-requests/results live OUTSIDE QPB at
+# v1.5.7_runner/reviews/ in the Cowork session folder — those are not
+# affected by this rule.
+reviews/
 
 # Pattern discovery working files
 pattern-discovery/
@@ -60,3 +88,16 @@ qpb-*.log
 
 # Local cycle helper scripts (one-off serial runners; not part of the skill)
 run-serial.sh
+
+# Metrics files 
+metrics/bootstrap_recall/
+metrics/cross_version_trends/
+metrics/*/.backup-*/
+
+
+# v1.5.7 089u — pip channel build artifacts
+quality_playbook_cli/_bundle/
+build/
+dist/
+*.egg-info/
+quality-playbook-*.tgz

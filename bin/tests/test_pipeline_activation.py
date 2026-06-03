@@ -269,7 +269,7 @@ class PrePlayedBenchmarkPipelineActivationTests(unittest.TestCase):
 
 class CodeReviewSkipPredicateTests(unittest.TestCase):
     """v1.5.4 Phase 2 Site 2: ``_code_review_should_skip`` returns
-    ``None`` (Phase 3 runs) when the role map is absent or unparseable.
+    ``None`` (Phase 3 runs) when the role map is absent or unparsable.
     Pre-Phase-1 invocations and pre-iteration targets keep the v1.5.3
     behaviour — Phase 3 runs as before. A present-and-valid role map
     with zero ``code`` files returns a skip-reason string."""
@@ -280,7 +280,7 @@ class CodeReviewSkipPredicateTests(unittest.TestCase):
                 run_playbook._code_review_should_skip(Path(tmp))
             )
 
-    def test_unparseable_role_map_returns_none(self) -> None:
+    def test_unparsable_role_map_returns_none(self) -> None:
         with TemporaryDirectory() as tmp:
             quality = Path(tmp) / "quality"
             quality.mkdir()

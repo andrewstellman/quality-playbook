@@ -1,0 +1,64 @@
+{
+  "$header_note": "v1.5.7 instruction 125 LIVE cap-validation plan. Cheap models only — claude/haiku + codex/gpt-5.2 (low thinking) + copilot/auto — so we can exercise the global per-provider cap without burning Opus quota. The plan is sized to trigger the default anthropic cap (=2): 3 claude/haiku Mode A runs ⇒ 2 launch immediately, the 3rd WAITS in acquire_run_slot until one of the first two terminates and the collector releases its lifetime slot. Watch `qpb_harness status` show `in-flight: anthropic 2/2  openai 1/3  github 1/3` while runs are in flight, and the third haiku show up only after slot 1 or 2 frees. Also a 124 follow-up: live confirmation that codex Mode B with gpt-5.2 at low reasoning effort actually drives each phase rather than hedging (the caveat in 124's review). Plan uses the well-validated bug-present gson ref (27d9ba1) on channel=clone (no install dance) so the runs are fast + predictable. expect is intentionally empty — this is a harness-mechanism test, not a graded acceptance. Default global caps (anthropic=2, openai=3, github=3) are what we want exercised, so do NOT pass --max-per-provider to run-plan unless the operator's quota tolerates more. After this lands clean, the final Opus run can ship with confidence.",
+
+  "pools": {
+    "claude": 3,
+    "codex": 1,
+    "copilot": 1
+  },
+
+  "runs": [
+    {
+      "description": "Claude haiku, Mode A run 1 of 3: full-pipeline single-session gson run. Anthropic global cap = 2 ⇒ this one launches immediately.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "clone",
+      "mode": "A",
+      "expect": {}
+    },
+    {
+      "description": "Claude haiku, Mode A run 2 of 3: identical accumulating single-session gson run. Anthropic global cap = 2 ⇒ this one also launches immediately.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "clone",
+      "mode": "A",
+      "expect": {}
+    },
+    {
+      "description": "Claude haiku, Mode A run 3 of 3: the cap-bite. Anthropic global cap = 2 already taken by runs 1+2 ⇒ acquire_run_slot WAITS until the collector releases one of the first two (terminal state). Visible via `qpb_harness status` showing this run still pending while in-flight count holds at anthropic 2/2.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "clone",
+      "mode": "A",
+      "expect": {}
+    },
+    {
+      "description": "Codex driving gpt-5.2 at LOW reasoning effort, Mode B: per 124 codex MUST be Mode B (codex exec is single-turn). Live confirmation that gpt-5.2 (the older/cheaper codex model) actually completes each per-phase invocation rather than hedging — the 124 review's outstanding caveat. Openai provider, default global cap = 3, well under.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "codex",
+      "model": "gpt-5.2",
+      "channel": "clone",
+      "mode": "B",
+      "parameters": ["--runner-extra-args", "-c 'model_reasoning_effort=\"low\"'"],
+      "prep_timeout_s": 120,
+      "expect": {}
+    },
+    {
+      "description": "GitHub Copilot with model=auto, Mode A: exercises the copilot adapter end-to-end on the github provider lane through the 125 cap path. Lets copilot pick its own model — observational, not graded.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "copilot",
+      "model": "auto",
+      "channel": "clone",
+      "mode": "A",
+      "expect": {}
+    }
+  ]
+}

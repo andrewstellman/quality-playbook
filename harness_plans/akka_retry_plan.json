@@ -1,0 +1,28 @@
+{
+  "$header_note": "QPB v1.5.7 akka retry — single-row codex/gpt-5.4 Mode B run on akka after the original round-2 attempt hit a codex usage limit at 03:23:56Z. The codex error said reset at 'Jun 1st 12:46 AM' (likely EDT = 04:46 UTC), so the quota should be free by the time this fires. Mode B + clone channel are the same configuration that produced 10 verified bugs on sidekiq in harness_runs/20260531T234613Z. akka's Scala actor model + supervision hierarchy is concurrency-heavy in the same family as sidekiq's job-queue surface, but in a different language → likely to surface different bug shapes. Standalone single-runner plan so it doesn't compete with any in-flight copilot/claude work.",
+
+  "pools": {
+    "codex": 1
+  },
+
+  "runs": [
+    {
+      "description": "akka retry — codex/gpt-5.4 reviews akka (Scala/Java actors, ref=main) via clone channel (Mode B). Original round-2 attempt at 20260601T032323Z/run-02 aborted at 4s on codex usage limit; this retry expects fresh quota.",
+      "repo": "https://github.com/akka/akka",
+      "ref": "main",
+      "runner": "codex",
+      "model": "gpt-5.4",
+      "channel": "clone",
+      "mode": "B",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    }
+  ]
+}

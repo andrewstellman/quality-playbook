@@ -14,15 +14,21 @@ from bin import quality_playbook
 
 
 class QualityPlaybookShimTests(unittest.TestCase):
-    def test_no_args_prints_usage_and_exits_1(self) -> None:
+    def test_no_args_prints_purpose_banner_and_exits_0(self) -> None:
+        """v1.5.7 089x: no-args is purpose-banner-safe. Pre-089x,
+        bare invocation exited 1 with a "usage" stub listing
+        subcommands; 089x replaces that with the universal
+        purpose-banner contract (every bin/*.py prints
+        `Quality Playbook v<ver>` + `Role in a playbook run:` +
+        the attribution footer and exits 0)."""
         buf = io.StringIO()
         with redirect_stdout(buf):
             rc = quality_playbook.main([])
-        self.assertEqual(rc, 1)
+        self.assertEqual(rc, 0)
         out = buf.getvalue()
-        self.assertIn("quality_playbook <subcommand>", out)
-        self.assertIn("archive", out)
-        self.assertIn("migrate", out)
+        self.assertIn("Quality Playbook v", out)
+        self.assertIn("Role in a playbook run:", out)
+        self.assertIn("by Andrew Stellman", out)
 
     def test_help_flag_exits_0(self) -> None:
         buf = io.StringIO()

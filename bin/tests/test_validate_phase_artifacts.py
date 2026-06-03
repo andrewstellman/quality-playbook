@@ -1,0 +1,722 @@
+"""v1.5.7 instruction 065 (A-14 + A-15 + A-16) — tests for the
+phase-boundary artifact-contract validator.
+
+Each defect class has at least one test carrying the full
+mutation/expected-failure/restoration docstring per
+ai_context/DEVELOPMENT_PROCESS.md:152-160; the A-16 bite was
+EXECUTED during instruction-065 development (PASS→FAIL→PASS,
+__pycache__ purged between mutate and restore).
+
+The validator's self-authenticating final `RESULT:` line is what
+the phase prompts depend on (introduced in instruction 067 F2 —
+`RESULT: VALIDATION PASSED|FAILED|ERROR`). The exit code is
+unchanged (0 = clean, 1 = violation, 2 = usage); the tests assert
+both the integer return of `main(argv)` and the emitted `RESULT:`
+line, not just the internal fail list.
+"""
+
+from __future__ import annotations
+
+import contextlib
+import io
+import json
+import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+_QPB_ROOT = Path(__file__).resolve().parents[2]
+
+from bin import role_map  # noqa: E402
+from bin import validate_phase_artifacts as vpa  # noqa: E402
+
+_ISO = "2026-05-16T22:30:00Z"
+
+
+def _run(target: Path, phase: int) -> tuple[int, str]:
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = vpa.main([str(target), "--phase", str(phase)])
+    return rc, buf.getvalue()
+
+
+def _quality(tmp: str) -> Path:
+    q = Path(tmp) / "quality"
+    q.mkdir(parents=True, exist_ok=True)
+    return q
+
+
+def _write(path: Path, obj) -> None:
+    path.write_text(json.dumps(obj), encoding="utf-8")
+
+
+# v1.5.7 instruction 072/073 A-19: --phase 2 now requires ALL four
+# record-shaped manifests to be PRESENT (absence is a defect, not
+# just wrong-shape). Tests that previously wrote a single manifest
+# and expected exit 0 must now establish the full canonical baseline
+# first, then mutate the one manifest under test.
+def _write_all_required_manifests(q: Path) -> None:
+    """Write the four unconditionally-required Phase-2
+    record-shaped manifests in canonical §1.6 shape (no Tier 1/2
+    REQ, so citation_semantic_check.json stays the §9.1 vacuous
+    case)."""
+    for name in ("formal_docs_manifest.json",
+                 "requirements_manifest.json",
+                 "use_cases_manifest.json",
+                 "bugs_manifest.json"):
+        _write(q / name,
+               {"schema_version": "1.5.7", "generated_at": _ISO,
+                "records": []})
+
+
+def _valid_index_payload(gate_verdict: str = "pending") -> dict:
+    return {
+        "schema_version": "2.0",
+        "run_timestamp_start": _ISO,
+        "run_timestamp_end": _ISO,
+        "duration_seconds": 42,
+        "qpb_version": "1.5.7",
+        "target_repo_path": "/tmp/target",
+        "target_repo_git_sha": "deadbeef",
+        "phases_executed": [{"phase_id": 1, "model": "opus", "start": _ISO,
+                             "end": _ISO, "exit_status": "success"}],
+        "summary": {"requirements": {}, "bugs": {},
+                    "gate_verdict": gate_verdict},
+        "artifacts": ["quality/EXPLORATION.md"],
+        "target_role_breakdown": {"files_by_role": {}, "size_by_role": {},
+                                  "percentages": {}},
+    }
+
+
+def _write_index(q: Path, payload: dict) -> None:
+    (q / "INDEX.md").write_text(
+        "# Run Index\n\n```json\n" + json.dumps(payload, indent=2)
+        + "\n```\n",
+        encoding="utf-8",
+    )
+
+
+class Phase2ManifestWrapperTests(unittest.TestCase):
+    """A-14 — Phase 2 manifest wrapper §1.6 enforcement."""
+
+    def test_phase2_rejects_bugs_array_key(self) -> None:
+        """The validator exit-codes 1 when bugs_manifest.json uses
+        the `bugs` array key instead of canonical `records`.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-065
+        A-14:
+          Mutation: in bin/validate_phase_artifacts.py
+          _validate_manifest_wrapper, change the array-key check
+          `if not isinstance(obj.get(array_key), list):` to
+          `if False:` (never flag a missing records array).
+          Expected failure: THIS test fails at
+            self.assertEqual(rc, 1) → AssertionError: 0 != 1
+          because the validator no longer rejects the `bugs`-keyed
+          manifest (it would exit 0).
+          Restoration: restore the `isinstance(obj.get(array_key),
+          list)` check; test passes.
+          The A-16 sibling bite (test_phase1_rejects_null_breakdown)
+          was EXECUTED during instruction-065 development
+          PASS→FAIL→PASS with __pycache__ purged between mutate and
+          restore; this A-14 check is structurally identical (same
+          rc==1 contract on a synthetic wrong-shape fixture) — the
+          executed A-16 bite establishes the family.
+        """
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write(q / "bugs_manifest.json",
+                    {"schema_version": "1.5.7", "bugs": [{"id": "BUG-1"}]})
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("missing top-level 'records' array", out)
+
+    def test_phase2_rejects_null_generated_at(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write(q / "requirements_manifest.json",
+                   {"schema_version": "1.5.7", "generated_at": None,
+                    "records": []})
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("generated_at", out)
+
+    def test_phase2_rejects_non_iso_generated_at(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write(q / "requirements_manifest.json",
+                   {"schema_version": "1.5.7",
+                    "generated_at": "last Tuesday", "records": []})
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("not ISO 8601", out)
+
+    def test_phase2_accepts_canonical_records_array(self) -> None:
+        # v1.5.7 A-19 (073): all four required manifests must be
+        # present; write the full canonical baseline (bugs carries a
+        # record) → exit 0.
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            _write(q / "bugs_manifest.json",
+                   {"schema_version": "1.5.7", "generated_at": _ISO,
+                    "records": [{"id": "BUG-1"}]})
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 0, out)
+            self.assertIn("wrapper §1.6 valid", out)
+
+    def test_phase2_citation_semantic_check_reviews_exception(self) -> None:
+        """citation_semantic_check.json MUST use `reviews` (§9.1) —
+        accepted with `reviews`, rejected if it carries `records`.
+        (v1.5.7 A-19/073: the four record-shaped manifests are now
+        required-present, so establish the canonical baseline first;
+        this isolates the citation_semantic_check shape check.)"""
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            _write(q / "citation_semantic_check.json",
+                   {"schema_version": "1.5.7", "generated_at": _ISO,
+                    "reviews": []})
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 0, out)
+            _write(q / "citation_semantic_check.json",
+                   {"schema_version": "1.5.7", "generated_at": _ISO,
+                    "records": []})
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("reviews", out)
+
+
+class Phase5IndexTests(unittest.TestCase):
+    """A-15 — quality/INDEX.md presence + §11 fields."""
+
+    def test_phase5_requires_index_md(self) -> None:
+        """The validator exit-codes 1 when quality/INDEX.md is
+        absent at the Phase 5 boundary.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-065
+        A-15:
+          Mutation: in bin/validate_phase_artifacts.py
+          _load_index_payload, change
+          `if not path.is_file():` to `if False:` so a missing
+          INDEX.md is no longer reported.
+          Expected failure: THIS test fails at
+            self.assertEqual(rc, 1) → AssertionError (rc becomes 0
+          once the missing-file branch is dead and the function
+          proceeds to read a non-existent file path — actually
+          raising; the point is the clean rc==1 contract is gone).
+          Restoration: restore the `path.is_file()` guard; passes.
+          Structurally identical to the EXECUTED A-16 bite
+          (test_phase1_rejects_null_breakdown); the executed bite
+          establishes the family.
+        """
+        with TemporaryDirectory() as tmp:
+            _quality(tmp)  # quality/ exists but no INDEX.md
+            rc, out = _run(Path(tmp), 5)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("INDEX.md does not exist", out)
+
+    def test_phase5_rejects_missing_required_field(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            payload = _valid_index_payload()
+            del payload["qpb_version"]
+            _write_index(q, payload)
+            rc, out = _run(Path(tmp), 5)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("qpb_version", out)
+
+    def test_phase5_accepts_present_index_md(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_index(q, _valid_index_payload())
+            rc, out = _run(Path(tmp), 5)
+            self.assertEqual(rc, 0, out)
+            self.assertIn("all §11 required fields", out)
+
+    def test_phase6_rejects_pending_gate_verdict(self) -> None:
+        """Phase 6 is stricter than Phase 5: gate_verdict must be a
+        real verdict, not the Phase-5 `"pending"` placeholder."""
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_index(q, _valid_index_payload(gate_verdict="pending"))
+            rc5, _ = _run(Path(tmp), 5)
+            self.assertEqual(rc5, 0)  # pending is fine at phase 5
+            rc6, out6 = _run(Path(tmp), 6)
+            self.assertEqual(rc6, 1, out6)  # not at phase 6
+            self.assertIn("gate_verdict", out6)
+
+    def test_phase6_accepts_resolved_gate_verdict(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_index(q, _valid_index_payload(gate_verdict="pass"))
+            rc, out = _run(Path(tmp), 6)
+            self.assertEqual(rc, 0, out)
+
+    def test_phase6_accepts_pass_with_cleanup_gate_verdict(self) -> None:
+        """v1.5.7 089d (F17): the 089c three-state gate emits
+        `RESULT: GATE PASSED WITH CLEANUP NEEDED` — a successful,
+        non-blocking outcome. The INDEX gate_verdict value for that
+        line is `"pass-with-cleanup"`. Without this enum value,
+        validate_phase_artifacts rejected the INDEX.md (the
+        F17-traced defect: the new gate state was unreachable
+        through the artifact pipeline). This test pins acceptance.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089d F17:
+          Mutation: in bin/validate_phase_artifacts.py, remove
+          "pass-with-cleanup" from _INDEX_VALID_VERDICTS (reverting
+          F17 partway — schemas.md and the verdict are updated, but
+          the validator still rejects).
+          Expected failure: THIS test fails at
+            assertEqual(rc, 0, out) → AssertionError: 1 != 0
+            (validator output includes "must be one of [...]" naming
+            the truncated tuple).
+          Restoration: re-add the value; test passes.
+          Bite executed during 089d development; PASS→FAIL→PASS
+          confirmed (__pycache__ purged between mutate and restore).
+        """
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_index(
+                q, _valid_index_payload(gate_verdict="pass-with-cleanup"),
+            )
+            rc, out = _run(Path(tmp), 6)
+            self.assertEqual(rc, 0, out)
+            # The success line should still cite the §11 required
+            # fields + a valid gate_verdict (the validator's PASS
+            # message format) — locks the wording so a future
+            # refactor that drops the "valid gate_verdict" suffix
+            # is caught here as well.
+            self.assertIn("§11 required fields", out)
+            self.assertIn("valid gate_verdict", out)
+
+    # ----- v1.5.7 089e (BUG-014) phase-aware schema_version ----
+    # Pre-089e the validator hard-FAILed missing `schema_version`
+    # for every phase that touched _validate_index — Phase 5/6 only
+    # via dispatch, but the function-level enforcement was
+    # phase-agnostic. The gate's case-4 (quality_gate.py:2820)
+    # deliberately tolerates missing schema_version to support
+    # Phase 1 stub-INDEX (run-in-progress state). 089e Option A
+    # adds a `phase` parameter to _validate_index so:
+    #   phase >= 5 → strict (require "2.0")
+    #   phase  < 5 → lenient (accept missing; wrong value still
+    #                          FAILs at stub stage)
+    # The Phase 5/6 strictness is intentional and divergent from
+    # the gate by design — validator is the canonical Phase 5/6
+    # enforcement; gate case-4 is best-effort archive-tolerance.
+
+    def _index_text_with_payload(self, payload: dict) -> str:
+        import json as _json
+        return (
+            "# Run Index\n\n```json\n" + _json.dumps(payload) + "\n```\n"
+        )
+
+    def test_phase5_missing_schema_version_fails(self) -> None:
+        """BUG-014: Phase 5 final-INDEX MUST have schema_version.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089e BUG-014:
+          Mutation: in _validate_index, swap the `if phase >= 5:`
+          guard to `if phase >= 99:` (effectively disabling the
+          Phase 5/6 strict branch).
+          Expected failure: THIS test fails — Phase 5 missing
+          schema_version no longer FAILs (`rc == 0` rather than 1).
+          Restoration: revert; passes. Bite executed during 089e
+          development; PASS→FAIL→PASS confirmed.
+        """
+        from bin import validate_phase_artifacts as vpa
+
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            payload = _valid_index_payload(gate_verdict="pass")
+            del payload["schema_version"]
+            _write_index(q, payload)
+            passes, fails = vpa._validate_index(
+                q, phase=5, check_verdict_value=False,
+            )
+            self.assertEqual(passes, [],
+                             "missing schema_version at Phase 5 must NOT pass")
+            self.assertTrue(
+                any("schema_version" in f for f in fails),
+                f"expected schema_version FAIL at Phase 5, got: {fails!r}",
+            )
+
+    def test_phase5_correct_schema_version_passes(self) -> None:
+        """BUG-014: Phase 5 with schema_version='2.0' passes."""
+        from bin import validate_phase_artifacts as vpa
+
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_index(q, _valid_index_payload(gate_verdict="pass"))
+            passes, fails = vpa._validate_index(
+                q, phase=5, check_verdict_value=False,
+            )
+            self.assertEqual(
+                fails, [],
+                f"Phase 5 with schema_version='2.0' should pass: {fails!r}",
+            )
+
+    def test_phase1_missing_schema_version_passes(self) -> None:
+        """BUG-014: Phase 1 stub-INDEX MAY omit schema_version
+        (matches gate case-4)."""
+        from bin import validate_phase_artifacts as vpa
+
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            payload = _valid_index_payload(gate_verdict="pending")
+            del payload["schema_version"]
+            _write_index(q, payload)
+            passes, fails = vpa._validate_index(
+                q, phase=1, check_verdict_value=False,
+            )
+            # No schema_version FAIL should appear; other fields are
+            # still checked (so `fails` may be non-empty for other
+            # reasons, but NOT for schema_version).
+            self.assertFalse(
+                any("schema_version" in f for f in fails),
+                f"Phase 1 stub-INDEX missing schema_version must NOT "
+                f"FAIL on it (gate case-4 territory): {fails!r}",
+            )
+
+    def test_phase1_wrong_schema_version_fails(self) -> None:
+        """BUG-014: Phase 1 stub-INDEX with WRONG schema_version
+        (not '2.0' and not missing) still FAILs — the stub-INDEX
+        tolerance is for *absent*, not *bogus*."""
+        from bin import validate_phase_artifacts as vpa
+
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            payload = _valid_index_payload(gate_verdict="pending")
+            payload["schema_version"] = "3.0"
+            _write_index(q, payload)
+            passes, fails = vpa._validate_index(
+                q, phase=1, check_verdict_value=False,
+            )
+            self.assertTrue(
+                any("schema_version" in f for f in fails),
+                f"Phase 1 stub-INDEX with wrong schema_version "
+                f"('3.0') must still FAIL: {fails!r}",
+            )
+
+
+class Phase1RoleMapTests(unittest.TestCase):
+    """A-16 — exploration_role_map.json breakdown object."""
+
+    def _seed_exploration(self, q: Path) -> None:
+        (q / "EXPLORATION.md").write_text("x" * 400, encoding="utf-8")
+
+    def test_phase1_rejects_null_breakdown(self) -> None:
+        """The validator exit-codes 1 when
+        exploration_role_map.json carries `"breakdown": null` — the
+        exact 2026-05-16 express opus-4.6 Mode-A defect.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-065
+        A-16 — BITE EXECUTED during instruction-065 development:
+          Mutation: in bin/validate_phase_artifacts.py
+          _validate_phase1, change
+          `if not isinstance(breakdown, dict):` to
+          `if False:` (kill the null/!dict-breakdown rejection).
+          Observed failure (exactly as run, NOT a predicted
+          paraphrase): with the guard dead, control falls through to
+          the `[k for k in role_map._REQUIRED_BREAKDOWN_KEYS if k
+          not in breakdown]` comprehension with breakdown=None,
+          raising `TypeError: argument of type 'NoneType' is not
+          iterable`; THIS test FAILED with `errors=1` at that line
+          (the clean `rc == 1` contract is destroyed — the validator
+          can no longer cleanly reject `"breakdown": null`).
+          Restoration: restore the
+          `if not isinstance(breakdown, dict):` guard; test passes.
+          Bite EXECUTED: clean 15/15 PASS → mutate → __pycache__
+          purged → this test FAILED (errors=1, TypeError) → restore
+          → __pycache__ purged → 15/15 PASS again (per the
+          feedback_mutation_bite_pycache discipline — a stale .pyc
+          could otherwise mask the restored-clean state). The point
+          of the discipline is satisfied either way: the mutation
+          provably breaks the null-breakdown rejection and this test
+          provably catches it.
+        """
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            self._seed_exploration(q)
+            _write(q / "exploration_role_map.json",
+                   {"schema_version": "1.0", "provenance": "git-ls-files",
+                    "files": [], "breakdown": None, "summary": {}})
+            rc, out = _run(Path(tmp), 1)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("'breakdown'", out)
+            self.assertIn("must be an object", out)
+
+    def test_phase1_rejects_missing_breakdown_key(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            self._seed_exploration(q)
+            _write(q / "exploration_role_map.json",
+                   {"schema_version": "1.0", "provenance": "git-ls-files",
+                    "files": [], "breakdown": {"files_by_role": {}}})
+            rc, out = _run(Path(tmp), 1)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("missing required key", out)
+
+    def test_phase1_accepts_normalize_role_map_for_gate_output(self) -> None:
+        """End-to-end coherence: a role map normalized by the EXACT
+        helper the Phase 1 prompt now mandates
+        (role_map.normalize_role_map_for_gate) passes --phase 1.
+        This pins that the A-16 prompt fix and the validator agree."""
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            self._seed_exploration(q)
+            rm_path = q / "exploration_role_map.json"
+            _write(rm_path, {
+                "schema_version": "1.0",
+                "provenance": "git-ls-files",
+                "files": [
+                    {"path": "a.py", "role": "code", "size_bytes": 10,
+                     "rationale": "x"},
+                ],
+                "breakdown": None,  # the express defect, pre-normalize
+                "summary": {},
+            })
+            ok, errs = role_map.normalize_role_map_for_gate(rm_path)
+            self.assertTrue(ok, errs)
+            rc, out = _run(Path(tmp), 1)
+            self.assertEqual(rc, 0, out)
+            self.assertIn("breakdown is a canonical object", out)
+
+
+class UsageTests(unittest.TestCase):
+
+    def test_exit_2_when_no_quality_dir(self) -> None:
+        with TemporaryDirectory() as tmp:
+            rc, _ = _run(Path(tmp), 2)
+            self.assertEqual(rc, 2)
+
+    def test_exit_2_when_target_not_a_dir(self) -> None:
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = vpa.main(["/no/such/target/path/xyz", "--phase", "1"])
+        self.assertEqual(rc, 2)
+
+
+class VerdictLineTests(unittest.TestCase):
+    """v1.5.7 instruction 067 F2 (closing the 065 codex HALT): the
+    validator MUST emit a self-authenticating final `RESULT:` line
+    (A-13-shaped) so the phase-prompt "quote the validator's final
+    RESULT line verbatim" mandate is mechanically satisfiable and a
+    static reviewer can verify compliance."""
+
+    @staticmethod
+    def _last_line(out: str) -> str:
+        lines = [ln for ln in out.splitlines() if ln.strip()]
+        return lines[-1] if lines else ""
+
+    def test_validator_emits_passed_verdict_line_on_clean_artifacts(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)  # v1.5.7 A-19 (073): full baseline
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 0, out)
+            self.assertEqual(
+                self._last_line(out),
+                "RESULT: VALIDATION PASSED (phase 2)",
+                f"clean Phase-2 artifacts must end with the PASSED "
+                f"verdict line; got:\n{out}",
+            )
+
+    def test_validator_emits_failed_verdict_line_with_counts_on_violations(self) -> None:
+        """Failing artifacts end with `RESULT: VALIDATION FAILED
+        (phase N — X FAIL, Y PASS)` carrying concrete counts.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-067
+        F2 — BITE EXECUTED during instruction-067 development:
+          Mutation: in bin/validate_phase_artifacts.py main(),
+          delete the post-summary verdict-line block (the
+          `if fails: print("RESULT: VALIDATION FAILED ...")` /
+          `print("RESULT: VALIDATION PASSED ...")` pair), leaving
+          only the `--- phase N: X PASS, Y FAIL ---` summary.
+          Observed failure (exactly as run): the last non-empty
+          stdout line becomes `--- phase 2: 0 PASS, 2 FAIL ---`,
+          so `self.assertTrue(last.startswith("RESULT: VALIDATION
+          FAILED"))` FAILS — and
+          test_validator_emits_passed_verdict_line_on_clean_artifacts
+          also FAILS (its assertEqual no longer matches). 2 tests
+          FAIL.
+          Restoration: restore the verdict-line block; tests pass.
+          Bite EXECUTED: clean PASS → mutate → __pycache__ purged →
+          these tests FAILED → restore → __pycache__ purged → PASS
+          again (feedback_mutation_bite_pycache discipline — a
+          stale .pyc could mask the restored-clean state).
+        """
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write(q / "bugs_manifest.json",
+                   {"schema_version": "1.5.7",
+                    "bugs": [{"id": "BUG-001"}]})
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            last = self._last_line(out)
+            self.assertTrue(
+                last.startswith("RESULT: VALIDATION FAILED (phase 2 — "),
+                f"failing Phase-2 artifacts must end with the FAILED "
+                f"verdict line; got last line: {last!r}",
+            )
+            # Concrete counts present (X FAIL, Y PASS).
+            self.assertRegex(last, r"VALIDATION FAILED \(phase 2 — \d+ FAIL, \d+ PASS\)")
+
+    def test_validator_emits_error_verdict_line_on_usage_error(self) -> None:
+        """Even the exit-2 usage path emits a final RESULT line so
+        there is ALWAYS a quoteable witness (no exit path leaves a
+        stale prior line as the apparent verdict)."""
+        with TemporaryDirectory() as tmp:
+            # tmp has no quality/ dir → usage error, exit 2.
+            rc, out = _run(Path(tmp), 5)
+            self.assertEqual(rc, 2)
+            self.assertEqual(
+                self._last_line(out),
+                "RESULT: VALIDATION ERROR (phase 5 — usage; exit 2)",
+                f"usage error must still end with a RESULT line; "
+                f"got:\n{out}",
+            )
+
+
+class ModuleDocstringCurrencyTests(unittest.TestCase):
+    """v1.5.7 instruction 069 (closing 068-SA's non-blocking note):
+    the bin.validate_phase_artifacts module docstring must document
+    BOTH the exit-code contract AND the post-067-F2
+    self-authenticating `RESULT:` line (the validator's primary
+    witness deliverable). Pins the prose so it cannot silently drift
+    back to documenting only exit codes."""
+
+    def test_validate_phase_artifacts_module_docstring_documents_result_line(self) -> None:
+        """The module docstring mentions the exit codes AND the
+        RESULT verdict line AND cites instruction 067 F2.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-069 —
+        BITE EXECUTED during instruction-069 development:
+          Mutation: in bin/validate_phase_artifacts.py delete the 069
+          "Final verdict line (instruction 067 F2): …" paragraph from
+          the module docstring (revert to the pre-069
+          Exit-codes-only docstring).
+          Observed failure: THIS test fails at
+            self.assertIn("RESULT: VALIDATION", doc) →
+            AssertionError: 'RESULT: VALIDATION' not found in <the
+            Exit-codes-only docstring> : module docstring must
+            document the post-067-F2 self-authenticating RESULT
+            verdict line (069 / 068-SA note)
+          Restoration: re-add the paragraph; test passes.
+          Bite EXECUTED PASS→FAIL→PASS, __pycache__ purged between
+          mutate and restore (feedback_mutation_bite_pycache — a
+          stale .pyc could mask the restored-clean state).
+        """
+        doc = vpa.__doc__ or ""
+        self.assertIn(
+            "Exit codes:", doc,
+            "module docstring must still document the exit codes",
+        )
+        self.assertIn(
+            "RESULT: VALIDATION", doc,
+            "module docstring must document the post-067-F2 "
+            "self-authenticating RESULT verdict line (069 / 068-SA "
+            "note)",
+        )
+        self.assertIn(
+            "067 F2", doc,
+            "module docstring must cite instruction 067 F2 as the "
+            "introducer of the RESULT line",
+        )
+
+
+class Phase2ManifestPresenceTests(unittest.TestCase):
+    """v1.5.7 instruction 072/073 A-19: --phase 2 must FAIL on
+    ABSENT required manifest files, not only wrong-shape ones. The
+    2026-05-17 httpx run skipped Phase 2 manifest generation
+    entirely and self-reported pass; the pre-A-19 validator silently
+    skipped absent files."""
+
+    def test_phase2_validator_rejects_missing_requirements_manifest(self) -> None:
+        """Absent requirements_manifest.json → FAIL "required Phase 2
+        manifest absent" + exit 1.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-073
+        A-19 — BITE EXECUTED during instruction-073 development:
+          Mutation: in bin/validate_phase_artifacts.py
+          _validate_phase2, change the absent-file guard
+          `if not (quality / name).is_file():` to `if False:`
+          (restore the pre-A-19 silent-skip behavior).
+          Observed failure: with the absent-file FAIL dead, the
+          validator no longer flags the missing requirements
+          manifest; for the all-but-one-present fixture the run
+          yields 3 PASS / 0 FAIL → exit 0, so THIS test fails at
+          `self.assertEqual(rc, 1, out)` (AssertionError: 0 != 1)
+          and the `assertIn("requirements_manifest.json", out)` /
+          "absent" assertions also fail.
+          Restoration: restore the `is_file()` guard; test passes.
+          Bite EXECUTED PASS→FAIL→PASS, __pycache__ purged between
+          mutate and restore (feedback_mutation_bite_pycache).
+        """
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            (q / "requirements_manifest.json").unlink()
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("required Phase 2 manifest absent", out)
+            self.assertIn("requirements_manifest.json", out)
+
+    def test_phase2_validator_rejects_missing_bugs_manifest(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            (q / "bugs_manifest.json").unlink()
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("required Phase 2 manifest absent", out)
+            self.assertIn("bugs_manifest.json", out)
+
+    def test_phase2_validator_rejects_missing_use_cases_manifest(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            (q / "use_cases_manifest.json").unlink()
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("required Phase 2 manifest absent", out)
+            self.assertIn("use_cases_manifest.json", out)
+
+    def test_phase2_validator_rejects_missing_formal_docs_manifest(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            (q / "formal_docs_manifest.json").unlink()
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("required Phase 2 manifest absent", out)
+            self.assertIn("formal_docs_manifest.json", out)
+
+    def test_phase2_validator_handles_citation_semantic_check_conditionally(self) -> None:
+        """citation_semantic_check.json is required ONLY when
+        requirements_manifest.json carries a Tier 1/2 REQ
+        (schemas.md §9.1). No Tier 1/2 + file absent → vacuous PASS;
+        Tier 1/2 present + file absent → FAIL."""
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)  # requirements has [] records → no Tier 1/2
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 0, out)
+            self.assertIn("not required", out)  # §9.1 vacuous case
+            # Add a Tier-1 REQ → citation_semantic_check now required.
+            _write(q / "requirements_manifest.json",
+                   {"schema_version": "1.5.7", "generated_at": _ISO,
+                    "records": [{"id": "REQ-001", "tier": 1}]})
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("citation_semantic_check.json", out)
+            self.assertIn("§9.1", out)
+
+
+if __name__ == "__main__":
+    unittest.main()

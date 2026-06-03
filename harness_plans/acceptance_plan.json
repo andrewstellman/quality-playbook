@@ -1,0 +1,97 @@
+{
+  "$header_note": "QPB Test Harness \u2014 simplified plan (v1.5.7). pools = per-runner concurrency. runs[].expect is a FLAT MAP assertion->value (list value = 'one of'). Assertion names = \u00a7F vocabulary from grade_acceptance.py. parameters = extra argv tokens passed verbatim to the runner CLI. Operator: fill the gson pre-fix-SHA placeholder before running. v1.5.7 ship-gate update: chi codex row uses gpt-5.5 (gpt-5.3-codex is restricted on ChatGPT-account Codex tiers as of v0.136.0; gpt-5.5 is the universal default).",
+  "pools": {
+    "claude": 2,
+    "codex": 1,
+    "copilot": 1
+  },
+  "runs": [
+    {
+      "description": "Harness-validation run (NOT a capability test): claude/haiku reviews a version of gson that contains a known real defect \u2014 MapTypeAdapterFactory's duplicate-key check used Map.put()'s return value (`if (replaced != null)`), which silently missed duplicates when the first value was null (e.g. {\"a\":null,\"a\":1}). Pinned to commit 27d9ba1, the parent of the fix (#3006), so the bug is present. Originally framed around opus/sonnet finding the bug; we've stepped down to haiku because v1.5.7 retests are exercising harness mechanics (install layer, phase0 facts, banner observability, kill) \u2014 not model capability. Haiku may or may not find the bug; the expects are permissive (any of PASS/CLEANUP/FAIL is acceptable as long as the verdict is internally consistent). When v1.5.7 ships and we move to the actual capability tests, this row gets bumped back up.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": [
+          "PASS",
+          "CLEANUP",
+          "FAIL"
+        ],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Second claude/haiku run started in parallel with the first to exercise the two-slot Claude pool. Reviews the Express web framework. Like the gson row, this is a harness-validation run; we do not predict a specific verdict \u2014 only that whatever verdict the gate reaches is internally consistent (it never passes while real problems are present, and never fails a clean run) and that the install completed cleanly. Stepped down from sonnet to haiku for fast retest iteration on v1.5.7 harness fixes.",
+      "repo": "https://github.com/expressjs/express",
+      "ref": "master",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": [
+          "PASS",
+          "CLEANUP",
+          "FAIL"
+        ],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "A deliberately weak run: GPT-5.3-Codex at low reasoning effort, the configuration most likely to cut corners. This checks that the gate catches a sloppy run instead of rubber-stamping it. It should fail, attribute the failure to the weak model, and tell the operator to re-run with a stronger model.",
+      "repo": "https://github.com/go-chi/chi",
+      "ref": "master",
+      "runner": "codex",
+      "model": "gpt-5.5",
+      "channel": "npm-local-tgz",
+      "mode": "B",
+      "parameters": [
+        "--runner-extra-args",
+        "-c 'model_reasoning_effort=\"low\"'"
+      ],
+      "prep_timeout_s": 120,
+      "expect": {
+        "gate_result": "FAIL",
+        "verdict_state": "failed",
+        "attribution": "weak_model",
+        "recommends_stronger_model": true,
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "banner_rendered": true
+      }
+    },
+    {
+      "description": "A capable model (GPT-5.4 via Copilot) reviews the Ory Keto authorization server, a larger and more complex codebase than the others. As with the Express run, we do not predict the exact verdict, only that it is honest and internally consistent and that the install behaved correctly. NOTE (post-148 re-tightening): phase0_first_probe, gitignore_remediation_followed, and banner_rendered are once again asserted for this run \u2014 these three were previously dropped as B\u2032 workarounds (143 + post-2026-05-29T15:14 retest) because copilot's boxed-TUI stream format doesn't capture the validator's event= lines or the installer's banner output. 145 closed the phase0 gap via witness-based artifact fallback (validator writes status/findings to .qpb_validation_*.txt witnesses, parse_transcript reads them when stream events absent); 148 closed the banner gap via install.log-based artifact fallback (146's install.log tee captures the \u2550{80} attribution banner on stderr, parse_transcript falls back to reading it when stream lacks the banner). After 145 + 148 + 146, the three observability false negatives become observable from on-disk artifacts; the assertions are valid again.",
+      "repo": "https://github.com/ory/keto",
+      "ref": "master",
+      "runner": "copilot",
+      "model": "gpt-5.4",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": [
+          "PASS",
+          "CLEANUP",
+          "FAIL"
+        ],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true,
+        "provenance_model_labeled_selfreport": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "$header_note": "QPB v1.5.7 Test 3 — Windows ship-readiness acceptance. Small (2-run) plan that validates v1.5.7 runs cleanly on Windows. Capable models (opus + sonnet) on both channels (pip + npm). pool=1 means runs go SEQUENTIAL, not concurrent — validates that the harness works on Windows under the simplest scheduling constraints. Operator-side: install the QPB wheel via pipx on Windows (`pipx install <path-to-wheel>`); the harness's pip-local-wheel channel then invokes the QPB CLI from pipx's isolated venv. The harness internally uses pip / pip3 (whatever resolves on PATH) for the in-target install of the QPB shim.",
+
+  "pools": {
+    "claude": 1
+  },
+
+  "runs": [
+    {
+      "description": "Windows opus + pip-local-wheel: top-tier claude on the pip channel. Sequential pool=1 ensures this finishes before row 2 starts. Validates that v1.5.7 installs cleanly on Windows via pip and that the QPB Phase 0–6 pipeline runs end-to-end on the platform.",
+      "repo": "https://github.com/google/gson",
+      "ref": "main",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Windows sonnet + npm-local-tgz: mid-tier claude on the npm channel. Validates that 150's npx --yes fix works on Windows (where the Ok-to-proceed prompt would have the same TTY-blocking effect as on Mac). Sequential pool=1 — runs after row 1 completes.",
+      "repo": "https://github.com/expressjs/express",
+      "ref": "master",
+      "runner": "claude",
+      "model": "sonnet",
+      "channel": "npm-local-tgz",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    }
+  ]
+}

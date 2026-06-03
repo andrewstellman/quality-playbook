@@ -138,8 +138,8 @@ class RunPlaybookTests(unittest.TestCase):
         self.assertIn("quality/citation_semantic_check.json", prompt)
         # Council member identifiers come from the config module.
         self.assertIn("claude-opus-4.7", prompt)
-        self.assertIn("gpt-5.4", prompt)
-        self.assertIn("gemini-2.5-pro", prompt)
+        self.assertIn("gpt-5.5", prompt)
+        self.assertIn("claude-sonnet-4.6", prompt)
         # Spec Gap path must be called out so the agent knows to skip
         # dispatch when there are no Tier 1/2 REQs.
         self.assertIn("Spec Gap", prompt)
@@ -408,18 +408,119 @@ class RunPlaybookTests(unittest.TestCase):
 
             self.assertEqual(run_playbook.final_artifact_gaps(repo_dir), [])
 
-    def test_command_for_runner_builds_claude_and_copilot_variants(self) -> None:
+    @mock.patch("bin.run_playbook.shutil.which", return_value=None)
+    def test_command_for_runner_builds_claude_variants(self, _which) -> None:
+        # v1.5.7 instruction 078 (W2): command_for_runner routes argv[0]
+        # through _resolve_runner_command/shutil.which. Mock which->None
+        # so the resolver is a pure pass-through and the exact-argv
+        # contract below stays host-PATH-independent (addendum r3 §4.2).
         claude_default = run_playbook.command_for_runner("claude", "prompt text", None)
         self.assertEqual(claude_default, ["claude", "-p", "prompt text", "--dangerously-skip-permissions"])
 
         claude_model = run_playbook.command_for_runner("claude", "prompt text", "sonnet")
         self.assertEqual(claude_model, ["claude", "--model", "sonnet", "-p", "prompt text", "--dangerously-skip-permissions"])
 
-        copilot_default = run_playbook.command_for_runner("copilot", "prompt text", None)
-        self.assertEqual(copilot_default, ["gh", "copilot", "-p", "prompt text", "--model", run_playbook.lib.DEFAULT_MODEL, "--yolo"])
+    def test_command_for_runner_builds_copilot_new_cli_variant(self) -> None:
+        """v1.5.7 089f: when the new standalone `copilot` CLI is on
+        PATH, the Mode B reviewer hot path routes through it via
+        :mod:`bin.copilot_resolver`. The expected argv shape is
+        ``["copilot", "-p", <prompt>, "--model", <model>,
+        "--allow-all"]`` — note the new CLI's canonical ``--allow-all``
+        replaces the legacy ``--yolo`` flag (the new CLI accepts both
+        but ``--allow-all`` is the documented spelling).
 
-        copilot_model = run_playbook.command_for_runner("copilot", "prompt text", "gpt-5.5")
-        self.assertEqual(copilot_model, ["gh", "copilot", "-p", "prompt text", "--model", "gpt-5.5", "--yolo"])
+        We patch the resolver's ``_detect_copilot_cli`` to return
+        "copilot" rather than mocking ``shutil.which`` because the
+        single ``shutil`` module is shared with run_playbook's
+        ``_resolve_runner_command`` Windows-shim resolver — a global
+        mock there would force the shim resolver to no-op (which
+        we want) but also masks any future resolver change that
+        moved off of ``shutil.which``. Direct patch of the resolver's
+        detection function gives a tighter test contract.
+        """
+        from bin import copilot_resolver
+        copilot_resolver.reset_cache()
+        try:
+            with mock.patch(
+                "bin.copilot_resolver._detect_copilot_cli", return_value="copilot",
+            ), mock.patch(
+                "bin.run_playbook.shutil.which", return_value=None,
+            ):
+                copilot_default = run_playbook.command_for_runner(
+                    "copilot", "prompt text", None)
+                self.assertEqual(
+                    copilot_default,
+                    ["copilot", "-p", "prompt text", "--model",
+                     run_playbook.lib.DEFAULT_MODEL, "--allow-all"],
+                )
+
+                copilot_model = run_playbook.command_for_runner(
+                    "copilot", "prompt text", "gpt-5.5")
+                self.assertEqual(
+                    copilot_model,
+                    ["copilot", "-p", "prompt text", "--model",
+                     "gpt-5.5", "--allow-all"],
+                )
+        finally:
+            copilot_resolver.reset_cache()
+
+    def test_command_for_runner_builds_copilot_legacy_fallback_variant(self) -> None:
+        """v1.5.7 089f: back-compat fallback. When the new standalone
+        ``copilot`` CLI is NOT on PATH but the deprecated
+        ``gh copilot`` extension IS available (its ``--help`` returns
+        0), the resolver falls back to the legacy form
+        ``["gh", "copilot", "-p", <prompt>, "--model", <model>,
+        "--yolo"]`` — the exact pre-089f shape so adopters mid-
+        migration on the grace period don't see a behavior change.
+        Verifies the fallback path stays load-bearing.
+        """
+        from bin import copilot_resolver
+        copilot_resolver.reset_cache()
+        try:
+            with mock.patch(
+                "bin.copilot_resolver._detect_copilot_cli", return_value="gh-copilot",
+            ), mock.patch(
+                "bin.run_playbook.shutil.which", return_value=None,
+            ):
+                copilot_default = run_playbook.command_for_runner(
+                    "copilot", "prompt text", None)
+                self.assertEqual(
+                    copilot_default,
+                    ["gh", "copilot", "-p", "prompt text", "--model",
+                     run_playbook.lib.DEFAULT_MODEL, "--yolo"],
+                )
+
+                copilot_model = run_playbook.command_for_runner(
+                    "copilot", "prompt text", "gpt-5.5")
+                self.assertEqual(
+                    copilot_model,
+                    ["gh", "copilot", "-p", "prompt text", "--model",
+                     "gpt-5.5", "--yolo"],
+                )
+        finally:
+            copilot_resolver.reset_cache()
+
+    def test_command_for_runner_copilot_raises_when_no_cli_available(self) -> None:
+        """v1.5.7 089f: when neither CLI is available, the resolver
+        raises :class:`copilot_resolver.CopilotCLIUnavailable` —
+        ``command_for_runner`` lets that bubble up rather than
+        returning a malformed argv that subprocess.run would
+        FileNotFoundError on. This test pins that the failure mode
+        is the documented exception, not a silent fallback.
+        """
+        from bin import copilot_resolver
+        copilot_resolver.reset_cache()
+        try:
+            with mock.patch(
+                "bin.copilot_resolver._detect_copilot_cli", return_value="",
+            ), mock.patch(
+                "bin.run_playbook.shutil.which", return_value=None,
+            ):
+                with self.assertRaises(copilot_resolver.CopilotCLIUnavailable):
+                    run_playbook.command_for_runner(
+                        "copilot", "prompt text", None)
+        finally:
+            copilot_resolver.reset_cache()
 
     def test_build_worker_command_propagates_cursor_runner(self) -> None:
         """v1.5.4 F-1: when the operator passes --cursor, the spawned
@@ -443,7 +544,8 @@ class RunPlaybookTests(unittest.TestCase):
         self.assertIn("--cursor", command)
         self.assertNotIn("--copilot", command)
 
-    def test_command_for_runner_builds_cursor_variants(self) -> None:
+    @mock.patch("bin.run_playbook.shutil.which", return_value=None)
+    def test_command_for_runner_builds_cursor_variants(self, _which) -> None:
         """v1.5.4 F-1 (post-bootstrap fix): cursor runner builds
         `cursor agent --print --force [--model <model>]` with NO
         positional argument. The prompt is piped on stdin via
@@ -581,6 +683,61 @@ class RunPlaybookTests(unittest.TestCase):
         self.assertEqual(run_playbook.next_strategy("unfiltered"), "parity")
         self.assertEqual(run_playbook.next_strategy("parity"), "adversarial")
         self.assertEqual(run_playbook.next_strategy("adversarial"), "")
+
+    def test_failure_hint_points_at_preserved_dir_when_present(self) -> None:
+        """v1.5.7 fix F-6: when a D1 gate-failure preservation dir
+        exists, the failure hint must point at it directly (not at the
+        now-gone quality/ tree). Also drops the legacy "cell's" wording
+        in favor of "repo's"."""
+        import io
+        from contextlib import redirect_stdout
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "express-1.5.7"
+            repo.mkdir()
+            preserved = repo / "quality.gate-failed-20260513T120000Z"
+            preserved.mkdir()
+            (preserved / "GATE_FAILURE.md").write_text("x", encoding="utf-8")
+            args = run_playbook.argparse.Namespace(
+                runner="copilot", next_iteration=False, strategy=["gap"],
+                model=None, targets=[str(repo)],
+            )
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                run_playbook.print_suggested_next_command(
+                    args, failures_occurred=True, repo_dirs=[repo],
+                )
+            output = buf.getvalue()
+        self.assertIn("gate-failure preservation", output)
+        self.assertIn("quality.gate-failed-20260513T120000Z", output)
+        self.assertIn("express-1.5.7", output)
+        # F-6 explicitly drops the legacy "cell's" wording.
+        self.assertNotIn("cell's", output)
+
+    def test_failure_hint_drops_cell_wording_when_no_preservation(self) -> None:
+        """v1.5.7 fix F-6: even when no preservation has fired, the
+        fallback hint drops "cell's" wording in favor of "repo's"."""
+        import io
+        from contextlib import redirect_stdout
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp) / "express-1.5.7"
+            repo.mkdir()
+            # No quality.gate-failed-*/ sibling.
+            args = run_playbook.argparse.Namespace(
+                runner="copilot", next_iteration=False, strategy=["gap"],
+                model=None, targets=[str(repo)],
+            )
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                run_playbook.print_suggested_next_command(
+                    args, failures_occurred=True, repo_dirs=[repo],
+                )
+            output = buf.getvalue()
+        self.assertIn("Run finished with errors", output)
+        self.assertNotIn("cell's", output)
+        self.assertIn("repo's", output)
+        # Fallback hint still points at quality/logs/<run-id>/ as the
+        # general inspection path when no preserved dir exists.
+        self.assertIn("quality/logs/<run-id>/", output)
 
     def test_print_suggested_next_command_includes_model_and_runtime(self) -> None:
         import io
@@ -721,13 +878,38 @@ class RunPlaybookTests(unittest.TestCase):
     # --- Path-based target resolution (replaces the old version-matching tests) ---
 
     def test_resolve_target_dirs_absolute_path_passes_through(self) -> None:
+        from bin import benchmark_lib as _lib
+
         with TemporaryDirectory() as temp_dir:
             resolved, warnings, errors = run_playbook.resolve_target_dirs([temp_dir])
             self.assertEqual(resolved, [Path(temp_dir).resolve()])
             self.assertEqual(errors, [])
-            # No skill installed -> warning about missing SKILL.md
+            # No skill installed -> warning about missing SKILL.md.
+            # v1.5.7 089d (F23): the WARN derives its layout
+            # enumeration from lib.SKILL_INSTALL_LOCATIONS (10
+            # post-046), so every canonical layout must appear
+            # (pre-089d: hard-coded 6; pre-BUG-004: hard-coded 3).
+            # The detailed enumeration pin is in
+            # bin/tests/test_install_layouts_pinned.py; this test
+            # focuses on the WARN being singular + naming all the
+            # canonical paths from the lib constant.
             self.assertEqual(len(warnings), 1)
-            self.assertIn("No SKILL.md found", warnings[0])
+            self.assertIn("No QPB-installed SKILL.md found", warnings[0])
+            # The "SKILL.md is the root/bootstrap form" clarifier
+            # now lives in a trailing parenthetical (F23 phrased the
+            # message as a dynamic enumeration + a single root-form
+            # note instead of an inline-with-each-layout note).
+            self.assertIn(
+                "SKILL.md is the root/bootstrap form", warnings[0],
+                "missing-install WARN must keep the root-form clarifier",
+            )
+            # Every layout from the canonical lib constant must appear.
+            for layout in _lib.SKILL_INSTALL_LOCATIONS:
+                self.assertIn(
+                    str(layout), warnings[0],
+                    f"missing-install WARN must name canonical layout "
+                    f"{layout!s}; got: {warnings[0]!r}",
+                )
 
     def test_resolve_target_dirs_relative_path_anchors_to_cwd(self) -> None:
         with TemporaryDirectory() as temp_dir:
@@ -773,9 +955,21 @@ class RunPlaybookTests(unittest.TestCase):
             self.assertEqual(warnings, [])
             self.assertEqual(errors, [])
 
-    def test_log_file_for_places_log_beside_target(self) -> None:
+    def test_log_file_for_places_log_in_centralized_layout(self) -> None:
+        # v1.5.7 Phase 5 / Deliverable 3: log_file_for now returns the
+        # centralized location quality/logs/<run-id>/runner.log.
         target = Path("/tmp/my-project").resolve()
         log_path = run_playbook.log_file_for(target, "20260418-130000")
+        self.assertEqual(log_path.parent, target / "quality" / "logs" / "20260418T130000Z")
+        self.assertEqual(log_path.name, "runner.log")
+
+    def test_log_file_for_legacy_mode_restores_v1_5_6_path(self) -> None:
+        # v1.5.7 Phase 5: --logs-flat / QPB_LOGS_LEGACY=1 restores
+        # the v1.5.6 byte-identical path (cell-sibling .log).
+        target = Path("/tmp/my-project").resolve()
+        import argparse as _ap
+        args = _ap.Namespace(logs_flat=True)
+        log_path = run_playbook.log_file_for(target, "20260418-130000", args=args)
         self.assertEqual(log_path.parent, target.parent)
         self.assertEqual(log_path.name, f"{target.name}-playbook-20260418-130000.log")
 
@@ -1172,7 +1366,9 @@ class RunPlaybookTests(unittest.TestCase):
         self.assertNotIn("BENCHMARK MODE", output)
 
     def test_run_mode_marker_written_for_benchmark_mode(self) -> None:
-        """quality/RUN_MODE.md is written when benchmark_mode is set."""
+        """v1.5.7 Phase 5 / Deliverable 3: RUN_MODE.md is written
+        when benchmark_mode is set. Lands in centralized layout at
+        quality/logs/<run-id>/RUN_MODE.md."""
         from bin import run_playbook
         with TemporaryDirectory() as temp_dir:
             repo = Path(temp_dir)
@@ -1182,44 +1378,117 @@ class RunPlaybookTests(unittest.TestCase):
                 model="haiku-4.5",
             )
             run_playbook._write_run_mode_marker(repo, args, "20260507-000000")
-            marker = repo / "quality" / "RUN_MODE.md"
-            self.assertTrue(marker.is_file())
+            marker = repo / "quality" / "logs" / "20260507T000000Z" / "RUN_MODE.md"
+            self.assertTrue(marker.is_file(),
+                            f"Expected RUN_MODE.md at {marker}; "
+                            f"tree={list((repo / 'quality').rglob('*'))}")
             text = marker.read_text(encoding="utf-8")
             self.assertIn("benchmark", text)
             self.assertIn("haiku-4.5", text)
             self.assertIn("Phase scope: 1,2,3", text)
             self.assertIn("Council audit: SKIPPED", text)
 
+    def test_run_mode_marker_legacy_flag_writes_to_quality_root(self) -> None:
+        """v1.5.7 Phase 5 backward-compat: --logs-flat / QPB_LOGS_LEGACY=1
+        keeps RUN_MODE.md at quality/RUN_MODE.md byte-identically to
+        v1.5.6 layout."""
+        from bin import run_playbook
+        with TemporaryDirectory() as temp_dir:
+            repo = Path(temp_dir)
+            args = run_playbook.argparse.Namespace(
+                benchmark_mode=True,
+                runner="copilot",
+                model="haiku-4.5",
+                logs_flat=True,
+            )
+            run_playbook._write_run_mode_marker(repo, args, "20260507-000000")
+            marker = repo / "quality" / "RUN_MODE.md"
+            self.assertTrue(marker.is_file())
+            text = marker.read_text(encoding="utf-8")
+            self.assertIn("benchmark", text)
+            self.assertIn("haiku-4.5", text)
+            # Verify the centralized-layout path was NOT created.
+            self.assertFalse(
+                (repo / "quality" / "logs" / "20260507T000000Z" / "RUN_MODE.md").exists()
+            )
+
     def test_phase4_council_banner_reads_roster_programmatically(self) -> None:
-        """Phase 4 Council banner is wired into run_one_phase via a
-        source-grep guard (the actual banner output is captured at
-        run-time when a real Phase 4 invocation happens; this test
-        pins the wiring so a future refactor can't silently drop it)."""
+        """Phase 4 Council banner reads the roster programmatically
+        (not hardcoded); this test pins the wiring so a future
+        refactor can't silently drop it.
+
+        v1.5.7 instruction 053 (sibling-finding wiring) reworked the
+        seam: the banner previously called
+        `council_config.council_members()` directly; it now calls
+        `_active_council_roster(args)` so the documented
+        `--council-roster` CLI tier actually takes effect at this
+        dynamic-read site. The "programmatic, not hardcoded"
+        guarantee is preserved end-to-end — `_active_council_roster`
+        routes tiers 2+3 through `council_config.council_members()`.
+
+        The wiring pin is an AST `Call` check, NOT a source substring
+        check: a substring grep matches the instruction-053 EXPLANATORY
+        COMMENT in run_one_phase (which names `_active_council_roster`
+        and `council_config.council_members()`), so it would pass even
+        if the actual call were reverted — exactly the
+        instruction-051-class mutation-credibility defect this
+        instruction exists to eliminate. The AST walk only sees real
+        Call nodes, so reverting the banner call genuinely fails this
+        test (bite-verified during instruction-053 development:
+        reverting run_one_phase's banner to
+        `_council_config.council_members()` → the
+        `_active_council_roster` Call assertion below FAILS;
+        restore → PASS).
+        """
+        import ast
         import inspect
         from bin import run_playbook
-        source = inspect.getsource(run_playbook.run_one_phase)
-        # Pin: banner fires for phase=="4".
-        self.assertIn('if phase == "4":', source)
-        # Pin: roster is read programmatically from council_config.
-        self.assertIn("from bin import council_config", source)
-        self.assertIn("council_config.council_members()", source)
-        # Pin: banner content includes the Council-of-Three label.
-        self.assertIn("Council of Three", source)
-        # Pin: banner mentions --benchmark-mode for the alternative.
-        self.assertIn("--benchmark-mode", source)
 
-    def test_council_config_provides_council_members_helper(self) -> None:
-        """The cluster-050 banner reads the roster via
-        bin.council_config.council_members(); pin that the helper
-        exists and returns a non-empty tuple."""
-        from bin import council_config
-        roster = council_config.council_members()
-        self.assertIsInstance(roster, tuple)
-        self.assertGreater(len(roster), 0)
-        # Each entry is a non-empty string (model name).
-        for member in roster:
-            self.assertIsInstance(member, str)
-            self.assertTrue(member.strip())
+        src = inspect.getsource(run_playbook.run_one_phase)
+        tree = ast.parse(src)
+        called = {
+            node.func.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+        }
+        # Pin (comment-proof): run_one_phase actually CALLS the 3-tier
+        # resolver — the roster is resolved programmatically, not
+        # hardcoded, and the documented --council-roster tier reaches
+        # the banner.
+        self.assertIn(
+            "_active_council_roster", called,
+            "run_one_phase must call _active_council_roster(args) for "
+            "the Phase 4 banner (instruction-053 wiring); an AST Call "
+            "node was not found.",
+        )
+        # Pin: the resolver itself routes tiers 2+3 through the
+        # canonical council_config helper (defense against a future
+        # edit that hardcodes the roster inside the resolver). Use the
+        # AST of _active_council_roster so this is also comment-proof.
+        rtree = ast.parse(
+            inspect.getsource(run_playbook._active_council_roster)
+        )
+        resolver_attr_calls = {
+            node.func.attr
+            for node in ast.walk(rtree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+        }
+        self.assertIn("council_members", resolver_attr_calls)
+        # Pin: banner fires for phase=="4" and content is intact (these
+        # are banner string literals, not comment-only text).
+        self.assertIn('if phase == "4":', src)
+        self.assertIn("Council of Three", src)
+        self.assertIn("--benchmark-mode", src)
+
+    # NOTE: test_council_config_provides_council_members_helper was
+    # moved to ActiveCouncilRosterResolutionTests (v1.5.7 instruction
+    # 053b F2 / codex-053 finding 2) so it inherits the
+    # $HOME/$XDG/Path.home isolation harness AND asserts
+    # == DEFAULT_COUNCIL_MEMBERS under isolation (the prior
+    # un-isolated weak-assertion form read a real adopter config and
+    # only checked "non-empty tuple").
 
     # --- v1.5.6 cluster 044: --next-iteration suggestion bugs A + B ---
 
@@ -1496,6 +1765,99 @@ class FormalDocsGuardTests(unittest.TestCase):
         )
         command = run_playbook.build_worker_command(args, "/abs/target")
         self.assertNotIn("--no-formal-docs", command)
+
+    def test_build_worker_command_propagates_logs_flat(self) -> None:
+        """v1.5.7 instruction 051 A-8: --logs-flat MUST be propagated
+        to the spawned worker. This is the precise bypass-site pin:
+        the parent parsed args.logs_flat=True, but pre-fix
+        build_worker_command reconstructed the worker argv flag-by-flag
+        and OMITTED --logs-flat, so the worker subprocess parsed
+        logs_flat=False and _logs_legacy_mode (env not set) fell
+        through to the centralized layout — the flag was silently
+        no-op for runner-owned logs/run_state writes end-to-end.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160): delete the
+        instruction-051 A-8 propagation block from
+        bin/run_playbook.py:build_worker_command (the
+        `if getattr(args, "logs_flat", False): command.append(
+        "--logs-flat")` lines, between the --no-formal-docs and
+        --no-stdout-echo blocks). Expected failure: this test fails at
+        `assertIn("--logs-flat", command)` because the worker argv no
+        longer carries it. Restore the block → passes. Bite verified
+        during instruction 051 development.
+        """
+        args = run_playbook.argparse.Namespace(
+            parallel=False,
+            runner="claude",
+            no_seeds=False,
+            phase="1",
+            next_iteration=False,
+            full_run=False,
+            strategy=["gap"],
+            model="sonnet",
+            no_formal_docs=False,
+            logs_flat=True,
+            kill=False,
+            targets=["./project-a"],
+            worker=False,
+        )
+        command = run_playbook.build_worker_command(args, "/abs/target")
+        self.assertIn(
+            "--logs-flat", command,
+            "build_worker_command must propagate --logs-flat to the "
+            "worker (A-8 bypass-site fix)",
+        )
+        # Flag appears before the positional target (argparse needs
+        # optionals before the positional in the worker invocation).
+        self.assertLess(
+            command.index("--logs-flat"), command.index("/abs/target")
+        )
+
+    def test_build_worker_command_omits_logs_flat_when_unset(self) -> None:
+        args = run_playbook.argparse.Namespace(
+            parallel=False,
+            runner="claude",
+            no_seeds=False,
+            phase="1",
+            next_iteration=False,
+            full_run=False,
+            strategy=["gap"],
+            model="sonnet",
+            no_formal_docs=False,
+            logs_flat=False,
+            kill=False,
+            targets=["./project-a"],
+            worker=False,
+        )
+        command = run_playbook.build_worker_command(args, "/abs/target")
+        self.assertNotIn("--logs-flat", command)
+
+    def test_logs_flat_round_trip_cli_args_to_worker_command(self) -> None:
+        """End-to-end through the REAL entry point: parse a CLI argv
+        containing --logs-flat via run_playbook.parse_args (the actual
+        wrapper, incl. the ~/.qpb/config.json overlay), then feed the
+        resulting Namespace to build_worker_command. The full
+        CLI-arg → parent-dispatch path (where the A-8 bug lived) must
+        preserve --logs-flat. Pre-fix this round-trip dropped it; this
+        is the integration the existing direct-helper logs-layout
+        tests do NOT cover (they exercise _run_log_dir/log_file_for in
+        isolation, which always worked — that is exactly why the bug
+        went undetected)."""
+        args = run_playbook.parse_args(
+            [".", "--model", "sonnet", "--logs-flat", "--phase", "1"]
+        )
+        self.assertTrue(
+            getattr(args, "logs_flat", False),
+            "parse_args must set logs_flat=True for --logs-flat "
+            "(predicate side is correct; the bug was downstream)",
+        )
+        command = run_playbook.build_worker_command(args, "/abs/target")
+        self.assertIn(
+            "--logs-flat", command,
+            "the CLI-args → worker-command round-trip must preserve "
+            "--logs-flat end-to-end (A-8)",
+        )
 
 
 class InvocationFlagsPersistenceTests(unittest.TestCase):
@@ -2640,7 +3002,8 @@ class IterationProgressHeartbeatTests(unittest.TestCase):
             (repo / "quality" / "EXPLORATION.md").write_text("ok\n")
 
             def fake_run_prompt(repo_dir, prompt, pass_name, output_file,
-                                log_file, runner, model):
+                                log_file, runner, model,
+                                runner_extra_args=None):
                 output_file.parent.mkdir(parents=True, exist_ok=True)
                 output_file.write_text(f"[stub] {pass_name}\n")
                 return 0
@@ -2816,7 +3179,8 @@ class AgentsMdGenerationTests(unittest.TestCase):
                 "REQUIREMENTS.md",
                 "BUGS.md",
                 "exploration_role_map.json",
-                "workspace/",
+                "quality/writeups/BUG-",
+                "quality/patches/",
                 "previous_runs/",
             ):
                 self.assertIn(required, content)
@@ -2880,100 +3244,14 @@ class AgentsMdGenerationTests(unittest.TestCase):
             self.assertEqual(text_after_first, target.read_text())
 
 
-class FinalizeQualityLayoutTests(unittest.TestCase):
-    """v1.5.4 Phase 3.6.4 (B-16): _finalize_quality_layout moves
-    intermediate pipeline artifacts under quality/workspace/ at end
-    of Phase 6. Canonical deliverables stay at the top level so the
-    operator-facing quality/ tree is human-readable."""
-
-    def test_moves_workspace_dirs_to_workspace(self) -> None:
-        with TemporaryDirectory() as tmp:
-            repo = Path(tmp)
-            q = repo / "quality"
-            # Canonical (top-level after reorg).
-            write(q / "REQUIREMENTS.md", "reqs")
-            write(q / "BUGS.md", "bugs")
-            # Intermediate (move to workspace/).
-            write(q / "control_prompts" / "phase1.txt", "p1")
-            write(q / "results" / "tdd-results.json", "{}")
-            write(q / "code_reviews" / "review.md", "review")
-            write(q / "phase3" / "pass_c_formal.jsonl", "{}")
-            write(q / "EXPLORATION_ITER1.md", "iter1")
-            write(q / "EXPLORATION_MERGED.md", "merged")
-
-            run_playbook._finalize_quality_layout(repo)
-
-            # Canonical preserved at top-level.
-            self.assertTrue((q / "REQUIREMENTS.md").is_file())
-            self.assertTrue((q / "BUGS.md").is_file())
-            # Intermediates moved.
-            self.assertFalse((q / "control_prompts").exists())
-            self.assertFalse((q / "results").exists())
-            self.assertFalse((q / "code_reviews").exists())
-            self.assertFalse((q / "phase3").exists())
-            self.assertTrue(
-                (q / "workspace" / "control_prompts" / "phase1.txt").is_file()
-            )
-            self.assertTrue(
-                (q / "workspace" / "results" / "tdd-results.json").is_file()
-            )
-            self.assertTrue(
-                (q / "workspace" / "code_reviews" / "review.md").is_file()
-            )
-            self.assertTrue(
-                (q / "workspace" / "phase3" / "pass_c_formal.jsonl").is_file()
-            )
-            # ITER + MERGED files moved.
-            self.assertFalse((q / "EXPLORATION_ITER1.md").exists())
-            self.assertFalse((q / "EXPLORATION_MERGED.md").exists())
-            self.assertTrue((q / "workspace" / "EXPLORATION_ITER1.md").is_file())
-            self.assertTrue((q / "workspace" / "EXPLORATION_MERGED.md").is_file())
-
-    def test_idempotent_on_already_finalized_tree(self) -> None:
-        with TemporaryDirectory() as tmp:
-            repo = Path(tmp)
-            q = repo / "quality"
-            write(q / "BUGS.md", "bugs")
-            write(q / "workspace" / "results" / "x.json", "{}")
-            run_playbook._finalize_quality_layout(repo)
-            # Pre-existing workspace child preserved unchanged.
-            self.assertTrue((q / "workspace" / "results" / "x.json").is_file())
-            # Top-level canonical preserved.
-            self.assertTrue((q / "BUGS.md").is_file())
-
-    def test_no_overwrite_when_workspace_child_already_exists(self) -> None:
-        """If a re-run produces both top-level intermediates AND a
-        pre-existing workspace child, preserve workspace and leave
-        top-level alone (don't merge silently)."""
-        with TemporaryDirectory() as tmp:
-            repo = Path(tmp)
-            q = repo / "quality"
-            write(q / "control_prompts" / "phase1.txt", "live")
-            write(q / "workspace" / "control_prompts" / "phase1.txt", "old")
-            run_playbook._finalize_quality_layout(repo)
-            # Workspace preserved; top-level untouched (the rename
-            # would have overwritten workspace, which we explicitly
-            # avoid).
-            self.assertEqual(
-                (q / "workspace" / "control_prompts" / "phase1.txt").read_text(),
-                "old",
-            )
-            self.assertEqual(
-                (q / "control_prompts" / "phase1.txt").read_text(),
-                "live",
-            )
-
-    def test_no_op_when_quality_dir_missing(self) -> None:
-        with TemporaryDirectory() as tmp:
-            run_playbook._finalize_quality_layout(Path(tmp))
-
-
 class GateResolveArtifactPathTests(unittest.TestCase):
-    """v1.5.4 Phase 3.6.4 (B-16, M5 fix): the gate's
-    _resolve_artifact_path helper tries top-level first
-    (legacy / pre-reorg), then quality/workspace/<name>
-    (post-reorg). Imports the gate from its on-disk path since the
-    gate ships outside the bin/ package tree."""
+    """v1.5.7 fix F-4a: the gate's _resolve_artifact_path helper now
+    returns the canonical top-level path UNCONDITIONALLY. The v1.5.4
+    workspace/ fallback was removed because the runner-side
+    _finalize_quality_layout that produced workspace/ trees was dropped
+    in F-4z, and a new check_no_workspace_dir gate fails loudly when
+    workspace/ exists with content. Imports the gate from its on-disk
+    path since the gate ships outside the bin/ package tree."""
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -2989,7 +3267,10 @@ class GateResolveArtifactPathTests(unittest.TestCase):
         spec.loader.exec_module(module)
         cls.gate = module
 
-    def test_top_level_wins_when_present(self) -> None:
+    def test_top_level_wins_even_when_workspace_exists(self) -> None:
+        """If both top-level and workspace/ exist, top-level wins.
+        Pre-F-4a this was also the behavior (top-level checked first);
+        post-F-4a the function never even looks at workspace/."""
         with TemporaryDirectory() as tmp:
             q = Path(tmp)
             (q / "results").mkdir()
@@ -3001,13 +3282,19 @@ class GateResolveArtifactPathTests(unittest.TestCase):
             resolved = self.gate._resolve_artifact_path(q, "results/x.json")
             self.assertEqual(resolved.read_text(), "top")
 
-    def test_workspace_used_when_top_level_absent(self) -> None:
+    def test_workspace_is_NOT_resolved_post_F4a(self) -> None:
+        """Post-F-4a: a workspace/ tree alone does NOT satisfy
+        _resolve_artifact_path. The returned path is the canonical
+        top-level path (which doesn't exist here), so callers'
+        .is_file() returns False and downstream checks fail visibly."""
         with TemporaryDirectory() as tmp:
             q = Path(tmp)
             (q / "workspace" / "results").mkdir(parents=True)
             (q / "workspace" / "results" / "x.json").write_text("ws")
             resolved = self.gate._resolve_artifact_path(q, "results/x.json")
-            self.assertEqual(resolved.read_text(), "ws")
+            # Returns top-level path (which does NOT exist).
+            self.assertEqual(resolved, q / "results" / "x.json")
+            self.assertFalse(resolved.exists())
 
     def test_returns_top_level_when_neither_exists(self) -> None:
         """Callers test .is_file()/.is_dir() — return top-level so
@@ -3017,6 +3304,67 @@ class GateResolveArtifactPathTests(unittest.TestCase):
             resolved = self.gate._resolve_artifact_path(q, "results/x.json")
             self.assertEqual(resolved, q / "results" / "x.json")
             self.assertFalse(resolved.exists())
+
+    def test_check_no_workspace_dir_fails_on_populated_workspace(self) -> None:
+        """v1.5.7 fix F-4a Phase 6 gate: workspace/ with content fails.
+        Bites against the iter-N hallucination where the agent writes
+        new artifacts to quality/workspace/<name>/ instead of
+        canonical top-level."""
+        with TemporaryDirectory() as tmp:
+            q = Path(tmp)
+            (q / "workspace" / "writeups").mkdir(parents=True)
+            (q / "workspace" / "writeups" / "BUG-001.md").write_text(
+                "wrong location", encoding="utf-8",
+            )
+            self.gate._reset_counters()
+            self.gate.check_no_workspace_dir(q)
+            self.assertGreater(
+                self.gate.FAIL, 0,
+                "check_no_workspace_dir must FAIL when workspace/ has content",
+            )
+
+    def test_check_no_workspace_dir_passes_when_workspace_absent(self) -> None:
+        """check_no_workspace_dir passes when workspace/ doesn't exist
+        at all (canonical layout). Note: instruction 031 F-4 amendment
+        flipped the empty-directory case to FAIL — see the separate
+        empty-dir test below."""
+        with TemporaryDirectory() as tmp:
+            q = Path(tmp)
+            self.gate._reset_counters()
+            self.gate.check_no_workspace_dir(q)
+            self.assertEqual(
+                self.gate.FAIL, 0,
+                "check_no_workspace_dir must PASS when workspace/ absent",
+            )
+
+    def test_check_no_workspace_dir_fails_on_empty_workspace(self) -> None:
+        """v1.5.7 F-4 amendment (instruction 031): empty workspace/ is
+        also a failure mode. Pre-amendment the gate passed on empty
+        workspace/; the model-comparison evidence
+        (claude-opus-4.6/express) showed an empty workspace/ dir left
+        as a breadcrumb that trains future-iteration agents on the
+        wrong layout."""
+        with TemporaryDirectory() as tmp:
+            q = Path(tmp)
+            (q / "workspace").mkdir()
+            self.gate._reset_counters()
+            import io
+            from contextlib import redirect_stdout
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                self.gate.check_no_workspace_dir(q)
+            output = buf.getvalue()
+            self.assertGreater(
+                self.gate.FAIL, 0,
+                "check_no_workspace_dir must FAIL when workspace/ is "
+                "empty (F-4 amendment); got 0 fails. Output: "
+                f"{output!r}",
+            )
+            # Diagnostic must distinguish empty case from populated case.
+            self.assertIn(
+                "exists as an empty directory", output,
+                "diagnostic must name the empty-directory failure mode",
+            )
 
 
 class B18aBareInvocationDefaultsToFullRunTests(unittest.TestCase):
@@ -3118,34 +3466,63 @@ class PromptPrefixTests(unittest.TestCase):
         self.assertEqual(cmd[idx + 1], "fwd-test")
 
 
-class CodexPreventionScriptInvocationGuardTests(unittest.TestCase):
-    """v1.5.4 Phase 3.6.1 Section A.2: refuse direct script-style
-    invocation. The module relies on relative imports that fail under
-    `python bin/run_playbook.py`; codex's 2026-04-29 self-audit
-    attempt hit this and proceeded to patch QPB source. Now we
-    refuse early with EX_USAGE (64)."""
+class RunnerThreeModeAccessibilityTests(unittest.TestCase):
+    """v1.5.7 fix F-5a: replaces the v1.5.4 CodexPreventionScriptInvocationGuardTests.
+    Pre-fix the runner refused script-style invocation with EX_USAGE=64
+    (relative imports broke; codex's 2026-04-29 self-audit hit this and
+    unilaterally patched archive_lib.py). v1.5.7 fixes the underlying
+    issue: sys.path injection at module top + absolute `from bin import ...`
+    imports make script-mode work natively. The __main__ guard is dropped
+    because the failure mode it caught no longer exists."""
 
-    def test_script_style_invocation_exits_64(self) -> None:
+    def test_script_mode_help_succeeds_from_anywhere(self) -> None:
+        """`python3 /path/to/QPB/bin/run_playbook.py --help` exits 0 from
+        any cwd (the canonical script-style invocation form). Bites
+        directly against the v1.5.4 codex-prevention guard if it ever
+        comes back, and against any future regression that breaks the
+        sys.path injection."""
         import subprocess
+        from tempfile import TemporaryDirectory
         repo_root = Path(__file__).resolve().parents[2]
         script = repo_root / "bin" / "run_playbook.py"
-        result = subprocess.run(
-            ["python3", str(script)],
-            capture_output=True, text=True, cwd=str(repo_root),
-        )
+        with TemporaryDirectory() as tmp:
+            env = os.environ.copy()
+            # Strip PYTHONPATH so we're verifying the in-script sys.path
+            # injection, not an externally-supplied path.
+            env.pop("PYTHONPATH", None)
+            result = subprocess.run(
+                ["python3", str(script), "--help"],
+                capture_output=True, text=True, cwd=tmp, env=env,
+                timeout=15,
+            )
         self.assertEqual(
-            result.returncode, 64,
-            f"expected EX_USAGE (64), got {result.returncode}; "
+            result.returncode, 0,
+            f"script-mode --help must exit 0; got {result.returncode}; "
             f"stderr={result.stderr!r}",
         )
         self.assertIn(
-            "package module", result.stderr,
-            f"stderr must explain the fix; got: {result.stderr!r}",
+            "usage:", result.stdout,
+            f"argparse --help banner missing; stdout={result.stdout!r}",
         )
-        self.assertIn(
-            "python -m bin.run_playbook", result.stderr,
-            "stderr must show the correct invocation form",
+
+    def test_package_module_mode_help_succeeds(self) -> None:
+        """`python3 -m bin.run_playbook --help` exits 0 from QPB root
+        (canonical package-module form). Regression coverage for the
+        F-5a refactor (now does `from bin import benchmark_lib as lib`
+        unconditionally instead of try/except)."""
+        import subprocess
+        repo_root = Path(__file__).resolve().parents[2]
+        result = subprocess.run(
+            ["python3", "-m", "bin.run_playbook", "--help"],
+            capture_output=True, text=True, cwd=str(repo_root),
+            timeout=15,
         )
+        self.assertEqual(
+            result.returncode, 0,
+            f"package-module --help must exit 0; got {result.returncode}; "
+            f"stderr={result.stderr!r}",
+        )
+        self.assertIn("usage:", result.stdout)
 
 
 class CodexPreventionSentinelTests(unittest.TestCase):
@@ -3295,33 +3672,74 @@ class CodexPreventionSourceBackstopTests(unittest.TestCase):
             [],
         )
 
-    def test_verify_detects_committed_modification(self) -> None:
-        """Construct a synthetic 'baseline' SHA that predates the
-        latest commit touching bin/; the diff must include some
-        bin/ file that changed since then. This proves the detector
-        actually fires on non-empty diffs (the regression pin)."""
+    def test_verify_detects_uncommitted_modification_not_committed(self) -> None:
+        """The detector must fire on a non-empty diff — but v1.5.7
+        Issue 1 (chi-surfaced) redefined what counts: an *uncommitted*
+        source modification fires; a *committed* mid-run change does
+        NOT (it went through the commit discipline).
+
+        The prior version of this test diffed the real QPB repo
+        against a historical bin/ SHA and asserted the (committed)
+        deltas were surfaced — that pinned the exact false-positive
+        Issue 1 fixes, and only ever "passed" when the dev tree
+        happened to be dirty. Reworked to a deterministic temp-repo
+        test that pins both halves of the corrected invariant:
+        uncommitted bin/ edit -> detected; same edit committed ->
+        NOT detected. (Sibling to the two reworked verifier-coverage
+        tests landed in the Issue 1 commit 55a7c0f.)
+        """
         import subprocess
-        qpb_dir = Path(__file__).resolve().parents[2]
-        # Find a SHA from before the most recent bin/ commit.
-        result = subprocess.run(
-            ["git", "log", "--format=%H", "-n", "20", "--", "bin/"],
-            cwd=str(qpb_dir), capture_output=True, text=True, check=True,
-        )
-        commits = [c for c in result.stdout.splitlines() if c.strip()]
-        if len(commits) < 2:
-            self.skipTest(
-                "need at least 2 historical bin/ commits for diff test"
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess.run(
+                ["git", "init"], cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
-        # commits[0] is HEAD-most-recent for bin/; commits[1] is older.
-        old_sha = commits[1]
-        modified = run_playbook._verify_qpb_source_unchanged(
-            qpb_dir, old_sha
-        )
-        self.assertGreater(
-            len(modified), 0,
-            f"diff against {old_sha[:7]} must surface at least one "
-            f"bin/ change (or this test fixture needs updating)",
-        )
+            subprocess.run(
+                ["git", "config", "user.email", "t@example.com"],
+                cwd=repo, check=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "T"], cwd=repo, check=True
+            )
+            src = repo / "bin" / "sample.py"
+            src.parent.mkdir(parents=True, exist_ok=True)
+            src.write_text("# v1 baseline\n", encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "baseline"], cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            baseline = run_playbook._qpb_source_baseline_sha(repo)
+
+            # Uncommitted mid-run modification -> detector FIRES.
+            src.write_text("# v2 uncommitted agent edit\n", encoding="utf-8")
+            modified = run_playbook._verify_qpb_source_unchanged(
+                repo, baseline
+            )
+            self.assertIn(
+                "bin/sample.py", modified,
+                "an uncommitted bin/ modification must be detected "
+                "(the detector still fires on non-empty diffs)",
+            )
+
+            # Same change, now committed -> detector does NOT fire
+            # (Issue 1: committed mid-run changes are legitimate).
+            subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "authorized mid-run fix"],
+                cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            modified_after_commit = run_playbook._verify_qpb_source_unchanged(
+                repo, baseline
+            )
+            self.assertEqual(
+                modified_after_commit, [],
+                "a committed mid-run change must NOT be flagged "
+                "(Issue 1 false-positive fix)",
+            )
 
 
 class Round8Fix1HelpAndBannerTests(unittest.TestCase):
@@ -3527,31 +3945,60 @@ class Round8Fix6SourcePathsCoverageTests(unittest.TestCase):
             self.assertIn(path, run_playbook._QPB_SOURCE_PATHS)
 
     def test_verifier_diffs_against_schemas_md_changes(self) -> None:
-        """Pin that the actual diff machinery treats schemas.md as a
-        watched path. Diff against a historical SHA that predates a
-        schemas.md change; the modified-list must include it."""
+        """Pin that the diff machinery treats schemas.md as a watched
+        path: an *uncommitted* modification to schemas.md must be
+        surfaced.
+
+        v1.5.7 Issue 1 (chi-surfaced) reworked
+        ``_verify_qpb_source_unchanged`` so a *committed* mid-run
+        change is correctly NOT flagged (it arrived via the commit
+        discipline). The prior version of this test diffed against a
+        historical SHA and asserted a committed schemas.md change was
+        flagged — that pinned the false-positive behavior Issue 1
+        fixes. It now pins watched-path coverage the way the guardrail
+        actually works: an uncommitted edit (the autonomous-agent
+        case) is flagged. Mutation contract preserved: removing
+        ``schemas.md`` from ``_QPB_SOURCE_PATHS`` makes the diff +
+        untracked filters exclude it and this assertion fails.
+        """
         import subprocess
-        qpb_dir = Path(__file__).resolve().parents[2]
-        # Find a historical commit before the most recent schemas.md edit.
-        result = subprocess.run(
-            ["git", "log", "--format=%H", "-n", "20", "--", "schemas.md"],
-            cwd=str(qpb_dir), capture_output=True, text=True, check=True,
-        )
-        commits = [c for c in result.stdout.splitlines() if c.strip()]
-        if len(commits) < 2:
-            self.skipTest(
-                "need at least 2 historical schemas.md commits to verify "
-                "the diff machinery sees the file"
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess.run(
+                ["git", "init"], cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
-        # commits[1] is a SHA before commits[0]'s schemas.md change.
-        modified = run_playbook._verify_qpb_source_unchanged(
-            qpb_dir, commits[1]
-        )
-        self.assertIn(
-            "schemas.md", modified,
-            "_verify_qpb_source_unchanged must surface schemas.md "
-            "modifications now that it's in _QPB_SOURCE_PATHS",
-        )
+            subprocess.run(
+                ["git", "config", "user.email", "t@example.com"],
+                cwd=repo, check=True,
+            )
+            subprocess.run(
+                ["git", "config", "user.name", "T"], cwd=repo, check=True
+            )
+            (repo / "schemas.md").write_text(
+                "# schemas v1 baseline\n", encoding="utf-8"
+            )
+            subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "baseline"], cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            baseline = run_playbook._qpb_source_baseline_sha(repo)
+            # Uncommitted mid-run modification to the watched path.
+            (repo / "schemas.md").write_text(
+                "# schemas v2 — uncommitted mid-run agent edit\n",
+                encoding="utf-8",
+            )
+            modified = run_playbook._verify_qpb_source_unchanged(
+                repo, baseline
+            )
+            self.assertIn(
+                "schemas.md", modified,
+                "_verify_qpb_source_unchanged must surface an "
+                "uncommitted schemas.md modification (schemas.md is in "
+                "_QPB_SOURCE_PATHS)",
+            )
 
 
 class CouncilRound2P04PhasePromptsSourcePathTests(unittest.TestCase):
@@ -3566,57 +4013,68 @@ class CouncilRound2P04PhasePromptsSourcePathTests(unittest.TestCase):
         self.assertIn("phase_prompts/", run_playbook._QPB_SOURCE_PATHS)
 
     def test_verifier_diffs_against_phase_prompts_changes(self) -> None:
-        """Pin that the actual diff machinery treats phase_prompts/
-        as a watched path. The phase_prompts/ directory was first
-        introduced in commit aee53c2 (F-1). Diffing from any pre-F-1
-        baseline must surface phase_prompts/ entries — but ONLY if
-        the path is in _QPB_SOURCE_PATHS (the diff is filtered by
-        the path list).
+        """Pin that the diff machinery treats phase_prompts/ as a
+        watched path: an *uncommitted* modification to a
+        phase_prompts/ file must be surfaced.
 
-        Mutation contract: removing 'phase_prompts/' from
-        _QPB_SOURCE_PATHS makes this test fail because the diff
-        filter no longer includes the directory and the modified
-        list comes back empty for phase_prompts/ entries."""
+        v1.5.7 Issue 1 (chi-surfaced) reworked
+        ``_verify_qpb_source_unchanged`` so a *committed* mid-run
+        change is correctly NOT flagged. The prior version of this
+        test diffed from a pre-F-1 historical SHA and asserted the
+        (committed) phase_prompts/ additions were flagged — that
+        pinned the false-positive behavior Issue 1 fixes (and skipped
+        nondeterministically when no pre-F-1 commit was in range). It
+        now pins watched-path coverage deterministically via an
+        uncommitted edit (the autonomous-agent case the guardrail
+        exists to catch).
+
+        Mutation contract preserved: removing 'phase_prompts/' from
+        _QPB_SOURCE_PATHS makes the diff + untracked filters exclude
+        the directory and this assertion fails.
+        """
         import subprocess
-        qpb_dir = Path(__file__).resolve().parents[2]
-        # Find a SHA from before phase_prompts/ was created. The
-        # introducing commit is aee53c2; any earlier commit works.
-        result = subprocess.run(
-            ["git", "log", "--format=%H", "-n", "30", "HEAD"],
-            cwd=str(qpb_dir), capture_output=True, text=True, check=True,
-        )
-        commits = [c for c in result.stdout.splitlines() if c.strip()]
-        # Walk the history looking for a commit where phase_prompts/
-        # didn't yet exist. The check `git ls-tree <sha> phase_prompts/`
-        # returns empty when the directory wasn't tracked yet.
-        pre_f1_sha = None
-        for sha in commits:
-            ls = subprocess.run(
-                ["git", "ls-tree", sha, "phase_prompts/"],
-                cwd=str(qpb_dir), capture_output=True, text=True, check=False,
+        from tempfile import TemporaryDirectory
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            subprocess.run(
+                ["git", "init"], cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
-            if not ls.stdout.strip():
-                pre_f1_sha = sha
-                break
-        if pre_f1_sha is None:
-            self.skipTest(
-                "no pre-F-1 commit available to diff against — git "
-                "history may have been rewritten or shallow-cloned"
+            subprocess.run(
+                ["git", "config", "user.email", "t@example.com"],
+                cwd=repo, check=True,
             )
-        modified = run_playbook._verify_qpb_source_unchanged(
-            qpb_dir, pre_f1_sha
-        )
-        phase_prompts_changes = [
-            m for m in modified if m.startswith("phase_prompts/")
-        ]
-        self.assertGreater(
-            len(phase_prompts_changes), 0,
-            "_verify_qpb_source_unchanged must surface phase_prompts/ "
-            "additions now that the directory is in _QPB_SOURCE_PATHS. "
-            "If this assertion fails after a code change, the most "
-            "likely cause is 'phase_prompts/' was removed from the "
-            "tuple — restore it.",
-        )
+            subprocess.run(
+                ["git", "config", "user.name", "T"], cwd=repo, check=True
+            )
+            pp = repo / "phase_prompts" / "phase1.md"
+            pp.parent.mkdir(parents=True, exist_ok=True)
+            pp.write_text("# phase1 prompt v1 baseline\n", encoding="utf-8")
+            subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
+            subprocess.run(
+                ["git", "commit", "-m", "baseline"], cwd=repo, check=True,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            baseline = run_playbook._qpb_source_baseline_sha(repo)
+            # Uncommitted mid-run modification to the watched path.
+            pp.write_text(
+                "# phase1 prompt v2 — uncommitted mid-run agent edit\n",
+                encoding="utf-8",
+            )
+            modified = run_playbook._verify_qpb_source_unchanged(
+                repo, baseline
+            )
+            phase_prompts_changes = [
+                m for m in modified if m.startswith("phase_prompts/")
+            ]
+            self.assertGreater(
+                len(phase_prompts_changes), 0,
+                "_verify_qpb_source_unchanged must surface an "
+                "uncommitted phase_prompts/ modification now that the "
+                "directory is in _QPB_SOURCE_PATHS. If this fails after "
+                "a code change, the most likely cause is 'phase_prompts/' "
+                "was removed from the tuple — restore it.",
+            )
 
     def test_source_paths_preserves_prior_coverage_after_p04(self) -> None:
         """Negative control: P0-4's addition must not displace any
@@ -3795,10 +4253,12 @@ class KillRecordedProcessesPkillSafetyTests(unittest.TestCase):
     """v1.5.6 fix-up 057 — BUG-004 (HIGH) workstation-wide pkill safety.
 
     The pre-fix `_pkill_fallback()` ran `pkill -f` against substrings like
-    `claude -p` and `gh copilot -p`, killing every interactive Claude or
-    Copilot session on the workstation when PID files were missing.
-    Default behavior is now manual-intervention guidance; legacy pkill
-    is preserved behind --allow-pkill-fallback for explicit opt-in.
+    `claude -p` and the Copilot CLI invocations (`copilot -p`,
+    `gh copilot -p` — both forms after v1.5.7 089f's gh-copilot →
+    copilot migration), killing every interactive Claude or Copilot
+    session on the workstation when PID files were missing. Default
+    behavior is now manual-intervention guidance; legacy pkill is
+    preserved behind --allow-pkill-fallback for explicit opt-in.
     """
 
     def test_no_pid_files_default_does_not_invoke_pkill(self) -> None:
@@ -4144,14 +4604,19 @@ class InstallFallbackPinningTests(unittest.TestCase):
 
     REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
-    # Six documented install layouts (per ai_context/TOOLKIT.md and
-    # bin/benchmark_lib.py:SKILL_INSTALL_LOCATIONS, post-cluster-2):
+    # Ten documented install layouts (per
+    # bin/benchmark_lib.py:SKILL_INSTALL_LOCATIONS; v1.5.7 instruction
+    # 046 A-3 expanded 6 → 10):
     #   1. repo root SKILL.md
     #   2. .claude/skills/quality-playbook/
     #   3. .github/skills/SKILL.md (Copilot flat)
     #   4. .cursor/skills/quality-playbook/
     #   5. .continue/skills/quality-playbook/
     #   6. .github/skills/quality-playbook/SKILL.md (Copilot nested)
+    #   7. .codex/skills/quality-playbook/
+    #   8. .windsurf/skills/quality-playbook/
+    #   9. .cline/skills/quality-playbook/
+    #  10. .aider/skills/quality-playbook/
     EXPECTED_FALLBACK_PATHS = (
         "SKILL.md",
         ".claude/skills/quality-playbook/SKILL.md",
@@ -4159,6 +4624,10 @@ class InstallFallbackPinningTests(unittest.TestCase):
         ".cursor/skills/quality-playbook/SKILL.md",
         ".continue/skills/quality-playbook/SKILL.md",
         ".github/skills/quality-playbook/SKILL.md",
+        ".codex/skills/quality-playbook/SKILL.md",
+        ".windsurf/skills/quality-playbook/SKILL.md",
+        ".cline/skills/quality-playbook/SKILL.md",
+        ".aider/skills/quality-playbook/SKILL.md",
     )
 
     def test_bug_008_later_phase_prompts_use_placeholder(self) -> None:
@@ -4200,9 +4669,10 @@ class InstallFallbackPinningTests(unittest.TestCase):
 
     def test_bug_010_claude_orchestrator_agent_lists_canonical_order(self) -> None:
         """BUG-010: agents/quality-playbook-claude.agent.md must list
-        the same 6 paths as SKILL_INSTALL_LOCATIONS, in the same order.
+        the same paths as SKILL_INSTALL_LOCATIONS, in the same order.
         Pre-fix the Copilot flat/nested positions were reversed in the
-        agent file; cluster A reconciled."""
+        agent file; cluster A reconciled. v1.5.7 instruction 046 A-3
+        expanded the canonical list 6 → 10 (codex/windsurf/cline/aider)."""
         agent_text = (self.REPO_ROOT / "agents" / "quality-playbook-claude.agent.md").read_text(encoding="utf-8")
         # Find the "Look for SKILL.md in these locations" section's
         # numbered list and capture the order.
@@ -4214,7 +4684,9 @@ class InstallFallbackPinningTests(unittest.TestCase):
         marker = agent_text.find("Look for SKILL.md in these locations")
         self.assertGreater(marker, 0, "expected 'Look for SKILL.md' setup section")
         section = agent_text[marker:]
-        section_items = re.findall(r"^\d+\.\s+`([^`]+)`", section, re.MULTILINE)[:6]
+        section_items = re.findall(
+            r"^\d+\.\s+`([^`]+)`", section, re.MULTILINE
+        )[:len(self.EXPECTED_FALLBACK_PATHS)]
         self.assertEqual(
             tuple(section_items), self.EXPECTED_FALLBACK_PATHS,
             f"Claude orchestrator fallback order drifted — got {section_items}; "
@@ -4270,6 +4742,149 @@ class DocsPresentRecognizedPlaintextPredicateTests(unittest.TestCase):
             refs.mkdir()
             (refs / "design.md").write_text("# Design\n", encoding="utf-8")
             self.assertTrue(run_playbook.docs_present(repo))
+
+
+class ActiveCouncilRosterResolutionTests(unittest.TestCase):
+    """v1.5.7 instruction 053 (Path A — sibling-finding wiring):
+    `_active_council_roster(args)` resolves the documented 3-tier
+    precedence: --council-roster CLI flag → ~/.qpb/config.json
+    `council_members` → DEFAULT_COUNCIL_MEMBERS. The function was
+    defined but never called pre-053 (the flag was effectively
+    unwired); it is now invoked by the Phase 4 banner.
+
+    Isolation: BOTH $XDG_CONFIG_HOME and $HOME (+ pathlib.Path.home)
+    route to temp dirs so a real adopter ~/.qpb/config.json can't
+    leak into the config-file tier (same harness as the 052 Option B
+    cleanup).
+    """
+
+    def setUp(self) -> None:
+        self._tmp = TemporaryDirectory()
+        self._home = TemporaryDirectory()
+        self._patch = mock.patch.dict(
+            os.environ,
+            {"XDG_CONFIG_HOME": self._tmp.name, "HOME": self._home.name},
+        )
+        self._patch.start()
+        self._home_patch = mock.patch(
+            "pathlib.Path.home", return_value=Path(self._home.name)
+        )
+        self._home_patch.start()
+
+    def tearDown(self) -> None:
+        self._home_patch.stop()
+        self._patch.stop()
+        self._home.cleanup()
+        self._tmp.cleanup()
+
+    def _write_config(self, payload: object) -> None:
+        cfg_dir = Path(self._tmp.name) / "qpb"
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        (cfg_dir / "config.json").write_text(
+            json.dumps(payload), encoding="utf-8"
+        )
+
+    def _resolve(self, argv):
+        # parse_args runs _apply_qpb_config_overrides internally, so
+        # this exercises the real CLI→args→resolver path.
+        args = run_playbook.parse_args(argv)
+        return run_playbook._active_council_roster(args)
+
+    def test_council_config_provides_council_members_helper(self) -> None:
+        """council_config.council_members() is the canonical roster
+        helper that `_active_council_roster` (and thus the Phase 4
+        banner) routes through for the config-file + default tiers.
+
+        v1.5.7 instruction 053b F2 (codex-053 finding 2): moved here
+        from RunPlaybookTests so it inherits this class's
+        $HOME/$XDG/Path.home isolation, AND the assertion is
+        STRENGTHENED from "non-empty tuple of non-empty strings" (weak
+        — passed even when a real adopter ~/.qpb/config.json resolved
+        the helper to a custom roster) to exact equality with
+        DEFAULT_COUNCIL_MEMBERS. Under this class's isolation NO
+        config file exists on the resolution chain, so the post-052/
+        post-053 3-tier resolver MUST return the canonical default —
+        that is the testable invariant. Truthifies 053's "durable to
+        adopter pollution" claim for this last un-isolated helper
+        test.
+        """
+        from bin.council_config import DEFAULT_COUNCIL_MEMBERS, council_members
+
+        roster = council_members()
+        # Strengthened invariant: under isolation (no config), the
+        # 3-tier resolver returns the canonical default exactly.
+        self.assertEqual(roster, DEFAULT_COUNCIL_MEMBERS)
+        # Retained shape checks (belt-and-suspenders).
+        self.assertIsInstance(roster, tuple)
+        self.assertGreater(len(roster), 0)
+        for member in roster:
+            self.assertIsInstance(member, str)
+            self.assertTrue(member.strip())
+
+    def test_council_roster_cli_flag_overrides_config(self) -> None:
+        """Tier 1 wins: --council-roster beats a different config-file
+        override.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-053
+        Task 3 (Path A) — the GENUINE distinguishing bite:
+          Mutation: delete the `if raw:` tier-1 block in
+          bin/run_playbook.py:_active_council_roster.
+          Expected failure: THIS test fails —
+            AssertionError: Tuples differ:
+            ('cfg-1','cfg-2','cfg-3') != ('cli-1','cli-2','cli-3').
+          With the flag given, argparse sets
+          args.council_roster="cli-1,cli-2,cli-3" and
+          _apply_qpb_config_overrides does NOT overlay (flag present);
+          without tier-1 the resolver falls through to
+          council_members() → the planted CONFIG roster, not the CLI
+          flag. Restore the block → PASS. Bite executed during
+          instruction-053 development; PASS→FAIL→PASS confirmed.
+
+        HONEST NOTE on the 053 fallback-wiring change (final
+        `return tuple(council_config.council_members())` replacing the
+        pre-053 bare `return DEFAULT_COUNCIL_MEMBERS`): it is NOT
+        independently bite-distinguishable on the parse_args path and
+        no test claims it is. `parse_args` runs
+        `_apply_qpb_config_overrides`, which overlays a config-file
+        `council_members` ONTO `args.council_roster` whenever no
+        `--council-roster` flag is passed — so the config-file tier
+        always reaches tier-1, never the fallback. The fallback only
+        fires with neither flag nor config (→ DEFAULT either way:
+        council_members() returns DEFAULT when no config). The change
+        is therefore behaviorally equivalent on the normal path; its
+        value is defensive correctness + de-duplication — it makes
+        `_active_council_roster` self-sufficient (honors the config
+        file even if called on an args object that never went through
+        the overlay) and routes through the single canonical helper
+        instead of a second DEFAULT import. The banner-wiring half of
+        the 053 fix (run_one_phase calling _active_council_roster) is
+        bite-pinned separately and comment-proof in
+        test_phase4_council_banner_reads_roster_programmatically.
+        """
+        self._write_config(
+            {"council_members": ["cfg-1", "cfg-2", "cfg-3"]}
+        )
+        roster = self._resolve(
+            [".", "--council-roster", "cli-1,cli-2,cli-3", "--model", "sonnet"]
+        )
+        self.assertEqual(roster, ("cli-1", "cli-2", "cli-3"))
+
+    def test_council_roster_config_overrides_default(self) -> None:
+        """Tier 2: no CLI flag, config-file `council_members` applied
+        (this is the pin for the 053 fallback-wiring change — pre-053
+        the fallback skipped the config tier and returned DEFAULT)."""
+        self._write_config(
+            {"council_members": ["cfg-1", "cfg-2", "cfg-3"]}
+        )
+        roster = self._resolve([".", "--model", "sonnet"])
+        self.assertEqual(roster, ("cfg-1", "cfg-2", "cfg-3"))
+
+    def test_council_roster_default_when_neither_set(self) -> None:
+        """Tier 3: no CLI flag, no config file → DEFAULT_COUNCIL_MEMBERS."""
+        from bin.council_config import DEFAULT_COUNCIL_MEMBERS
+        roster = self._resolve([".", "--model", "sonnet"])
+        self.assertEqual(roster, tuple(DEFAULT_COUNCIL_MEMBERS))
 
 
 if __name__ == "__main__":

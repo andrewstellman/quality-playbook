@@ -537,7 +537,7 @@ This is distinct from standard integration tests because the system under test d
 ## Skill Integration Test Protocol
 
 ### Prerequisites
-- CLI agent installed and configured (e.g., `gh copilot`, `claude`, `npx @anthropic-ai/claude-code`)
+- CLI agent installed and configured (e.g., `copilot` — the new standalone GitHub Copilot CLI; or the deprecated `gh copilot` extension during the grace period; or `claude`, `npx @anthropic-ai/claude-code`)
 - Test repo prepared with skill installed at `.github/skills/SKILL.md` (or equivalent)
 - Clean `quality/` directory (no artifacts from prior runs)
 - Optional: `reference_docs/` folder for with-docs comparison runs
@@ -560,8 +560,15 @@ cp -r path/to/skill/.github test-repo/.github
 
 # Run via CLI agent (adapt command to your agent)
 cd test-repo
-gh copilot -p "Read .github/skills/SKILL.md and its reference files. Execute the quality playbook for this project." \
-    --model gpt-5.4 --yolo > quality_run.output.txt 2>&1
+# New standalone `copilot` CLI (preferred, post-2025-10-25 deprecation
+# of `gh copilot`; v1.5.7 089f):
+copilot -p "Read the quality-playbook SKILL.md and its reference files (walk the ten canonical install-location fallback list: SKILL.md, .claude/skills/quality-playbook/SKILL.md, .github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, .continue/skills/quality-playbook/SKILL.md, .github/skills/quality-playbook/SKILL.md, .codex/skills/quality-playbook/SKILL.md, .windsurf/skills/quality-playbook/SKILL.md, .cline/skills/quality-playbook/SKILL.md, .aider/skills/quality-playbook/SKILL.md). Execute the quality playbook for this project." \
+    --model gpt-5.5 --allow-all > quality_run.output.txt 2>&1
+
+# Legacy `gh copilot` extension (deprecated 2025-10-25; works during
+# the grace period — same invocation shape, swap `copilot` →
+# `gh copilot` and `--allow-all` → `--yolo`):
+# gh copilot -p "..." --model gpt-5.5 --yolo > quality_run.output.txt 2>&1
 ```
 
 ### Structural Verification (automated)

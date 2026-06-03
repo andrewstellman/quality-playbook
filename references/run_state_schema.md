@@ -1,18 +1,31 @@
-# Run-State Schema (v1.5.6)
+# Run-State Schema (v1.5.7)
 
 *Authoritative schema for `quality/run_state.jsonl`, `quality/PROGRESS.md`, and `Calibration Cycles/<cycle>/run_state.jsonl`. The playbook AI writes these files directly via the file-tool layer; the orchestrator AI reads them to drive multi-benchmark calibration cycles.*
 
-*Companion to: `docs/design/QPB_v1.5.5_Design.md` ("Design — Run-state event taxonomy" section).*
+*Companion to: `docs/design/QPB_v1.5.5_Design.md` ("Design — Run-state event taxonomy" section). v1.5.7 D3 added the centralized `quality/logs/<run-id>/` layout discriminator (`run_id` + `log_layout` fields on `run_start`); event taxonomy otherwise unchanged from v1.5.6.*
 
 ---
 
 ## File locations and ownership
 
-- `<benchmark>/quality/run_state.jsonl` — per-run event log. Append-only. Written by the AI executing the playbook.
-- `<benchmark>/quality/PROGRESS.md` — human-readable run status. Atomically rewritten by the AI on each event.
+- `<benchmark>/quality/logs/<run-id>/run_state.jsonl` — **v1.5.7+ canonical** per-run event log location. Append-only. Written by the runner / AI executing the playbook. The `<run-id>` is the run's UTC ISO-8601 compact timestamp (`YYYYMMDDTHHMMSSZ`); files within a single run-id directory all belong to the same invocation.
+- `<benchmark>/quality/run_state.jsonl` — **v1.5.6 legacy** location. Still written when `--logs-flat` (CLI flag) or `QPB_LOGS_LEGACY=1` (env var) is set. Readers should fall back to this location when no centralized layout exists. The `resolve_run_state_path(repo_dir)` helper in `bin/run_state_lib.py` implements the canonical fallback chain.
+- `<benchmark>/quality/PROGRESS.md` — human-readable run status. Atomically rewritten by the AI on each event. (Not affected by v1.5.7 layout change.)
 - `Calibration Cycles/<cycle>/run_state.jsonl` — cycle-level event log. Append-only. Written by the orchestrator AI.
 
-All three live in the bind-mounted workspace owned by the user. The AI writes via Edit/Write file tools, never via shell redirection or `tee` (which routes through a different UID layer in some sandbox runtimes).
+All four live in the bind-mounted workspace owned by the user. The AI writes via Edit/Write file tools, never via shell redirection or `tee` (which routes through a different UID layer in some sandbox runtimes).
+
+### v1.5.7 layout discriminator
+
+The `run_start` event in `run_state.jsonl` MAY carry `run_id` and `log_layout` fields (additive in v1.5.7; not present in pre-v1.5.7 runs):
+
+- `run_id`: compact UTC ISO-8601 timestamp (`YYYYMMDDTHHMMSSZ`) identifying the run's `quality/logs/<run-id>/` directory.
+- `log_layout`:
+  - `"v1.5.7-centralized"` — the run is writing logs to `quality/logs/<run-id>/`.
+  - `"v1.5.6-flat"` — the run is writing logs to the legacy locations (via `--logs-flat` / `QPB_LOGS_LEGACY=1`).
+  - field absent — pre-v1.5.7 runs that predate the layout discriminator. Treat as `"v1.5.6-flat"` for resolver behavior.
+
+Readers that need to find the canonical `quality-gate.log` or `run_metadata.json` location for a run should consult these fields on the latest `run_start` event; the `resolve_run_state_path` helper above handles the run-state-file resolution chain automatically.
 
 ---
 
@@ -60,6 +73,8 @@ Marks the beginning of a playbook run.
 | `runner` | string | yes | One of `"claude"`, `"codex"`, `"copilot"`, `"cursor"` |
 | `playbook_version` | string | yes | E.g. `"1.5.6-pre"`, `"1.5.6"` (matches `bin.benchmark_lib.RELEASE_VERSION`) |
 | `target_path` | string | yes | Relative path to benchmark target |
+| `run_id` | string | v1.5.7+ | Compact UTC ISO-8601 timestamp (`YYYYMMDDTHHMMSSZ`) identifying the run's `quality/logs/<run-id>/` directory. Absent in pre-v1.5.7 runs. |
+| `log_layout` | string | v1.5.7+ | One of `"v1.5.7-centralized"` or `"v1.5.6-flat"` per the v1.5.7 layout discriminator section above. Absent in pre-v1.5.7 runs (treat as `"v1.5.6-flat"`). |
 
 ### `phase_start`
 
@@ -152,7 +167,7 @@ Marks the end of a phase. Cross-validated against the phase's expected artifacts
 - Phase 3: `{"bugs_identified": N, "bug_writeups": M}`
 - Phase 4: `{"req_count": N, "uc_count": M, "passes_complete": K}` (K should be 4)
 - Phase 5: `{"gate_checks_total": N, "gate_failures": M}`
-- Phase 6: `{"bugs_md_count": N, "gate_verdict": "pass|fail|partial"}`
+- Phase 6: `{"bugs_md_count": N, "gate_verdict": "pass|pass-with-cleanup|fail|partial"}` (the `pass-with-cleanup` value, v1.5.7 089d F17, corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line; see `schemas.md` §11)
 
 ### `error`
 

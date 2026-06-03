@@ -1,198 +1,87 @@
 # Quality Playbook Progress
 
-Skill version: 1.5.6
-Date: 2026-05-07
-
-## Phase tracker
-
-- [x] Phase 1 - Explore
-- [x] Phase 2 - Generate
-- [x] Phase 3 - Code Review
-- [x] Phase 4 - Spec Audit
-- [x] Phase 5 - Reconciliation
-- [x] Phase 6 - Verify
-
 ## Run metadata
-
-- Timestamp start: 2026-05-08T02:12:51Z
-- Repository: `QPB`
-- Provenance for file inventory: `git-ls-files`
-- Tracked files enumerated: 1183
-- Approximate intrinsic source files: 40
-- With docs: yes
-- Citable docs in `reference_docs/cite/`: none present beyond `.gitkeep`
-- Phase 0 / Phase 0b seed scan: intentionally skipped for this clean benchmark run
-- Phase 2 completed at: 2026-05-08T02:21:08Z
-- Phase 3 completed at: 2026-05-08T02:34:19Z
-- Phase 4 completed at: 2026-05-08T02:45:04Z
-- Phase 5 completed at: 2026-05-08T03:25:00Z
-- Phase 6 completed at: 2026-05-08T03:06:15Z
-- Mechanical verification: NOT APPLICABLE — no dispatch/registry/enumeration contracts in scope
+Started: 2026-05-30T21:17:09Z
+Project: quality-playbook (self-bootstrap, Mode A)
+Skill version: 1.5.7
+Runner: claude-code (claude-opus-4-8)
+With docs: yes (Tier-4 reference_docs/; no Tier 1/2 cite docs → Spec-Gap run)
 
 ## Scope declaration
+In-scope source: 470 git-tracked files (role map). Excluded: `repos/` (vendored benchmark targets), `quality/` + `previous_runs/` (playbook output / archives), git internals. Exploration focused on the highest-risk + most-recently-churned subsystem: the **Test Harness** (`bin/harness/`) plus the quality gate and run-state/registry libraries. Deferred to follow-on iterations: `bin/run_playbook.py` Mode-B orchestration internals beyond the launch/collect path, `tui.py`, `build_channel_package.py`, `install_skill.py` (rationale: the last 8 commits all touch `bin/harness/`, making it the live-defect surface; the install/packaging paths are comparatively stable).
 
-- Repository scale is below the mandatory large-repo scoping threshold for intrinsic code (`~40` non-test Python files), but the tracked tree is dominated by prior run artifacts (`quality/`, `previous_runs/`, metrics, fixtures).
-- Exploration focus for this run:
-  - `SKILL.md`, `phase_prompts/`, `references/` as the declarative playbook surface
-  - `bin/run_playbook.py`, `bin/reference_docs_ingest.py`, `bin/run_state_lib.py`, `bin/role_map.py`, `bin/install_skill.py`, `bin/archive_lib.py`, `bin/bootstrap_self_audit_docs.py`
-  - `.github/skills/quality_gate/quality_gate.py` as the mechanical validation layer
-  - `bin/skill_derivation/` as the hybrid skill/code divergence pipeline
-- Deferred from deep reading:
-  - Historical `quality/` and `quality/previous_runs/` artifacts, because the run explicitly skips seed harvesting and prior-run evidence
-  - Benchmark/example repo snapshots under `repos/`, except as file-role inventory entries
+## Phase completion
+- [x] Phase 1: Exploration — completed 2026-05-30T21:30:00Z (8 findings, 6 patterns evaluated / 3 FULL deep-dives, 5 candidate bugs)
+- [x] Phase 2: Artifact generation — completed 2026-05-30T21:43:20Z (12 REQs / 6 UCs, 9 core artifacts + manifests + test_functional.py; both Phase-2 validators PASS; functional suite 8 pass / 5 xfail confirming F1-F5)
+- [x] Phase 3: Code review + regression tests — completed 2026-05-30T21:52:00Z (5 confirmed bugs, 5 regression-test patches, 4 fix patches; all apply cleanly)
+- [x] Phase 4: Spec audit + triage — completed 2026-05-30T21:56:00Z (3 independent-lens auditors + triage; triage_probes.sh all CONFIRMED exit 0; 0 net-new bugs; incomplete-council gate satisfied via mechanical proof)
+- [x] Phase 5: Post-review reconciliation + closure verification — completed 2026-05-30T22:00:00Z (challenge gate: all 5 CONFIRMED; TDD 4 verified + 1 confirmed-open; terminal gate counts match 5=5+0)
+- [x] TDD logs: red-phase log for every confirmed bug (5/5), green-phase log for every bug with fix patch (4/4)
+- [x] Phase 6: Verification benchmarks — completed 2026-05-30T22:04:30Z (fresh-context auditor: AUDITOR VERDICT PASS; gate 0 FAIL, validator phase-6 PASSED)
+- [ ] Phase 7: Present, Explore, Improve (interactive)
 
 ## Documentation depth assessment
-
-| File | Depth | Coverage commitment |
-|---|---|---|
-| `reference_docs/01_README_project.md` | Deep | Will cover install flow, artifact contract, and user-facing positioning |
-| `reference_docs/02_AGENTS.md` | Deep | Will cover AI-agent install procedure and operator handoff expectations |
-| `reference_docs/03_DEVELOPMENT_CONTEXT.md` | Deep | Will cover architecture, benchmark strategy, and known maintenance surfaces |
-| `reference_docs/04_BENCHMARK_PROTOCOL.md` | Deep | Will cover clean-run assumptions and benchmark isolation constraints |
-| `reference_docs/05_TOOLKIT.md` | Deep | Will cover adopter workflow, code-only mode, and runtime fallback expectations |
-| `reference_docs/20_design_intent_the_35_percent_gap.md` | Deep | Will cover the intent-vs-structure quality objective |
-| `reference_docs/21_requirements_pipeline.md` | Deep | Will cover the inner requirements pipeline and traceability expectations |
-| `reference_docs/22_council_of_three.md` | Deep | Will cover spec-audit architecture and verification-probe expectations |
-| `reference_docs/23_iteration_strategies.md` | Deep | Will cover iteration modes and replay expectations |
-| `reference_docs/24_challenge_gate.md` | Deep | Will cover false-positive hardening and evidentiary checks |
-| `reference_docs/25_anti_hallucination_invariants.md` | Deep | Will cover integrity constraints and mechanical backstops |
-| `reference_docs/26_six_phase_orchestration.md` | Deep | Will cover the six-phase execution model and orchestration expectations |
-| `reference_docs/27_tdd_verification_protocol.md` | Deep | Will cover TDD closure requirements and log discipline |
-| `reference_docs/28_recheck_mode.md` | Moderate | Will cover recheck expectations where they shape artifact contracts |
-| `reference_docs/29_improvement_axes_and_version_history.md` | Moderate | Will cover release history where it explains current architecture choices |
-| `reference_docs/30_benchmark_protocol_and_self_audit.md` | Deep | Will cover bootstrap/self-audit constraints and contamination concerns |
-| `reference_docs/31_known_limitations.md` | Deep | Will cover known blind spots and risk framing |
-| `reference_docs/50_Quality_Playbook_Patent_Review.md` | Moderate | Will use as precision support for the novel-mechanism claims, not as primary behavior source |
-| `reference_docs/INDEX.md` | Moderate | Will use as document map and curation context |
-| `reference_docs/sources.md` | Moderate | Will use as provenance support only |
-
-## Documentation gap notes
-
-- `reference_docs/cite/` is empty in the active tree except for `.gitkeep`, so this run has rich Tier 4 context but no active Tier 1/2 citable source file to anchor requirements mechanically.
-- The tracked git tree contains only the `reference_docs/.gitkeep` sentinels; the rich bootstrap doc set is operator-local/untracked, which means role-map inventory and docs-backed exploration see different surfaces by design.
-
-## File-role tagging summary
-
-- Produced: `quality/exploration_role_map.json`
-- Files by role:
-  - `playbook-output`: 871
-  - `fixture`: 117
-  - `docs`: 60
-  - `test`: 53
-  - `code`: 41
-  - `skill-prose`: 16
-  - `skill-reference`: 16
-  - `config`: 5
-  - `skill-tool`: 2
-  - `formal-spec`: 2
-- Surface shares by size:
-  - `skill_share`: 1.62%
-  - `code_share`: 2.17%
-  - `tool_share`: 0.04%
-  - `other_share`: 96.17%
-- New role additions: none
-
-## Phase 1 output notes
-
-- The inventory confirms that the tracked tree is dominated by prior playbook output, not intrinsic source; Phase 1 therefore treated role-tagging and source-tree scoping as a first-class exploration concern.
-- The strongest mechanically reproduced drifts are in documentation-state detection, Tier 4 ingest scoping, Phase 1 gate enforcement, archive bug counting, and bootstrap self-audit mirroring.
-
-## Phase 2 output notes
-
-- Generated the Phase 2 baseline artifact set directly from `quality/EXPLORATION.md` and the resolved root-install references.
-- Wrote `quality/CONTRACTS.md`, `quality/REQUIREMENTS.md`, `quality/QUALITY.md`, `quality/COVERAGE_MATRIX.md`, `quality/COMPLETENESS_REPORT.md`, `quality/test_functional.py`, `quality/RUN_CODE_REVIEW.md`, `quality/RUN_INTEGRATION_TESTS.md`, `quality/RUN_SPEC_AUDIT.md`, and `quality/RUN_TDD_TESTS.md`.
-- Wrote authoritative sidecar manifests: `quality/requirements_manifest.json` and `quality/use_cases_manifest.json`.
-- No `quality/mechanical/` directory was created because the scoped Phase 2 requirements did not assert dispatch-function case coverage that needed shell-extracted mechanical artifacts.
+`reference_docs/cite/` is empty → 0 Tier 1/2 formal docs (Spec-Gap run). Top-level `reference_docs/*.md` (TOOLKIT, BENCHMARK_PROTOCOL, requirements_pipeline, council_of_three, the v1.5.7 implementation + harness chronicles) are **Moderate-to-Deep** Tier-4 context — they describe QPB's own architecture and the recent harness instructions (158–166). Used for orientation; requirements derived primarily from code (Tier 3) since the harness defects live below the doc layer.
 
 ## Artifact inventory
-
-- `quality/EXPLORATION.md`
-- `quality/CONTRACTS.md`
-- `quality/REQUIREMENTS.md`
-- `quality/requirements_manifest.json`
-- `quality/use_cases_manifest.json`
-- `quality/QUALITY.md`
-- `quality/COVERAGE_MATRIX.md`
-- `quality/COMPLETENESS_REPORT.md`
-- `quality/test_functional.py`
-- `quality/RUN_CODE_REVIEW.md`
-- `quality/RUN_INTEGRATION_TESTS.md`
-- `quality/RUN_SPEC_AUDIT.md`
-- `quality/RUN_TDD_TESTS.md`
-- `quality/BUGS.md`
-- `quality/bugs_manifest.json`
-- `quality/compensation_grid.json`
-- `quality/compensation_grid_downgrades.json`
-- `quality/formal_docs_manifest.json`
-- `quality/test_regression.py`
-- `quality/code_reviews/2026-05-08-phase3-review.md`
-- `quality/patches/BUG-001-*.patch` through `quality/patches/BUG-006-*.patch`
-- `quality/TDD_TRACEABILITY.md`
-- `quality/results/tdd-results.json`
-- `quality/results/integration-results.json`
-- `quality/results/BUG-001.red.log` through `quality/results/BUG-006.green.log`
-- `quality/writeups/BUG-001.md` through `quality/writeups/BUG-006.md`
-- `quality/challenge/BUG-001-challenge.md` through `quality/challenge/BUG-006-challenge.md`
-- `quality/results/quality-gate.log`
-- `quality/results/cardinality-gate.log`
-- `quality/results/run-2026-05-07T23-35-00.json`
-
-## Phase 3 summary
-
-- Executed the three-pass code review defined in `quality/RUN_CODE_REVIEW.md` and wrote the report to `quality/code_reviews/2026-05-08-phase3-review.md`.
-- Confirmed six Phase 3 bugs: `BUG-001` cite-only warning-path miss, `BUG-002` recognized-docs predicate drift, `BUG-003` nested Tier 4 ingest leak, `BUG-004` bootstrap mirror cite-drop, `BUG-005` under-enforced Phase 1 validator, and `BUG-006` archive titled-heading undercount.
-- Wrote `quality/test_regression.py` with one strict-`xfail` regression test per confirmed bug.
-- Wrote `quality/BUGS.md`, `quality/bugs_manifest.json`, `quality/compensation_grid.json`, and `quality/compensation_grid_downgrades.json`.
+| Artifact | Status | Path | Notes |
+|----------|--------|------|-------|
+| EXPLORATION.md | done | quality/EXPLORATION.md | 196 lines, 8 findings, 3 pattern deep-dives |
+| exploration_role_map.json | done | quality/exploration_role_map.json | 470 files; 61 code / 265 test / 35 skill-reference; provenance git-ls-files |
+| formal_docs_manifest.json | done | quality/formal_docs_manifest.json | empty records[] (Spec-Gap) |
+| run metadata | done | quality/results/run-2026-05-30T21-17-09.json | |
+| QUALITY.md | generated | quality/QUALITY.md | 8 fitness scenarios |
+| REQUIREMENTS.md | generated | quality/REQUIREMENTS.md | 12 REQs / 6 UCs, rendered from manifest |
+| CONTRACTS.md | generated | quality/CONTRACTS.md | 20 behavioral contracts (C-01..C-20) |
+| COVERAGE_MATRIX.md | generated | quality/COVERAGE_MATRIX.md | 12/12 REQs mapped to functional tests |
+| COMPLETENESS_REPORT.md | generated (baseline) | quality/COMPLETENESS_REPORT.md | verdict deferred to Phase 5 |
+| Functional tests | generated | quality/test_functional.py | 8 pass / 5 xfail under real pytest |
+| RUN_CODE_REVIEW.md | generated | quality/RUN_CODE_REVIEW.md | 3-pass; Pass-2 verdicts seeded |
+| RUN_INTEGRATION_TESTS.md | generated | quality/RUN_INTEGRATION_TESTS.md | 8 groups, UC-mapped |
+| BUGS.md | pending | | Phase 3 |
+| RUN_TDD_TESTS.md | generated | quality/RUN_TDD_TESTS.md | real-pytest invocation documented |
+| RUN_SPEC_AUDIT.md | generated | quality/RUN_SPEC_AUDIT.md | Council of Three; Spec-Gap |
+| requirements_manifest.json | generated | quality/requirements_manifest.json | 12 REQ records |
+| use_cases_manifest.json | generated | quality/use_cases_manifest.json | 6 UC records |
+| bugs_manifest.json | generated (empty) | quality/bugs_manifest.json | records[] populated in Phase 3/5 |
+| tdd-results.json | pending | quality/results/ | Phase 5 |
+| integration-results.json | pending | quality/results/ | optional |
+| Bug writeups | pending | quality/writeups/ | Phase 5 |
 
 ## Cumulative BUG tracker
+<!-- Every confirmed BUG from code review and spec audit goes here. Each entry tracks
+     closure status: regression test reference or explicit exemption. -->
 
-| Bug | Source | Requirement | File:line | Severity | Closure |
-|-----|--------|-------------|-----------|----------|---------|
-| BUG-001 | Code Review | REQ-001 | `bin/run_playbook.py:1568-1574` | MEDIUM | `quality/test_regression.py::CodeReviewRegressionTests::test_bug_001_docs_present_recognizes_cite_only_docs`; `quality/patches/BUG-001-regression-test.patch`; `quality/patches/BUG-001-fix.patch` |
-| BUG-002 | Code Review | REQ-002 | `bin/run_playbook.py:1568-1574` | MEDIUM | `quality/test_regression.py::CodeReviewRegressionTests::test_bug_002_docs_present_uses_the_recognized_plaintext_predicate`; `quality/patches/BUG-002-regression-test.patch`; `quality/patches/BUG-002-fix.patch` |
-| BUG-003 | Code Review | REQ-003 | `bin/reference_docs_ingest.py:90-93`, `bin/reference_docs_ingest.py:194-227`, `bin/reference_docs_ingest.py:263-276` | HIGH | `quality/test_regression.py::CodeReviewRegressionTests::test_bug_003_tier4_context_excludes_nested_non_cite_archives`; `quality/patches/BUG-003-regression-test.patch`; `quality/patches/BUG-003-fix.patch` |
-| BUG-004 | Code Review | REQ-004 | `bin/bootstrap_self_audit_docs.py:50-61` | MEDIUM | `quality/test_regression.py::CodeReviewRegressionTests::test_bug_004_bootstrap_mirror_preserves_cite_subtree`; `quality/patches/BUG-004-regression-test.patch`; `quality/patches/BUG-004-fix.patch` |
-| BUG-005 | Code Review | REQ-005 | `bin/run_state_lib.py:171-198` | HIGH | `quality/test_regression.py::CodeReviewRegressionTests::test_bug_005_phase1_validator_enforces_the_written_gate`; `quality/patches/BUG-005-regression-test.patch`; `quality/patches/BUG-005-fix.patch` |
-| BUG-006 | Code Review | REQ-006 | `bin/archive_lib.py:69`, `bin/archive_lib.py:321-338` | MEDIUM | `quality/test_regression.py::CodeReviewRegressionTests::test_bug_006_archive_bug_count_accepts_titled_bug_headings`; `quality/patches/BUG-006-regression-test.patch`; `quality/patches/BUG-006-fix.patch` |
+| # | Source | File:Line | Description | Severity | Closure Status | Test/Exemption |
+|---|--------|-----------|-------------|----------|----------------|----------------|
+| BUG-001 | Code Review | plan_runner.py:2606,2123-2146 | Collector grades still-PENDING/pid=None run FAILED | HIGH | TDD verified (FAIL→PASS) | test_bug_001_pending_pidless_not_graded_failed |
+| BUG-002 | Code Review | plan_runner.py:2509-2545 | Retry-launch omits update_pid → phantom pid=0 slot → cap breach | HIGH | TDD verified (FAIL→PASS) | test_bug_002_retry_launch_calls_update_pid |
+| BUG-003 | Code Review | plan_runner.py:1844-1872,2538 | Relaunched entry keeps state=PENDING | MEDIUM | TDD verified (FAIL→PASS) | test_bug_003_launch_entry_sets_running_state |
+| BUG-004 | Code Review | status.py:285-316 | _PHASE_ARTIFACTS misattributes Phase-2 outputs to P4/P5 | MEDIUM | TDD verified (FAIL→PASS) | test_bug_004_phase2_artifacts_resolve_to_phase2 |
+| BUG-005 | Code Review | inflight_registry.py:343-345 | pid=0 + malformed started_at active forever | MEDIUM | confirmed open (xfail) | test_bug_005_pid0_malformed_started_at_not_active_forever (fix deferred — Human Gate) |
+| BUG-006 | Iteration 2 (gap) | council_semantic_check.py:319-343 | Greedy JSON-array extraction drops Council response with trailing bracketed prose | MEDIUM | TDD verified (FAIL→PASS) | test_bug_006_council_response_trailing_bracket_parses |
+| BUG-007 | Iteration 3 (unfiltered) | plan_runner.py:582-610 | capture_phase_yn marks P3-P6 complete from Phase-2 artifacts | MEDIUM | TDD verified (FAIL→PASS) | test_bug_007_capture_phase_yn_no_false_completion |
 
 ## Terminal Gate Verification
 
-BUG tracker has 6 entries. 6 have regression tests, 0 have exemptions, 0 are unresolved. Code review confirmed 6 bugs. Spec audit confirmed 0 code bugs (0 net-new). Expected total: 6 + 0.
+BUG tracker has 7 entries (5 baseline + 2 iteration). 7 have regression tests, 0 have exemptions, 0 are unresolved. Code review confirmed 5 bugs; spec audit confirmed 0 net-new; iterations confirmed 2 net-new (BUG-006 gap, BUG-007 unfiltered). Expected total: 5 + 0 + 2 = 7. ✓ (counts match)
 
-- Every tracker entry references a regression test and fix patch, and every referenced regression test function exists in `quality/test_regression.py`.
-- `With docs: yes` matches the active tree: `reference_docs/` exists and contains populated top-level documents.
-- Reconciliation note: `quality/BUGS.md` omitted dedicated `Minimal reproduction` bullets, so the Phase 5 writeups hydrated triggering inputs from the existing expected/actual behavior fields instead of fabricating new facts.
+TDD: 6 TDD verified (FAIL→PASS: BUG-001..004, BUG-006, BUG-007), 1 confirmed open (BUG-005, red-phase confirmed, fix deferred to Human Gate). Red logs present for all 7; green logs present for the 6 with fix patches. Runner: real pytest 8.4.1 (`quality/results/phase5_env.log`, exit 0).
 
-## Phase 3 confirmation checklist
+Iterations (gap → unfiltered → parity → adversarial) ran inline; gap+unfiltered yielded 2 net-new TDD-verified bugs, parity+adversarial yielded 0 net-new (diminishing-returns convergence). See ITERATION_PLAN.md + EXPLORATION_ITER2..5.md + EXPLORATION_MERGED.md.
 
-1. For every pattern-tagged REQ, I produced a compensation grid in `quality/compensation_grid.json`.
-2. For every grid, I applied the BUG-default rule mechanically.
-3. Every BUG emitted for a pattern-tagged REQ has a `- Covers: [...]` field with valid cell IDs.
-4. Every BUG whose Covers list has ≥2 entries has a non-empty `- Consolidation rationale: ...` field.
-5. For every downgraded cell, I wrote a complete structured record in `quality/compensation_grid_downgrades.json` with all five required fields and a valid `reason_class`. This run has zero downgraded cells, so the file contains an explicit empty `downgrades` list.
-6. For every pattern-tagged REQ, the union of Covers lists + downgrade cells equals the grid's absent-cell set.
+**Mechanical verification:** NOT APPLICABLE — no dispatch/registry/case-label extraction contracts in scope. The one enumeration check (BUG-004, `_PHASE_ARTIFACTS`) was verified via `quality/spec_audits/triage_probes.sh` (source extraction, exit 0) + executed `test_bug_004`, not a `quality/mechanical/` verify.py. No `quality/mechanical/` directory created.
 
-## Phase 4 summary
+**Contradiction gate:** no contradictions — executed TDD logs (RED→GREEN) agree with BUGS.md and the triage; no prose artifact claims a bug is fixed/absent that an executed result refutes.
 
-- Wrote three auditor reports to `quality/spec_audits/2026-05-08-auditor-{1,2,3}.md`.
-- Wrote triage synthesis to `quality/spec_audits/2026-05-08-triage.md` and executable probes to `quality/spec_audits/triage_probes.sh`.
-- Confirmed no net-new real-code bugs in the Phase 4 scope; the only new finding was a documentation-gap drift in the root `SKILL.md` fallback guidance.
-- Executed `python3 -m bin.quality_playbook semantic-check plan .`; because this run has no Tier 1/2 requirements, the tool wrote an empty `quality/citation_semantic_check.json` and no Council dispatch was required.
+**Version stamps:** all generated Markdown carries `v1.5.7`; all sidecar JSON `skill_version: "1.5.7"`. Matches SKILL.md metadata.version.
 
+## Exploration summary
+Target is QPB itself. Architecture: a six-phase AI-orchestration system (Mode A skill walkthrough + Mode B `run_playbook` runner) with a Test Harness (`bin/harness/`) that benchmarks runs via a detached collector, a per-provider concurrency registry, a quality gate, and run-state/role-map/archival libs. Highest-risk surface = the `manifest.json ⇄ inflight_registry ⇄ status.json` triangle (three independently-written files, no spanning lock). Phase 1 surfaced 3 substantive harness defects (all in recently-shipped code, all untested at the integration level): (F1) still-PENDING runs graded FAILED on the same collect sweep, defeating the starvation deadline; (F2) the collector retry-launch path omits `update_pid`, leaving a phantom `pid=0` slot that ages out at 300s and breaks the provider cap; (F3) `_PHASE_ARTIFACTS` misattributes Phase-2 Generate artifacts to Phases 4/5, so a Phase-2-complete run is reported as Phase 5. Five candidate bugs (CB-1..CB-5) hand off to Phase 3/4.
 
-## Phase 5 summary
-
-- Ran the blocking cardinality gate and the full `quality_gate.py` pass; the final gate result is PASS with one legacy-manifest WARN for missing `FORMAL_DOC.role` fields.
-- Refreshed `quality/COMPLETENESS_REPORT.md`; all six confirmed code-review bugs are covered by existing requirements and Phase 4 added no net-new code bugs.
-- Generated `quality/writeups/BUG-001.md` through `quality/writeups/BUG-006.md`, `quality/TDD_TRACEABILITY.md`, and the TDD/integration sidecar JSON files under `quality/results/`.
-- Executed every regression test in disposable temp copies so the red/green receipts prove FAIL→PASS without modifying the live source tree outside `quality/`.
-- Wrote `quality/challenge/BUG-001-challenge.md` through `quality/challenge/BUG-006-challenge.md` to record the mandatory challenge-gate review for every auto-triggered bug; all six remained CONFIRMED.
-
-## Run finalization (post-phase-6)
-
-- Timestamp: 2026-05-08T03:06:41Z
-- Bug count: 6
-- Gate status: ABORTED
-- Receipt: quality/results/quality-gate.log
-- Source-edit violations: 2 (see quality/results/quality-gate.log for details)
-- Abort reason: source_edit_violations: metrics/regression_replay/20260502T155324Z/, v1.5.6_council_review/
+## Recent events (last 10)
+- 2026-05-30T21:30:00Z — phase_end phase=1 (8 findings, 6 patterns)
+- 2026-05-30T21:29:00Z — artifact_written quality/exploration_role_map.json
+- 2026-05-30T21:28:00Z — artifact_written quality/EXPLORATION.md
+- 2026-05-30T21:17:20Z — phase_start phase=1
+- 2026-05-30T21:17:09Z — run_start runner=claude

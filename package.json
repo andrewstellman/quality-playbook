@@ -1,0 +1,46 @@
+{
+  "name": "quality-playbook",
+  "version": "1.5.7",
+  "description": "Quality engineering for AI-driven development — a skill for AI coding agents that finds the bugs review misses. (npx Node shim over the bundled Python installer; v1.5.7 089v block C.)",
+  "license": "Apache-2.0",
+  "author": "Andrew Stellman <andrew@stellman.com>",
+  "homepage": "https://github.com/andrewstellman/quality-playbook",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrewstellman/quality-playbook.git"
+  },
+  "bugs": {
+    "url": "https://github.com/andrewstellman/quality-playbook/issues"
+  },
+  "keywords": [
+    "quality",
+    "tdd",
+    "code-review",
+    "ai",
+    "claude",
+    "copilot",
+    "cursor",
+    "codex",
+    "skill"
+  ],
+  "bin": {
+    "quality-playbook": "bin/quality-playbook.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "prepack": "python3 bin/build_channel_package.py --stage"
+  },
+  "files": [
+    "bin/quality-playbook.js",
+    "quality_playbook_cli/**/*",
+    "!**/__pycache__",
+    "!**/__pycache__/**",
+    "!**/*.pyc",
+    "!**/*.pyo",
+    "!**/.DS_Store",
+    "README.md",
+    "LICENSE.txt"
+  ]
+}

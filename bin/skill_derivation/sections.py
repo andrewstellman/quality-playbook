@@ -375,7 +375,7 @@ def enumerate_skill_and_references(
     ``role_map_files`` routing (v1.5.4 Phase 3 Stage 3, finding B1-F6):
 
       - **``None``** — backward-compat path. The role map is absent or
-        unparseable. Enumeration falls back to the v1.5.3 behaviour:
+        unparsable. Enumeration falls back to the v1.5.3 behaviour:
         SKILL.md plus ``references_dir/*.md`` in sorted-by-name order.
         Pre-Phase-1 / pre-iteration targets land here.
       - **``[]``** (empty list) — role-map path with zero matches. The
@@ -491,3 +491,24 @@ def write_sections_json(sections: List[Section], out_path: Path) -> None:
     tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     import os
     os.replace(tmp, out_path)
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.sections',
+        summary=(
+            "Section-extraction helpers for the skill-derivation pipeline "
+            "— splits spec docs into the section graph passes operate on. "
+        ),
+        role=(
+            "Imported by passes A/B for source-doc segmentation. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

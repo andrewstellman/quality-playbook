@@ -1,6 +1,6 @@
 # QPB Development Process
 
-*Last updated: 2026-05-06 (v1.5.6 cluster G refresh — notes that v1.5.6 was the first release implemented via the orchestrator/worker pattern documented in `AI_ORCHESTRATION_PATTERNS.md`, with Codex used for non-Anthropic-budget phases. v1.5.6 ALSO ran the first complete bootstrap-fixup → audit-then-backlog-cleanup sequence: 8 bootstrap-fixup clusters (instructions 020-027 closing 22 named bugs from the self-bootstrap audit) followed by audit-discovered backlog clusters A-D + F.1 (instructions 029-033 closing GitHub issue #1 + audit-flagged drift items + adopter install polish + cross-platform validation evidence + cycle-execution clarifications). The pattern — bootstrap-fixup, then audit-the-fixup, then close audit-surfaced items — validated end-to-end via the orchestrator/worker runner pattern). Single source of truth for how the Quality Playbook project is developed. Read at session start by any AI agent (Cowork, Claude Code, codex, etc.) orchestrating QPB development.*
+*Last updated: 2026-05-23 (v1.5.7 ship — process documentation unchanged from v1.5.6 baseline, plus two v1.5.7 additions: the instruction-file numbering convention and the distribution-channel publish-safety gate. v1.5.7 ran end-to-end through the orchestrator/worker pattern via `v1.5.7_runner/`, with a council-of-two fallback (claude CLI + codex CLI) substituted for full Council-of-Three when the Copilot CLI — then the deprecated `gh copilot` extension; superseded by the standalone `copilot` CLI per v1.5.7 089f — was rate-limited mid-release. Per-release narrative on the council-of-two pattern, strict file:line consensus discipline, and the no-carry-forward principle is saved for v1.6.0). Single source of truth for how the Quality Playbook project is developed. Read at session start by any AI agent (Cowork, Claude Code, codex, etc.) orchestrating QPB development.*
 
 This document covers **how QPB is developed** — the mechanical procedures, the rationale behind them, and the open directions for evolving the process itself. It is the parallel for QPB-the-project of what `IMPROVEMENT_LOOP.md` is for QPB-the-skill: the methodology doc.
 
@@ -52,6 +52,7 @@ Versioned historical artifacts (per-release retrospectives, Council syntheses, B
 - **Don't pre-decompose for the implementing AI.** It runs the same model class as the orchestrating agent; it can decompose during execution. The orchestrator's job is scope + STOP boundaries + canonical-doc pointers, not work breakdown.
 - **STOP-and-ask boundaries** are few and explicit. Typical: end of a phase that requires Andrew's diagnostic input (calibration cycle diagnoses); pre-tag mechanical commit; any encountered bug in QPB source mid-run that's outside the in-scope finding set.
 - **Multi-session coordination via shared directory.** For coordinating two AI sessions through a shared directory (a chat-side orchestrator and a coding-side worker exchanging instruction and output files), see `AI_ORCHESTRATION_PATTERNS.md`. This is the file-level realization of the diagnosis-then-Claude-Code-lane rule and the default execution mode for v1.5.6+ work that spans multiple sessions. **v1.5.6 was the first release implemented end-to-end via this pattern**: a `v1.5.6_runner/` runner folder coordinated the chat-side orchestrator and the coding-side worker across the release's full development arc (Pattern 7 cycle execution + adopter-facing install script). When the Anthropic budget became constrained mid-release, Codex was used as the worker for the non-Anthropic-budget phases by switching the runner backend; the file-based instruction/output protocol made the handoff clean. See `AI_ORCHESTRATION_PATTERNS.md` for the pattern itself and section 9's worked example for the v1.5.5/v1.5.6 runner walkthroughs.
+- **Instruction-file numbering.** Runner instruction files use a `<work-item><letter>` scheme (e.g. `089m`, `089x`, `089z`). The letter is a sequential sub-step within a work-item; when the letters run out (`z`), the work-item number rolls and the suffix restarts at `a` — so `089z` is followed by `090a`. The roll is cosmetic: `090a` does NOT mean "`090` has sub-steps," it just means "the next instruction after `089z`." The runner keys off the filename, not the scheme, so the exact label never affects execution. Within a release's polish arc, keep advancing the letter suffix; only roll the work-item number when the prior letter space is full.
 
 ### Council protocol
 
@@ -59,11 +60,64 @@ QPB development uses Council-style review on substantial work. Three flavors, sc
 
 - **Focused single-panel review** — for small commits (e.g., Phase 3.9.1's two-line fix). The orchestrating AI examines the diff, mutation-tests regression pins, checks scope discipline, writes a brief verdict. Single perspective; quick.
 - **Parallel-Agent reviewers** — for larger commits (e.g., Phase 5 apparatus, ~700 LOC). The orchestrating AI spawns 3 Agent reviewers with orthogonal lenses (typically: correctness, scope/discipline, architectural integrity). Each reviews independently; orchestrator synthesizes findings into a single verdict (Ship / Hold-with-fixes / Block).
-- **Full nested 9-perspective Council** — for foundational/architectural changes or umbrella reviews before tag. Three outer models (`gpt-5.4`, `gpt-5.3-codex`, `claude-sonnet-4.6`) via `gh copilot --prompt`, each spawning its own three-reviewer panel internally. Protocol details in workspace CLAUDE.md (cd-into-repo discipline; nested-panel trigger header; suspicious-convergence flag).
+- **Full nested 9-perspective Council** — for foundational/architectural changes or umbrella reviews before tag. Three outer models (`gpt-5.4`, `gpt-5.3-codex`, `claude-sonnet-4.6`) via the Copilot CLI (the new standalone `copilot -p` per v1.5.7 089f, or the deprecated `gh copilot --prompt` extension during the grace period — both shimmed transparently by `bin/copilot_resolver.py`), each spawning its own three-reviewer panel internally. Protocol details in workspace CLAUDE.md (cd-into-repo discipline; nested-panel trigger header; suspicious-convergence flag).
 
 **Iterate to clean review.** A first review surfacing P0 findings is normal and expected. Fix-up commit → focused re-review → if new findings, fix-up again. Multi-round (Round 1 → Round 2 → Round 3) is the norm, not a sign of trouble.
 
 **Council on landed code.** Run reviews on commits that have landed in the working tree, not on briefs or proposals. Pre-implementation Council review (e.g., reviewing a brief before coding) is over-engineering — the implementing AI is competent enough that pre-review adds bureaucracy without catching what implementation review would catch anyway.
+
+### Worker self-Council protocol (v1.5.7 187+)
+
+Formalization of the "Parallel-Agent reviewers" Council flavor with stricter discipline. Used since 186-followup-1 across 187 / 188 / 189 / 190; has demonstrably caught ship-blockers a single-reviewer pass would have shipped (187's manifest round-trip persistence gap, 188's `_try_acquire_pool_slot` race, 188's 6-site `CANCELLED` display gap, 190's em-dash-IS-in-cp1252 boundary distinction). The pattern is now load-bearing methodology, not an option.
+
+**When the worker (Claude Code or equivalent implementing AI) is in-flight on a FIX-REQUIRED instruction, before filing the v1 review-request to Cowork:**
+
+1. The instruction's "Worker self-Council" section enumerates 3 panelist charters with distinct lenses (typically: correctness/spec-compliance, test sufficiency, regression-safety — adapt to instruction scope). The implementing AI spawns the three panelists in parallel via its native `Task` (or equivalent) tool, each receiving its charter as the prompt.
+
+2. Each panelist writes its full verdict to a file: `Reviews/v<NNN>_self_council/panelist_<X>_<charter>.md`. The path is part of the panelist's prompt — without explicit Write-to-file, the artifact can be lost to streaming / TUI buffering misbehavior.
+
+3. The implementing AI reads all 3 panelist files + synthesizes them to `Reviews/v<NNN>_self_council/synthesis.md`. The synthesis names where panelists agree (highest confidence), where they diverge (judgment calls), and a single SHIP / FIX-REQUIRED verdict.
+
+4. **If self-Council surfaces FIX-REQUIRED, the implementing AI iterates on the fix BEFORE filing the v1 review-request.** Only files v1 when synthesis says SHIP. This makes the internal panel the load-bearing first-pass quality gate; the external Cowork review is the second layer.
+
+**Why each panelist must write to file:** belt + suspenders. Even with `--max-turns 60` and stream-json output and tee'd stdout, transient buffering misbehavior can drop the panelist's verdict. The Write tool guarantees the artifact survives.
+
+**Why the panel must be 3 separate subagents and not the implementing AI's own context:** the worker is the implementer; self-review by the same context gives no diversity. Each panelist is a separate subagent context with no exposure to the implementer's reasoning trace.
+
+**Why FIX-REQUIRED iterates in-branch:** the protocol's whole point is that a green 1163-test suite would have shipped a regression that defeated the instruction's target plan (187's Panelist C example). Filing v1 with a known FIX-REQUIRED is shipping the bug.
+
+**Adapting panelist charters to instruction scope:** the three panelists should be orthogonal lenses, not three views of the same thing. Worked examples that have shipped:
+- 187: plan-schema correctness / launch-site correctness / regression safety
+- 188: kill-semantics correctness / collector skip-CANCELLED correctness / status-TUI display correctness
+- 189: sweep completeness / encoding-strategy correctness / regression and test quality
+- 190: sweep completeness / encoding-strategy correctness / regression safety + test quality
+
+The "sweep completeness" charter shows up specifically for AUDIT-table-pattern instructions (see next section); the "encoding-strategy correctness" charter showed up for both cp1252 instructions in the trifecta and codified the per-character boundary (Panelist B in 190 pinned that cp1252 actually maps U+2014 em-dash to byte 0x97 — only U+2265, U+2264, → and similar crash, not em-dashes).
+
+### AUDIT-table invariant test pattern (v1.5.7 184+)
+
+When a defect class shape is observed across multiple sites in the codebase, the fix is incomplete unless it includes an exhaustive-sweep invariant test that scans the entire relevant tree and asserts the contract holds at every site. Has shipped across 184 (`_pid_alive` divergence), 189 (log-read encoding fallback), 190 (subprocess stdin encoding) — three confirmed reuses graduate it from "pattern" to "standard mechanism."
+
+**The pattern:**
+
+1. **Identify the defect-class shape.** "X-shaped sites in tree Y must hold property Z."
+2. **Find all instances via grep / inspection.** Document the result as an AUDIT table in the test file or its docstring: file:line → verdict (FIXED / SAFE-with-justification / DEFERRED-with-justification).
+3. **Write a single sweep test that enumerates all sites and verifies the contract.** Use grep / regex / AST walk to find sites; check each against the AUDIT-table allow-list. Future PR readers adding new X-shaped sites must either land them with the contract OR add an explicit justified entry to the AUDIT.
+4. **The test is the durable defense.** The targeted fix at the originally-discovered site is necessary; the sweep test is sufficient against the recurrence at a sibling site that hasn't been noticed yet.
+
+**Worked examples:**
+
+- 184 `NoResidualPidAliveDivergenceTests` (test_platform_compat_180.py:974): three tests — `test_184_no_local_pid_alive_definitions_in_bin` (regex sweep for `^def (_pid_alive|pid_is_alive|_pid_is_alive)\(`), `test_184_no_os_kill_pid_zero_outside_platform` (inverse sweep for `os.kill(<anything>, 0)` literals), `test_184_all_pid_alive_helpers_share_one_implementation` (runtime `is` identity check that all 5 alias sites resolve to `_platform.pid_alive`).
+- 189 `test_no_unguarded_external_log_reads_remain` (test_log_read_encoding_189.py): 22-entry AUDIT table for `encoding="utf-8"` reads of external content; each must include `errors="replace"` OR be on the documented allow-list.
+- 190 `test_no_subprocess_run_with_text_true_lacks_utf8` (test_subprocess_encoding_190.py): 14-entry per-file AUDIT table across `bin/run_playbook.py` + `bin/harness/**/*.py`; each `subprocess.run(text=True, ...)` site must explicitly pass `encoding="utf-8"` + `errors="replace"`.
+
+**When to file an AUDIT sweep test:**
+
+- The defect class fired **a third time across QPB**. (Two instances may be coincidence; three is a pattern.)
+- The shape is identifiable via mechanical scan (regex, AST, identity-`is` check).
+- A reasonable future PR could re-introduce the same defect at a new site without anyone noticing.
+
+The cp1252-on-Windows hazard surface (185 print output + 189 log read + 190 subprocess stdin write) is the canonical worked example of a defect class fired three times: each instance was fixed at its specific site, AND each landed with its own AUDIT-table invariant test, AND the three sites together are now documented as a design contract in `docs/design/QPB_Test_Harness_1.5.7_Design.md` Section O ("Windows cp1252 hazard surface"). Future PR reviewers reference Section O before approving any new `subprocess.run` / `open(text=True)` site.
 
 ### Mutation-test discipline
 
@@ -94,6 +148,10 @@ When the orchestrating AI reports state to Andrew, each of these rules is about 
 - **No wall-clock time estimates** (don't over-claim confidence about how long something will take). They've been consistently wildly wrong: 4m actual vs "30 minutes" estimated; ~2-3 hour actual vs "14-22 hours" estimated. Useless or actively misleading.
 - **Don't claim "100% complete" without an audit** (don't over-claim confidence about scope completeness). When asked "is X complete?" — verify against canonical sources before answering yes. Cowork has a documented pattern of dropping things; never trust the orchestrator's recall as a completeness signal.
 - **Don't conflate AI identities** (don't over-claim confidence about which agent did what). Codex desktop, Claude Code, and Cowork are distinct agents with distinct roles; codex desktop is the empirical-bootstrap agent, Claude Code is the development-session agent, Cowork is the orchestrating chat agent. Sloppy attribution causes confusion when reviewing artifacts later.
+
+### SKILL.md token-ceiling discipline
+
+`bin/tests/test_skill_md_size.py` pins SKILL.md below a BPE (cl100k_base) token ceiling — currently **32,000** (v1.5.7 instruction 090m). **This ceiling is an arbitrary, owner-chosen soft tripwire — NOT a hard technical limit.** It exists to catch unintended SKILL.md bloat, and is bumped DELIBERATELY when a change is worth the tokens. Per the 090m owner note: *"If an extra 2k tokens make a difference we're probably dealing with a far too limited AI to do this work anyway."* When a SKILL.md edit breaches the ceiling, the question is "is this change worth the tokens?" — if yes, bump the ceiling here (with a one-line rationale appended to the test's module docstring, the same way prior widenings were documented); if no, trim references/*.md or SKILL.md content. The bound is operational hygiene, not a model-capability constraint.
 
 ---
 
@@ -148,6 +206,16 @@ Both Councils were intended as final pre-Phase-6 reviews. Both surfaced P0 findi
 Briefs and proposals are abstract; landed code is concrete. Council reviewers reading a brief can flag scope concerns and catch architectural inconsistencies, but they can't catch the kinds of bugs that empirical inspection of the code finds (parser regex shape mismatches, missing guardrail updates, mutation-test gaps). Pre-implementation review duplicates the cheaper "Cowork sanity-checks the brief in chat" step without adding incremental value.
 
 **Generalization:** Council protocol's strength is on landed code. Brief-time review is fine for sanity-checking framing, but the load-bearing review happens after the implementing AI has produced a diff that can be inspected.
+
+### Distribution-channel publish safety
+
+**Origin: 2026-05-23 v1.5.7 pip/npm channel saga + the pre-publish channel-architecture Council.**
+
+The v1.5.7 distribution channels (pip / uvx / pipx + npx) produced a string of bugs that surfaced only when a human built and installed the *real artifacts* — none caught by the test suite: compiled `.pyc` cruft in the tarballs (089y); a silently-dropped `bin/_purpose.py` that crashed every install (090b); and — caught by the pre-publish Council *before* it shipped — a clean `python -m build` / `npm pack` that succeeded while shipping an **empty bundle**, plus a documented `python3 bin/build_channel_package.py --stage` that resolved `from bin import install_skill` to an unrelated sibling repo's `bin/` and produced a broken bundle (090c). Every one shared a root cause: the channel build/packaging path **diverged from what the clone-based tests exercised** (`python3 -m bin.X` with an intact `bin/` on `sys.path`), and nothing executed the *built artifact* end-to-end.
+
+**Failure mode:** a published package version is effectively irreversible — PyPI and npm do not let you cleanly replace a version once published — and clone-based tests do not exercise the channel install path. So packaging bugs ship green and reach real adopters before anyone notices.
+
+**Generalization — gate before any channel publish.** A release that publishes a distribution channel does not get tagged until: (1) a **clean-clone cold-build test** — build the wheel/sdist and `npm pack` from a fresh checkout with NO pre-staged bundle, asserting the artifacts contain the complete bundle (an empty or partial bundle must be impossible, not merely warned about at runtime); (2) a **built-artifact end-to-end test** — install the built wheel/tarball into a throwaway environment and run the real entry points (`install` + `validate`), not just the clone path; and (3) an **architecture review** (Council on the channel packaging) before the tag. Bundled scripts must be *foreign-`bin`-proof*: any `from bin import X` needs a path-load fallback (anchored on the script's own location) so it can never resolve to a sibling repo's `bin/`. Treat "the channel tests pass" as insufficient evidence until the built artifact has been installed and run from a clean clone.
 
 ### Mutation-test discipline
 
@@ -249,13 +317,14 @@ Docs that inform or are informed by the development process. This is not a navig
 
 ### Workspace context
 
-- **`~/Documents/AI-Driven Development/CLAUDE.md`** — workspace-level conventions (cross-project navigation, source-edit lanes, verify-before-claiming, Council protocol mechanics including `gh copilot` invocation, the universal Cowork communication style for any conversation in the workspace). When a working convention applies to QPB specifically, the canonical version lives in this `DEVELOPMENT_PROCESS.md` file; the workspace CLAUDE.md may replicate it for orientation but is not the source of truth.
+- **`~/Documents/AI-Driven Development/CLAUDE.md`** — workspace-level conventions (cross-project navigation, source-edit lanes, verify-before-claiming, Council protocol mechanics including Copilot CLI invocation — the new standalone `copilot` per v1.5.7 089f, or the deprecated `gh copilot` extension during the grace period, the universal Cowork communication style for any conversation in the workspace). When a working convention applies to QPB specifically, the canonical version lives in this `DEVELOPMENT_PROCESS.md` file; the workspace CLAUDE.md may replicate it for orientation but is not the source of truth.
 
 ### Peer orientation docs (in `ai_context/`)
 
 - **`TOOLKIT.md`** — adopter-facing toolkit-installation and bare-invocation guide.
 - **`TOOLKIT_TEST_PROTOCOL.md`** — release-gate review protocol for orientation docs (the orientation-doc analog of Council-of-Three).
-- **`DEVELOPMENT_CONTEXT.md`** — context-gathering recipes and "baseline runs" guidance for development sessions. Operational counterpart to this `DEVELOPMENT_PROCESS.md` (which is the durable conventions doc; `DEVELOPMENT_CONTEXT.md` is the per-session-context doc).
+- **`DEVELOPMENT_CONTEXT.md`** — context-gathering recipes and "baseline runs" guidance for development sessions. Operational counterpart to this `DEVELOPMENT_PROCESS.md` (which is the durable conventions doc; `DEVELOPMENT_CONTEXT.md` is the per-session-context doc). Opens with a "How to read this doc" selective-load guide; benchmarking methodology lives in `BENCHMARK_PROTOCOL.md` and release history in `VERSION_HISTORY.md`.
+- **`VERSION_HISTORY.md`** — curated release-evolution narrative (v1.3.13 → present): what changed each release and why it mattered. The mechanical per-release changelog is `CHANGELOG.md` at the repo root.
 - **`CALIBRATION_PROTOCOL.md`** — the 12-step Mode 1 (autonomous) / Mode 2 (operator-driven) protocol for driving a QPB calibration cycle on a benchmark target. Read when working on any lever-pull release.
 - **`IMPROVEMENT_LOOP.md`** — methodology context for the calibration cycles: WHY the lever inventory exists and WHAT each lever controls.
 - **`BENCHMARK_PROTOCOL.md`** — clean-folder run protocol for contamination-free benchmarks; v1.5.5+ also documents the `quality/run_state.jsonl` event format and cross-validation rules.

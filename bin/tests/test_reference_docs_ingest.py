@@ -42,6 +42,30 @@ class ReferenceDocsIngestTests(unittest.TestCase):
             self.assertEqual(rec["tier"], 1)
             self.assertTrue(rec["citation_excerpt"])
 
+    def test_record_carries_role_external_spec(self):
+        """v1.5.7 fix Q2 bite: every FORMAL_DOC record emitted by the
+        ingest module must carry `role: "external-spec"` per
+        schemas.md §3.6 (formal_doc_role enum). Reference_docs/cite/
+        contains operator-uploaded external plaintext specs by
+        definition — `external-spec` is the correct enum value.
+        Pre-Q2 the role field was absent, leaving the manifest
+        legacy-shaped (gate emitted soft WARN). Post-Q2 the manifest
+        is v1.5.3-shaped (per schemas.md §3.10 field-presence
+        detection)."""
+        with tempfile.TemporaryDirectory() as d:
+            root = _scaffold(Path(d))
+            cite = root / "reference_docs" / "cite"
+            cite.mkdir(parents=True)
+            (cite / "spec.md").write_text("# Spec\n\nBody.\n", encoding="utf-8")
+            manifest = rdi.ingest(root)
+            self.assertEqual(len(manifest["records"]), 1)
+            rec = manifest["records"][0]
+            self.assertEqual(
+                rec.get("role"), "external-spec",
+                f"FORMAL_DOC record must carry role: external-spec; "
+                f"got: {rec!r}",
+            )
+
     def test_html_tier_marker_upgrades_to_tier_2(self):
         with tempfile.TemporaryDirectory() as d:
             root = _scaffold(Path(d))
@@ -398,6 +422,81 @@ class Tier4IngestScopeTests(unittest.TestCase):
             tier4 = rdi.load_tier4_context(repo)
             tier4_paths = sorted(p for p, _ in tier4)
             self.assertEqual(tier4_paths, ["reference_docs/spec.md"])
+
+
+class RstIngestTests(unittest.TestCase):
+    """v1.5.7 instruction 060 (A-12): `.rst` is a supported ingest
+    extension. Top-level `reference_docs/*.rst` → Tier 4 context
+    (not a manifest record, by design — same as `.md`/`.txt`);
+    `reference_docs/cite/*.rst` → a FORMAL_DOC manifest record with
+    document_sha256."""
+
+    _RST = "Test Spec\n==========\n\nSection content goes here.\n"
+
+    def test_rst_files_are_ingested(self):
+        """A top-level `reference_docs/spec.rst` ingests without an
+        IngestError and is available as Tier 4 context (top-level
+        files are Tier 4 by design — NOT manifest records; the
+        instruction's "record present" wording refers to the Tier-4
+        surface for top-level files, the manifest for cite/ files).
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-060
+        A-12:
+          Mutation: revert bin/reference_docs_ingest.py:
+          SUPPORTED_EXTENSIONS to `frozenset({".txt", ".md"})`
+          (remove '.rst').
+          Expected failure: THIS test fails — `rdi.ingest(root)`
+          raises IngestError "reference_docs/spec.rst: unsupported
+          extension '.rst' ..." so the assertions are never reached;
+          test_rst_in_cite_directory_yields_formal_doc_record fails
+          identically.
+          Restoration: re-add '.rst'; both pass.
+          Bite executed during instruction-060 development;
+          PASS→FAIL→PASS confirmed.
+        """
+        with tempfile.TemporaryDirectory() as d:
+            root = _scaffold(Path(d))
+            (root / "reference_docs").mkdir(parents=True)
+            (root / "reference_docs" / "spec.rst").write_text(
+                self._RST, encoding="utf-8"
+            )
+            manifest = rdi.ingest(root)            # must not raise
+            self.assertIn("schema_version", manifest)
+            # Top-level → Tier 4, NOT a manifest record (by design).
+            self.assertEqual(manifest["records"], [])
+            tier4_paths = sorted(
+                p for p, _ in rdi.load_tier4_context(root)
+            )
+            self.assertEqual(tier4_paths, ["reference_docs/spec.rst"])
+
+    def test_rst_in_cite_directory_yields_formal_doc_record(self):
+        """`reference_docs/cite/spec.rst` → a FORMAL_DOC manifest
+        record carrying document_sha256 (the per-document SHA the
+        gate byte-verifies; per-citation `section`/`line` locators are
+        written later by the agent, not by ingest — the manifest is a
+        document-level record per schemas.md §3, not a per-citation
+        locator)."""
+        import hashlib
+
+        with tempfile.TemporaryDirectory() as d:
+            root = _scaffold(Path(d))
+            cite = root / "reference_docs" / "cite"
+            cite.mkdir(parents=True)
+            (cite / "spec.rst").write_text(self._RST, encoding="utf-8")
+            manifest = rdi.ingest(root)
+            self.assertEqual(len(manifest["records"]), 1)
+            rec = manifest["records"][0]
+            self.assertEqual(
+                rec["source_path"], "reference_docs/cite/spec.rst"
+            )
+            self.assertEqual(rec["tier"], 1)
+            self.assertEqual(
+                rec["document_sha256"],
+                hashlib.sha256(self._RST.encode("utf-8")).hexdigest(),
+            )
+            self.assertEqual(rec["role"], "external-spec")
+            self.assertTrue(rec["doc_id"].startswith("FORMAL-"))
 
 
 if __name__ == "__main__":

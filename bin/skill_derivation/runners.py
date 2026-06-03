@@ -1,17 +1,18 @@
 """runners.py — LLM runner abstraction for skill_derivation passes.
 
 Four concrete runners ship: ClaudeRunner (subprocess `claude --print
---model sonnet`), CopilotRunner (subprocess `gh copilot --prompt
---model claude-sonnet-4.6`), CodexRunner (subprocess `codex exec
---full-auto [-m <model>]`, codex-cli 0.125+), and CursorRunner
-(subprocess `cursor agent --print --force [--model <model>]`,
-cursor-cli 3.1+). Tests use MockRunner from
-test_skill_derivation_pass_a.py.
+--model sonnet`), CopilotRunner (subprocess `copilot -p --model
+<name>` via :mod:`bin.copilot_resolver`, with deprecated
+``gh copilot --prompt`` as grace-period fallback per 089f),
+CodexRunner (subprocess `codex exec --full-auto [-m <model>]`,
+codex-cli 0.125+), and CursorRunner (subprocess `cursor agent
+--print --force [--model <model>]`, cursor-cli 3.1+). Tests use
+MockRunner from test_skill_derivation_pass_a.py.
 
 Default to claude-print for Phase 3 self-audit runs because Phase 3
-fires 60-100+ LLM calls per run and gh-copilot's weekly quota has
-been under pressure -- defaulting to claude routes Phase 3 cost to
-Anthropic's quota.
+fires 60-100+ LLM calls per run and the Copilot CLI's weekly quota
+has been under pressure -- defaulting to claude routes Phase 3 cost
+to Anthropic's quota.
 
 The CLI flag (`--runner claude|copilot|codex|cursor`) follows the
 existing bin/run_playbook.py convention; do not introduce a parallel
@@ -20,9 +21,39 @@ env-var scheme.
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 from dataclasses import dataclass
 from typing import Protocol
+
+from bin import copilot_resolver
+
+
+def _resolve_runner_command(argv: "list[str]") -> "list[str]":
+    """Resolve a bare-name AI CLI invocation to its full path (W2,
+    addendum r3 §4.2).
+
+    Deliberate copy of bin/run_playbook.py:_resolve_runner_command
+    (instruction-078 Task 3 explicitly sanctions a local copy over a
+    cross-module import: importing the large run_playbook module from
+    this lightweight runners module is awkward and import-order
+    fragile). Keep the two byte-identical in body; both are pinned by
+    bin/tests/test_runner_command_shim_resolution.py.
+
+    On Windows, AI CLIs are typically `.cmd`/`.bat` shims;
+    `subprocess.run` without `shell=True` raises FileNotFoundError
+    because CreateProcess only auto-resolves `.exe`. `shutil.which`
+    walks PATHEXT, so it returns the shim's full path. On Unix this is
+    effectively a no-op. Unresolvable -> bare argv (preserves the
+    existing FileNotFoundError surface). Resolution-only — does NOT
+    address stdin-through-`.cmd` (addendum §4.3 / §8 smoke test).
+    """
+    if not argv:
+        return argv
+    resolved = shutil.which(argv[0])
+    if resolved is None:
+        return argv
+    return [resolved] + list(argv[1:])
 
 
 @dataclass
@@ -60,7 +91,8 @@ class ClaudeRunner:
         start = time.monotonic()
         try:
             result = subprocess.run(
-                ["claude", "--print", "--model", self.model],
+                _resolve_runner_command(
+                    ["claude", "--print", "--model", self.model]),
                 input=prompt,
                 capture_output=True,
                 text=True,
@@ -86,10 +118,31 @@ class ClaudeRunner:
 
 @dataclass
 class CopilotRunner:
-    """Subprocess wrapper for `gh copilot --prompt --model <model>`.
+    """Subprocess wrapper for the GitHub Copilot CLI.
 
-    Burns gh-copilot weekly quota; opt in explicitly via --runner
+    Resolves to ``copilot -p <text> --model <model>`` (the new
+    standalone CLI) when on PATH, falling back to
+    ``gh copilot -p <text> --model <model>`` (the deprecated
+    extension) during the grace period (v1.5.7 089f; GitHub
+    deprecated ``gh copilot`` on 2025-10-25). Resolution lives in
+    :mod:`bin.copilot_resolver`.
+
+    Burns Copilot CLI weekly quota; opt in explicitly via --runner
     copilot. Default Phase 3 runs use ClaudeRunner.
+
+    History note (BUG-001, pre-089f): the prior implementation used
+    a bare ``--prompt`` flag (no positional value) and piped the
+    prompt body on stdin via ``input=prompt`` — relying on
+    ``gh copilot``'s tolerance of ``--prompt`` without a value to
+    avoid ARG_MAX truncation on long section bodies. The new
+    ``copilot`` CLI requires ``-p <text>`` (per
+    ``copilot --help``), so this runner now passes the prompt on
+    argv — the same shape the Mode B reviewer hot path
+    (``bin/run_playbook.py:command_for_runner``) has always used.
+    Modern ARG_MAX (>1 MB on macOS and Linux, ~32 KB on Windows)
+    accommodates skill-derivation prompts. ``input=prompt`` is
+    retained as a defensive harmless redundancy: the CLI takes
+    argv; the stdin pipe is ignored.
     """
 
     model: str = "claude-sonnet-4.6"
@@ -99,8 +152,15 @@ class CopilotRunner:
         import time
         start = time.monotonic()
         try:
+            # v1.5.7 089f: resolver picks the available CLI and
+            # builds the argv (prompt on argv per the new CLI's
+            # required `-p <text>` shape; see docstring for the
+            # BUG-001 history). input=prompt below is the harmless-
+            # redundancy retention noted in the docstring.
+            argv = copilot_resolver.resolve_copilot_command(
+                prompt, self.model)
             result = subprocess.run(
-                ["gh", "copilot", "--prompt", "--model", self.model],
+                _resolve_runner_command(argv),
                 input=prompt,
                 capture_output=True,
                 text=True,
@@ -131,8 +191,8 @@ class CodexRunner:
     Codex CLI's non-interactive mode reads instructions from stdin
     when no positional prompt is given (per `codex exec --help` on
     codex-cli 0.125+). `--full-auto` is the low-friction sandboxed
-    automatic-execution mode (the codex equivalent of
-    `gh copilot --yolo`). We do NOT enable
+    automatic-execution mode (the codex equivalent of the Copilot
+    CLI's `--allow-all` / `--yolo`). We do NOT enable
     `--dangerously-bypass-approvals-and-sandbox` by default; only
     enable that if a future caller needs full sandbox bypass.
 
@@ -146,7 +206,7 @@ class CodexRunner:
 
     def run(self, prompt: str) -> RunnerResult:
         import time
-        argv = ["codex", "exec", "--full-auto"]
+        argv = _resolve_runner_command(["codex", "exec", "--full-auto"])
         if self.model:
             argv.extend(["-m", self.model])
         start = time.monotonic()
@@ -207,7 +267,8 @@ class CursorRunner:
 
     def run(self, prompt: str) -> RunnerResult:
         import time
-        argv = ["cursor", "agent", "--print", "--force"]
+        argv = _resolve_runner_command(
+            ["cursor", "agent", "--print", "--force"])
         if self.model:
             argv.extend(["--model", self.model])
         start = time.monotonic()
@@ -256,3 +317,25 @@ def make_runner(name: str, *, model: str | None = None) -> LLMRunner:
     raise ValueError(
         f"unknown runner {name!r}; valid values: claude, copilot, codex, cursor"
     )
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.runners',
+        summary=(
+            "Pass-runner glue for the skill-derivation pipeline — wraps "
+            "each pass with timing, retry, and error capture. "
+        ),
+        role=(
+            "Imported by bin/skill_derivation/__main__.py to wrap each "
+            "registered pass. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

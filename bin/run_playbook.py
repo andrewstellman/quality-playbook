@@ -4,9 +4,32 @@ Invoke with one or more target-directory paths (relative or absolute) or with
 no positional args to run against the current working directory. The runner
 does not resolve short names against a benchmark folder — every positional
 argument is treated literally as a directory path.
+
+Three invocation forms are supported (v1.5.7 fix F-5):
+
+* ``python -m bin.run_playbook <target>`` — package-module form (canonical).
+* ``python /path/to/QPB/bin/run_playbook.py <target>`` — direct script form
+  (e.g. ``python ../bin/run_playbook.py <target>`` from ``repos/``).
+
+(v1.5.7 089z: the per-target ``<target>/bin/run_playbook.sh``
+wrapper that ``setup_repos.sh`` installed in earlier 1.5.7
+versions has been removed — the two forms above are the canonical
+entry points.)
 """
 
 from __future__ import annotations
+
+import sys
+from pathlib import Path as _Path
+
+# v1.5.7 fix F-5a: allow direct-script invocation
+# (`python /path/to/QPB/bin/run_playbook.py <target>`) by ensuring QPB
+# root is on sys.path before local imports. Without this, script-style
+# invocation hit ImportError on the relative `from . import benchmark_lib`
+# imports and the v1.5.4 __main__ guard refused the run. The injection
+# is a no-op under `python -m bin.run_playbook` because QPB root is
+# already on sys.path in that mode.
+sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
 
 import argparse
 import io
@@ -16,28 +39,153 @@ import shlex
 import shutil
 import signal
 import subprocess
-import sys
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
-try:
-    from . import benchmark_lib as lib
-    from . import archive_lib
-    from . import progress_monitor
-    from . import role_map as role_map_lib
-except ImportError:
-    import benchmark_lib as lib
-    import archive_lib
-    import progress_monitor
-    import role_map as role_map_lib
+from bin import benchmark_lib as lib
+from bin import archive_lib
+from bin import copilot_resolver
+from bin import progress_monitor
+from bin import reference_docs_ingest
+from bin import role_map as role_map_lib
 
 
 ALL_STRATEGIES = ["gap", "unfiltered", "parity", "adversarial"]
 VALID_STRATEGIES = frozenset(ALL_STRATEGIES)
 PID_FILE = lib.QPB_DIR / ".run_pids"
+
+
+def _write_harness_abort_status(phase, exit_code, reason: str) -> None:
+    """v1.5.7 164: when the Mode B supervisor aborts on a phase
+    failure, write a terminal-shaped status.json to the path the
+    harness pre-pinned via ``QPB_HARNESS_STATUS_PATH``. The
+    collector reads status.json to grade; without this write the
+    collector sees an in-flight RUNNING state with no terminal_state
+    and either grades N/A from inference (the 13:43:22Z scenario)
+    or waits forever (the 04:26 4-hour-alive zombie). Best-effort:
+    filesystem errors are swallowed so a failed write doesn't crash
+    the supervisor's abort path. The env var is set ONLY when
+    run_playbook is invoked by the harness (``bin/harness/runner.py``
+    adds it to Mode B Popen env). Operator-direct invocations of
+    run_playbook (no env var) get the existing behavior — log +
+    return — with no status.json write."""
+    import json as _json
+    path = os.environ.get("QPB_HARNESS_STATUS_PATH")
+    if not path:
+        return
+    try:
+        existing: dict = {}
+        if os.path.isfile(path):
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    existing = _json.load(fh)
+            except (OSError, ValueError):
+                existing = {}
+        try:
+            phase_num = int(str(phase).split("+")[0])
+        except (ValueError, TypeError):
+            phase_num = -1
+        try:
+            code = int(exit_code) if exit_code is not None else -1
+        except (ValueError, TypeError):
+            code = -1
+        existing.update({
+            "state": "DONE",
+            "terminal_state": "ABORTED_PHASE",
+            "terminal_reason":
+                f"Phase {phase} aborted: {reason}",
+            "exit_code": code,
+            "ended_at": datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"),
+            "phase_aborted": phase_num,
+            "pid": os.getpid(),
+        })
+        # Atomic-ish: write to a sibling, rename. The collector's
+        # read may race with our write; tmp + rename avoids torn
+        # reads.
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            _json.dump(existing, fh, indent=2)
+        os.replace(tmp, path)
+    except OSError:
+        pass  # best-effort; don't crash the abort path
+
+
+# v1.5.7 A-22 structural defense (instruction 084). Live ship-validation
+# (copilot httpx, 2026-05-18) surfaced an agent honoring Phase 0 then
+# invoking the runner itself for Phases 1-6 — a Mode A -> Mode B drift
+# the SKILL.md "default to Mode A" prose could not prevent. Presence of
+# ANY of these env vars indicates the runner is being invoked from
+# inside an AI-agent session. The first three are empirically verified
+# (codex 0.125.0 / copilot-cli 1.0.48 / Claude Code documented); the
+# remainder are forward-compatibility placeholders, added but NOT
+# claimed verified.
+_AGENT_CONTEXT_SIGNALS: dict[str, str] = {
+    "CODEX_THREAD_ID":          "Codex CLI",
+    "COPILOT_AGENT_SESSION_ID": "GitHub Copilot CLI",
+    "CLAUDECODE":               "Claude Code",
+    "CURSOR_AGENT":             "Cursor",
+    "CONTINUE_SESSION":         "Continue",
+    "WINDSURF_AGENT":           "Windsurf",
+    # v1.5.7 instruction 089 (Council finding F6): cline + aider —
+    # forward-compatibility placeholders matching install_skill.py
+    # AI_TOOL_MAP coverage (the installer offers these as targets but
+    # the A-22 guard had no signal for them). Env-var names are NOT
+    # empirically verified — same status as Cursor/Continue/Windsurf
+    # above. If these tools begin setting identifiable session env
+    # vars, populate empirically and drop the "NOT verified" caveat.
+    "CLINE_AGENT":              "Cline",
+    "AIDER_AGENT":              "Aider",
+}
+
+
+def _detect_agent_context() -> "Optional[str]":
+    """Return the human-readable name of the AI-agent context if
+    `run_playbook.py` is being invoked from inside one, else None.
+    Detection is env-var based per `_AGENT_CONTEXT_SIGNALS`.
+    """
+    for var, name in _AGENT_CONTEXT_SIGNALS.items():
+        if os.environ.get(var):
+            return name
+    return None
+
+
+# v1.5.7 instruction 084b (closes 084 F1). The 084 agent-context
+# guard was too broad: under an ambient agent env (any dev/CI session
+# running inside a Claude Code / Codex / Copilot terminal) it refused
+# even informational / management probes (--help, --kill), breaking
+# ~11 pre-existing tests' subprocess invocations. The Mode-A drift we
+# actually prevent is "agent invokes the runner to DRIVE Phases 1-6";
+# we are NOT preventing --help / --kill. These tokens are exactly the
+# argparse-supported informational/management flags in the current
+# run_playbook.py (`-h`/`--help` are argparse defaults; `--kill` is
+# the cleanup command); `-V`/`--version` are harmless forward-compat
+# (argparse rejects them on its own if ever used, never a drive
+# invocation). Do not expand beyond argparse-supported tokens.
+_AGENT_CONTEXT_INFORMATIONAL_TOKENS: "frozenset[str]" = frozenset({
+    "-h", "--help", "-V", "--version", "--kill",
+})
+
+
+def _is_informational_or_management_invocation(argv: "Sequence[str]") -> bool:
+    """Return True if `argv` (typically `sys.argv[1:]`) contains any
+    token that marks the invocation as informational, management, or a
+    test-harness probe — i.e., NOT a "drive Phases 1-6" invocation.
+    The agent-context guard bypasses these paths so:
+      (a) operators can run --help / --kill from inside an agent terminal
+      (b) the existing test suite's subprocess probes are not refused
+          under ambient agent env (the 084 F1 failure mode)
+    Bare token membership is adequate: --help short-circuits argparse
+    anyway, and there is no drive invocation that legitimately also
+    carries one of these tokens.
+    """
+    for tok in argv or ():
+        if tok in _AGENT_CONTEXT_INFORMATIONAL_TOKENS:
+            return True
+    return False
 
 
 def parse_strategy_list(value: str) -> List[str]:
@@ -288,11 +436,43 @@ def build_parser() -> argparse.ArgumentParser:
     parallel_group.add_argument("--parallel", dest="parallel", action="store_true", default=True, help="Run all targets concurrently (default).")
     parallel_group.add_argument("--sequential", dest="parallel", action="store_false", help="Run targets one after another.")
 
+    # v1.5.7 Phase 6c: runner default resolution chain:
+    #   1. Explicit CLI flag (--claude / --copilot / --codex / --cursor)
+    #   2. Per-operator config at ~/.qpb/config.json (key "runner")
+    #   3. Built-in default "copilot"
+    # The argparse default below is the built-in default; if no flag is
+    # passed AND the config file has a "runner" key, args.runner is
+    # post-processed in execute_run/main per the override layer.
     runner_group = parser.add_mutually_exclusive_group()
-    runner_group.add_argument("--claude", dest="runner", action="store_const", const="claude", default="copilot", help="Use claude -p instead of gh copilot.")
-    runner_group.add_argument("--copilot", dest="runner", action="store_const", const="copilot", help="Use gh copilot (default).")
-    runner_group.add_argument("--codex", dest="runner", action="store_const", const="codex", help="Use codex exec --full-auto instead of gh copilot.")
-    runner_group.add_argument("--cursor", dest="runner", action="store_const", const="cursor", help="Use cursor agent --print --force instead of gh copilot (cursor-cli 3.1+).")
+    runner_group.add_argument("--claude", dest="runner", action="store_const", const="claude", default="copilot", help="Use claude -p instead of the Copilot CLI.")
+    runner_group.add_argument("--copilot", dest="runner", action="store_const", const="copilot", help="Use the GitHub Copilot CLI (default; auto-detects new standalone `copilot` with deprecated `gh copilot` extension as fallback per v1.5.7 089f).")
+    runner_group.add_argument("--codex", dest="runner", action="store_const", const="codex", help="Use codex exec --sandbox workspace-write instead of the Copilot CLI.")
+    runner_group.add_argument("--cursor", dest="runner", action="store_const", const="cursor", help="Use cursor agent --print --force instead of the Copilot CLI (cursor-cli 3.1+).")
+
+    # v1.5.7 Phase 6c: --council-roster override flag. Resolution order:
+    #   1. This CLI flag (comma-separated, e.g., "claude-opus-4.7,gpt-5.5,claude-sonnet-4.6")
+    #   2. ~/.qpb/config.json "council_members" key
+    #   3. bin/council_config.DEFAULT_COUNCIL_MEMBERS (built-in default)
+    # v1.5.7 instruction 089 (Council finding F7): EXPOSED. D6
+    # designed --council-roster as an adopter-facing override
+    # (AGENTS.md + references/runners_and_models.md both document it
+    # as adopter-callable); the prior argparse.SUPPRESS contradicted
+    # that prose so `--help` and the docs disagreed. The flag works
+    # correctly when invoked (no unsafe edges), so the resolution is
+    # to expose it — `--help` now agrees with the docs.
+    parser.add_argument(
+        "--council-roster",
+        dest="council_roster",
+        default=None,
+        metavar="m1,m2,m3",
+        help=(
+            "Override the Council roster (comma-separated model ids). "
+            "Resolution: this flag > ~/.qpb/config.json "
+            "(or $XDG_CONFIG_HOME/qpb/config.json) > built-in default "
+            "(claude-opus-4.7,gpt-5.5,claude-sonnet-4.6). See "
+            "references/runners_and_models.md."
+        ),
+    )
 
     seed_group = parser.add_mutually_exclusive_group()
     seed_group.add_argument("--no-seeds", dest="no_seeds", action="store_true", default=True, help="Skip Phase 0/0b seed injection (default).")
@@ -318,6 +498,21 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("--next-iteration", action="store_true", help="Iterate on an existing quality/ run.")
+    parser.add_argument(
+        "--operator-invoked",
+        action="store_true",
+        help=(
+            "Acknowledge that this runner invocation is intended (you are "
+            "a HUMAN operator running from an INTERACTIVE TERMINAL, not "
+            "an agent reaching for the runner from inside a Claude Code / "
+            "Copilot / Codex / Cursor session). The startup agent-context "
+            "check (v1.5.7 A-22) refuses unless: --next-iteration is set, "
+            "OR --operator-invoked is set AND stdin is a TTY, OR "
+            "no agent context is detected. The TTY requirement (085) "
+            "prevents agents that read --help output from fabricating "
+            "the bypass — agents' subprocess.run() calls pipe stdin."
+        ),
+    )
     parser.add_argument(
         "--full-run",
         action="store_true",
@@ -363,7 +558,21 @@ def build_parser() -> argparse.ArgumentParser:
             "default 0). Use to throttle against per-minute rate limits."
         ),
     )
-    parser.add_argument("--model", help="Runner model override (copilot: gpt-5.4, claude: sonnet/opus/etc, codex: gpt-5-codex/etc).")
+    parser.add_argument("--model", help="Runner model override (copilot: gpt-5.5, claude: sonnet/opus/etc, codex: gpt-5-codex/etc).")
+    parser.add_argument(
+        "--runner-extra-args",
+        dest="runner_extra_args",
+        default=None,
+        help=(
+            "Extra argv tokens passed VERBATIM to the runner CLI "
+            "(codex/claude/copilot/cursor), parsed via shlex. "
+            "Example: --runner-extra-args '-c "
+            "model_reasoning_effort=\\\"low\\\"' to forward codex's "
+            "config flag. Run_playbook does NOT interpret these "
+            "tokens — they go through unchanged. v1.5.7 instruction "
+            "129."
+        ),
+    )
     parser.add_argument(
         "--no-formal-docs",
         dest="no_formal_docs",
@@ -416,11 +625,12 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     # v1.5.6 cluster 050: benchmark-mode flag for model-comparison
-    # studies. Phase 4 uses a fixed Council roster (claude-opus-4.7,
-    # gpt-5.4, gemini-2.5-pro per bin/council_config.py) regardless
-    # of --model, so any --model X run that completes Phase 4
-    # produces BUGS.md output that mixes X's Phase 1-3 findings with
-    # the Council's audit. For SPC analysis or model comparison,
+    # studies. Phase 4 uses a fixed Council roster (per
+    # bin/council_config.DEFAULT_COUNCIL_MEMBERS — at v1.5.7 ship:
+    # claude-opus-4.7, gpt-5.5, claude-sonnet-4.6) regardless of
+    # --model, so any --model X run that completes Phase 4 produces
+    # BUGS.md output that mixes X's Phase 1-3 findings with the
+    # Council's audit. For SPC analysis or model comparison,
     # phases 4 onward are a contamination confound.
     parser.add_argument(
         "--benchmark-mode",
@@ -490,10 +700,11 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "When --kill cannot find PID files, fall back to a workstation-wide "
             "pkill -f match against runner command-line substrings (claude -p, "
-            "gh copilot -p, etc.). DEFAULT OFF — opt in only when you're sure "
-            "no other interactive Claude or Copilot sessions are running on "
-            "this machine, since the substring match cannot distinguish them "
-            "from playbook workers (BUG-004 from the v1.5.6 codex recheck)."
+            "copilot -p, gh copilot -p, etc.). DEFAULT OFF — opt in only when "
+            "you're sure no other interactive Claude or Copilot sessions are "
+            "running on this machine, since the substring match cannot "
+            "distinguish them from playbook workers (BUG-004 from the v1.5.6 "
+            "codex recheck)."
         ),
     )
     parser.add_argument(
@@ -502,6 +713,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Target directories to run against (relative or absolute paths). Defaults to the current directory.",
     )
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
+
+    # v1.5.7 Phase 5 / Deliverable 3: opt-out flag for the centralized
+    # quality/logs/<run-id>/ layout. With --logs-flat (or the
+    # equivalent QPB_LOGS_LEGACY=1 env var), runner-owned logs are
+    # written to the v1.5.6 paths byte-identically for adopters with
+    # downstream tooling that hasn't migrated. See ai_context/TOOLKIT.md
+    # for the migration timeline; the flag is documented but not
+    # advertised in --help.
+    parser.add_argument(
+        "--logs-flat",
+        dest="logs_flat",
+        action="store_true",
+        default=False,
+        help=argparse.SUPPRESS,
+    )
 
     # v1.5.4 Phase 3.6.1 Section A.1.a / A.3.a (codex-prevention):
     # operator overrides for the role-map validator and sentinel
@@ -594,6 +820,86 @@ def _mark_iterations_explicit(argv: Sequence[str]) -> bool:
     return has_explicit and "--full-run" not in argv
 
 
+def _apply_qpb_config_overrides(
+    args: argparse.Namespace,
+    effective_argv: Sequence[str],
+) -> None:
+    """v1.5.7 Phase 6c: overlay ~/.qpb/config.json values onto args
+    for fields the CLI didn't explicitly set.
+
+    The argparse defaults always win when a flag IS explicitly
+    passed; the config file fills in fields the operator didn't
+    specify on the CLI. The built-in `DEFAULT_COUNCIL_MEMBERS`
+    tuple wins when neither CLI nor config-file specifies the
+    roster (resolution happens downstream via
+    `_active_council_roster()`).
+    """
+    try:
+        from bin import qpb_config
+    except ImportError:
+        return  # qpb_config module unavailable; argparse defaults stand
+    cfg = qpb_config.load_config()
+    if not cfg:
+        return
+
+    # Runner default override: only when no explicit --claude /
+    # --copilot / --codex / --cursor flag was on the CLI.
+    runner_flags = {"--claude", "--copilot", "--codex", "--cursor"}
+    if not any(flag in effective_argv for flag in runner_flags):
+        cfg_runner = cfg.get("runner")
+        if isinstance(cfg_runner, str) and cfg_runner in {"claude", "copilot", "codex", "cursor"}:
+            args.runner = cfg_runner
+
+    # Council roster override: only when --council-roster wasn't on
+    # the CLI. The resolved roster lives on args.council_roster as
+    # a comma-joined string OR a list[str]; downstream
+    # _active_council_roster() handles both.
+    if args.council_roster is None:
+        cfg_roster = cfg.get("council_members")
+        if isinstance(cfg_roster, list) and cfg_roster:
+            args.council_roster = ",".join(cfg_roster)
+
+
+def _active_council_roster(args: argparse.Namespace) -> tuple[str, ...]:
+    """v1.5.7 Phase 6c: resolve the active Council roster — the
+    documented 3-tier precedence (references/runners_and_models.md,
+    QPB_v1.5.7_Design.md:439/551, Implementation_Plan.md:363).
+
+    Resolution order (most specific first):
+      1. --council-roster CLI flag (parsed from args.council_roster).
+      2. Config file's `council_members` (~/.qpb/config.json).
+      3. bin/council_config.DEFAULT_COUNCIL_MEMBERS (built-in default).
+
+    v1.5.7 instruction 053 (sibling-finding wiring): tiers 2+3 now
+    route through `council_config.council_members()` (which since the
+    instruction-052 A-9 fix resolves config-file → DEFAULT itself).
+    Previously this fallback returned DEFAULT_COUNCIL_MEMBERS directly
+    and SKIPPED the config-file tier, and this function was never
+    called anywhere — so the documented `--council-roster` CLI tier
+    was effectively unwired. The Phase 4 banner (run_one_phase) now
+    calls this resolver so the flag actually takes effect at the
+    documented dynamic-read site (Design.md:409). Tier 1 still wins
+    over config/default; when no flag is set (args.council_roster is
+    None — incl. the config value `_apply_qpb_config_overrides` may
+    have overlaid onto it), council_members() applies the config →
+    default fallback. Both paths yield the same roster; no divergence.
+    """
+    raw = getattr(args, "council_roster", None)
+    if raw:
+        members = [m.strip() for m in raw.split(",")]
+        members = [m for m in members if m]
+        if members:
+            try:
+                from bin import qpb_config
+                for warning in qpb_config.validate_roster(members):
+                    print(f"WARN: {warning}", file=sys.stderr)
+            except ImportError:
+                pass
+            return tuple(members)
+    from bin import council_config
+    return tuple(council_config.council_members())
+
+
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -603,6 +909,13 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     # this to decide whether to honor the zero-gain early-stop.
     effective_argv = list(argv) if argv is not None else sys.argv[1:]
     args._iterations_explicit = _mark_iterations_explicit(effective_argv)
+
+    # v1.5.7 Phase 6c: per-operator config overlay (~/.qpb/config.json).
+    # Resolution order for fields not explicitly set on the CLI:
+    #   1. CLI flag (when explicitly present in effective_argv)
+    #   2. Config file value
+    #   3. argparse default
+    _apply_qpb_config_overrides(args, effective_argv)
 
     if not args.kill and not args.targets:
         args.targets = ["."]
@@ -808,10 +1121,20 @@ def resolve_target_dirs(paths: Sequence[str]) -> Tuple[List[Path], List[str], Li
                 continue
 
         if lib.find_installed_skill(candidate) is None:
+            # v1.5.7 089d (F23): derive the layout enumeration from
+            # the canonical lib.SKILL_INSTALL_LOCATIONS (10 layouts
+            # post-046/A-3) at message-construction time. Pre-089d
+            # this WARN hard-coded 6 of 10 layouts (missing .codex,
+            # .windsurf, .cline, .aider — added in 046), so adopters
+            # on those tools saw incomplete diagnostic guidance.
+            # Pinned by bin/tests/test_install_layouts_pinned.py.
+            _layouts = ", ".join(str(p) for p in lib.SKILL_INSTALL_LOCATIONS)
             warnings.append(
-                f"WARN: No SKILL.md found for {candidate}. Expected at "
-                ".github/skills/SKILL.md, .claude/skills/quality-playbook/SKILL.md, or SKILL.md "
-                "at the target root — the playbook may not be installed there."
+                f"WARN: No QPB-installed SKILL.md found for {candidate}. "
+                f"Expected at one of the canonical install layouts: "
+                f"{_layouts} — the playbook may not be installed there. "
+                f"(SKILL.md is the root/bootstrap form — must have "
+                f"`name: quality-playbook` frontmatter.)"
             )
         resolved.append(candidate)
     return resolved, warnings, errors
@@ -828,12 +1151,61 @@ def phase_label(phase: str) -> str:
     }[phase]
 
 
+def _read_gate_verdict_from_log(log_path: Path) -> str:
+    """v1.5.7 109 (fix): scan ``quality-gate.log`` for the LAST
+    canonical ``RESULT: GATE …`` line. Returns the matching
+    line stripped, or the file's last line as a degenerate
+    fallback, or ``"unknown"`` when the log is empty/absent.
+
+    Pre-fix, ``_handle_phase_complete`` for phase 6 read
+    ``lines[-1]`` directly, but the gate's stdout grew
+    non-RESULT trailing lines twice during 1.5.7:
+
+      * 090v appended the Operator Verdict block (multi-line
+        prose) AFTER the ``RESULT:`` line — so since 090v
+        ``lines[-1]`` was operator-block prose, never the
+        verdict line. The ``"WITH CLEANUP NEEDED"`` tag check
+        in the phase-6 handler therefore couldn't detect
+        cleanup since 090v (pre-109 latent break).
+      * 109 added the trailing ``::QPB:: {...}`` sentinel JSON,
+        making ``lines[-1]`` raw JSON.
+
+    The fix anchors on the load-bearing ``RESULT: GATE …``
+    pattern that ``facts.py`` / ``phase_prompts/phase6.md`` /
+    ``references/what_just_happened.md`` already match on. The
+    ``::QPB::`` sentinel + operator-verdict prose are both
+    skipped by construction (they don't start with
+    ``RESULT:``).
+    """
+    if not log_path.is_file():
+        return "unknown"
+    lines = log_path.read_text(
+        encoding="utf-8", errors="ignore",
+    ).splitlines()
+    if not lines:
+        return "unknown"
+    for line in reversed(lines):
+        stripped = line.strip()
+        if stripped.startswith("RESULT: GATE "):
+            return stripped
+    # Degenerate fallback: no RESULT: line. Preserve historical
+    # behavior so the rest of the phase-6 fallbacks (gate-
+    # report-latest.json, finalizer_status) still have
+    # something to inspect.
+    return lines[-1]
+
+
 SKILL_FALLBACK_GUIDE = (
     "Read the quality playbook skill using the documented install-location fallback list: "
     "SKILL.md, .claude/skills/quality-playbook/SKILL.md, "
     ".github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, "
     ".continue/skills/quality-playbook/SKILL.md, "
-    ".github/skills/quality-playbook/SKILL.md. "
+    ".github/skills/quality-playbook/SKILL.md, "
+    # v1.5.7 instruction 046 (A-3): 6-layout → 10-layout fallback.
+    ".codex/skills/quality-playbook/SKILL.md, "
+    ".windsurf/skills/quality-playbook/SKILL.md, "
+    ".cline/skills/quality-playbook/SKILL.md, "
+    ".aider/skills/quality-playbook/SKILL.md. "
     "Resolve reference files using the same documented fallback order."
 )
 
@@ -858,8 +1230,9 @@ def _load_phase_prompt(name: str, **substitutions: str) -> str:
        literal brace. v1.5.6 BUG-011/012: phase{2..6}.md hardcoded
        ``.github/skills/`` paths; the fix replaces those with a single
        ``{skill_fallback_guide}`` placeholder at the top of each file
-       so the runtime-canonical fallback list (six install layouts) is
-       the single source of truth. Phase 3 and Phase 5 contain JSON
+       so the runtime-canonical fallback list (ten install layouts as
+       of v1.5.7 instruction 046) is the single source of truth. Phase
+       3 and Phase 5 contain JSON
        code blocks with single ``{`` / ``}`` braces; using
        ``str.replace`` for this placeholder lets those JSON blocks
        remain readable instead of being littered with ``{{``/``}}``.
@@ -1195,25 +1568,89 @@ def check_phase_gate(
     raise ValueError(f"Unknown phase: {phase}")
 
 
-def command_for_runner(runner: str, prompt: str, model: Optional[str]) -> List[str]:
+def _resolve_runner_command(argv: List[str]) -> List[str]:
+    """Resolve a bare-name AI CLI invocation to its full path (W2,
+    addendum r3 §4.2).
+
+    On Windows, AI CLIs are typically `.cmd`/`.bat` shims;
+    `subprocess.run` without `shell=True` raises FileNotFoundError
+    because CreateProcess only auto-resolves `.exe`. `shutil.which`
+    walks PATHEXT, so it returns the shim's full path. On Unix this is
+    effectively a no-op (which returns the full path of any
+    PATH-resolvable executable; subprocess accepts either form). If
+    the name is unresolvable, fall back to the bare argv so the
+    existing FileNotFoundError surface to the operator is preserved.
+    Resolution-only — does NOT address stdin-through-`.cmd` (addendum
+    §4.3 / §8 Windows smoke test).
+    """
+    if not argv:
+        return argv
+    resolved = shutil.which(argv[0])
+    if resolved is None:
+        return argv
+    return [resolved] + list(argv[1:])
+
+
+def _splice_copilot_extra(
+        base: List[str], extra: List[str]) -> List[str]:
+    """v1.5.7 129: insert runner-extra-args into a resolved copilot
+    command (``["copilot", "-p", PROMPT, "--model", M, "--allow-all"]``
+    or the ``gh copilot`` form) AFTER the ``--model <value>`` pair and
+    BEFORE the trailing ``--allow-all``/``--yolo`` flag — keeping the
+    splice position consistent with codex/claude/cursor (after the
+    model, before the terminal tool-approval/sentinel token). Falls
+    back to appending when ``--model`` isn't present (defensive — the
+    resolver always emits it)."""
+    if not extra:
+        return base
+    cmd = list(base)
+    try:
+        insert_at = cmd.index("--model") + 2
+    except ValueError:
+        insert_at = len(cmd)
+    return cmd[:insert_at] + list(extra) + cmd[insert_at:]
+
+
+def command_for_runner(runner: str, prompt: str, model: Optional[str],
+                        runner_extra_args: "Optional[str]" = None
+                        ) -> List[str]:
+    # v1.5.7 129: forward operator-supplied runner-CLI flags. The
+    # single shell-quoted string is shlex-split into argv tokens and
+    # spliced into the runner command BEFORE the stdin/positional
+    # sentinel (codex/claude/cursor) or before the tool-approval flag
+    # (copilot). shlex.split raises ValueError on malformed quoting —
+    # we let it PROPAGATE so a plan with bad quoting fails loudly
+    # rather than silently dropping the flag. None/empty ⇒ no-op.
+    extra = shlex.split(runner_extra_args) if runner_extra_args else []
     if runner == "claude":
         command = ["claude"]
         if model:
             command.extend(["--model", model])
+        command.extend(extra)
         command.extend(["-p", prompt, "--dangerously-skip-permissions"])
-        return command
+        return _resolve_runner_command(command)
     if runner == "codex":
-        # `codex exec --full-auto` reads instructions from stdin when
-        # no positional prompt is given (codex-cli 0.125+). Putting
-        # the prompt on argv would hit shell command-line length
-        # limits on long phase prompts; the caller must pipe the
-        # prompt on stdin instead. The "-" sentinel below makes the
+        # `codex exec --sandbox workspace-write` reads
+        # instructions from stdin when no positional prompt is
+        # given (codex-cli 0.125+). Putting the prompt on argv
+        # would hit shell command-line length limits on long
+        # phase prompts; the caller must pipe the prompt on
+        # stdin instead. The "-" sentinel below makes the
         # intent explicit.
-        command = ["codex", "exec", "--full-auto"]
+        #
+        # v1.5.7 124: replaced ``--full-auto`` with
+        # ``--sandbox workspace-write``. Codex v0.133.0+
+        # deprecated ``--full-auto`` (CLI prints "warning:
+        # --full-auto is deprecated; use --sandbox
+        # workspace-write"). Same semantics; the new flag is
+        # the documented replacement.
+        command = ["codex", "exec", "--sandbox",
+                    "workspace-write"]
         if model:
             command.extend(["-m", model])
+        command.extend(extra)
         command.append("-")
-        return command
+        return _resolve_runner_command(command)
     if runner == "cursor":
         # v1.5.4 F-1 (corrected post-bootstrap): `cursor agent
         # --print` reads the prompt on stdin ONLY when no positional
@@ -1231,9 +1668,18 @@ def command_for_runner(runner: str, prompt: str, model: Optional[str]) -> List[s
         command = ["cursor", "agent", "--print", "--force"]
         if model:
             command.extend(["--model", model])
-        return command
+        command.extend(extra)
+        return _resolve_runner_command(command)
     copilot_model = model or lib.DEFAULT_MODEL
-    return ["gh", "copilot", "-p", prompt, "--model", copilot_model, "--yolo"]
+    # v1.5.7 089f: route through copilot_resolver so the new standalone
+    # `copilot` CLI is preferred when on PATH, with the deprecated
+    # `gh copilot` extension as fallback during the grace period.
+    # v1.5.7 129: splice runner-extra-args after `--model <value>`.
+    return _resolve_runner_command(
+        _splice_copilot_extra(
+            copilot_resolver.resolve_copilot_command(
+                prompt, copilot_model, allow_all=True),
+            extra))
 
 
 def command_preview(command: Sequence[str]) -> str:
@@ -1247,12 +1693,190 @@ def append_file(source: Path, destination: Path) -> None:
         out_handle.write(source.read_text(encoding="utf-8", errors="ignore"))
 
 
-def log_file_for(repo_dir: Path, timestamp: str) -> Path:
+# v1.5.7 Phase 5 / Deliverable 3: centralized log emission. Runner-owned
+# log artifacts (playbook log, run_state.jsonl, RUN_MODE.md) now land at
+# quality/logs/<run-id>/ rather than scattered across the cell tree.
+# Adopters who need the old layout (e.g., tooling that reads
+# quality/run_state.jsonl directly without the resolve helper) can pass
+# --logs-flat or set QPB_LOGS_LEGACY=1 to restore v1.5.6-byte-identical
+# paths. The flag/env are also the safety hatch for partial-migration
+# scenarios (e.g., a downstream consumer not yet updated).
+_LOG_LAYOUT_CENTRALIZED = "v1.5.7-centralized"
+_LOG_LAYOUT_FLAT = "v1.5.6-flat"
+
+
+def _logs_legacy_mode(args: Optional[argparse.Namespace]) -> bool:
+    """Return True when this run should emit logs in the v1.5.6 flat
+    layout (quality/run_state.jsonl + scattered playbook logs) instead
+    of the v1.5.7 centralized quality/logs/<run-id>/ layout. CLI flag
+    --logs-flat (on args) wins over QPB_LOGS_LEGACY=1 env."""
+    if args is not None and getattr(args, "logs_flat", False):
+        return True
+    return os.environ.get("QPB_LOGS_LEGACY") == "1"
+
+
+def _compute_run_id(timestamp: str) -> str:
+    """Reformat the runner's display timestamp (`YYYYMMDD-HHMMSS`)
+    into a sortable compact ISO-8601 form (`YYYYMMDDTHHMMSSZ`).
+
+    The display timestamp comes from the runner's entry points
+    (``execute_run`` and ``main``), both of which produce the
+    timestamp via ``datetime.now(timezone.utc).strftime(...)`` (true
+    UTC) per v1.5.7 089i. This function only inserts ``T`` and
+    appends ``Z`` — it does NOT do timezone conversion itself; it
+    relies on its callers feeding true-UTC display timestamps. So
+    the resulting run-id sorts chronologically across timezones (the
+    resolver's most-recent-by-name relies on lexical==chronological
+    order) and the trailing ``Z`` is honest — the run-id agrees
+    with the archive directory (``:3261``) and the run_state ``ts``
+    (``:4566``), both of which were already true UTC pre-089i.
+
+    Pre-089i: the display timestamp was local-time per a bare
+    ``datetime.now().strftime(...)`` call, and this function's
+    ``Z`` suffix was misleading — adopters saw a run-id like
+    ``20260520T143459Z`` (their 2:34pm EDT) sitting next to an
+    archive ``20260520T183459Z`` (true 18:34 UTC). The 089i fix
+    moves the truth into the callers (true-UTC display timestamps)
+    so this function's behavior matches its docstring + label.
+
+    For runs where the supplied timestamp is already compact UTC
+    (rare; only the regression-replay apparatus does this), pass
+    through unchanged.
+    """
+    # Already compact UTC form (YYYYMMDDTHHMMSSZ): pass through.
+    if len(timestamp) == 16 and timestamp.endswith("Z") and "T" in timestamp:
+        return timestamp
+    # Display form (YYYYMMDD-HHMMSS): re-render as compact ISO-8601.
+    # Callers feed true-UTC content per 089i; the Z suffix is honest.
+    if len(timestamp) == 15 and timestamp[8] == "-":
+        return f"{timestamp[:8]}T{timestamp[9:]}Z"
+    # Anything else: best-effort — preserve the timestamp but warn
+    # readers via the unconventional shape. Should not occur in
+    # production; tests may pass synthetic timestamps.
+    return timestamp
+
+
+def _run_log_dir(
+    repo_dir: Path,
+    run_id: str,
+    *,
+    args: Optional[argparse.Namespace] = None,
+    create: bool = True,
+) -> Path:
+    """Return the centralized log directory for a given run.
+
+    New layout: `<repo_dir>/quality/logs/<run-id>/`. With the legacy
+    flag, returns `<repo_dir>/quality/` (so callers that append a
+    filename produce the v1.5.6-byte-identical path).
+
+    `create=True` (default) ensures the directory exists; pass False
+    for read-only callers (e.g., the gate reading via fallback chain).
+    """
+    if _logs_legacy_mode(args):
+        target = repo_dir / "quality"
+    else:
+        target = repo_dir / "quality" / "logs" / run_id
+    if create:
+        target.mkdir(parents=True, exist_ok=True)
+    return target
+
+
+def _control_prompts_dir(
+    repo_dir: Path,
+    *,
+    args: Optional[argparse.Namespace] = None,
+    timestamp: Optional[str] = None,
+    create: bool = True,
+) -> Path:
+    """v1.5.7 Phase 5 FS-1: return the directory for control-prompt
+    transcripts (per-phase input/output txt files).
+
+    Centralized layout: `<repo_dir>/quality/logs/<run-id>/`. Legacy
+    layout (or no run_id available): `<repo_dir>/quality/control_prompts/`.
+
+    Callers WITH a timestamp in scope should pass it via `timestamp`.
+    Callers WITHOUT a timestamp (e.g., banner-render helpers that
+    run before the timestamp is in scope) fall back to the latest
+    existing run-id directory under `quality/logs/`; if none exists
+    yet, they fall back to the legacy path. This means a banner
+    rendered very early in a run may show the legacy path even in
+    centralized mode — that's acceptable for read-only display
+    purposes (the banner just tells operators where to tail logs).
+    """
+    if _logs_legacy_mode(args):
+        path = repo_dir / "quality" / "control_prompts"
+        if create:
+            path.mkdir(parents=True, exist_ok=True)
+        return path
+    if timestamp:
+        run_id = _compute_run_id(timestamp)
+        return _run_log_dir(repo_dir, run_id, args=args, create=create)
+    # No timestamp: best-effort find the most-recent run-id directory
+    logs_root = repo_dir / "quality" / "logs"
+    if logs_root.is_dir():
+        candidates = sorted(
+            (p for p in logs_root.iterdir()
+             if p.is_dir() and p.name != "latest"),
+            reverse=True,
+        )
+        if candidates:
+            return candidates[0]
+    # Fall back to legacy path
+    path = repo_dir / "quality" / "control_prompts"
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _run_state_jsonl_path(
+    repo_dir: Path,
+    run_id: Optional[str] = None,
+    *,
+    args: Optional[argparse.Namespace] = None,
+    create: bool = True,
+) -> Path:
+    """Return the write-target path for run_state.jsonl.
+
+    In the centralized layout, the path is
+    `<repo_dir>/quality/logs/<run-id>/run_state.jsonl`. In legacy
+    layout (or when run_id is None and no other context is available),
+    falls back to `<repo_dir>/quality/run_state.jsonl`.
+    """
+    if _logs_legacy_mode(args) or run_id is None:
+        path = repo_dir / "quality" / "run_state.jsonl"
+        if create:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+    log_dir = _run_log_dir(repo_dir, run_id, args=args, create=create)
+    return log_dir / "run_state.jsonl"
+
+
+def log_file_for(
+    repo_dir: Path,
+    timestamp: str,
+    *,
+    args: Optional[argparse.Namespace] = None,
+) -> Path:
     """Return the log path for a given target directory.
 
-    Logs live next to the target: `{parent}/{name}-playbook-{ts}.log`.
+    v1.5.7 Phase 5: centralized layout puts the playbook log at
+    `<repo_dir>/quality/logs/<run-id>/runner.log`. Legacy layout (via
+    --logs-flat or QPB_LOGS_LEGACY=1) restores the v1.5.6 path:
+    `{parent}/{name}-playbook-{ts}.log` (sibling-of-cell, not nested).
+
+    The args argument is optional for backward compatibility with
+    callers that don't have an argparse Namespace handy (e.g., test
+    fixtures). Without args, the env var QPB_LOGS_LEGACY controls
+    layout selection.
     """
-    return repo_dir.parent / f"{repo_dir.name}-playbook-{timestamp}.log"
+    if _logs_legacy_mode(args):
+        return repo_dir.parent / f"{repo_dir.name}-playbook-{timestamp}.log"
+    run_id = _compute_run_id(timestamp)
+    # NB: pass create=False so log_file_for stays a pure path computation
+    # — callers (configure_logging, _execute_run) mkdir as needed at
+    # write time. Eager mkdir here would break tests that construct
+    # synthetic paths the filesystem can't accept.
+    return _run_log_dir(repo_dir, run_id, args=args, create=False) / "runner.log"
 
 
 # v1.5.1 Item 2.1: built-in logging + unbuffered stdout. The prior run
@@ -1267,6 +1891,7 @@ def configure_logging(
     *,
     no_stdout_echo: bool = False,
     stream: Optional[object] = None,
+    args: Optional[argparse.Namespace] = None,
 ) -> Path:
     """Compute the canonical log path, announce it on stdout, and install
     line-buffered stdout. Called exactly once per run entry point.
@@ -1289,7 +1914,7 @@ def configure_logging(
       without monkey-patching sys.stdout. Production callers leave it at
       None and inherit sys.stdout.
     """
-    log_path = log_file_for(repo_dir, timestamp).resolve()
+    log_path = log_file_for(repo_dir, timestamp, args=args).resolve()
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     lib.set_default_echo(not no_stdout_echo)
@@ -1395,6 +2020,7 @@ def build_startup_banner(
     *,
     qpb_version: Optional[str] = None,
     platform_name: Optional[str] = None,
+    args: Optional[argparse.Namespace] = None,
 ) -> str:
     """Assemble the startup-banner string for a run.
 
@@ -1409,7 +2035,13 @@ def build_startup_banner(
     """
     log_path = log_path.resolve()
     repo_dir = repo_dir.resolve()
-    transcript_dir = repo_dir / "quality" / "control_prompts"
+    # v1.5.7 Phase 5 FS-1: route through _control_prompts_dir so the
+    # banner shows the centralized layout path when active. Timestamp
+    # isn't available in scope here; the helper's fallback finds the
+    # most-recent run-id directory or returns the legacy path.
+    transcript_dir = _control_prompts_dir(
+        repo_dir, args=args, create=False,
+    )
     # First phase's transcript is a predictable, copy-paste-ready path.
     # When the run advances, operators update the N in phaseN.output.txt;
     # the banner's job is to give them a working starting point.
@@ -1491,18 +2123,44 @@ def print_startup_banner(
     platform_name: Optional[str] = None,
 ) -> None:
     """Emit the startup banner via logboth so it lands in both stdout
-    and the run log file. Single call site in each run entry point."""
+    and the run log file. Single call site in each run entry point.
+
+    v1.5.7 089x T6: the FULL 80-wide attribution banner
+    (``_purpose.print_attribution_banner``) prints to **stderr**
+    first — Mode B run-start ceremony — so it doesn't pollute the
+    stdout `event=` stream Mode A clients parse. The existing
+    per-run "QPB vN run starting" startup banner then goes to
+    logboth as before."""
+    try:
+        from bin._purpose import print_attribution_banner as _print_attrib
+    except ImportError:
+        from _purpose import print_attribution_banner as _print_attrib  # type: ignore[no-redef]
+    _print_attrib()
     banner = build_startup_banner(
         repo_dir,
         log_path,
         _run_plan_entries(args),
         platform_name=platform_name,
+        args=args,
     )
     lib.logboth(log_path, banner)
 
 
-def run_prompt(repo_dir: Path, prompt: str, pass_name: str, output_file: Path, log_file: Path, runner: str, model: Optional[str]) -> int:
-    command = command_for_runner(runner, prompt, model)
+def print_completion_banner() -> None:
+    """v1.5.7 089x T6: emit the FULL 80-wide attribution banner at
+    Mode B run END as the closing flourish — symmetric with the
+    startup banner. Stream is **stderr** (clean-stdout-event=
+    rule). Called once at the end of execute_run for a successful
+    or failed playbook run."""
+    try:
+        from bin._purpose import print_attribution_banner as _print_attrib
+    except ImportError:
+        from _purpose import print_attribution_banner as _print_attrib  # type: ignore[no-redef]
+    _print_attrib()
+
+
+def run_prompt(repo_dir: Path, prompt: str, pass_name: str, output_file: Path, log_file: Path, runner: str, model: Optional[str], runner_extra_args: "Optional[str]" = None) -> int:
+    command = command_for_runner(runner, prompt, model, runner_extra_args)
     output_file.parent.mkdir(parents=True, exist_ok=True)
     with log_file.open("a", encoding="utf-8") as handle:
         handle.write("\n")
@@ -1525,11 +2183,21 @@ def run_prompt(repo_dir: Path, prompt: str, pass_name: str, output_file: Path, l
             # the `-` sentinel from command_for_runner). Claude and
             # Copilot take the prompt on argv. Detect the codex case
             # by the trailing `-` token.
+            # v1.5.7 190 FINDING-46: explicit encoding="utf-8"
+            # + errors="replace". Without it, text=True picks the
+            # system locale codec — cp1252 on Windows — which
+            # crashes on a U+2265 (≥) char in the prompt with
+            # UnicodeEncodeError. Same fallback shape as 189's
+            # read-side defense. Inherits to the stdout/stderr
+            # capture too, so codex's TUI border-drawing / `→`
+            # reasoning markers won't crash the read side either.
             run_kwargs = dict(
                 cwd=str(repo_dir),
                 stdout=out_handle,
                 stderr=subprocess.STDOUT,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 check=False,
             )
             if runner in ("codex", "cursor"):
@@ -1571,7 +2239,14 @@ def docs_present(repo_dir: Path) -> bool:
 
 
 # v1.5.2: pre-run reference_docs guard.
-_REFERENCE_DOCS_PLAINTEXT_EXTS = frozenset({".txt", ".md"})
+# v1.5.7 089d (F20): the canonical plaintext-extension set lives in
+# bin/reference_docs_ingest.SUPPORTED_EXTENSIONS (the producer of
+# reference_docs/ ingestion). Importing it here keeps the three
+# surfaces (run_playbook, bootstrap_self_audit_docs, ingest)
+# coherent. Pre-089d this local definition omitted ".rst", so a
+# .rst doc file under reference_docs/ was treated differently by
+# each surface (opus bootstrap BUG-016/017/018).
+_REFERENCE_DOCS_PLAINTEXT_EXTS = reference_docs_ingest.SUPPORTED_EXTENSIONS
 _REFERENCE_DOCS_SKIPPED = frozenset({"README.md"})
 
 
@@ -1691,8 +2366,8 @@ def formal_docs_guard_banner(repo_dir: Path) -> Optional[str]:
         "",
         "  The playbook will proceed using only Tier 3 evidence (the source",
         "  tree itself). For better results, drop plaintext documentation into:",
-        "    reference_docs/            ← AI chats, design notes, retrospectives (Tier 4)",
-        "    reference_docs/cite/       ← project specs, RFCs, API contracts (Tier 1/2)",
+        "    reference_docs/            <- AI chats, design notes, retrospectives (Tier 4)",
+        "    reference_docs/cite/       <- project specs, RFCs, API contracts (Tier 1/2)",
         f"  {suppress_hint}",
         "=" * 72,
         "",
@@ -1736,17 +2411,28 @@ def _evaluate_documentation_state(repo_dir: Path) -> str:
 
 
 def _emit_documentation_state_event(
-    repo_dir: Path, state: str, reason: str
+    repo_dir: Path,
+    state: str,
+    reason: str,
+    *,
+    args: Optional[argparse.Namespace] = None,
+    timestamp: Optional[str] = None,
 ) -> Optional[Path]:
     """Append a ``documentation_state`` event to
-    ``<repo_dir>/quality/run_state.jsonl``. Returns the path of the
-    file that was written, or None if the write failed (the runner
-    must not crash on a logging failure)."""
+    ``<repo_dir>/quality/[logs/<run-id>/]run_state.jsonl``. Returns the
+    path of the file that was written, or None if the write failed
+    (the runner must not crash on a logging failure).
+
+    v1.5.7 Phase 5 / Deliverable 3: when args+timestamp are supplied
+    and legacy mode is off, writes to
+    ``quality/logs/<run-id>/run_state.jsonl``; otherwise (back-compat,
+    or --logs-flat) writes to ``quality/run_state.jsonl``."""
     try:
         from bin.run_state_lib import append_event
     except ImportError:
         return None
-    jsonl_path = repo_dir / "quality" / "run_state.jsonl"
+    run_id = _compute_run_id(timestamp) if timestamp else None
+    jsonl_path = _run_state_jsonl_path(repo_dir, run_id, args=args)
     try:
         jsonl_path.parent.mkdir(parents=True, exist_ok=True)
         append_event(
@@ -1764,12 +2450,16 @@ def _emit_documentation_state_event(
 
 
 def _emit_aborted_missing_docs_event(
-    repo_dir: Path, reason: str
+    repo_dir: Path,
+    reason: str,
+    *,
+    args: Optional[argparse.Namespace] = None,
+    timestamp: Optional[str] = None,
 ) -> Optional[Path]:
     """Append an ``aborted_missing_docs`` event to
-    ``<repo_dir>/quality/run_state.jsonl``. Used when ``--require-docs``
-    forces an abort instead of the code-only-mode downgrade. Same
-    defensive error-handling shape as
+    ``<repo_dir>/quality/[logs/<run-id>/]run_state.jsonl``. Used when
+    ``--require-docs`` forces an abort instead of the code-only-mode
+    downgrade. Same defensive error-handling shape as
     ``_emit_documentation_state_event``: a logging failure must not
     crash the runner before it has a chance to write the
     operator-facing PROGRESS.md error line.
@@ -1778,7 +2468,8 @@ def _emit_aborted_missing_docs_event(
         from bin.run_state_lib import append_event
     except ImportError:
         return None
-    jsonl_path = repo_dir / "quality" / "run_state.jsonl"
+    run_id = _compute_run_id(timestamp) if timestamp else None
+    jsonl_path = _run_state_jsonl_path(repo_dir, run_id, args=args)
     try:
         jsonl_path.parent.mkdir(parents=True, exist_ok=True)
         append_event(
@@ -1927,6 +2618,19 @@ def _clear_live_quality(quality_dir: Path) -> None:
 # list at runtime — adding a new sentinel to .gitignore automatically
 # extends this check, no hardcoded list to drift.
 
+# v1.5.7 instruction 090h: `informal_docs/README.md` retired as a
+# sentinel (the directory itself was retired — see install_skill
+# `_SENTINEL_FILES` + skill-template.gitignore). Legacy adopters who
+# previously appended the old skill-template.gitignore still have
+# `!informal_docs/README.md` in their .gitignore and would otherwise
+# abort with "Required sentinel files missing" once install_skill
+# stops creating the file. Filter retired sentinels from the
+# discovered list so a v1.5.7-and-later run does not abort on a
+# legacy gitignore — adopters can drop the rule on their own
+# schedule. The set is hardcoded (one retired entry; not worth a
+# config surface).
+_RETIRED_SENTINELS: frozenset = frozenset({"informal_docs/README.md"})
+
 
 def _discover_sentinel_files(repo_dir: Path) -> List[Path]:
     """Parse .gitignore !-negations to derive the sentinel-file list.
@@ -1944,6 +2648,9 @@ def _discover_sentinel_files(repo_dir: Path) -> List[Path]:
         2026-04-30 empirical bootstrap test against QPB itself
         where ``!reference_docs/cite/`` AND
         ``!reference_docs/cite/.gitkeep`` both appear in .gitignore).
+      - Paths in ``_RETIRED_SENTINELS`` (v1.5.7 090h): the directory
+        these guarded was retired; a legacy gitignore that still
+        carries the rule must NOT cause a run to abort.
     """
     gitignore = repo_dir / ".gitignore"
     if not gitignore.is_file():
@@ -1964,6 +2671,10 @@ def _discover_sentinel_files(repo_dir: Path) -> List[Path]:
         # is_file() check in _verify_sentinels would always report
         # it as missing.
         if candidate.endswith("/"):
+            continue
+        # v1.5.7 090h: skip retired sentinels so a legacy gitignore
+        # carrying `!informal_docs/README.md` does not abort the run.
+        if candidate in _RETIRED_SENTINELS:
             continue
         sentinels.append(Path(candidate))
     return sentinels
@@ -2026,6 +2737,8 @@ def _qpb_source_baseline_sha(qpb_dir: Path) -> Optional[str]:
             cwd=qpb_dir,
             capture_output=True,
             text=True,
+            encoding="utf-8",  # 190 FINDING-47 (durability — SHA is ASCII)
+            errors="replace",
             check=False,
         )
     except (OSError, FileNotFoundError):
@@ -2072,25 +2785,302 @@ def _check_qpb_source_unchanged(
 def _verify_qpb_source_unchanged(
     qpb_dir: Path, baseline_sha: Optional[str]
 ) -> List[str]:
-    """Return list of QPB source paths modified since ``baseline_sha``,
-    or [] when none changed (or when there was no baseline to compare).
+    """Return list of QPB source paths *uncommittedly* modified since
+    ``baseline_sha``, or [] when none (or no baseline to compare).
 
     Checks ``bin/``, ``.github/skills/``, ``agents/``, ``references/``,
-    and ``SKILL.md``. Non-empty return signals an autonomous source
-    patch — the run must abort. v1.5.4 Phase 3.6.1 Section A.4.b.
+    ``SKILL.md``, ``schemas.md``, ``AGENTS.md``, ``phase_prompts/``.
+    Non-empty return signals an autonomous source patch — the run must
+    abort. v1.5.4 Phase 3.6.1 Section A.4.b.
+
+    v1.5.7 Issue 1 (chi-surfaced false-positive fix): the prior
+    implementation ran ``git diff --name-only <baseline_sha>`` which
+    diffs the baseline commit against the *working tree* — so a
+    legitimate commit that landed on the branch *during* a
+    long-running playbook (e.g. an orchestrator-driven fix committed
+    between phases) was flagged identically to an autonomous
+    uncommitted agent patch, aborting Phase 5 with a false positive.
+
+    The guardrail's true intent is "no *uncommitted* mid-run source
+    edits": an authorized mid-run commit went through the commit
+    discipline and is fine; an uncommitted working-tree edit to source
+    is the violation. Adapted detection (the actual function differs
+    from instruction 044's `validate_no_source_edits` pseudocode — it
+    is git-diff-based here, not mtime-based, so the per-file HEAD
+    filter is applied to the real candidate set, and untracked-file
+    detection is added explicitly because `git diff` never surfaces
+    untracked paths):
+
+      1. Candidate tracked files = ``git diff --name-only
+         <baseline_sha> -- <SOURCE_PATHS>`` (preserves the run-window
+         scope for tracked files).
+      2. For each candidate, ``git diff-index --quiet HEAD -- <f>``:
+         exit 0 ⇒ the file matches the committed HEAD state, i.e. the
+         change arrived via a tracked commit during the run — ALLOW.
+         Non-zero ⇒ staged/unstaged uncommitted modification, i.e. the
+         autonomous-agent-patch case — VIOLATION.
+      3. Brand-new untracked files under the source paths
+         (``git ls-files --others --exclude-standard``) are violations
+         unconditionally — an autonomous agent creating new source
+         files is exactly what the guardrail exists to catch
+         (conservative default per instruction 044 Task 1 edge case;
+         ``git diff-index`` does not report untracked paths so they
+         must be detected separately).
     """
     if baseline_sha is None:
         return []
-    cmd = ["git", "diff", "--name-only", baseline_sha, "--"] + list(_QPB_SOURCE_PATHS)
+
+    def _git(args: List[str]) -> Optional[subprocess.CompletedProcess]:
+        try:
+            return subprocess.run(
+                ["git"] + args,
+                cwd=qpb_dir,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",  # 190 FINDING-47 (git output may have unicode filenames)
+                errors="replace",
+                check=False,
+            )
+        except (OSError, FileNotFoundError):
+            return None
+
+    diff_res = _git(
+        ["diff", "--name-only", baseline_sha, "--"] + list(_QPB_SOURCE_PATHS)
+    )
+    if diff_res is None or diff_res.returncode != 0:
+        return []
+    candidates = [line for line in diff_res.stdout.splitlines() if line.strip()]
+
+    violations: List[str] = []
+    for f in candidates:
+        # Matches the committed HEAD state ⇒ change arrived via a
+        # tracked commit during the run (legitimate; commit discipline
+        # is enforced at review time, not by this guardrail). Only an
+        # uncommitted modification is an autonomous agent patch.
+        head_chk = _git(["diff-index", "--quiet", "HEAD", "--", f])
+        if head_chk is not None and head_chk.returncode == 0:
+            continue
+        if f not in violations:
+            violations.append(f)
+
+    others_res = _git(
+        ["ls-files", "--others", "--exclude-standard", "--"]
+        + list(_QPB_SOURCE_PATHS)
+    )
+    if others_res is not None and others_res.returncode == 0:
+        for f in others_res.stdout.splitlines():
+            if f.strip() and f not in violations:
+                violations.append(f)
+
+    return violations
+
+
+def _check_installed_bundle_freshness(
+    qpb_root: Path, target: Path
+) -> List[str]:
+    """Return ``"<subdir>/<name>"`` entries present in QPB source but
+    missing from ``target``'s installed skill bundle. Covers the
+    ``references/`` / ``phase_prompts/`` / ``agents/`` markdown trees
+    AND the bundled ``bin/`` modules. Empty when fresh, when there is
+    no separately-installed bundle, or when the install IS the QPB
+    source tree itself (self-audit).
+
+    v1.5.7 Issue 2 (chi-surfaced): a target installed via
+    ``setup_repos.sh`` / ``bin.install_skill`` is a point-in-time
+    snapshot. A later QPB source addition (e.g.
+    ``references/what_just_happened.md``, added in instruction 037)
+    does not propagate, so the agent reports the file "isn't present
+    in the repo." This is a soft signal — adopters may deliberately
+    prune files — so the caller emits a non-fatal WARN, never a gate.
+
+    v1.5.7 instruction 047 Item 2 (A-2-recast): instruction 046
+    conclusively diagnosed the "codex Phase 1 failure" (A-2) as a
+    stale install missing ``bin/reference_docs_ingest.py`` — Phase 1's
+    mandatory ingest step ``python -m bin.reference_docs_ingest``
+    ModuleNotFound'd, codex correctly stopped per the skill's
+    stop-on-install-defect protocol, and no EXPLORATION.md was
+    written. Runner-agnostic (claude/copilot/cursor fail identically).
+    The freshness check only covered the markdown trees, so its WARN
+    under-reported (it flagged stale references/ but NOT the missing
+    bin/ module that actually broke the run). The ``bin/`` coverage
+    below makes that failure self-diagnosing at run-start. The
+    authoritative list of which ``bin/`` modules belong in an installed
+    bundle is :func:`bin.install_skill._bundle_files` (NOT every
+    ``*.py`` in QPB's ``bin/`` — only the 2-3 modules the playbook
+    agent invokes during phases), so this reads that as the source of
+    truth and stays drift-free if the bundle definition changes.
+
+    Detection uses :func:`benchmark_lib.find_installed_skill` (the
+    canonical ten-layout resolver); the installed bundle directory is
+    the parent of the resolved SKILL.md. When that parent resolves to
+    the QPB source root itself (root-SKILL.md self-bootstrap layout),
+    source and installed dirs coincide and nothing is reported.
+    """
+    installed_skill = lib.find_installed_skill(target)
+    if installed_skill is None:
+        return []
+    bundle_dir = installed_skill.parent
+    missing: List[str] = []
+    for subdir in ("references", "phase_prompts", "agents"):
+        source_dir = qpb_root / subdir
+        installed_dir = bundle_dir / subdir
+        if not source_dir.is_dir():
+            continue
+        try:
+            if source_dir.resolve() == installed_dir.resolve():
+                # Install IS the source tree (self-audit) — not stale.
+                continue
+        except OSError:
+            pass
+        source_files = sorted(source_dir.glob("*.md"))
+        if not installed_dir.is_dir():
+            missing.extend(f"{subdir}/{sf.name}" for sf in source_files)
+            continue
+        for sf in source_files:
+            if not (installed_dir / sf.name).is_file():
+                missing.append(f"{subdir}/{sf.name}")
+
+    # v1.5.7 instruction 047 Item 2 + 049 A-2-recast-ext + 089i W-A:
+    # bundled bin/ modules across BOTH install layouts, but
+    # LAYOUT-AWARE — expect only the manifest for the layout that's
+    # actually present.
+    #
+    #   - install_skill.py layout: bin/ sits at <bundle_dir>/bin/
+    #     (sibling of the resolved SKILL.md inside the
+    #     skills/quality-playbook tree). Source of truth for its
+    #     expected set: install_skill._bundle_files. Adopters on
+    #     this layout legitimately don't have setup_repos.sh-only
+    #     files like install_skill.py. (v1.5.7 089z: the prior
+    #     setup_repos.sh-only `run_playbook.sh` wrapper is also
+    #     no longer installed at the target.)
+    #   - setup_repos.sh layout: bin/ sits at <target>/bin/ (target
+    #     root); SKILL.md at <target>/.github/skills/SKILL.md so
+    #     bundle_dir resolves to .github/skills/ and <bundle_dir>/bin/
+    #     does NOT exist. Source of truth for its expected set: the
+    #     `cp "${...}/..." "${dst}/bin/<name>"` lines in
+    #     repos/setup_repos.sh.
+    #
+    # Pre-089i this took the UNION of both manifests and checked
+    # presence in EITHER bin/, which produced a false-positive
+    # "installed bundle stale ... Missing: bin/install_skill.py"
+    # WARN on every correct install_skill.py-layout install (that
+    # file is setup_repos.sh-only). 089i: detect which layout is
+    # present and expect only that layout's manifest. Self-audit
+    # short-circuits on either location; the whole block is
+    # defensively wrapped so a freshness hint can never crash the
+    # run. (v1.5.7 089z: the pre-089i false-positive list also
+    # included bin/run_playbook.sh — the per-target wrapper —
+    # which was removed in 089z; the freshness logic is unchanged
+    # but the historical false-positive class is now just
+    # bin/install_skill.py.)
     try:
-        result = subprocess.run(
-            cmd, cwd=qpb_dir, capture_output=True, text=True, check=False
-        )
-    except (OSError, FileNotFoundError):
-        return []
-    if result.returncode != 0:
-        return []
-    return [line for line in result.stdout.splitlines() if line.strip()]
+        from bin import install_skill as _install_skill
+
+        # install_skill.py-layout manifest.
+        install_skill_manifest: List[str] = []
+        # v1.5.7 090b: use the soft variant — the freshness check
+        # must never crash the run even if the clone is partial
+        # (e.g. an in-progress checkout, a test fixture with a
+        # synthetic incomplete source_root). `_bundle_files_soft`
+        # silently skips missing members; `_bundle_files` (strict)
+        # raises on missing for the channel build path.
+        for _src, dest in _install_skill._bundle_files_soft(qpb_root):
+            parts = dest.parts
+            if len(parts) == 2 and parts[0] == "bin":
+                if parts[1] not in install_skill_manifest:
+                    install_skill_manifest.append(parts[1])
+        # setup_repos.sh-layout manifest: parse its `${dst}/bin/<name>`
+        # cp destinations (the A-6 closure —
+        # reference_docs_ingest.py / benchmark_lib.py / the
+        # quality_playbook.py group + qpb_config / run_state_lib /
+        # validate_phase_artifacts + 089x's _purpose.py).
+        import re as _re  # run_playbook.py imports re locally per-function
+        setup_repos_manifest: List[str] = []
+        setup_repos_sh = qpb_root / "repos" / "setup_repos.sh"
+        if setup_repos_sh.is_file():
+            try:
+                sr_text = setup_repos_sh.read_text(
+                    encoding="utf-8", errors="replace"
+                )
+                for m in _re.finditer(
+                    r'"\$\{dst\}/bin/([^"/]+)"', sr_text
+                ):
+                    name = m.group(1)
+                    if name not in setup_repos_manifest:
+                        setup_repos_manifest.append(name)
+            except OSError:
+                pass
+
+        bundle_bin = bundle_dir / "bin"
+        target_bin = Path(target) / "bin"
+        src_bin = qpb_root / "bin"
+
+        def _is_source_tree(p: Path) -> bool:
+            try:
+                return p.resolve() == src_bin.resolve()
+            except OSError:
+                return False
+
+        # 089i W-A: detect which install layout is actually present.
+        # Self-audit (install IS the source tree) short-circuits to
+        # "trivially complete" — no missing.
+        if _is_source_tree(bundle_bin) or _is_source_tree(target_bin):
+            expected_bin: List[str] = []  # nothing to check
+            check_locations: tuple = ()
+        elif bundle_bin.is_dir():
+            # install_skill.py layout — bundle_dir/bin/ populated.
+            # Expect ONLY install_skill._bundle_files; the
+            # setup_repos.sh-only file (install_skill.py) is NOT
+            # part of this layout and must not be reported missing.
+            expected_bin = install_skill_manifest
+            check_locations = (bundle_bin,)
+        elif target_bin.is_dir():
+            # setup_repos.sh layout — target/bin/ populated, bundle_dir/
+            # bin/ absent. Expect the setup_repos.sh manifest.
+            expected_bin = setup_repos_manifest
+            check_locations = (target_bin,)
+        else:
+            # 089i Council R1 cycle 2: bundle_dir was resolved (an
+            # install IS present at the canonical SKILL.md path) but
+            # NEITHER bundle_dir/bin/ NOR target/bin/ exists — the
+            # install is missing its entire bin/ tree. Discriminate by
+            # bundle_dir's path shape to pick the RIGHT manifest:
+            #
+            #   - setup_repos.sh flat layout puts SKILL.md at
+            #     .github/skills/SKILL.md → bundle_dir.name == "skills".
+            #     For this layout the expected set is the setup_repos.sh
+            #     manifest (includes install_skill.py + the A-6
+            #     closure), checked against target/bin/.
+            #   - install_skill.py layout puts SKILL.md at
+            #     <marker>/skills/quality-playbook/SKILL.md →
+            #     bundle_dir.name == "quality-playbook". Expected set is
+            #     the install_skill manifest, checked against
+            #     bundle_dir/bin/.
+            #
+            # Cycle-1 returned no findings (silent suppression of a
+            # broken install). Initial cycle-2 fix used install_skill_
+            # manifest unconditionally, which under-reported the flat
+            # setup_repos.sh layout (missed install_skill.py +
+            # the A-6 closure). This cycle-2 fix picks per layout.
+            if bundle_dir.name == "skills":
+                expected_bin = setup_repos_manifest
+                check_locations = (target_bin,)
+            else:
+                expected_bin = install_skill_manifest
+                check_locations = (bundle_bin,)
+
+        for name in expected_bin:
+            present = False
+            for cand in check_locations:
+                if (cand / name).is_file():
+                    present = True
+                    break
+            if not present and f"bin/{name}" not in missing:
+                missing.append(f"bin/{name}")
+    except Exception:  # noqa: BLE001 — freshness hint must never crash the run
+        pass
+
+    return missing
 
 
 def _prior_run_id_from_live_index(quality_dir: Path) -> Optional[str]:
@@ -2173,11 +3163,33 @@ def archive_previous_run(repo_dir: Path, current_run_timestamp: str) -> None:
             status="partial",
             gate_verdict_override="partial",
         )
-    except archive_lib.ArchiveError:
-        # Archive target already exists — the prior attempt was
-        # already preserved (with a .partial sentinel inside per
-        # v1.5.4 Phase 3.6.2 B-19). Clear the live tree and continue.
-        pass
+    except archive_lib.ArchiveError as exc:
+        # v1.5.7 A-1 fix: an ArchiveError means the live tree was NOT
+        # successfully preserved (timestamp collision with a *different*
+        # run's archive, staging-dir collision, invalid status, missing
+        # quality/, ...). Preserving adopter data is more important than
+        # tidying up, so do NOT clear the live tree — surface the
+        # failure and bail. The next run may write into a non-empty
+        # quality/; the operator diagnoses and archives manually.
+        sys.stderr.write(
+            f"WARN: archive_previous_run could not archive the prior run "
+            f"(archive_ts={archive_ts}): {exc}. Live quality/ tree "
+            f"preserved at {quality_dir}; the next run may write into a "
+            f"non-empty directory. Diagnose and manually rename/archive "
+            f"before re-running.\n"
+        )
+        return  # IMPORTANT: do NOT fall through to _clear_live_quality
+    except Exception as exc:  # noqa: BLE001 — defensive: never destroy data
+        # v1.5.7 A-1 fix: any other failure also leaves the live tree
+        # intact. archive_run touches the filesystem + git; an
+        # unexpected OSError/shutil.Error/etc. must not cascade into
+        # data loss.
+        sys.stderr.write(
+            f"WARN: archive_previous_run raised unexpected "
+            f"{type(exc).__name__}: {exc}. Live quality/ tree preserved "
+            f"at {quality_dir}.\n"
+        )
+        return
     _clear_live_quality(quality_dir)
 
 
@@ -2470,6 +3482,112 @@ def _code_review_should_skip(repo_dir: Path) -> Optional[str]:
     )
 
 
+# v1.5.7 Phase 3 / Deliverable 1: Phase 2 gate-failure artifact
+# preservation. When the Phase 2 gate aborts a run (role-map size,
+# EXPLORATION.md too short, schema violation, etc.) the agent's
+# outputs in quality/ would otherwise be wiped on the NEXT run by
+# archive_previous_run() rolling them into previous_runs/<ts>/ as a
+# generic partial archive — losing the diagnostic information about
+# WHAT the agent produced just before the gate rejected it.
+#
+# Preservation runs at the gate-failure site (before the run returns),
+# renaming the live quality/ to quality.gate-failed-<UTC-timestamp>/
+# and dropping a GATE_FAILURE.md marker capturing the violation
+# message + phase group + cell + model + runner version.
+
+_GATE_FAILURE_MARKER_FILENAME = "GATE_FAILURE.md"
+_GATE_FAILURE_DIRNAME_PREFIX = "quality.gate-failed-"
+
+
+def _render_gate_failure_marker(
+    *,
+    phase_group: str,
+    cell_name: str,
+    timestamp: str,
+    runner_version: str,
+    model: Optional[str],
+    violation_message: str,
+) -> str:
+    """Return the GATE_FAILURE.md marker body documenting a preserved
+    Phase 2 gate failure. See v1.5.7 Design Deliverable 1 for the
+    canonical content shape."""
+    model_display = model if model else "(default)"
+    return (
+        "# Phase 2 gate failure — preserved evidence\n"
+        "\n"
+        "This directory is the contents of `quality/` at the time of a "
+        "Phase 2 gate abort. It is preserved as-is for diagnostic "
+        "purposes.\n"
+        "\n"
+        f"- **Phase group**: {phase_group}\n"
+        f"- **Cell**: {cell_name}\n"
+        f"- **Aborted at (UTC)**: {timestamp}\n"
+        f"- **Runner version**: {runner_version}\n"
+        f"- **Model**: {model_display}\n"
+        "\n"
+        "**Gate violation message:**\n"
+        "\n"
+        f"> {violation_message}\n"
+        "\n"
+        "The next run on this cell will create a fresh `quality/`. To "
+        "clean up this preserved set, simply remove this directory.\n"
+    )
+
+
+def _preserve_quality_on_gate_failure(
+    repo_dir: Path,
+    phase_group: str,
+    gate_messages: Sequence[str],
+    args: Optional[argparse.Namespace],
+    log_file: Path,
+) -> Optional[Path]:
+    """Rename `<repo_dir>/quality/` to
+    `<repo_dir>/quality.gate-failed-<UTC-ts>/` and drop a
+    GATE_FAILURE.md marker capturing the violation message + context.
+    Idempotent + safe on empty/missing quality/: returns None if
+    nothing was preserved (e.g., quality/ never created), else returns
+    the preserved directory path.
+
+    The UTC-timestamp suffix is compact ISO-8601 (``YYYYMMDDTHHMMSSZ``)
+    per Phase 1's open-question resolution: always UTC, always sortable
+    lexicographically, no local-time variation.
+
+    Composes cleanly with v1.5.6 cluster 049 auto-recovery: when
+    recovery succeeds inside check_phase_gate, the gate returns
+    ok=True and this preservation path never fires.
+    """
+    quality = repo_dir / "quality"
+    if not quality.exists() or not any(quality.iterdir()):
+        return None
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    preserved = repo_dir / f"{_GATE_FAILURE_DIRNAME_PREFIX}{ts}"
+    # v1.5.7 fix F-2: emit the "Preserved" log line BEFORE the rename so
+    # it lands in the about-to-be-renamed quality/logs/<id>/runner.log
+    # and therefore appears INSIDE the preserved directory after the
+    # rename. Pre-fix, this logboth() ran post-rename and recreated a
+    # shadow quality/logs/<id>/ hierarchy at the freshly-vacated path,
+    # routing the preservation evidence into a directory operators
+    # would never inspect.
+    lib.logboth(log_file, lib.log(
+        f"  Preserved quality/ at {preserved.name}/ for Phase 2 "
+        f"gate-failure diagnosis. Next run will create a fresh quality/."
+    ))
+    quality.rename(preserved)
+    violation_message = "\n> ".join(gate_messages) if gate_messages else "(no gate message captured)"
+    marker_body = _render_gate_failure_marker(
+        phase_group=phase_group,
+        cell_name=repo_dir.name,
+        timestamp=ts,
+        runner_version=f"v{lib.RELEASE_VERSION}",
+        model=getattr(args, "model", None) if args is not None else None,
+        violation_message=violation_message,
+    )
+    (preserved / _GATE_FAILURE_MARKER_FILENAME).write_text(
+        marker_body, encoding="utf-8"
+    )
+    return preserved
+
+
 def run_one_phase(
     repo_dir: Path,
     phase: str,
@@ -2482,6 +3600,25 @@ def run_one_phase(
     for message in gate.messages:
         lib.logboth(log_file, lib.log(f"  {message}"))
     if not gate.ok:
+        # v1.5.7 Phase 3 / Deliverable 1 (+ fix-up F1): preserve
+        # quality/ as quality.gate-failed-<UTC-ts>/ so the agent's
+        # outputs survive for diagnostic inspection. Scoped to Phase 2
+        # gate failures only — the marker text, directory naming, and
+        # TOOLKIT.md docs all assume Phase 2. Phase 3/4/5 gate failures
+        # do not produce a preservation directory; their post-mortem
+        # path is the next-run setup's archive_previous_run roll-up.
+        # Composes cleanly with cluster 049 auto-recovery (which
+        # returns ok=True when it succeeds, so this branch only fires
+        # on actual Phase 2 gate failures the runner cannot recover
+        # from).
+        if phase == "2":
+            _preserve_quality_on_gate_failure(
+                repo_dir,
+                phase_group=f"Phase {phase}",
+                gate_messages=gate.messages,
+                args=args,
+                log_file=log_file,
+            )
         return False
 
     # v1.5.6 P3: code-only-mode downgrade. Detect at Phase 1 entry so
@@ -2501,6 +3638,8 @@ def run_one_phase(
                 _emit_aborted_missing_docs_event(
                     repo_dir,
                     "reference_docs/ empty and --require-docs set",
+                    args=args,
+                    timestamp=timestamp,
                 )
                 _add_aborted_missing_docs_to_progress(
                     repo_dir / "quality" / "PROGRESS.md",
@@ -2511,9 +3650,13 @@ def run_one_phase(
                     "reference_docs/ is empty (see "
                     "references/code-only-mode.md)."
                 ))
+                _write_harness_abort_status(  # v1.5.7 164
+                    1, -1,
+                    "--require-docs set but reference_docs/ empty")
                 return False
             _emit_documentation_state_event(
-                repo_dir, "code_only", "reference_docs/ empty"
+                repo_dir, "code_only", "reference_docs/ empty",
+                args=args, timestamp=timestamp,
             )
             _add_documentation_state_to_progress(
                 repo_dir / "quality" / "PROGRESS.md", "code_only"
@@ -2545,7 +3688,9 @@ def run_one_phase(
         phase, no_seeds=args.no_seeds,
         prefix=getattr(args, "prompt_prefix", "") or "",
     )
-    output_file = repo_dir / "quality" / "control_prompts" / f"phase{phase}.output.txt"
+    output_file = _control_prompts_dir(
+        repo_dir, args=args, timestamp=timestamp,
+    ) / f"phase{phase}.output.txt"
     lib.logboth(log_file, lib.log(f"  Phase {phase_index}/{len(phase_list) or 1} ({phase_label(phase)}): {repo_dir.name}"))
     # v1.5.6 cluster 050: surface Phase 4's multi-model expansion at
     # phase entry. The Council roster is read programmatically from
@@ -2554,9 +3699,16 @@ def run_one_phase(
     # that reach Phase 4 — including normal --full-run — so log
     # readers see the model expansion explicitly.
     if phase == "4":
+        # v1.5.7 instruction 053 (sibling-finding wiring): read the
+        # roster via _active_council_roster(args) so the documented
+        # 3-tier precedence (--council-roster flag → ~/.qpb/config.json
+        # → DEFAULT) actually takes effect at this dynamic-read site
+        # (Design.md:409). Previously this called
+        # council_config.council_members() directly, which honored the
+        # config-file + default tiers (post-052) but NOT the
+        # --council-roster CLI flag.
         try:
-            from bin import council_config as _council_config
-            roster = ", ".join(_council_config.council_members())
+            roster = ", ".join(_active_council_roster(args))
         except (ImportError, AttributeError):
             roster = "(unavailable — see bin/council_config.py)"
         lib.logboth(log_file, lib.log(
@@ -2582,9 +3734,12 @@ def run_one_phase(
         lib.logboth(log_file, lib.log(
             "  ============================================================"
         ))
-    exit_code = run_prompt(repo_dir, prompt, f"phase{phase}", output_file, log_file, args.runner, args.model)
+    exit_code = run_prompt(repo_dir, prompt, f"phase{phase}", output_file, log_file, args.runner, args.model, getattr(args, "runner_extra_args", None))
     if exit_code:
         lib.logboth(log_file, lib.log(f"  ABORT Phase {phase}: child runner exited {exit_code}"))
+        _write_harness_abort_status(  # v1.5.7 164
+            phase, exit_code,
+            f"child runner exited {exit_code}")
         return False
 
     # v1.5.4 Phase 3.6.1 Section A.4.b (codex-prevention): structural
@@ -2693,12 +3848,26 @@ def _filter_group_for_code_review_skip(
     return filtered, reason
 
 
-def _group_transcript_path(repo_dir: Path, phases: Sequence[str]) -> Path:
+def _group_transcript_path(
+    repo_dir: Path,
+    phases: Sequence[str],
+    *,
+    args: Optional[argparse.Namespace] = None,
+    timestamp: Optional[str] = None,
+) -> Path:
     """Transcript file for a group. Single-phase groups reuse the
     legacy phaseN.output.txt name; multi-phase groups join with '-'
-    (e.g. phase3-4.output.txt)."""
+    (e.g. phase3-4.output.txt).
+
+    v1.5.7 Phase 5 FS-1: routes through _control_prompts_dir so the
+    new layout lands at quality/logs/<run-id>/. Legacy callers that
+    don't yet pass args+timestamp get the most-recent-existing
+    fallback (or the v1.5.6 path if no centralized run-id exists).
+    """
     suffix = "-".join(phases)
-    return repo_dir / "quality" / "control_prompts" / f"phase{suffix}.output.txt"
+    return _control_prompts_dir(
+        repo_dir, args=args, timestamp=timestamp,
+    ) / f"phase{suffix}.output.txt"
 
 
 def _group_pass_label(phases: Sequence[str]) -> str:
@@ -2778,7 +3947,9 @@ def run_one_phase_group(
             ]
         else:
             flat = [p for g in phase_groups for p in g]
-        monitor.set_transcript_path(_group_transcript_path(repo_dir, [phase]))
+        monitor.set_transcript_path(_group_transcript_path(
+            repo_dir, [phase], args=args, timestamp=timestamp,
+        ))
         return run_one_phase(repo_dir, phase, flat, args, log_file, timestamp)
 
     # Multi-phase group path.
@@ -2794,15 +3965,33 @@ def run_one_phase_group(
     for message in gate.messages:
         lib.logboth(log_file, lib.log(f"  {message}"))
     if not gate.ok:
+        # v1.5.7 Phase 3 / Deliverable 1 (+ fix-up F1): preserve
+        # quality/ on gate failure for the multi-phase group path.
+        # Scoped to Phase 2 gate failures only (i.e., the group's entry
+        # gate is the Phase 2 gate, group[0] == "2"). Same composition
+        # with cluster 049 auto-recovery as the single-phase path
+        # above.
+        if group[0] == "2":
+            _preserve_quality_on_gate_failure(
+                repo_dir,
+                phase_group=f"Phase group {'+'.join(group)}",
+                gate_messages=gate.messages,
+                args=args,
+                log_file=log_file,
+            )
         return False
 
-    group_transcript = _group_transcript_path(repo_dir, group)
+    group_transcript = _group_transcript_path(
+        repo_dir, group, args=args, timestamp=timestamp,
+    )
     group_transcript.parent.mkdir(parents=True, exist_ok=True)
     # Per-phase transcript stubs + monitor registration. Earlier phases
     # in the group get a small pointer file; the last phase reuses the
     # group transcript path directly so tail + grep keep working.
     for i, phase in enumerate(group):
-        per_phase_path = _group_transcript_path(repo_dir, [phase])
+        per_phase_path = _group_transcript_path(
+            repo_dir, [phase], args=args, timestamp=timestamp,
+        )
         monitor.set_transcript_path(per_phase_path)
         if i < len(group) - 1 and per_phase_path != group_transcript:
             per_phase_path.write_text(
@@ -2834,9 +4023,13 @@ def run_one_phase_group(
         log_file,
         args.runner,
         args.model,
+        getattr(args, "runner_extra_args", None),
     )
     if exit_code:
         lib.logboth(log_file, lib.log(f"  ABORT Phase group {group_label}: child runner exited {exit_code}"))
+        _write_harness_abort_status(  # v1.5.7 164
+            group_label, exit_code,
+            f"phase group child runner exited {exit_code}")
         return False
 
     # v1.5.4 Phase 3.6.1 Section A.4.b: same structural backstop as
@@ -2900,11 +4093,13 @@ def _log_phase_completion(
             log_file=log_file,
         )
         gate_log = quality_dir / "results" / "quality-gate.log"
-        gate_result = "unknown"
-        if gate_log.is_file():
-            lines = gate_log.read_text(encoding="utf-8", errors="ignore").splitlines()
-            if lines:
-                gate_result = lines[-1]
+        # v1.5.7 109 (fix): the verdict reader scans for the
+        # last canonical `RESULT: GATE …` line, ignoring the
+        # 090v operator-verdict block and the 109 ::QPB::
+        # sentinel that both trail `RESULT:` in the gate's
+        # stdout. See `_read_gate_verdict_from_log` for the
+        # full rationale.
+        gate_result = _read_gate_verdict_from_log(gate_log)
         lib.logboth(log_file, lib.log(f"  Phase 6 complete: {gate_result}"))
         gate_passed = _gate_pass(gate_result, quality_dir)
         # v1.5.2 (C13.9): map the finalizer's status into INDEX's
@@ -2917,7 +4112,17 @@ def _log_phase_completion(
         if finalizer_status == "aborted":
             verdict = "partial"
         elif finalizer_status == "pass" and gate_passed:
-            verdict = "pass"
+            # v1.5.7 089d (F17): the 089c three-state gate emits
+            # `RESULT: GATE PASSED WITH CLEANUP NEEDED` for the
+            # record-keeping-only case. `_gate_pass` returns True for
+            # that line (PASSED substring, no FAIL substring), so we
+            # must distinguish it here to write the correct INDEX
+            # gate_verdict enum value. "pass-with-cleanup" mirrors
+            # schemas.md §11 / _INDEX_VALID_VERDICTS.
+            if "WITH CLEANUP NEEDED" in gate_result:
+                verdict = "pass-with-cleanup"
+            else:
+                verdict = "pass"
         elif finalizer_status == "pass" and "warn" in gate_result.lower():
             verdict = "partial"
         else:
@@ -2932,17 +4137,13 @@ def _log_phase_completion(
         except Exception as exc:  # noqa: BLE001 — log and continue
             lib.logboth(log_file, lib.log(f"  WARN write_live_index_final skipped: {exc}"))
         if gate_passed:
-            # v1.5.4 Phase 3.6.4 (B-16): reorganize the live tree into
-            # canonical-top-level + workspace/intermediates BEFORE the
-            # archive snapshot, so the archived run carries the same
-            # structure the live tree does.
-            try:
-                _finalize_quality_layout(repo_dir)
-            except Exception as exc:  # noqa: BLE001 — log + continue
-                lib.logboth(
-                    log_file,
-                    lib.log(f"  WARN _finalize_quality_layout skipped: {exc}"),
-                )
+            # v1.5.7 fix F-4z: dropped the v1.5.4 Phase-3.6.4 reorg into
+            # quality/workspace/. The README's canonical layout is
+            # top-level quality/<name>/, and the reshape was training
+            # iter-N agents to write to non-canonical workspace/ paths
+            # by reshaping the tree they then learned from. The Phase 6
+            # gate now fails loudly if quality/workspace/ exists with
+            # content (see quality_gate.check_no_workspace_dir).
             # v1.5.4 Phase 3.6.5 (B-17): generate per-project AGENTS.md
             # for an agent dropped into the repo afterward. Operator-
             # authored AGENTS.md (no QPB sentinel) is preserved with a
@@ -2972,78 +4173,15 @@ def _log_phase_completion(
                 lib.logboth(log_file, lib.log(f"  WARN archive_run skipped: {exc}"))
 
 
-# v1.5.4 Phase 3.6.4 (B-16): canonical-vs-workspace layout for the
-# end-of-run quality/ tree. Canonical deliverables (REQUIREMENTS.md,
-# QUALITY.md, BUGS.md, etc.) stay at the top level; intermediate
-# pipeline artifacts (control_prompts/, results/, code_reviews/,
-# spec_audits/, patches/, writeups/, mechanical/, phase3/, plus
-# EXPLORATION_ITER*.md / EXPLORATION_MERGED.md) move into
-# quality/workspace/ for human-consumption hygiene. The gate's
-# _resolve_artifact_path helper reads from both layouts so consumers
-# don't have to track which side an artifact landed on.
-_WORKSPACE_DIRS = (
-    "control_prompts",
-    "results",
-    "code_reviews",
-    "spec_audits",
-    "patches",
-    "writeups",
-    "mechanical",
-    "phase3",
-)
-_WORKSPACE_FILE_GLOBS = (
-    "EXPLORATION_ITER*.md",
-    "EXPLORATION_MERGED.md",
-)
-
-
-def _finalize_quality_layout(repo_dir: Path) -> None:
-    """v1.5.4 Phase 3.6.4 (B-16): move intermediate artifacts under
-    quality/workspace/ so the top-level quality/ tree only carries
-    canonical deliverables. Called after the gate has run and BEFORE
-    archive_run so the archived snapshot captures the reorganized
-    layout. Idempotent: re-running on an already-organized tree
-    no-ops. Operator-friendly: pre-existing workspace/ children are
-    preserved (we only move tree → workspace, never overwrite)."""
-    quality_dir = repo_dir / "quality"
-    if not quality_dir.is_dir():
-        return
-    workspace = quality_dir / "workspace"
-    for name in _WORKSPACE_DIRS:
-        src = quality_dir / name
-        if not src.is_dir():
-            continue
-        # Avoid overwriting an existing workspace child — that would
-        # be a re-run state we don't expect; preserve and continue.
-        dst = workspace / name
-        if dst.exists():
-            continue
-        workspace.mkdir(parents=True, exist_ok=True)
-        try:
-            src.rename(dst)
-        except OSError:
-            # Fallback for cross-device or permission issues — copy
-            # then unlink piece by piece. Best-effort; if both fail
-            # the canonical files at top-level still work.
-            try:
-                shutil.move(str(src), str(dst))
-            except (shutil.Error, OSError):
-                pass
-    for pattern in _WORKSPACE_FILE_GLOBS:
-        for src in quality_dir.glob(pattern):
-            if not src.is_file():
-                continue
-            dst = workspace / src.name
-            if dst.exists():
-                continue
-            workspace.mkdir(parents=True, exist_ok=True)
-            try:
-                src.rename(dst)
-            except OSError:
-                try:
-                    shutil.move(str(src), str(dst))
-                except (shutil.Error, OSError):
-                    pass
+# v1.5.7 fix F-4z: removed _finalize_quality_layout, _WORKSPACE_DIRS,
+# and _WORKSPACE_FILE_GLOBS. The v1.5.4 Phase 3.6.4 reshape moved
+# intermediate artifacts under quality/workspace/, but the README's
+# canonical layout is top-level quality/<name>/, and the runner-side
+# reshape was training iter-N agents to write to non-canonical
+# workspace/ paths (the iter-1 agent wrote to top-level, the runner
+# reshaped, and the iter-2 agent then learned the workspace/ layout
+# from the reshaped tree). The Phase 6 gate now enforces top-level
+# canonical paths via check_no_workspace_dir.
 
 
 # v1.5.4 Phase 3.6.5 (B-17): per-project AGENTS.md generation. The
@@ -3267,7 +4405,9 @@ def _generate_agents_md_content(repo_dir: Path) -> str:
         "- `quality/exploration_role_map.json` — per-file role tagging "
         "that drives Phase 2 wiring."
     )
-    lines.append("- `quality/workspace/` — intermediate pipeline artifacts (control_prompts, results, code_reviews, etc.).")
+    lines.append("- `quality/writeups/BUG-<id>.md` — per-bug writeups.")
+    lines.append("- `quality/patches/` — fix and regression-test patches.")
+    lines.append("- `quality/code_reviews/`, `quality/spec_audits/`, `quality/results/`, `quality/control_prompts/`, `quality/mechanical/` — intermediate pipeline artifacts.")
     lines.append("- `quality/previous_runs/` — historical archives.")
     lines.append("")
     lines.append("## How to extend the review")
@@ -3317,6 +4457,51 @@ def _gate_pass(gate_result_line: str, quality_dir: Path) -> bool:
     return False
 
 
+def _capture_installed_skill_baseline(repo_dir: Path, log_file: Path) -> None:
+    """v1.5.7 instruction 054 (A-10b): write the run-start SHA
+    snapshot of the installed QPB skill tree to
+    ``quality/.installed_skill_baseline.json`` so ``_finalize_iteration``
+    can detect mid-run mutation of installed skill files at every
+    phase/iteration boundary (the companion to the git-based
+    ``validate_no_source_edits``, which silently passes on the
+    non-git ``setup_repos.sh`` benchmark targets).
+
+    Called at run-start AFTER ``quality/`` is established (post
+    archive_previous_run rotation) so the baseline lands in the
+    fresh run's ``quality/`` and is not rotated away. The baseline
+    file is under ``quality/`` so ``validate_no_source_edits``'s
+    ``quality/`` allowed-prefix does not flag it; it is a dotfile so
+    it does not affect the gate / INDEX. All errors are caught and
+    logged — a guardrail-setup failure must never crash the run
+    (mirrors the run_start-emission and validate_no_source_edits
+    defensive patterns).
+    """
+    try:
+        import json as _json
+        from bin.run_state_lib import snapshot_installed_skill_shas
+
+        snapshot = snapshot_installed_skill_shas(repo_dir)
+        if not snapshot:
+            return  # no installed skill tree to protect (contract)
+        quality_dir = repo_dir / "quality"
+        quality_dir.mkdir(parents=True, exist_ok=True)
+        (quality_dir / ".installed_skill_baseline.json").write_text(
+            _json.dumps(snapshot, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+    except Exception as exc:  # noqa: BLE001 — must not crash the run
+        try:
+            lib.logboth(
+                log_file,
+                lib.log(
+                    f"installed-skill baseline capture failed: "
+                    f"{type(exc).__name__}: {exc}"
+                ),
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: argparse.Namespace, timestamp: str) -> int:
     """Execute one or more phase groups for a single target repo.
 
@@ -3329,6 +4514,7 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
         repo_dir,
         timestamp,
         no_stdout_echo=getattr(args, "no_stdout_echo", False),
+        args=args,
     )
     print_startup_banner(repo_dir, log_file, args)
     if not docs_present(repo_dir):
@@ -3337,6 +4523,43 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
         banner = formal_docs_guard_banner(repo_dir)
         if banner is not None:
             lib.logboth(log_file, banner, echo=True)
+
+    # v1.5.7 Phase 5 / F-DEAD: emit a run_start event so downstream
+    # tooling can identify the run's log_layout (centralized vs flat)
+    # and resolve the run-id directory without recomputing it from
+    # paths. The schema documents run_start in references/
+    # run_state_schema.md; we emit additive fields run_id +
+    # log_layout per the v1.5.7 layout discriminator there. Defensive
+    # error handling: a logging failure must not crash the runner
+    # before it has a chance to run the playbook.
+    try:
+        from bin.run_state_lib import append_event
+        run_id = _compute_run_id(timestamp)
+        layout = _LOG_LAYOUT_FLAT if _logs_legacy_mode(args) else _LOG_LAYOUT_CENTRALIZED
+        jsonl_path = _run_state_jsonl_path(repo_dir, run_id, args=args)
+        append_event(
+            jsonl_path,
+            {
+                "event": "run_start",
+                "ts": _iso_utc_now(),
+                "runner": getattr(args, "runner", "") or "",
+                "playbook_version": lib.RELEASE_VERSION,
+                "target_path": str(repo_dir),
+                "run_id": run_id,
+                "log_layout": layout,
+            },
+        )
+    except (ImportError, OSError, ValueError):
+        # Logging failure → continue with the run. Operators can still
+        # inspect quality/PROGRESS.md + the playbook log directly.
+        pass
+
+    # v1.5.7 Issue 4 (chi-surfaced): point quality/logs/latest at THIS
+    # run-id the moment its directory exists, not only at successful
+    # completion — otherwise an interrupted/aborted run leaves `latest`
+    # stale while a newer run-id dir exists. Idempotent with the
+    # completion-time call below.
+    _update_latest_symlink(repo_dir, timestamp, args, log_file)
 
     flat_phases = [p for group in phase_groups for p in group]
     if "1" in flat_phases:
@@ -3350,7 +4573,13 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
             **_index_flag_kwargs(args),
         )
 
-    (repo_dir / "quality" / "control_prompts").mkdir(parents=True, exist_ok=True)
+    # v1.5.7 instruction 054 (A-10b): snapshot the installed skill
+    # tree now (run-start, quality/ established post-archive, before
+    # any phase work) so _finalize_iteration can detect mid-run
+    # mutation of installed skill files.
+    _capture_installed_skill_baseline(repo_dir, log_file)
+
+    _control_prompts_dir(repo_dir, args=args, timestamp=timestamp)
     plan_desc = _format_phase_groups(phase_groups)
     lib.logboth(log_file, lib.log(f"Starting playbook (phase groups: {plan_desc}): {repo_dir.name} (runner={args.runner})"))
 
@@ -3376,6 +4605,9 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
                 repo_dir, group, phase_groups, args, log_file, timestamp, monitor
             ):
                 lib.logboth(log_file, lib.log(f"ABORT: Phase group {'+'.join(group)} gate failed for {repo_dir.name}"))
+                _write_harness_abort_status(  # v1.5.7 164
+                    "+".join(group), 1,
+                    f"phase group gate failed for {repo_dir.name}")
                 exit_status = 1
                 break
             # v1.5.1 Item 3.2: inter-group pacing. Skipped after the
@@ -3393,6 +4625,11 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
         lib.logboth(log_file, lib.log(f"WARNING: Missing: {' '.join(missing)}"))
     else:
         lib.logboth(log_file, lib.log("All artifacts present"))
+    # v1.5.7 Phase 5 FS-4 (follow-on): mirror run_one_singlepass's
+    # symlink-update at the phased runner's successful-completion
+    # path. The original FS-4 wiring missed this site; reviewer
+    # caught it in the Phase 5 fix-up mini-review.
+    _update_latest_symlink(repo_dir, timestamp, args, log_file)
     lib.cleanup_repo(repo_dir)
     return 0
 
@@ -3402,6 +4639,7 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         repo_dir,
         timestamp,
         no_stdout_echo=getattr(args, "no_stdout_echo", False),
+        args=args,
     )
     print_startup_banner(repo_dir, log_file, args)
     if not docs_present(repo_dir):
@@ -3410,6 +4648,13 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         banner = formal_docs_guard_banner(repo_dir)
         if banner is not None:
             lib.logboth(log_file, banner, echo=True)
+
+    # v1.5.7 Issue 4 (chi-surfaced): single-pass runner has no
+    # run_start event emission, so point quality/logs/latest at this
+    # run-id at run-START here (mirrors run_one_phased). Without this
+    # an interrupted single-pass run leaves `latest` stale. Idempotent
+    # with the completion-time call.
+    _update_latest_symlink(repo_dir, timestamp, args, log_file)
 
     if args.next_iteration:
         if not (repo_dir / "quality" / "EXPLORATION.md").is_file():
@@ -3437,10 +4682,17 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         pass_label = "full"
         lib.logboth(log_file, lib.log(f"Starting playbook (single-pass): {repo_dir.name} (runner={args.runner})"))
 
-    control_prompts = repo_dir / "quality" / "control_prompts"
-    control_prompts.mkdir(parents=True, exist_ok=True)
+    # v1.5.7 instruction 054 (A-10b): snapshot the installed skill
+    # tree now (run-start, quality/ established by the archive/stub
+    # branch above or pre-existing on --next-iteration, before the
+    # agent runs) so _finalize_iteration can detect mid-run mutation.
+    _capture_installed_skill_baseline(repo_dir, log_file)
+
+    control_prompts = _control_prompts_dir(
+        repo_dir, args=args, timestamp=timestamp,
+    )
     output_file = control_prompts / "playbook_run.output.txt"
-    exit_code = run_prompt(repo_dir, prompt, pass_label, output_file, log_file, args.runner, args.model)
+    exit_code = run_prompt(repo_dir, prompt, pass_label, output_file, log_file, args.runner, args.model, getattr(args, "runner_extra_args", None))
 
     # v1.5.2 (C13.9): label distinguishes the iteration branch (which goes
     # through this function via --next-iteration --strategy X) from the
@@ -3451,6 +4703,9 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
 
     if exit_code:
         lib.logboth(log_file, lib.log(f"ABORT: child runner exited {exit_code}"))
+        _write_harness_abort_status(  # v1.5.7 164
+            "?", exit_code,
+            f"top-level child runner exited {exit_code}")
         # v1.5.2 (C13.9, site 4): orchestrator-authoritative finalization
         # on abort. Captures state-at-abort even when the LLM session ended
         # before its Phase 5 step 7. This is the express-1.5.1 case in
@@ -3479,8 +4734,125 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         label=f"post-{finalize_label_base}",
         log_file=log_file,
     )
+    # v1.5.7 Phase 5 FS-4: update quality/logs/latest -> <run-id>
+    # symlink so operators can `cd quality/logs/latest` to inspect the
+    # most recent run. Tolerate symlink-update failure on filesystems
+    # that don't support symlinks; the resolver's most-recent-by-name
+    # fallback (Source 2 in resolve_run_state_path) covers them.
+    _update_latest_symlink(repo_dir, timestamp, args, log_file)
     lib.cleanup_repo(repo_dir)
     return 0
+
+
+def _update_latest_symlink(
+    repo_dir: Path,
+    timestamp: str,
+    args: argparse.Namespace,
+    log_file: Path,
+) -> None:
+    """v1.5.7 Phase 5 FS-4 + 089h: update the "latest" pointer for
+    ``<repo>/quality/logs/``. Always writes a portable
+    ``latest.txt`` (cross-platform, no privilege); ALSO attempts a
+    relative ``latest`` symlink as a best-effort operator
+    convenience for ``cd quality/logs/latest``. In legacy mode
+    (--logs-flat / QPB_LOGS_LEGACY=1) this is a no-op because the
+    legacy layout doesn't use the logs/ tree.
+
+    v1.5.7 089h (W-B fix; Windows smoke 2026-05-20): the symlink
+    operation requires ``SeCreateSymbolicLinkPrivilege`` on standard
+    Windows (without admin or Developer Mode), so it failed with
+    WinError 1314 on httpx-win Mode B. Resolution itself was fine
+    (the resolver's most-recent-by-name fallback covers it), but
+    the message read like an error and Windows operators lost any
+    ``latest`` reference. The fix: ALWAYS write
+    ``quality/logs/latest.txt`` (a one-line file holding the
+    current run-id; cross-platform, no privilege) BEFORE the
+    symlink attempt, so resolution and the operator's "what's the
+    latest run?" question both have a robust answer regardless of
+    symlink support. The symlink stays as a best-effort convenience
+    when the OS allows it; its failure message is informational
+    (not a WARN/error).
+
+    v1.5.7 Issue 4 (chi-surfaced): this now fires at run-START (right
+    after the new run-id directory is created / run_start is emitted)
+    as well as at successful completion. Pre-fix it ran ONLY at
+    successful completion, so a run interrupted before completion
+    (e.g. the chi-1.5.1 Anthropic-outage interruption + the abandoned
+    resume attempt) left ``latest`` pointing at a stale prior run-id
+    while a newer run-id directory existed. The call is idempotent
+    (same run-id → same relative symlink + same ``latest.txt``
+    contents), so the retained completion-time call is a harmless
+    defensive refresh.
+
+    Run-START callers — every entry point that creates a fresh
+    centralized run-id directory: ``run_one_phased`` (after run_start
+    emission), ``run_one_singlepass`` (after the startup banners),
+    and ``run_one_iterations`` (the standalone ``--iterations`` /
+    ``--next-iteration`` path, after configure_logging — added in
+    instruction 045 to close the codex-flagged 044 gap). The
+    ``run_one_iterations`` ``phases_already_ran`` branch is
+    deliberately NOT a run-start caller: it reuses the preceding
+    phased run's run-id, already refreshed by ``run_one_phased``.
+
+    The symlink is RELATIVE (``target_is_directory=True``; target
+    string is just the run-id, not an absolute path) so the cell
+    tree remains relocatable. ``latest.txt`` likewise holds only
+    the run-id (not an absolute path) for the same reason.
+    """
+    if _logs_legacy_mode(args):
+        return
+    run_id = _compute_run_id(timestamp)
+    logs_root = repo_dir / "quality" / "logs"
+    # v1.5.7 089h (B) — portable pointer file. Cross-platform; no
+    # privilege required. This is the load-bearing "latest"
+    # reference (read by run_state_lib.resolve_run_state_path
+    # Source 1.5 + _control_prompts_dir); the symlink below is a
+    # best-effort convenience for ``cd quality/logs/latest``.
+    try:
+        logs_root.mkdir(parents=True, exist_ok=True)
+        (logs_root / "latest.txt").write_text(run_id + "\n", encoding="utf-8")
+    except OSError:
+        # Non-fatal: resolver still has most-recent-by-name. The
+        # symlink attempt below is independent and may still
+        # succeed even if this write didn't.
+        pass
+    target = logs_root / "latest"
+    try:
+        if target.is_symlink() or target.exists():
+            try:
+                target.unlink()
+            except OSError as exc:
+                # Pre-existing entry we can't remove (perhaps a real
+                # directory): bail out gracefully rather than try
+                # increasingly destructive removals. v1.5.7 089h —
+                # softened to informational framing + latest.txt
+                # context.
+                detail = getattr(exc, "strerror", None) or str(exc)
+                lib.logboth(log_file, lib.log(
+                    f"  Note: could not update the quality/logs/latest "
+                    f"convenience symlink because a pre-existing entry "
+                    f"at that path couldn't be removed ({detail}); "
+                    f"wrote quality/logs/latest.txt instead, so run "
+                    f"resolution is unaffected. Operators can `cd "
+                    f"quality/logs/{run_id}` directly."
+                ))
+                return
+        target.symlink_to(run_id, target_is_directory=True)
+    except OSError as exc:
+        # v1.5.7 089h (A+D) — informational note, not a WARN. The
+        # symlink is a `cd quality/logs/latest` convenience for
+        # operators; latest.txt covers resolution. Mentions
+        # Developer Mode as OPTIONAL — never required.
+        detail = getattr(exc, "strerror", None) or str(exc)
+        lib.logboth(log_file, lib.log(
+            f"  Note: quality/logs/latest is a convenience symlink "
+            f"pointing at this run's log directory (so you can `cd "
+            f"quality/logs/latest`). It couldn't be created "
+            f"({detail}); wrote quality/logs/latest.txt instead, "
+            f"so run resolution is unaffected. On Windows, enabling "
+            f"Developer Mode (or running elevated) lets the symlink "
+            f"succeed and silences this note."
+        ))
 
 
 def _append_iteration_heartbeat(progress_path: Path, line: str) -> None:
@@ -3514,7 +4886,7 @@ def _iso_utc_now() -> str:
 
 
 # v1.5.2 (C13.9) — orchestrator-side post-iteration finalization.
-# The six canonical install locations the v1.5.6+ resolver supports
+# The ten canonical install locations the v1.5.7+ resolver supports
 # for the gate script. Order matches SKILL_FALLBACK_GUIDE and
 # benchmark_lib.SKILL_INSTALL_LOCATIONS so a single test pins all
 # three to the same canonical sequence. v1.5.6 BUG-013 added
@@ -3523,6 +4895,8 @@ def _iso_utc_now() -> str:
 # already supported those AI-tool environments, but the finalizer's
 # resolver couldn't find the gate script there, so post-iteration
 # verification silently fell through to "gate script not found."
+# v1.5.7 instruction 046 (A-3): 6 → 10 layouts (codex / windsurf /
+# cline / aider).
 _GATE_INSTALL_LOCATIONS = (
     "quality_gate.py",
     ".claude/skills/quality-playbook/quality_gate.py",
@@ -3530,6 +4904,10 @@ _GATE_INSTALL_LOCATIONS = (
     ".cursor/skills/quality-playbook/quality_gate.py",
     ".continue/skills/quality-playbook/quality_gate.py",
     ".github/skills/quality-playbook/quality_gate.py",
+    ".codex/skills/quality-playbook/quality_gate.py",
+    ".windsurf/skills/quality-playbook/quality_gate.py",
+    ".cline/skills/quality-playbook/quality_gate.py",
+    ".aider/skills/quality-playbook/quality_gate.py",
 )
 
 
@@ -3611,6 +4989,8 @@ def _finalize_iteration(
                 ["python3", str(gate_script), str(repo_dir)],
                 capture_output=True,
                 text=True,
+                encoding="utf-8",  # 190 FINDING-47 (gate output may have unicode)
+                errors="replace",
                 timeout=120,
             )
             combined = (completed.stdout or "") + (completed.stderr or "")
@@ -3673,6 +5053,67 @@ def _finalize_iteration(
             lib.logboth(
                 log_file,
                 lib.log(f"[finalizer:{label}] source-edit guardrail failed: {type(exc).__name__}: {exc}"),
+            )
+        except Exception:  # noqa: BLE001
+            pass
+
+    # v1.5.7 instruction 054 (A-10b): installed-skill SHA guardrail.
+    # validate_no_source_edits (above) is git-based and SILENTLY
+    # passes on non-git targets — the common setup_repos.sh benchmark
+    # case — and may not cover the installed skill tree even on git
+    # targets. This additive check compares the run-start SHA snapshot
+    # of the installed skill copy (quality/.installed_skill_baseline.json,
+    # written by _capture_installed_skill_baseline at run-start)
+    # against a fresh snapshot; any drift is folded into
+    # source_edit_violations so the EXISTING abort + gate-log +
+    # PROGRESS.md machinery (below) handles it — zero schema impact,
+    # no new event. The gson opus-4.6 Mode-A run (2026-05-16) mutated
+    # target/.claude/skills/quality-playbook/quality_gate.py mid-run
+    # and the git-based guardrail did not fire; this closes that gap.
+    # Both guardrails run together at every finalize (= every
+    # phase/iteration boundary: post-phase-6, post-{strategy},
+    # singlepass).
+    try:
+        import json as _json
+        from bin.run_state_lib import (
+            snapshot_installed_skill_shas,
+            diff_installed_skill_shas,
+        )
+
+        _baseline_path = repo_dir / "quality" / ".installed_skill_baseline.json"
+        if _baseline_path.is_file():
+            _baseline = _json.loads(
+                _baseline_path.read_text(encoding="utf-8")
+            )
+            _skill_changed = diff_installed_skill_shas(
+                _baseline, snapshot_installed_skill_shas(repo_dir)
+            )
+            if _skill_changed:
+                source_edit_violations = list(source_edit_violations) + [
+                    p for p in _skill_changed
+                    if p not in source_edit_violations
+                ]
+                try:
+                    with gate_log_path.open("a", encoding="utf-8") as handle:
+                        handle.write(
+                            "\n=== installed-skill guardrail "
+                            "(snapshot_installed_skill_shas) ===\n"
+                            "The installed QPB skill tree was modified "
+                            "during this run; agents must never edit "
+                            "installed skill files. Changed:\n"
+                        )
+                        for path in _skill_changed:
+                            handle.write(f"  - {path}\n")
+                except OSError:
+                    pass
+    except Exception as exc:  # noqa: BLE001 — guardrail failure must not crash the run
+        try:
+            lib.logboth(
+                log_file,
+                lib.log(
+                    f"[finalizer:{label}] installed-skill guardrail "
+                    f"failed: {type(exc).__name__}: {exc}"
+                ),
             )
         except Exception:  # noqa: BLE001
             pass
@@ -3753,12 +5194,13 @@ def run_one_iterations(
     happened inside run_one_phased.
     """
     if phases_already_ran:
-        log_file = log_file_for(repo_dir, timestamp)
+        log_file = log_file_for(repo_dir, timestamp, args=args)
     else:
         log_file = configure_logging(
             repo_dir,
             timestamp,
             no_stdout_echo=getattr(args, "no_stdout_echo", False),
+            args=args,
         )
         print_startup_banner(repo_dir, log_file, args)
         if not docs_present(repo_dir):
@@ -3767,6 +5209,32 @@ def run_one_iterations(
             banner = formal_docs_guard_banner(repo_dir)
             if banner is not None:
                 lib.logboth(log_file, banner, echo=True)
+        # v1.5.7 Issue 4 completion (instruction 045): the standalone
+        # --iterations path creates a FRESH run-id directory here via
+        # configure_logging() — same as run_one_phased /
+        # run_one_singlepass — so point quality/logs/latest at it at
+        # run-START, not only at completion. Without this an
+        # interrupted standalone iteration run leaves `latest` stale
+        # (the run_one_iterations gap codex flagged in 044). NOT added
+        # on the phases_already_ran branch: that path reuses the
+        # phased run's run-id, already refreshed by run_one_phased's
+        # run-start call (the helper is idempotent regardless).
+        _update_latest_symlink(repo_dir, timestamp, args, log_file)
+
+        # v1.5.7 instruction 055 F2: the STANDALONE --iterations
+        # dispatch (run_playbook dispatch → run_one_iterations WITHOUT
+        # phases_already_ran) must capture the installed-skill
+        # baseline so the A-10b SHA guardrail can verify mid-run
+        # mutations at _finalize_iteration boundaries. run_one_phased
+        # and run_one_singlepass already capture at their run-start;
+        # this standalone branch was the remaining bypass (codex 054
+        # Task-4 finding 2). NOT placed on the phases_already_ran
+        # branch: run_one_phased already captured at its run-start,
+        # and _capture_installed_skill_baseline is idempotent (a
+        # re-snapshot of the unchanged installed tree yields identical
+        # SHAs) — gating on this branch is cleaner and avoids
+        # re-capturing post-phase state.
+        _capture_installed_skill_baseline(repo_dir, log_file)
 
     if not (repo_dir / "quality" / "EXPLORATION.md").is_file():
         lib.logboth(
@@ -3801,14 +5269,21 @@ def run_one_iterations(
                 strategy, prefix=getattr(args, "prompt_prefix", "") or ""
             )
             pass_label = f"iteration-{strategy}"
-            output_file = repo_dir / "quality" / "control_prompts" / f"{pass_label}.output.txt"
+            output_file = _control_prompts_dir(
+                repo_dir, args=args, timestamp=timestamp,
+            ) / f"{pass_label}.output.txt"
             monitor.set_transcript_path(output_file)
             exit_code = run_prompt(
                 repo_dir, prompt, pass_label, output_file, log_file,
                 args.runner, args.model,
+                getattr(args, "runner_extra_args", None),
             )
             if exit_code:
                 lib.logboth(log_file, lib.log(f"  ABORT iteration {strategy}: child runner exited {exit_code}"))
+                _write_harness_abort_status(  # v1.5.7 164
+                    "?", exit_code,
+                    f"iteration {strategy} child runner "
+                    f"exited {exit_code}")
                 # v1.5.2 (C13.9, site 2): orchestrator-authoritative
                 # finalization on abort. Captures state-at-abort even when
                 # the LLM session ended before its Phase 5 step 7.
@@ -3970,7 +5445,7 @@ def display_run_header(args: argparse.Namespace, repo_dirs: Sequence[Path], disp
     print("")
     print("=== Runner logs (one file per target) ===")
     for repo_dir in repo_dirs:
-        print(log_file_for(repo_dir, timestamp))
+        print(log_file_for(repo_dir, timestamp, args=args))
     print("")
 
 
@@ -4009,6 +5484,10 @@ def _pkill_fallback() -> None:
         "bin/run_playbook.py",
         "claude -p",
         "claude --model",
+        # v1.5.7 089f: match both the new standalone `copilot` CLI
+        # and the deprecated `gh copilot` extension during the
+        # grace period. Adopters may have either or both installed.
+        "copilot -p",
         "gh copilot -p",
     ]
     for pattern in patterns:
@@ -4043,7 +5522,7 @@ def kill_recorded_processes(allow_pkill_fallback: bool = False) -> int:
         print("No PID files found. Refusing workstation-wide pkill cleanup.")
         print("To find playbook workers manually, run:")
         print("  ps -o pid,ppid,command -p $(pgrep -f bin/run_playbook) 2>/dev/null")
-        print("  ps -o pid,ppid,command | grep -E 'bin/run_playbook|claude -p|claude --model|gh copilot -p'")
+        print("  ps -o pid,ppid,command | grep -E 'bin/run_playbook|claude -p|claude --model|copilot -p|gh copilot -p'")
         print(f"PID-file directory: {pid_dir}")
         print("If you're certain no other Claude or Copilot sessions are running on this")
         print("machine, re-run with --kill --allow-pkill-fallback to invoke the legacy pkill path.")
@@ -4076,17 +5555,15 @@ def kill_recorded_processes(allow_pkill_fallback: bool = False) -> int:
 
 
 def build_worker_command(args: argparse.Namespace, target_path: str) -> List[str]:
-    # v1.5.4 Phase 3.8 (Round 9 carry-forward from Phase 3.7 finding):
-    # workers MUST invoke as ``python -m bin.run_playbook``, NOT as
-    # ``python /full/path/to/run_playbook.py``. The Phase 3.6.1 A.2
-    # invocation guard exits EX_USAGE=64 on script-style invocation
-    # (``__package__`` is None when invoked by absolute path); the
-    # ``-m`` form preserves ``__package__ == "bin"`` so the guard
-    # recognizes packaged execution and lets the worker proceed. The
-    # regression was latent for 10 commits because no parallel-mode
-    # test exercised this spawn path; the regression pin in
+    # Workers spawn as ``python -m bin.run_playbook``. v1.5.7 fix F-5a
+    # restored script-style invocation as a working form for adopters
+    # (via sys.path injection at the top of this module), but workers
+    # continue to use the ``-m`` form because it preserves
+    # ``__package__ == "bin"`` cleanly and keeps the spawn command
+    # uniform across all platforms. The regression pin in
     # bin/tests/test_run_playbook.py::Phase38WorkerInvocationTests
-    # catches the next reversion immediately.
+    # catches reversion to script-path spawning, which would also
+    # have worked post-F-5a but is gratuitously platform-fragile.
     command = [sys.executable, "-m", "bin.run_playbook", "--worker", "--sequential"]
     runner_flag = {
         "claude": "--claude",
@@ -4113,6 +5590,17 @@ def build_worker_command(args: argparse.Namespace, target_path: str) -> List[str
         command.extend(["--model", args.model])
     if getattr(args, "no_formal_docs", False):
         command.append("--no-formal-docs")
+    # v1.5.7 instruction 051 A-8: propagate --logs-flat to the worker.
+    # Pre-fix this was the bypass site: the parent parsed
+    # args.logs_flat=True but build_worker_command reconstructed the
+    # worker argv flag-by-flag and omitted --logs-flat, so the worker
+    # subprocess parsed logs_flat=False and _logs_legacy_mode(args)
+    # (env not set) fell through to the centralized layout — the flag
+    # was silently no-op for runner-owned logs/run_state writes. (The
+    # QPB_LOGS_LEGACY=1 env twin was unaffected: env vars inherit into
+    # the subprocess; only the flag was dropped here.)
+    if getattr(args, "logs_flat", False):
+        command.append("--logs-flat")
     if getattr(args, "no_stdout_echo", False):
         command.append("--no-stdout-echo")
     if getattr(args, "verbose", False):
@@ -4164,7 +5652,14 @@ def execute_run(args: argparse.Namespace, repo_dirs: Sequence[Path], timestamp: 
     # key off the flat list. Equivalent in content; derived from phase_groups
     # when present, else from args.phase.
     phase_list = [p for g in phase_groups for p in g] if phase_groups else phase_list_from_mode(args.phase)
-    run_timestamp = timestamp or datetime.now().strftime("%Y%m%d-%H%M%S")
+    # v1.5.7 089i (UTC run-id): emit the display timestamp in UTC so
+    # that the run-id _compute_run_id derives from it (a) sorts
+    # chronologically across timezones (the resolver's most-recent-by-
+    # name relies on this), and (b) agrees with the archive dir
+    # (`:3261`) and run_state ts (`:4566`) which were already true UTC.
+    # Pre-089i this was local time mislabeled with a UTC `Z` after
+    # _compute_run_id's reformat — a docstring-vs-behavior mismatch.
+    run_timestamp = timestamp or datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
 
     # v1.5.4 Phase 3.6.1 Section A.3.a / A.4.b (codex-prevention):
     # pre-flight sentinel check + capture QPB source baseline SHA.
@@ -4200,6 +5695,27 @@ def execute_run(args: argparse.Namespace, repo_dirs: Sequence[Path], timestamp: 
                     file=sys.stderr,
                 )
     args._qpb_source_baseline_sha = _qpb_source_baseline_sha(qpb_dir)
+
+    # v1.5.7 Issue 2 (chi-surfaced): warn (non-fatally) when a
+    # target's installed skill bundle is missing files the current
+    # QPB source carries (stale snapshot from an older setup_repos.sh
+    # / install_skill). Adopters who deliberately prune a subset get
+    # noise they can ignore — this is never a gate.
+    for repo_dir in repo_dirs:
+        stale = _check_installed_bundle_freshness(qpb_dir, repo_dir)
+        if stale:
+            bundle = lib.find_installed_skill(repo_dir)
+            bundle_loc = bundle.parent if bundle is not None else repo_dir
+            target_name = Path(repo_dir).name
+            print(
+                f"WARN: installed bundle stale at {bundle_loc}/.\n"
+                f"  Missing: {', '.join(stale)}\n"
+                f"  To refresh, run: cd repos && ./setup_repos.sh "
+                f"{target_name}\n"
+                f"  Or: python3 -m bin.install_skill --into {repo_dir} "
+                f"--ai-tool <name>",
+                file=sys.stderr,
+            )
 
     # v1.5.4 Phase 3.7 Fix 1 (Round 8 BLOCK): bare-invocation banner.
     # When the auto-default-to-full-run fired (operator typed no
@@ -4276,13 +5792,50 @@ def execute_run(args: argparse.Namespace, repo_dirs: Sequence[Path], timestamp: 
 
     print(lib.print_summary(repo_dirs))
     if not suppress_suggestion:
-        print_suggested_next_command(args, failures_occurred=overall_status > 0)
+        print_suggested_next_command(
+            args, failures_occurred=overall_status > 0, repo_dirs=repo_dirs,
+        )
     return overall_status
 
 
-def print_suggested_next_command(args: argparse.Namespace, failures_occurred: bool = False) -> None:
+def print_suggested_next_command(
+    args: argparse.Namespace,
+    failures_occurred: bool = False,
+    repo_dirs: Optional[Sequence[Path]] = None,
+) -> None:
     if failures_occurred:
-        print("  Run finished with errors — inspect quality/control_prompts/ and re-run with --phase <N>")
+        # v1.5.7 fix F-6: when D1 gate-failure preservation has fired,
+        # point the operator at the preserved diagnostics directly
+        # instead of at the now-gone quality/ tree. Also drop the stale
+        # "cell's" wording (legacy benchmark-harness term — the
+        # operator-facing surface uses "repo").
+        preserved_hints = []
+        if repo_dirs:
+            for repo_dir in repo_dirs:
+                try:
+                    preserved = sorted(repo_dir.glob(f"{_GATE_FAILURE_DIRNAME_PREFIX}*"))
+                except OSError:
+                    preserved = []
+                if preserved:
+                    most_recent = preserved[-1]
+                    preserved_hints.append(
+                        f"{repo_dir.name}/{most_recent.name}/logs/<run-id>/"
+                    )
+        if preserved_hints:
+            joined = ", ".join(preserved_hints)
+            print(
+                "  Run finished with errors — gate-failure preservation "
+                "triggered. Inspect the preserved diagnostics under "
+                f"{joined} and re-run with --phase <N> after fixing the "
+                "cause."
+            )
+        else:
+            print(
+                "  Run finished with errors — inspect the repo's "
+                "phase-prompt input/output (under quality/logs/<run-id>/ "
+                "for v1.5.7+ centralized layout, quality/control_prompts/ "
+                "for --logs-flat / pre-v1.5.7) and re-run with --phase <N>"
+            )
         return
     runner_flag = {
         "claude": " --claude",
@@ -4292,12 +5845,12 @@ def print_suggested_next_command(args: argparse.Namespace, failures_occurred: bo
     }.get(args.runner, "")
     model_flag = f" --model {shlex.quote(args.model)}" if getattr(args, "model", None) else ""
     interpreter = os.path.basename(sys.executable) if sys.executable else "python3"
-    # v1.5.6 cluster 044 fix: always emit the canonical
-    # `python3 -m bin.run_playbook` form. The script-style invocation
-    # (`<interpreter> <script_path>`) is rejected by the
-    # package-module guard at the bottom of this file with EX_USAGE=64
-    # — emitting it here contradicts the runner's own contract and
-    # breaks copy-paste workflows. (Bug A.)
+    # Emit the canonical `python3 -m bin.run_playbook` form in suggested
+    # next commands. v1.5.7 fix F-5a also restored the script-style
+    # form (`python3 /path/to/QPB/bin/run_playbook.py`) as a working
+    # invocation, but the package-module form is shorter and stays
+    # consistent with how workers spawn themselves (build_worker_command
+    # above). v1.5.6 cluster 044 originally pinned this to fix Bug A.
     invocation = f"{interpreter} -m bin.run_playbook"
     prefix = f"{invocation}{runner_flag}{model_flag}"
     target_args = " ".join(shlex.quote(name) for name in args.targets)
@@ -4338,7 +5891,210 @@ def print_suggested_next_command(args: argparse.Namespace, failures_occurred: bo
     print("-" * 56)
 
 
+def _check_agent_context_or_refuse(argv: "Sequence[str]") -> None:
+    """If running inside an agent context AND no explicit operator
+    opt-in, refuse with a Mode-A-directing error message.
+
+    Operates on the *raw* effective argv (token membership), NOT on a
+    parsed argparse.Namespace, and is called at the very top of main()
+    BEFORE parse_args. Rationale: the refusal must fire before ANY
+    other work (instruction-084 codex contract #2) so the agent sees
+    only the error — but argparse processes `--help` *during*
+    parse_args and exits 0 before a post-parse refusal could run.
+    Raw-argv carve-out detection is robust for this guard: an agent
+    reaching for the runner does not pass these flags, the worker
+    self-spawn always passes the literal `--worker`, and the operator
+    override / iteration handoff pass the literal flags.
+
+    Carve-out order (first match wins; all bypass the env-var check;
+    cheapest/most-common-case checks first — do not reorder, 084b):
+      1. Informational / management argv tokens (--help, --version,
+         --kill) — operators must be able to run these regardless of
+         terminal context, and the test-harness/CI subprocess probes
+         must not be refused under ambient agent env. This is the 084b
+         F1 fix; the prior 084 version lacked this carve-out and
+         refused informational probes (9 failures + 2 errors under
+         ambient CODEX_THREAD_ID).
+      2. --worker: an undocumented (argparse.SUPPRESS) internal flag
+         set ONLY by build_worker_command()'s self-spawn. A --worker
+         process is by definition an already-vetted recursive
+         invocation — the parent run_playbook already passed this
+         gate. Workers inherit the parent's environment
+         (subprocess.Popen at the parallel dispatch passes no env=),
+         so without this carve-out parallel mode would refuse its own
+         workers under any agent terminal (instruction-084
+         halt-condition #4 — the sanctioned fix).
+      3. --next-iteration: SKILL.md §"Iteration strategies" mandates
+         that iterations after Phase 6 hand off to the runner.
+      4. --operator-invoked: human-operator override for running the
+         runner from a shell that happens to be inside an agent
+         terminal. HARDENED (085): the flag alone is insufficient —
+         agents read --help and fabricate it (2026-05-18 codex desktop
+         did). It bypasses ONLY together with an unfabricatable signal:
+         interactive stdin (sys.stdin.isatty()), or the out-of-band CI
+         env var documented solely in docs/CI_INTEGRATION.md.
+    Only after ALL carve-outs fail does the env-var detection fire.
+    """
+    if _is_informational_or_management_invocation(argv):
+        return
+    tokens = set(argv or ())
+    # Mechanically-set carve-outs: --worker (runner self-spawn) and
+    # --next-iteration (post-Phase-6 iteration handoff). Agents do NOT
+    # fabricate these from --help output — both are set by code paths
+    # the parent runner already vetted, OR by the iteration loop that
+    # follows a completed Phase 6. Semantics unchanged (085).
+    if tokens & {"--worker", "--next-iteration"}:
+        return
+    # --operator-invoked is the human-operator override. Agents can
+    # read argparse --help and find this flag (2026-05-18 codex desktop
+    # did exactly this, then passed it). Require an additional signal an
+    # agent can't fabricate from documentation: stdin being a TTY
+    # (interactive operator at a real terminal). Agents' subprocess.run
+    # calls pipe stdin; an operator running run_playbook from an
+    # interactive shell has TTY stdin even when that shell is hosted
+    # inside an agent terminal (Claude Code, Codex desktop, Cursor IDE).
+    # CI escape hatch (no TTY): an out-of-band env var documented ONLY
+    # in docs/CI_INTEGRATION.md — deliberately absent from every
+    # agent-visible surface (SKILL.md / AGENTS.md / README.md / --help /
+    # this refusal message) so an agent reading the launch contract
+    # cannot learn it (085).
+    #
+    # v1.5.7 instruction 088 (Council finding — sonnet-4.6 + opus-4.7):
+    # RESIDUAL THREAT acknowledgment. The TTY check defeats agents that
+    # read --help / refusal-message and pass --operator-invoked without
+    # pty allocation. An adversarial source-reader CAN defeat it by:
+    #   1. Reading bin/run_playbook.py source -> discovering the
+    #      QPB_OPERATOR_NON_TTY_OVERRIDE env var name (it appears
+    #      exactly once just below; structurally unavoidable)
+    #   2. Reading bin/tests/test_run_playbook_agent_context.py ->
+    #      finding the pty.openpty() bypass recipe that test file ships
+    #      explicitly to validate the isatty path
+    # Layer 1 env-var detection (CODEX_THREAD_ID /
+    # COPILOT_AGENT_SESSION_ID / CLAUDECODE) is the structural defense;
+    # it catches every named agent regardless of TTY allocation. The
+    # TTY check is a defense in depth, not a security boundary — it
+    # raises attack cost for documented threat actors and surfaces the
+    # bypass as an explicit adversarial action (not an accidental
+    # misread). v1.6.0 may revisit whether to add an additional
+    # fabrication-resistant signal.
+    #
+    # v1.5.7 instruction 089 (Council finding F3): RESIDUAL THREAT
+    # acknowledgment, extension. The Layer-1 env-var detection above
+    # catches every named agent regardless of TTY allocation, AS LONG AS
+    # the invocation reaches _detect_agent_context(). The early return at
+    # :5517 (`if tokens & {"--worker", "--next-iteration"}: return`)
+    # short-circuits Layer-1 entirely for self-spawned worker / iteration
+    # subprocesses. --next-iteration is operator-driven (no agent-facing
+    # disclosure); --worker is argparse.SUPPRESS and is no longer disclosed
+    # in --help (instruction 089 removed it from :427). The bypass is
+    # preserved for legitimate self-spawn; the disclosure surface is
+    # closed. Adversarial source-reader bypasses (env-var name, pty.openpty
+    # recipe) remain as documented above; --help-reading no longer surfaces
+    # the --worker bypass.
+    if "--operator-invoked" in tokens:
+        try:
+            if sys.stdin.isatty():
+                return
+        except (ValueError, OSError):
+            # stdin closed / not real (daemon context); fall through
+            # to the env-var CI escape hatch, then agent detection.
+            pass
+        if os.environ.get("QPB_OPERATOR_NON_TTY_OVERRIDE") == "1":
+            return
+    agent = _detect_agent_context()
+    if agent is None:
+        return
+    sys.stderr.write(
+        f"\nERROR: bin/run_playbook.py detected it is being invoked from\n"
+        f"inside an AI-agent session ({agent}).\n"
+        f"\n"
+        f"This usually means the operator asked the agent to \"Run the\n"
+        f"Quality Playbook\" and the agent reached for the runner. The\n"
+        f"Quality Playbook's Mode A contract is that the AGENT walks\n"
+        f"Phases 1-6 inline using `phase_prompts/phase{{1..6}}.md`,\n"
+        f"writing artifacts to `<target>/quality/` directly. The runner\n"
+        f"is for operators invoking from a shell, or for the\n"
+        f"post-Phase-6 iteration handoff (`--next-iteration`).\n"
+        f"\n"
+        f"To fix:\n"
+        f"  - If you are the agent: stop. Walk Phases 1-6 inline per\n"
+        f"    SKILL.md \"Mode A entry sequence\". Do NOT re-invoke this\n"
+        f"    runner. See SKILL.md \"When in doubt, default to Mode A.\"\n"
+        f"  - If you are a human operator running from inside an agent\n"
+        f"    terminal and you really want Mode B: pass\n"
+        f"    `--operator-invoked` from an INTERACTIVE TERMINAL (stdin\n"
+        f"    must be a TTY). The flag alone is not enough — agents that\n"
+        f"    read this error message will not be able to satisfy the\n"
+        f"    TTY check.\n"
+        f"  - If this is a legitimate post-Phase-6 iteration: the\n"
+        f"    --next-iteration flag carve-out should already have\n"
+        f"    fired; check your invocation.\n"
+        f"\n"
+        f"Detected signal: env var present that names this agent CLI.\n"
+        f"This is the v1.5.7 A-22 structural defense (instruction 084).\n"
+    )
+    sys.exit(2)
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    # v1.5.7 A-22 (instruction 084): refuse agent-context invocations
+    # BEFORE parse_args — argparse would otherwise short-circuit
+    # `--help` at exit 0 before a post-parse refusal could fire — and
+    # before any dispatch / logs / state writes, so the agent sees only
+    # the Mode-A-directing error. Carve-outs (worker self-spawn,
+    # --next-iteration handoff, --operator-invoked override) handled
+    # inside via raw-argv token membership.
+    _effective_argv = list(argv) if argv is not None else sys.argv[1:]
+
+    # v1.5.7 089x: no-args is purpose-banner-safe. Pre-089x, bare
+    # `python -m bin.run_playbook` (from an operator shell) would
+    # fall through to no-targets and exit 1 — but worse, in some
+    # call paths it could auto-start the QPB self-audit (the
+    # bootstrap_self_audit_docs lane). 089x makes bare = banner
+    # universally; the self-audit and any real playbook run live
+    # behind an explicit target arg or a `--bootstrap` / `--self`
+    # flag (--operator-invoked also works for the orchestrator
+    # lane). The no-args path runs BEFORE the agent-refuse check
+    # so the discovery feature works from any context.
+    # v1.5.7 090a helper imports (used by both no-args + --help paths).
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
+
+    if not _effective_argv:
+        # v1.5.7 090a: full attribution banner + purpose banner.
+        _print_command_intro(
+            name="run_playbook",
+            summary=(
+                "Mode B (operator-driven) playbook runner — "
+                "executes Phases 1–6 against one or more target "
+                "repos using a configured agent runner (claude / "
+                "copilot / codex / cursor)."
+            ),
+            role=(
+                "The benchmark / operator entry point for full "
+                "Mode B runs. Adopters invoke it directly from "
+                "the QPB clone via the canonical forms "
+                "`python3 -m bin.run_playbook <target>` (package "
+                "form) or `python3 bin/run_playbook.py <target>` "
+                "(script form). Mode A users (agent-driven "
+                "in-session) do NOT call this — the agent walks "
+                "Phases 1–6 inline using "
+                "phase_prompts/phase{1..6}.md."
+            ),
+            usage_hint=(
+                "python3 -m bin.run_playbook <target>"
+            ),
+        )
+        return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(_effective_argv)
+
+    _check_agent_context_or_refuse(_effective_argv)
     args = parse_args(argv)
     if args.kill:
         return kill_recorded_processes(
@@ -4347,7 +6103,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     if not ensure_runner_available(args.runner):
         if args.runner == "copilot":
-            print("ERROR: 'gh copilot' not available. Install with: gh extension install github/gh-copilot", file=sys.stderr)
+            # v1.5.7 089f: recommend the new standalone `copilot` CLI
+            # first (GitHub deprecated `gh copilot` on 2025-10-25),
+            # with the legacy extension as fallback during the grace
+            # period.
+            print(
+                "ERROR: GitHub Copilot CLI not available. Install the "
+                "standalone CLI: `brew install copilot-cli` (macOS), "
+                "`winget install GitHub.Copilot` (Windows), or "
+                "`curl -fsSL https://gh.io/copilot-install | bash` "
+                "(Linux). OR install the legacy extension: "
+                "`gh extension install github/gh-copilot` (deprecated "
+                "2025-10-25; still works during the grace period).",
+                file=sys.stderr,
+            )
         elif args.runner == "codex":
             print("ERROR: 'codex' CLI not found. Install from https://github.com/openai/codex", file=sys.stderr)
         elif args.runner == "cursor":
@@ -4368,7 +6137,11 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return 1
 
     display_version = lib.detect_repo_skill_version(repo_dirs[0])
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    # v1.5.7 089i (UTC run-id): see execute_run for the same fix —
+    # display timestamp in UTC so _compute_run_id produces a true-UTC
+    # run-id that sorts chronologically and matches the archive +
+    # run_state ts conventions.
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
     display_run_header(args, repo_dirs, display_version, phase_list_from_mode(args.phase), timestamp)
     # v1.5.6 cluster 050: write a per-target RUN_MODE.md marker so
     # downstream model-comparison tooling can filter for clean
@@ -4381,19 +6154,42 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 _write_run_mode_marker(repo_dir, args, timestamp)
             except OSError:
                 pass  # marker is best-effort; runs continue regardless
-    return execute_run(args, repo_dirs, timestamp=timestamp)
+    # v1.5.7 089x T6: Mode B run start/end attribution banners. The
+    # start banner already fires inside execute_run via
+    # print_startup_banner (Task 6 wired the full-banner prepend
+    # there). The end banner fires here, AFTER execute_run returns,
+    # so it lands on both success and failure exits and after any
+    # final logbook writes.
+    _rc = execute_run(args, repo_dirs, timestamp=timestamp)
+    # Best-effort closing banner. Skip on agent-mode runs (the
+    # _check_agent_context_or_refuse path bailed earlier so we
+    # don't need a check here, but a defensive try wraps stream
+    # writes anyway).
+    try:
+        print_completion_banner()
+    except Exception:
+        pass
+    return _rc
 
 
 def _write_run_mode_marker(
     repo_dir: Path, args: argparse.Namespace, timestamp: str
 ) -> None:
-    """v1.5.6 cluster 050: write quality/RUN_MODE.md identifying
-    the current run as benchmark-mode (single-model, phases 1-3
-    only). Downstream model-comparison tooling reads this to
-    confirm a cell is clean — i.e., not contaminated with Phase 4
-    Council audit findings."""
-    quality = repo_dir / "quality"
-    quality.mkdir(parents=True, exist_ok=True)
+    """v1.5.6 cluster 050: write RUN_MODE.md identifying the current
+    run as benchmark-mode (single-model, phases 1-3 only). Downstream
+    model-comparison tooling reads this to confirm a cell is clean —
+    i.e., not contaminated with Phase 4 Council audit findings.
+
+    v1.5.7 Phase 5 / Deliverable 3: in the centralized layout the
+    marker lands at quality/logs/<run-id>/RUN_MODE.md; in the legacy
+    layout (--logs-flat / QPB_LOGS_LEGACY=1) it stays at
+    quality/RUN_MODE.md byte-identically."""
+    run_id = _compute_run_id(timestamp)
+    if _logs_legacy_mode(args):
+        out_dir = repo_dir / "quality"
+        out_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        out_dir = _run_log_dir(repo_dir, run_id, args=args)
     model = args.model or "(default)"
     runner = args.runner or "(default)"
     content = (
@@ -4416,26 +6212,16 @@ def _write_run_mode_marker(
         "(Marker emitted by `bin.run_playbook._write_run_mode_marker`\n"
         "per v1.5.6 cluster 050 design.)\n"
     )
-    (quality / "RUN_MODE.md").write_text(content, encoding="utf-8")
+    (out_dir / "RUN_MODE.md").write_text(content, encoding="utf-8")
 
 
 if __name__ == "__main__":
-    # v1.5.4 Phase 3.6.1 Section A.2 (codex-prevention): refuse
-    # script-style invocation. The module uses relative imports
-    # (``from . import benchmark_lib as lib``) which fail with an
-    # ImportError when invoked as ``python bin/run_playbook.py``.
-    # Codex's 2026-04-29 self-audit attempt hit exactly this failure
-    # and unilaterally patched bin/archive_lib.py mid-run trying to
-    # work around it. Refuse early with a clear operator-actionable
-    # message instead. EX_USAGE (64) per sysexits.h avoids collision
-    # with argparse usage errors (which conventionally exit 2).
-    if __package__ is None or __package__ == "":
-        print(
-            "ERROR: bin/run_playbook.py must be invoked as a package module:\n"
-            "    python -m bin.run_playbook [args...]\n\n"
-            "Direct script-style invocation is not supported and will fail "
-            "with relative-import errors. Re-run with the -m flag.",
-            file=sys.stderr,
-        )
-        sys.exit(64)  # EX_USAGE per sysexits.h convention
+    # v1.5.7 fix F-5a: the v1.5.4 __main__ guard that refused
+    # script-style invocation is removed. The sys.path injection at
+    # module top now makes `python /path/to/QPB/bin/run_playbook.py`
+    # work via absolute `from bin import ...` imports. The codex
+    # incident the guard was added for (2026-04-29 self-audit hit
+    # ImportError on the old relative imports and unilaterally patched
+    # archive_lib.py) is addressed at the root cause: script-mode
+    # now works, so there's no failure mode for codex to "fix".
     raise SystemExit(main())

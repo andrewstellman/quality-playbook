@@ -1,0 +1,129 @@
+{
+  "$header_note": "QPB v1.5.7 BLIND CVE-benchmark plan — Mac, ALL claude/opus, pool=1 (sequential). 7 runs pinned to vulnerable-parent SHAs (= fix^) from Security Research/CVE_BENCHMARK_PILOT.md. 2026-06-02 revision: all rows promoted from opus/sonnet mix to UNIFORM opus — maximum signal-to-noise on the toughest blind benchmark. The repos' docs_gathered/ folders have been scrubbed of CVE IDs, GHSA IDs, fix commit SHAs, fix-PR/issue numbers (both word + URL forms), fix-symbol function names (isAssignableFrom, allowFsRead, SatisfiedBy, reqRepoOwner, isValidAsAnnotation, maxExpansion*, startswith(...tmpdir)), category-naming terms (path traversal, code injection, etc.), and CWE-NNN identifiers — 750+ redactions total. QPB must derive each bug from invariants + code alone. Pool=1 = sequential runs so the orchestrator can clearly attribute each row's verdict. claude only (no codex Mode B until Windows-encoding fix lands per task #185). Categories covered: insecure deserialization (spark), crypto misuse (evervault-go), path traversal (setuptools), LFI (jsPDF), DoS (dasel), broken access control (gogs), code injection (avro). Runtime: 7 runs × 45-75min each on opus = 5-9 hours sequential. CAVEAT: gogs docs_gathered focuses on a different access-control CVE than CASE-010's exact fingerprint — the AC framing is correct but specific bug may not match.",
+
+  "pools": {
+    "claude": 1
+  },
+
+  "runs": [
+    {
+      "description": "Row 0 — claude/opus reviews apache/spark (Scala/JVM) at vulnerable parent SHA for insecure deserialization in History Server. Pass criterion: flag JsonProtocol.sparkEventFromJson's polymorphic class instantiation from event-log JSON without a type-allowlist. opus selected for JVM deserialization-pattern reasoning. See repos/docs_gathered/spark/ (scrubbed).",
+      "repo": "https://github.com/apache/spark",
+      "ref": "7f9ca1b37e140303af0d70e2895d19314f812661",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 1 — claude/opus reviews evervault/evervault-go (Go SDK) at vulnerable parent SHA for cryptographic verification — lowest QE-catchability per the benchmark; toughest blind target. Pass criterion: flag the attestation verification's failure to require minimum PCR presence (empty PCRs accepted, forged/partial attestation passes). See repos/docs_gathered/evervault-go/ (scrubbed).",
+      "repo": "https://github.com/evervault/evervault-go",
+      "ref": "841dca607a6dcdc9c20457d82e8965b82359f9a4",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 2 — claude/opus reviews apache/avro (Java codegen) at vulnerable parent SHA for code injection in SpecificCompiler. Pass criterion: flag schema-property → generated-source unvalidated taint flow. opus selected for the JVM codegen reasoning that previously was assigned to codex Mode B (claude-only per Mac plan). See repos/docs_gathered/avro/ (scrubbed).",
+      "repo": "https://github.com/apache/avro",
+      "ref": "80400781a796bc0e90dd8ea1db42234926db33e9",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 3 — claude/sonnet reviews pypa/setuptools (Python) at vulnerable parent SHA for path traversal in package_index download. Pass criterion: flag the download-filename derivation for unvalidated join allowing escape outside the intended target directory. Portfolio's 'CLEANEST' case — sonnet sufficient. See repos/docs_gathered/setuptools/ (scrubbed).",
+      "repo": "https://github.com/pypa/setuptools",
+      "ref": "d8390feaa99091d1ba9626bec0e4ba7072fc507a",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 4 — claude/sonnet reviews parallax/jsPDF (JavaScript) at vulnerable parent SHA for LFI in Node build. Pass criterion: flag the Node-build's file-reading function for reading unrestricted caller-supplied path from filesystem. Localized fix (1 file). See repos/docs_gathered/jsPDF/ (scrubbed).",
+      "repo": "https://github.com/parallax/jsPDF",
+      "ref": "a504e973eeebac633351b41860945ca2a2cdf096",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 5 — claude/sonnet reviews TomWright/dasel (Go) at vulnerable parent SHA for unbounded YAML alias expansion DoS. Pass criterion: flag the recursive parse with no depth/size bound on attacker input. New category for QPB Goal A scoreboard (DoS). See repos/docs_gathered/dasel/ (scrubbed).",
+      "repo": "https://github.com/TomWright/dasel",
+      "ref": "0dd6132e0c58edbd9b1a5f7ffd00dfab1e6085ad",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Row 6 — claude/sonnet reviews gogs/gogs (Go) at vulnerable parent SHA for broken access control. Pass criterion (CASE-010): flag the destructive endpoint missing the privilege middleware that its peers have (read-only collaborator can perform a destructive action). CAVEAT: docs_gathered focuses on a different access-control CVE in this codebase — blind run evaluates general AC detection, not specific CASE-010 fingerprint. See repos/docs_gathered/gogs/ (scrubbed).",
+      "repo": "https://github.com/gogs/gogs",
+      "ref": "d568e048315dc9729c8518d8085cab7dbbfac80f",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    }
+  ]
+}

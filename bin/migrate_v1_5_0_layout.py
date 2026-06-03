@@ -50,7 +50,29 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from bin import archive_lib
+# v1.5.7 090c: foreign-bin-proof import — try the package form
+# first, fall back to a path-load of archive_lib.py from this
+# file's directory so the import is anchored on __file__ and
+# never resolves to a sibling repo's bin/.
+try:
+    from bin import archive_lib
+except ImportError:
+    import importlib.util as _ilu
+    _al_path = Path(__file__).resolve().parent / "archive_lib.py"
+    _al_spec = _ilu.spec_from_file_location(
+        "_qpb_archive_lib_via_migrate", _al_path,
+    )
+    if _al_spec is None or _al_spec.loader is None:
+        raise ImportError(
+            f"migrate_v1_5_0_layout: cannot resolve archive_lib — "
+            f"path-load fallback target {_al_path} is missing."
+        )
+    archive_lib = _ilu.module_from_spec(_al_spec)
+    # v1.5.7 090c: register in sys.modules BEFORE exec_module so
+    # any dataclass/typing machinery in archive_lib that consults
+    # `sys.modules[__module__]` resolves.
+    sys.modules[_al_spec.name] = archive_lib
+    _al_spec.loader.exec_module(archive_lib)
 
 
 class MigrationError(Exception):
@@ -246,6 +268,34 @@ _load_existing_index_payload = archive_lib.load_index_payload
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
+    if not _argv_list_089x:
+        _print_command_intro(
+            name='migrate_v1_5_0_layout',
+            summary=(
+            "One-shot v1.5.0 → v1.5.x layout migrator — upgrades a "
+            "target from the pre-v1.5.0 flat layout to the current "
+            "`quality/` + `informal_docs/` shape. "
+            ),
+            role=(
+            "Operator-side migration — NOT called during a playbook "
+            "run. Run once per target repo when upgrading from a "
+            "pre-v1.5.0 install. "
+            ),
+            usage_hint='python3 -m bin.migrate_v1_5_0_layout <target>',
+        )
+        return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(_argv_list_089x)
+
     parser = argparse.ArgumentParser(
         description=(
             "Idempotently migrate a pre-v1.5.0 QPB target repo to the consolidated "

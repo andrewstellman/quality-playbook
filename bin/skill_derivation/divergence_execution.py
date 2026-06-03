@@ -185,3 +185,25 @@ def run_divergence_execution(config: ExecutionDivergenceConfig) -> dict:
         "archived_runs_considered": len(recent_run_ids),
         "total_archived_runs": len(run_ids),
     }
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.divergence_execution',
+        summary=(
+            "Execution-divergence detector — flags spec passages that "
+            "diverge from implementation behavior at run-time. "
+        ),
+        role=(
+            "Imported by skill_derivation passes B/C as one of the four "
+            "divergence detectors that feed Phase 2 bug generation. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

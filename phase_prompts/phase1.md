@@ -1,4 +1,4 @@
-You are a quality engineer. {skill_fallback_guide} For this phase read ONLY the sections up through Phase 1 (stop at the "---" line before "Phase 2"). Also read the reference files (under whichever references/ directory matches the install path you resolved) that are relevant to exploration.
+You are a quality engineer. {skill_fallback_guide} For this phase read SKILL.md up through the Phase 1 pointer section (v1.5.7+ Phase 7 trim: the full Phase 1 body now lives at `references/phase1_exploration_guide.md`). Then read `references/phase1_exploration_guide.md` end-to-end — that is the canonical Phase 1 protocol after the v1.5.7 SKILL.md trim. Also read the other reference files (under whichever references/ directory matches the install path you resolved) that are relevant to exploration.
 
 {seed_instruction}
 
@@ -69,6 +69,28 @@ Handling edge cases (v1.5.4 Phase 1 edge-case discipline):
 - **Target with a very large file count (1000+).** Process in batches. The `files` array can grow incrementally as you walk the tree; once you've made all per-file judgments, write the file once. Do not write a partial role map mid-walk — the validator considers the file complete when it appears, and the runner-side `normalize_role_map_for_gate` step (v1.5.6 cluster 047) computes `breakdown` and `summary` after you exit Phase 1.
 - **Ambiguous prose ("the helper script", "the validator").** Default to `code`. `skill-tool` requires an unambiguous citation: SKILL.md or a referenced doc must name the file (or a path-suffix that uniquely identifies it) AND direct the agent to invoke it. When in doubt, tag `code` and capture the ambiguity in `rationale` — it's better to under-tag `skill-tool` than to inflate the surface area Phase 4's prose-to-code check operates on.
 - **Generated files (build outputs, vendored dependencies, lockfiles).** Skip them at the ignore-rule layer; do not include them in the role map. If you can't tell whether a file is generated, look for a generation marker (header comment naming the generator, sibling `.generated` file, presence in `.gitignore`); if generated, omit from the role map.
+
+**MANDATORY — Mode A breakdown/summary normalization + validator witness (v1.5.7 A-16).** The paragraph above ("You only produce `files[]` and `provenance`") describes the **Mode B (runner-driven)** contract: the runner calls `bin.role_map.normalize_role_map_for_gate(...)` for you between Phase 1 exit and the Phase 2 entry-gate. **In Mode A (skill-direct — you are driving the phases yourself, there is no runner) nothing does this for you**, so YOU must run the runner's normalization step yourself after writing `files[]`/`provenance`. Do NOT hand-author `breakdown`/`summary` (that is exactly the cluster-047 drift failure mode); invoke the canonical helper the runner uses:
+
+    python3 -c "import sys; sys.path.insert(0, 'bin'); import role_map; ok, errs = role_map.normalize_role_map_for_gate('quality/exploration_role_map.json'); print('role_map normalized' if ok else 'NORMALIZE FAILED: ' + repr(errs)); sys.exit(0 if ok else 1)"
+
+Then run the Phase 1 artifact-contract validator and quote its final `RESULT:` line verbatim in your chat output (it matches `RESULT: VALIDATION PASSED (phase 1)` or `RESULT: VALIDATION FAILED (phase 1 — X FAIL, Y PASS)` — VALIDATION FAILED means your artifacts violate the contract; fix them per the `FAIL:` messages above and re-run until VALIDATION PASSED):
+
+    python3 -m bin.validate_phase_artifacts . --phase 1
+
+Resolve `bin/` via the documented install-root fallback — for an `install_skill.py`-layout adopter use `PYTHONPATH=<install_root> python3 -m bin.validate_phase_artifacts . --phase 1` (the same layout-aware form Phase 1's `reference_docs_ingest` step uses). If the validator exits non-zero your `breakdown` is not the canonical object — re-run the normalization above until it exits 0. You MAY NOT proceed to Phase 2 with a failing validator. This closes the 2026-05-16 express opus-4.6 Mode-A defect: the agent left `"breakdown": null` (no runner normalized it — Mode A), the gate FAILED with "'breakdown' is not an object", and the agent reported PASS anyway.
+
+**Phase 1 validator invocation is NON-OPTIONAL.** Running `python3 -m bin.validate_phase_artifacts <target> --phase 1` at the Phase 1 boundary and quoting the verbatim `RESULT: VALIDATION PASSED (phase 1)` line in your State P1 emit is the documented Phase 1 entry contract — not advisory. You may NOT report Phase 1 PASS without that quoted verdict line. Fabricating PASS against a non-compliant EXPLORATION.md is the exact failure mode this mandate exists to prevent — observed 2026-05-18 in the codex desktop self-bootstrap, which produced 15 Open Exploration Findings with no `Stage:` annotations and reported `Phase 1: PASS` anyway (the validator would have FAILed). This is the Phase 1 instance of the same prose-only-enforcement gap as A-22/A-23/A-27/A-28; structural enforcement is tracked for v1.6.x (see `docs/design/QPB_v1.6.x_Phase6_Structural_Enforcement_Proposal.md`, Slice 0).
+
+**`Stage:` annotation requirement (the validator's candidate-bug source-mix gate).** The validator (`bin/run_state_lib.py`, check 13a/13b) requires ≥2 candidate-bug entries sourced from exploration/risks AND ≥1 from pattern deep dive. It buckets each entry by a `Stage:` annotation line: the parser routes an entry to the **exploration/risks** bucket when its `Stage:` value contains `open exploration`, `quality risks`, or `risks`; any other non-empty `Stage:` value (e.g. `pattern deep dive`) routes to the **deep dive** bucket. Every candidate-bug entry in EXPLORATION.md MUST carry a `Stage:` line. Exact syntax (one per entry, immediately under the entry heading):
+
+    Stage: open exploration
+    Stage: quality risks
+    Stage: pattern deep dive
+
+An entry with no `Stage:` line is counted toward NEITHER bucket → the gate FAILs with "candidate bugs source mix". Do NOT omit `Stage:`; do NOT invent other stage names — match the parser tokens above exactly.
+
+**HALT clause.** If your runtime cannot invoke the validator (no `python3`, cannot read the target dir, cannot write `quality/`, sandbox denies the subprocess), you MUST HALT and report that limitation to the operator. You may NOT emit Phase 1 PASS without the quoted `RESULT: VALIDATION PASSED (phase 1)` line — an unverifiable Phase 1 is a HALT, never an assumed-pass. (Parallel to the Phase 6 NON-OPTIONAL mandate in `phase_prompts/phase6.md`.)
 
 When Phase 1 is complete, write your full exploration findings to
 `quality/EXPLORATION.md`. The file MUST contain ALL of the following
@@ -146,6 +168,35 @@ prefix; additional `## ` sections beyond these are tolerated for
 analytical extension but the six gate-required titles MUST appear
 verbatim.
 
+### MANDATORY ASYMMETRY-PROMOTION RULE (A-5, v1.5.7 instruction 047)
+
+The Cartesian UC rule below only engages on requirements that ALREADY
+exist with a `References` field naming ≥2 files. A recurring
+upstream gap (v1.5.1 RING_RESET; the v1.5.7 codex-UI virtio run):
+Phase 1 *notices* an architectural asymmetry in EXPLORATION.md prose
+("modern PCI **compensates for** VIRTIO_F_SR_IOV / RING_RESET / ADMIN_VQ;
+MMIO and vDPA **rely entirely on** `vring_transport_features()`") but
+never derives a REQ for it — so the Cartesian rule has nothing to
+operate on, the v1.5.2 compensation-grid BUG-default has no cells,
+and the asymmetry never produces BUGs in Phase 3. The observation is
+demoted instead of escalated.
+
+**Rule:** for EVERY architectural asymmetry you note in EXPLORATION.md
+— any "X compensates for Y" / "A relies entirely on B" / "present in
+… but not in …" / "modern transport does this, legacy doesn't" /
+"implements … but … doesn't" framing — you MUST draft a
+corresponding requirement at the canonical multi-site shape:
+
+    ### REQ-NNN: <the parity/compensation invariant the asymmetry implies>
+    - References: <file-for-site-1>, <file-for-site-2>, <file-for-site-3>
+    - Pattern: compensation   (or `parity` / `whitelist` as fits)
+
+naming the ≥2 implementation sites the asymmetry spans. That REQ then
+flows into the Cartesian UC rule (per-site UCs) and the v1.5.2
+BUG-default machinery downstream. A noticed asymmetry with no
+corresponding multi-site `Pattern:`-tagged REQ is a Phase 1 defect —
+escalate, do not demote to prose.
+
 ### MANDATORY CARTESIAN UC RULE (Lever 1, v1.5.2)
 
 For every requirement with a `References` field naming ≥2 files (or ≥2 file:line ranges in distinct files), apply the **Cartesian eligibility check** before deciding whether to emit a single umbrella UC or per-site UCs:
@@ -203,6 +254,7 @@ Before completing Phase 1, confirm each item explicitly in EXPLORATION.md under 
 4. Where only Gate 1 passed, I marked the cluster `<!-- cluster: heterogeneous -->`.
 5. Where neither gate passed, I kept a single umbrella UC without marking.
 6. For each REQ with a pattern match in Gate 1, I added `Pattern: whitelist|parity|compensation` to the REQ block.
+7. For every architectural asymmetry I noted in EXPLORATION.md prose (any "X compensates for Y" / "relies entirely on" / "present in … but not in …" / "modern does this, legacy doesn't" framing), I drafted a corresponding multi-site `Pattern:`-tagged REQ per the Asymmetry-Promotion Rule — no noticed asymmetry was demoted to prose without a REQ.
 
 Also initialize quality/PROGRESS.md with the run metadata and the phase tracker in the EXACT checkbox format below. This format is a hard contract: the Phase 5 gate checks for the substring `- [x] Phase 4` before allowing reconciliation to start, and it only matches the checkbox form. Do NOT substitute a Markdown table, bulleted prose, or any other layout — table-format runs have aborted mid-pipeline because the gate does not see "Complete" in a table cell as equivalent.
 
@@ -227,3 +279,5 @@ Date: <YYYY-MM-DD>
 As each later phase completes it will flip its own `- [ ]` to `- [x]` — keep the line text (including the phase name after the dash) stable so substring matching in the Phase 5 gate and downstream tooling works.
 
 IMPORTANT: Do NOT proceed to Phase 2. Your only job is exploration and writing findings to disk. Write thorough, detailed findings - the next phase will read EXPLORATION.md to generate artifacts, so everything important must be captured in that file.
+
+After completing this phase, emit `## What just happened` + `### What to do next` as the LAST visible output in chat per the decision tree at `references/what_just_happened.md`. Use the State P1 template (or State C if you detected code-only mode — no `reference_docs/` present); the reference file's mechanical classifier picks the right state from the artifact tree.

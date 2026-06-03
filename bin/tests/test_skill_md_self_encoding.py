@@ -28,10 +28,35 @@ from pathlib import Path
 
 
 SKILL_MD = Path(__file__).resolve().parents[2] / "SKILL.md"
+PHASE2_GUIDE = Path(__file__).resolve().parents[2] / "references" / "phase2_generation_guide.md"
 
 
 def _read_skill_md() -> str:
     return SKILL_MD.read_text(encoding="utf-8")
+
+
+def _read_phase2_corpus() -> str:
+    """v1.5.7 Phase 7: SKILL.md + references/phase2_generation_guide.md
+    concatenated. After the Phase 7 trim, Phase 2 guardrail / completion-
+    gate prose lives in the references file; SKILL.md retains only a
+    pointer. Tests that assert Phase 2 prose content now check the
+    combined corpus (the agent reads both files at Phase 2 entry per
+    `phase_prompts/phase2.md`)."""
+    text = SKILL_MD.read_text(encoding="utf-8")
+    # v1.5.7 Phase 7 FIXUP-1: after the trim, Phase 2 guardrail prose
+    # lives ONLY in references/phase2_generation_guide.md. The prior
+    # conditional `if PHASE2_GUIDE.is_file()` was correct during the
+    # move (when prose existed in both SKILL.md and the references
+    # file) but is a silent-failure vector now — deleting the
+    # references file would degrade 4 guard tests to vacuous passes.
+    # The assertion fails loudly instead.
+    assert PHASE2_GUIDE.is_file(), (
+        "references/phase2_generation_guide.md missing — Phase 7 trim "
+        "moved Phase 2 guardrail prose there; deletion silently "
+        "degrades 4 guard tests to vacuous passes"
+    )
+    text += "\n" + PHASE2_GUIDE.read_text(encoding="utf-8")
+    return text
 
 
 class SkillMdSelfEncodingTests(unittest.TestCase):
@@ -147,10 +172,9 @@ class SkillMdAgentsMdOwnershipTests(unittest.TestCase):
         )
 
     def test_skill_md_file6_section_forbids_phase2_agents_md(self) -> None:
-        text = _read_skill_md()
-        # The "File 6" section (which v1.5.3 used to instruct the LLM
-        # to update AGENTS.md) must now explicitly call out that the
-        # LLM does NOT write it in Phase 2.
+        # v1.5.7 Phase 7: Phase 2 prose moved to references/
+        # phase2_generation_guide.md; read combined corpus.
+        text = _read_phase2_corpus()
         self.assertIn(
             "File 6: `AGENTS.md` (orchestrator-generated; you do NOT write this in Phase 2)",
             text,
@@ -166,9 +190,8 @@ class SkillMdAgentsMdOwnershipTests(unittest.TestCase):
         )
 
     def test_skill_md_phase2_completion_gate_excludes_agents_md(self) -> None:
-        text = _read_skill_md()
-        # The Phase 2 completion gate's required-artifact list must
-        # explicitly call out that AGENTS.md is NOT in this list.
+        # v1.5.7 Phase 7: Phase 2 prose moved; read combined corpus.
+        text = _read_phase2_corpus()
         self.assertIn("`AGENTS.md` is NOT in this list", text)
 
 
@@ -288,7 +311,8 @@ class SkillMdPhase2SourceGuardrailTests(unittest.TestCase):
     (`_QPB_SOURCE_PATHS`)."""
 
     def test_skill_md_phase2_has_source_modification_guardrail(self) -> None:
-        text = _read_skill_md()
+        # v1.5.7 Phase 7: Phase 2 prose moved; read combined corpus.
+        text = _read_phase2_corpus()
         self.assertIn("Phase 2 source-modification guardrail", text)
 
     def test_skill_md_phase2_guardrail_names_failure_mode(self) -> None:
@@ -300,7 +324,8 @@ class SkillMdPhase2SourceGuardrailTests(unittest.TestCase):
         self.assertIn("source-unchanged", text)
 
     def test_skill_md_phase2_guardrail_writes_only_into_quality(self) -> None:
-        text = _read_skill_md()
+        # v1.5.7 Phase 7: Phase 2 prose moved; read combined corpus.
+        text = _read_phase2_corpus()
         self.assertIn("Phase 2 writes ONLY into `quality/`", text)
 
 

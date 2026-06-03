@@ -8,6 +8,29 @@ no dependency on any real repo's quality/ folder.
 Run from the QPB repo root with either:
     python3 -m pytest .github/skills/quality_gate/tests/test_quality_gate.py
     python3 -m unittest discover .github/skills/quality_gate/tests
+
+Test-architecture convention (v1.5.7 instruction 032 NCF-6):
+Most pure gate-logic tests live in this file — each `check_*`
+function in `quality_gate.py` has a corresponding `Test<Name>` class
+that constructs a synthetic `quality/` fixture and runs the gate as
+a subprocess. Two gate functions have their tests in
+`bin/tests/test_run_playbook.py::GateResolveArtifactPathTests`
+rather than here, by historical convention:
+
+- `check_no_workspace_dir` — exercised end-to-end via the runner's
+  Phase 6 flow; the runner-side tests construct the workspace/
+  directory state and call the function directly to assert the
+  FAIL counter increments correctly.
+- `_resolve_artifact_path` (helper, not a `check_*` gate function)
+  — tests verify it returns the canonical top-level path
+  unconditionally post-F-4a, which is a pure-helper assertion
+  better expressed via direct function call than gate subprocess.
+
+The split exists because those two gate behaviors are most
+naturally validated through the runner's invocation path rather
+than via the gate-script subprocess. See instruction 030's
+outputs/030-ship-readiness-fixes.md and instruction 032's
+outputs/032-final-report.md for the rationale and history.
 """
 
 import json
@@ -87,7 +110,11 @@ def minimal_zero_bug_tree(version="1.4.4"):
             "## Terminal Gate Verification\n"
         ),
         "quality/COVERAGE_MATRIX.md": "# Coverage\n",
-        "quality/COMPLETENESS_REPORT.md": "# Completeness\n",
+        "quality/COMPLETENESS_REPORT.md": (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "PASS\n"
+        ),
         "quality/CONTRACTS.md": "# Contracts\n",
         "quality/RUN_CODE_REVIEW.md": "# RCR\n",
         "quality/RUN_SPEC_AUDIT.md": "# RSA\n",
@@ -129,6 +156,17 @@ def add_one_bug(tree, version="1.4.4", bug_id="BUG-001"):
     )
     tree[f"quality/results/{bug_id}.red.log"] = "RED\nCommand: test\nExit code: 1\n"
     tree[f"quality/results/{bug_id}.green.log"] = "GREEN\nCommand: test\nExit code: 0\n"
+    # v1.5.7 089o: phase5_env.log is a required Phase 5 artifact
+    # when confirmed bugs exist (the test-runner probe). The
+    # default fixture records a SUCCESSFUL probe (exit code 0,
+    # a version string) — consistent with the RED/GREEN receipts
+    # above (the cycle was executed). Tests that need an honest-
+    # NOT_RUN scenario override this with a failed-probe log.
+    tree["quality/results/phase5_env.log"] = (
+        "Command: pytest --version\n"
+        "pytest 8.1.1\n"
+        "Exit code: 0\n"
+    )
     tree["quality/test_regression_test.go"] = "package quality\n"
     tree["quality/test_regression.py"] = "# Mirror as test_regression.*\n"
     tree["quality/TDD_TRACEABILITY.md"] = "# Traceability\n"
@@ -334,6 +372,236 @@ class TestFailHelperFormat(unittest.TestCase):
         import re
         offenders = re.findall(r'print\(f?"[^"]*FAIL:\s', src)
         self.assertEqual(offenders, [], f"unexpected FAIL: print in gate: {offenders}")
+
+
+class TestCompensationAsymmetryPromotion(unittest.TestCase):
+    """v1.5.7 instruction 047 Item 3 (A-5): WARN-only net for the
+    Phase-1→Phase-2 asymmetry-promotion gap.
+
+    Coverage split (corrected per instruction 048, closing the
+    instruction-047 codex Task-4 finding that this docstring
+    previously overstated its mutation-verified scope):
+
+    - These tests exercise ``check_compensation_asymmetry_promotion``
+      via DIRECT calls. They pin the function's *logic*: the
+      compensation-prose regex, the zero-Pattern-tag → WARN branch,
+      the with-tag pass, the missing-EXPLORATION.md no-op, and the
+      WARN-only (never-FAIL) contract.
+      Mutation evidence for the logic (in-tree per
+      ai_context/DEVELOPMENT_PROCESS.md:152-160): neutering the
+      ``warn(...)`` branch inside
+      ``check_compensation_asymmetry_promotion`` makes
+      ``test_asymmetry_prose_without_pattern_tag_warns`` fail (WARN
+      stays 0); restoring it passes. Bite verified.
+    - The WIRING of the check INTO ``check_repo()`` (the path the
+      gate actually runs end-to-end) is pinned separately by
+      ``TestCompensationAsymmetryPromotionWiring`` below, which
+      invokes the gate as a subprocess. These direct-call tests do
+      NOT exercise the ``check_repo`` registration and make no claim
+      about it.
+
+    Together both surfaces give full mutation-verified coverage:
+    revert the function logic → these direct-call tests fail; remove
+    the ``check_repo`` registration → the wiring integration test
+    fails.
+    """
+
+    def setUp(self):
+        quality_gate.WARN = 0
+        self._tmp = tempfile.TemporaryDirectory()
+        self.q = Path(self._tmp.name) / "quality"
+        self.q.mkdir(parents=True)
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _run(self):
+        import io
+        import contextlib
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            quality_gate.check_compensation_asymmetry_promotion(self.q)
+        return buf.getvalue()
+
+    def _write(self, name, text):
+        (self.q / name).write_text(text, encoding="utf-8")
+
+    def test_asymmetry_prose_without_pattern_tag_warns(self):
+        self._write(
+            "EXPLORATION.md",
+            "## Quality Risks\nModern PCI compensates for "
+            "VIRTIO_F_RING_RESET; MMIO and vDPA rely entirely on "
+            "vring_transport_features().\n",
+        )
+        self._write(
+            "REQUIREMENTS.md",
+            "### REQ-001: something\n- References: a.c\nbody\n",
+        )
+        out = self._run()
+        self.assertEqual(
+            quality_gate.WARN, 1,
+            f"asymmetry prose + zero Pattern:-tagged REQs must WARN. "
+            f"Output:\n{out}",
+        )
+        self.assertIn("compensation-grid BUG-default", out)
+
+    def test_asymmetry_prose_with_pattern_tag_passes(self):
+        self._write(
+            "EXPLORATION.md",
+            "Modern PCI compensates for RING_RESET; MMIO relies "
+            "entirely on the generic path.\n",
+        )
+        self._write(
+            "REQUIREMENTS.md",
+            "### REQ-010: parity invariant\n"
+            "- References: virtio_mmio.c, virtio_pci_modern.c\n"
+            "- Pattern: compensation\n",
+        )
+        self._run()
+        self.assertEqual(
+            quality_gate.WARN, 0,
+            "a Pattern:-tagged REQ satisfies the asymmetry-promotion "
+            "net — no WARN",
+        )
+
+    def test_no_asymmetry_prose_passes(self):
+        self._write(
+            "EXPLORATION.md",
+            "## Quality Risks\nStraightforward single-site logic; no "
+            "cross-transport parity concerns here.\n",
+        )
+        self._write("REQUIREMENTS.md", "### REQ-001\nbody\n")
+        self._run()
+        self.assertEqual(
+            quality_gate.WARN, 0,
+            "no compensation-asymmetry prose → no WARN",
+        )
+
+    def test_missing_exploration_is_noop(self):
+        # No EXPLORATION.md written.
+        self._run()
+        self.assertEqual(
+            quality_gate.WARN, 0,
+            "absent EXPLORATION.md → skipped, never WARN/FAIL",
+        )
+
+    def test_never_increments_fail(self):
+        """WARN-only contract: this check must NEVER FAIL the gate."""
+        quality_gate.FAIL = 0
+        self._write(
+            "EXPLORATION.md",
+            "X compensates for Y; Z relies entirely on W.\n",
+        )
+        self._write("REQUIREMENTS.md", "### REQ-001\nno pattern\n")
+        self._run()
+        self.assertEqual(
+            quality_gate.FAIL, 0,
+            "check_compensation_asymmetry_promotion must be WARN-only",
+        )
+
+
+class TestCompensationAsymmetryPromotionWiring(FixtureBase):
+    """v1.5.7 instruction 048 (closes the instruction-047 codex
+    Task-4 finding): pin the WIRING of
+    ``check_compensation_asymmetry_promotion`` INTO ``check_repo``.
+
+    The sibling ``TestCompensationAsymmetryPromotion`` tests call the
+    check function directly, so they do NOT detect a regression that
+    disconnects the check from ``check_repo``'s registered-checks
+    sequence. This test runs the gate END-TO-END (as a subprocess via
+    FixtureBase.gate(), which goes through main() → check_repo()) over
+    a synthetic repo whose EXPLORATION.md carries compensation-pattern
+    prose and whose REQUIREMENTS.md has zero ``- Pattern:`` tags, and
+    asserts the A-5 WARN surfaces in gate output — which can only
+    happen if the check is wired into check_repo.
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160): delete the
+    ``check_compensation_asymmetry_promotion(q)`` registration line
+    from ``check_repo`` in
+    ``.github/skills/quality_gate/quality_gate.py`` (the line
+    immediately after ``check_run_metadata(q)``). Expected failure:
+    ``test_warn_surfaces_through_check_repo`` fails at
+    ``assertIn("[Asymmetry promotion (A-5)]", stdout)`` /
+    ``assertIn(... "ZERO `Pattern:`-tagged REQs" ..., stdout)``
+    because the check no longer runs in the end-to-end path.
+    Restoration: re-add the registration line → test passes. Bite
+    verified during instruction 048 development. (Clearing
+    ``__pycache__`` before the post-restore re-verify is required —
+    a stale .pyc otherwise masks the restored state.)
+    """
+
+    def _asymmetry_tree(self):
+        tree = minimal_zero_bug_tree()
+        # Keep all five required EXPLORATION.md sections (so
+        # _check_exploration_sections still passes — no unrelated
+        # FAIL) and inject compensation-asymmetry prose into one.
+        tree["quality/EXPLORATION.md"] = (
+            "# Exploration\n\n"
+            "## Open Exploration Findings\n"
+            "Modern PCI compensates for VIRTIO_F_RING_RESET; MMIO and "
+            "vDPA rely entirely on vring_transport_features().\n\n"
+            "## Quality Risks\nstub\n\n"
+            "## Pattern Applicability Matrix\nstub\n\n"
+            "## Candidate Bugs for Phase 2\nstub\n\n"
+            "## Gate Self-Check\nstub\n"
+        )
+        # minimal_zero_bug_tree's REQUIREMENTS.md already has no
+        # `- Pattern:` lines — leave it; that's the WARN trigger.
+        return tree
+
+    def test_warn_surfaces_through_check_repo(self):
+        self.write(self._asymmetry_tree())
+        stdout, code = self.gate()
+        self.assertIn(
+            "[Asymmetry promotion (A-5)]", stdout,
+            "the A-5 check section header must appear in end-to-end "
+            "gate output — proves check_compensation_asymmetry_promotion "
+            "is wired into check_repo",
+        )
+        self.assertIn(
+            "ZERO `Pattern:`-tagged REQs", stdout,
+            "the A-5 WARN must fire end-to-end (asymmetry prose + "
+            "zero Pattern: tags) — pins the check_repo wiring, not "
+            "just the function logic",
+        )
+        self.assertEqual(
+            code, 0,
+            "the A-5 check is WARN-only; the otherwise-clean baseline "
+            "tree must still exit 0 (WARN does not FAIL the gate)",
+        )
+
+    def test_no_warn_when_pattern_tagged_through_check_repo(self):
+        """Negative control through the wiring: asymmetry prose WITH a
+        Pattern:-tagged REQ must NOT emit the A-5 WARN end-to-end —
+        the A-5 check instead emits its PASS line.
+
+        Note: exit code is intentionally NOT asserted here. Adding a
+        Pattern:-tagged REQ to the minimal tree legitimately trips the
+        UNRELATED v1.5.2 cardinality gate (pattern-tagged REQs require
+        quality/compensation_grid.json), so the gate exits 1 for a
+        reason orthogonal to A-5. The WARN-only / exit-0 contract for
+        the A-5 check is pinned by test_warn_surfaces_through_check_repo
+        (clean baseline) and the direct-call
+        TestCompensationAsymmetryPromotion.test_never_increments_fail.
+        This test pins only the A-5-specific end-to-end behavior:
+        section runs, no A-5 WARN when a Pattern tag is present."""
+        tree = self._asymmetry_tree()
+        tree["quality/REQUIREMENTS.md"] = (
+            "# Requirements\n\nUC-01 Foo\nUC-02 Bar\nUC-03 Baz\n\n"
+            "### REQ-010: cross-transport parity\n"
+            "- References: virtio_mmio.c, virtio_pci_modern.c\n"
+            "- Pattern: compensation\n"
+        )
+        self.write(tree)
+        stdout, _code = self.gate()
+        self.assertIn("[Asymmetry promotion (A-5)]", stdout)
+        self.assertNotIn("ZERO `Pattern:`-tagged REQs", stdout)
+        self.assertIn(
+            "asymmetry prose present and 1 Pattern:-tagged REQ", stdout,
+            "with a Pattern:-tagged REQ the A-5 check must emit its "
+            "PASS line, not the WARN — end-to-end through check_repo",
+        )
 
 
 # --- Integration tests per check section ---
@@ -658,6 +926,677 @@ class TestTDDLogs(FixtureBase):
         self.assertIn("TDD_TRACEABILITY.md missing", stdout)
 
 
+class TestTDDNotRunWarn089m(FixtureBase):
+    """v1.5.7 089m (#326 cheap half): the gate must emit a WARN when
+    one or more TDD red/green receipts are first-line ``NOT_RUN`` —
+    but the gate still passes (NOT_RUN is an honestly-marked
+    legitimate state per ``quality/RUN_TDD_TESTS.md``; the WARN
+    surfaces the gap so adopters don't read ``GATE PASSED`` as
+    covering empirical red→green proof that didn't happen).
+
+    Surfaced by the 2026-05-21 javalin Codex/GPT-5.5 run: 0 FAIL,
+    1 WARN, ``RESULT: GATE PASSED`` with all six TDD receipts
+    marked NOT_RUN (Maven test cycle was never executed; the agent
+    correctly recorded NOT_RUN rather than fabricating). The fuller
+    verdict-qualifier ("PASSED — TDD not executed") is tracked in
+    the v1.6.x verdict-taxonomy work; this cheap fix adds the WARN.
+
+    Mutation-bite evidence (per ai_context/DEVELOPMENT_PROCESS.md):
+    delete the WARN-emission block in quality_gate.py (the
+    ``if bugs_with_not_run > 0:`` clause). Expected failure:
+    ``test_not_run_receipts_emit_warn_but_still_pass`` fails — the
+    expected WARN substring is absent from stdout. Bite executed
+    PASS → FAIL → PASS during 089m development.
+    """
+
+    @staticmethod
+    def _make_not_run_bug(tree, bug_id="BUG-001", version="1.4.4"):
+        """Apply ``add_one_bug`` then overwrite the receipts with
+        NOT_RUN first-line tags AND set the tdd-results.json
+        sidecar fields ``red_phase``/``green_phase`` to ``"not_run"``
+        so the existing sidecar-log cross-validator stays silent
+        (it FAILs only on ``"fail"``/``"pass"`` sidecar disagreement
+        with the log; any other sidecar value is treated as
+        non-asserting)."""
+        add_one_bug(tree, version=version, bug_id=bug_id)
+        tree[f"quality/results/{bug_id}.red.log"] = (
+            "NOT_RUN\nTest harness skipped (no JDK / no Maven).\n"
+        )
+        tree[f"quality/results/{bug_id}.green.log"] = (
+            "NOT_RUN\nTest harness skipped (no JDK / no Maven).\n"
+        )
+        # v1.5.7 089o: an honest NOT_RUN must be substantiated by a
+        # phase5_env.log showing the probe actually FAILED. Override
+        # add_one_bug's default success-probe with a failed probe
+        # (non-zero exit + command-not-found) so the 089m honest-
+        # skip WARN path stays at WARN (gate still PASSES) and the
+        # 089o NOT_RUN-but-runner-available escalation does NOT fire.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: mvn -version\n"
+            "zsh: command not found: mvn\n"
+            "Exit code: 127\n"
+        )
+        # Sidecar must agree that the cycle was not executed.
+        # ``verdict`` uses ``"confirmed open"`` (a canonical enum
+        # value) because the verdict-canonicality check (quality_
+        # gate.py:1549) doesn't yet have a "TDD not executed"
+        # state — the fuller verdict-qualifier work is tracked in
+        # the v1.6.x verdict-taxonomy update. "confirmed open"
+        # semantically matches: the bug is confirmed but the red→
+        # green cycle wasn't executed.
+        tree["quality/results/tdd-results.json"] = json.dumps({
+            "schema_version": "1.1",
+            "skill_version": version,
+            "date": today_iso(),
+            "project": "testproj",
+            "bugs": [
+                {
+                    "id": bug_id,
+                    "requirement": "REQ-001",
+                    "red_phase": "not_run",
+                    "green_phase": "not_run",
+                    "verdict": "confirmed open",
+                    "fix_patch_present": True,
+                    "writeup_path": f"quality/writeups/{bug_id}.md",
+                }
+            ],
+            "summary": {
+                "total": 1,
+                "verified": 0,
+                "confirmed_open": 1,
+                "red_failed": 0,
+                "green_failed": 0,
+            },
+        }, indent=2)
+        return tree
+
+    def test_not_run_receipts_emit_warn_but_still_pass(self):
+        """NOT_RUN fixture: confirmed bug whose red AND green
+        receipts have first-line ``NOT_RUN``. The gate must emit
+        the NOT_RUN WARN (count + RUN_TDD_TESTS.md pointer),
+        increment the WARN tally, and still ``RESULT: GATE PASSED``
+        with exit code 0 (NOT_RUN is honest, not a failure)."""
+        tree = minimal_zero_bug_tree()
+        self._make_not_run_bug(tree, bug_id="BUG-001")
+        self.write(tree)
+        stdout, code = self.gate()
+
+        # WARN emitted, with the required substrings.
+        self.assertIn(
+            "WARN: TDD red/green cycle not executed", stdout,
+            "089m: gate must emit the NOT_RUN WARN header",
+        )
+        self.assertIn(
+            "1 of 1 confirmed bug(s)", stdout,
+            "089m: WARN must name the count (NOT_RUN bugs / total "
+            "confirmed bugs)",
+        )
+        self.assertIn(
+            "RUN_TDD_TESTS.md", stdout,
+            "089m: WARN must point at RUN_TDD_TESTS.md as the "
+            "remediation",
+        )
+        self.assertIn(
+            "patch-applicable and reasoned, but not empirically "
+            "proven",
+            stdout,
+            "089m: WARN must explain that the bugs are reasoned "
+            "but not empirically proven",
+        )
+        # Still PASSES (NOT_RUN is honest, not FAIL).
+        self.assertIn(
+            "RESULT: GATE PASSED", stdout,
+            "089m: NOT_RUN receipts must keep the gate at PASSED — "
+            "never FAIL. The whole point is rewarding honesty while "
+            "surfacing the gap.",
+        )
+        self.assertEqual(
+            code, 0,
+            "089m: NOT_RUN receipts must keep the exit code at 0",
+        )
+        # Negative pin: the gate did NOT promote NOT_RUN to FAIL.
+        self.assertNotIn(
+            "FAIL: TDD red/green cycle not executed", stdout,
+            "089m: NOT_RUN must be WARN, never FAIL",
+        )
+
+    def test_executed_receipts_emit_no_not_run_warn(self):
+        """Executed fixture: receipts are RED/GREEN. The NOT_RUN
+        WARN must NOT fire (no false positive on executed cycles).
+        Existing RED/GREEN semantics + WARN counter behavior
+        unchanged."""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree, bug_id="BUG-001")
+        # add_one_bug already sets RED + GREEN receipts and
+        # red_phase="fail" / green_phase="pass" sidecar values.
+        self.write(tree)
+        stdout, code = self.gate()
+
+        # The NOT_RUN WARN must NOT appear.
+        self.assertNotIn(
+            "TDD red/green cycle not executed", stdout,
+            "089m: executed RED/GREEN receipts must NOT trigger "
+            "the NOT_RUN WARN. Found the WARN despite both "
+            "receipts being executed — false positive.",
+        )
+        # Existing PASS lines still present.
+        self.assertIn(
+            "PASS: All 1 confirmed bug(s) have red-phase logs",
+            stdout,
+        )
+        self.assertIn(
+            "PASS: All 1 bug(s) with fix patches have green-phase "
+            "logs",
+            stdout,
+        )
+        self.assertEqual(code, 0)
+
+    def test_no_bugs_emits_no_not_run_warn(self):
+        """Zero-bug fixture: no confirmed bugs → no receipts to
+        check → the NOT_RUN WARN must NOT fire (nothing to run)."""
+        tree = minimal_zero_bug_tree()
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotIn(
+            "TDD red/green cycle not executed", stdout,
+            "089m: zero-bug runs must NOT trigger the NOT_RUN "
+            "WARN (nothing to run; the receipt-check function "
+            "short-circuits on no bugs).",
+        )
+        self.assertEqual(code, 0)
+
+    def test_partial_not_run_red_only_emits_warn(self):
+        """Partial NOT_RUN: a bug whose RED receipt is NOT_RUN but
+        whose GREEN receipt is GREEN still counts as "TDD cycle
+        not executed" — the red→green PROOF requires both ends to
+        have run. WARN fires; gate still PASSES.
+
+        (Sidecar set to ``red_phase="not_run", green_phase="pass"``
+        so the cross-validator doesn't FAIL the GREEN side.)"""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree, bug_id="BUG-001")
+        tree["quality/results/BUG-001.red.log"] = "NOT_RUN\nskipped\n"
+        # green.log left as GREEN from add_one_bug.
+        # v1.5.7 089o: this bug has a NOT_RUN receipt, so its
+        # phase5_env.log must show a FAILED probe — otherwise the
+        # 089o NOT_RUN-but-runner-available escalation would FAIL
+        # the run. Override add_one_bug's default success-probe.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: mvn -version\n"
+            "zsh: command not found: mvn\n"
+            "Exit code: 127\n"
+        )
+        tree["quality/results/tdd-results.json"] = json.dumps({
+            "schema_version": "1.1",
+            "skill_version": "1.4.4",
+            "date": today_iso(),
+            "project": "testproj",
+            "bugs": [
+                {
+                    "id": "BUG-001",
+                    "requirement": "REQ-001",
+                    "red_phase": "not_run",
+                    "green_phase": "pass",
+                    "verdict": "confirmed open",
+                    "fix_patch_present": True,
+                    "writeup_path": "quality/writeups/BUG-001.md",
+                }
+            ],
+            "summary": {
+                "total": 1,
+                "verified": 0,
+                "confirmed_open": 0,
+                "red_failed": 0,
+                "green_failed": 0,
+            },
+        }, indent=2)
+        self.write(tree)
+        stdout, code = self.gate()
+
+        self.assertIn(
+            "WARN: TDD red/green cycle not executed", stdout,
+            "089m: a partial NOT_RUN (RED only) must still trigger "
+            "the WARN — the red→green proof requires both ends",
+        )
+        self.assertIn(
+            "1 of 1 confirmed bug(s)", stdout,
+            "089m: partial-NOT_RUN bug still counts toward the WARN",
+        )
+        self.assertEqual(code, 0)
+
+
+class TestTDDOverclaimAndProbe089o(FixtureBase):
+    """v1.5.7 089o (#329, extends #326/089m): the gate must FAIL a
+    TDD receipt that overclaims — a first-line tag of RED/GREEN
+    (which asserts the test was actually executed) over a body
+    that admits non-execution ("verified by inspection", "Maven
+    is not available", etc.). It must ALSO require a Phase 5
+    test-runner probe artifact (quality/results/phase5_env.log)
+    and FAIL a NOT_RUN run whose probe log shows the runner WAS
+    available.
+
+    Surfaced by the 2026-05-21 gson run (Claude Code, opus,
+    interactive Mode A): all 15 TDD receipts tagged RED/GREEN
+    with bodies reading "VERIFIED BY INSPECTION (sandbox cannot
+    compile gson; Maven is not available)" — yet Maven 3.9.9 was
+    installed and on PATH. 089m's NOT_RUN WARN did not fire
+    because the tags said RED/GREEN, not NOT_RUN. 089o closes
+    that loophole: the overclaim FAILs, and the probe-substantiation
+    rule attacks the assume-unavailable root cause.
+
+    Design (preserves 089m's reward-honesty): an honest NOT_RUN
+    with a phase5_env.log showing a FAILED probe still WARN-passes.
+    The FAIL targets only the dishonest combinations — RED/GREEN
+    over a by-inspection body, and NOT_RUN contradicted by an
+    available-runner probe.
+
+    Mutation-bite evidence (per ai_context/DEVELOPMENT_PROCESS.md):
+    - Remove the `if overclaim_receipts:` FAIL block in
+      quality_gate.py → test_overclaim_red_green_body_fails stops
+      FAILing (the overclaim fixture would PASS).
+    - Remove the `if probe_ok is True:` escalation branch →
+      test_not_run_but_runner_available_fails stops FAILing.
+    - Remove the `if not phase5_env_present:` FAIL →
+      test_missing_phase5_env_log_fails stops FAILing.
+    All three bites executed PASS → FAIL → PASS during 089o
+    development.
+    """
+
+    @staticmethod
+    def _make_executed_bug(tree, bug_id="BUG-001"):
+        """add_one_bug already produces a real-execution fixture:
+        RED/GREEN receipts with plain runner output (no markers)
+        and a success-probe phase5_env.log. Return it unchanged —
+        this is the legitimate baseline the overclaim FAIL must
+        NOT touch."""
+        add_one_bug(tree, bug_id=bug_id)
+        return tree
+
+    def test_overclaim_red_green_body_fails(self):
+        """A RED/GREEN receipt whose body contains a non-execution
+        marker is an overclaim → FAIL, gate FAILED. The phase5_env
+        probe shows the runner available (so the only defect is
+        the overclaim itself)."""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree, bug_id="BUG-001")
+        # Overclaim: tag says RED, body admits inspection-only.
+        tree["quality/results/BUG-001.red.log"] = (
+            "RED\n"
+            "VERIFIED BY INSPECTION (sandbox cannot compile the "
+            "project; Maven is not available).\n"
+        )
+        # phase5_env.log shows the runner WAS available — so the
+        # honest move would have been to actually run it.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: mvn -version\nApache Maven 3.9.9\nExit code: 0\n"
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "BUG-001.red.log tagged RED but body admits "
+            "non-execution", stdout,
+            "089o: a RED receipt with a by-inspection body must "
+            "FAIL as an overclaim, naming the bug + phrase.",
+        )
+        self.assertIn(
+            "TDD receipt(s) overclaim", stdout,
+            "089o: the rolled-up overclaim count must be visible",
+        )
+        self.assertIn("RESULT: GATE FAILED", stdout)
+        self.assertEqual(code, 1)
+
+    def test_overclaim_not_flagged_on_not_run_receipt(self):
+        """The SAME non-execution body under a NOT_RUN tag must NOT
+        trigger the overclaim FAIL — NOT_RUN + an honest
+        explanation is exactly correct (089m honest-skip path).
+        The run WARN-passes."""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree, bug_id="BUG-001")
+        # Same by-inspection prose, but honestly tagged NOT_RUN.
+        not_run_body = (
+            "NOT_RUN\n"
+            "Maven is not available in this environment; could "
+            "not run the regression test.\n"
+        )
+        tree["quality/results/BUG-001.red.log"] = not_run_body
+        tree["quality/results/BUG-001.green.log"] = not_run_body
+        # Honest NOT_RUN → phase5_env.log shows a FAILED probe.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: mvn -version\n"
+            "zsh: command not found: mvn\nExit code: 127\n"
+        )
+        tree["quality/results/tdd-results.json"] = json.dumps({
+            "schema_version": "1.1",
+            "skill_version": "1.4.4",
+            "date": today_iso(),
+            "project": "testproj",
+            "bugs": [{
+                "id": "BUG-001",
+                "requirement": "REQ-001",
+                "red_phase": "not_run",
+                "green_phase": "not_run",
+                "verdict": "confirmed open",
+                "fix_patch_present": True,
+                "writeup_path": "quality/writeups/BUG-001.md",
+            }],
+            "summary": {"total": 1, "verified": 0,
+                        "confirmed_open": 1, "red_failed": 0,
+                        "green_failed": 0},
+        }, indent=2)
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotIn(
+            "tagged RED but body admits", stdout,
+            "089o: NOT_RUN + a by-inspection body must NOT trigger "
+            "the overclaim FAIL — that's the honest-skip path.",
+        )
+        self.assertNotIn(
+            "tagged GREEN but body admits", stdout,
+            "089o: NOT_RUN + a by-inspection body must NOT trigger "
+            "the overclaim FAIL.",
+        )
+        self.assertIn(
+            "WARN: TDD red/green cycle not executed", stdout,
+            "089m honest-skip WARN must still fire for NOT_RUN",
+        )
+        self.assertIn("RESULT: GATE PASSED", stdout)
+        self.assertEqual(code, 0)
+
+    def test_real_execution_red_green_passes(self):
+        """A RED/GREEN run with plain real runner output (no
+        markers) + a success-probe phase5_env.log must NOT trigger
+        the overclaim FAIL — gate PASSES. This is the legitimate
+        baseline (add_one_bug's default)."""
+        tree = minimal_zero_bug_tree()
+        self._make_executed_bug(tree, bug_id="BUG-001")
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotIn(
+            "overclaim", stdout,
+            "089o: a real-execution RED/GREEN run must not be "
+            "flagged as an overclaim — false positive.",
+        )
+        self.assertNotIn(
+            "tagged RED but body admits", stdout,
+        )
+        self.assertIn("RESULT: GATE PASSED", stdout)
+        self.assertEqual(code, 0)
+
+    def test_honest_not_run_with_failed_probe_warn_passes(self):
+        """NOT_RUN receipts + a phase5_env.log showing the probe
+        FAILED (command not found, exit 127) → 089m WARN still
+        fires, gate PASSES. Honesty preserved, 089m unchanged."""
+        tree = minimal_zero_bug_tree()
+        TestTDDNotRunWarn089m._make_not_run_bug(tree, bug_id="BUG-001")
+        # _make_not_run_bug already writes a failed-probe
+        # phase5_env.log (exit 127, command not found).
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "WARN: TDD red/green cycle not executed", stdout,
+            "089o: honest NOT_RUN + failed probe must stay at "
+            "WARN (089m path unchanged).",
+        )
+        self.assertNotIn(
+            "phase5_env.log shows the test runner IS available",
+            stdout,
+            "089o: a FAILED probe must NOT trigger the NOT_RUN-but-"
+            "available escalation.",
+        )
+        self.assertIn("RESULT: GATE PASSED", stdout)
+        self.assertEqual(code, 0)
+
+    def test_not_run_but_runner_available_fails(self):
+        """NOT_RUN receipts + a phase5_env.log showing the runner
+        WAS available (clean version probe, exit 0) → FAIL. This
+        is the assume-unavailable root cause: the agent had a
+        working runner and recorded NOT_RUN anyway."""
+        tree = minimal_zero_bug_tree()
+        TestTDDNotRunWarn089m._make_not_run_bug(tree, bug_id="BUG-001")
+        # Override the failed-probe log with a SUCCESSFUL probe —
+        # the runner was available, yet receipts say NOT_RUN.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: mvn -version\n"
+            "Apache Maven 3.9.9\n"
+            "Java version: 21.0.2\n"
+            "Exit code: 0\n"
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "phase5_env.log shows the test runner IS available",
+            stdout,
+            "089o: NOT_RUN receipts contradicted by an available-"
+            "runner probe must escalate to FAIL.",
+        )
+        self.assertIn("RESULT: GATE FAILED", stdout)
+        self.assertEqual(code, 1)
+
+    def test_missing_phase5_env_log_fails(self):
+        """Confirmed bugs but no quality/results/phase5_env.log →
+        FAIL. The Phase 5 runner probe is a required artifact when
+        bugs are present.
+
+        v1.5.7 089q D3 reconciliation: the phase5_env.log
+        requirement is now version-gated — it FAILs only for a
+        run whose skill version is >= 1.5.7 (the version that
+        introduced the 089o contract). This fixture is therefore
+        pinned to version 1.5.7 (both minimal_zero_bug_tree and
+        add_one_bug) so the FAIL still fires. The <1.5.7 legacy
+        case is covered by
+        TestTDDOverclaimFixup089q.test_d3_legacy_missing_phase5_env_warns.
+        The assertion is unchanged — only the fixture version was
+        bumped to keep the test exercising a current-version run."""
+        tree = minimal_zero_bug_tree(version="1.5.7")
+        add_one_bug(tree, version="1.5.7", bug_id="BUG-001")
+        del tree["quality/results/phase5_env.log"]
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "phase5_env.log is missing", stdout,
+            "089o: a run with confirmed bugs must capture the "
+            "test-runner probe to quality/results/phase5_env.log.",
+        )
+        self.assertIn("RESULT: GATE FAILED", stdout)
+        self.assertEqual(code, 1)
+
+    def test_no_bugs_does_not_require_phase5_env_log(self):
+        """Zero-bug runs need no phase5_env.log — the probe
+        requirement is gated on bug_count > 0 (the TDD-log check
+        short-circuits earlier on zero bugs)."""
+        tree = minimal_zero_bug_tree()
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotIn(
+            "phase5_env.log is missing", stdout,
+            "089o: zero-bug runs must not require phase5_env.log.",
+        )
+        self.assertEqual(code, 0)
+
+
+class TestTDDOverclaimFixup089q(FixtureBase):
+    """v1.5.7 instruction 089q — Council fix-up of the TDD-arc
+    (089o/089p). Three coordinated gate-semantics defects:
+
+    D1 — the 089o overclaim markers `cannot compile` / `can't
+    compile` / `not available` / `no maven` / `no test runner`
+    were matched as raw substrings over the WHOLE receipt body, so
+    they FAILed a legitimately-executed RED receipt whose red-phase
+    test genuinely doesn't compile yet (the canonical RED scenario)
+    or whose runner stderr says "module X not available". 089q
+    narrows the marker list to unambiguous self-admissions AND
+    scopes the scan to the agent-authored summary region (before
+    the first runner-transcript boundary).
+
+    D2 — narrowing D1 widens false negatives (a paraphrased
+    inspection-only receipt slips past the narrowed list), so 089q
+    adds a positive-evidence requirement: when the Phase 5 probe
+    shows the runner available, a RED/GREEN receipt MUST carry an
+    affirmative execution signature (Command:/Exit code: line or
+    runner transcript) or it FAILs as an overclaim by omission.
+
+    D3 — the phase5_env.log requirement is a NEW v1.5.7 (089o)
+    artifact contract; 089q version-gates it so pre-089o
+    archived/replayed runs (which never produced it) WARN rather
+    than spuriously FAIL.
+
+    Mutation-bite evidence (per ai_context/DEVELOPMENT_PROCESS.md):
+    - Re-add `cannot compile` to _TDD_OVERCLAIM_MARKERS, or widen
+      _first_overclaim_marker to scan the whole body → the D1
+      false-positive test (collision phrase in transcript) FAILs.
+    - Remove the `if probe_ok is True:` D2 omission block → the D2
+      paraphrase test stops FAILing.
+    - Remove the `_run_predates_phase5_env_contract` version gate
+      → the D3 legacy test FAILs (a <1.5.7 run gets a hard FAIL).
+    All three bites executed PASS → FAIL → PASS during 089q
+    development.
+    """
+
+    def test_d1_false_positive_collision_phrase_in_transcript_passes(self):
+        """D1 false-positive: a legitimately-executed RED receipt
+        whose runner transcript contains `cannot compile` /
+        `not available` (the red-phase test genuinely doesn't
+        compile yet) — but whose agent-authored summary narrates
+        real execution and carries an execution signature — must
+        NOT trigger the overclaim FAIL. The collision phrases sit
+        AFTER the `--- Test output` / `Command:` boundary, so the
+        089q summary-scoped marker scan never sees them."""
+        tree = minimal_zero_bug_tree(version="1.5.7")
+        add_one_bug(tree, version="1.5.7", bug_id="BUG-001")
+        tree["quality/results/BUG-001.red.log"] = (
+            "RED\n"
+            "Ran the regression test against unpatched code; it "
+            "failed as expected (the bug reproduces).\n"
+            "--- Test output for BUG-001 red phase ---\n"
+            "Command: mvn -pl module test -Dtest=RegressionTest\n"
+            "Exit code: 1\n"
+            "[ERROR] RegressionTest.java:[12,8] cannot compile: "
+            "symbol not found\n"
+            "[ERROR] dependency module not available in this "
+            "profile\n"
+            "Tests run: 1, Failures: 1, Errors: 0\n"
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotIn(
+            "BUG-001.red.log tagged RED but body admits", stdout,
+            "089q D1: 'cannot compile' / 'not available' quoted in "
+            "the runner transcript must NOT trigger the overclaim "
+            "FAIL — the canonical red-phase scenario.",
+        )
+        self.assertNotIn(
+            "overclaim by omission", stdout,
+            "089q D2: the receipt carries Command:/Exit code:/"
+            "Tests run: signatures — it must not FAIL for missing "
+            "execution evidence.",
+        )
+        self.assertIn("RESULT: GATE PASSED", stdout)
+        self.assertEqual(code, 0)
+
+    def test_d1_still_bites_summary_admission(self):
+        """D1 still-bites: the gson-style receipt — RED tag, summary
+        narration 'VERIFIED BY INSPECTION (sandbox cannot compile
+        … Maven is not available)' — still FAILs. The retained
+        `verified by inspection` marker catches it in the summary
+        region (089o behavior preserved)."""
+        tree = minimal_zero_bug_tree(version="1.5.7")
+        add_one_bug(tree, version="1.5.7", bug_id="BUG-001")
+        tree["quality/results/BUG-001.red.log"] = (
+            "RED\n"
+            "VERIFIED BY INSPECTION (sandbox cannot compile the "
+            "project; Maven is not available).\n"
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "BUG-001.red.log tagged RED but body admits "
+            "non-execution", stdout,
+            "089q D1: a summary-region 'verified by inspection' "
+            "admission must still FAIL as an overclaim.",
+        )
+        self.assertIn("RESULT: GATE FAILED", stdout)
+        self.assertEqual(code, 1)
+
+    def test_d2_paraphrase_no_signature_fails(self):
+        """D2 paraphrase: a RED receipt with probe-available and a
+        PARAPHRASED inspection-only narration ('derived
+        analytically', no recognizable self-admission marker) and
+        NO execution signature → FAIL (overclaim by omission). D2
+        catches what the narrowed D1 marker list no longer does."""
+        tree = minimal_zero_bug_tree(version="1.5.7")
+        add_one_bug(tree, version="1.5.7", bug_id="BUG-001")
+        # add_one_bug's phase5_env.log shows a successful probe.
+        tree["quality/results/BUG-001.red.log"] = (
+            "RED\n"
+            "Derived analytically from reading the source — the "
+            "regression test would fail against unpatched code "
+            "because the off-by-one is plainly visible at line "
+            "40.\n"
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "overclaim by omission", stdout,
+            "089q D2: a RED receipt with the runner available but "
+            "no captured runner output must FAIL — a paraphrased "
+            "prediction is still an overclaim.",
+        )
+        self.assertIn("RESULT: GATE FAILED", stdout)
+        self.assertEqual(code, 1)
+
+    def test_d2_honesty_not_run_failed_probe_warns(self):
+        """D2 honesty: a NOT_RUN receipt with a FAILED probe (and
+        no execution signature) must stay at WARN / PASS. The D2
+        positive-evidence requirement applies ONLY when the probe
+        succeeded — an honest NOT_RUN is never asked to carry
+        execution evidence (089m preserved)."""
+        tree = minimal_zero_bug_tree(version="1.5.7")
+        TestTDDNotRunWarn089m._make_not_run_bug(
+            tree, bug_id="BUG-001", version="1.5.7",
+        )
+        # _make_not_run_bug writes a failed-probe phase5_env.log.
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "WARN: TDD red/green cycle not executed", stdout,
+            "089q D2: honest NOT_RUN + failed probe stays WARN.",
+        )
+        self.assertNotIn(
+            "overclaim by omission", stdout,
+            "089q D2: a NOT_RUN receipt must never be asked for an "
+            "execution signature — that requirement is RED/GREEN + "
+            "probe-available only.",
+        )
+        self.assertIn("RESULT: GATE PASSED", stdout)
+        self.assertEqual(code, 0)
+
+    def test_d3_legacy_missing_phase5_env_warns(self):
+        """D3 legacy: a pre-1.5.7 run (skill version < 1.5.7) with
+        confirmed bugs and no phase5_env.log must WARN, not FAIL —
+        the artifact contract didn't exist in that version. (The
+        >=1.5.7 FAIL direction is covered by
+        TestTDDOverclaimAndProbe089o.test_missing_phase5_env_log_fails,
+        pinned to version 1.5.7.)"""
+        tree = minimal_zero_bug_tree(version="1.4.4")
+        add_one_bug(tree, version="1.4.4", bug_id="BUG-001")
+        del tree["quality/results/phase5_env.log"]
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertIn(
+            "phase5_env.log absent", stdout,
+            "089q D3: a <1.5.7 run missing phase5_env.log must be "
+            "noted as a legacy WARN.",
+        )
+        self.assertNotIn(
+            "phase5_env.log is missing", stdout,
+            "089q D3: a <1.5.7 run must NOT hit the hard-FAIL "
+            "phrase — the contract is version-gated.",
+        )
+        # Legacy WARN only — no substantive FAIL from this path.
+        self.assertNotIn("RESULT: GATE FAILED", stdout)
+        self.assertEqual(code, 0)
+
+
 class TestIntegrationSidecar(FixtureBase):
     def test_absent_benchmark_warns(self):
         tree = minimal_zero_bug_tree()
@@ -890,31 +1829,142 @@ class TestMechanicalVerification(FixtureBase):
         stdout, _ = self.gate()
         self.assertIn("INFO: No mechanical/ directory", stdout)
 
-    def test_dir_without_verify_sh_fails(self):
+    def test_dir_without_verifier_fails(self):
+        # v1.5.7 instruction 080b (F1): W4 makes verify.py the
+        # canonical verifier; an empty mechanical/ (no verify.py,
+        # no verify.sh, no *_cases.txt) now fails naming verify.py.
         tree = minimal_zero_bug_tree()
         tree["quality/mechanical/placeholder"] = ""
         self.write(tree)
         stdout, _ = self.gate()
-        self.assertIn("mechanical/ exists but verify.sh missing", stdout)
+        self.assertIn("mechanical/ exists but verify.py missing", stdout)
 
-    def test_verify_sh_with_exit_0_passes(self):
+    def test_cases_txt_without_verifier_fails_with_sharpened_message(self):
+        # 080c (F1): *_cases.txt present but no verifier → the exact
+        # required message (instruction-080c Task 1 step 3).
         tree = minimal_zero_bug_tree()
-        tree["quality/mechanical/verify.sh"] = "#!/bin/bash\n"
+        tree["quality/mechanical/foo_cases.txt"] = "case 1:\n"
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn(
+            "verify.py or verify.sh expected but neither found; "
+            "cases.txt files exist, so mechanical verification is "
+            "required for this project.", stdout)
+
+    def test_verify_py_invoked_exit0_passes(self):
+        # 080c (F1): the gate ACTUALLY runs verify.py (real script,
+        # exit 0) — not a presence-only check.
+        tree = minimal_zero_bug_tree()
+        tree["quality/mechanical/verify.py"] = (
+            "import sys\nprint('Mechanical verification OK')\n"
+            "sys.exit(0)\n")
+        tree["quality/results/mechanical-verify.log"] = "Mechanical verification OK\n"
+        tree["quality/results/mechanical-verify.exit"] = "0\n"
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("PASS: verify.py exists", stdout)
+        self.assertIn("PASS: verify.py ran clean (exit 0)", stdout)
+        self.assertIn("PASS: mechanical-verify.exit is 0", stdout)
+
+    def test_verify_py_invoked_exit1_fails_with_diff_surfaced(self):
+        """The gate runs verify.py; a non-zero exit FAILs the gate
+        and the verifier's stdout (the diff) is surfaced.
+
+        Mutation-test evidence (in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160), instruction-080c —
+        BITE EXECUTED during instruction-080c development:
+          Mutation: revert quality_gate.py:check_mechanical to the
+          080b presence-only form (delete the subprocess.run block;
+          keep only the verify.py/verify.sh .is_file() pass_).
+          Observed (purged __pycache__ first): this test FAILED —
+          'verify.py FAILED (exit 1)' absent from gate stdout (a
+          presence-only check never runs verify.py, so a forged
+          exit-1 verifier is not caught — the exact 080b-F1 gap).
+          Restoration: subprocess.run invocation block restored;
+          gate surfaces 'verify.py FAILED (exit 1)' + the diff;
+          test PASS again (PASS→FAIL→PASS).
+        """
+        tree = minimal_zero_bug_tree()
+        tree["quality/mechanical/verify.py"] = (
+            "import sys\n"
+            "print('FAIL: quality/mechanical/foo_cases.txt mismatch')\n"
+            "print('--- saved'); print('+++ fresh')\n"
+            "print('+  case HALLUCINATED:')\n"
+            "print('Mechanical verification FAILED')\n"
+            "sys.exit(1)\n")
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("verify.py FAILED (exit 1)", stdout)
+        self.assertIn("case HALLUCINATED", stdout)  # diff surfaced
+
+    def test_verify_py_preferred_over_sh_when_both_present(self):
+        # Both present → verify.py is RUN, verify.sh is not.
+        tree = minimal_zero_bug_tree()
+        tree["quality/mechanical/verify.py"] = (
+            "import sys\nprint('py-ran')\nsys.exit(0)\n")
+        tree["quality/mechanical/verify.sh"] = "#!/bin/bash\nexit 1\n"
         tree["quality/results/mechanical-verify.log"] = "output\n"
         tree["quality/results/mechanical-verify.exit"] = "0\n"
         self.write(tree)
         stdout, _ = self.gate()
-        self.assertIn("PASS: verify.sh exists", stdout)
+        self.assertIn("PASS: verify.py ran clean (exit 0)", stdout)
+        self.assertNotIn("verify.sh exists (pre-W4 back-compat)", stdout)
+        self.assertNotIn("verify.sh FAILED", stdout)
+
+    def test_verify_sh_backcompat_invoked_exit0(self):
+        tree = minimal_zero_bug_tree()
+        tree["quality/mechanical/verify.sh"] = "#!/bin/bash\nexit 0\n"
+        tree["quality/results/mechanical-verify.log"] = "output\n"
+        tree["quality/results/mechanical-verify.exit"] = "0\n"
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("PASS: verify.sh exists (pre-W4 back-compat)", stdout)
+        self.assertIn("PASS: verify.sh ran clean (exit 0)", stdout)
         self.assertIn("PASS: mechanical-verify.exit is 0", stdout)
 
-    def test_verify_sh_with_exit_nonzero_fails(self):
+    def test_verify_sh_backcompat_invoked_exit1_fails(self):
         tree = minimal_zero_bug_tree()
-        tree["quality/mechanical/verify.sh"] = "#!/bin/bash\n"
+        tree["quality/mechanical/verify.sh"] = (
+            "#!/bin/bash\necho 'sh-mismatch'\nexit 1\n")
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("verify.sh FAILED (exit 1)", stdout)
+        self.assertIn("sh-mismatch", stdout)
+
+    def test_receipt_exit_nonzero_still_fails(self):
+        # The receipt cross-check is retained: even when the live
+        # verify.sh exits 0, a receipt exit≠0 still FAILs (the agent
+        # must have verified at the Phase-2a gate / Phase 6).
+        tree = minimal_zero_bug_tree()
+        tree["quality/mechanical/verify.sh"] = "#!/bin/bash\nexit 0\n"
         tree["quality/results/mechanical-verify.log"] = "output\n"
         tree["quality/results/mechanical-verify.exit"] = "1\n"
         self.write(tree)
         stdout, _ = self.gate()
         self.assertIn("mechanical-verify.exit is '1', expected 0", stdout)
+
+    def test_check_mechanical_invokes_with_correct_argv_and_cwd(self):
+        """In-process: assert check_mechanical calls subprocess.run
+        with [sys.executable, 'quality/mechanical/verify.py'] and
+        cwd = the target repo root (q.parent) — the exact invocation
+        contract codex-080b-F1 required."""
+        import contextlib
+        import io
+        from unittest import mock
+        tree = minimal_zero_bug_tree()
+        tree["quality/mechanical/verify.py"] = "import sys\nsys.exit(0)\n"
+        self.write(tree)
+        q = self.repo / "quality"
+        fake = mock.Mock(returncode=0, stdout="", stderr="")
+        with mock.patch("quality_gate.subprocess.run",
+                        return_value=fake) as m:
+            with contextlib.redirect_stdout(io.StringIO()):
+                quality_gate.check_mechanical(q)
+        self.assertTrue(m.called, "check_mechanical never invoked subprocess.run")
+        call = m.call_args
+        self.assertEqual(call.args[0],
+                         [sys.executable, "quality/mechanical/verify.py"])
+        self.assertEqual(str(call.kwargs.get("cwd")), str(q.parent))
 
 
 class TestPatches(FixtureBase):
@@ -1143,6 +2193,401 @@ class TestWriteups(FixtureBase):
         )
         self.assertIn(
             "PASS: No writeups contain unfilled template sentinels", stdout
+        )
+
+
+class TestVerdictShape(FixtureBase):
+    """v1.5.7 Fix 8 (instruction 031): check_verdict_shape enforces
+    the canonical `## Verdict\\n\\nPASS|FAIL` shape in
+    COMPLETENESS_REPORT.md. Model-comparison evidence showed verdict
+    prose varying wildly across models — strict shape gives the gate
+    something concrete to enforce."""
+
+    def test_canonical_pass_verdict_passes(self):
+        """## Verdict / PASS — the canonical shape passes."""
+        tree = minimal_zero_bug_tree()
+        # Already PASS in the fixture default.
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn(
+            "PASS: COMPLETENESS_REPORT.md verdict shape canonical (PASS)",
+            stdout,
+        )
+
+    def test_canonical_fail_verdict_passes_shape_check(self):
+        """## Verdict / FAIL — shape is canonical even though the
+        verdict outcome is FAIL. The gate is checking shape, not
+        outcome."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "FAIL\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn(
+            "PASS: COMPLETENESS_REPORT.md verdict shape canonical (FAIL)",
+            stdout,
+        )
+
+    def test_status_heading_instead_of_verdict_fails(self):
+        """`## Status` instead of `## Verdict` → FAIL on missing
+        canonical heading."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Status\n\n"
+            "PASSED\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("missing the canonical `## Verdict` heading", stdout)
+
+    def test_passed_instead_of_PASS_fails(self):
+        """`Passed` (mixed case) instead of `PASS` → FAIL on
+        non-canonical verdict value."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "Passed\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("verdict line is 'Passed'", stdout)
+        self.assertIn("must be exactly `PASS` or `FAIL`", stdout)
+
+    def test_placeholder_phrase_fails(self):
+        """Stub-phrase detection: `verdict is rendered after Phase 6`
+        → FAIL with placeholder diagnostic."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "verdict is rendered after Phase 6 (TDD verification) "
+            "based on the receipts in...\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("placeholder stub", stdout)
+
+    def test_missing_completeness_report_fails(self):
+        """COMPLETENESS_REPORT.md missing entirely → FAIL."""
+        tree = minimal_zero_bug_tree()
+        del tree["quality/COMPLETENESS_REPORT.md"]
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("quality/COMPLETENESS_REPORT.md", stdout)
+        self.assertIn("missing", stdout)
+
+    def test_no_verdict_heading_at_all_fails(self):
+        """COMPLETENESS_REPORT.md exists but has no `## Verdict`
+        heading at all → FAIL on missing heading."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "Lots of prose but no verdict block.\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("missing the canonical `## Verdict` heading", stdout)
+
+    def test_duplicate_verdict_heading_fails(self):
+        """v1.5.7 instruction 032 NCF-1/NCF-2: TWO `## Verdict`
+        headings → FAIL. Pre-NCF-1 hardening, the gate validated only
+        the FIRST `## Verdict` it found, so a stale earlier block
+        could silently contradict a later one. NCF-2 specifically
+        names the duplicate-heading bite test as the regression pin
+        for that branch — this is that test."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "PASS\n\n"
+            "## Verdict\n\n"
+            "FAIL\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("2 `## Verdict` headings", stdout)
+        self.assertIn("duplicate headings can silently disagree", stdout)
+
+    def test_non_terminal_verdict_heading_fails(self):
+        """v1.5.7 instruction 032 NCF-1: `## Verdict` followed by
+        another `## ` heading (e.g., `## Postmortem`) → FAIL on
+        non-terminal position. The verdict block must be the last
+        section so an operator can grep the file's tail."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "PASS\n\n"
+            "## Postmortem\n\n"
+            "Trailing notes.\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("`## Verdict` is not the last level-2 heading", stdout)
+        self.assertIn("Postmortem", stdout)
+
+    def test_empty_body_after_verdict_heading_fails(self):
+        """v1.5.7 instruction 032 NCF-5: `## Verdict` with NO body
+        (heading present, file ends or next content is blank) → FAIL.
+        Pre-NCF-5 this branch was implemented but had no bite-test."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            # No verdict value follows — file ends here.
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("no verdict value follows", stdout)
+
+    def test_PASSED_uppercase_variant_fails(self):
+        """v1.5.7 instruction 032 NCF-8: `PASSED` (all-caps with
+        trailing D) → FAIL. The canonical verdict value is exactly
+        `PASS` or `FAIL` — `PASSED` is a near-miss the gate must
+        catch. Pre-NCF-8 test, the `PASSED` case relied on the
+        same code path as `Passed` (NCF test_passed_instead_of_PASS
+        _fails) but had no dedicated bite-test."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "PASSED\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("verdict line is 'PASSED'", stdout)
+        self.assertIn("must be exactly `PASS` or `FAIL`", stdout)
+
+    def test_markdown_emphasis_PASS_fails(self):
+        """v1.5.7 instruction 032 NCF-10: `**PASS**` (markdown
+        emphasis around PASS) → FAIL. The canonical value is the
+        BARE token `PASS` — the prompt explicitly forbids markdown
+        emphasis around it (phase_prompts/phase5.md). Pre-NCF-10,
+        the case-sensitive equality check at quality_gate.py:694
+        already rejected `**PASS**` but no bite-test pinned it."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/COMPLETENESS_REPORT.md"] = (
+            "# Completeness\n\n"
+            "## Verdict\n\n"
+            "**PASS**\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[Verdict Shape]", stdout)
+        self.assertIn("verdict line is '**PASS**'", stdout)
+        self.assertIn("must be exactly `PASS` or `FAIL`", stdout)
+
+
+class TestBugsMdPatchesConsistency(FixtureBase):
+    """v1.5.7 Fix 7 (instruction 031): check_bugs_md_patches_consistency
+    catches the model-comparison failure mode where Phase 3 finalization
+    produces patches without updating BUGS.md (claude-haiku-4.5/zod: 14
+    patches / 0 bugs; gpt-5.4-mini/axum: 6/0; etc.)."""
+
+    def test_one_bug_with_fix_and_regression_patches_passes(self):
+        """Canonical happy path: 1 bug, 2 patches (fix + regression).
+        Should pass consistency check."""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree)
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        self.assertIn(
+            "PASS: BUGS.md (1 bug(s)) and patches/ (2 patch(es)) are consistent",
+            stdout,
+        )
+
+    def test_patches_without_bugs_fails(self):
+        """The model-comparison failure mode: BUGS.md has zero entries
+        but quality/patches/ contains patches. Hard fail."""
+        tree = minimal_zero_bug_tree()
+        # BUGS.md stays zero-bug (the default from minimal_zero_bug_tree),
+        # but patches exist as if a bug had been processed.
+        tree["quality/patches/BUG-001-fix.patch"] = "--- a/f\n+++ b/f\n"
+        tree["quality/patches/BUG-001-regression-test.patch"] = (
+            "--- /dev/null\n+++ b/test\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        self.assertIn("quality/BUGS.md", stdout)
+        self.assertIn("lists 0 bug entries", stdout)
+        self.assertIn("2 patch file(s)", stdout)
+
+    def test_fix_only_no_regression_passes(self):
+        """Edge case allowed by the tolerance window: 3 bugs with only
+        fix patches (no regression-test patches). Should still pass
+        consistency because the regression-test gate is separate."""
+        tree = minimal_zero_bug_tree()
+        # 3 bug headings in BUGS.md.
+        tree["quality/BUGS.md"] = (
+            "# Bugs\n\n"
+            "### BUG-001: first\n\n"
+            "body\n\n"
+            "### BUG-002: second\n\n"
+            "body\n\n"
+            "### BUG-003: third\n\n"
+            "body\n"
+        )
+        # 3 fix patches only.
+        tree["quality/patches/BUG-001-fix.patch"] = "--- a/f\n+++ b/f\n"
+        tree["quality/patches/BUG-002-fix.patch"] = "--- a/f\n+++ b/f\n"
+        tree["quality/patches/BUG-003-fix.patch"] = "--- a/f\n+++ b/f\n"
+        # Other gates will complain about missing regression patches +
+        # missing writeups + missing red/green logs, but the
+        # consistency check itself should pass.
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        self.assertIn(
+            "PASS: BUGS.md (3 bug(s)) and patches/ (3 patch(es)) are consistent",
+            stdout,
+        )
+
+    def test_orphan_patch_id_fails(self):
+        """If BUGS.md has BUG-001 but patches/ has BUG-007-fix.patch,
+        the orphan patch ID must be named in the diagnostic."""
+        tree = minimal_zero_bug_tree()
+        # BUGS.md lists BUG-001 only.
+        tree["quality/BUGS.md"] = (
+            "# Bugs\n\n"
+            "### BUG-001: first\n\n"
+            "body\n"
+        )
+        # patches/ has BUG-001 fix + an orphan BUG-007 fix.
+        tree["quality/patches/BUG-001-fix.patch"] = "--- a/f\n+++ b/f\n"
+        tree["quality/patches/BUG-007-fix.patch"] = "--- a/f\n+++ b/f\n"
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        self.assertIn("missing entries for patch IDs", stdout)
+        self.assertIn("BUG-007", stdout)
+
+    def test_hybrid_named_patch_not_double_counted(self):
+        """v1.5.7 instruction 032 NCF-4: a patch file whose name
+        matches BOTH `*-fix*.patch` AND `*-regression-test*.patch`
+        (e.g., `BUG-001-regression-test-fix.patch`) must be counted
+        ONCE, not twice. Pre-NCF-4 the two globs were summed via
+        len(a) + len(b), double-counting hybrid-named files."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/BUGS.md"] = (
+            "# Bugs\n\n"
+            "### BUG-001: first\n\n"
+            "body\n"
+        )
+        # File name contains both "-fix" and "-regression-test".
+        tree["quality/patches/BUG-001-regression-test-fix.patch"] = (
+            "--- a/f\n+++ b/f\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        # The diagnostic message should say "1 patch(es)", not "2".
+        self.assertIn(
+            "BUGS.md (1 bug(s)) and patches/ (1 patch(es)) are consistent",
+            stdout,
+            "hybrid-named patch file should be counted once via set "
+            "union, not double-counted by summing both glob lengths. "
+            f"Stdout: {stdout!r}",
+        )
+
+    def test_split_patch_workflow_passes(self):
+        """v1.5.7 instruction 032 NCF-7: dropped the
+        `patches_count <= bug_count * 2` upper bound. Legitimate
+        split-patch workflows (one bug fixed across multiple files)
+        produce more than 2 patches per bug. Construct a fixture
+        with 1 bug and 4 patches (3 fix + 1 regression test) — pre-
+        NCF-7 this failed with 'contains 4 patches but BUGS.md lists
+        only 1 bug(s)'; post-NCF-7 it passes the consistency
+        check (other gates may still complain about specifics)."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/BUGS.md"] = (
+            "# Bugs\n\n"
+            "### BUG-001: complex multi-file fix\n\n"
+            "body\n"
+        )
+        # 3 fix patches for the same bug (multi-file split workflow)
+        # + 1 regression-test patch.
+        tree["quality/patches/BUG-001-fix-server.patch"] = (
+            "--- a/server\n+++ b/server\n"
+        )
+        tree["quality/patches/BUG-001-fix-client.patch"] = (
+            "--- a/client\n+++ b/client\n"
+        )
+        tree["quality/patches/BUG-001-fix-shared.patch"] = (
+            "--- a/shared\n+++ b/shared\n"
+        )
+        tree["quality/patches/BUG-001-regression-test.patch"] = (
+            "--- /dev/null\n+++ b/test\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        # The consistency check itself passes (other gates may still
+        # complain about red/green logs, writeups, etc. — those
+        # aren't the concern of this NCF-7 test).
+        self.assertIn(
+            "BUGS.md (1 bug(s)) and patches/ (4 patch(es)) are consistent",
+            stdout,
+            "post-NCF-7: split-patch workflow with 4 patches for 1 "
+            "bug must pass the consistency check (upper bound "
+            "dropped). Stdout: " + repr(stdout),
+        )
+
+    def test_malformed_patch_filename_excluded_and_warned(self):
+        """v1.5.7 instruction 033 Halt-5: a patch file matching the
+        glob but not the canonical `BUG-NNN` naming convention (e.g.,
+        `misc-cleanup-fix.patch`) is excluded from the count and
+        surfaced as a WARN, not silently accepted. Pre-Halt-5 the
+        malformed name was counted toward `patches_count` but skipped
+        by the orphan-ID regex, so it could pass-through alongside
+        proper BUG-NNN entries. Post-Halt-5 the filter promotes the
+        situation to a visible WARN."""
+        tree = minimal_zero_bug_tree()
+        tree["quality/BUGS.md"] = (
+            "# Bugs\n\n"
+            "### BUG-001: real bug\n\n"
+            "body\n"
+        )
+        # One proper BUG-NNN patch + one malformed-name patch matching
+        # the glob.
+        tree["quality/patches/BUG-001-fix.patch"] = "--- a/f\n+++ b/f\n"
+        tree["quality/patches/misc-cleanup-fix.patch"] = (
+            "--- a/m\n+++ b/m\n"
+        )
+        self.write(tree)
+        stdout, _ = self.gate()
+        self.assertIn("[BUGS.md / patches consistency]", stdout)
+        # WARN names the malformed file by name.
+        self.assertIn("misc-cleanup-fix.patch", stdout)
+        self.assertIn(
+            "not the canonical BUG-NNN naming convention", stdout,
+            "malformed-patch WARN message missing or wrong; got: "
+            + repr(stdout),
+        )
+        # Consistency check still runs on the well-named patch only:
+        # 1 bug + 1 well-formed fix patch.
+        self.assertIn(
+            "BUGS.md (1 bug(s)) and patches/ (1 patch(es)) are consistent",
+            stdout,
+            "malformed file should be excluded from the patches_count; "
+            "BUG-001 should still consistency-check cleanly. Stdout: "
+            + repr(stdout),
         )
 
 
@@ -1678,6 +3123,49 @@ class TestV150BugsManifest(V150FixtureBase):
         self.assertGreaterEqual(fails, 1)
         self.assertIn("disposition_rationale", out)
 
+    def test_lowercase_severity_warns_not_fails(self):
+        """v1.5.7 fix Q3 bite: BUG records with non-canonical-case
+        severity ('high', 'Medium', 'low') trigger a WARN, not a
+        FAIL. The canonical case per schemas.md §3.3 is uppercase
+        (HIGH/MEDIUM/LOW). The gate auto-normalizes for downstream
+        checks but surfaces the raw drift as WARN so adopters fix
+        the records at the source."""
+        self.write_manifest(
+            "bugs_manifest.json",
+            "records",
+            [
+                {
+                    "id": "BUG-005",
+                    "severity": "medium",  # non-canonical
+                    "disposition": "code-fix",
+                    "fix_type": "code",
+                    "disposition_rationale": "demonstrates Q3 WARN path",
+                },
+                {
+                    "id": "BUG-006",
+                    "severity": "HIGH",  # canonical (no WARN expected)
+                    "disposition": "code-fix",
+                    "fix_type": "code",
+                    "disposition_rationale": "canonical reference",
+                },
+            ],
+        )
+        fails, out = _capture_fail_output(quality_gate.check_v1_5_0_bugs_manifest, self.q)
+        # Non-canonical case must NOT fail the gate (Q3 decision: WARN, not FAIL).
+        self.assertEqual(
+            fails, 0,
+            f"non-canonical severity case must produce WARN, not FAIL; "
+            f"got fails={fails}; output: {out!r}",
+        )
+        # WARN message must name the offending bug ID + its raw value.
+        self.assertIn("non-canonical severity case", out)
+        self.assertIn("BUG-005", out)
+        self.assertIn("'medium'", out)
+        # The canonical record (BUG-006) must NOT appear in the drift list.
+        # The drift report uses `BUG-xxx='value'` form; BUG-006 should
+        # be absent from that pattern.
+        self.assertNotIn("BUG-006='HIGH'", out)
+
 
 class TestV150IndexMd(V150FixtureBase):
     def _valid_index(self):
@@ -1741,6 +3229,82 @@ class TestV150IndexMd(V150FixtureBase):
         (self.q / "INDEX.md").write_text(self._valid_index(), encoding="utf-8")
         fails, _ = _capture_fail_output(quality_gate.check_v1_5_0_index_md, self.q)
         self.assertEqual(fails, 0)
+
+    # ----- v1.5.7 089e (BUG-011) ---------------------------------
+    # Pre-089e the gate's `if isinstance(summary, dict)` guard
+    # silently skipped the required-keys loop when summary was
+    # anything other than a JSON object, and the trailing
+    # `pass_("§11 fields present")` fired anyway — soft-passing
+    # `summary: "pending"` / `summary: null` / `summary: []`
+    # against schemas.md:1128 (`summary | object | yes`). The
+    # validator (bin/validate_phase_artifacts._validate_index)
+    # already FAILed these — opposite enforcement. The 089e fix
+    # tightens the gate to match. These tests pin each non-dict
+    # shape; the dict path is covered by `test_valid_index_passes`
+    # above.
+
+    def _index_with_summary(self, summary_value):
+        """Build a §11 INDEX.md payload but override `summary` to
+        the given value (used to cover the 4 non-dict shapes)."""
+        payload = json.loads(
+            self._valid_index().split("```json\n")[1].split("\n```")[0]
+        )
+        payload["summary"] = summary_value
+        return (
+            "# Run Index\n\n```json\n"
+            + json.dumps(payload)
+            + "\n```\n"
+        )
+
+    def test_non_dict_summary_string_fails(self):
+        """BUG-011: gate must FAIL when `summary` is a string.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089e BUG-011:
+          Mutation: revert the new `if not isinstance(summary,
+          dict): fail(...); return` block in
+          quality_gate.check_v1_5_0_index_md to the pre-089e
+          `if isinstance(summary, dict): ...` (positive guard).
+          Expected failure: THIS test fails — gate soft-passes
+          `summary: "pending"` (`fails == 0` rather than ≥1).
+          Restoration: re-add the negative-guard FAIL; passes.
+          Bite executed during 089e development; PASS→FAIL→PASS
+          confirmed (__pycache__ purged between mutate and restore).
+        """
+        (self.q / "INDEX.md").write_text(
+            self._index_with_summary("pending"), encoding="utf-8",
+        )
+        fails, out = _capture_fail_output(
+            quality_gate.check_v1_5_0_index_md, self.q,
+        )
+        self.assertGreaterEqual(fails, 1)
+        self.assertIn("'summary' must be a JSON object", out)
+        self.assertIn("'str'", out)  # type name in FAIL message
+        self.assertIn("schemas.md:1128", out)
+
+    def test_non_dict_summary_null_fails(self):
+        """BUG-011: gate must FAIL when `summary` is null."""
+        (self.q / "INDEX.md").write_text(
+            self._index_with_summary(None), encoding="utf-8",
+        )
+        fails, out = _capture_fail_output(
+            quality_gate.check_v1_5_0_index_md, self.q,
+        )
+        self.assertGreaterEqual(fails, 1)
+        self.assertIn("'summary' must be a JSON object", out)
+        self.assertIn("'NoneType'", out)
+
+    def test_non_dict_summary_list_fails(self):
+        """BUG-011: gate must FAIL when `summary` is a list."""
+        (self.q / "INDEX.md").write_text(
+            self._index_with_summary([]), encoding="utf-8",
+        )
+        fails, out = _capture_fail_output(
+            quality_gate.check_v1_5_0_index_md, self.q,
+        )
+        self.assertGreaterEqual(fails, 1)
+        self.assertIn("'summary' must be a JSON object", out)
+        self.assertIn("'list'", out)
 
 
 class TestV150IndexMdSchemaRouting(V150FixtureBase):
@@ -3018,6 +4582,38 @@ class TestCheckReferenceFileReqCoverage(_Phase4FixtureBase):
         self.assertEqual(fails, 0)
         self.assertIn("skip", out)
 
+    def test_missing_pass_c_diagnostic_distinguishes_pass_c_from_phase_3(self):
+        """v1.5.7 fix Q4: when `phase3/pass_c_formal.jsonl` is missing,
+        the diagnostic must say "skill-derivation Pass C not run yet"
+        (precise) and NOT just "Phase 3 not run yet" (ambiguous —
+        could mean the playbook's Phase 3 Code Review). The on-disk
+        directory is named `phase3/` for historical v1.5.3
+        compatibility; the canonical name in current prose is
+        skill-derivation Pass C."""
+        self._write_project_type("Skill")
+        self._make_references({"a.md": "# A\n"})
+        # Deliberately do NOT write pass_c_formal.jsonl — that's the
+        # condition we're testing.
+        fails, out = _capture_fail_output(
+            quality_gate.check_reference_file_req_coverage, self.repo, self.q
+        )
+        self.assertEqual(fails, 0)
+        # Diagnostic must name skill-derivation Pass C explicitly.
+        self.assertIn(
+            "skill-derivation Pass C not run yet", out,
+            f"Q4 diagnostic must distinguish skill-derivation Pass C "
+            f"from playbook Phase 3 Code Review. Got: {out!r}",
+        )
+        # Must NOT conflate by saying just "Phase 3 not run yet"
+        # without the skill-derivation qualifier. The new diagnostic
+        # explicitly contrasts the two so an operator looking at the
+        # output can tell which artifact is missing.
+        self.assertIn(
+            "not the playbook's Phase 3 Code Review", out,
+            "Q4 diagnostic must explicitly contrast skill-derivation "
+            "Pass C with playbook Phase 3 Code Review",
+        )
+
 
 class TestCheckHybridCrossCuttingReqs(_Phase4FixtureBase):
     """Phase 4 Part C check_hybrid_cross_cutting_reqs."""
@@ -3205,6 +4801,93 @@ class TestV156SelfConsistencyGitkeep(V150FixtureBase):
         self.assertIn("unsupported extension", out)
 
 
+class TestPhase4ProjectTypeArtifactShapeFallback(unittest.TestCase):
+    """v1.5.7 fix Q1/Q5 (option c): when the Phase-1 role map is
+    absent, `_phase4_project_type` falls back to artifact-shape
+    detection. Returns 'Code' when both skill-indicator paths are
+    absent (no root SKILL.md, no references/ directory); returns
+    None otherwise so the gate emits an honest "role map not yet
+    produced" SKIP rather than guessing Skill/Hybrid."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.repo = Path(self._tmp.name)
+        self.q = self.repo / "quality"
+        self.q.mkdir()
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def test_code_fixture_no_role_map_returns_code(self):
+        """Code project: no SKILL.md, no references/, role map absent.
+        Pre-fix this returned None and Phase 4 checks emitted
+        confusing "project_type=None" SKIP lines. Post-Q1/Q5 the
+        artifact-shape fallback returns 'Code' and the SKIP message
+        clearly says "not applicable for Code projects"."""
+        # Source files only — the realistic Code-project shape.
+        (self.repo / "src").mkdir()
+        (self.repo / "src" / "main.py").write_text("print('hi')\n", encoding="utf-8")
+        result = quality_gate._phase4_project_type(self.q)
+        self.assertEqual(
+            result, "Code",
+            "Code-shaped repo (no SKILL.md, no references/) with no role "
+            "map must derive 'Code' via artifact-shape fallback "
+            "(v1.5.7 Q1/Q5 option c)",
+        )
+
+    def test_hybrid_fixture_with_role_map_returns_hybrid(self):
+        """Hybrid project: SKILL.md + source files, role map present.
+        Role map takes precedence over artifact-shape fallback."""
+        (self.repo / "SKILL.md").write_text(
+            "---\nname: quality-playbook\n---\n", encoding="utf-8",
+        )
+        (self.repo / "src").mkdir()
+        (self.repo / "src" / "main.py").write_text("ok\n", encoding="utf-8")
+        # Role map with both skill-prose and code roles.
+        (self.q / "exploration_role_map.json").write_text(
+            json.dumps({
+                "files": [
+                    {"path": "SKILL.md", "role": "skill-prose"},
+                    {"path": "src/main.py", "role": "code"},
+                ],
+            }),
+            encoding="utf-8",
+        )
+        result = quality_gate._phase4_project_type(self.q)
+        self.assertEqual(result, "Hybrid")
+
+    def test_skill_fixture_with_role_map_returns_skill(self):
+        """Skill project: SKILL.md + references/, no code, role map
+        with skill-prose only."""
+        (self.repo / "SKILL.md").write_text(
+            "---\nname: quality-playbook\n---\n", encoding="utf-8",
+        )
+        (self.repo / "references").mkdir()
+        (self.q / "exploration_role_map.json").write_text(
+            json.dumps({
+                "files": [
+                    {"path": "SKILL.md", "role": "skill-prose"},
+                ],
+            }),
+            encoding="utf-8",
+        )
+        result = quality_gate._phase4_project_type(self.q)
+        self.assertEqual(result, "Skill")
+
+    def test_ambiguous_no_role_map_with_skill_md_returns_none(self):
+        """Ambiguous shape: SKILL.md present but no role map. The
+        artifact-shape fallback returns None (not 'Skill' — that
+        would be guessing); the gate then emits a "role map absent"
+        SKIP rather than a "Code project not applicable" one."""
+        (self.repo / "SKILL.md").write_text("---\nfoo: bar\n---\n", encoding="utf-8")
+        result = quality_gate._phase4_project_type(self.q)
+        self.assertIsNone(
+            result,
+            "with SKILL.md present and no role map, the fallback must "
+            "be conservative (return None, not guess Skill)",
+        )
+
+
 class TestV156SelfConsistencyDocsDerived(V150FixtureBase):
 
     def test_docs_derived_in_allowlist(self):
@@ -3247,6 +4930,650 @@ class TestV156SelfConsistencyDocsDerived(V150FixtureBase):
             f"output: {out}",
         )
         self.assertIn("source_type validation complete", out)
+
+
+class TestTDDNoInTreeFixWarn090g(FixtureBase):
+    """v1.5.7 090g (Mode-A TDD gate-collision fix): a green NOT_RUN
+    receipt whose body documents a legitimate no-in-tree-fix reason
+    (e.g. an upgrade-only CVE — "remediation is upstream upgrade
+    to v1.5.9+") must emit WARN, NOT FAIL, even when the test
+    runner is available. The red phase must still run empirically
+    (a real RED log) — only the green NOT_RUN gets the marker-
+    based WARN downgrade.
+
+    Pre-090g: any green NOT_RUN with probe_ok=True → FAIL (089o).
+    Post-090g: green NOT_RUN + no-in-tree-fix marker + probe_ok=
+    True → WARN (the green cycle legitimately can't run because
+    there's nothing in-tree to apply). The 089o FAIL for green
+    NOT_RUN WITHOUT the marker is preserved.
+
+    Surfaced by the 2026-05-23 OpenFGA Mode-A dogfood: BUG-009
+    ("upgrade to v1.5.9+") had a legitimate no-in-tree fix, but
+    the gate FAILed it as if it were a dishonest skip — penalizing
+    the agent for honestly admitting "this isn't an in-tree fix
+    you can apply." 090g recognizes the documented case and
+    downgrades to WARN.
+
+    Three tests cover the three branches:
+    - PASS via documented marker → WARN gate
+    - FAIL via no marker + runner available → FAIL gate
+    - 089o overclaim path intact (regression check)
+    """
+
+    @staticmethod
+    def _make_green_not_run_bug(tree, bug_id, *,
+                                no_in_tree_fix_marker=True,
+                                version="1.4.4"):
+        """Set up a bug with a real RED log + a green NOT_RUN log.
+        ``no_in_tree_fix_marker`` controls whether the green body
+        contains the 090g marker (e.g. "upstream upgrade").
+        Sets phase5_env.log to the SUCCESS form (runner available)
+        so the 089o escalation conditions are met."""
+        add_one_bug(tree, version=version, bug_id=bug_id)
+        # Real RED log — the bug was reproduced empirically.
+        tree[f"quality/results/{bug_id}.red.log"] = (
+            "RED\n"
+            "Command: go test ./internal/checks -run "
+            f"TestCheck{bug_id}\n"
+            "FAIL: TestCheck — reproduced the bug\n"
+            "Exit code: 1\n"
+        )
+        # Green NOT_RUN log — optionally with the 090g marker.
+        if no_in_tree_fix_marker:
+            green_body = (
+                "NOT_RUN\n"
+                f"{bug_id} has no in-tree fix; remediation is an "
+                f"upstream upgrade to v1.5.9+. The fix lives in "
+                f"the dependency repository, not in this codebase.\n"
+            )
+        else:
+            green_body = (
+                "NOT_RUN\n"
+                "Green cycle skipped (no reason recorded).\n"
+            )
+        tree[f"quality/results/{bug_id}.green.log"] = green_body
+        # phase5_env.log: SUCCESS probe (runner available) — this
+        # is the condition that pre-090g escalated NOT_RUN to
+        # FAIL. The new no-in-tree-fix marker downgrades only the
+        # green NOT_RUN, never the red.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: go version\n"
+            "go version go1.22.0 darwin/arm64\n"
+            "Exit code: 0\n"
+        )
+        tree["quality/results/tdd-results.json"] = json.dumps({
+            "schema_version": "1.1",
+            "skill_version": version,
+            "date": today_iso(),
+            "project": "testproj",
+            "bugs": [
+                {
+                    "id": bug_id,
+                    "requirement": "REQ-001",
+                    "red_phase": "fail",
+                    "green_phase": "not_run",
+                    "verdict": "confirmed open",
+                    "fix_patch_present": True,
+                    "writeup_path": f"quality/writeups/{bug_id}.md",
+                }
+            ],
+            "summary": {
+                "total": 1,
+                "verified": 0,
+                "confirmed_open": 1,
+                "red_failed": 1,
+                "green_failed": 0,
+            },
+        }, indent=2)
+        return tree
+
+    def test_green_not_run_with_no_in_tree_fix_marker_is_warn(self) -> None:
+        """The 090g positive case: green NOT_RUN body contains
+        "upstream upgrade" (a no-in-tree-fix marker), runner is
+        available. Pre-090g this FAILed; post-090g it WARNs +
+        passes."""
+        tree = minimal_zero_bug_tree()
+        self._make_green_not_run_bug(
+            tree, bug_id="BUG-001", no_in_tree_fix_marker=True,
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertEqual(
+            code, 0,
+            f"090g: green NOT_RUN with documented no-in-tree-fix "
+            f"marker must not FAIL the gate. exit={code}\n"
+            f"stdout:\n{stdout}",
+        )
+        self.assertIn(
+            "GATE PASSED", stdout,
+            f"090g: gate must PASS with the marker present. "
+            f"stdout tail:\n{stdout[-500:]}",
+        )
+        # The new 090g WARN message must appear.
+        self.assertIn(
+            "no in-tree fix", stdout,
+            f"090g: WARN message must reference no-in-tree-fix. "
+            f"stdout:\n{stdout}",
+        )
+        # And the FAIL path must NOT have fired (the
+        # pre-090g escalation message).
+        self.assertNotIn(
+            "test runner IS available", stdout,
+            f"090g: FAIL message about 'runner IS available' must "
+            f"NOT appear when the marker is present.\n"
+            f"stdout:\n{stdout}",
+        )
+
+    def test_green_not_run_without_marker_runner_available_fails(self) -> None:
+        """The 090g negative case (the 089o behavior preserved):
+        green NOT_RUN body has no no-in-tree-fix marker, runner is
+        available. Must FAIL the gate. Pre-090g and post-090g
+        behavior — this test pins the FAIL path so a future change
+        doesn't accidentally widen the marker-based WARN."""
+        tree = minimal_zero_bug_tree()
+        self._make_green_not_run_bug(
+            tree, bug_id="BUG-001", no_in_tree_fix_marker=False,
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotEqual(
+            code, 0,
+            f"090g regression check: green NOT_RUN with NO marker "
+            f"+ runner available must FAIL. exit={code}\n"
+            f"stdout:\n{stdout}",
+        )
+        self.assertIn(
+            "test runner IS available", stdout,
+            f"090g: FAIL message must reference runner "
+            f"availability for the no-marker case. stdout:\n"
+            f"{stdout}",
+        )
+
+    def test_red_not_run_with_marker_still_fails_when_runner_available(self) -> None:
+        """The 090g boundary case: RED NOT_RUN with the no-in-tree-
+        fix marker still FAILs when the runner is available. The
+        marker only downgrades GREEN NOT_RUN (the green cycle has
+        nothing to apply); RED NOT_RUN is always FAIL when the
+        runner is up — reproducing the bug doesn't need a fix."""
+        tree = minimal_zero_bug_tree()
+        add_one_bug(tree, version="1.4.4", bug_id="BUG-001")
+        # Both red AND green NOT_RUN; green body has the marker,
+        # red body does NOT (and shouldn't qualify even if it did).
+        tree["quality/results/BUG-001.red.log"] = (
+            "NOT_RUN\n"
+            "Test execution skipped (agent chose not to run).\n"
+        )
+        tree["quality/results/BUG-001.green.log"] = (
+            "NOT_RUN\n"
+            "BUG-001 has no in-tree fix; upstream upgrade.\n"
+        )
+        # Probe succeeded.
+        tree["quality/results/phase5_env.log"] = (
+            "Command: go version\n"
+            "go version go1.22.0 darwin/arm64\n"
+            "Exit code: 0\n"
+        )
+        tree["quality/results/tdd-results.json"] = json.dumps({
+            "schema_version": "1.1",
+            "skill_version": "1.4.4",
+            "date": today_iso(),
+            "project": "testproj",
+            "bugs": [
+                {
+                    "id": "BUG-001",
+                    "requirement": "REQ-001",
+                    "red_phase": "not_run",
+                    "green_phase": "not_run",
+                    "verdict": "confirmed open",
+                    "fix_patch_present": True,
+                    "writeup_path": "quality/writeups/BUG-001.md",
+                }
+            ],
+            "summary": {
+                "total": 1, "verified": 0, "confirmed_open": 1,
+                "red_failed": 0, "green_failed": 0,
+            },
+        }, indent=2)
+        # Match PROGRESS.md / SKILL.md version with the bug version.
+        tree["quality/PROGRESS.md"] = (
+            "**Version:** 1.4.4\n\n# Test PROGRESS\n"
+            "- [x] Phase 4\n- [x] Phase 5\n- [x] Phase 6\n"
+        )
+        self.write(tree)
+        stdout, code = self.gate()
+        self.assertNotEqual(
+            code, 0,
+            f"090g: RED NOT_RUN with runner available must FAIL "
+            f"regardless of the no-in-tree-fix marker (the marker "
+            f"only downgrades GREEN, never RED). exit={code}\n"
+            f"stdout:\n{stdout}",
+        )
+
+
+class TestTriagePrecisionGuardrails090j(V150FixtureBase):
+    """v1.5.7 instruction 090j: triage precision guardrails
+
+    Exercises ``check_v1_5_7_090j_triage_precision`` against synthetic
+    bugs_manifest fixtures. Three rules (mutation-bites in docstrings):
+
+      D1 — reachability_analysis required on HIGH/MED bugs (LOW = WARN)
+      D2 — CVE-cited finding cannot be classification=bug without an
+            in-tree reachability_analysis (must be known-issue)
+      D3 — security-HIGH on a CVE basis requires cve_version_applies
+            (or a prose marker stating the audited version is within
+            the affected range)
+
+    These rules are the v1.5.7 band-aid identified by the 2026-05-23
+    OpenFGA Mode-A dogfood Council (instruction 090i): 0/3 HIGH
+    findings were real. Under 090j's rules BUG-003 / BUG-006 / BUG-009
+    cannot stand as confirmed HIGH BUG-NNN records.
+    """
+
+    # Canonical "well-formed bug" shape — all manifest fields the
+    # surrounding v1.5.0/1.5.1 checks require, plus the new 090j fields
+    # populated correctly. Tests mutate single fields to exercise one
+    # rule at a time.
+    @staticmethod
+    def _good_bug(
+        bug_id="BUG-001",
+        severity="MEDIUM",
+        reach="no upstream guard; defect reached unconditionally",
+        classification=None,
+        cve_reference=None,
+        cve_version_applies=None,
+    ):
+        rec = {
+            "id": bug_id,
+            "severity": severity,
+            "disposition": "code-fix",
+            "disposition_rationale": "fix in code",
+            "fix_type": "code",
+        }
+        if reach is not None:
+            rec["reachability_analysis"] = reach
+        if classification is not None:
+            rec["classification"] = classification
+        if cve_reference is not None:
+            rec["cve_reference"] = cve_reference
+        if cve_version_applies is not None:
+            rec["cve_version_applies"] = cve_version_applies
+        return rec
+
+    # ----- D1: reachability_analysis required on HIGH/MED bugs -----
+
+    def test_d1_high_with_reachability_passes(self) -> None:
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(severity="HIGH", reach="no upstream guard")],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+        self.assertIn("090j triage precision", out)
+
+    def test_d1_high_without_reachability_fails(self) -> None:
+        """Mutation bite: drop the `reachability_analysis` field from a
+        HIGH bug ⇒ FAIL. Restoring the field re-greens the test."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(severity="HIGH", reach=None)],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("BUG-001", out)
+        self.assertIn("090j D1", out)
+        self.assertIn("reachability_analysis", out)
+
+    def test_d1_medium_without_reachability_fails(self) -> None:
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(severity="MEDIUM", reach=None)],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("severity=MEDIUM", out)
+
+    def test_d1_low_without_reachability_warns_not_fails(self) -> None:
+        """LOW severity without reachability_analysis is a WARN, NOT a
+        FAIL. (LOW findings often don't need reachability proof to be
+        useful.)"""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(severity="LOW", reach=None)],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertGreaterEqual(warns, 1, out)
+        self.assertIn("severity=LOW", out)
+        self.assertIn("WARN, not FAIL", out)
+
+    def test_d1_low_with_reachability_silent(self) -> None:
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(severity="LOW", reach="reached at file:42")],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+
+    def test_d1_empty_string_reachability_treated_as_missing(self) -> None:
+        """An empty-string `reachability_analysis` is treated as missing
+        — the field is non-empty-required."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(severity="HIGH", reach="   ")],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+
+    # ----- D2: CVE-cited finding cannot be `bug` without reachability -----
+
+    def test_d2_cve_only_finding_classified_bug_fails(self) -> None:
+        """Mutation bite: keep `cve_reference` but drop `classification`
+        ⇒ default `bug` ⇒ advisory-only-without-reachability FAILs."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach=None,
+                cve_reference="CVE-2024-42473",
+                # classification absent — defaults to "bug"
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("090j D2", out)
+        self.assertIn("classification=known-issue", out)
+
+    def test_d2_cve_finding_classified_known_issue_passes(self) -> None:
+        """BUG-009 case: CVE restatement with classification=known-issue
+        is excluded from precision checks (advisory note, not a bug)."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach=None,  # no reachability needed for known-issue
+                cve_reference="CVE-2024-42473",
+                classification="known-issue",
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+
+    def test_d2_cve_finding_with_reachability_passes_d2_still_checked_d3(
+            self) -> None:
+        """A `bug`-classified CVE finding WITH a reachability analysis
+        passes D2 (in-tree path located) — but D3 still applies for
+        HIGH severity. This test fixture provides applies=True so it
+        passes both."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach="in-tree code path at check.go:1102 confirmed",
+                cve_reference="CVE-2025-48371",
+                cve_version_applies=True,
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+
+    # ----- D3: security-HIGH bar — CVE-cited HIGH needs applicability -----
+
+    def test_d3_high_cve_applies_true_passes(self) -> None:
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach="reachable at file:line",
+                cve_reference="CVE-2024-42473",
+                cve_version_applies=True,
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+
+    def test_d3_high_cve_applies_false_fails(self) -> None:
+        """BUG-006 case: HIGH severity, cites CVE-2025-48371, but the
+        audited version (v1.5.7) is OUTSIDE the affected range
+        (>=1.8.0). cve_version_applies=False ⇒ D3 FAIL.
+
+        Mutation bite: flip cve_version_applies to True → test FAILs
+        (the gate would let the BUG-006-class finding through)."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach="no in-tree code path; v1.5.7 predates v1.8.0",
+                cve_reference="CVE-2025-48371",
+                cve_version_applies=False,
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("090j D3", out)
+        self.assertIn("affected range", out)
+
+    def test_d3_high_cve_missing_applies_fails(self) -> None:
+        """HIGH + cve_reference but cve_version_applies absent ⇒ D3
+        FAIL unless the reachability_analysis contains a prose marker."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach="reachable at file:line (no version comment)",
+                cve_reference="CVE-2024-42473",
+                # cve_version_applies absent
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("090j D3", out)
+
+    def test_d3_prose_marker_fallback_passes(self) -> None:
+        """When cve_version_applies is absent, a reachability_analysis
+        substring asserting the audited version is within the CVE's
+        affected range satisfies D3. (Adopters who write the prose but
+        forget the boolean field shouldn't be auto-failed.)"""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="HIGH",
+                reach=(
+                    "reachable at file:line; audited version is within "
+                    "the affected range of CVE-2024-42473 (>=1.5.7, "
+                    "<1.5.9)"
+                ),
+                cve_reference="CVE-2024-42473",
+                # cve_version_applies absent — prose fallback applies
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+
+    def test_d3_medium_cve_no_applicability_check(self) -> None:
+        """D3 only triggers on HIGH severity. A MEDIUM CVE-cited finding
+        passes D3 even without cve_version_applies (D1+D2 still apply)."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                severity="MEDIUM",
+                reach="reachable at file:line",
+                cve_reference="CVE-2024-42473",
+                # cve_version_applies absent — D3 doesn't fire on MED
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+
+    # ----- OpenFGA regression anchors (instruction Task D) -----
+
+    def test_openfga_bug003_class_reachable_guard_must_fail(self) -> None:
+        """BUG-003 class regression: a HIGH severity finding whose
+        actual reachability analysis reveals an upstream guard (making
+        the defect unreachable) must NOT stand as classification=bug.
+
+        The instruction says "A candidate whose reachability analysis
+        FINDS a guard that makes it unreachable must be demoted (not
+        confirmed)" — process-side. From the gate's perspective: if
+        the agent KEEPS the record as classification=bug after finding
+        an unreachable-guard, the bug should at minimum still trip the
+        existing D1 check on missing reachability OR be reclassified
+        to known-issue. This test exercises the most common error path:
+        an OpenFGA-BUG-003-style record with severity=HIGH but no
+        reachability field at all → must FAIL."""
+        # This is what BUG-003 looked like pre-090j (no reachability
+        # field, severity HIGH).
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                bug_id="BUG-003",
+                severity="HIGH",
+                reach=None,  # the gap 090j fixes
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("BUG-003", out)
+        self.assertIn("090j D1", out)
+
+    def test_openfga_bug006_class_security_high_no_applicability_must_fail(
+            self) -> None:
+        """BUG-006 class regression: HIGH severity, cites
+        CVE-2025-48371, audited version v1.5.7 outside the affected
+        range (>=1.8.0). Even with a reachability analysis explaining
+        the version mismatch, cve_version_applies=False blocks the
+        record from standing as classification=bug at HIGH severity."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                bug_id="BUG-006",
+                severity="HIGH",
+                reach=(
+                    "GetContextualTuplesByObjectID at check.go:1102 "
+                    "passes userType arg; validateCtxTupleInModel at "
+                    "request.go:91 enforces type restrictions; "
+                    "CVE-2025-48371 affects >=1.8.0, audited version "
+                    "v1.5.7 is OUTSIDE the affected range"
+                ),
+                cve_reference="CVE-2025-48371",
+                cve_version_applies=False,
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("BUG-006", out)
+        self.assertIn("090j D3", out)
+
+    def test_openfga_bug009_class_advisory_only_must_fail_as_bug(
+            self) -> None:
+        """BUG-009 class regression: a verbatim advisory restatement
+        with no in-tree code defect AND no reachability analysis. The
+        record cites CVE-2024-42473 + severity HIGH but
+        classification=bug. D2 FAILs."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                bug_id="BUG-009",
+                severity="HIGH",
+                reach=None,
+                cve_reference="CVE-2024-42473",
+                # classification absent (defaults to bug)
+                # cve_version_applies absent
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("BUG-009", out)
+        # D2 should fire (advisory-only + classification=bug + no
+        # reachability). D1 also fires for the same record (HIGH + no
+        # reachability). Either is acceptable — both are correct.
+        self.assertTrue(
+            "090j D1" in out or "090j D2" in out,
+            f"Expected D1 or D2 to fire on BUG-009 class, got:\n{out}",
+        )
+
+    def test_openfga_bug009_reclassified_as_known_issue_passes(
+            self) -> None:
+        """The CORRECT classification for the BUG-009 class: a
+        CVE-2024-42473 advisory note with classification=known-issue
+        is excluded from the bug-precision checks. The advisory is
+        still surfaced to operators; it just doesn't count as a bug."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                bug_id="BUG-009",
+                severity="HIGH",
+                reach=None,
+                cve_reference="CVE-2024-42473",
+                classification="known-issue",
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+
+    def test_openfga_bug001_real_bug_passes_clean(self) -> None:
+        """Regression anchor — the REAL bugs (BUG-001, BUG-002, BUG-004
+        per 090i Council) must still pass clean under 090j's rules.
+        BUG-001 (OIDC ClientID empty-string): MEDIUM, no CVE, with a
+        reachability analysis quoting the absence of an upstream
+        non-empty guard."""
+        self.write_manifest(
+            "bugs_manifest.json", "records",
+            [self._good_bug(
+                bug_id="BUG-001",
+                severity="MEDIUM",
+                reach=(
+                    "no upstream non-empty guard at oidc.go:143-149; "
+                    "type assertion .(string) returns true for empty "
+                    "string; defect reaches authz.go:466-470"
+                ),
+                # no CVE — pure code finding
+            )],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_7_090j_triage_precision, self.q,
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
 
 
 if __name__ == "__main__":

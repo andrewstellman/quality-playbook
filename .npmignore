@@ -1,0 +1,41 @@
+# v1.5.7 089y — npm tarball hygiene.
+#
+# `package.json`'s `files` allowlist controls what `npm pack`
+# includes. Without a .npmignore, `__pycache__` directories under
+# `quality_playbook_cli/_bundle/bin/` (created when Python imports
+# the staged modules during the worker's pre-flight test runs)
+# get swept into the tarball — shipping platform/version-specific
+# `.pyc` artifacts. This file excludes that compiled cruft so
+# `npm pack` ships only the source files the wheel + clone install.
+#
+# Mirrors the `bin/build_channel_package.stage()` exclusion list
+# (089y T-B): both channels must agree on what's excluded so the
+# 4-surface bundle-parity contract holds — the .py set the wheel
+# ships, the .py set the npm tarball ships, and `_bundle_files()`
+# all stay aligned.
+
+# Python compiled artifacts (the load-bearing 089y exclusion)
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# macOS Finder metadata (incidental cruft)
+.DS_Store
+**/.DS_Store
+
+# Editor / OS junk that may land in the data dir during dev
+*.swp
+*.swo
+*~
+
+# Build output dirs (regenerated each publish; never source)
+build/
+dist/
+*.egg-info/
+
+# The worker's local-only artifacts that shouldn't end up in any
+# adopter tarball even if they leak into the data tree
+quality/logs/
+quality/previous_runs/
+quality.previous-bootstrap-*/
+quality.sonnet-killed-*/

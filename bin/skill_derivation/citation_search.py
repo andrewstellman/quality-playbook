@@ -212,3 +212,27 @@ def collect_documents(
                 else str(ref)
             out.append((rel, ref.read_text(encoding="utf-8")))
     return out
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.citation_search',
+        summary=(
+            "Citation-search helpers for the skill-derivation pipeline — "
+            "scans a candidate corpus for byte-equal passages of a target "
+            "claim. "
+        ),
+        role=(
+            "Imported by skill_derivation passes B/C/D when verifying "
+            "that derived claims have textual citations in the source "
+            "corpus. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

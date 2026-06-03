@@ -2,7 +2,7 @@
 
 > Release-gate review for `TOOLKIT.md` and the orientation docs that reference it. Applies the same empirical-loop discipline that `IMPROVEMENT_LOOP.md` describes for the playbook itself, but to the documentation: surface problems through a panel of independent readers, fix them, re-test until convergence.
 
-*Last updated: 2026-05-06 (v1.5.6 cluster G refresh + cluster F.4 instruction-041-part-3 revision — adds `bin/install_skill.py` AI-agent-driven install path as the new default install mode in TOOLKIT.md; cluster A bundles `agents/` + replaces the broken `quality_gate.py` symlink stub with a working Python shim; cluster C adds the `--require-docs` opt-out flag; cluster D acknowledges Windows install validation as `untested-infrastructure-blocked-pathlib-coverage-extended`; Persona 19 skill-as-code deep work confirmed current — the cluster A audit found no v1.5.6-specific gaps. Persona 19's deeper "what an adopter holding SKILL.md plus references/ actually does step-by-step" work is queued as a future-release item without a pinned version number).*
+*Last updated: 2026-05-22 (v1.5.7-final — rubric, convergence criterion, and orchestration mechanics unchanged from v1.5.6. v1.5.7 release-gate run added Persona 22 below (post-abort recovery walkthrough) to test v1.5.7 D1+D3+D6 awareness; existing personas confirmed current via the 5-persona TTP fanout in instruction 036 (10/12/20/21/22 all PASS with convergence; one DOC GAP at TOOLKIT.md F-5b mention closed via Cowork-direct). 089r currency pass: Persona 7's expected answer updated to the v1.5.7 probe-first TDD contract — `NOT_RUN` is honest only when a runner probe actually failed; the gate WARNs on `NOT_RUN` and FAILs an inspection-only `RED`/`GREEN` overclaim (the 089m → 089q TDD-credibility arc).*
 
 ## Purpose
 
@@ -66,7 +66,7 @@ Tests: model-requirement awareness; surface-area-as-theater risk articulation; p
 
 > Our test runner doesn't work in our CI environment. The TDD logs show NOT_RUN. Are the bugs still verified? Can I trust the bug reports?
 
-Tests: NOT_RUN-as-acknowledgment-not-verification distinction.
+Tests: the v1.5.7 probe-first TDD contract. A correct answer says `NOT_RUN` is a *legitimate honest skip* — the bugs are confirmed by code-path trace at the documented evidentiary standard, but they are NOT empirically TDD-verified (no executed red→green proof), so treat the reports as reasoned, not observed. It must also surface the v1.5.7 contract: the agent is required to **probe the test runner first** (capturing `quality/results/phase5_env.log`) and run it in default online mode; `NOT_RUN` is honest *only when that probe actually failed* — an *assumed*-unavailable runner is not acceptable. The gate FAILs a `NOT_RUN` receipt contradicted by a probe showing the runner available, and FAILs a `RED`/`GREEN` receipt that admits non-execution or carries no runner output (089m WARN / 089o + 089q overclaim FAIL). The right operator move when the runner genuinely can be made to work: tell the agent so, and have it re-run the red→green cycle for real.
 
 ### Persona 8 — The methodology challenger
 
@@ -134,9 +134,12 @@ answer also surfaces the scope limits — execution divergence
 needs archived runs to land any signal; the Council override path
 exists for when the classifier is wrong; v1.5.3 also added the
 OpenAI codex CLI as a third LLM backend (alongside `claude
---print` and `gh copilot --prompt`) so adopters who prefer the
-codex CLI can drive the pipeline via `--runner codex` without
-giving up access to the skill-as-code surface.
+--print` and the GitHub Copilot CLI — `copilot -p` per
+v1.5.7 089f, or `gh copilot --prompt` during the grace
+period — both shimmed via `bin/copilot_resolver.py`) so
+adopters who prefer the codex CLI can drive the pipeline
+via `--runner codex` without giving up access to the skill-
+as-code surface.
 
 (Persona 19's "what an adopter holding SKILL.md plus
 references/ actually does step-by-step" deep work is queued
@@ -168,6 +171,12 @@ Tests: PR-pipeline workflow guidance; standout-tier-as-submission-criterion clar
 Tests: recognition of root-cause vs. symptom; whether the doc distinguishes BUGS.md as "individual reports" vs. "a list of distinct defects"; awareness that maintainers prefer one consolidated PR for a defect family over nine individual ones; whether the iteration-strategy taxonomy (gap, unfiltered, parity, adversarial) admits the possibility that multiple iterations re-find the same underlying defect.
 
 (Personas 14 and 17 added at the v1.5.2 release-gate, sourced from the 2026-04-25 cross-repo analysis. Persona 19 added at the v1.5.3 release-gate to test skill-as-code awareness. Personas 15, 16, and 18 from the v1.5.2 source remain queued for later release-gates: P15 deferred to v1.5.4+ (within-version variance language did not land in v1.5.3 — it requires the regression-replay machinery scheduled for v1.5.4); P16 and P18 for v1.6.x once replicate data accumulates and a HIGH-severity operational definition exists.)
+
+### Persona 22 — The v1.5.7 post-abort recovery walkthrough
+
+> I'm an adopter who just ran QPB v1.5.7 and the Phase 2 gate aborted on my project. I see a directory called `quality.gate-failed-2026-05-14T18-30-00Z/` next to where `quality/` would be. What's that? What should I do with it? Where do I look for the run logs that explain why the gate aborted? And if I want to retry, what configuration knobs are available to me — the docs mention a Council roster I can override?
+
+Tests: v1.5.7 D1 awareness (`quality.gate-failed-<UTC-ts>/` preservation directory), D3 awareness (`quality/logs/<run-id>/` centralized log layout + `--logs-flat` / `QPB_LOGS_LEGACY=1` legacy paths), D6 awareness (`~/.qpb/config.json` Council roster override path). A correct answer surfaces the preserved-artifact directory as the diagnostic starting point, the centralized log location for the gate's rejection rationale, and the config-file override as the no-source-edit retry knob. (Added at the v1.5.7 release-gate.)
 
 ### Persona 21 — The AI-agent installer (v1.5.6)
 
@@ -206,7 +215,7 @@ Note: convergence is NOT "all panelists agree." Agreement optimizes for plausibi
 
 The protocol is best run with a top-level agent orchestrating sub-agents:
 
-1. The top-level agent fans out the persona prompts to N sub-agents (Task tool with restricted Read access, separate Cowork sessions, or three Council-of-Three terminals run via `gh copilot --model …`, `claude --print --model …`, or `codex exec --full-auto -m …`). v1.5.3+ supports all three CLIs as runner backends; the panelist-model choice is independent of which CLI fires the prompt.
+1. The top-level agent fans out the persona prompts to N sub-agents (Task tool with restricted Read access, separate Cowork sessions, or three Council-of-Three terminals run via the GitHub Copilot CLI — `copilot --model …` per v1.5.7 089f, or `gh copilot --model …` during the grace period — or via `claude --print --model …` / `codex exec --full-auto -m …`). v1.5.3+ supports all three CLIs as runner backends; the panelist-model choice is independent of which CLI fires the prompt.
 2. Each sub-agent is given TOOLKIT.md (and optionally IMPROVEMENT_LOOP.md / this file) as context, plus its persona prompt.
 3. Sub-agents return responses to the top-level agent.
 4. The top-level agent applies the rubric, identifies DOC GAP / DOC WRONG findings, and proposes fixes.
@@ -218,9 +227,17 @@ The protocol is best run with a top-level agent orchestrating sub-agents:
 For Council-of-Three execution, the canonical commands follow the workspace `AGENTS.md` Council protocol but with one substantive difference: the working directory should be the orientation-docs surface, not the QPB source repo, since panelists must not have access to source files. Suggested form:
 
 ```zsh
+# v1.5.7 089f: new standalone `copilot` CLI (canonical post-2025-10-25):
 cd /Users/andrewstellman/Documents/QPB/ai_context && \
-  gh copilot --model <MODEL> --prompt "$(cat ../Reviews/toolkit_test_persona_<N>.md)" \
+  copilot --model <MODEL> -p "$(cat ../Reviews/toolkit_test_persona_<N>.md)" --allow-all \
   | tee "/Users/andrewstellman/Documents/AI-Driven Development/Quality Playbook/Reviews/toolkit_test_runs/<timestamp>/<persona-id>_<MODEL>.md"
+
+# Legacy `gh copilot` extension (deprecated 2025-10-25; works during the
+# grace period — swap `copilot` → `gh copilot`, `-p` → `--prompt`,
+# `--allow-all` → `--yolo`):
+# cd /Users/andrewstellman/Documents/QPB/ai_context && \
+#   gh copilot --model <MODEL> --prompt "$(cat ../Reviews/toolkit_test_persona_<N>.md)" \
+#   | tee "..."
 ```
 
 The acceptance check from Council-of-Three Invocation still applies: each response file should show actual Reads against `TOOLKIT.md`, IMPROVEMENT_LOOP.md, or this file — not against SKILL.md, bin/, or .github/skills/. If a response file shows source-file Reads, the panelist was outside the test envelope and the run is invalid.
@@ -238,7 +255,7 @@ When the protocol converges, archive the run as the release-gate evidence for th
 
 ## Test prompt files
 
-Persona prompts should be saved as standalone files so they can be passed to `gh copilot --prompt "$(cat ...)"` without quoting issues. Suggested location:
+Persona prompts should be saved as standalone files so they can be passed to the Copilot CLI without quoting issues — `copilot -p "$(cat ...)"` per v1.5.7 089f, or `gh copilot --prompt "$(cat ...)"` during the grace period. Suggested location:
 
 `Quality Playbook/Reviews/toolkit_test_personas/persona_<N>_<short_name>.md`
 

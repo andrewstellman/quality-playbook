@@ -6,8 +6,11 @@ the operator to use one path/invocation but the implementation uses
 another. Bundled here because they share a shape: scan a doc/help
 string for the wrong token and assert it isn't present.
 
-- BUG-005: README.md documented `python3 bin/run_playbook.py` but the
-  runner exits EX_USAGE=64 on script-style invocation.
+- BUG-005: pre-v1.5.7, README.md documented `python3 bin/run_playbook.py`
+  but the runner exited EX_USAGE=64 on script-style invocation. v1.5.7
+  fix F-5a makes script-style work via sys.path injection, so the
+  ReadmeRunPlaybookInvocationTests check is inverted: at least one
+  module-form example must be documented, and both forms are valid.
 - BUG-006: SKILL.md routed operators to `docs_gathered/` but
   `bin/reference_docs_ingest.py` only reads `reference_docs/`.
 - BUG-007: `bin/quality_playbook.py` help text said `quality/runs/`
@@ -25,30 +28,69 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
-    """BUG-005: every `python ... bin/run_playbook.py ...` example in
-    README.md must use the package-module form, since the runner
-    exits EX_USAGE=64 on direct script-style invocation."""
+    """BUG-005 (v1.5.7 fix F-5a update + instruction 031 Phase D consensus
+    fixup): both `python -m bin.run_playbook` and `python /path/to/QPB/
+    bin/run_playbook.py` are valid invocation forms after F-5a. The
+    pre-v1.5.7 ban on script-style invocations is inverted: at least one
+    module-form example must be documented (since that's the canonical
+    form), AND operator-facing surfaces must NOT claim script-style is
+    rejected with `EX_USAGE=64` (the v1.5.4 codex-prevention guard the
+    F-5a refactor removed).
 
-    def test_no_script_style_run_playbook_invocations(self) -> None:
-        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-        # Match any "python..." command that ends in run_playbook.py
-        # (with anything in the middle: paths, args, etc.). The single
-        # exception we tolerate is the exact phrase "bin/run_playbook.py"
-        # used as a file reference (not an invocation), which is
-        # historical context like "no bin/run_playbook.py changes shipped".
-        # We disambiguate by requiring "python" before the path.
-        pattern = re.compile(
-            r"python\d?\s+[^\n`]*bin/run_playbook\.py",
-            re.MULTILINE,
-        )
-        bad = pattern.findall(readme)
-        self.assertEqual(
-            bad,
-            [],
-            "README.md still contains script-style run_playbook.py "
-            "invocations that the runner rejects with EX_USAGE=64. Use "
-            "`python3 -m bin.run_playbook ...` instead. Found: " + repr(bad),
-        )
+    Phase D consensus fixup widened the doc-drift coverage from
+    README-only to README + SKILL.md, so stale "EX_USAGE=64" / "never
+    invoke script-style" prose in either surface trips the test."""
+
+    # Operator-facing surfaces that document runner invocation.
+    # v1.5.7 instruction 032 NCF-12: TOOLKIT.md added — round-2 Council
+    # found stale script-ban prose there that Phase D's cleanup missed.
+    INVOCATION_SURFACES = (
+        "README.md",
+        "SKILL.md",
+        "ai_context/TOOLKIT.md",
+    )
+
+    # Hand-enumerated present-tense rejection phrases. v1.5.7 instruction
+    # 032 NCF-12/NCF-13 widened this to also include the
+    # _STALE_GUARD_VERB_PATTERN regex below — the hand list catches
+    # imperatives ("Never invoke") that the verb regex doesn't, and the
+    # regex catches "rejects with" / "refuses with" variants that the
+    # hand list missed. Both run.
+    #
+    # v1.5.7 instruction 033 Halt-4: the match loop now uses
+    # `phrase.lower() in text.lower()` so sentence-initial capital-letter
+    # variants ("Always invoke it...") match the same phrase entry as
+    # mid-sentence variants ("always invoke it..."). Pre-Halt-4 the
+    # SKILL.md:96 "Always invoke" prose evaded detection because the
+    # phrase list had only the lowercase form and `in` is case-sensitive.
+    # All entries are normalized to lowercase here.
+    STALE_GUARD_PHRASES = (
+        "never invoke it script-style",
+        "always invoke it as a package module",
+        "always invoke it as a python module",
+    )
+
+    # v1.5.7 instruction 032 NCF-13 (widening): regex over the verb
+    # family that present-tense rejection prose uses around the
+    # EX_USAGE=64 token, allowing intervening text within a sentence
+    # window. Catches:
+    #   - "exits with EX_USAGE=64"
+    #   - "rejects `python3 .../run_playbook.py` with `EX_USAGE=64`"
+    #   - "rejects with EX_USAGE=64"
+    #   - "refuses with EX_USAGE=64"
+    # Past-tense forms ("exited", "rejected", "refused") have an
+    # "ed" suffix the verb-stem `\b` boundary explicitly excludes, so
+    # legitimate historical retrospectives remain allowed.
+    # Sentence-window is "up to 80 same-line characters" between the
+    # verb and EX_USAGE=64 — long enough to absorb a single intervening
+    # backtick-quoted path (which may contain `.py`), short enough that
+    # cross-paragraph false positives are extremely unlikely. `.` in
+    # the regex doesn't match `\n` by default, so the window stays on
+    # a single line.
+    _STALE_GUARD_VERB_PATTERN = re.compile(
+        r"(reject|exit|refuse)s\b.{0,80}EX_USAGE=64",
+        re.IGNORECASE,
+    )
 
     def test_module_form_is_documented(self) -> None:
         """At least one example must show the package-module form so
@@ -59,6 +101,56 @@ class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
             readme,
             "README.md must document the canonical "
             "`python3 -m bin.run_playbook` invocation form.",
+        )
+
+    def test_no_operator_surface_claims_script_style_is_rejected(self) -> None:
+        """v1.5.7 instruction 031 Phase D + instruction 032 NCF-12/NCF-13.
+        No operator-facing surface may claim script-style invocation is
+        rejected by the runtime guard — the v1.5.4 EX_USAGE=64 guard was
+        removed in F-5a (commit 95f45eb) when sys.path injection made
+        script-style work natively.
+
+        Two detection paths run together (instruction 032 NCF-13
+        widening):
+        - Hand-enumerated `STALE_GUARD_PHRASES` catches imperatives
+          like "Never invoke it script-style".
+        - `_STALE_GUARD_VERB_PATTERN` regex catches present-tense
+          rejection-verb-with-EX_USAGE=64 patterns ("rejects with",
+          "exits with", "refuses with"). Past-tense forms ("rejected",
+          "exited") are excluded by the verb-stem boundary, so
+          legitimate historical retrospectives remain allowed.
+
+        TOOLKIT.md was added to `INVOCATION_SURFACES` because the
+        Round-2 Council found stale prose there that Phase D's
+        README-only scan missed."""
+        offenders: list[tuple[str, str]] = []
+        for rel in self.INVOCATION_SURFACES:
+            path = REPO_ROOT / rel
+            self.assertTrue(
+                path.is_file(),
+                f"INVOCATION_SURFACES references missing file: {rel}",
+            )
+            text = path.read_text(encoding="utf-8")
+            # v1.5.7 instruction 033 Halt-4: case-insensitive match
+            # so sentence-initial capitalized variants ("Always invoke
+            # it...") match the lowercase-normalized phrase entries.
+            # Mirrors the placeholder-phrase handling in
+            # `quality_gate.py::_VERDICT_PLACEHOLDER_PHRASES`.
+            lowered = text.lower()
+            for phrase in self.STALE_GUARD_PHRASES:
+                if phrase in lowered:
+                    offenders.append((rel, phrase))
+            for match in self._STALE_GUARD_VERB_PATTERN.finditer(text):
+                offenders.append((rel, match.group(0)))
+        self.assertEqual(
+            offenders,
+            [],
+            "Operator-facing surface(s) still claim script-style "
+            "invocation is rejected by the v1.5.4 EX_USAGE=64 guard. "
+            "That guard was removed in v1.5.7 fix F-5a (commit "
+            "95f45eb); both `python3 -m bin.run_playbook` and "
+            "`python3 /path/to/QPB/bin/run_playbook.py` now work. "
+            f"Stale prose hits: {offenders}",
         )
 
 
@@ -166,6 +258,91 @@ class SkillReferenceDocsRoutingTests(unittest.TestCase):
             "reference_docs",
             "If the ingest module's read directory changes, SKILL.md "
             "and the other operator-facing surfaces need to follow.",
+        )
+
+
+class SixInstallLayoutsConsistencyTests(unittest.TestCase):
+    """v1.5.7 BUG-007: operator-facing surfaces must consistently name
+    the canonical install layouts that SKILL_FALLBACK_GUIDE documents.
+    Pre-fix, surfaces variably listed 2, 3, or 4 layouts — operators
+    following one surface would miss layouts another surface documents,
+    leading to "I followed the docs but the skill isn't finding
+    itself" failures.
+
+    v1.5.7 instruction 046 (A-3): the canonical list expanded 6 → 10
+    (codex / windsurf / cline / aider added; 9 nested forms + the
+    bare-root SKILL.md). instruction 046 transiently deferred
+    ``ai_context/TOOLKIT.md`` to a relaxed legacy-5 floor because the
+    instruction's orientation-doc carve-out forbade editing TOOLKIT.md
+    in that commit. instruction 047 Item 1: the Cowork-direct
+    TOOLKIT.md ten-layout + aider-footnote update landed at commit
+    ``a6ad824``, so the deferral scaffolding is removed — TOOLKIT.md
+    is back under the strict all-9-nested-forms assertion alongside
+    the source-edit surfaces.
+    """
+
+    # The 9 nested canonical install layouts the v1.5.7+ resolver
+    # supports, same order as SKILL_FALLBACK_GUIDE /
+    # SKILL_INSTALL_LOCATIONS / _GATE_INSTALL_LOCATIONS. The 10th is
+    # the bare-root `SKILL.md` location — not substring-checked
+    # (over-matches unrelated prose mentions of "SKILL.md").
+    NESTED_LAYOUTS = (
+        ".claude/skills/quality-playbook/",
+        ".github/skills/",
+        ".cursor/skills/quality-playbook/",
+        ".continue/skills/quality-playbook/",
+        ".github/skills/quality-playbook/",
+        ".codex/skills/quality-playbook/",
+        ".windsurf/skills/quality-playbook/",
+        ".cline/skills/quality-playbook/",
+        ".aider/skills/quality-playbook/",
+    )
+
+    # All operator-facing surfaces that must enumerate every nested
+    # canonical layout. instruction 047 Item 1 restored
+    # ai_context/TOOLKIT.md here (the Cowork-direct ten-layout update
+    # landed at a6ad824); the prior transient COWORK_DEFERRED_SURFACE
+    # relaxation + LEGACY_NESTED_LAYOUTS scaffolding are removed.
+    SOURCE_EDIT_SURFACES = (
+        "SKILL.md",
+        "references/verification.md",
+        "references/review_protocols.md",
+        "references/challenge_gate.md",
+        "ai_context/TOOLKIT.md",
+    )
+
+    def test_source_edit_surfaces_name_all_nine_nested_layouts(self) -> None:
+        """Every operator-facing surface (now including
+        ai_context/TOOLKIT.md after the a6ad824 ten-layout update)
+        must mention each of the 9 nested install-layout substrings
+        (the 10th, the bare-root SKILL.md, is not substring-checked).
+
+        Mutation-test evidence (instruction 047 Item 1, in-tree per
+        ai_context/DEVELOPMENT_PROCESS.md:152-160): with the a6ad824
+        TOOLKIT.md ten-layout edit reverted (`git revert --no-commit
+        a6ad824`), TOOLKIT.md drops to the legacy 5 nested forms and
+        this assertion fires with misses for
+        .codex/.windsurf/.cline/.aider on ai_context/TOOLKIT.md;
+        restoring (`git revert --abort`) makes it pass. Bite verified
+        during instruction 047 development."""
+        misses: list[tuple[str, str]] = []
+        for rel in self.SOURCE_EDIT_SURFACES:
+            path = REPO_ROOT / rel
+            self.assertTrue(
+                path.is_file(),
+                f"SOURCE_EDIT_SURFACES references missing file: {rel}",
+            )
+            text = path.read_text(encoding="utf-8")
+            for layout in self.NESTED_LAYOUTS:
+                if layout not in text:
+                    misses.append((rel, layout))
+        self.assertEqual(
+            misses,
+            [],
+            "Operator-facing surface(s) missing one or more of the 9 "
+            "nested canonical install-layout substrings (the 10th is "
+            "the bare-root SKILL.md location, not substring-checked). "
+            f"v1.5.7 instruction 046 A-3 / 047 Item 1. Missing: {misses}",
         )
 
 

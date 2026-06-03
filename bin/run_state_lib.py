@@ -33,6 +33,7 @@ raise; there are no print statements and no logging integration.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -47,6 +48,47 @@ _REQUIRED_FIELDS: tuple[str, ...] = ("ts", "event")
 
 # Per-schema-doc valid phase numbers.
 _VALID_PHASES: frozenset[int] = frozenset({1, 2, 3, 4, 5, 6})
+
+# v1.5.7 089d (F22) — CANONICAL BUG-NNN heading pattern.
+#
+# This is the single source of truth for parsing `### BUG-NNN:` and
+# variant headings out of BUGS.md across QPB. Pre-089d three modules
+# each defined their own:
+#   - quality_gate.py:286    `^###\s+BUG-(\d+):`           digit-only
+#                                                          + required colon
+#   - archive_lib.py:69      this form (alphanumeric)
+#   - run_state_lib.py inline (lines 700/830, both copies)  this form
+#
+# The gate's digit-only form rejected BUG-H1 / BUG-M1 / BUG-L1
+# (severity-prefixed historical IDs used in some v1.5.x fixtures) and
+# any future hyphenated-suffix variant like BUG-001-fix-2 — these
+# parsed in archive_lib + run_state_lib but not in the gate, so a
+# canonical BUG record could be classified differently by each
+# surface (opus bootstrap F22).
+#
+# The canonical form (this constant) accepts:
+#   BUG-001         (digit-only — the most common form)
+#   BUG-H1 / BUG-M1 / BUG-L1 (severity-prefixed historical IDs)
+#   BUG-001-fix-2   (hyphenated-suffix variants)
+# and treats the trailing `: <title>` as optional (matches both
+# titled-and-bare bug headings).
+#
+# `BUG_HEADING_PATTERN_STR` is the raw string (so the cross-module
+# pin test can equality-compare against the gate's standalone copy);
+# `BUG_HEADING_PATTERN_RE` is the compiled re.MULTILINE form for
+# direct use by archive_lib + run_state_lib (which CAN import this
+# module). quality_gate.py is INSTALLED STANDALONE into adopters'
+# `.github/skills/quality_gate/` and CANNOT import from `bin/`
+# (same Option-B-additive-duplication constraint as
+# `_INSTALL_MARKER_DIRS` in quality_gate.py); it carries a literal
+# copy whose string must match this constant (pinned by
+# `bin/tests/test_bug_heading_pattern_pinned.py`).
+BUG_HEADING_PATTERN_STR: str = (
+    r"^###\s+BUG-([A-Za-z0-9][A-Za-z0-9\-]*)(?::\s+.+)?\s*$"
+)
+BUG_HEADING_PATTERN_RE: re.Pattern[str] = re.compile(
+    BUG_HEADING_PATTERN_STR, re.MULTILINE,
+)
 
 # v1.5.6 BUG-005 (codex bootstrap, 2026-05-08): Phase 1 validator
 # enforces the full SKILL.md:1257-1273 entry gate (13 checks). The
@@ -108,6 +150,32 @@ _CANDIDATE_STAGE_RE = re.compile(
     r"^\s*-\s*Stage\s*:\s*(.+)$", re.MULTILINE | re.IGNORECASE
 )
 
+# v1.5.7 089d (F19) — checks 14-17: the four documented Phase 1 gate
+# checks the pre-089d validator under-enforced (per the opus
+# bootstrap: spec lists 12 checks, validator implemented ~6;
+# BUG-005 in v1.5.6 closed it partially). Constants + regexes for:
+#
+#   check 14 — Derived Requirements section presence + structure
+#              (phase1_exploration_guide.md #3): ≥1 ### REQ-NNN
+#              entry under ## Derived Requirements.
+#   check 15 — Open-Exploration module spread (#4 second clause):
+#              ≥4 distinct modules referenced across findings.
+#   check 16 — Quality Risks depth (#6): ≥5 numbered entries with
+#              file:line citations under ## Quality Risks.
+#   check 17 — Pattern Applicability Matrix coverage (#7): all 6
+#              patterns from references/exploration_patterns.md
+#              evaluated FULL or SKIP — mechanically, ≥6 matrix
+#              rows carrying a FULL or SKIP cell.
+_MIN_DERIVED_REQUIREMENTS = 1                # check 14
+_MIN_DISTINCT_MODULES_OPEN_EXPLORATION = 4   # check 15
+_MIN_QUALITY_RISKS_WITH_CITATION = 5         # check 16
+_MIN_PATTERN_MATRIX_ROWS = 6                 # check 17
+# `### REQ-NNN:` heading inside Derived Requirements.
+_REQ_HEADING_RE = re.compile(r"^###\s+REQ-(\d+):", re.MULTILINE)
+# Matrix SKIP cell — mirror of _FULL_CELL_RE for the SKIP token.
+_SKIP_CELL_RE = re.compile(r"\|\s*`?(SKIP)`?\s*\|")
+
+
 @dataclass(frozen=True)
 class Event:
     """A single parsed event from a ``run_state.jsonl`` file.
@@ -121,6 +189,84 @@ class Event:
     ts: str
     event: str
     fields: dict[str, Any] = field(default_factory=dict)
+
+
+def resolve_run_state_path(repo_dir: Path) -> Optional[Path]:
+    """v1.5.7 Phase 5b + 089h: resolve the canonical run_state.jsonl
+    path for a given cell, honoring the centralized log layout
+    (Phase 5a) with a fallback to the v1.5.6 legacy location.
+
+    Resolution order (first existing wins):
+      1. ``<repo_dir>/quality/logs/latest/run_state.jsonl`` (the
+         "latest" symlink lazily-updated by the runner; absent on
+         Windows without Developer Mode / admin per 089h).
+      1.5. ``<repo_dir>/quality/logs/<run-id-from-latest.txt>/run_state.jsonl``
+         where ``run-id-from-latest.txt`` is the content of the
+         portable pointer file ``quality/logs/latest.txt`` (v1.5.7
+         089h W-B fix; the runner always writes this even when the
+         symlink fails). Falls through to Source 2 on stale/empty/
+         dangling pointer so the resolver is robust to interrupted
+         writes.
+      2. ``<repo_dir>/quality/logs/<most-recent-by-name>/run_state.jsonl``
+         (lexicographic max of the timestamped sub-directories under
+         ``quality/logs/``; the run-id format is sortable so the max
+         is also the most recent in time).
+      3. ``<repo_dir>/quality/run_state.jsonl`` (v1.5.6 legacy
+         location; written by the runner when --logs-flat or
+         QPB_LOGS_LEGACY=1 is in effect).
+
+    Returns the first existing path, or None if none exists. Callers
+    that need to read events should pass the result to
+    ``read_events``; callers that need a write target should NOT use
+    this helper — they should use the run-id-aware writers in
+    ``bin/run_playbook.py`` instead.
+    """
+    logs_dir = repo_dir / "quality" / "logs"
+    if logs_dir.is_dir():
+        # Source 1: latest symlink (or directory, if the filesystem
+        # doesn't support symlinks and the runner wrote a regular dir).
+        latest = logs_dir / "latest" / "run_state.jsonl"
+        if latest.is_file():
+            return latest
+        # Source 1.5: portable pointer file (Windows / no-symlink
+        # filesystems where the latest symlink couldn't be created
+        # — see ``bin/run_playbook._update_latest_symlink`` and
+        # the 089h W-B Windows smoke fix). Holds the current
+        # run-id; stale/empty/dangling pointers fall through to
+        # most-recent-by-name (Source 2) so the resolver is robust
+        # to interrupted writes.
+        pointer = logs_dir / "latest.txt"
+        if pointer.is_file():
+            try:
+                pointed = pointer.read_text(encoding="utf-8").strip()
+            except OSError:
+                pointed = ""
+            if pointed:
+                rs = logs_dir / pointed / "run_state.jsonl"
+                if rs.is_file():
+                    return rs
+            # Pointer present but stale/empty/dangling → fall through
+            # to most-recent-by-name below.
+        # Source 2: most-recent timestamped sub-directory by name
+        # (the run-id format YYYYMMDDTHHMMSSZ sorts lexicographically
+        # the same way it sorts chronologically). Skip the "latest"
+        # entry itself if it's a directory rather than a symlink.
+        # ``latest.txt`` is a file, not a dir, so the ``p.is_dir()``
+        # filter naturally excludes it.
+        candidates = sorted(
+            (p for p in logs_dir.iterdir()
+             if p.is_dir() and p.name != "latest"),
+            reverse=True,
+        )
+        for candidate in candidates:
+            rs = candidate / "run_state.jsonl"
+            if rs.is_file():
+                return rs
+    # Source 3: v1.5.6 legacy location.
+    legacy = repo_dir / "quality" / "run_state.jsonl"
+    if legacy.is_file():
+        return legacy
+    return None
 
 
 def read_events(jsonl_path: Path) -> list[Event]:
@@ -410,8 +556,96 @@ def _validate_phase1(quality_dir: Path) -> tuple[bool, str]:
             f"≥{_MIN_CANDIDATE_BUGS_EXPLORATION_RISKS} from exploration/risks "
             f"AND ≥{_MIN_CANDIDATE_BUGS_DEEP_DIVE} from pattern deep dive, "
             f"found {n_exploration_risks} from exploration/risks AND "
-            f"{n_deep_dive} from pattern deep dive; see SKILL.md:1271. "
+            f"{n_deep_dive} from pattern deep dive; "
+            f'see SKILL.md "Phase-by-phase execution". '
             f"Per-entry stages:\n{per_entry_lines}"
+        )
+
+    # v1.5.7 089d (F19): four checks the pre-089d validator
+    # under-enforced — the opus bootstrap traced ~6 of 12 documented
+    # checks implemented; v1.5.6 BUG-005 closed it partially. The
+    # new checks follow the existing failure-aggregation idiom (no
+    # short-circuit) so the operator sees the full picture, and
+    # cite the phase1_exploration_guide.md gate-list item number
+    # rather than a SKILL.md line number (the latter rotted in
+    # 089b F14; the section reference is stable).
+
+    # Check 14: Derived Requirements section exists with ≥1
+    # `### REQ-NNN:` entry (phase1_exploration_guide.md #3). The
+    # spec mandates "specific file paths and function names" inside
+    # each REQ; mechanically detecting "function names" is too
+    # noisy, so the conservative form pins the entry count only.
+    derived_body = _slice_h2_section(text, "## Derived Requirements")
+    req_entries = _REQ_HEADING_RE.findall(derived_body)
+    if len(req_entries) < _MIN_DERIVED_REQUIREMENTS:
+        failures.append(
+            f"Phase 1 gate: Derived Requirements — required "
+            f"≥{_MIN_DERIVED_REQUIREMENTS} '### REQ-NNN:' entries "
+            f"with specific file paths and function names, "
+            f"found {len(req_entries)}; "
+            f'see references/phase1_exploration_guide.md "Phase 1 '
+            f'completion gate" item #3.'
+        )
+
+    # Check 15: Multi-module spread across Open Exploration Findings
+    # (phase1_exploration_guide.md #4, second clause: "At least 4
+    # must reference different modules or subsystems"). Distinct
+    # modules = the file-path portion of each file:line citation
+    # across the entries that have citations.
+    distinct_modules: set[str] = set()
+    for entry in findings_with_citations:
+        for file_part, _line_part in _distinct_file_line_citations(entry):
+            distinct_modules.add(file_part)
+    if len(distinct_modules) < _MIN_DISTINCT_MODULES_OPEN_EXPLORATION:
+        failures.append(
+            f"Phase 1 gate: open exploration module spread — required "
+            f"≥{_MIN_DISTINCT_MODULES_OPEN_EXPLORATION} distinct "
+            f"modules referenced across findings, found "
+            f"{len(distinct_modules)}; "
+            f'see references/phase1_exploration_guide.md "Phase 1 '
+            f'completion gate" item #4.'
+        )
+
+    # Check 16: Quality Risks depth — ≥5 numbered entries each
+    # carrying a file:line citation (phase1_exploration_guide.md #6).
+    # The spec also mandates per-entry "edge case" and "why wrong"
+    # prose; those are content checks not mechanically detectable,
+    # so the file:line proxy catches the most common gap (a section
+    # full of patterns the code already has, with no concrete
+    # citations) while staying tractable.
+    quality_risks_body = _slice_h2_section(text, "## Quality Risks")
+    risks_entries = _slice_numbered_entries(quality_risks_body)
+    risks_with_citations = [
+        e for e in risks_entries if _FILE_LINE_CITATION_RE.search(e)
+    ]
+    if len(risks_with_citations) < _MIN_QUALITY_RISKS_WITH_CITATION:
+        failures.append(
+            f"Phase 1 gate: Quality Risks depth — required "
+            f"≥{_MIN_QUALITY_RISKS_WITH_CITATION} domain-driven "
+            f"failure scenarios with file:line citations (each "
+            f"naming a specific function/file/line + edge case + "
+            f"why the code produces wrong behavior), found "
+            f"{len(risks_with_citations)} with file:line; "
+            f'see references/phase1_exploration_guide.md "Phase 1 '
+            f'completion gate" item #6.'
+        )
+
+    # Check 17: Pattern Applicability Matrix evaluates all 6
+    # patterns from references/exploration_patterns.md
+    # (phase1_exploration_guide.md #7). Mechanically: the matrix
+    # body must carry ≥6 rows with a FULL or SKIP cell.
+    skip_count = len(_SKIP_CELL_RE.findall(matrix_body))
+    matrix_evaluated = full_count + skip_count
+    if matrix_evaluated < _MIN_PATTERN_MATRIX_ROWS:
+        failures.append(
+            f"Phase 1 gate: Pattern Applicability Matrix coverage — "
+            f"required ≥{_MIN_PATTERN_MATRIX_ROWS} patterns "
+            f"evaluated FULL or SKIP (one per pattern in "
+            f"references/exploration_patterns.md), found "
+            f"{matrix_evaluated} (FULL={full_count}, "
+            f"SKIP={skip_count}); "
+            f'see references/phase1_exploration_guide.md "Phase 1 '
+            f'completion gate" item #7.'
         )
 
     if failures:
@@ -529,14 +763,13 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
         bugs_md = quality_dir / "BUGS.md"
         if bugs_md.is_file():
             bugs_text = bugs_md.read_text(encoding="utf-8", errors="ignore")
-            # Match archive_lib._BUG_HEADING_PATTERN's titled-and-bare
-            # form so future BUG-NNN-suffix forms (e.g., BUG-001-fix-2)
-            # are handled consistently.
-            bug_id_re = re.compile(
-                r"^###\s+BUG-([A-Za-z0-9][A-Za-z0-9\-]*)(?::\s+.+)?\s*$",
-                re.MULTILINE,
-            )
-            bug_ids_p3 = sorted({m.group(1) for m in bug_id_re.finditer(bugs_text)})
+            # v1.5.7 089d (F22): use the module-level canonical
+            # `BUG_HEADING_PATTERN_RE` so all surfaces agree on
+            # which BUG-NNN forms parse (incl. BUG-H1/M1/L1 and
+            # future hyphenated-suffix variants).
+            bug_ids_p3 = sorted({
+                m.group(1) for m in BUG_HEADING_PATTERN_RE.finditer(bugs_text)
+            })
             if bug_ids_p3:
                 patches_dir = quality_dir / "patches"
                 if not patches_dir.is_dir():
@@ -659,14 +892,13 @@ def validate_phase_artifacts(quality_dir: Path, phase: int) -> tuple[bool, str]:
             # matches the contract's "if bugs were confirmed" caveat.
             return (True, "")
         bugs_text = bugs_md.read_text(encoding="utf-8", errors="ignore")
-        # v1.5.6 fix-up 071 BUG-006: match archive_lib._BUG_HEADING_PATTERN's
-        # titled-and-bare form for consistency (also handles future
-        # hyphenated suffix BUG IDs like BUG-001-fix-2).
-        bug_id_re = re.compile(
-            r"^###\s+BUG-([A-Za-z0-9][A-Za-z0-9\-]*)(?::\s+.+)?\s*$",
-            re.MULTILINE,
-        )
-        bug_ids = sorted({m.group(1) for m in bug_id_re.finditer(bugs_text)})
+        # v1.5.6 fix-up 071 BUG-006: match the canonical
+        # `BUG_HEADING_PATTERN_RE` titled-and-bare form for
+        # consistency across surfaces. v1.5.7 089d (F22) made this
+        # the canonical module-level constant.
+        bug_ids = sorted({
+            m.group(1) for m in BUG_HEADING_PATTERN_RE.finditer(bugs_text)
+        })
         if not bug_ids:
             # BUGS.md exists but contains no confirmed bugs.
             return (True, "")
@@ -872,6 +1104,185 @@ def validate_no_source_edits(
                 seen.add(path)
 
     return (not violations, violations)
+
+
+# v1.5.7 instruction 054 (A-10b): adopter install marker dirs.
+# Canonical source is bin/install_skill.AI_TOOL_MAP.values();
+# intentionally DUPLICATED here (Option B, additive — the
+# instruction-053/054 precedent) so this helper has no hard import
+# dependency on install_skill (which is not part of the bundled
+# runtime). TODO(v1.5.7.x): consolidate the exclusion/marker-set
+# copies behind one gate-standalone-safe shared constant.
+_INSTALL_MARKER_DIRS = (
+    ".claude", ".cursor", ".github", ".continue",
+    ".codex", ".windsurf", ".cline", ".aider",
+)
+
+# v1.5.7 instruction 055 F1: hardcoded bundled-bin closure for the
+# setup_repos.sh FLAT-layout guardrail snapshot. install_skill.py is
+# NOT itself in the bundled bin/ closure (per
+# install_skill._bundle_files — verified), so on a real deployed
+# flat target `from bin import install_skill` raises ImportError and
+# the snapshot would silently miss target/bin/*.py (codex 054 Task-4
+# F1). This constant mirrors _bundle_files's bin/ dest basenames so
+# the flat-layout snapshot is SELF-SUFFICIENT (no runtime
+# install_skill dependency) — the same additive precedent as A-10's
+# _INSTALL_MARKER_DIRS. Kept in sync with _bundle_files manually;
+# test_flat_layout_closure_matches_bundle_manifest pins it against
+# the canonical bundle so future drift fails the suite.
+# TODO(v1.5.7.x): consolidate the duplicated bundle/marker constants
+# behind one shared constants module.
+_FLAT_LAYOUT_BUNDLED_BIN_FILES = frozenset({
+    "__init__.py",
+    "_purpose.py",                  # v1.5.7 089x
+    "archive_lib.py",
+    "benchmark_lib.py",
+    "citation_verifier.py",
+    "council_config.py",
+    "council_semantic_check.py",
+    "migrate_v1_5_0_layout.py",
+    "qpb_config.py",                # v1.5.7 086 A-26
+    "qpb_phase.py",                 # v1.5.7 109
+    "qpb_validate.py",              # v1.5.7 090k
+    "quality_playbook.py",
+    "reference_docs_ingest.py",
+    "role_map.py",
+    "run_state_lib.py",             # v1.5.7 086 A-26
+    "validate_phase_artifacts.py",  # v1.5.7 086 A-26
+})
+
+# QPB-owned top-level subtrees/files in the flat (setup_repos.sh /
+# install_skill.py flat-root) layout. None of these ever contain
+# adopter source, so they are snapshotted wholesale.
+_FLAT_LAYOUT_QPB_SUBDIRS = ("references", "phase_prompts", "agents")
+_FLAT_LAYOUT_QPB_ROOT_FILES = ("SKILL.md", "quality_gate.py", "AGENTS.md")
+
+
+def _sha256_file(path: Path) -> str:
+    """SHA-256 of a file's bytes (streamed; binary-safe)."""
+    h = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def snapshot_installed_skill_shas(target_dir: Path) -> dict[str, str]:
+    """Return ``{target-relative-path: sha256}`` for every file in the
+    QPB skill tree installed under ``target_dir``.
+
+    v1.5.7 instruction 054 (A-10b). The git-based
+    ``validate_no_source_edits`` silently passes on non-git targets
+    (the common ``setup_repos.sh`` benchmark case) and may not cover
+    the installed skill tree even on git targets. This helper is the
+    additive companion: it watches the *installed skill copy* by
+    content hash so a mid-run mutation of e.g.
+    ``target/.claude/skills/quality-playbook/quality_gate.py`` (the
+    gson opus-4.6 Mode-A witness, 2026-05-16) is caught regardless of
+    git state.
+
+    Two install layouts are covered; the UNION of every detected
+    footprint is snapshotted (more robust than "first existing one":
+    it guards all of them and makes the
+    "both-layouts-present" edge case a non-issue rather than a
+    halt-worthy ambiguity):
+
+      1. ``install_skill.py`` layout — a self-contained QPB subtree at
+         ``target/<marker>/skills/quality-playbook/`` for any of the 8
+         markers. Snapshotted WHOLESALE (the whole subtree is
+         QPB-owned; no adopter files live there).
+      2. ``setup_repos.sh`` flat layout — QPB files intermixed with
+         adopter files at the target root. Here a wholesale walk would
+         hash adopter source, so the PRECISE flat QPB footprint is
+         snapshotted. SELF-SUFFICIENT (instruction 055 A-10c F1): the
+         bundled bin/ closure is enumerated from the hardcoded
+         ``_FLAT_LAYOUT_BUNDLED_BIN_FILES`` constant (pinned against
+         ``install_skill._bundle_files`` by the
+         ``test_flat_layout_closure_matches_bundle_manifest``
+         drift-guard test) — NOT a runtime ``from bin import
+         install_skill`` soft-import. install_skill.py is not part of
+         the bundled bin/ closure, so on a real deployed
+         setup_repos.sh-layout target the import would raise
+         ImportError; the hardcoded list makes the guardrail work
+         there. The flat QPB footprint is the ``.github/skills/``
+         subtree + the bundled root files (``quality_gate.py``,
+         ``SKILL.md``, ``references/``/``phase_prompts/``/``agents/``,
+         the bin/ closure).
+
+    Returns ``{}`` when no install footprint is found — the contract
+    is "no installed skill tree to protect" (mirrors
+    ``validate_no_source_edits``'s "no source tree" silent-pass
+    contract); the caller treats an empty baseline as nothing to
+    guard.
+    """
+    target = Path(target_dir)
+    snapshot: dict[str, str] = {}
+
+    def _add(file_path: Path) -> None:
+        try:
+            if file_path.is_file() and not file_path.is_symlink():
+                rel = file_path.relative_to(target).as_posix()
+                snapshot[rel] = _sha256_file(file_path)
+        except (OSError, ValueError):
+            pass
+
+    # Layout 1: install_skill.py marker subtrees (wholesale).
+    for marker in _INSTALL_MARKER_DIRS:
+        skill_root = target / marker / "skills" / "quality-playbook"
+        if skill_root.is_dir():
+            for root, _dirs, names in os.walk(skill_root):
+                for name in names:
+                    _add(Path(root) / name)
+
+    # Layout 2: setup_repos.sh flat layout. SELF-SUFFICIENT — no
+    # install_skill import (v1.5.7 instruction 055 F1: install_skill.py
+    # is not bundled, so a soft-import silently fails on real deployed
+    # targets and would miss target/bin/*.py — codex 054 Task-4 F1).
+    # The flat marker is ``target/.github/skills/SKILL.md``
+    # (setup_repos.sh's convention; install_skill.py's flat dest for
+    # SKILL.md is the target ROOT — both covered below). ``.github/
+    # skills/`` and the QPB-owned subtrees/files are walked WHOLESALE
+    # (never contain adopter source); the bundled bin/ closure is
+    # snapshotted by its precise hardcoded basename list so no adopter
+    # bin/ file is hashed.
+    if (target / ".github" / "skills" / "SKILL.md").is_file():
+        gh_skills = target / ".github" / "skills"
+        if gh_skills.is_dir():
+            for root, _dirs, names in os.walk(gh_skills):
+                for name in names:
+                    _add(Path(root) / name)
+        for subdir in _FLAT_LAYOUT_QPB_SUBDIRS:
+            sub = target / subdir
+            if sub.is_dir():
+                for root, _dirs, names in os.walk(sub):
+                    for name in names:
+                        _add(Path(root) / name)
+        for root_file in _FLAT_LAYOUT_QPB_ROOT_FILES:
+            _add(target / root_file)
+        bin_dir = target / "bin"
+        if bin_dir.is_dir():
+            for name in _FLAT_LAYOUT_BUNDLED_BIN_FILES:
+                _add(bin_dir / name)
+
+    return snapshot
+
+
+def diff_installed_skill_shas(
+    baseline: dict[str, str], current: dict[str, str]
+) -> list[str]:
+    """Return the sorted list of target-relative paths whose installed
+    skill content changed (modified, added, or removed) between the
+    run-start ``baseline`` snapshot and a later ``current`` snapshot.
+    Empty list == the installed skill tree is byte-identical.
+    """
+    changed: set[str] = set()
+    for path, sha in baseline.items():
+        if current.get(path) != sha:
+            changed.add(path)
+    for path in current:
+        if path not in baseline:
+            changed.add(path)
+    return sorted(changed)
 
 
 def _path_under_allowed_prefix(
@@ -1294,3 +1705,27 @@ def _atomic_write(target: Path, content: str) -> None:
         except FileNotFoundError:
             pass
         raise
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='run_state_lib',
+        summary=(
+            "Read/write/validate helpers for the v1.5.6 run-state event "
+            "log (the journal Mode B writes phase events into). "
+        ),
+        role=(
+            "Imported by run_playbook.py (the journaling backbone), by "
+            "regression_replay (which reads historical fixtures), and by "
+            "validate_phase_artifacts.py (which inspects state "
+            "transitions). "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

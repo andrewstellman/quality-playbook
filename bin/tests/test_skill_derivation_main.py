@@ -210,7 +210,13 @@ class CodexRunnerArgvTests(unittest.TestCase):
         from bin.skill_derivation.runners import CodexRunner
         from unittest import mock
         runner = CodexRunner()
-        with mock.patch("subprocess.run") as mock_run:
+        # v1.5.7 instruction 078 (W2): runners.py now resolves argv[0]
+        # via _resolve_runner_command/shutil.which. Mock which->None
+        # so the resolver no-ops and the exact-argv assertion stays
+        # host-PATH-independent (addendum r3 §4.2).
+        with mock.patch("subprocess.run") as mock_run, \
+             mock.patch("bin.skill_derivation.runners.shutil.which",
+                        return_value=None):
             mock_run.return_value = mock.Mock(
                 stdout="HELLO", stderr="", returncode=0,
             )
@@ -224,7 +230,11 @@ class CodexRunnerArgvTests(unittest.TestCase):
         from bin.skill_derivation.runners import CodexRunner
         from unittest import mock
         runner = CodexRunner(model="gpt-5-codex")
-        with mock.patch("subprocess.run") as mock_run:
+        # W2 (078): neutralize the shutil.which resolver — see note
+        # in test_argv_with_default_empty_model_omits_dash_m.
+        with mock.patch("subprocess.run") as mock_run, \
+             mock.patch("bin.skill_derivation.runners.shutil.which",
+                        return_value=None):
             mock_run.return_value = mock.Mock(
                 stdout="ok", stderr="", returncode=0,
             )
@@ -245,7 +255,11 @@ class CursorRunnerArgvTests(unittest.TestCase):
         from bin.skill_derivation.runners import CursorRunner
         from unittest import mock
         runner = CursorRunner()
-        with mock.patch("subprocess.run") as mock_run:
+        # W2 (078): neutralize the shutil.which resolver so the
+        # exact-argv assertion stays host-PATH-independent (§4.2).
+        with mock.patch("subprocess.run") as mock_run, \
+             mock.patch("bin.skill_derivation.runners.shutil.which",
+                        return_value=None):
             mock_run.return_value = mock.Mock(
                 stdout="HELLO", stderr="", returncode=0,
             )
@@ -263,7 +277,11 @@ class CursorRunnerArgvTests(unittest.TestCase):
         from bin.skill_derivation.runners import CursorRunner
         from unittest import mock
         runner = CursorRunner(model="sonnet-4")
-        with mock.patch("subprocess.run") as mock_run:
+        # W2 (078): neutralize the shutil.which resolver so the
+        # exact-argv assertion stays host-PATH-independent (§4.2).
+        with mock.patch("subprocess.run") as mock_run, \
+             mock.patch("bin.skill_derivation.runners.shutil.which",
+                        return_value=None):
             mock_run.return_value = mock.Mock(
                 stdout="ok", stderr="", returncode=0,
             )

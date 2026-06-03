@@ -939,3 +939,27 @@ def role_breakdown_for_index(role_map: Optional[dict]) -> Optional[dict]:
         "size_by_role": breakdown.get("size_by_role", {}),
         "percentages": breakdown.get("percentages", {}),
     }
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='role_map',
+        summary=(
+            "QPB Phase-1 file-role-tagging schema and helpers — defines "
+            "the roles (FUNCTIONAL_TEST, REGRESSION_TEST, IMPLEMENTATION, "
+            "etc.) and the queries that map files to roles. "
+        ),
+        role=(
+            "Imported by Phase 1 exploration code (run_playbook.py and "
+            "validate_phase_artifacts.py) to classify files in the target "
+            "repo against the role taxonomy. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

@@ -51,9 +51,22 @@ Operators who want runs to abort instead of proceeding in code-only mode can pas
 
 The flag is off by default. Use it for compliance/policy contexts where a quiet code-only-mode downgrade would mask a real process gap (e.g., "every release run must cite a spec; no spec means the run shouldn't have started"). The flag is the opt-IN counterpart to `--no-formal-docs`'s opt-OUT (which suppresses the WARN banner for the same code-only-mode case but allows the run to continue).
 
+## "What just happened" framing for code-only-mode runs (v1.5.7 UX contract)
+
+When Phase 1 detects code-only mode and the agent emits the mandatory `## What just happened` + `### What to do next` block at phase end (see `references/what_just_happened.md`), it MUST use the **State C** template — not State P1.
+
+The reason this matters: State P1's "no bugs are confirmed yet — confirmation happens in Phase 3" framing is technically true but hides the weaker-recall caveat. An adopter reading the State P1 message has no way to know their Phase 3 results will systematically underperform a run with documentation. State C surfaces that caveat explicitly:
+
+> Phase 1 (Explore) finished, but in **code-only mode** — no documentation was found at `reference_docs/`. Requirements will be derived from the source tree alone, which produces weaker bug recall: requirements end up describing what the code already does, so the spec-vs-code gap mostly disappears (the "derive-from-code" failure mode in `ai_context/TOOLKIT.md`).
+
+The State C "What to do next" instruction then offers the adopter a concrete choice between (a) adding documentation and re-running, or (b) continuing with the limitation explicitly acknowledged in the downstream report.
+
+Detection logic at phase end (mechanical, no judgment): Rule 8 of the `references/what_just_happened.md` classifier fires when the run-state log (resolved per the v1.5.7 D3 path — `<repo_dir>/quality/logs/<run-id>/run_state.jsonl` canonical, `quality/run_state.jsonl` legacy fallback for `--logs-flat` / `QPB_LOGS_LEGACY=1` runs) shows `phase_end phase=1` AND a `documentation_state state=code_only` event AND no `phase_end phase=2` event yet. That's the same `documentation_state` event this file already documents — the v1.5.7 UX contract reuses the existing telemetry surface rather than adding a new one.
+
 ## Cross-references
 
 - **README** — Step 1 of "How to use the Quality Playbook" describes documentation as the first thing to provide.
 - **`SKILL.md`** — Phase 1 prose describes how documentation evidence is used during exploration.
 - **`bin/reference_docs_ingest.py`** — the implementation that ingests the `reference_docs/` tree.
 - **`references/run_state_schema.md`** — defines the `documentation_state` event the playbook emits when code-only mode triggers, so the downgrade is searchable in audit trails.
+- **`references/what_just_happened.md`** — defines State C (the code-only-mode end-of-Phase-1 template) and Rule 8 of the classifier (the mechanical detection logic).

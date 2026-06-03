@@ -1,0 +1,11 @@
+RED
+Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_005_phase1_validator_enforces_the_written_gate
+Exit code: 1
+
+Traceback excerpt:
+AssertionError: True is not false
+
+Full test output:
+test_bug_005_phase1_validator_enforces_the_written_gate (quality.test_regression.CodeReviewRegressionTests.test_bug_005_phase1_validator_enforces_the_written_gate) ... FAIL
+
+FAILED (failures=1)

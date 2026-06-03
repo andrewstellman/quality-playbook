@@ -1,0 +1,1364 @@
+"""QPB Test Harness — runner adapter (claude only for Phase 1).
+
+Per the instruction: Phase 1 supports the CLAUDE adapter only.
+Other CLIs (codex / copilot / cursor) and Mode B (via
+``bin/run_playbook.py`` reuse) are explicitly Phase 5.
+
+Contract:
+  * Detached subprocess via ``_platform.popen_kwargs_detached`` (POSIX session-detach / Windows CREATE_NEW_PROCESS_GROUP) so closing
+    a client never kills a run (design §H / lifecycle).
+  * PID + heartbeat capture written to a status file.
+  * Raw NDJSON stream capture to ``stream.ndjson`` (always
+    retained, gitignored by ``repos/security-test-cases/.gitignore``
+    — never committed).
+  * Per-run **max-duration timeout** — kill the process tree on
+    expiry; terminal state ``TIMED_OUT``.
+  * Support ``install_channel=CLONE`` only for Phase 1 (Phase 2's
+    local-wheel/local-tgz adds the channel command-builders).
+"""
+from __future__ import annotations
+
+import contextlib
+import json
+import os
+import shutil
+import signal
+import subprocess
+import sys
+import tempfile
+import time
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from pathlib import Path
+
+from bin.harness.schema import (
+    InstallChannel,
+    Mode,
+    RunAxes,
+    Runner,
+    TerminalState,
+)
+
+
+class RunnerError(RuntimeError):
+    """A runner adapter call failed for a non-timeout reason
+    (e.g. claude CLI is not on PATH, or the channel is not yet
+    supported)."""
+
+
+# Runners supported by the current adapter implementation. Each
+# entry has a per-CLI command builder (`_<runner>_command`)
+# below; adding a runner is a 091-style adapter addition.
+#
+# v1.5.7 104: install_channel guard removed. The launch command
+# is channel-independent — `prepare` already installed the skill
+# into the target before launch_run runs; the runner just spawns
+# the AI-CLI against the installed target. The stale Phase-1
+# `_SUPPORTED_CHANNELS = {clone}` guard wrongly blocked
+# local-wheel / local-tgz / registry channels on the first live
+# run (it survived 091-103 only because every test before 104
+# used the clone channel).
+_SUPPORTED_RUNNERS = {Runner.CLAUDE, Runner.CODEX,
+                      Runner.COPILOT, Runner.CURSOR}
+
+
+def _utc_now_iso() -> str:
+    """UTC ISO-8601 timestamp matching the QPB run-id convention
+    (without microseconds, with the Zulu suffix)."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+@dataclass
+class LaunchSpec:
+    """Caller-supplied launch parameters. The Phase 4 manager
+    builds richer specs from queue entries."""
+    target_dir: Path
+    run_dir: Path
+    axes: RunAxes
+    case_id: str
+    run_id: str
+    max_duration_s: float
+    prompt: str
+    # Passed verbatim into the subprocess env (after env_snapshot
+    # capture). Used to set the vendor env var for the run (e.g.
+    # ``CLAUDECODE=1``) — this is what makes the gate's runner
+    # detection correct when we later re-run the gate for
+    # gate-derived facts.
+    extra_env: "dict[str, str]" = None  # type: ignore[assignment]
+    # v1.5.7 100: extra argv tokens spliced into the runner CLI at
+    # the runner-appropriate position (the harness does NOT
+    # interpret them). Example for codex low thinking:
+    # ``["-c", "model_reasoning_effort=\"low\""]`` → spliced
+    # between ``codex`` and ``exec``. Default empty list.
+    parameters: "list[str]" = None  # type: ignore[assignment]
+    # v1.5.7 123: Mode B per-run pristine QPB worktree path.
+    # Set by the launch site (`_launch_one_run_detached`) for
+    # Mode B runs ONLY; cleared after collect via
+    # `_remove_pristine_qpb_tree`. Threaded through
+    # `_command_for_axes` ⇒ `_mode_b_command` so the argv
+    # names the worktree's `bin/run_playbook.py`. Mode A
+    # ignores this field.
+    pristine_root: "Path | None" = None
+
+
+@dataclass
+class LaunchResult:
+    """Returned after the run terminates (or is timed out / killed).
+    The harness writes this into ``status.json`` + uses
+    ``terminal_state`` / ``exit_code`` to drive grading."""
+    pid: int
+    started_at: str
+    ended_at: str
+    exit_code: int
+    terminal_state: TerminalState
+    cli_command: str
+    cwd: str
+    env_snapshot: dict
+    stream_path: Path
+
+
+@dataclass
+class SpawnResult:
+    """v1.5.7 108: returned from ``launch_run_async`` — the
+    spawn-only half of the split. Carries the detached child's
+    PID + the bookkeeping the eventual ``collect_one_process``
+    (or in-process reaper) needs to write a terminal
+    ``status.json`` and produce a ``LaunchResult``.
+
+    The detached child's stdout/stderr have already been
+    redirected to ``stream_path``; the spawning process
+    closes its own end of the pipe so a later collector in a
+    different process tree never needs the file handle."""
+    pid: int
+    started_at: str
+    cli_command: str
+    cwd: str
+    env_snapshot: dict
+    stream_path: Path
+
+
+def _vendor_env_for(runner: Runner) -> "dict[str, str]":
+    """Return the env var the gate's ``_RUNNER_ENV_MARKERS`` looks
+    for (see ``quality_gate.py``). For Phase 1 ``CLAUDE`` →
+    ``CLAUDECODE=1``."""
+    if runner == Runner.CLAUDE:
+        return {"CLAUDECODE": "1"}
+    if runner == Runner.CODEX:
+        return {"CODEX_THREAD_ID": "harness"}
+    if runner == Runner.COPILOT:
+        return {"COPILOT_AGENT_SESSION_ID": "harness"}
+    return {}
+
+
+def _claude_command(model: str, prompt: str,
+                     thinking: "str | None" = None,
+                     parameters: "list[str] | None" = None,
+                     ) -> "list[str]":
+    """Build the claude CLI invocation for a Mode A run.
+
+    Uses the same flags QPB's existing ``run_playbook.py``
+    ``command_for_runner`` uses (``-p``, ``--dangerously-skip-
+    permissions``, ``--model``). Stream is captured via
+    ``--output-format stream-json --verbose``, matching the
+    design §G note that "claude has clean stream-json --verbose".
+
+    NOTE: ``thinking`` is reserved for axes parity but not yet
+    wired into the claude CLI invocation — the production
+    `run_playbook.command_for_runner` doesn't pass it either;
+    when claude grows a stable thinking-effort flag, both this
+    helper and the production builder gain it together.
+
+    v1.5.7 100: ``parameters`` (when non-empty) is spliced
+    verbatim into the flags region — between the standard flags
+    and the trailing positional prompt — so claude reads them as
+    additional CLI flags without disturbing prompt routing.
+    """
+    return [
+        "claude",
+        "--print",
+        "--dangerously-skip-permissions",
+        "--model", model,
+        "--output-format", "stream-json",
+        "--verbose",
+        *(parameters or []),
+        prompt,
+    ]
+
+
+def _codex_command(model: str,
+                    parameters: "list[str] | None" = None,
+                    ) -> "list[str]":
+    """v1.5.7 095 Phase 5: codex adapter. Mirrors
+    ``bin.run_playbook.command_for_runner`` for ``runner=codex``:
+    ``codex exec --sandbox workspace-write`` reads the prompt
+    from stdin when no positional prompt is provided
+    (codex-cli 0.125+). The trailing ``"-"`` is the explicit
+    stdin sentinel.
+
+    v1.5.7 124: replaced ``--full-auto`` with
+    ``--sandbox workspace-write``. Codex v0.133.0+ deprecated
+    ``--full-auto`` (CLI prints "warning: --full-auto is
+    deprecated; use --sandbox workspace-write"). The
+    workspace-write sandbox is codex's documented replacement
+    — preserves the non-interactive + workspace-write-allowed
+    semantics ``--full-auto`` carried.
+
+    Caller must set ``stdin_input=prompt`` on the LaunchSpec so
+    the prompt reaches the subprocess on stdin (argv would hit
+    shell command-line length limits on long phase prompts).
+
+    v1.5.7 100: ``parameters`` (when non-empty) is spliced
+    verbatim between ``codex`` and ``exec`` — codex reads
+    ``-c <key=value>`` (and similar global config overrides) only
+    when they precede the subcommand. The stdin sentinel ``-``
+    stays at the end so prompt routing is unchanged.
+    """
+    command = ["codex", *(parameters or []),
+                "exec", "--sandbox", "workspace-write"]
+    if model:
+        command.extend(["-m", model])
+    command.append("-")
+    return command
+
+
+def _copilot_command(model: str, prompt: str,
+                      parameters: "list[str] | None" = None,
+                      ) -> "list[str]":
+    """v1.5.7 095 Phase 5: copilot adapter. Mirrors the
+    ``copilot_resolver`` pattern from ``bin.run_playbook``: the
+    standalone ``copilot`` CLI is preferred when on PATH; the
+    deprecated ``gh copilot`` extension is the grace-period
+    fallback (089f).
+
+    The harness-side build is a soft-resolve: try the standalone
+    ``copilot``-with-``-p``-prompt form first, fall through to
+    ``gh copilot suggest`` only at launch time if the operator
+    explicitly opts in (the harness defaults to the canonical
+    standalone form per 089f).
+
+    v1.5.7 100: ``parameters`` (when non-empty) is spliced
+    verbatim into the flags region — after the standard flags and
+    before the ``-p <prompt>`` pair — so copilot reads them as
+    additional flags without disturbing the argv prompt route.
+    """
+    command = ["copilot", "--model", model, "--allow-all-tools",
+                *(parameters or []), "-p", prompt]
+    return command
+
+
+def _cursor_command(model: str,
+                     parameters: "list[str] | None" = None,
+                     ) -> "list[str]":
+    """v1.5.7 095 Phase 5: cursor adapter. Mirrors
+    ``bin.run_playbook.command_for_runner`` for ``runner=cursor``:
+    ``cursor agent --print --force`` reads the prompt from stdin
+    (cursor-cli 3.1+; do NOT pass ``-`` as a positional — cursor
+    treats it as the literal prompt content, unlike codex).
+    ``--force`` (alias ``--yolo``) skips confirmation prompts
+    for unattended runs.
+
+    Caller must set ``stdin_input=prompt`` on the LaunchSpec.
+
+    v1.5.7 100: ``parameters`` (when non-empty) is appended
+    verbatim — cursor takes the prompt on stdin, so extra flags
+    can safely live at the end of the flag region without
+    disturbing prompt routing.
+    """
+    command = ["cursor", "agent", "--print", "--force"]
+    if model:
+        command.extend(["--model", model])
+    if parameters:
+        command.extend(parameters)
+    return command
+
+
+def _mode_b_agent_marker_vars() -> "frozenset[str]":
+    """v1.5.7 115: return the canonical set of agent-marker
+    env-var names that ``run_playbook._detect_agent_context``
+    checks. Imported lazily from ``bin.run_playbook`` so the
+    list stays in sync as new agents are added — hardcoding
+    a divergent copy would silently break when the canonical
+    list grows.
+
+    The lazy import avoids paying run_playbook's full
+    module-load cost on harness import (run_playbook pulls
+    benchmark_lib, archive_lib, copilot_resolver, … on
+    module load). We pay it once on the first Mode B
+    launch.
+    """
+    from bin.run_playbook import _AGENT_CONTEXT_SIGNALS
+    return frozenset(_AGENT_CONTEXT_SIGNALS.keys())
+
+
+def _sanitize_mode_b_env(
+        env: "dict[str, str]") -> "dict[str, str]":
+    """v1.5.7 115: build the Mode B subprocess env so that
+    ``run_playbook``'s ``_detect_agent_context`` guard (the
+    "don't let an agent delegate to me" A-22 structural
+    defense) does NOT refuse the harness's invocation.
+
+    The harness IS a legitimate operator (Mode B per
+    design §G — "run_playbook.py IS the Mode B harness"). It
+    captures run_playbook's full stdout to stream.ndjson;
+    run_playbook spawns FRESH per-phase CLIs (which set their
+    OWN agent markers) — exactly the pattern the guard is
+    meant to ALLOW, not the interactive-agent-delegation it
+    blocks. But the harness inherits the operator's shell env,
+    which may include ``CLAUDECODE=1`` (Claude Code session)
+    or any of the other agent markers, and ``_vendor_env_for``
+    actively SETS one of those markers (e.g. ``CLAUDECODE=1``
+    for ``Runner.CLAUDE`` so the gate's runner-detector finds
+    it). So without sanitization the guard trips and Mode B
+    refuses with the agent-session ERROR before ever reaching
+    phase work — exactly what the AUP-experiment's 1272-byte
+    Mode B streams showed after 114 fixed the import gap.
+
+    The fix:
+
+    1. **Strip the agent-marker vars** (the canonical list
+       lives in ``run_playbook._AGENT_CONTEXT_SIGNALS``; see
+       ``_mode_b_agent_marker_vars``). Stripping them
+       satisfies ``_detect_agent_context`` (it returns
+       ``None``) and the guard exits silently.
+
+    2. **Set ``QPB_OPERATOR_NON_TTY_OVERRIDE=1``** — the
+       documented CI escape hatch (085 / docs/CI_INTEGRATION.md).
+       It's a no-op when ``--operator-invoked`` isn't on the
+       argv (current harness shape), but adding it now means
+       future invocations that pass ``--operator-invoked``
+       work without env-thrashing.
+
+    Mode-B-only: do NOT call this for Mode A.
+    ``_vendor_env_for`` SETS the agent marker on purpose for
+    Mode A (the gate uses it to detect which runner produced
+    the gate-report); stripping it would break gate provenance.
+
+    Safe: run_playbook spawns its own fresh per-phase CLI
+    subprocesses (claude / codex / copilot / cursor), each of
+    which sets its OWN agent marker. Stripping these from
+    run_playbook's own env doesn't affect the per-phase
+    subprocess envs.
+    """
+    sanitized = dict(env)
+    for var in _mode_b_agent_marker_vars():
+        sanitized.pop(var, None)
+    sanitized["QPB_OPERATOR_NON_TTY_OVERRIDE"] = "1"
+    return sanitized
+
+
+def _resolve_run_playbook_script(
+        target_dir: "Path | None" = None) -> Path:
+    """v1.5.7 114: locate ``bin/run_playbook.py`` by its
+    absolute path in the QPB clone, then invoke it as a
+    direct script. Returns the absolute path to the script.
+
+    **Design note (worth documenting; the 114 instruction's
+    wording is incorrect on this point):** the install bundle
+    DELIBERATELY excludes ``bin/run_playbook.py`` —
+    ``install_skill.py:397-398`` comments: "minus
+    `bin.run_playbook` (the Mode-B harness invoked from the
+    QPB clone, NOT from install_root)". So we cannot find
+    run_playbook.py at ``<target>/.claude/skills/.../bin/``
+    (the 114 instruction assumed it lives there; it doesn't,
+    by design).
+
+    What we CAN do, and what fixes the AUP-experiment's
+    "No module named bin.run_playbook" failure, is invoke
+    run_playbook.py by its absolute path inside the QPB
+    clone — the same clone the harness runs from. The
+    runner.py module file (this file) lives at
+    ``<qpb_clone>/bin/harness/runner.py``, so the script is
+    reliably at ``<qpb_clone>/bin/run_playbook.py``
+    (``__file__.parents[2] / "bin" / "run_playbook.py"``).
+
+    run_playbook.py injects QPB root into ``sys.path`` when
+    invoked as a direct script (its module header:
+    ``sys.path.insert(0, str(_Path(__file__).resolve().parent
+    .parent))``), so its sibling imports (``benchmark_lib``,
+    ``archive_lib``, ``copilot_resolver``) resolve regardless
+    of the subprocess's cwd. This is the ESSENTIAL invariant
+    the 114 instruction calls out: "the subprocess MUST be
+    able to import run_playbook's siblings (no `No module
+    named …`)."
+
+    Pre-114 the launch hardcoded ``python3 -m bin.run_playbook``,
+    which only resolves when ``cwd`` is the QPB clone root.
+    ``launch_run_async`` uses ``cwd=target_dir`` (the channel-
+    installed target) per the lifecycle contract, so the ``-m``
+    form died immediately with ``No module named bin.run_playbook``
+    — the 79-byte streams the AUP experiment surfaced on the
+    first Mode B run.
+
+    The ``target_dir`` parameter is accepted for forward
+    compatibility (callers pass it through 095/106 contracts)
+    but ignored: run_playbook is the same script regardless of
+    which target it drives.
+    """
+    del target_dir  # unused; see docstring
+    qpb_clone_root = Path(__file__).resolve().parents[2]
+    script_path = qpb_clone_root / "bin" / "run_playbook.py"
+    if not script_path.is_file():
+        raise RunnerError(
+            f"114: cannot locate `bin/run_playbook.py` "
+            f"relative to runner.py — expected at {script_path}. "
+            "The harness must run from a QPB clone (the install "
+            "bundle excludes run_playbook.py — see "
+            "`install_skill.py:397-398`)."
+        )
+    return script_path
+
+
+def _qpb_clone_root_for_mode_b() -> Path:
+    """v1.5.7 123: the QPB clone root the harness runs from
+    (where ``runner.py`` lives at ``<root>/bin/harness/``).
+    Used as the source for the per-run pristine worktree
+    materialization."""
+    return Path(__file__).resolve().parents[2]
+
+
+def _materialize_pristine_qpb_tree() -> Path:
+    """v1.5.7 123: materialize a PRISTINE QPB source tree at
+    HEAD via ``git worktree add --detach <tmp> HEAD``,
+    return the worktree path.
+
+    Why: run_playbook's source-guard
+    (``_check_qpb_source_unchanged`` in bin/run_playbook.py)
+    compares the QPB checkout against committed HEAD and
+    aborts Phase 1 if ANY tracked source file differs. The
+    harness dev tree almost always has uncommitted changes
+    (``bin/harness/acceptance_plan.json``, etc.), so the
+    pre-123 Mode B launch from the live clone (114) ALWAYS
+    aborted at Phase 1 with "QPB source files modified
+    during run" — even though nothing changed during the
+    run, the pre-existing uncommitted state vs HEAD tripped
+    the guard.
+
+    A worktree at HEAD starts CLEAN (no uncommitted
+    changes), so run_playbook's guard sees a clean tree and
+    proceeds. Per-Mode-B-run: materialize at launch, remove
+    at collect.
+
+    Returns the absolute path to the worktree directory.
+    Raises ``RunnerError`` on git failure (clone isn't a
+    repo, etc.). Cleans up the tmp directory on partial
+    failure to avoid leaking.
+    """
+    qpb_clone = _qpb_clone_root_for_mode_b()
+    tmp = Path(tempfile.mkdtemp(
+        prefix="qpb-mode-b-pristine-"))
+    try:
+        # git worktree add --detach <path> HEAD: creates a
+        # linked worktree at <path>, detached at the current
+        # HEAD commit. Detached so it doesn't conflict with
+        # branches in the main repo.
+        subprocess.run(
+            ["git", "worktree", "add", "--detach",
+              str(tmp), "HEAD"],
+            cwd=str(qpb_clone),
+            check=True, capture_output=True, text=True,
+            encoding="utf-8", errors="replace",  # 190 FINDING-47
+            timeout=60,
+        )
+    except subprocess.CalledProcessError as exc:
+        # Clean up the empty tmp dir + propagate.
+        with contextlib.suppress(Exception):
+            shutil.rmtree(tmp, ignore_errors=True)
+        raise RunnerError(
+            f"123: git worktree add failed for "
+            f"pristine Mode B tree: "
+            f"{exc.stderr[-300:] if exc.stderr else exc}"
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        with contextlib.suppress(Exception):
+            shutil.rmtree(tmp, ignore_errors=True)
+        raise RunnerError(
+            f"123: pristine worktree materialization "
+            f"failed: {exc}"
+        )
+    # Verify the worktree has the run_playbook script we
+    # need (defense against an incomplete checkout).
+    script = tmp / "bin" / "run_playbook.py"
+    if not script.is_file():
+        _remove_pristine_qpb_tree(tmp)
+        raise RunnerError(
+            f"123: pristine worktree at {tmp} missing "
+            f"bin/run_playbook.py — checkout incomplete?"
+        )
+    return tmp
+
+
+def _remove_pristine_qpb_tree(tree: Path) -> None:
+    """v1.5.7 123: tear down a pristine Mode B worktree.
+    Best-effort: ``git worktree remove --force`` from the
+    main QPB clone (so the worktree registration is cleaned
+    up too — without this `git worktree list` would leak
+    entries), then ``shutil.rmtree`` as a belt-and-
+    suspenders cleanup. Both steps suppress errors so a
+    failed teardown doesn't break the collect path."""
+    qpb_clone = _qpb_clone_root_for_mode_b()
+    with contextlib.suppress(Exception):
+        subprocess.run(
+            ["git", "worktree", "remove", "--force",
+              str(tree)],
+            cwd=str(qpb_clone),
+            check=False, capture_output=True, text=True,
+            encoding="utf-8", errors="replace",  # 190 FINDING-47
+            timeout=30,
+        )
+    with contextlib.suppress(Exception):
+        if tree.exists():
+            shutil.rmtree(tree, ignore_errors=True)
+
+
+def _mode_b_command(runner: Runner, target_dir: Path,
+                     model: str,
+                     parameters: "list[str] | None" = None,
+                     *,
+                     pristine_root: "Path | None" = None,
+                     ) -> "list[str]":
+    """v1.5.7 095 Phase 5: Mode B reuses ``bin.run_playbook`` as
+    the canonical harness (per design §G — "run_playbook.py IS
+    the Mode B harness").
+
+    v1.5.7 114: invocation switched from the bare ``-m
+    bin.run_playbook`` to the absolute-script-path form:
+
+        python3 <qpb_clone>/bin/run_playbook.py \
+            --<runner> --model <model> \
+            [<parameters...>] <target_dir>
+
+    Pre-114 used ``python3 -m bin.run_playbook …``, which only
+    resolves when the working directory contains ``bin/`` as an
+    importable package — i.e. when launched from the QPB clone
+    root. ``launch_run_async`` launches with ``cwd=target_dir``
+    (the channel-installed target), so the ``-m`` form died
+    immediately with ``No module named bin.run_playbook`` on
+    the first live Mode B run (AUP experiment, three 79-byte
+    streams). The absolute-path script form sidesteps that
+    failure mode: run_playbook's own module header injects QPB
+    root into ``sys.path`` so its sibling imports
+    (``benchmark_lib``, ``archive_lib``, ``copilot_resolver``)
+    resolve regardless of cwd. See
+    ``_resolve_run_playbook_script`` for why we use the
+    QPB-clone path rather than the install path the 114
+    instruction text implied (the install bundle deliberately
+    excludes run_playbook.py).
+
+    The runner flag matches the run_playbook arg parser
+    (``--claude``/``--copilot``/``--codex``/``--cursor``);
+    ``--model`` is the per-runner model override. The harness
+    captures stream output the same way as Mode A; the
+    difference is just *who drives the phases* — Mode A is the
+    CLI agent, Mode B is the run_playbook harness.
+
+    v1.5.7 106: ``parameters`` in Mode B is spliced into the
+    ``run_playbook`` argv (before the trailing ``<target_dir>``
+    positional). This lets a plan select phases in Mode B —
+    e.g. ``parameters=["--phase", "3"]``. In Mode A the same
+    field routes to the runner CLI (per 100); the contract is
+    "``parameters`` routes to whichever subprocess this run
+    launches".
+
+    v1.5.7 129: to forward runner-CLI args (e.g. codex
+    ``-c model_reasoning_effort=low``) through Mode B, use
+    ``parameters=["--runner-extra-args", "<shell-quoted string>"]``
+    — run_playbook now recognizes ``--runner-extra-args`` and
+    shlex-splits the value into the runner argv. No code change
+    here; the existing ``parameters``→run_playbook splice carries
+    the new flag because run_playbook understands it.
+    """
+    flag = {
+        Runner.CLAUDE: "--claude",
+        Runner.CODEX: "--codex",
+        Runner.COPILOT: "--copilot",
+        Runner.CURSOR: "--cursor",
+    }[runner]
+    # v1.5.7 123: when a per-Mode-B pristine HEAD worktree
+    # was materialized at launch (the harness lifecycle —
+    # see ``_materialize_pristine_qpb_tree``), invoke
+    # run_playbook from THERE. The pristine tree is clean
+    # vs HEAD so run_playbook's source-guard
+    # (`_check_qpb_source_unchanged`) sees no diff and
+    # doesn't abort Phase 1 — even when the live harness
+    # clone has uncommitted dev changes.
+    #
+    # Falls back to the QPB-clone path (114) when no
+    # pristine_root is supplied (e.g. unit tests for the
+    # argv shape that don't need a real materialization).
+    if pristine_root is not None:
+        script_path = (Path(pristine_root)
+                        / "bin" / "run_playbook.py")
+    else:
+        script_path = _resolve_run_playbook_script(
+            target_dir)
+    return [
+        sys.executable, str(script_path),
+        flag, "--model", model,
+        *(parameters or []),
+        str(target_dir),
+    ]
+
+
+def _needs_stdin_prompt(runner: Runner) -> bool:
+    """codex + cursor read the prompt on stdin (codex via the
+    ``-`` sentinel; cursor implicitly when no positional arg).
+    claude + copilot take the prompt on argv.
+
+    Mode B is the run_playbook harness — it consumes the prompt
+    internally and doesn't need a stdin pipe from the harness.
+    """
+    return runner in (Runner.CODEX, Runner.CURSOR)
+
+
+def _command_for_axes(axes: RunAxes, prompt: str,
+                       target_dir: "Path | None" = None,
+                       parameters: "list[str] | None" = None,
+                       *,
+                       pristine_root: "Path | None" = None,
+                       ) -> "list[str]":
+    """v1.5.7 095 Phase 5: dispatch to the right adapter.
+
+    Mode A: per-runner CLI invocation (claude/codex/copilot/
+    cursor) with the prompt passed on argv (claude/copilot) or
+    stdin (codex/cursor — caller routes via
+    ``_needs_stdin_prompt``).
+
+    Mode B: ``python3 -m bin.run_playbook --<runner> --model
+    <model> <target_dir>`` — the run_playbook harness drives the
+    phases.
+
+    v1.5.7 100: ``parameters`` (when non-empty) is forwarded to
+    the per-runner Mode A builder which splices the tokens at
+    the runner-appropriate position. Mode B ignores parameters —
+    run_playbook owns the CLI for whichever runner it's driving;
+    operator-specific overrides land via run_playbook's own
+    flags.
+    """
+    if axes.runner not in _SUPPORTED_RUNNERS:
+        raise RunnerError(
+            f"runner {axes.runner.value!r} is not in the supported "
+            f"set {sorted(r.value for r in _SUPPORTED_RUNNERS)}"
+        )
+    # v1.5.7 124: codex `exec` is SINGLE-TURN — it runs one
+    # turn against the prompt and exits, regardless of how
+    # the prompt requests "all 6 phases unattended". So the
+    # Mode A contract ("one session runs the whole
+    # pipeline") doesn't fit codex; a Mode A codex run
+    # produces exactly what the first cross-runner run
+    # surfaced: codex reads the prompt, replies with a
+    # one-turn answer (often "I can proceed with the
+    # fallback of manually executing Mode A phase prompts
+    # 1→6" or similar hedge), and exits. The right way to
+    # drive codex through the pipeline is Mode B —
+    # run_playbook invokes a FRESH `codex exec` per phase,
+    # which matches codex's single-turn nature.
+    #
+    # Reject codex Mode A at command-build time with a
+    # clear, operator-actionable message rather than
+    # launching a doomed single-exec that hedges and exits.
+    # Plans should specify ``mode: B`` for codex; the
+    # rejection message documents this for any plan author.
+    if axes.runner == Runner.CODEX and axes.mode == Mode.A:
+        raise RunnerError(
+            "124: codex Mode A is not supported. `codex exec` "
+            "is single-turn (runs ONE turn against the "
+            "prompt and exits, regardless of how the prompt "
+            "requests a multi-phase pipeline), so a Mode A "
+            "expectation of 'one session drives all 6 "
+            "phases' doesn't fit codex. Use Mode B for "
+            "codex — set ``mode: B`` on the plan run + "
+            "run_playbook will drive codex per-phase via "
+            "fresh `codex exec` invocations (each phase is "
+            "a single turn, which is exactly what codex "
+            "supports)."
+        )
+    # v1.5.7 104: install_channel does NOT affect the launch
+    # argv (prepare already installed the skill); the old
+    # clone-only guard here wrongly blocked local/registry
+    # channels on the first live run.
+    if axes.mode == Mode.B:
+        if target_dir is None:
+            raise RunnerError(
+                "Mode B requires target_dir (run_playbook drives "
+                "the phases against the target tree)"
+            )
+        # v1.5.7 106: forward `parameters` so plan runs can
+        # select phases (e.g. `--phase 3`) in Mode B.
+        # v1.5.7 123: forward `pristine_root` so Mode B runs
+        # run_playbook from the per-run pristine HEAD
+        # worktree instead of the (possibly-dirty) live clone.
+        return _mode_b_command(axes.runner, target_dir, axes.model,
+                                parameters=parameters,
+                                pristine_root=pristine_root)
+    # Mode A — per-runner Mode A invocation.
+    if axes.runner == Runner.CLAUDE:
+        return _claude_command(axes.model, prompt, axes.thinking,
+                                parameters=parameters)
+    if axes.runner == Runner.CODEX:
+        return _codex_command(axes.model, parameters=parameters)
+    if axes.runner == Runner.COPILOT:
+        return _copilot_command(axes.model, prompt,
+                                 parameters=parameters)
+    if axes.runner == Runner.CURSOR:
+        return _cursor_command(axes.model, parameters=parameters)
+    # Unreachable given the _SUPPORTED_RUNNERS guard above.
+    raise RunnerError(f"runner {axes.runner!r} fell through dispatch")
+
+
+def _write_status(run_dir: Path, status: dict) -> None:
+    """Atomic write of status.json (tmp + rename), so a reader
+    never sees a partial file."""
+    target = run_dir / "status.json"
+    tmp = target.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(status, indent=2) + "\n",
+                    encoding="utf-8")
+    os.replace(tmp, target)
+
+
+def _kill_process_tree(pid: int, sig: "int | None" = None) -> None:
+    """Kill the process group started by POSIX session detach
+    (or Windows CREATE_NEW_PROCESS_GROUP).
+
+    v1.5.7 147 (additive, ruled): ``sig=None`` (default) preserves
+    the original SIGTERM → 2s-grace → SIGKILL escalation — the
+    max-duration timeout path passes nothing and is UNCHANGED. An
+    explicit ``sig`` sends that signal to the group ONCE, no
+    escalation, no grace — the caller owns what happens if the
+    process doesn't respond (operator semantics: ``--graceful``
+    re-run without it to force-kill).
+
+    v1.5.7 180-followup-6 FINDING-9: routes through
+    ``_platform.kill_process_tree(pid, force=...)`` so the
+    SIGKILL primitive is lazy-resolved inside that helper (which
+    branches on IS_WINDOWS). On Windows ``signal.SIGKILL`` does
+    not exist — referencing it at module-load time crashes the
+    runner.py import.
+    """
+    from bin.harness import _platform as _platform_mod
+    if sig is not None:
+        # Explicit signal: SIGTERM-only path (graceful single-
+        # shot). force=False maps to SIGTERM on POSIX; on Windows
+        # there is no signal-equivalent so it still terminates.
+        _platform_mod.kill_process_tree(
+            pid, force=(sig != signal.SIGTERM))
+        return
+    # Default escalation: graceful → grace period → force.
+    _platform_mod.kill_process_tree(pid, force=False)
+    time.sleep(2.0)
+    _platform_mod.kill_process_tree(pid, force=True)
+
+
+# v1.5.7 184 FINDING-23: consolidated to _platform.pid_alive.
+# Pre-184 the 147 body used the POSIX signal-0 probe which is
+# broken on Windows for the reasons FINDING-20 documented in
+# plan_runner. Same FINDING-18 alias pattern: delete the body;
+# symbol preserved as the alias target so kill_run's existing
+# `_pid_alive(pid)` call site keeps working unchanged.
+from bin.harness._platform import (
+    pid_alive as _pid_alive,
+)
+
+
+class KillError(RuntimeError):
+    """v1.5.7 147: ``kill_run`` refused — e.g. the run is already
+    collected (grading.json present). Don't rewrite a reaped run."""
+
+
+@dataclass
+class KillResult:
+    """v1.5.7 147: outcome of a ``kill_run``."""
+    run_dir: Path
+    pid: "int | None"
+    was_alive: bool
+    signal_sent: "int | None"
+    terminal_state: str
+    still_alive_after_grace: bool = False
+
+
+def _release_slot_for_run_dir(run_dir: Path) -> None:
+    """v1.5.7 147: release the slot for the run at ``run_dir``.
+
+    v1.5.7 174 Phase 5: the pool-only model uses manifest state
+    as source of truth — there is no separate registry slot to
+    release. The kill_run flow writes KILLED to the manifest
+    entry which makes the slot count drop naturally. This
+    function is now a no-op; preserved for back-compat with
+    147-era callers."""
+    return
+
+
+def kill_run(run_dir: Path, *, sig: "int | None" = None,
+             grace_poll_s: float = 5.0) -> KillResult:
+    """v1.5.7 147: operator-initiated termination of a run. Signals
+    the run's process group (if alive), writes a ``KILLED``
+    status.json, and releases the 125 registry slot.
+
+    ``sig=None`` (default) → force-kill (lazy-resolved to
+    ``SIGKILL`` on POSIX inside ``_platform.kill_process_tree``,
+    or ``TerminateProcess`` on Windows). Pass an explicit
+    ``signal.SIGTERM`` for a single graceful signal (no
+    escalation — ruled in 147). v1.5.7 180-followup-6 FINDING-9:
+    the prior ``sig: int = signal.SIGKILL`` default arg crashed
+    Windows module-load (signal.SIGKILL does not exist there);
+    lazy resolution + None sentinel fixes that. (``# Windows-OK``
+    — docstring mentions of signal.SIGKILL are documentation,
+    not load-time evaluation; the actual call sites all carry
+    AttributeError guards.)
+
+    Raises ``KillError`` if the run is already collected
+    (grading.json present). The action does NOT block on
+    termination beyond a brief liveness re-poll (``grace_poll_s``)
+    used only to report whether a graceful signal was honored; the
+    next status refresh observes the real outcome.
+
+    Caveat: pid identity relies on the spawned-in-our-session
+    coupling (108 POSIX session-detach); a pid reassigned to
+    an unrelated host process can't be reliably distinguished, but
+    that aliasing is unlikely in the harness's window.
+    """
+    if (run_dir / "grading.json").exists():
+        raise KillError(
+            f"{run_dir.name} is already collected (grading.json "
+            f"exists); not re-killing")
+    status: dict = {}
+    sp = run_dir / "status.json"
+    if sp.is_file():
+        with contextlib.suppress(OSError, json.JSONDecodeError):
+            status = json.loads(sp.read_text(encoding="utf-8"))
+    pid = status.get("pid")
+    was_alive = _pid_alive(pid)
+    signal_sent: "int | None" = None
+    still_alive = False
+    # v1.5.7 180-followup-6 FINDING-9: lazy-resolve SIGKILL only
+    # when the caller asked for default-force-kill; signal.SIGKILL
+    # does not exist on Windows so module-load-time evaluation
+    # would crash the runner.py import.
+    resolved_sig: "int | None"
+    if sig is None:
+        try:
+            resolved_sig = int(signal.SIGKILL)  # POSIX
+        except AttributeError:
+            resolved_sig = None  # Windows: TerminateProcess
+    else:
+        resolved_sig = int(sig)
+    if was_alive:
+        # v1.5.7 180-followup-6 FINDING-9: when sig is None
+        # (kill_run default) preserve the 147 "force-kill, no
+        # escalation" contract by routing directly through
+        # _platform.kill_process_tree. The _kill_process_tree
+        # sig=None path is the max-duration escalation loop and
+        # MUST NOT be triggered here (147 ruling: kill_run is
+        # one-shot, no grace).
+        if sig is None:
+            from bin.harness import _platform as _platform_mod
+            _platform_mod.kill_process_tree(pid, force=True)
+        else:
+            _kill_process_tree(pid, sig=sig)
+        signal_sent = resolved_sig
+        deadline = time.monotonic() + grace_poll_s
+        while time.monotonic() < deadline:
+            if not _pid_alive(pid):
+                break
+            time.sleep(0.2)
+        still_alive = _pid_alive(pid)
+    now = _utc_now_iso()
+    if resolved_sig is None:
+        signame = "TerminateProcess"
+    else:
+        try:
+            signame = signal.Signals(resolved_sig).name
+        except ValueError:
+            signame = str(resolved_sig)
+    exit_code = -resolved_sig if resolved_sig is not None else 1
+    _write_status(run_dir, {
+        "state": "DONE",
+        "pid": pid,
+        "started_at": status.get("started_at", ""),
+        "heartbeat": status.get("heartbeat", now),
+        "ended_at": now,
+        "exit_code": exit_code,
+        "terminal_state": TerminalState.KILLED.value,
+        "terminal_reason": f"killed by operator ({signame})",
+    })
+    _release_slot_for_run_dir(run_dir)
+    return KillResult(
+        run_dir=run_dir, pid=pid, was_alive=was_alive,
+        signal_sent=signal_sent,
+        terminal_state=TerminalState.KILLED.value,
+        still_alive_after_grace=still_alive)
+
+
+def launch_run_async(spec: LaunchSpec) -> SpawnResult:
+    """v1.5.7 108: spawn the detached AI-CLI child and RETURN
+    IMMEDIATELY (no wait). Writes the RUNNING ``status.json``
+    so an observer (the 110 status layer / 111 TUI / a later
+    collector) can see the run is live before it produces
+    stream output.
+
+    Use ``collect_one_process(spec, spawn)`` (same process) or
+    the orphan-polling pattern in ``plan_runner.collect_
+    harness_run`` (after run_plan returns + the collector runs
+    detached) to drive the wait + terminal status. The split
+    is the 108 anti-SIGTTIN fix: a long-lived foreground
+    parent ``wait()``ing on the AI-CLI is what got suspended
+    on the first live full-pipeline run.
+    """
+    spec.run_dir.mkdir(parents=True, exist_ok=True)
+    cmd = _command_for_axes(spec.axes, spec.prompt,
+                              target_dir=spec.target_dir,
+                              parameters=spec.parameters,
+                              pristine_root=spec.pristine_root)
+    cli_command = " ".join(cmd)
+    needs_stdin = (
+        spec.axes.mode != Mode.B
+        and _needs_stdin_prompt(spec.axes.runner)
+    )
+    env = os.environ.copy()
+    # v1.5.7 185 FINDING-29: force UTF-8 stdout/stderr in the
+    # spawned playbook child so Python doesn't fall back to
+    # cp1252 on Windows when stdout is piped (which the
+    # harness's stream-capture path always is). cp1252 cannot
+    # encode the box-drawing / arrow / emoji characters that
+    # QPB output emits; pre-185 the akka Windows fire crashed
+    # at print() in benchmark_lib.logboth on a leftwards-
+    # arrow. FINDING-27 removed the known crash chars from
+    # output paths; FINDING-29 is the defensive layer that
+    # catches anything FINDING-27 missed AND future
+    # regressions. setdefault so operators can override.
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    env.update(_vendor_env_for(spec.axes.runner))
+    if spec.extra_env:
+        env.update(spec.extra_env)
+    # v1.5.7 115: Mode B sanitization — strip agent-marker env
+    # vars + set QPB_OPERATOR_NON_TTY_OVERRIDE=1 so
+    # run_playbook's _detect_agent_context guard doesn't
+    # refuse the harness's launch. See _sanitize_mode_b_env
+    # for the full rationale (the harness is a legitimate
+    # operator; the guard's A-22 structural defense is meant
+    # to block interactive-agent-delegation, not the
+    # harness's pipe-captured-stdout / fresh-per-phase-CLI
+    # pattern). Mode A keeps the agent marker (the gate uses
+    # it to detect which runner produced the gate-report).
+    if spec.axes.mode == Mode.B:
+        env = _sanitize_mode_b_env(env)
+        # v1.5.7 164: tell the Mode B supervisor where to write
+        # status.json on abort. run_playbook.py reads this env var
+        # at each abort site; when set, it writes a terminal-shaped
+        # status.json (terminal_state=ABORTED_PHASE, phase_aborted,
+        # exit_code, ended_at) BEFORE returning. The collector then
+        # sees the status and grades accordingly — no more
+        # 4-hour-alive zombies whose status never updates. When the
+        # env var is absent (operator running run_playbook.py
+        # manually), behavior is unchanged.
+        env["QPB_HARNESS_STATUS_PATH"] = str(
+            spec.run_dir / "status.json")
+    env_snapshot = {
+        k: v for k, v in env.items()
+        if (k in ("CLAUDECODE", "CODEX_THREAD_ID",
+                   "COPILOT_AGENT_SESSION_ID", "CURSOR",
+                   "QPB_OPERATOR_NON_TTY_OVERRIDE")
+             or (spec.extra_env and k in spec.extra_env))
+    }
+    stream_path = spec.run_dir / "stream.ndjson"
+    started_at = _utc_now_iso()
+    # Pre-write so a watcher sees RUNNING even before the
+    # child produces output.
+    _write_status(spec.run_dir, {
+        "state": "RUNNING",
+        "pid": None,
+        "started_at": started_at,
+        "heartbeat": started_at,
+        "exit_code": None,
+        "terminal_state": None,
+    })
+    # Open the stream file, spawn the child with its stdout
+    # dup'd to the file fd, then CLOSE the parent's handle so
+    # the child keeps writing via the dup'd fd even after the
+    # parent process exits (108 anti-SIGTTIN — the parent must
+    # not retain a long-lived handle that blocks reaping).
+    # v1.5.7 180-followup-5 FINDING-8: cross-platform detach
+    # kwargs via _platform.popen_kwargs_detached (POSIX:
+    # start_new_session=True; Windows: creationflags).
+    from bin.harness import _platform as _platform_mod
+    stream_fp = open(stream_path, "wb")
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(spec.target_dir),
+            stdout=stream_fp,
+            stderr=subprocess.STDOUT,
+            stdin=(subprocess.PIPE if needs_stdin
+                    else subprocess.DEVNULL),
+            env=env,
+            **_platform_mod.popen_kwargs_detached(),
+        )
+    finally:
+        stream_fp.close()
+    _write_status(spec.run_dir, {
+        "state": "RUNNING",
+        "pid": proc.pid,
+        "started_at": started_at,
+        "heartbeat": started_at,
+        "exit_code": None,
+        "terminal_state": None,
+    })
+    if needs_stdin and proc.stdin is not None:
+        try:
+            proc.stdin.write(spec.prompt.encode("utf-8"))
+            proc.stdin.close()
+        except (BrokenPipeError, OSError):
+            pass
+    return SpawnResult(
+        pid=proc.pid,
+        started_at=started_at,
+        cli_command=cli_command,
+        cwd=str(spec.target_dir),
+        env_snapshot=env_snapshot,
+        stream_path=stream_path,
+    )
+
+
+def _gate_log_verdict(target_dir: "Path | None") -> "str | None":
+    """v1.5.7 137: return the gate verdict from
+    ``<target_dir>/quality/results/quality-gate.log``'s canonical
+    ``RESULT: GATE …`` line (``GATE PASSED`` / ``GATE PASSED WITH
+    CLEANUP NEEDED`` / ``GATE FAILED …``), or None when the log is
+    absent or carries no RESULT line (a partial run that never
+    reached the Phase 6 verdict).
+
+    Reuses ``facts._RE_RESULT_LINE`` — the single canonical
+    matcher — via a lazy import (facts isn't imported at
+    runner.py module load; the lazy import also sidesteps any
+    import-order coupling) rather than re-deriving the regex.
+    """
+    if target_dir is None:
+        return None
+    log = target_dir / "quality" / "results" / "quality-gate.log"
+    if not log.is_file():
+        return None
+    try:
+        text = log.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return None
+    from bin.harness import facts as _facts
+    m = _facts._RE_RESULT_LINE.search(text)
+    return m.group("rest") if m else None
+
+
+def _classify_stream_terminal(
+        stream_path: Path,
+        target_dir: "Path | None" = None,
+) -> "tuple[TerminalState | None, str]":
+    """v1.5.7 113: classify a run's terminal state from the
+    LAST ``result`` event in ``stream.ndjson``.
+
+    Returns ``(terminal_state, reason)``:
+      * ``(TerminalState.BLOCKED, reason)`` when the last
+        ``result`` event has ``is_error: true`` (AUP / API
+        error). ``reason`` is the result body text — the
+        operator-facing receipt of WHY the run was blocked.
+      * ``(TerminalState.COMPLETED, "")`` when the last
+        ``result`` event has ``is_error: false``. A clean
+        Claude ``result`` event is the authoritative "the
+        run finished its turn" signal — pre-113, the 108
+        orphan-collector REQUIRED ``gate-report-latest.json``
+        for COMPLETED, but the AUP experiment showed that
+        two clean Mode A gson runs produced full ``quality/``
+        trees (all 6 phases) WITHOUT that file (the
+        report-writer step ran inconsistently), and the
+        artifact-only inference mislabeled them FAILED.
+      * ``(None, "")`` when the stream has no parseable
+        ``result`` event AND (137) no recognizable gate log —
+        inconclusive; callers fall back to their own artifact
+        heuristic.
+
+    v1.5.7 137: when the stream yields no Claude ``result`` event
+    (copilot/codex/cursor emit plain text; Mode B ``run_playbook``
+    streams have no ``result`` envelope) AND ``target_dir`` is
+    given with a ``quality/results/quality-gate.log`` carrying a
+    ``RESULT: GATE …`` line, the run is classified ``COMPLETED``
+    (``reason="completed (gate log: <verdict>)"``). All three
+    verdicts (PASSED / CLEANUP / FAILED) ⇒ COMPLETED — the run
+    finished Phase 6; the PASS/FAIL GRADE is decided downstream.
+    The Claude ``result`` event is checked FIRST, so it always
+    wins over the gate-log fallback when present (faster,
+    authoritative). When ``target_dir`` is None or the log is
+    absent/partial, the classifier behaves exactly as pre-137.
+
+    Robust to: missing file, malformed JSON lines (skipped),
+    multiple ``result`` events (LAST wins — a recovered run
+    that ended cleanly is NOT misclassified as BLOCKED).
+    """
+    if not stream_path.is_file():
+        return (None, "")
+    try:
+        text = stream_path.read_text(
+            encoding="utf-8", errors="ignore"
+        )
+    except OSError:
+        return (None, "")
+    last_result: "dict | None" = None
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        if obj.get("type") == "result":
+            last_result = obj
+    if last_result is None:
+        # v1.5.7 137: no Claude `result` envelope — fall back to
+        # the gate log. A `RESULT: GATE …` line means Phase 6
+        # finished cleanly ⇒ COMPLETED. (The Claude result event,
+        # checked above, always wins when present.)
+        verdict = _gate_log_verdict(target_dir)
+        if verdict is not None:
+            return (TerminalState.COMPLETED,
+                    f"completed (gate log: {verdict})")
+        return (None, "")
+    if last_result.get("is_error"):
+        reason = last_result.get("result", "")
+        if not isinstance(reason, str):
+            reason = json.dumps(reason)
+        return (TerminalState.BLOCKED, reason)
+    return (TerminalState.COMPLETED, "")
+
+
+def _stream_ended_in_api_error(
+        stream_path: Path) -> "tuple[bool, str]":
+    """v1.5.7 112: detect an AUP / API-error termination by
+    reading the LAST ``result`` event from ``stream.ndjson``.
+
+    Claude Code's AUP refusal looks like:
+      ``{"type":"result", "subtype":"success",
+         "is_error":true,
+         "result":"API Error: Claude Code is unable to respond
+                   to this request, which appears to violate
+                   our Usage Policy (…/aup) …"}``
+
+    The robust key is ``is_error:true`` — NOT ``subtype``
+    (AUP refusals report ``subtype:"success"`` with
+    ``is_error:true``). The process also exits 0, so the
+    pre-112 ``COMPLETED if exit_code == 0`` logic mis-marked
+    AUP-blocked runs COMPLETED, which then graded the
+    partial ``quality/`` tree as substantive failures (first
+    live run showed "18 substantive fails" from this).
+
+    Returns ``(blocked, reason)``.
+
+    v1.5.7 113: thin wrapper over ``_classify_stream_terminal``
+    that preserves the (bool, reason) shape callers of the 112
+    API depend on. New code should use
+    ``_classify_stream_terminal`` directly to also get the
+    COMPLETED signal (a clean ``is_error:false`` result event).
+    """
+    state, reason = _classify_stream_terminal(stream_path)
+    return (state == TerminalState.BLOCKED, reason)
+
+
+def collect_one_process(spec: LaunchSpec,
+                         spawn: SpawnResult) -> LaunchResult:
+    """v1.5.7 108: in-process collector — waits for a child
+    spawned in THIS process via the equivalent of
+    ``subprocess.Popen``. Used by the backward-compatible
+    ``launch_run`` (which does spawn + wait inline) and by
+    tests that stub the spawn.
+
+    Cross-process collection (the new ``run_plan`` detached
+    flow) uses the orphan-polling helper in ``plan_runner``
+    instead — that helper can't ``waitpid`` (orphans), so it
+    polls liveness via ``_platform.pid_alive`` (cross-platform
+    psutil) and infers the terminal state from produced
+    artifacts.
+
+    This function expects the caller to still hold the Popen
+    handle; we don't — so we use ``os.waitpid`` to reap our
+    own child by PID, then write the terminal status.
+
+    Honors ``spec.max_duration_s``: if the process is still
+    alive past the budget, kill the process group and record
+    ``TIMED_OUT``.
+    """
+    # waitpid with WNOHANG poll until budget exhausted.
+    #
+    # v1.5.7 120 — RE-ORDERED PRECEDENCE: a clean terminal
+    # `result` event (is_error:false) WINS OVER the
+    # max-duration kill. Pre-120 (112/113), TIMED_OUT took
+    # precedence over the stream classifier — so a run that
+    # completed cleanly but whose `claude --print` process
+    # hung at exit and got killed at the deadline (known
+    # behavior on long-running streams) was recorded
+    # TIMED_OUT → N/A despite emitting a successful result
+    # event. The AUP-experiment showed both Mode A gson
+    # runs hit this: GATE PASSED, is_error:false, but
+    # killed at 7200s and graded N/A.
+    #
+    # 120 also adds PROACTIVE REAP: the loop checks the
+    # stream for a terminal result event on every poll;
+    # when present, it kills any lingering process and
+    # classifies from the stream — instead of burning the
+    # full max_duration on the exit-hang.
+    started = _utc_now_iso()
+    deadline = time.monotonic() + max(0.0, spec.max_duration_s)
+    exit_code = -1
+    terminal_state = TerminalState.FAILED
+    terminal_reason = ""
+    timed_out = False
+    while True:
+        # v1.5.7 120: proactive reap on terminal result
+        # event. claude --print emits exactly one terminal
+        # `result` envelope at the end of its turn; once it
+        # appears, the run is done semantically — kill any
+        # exit-hang and classify from the stream.
+        stream_state, stream_reason = (
+            _classify_stream_terminal(
+                spawn.stream_path, target_dir=spec.target_dir))
+        if stream_state is not None:
+            # Reap (kill if still alive — exit-hang case).
+            try:
+                wpid, status = os.waitpid(
+                    spawn.pid, os.WNOHANG)
+            except ChildProcessError:
+                wpid, status = (spawn.pid, 0)
+            if wpid == 0:
+                # Still alive: kill it.
+                _kill_process_tree(spawn.pid)
+                try:
+                    _wpid, status = os.waitpid(spawn.pid, 0)
+                except ChildProcessError:
+                    status = 0
+            if os.WIFEXITED(status):
+                exit_code = os.WEXITSTATUS(status)
+            elif os.WIFSIGNALED(status):
+                exit_code = -os.WTERMSIG(status)
+            else:
+                exit_code = 0  # didn't really execute; clean state
+            terminal_state = stream_state
+            terminal_reason = stream_reason
+            break
+        try:
+            wpid, status = os.waitpid(spawn.pid, os.WNOHANG)
+        except ChildProcessError:
+            # Not our child (or already reaped). Best-effort.
+            wpid, status = (spawn.pid, 0)
+        if wpid != 0:
+            # Process exited.
+            if os.WIFEXITED(status):
+                exit_code = os.WEXITSTATUS(status)
+            elif os.WIFSIGNALED(status):
+                exit_code = -os.WTERMSIG(status)
+            else:
+                exit_code = -1
+            # v1.5.7 120: race-safe re-check — the result
+            # event may have appeared between the previous
+            # stream-check and waitpid. Stream wins.
+            stream_state, stream_reason = (
+                _classify_stream_terminal(
+                    spawn.stream_path, target_dir=spec.target_dir))
+            if stream_state is not None:
+                terminal_state = stream_state
+                terminal_reason = stream_reason
+            else:
+                terminal_state = (TerminalState.COMPLETED
+                                   if exit_code == 0
+                                   else TerminalState.FAILED)
+            break
+        if time.monotonic() >= deadline:
+            timed_out = True
+            _kill_process_tree(spawn.pid)
+            # Reap the now-defunct process.
+            try:
+                _wpid, status = os.waitpid(spawn.pid, 0)
+                if os.WIFEXITED(status):
+                    exit_code = os.WEXITSTATUS(status)
+                elif os.WIFSIGNALED(status):
+                    exit_code = -os.WTERMSIG(status)
+            except ChildProcessError:
+                pass
+            # v1.5.7 120: stream wins over the deadline kill
+            # — a clean result event present at deadline
+            # means the run COMPLETED before the kill;
+            # the kill was just reaping the exit-hang.
+            stream_state, stream_reason = (
+                _classify_stream_terminal(
+                    spawn.stream_path, target_dir=spec.target_dir))
+            if stream_state is not None:
+                terminal_state = stream_state
+                terminal_reason = stream_reason
+            else:
+                terminal_state = TerminalState.TIMED_OUT
+            break
+        time.sleep(0.05)
+    ended_at = _utc_now_iso()
+    _write_status(spec.run_dir, {
+        "state": "DONE",
+        "pid": spawn.pid,
+        "started_at": spawn.started_at,
+        "heartbeat": ended_at,
+        "ended_at": ended_at,
+        "exit_code": exit_code,
+        "terminal_state": terminal_state.value,
+        # v1.5.7 112: record the AUP / API-error body when
+        # we hit the BLOCKED path so the operator can see
+        # WHY a run was marked N/A. Empty for non-BLOCKED.
+        "terminal_reason": terminal_reason,
+    })
+    return LaunchResult(
+        pid=spawn.pid,
+        started_at=spawn.started_at,
+        ended_at=ended_at,
+        exit_code=exit_code,
+        terminal_state=terminal_state,
+        cli_command=spawn.cli_command,
+        cwd=spawn.cwd,
+        env_snapshot=spawn.env_snapshot,
+        stream_path=spawn.stream_path,
+    )
+
+
+def launch_run(spec: LaunchSpec) -> LaunchResult:
+    """Launch one run end-to-end. Detached subprocess, stream
+    capture, max-duration timeout, status file written.
+
+    v1.5.7 108: now a thin wrapper composing ``launch_run_async``
+    + ``collect_one_process``. Existing callers (the
+    `bin.qpb_harness run` single-run entry, tests that patch
+    `launch_run`) keep the synchronous semantics; the new
+    `run_plan` detached flow uses `launch_run_async` directly
+    and a different collector (orphan polling) per 108.
+    """
+    spawn = launch_run_async(spec)
+    return collect_one_process(spec, spawn)
+
+
+__all__ = [
+    "RunnerError",
+    "LaunchSpec",
+    "LaunchResult",
+    "SpawnResult",
+    "launch_run",
+    "launch_run_async",
+    "collect_one_process",
+    "_stream_ended_in_api_error",
+    "_classify_stream_terminal",
+    # Exposed for tests + downstream reuse:
+    "_claude_command",
+    "_codex_command",
+    "_copilot_command",
+    "_cursor_command",
+    "_mode_b_command",
+    "_resolve_run_playbook_script",
+    "_sanitize_mode_b_env",
+    "_mode_b_agent_marker_vars",
+    "_qpb_clone_root_for_mode_b",
+    "_materialize_pristine_qpb_tree",
+    "_remove_pristine_qpb_tree",
+    "_command_for_axes",
+    "_needs_stdin_prompt",
+    "_vendor_env_for",
+    "_kill_process_tree",
+]

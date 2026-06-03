@@ -355,9 +355,13 @@ class FinalizerCallSiteIntegrationTests(unittest.TestCase):
         finalizer_status == "pass". The orthogonal cell — finalizer reports
         "pass" but the gate log shows a hard failure with no warn substring —
         must fall through to the else branch and produce "fail". This cell
-        is correctly implemented at bin/run_playbook.py:2165 but had no
-        explicit test before this commit; a future refactor could regress
-        it silently."""
+        is correctly implemented in `bin/run_playbook.py`'s
+        `_finalize_iteration` gate-status resolution (the warn-substring
+        demotion is guarded on finalizer_status == "pass"; the
+        orthogonal cell falls through to "fail") but had no explicit
+        test before this commit; a future refactor could regress it
+        silently. (Stable function reference, not a line number —
+        instruction-053b F3.2 citation-drift sweep.)"""
         self.assertEqual(
             _run_phase6("pass", "RESULT: GATE FAILED — 3 check(s) must be fixed\n"),
             "fail",

@@ -42,15 +42,58 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, Tuple
 
+# v1.5.7 instruction 077 (addendum §5.2 W3 entry-point audit): put the
+# QPB clone root on sys.path BEFORE the first `from bin import
+# benchmark_lib` so script-form invocation
+# (`python <clone>/bin/reference_docs_ingest.py …` from any cwd)
+# resolves it on the first try. The pre-077 try/except-only form was
+# broken from a foreign cwd in a clean environment: the failed first
+# import left a partially-resolved namespace `bin` cached in
+# sys.modules, so the post-`sys.path.insert` retry in the except
+# branch still raised `ImportError: cannot import name
+# 'benchmark_lib' from 'bin' (unknown location)` (observed under
+# `env -i` at the instruction-077 baseline). No-op under `python -m
+# bin.reference_docs_ingest`. The try/except below is retained as
+# harmless defense-in-depth.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# v1.5.7 090c: foreign-bin-proof import. Pre-090c the "fallback"
+# branch repeated the same `from bin import benchmark_lib` —
+# tautological; if the first one raised the second one would too.
+# Real fallback: path-load `benchmark_lib.py` from THIS file's
+# directory so the import is anchored on __file__ regardless of
+# cwd / sys.path / sibling repos.
 try:
     # When run as ``python -m bin.reference_docs_ingest``.
     from bin import benchmark_lib  # type: ignore
-except Exception:  # pragma: no cover - fallback when invoked as a loose script
-    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from bin import benchmark_lib  # type: ignore
+except ImportError:
+    import importlib.util as _ilu
+    _bl_path = Path(__file__).resolve().parent / "benchmark_lib.py"
+    _bl_spec = _ilu.spec_from_file_location(
+        "_qpb_benchmark_lib_via_reference_docs_ingest", _bl_path,
+    )
+    if _bl_spec is None or _bl_spec.loader is None:
+        raise ImportError(
+            f"reference_docs_ingest: cannot resolve "
+            f"benchmark_lib — path-load fallback target "
+            f"{_bl_path} is missing."
+        )
+    benchmark_lib = _ilu.module_from_spec(_bl_spec)  # type: ignore[no-redef]
+    # v1.5.7 090c: register in sys.modules BEFORE exec_module so
+    # dataclass/typing machinery resolves.
+    sys.modules[_bl_spec.name] = benchmark_lib
+    _bl_spec.loader.exec_module(benchmark_lib)
 
 
-SUPPORTED_EXTENSIONS = frozenset({".txt", ".md"})
+# v1.5.7 instruction 060 (A-12): `.rst` added — reStructuredText is
+# the canonical Linux-kernel / Python doc format (e.g. the VIRTIO 1.2
+# spec virtio.rst). Treated as plaintext: byte-equality citation
+# extraction (schemas.md §5.4) is format-agnostic; section resolution
+# (§5.5) uses the plaintext branch in citation_verifier.resolve_section
+# (matches the title text line, ignoring `=====`/`-----` underlines).
+# `.rst` is deliberately NOT in REJECT_GUIDANCE below — it is
+# supported, not a convert-first format.
+SUPPORTED_EXTENSIONS = frozenset({".txt", ".md", ".rst"})
 SKIPPED_FILENAMES = frozenset({"README.md"})
 REFERENCE_DIR_NAME = "reference_docs"
 CITE_DIR_NAME = "cite"
@@ -234,7 +277,7 @@ def _collect(target_repo: Path) -> List[_FileRecord]:
         ext = path.suffix.lower()
         if ext not in SUPPORTED_EXTENSIONS:
             hint = REJECT_GUIDANCE.get(
-                ext, "Only .txt and .md are ingested — convert to plaintext first."
+                ext, "Only .txt, .md, and .rst are ingested — convert to plaintext first."
             )
             raise IngestError(f"{_rel(path, target_repo)}: unsupported extension '{ext}'. {hint}")
         text = _read_text(path)
@@ -270,6 +313,17 @@ def _citation_excerpt(text: str, max_chars: int = 240) -> str:
 
 def _build_record(rec: _FileRecord, schema_version: str, generated_at: str) -> dict:
     digest = hashlib.sha256(rec.text.encode("utf-8")).hexdigest()
+    # v1.5.7 fix Q2: emit `role` per schemas.md §3.6 (formal_doc_role
+    # enum). All records from `reference_docs/cite/` are external
+    # plaintext specs uploaded by the operator — `external-spec` is
+    # the correct enum value. The other two enum values
+    # (`skill-self-spec`, `skill-reference`) only apply when the
+    # target IS a Skill/Hybrid project with its own SKILL.md /
+    # references/; those records are produced by Phase 1's skill-
+    # surface scanning code, not by this ingest module. Emitting
+    # `role` here promotes the manifest to v1.5.3-shaped (per
+    # schemas.md §3.10 field-presence detection), engaging the
+    # gate's strict-mode validation.
     return {
         "doc_id": f"FORMAL-{digest[:12]}",
         "source_path": rec.rel_path,
@@ -280,6 +334,7 @@ def _build_record(rec: _FileRecord, schema_version: str, generated_at: str) -> d
         "document_sha256": digest,
         "ingested_at": generated_at,
         "schema_version": schema_version,
+        "role": "external-spec",
     }
 
 
@@ -347,6 +402,34 @@ def ingest(target_repo: Path) -> dict:
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
+    if not _argv_list_089x:
+        _print_command_intro(
+            name='reference_docs_ingest',
+            summary=(
+            "Phase 1 reference-docs ingest — copies a curated subset "
+            "of QPB references/ into the target's reference_docs/ "
+            "tree. "
+            ),
+            role=(
+            "Mandatory Phase 1 step before any agent-driven "
+            "exploration (without it run_playbook.py aborts with "
+            "`references missing`). Runs in the target repo's cwd. "
+            ),
+            usage_hint='python3 -m bin.reference_docs_ingest <target>',
+        )
+        return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(_argv_list_089x)
+
     parser = argparse.ArgumentParser(description=__doc__, prog="reference_docs_ingest")
     parser.add_argument("target", nargs="?", default=".", help="Target repo path (default: cwd)")
     args = parser.parse_args(argv)

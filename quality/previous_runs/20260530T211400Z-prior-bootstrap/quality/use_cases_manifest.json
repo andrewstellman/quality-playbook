@@ -1,0 +1,126 @@
+{
+  "schema_version": "1.5.3",
+  "generated_at": "2026-05-08T02:21:08Z",
+  "records": [
+    {
+      "id": "UC-01",
+      "title": "Cite-only docs-backed run",
+      "description": "An operator runs the playbook against a repository that contains only plaintext docs under reference_docs/cite/ and expects every startup surface to treat the run as docs-backed.",
+      "actors": [
+        "Operator",
+        "bin.run_playbook"
+      ],
+      "steps": [
+        "Operator prepares reference_docs/cite/spec.md with no top-level reference_docs file",
+        "The runner evaluates documentation state and warning conditions",
+        "The run proceeds as docs-backed without a code-only warning"
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-02",
+      "title": "README-only or binary-only docs tree",
+      "description": "An operator points the playbook at a repository whose reference_docs tree contains only README or binary files and expects the documentation-state surfaces to agree that no recognized docs are present.",
+      "actors": [
+        "Operator",
+        "bin.run_playbook"
+      ],
+      "steps": [
+        "Operator prepares a README-only or PDF-only reference_docs tree",
+        "The runner evaluates documentation state and warning conditions",
+        "All operator-visible surfaces report code-only mode consistently"
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-03",
+      "title": "Tier 4 ingest of reference docs",
+      "description": "Phase 1 loads Tier 4 context from reference_docs/ and should receive only the documented top-level plaintext files, not nested archival folders.",
+      "actors": [
+        "Phase 1 agent",
+        "bin.reference_docs_ingest"
+      ],
+      "steps": [
+        "Phase 1 loads Tier 4 context from reference_docs/",
+        "The ingest helper enumerates top-level plaintext files",
+        "Nested non-cite directories are excluded from the returned context"
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-04",
+      "title": "Bootstrap self-audit doc mirroring",
+      "description": "A maintainer mirrors curated bootstrap docs into reference_docs/ and expects both top-level context files and cite/ formal docs to remain available in their proper locations.",
+      "actors": [
+        "Maintainer",
+        "bin.bootstrap_self_audit_docs"
+      ],
+      "steps": [
+        "Maintainer populates docs_gathered/ with top-level docs and cite/ docs",
+        "The bootstrap helper mirrors the source corpus into reference_docs/",
+        "The resulting tree preserves top-level and cite/ placement"
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-05",
+      "title": "Phase 1 completion gate",
+      "description": "The runner validates quality/EXPLORATION.md at the end of Phase 1 and must block progression if mandatory sections or content depth are missing.",
+      "actors": [
+        "Runner",
+        "bin.run_state_lib"
+      ],
+      "steps": [
+        "Phase 1 writes quality/EXPLORATION.md",
+        "The validator checks the required exploration shape",
+        "Phase 2 remains blocked until the artifact is structurally complete"
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-06",
+      "title": "Archived bug-summary generation",
+      "description": "Archive rendering reads BUGS.md from a finished run and must preserve the bug count encoded by canonical titled headings.",
+      "actors": [
+        "bin.archive_lib",
+        "Later auditor"
+      ],
+      "steps": [
+        "An archived run contains a canonical BUGS.md file",
+        "Archive helpers extract bug sections and severity totals",
+        "INDEX.md and RUN_INDEX.md reflect the real bug counts"
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-07",
+      "title": "Direct Phase 1 role-map writeout",
+      "description": "A direct skill-driven run writes quality/exploration_role_map.json before any runner-specific post-processing and still reaches a valid gate-ready role map shape.",
+      "actors": [
+        "Direct-mode agent",
+        "bin.role_map"
+      ],
+      "steps": [
+        "Phase 1 writes a raw role map with files[] and provenance",
+        "Normalization or validation produces the canonical role-map shape",
+        "Gate validation accepts the normalized output"
+      ],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-08",
+      "title": "Historical-output-heavy repository inventory",
+      "description": "Phase 1 inventories a repository dominated by prior quality/ artifacts and must continue to distinguish intrinsic source from historical playbook output.",
+      "actors": [
+        "Phase 1 agent",
+        "bin.role_map"
+      ],
+      "steps": [
+        "Tracked files include large quantities of historical quality output",
+        "Role-map accounting classifies those files as playbook-output",
+        "Surface percentages keep historical artifacts out of code and skill shares"
+      ],
+      "formal_doc_refs": []
+    }
+  ]
+}

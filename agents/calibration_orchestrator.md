@@ -128,7 +128,7 @@ After each `benchmark_end`, copy the post-lever BUGS.md aside into `Calibration 
 
 ### Step 6: Council review (Mode 1: sub-agent fan-out, three lenses)
 
-Per `CALIBRATION_PROTOCOL.md` Step 7. Spawn three parallel sub-agents using your tool's parallel-agent mechanism (Cowork's Agent tool with `general-purpose` subagent_type, parallel `claude` CLI invocations from bash, etc.). **Three flat lenses, not nested 9-perspective** — Mode 1's autonomous Council is intentionally lighter than the operator-driven nested Council in `CALIBRATION_PROTOCOL.md`'s Mode 2. The full 9-perspective nested panel requires `gh copilot` invocations the orchestrator can't run.
+Per `CALIBRATION_PROTOCOL.md` Step 7. Spawn three parallel sub-agents using your tool's parallel-agent mechanism (Cowork's Agent tool with `general-purpose` subagent_type, parallel `claude` CLI invocations from bash, etc.). **Three flat lenses, not nested 9-perspective** — Mode 1's autonomous Council is intentionally lighter than the operator-driven nested Council in `CALIBRATION_PROTOCOL.md`'s Mode 2. The full 9-perspective nested panel requires Copilot CLI invocations (`copilot`, or `gh copilot` during the grace period per v1.5.7 089f) the orchestrator can't run.
 
 Each of the three sub-agents gets:
 

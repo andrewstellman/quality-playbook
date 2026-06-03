@@ -1,0 +1,19 @@
+# Phase 6 Verification Log
+# Started: 2026-05-08T03:02:33Z
+
+[Step 6.1] Mechanical verification: SKIP — quality/mechanical/ does not exist (no extracted mechanical artifacts in this run)
+[Step 6.2] quality_gate.py: PASS (exit 0) — 95 checks passed, 0 FAIL, 1 WARN (legacy formal_docs_manifest.json — handled by schemas.md §3.10 backward-compat rule)
+[Step 6.3] Functional tests: 21 ran, 12 failures, 0 errors — all 12 failures map to the 6 confirmed bugs (each bug appears in both a FitnessScenario and a SpecRequirement test, 6×2=12). Not broken infrastructure.
+[Step 6.3] Regression tests: 6 ran, 6 expected failures, 0 unexpected failures — xfail markers correctly track confirmed bugs.
+[Step 6.4A] QUALITY.md: PASS — 8 fitness scenarios, all reference real bin/ functions (docs_present, _evaluate_documentation_state, load_tier4_context, normalize_role_map_for_gate, compute_breakdown, _extract_bug_counts, validate_phase_artifacts) all confirmed present.
+[Step 6.4B] Functional test quality: PASS — 21 tests (8 SpecRequirementTests + 8 FitnessScenarioTests + 5 BoundaryAndEdgeCaseTests). Cross-variant via dual-binding mixin (~24% boundary share). Assertions check exact values (assertEqual with literals, assertAlmostEqual places=6, list equality). Tests target outcomes (predicate returns, classifications), not internal mechanism.
+[Step 6.4C] Protocol files: PASS — RUN_CODE_REVIEW.md (Pass 1/2/3 + Combined Summary), RUN_INTEGRATION_TESTS.md has Field Reference Table at line 82 with REQs/UCs/code paths, RUN_SPEC_AUDIT.md self-contained.
+[Step 6.4D] Regression tests: PASS — 6 xfail tests (BUG-001..006), each with bug-ID + patch path in skip reason, no run=False patterns.
+[Step 6.4E] Enumeration/triage: PASS — Phase 3 review has Pass 1 enumeration, Pass 2 REQ verification, Pass 3 cross-requirement consistency. Triage probes referenced via triage_probes.sh, F-001 has 3/3 auditor agreement and Net-new bug outcome=0.
+[Step 6.4F] Continuation mode: SKIP — no quality/SEED_CHECKS.md (first run, no prior history).
+[Step 6.5] Metadata consistency: PASS — REQUIREMENTS.md has 8 REQs (REQ-001..008), all 8 referenced in COVERAGE_MATRIX.md. PROGRESS.md "With docs: yes" matches reference_docs/ existing. Terminal Gate Verification section present (line 157). COMPLETENESS_REPORT.md has a single verdict (Updated verdict inside Post-review reconciliation; no orphaned ## Verdict heading). Version stamps consistent at v1.5.6 across QUALITY.md, REQUIREMENTS.md, COVERAGE_MATRIX.md, test files (verified earlier in quality_gate.py).
+
+# Phase 6 Complete: 2026-05-08T03:06:15Z
+# Summary: 0 FAIL, 1 benign WARN (legacy formal_docs_manifest), 6 confirmed bugs (BUG-001..006), 6 xfail regression tests passing as expected, 12 functional test failures map 1:1 to confirmed bugs (no broken infrastructure).
+
+[auditor 2026-05-19] quality/mechanical/ directory not present in this repo; no mechanical verify to run.

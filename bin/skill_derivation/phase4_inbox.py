@@ -246,3 +246,25 @@ def backfill_triage_batch_key(config: Phase4InboxConfig) -> dict:
         )
 
     return {"backfilled": backfilled}
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='skill_derivation.phase4_inbox',
+        summary=(
+            "Phase 4 inbox helpers for the skill-derivation pipeline — "
+            "queue + dispatch glue between passes. "
+        ),
+        role=(
+            "Imported by skill_derivation passes that hand off candidates "
+            "to Phase 4 verification. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

@@ -11,6 +11,7 @@ append-event guard. Each test stages its fixtures inside a
 from __future__ import annotations
 
 import json
+import re
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -158,29 +159,48 @@ class LastInProgressPhaseTests(unittest.TestCase):
 
 
 def _canonical_phase1_exploration_md() -> str:
-    """Return a minimal EXPLORATION.md that satisfies all 13 SKILL.md
-    Phase 2 entry-gate checks (used by tests below to construct
-    fixtures and to mutate single sections for per-check rejection
-    tests)."""
+    """Return a minimal EXPLORATION.md that satisfies all 17 Phase 1
+    gate checks (the 12 documented checks in references/phase1_
+    exploration_guide.md "Phase 1 completion gate" #1-#12, mapped to
+    validator checks 1-17 — v1.5.7 089d F19 added checks 14-17 for
+    the documented items #3 / #4 second clause / #6 / #7 the
+    pre-089d validator under-enforced). Used by tests below to
+    construct fixtures and to mutate single sections for per-check
+    rejection tests."""
+    # v1.5.7 089d (F19, check 15): 8 numbered findings spanning 4+
+    # distinct modules (each finding cites two modules — at least 4
+    # unique files across the 8 entries). Each entry has ≥2
+    # citations (satisfies pre-089d checks 9 + 10).
+    _module_pairs = (
+        ("bin/run_playbook.py", "bin/run_state_lib.py"),
+        ("bin/archive_lib.py", "bin/reference_docs_ingest.py"),
+        ("bin/install_skill.py", "bin/role_map.py"),
+        ("bin/bootstrap_self_audit_docs.py", "bin/qpb_validate.py"),
+    )
     findings: list[str] = []
-    # 8 numbered findings, each with 2+ file:line citations
-    # (satisfies checks 9 + 10).
     for i in range(1, 9):
+        mod_a, mod_b = _module_pairs[(i - 1) % len(_module_pairs)]
         findings.append(
-            f"{i}. `bin/run_playbook.py:{1500 + i * 10}-{1500 + i * 10 + 5}` "
-            f"diverges from `bin/run_state_lib.py:{1660 + i}-{1670 + i}` on "
+            f"{i}. `{mod_a}:{1500 + i * 10}-{1500 + i * 10 + 5}` "
+            f"diverges from `{mod_b}:{1660 + i}-{1670 + i}` on "
             f"behavior X. Multi-location trace across both modules.\n"
         )
     findings_section = "## Open Exploration Findings\n\n" + "\n".join(findings)
 
+    # v1.5.7 089d (F19, check 16): ≥5 Quality Risks entries each
+    # with a file:line citation.
     risks_section = (
         "## Quality Risks\n\n"
         "1. **Highest risk** — risk one. `bin/run_playbook.py:100`.\n\n"
-        "2. **Second risk** — risk two. `bin/run_playbook.py:200`.\n"
+        "2. **Second risk** — risk two. `bin/run_playbook.py:200`.\n\n"
+        "3. **Third risk** — risk three. `bin/run_state_lib.py:300`.\n\n"
+        "4. **Fourth risk** — risk four. `bin/archive_lib.py:400`.\n\n"
+        "5. **Fifth risk** — risk five. `bin/reference_docs_ingest.py:500`.\n"
     )
 
     # Pattern Applicability Matrix: 3 FULL rows (lower bound of 3-4
-    # inclusive), 2 SKIP rows.
+    # inclusive), 3 SKIP rows — 6 total to satisfy check 17 (one row
+    # per pattern in references/exploration_patterns.md).
     matrix_section = (
         "## Pattern Applicability Matrix\n\n"
         "| Pattern | Decision (`FULL` / `SKIP`) | Target | Why |\n"
@@ -190,6 +210,17 @@ def _canonical_phase1_exploration_md() -> str:
         "| API Surface | `FULL` | bin/ | Reason |\n"
         "| Dispatch Returns | `SKIP` | CLI | Reason |\n"
         "| Spec Parsing | `SKIP` | parsers | Reason |\n"
+        "| Enumeration Completeness | `SKIP` | enums | Reason |\n"
+    )
+
+    # v1.5.7 089d (F19, check 14): ≥1 `### REQ-NNN:` entry under
+    # `## Derived Requirements` with specific file paths.
+    derived_section = (
+        "## Derived Requirements\n\n"
+        "### REQ-001: Phase 1 validator must enforce all 12 documented checks\n\n"
+        "Per `references/phase1_exploration_guide.md` items #1-#12, the validator\n"
+        "at `bin/run_state_lib.py:_validate_phase1` must implement all twelve\n"
+        "gate checks (not the ~6 the pre-089d implementation enforced).\n"
     )
 
     # 3 Pattern Deep Dive sections; 2 of them cite ≥2 distinct
@@ -241,6 +272,7 @@ def _canonical_phase1_exploration_md() -> str:
         + matrix_section + "\n"
         + deep_dives + "\n"
         + candidate_section + "\n"
+        + derived_section + "\n"
         + gate_section + "\n"
         + filler
     )
@@ -567,6 +599,142 @@ class ValidatePhaseArtifactsTests(unittest.TestCase):
             ok, reason = lib.validate_phase_artifacts(quality, 1)
             self.assertFalse(ok)
             self.assertIn("candidate bugs source mix", reason)
+
+    # ----- v1.5.7 089d (F19): checks 14-17 ----------------------
+    # The opus bootstrap traced ~6 of 12 documented Phase 1 checks
+    # implemented; the validator was tightened to all 12. Per-check
+    # rejection tests pin the new failure messages so a future
+    # refactor that drops or weakens a check is caught here.
+
+    def test_phase1_validator_rejects_missing_derived_requirements(self) -> None:
+        """Check 14 (089d F19): `## Derived Requirements` section
+        missing OR contains no `### REQ-NNN:` entries.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089d F19:
+          Mutation: in bin/run_state_lib.py, set
+          _MIN_DERIVED_REQUIREMENTS = 0 (or comment out check 14).
+          Expected failure: THIS test fails — the validator no
+          longer rejects EXPLORATION.md with zero REQ-NNN entries
+          under Derived Requirements.
+          Restoration: re-set to 1; passes. Bite executed during
+          089d development; PASS→FAIL→PASS confirmed
+          (__pycache__ purged between mutate and restore).
+        """
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            # Drop the entire Derived Requirements section.
+            start = text.index("## Derived Requirements")
+            # The fixture's Derived section is followed by the Gate
+            # Self-Check section; slice it out.
+            end = text.index("## Gate Self-Check", start)
+            text = text[:start] + text[end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("Derived Requirements", reason)
+            self.assertIn("REQ-NNN", reason)
+
+    def test_phase1_validator_rejects_under_4_module_spread(self) -> None:
+        """Check 15 (089d F19): all open-exploration findings cite
+        ≤3 distinct modules — required ≥4.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089d F19:
+          Mutation: in bin/run_state_lib.py, set
+          _MIN_DISTINCT_MODULES_OPEN_EXPLORATION = 2.
+          Expected failure: THIS test fails — the fixture with 2
+          modules no longer hits the threshold below which the
+          rejection fires.
+          Restoration: re-set to 4; passes. Bite executed during
+          089d development; PASS→FAIL→PASS confirmed.
+        """
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            # Replace findings with 8 entries citing only 2 modules.
+            new_findings = "\n".join(
+                f"{i}. `bin/x.py:{100+i}-{105+i}` diverges from "
+                f"`bin/y.py:{200+i}-{205+i}` on behavior. "
+                f"Multi-location trace.\n"
+                for i in range(1, 9)
+            )
+            new_block = "## Open Exploration Findings\n\n" + new_findings
+            old_block_start = text.index("## Open Exploration Findings")
+            old_block_end = text.index("## Quality Risks")
+            text = text[:old_block_start] + new_block + "\n" + text[old_block_end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("module spread", reason)
+
+    def test_phase1_validator_rejects_under_5_quality_risks(self) -> None:
+        """Check 16 (089d F19): `## Quality Risks` section has <5
+        numbered entries with file:line citations.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089d F19:
+          Mutation: in bin/run_state_lib.py, set
+          _MIN_QUALITY_RISKS_WITH_CITATION = 0.
+          Expected failure: THIS test fails — the validator no
+          longer rejects under-populated Quality Risks sections.
+          Restoration: re-set to 5; passes. Bite executed during
+          089d development; PASS→FAIL→PASS confirmed.
+        """
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            old_block_start = text.index("## Quality Risks")
+            old_block_end = text.index("## Pattern Applicability Matrix")
+            shrunk = (
+                "## Quality Risks\n\n"
+                "1. **Highest** — one. `bin/x.py:1`.\n\n"
+                "2. **Second** — two. `bin/y.py:2`.\n\n"
+            )
+            text = text[:old_block_start] + shrunk + text[old_block_end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("Quality Risks depth", reason)
+
+    def test_phase1_validator_rejects_under_6_pattern_matrix_rows(self) -> None:
+        """Check 17 (089d F19): `## Pattern Applicability Matrix`
+        evaluates <6 patterns FULL or SKIP.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089d F19:
+          Mutation: in bin/run_state_lib.py, set
+          _MIN_PATTERN_MATRIX_ROWS = 0.
+          Expected failure: THIS test fails — the validator no
+          longer rejects matrices that omit patterns.
+          Restoration: re-set to 6; passes. Bite executed during
+          089d development; PASS→FAIL→PASS confirmed.
+        """
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir)
+            _write_canonical_phase1_fixture(quality)
+            text = (quality / "EXPLORATION.md").read_text(encoding="utf-8")
+            old_block_start = text.index("## Pattern Applicability Matrix")
+            old_block_end = text.index("## Pattern Deep Dive — ")
+            # Shrink matrix to 4 rows (3 FULL + 1 SKIP) — under 6.
+            shrunk = (
+                "## Pattern Applicability Matrix\n\n"
+                "| Pattern | Decision (`FULL` / `SKIP`) | Target | Why |\n"
+                "|---|---|---|---|\n"
+                "| Fallback Parity | `FULL` | bin/ | Reason |\n"
+                "| Cross-Implementation | `FULL` | bin/ | Reason |\n"
+                "| API Surface | `FULL` | bin/ | Reason |\n"
+                "| Dispatch Returns | `SKIP` | CLI | Reason |\n\n"
+            )
+            text = text[:old_block_start] + shrunk + text[old_block_end:]
+            (quality / "EXPLORATION.md").write_text(text, encoding="utf-8")
+            ok, reason = lib.validate_phase_artifacts(quality, 1)
+            self.assertFalse(ok)
+            self.assertIn("Pattern Applicability Matrix coverage", reason)
 
     def test_phase1_validator_aggregates_multiple_failures(self) -> None:
         """Multiple failures must aggregate into a multi-line message
@@ -1154,6 +1322,237 @@ class WriteProgressMdTests(unittest.TestCase):
             self.assertIn("## Artifacts produced", text)
             self.assertIn("quality/EXPLORATION.md (12,034 bytes)", text)
 
+    def test_automation_form_matches_run_state_schema_md(self) -> None:
+        """v1.5.7 BUG-005 bite: the `write_progress_md` output must
+        match the schema documented in `references/run_state_schema.md`
+        § "PROGRESS.md format". This test pins the four required
+        sections (top heading, `## Phases`, `## Recent events (last 10)`,
+        `## Artifacts produced`) against the actual output.
+
+        Note: the `phase1_exploration_guide.md` template documents a
+        DIFFERENT schema (agent-maintained deliverable form, with BUG
+        tracker + Terminal Gate Verification sections). The two
+        schemas serve different purposes — they are not in drift.
+        This test only enforces the automation-snapshot form against
+        its canonical schema doc (`run_state_schema.md`).
+        """
+        repo_root = Path(__file__).resolve().parents[2]
+        schema_md = repo_root / "references" / "run_state_schema.md"
+        self.assertTrue(
+            schema_md.is_file(),
+            "references/run_state_schema.md must exist as the canonical "
+            "schema source for the write_progress_md output form",
+        )
+        schema_text = schema_md.read_text(encoding="utf-8")
+        # The four required sections from run_state_schema.md § "PROGRESS.md format".
+        required_section_markers = (
+            "# QPB Run Progress",
+            "## Phases",
+            "## Recent events (last 10)",
+            "## Artifacts produced",
+        )
+        for marker in required_section_markers:
+            self.assertIn(
+                marker, schema_text,
+                f"run_state_schema.md must document the {marker!r} "
+                f"section header — if this fails, the canonical schema "
+                f"and the code are in drift again (BUG-005 regression).",
+            )
+        # Generate an actual PROGRESS.md and assert it carries all four markers.
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir) / "quality"
+            quality.mkdir()
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            events = [
+                lib.Event(
+                    event="_index",
+                    ts=now,
+                    fields={"event_types": ["run_start"]},
+                ),
+                lib.Event(
+                    event="run_start",
+                    ts=now,
+                    fields={
+                        "runner": "claude",
+                        "playbook_version": "1.5.7",
+                        "target_path": "test-target",
+                    },
+                ),
+            ]
+            lib.write_progress_md(quality, events, current_phase=None)
+            output = (quality / "PROGRESS.md").read_text(encoding="utf-8")
+            for marker in required_section_markers:
+                self.assertIn(
+                    marker, output,
+                    f"write_progress_md output must contain {marker!r} "
+                    f"to match the schema doc; got: {output!r}",
+                )
+
+    def test_progress_md_two_form_architecture_not_in_drift(self) -> None:
+        """v1.5.7 instruction 035 — closes claude council-of-two Lens 2
+        cleanliness note on instruction 034.
+
+        Combined assertion: both PROGRESS.md schemas are documented and
+        not in drift. Per v1.5.7 BUG-005 reframe (instruction 034
+        commit 71b7b13), PROGRESS.md has two distinct schema forms
+        targeting the same filename:
+
+          1. Automation snapshot form: produced by
+             `bin/run_state_lib.write_progress_md`; canonical schema
+             at `references/run_state_schema.md` § "PROGRESS.md format".
+          2. Agent-maintained deliverable form: filled in by the agent
+             across Phase 1-5; template at
+             `references/phase1_exploration_guide.md:483-538`;
+             invariants enforced by Phase 5/6 gate checks
+             (`check_terminal_gate`, `check_version_stamps`).
+
+        The granular bite test
+        `test_automation_form_matches_run_state_schema_md` enforces
+        the automation form against its schema doc. Per claude's
+        council-of-two observation: that coverage is adequate but a
+        single combined "schemas are NOT in drift" test surface is
+        cleaner. THIS test is the combined surface — the granular
+        test stays as-is.
+
+        Failure modes this test catches in one locatable place:
+          - `references/run_state_schema.md` is deleted / moved /
+            loses required section markers (automation-form drift).
+          - `references/phase1_exploration_guide.md` is deleted /
+            moved / loses the deliverable-form template sections.
+          - The two-form architecture preamble in
+            `phase1_exploration_guide.md` (BUG-005 reframe doc) is
+            deleted, which would re-open the apparent "drift" that
+            instruction 034 resolved as not-drift.
+          - `write_progress_md`'s output drifts from its schema doc
+            (caught here as well as in the granular test).
+        """
+        repo_root = Path(__file__).resolve().parents[2]
+
+        # --- Form 1 of 2: automation snapshot ---
+        automation_schema_doc = repo_root / "references" / "run_state_schema.md"
+        self.assertTrue(
+            automation_schema_doc.is_file(),
+            f"automation-form schema doc missing: {automation_schema_doc} "
+            "— `references/run_state_schema.md` is the canonical source "
+            "for the write_progress_md output shape (BUG-005 reframe).",
+        )
+        automation_schema_text = automation_schema_doc.read_text(
+            encoding="utf-8"
+        )
+        automation_required_markers = (
+            "# QPB Run Progress",
+            "## Phases",
+            "## Recent events (last 10)",
+            "## Artifacts produced",
+        )
+        for marker in automation_required_markers:
+            self.assertIn(
+                marker, automation_schema_text,
+                f"automation-form schema doc "
+                f"`references/run_state_schema.md` is missing required "
+                f"section marker {marker!r}. If the schema intentionally "
+                f"changed, update `write_progress_md` AND this test's "
+                f"marker tuple together.",
+            )
+
+        # Implementation-vs-schema sanity check for the automation form
+        # (minimal — the granular test
+        # `test_automation_form_matches_run_state_schema_md` does the
+        # full event-log fixture). This check verifies the markers
+        # appear in actual `write_progress_md` output from a minimal
+        # event log.
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir) / "quality"
+            quality.mkdir()
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+            events = [
+                lib.Event(
+                    event="_index",
+                    ts=now,
+                    fields={"event_types": ["run_start"]},
+                ),
+                lib.Event(
+                    event="run_start",
+                    ts=now,
+                    fields={
+                        "runner": "claude",
+                        "playbook_version": "1.5.7",
+                        "target_path": "test-target",
+                    },
+                ),
+            ]
+            lib.write_progress_md(quality, events, current_phase=None)
+            automation_output = (
+                quality / "PROGRESS.md"
+            ).read_text(encoding="utf-8")
+        for marker in automation_required_markers:
+            self.assertIn(
+                marker, automation_output,
+                f"`write_progress_md` output is missing the {marker!r} "
+                f"marker — implementation drifted from the schema doc "
+                f"(BUG-005 regression).",
+            )
+
+        # --- Form 2 of 2: agent-maintained deliverable ---
+        deliverable_schema_doc = (
+            repo_root / "references" / "phase1_exploration_guide.md"
+        )
+        self.assertTrue(
+            deliverable_schema_doc.is_file(),
+            f"deliverable-form schema doc missing: {deliverable_schema_doc} "
+            "— `references/phase1_exploration_guide.md` is the canonical "
+            "source for the agent-maintained PROGRESS.md template "
+            "(BUG-005 reframe).",
+        )
+        deliverable_schema_text = deliverable_schema_doc.read_text(
+            encoding="utf-8"
+        )
+        deliverable_required_markers = (
+            "# Quality Playbook Progress",
+            "## Run metadata",
+            "## Phase completion",
+            "## Artifact inventory",
+            "## Cumulative BUG tracker",
+            "## Terminal Gate Verification",
+        )
+        for marker in deliverable_required_markers:
+            self.assertIn(
+                marker, deliverable_schema_text,
+                f"deliverable-form schema doc "
+                f"`references/phase1_exploration_guide.md` is missing "
+                f"required section marker {marker!r}. The Phase 5/6 "
+                f"gates (`check_terminal_gate`, `check_version_stamps`) "
+                f"depend on the agent producing the corresponding "
+                f"section; if the template doc drops it, the gate has "
+                f"nothing to enforce against.",
+            )
+
+        # --- Two-form architecture documentation invariant ---
+        # The BUG-005 reframe (instruction 034 commit 71b7b13) added
+        # explicit prose to phase1_exploration_guide.md naming both
+        # forms and explaining why they're not in drift. If that prose
+        # is deleted, BUG-005's "drift" question would re-open — a
+        # reader of the docs alone wouldn't see the two-form
+        # resolution. This invariant pins the documentation.
+        two_form_required_phrases = (
+            "Two PROGRESS.md schemas exist",
+            "not in drift",
+            "Agent-maintained deliverable form",
+            "Automation snapshot form",
+        )
+        for phrase in two_form_required_phrases:
+            self.assertIn(
+                phrase, deliverable_schema_text,
+                f"`references/phase1_exploration_guide.md` is missing "
+                f"the BUG-005-reframe phrase {phrase!r}. The two-form "
+                f"architecture documentation block (lines ~476-481) "
+                f"explains why the two PROGRESS.md schemas serve "
+                f"distinct purposes — without it, a reader of the docs "
+                f"alone would re-conclude the schemas are in drift.",
+            )
+
 
 class AppendEventTests(unittest.TestCase):
     def test_append_event_writes_single_line(self) -> None:
@@ -1722,6 +2121,151 @@ class EmptyEventTypesWhitelistTests(unittest.TestCase):
             # fail — that's not what this test is pinning).
             joined = "\n".join(violations)
             self.assertNotIn("not declared in _index.event_types", joined)
+
+
+class ResolveRunStatePathTests(unittest.TestCase):
+    """v1.5.7 Phase 5b: resolve_run_state_path returns the correct
+    location across the centralized + legacy layouts.
+
+    Resolution order:
+      1. quality/logs/latest/run_state.jsonl
+      2. quality/logs/<most-recent-by-name>/run_state.jsonl
+      3. quality/run_state.jsonl (v1.5.6 legacy)
+    """
+
+    def test_returns_none_when_no_run_state_anywhere(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "quality").mkdir()
+            self.assertIsNone(lib.resolve_run_state_path(repo))
+
+    def test_legacy_only_returns_legacy_path(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "quality").mkdir()
+            legacy = repo / "quality" / "run_state.jsonl"
+            legacy.write_text("", encoding="utf-8")
+            self.assertEqual(lib.resolve_run_state_path(repo), legacy)
+
+    def test_centralized_layout_wins_over_legacy(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            (repo / "quality").mkdir()
+            # Plant both: legacy AND centralized. Centralized wins.
+            (repo / "quality" / "run_state.jsonl").write_text(
+                "legacy", encoding="utf-8"
+            )
+            run_dir = repo / "quality" / "logs" / "20260512T120000Z"
+            run_dir.mkdir(parents=True)
+            (run_dir / "run_state.jsonl").write_text(
+                "centralized", encoding="utf-8"
+            )
+            resolved = lib.resolve_run_state_path(repo)
+            self.assertEqual(resolved, run_dir / "run_state.jsonl")
+            self.assertEqual(resolved.read_text(encoding="utf-8"), "centralized")
+
+    def test_most_recent_run_id_wins_among_multiple(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for run_id in ("20260101T120000Z", "20260515T120000Z",
+                           "20260312T120000Z"):
+                run_dir = repo / "quality" / "logs" / run_id
+                run_dir.mkdir(parents=True)
+                (run_dir / "run_state.jsonl").write_text(
+                    run_id, encoding="utf-8"
+                )
+            resolved = lib.resolve_run_state_path(repo)
+            self.assertIsNotNone(resolved)
+            self.assertEqual(resolved.read_text(encoding="utf-8"),
+                             "20260515T120000Z")
+
+    def test_latest_symlink_wins_over_most_recent_dir(self) -> None:
+        with TemporaryDirectory() as tmp:
+            repo = Path(tmp)
+            for run_id in ("20260101T120000Z", "20260515T120000Z"):
+                run_dir = repo / "quality" / "logs" / run_id
+                run_dir.mkdir(parents=True)
+                (run_dir / "run_state.jsonl").write_text(
+                    run_id, encoding="utf-8"
+                )
+            # Lazily-updated "latest" symlink points at the OLDER run.
+            # resolve_run_state_path should still pick latest (the
+            # symlink semantics — operators trust "latest").
+            try:
+                (repo / "quality" / "logs" / "latest").symlink_to(
+                    "20260101T120000Z", target_is_directory=True
+                )
+            except (OSError, NotImplementedError):
+                self.skipTest("Filesystem doesn't support symlinks")
+            resolved = lib.resolve_run_state_path(repo)
+            self.assertEqual(resolved.read_text(encoding="utf-8"),
+                             "20260101T120000Z")
+
+
+class Phase1DiagnosticSkillRefNotStaleTests(unittest.TestCase):
+    """v1.5.7 instruction 089b F14: the Phase 1 gate-failure
+    diagnostic in bin/run_state_lib.py must NOT carry a stale
+    `SKILL.md:<lineno>` reference (it pointed at SKILL.md:1271 while
+    SKILL.md is 1211 lines — adopters following it land past EOF).
+    It now references a stable SKILL.md SECTION TITLE; this test
+    pins that the referenced section still exists verbatim in
+    SKILL.md so a future SKILL.md edit that removes/renames it is
+    caught instead of silently re-breaking the diagnostic.
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160) — BITE EXECUTED:
+      Mutation: in SKILL.md rename the heading
+        `### Phase-by-phase execution` to `### Phase execution`.
+      Observed failure (purged __pycache__ first):
+        FAIL: test_phase1_diagnostic_section_ref_resolves
+        AssertionError: SKILL.md section 'Phase-by-phase execution'
+          (referenced by the Phase 1 gate diagnostic in
+          bin/run_state_lib.py) not found verbatim in SKILL.md
+      Mutation reverted; test passes.
+    """
+
+    def test_phase1_diagnostic_has_no_stale_skill_lineno_ref(self) -> None:
+        src = (Path(__file__).resolve().parents[2]
+               / "bin" / "run_state_lib.py").read_text(encoding="utf-8")
+        # SCOPED to the F14 finding only: the Phase 1
+        # candidate-bugs-source-mix diagnostic (the `:463` message
+        # that said "see SKILL.md:1271"). NOT a file-wide assertion —
+        # the v1.5.6 BUG-005 13-check region carries its own
+        # `see SKILL.md:1257-1273` refs that are OUT OF 089b-F14
+        # SCOPE (a separate, orchestrator-scopable staleness, not
+        # this finding; instruction-089b is finding-scoped + "don't
+        # expand scope"). Window = the candidate-bugs diagnostic
+        # f-string, from its lead-in to "Per-entry stages:".
+        start = src.index("Phase 1 gate: candidate bugs source mix")
+        end = src.index("Per-entry stages:", start)
+        diag = src[start:end]
+        self.assertNotRegex(
+            diag, r"SKILL\.md:\d+",
+            "the Phase 1 candidate-bugs-source-mix diagnostic still "
+            "carries a stale `SKILL.md:<lineno>` literal — F14 "
+            "replaced it with a stable section title.")
+        self.assertIn(
+            'see SKILL.md "', diag,
+            "the Phase 1 candidate-bugs diagnostic lost its stable "
+            "`see SKILL.md \"<section>\"` cross-reference (F14).")
+
+    def test_phase1_diagnostic_section_ref_resolves(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        src = (repo_root / "bin" / "run_state_lib.py").read_text(
+            encoding="utf-8")
+        m = re.search(r'see SKILL\.md "([^"]+)"', src)
+        self.assertIsNotNone(
+            m, "Phase 1 diagnostic no longer carries a "
+            '`see SKILL.md "<section>"` reference — F14 cross-ref '
+            "scheme changed; update this test to match.")
+        section = m.group(1)
+        skill = (repo_root / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn(
+            section, skill,
+            f"SKILL.md section {section!r} (referenced by the Phase 1 "
+            f"gate diagnostic in bin/run_state_lib.py) not found "
+            f"verbatim in SKILL.md — the cross-reference rotted; "
+            f"re-point the diagnostic or restore the section.")
 
 
 if __name__ == "__main__":

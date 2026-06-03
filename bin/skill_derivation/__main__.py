@@ -194,7 +194,7 @@ def _role_map_skill_prose_files(
 
     Return values, by case:
 
-    - **``None``** — the role map is absent or unparseable. Callers
+    - **``None``** — the role map is absent or unparsable. Callers
       pass ``None`` through to ``sections.enumerate_skill_and_references``,
       which falls back to the v1.5.3 hardcoded enumeration (SKILL.md
       plus ``references/*.md``).
@@ -545,7 +545,7 @@ def _resolve_role_map_for_dispatch(args: argparse.Namespace, target_dir: Path):
     """Load the Phase-1 role map for dispatch-time activation decisions.
 
     Returns the parsed role-map dict, or ``None`` when the role map is
-    absent or unparseable. Pass-specific runners may still raise their
+    absent or unparsable. Pass-specific runners may still raise their
     own errors when they require the role map (Pass C does); this helper
     only services activation gates that need to short-circuit cleanly
     on empty-side targets.
@@ -560,7 +560,40 @@ def _resolve_role_map_for_dispatch(args: argparse.Namespace, target_dir: Path):
 
 
 def _main(argv: Optional[list[str]] = None) -> int:
-    args = _parse_args(sys.argv[1:] if argv is None else argv)
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list = list(sys.argv[1:] if argv is None else argv)
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
+    if not _argv_list:
+        # v1.5.7 090a: full attribution banner + purpose banner.
+        _print_command_intro(
+            name="skill_derivation",
+            summary=(
+                "Skill-derivation pipeline orchestrator — runs "
+                "passes A/B/C/D in sequence against a target "
+                "phase-3 corpus."
+            ),
+            role=(
+                "Phase 4 (skill-derivation lane) entry point. "
+                "Reads phase-3 exploration output and produces "
+                "the candidate-skill / candidate-bug corpus "
+                "Phase 4 Council reviewers consume."
+            ),
+            usage_hint=(
+                "python3 -m bin.skill_derivation "
+                "--pass all <target>"
+            ),
+        )
+        return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(_argv_list)
+
+    args = _parse_args(_argv_list)
     target_dir = args.target_dir.resolve()
     p3 = _phase3_dir(target_dir)
     p3.mkdir(parents=True, exist_ok=True)

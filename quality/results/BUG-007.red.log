@@ -1,0 +1,30 @@
+RED
+--- BUG-007 red ---
+Command: pytest ::test_bug_007_capture_phase_yn_no_false_completion --runxfail
+Exit code: 1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_bug_007_capture_phase_yn_no_false_completion _______________
+
+tmp_path = PosixPath('/private/tmp/claude-501/pytest-of-andrewstellman/pytest-5/test_bug_007_capture_phase_yn_0')
+
+    @pytest.mark.xfail(strict=True, reason="BUG-007: capture_phase_yn marks P3-P6 Y from Phase-2 artifacts — unskip after BUG-007-fix.patch")
+    def test_bug_007_capture_phase_yn_no_false_completion(tmp_path):
+        q = tmp_path / "quality"
+        q.mkdir()
+        for name in ("EXPLORATION.md", "REQUIREMENTS.md", "RUN_CODE_REVIEW.md",
+                     "RUN_SPEC_AUDIT.md", "RUN_TDD_TESTS.md", "COMPLETENESS_REPORT.md"):
+            (q / name).write_text("x\n", encoding="utf-8")
+        yn = PR.capture_phase_yn("", q)
+>       assert [p for p in ("P3", "P4", "P5", "P6") if yn.get(p) == "Y"] == [], (
+            "Phase-2-only tree must not mark P3-P6 complete")
+E       AssertionError: Phase-2-only tree must not mark P3-P6 complete
+E       assert ['P3', 'P4', 'P5', 'P6'] == []
+E         
+E         Left contains 4 more items, first extra item: 'P3'
+E         Use -v to get more diff
+
+/Users/andrewstellman/Documents/QPB/quality/test_regression.py:103: AssertionError
+=========================== short test summary info ============================
+FAILED ../../Users/andrewstellman/Documents/QPB/quality/test_regression.py::test_bug_007_capture_phase_yn_no_false_completion
+1 failed in 0.06s

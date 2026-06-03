@@ -11,7 +11,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence
+from typing import Iterable, List, Optional, Sequence, Tuple
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 QPB_DIR = SCRIPT_DIR.parent
@@ -22,7 +22,7 @@ DEFAULT_MODEL = os.environ.get("QPB_MODEL", "gpt-5.4")
 # so a future SKILL.md bump that forgets to update this constant fails the
 # test suite during release prep instead of after tag. Update both this
 # constant AND the SKILL.md `version:` stamp(s) when bumping the release.
-RELEASE_VERSION = "1.5.6"
+RELEASE_VERSION = "1.5.7"
 
 FUNCTIONAL_TEST_PATTERNS = (
     "test_functional.*",
@@ -56,6 +56,12 @@ SKILL_INSTALL_LOCATIONS = (
     Path(".cursor") / "skills" / "quality-playbook" / "SKILL.md",
     Path(".continue") / "skills" / "quality-playbook" / "SKILL.md",
     Path(".github") / "skills" / "quality-playbook" / "SKILL.md",
+    # v1.5.7 instruction 046 (A-3): 6 → 10 layouts. Order matches
+    # SKILL_FALLBACK_GUIDE + _GATE_INSTALL_LOCATIONS.
+    Path(".codex") / "skills" / "quality-playbook" / "SKILL.md",
+    Path(".windsurf") / "skills" / "quality-playbook" / "SKILL.md",
+    Path(".cline") / "skills" / "quality-playbook" / "SKILL.md",
+    Path(".aider") / "skills" / "quality-playbook" / "SKILL.md",
 )
 
 
@@ -125,9 +131,35 @@ def _read_version(path: Path) -> str:
 
 
 def detect_skill_version(qpb_dir: Optional[Path] = None) -> str:
-    """Read the `version:` value from the root SKILL.md (utility helper)."""
-    base_dir = qpb_dir or QPB_DIR
-    return _read_version(base_dir / "SKILL.md")
+    """Read the ``version:`` value from the root SKILL.md.
+
+    089x: when called without an explicit ``qpb_dir``, delegates to
+    ``_purpose.get_version()`` — THE canonical version source. The
+    explicit-path form is preserved so callers that want a specific
+    SKILL.md (e.g. testing fixtures) can still target one.
+    """
+    if qpb_dir is None:
+        # v1.5.7 090c: foreign-bin-proof — path-load fallback
+        # anchored on THIS file's directory.
+        try:
+            from bin import _purpose
+        except ImportError:
+            import importlib.util as _ilu
+            _pp = Path(__file__).resolve().parent / "_purpose.py"
+            _ps = _ilu.spec_from_file_location(
+                "_qpb_purpose_via_benchmark_lib", _pp,
+            )
+            if _ps is None or _ps.loader is None:
+                raise ImportError(
+                    f"benchmark_lib: cannot resolve _purpose — "
+                    f"path-load target {_pp} is missing."
+                )
+            _purpose = _ilu.module_from_spec(_ps)
+            import sys as _sysmod
+            _sysmod.modules[_ps.name] = _purpose
+            _ps.loader.exec_module(_purpose)
+        return _purpose.get_version()
+    return _read_version(qpb_dir / "SKILL.md")
 
 
 def skill_version() -> Optional[str]:
@@ -156,22 +188,63 @@ def skill_version() -> Optional[str]:
 def detect_repo_skill_version(repo_dir: Path) -> str:
     """Read the `version:` value from an installed-copy SKILL.md for display."""
     for rel in SKILL_INSTALL_LOCATIONS:
-        version = _read_version(repo_dir / rel)
+        candidate = repo_dir / rel
+        if not _is_qpb_skill_md(candidate, rel):
+            continue
+        version = _read_version(candidate)
         if version:
             return version
     return ""
 
 
-def find_installed_skill(target_dir: Path) -> Optional[Path]:
-    """Return the first installed SKILL.md beneath `target_dir`, or None.
+_QPB_SKILL_NAME_RE = re.compile(
+    r"^\s*name:\s*[\"']?quality-playbook[\"']?\s*$",
+    re.MULTILINE,
+)
 
-    Searched in the same order as the skill's own fallback list:
-    `.github/skills/SKILL.md`, `.claude/skills/quality-playbook/SKILL.md`,
-    then a plain `SKILL.md` at the directory root.
+
+def _is_qpb_skill_md(candidate: Path, rel_path: Path) -> bool:
+    """Return True iff `candidate` is QPB's installed SKILL.md.
+
+    v1.5.7 BUG-001/BUG-002: differentiate between a QPB-installed
+    SKILL.md and an arbitrary target's own root SKILL.md (which could
+    be the target project's own skill, NOT QPB's). The five nested
+    install-layout paths (.claude/skills/quality-playbook/,
+    .github/skills/, .cursor/skills/quality-playbook/,
+    .continue/skills/quality-playbook/, .github/skills/quality-playbook/)
+    are unambiguous — only QPB installs there. The root `SKILL.md`
+    layout is the QPB self-bootstrap form and can collide with a
+    target project's own SKILL.md, so we verify frontmatter has
+    `name: quality-playbook` for that single ambiguous location.
+    """
+    if not candidate.is_file():
+        return False
+    # The 5 nested install layouts are unambiguous QPB locations.
+    if rel_path != Path("SKILL.md"):
+        return True
+    # Root SKILL.md — verify QPB identity via frontmatter `name:`.
+    try:
+        head = candidate.read_text(encoding="utf-8", errors="replace")[:4096]
+    except OSError:
+        return False
+    return bool(_QPB_SKILL_NAME_RE.search(head))
+
+
+def find_installed_skill(target_dir: Path) -> Optional[Path]:
+    """Return the first installed QPB SKILL.md beneath `target_dir`, or None.
+
+    Searched in the same order as the skill's own fallback list (the
+    ten canonical install layouts as of v1.5.7 instruction 046; see
+    SKILL_INSTALL_LOCATIONS).
+
+    v1.5.7 BUG-001/BUG-002: only returns a path when the candidate is
+    QPB's installed SKILL.md, not an arbitrary target's own SKILL.md.
+    The 5 nested install paths are unambiguous; the root SKILL.md
+    requires `name: quality-playbook` frontmatter to qualify.
     """
     for rel in SKILL_INSTALL_LOCATIONS:
         candidate = target_dir / rel
-        if candidate.is_file():
+        if _is_qpb_skill_md(candidate, rel):
             return candidate
     return None
 
@@ -296,16 +369,48 @@ def cleanup_repo(repo_dir: Path) -> bool:
 
 
 def require_copilot() -> bool:
+    """Return True iff a GitHub Copilot CLI is available on the host.
+
+    v1.5.7 089f: thin wrapper around
+    :func:`bin.copilot_resolver.require_copilot_cli`. Returns the
+    boolean availability flag for back-compat with existing callers
+    that only need yes/no. Callers that need to know WHICH CLI was
+    found (for install-route diagnostics or for choosing
+    ``--allow-all`` vs ``--yolo``) should call the resolver directly.
+    """
+    # Local import to keep bin/benchmark_lib lightweight and avoid
+    # ordering dependencies — benchmark_lib is imported early by
+    # bin/run_playbook.py.
+    #
+    # v1.5.7 090c: foreign-bin-proof, with a graceful "resolver
+    # unavailable" fallback. `copilot_resolver` is NOT in
+    # `install_skill._bundle_files()` — it ships at the QPB clone
+    # / setup_repos.sh-layout location but is NOT in the adopter
+    # install-closure. From the bundled adopter context this
+    # import legitimately fails; in that case `is_copilot_cli_
+    # available` returns False (no resolver = treat copilot as
+    # unavailable, which matches the operational truth).
     try:
-        result = subprocess.run(
-            ["gh", "copilot", "--help"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
+        from bin import copilot_resolver
+    except ImportError:
+        import importlib.util as _ilu
+        _cr_path = (
+            Path(__file__).resolve().parent / "copilot_resolver.py"
         )
-    except FileNotFoundError:
-        return False
-    return result.returncode == 0
+        if not _cr_path.is_file():
+            # No resolver on this layout — copilot CLI is treated
+            # as unavailable. The caller (benchmark-mode runner
+            # selection) routes around it.
+            return False
+        _cr_spec = _ilu.spec_from_file_location(
+            "_qpb_copilot_resolver_via_benchmark_lib", _cr_path,
+        )
+        copilot_resolver = _ilu.module_from_spec(_cr_spec)  # type: ignore[assignment]
+        import sys as _sysmod
+        _sysmod.modules[_cr_spec.name] = copilot_resolver
+        _cr_spec.loader.exec_module(copilot_resolver)
+    available, _which = copilot_resolver.require_copilot_cli()
+    return available
 
 
 def count_matching_lines(path: Path, pattern: str) -> int:
@@ -348,6 +453,98 @@ def _count_use_cases(repo_dir: Path, requirements_file: Path) -> int:
     return count_matching_lines(requirements_file, r"### UC-")
 
 
+def _count_req_tiers_from_manifest(quality_dir: Path) -> Tuple[int, int, int]:
+    """Return ``(tier1, tier2, tier3)`` REQ counts from
+    ``quality/requirements_manifest.json``'s ``records[].tier``
+    integer field (schemas.md §1.6 manifest wrapper + the integer
+    ``tier`` REQ field). Returns ``(0, 0, 0)`` when the manifest is
+    absent or unparseable.
+
+    v1.5.7 Issue 3 (chi-surfaced): the Artifact Summary's T1/T2/T3
+    columns previously came from ``count_matching_lines(REQUIREMENTS
+    .md, r"\\[Tier N\\]")`` — a literal ``[Tier N]`` substring regex
+    that never matched the canonical REQ-record prose (``- **Tier:**
+    N``), so a run with 16 Tier-3 REQs reported ``0 0 0``. The
+    structured manifest carries an unambiguous integer ``tier`` per
+    record; read that instead of scraping prose.
+    """
+    manifest = quality_dir / "requirements_manifest.json"
+    if not manifest.is_file():
+        return (0, 0, 0)
+    try:
+        payload = json.loads(
+            manifest.read_text(encoding="utf-8", errors="ignore")
+        )
+    except (ValueError, OSError):
+        return (0, 0, 0)
+    records = (
+        payload.get("records") if isinstance(payload, dict) else payload
+    )
+    if not isinstance(records, list):
+        return (0, 0, 0)
+    t1 = t2 = t3 = 0
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        try:
+            # `tier` is an integer per schema, but tolerate "3"-style
+            # strings from older / hand-edited manifests.
+            tier_i = int(rec.get("tier"))
+        except (TypeError, ValueError):
+            continue
+        if tier_i == 1:
+            t1 += 1
+        elif tier_i == 2:
+            t2 += 1
+        elif tier_i == 3:
+            t3 += 1
+    return (t1, t2, t3)
+
+
+def _tdd_counts_from_results_json(quality_dir: Path) -> Tuple[int, int]:
+    """Return ``(verified, failed)`` TDD counts from
+    ``quality/results/tdd-results.json``'s ``summary`` block.
+    ``verified`` = ``summary.verified``; ``failed`` =
+    ``summary.red_failed + summary.green_failed``. Returns ``(0, 0)``
+    when the file is absent or unparseable (e.g. a run with no
+    confirmed bugs never writes tdd-results.json — matches the prior
+    behavior where the missing TDD_TRACEABILITY.md yielded 0/0).
+
+    v1.5.7 instruction 046 (A-4, chi-surfaced): the Quality Checks
+    line previously did
+    ``count_matching_lines(TDD_TRACEABILITY.md, r"TDD verified")`` —
+    a prose-substring count over a markdown file. chi-1.5.1 showed
+    ``tdd(verified=1 failed=0)`` while tdd-results.json correctly
+    recorded ``summary.verified == 9`` (the markdown phrasing didn't
+    line up 1:1 with the regex). The structured JSON is the
+    authoritative tally; read it instead of scraping prose.
+    """
+    results = quality_dir / "results" / "tdd-results.json"
+    if not results.is_file():
+        return (0, 0)
+    try:
+        payload = json.loads(
+            results.read_text(encoding="utf-8", errors="ignore")
+        )
+    except (ValueError, OSError):
+        return (0, 0)
+    summary = (
+        payload.get("summary") if isinstance(payload, dict) else None
+    )
+    if not isinstance(summary, dict):
+        return (0, 0)
+
+    def _int(key: str) -> int:
+        try:
+            return int(summary.get(key) or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    verified = _int("verified")
+    failed = _int("red_failed") + _int("green_failed")
+    return (verified, failed)
+
+
 def _marker(path: Path, exists_marker: str = "Y", missing_marker: str = "N") -> str:
     return exists_marker if path.exists() else missing_marker
 
@@ -361,7 +558,9 @@ def build_summary_rows(repo_dirs: Sequence[Path]) -> List[SummaryRow]:
         integration = _marker(repo_dir / "quality" / "RUN_INTEGRATION_TESTS.md")
         functional = "Y" if find_functional_test(repo_dir) else "N"
         regression = "Y" if find_regression_test(repo_dir) else "."
-        requirements_file = repo_dir / "quality" / "REQUIREMENTS.md"
+        tier1, tier2, tier3 = _count_req_tiers_from_manifest(
+            repo_dir / "quality"
+        )
         rows.append(
             SummaryRow(
                 name=repo_dir.name,
@@ -371,9 +570,9 @@ def build_summary_rows(repo_dirs: Sequence[Path]) -> List[SummaryRow]:
                 integration=integration,
                 functional=functional,
                 regression=regression,
-                tier1=count_matching_lines(requirements_file, r"\[Tier 1\]"),
-                tier2=count_matching_lines(requirements_file, r"\[Tier 2\]"),
-                tier3=count_matching_lines(requirements_file, r"\[Tier 3\]"),
+                tier1=tier1,
+                tier2=tier2,
+                tier3=tier3,
             )
         )
     return rows
@@ -395,14 +594,18 @@ def print_summary(repo_dirs: Sequence[Path]) -> str:
         if not requirements_file.is_file():
             continue
         integration_file = repo_dir / "quality" / "RUN_INTEGRATION_TESTS.md"
-        tdd_file = repo_dir / "quality" / "TDD_TRACEABILITY.md"
         ag = count_matching_lines(requirements_file, r"architectural-guidance")
         req = count_matching_lines(requirements_file, r"### REQ-")
         uc = _count_use_cases(repo_dir, requirements_file)
         uc_int = count_matching_lines(integration_file, r"UC-")
         infra_int = count_matching_lines(integration_file, r"\[Infrastructure\]")
-        tdd_verified = count_matching_lines(tdd_file, r"TDD verified")
-        tdd_failed = count_matching_lines(tdd_file, r"Green failed|Red failed")
+        # v1.5.7 instruction 046 (A-4): read the authoritative tally
+        # from quality/results/tdd-results.json's summary block, not a
+        # prose-substring count over TDD_TRACEABILITY.md (chi-surfaced:
+        # markdown said verified=1 while the JSON summary said 9).
+        tdd_verified, tdd_failed = _tdd_counts_from_results_json(
+            repo_dir / "quality"
+        )
         flags = []
         if ag > 3:
             flags.append("WARN:arch-guidance>3")
@@ -418,3 +621,29 @@ def print_summary(repo_dirs: Sequence[Path]) -> str:
         )
     lines.append("")
     return "\n".join(lines)
+
+
+# v1.5.7 089x: every bin/*.py is safe + self-describing on no-args.
+if __name__ == "__main__":
+    try:
+        from bin._purpose import print_purpose as _print_purpose
+    except ImportError:
+        from _purpose import print_purpose as _print_purpose  # type: ignore[no-redef]
+    _print_purpose(
+        name='benchmark_lib',
+        summary=(
+            "Shared helpers for the QPB benchmark tooling — file walking, "
+            "test discovery, skill-version detection, and language-aware "
+            "command builders. "
+        ),
+        role=(
+            "Imported by run_playbook.py and by sibling-target "
+            "tooling that repos/setup_repos.sh stages into each "
+            "benchmark clone; also imported by "
+            "reference_docs_ingest at Phase 1 for the "
+            "version-detection fallback. "
+        ),
+        kind="library",
+    )
+    import sys as _sys
+    _sys.exit(0)

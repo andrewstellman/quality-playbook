@@ -7,12 +7,6 @@
 # the runs are not evidence you need under version control, keeping them
 # out of the repo is usually what you want.
 
-# Tier 4 informal documentation — run-specific content (AI chats, design
-# notes, retrospectives). Track the README so the folder self-explains on
-# a fresh clone.
-informal_docs/*
-!informal_docs/README.md
-
 # docs_gathered/ is NEVER tracked — AI chat history and other private
 # reference material. Mirrors the QPB-repo rule so behaviour is consistent
 # across target repos.
@@ -25,3 +19,10 @@ docs_gathered/
 # bulk.
 quality/runs/
 !quality/RUN_INDEX.md
+
+# v1.5.7 D3 centralized per-run logs (transcripts, control_prompts,
+# playbook log, run_state.jsonl, RUN_MODE.md). One subdirectory per run
+# at quality/logs/<run-id>/, plus a quality/logs/latest symlink. Per-run
+# log content is generally not version-control material for adopter
+# projects; QPB's own convention is to gitignore it.
+quality/logs/

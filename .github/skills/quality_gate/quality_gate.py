@@ -14,15 +14,20 @@ Usage:
     ./quality_gate.py --version 1.3.27 virtio    # Check specific version
 
 Exit codes:
-    0 — all checks passed
-    1 — one or more checks failed
+    0 — GATE PASSED, or GATE PASSED WITH CLEANUP NEEDED (only audit
+        record-keeping gaps remain; the review completed and its
+        findings stand — see the v1.5.7 089c F15 taxonomy block below)
+    1 — GATE FAILED (one or more substantive issues — the work itself
+        wasn't done correctly)
 
 Runs on Python 3.8+ with only the standard library.
 """
 
+import functools
 import json
 import os
 import re
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
@@ -65,6 +70,1040 @@ for _candidate_root in _VERIFIER_SEARCH_ROOTS:
 # directly should reset these in setUp.
 FAIL = 0
 WARN = 0
+
+
+# ---------------------------------------------------------------------------
+# v1.5.7 instruction 089c (F15) — three-state verdict taxonomy.
+#
+# Round 2 ship-validation surfaced an adopter-UX defect: the old binary
+# GATE PASSED / GATE FAILED verdict treated audit record-keeping
+# incompleteness (a manifest field missing, a sidecar absent, a
+# cross-site pattern tag not applied) IDENTICALLY to substantive failure
+# (the review never ran, specs absent, a verdict fabricated). An adopter
+# reading "GATE FAILED — 44 check(s)" could not tell "your code is
+# broken in 44 ways" from "your audit trail is incomplete in 44 ways".
+# Both Round 2 runs (haiku/click, codex/express) completed real Phase
+# 0-6 work and found real TDD-verified bugs but were tagged GATE FAILED
+# purely on artifact-completeness gaps.
+#
+# Every check function is now classified into exactly one category:
+#
+#   "substantive"    — failure means the WORK WASN'T DONE CORRECTLY:
+#                      the review didn't complete; EXPLORATION / specs /
+#                      BUGS / writeups / patches are missing; the
+#                      mechanical verifier was never invoked or failed;
+#                      TDD red->green evidence is absent; the Phase 5
+#                      verdict is missing/fabricated; layout drift hides
+#                      artifacts. These BLOCK the gate (exit 1).
+#
+#   "record_keeping" — failure means the WORK HAPPENED but the AUDIT
+#                      TRAIL HAS GAPS: a manifest record is missing a
+#                      field (disposition / functional_section / tier);
+#                      a sidecar or per-bug challenge record is absent;
+#                      a cross-site pattern tag or role-map breakdown
+#                      field is missing; bugs↔patches bookkeeping is
+#                      out of sync. The bugs are real and reviewed; the
+#                      paperwork is incomplete. These DON'T block — they
+#                      surface as cleanup (exit 0).
+#
+# Classification is per CHECK FUNCTION via the @verdict_category(...)
+# decorator (recorded as the function's _VERDICT_CATEGORY attribute).
+# The decorator pushes the category onto _CHECK_CATEGORY_STACK for the
+# duration of the call so fail()s emitted by nested helpers
+# (_v150_manifest, validate_cardinality_gate, _check_citation_block,
+# _check_exploration_sections, ...) inherit the enclosing check's
+# category. A fail() MAY override per call via fail(..., category=...).
+#
+# Default rule (089c Task 1): a genuinely ambiguous check is classified
+# "substantive" — better to FAIL than to PASS-WITH-CLEANUP a real
+# defect. The record_keeping set is deliberately narrow and tracks the
+# Round 2 evidence + the F15 illustrative output: bugs↔patches
+# consistency, the v1.5.0 / v1.5.3 manifest field-completeness checks,
+# the challenge-gate coverage check, the v1.5.2 cardinality
+# (cross-site-pattern-tag) gate, run-metadata, and role-map
+# well-formedness. Everything else (artifact existence, BUGS heading,
+# TDD sidecar/logs, integration/recheck sidecars, use-cases, mechanical
+# verification, patches, writeups, verdict shape, workspace drift,
+# version stamps, cross-run contamination, cite-extensions, INDEX.md
+# (invariant #10 — absent INDEX is substantive), semantic check, the
+# Phase-4 skill-coverage checks) stays substantive.
+#
+# Verdict (main()): zero FAILs -> GATE PASSED (exit 0). Any substantive
+# FAIL -> GATE FAILED (exit 1). Only record_keeping FAILs -> GATE
+# PASSED WITH CLEANUP NEEDED (exit 0 — cleanup is not a hard failure).
+# The exact RESULT: line strings are LOAD-BEARING; downstream consumers
+# (phase_prompts/phase6{,_auditor}.md witness contract,
+# bin/validate_phase_artifacts.py, references/what_just_happened.md
+# State CN, the gate test suite) pattern-match on them.
+# ---------------------------------------------------------------------------
+
+VERDICT_SUBSTANTIVE = "substantive"
+VERDICT_RECORD_KEEPING = "record_keeping"
+_VALID_VERDICT_CATEGORIES = (VERDICT_SUBSTANTIVE, VERDICT_RECORD_KEEPING)
+
+# (category, rendered_message) for every fail() emitted this run. Reset
+# with the counters. main() splits this for the three-state verdict.
+_FAIL_RECORDS = []
+
+# v1.5.7 090v: every warn() message recorded for the operator verdict-
+# explanation layer (additive presentation only — see
+# ``_emit_operator_verdict``). The WARN counter (`WARN`) remains the
+# authoritative count; this list adds the message bodies so the
+# verdict layer can partition WARNs into actionable vs benign-back-
+# compat via the curated allowlist (Task D). Reset with the counters.
+_WARN_RECORDS: list[str] = []
+
+# v1.5.7 090w: per-repo run provenance for the operator verdict-
+# explanation layer. Each entry captures:
+#   - ``repo``: repo name (matches ``_ZERO_BUG_REPOS`` shape).
+#   - ``runner_detected``: runner detected from the EXECUTION
+#     environment (verified — CODEX_THREAD_ID / COPILOT_AGENT_
+#     SESSION_ID / CLAUDECODE → codex / copilot / claude-code, or
+#     ``unknown`` when none are set).
+#   - ``model_self_reported``: the ``model`` field from
+#     ``quality/results/run-*.json`` if present (LABELED as
+#     self-report — demonstrably unreliable; NATS run2 wrote
+#     "gpt-5.2" when the actual model was gpt-5.4).
+#   - ``bug_count_gate``: the gate's own confirmed bug count for
+#     this repo (verified — derived from BUG-NNN headings in
+#     BUGS.md).
+#   - ``bug_count_self_reported``: the ``bug_count`` field from
+#     run-metadata if present, else ``None``. NATS run2 wrote 0
+#     when the gate counted 3 (stale-metadata mismatch).
+# The verdict block renders one provenance block per entry with
+# explicit confidence labels (verified vs self-reported); a
+# self-report vs gate mismatch is flagged informationally.
+_RUN_PROVENANCE: list[dict] = []
+
+# Category context stack. @verdict_category pushes on call entry and
+# pops on exit; fail() reads the top (or an explicit category= override;
+# or VERDICT_SUBSTANTIVE when the stack is empty — conservative default).
+_CHECK_CATEGORY_STACK = []
+
+
+def verdict_category(category):
+    """Decorator: record a check function's F15 verdict category and,
+    for the duration of each call, push it onto _CHECK_CATEGORY_STACK so
+    fail()s from nested helpers inherit it. See the classification
+    policy block above. `category` must be one of
+    _VALID_VERDICT_CATEGORIES (raises ValueError otherwise — a typo'd
+    category is a hard programming error, not a silent mis-classify)."""
+    if category not in _VALID_VERDICT_CATEGORIES:
+        raise ValueError(
+            f"verdict_category: {category!r} not in "
+            f"{_VALID_VERDICT_CATEGORIES}"
+        )
+
+    def _decorate(fn):
+        @functools.wraps(fn)
+        def _wrapped(*args, **kwargs):
+            _CHECK_CATEGORY_STACK.append(category)
+            try:
+                return fn(*args, **kwargs)
+            finally:
+                _CHECK_CATEGORY_STACK.pop()
+
+        # Expose the classification on BOTH the wrapper and the
+        # underlying fn so introspection works regardless of which the
+        # caller holds (the test suite asserts every check carries one).
+        _wrapped._VERDICT_CATEGORY = category
+        fn._VERDICT_CATEGORY = category
+        return _wrapped
+
+    return _decorate
+
+
+def _compute_verdict_state(exit_code, fail_records,
+                             warn_records, zero_bug_repos):
+    """v1.5.7 109 — pure helper that returns the verdict-state
+    slug ("solid" | "shallow" | "failed") matching the operator-
+    verdict lead line in ``_emit_operator_verdict``.
+
+    Extracted so the 109 ``::QPB::`` gate-result sentinel can
+    emit the same state without re-running the lead-line
+    rendering. The two callers (lead line + sentinel) MUST stay
+    aligned — divergence would mean the operator sees one state
+    on screen and the harness extracts a different one from the
+    sentinel. The lead-line in ``_emit_operator_verdict`` calls
+    this so the alignment is structural.
+    """
+    if exit_code != 0:
+        return "failed"
+    weak_model = _has_weak_model_signal(
+        fail_records, zero_bug_repos, warn_records
+    )
+    is_shallow_pass = (
+        bool(zero_bug_repos)
+        or any("no test functions found" in w for w in warn_records)
+        or weak_model
+    )
+    return "shallow" if is_shallow_pass else "solid"
+
+
+def _format_gate_sentinel(*, gate_result: str,
+                            verdict_state: str,
+                            ts: "str | None" = None) -> str:
+    """v1.5.7 109 — return the single ``::QPB:: {json}`` line
+    for the gate-result sentinel. Unit-testable; the gate calls
+    this once at the end of main(), after the operator-verdict
+    block.
+
+    Format mirrors the ``kind:"phase"`` sentinel emitted by
+    ``bin/qpb_phase.py`` (same v=1 envelope, different kind):
+    ``::QPB:: {"v":1,"kind":"gate","gate_result":"PASS",
+    "verdict_state":"solid","ts":"2026-05-26T..."}``.
+
+    For LIVE DISPLAY ONLY. The harness's authoritative gate
+    result for grading stays ``facts.rerun_installed_gate``
+    (the collector's re-run, two-sourced per design §C); this
+    sentinel does NOT become a grading input.
+    """
+    payload = {
+        "v": 1,
+        "kind": "gate",
+        "gate_result": gate_result,
+        "verdict_state": verdict_state,
+        "ts": ts or _utc_now_iso(),
+    }
+    return f"::QPB:: {json.dumps(payload, separators=(',', ':'))}"
+
+
+def _utc_now_iso() -> str:
+    """v1.5.7 109 — UTC ISO-8601 in the format the harness uses
+    elsewhere (Zulu suffix, no microseconds). Stdlib-only."""
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+
+
+def _compute_final_verdict(fail_records, warn_count):
+    """v1.5.7 089c (F15) — pure three-state verdict decision.
+
+    `fail_records` is the (category, message) ledger
+    (quality_gate._FAIL_RECORDS shape). Returns
+    ``(total_line, result_line, exit_code)``:
+
+      - zero fails                  -> GATE PASSED                  exit 0
+      - any substantive fail        -> GATE FAILED                  exit 1
+      - only record_keeping fails   -> GATE PASSED WITH CLEANUP
+                                       NEEDED                       exit 0
+
+    The RESULT: line strings are LOAD-BEARING — phase_prompts/
+    phase6{,_auditor}.md's witness contract, bin/validate_phase_
+    artifacts.py, references/what_just_happened.md's State CN, and the
+    gate test suite all pattern-match them. Kept pure (no globals, no
+    printing) so the three-state logic is unit-testable directly
+    without constructing a full repo fixture (089c Task 7)."""
+    n_total = len(fail_records)
+    n_sub = sum(1 for r in fail_records if r[0] == VERDICT_SUBSTANTIVE)
+    n_clean = sum(
+        1 for r in fail_records if r[0] == VERDICT_RECORD_KEEPING
+    )
+    if n_total == 0:
+        return (
+            f"Total: 0 FAIL, {warn_count} WARN",
+            "RESULT: GATE PASSED",
+            0,
+        )
+    if n_sub > 0:
+        # Any substantive failure blocks. Break out the cleanup count
+        # so the operator sees how much of the total is record-keeping.
+        return (
+            f"Total: {n_total} FAIL "
+            f"({n_sub} substantive, {n_clean} record-keeping), "
+            f"{warn_count} WARN",
+            f"RESULT: GATE FAILED — {n_sub} substantive "
+            f"issue(s) must be fixed",
+            1,
+        )
+    # Only record-keeping fails remain: the review completed and its
+    # findings stand on their own; the audit trail just has gaps. This
+    # is NOT a hard failure (exit 0) — adopters/CI must be able to tell
+    # "audit paperwork incomplete" apart from "the work is broken".
+    return (
+        f"Total: {n_clean} CLEANUP, {warn_count} WARN",
+        f"RESULT: GATE PASSED WITH CLEANUP NEEDED — "
+        f"{n_clean} audit record-keeping gap(s)",
+        0,
+    )
+
+
+# ============================================================
+# v1.5.7 090v — Operator verdict-explanation layer
+#
+# Additive presentation over already-computed accumulators
+# (_FAIL_RECORDS / _WARN_RECORDS / _ZERO_BUG_REPOS). Printed
+# AFTER the load-bearing ``total_line`` + ``result_line`` lines.
+# Touches ZERO check logic; never changes ``exit_code``.
+#
+# Spec: docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md
+# (the 1.5.7 slice; v1.6.x expansion E1–E6 deferred).
+#
+# Hard rule: the "try a stronger model" recommendation is gated
+# specifically on a weak-model/fabrication signal (a 090s
+# hollow-test FAIL or a 090p overclaim FAIL). A pure environment-
+# failure run (setup-failure reds only, no fabrication signal)
+# gets the environment message and NEVER the stronger-model
+# line. Getting this wrong gives actively harmful advice.
+# ============================================================
+
+# FAIL signatures the curated cluster (Task B). Each maps to a
+# plain-English narration. Order is significant: a FAIL is
+# classified against the first matching key. Substrings only —
+# the legacy FAIL strings are load-bearing and not re-worded
+# here.
+_FAIL_NOOP_FUNCTIONAL = "noop_functional_test"
+_FAIL_TDD_OVERCLAIM = "tdd_overclaim"
+_FAIL_SETUP_FAILURE_RED = "setup_failure_red"
+# v1.5.7 090x: bugs-found-but-unverified — bugs are present in
+# BUGS.md but the TDD-proof artifacts (tdd-results.json /
+# red-green logs / regression-test patches / test_regression.*)
+# are absent ENTIRELY. Distinct from ``_FAIL_TDD_OVERCLAIM`` (090v
+# / 089o): overclaim = GREEN claimed without runner output;
+# bugs_unverified = the run never produced verification artifacts
+# at all. Both can co-occur; each curated message emits when its
+# signature is present. Attribution is intentionally NOT routed
+# to the weak-model bucket — a capable model can produce this
+# shape (discovery without verification = incomplete run, not
+# cut-corners). The 2026-05-25 NATS run2 gpt-5.4 fixture is the
+# motivating shape.
+_FAIL_BUGS_UNVERIFIED = "bugs_unverified"
+_FAIL_MISSING_ARTIFACT = "missing_artifact"
+_FAIL_GENERIC = "generic"
+
+# Substring-match table; first match wins.
+#
+# v1.5.7 090x: the ``bugs_unverified`` cluster is placed BEFORE the
+# broader ``missing_artifact`` cluster so a precise keyed signature
+# (e.g. "tdd-results.json missing (" — emitted only with a bug
+# count) routes to ``bugs_unverified`` rather than falling through
+# to the generic "missing required" message. These signatures are
+# keyed to the FAIL emit strings in:
+#   * check_tdd_sidecar     — tdd-results.json missing
+#   * check_tdd_logs        — red-phase / green-phase log missing
+#   * check_patches         — test_regression.* / regression-test
+#                              patch missing
+_FAIL_CLASSIFIER: "tuple[tuple[str, str], ...]" = (
+    # 090s — no-op / all-trivial functional test.
+    ("trivial / no-assertion stubs", _FAIL_NOOP_FUNCTIONAL),
+    # 089o / 090p — TDD claimed RED/GREEN over a by-inspection body.
+    ("body admits non-execution", _FAIL_TDD_OVERCLAIM),
+    ("TDD receipt(s) overclaim", _FAIL_TDD_OVERCLAIM),
+    # 090p — RED rejected as setup/build/dependency/collection failure.
+    ("setup/dependency/build/collection failure", _FAIL_SETUP_FAILURE_RED),
+    ("rejected as setup/dependency/build failures", _FAIL_SETUP_FAILURE_RED),
+    # 090x — bugs present but TDD-proof artifacts absent
+    # (BUG-NNN headings exist, but tdd-results.json / red-green
+    # logs / regression-test patches / test_regression.* are
+    # missing). Each signature is keyed to a specific FAIL emit
+    # string. The 2026-05-25 NATS run2 gpt-5.4 fixture: 3 bugs +
+    # no TDD artifacts. ORDERING NOTE: must precede the
+    # ``missing_artifact`` broad cluster below — these strings
+    # contain "missing", and we want the keyed signature to win.
+    ("tdd-results.json missing (", _FAIL_BUGS_UNVERIFIED),
+    ("confirmed bug(s) missing red-phase log",
+     _FAIL_BUGS_UNVERIFIED),
+    ("No red-phase logs found", _FAIL_BUGS_UNVERIFIED),
+    ("bug(s) with fix patches missing green-phase log",
+     _FAIL_BUGS_UNVERIFIED),
+    ("test_regression.* missing — required when bugs exist",
+     _FAIL_BUGS_UNVERIFIED),
+    ("No regression-test patches found", _FAIL_BUGS_UNVERIFIED),
+    # Missing required artifact — the generic "X missing" / "missing
+    # required" / "required" cluster (intentionally broad — the
+    # generic-fallback path still covers anything we miss).
+    ("missing required", _FAIL_MISSING_ARTIFACT),
+    (" missing (required at ", _FAIL_MISSING_ARTIFACT),
+    ("missing (required ", _FAIL_MISSING_ARTIFACT),
+)
+
+
+def _classify_fail(message: str) -> str:
+    """Return the curated category for a FAIL message, or
+    ``_FAIL_GENERIC`` if no curated message applies (graceful
+    fallback per the spec)."""
+    for needle, category in _FAIL_CLASSIFIER:
+        if needle in message:
+            return category
+    return _FAIL_GENERIC
+
+
+# Benign WARN allowlist (Task D). Conservative — every entry is a
+# WARN that is documented in-source as a back-compat / intended-
+# default / "not a defect" notice. Substring match against the
+# WARN message body; first match wins. Anything NOT on this list
+# stays prominent (we never collapse an unknown WARN).
+_BENIGN_WARN_ALLOWLIST: "tuple[str, ...]" = (
+    # 089 F9 — intended backward-compat path, documented "not a
+    # defect" (see quality_gate.py ~:4692/4734).
+    "intended backward-compat path",
+    # schemas.md §3.10 — legacy bugs_manifest auto-defaulting.
+    "legacy manifest detected",
+    # Pre-W4 back-compat — older runs appended probe assertions to
+    # verify.sh (see quality_gate.py ~:1858/3088).
+    "pre-W4 back-compat",
+    # Skill version detection on legacy SKILL.md / PROGRESS.md.
+    "Cannot detect skill version from SKILL.md",
+)
+
+
+def _is_benign_warn(message: str) -> bool:
+    """Return True iff the WARN matches the curated benign
+    allowlist. Conservative: an unknown WARN is NEVER demoted."""
+    return any(needle in message for needle in _BENIGN_WARN_ALLOWLIST)
+
+
+def _has_weak_model_signal(fail_records, zero_bug_repos,
+                            warn_records) -> bool:
+    """Return True iff the run carries a fabrication / hollow-tell
+    signal that justifies the 'try a stronger reasoning model'
+    recommendation (Task C hard rule). Signals:
+
+    * Any FAIL classified as no-op functional or TDD overclaim
+      (the 090s hollow shape or the 090p overclaim-by-omission).
+    * A zero-bug repo coincident with a 090s WARN about test
+      functions missing (the thin-exploration tell).
+    """
+    for _cat, msg in fail_records:
+        cat = _classify_fail(msg)
+        if cat in (_FAIL_NOOP_FUNCTIONAL, _FAIL_TDD_OVERCLAIM):
+            return True
+    # Thin-exploration tell: zero-bug AND a 090s no-test-functions
+    # WARN present in the same run. The WARN alone (without the
+    # zero-bug shape) is not a fabrication signal — the test file
+    # might just use a helper-only shape the detector doesn't
+    # recognize (see quality_gate.py ~:3003).
+    if zero_bug_repos:
+        for w in warn_records:
+            if "no test functions found" in w:
+                return True
+    return False
+
+
+def _has_environment_signal(fail_records) -> bool:
+    """Return True iff the run carries a setup-failure RED that
+    routes the operator to fix the environment (Task C). May
+    coexist with a weak-model signal in mixed-failure runs."""
+    for _cat, msg in fail_records:
+        if _classify_fail(msg) == _FAIL_SETUP_FAILURE_RED:
+            return True
+    return False
+
+
+# v1.5.7 090w — Run provenance (verified runner + labeled
+# self-reported model + gate-counted bugs).
+#
+# Motivated by the 2026-05-25 NATS run2 (gpt-5.4/medium via Codex
+# desktop): the run found 3 real bugs but ``quality/results/run-*.json``
+# still read ``"model": "gpt-5.2"`` and ``"bug_count": 0`` (the agent
+# wrote the template at the start and never updated it). Operators want
+# real provenance, but echoing the self-reported fields raw would print
+# confidently-wrong provenance. The fix: surface provenance with
+# explicit confidence labels, prefer gate-derived facts, and flag
+# self-report/gate mismatches.
+#
+# These environment variables are the SAME ones the dual-env test
+# harness keys off (see ``CODEX_THREAD_ID``/``COPILOT_AGENT_SESSION_ID``/
+# ``CLAUDECODE`` references in bin/tests). When more than one is set,
+# all detected runners are returned (joined with "+") so a mixed
+# environment is honestly reported, not collapsed to a guess.
+_RUNNER_ENV_MARKERS: "tuple[tuple[str, str], ...]" = (
+    ("CODEX_THREAD_ID", "codex"),
+    ("COPILOT_AGENT_SESSION_ID", "copilot"),
+    ("CLAUDECODE", "claude-code"),
+)
+
+
+def _detect_runner_from_env(env: "dict | None" = None) -> str:
+    """Return the runner detected from the execution environment.
+
+    Returns one of ``codex``/``copilot``/``claude-code``/``unknown``,
+    OR a "+"-joined string when more than one marker is present.
+    `env` defaults to ``os.environ`` (real execution); tests pass an
+    explicit dict.
+    """
+    if env is None:
+        env = os.environ
+    detected = [name for var, name in _RUNNER_ENV_MARKERS
+                if env.get(var)]
+    if not detected:
+        return "unknown"
+    if len(detected) == 1:
+        return detected[0]
+    return "+".join(detected)
+
+
+def _capture_run_provenance(q, repo_name: str, bug_count: int) -> None:
+    """Read ``quality/results/run-*.json`` (self-reported), combine
+    with the env-detected runner + the gate's bug count, and append
+    one entry to ``_RUN_PROVENANCE``. Defensive: missing /
+    unparseable / odd shapes still record a provenance entry (with
+    ``model_self_reported=None`` /
+    ``bug_count_self_reported=None``) — provenance is informational
+    only and never fails the gate.
+
+    The existing ``check_run_metadata`` is the FAIL/WARN-emitting
+    validator; this helper is read-only and additive — it never
+    emits FAIL/WARN, never alters ``exit_code``.
+    """
+    results_dir = _resolve_artifact_path(q, "results")
+    import glob as _glob
+    matches = _glob.glob(str(results_dir / "run-*.json"))
+    model_self_reported: "str | None" = None
+    bug_count_self_reported: "int | None" = None
+    if matches:
+        # Pick the lexicographically-last (the ISO-style timestamp
+        # makes lexsort equivalent to chronological). When
+        # check_run_metadata WARNs on multiple files, we still get
+        # SOME provenance — provenance is informational.
+        data = load_json(Path(sorted(matches)[-1]))
+        if isinstance(data, dict):
+            raw_model = data.get("model")
+            if isinstance(raw_model, str) and raw_model.strip():
+                model_self_reported = raw_model.strip()
+            raw_bc = data.get("bug_count")
+            if isinstance(raw_bc, int):
+                bug_count_self_reported = raw_bc
+    _RUN_PROVENANCE.append({
+        "repo": repo_name,
+        "runner_detected": _detect_runner_from_env(),
+        "model_self_reported": model_self_reported,
+        "bug_count_gate": bug_count,
+        "bug_count_self_reported": bug_count_self_reported,
+    })
+
+
+def _format_provenance_lines(entry: dict) -> "list[str]":
+    """Render a provenance entry as a list of lines for the verdict
+    block. The format mirrors the spec example shape:
+
+        Runner:  codex (detected from environment)
+        Model:   gpt-5.2 (self-reported by the agent — not verified)
+        Bugs:    3 found (gate-counted)   [run-metadata self-reported: 0 — mismatch]
+    """
+    lines: list[str] = []
+    runner = entry.get("runner_detected") or "unknown"
+    if runner == "unknown":
+        lines.append(
+            f"  Runner:  {runner} (no AI-CLI environment marker "
+            f"detected)"
+        )
+    else:
+        lines.append(
+            f"  Runner:  {runner} (detected from environment)"
+        )
+    model = entry.get("model_self_reported")
+    if model:
+        lines.append(
+            f"  Model:   {model} (self-reported by the agent — "
+            f"not verified)"
+        )
+    else:
+        lines.append("  Model:   not recorded")
+    gate_bc = entry.get("bug_count_gate", 0)
+    self_bc = entry.get("bug_count_self_reported")
+    bug_line = f"  Bugs:    {gate_bc} found (gate-counted)"
+    if self_bc is not None and self_bc != gate_bc:
+        bug_line += (
+            f"   [run-metadata self-reported: {self_bc} — "
+            f"mismatch; run metadata was not updated]"
+        )
+    lines.append(bug_line)
+    return lines
+
+
+# Narration table — keyed by classifier category; emits plain-
+# English explanation + remediation. Wording per the spec
+# (docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md §1.5.7).
+_FAIL_NARRATION = {
+    _FAIL_NOOP_FUNCTIONAL: (
+        "The functional test contains no real assertions — the "
+        "test functions exist but their bodies don't actually "
+        "check anything. A test that asserts nothing can't fail, "
+        "so a PASS proves nothing about the code. Add at least "
+        "one assertion-bearing test (Go: `t.Error` / `t.Fatal` "
+        "/ `require.*` / `assert.*`; Python: `assert <expr>` / "
+        "`self.assert*` / `pytest.raises`), then re-run."
+    ),
+    _FAIL_TDD_OVERCLAIM: (
+        "The run claims its bug-fix tests passed, but it never "
+        "actually ran them (no runner output), or the test it "
+        "ran isn't the one tied to the bug. A GREEN claim "
+        "without real execution isn't proof — these bugs are "
+        "unconfirmed. Re-run so the tests actually execute "
+        "(capture real runner output), or honestly mark them "
+        "NOT_RUN (which WARN-passes per the honest-skip path)."
+    ),
+    _FAIL_SETUP_FAILURE_RED: (
+        "A test failed because the environment couldn't "
+        "build/run it (e.g. missing dependency, no network for "
+        "module fetch, test binary failed to compile) — not "
+        "because the AI found a defect. Fix the environment "
+        "(install missing tooling, restore network or pre-fetch "
+        "dependencies, verify the build), then re-run Phases "
+        "5–6."
+    ),
+    _FAIL_MISSING_ARTIFACT: (
+        "A required artifact (file or section) the gate expects "
+        "is missing or malformed. The check name above identifies "
+        "which artifact; produce it (or fix its content) and "
+        "re-run."
+    ),
+    # v1.5.7 090x — pulled forward from the v1.6.x E1 long-tail
+    # because the incomplete-verification shape is high-frequency
+    # (the 2026-05-25 NATS run2 gpt-5.4 fixture: 3 real bugs, no
+    # TDD proof, generic-fallback message). Attribution stays in
+    # the "neither weak-model nor environment" attribution path —
+    # this is an incomplete run, NOT a cut-corners run.
+    _FAIL_BUGS_UNVERIFIED: (
+        "This run found bug(s) but didn't verify them — there's "
+        "no TDD proof (missing tdd-results.json / red-green logs "
+        "/ regression-test patches / test_regression.*). A found "
+        "bug without a red→green test isn't confirmed: the fix "
+        "might be wrong, or the \"bug\" might not be real. "
+        "Either complete the verification step so the tests "
+        "actually run, or treat these as code-review "
+        "candidates, not confirmed bugs."
+    ),
+}
+
+
+def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
+                            exit_code, run_provenance=None):
+    """v1.5.7 090v — print the operator-facing verdict-explanation
+    block AFTER ``total_line`` + ``result_line``.
+
+    Purely additive: the load-bearing strings and ``exit_code`` are
+    untouched (the caller has already printed them and is keeping
+    the return value). Subsumes the standalone 090s zero-bug NOTE
+    by folding the message into the shallow-pass narration when
+    applicable.
+
+    v1.5.7 090w: optional ``run_provenance`` (list of dicts from
+    ``_capture_run_provenance``) renders the "── Run provenance ──"
+    section — verified runner (env-detected), labeled self-reported
+    model, gate-counted bugs with a stale-metadata mismatch flag.
+    Provenance is informational only; never changes pass/fail
+    semantics.
+
+    Spec: docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md
+    """
+    weak_model = _has_weak_model_signal(
+        fail_records, zero_bug_repos, warn_records
+    )
+    env_failure = _has_environment_signal(fail_records)
+    # "Shallow" PASS: exit_code == 0 (no FAIL) but a hollow-shape
+    # tell is present. Zero-bug alone is a shallow tell (per 090s).
+    # v1.5.7 109: the shallow-vs-solid decision moved into
+    # _compute_verdict_state so the 109 ::QPB:: gate sentinel
+    # emits the SAME state slug the lead line prints (no
+    # divergence between operator-facing render + harness-facing
+    # sentinel — they share one helper).
+    verdict_state = _compute_verdict_state(
+        exit_code, fail_records, warn_records, zero_bug_repos,
+    )
+    is_shallow_pass = (verdict_state == "shallow")
+
+    # === Section 1: lead verdict line ===
+    # v1.5.7 185 FINDING-27: ASCII verdict markers
+    # ([PASS]/[WARN]/[FAIL]) replace the pre-185 emoji
+    # markers (✅/⚠️/❌). On Windows the stream-captured
+    # stdout path uses cp1252 codec and crashes print()
+    # with UnicodeEncodeError on the emoji. Both old and
+    # new forms parse via _RE_LEAD_* in bin/harness/facts.py
+    # (185 FINDING-28 dual-form parser).
+    print("")
+    print("--- Operator Verdict ---")
+    if exit_code != 0:
+        lead = "[FAIL] GATE FAILED"
+    elif is_shallow_pass:
+        lead = "[WARN] GATE PASSED -- but this run looks shallow"
+    else:
+        lead = "[PASS] GATE PASSED -- this run looks solid"
+    print(lead)
+
+    # === Section 2: plain-English "why + what to do" for FAILs ===
+    if fail_records:
+        # Group FAILs by curated category to avoid repeating the
+        # same narration N times. Preserve first-seen order so
+        # the operator reads the explanations in the order the
+        # checks fired.
+        seen: list[str] = []
+        per_category_msgs: dict[str, list[str]] = {}
+        for _cat, msg in fail_records:
+            classified = _classify_fail(msg)
+            if classified not in per_category_msgs:
+                per_category_msgs[classified] = []
+                seen.append(classified)
+            per_category_msgs[classified].append(msg)
+        print("")
+        print("Why it failed:")
+        for category in seen:
+            msgs = per_category_msgs[category]
+            label = (
+                f"  • [{category}] ({len(msgs)} FAIL{'s' if len(msgs) > 1 else ''})"
+            )
+            print(label)
+            narration = _FAIL_NARRATION.get(category)
+            if narration is None:
+                # Generic fallback — name the failing check from
+                # the first message so the operator has a pointer.
+                first = msgs[0].strip()
+                # Strip leading line-number prefix if present.
+                short = first.split(":", 1)[0] if ":" in first else first
+                narration = (
+                    f"This check failed: {short}. See the line "
+                    f"above for the specific check output; the "
+                    f"v1.6.x verdict-explanation expansion will "
+                    f"add a curated message for this code."
+                )
+            print(f"    {narration}")
+
+    # === Section 3: shallow-PASS narration + three-bucket attribution ===
+    #
+    # Bucket precedence (per spec §1.5.7 "Three-bucket attribution"):
+    # buckets are NOT mutually exclusive — emit every applicable. The
+    # "try a stronger reasoning model" line is gated to the weak-model
+    # bucket ONLY (hard rule — mis-attribution gives actively harmful
+    # advice on a pure environment-failure run).
+    #
+    # The shallow-PASS narration subsumes the standalone 090s zero-bug
+    # NOTE so the message appears here, not duplicated. The "ZERO
+    # confirmed bugs" / "hollow / shallow run" / "Ory Keto run4" /
+    # "v1.5.7 090s" tokens are preserved verbatim so the
+    # ZeroBugVerdictQualifierTests pins still hold.
+    if is_shallow_pass:
+        print("")
+        shallow_bits = []
+        if zero_bug_repos:
+            n = len(zero_bug_repos)
+            names = ", ".join(zero_bug_repos)
+            repo_word = "repo" if n == 1 else "repos"
+            shallow_bits.append(
+                f"{n} {repo_word} ({names}) found ZERO confirmed bugs"
+            )
+        if any("no test functions found" in w for w in warn_records):
+            shallow_bits.append(
+                "the functional test file carries no recognised "
+                "test functions"
+            )
+        detail = "; ".join(shallow_bits) if shallow_bits else (
+            "a hollow-shape signal fired"
+        )
+        print(
+            f"This run looks shallow: {detail}. A clean codebase "
+            f"can legitimately have zero bugs, but a hollow / "
+            f"shallow run also produces zero bugs (the 2026-05-25 "
+            f"Ory Keto run4 shape — a fabricated EXPLORATION.md + "
+            f"a no-op functional test + no bugs). Before trusting "
+            f"this PASS, verify the run actually explored: "
+            f"EXPLORATION.md cites real code paths; the role-map "
+            f"enumerates the in-scope files; Phase 4 spec audits "
+            f"ran against real specs. (v1.5.7 090s detection + "
+            f"090v narration.)"
+        )
+    if weak_model:
+        print("")
+        print("Attribution: weak-model artifact")
+        print(
+            "  These results look like they came from a model "
+            "that cut corners — they are not trustworthy. "
+            "Re-run with a stronger reasoning model at higher "
+            "effort before relying on this."
+        )
+    if env_failure:
+        print("")
+        print("Attribution: environment / setup problem")
+        print(
+            "  This run couldn't complete because the test "
+            "environment failed — not because of the AI's "
+            "analysis. Fix the environment (install missing "
+            "tooling, restore network or pre-fetch dependencies, "
+            "verify the build), then re-run Phases 5–6. "
+            "Do NOT swap models; the model is not the problem."
+        )
+    if (not weak_model and not env_failure and not is_shallow_pass
+            and exit_code == 0):
+        print("")
+        print(
+            "Attribution: no shallow / fabrication signals "
+            "detected — verdict reads as a real PASS."
+        )
+
+    # === Section 4: benign-WARN demotion ===
+    if warn_records:
+        actionable = [w for w in warn_records if not _is_benign_warn(w)]
+        benign = [w for w in warn_records if _is_benign_warn(w)]
+        if benign:
+            n = len(benign)
+            notice_word = "notice" if n == 1 else "notices"
+            print("")
+            print(
+                f"({n} operational {notice_word} — safe to ignore: "
+                f"documented back-compat / intended-default WARNs)"
+            )
+        if actionable:
+            n = len(actionable)
+            warn_word = "WARN" if n == 1 else "WARNs"
+            print("")
+            print(f"{n} actionable {warn_word} above — review:")
+            # Quote a short prefix of each so the operator can
+            # spot the topic without scrolling.
+            for w in actionable:
+                excerpt = w.strip().splitlines()[0][:120]
+                print(f"  • {excerpt}")
+
+    # === Section 5: run provenance (v1.5.7 090w) ===
+    #
+    # One block per repo. The runner is VERIFIED (env-detected via
+    # the AI-CLI marker variables — the same ones the dual-env test
+    # harness keys off). The model is SELF-REPORTED (read from
+    # ``quality/results/run-*.json`` — demonstrably unreliable per
+    # the 2026-05-25 NATS run2 dogfood where the agent wrote
+    # "gpt-5.2" when the actual model was gpt-5.4; explicit confidence
+    # label is load-bearing). The bug count is GATE-COUNTED
+    # (verified — derived from BUG-NNN headings); a self-reported
+    # bug_count that disagrees triggers an informational mismatch
+    # flag. Provenance is informational only; never changes
+    # pass/fail.
+    if run_provenance:
+        print("")
+        print("── Run provenance ──")
+        multi = len(run_provenance) > 1
+        for entry in run_provenance:
+            if multi:
+                print(f"[{entry.get('repo', '<unknown repo>')}]")
+            for line in _format_provenance_lines(entry):
+                print(line)
+
+    # === Section 6: newcomer orientation (v1.5.7 090y) ===
+    #
+    # Two plain-English sections written for someone who downloaded
+    # QPB, ran it, and has no idea what they're looking at — zero
+    # QPB knowledge assumed.
+    #
+    # Motivated by the 2026-05-25 Keto run6 (Copilot/gpt-5.3-codex):
+    # the gate FAILED and an operator reading the output could see
+    # *that* it failed but had **no idea what happened or what to
+    # do next**.
+    #
+    # HARD RULE (per the instruction's "Branch correctly" pin):
+    # the "stronger reasoning model" next-step appears ONLY for the
+    # ``weak_model`` attribution. An honest coverage/artifact fail
+    # (no attribution) MUST NOT tell the user to swap models.
+    # Mutation-bite pinned by test_honest_fail_does_not_recommend_
+    # stronger_model in test_what_happened_next_090y.py.
+    _emit_what_happened_what_next(
+        fail_records=fail_records,
+        warn_records=warn_records,
+        zero_bug_repos=zero_bug_repos,
+        exit_code=exit_code,
+        is_shallow_pass=is_shallow_pass,
+        weak_model=weak_model,
+        env_failure=env_failure,
+        run_provenance=run_provenance,
+    )
+
+    print("───────────────────────────────────────────")
+
+
+def _emit_what_happened_what_next(*, fail_records, warn_records,
+                                    zero_bug_repos, exit_code,
+                                    is_shallow_pass, weak_model,
+                                    env_failure, run_provenance):
+    """v1.5.7 090y — emit the "What happened" + "What to do next"
+    newcomer-oriented sections at the END of the operator verdict
+    block.
+
+    Reads only the same accumulators the rest of the block uses
+    (no new state; purely presentation). Determines which
+    classifier categories fired so "What to do next" can branch
+    correctly between weak_model / incomplete_verification /
+    honest-fail / CLEANUP / shallow / solid.
+    """
+    # ----- Classifier reuse: determine which FAIL categories fired
+    fired_categories: set[str] = set()
+    for _cat, msg in fail_records:
+        fired_categories.add(_classify_fail(msg))
+    bugs_unverified_fired = _FAIL_BUGS_UNVERIFIED in fired_categories
+    # Detect CLEANUP path (only record-keeping fails exist).
+    cleanup_only = False
+    if fail_records:
+        substantive_count = sum(
+            1 for cat, _msg in fail_records
+            if cat == VERDICT_SUBSTANTIVE
+        )
+        cleanup_only = substantive_count == 0
+    # Bug counts (gate-counted) — used to enrich the solid path.
+    total_bug_count = 0
+    if run_provenance:
+        total_bug_count = sum(
+            entry.get("bug_count_gate", 0) for entry in run_provenance
+        )
+
+    # ===== Section 6.1: "What happened" =====
+    print("")
+    print("── What happened ──")
+    # Universal QPB-orientation lines (zero-jargon).
+    print(
+        "Quality Playbook reviewed this project's code in six "
+        "phases — exploring it, deriving what it's supposed to "
+        "do, reviewing the code against that, and verifying "
+        "findings with tests."
+    )
+    print(
+        "The gate is the final quality checkpoint that decides "
+        "whether this run's results are trustworthy."
+    )
+    # State-specific summary line.
+    if cleanup_only and exit_code == 0:
+        # CLEANUP path — must read as a pass, not a fail.
+        # (Instruction 090y Task A: "It passed, with some
+        # bookkeeping gaps to tidy up".)
+        print(
+            "Result: it passed the checkpoint, with some "
+            "bookkeeping gaps to tidy up (see 'Why it failed' "
+            "above — these are audit record-keeping issues, "
+            "not real defects)."
+        )
+    elif exit_code != 0:
+        # ❌ FAILED — name the plain reason class.
+        if bugs_unverified_fired:
+            reason = (
+                "the AI found issues but didn't verify them "
+                "with tests"
+            )
+        elif weak_model:
+            reason = (
+                "the AI appears to have cut corners (low-effort "
+                "test or unrun proofs)"
+            )
+        elif env_failure:
+            reason = (
+                "the test environment broke before the AI could "
+                "complete its checks"
+            )
+        else:
+            reason = (
+                "the gate flagged quality issues that need "
+                "fixing before this run can be trusted"
+            )
+        print(f"Result: it did not pass the checkpoint — {reason}.")
+    elif is_shallow_pass:
+        # ⚠️ shallow — name the why.
+        shallow_reason_bits = []
+        if zero_bug_repos:
+            shallow_reason_bits.append("found no issues")
+        if any("no test functions found" in w for w in warn_records):
+            shallow_reason_bits.append(
+                "the functional test file has no real tests"
+            )
+        if not shallow_reason_bits:
+            shallow_reason_bits.append("hollow-shape signal fired")
+        why = "; ".join(shallow_reason_bits)
+        print(
+            f"Result: it passed the checkpoint, but it looks "
+            f"like it didn't dig deep ({why}) — treat the "
+            f"result with caution."
+        )
+    else:
+        # ✅ solid
+        suffix = ""
+        if total_bug_count > 0:
+            issue_word = "issue" if total_bug_count == 1 else "issues"
+            suffix = f" and verified {total_bug_count} {issue_word}"
+        print(
+            f"Result: it completed and passed cleanly{suffix}."
+        )
+
+    # ===== Section 6.2: "What to do next" =====
+    print("")
+    print("── What to do next ──")
+    if cleanup_only and exit_code == 0:
+        # CLEANUP — "Mostly good — a few bookkeeping artifacts
+        # need tidying; see 'Why it failed' for which."
+        print(
+            "Mostly good — a few bookkeeping artifacts need "
+            "tidying; see 'Why it failed' above for which "
+            "audit records are missing."
+        )
+    elif exit_code != 0:
+        # ❌ failed — BRANCH on attribution. Per the instruction's
+        # "Branch correctly" pin: the "stronger model" advice
+        # appears ONLY for the weak_model attribution. An honest
+        # coverage/artifact fail must NOT tell the user to swap
+        # models.
+        if weak_model:
+            print(
+                "This looks like the AI cut corners — re-run "
+                "with a stronger reasoning model at higher "
+                "effort."
+            )
+        elif bugs_unverified_fired:
+            print(
+                "The AI found issues but didn't verify them "
+                "with red/green tests — re-run to complete the "
+                "test step, or treat the findings in "
+                "quality/BUGS.md as candidates to check by "
+                "hand."
+            )
+        elif env_failure:
+            print(
+                "The test environment failed (not the AI's "
+                "analysis). Fix the environment (install "
+                "missing tooling, restore network or pre-fetch "
+                "dependencies, verify the build) then re-run. "
+                "Do NOT swap models — the model is not the "
+                "problem here."
+            )
+        else:
+            # Honest fail — no attribution. The 2026-05-25 Keto
+            # run6 shape. NEVER recommend stronger model here.
+            n_fail = sum(
+                1 for cat, _msg in fail_records
+                if cat == VERDICT_SUBSTANTIVE
+            )
+            issue_word = "issue" if n_fail == 1 else "issues"
+            extra = ""
+            if total_bug_count > 0:
+                extra = (
+                    " The issues it did find are in "
+                    "quality/BUGS.md."
+                )
+            print(
+                f"The gate flagged {n_fail} {issue_word} with "
+                f"this run — see 'Why it failed' above; address "
+                f"those and re-run.{extra}"
+            )
+    elif is_shallow_pass:
+        # ⚠️ shallow — verify the exploration, consider stronger
+        # model. (Distinct from ❌ weak_model: shallow is a PASS,
+        # and the stronger-model advice here is a "consider",
+        # not a directive.)
+        print(
+            "Verify the run actually explored: look at "
+            "quality/EXPLORATION.md (does it cite real code "
+            "paths?) and quality/BUGS.md (what did it actually "
+            "find?). Consider re-running with a stronger "
+            "reasoning model for a deeper review."
+        )
+    else:
+        # ✅ solid
+        if total_bug_count > 0:
+            issue_word = "issue" if total_bug_count == 1 else "issues"
+            print(
+                f"Review the {total_bug_count} confirmed "
+                f"{issue_word} in quality/BUGS.md; proposed "
+                f"fixes and their tests are in "
+                f"quality/patches/ and quality/results/."
+            )
+        else:
+            print(
+                "Review quality/BUGS.md for confirmed issues; "
+                "proposed fixes and their tests are in "
+                "quality/patches/ and quality/results/."
+            )
 
 
 # v1.5.2 — REQ Pattern field (Lever 2)
@@ -115,7 +1154,28 @@ _CONSOLIDATION_RE = re.compile(
     re.IGNORECASE | re.MULTILINE,
 )
 
-_BUG_HEADING_RE = re.compile(r"^###\s+BUG-(\d+):", re.MULTILINE)
+# v1.5.7 089d (F22): canonical BUG-NNN heading pattern.
+#
+# The canonical source is bin/run_state_lib.BUG_HEADING_PATTERN_STR
+# (see that constant for rationale). quality_gate.py is INSTALLED
+# STANDALONE into adopters' .github/skills/quality_gate/ and CANNOT
+# import bin/run_state_lib (same Option-B-additive-duplication
+# constraint as _INSTALL_MARKER_DIRS — see those lines above). The
+# string literal below MUST match bin/run_state_lib.BUG_HEADING_PATTERN_STR
+# exactly; the equality is pinned by
+# bin/tests/test_bug_heading_pattern_pinned.py.
+#
+# Pre-089d this pattern was `^###\s+BUG-(\d+):` — digit-only with
+# required colon. The canonical form below accepts BUG-001 +
+# BUG-H1/M1/L1 (historical severity-prefixed IDs) + BUG-001-fix-2
+# (hyphenated-suffix variants), and treats the title `: <text>` as
+# optional. Widening to the canonical form was the 089d F22 fix.
+_BUG_HEADING_PATTERN_STR_CANONICAL = (
+    r"^###\s+BUG-([A-Za-z0-9][A-Za-z0-9\-]*)(?::\s+.+)?\s*$"
+)
+_BUG_HEADING_RE = re.compile(
+    _BUG_HEADING_PATTERN_STR_CANONICAL, re.MULTILINE,
+)
 
 # v1.5.2 (C13.8/Fix 1) — evidence locator for present:true grid cells.
 # Relative path (no leading '/'), single colon, line number (>=1) or
@@ -451,9 +1511,23 @@ def _reset_counters():
     global FAIL, WARN
     FAIL = 0
     WARN = 0
+    # v1.5.7 089c (F15): clear the per-fail category ledger and the
+    # category context stack so a fresh main()/check_repo run starts
+    # clean (tests that call check_repo directly must reset too).
+    _FAIL_RECORDS.clear()
+    _CHECK_CATEGORY_STACK.clear()
+    # v1.5.7 090s Task B: also clear the zero-bug-repos tracker so
+    # the verdict qualifier doesn't carry stale state across runs.
+    _ZERO_BUG_REPOS.clear()
+    # v1.5.7 090v: also clear the WARN ledger so the operator verdict
+    # layer reads only this run's WARNs.
+    _WARN_RECORDS.clear()
+    # v1.5.7 090w: clear the per-repo run-provenance ledger so the
+    # verdict layer reads only this run's provenance.
+    _RUN_PROVENANCE.clear()
 
 
-def fail(msg, reason=None, *, line=None):
+def fail(msg, reason=None, *, line=None, category=None):
     """Emit a structured failure line and increment FAIL.
 
     Phase 5 r3 format: `<path>[:<line>]: <reason>` — no "FAIL:" label, so
@@ -471,15 +1545,36 @@ def fail(msg, reason=None, *, line=None):
     messages already embed a path-like token):
         fail("BUGS.md missing or not a file")
             -> "  BUGS.md missing or not a file"
+
+    v1.5.7 089c (F15): every fail is tagged with a verdict category
+    ("substantive" | "record_keeping"). When `category` is None the
+    enclosing @verdict_category check's category is used (top of
+    _CHECK_CATEGORY_STACK); when the stack is empty the conservative
+    default VERDICT_SUBSTANTIVE applies (an un-decorated caller's failure
+    is treated as blocking, never silently downgraded to cleanup).
+    main() splits _FAIL_RECORDS by category for the three-state verdict.
     """
     global FAIL
     if reason is None:
-        print(f"  {msg}")
+        rendered = f"  {msg}"
     elif line is None:
-        print(f"  {msg}: {reason}")
+        rendered = f"  {msg}: {reason}"
     else:
-        print(f"  {msg}:{line}: {reason}")
+        rendered = f"  {msg}:{line}: {reason}"
+    print(rendered)
     FAIL += 1
+    if category is None:
+        category = (
+            _CHECK_CATEGORY_STACK[-1]
+            if _CHECK_CATEGORY_STACK
+            else VERDICT_SUBSTANTIVE
+        )
+    elif category not in _VALID_VERDICT_CATEGORIES:
+        raise ValueError(
+            f"fail(): category {category!r} not in "
+            f"{_VALID_VERDICT_CATEGORIES}"
+        )
+    _FAIL_RECORDS.append((category, rendered.strip()))
 
 
 def pass_(msg):
@@ -490,6 +1585,12 @@ def warn(msg):
     global WARN
     print(f"  WARN: {msg}")
     WARN += 1
+    # v1.5.7 090v: record the message body for the operator verdict-
+    # explanation layer. The print + counter above are the load-
+    # bearing legacy behaviour (downstream consumers parse the print
+    # stream and the counter feeds total_line); the list is purely
+    # presentation-layer fuel.
+    _WARN_RECORDS.append(msg)
 
 
 def info(msg):
@@ -533,42 +1634,362 @@ def count_per_bug_field(bugs_list, field):
 # --- File helpers ---
 
 
-# v1.5.4 Phase 3.6.4 (B-16): the end-of-run reorg moves intermediate
-# pipeline artifacts under quality/workspace/. The gate reads each of
-# those subdirectories at multiple sites; _resolve_artifact_path
-# centralises the dual-layout lookup so each site stays one-line.
-# Top-level wins (legacy / pre-reorg layout); workspace/ is the v1.5.4
-# canonical location after _finalize_quality_layout has run.
-_WORKSPACE_DIRS = (
-    "control_prompts",
-    "results",
-    "code_reviews",
-    "spec_audits",
-    "patches",
-    "writeups",
-    "mechanical",
-    "phase3",
-)
+# v1.5.7 fix F-4a: dropped the v1.5.4 dual-layout workspace tolerance.
+# Canonical artifact paths are top-level quality/<name>/ per README
+# spec. The companion check_no_workspace_dir below fails loudly if
+# workspace/ exists at all (even empty), so spec drift becomes visible —
+# instruction 031 F-4 amendment extended the original "exists with
+# content" check to also fail on empty workspace/ directories
+# (claude-opus-4.6/express produced an empty workspace/ left over
+# from a runner pass with nothing to move, which still trained
+# subsequent iterations on the wrong layout via in-context retrieval).
 
 
 def _resolve_artifact_path(quality_dir, name):
-    """Return the live path for an intermediate artifact directory or
-    file under quality/. Tries top-level first (the legacy / current
-    in-flight layout), then quality/workspace/<name> (the v1.5.4
-    end-of-run reorg layout). Returns the top-level path even when
-    neither exists so callers that test ``.is_dir()`` / ``.is_file()``
-    get a False rather than an exception.
+    """Return the canonical path for an intermediate artifact directory
+    or file under quality/. Path is always top-level quality/<name>
+    per README spec. Returns the path even when it doesn't exist so
+    callers that test ``.is_dir()`` / ``.is_file()`` get a False
+    rather than an exception.
 
     ``name`` may be a single segment (``"results"``) or a path with
-    segments (``"results/tdd-results.json"``); both forms work
-    regardless of layout."""
-    top = quality_dir / name
-    if top.exists():
-        return top
-    workspace = quality_dir / "workspace" / name
-    if workspace.exists():
-        return workspace
-    return top
+    segments (``"results/tdd-results.json"``)."""
+    return quality_dir / name
+
+
+@verdict_category(VERDICT_SUBSTANTIVE)
+def check_no_workspace_dir(q):
+    """v1.5.7 fix F-4a (Phase 6 gate): artifacts must be at canonical
+    quality/<name>/ paths, NOT quality/workspace/<name>/. The
+    workspace/ layout was tolerated through v1.5.6 but is non-spec per
+    README; agents writing there are following stale prose. Fail
+    loudly so the spec drift becomes visible.
+
+    v1.5.7 fix F-4 amendment (instruction 031): also fail when
+    quality/workspace/ exists as an empty directory. Model-comparison
+    evidence (claude-opus-4.6/express) showed an empty workspace/
+    directory left over from a runner pass with nothing to move.
+    Empty workspace/ is a breadcrumb that trains future-iteration
+    agents on the wrong layout even when nothing's there yet."""
+    print("[Workspace Drift]")
+    workspace = q / "workspace"
+    if not workspace.exists():
+        pass_("no non-canonical quality/workspace/ tree present")
+        return
+    if not workspace.is_dir():
+        fail(
+            "quality/workspace",
+            f"exists but is not a directory: {workspace}",
+        )
+        return
+    children = list(workspace.iterdir())
+    if children:
+        contents = sorted(p.name for p in children)
+        fail(
+            "quality/workspace/",
+            f"contains {contents} — artifacts must be at canonical "
+            f"quality/<name>/ paths per README spec. Move contents "
+            f"to top-level quality/ and remove workspace/.",
+        )
+        return
+    # Empty workspace/ — breadcrumb that trains agents on wrong layout.
+    fail(
+        "quality/workspace/",
+        "exists as an empty directory. Empty workspace/ trains "
+        "agents to write artifacts there. Remove the directory "
+        "entirely.",
+    )
+
+
+_VERDICT_HEADING_RE = re.compile(r"^##\s+Verdict\s*$", re.MULTILINE)
+# v1.5.7 instruction 032 NCF-1: regex matching any level-2 `## ` heading
+# (any text after `## `). Used to find ALL level-2 headings so the
+# verdict-shape check can assert (a) exactly one `## Verdict` and
+# (b) `## Verdict` is the terminal `## ` heading (no other `## `
+# heading appears after it).
+_ANY_LEVEL2_HEADING_RE = re.compile(r"^##\s+\S.*$", re.MULTILINE)
+# v1.5.7 instruction 032 NCF-9: "TBD" removed — `phrase.lower()` is
+# called below before substring matching, so an uppercase "TBD" entry
+# was redundant with the lowercase "tbd" entry.
+_VERDICT_PLACEHOLDER_PHRASES = (
+    "verdict is rendered",
+    "verdict will be",
+    "verdict will follow",
+    "placeholder",
+    "to be determined",
+    "tbd",
+)
+
+
+# v1.5.7 089d (F24): classification rationale — kept SUBSTANTIVE.
+# check_verdict_shape rejects COMPLETENESS_REPORT.md when the
+# `## Verdict` heading is missing OR when its value is missing /
+# placeholder ("verdict is rendered…", "tbd", etc.) OR when a
+# trailing level-2 heading shifts `## Verdict` off the terminal
+# position. Each of these failure modes means Phase 5 reconciliation
+# did NOT declare a verdict — the audit lacks its final
+# PASS/FAIL judgment. That is "the work wasn't done correctly"
+# (no verdict exists), not "the audit completed but the paperwork
+# has gaps". The opus-bootstrap baseline 4 FAILs include
+# `## Verdict` missing on its self-bootstrap COMPLETENESS_REPORT.md,
+# but the substantive reading (Phase 5 didn't finish writing the
+# verdict block) is correct — flipping to RECORD_KEEPING would
+# silently downgrade a fabricated-PASS-style failure.
+@verdict_category(VERDICT_SUBSTANTIVE)
+def check_verdict_shape(q):
+    """v1.5.7 Fix 8 (instruction 031) + instruction 032 NCF-1: Phase 5
+    must end COMPLETENESS_REPORT.md with the canonical verdict shape:
+
+        ## Verdict
+
+        PASS
+
+    or
+
+        ## Verdict
+
+        FAIL
+
+    Model-comparison evidence (instruction 031): verdict prose varies
+    wildly across models (`## Verdict`, `## Status`, `VERDICT: PASS`,
+    prose-only, placeholder text like "verdict is rendered after
+    Phase 6"). The strict shape gives operators a single grep target
+    and gives the gate something concrete to enforce.
+
+    Instruction 032 NCF-1: also require that `## Verdict` appears
+    EXACTLY ONCE and is the LAST level-2 heading in the file (terminal
+    position). Without this, a stale earlier `## Verdict\\n\\nPASS` block
+    silently passes even when a later `## Postmortem` (or another
+    `## Verdict`) heading contradicts it.
+
+    FAIL outcomes:
+    - COMPLETENESS_REPORT.md missing entirely.
+    - `## Verdict` heading absent (e.g., agent wrote `## Status`).
+    - More than one `## Verdict` heading (NCF-1: duplicate-heading
+      rejection).
+    - A level-2 heading appears after the `## Verdict` heading
+      (NCF-1: non-terminal-position rejection).
+    - Next non-blank line after the heading is not exactly `PASS`
+      or `FAIL` (case-sensitive; `Passed`, `PASSED`, `PASS!`,
+      `**PASS**` all fail).
+    - Next non-blank line is empty (heading present, no value
+      follows — NCF-5: empty-body rejection).
+    - Next non-blank line contains a placeholder phrase ("verdict
+      is rendered", "tbd", "placeholder", etc.).
+    """
+    print("[Verdict Shape]")
+    cr = q / "COMPLETENESS_REPORT.md"
+    if not cr.is_file():
+        fail(
+            "quality/COMPLETENESS_REPORT.md",
+            "missing — Phase 5 must produce this file with a "
+            "canonical ## Verdict / PASS|FAIL section.",
+        )
+        return
+    try:
+        text = cr.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        fail("quality/COMPLETENESS_REPORT.md", "unreadable")
+        return
+    # v1.5.7 instruction 032 NCF-1/NCF-2: enumerate ALL level-2
+    # headings to enforce single-and-terminal position (NCF-1) plus
+    # the bite tests that exercise the duplicate-heading and
+    # non-terminal-heading branches (NCF-2). The `_ANY_LEVEL2_HEADING_RE`
+    # pattern matches `## Anything`; the `_VERDICT_HEADING_RE` pattern
+    # matches `## Verdict` exactly. Together they let the function
+    # answer "is this the only `## Verdict`?" and "is it the last
+    # `## ` heading in the file?".
+    all_headings = [
+        (m.start(), m.group(0))
+        for m in _ANY_LEVEL2_HEADING_RE.finditer(text)
+    ]
+    verdict_matches = list(_VERDICT_HEADING_RE.finditer(text))
+    if not verdict_matches:
+        fail(
+            "quality/COMPLETENESS_REPORT.md",
+            "missing the canonical `## Verdict` heading. Phase 5 "
+            "reconciliation must add it (exact form: `## Verdict` "
+            "on its own line, followed by a blank line and then "
+            "`PASS` or `FAIL`).",
+        )
+        return
+    if len(verdict_matches) > 1:
+        positions = [m.start() for m in verdict_matches]
+        fail(
+            "quality/COMPLETENESS_REPORT.md",
+            f"contains {len(verdict_matches)} `## Verdict` headings "
+            f"(byte offsets {positions}). Phase 5 must emit exactly "
+            f"one canonical verdict block; duplicate headings can "
+            f"silently disagree.",
+        )
+        return
+    verdict_match = verdict_matches[0]
+    # Terminal-position check: the verdict heading must be the LAST
+    # `## ` heading in the file. Any `## Postmortem`, `## Followups`,
+    # `## Other` etc. heading after it shifts the verdict block away
+    # from its terminal position.
+    if all_headings and all_headings[-1][0] != verdict_match.start():
+        trailing_headings = [
+            h_text for h_start, h_text in all_headings
+            if h_start > verdict_match.start()
+        ]
+        fail(
+            "quality/COMPLETENESS_REPORT.md",
+            f"`## Verdict` is not the last level-2 heading. "
+            f"Headings appear after it: {trailing_headings}. The "
+            f"canonical shape requires the verdict block to be "
+            f"terminal so an operator can grep the file's tail for "
+            f"the verdict.",
+        )
+        return
+    # Find the next non-blank line after the verdict heading.
+    after = text[verdict_match.end():]
+    next_line = ""
+    for line in after.splitlines():
+        if line.strip():
+            next_line = line.strip()
+            break
+    if not next_line:
+        # v1.5.7 instruction 032 NCF-5: empty-body rejection now
+        # explicitly bite-tested.
+        fail(
+            "quality/COMPLETENESS_REPORT.md",
+            "has `## Verdict` heading but no verdict value follows. "
+            "Add `PASS` or `FAIL` on the next non-blank line.",
+        )
+        return
+    # Placeholder-phrase detection — case-insensitive across the
+    # whole next line, because agents sometimes embed the phrase in
+    # explanatory prose.
+    lowered = next_line.lower()
+    for phrase in _VERDICT_PLACEHOLDER_PHRASES:
+        if phrase.lower() in lowered:
+            fail(
+                "quality/COMPLETENESS_REPORT.md",
+                f"verdict line is a placeholder stub: "
+                f"{next_line!r}. Phase 5 must render an actual "
+                f"PASS or FAIL verdict, not deferred text.",
+            )
+            return
+    if next_line == "PASS" or next_line == "FAIL":
+        pass_(f"COMPLETENESS_REPORT.md verdict shape canonical ({next_line})")
+        return
+    fail(
+        "quality/COMPLETENESS_REPORT.md",
+        f"verdict line is {next_line!r} — must be exactly `PASS` "
+        f"or `FAIL` (uppercase, no surrounding text or emphasis).",
+    )
+
+
+@verdict_category(VERDICT_RECORD_KEEPING)
+def check_bugs_md_patches_consistency(q, bug_count, bug_ids):
+    """v1.5.7 Fix 7 (instruction 031): the patches/ directory and
+    BUGS.md must be consistent — patches without corresponding bug
+    entries indicate Phase 3 finalization didn't update BUGS.md.
+
+    Model-comparison evidence (claude-haiku-4.5/zod: 14 patches / 0
+    bugs; claude-haiku-4.5/casbin: 16/0; gpt-5.4-mini/zod: 8/0;
+    gpt-5.4-mini/axum: 6/0) showed agents producing evidence-bearing
+    patches while leaving BUGS.md empty.
+
+    Hard fail: bugs_count == 0 AND patches_count > 0 (the model-
+    comparison failure mode). When BUGS.md has entries, every patch
+    must have its bug ID in BUGS.md; orphan IDs fail. No upper bound
+    on per-bug patch count — multi-patch workflows (one bug requiring
+    multiple fix patches in different files) are legitimate.
+
+    v1.5.7 instruction 032 NCF-4: patch-file counting uses a set
+    union across the two globs so a file matching both
+    (`*-fix*.patch` AND `*-regression-test*.patch`) is counted once,
+    not twice. The intervening `*` wildcard in `*-fix*.patch` would
+    otherwise inflate the count for hybrid-named files.
+
+    v1.5.7 instruction 032 NCF-7: dropped the `patches_count <=
+    bug_count * 2` upper bound. The upper bound false-positives on
+    legitimate split-patch workflows (e.g., one bug requiring fixes
+    in 3 different files = 3 fix patches + 1 regression test = 4
+    patches for 1 bug). The orphan-ID check already detects patches
+    for bugs not in BUGS.md, which is the real defect signal.
+    """
+    print("[BUGS.md / patches consistency]")
+    patches_dir = q / "patches"
+    if not patches_dir.is_dir():
+        # No patches — no consistency to check. Other gates will
+        # complain if patches are missing for confirmed bugs.
+        info("No patches/ directory — consistency check skipped")
+        return
+    # v1.5.7 instruction 032 NCF-4: set union deduplicates files
+    # matching both globs. The `*` in `*-fix*.patch` can match a
+    # file named `BUG-NNN-regression-test-fix.patch` (or any other
+    # file whose name happens to contain both "-fix" and
+    # "-regression-test"), which would otherwise be counted twice.
+    fix_patches = set(patches_dir.glob("*-fix*.patch"))
+    regr_patches = set(patches_dir.glob("*-regression-test*.patch"))
+    # v1.5.7 instruction 033 Halt-5: filter out malformed-name patches
+    # (files matching the glob but not starting with `BUG-NNN` / `BUG-HNN`
+    # / `BUG-MNN` / `BUG-LNN`) BEFORE counting and orphan-ID inference.
+    # Pre-Halt-5 a file like `misc-cleanup-fix.patch` was counted toward
+    # patches_count but silently skipped by the BUG-NNN regex below, so
+    # it could mask the consistency check. The filter promotes "stray
+    # malformed file present" to "consistency check skipped" rather than
+    # "silently accepted".
+    patch_re = re.compile(r"^(BUG-(?:[HML][0-9]+|[0-9]+))[-.]")
+    glob_matched = sorted(fix_patches | regr_patches)
+    all_patches = [p for p in glob_matched if patch_re.match(p.name)]
+    malformed_patches = sorted(
+        p.name for p in glob_matched if not patch_re.match(p.name)
+    )
+    if malformed_patches:
+        # Surface the malformed names as a WARN so operators can
+        # rename or remove them before the next run; the consistency
+        # check itself only considers BUG-NNN-named patches below.
+        warn(
+            f"quality/patches/ contains {len(malformed_patches)} "
+            f"file(s) matching the patch glob but not the canonical "
+            f"BUG-NNN naming convention: {malformed_patches}. The "
+            f"consistency check ignores them. Rename or remove them "
+            f"so the gate has unambiguous patch inventory."
+        )
+    patches_count = len(all_patches)
+    if patches_count == 0:
+        info("No fix/regression patches present — consistency check skipped")
+        return
+    if bug_count == 0:
+        # The model-comparison failure mode: patches without bugs.
+        patch_names = sorted(p.name for p in all_patches)
+        fail(
+            "quality/BUGS.md",
+            f"lists 0 bug entries but quality/patches/ contains "
+            f"{patches_count} patch file(s): {patch_names}. Each "
+            f"confirmed bug should produce at least 1 patch. "
+            f"Mismatch suggests Phase 3 finalization didn't update "
+            f"BUGS.md with the bugs that produced these patches.",
+        )
+        return
+    # BUGS.md has entries — check patch IDs vs bug IDs.
+    patch_ids = set()
+    for p in all_patches:
+        m = patch_re.match(p.name)
+        if m:
+            patch_ids.add(m.group(1))
+    orphan_patch_ids = sorted(patch_ids - set(bug_ids))
+    if orphan_patch_ids:
+        fail(
+            "quality/BUGS.md",
+            f"missing entries for patch IDs {orphan_patch_ids} — "
+            f"patches exist at quality/patches/ for these IDs but "
+            f"BUGS.md has no ### BUG-NNN heading for them. Each "
+            f"confirmed bug must be reflected in BUGS.md.",
+        )
+        return
+    # v1.5.7 instruction 032 NCF-7: upper bound dropped. Multi-patch
+    # workflows (one bug requiring several fix patches across files)
+    # are legitimate; the orphan-ID check already catches the real
+    # defect (patches for bugs not in BUGS.md).
+    pass_(
+        f"BUGS.md ({bug_count} bug(s)) and patches/ "
+        f"({patches_count} patch(es)) are consistent"
+    )
 
 
 def has_file_matching(directory, patterns):
@@ -626,6 +2047,477 @@ def read_first_line_stripped(path):
     return re.sub(r"\s", "", line)
 
 
+def read_full_text(path):
+    """Return the full file body as text, or '' on any IO error.
+
+    v1.5.7 089o: the TDD-receipt overclaim check needs the WHOLE
+    receipt body (not just the first-line tag) to scan for non-
+    execution markers. read_first_line_stripped covers the tag;
+    this covers the body."""
+    if not path.is_file():
+        return ""
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as f:
+            return f.read()
+    except OSError:
+        return ""
+
+
+# v1.5.7 089o (#329): non-execution markers. A TDD receipt whose
+# first-line tag is RED or GREEN asserts the test was actually
+# run; if its agent-authored summary ALSO contains one of these
+# phrases it is an overclaim — a by-inspection prediction
+# mislabeled as an empirical result — and the gate FAILs it. The
+# 2026-05-21 gson run recorded all 15 receipts RED/GREEN with
+# bodies reading "VERIFIED BY INSPECTION (sandbox cannot compile
+# gson; Maven is not available)" on a machine where Maven was
+# installed and on PATH. Matched case-insensitively as substrings
+# against the receipt's SUMMARY REGION only (v1.5.7 089q D1 —
+# see _receipt_summary_region; the runner transcript is off-
+# limits). NOT matched against NOT_RUN receipts — NOT_RUN + an
+# honest non-execution explanation is exactly correct (the 089m
+# honest-skip WARN path).
+# v1.5.7 089q (D1): NARROWED to unambiguous self-admissions only.
+# The 089o list also carried runner-output-collision phrases —
+# "cannot compile", "can't compile", "not available", "no maven",
+# "no test runner", "cannot run" / "could not run" / "couldn't run"
+# — which legitimately appear in REAL runner/compiler output. A
+# red-phase TDD test that genuinely doesn't compile yet (the
+# canonical RED scenario) emits "cannot compile"; runner stderr
+# emits "module X not available". Matching those as raw substrings
+# FAILed the exact honest case 089o exists to protect. 089q keeps
+# ONLY phrases an agent writes when narrating that it did NOT run
+# the test — phrases that do not occur in ordinary runner output —
+# AND scans them only in the agent-authored summary region (see
+# _receipt_summary_region). The false-negatives this narrowing
+# opens up are closed by the D2 positive-execution-evidence
+# requirement, not by a broad marker net.
+_TDD_OVERCLAIM_MARKERS = (
+    "by inspection",
+    "verified by inspection",
+    "did not execute",
+    "not executed",
+    "without running",
+    "without executing",
+    "predictions, not observations",
+    "i assumed",
+    "sandbox cannot",
+)
+
+# v1.5.7 089q (D2): affirmative execution signatures. When the
+# Phase 5 probe shows the runner available, a RED/GREEN receipt
+# MUST carry at least one of these — structured evidence the test
+# was actually run. The documented receipt format
+# (references/phase2_generation_guide.md log-capture template)
+# mandates a `Command:` line and an `Exit code:` line, so a
+# legitimately-executed receipt always has them; the runner-
+# transcript tokens are a secondary signal for receipts that don't
+# follow the exact template. None of these occur in a by-inspection
+# / paraphrased-prediction narration, so a paraphrase-evasion
+# receipt (no marker, no transcript) is caught by their absence.
+_TDD_EXECUTION_SIGNATURES = (
+    "command:",            # documented log-format Command: line
+    "exit code:",          # documented log-format Exit code: line
+    "exit_code:",
+    "tests run:",          # JUnit / Maven Surefire summary
+    "build success",       # Maven
+    "build failure",       # Maven
+    "test session starts",  # pytest session banner
+    "test result:",        # cargo test summary
+    "--- fail:",           # go test
+    "--- pass:",           # go test
+)
+
+
+def _receipt_summary_region(body):
+    """Return the agent-authored leading narration of a TDD receipt
+    — the lines AFTER the first-line status tag and BEFORE the
+    first runner-transcript boundary (a ``` fence, or a line
+    starting ``Command:`` / ``Exit code:`` / ``--- Test output``).
+
+    v1.5.7 089q (D1): overclaim markers are scanned ONLY here, so a
+    phrase like "cannot compile" quoted from genuine runner output
+    in the transcript region cannot trigger a false overclaim
+    FAIL. The summary region is where an agent writes a by-
+    inspection admission; the transcript region is captured tool
+    output and is off-limits to the marker scan."""
+    region = []
+    for i, line in enumerate(body.splitlines()):
+        if i == 0:
+            continue  # the first-line status tag
+        stripped = line.strip()
+        low = stripped.lower()
+        if (stripped.startswith("```")
+                or low.startswith("command:")
+                or low.startswith("exit code:")
+                or low.startswith("exit_code:")
+                or low.startswith("--- test output")):
+            break
+        region.append(line)
+    return "\n".join(region)
+
+
+def _first_overclaim_marker(body):
+    """Return the first non-execution marker found in the receipt's
+    agent-authored summary region (case-insensitive), or None.
+    Used to FAIL a RED/GREEN receipt whose summary admits the test
+    was not actually run. v1.5.7 089q (D1): scans only
+    _receipt_summary_region, never the runner transcript."""
+    low = _receipt_summary_region(body).lower()
+    for marker in _TDD_OVERCLAIM_MARKERS:
+        if marker in low:
+            return marker
+    return None
+
+
+def _has_execution_signature(body):
+    """True if the receipt body carries at least one affirmative
+    execution signature (v1.5.7 089q D2) — structured evidence the
+    test was actually run. Scanned over the WHOLE body (the
+    signature lives in the transcript region, exactly where the
+    summary-region marker scan does NOT look)."""
+    low = body.lower()
+    return any(sig in low for sig in _TDD_EXECUTION_SIGNATURES)
+
+
+# v1.5.7 090p: gate-level RED-validity check. A red receipt counts
+# as a valid RED only if its log shows the test actually executed
+# and failed — a test-level/assertion failure — NOT a
+# setup/build/dependency/collection failure. The 2026-05-24 Ory
+# Keto run2 (cold Go caches + network-restricted sandbox) reported
+# `RESULT: GATE PASSED` on three reds whose bodies were
+# `FAIL [setup failed]` / `lookup proxy.golang.org: no such host`
+# — a dependency-resolution failure proved nothing about whether
+# the bug exists, but the gate accepted any non-zero exit as a
+# satisfied red. 090p closes this hole mechanically (090o's prose-
+# side env-vs-real-RED guard is the prompt-side companion; 090p
+# is the gate-level backstop because run2 proved prose alone
+# doesn't bind).
+#
+# Conservative-direction guard: only reject reds matching a KNOWN
+# setup-failure signature AND lacking a recognized "genuine
+# test-level failure" signature. A non-zero red that is neither
+# (e.g. an unknown ecosystem's runner output) stays a genuine red
+# — the safety direction per 089m–q is "under-escalate ambiguity,
+# never wrongly fail an honest run." See _is_red_setup_failure
+# below for the exact decision rule.
+
+_RED_SETUP_FAILURE_SIGNATURES = (
+    # Go (the run2 trigger).
+    "[setup failed]",
+    "no such host",                 # proxy.golang.org / DNS
+    "dependency resolution failed",
+    "cannot find package",
+    "build failed",
+    "go: download",                  # go: download X: ...
+    "go: github.com/",               # go: github.com/.../...: cannot find module
+    "go: module ",
+    # pytest (collection-time failures).
+    "internalerror",                # pytest infra crash
+    "errors during collection",
+    "collection error",
+    "modulenotfounderror",
+    "importerror",
+    # Maven / Gradle / Java (build-side failures preceding any test run).
+    "could not resolve dependencies",
+    "unresolved dependency",
+    "build failure",                # also a Maven success-line sibling — paired with no genuine-fail signature below
+    # Generic (cargo / npm / others — best-effort).
+    "could not compile",
+    "could not download",
+    "network is unreachable",
+    "connection refused",
+    "connection timed out",
+)
+
+_RED_GENUINE_FAILURE_SIGNATURES = (
+    # Go — the canonical test-level failure shape.
+    "--- fail: test",
+    # pytest — the test-ran-and-failed nodeid line ("FAILED <path>::<test>").
+    "failed test",                  # pytest "FAILED test_x.py::test_y" line (case-insensitive)
+    "failed — ",               # em-dash form
+    # JUnit / Maven Surefire — explicit test-failure lines (not build failures).
+    "tests run:",                   # Surefire summary line; per 089q is an execution signature, also a genuine-test-ran marker
+    # cargo — explicit test-failure line.
+    "thread '",                     # "thread '<test name>' panicked at"
+)
+
+
+def _is_red_setup_failure(body):
+    """v1.5.7 090p Task A: True iff the red-receipt body looks like a
+    setup/build/dependency/collection failure — i.e. NOT a genuine
+    test-level assertion failure.
+
+    Decision rule (conservative direction per 089m–q):
+      * If the body contains ANY ``_RED_GENUINE_FAILURE_SIGNATURES``
+        substring → the test ran and failed (genuine RED); return
+        False even if a setup-failure substring is also present
+        (the runner output may legitimately mention "build failure"
+        in a multi-package run where some packages built and others
+        failed-after-running).
+      * Else, if the body contains ANY
+        ``_RED_SETUP_FAILURE_SIGNATURES`` substring → reject as
+        setup-failure; return True.
+      * Else → unrecognized shape; default to NOT a setup failure
+        (genuine red — under-escalate ambiguity per 089m–q).
+
+    Matched case-insensitive substring against the WHOLE body
+    (these signatures appear in real runner output, not in agent-
+    authored narration; the 089q summary-region scoping does not
+    apply here).
+    """
+    if not isinstance(body, str):
+        return False
+    low = body.lower()
+    # First, look for a genuine test-level failure signature. If
+    # present, this is NOT a setup failure regardless of any other
+    # signal (the test actually ran and failed).
+    for sig in _RED_GENUINE_FAILURE_SIGNATURES:
+        if sig in low:
+            return False
+    # Otherwise, look for setup-failure signatures.
+    for sig in _RED_SETUP_FAILURE_SIGNATURES:
+        if sig in low:
+            return True
+    return False
+
+
+# v1.5.7 090p Task B: extract the regression test's name from a
+# `BUG-NNN-regression-test.patch` file. Patterns recognize the
+# canonical Go (`func TestXxx(t *testing.T)`) and pytest
+# (`def test_xxx(`) test-definition lines that the patch adds.
+# Returns a list of test names (a patch may add more than one).
+# Conservative direction: if no name can be extracted, downstream
+# code falls back to the weaker "red and green use the same
+# targeted selector, not a bare whole-package run" check.
+
+import re as _090p_re
+
+_REGRESSION_TEST_NAME_PATTERNS = (
+    # Go: `+func TestXxx(t *testing.T)` (also tolerate `func (s *Suite) TestXxx`).
+    _090p_re.compile(
+        r"^\+\s*func(?:\s*\([^)]*\))?\s+(Test[A-Za-z0-9_]+)\s*\(",
+        _090p_re.MULTILINE,
+    ),
+    # pytest: `+def test_xxx(`
+    _090p_re.compile(
+        r"^\+\s*def\s+(test_[A-Za-z0-9_]+)\s*\(",
+        _090p_re.MULTILINE,
+    ),
+)
+
+
+def _extract_regression_test_names(patch_text):
+    """Return a sorted list of unique test-function names ADDED by
+    the regression-test patch. Handles Go `func TestXxx(...)` and
+    pytest `def test_xxx(...)` patterns scanned over patch-add
+    lines (`^+` prefix). Returns [] if nothing matches — caller
+    falls back to a conservative same-selector / no-bare-package
+    check.
+    """
+    if not isinstance(patch_text, str):
+        return []
+    names = set()
+    for pat in _REGRESSION_TEST_NAME_PATTERNS:
+        for m in pat.finditer(patch_text):
+            names.add(m.group(1))
+    return sorted(names)
+
+
+def _red_log_references_test_name(body, test_names):
+    """True iff the receipt body explicitly references at least one
+    of the patch-derived test names — in either the `Command:` line
+    (e.g. `go test -run TestXxx`, `pytest -k test_xxx`, an explicit
+    test-node id) or in the runner transcript (e.g. `--- FAIL:
+    TestXxx`, `FAILED test_x.py::test_xxx`). Case-insensitive
+    substring scan over the WHOLE body.
+    """
+    if not isinstance(body, str) or not test_names:
+        return False
+    low = body.lower()
+    return any(name.lower() in low for name in test_names)
+
+
+def _is_bare_package_run(body):
+    """v1.5.7 090p Task B (conservative fallback): True iff the
+    receipt's `Command:` line looks like a bare whole-package run —
+    no targeted test selector. Recognizes the run2 shape
+    `go test ./pkg` with NO `-run` flag, `pytest pkg/` with no
+    `-k`/nodeid, `cargo test` with no test-name filter, etc.
+
+    Used only when `_extract_regression_test_names` returned no
+    names (patch format the extractor doesn't recognize) — falls
+    back to "red and green must at least use the same targeted
+    selector, not a bare whole-package run."
+    """
+    if not isinstance(body, str):
+        return False
+    cmd_line = ""
+    for ln in body.splitlines():
+        ls = ln.strip().lower()
+        if ls.startswith("command:"):
+            cmd_line = ls[len("command:"):].strip()
+            break
+    if not cmd_line:
+        return False
+    # Tokens that ARE targeted selectors.
+    if any(tok in cmd_line for tok in (
+        "-run ", "-run=",            # go
+        "-k ", "-k=",                # pytest
+        "::test_", "::Test",         # pytest nodeids
+        "--test ",                   # cargo
+    )):
+        return False
+    # Heuristic for bare-package shapes (the run2 trigger):
+    if cmd_line.startswith("go test ") or " go test " in cmd_line:
+        return True
+    if cmd_line.startswith("pytest") and "::" not in cmd_line:
+        return True
+    if cmd_line.startswith("cargo test"):
+        return True
+    return False
+
+
+# v1.5.7 090g: phrases that mark a green NOT_RUN as legitimate
+# because the bug has no in-tree fix (e.g. an upgrade-only CVE
+# where the only remediation is a dependency bump). A receipt
+# body containing any of these downgrades the runner-available
+# NOT_RUN escalation from FAIL to WARN. The phrases are
+# deliberately specific — generic "skipped" or "blocked" don't
+# match, because the agent could use those to evade execution
+# of an in-tree fix. The agent has to explicitly assert the
+# no-in-tree-fix nature.
+_NO_IN_TREE_FIX_MARKERS = (
+    "no in-tree fix",
+    "no in tree fix",  # space variant
+    "upgrade-only",
+    "upgrade only",  # space variant
+    "upstream upgrade",
+    "upstream-upgrade",  # hyphen variant
+    "no in-tree remediation",
+    "no in tree remediation",
+    "remediation is an upstream",  # template phrasing
+    "remediation is upstream",
+    "third-party-only patch",
+    "third party only patch",
+)
+
+
+def _has_no_in_tree_fix_marker(body):
+    """v1.5.7 090g: True if the receipt body documents a legitimate
+    no-in-tree-fix reason (upgrade-only CVE, third-party patch,
+    etc.). Used to downgrade green NOT_RUN from FAIL to WARN when
+    the runner is available — the green cycle legitimately can't
+    run because there's nothing to apply in-tree.
+
+    The marker list is deliberately specific — generic "skipped"
+    or "blocked" don't match. The agent has to make the
+    no-in-tree-fix claim explicitly in the receipt body."""
+    if not body:
+        return False
+    low = body.lower()
+    return any(m in low for m in _NO_IN_TREE_FIX_MARKERS)
+
+
+# v1.5.7 089q (D3): the phase5_env.log requirement is a NEW v1.5.7
+# (089o) artifact contract. Version-gate it so a pre-089o archived
+# or replayed run — which never produced phase5_env.log — does not
+# spuriously FAIL. Mirrors the gate's existing legacy-tolerance
+# pattern (absent newer artifacts on a pre-version run = legacy,
+# no-op rather than FAIL).
+_PHASE5_ENV_CONTRACT_VERSION = (1, 5, 7)
+
+
+def _parse_version_tuple(version_str):
+    """Parse a dotted version string ("1.5.7", "1.5.7.2") into a
+    tuple of ints, or None if it has no leading numeric component."""
+    if not version_str:
+        return None
+    m = re.match(r"\s*([0-9]+(?:\.[0-9]+)*)", str(version_str))
+    if not m:
+        return None
+    try:
+        return tuple(int(p) for p in m.group(1).split("."))
+    except ValueError:
+        return None
+
+
+def _run_predates_phase5_env_contract(tdd_data, q):
+    """v1.5.7 089q (D3): True when the run's skill/playbook version
+    is older than the 089o phase5_env.log contract (< 1.5.7), so a
+    missing phase5_env.log should WARN rather than FAIL.
+
+    Version source order: tdd-results.json `skill_version` (already
+    parsed into ``tdd_data``), then PROGRESS.md `Skill version:`.
+    If the version cannot be determined, return True — the
+    conservative, non-breaking choice (consistent with the gate's
+    legacy-tolerance pattern: an undeterminable run is treated as
+    legacy rather than hard-FAILed; a current run missing its
+    version stamp fails the dedicated version-stamp checks
+    elsewhere)."""
+    version_str = ""
+    if isinstance(tdd_data, dict):
+        version_str = get_str(tdd_data, "skill_version")
+    if not version_str:
+        progress_md = q / "PROGRESS.md"
+        if progress_md.is_file():
+            version_str = read_skill_value_line(
+                progress_md, "Skill version:"
+            )
+    parsed = _parse_version_tuple(version_str)
+    if parsed is None:
+        return True  # undeterminable → treat as legacy (non-breaking)
+    return parsed < _PHASE5_ENV_CONTRACT_VERSION
+
+
+def _phase5_probe_succeeded(log_text):
+    """Heuristic read of quality/results/phase5_env.log: did the
+    test-runner version probe SUCCEED (runner available)?
+
+    Returns True only on positive evidence of success, False on
+    positive evidence of failure, None when genuinely ambiguous.
+
+    v1.5.7 089o Task 2: the caller escalates a NOT_RUN run to FAIL
+    ONLY on a confident True — so ambiguity (None) and a failed
+    probe (False) both keep the honest-skip path at WARN (089m
+    philosophy: never FAIL an honest NOT_RUN). An explicit exit
+    code is the strongest signal; failing that, command-not-found-
+    style markers indicate failure and a version string with no
+    failure marker indicates success.
+
+    TODO(v1.6.x — 089q D4): this heuristic is coarse — first
+    `Exit code` line wins, the version+digits fallback is loose,
+    and there is one global per-run signal with no per-bug /
+    per-runner mapping. Accepted as a v1.5.7 risk because the
+    ambiguous→None→WARN escape prevents false FAILs. The v1.6.x
+    verdict-fidelity track hardens it: per-runner probe mapping +
+    tighter multi-attempt parsing."""
+    if not log_text or not log_text.strip():
+        return None
+    low = log_text.lower()
+    # Strongest signal: an explicit captured exit code.
+    m = re.search(r"exit[ _]?code[ :=]+(\d+)", low)
+    if m:
+        return m.group(1) == "0"
+    # No explicit exit code — fall back to markers.
+    failure_markers = (
+        "command not found",
+        "not found",
+        "no such file",
+        "cannot execute",
+        "permission denied",
+        "is not recognized",  # Windows "X is not recognized as ..."
+    )
+    if any(fm in low for fm in failure_markers):
+        return False
+    # A version line ("X version 1.2.3" / "v1.2.3") with no failure
+    # marker is positive evidence the probe ran and the runner is
+    # present.
+    if re.search(r"version", low) and re.search(r"\d+\.\d+", low):
+        return True
+    return None
+
+
 def validate_iso_date(date_str):
     """Return one of: 'valid', 'placeholder', 'future', 'bad_format', 'empty'.
 
@@ -680,6 +2572,31 @@ def read_skill_value_line(path, prefix):
     return ""
 
 
+# v1.5.7 instruction 054 (A-10): adopter install marker dirs + the
+# bundled bin/. QPB installs its own skill tree (incl. post-050 Python
+# closure modules) under one of these markers; both file-tree walkers
+# below MUST skip them or QPB's own .py files poison language
+# detection / source counts in non-Python adopter projects — the gson
+# opus-4.6 Mode-A reproduction, 2026-05-16 (detect_project_language
+# returned "py" for a Java project because Python is checked before
+# Java and QPB's bundled bin/*.py were found first).
+#
+# Canonical source of the marker list is
+# bin/install_skill.AI_TOOL_MAP.values(); intentionally DUPLICATED
+# here (Option B, additive — per the instruction-053 precedent)
+# because quality_gate.py is deployed STANDALONE into an adopter's
+# .github/skills/quality_gate/ and CANNOT import bin/install_skill.py
+# (the installer is not part of the bundled gate).
+# TODO(v1.5.7.x): consolidate the three exclusion-set copies (this,
+# count_source_files below, and classify_project.DEFAULT_IGNORE_DIRS)
+# behind one shared constant once a gate-standalone-safe shared
+# module exists.
+_INSTALL_MARKER_DIRS = frozenset({
+    ".claude", ".cursor", ".github", ".continue",
+    ".codex", ".windsurf", ".cline", ".aider", "bin",
+})
+
+
 def detect_project_language(repo_dir):
     """Walk up to 3 dirs deep, return first language whose extension is present.
 
@@ -697,7 +2614,7 @@ def detect_project_language(repo_dir):
         ("c", ".c"),
         ("agc", ".agc"),
     ]
-    excluded = {"vendor", "node_modules", ".git", "quality", "repos"}
+    excluded = {"vendor", "node_modules", ".git", "quality", "repos"} | _INSTALL_MARKER_DIRS
 
     def present(base, target_ext):
         stack = [(Path(base), 1)]
@@ -729,7 +2646,13 @@ def count_source_files(repo_dir):
     src_count = 0
     exts = {".go", ".py", ".java", ".kt", ".rs", ".ts", ".js", ".scala",
             ".c", ".h", ".agc"}
-    excluded = {"vendor", "node_modules", ".git", "quality"}
+    # v1.5.7 instruction 054 (A-10): `repos` added here for parity
+    # with detect_project_language (it had `repos`, this walker did
+    # not — the slight pre-existing inconsistency the instruction
+    # called out). `repos/` is QPB's benchmark-targets dir, never
+    # adopter source. _INSTALL_MARKER_DIRS skips QPB's own install
+    # tree so its bundled .py files are not counted as adopter source.
+    excluded = {"vendor", "node_modules", ".git", "quality", "repos"} | _INSTALL_MARKER_DIRS
 
     def walk(base, current_depth, max_depth):
         nonlocal src_count
@@ -753,6 +2676,7 @@ def count_source_files(repo_dir):
 # --- Section checks ---
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_file_existence(repo_dir, q, strictness):
     """File existence section (benchmark 40)."""
     print("[File Existence]")
@@ -814,10 +2738,16 @@ def check_file_existence(repo_dir, q, strictness):
                 pass_("triage_probes.sh exists (executable triage evidence)")
             elif (_resolve_artifact_path(q, "mechanical/verify.sh")).is_file() and \
                  file_contains(_resolve_artifact_path(q, "mechanical/verify.sh"), r"probe|triage|auditor"):
+                # Pre-W4 back-compat only: older runs appended probe
+                # assertions to the bash verify.sh. W4 (080) makes
+                # verify.py a fixed-purpose extraction orchestrator —
+                # NOT a host for ad-hoc probe assertions — so the
+                # canonical location is spec_audits/triage_probes.sh
+                # (see references/phase2_generation_guide.md).
                 has_probes = True
-                pass_("verify.sh contains triage probe assertions")
+                pass_("verify.sh contains triage probe assertions (pre-W4 back-compat)")
             if not has_probes:
-                msg = "No executable triage evidence found (expected spec_audits/triage_probes.sh or probe assertions in mechanical/verify.sh)"
+                msg = "No executable triage evidence found (expected spec_audits/triage_probes.sh; pre-W4 runs may carry probe assertions in mechanical/verify.sh)"
                 if strictness == "benchmark":
                     fail(msg)
                 else:
@@ -826,6 +2756,7 @@ def check_file_existence(repo_dir, q, strictness):
         fail("spec_audits/ directory missing")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_bugs_heading(q):
     """BUGS.md heading-format section (benchmark 39).
 
@@ -887,6 +2818,7 @@ def check_bugs_heading(q):
     return bug_count, bug_ids
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_tdd_sidecar(q, bug_count):
     """TDD sidecar JSON (benchmarks 14, 41)."""
     print("[TDD Sidecar JSON]")
@@ -904,7 +2836,7 @@ def check_tdd_sidecar(q, bug_count):
 
     data = load_json(json_path)
     if data is None:
-        # File exists but unparseable — fail all root key checks
+        # File exists but unparsable — fail all root key checks
         for key in ["schema_version", "skill_version", "date", "project",
                     "bugs", "summary"]:
             fail(f"missing root key '{key}'")
@@ -987,6 +2919,7 @@ def check_tdd_sidecar(q, bug_count):
     return data
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     """TDD log files and sidecar-to-log cross-validation."""
     print("[TDD Log Files]")
@@ -1005,28 +2938,97 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
     green_expected = 0
     red_bad_tag = 0
     green_bad_tag = 0
+    # v1.5.7 089m (#326 cheap half): count bugs with at least one
+    # NOT_RUN TDD receipt so we can emit a WARN when the red/green
+    # cycle was honestly skipped (legitimate state — `RUN_TDD_TESTS.md`
+    # documents NOT_RUN as the "test execution skipped" tag — but
+    # the gate must surface that the empirical red→green proof
+    # didn't happen, so adopters don't read GATE PASSED as more
+    # than it covers).
+    bugs_with_not_run = 0
+    # v1.5.7 090g: green NOT_RUN whose body documents "no in-tree
+    # fix" (e.g. upgrade-only CVEs like "remediation is upstream
+    # upgrade to v1.5.9+"). These get WARN even when probe_ok is
+    # True — there's no in-tree fix to apply, so the green cycle
+    # legitimately can't run regardless of runner availability.
+    # Red NOT_RUN with probe_ok=True remains FAIL: reproducing
+    # the bug doesn't require a fix.
+    bugs_with_documented_no_in_tree_fix = 0
+    # v1.5.7 089o (#329): receipts tagged RED/GREEN whose SUMMARY
+    # admits non-execution ("by inspection" etc.) — overclaims.
+    # Each entry is (bug_id, phase, marker).
+    overclaim_receipts = []
+    # v1.5.7 089q (D2): every RED/GREEN receipt, with whether its
+    # body carries an affirmative execution signature. Each entry
+    # is (bug_id, phase, has_execution_signature). After the loop,
+    # when the Phase 5 probe shows the runner available, a RED/
+    # GREEN receipt with no signature is an overclaim-by-omission.
+    red_green_receipts = []
 
     for bid in bug_ids:
         red_log = results_dir / f"{bid}.red.log"
+        red_tag = None
         if red_log.is_file():
             red_found += 1
-            tag = read_first_line_stripped(red_log)
-            if tag not in valid_tags:
+            red_body = read_full_text(red_log)
+            red_tag = read_first_line_stripped(red_log)
+            if red_tag not in valid_tags:
                 red_bad_tag += 1
+            # 089o: a RED/GREEN tag asserts real execution. If the
+            # summary admits non-execution, that's an overclaim →
+            # FAIL. 089q D2: also record whether the receipt
+            # carries an execution signature.
+            if red_tag in ("RED", "GREEN"):
+                marker = _first_overclaim_marker(red_body)
+                if marker is not None:
+                    overclaim_receipts.append((bid, "red", marker))
+                red_green_receipts.append(
+                    (bid, "red", _has_execution_signature(red_body))
+                )
         else:
             red_missing += 1
 
+        green_tag = None
         fix_patch = first_file_matching(patches_dir, [f"{bid}-fix*.patch"])
         if fix_patch is not None:
             green_expected += 1
             green_log = results_dir / f"{bid}.green.log"
             if green_log.is_file():
                 green_found += 1
-                tag = read_first_line_stripped(green_log)
-                if tag not in valid_tags:
+                green_body = read_full_text(green_log)
+                green_tag = read_first_line_stripped(green_log)
+                if green_tag not in valid_tags:
                     green_bad_tag += 1
+                if green_tag in ("RED", "GREEN"):
+                    marker = _first_overclaim_marker(green_body)
+                    if marker is not None:
+                        overclaim_receipts.append((bid, "green", marker))
+                    red_green_receipts.append(
+                        (bid, "green",
+                         _has_execution_signature(green_body))
+                    )
             else:
                 green_missing += 1
+
+        # 089m: a bug counts as "TDD-not-executed" if either its
+        # red receipt OR its green receipt (when expected) is
+        # NOT_RUN. Both ends of the red→green cycle need to have
+        # actually executed for the cycle to count as proven.
+        if red_tag == "NOT_RUN" or green_tag == "NOT_RUN":
+            bugs_with_not_run += 1
+            # v1.5.7 090g: a green NOT_RUN whose body documents a
+            # legitimate no-in-tree-fix reason (upgrade-only CVE,
+            # third-party-only patch, etc.) is a WARN even when
+            # the runner is available — there's nothing to apply
+            # to make the test pass in-tree. Red NOT_RUN never
+            # qualifies (reproducing the bug doesn't need a fix);
+            # only a green NOT_RUN whose RED ran clean and whose
+            # green body explicitly says "no in-tree fix" gets
+            # the WARN downgrade.
+            if (green_tag == "NOT_RUN" and red_tag != "NOT_RUN"
+                    and green_log.is_file()
+                    and _has_no_in_tree_fix_marker(read_full_text(green_log))):
+                bugs_with_documented_no_in_tree_fix += 1
 
     if red_missing == 0 and red_found > 0:
         pass_(f"All {red_found} confirmed bug(s) have red-phase logs")
@@ -1051,6 +3053,345 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
         fail(f"{green_bad_tag} green-phase log(s) missing valid first-line status tag (expected RED/GREEN/NOT_RUN/ERROR)")
     elif green_found > 0:
         pass_("All green-phase logs have valid status tags")
+
+    # v1.5.7 090p — GATE-LEVEL TDD RED VALIDITY: a red must be a
+    # genuine test-level failure, not a setup/build/dependency/
+    # collection failure; and the red/green must exercise the bug's
+    # named regression test (or, conservatively, the same targeted
+    # selector — not a bare whole-package run).
+    #
+    # The 2026-05-24 Ory Keto run2 (cold Go caches, network-
+    # restricted sandbox) reported GATE PASSED on TDD proofs of this
+    # shape: red `FAIL [setup failed] / lookup proxy.golang.org: no
+    # such host` (Exit 1) + green `ok pkg 0.398s` (Exit 0), with
+    # both red and green running an identical generic `go test
+    # ./ketoapi` regardless of where the bug actually lived. The
+    # gate accepted this because (1) any non-zero exit was a
+    # "satisfied red" and (2) there was no requirement that red/
+    # green exercise the bug's specific regression test. 090p
+    # closes both holes mechanically — 090o's phase5.md env-vs-
+    # real-RED guard is the prompt-side companion; 090p is the
+    # gate-level backstop because run2 proved prose alone doesn't
+    # bind.
+    #
+    # Routing rule: a red rejected as setup-failure is treated as
+    # NOT_RUN(environment) for the verdict-shape (090o
+    # remediation routes the operator to fix the environment and
+    # re-run Phases 5–6); the existing 089m NOT_RUN escalation
+    # (WARN if probe failed/ambiguous; FAIL if probe shows runner
+    # available — overclaim) then governs downstream. The bug
+    # does NOT count as TDD-proven.
+    #
+    # Conservative direction (per 089m–q): only rejection of a red
+    # matching a KNOWN setup-failure signature; an unrecognized
+    # non-zero red stays a genuine red (don't wrongly fail honest
+    # assertion-failure reds).
+
+    invalid_red_setup_failures = []           # (bid, signature_excerpt)
+    untied_red_green = []                     # (bid, reason)
+    bugs_invalidated_by_090p = set()          # bids whose TDD is rejected by 090p
+
+    for bid in bug_ids:
+        red_log = results_dir / f"{bid}.red.log"
+        green_log = results_dir / f"{bid}.green.log"
+        if not red_log.is_file():
+            continue
+        red_body = read_full_text(red_log)
+        red_tag = read_first_line_stripped(red_log)
+        # 090p does NOT apply to NOT_RUN reds — those are already
+        # routed through the 089m honesty path. 090p targets the
+        # RED tag specifically (a claimed test-level failure).
+        if red_tag != "RED":
+            continue
+
+        # Task A: is this red a setup-failure shape?
+        if _is_red_setup_failure(red_body):
+            invalid_red_setup_failures.append((bid, red_log.name))
+            bugs_invalidated_by_090p.add(bid)
+            # Don't double-fire the named-test check for the same
+            # bug — Task A's rejection already invalidates it.
+            continue
+
+        # Task B: does the red/green exercise the bug's named
+        # regression test? Try to extract test names from the
+        # regression-test patch; if extraction returns nothing,
+        # fall back to "not a bare whole-package run" + "red and
+        # green use the same targeted selector."
+        regression_patch = first_file_matching(
+            patches_dir,
+            [f"{bid}-regression-test*.patch", f"{bid}-regression*.patch"],
+        )
+        test_names = []
+        if regression_patch is not None:
+            try:
+                patch_text = read_full_text(regression_patch)
+            except Exception:
+                patch_text = ""
+            test_names = _extract_regression_test_names(patch_text)
+
+        # Need a green log to check the green side.
+        green_body = (
+            read_full_text(green_log) if green_log.is_file() else None
+        )
+
+        if test_names:
+            # Strong form: red and green must both reference at
+            # least one of the patch-derived test names.
+            red_refs = _red_log_references_test_name(red_body, test_names)
+            if not red_refs:
+                untied_red_green.append((
+                    bid,
+                    f"red log {red_log.name} does not reference any "
+                    f"patch-derived test name "
+                    f"({', '.join(test_names[:3])}"
+                    f"{'…' if len(test_names) > 3 else ''})",
+                ))
+                bugs_invalidated_by_090p.add(bid)
+            if green_body is not None:
+                green_refs = _red_log_references_test_name(
+                    green_body, test_names,
+                )
+                if not green_refs:
+                    untied_red_green.append((
+                        bid,
+                        f"green log {green_log.name} does not reference "
+                        f"any patch-derived test name "
+                        f"({', '.join(test_names[:3])}"
+                        f"{'…' if len(test_names) > 3 else ''})",
+                    ))
+                    bugs_invalidated_by_090p.add(bid)
+        else:
+            # Conservative fallback: red and green must not be bare
+            # whole-package runs.
+            if _is_bare_package_run(red_body):
+                untied_red_green.append((
+                    bid,
+                    f"red log {red_log.name} is a bare whole-package "
+                    f"run with no targeted test selector; cannot tie "
+                    f"to the bug's regression test",
+                ))
+                bugs_invalidated_by_090p.add(bid)
+            if green_body is not None and _is_bare_package_run(green_body):
+                untied_red_green.append((
+                    bid,
+                    f"green log {green_log.name} is a bare whole-"
+                    f"package run with no targeted test selector",
+                ))
+                bugs_invalidated_by_090p.add(bid)
+
+    # Emit per-bug failures with specific guidance.
+    for bid, log_name in invalid_red_setup_failures:
+        fail(
+            f"{log_name}: tagged RED but body is a setup/dependency/"
+            f"build/collection failure (e.g. '[setup failed]', 'no "
+            f"such host', 'dependency resolution failed', "
+            f"ImportError, collection ERROR). A red that fails "
+            f"because deps won't resolve proves nothing about "
+            f"whether the bug exists — the red→green transition "
+            f"is explained by deps becoming resolvable, not by the "
+            f"fix. v1.5.7 090p: setup-failure reds are NOT valid "
+            f"TDD evidence. Treat as NOT_RUN(environment) per the "
+            f"089m policy + 090o phase5 remediation: prepare the "
+            f"build / fix the environment, then re-run Phases 5–6 "
+            f"so the test can actually execute."
+        )
+    for bid, reason in untied_red_green:
+        fail(
+            f"{bid}: TDD red/green does not exercise the bug's "
+            f"specific regression test — {reason}. v1.5.7 090p: a "
+            f"red/green that does not exercise the bug's named "
+            f"regression test is not a valid TDD proof (the run "
+            f"could have passed for any number of reasons unrelated "
+            f"to the bug). Add a targeted selector (Go `-run "
+            f"<TestName>`, pytest `-k <name>` or nodeid) that "
+            f"matches the test added by "
+            f"`quality/patches/{bid}-regression-test.patch`."
+        )
+    if invalid_red_setup_failures:
+        fail(
+            f"{len(invalid_red_setup_failures)} TDD red receipt(s) "
+            f"rejected as setup/dependency/build failures (v1.5.7 "
+            f"090p — not valid REDs)."
+        )
+    if untied_red_green:
+        fail(
+            f"{len(untied_red_green)} TDD receipt(s) not tied to a "
+            f"bug-specific regression test (v1.5.7 090p)."
+        )
+
+    # v1.5.7 089o/089q: resolve the Phase 5 runner-probe artifact
+    # and its outcome ONCE, up front — both the 089q D2 positive-
+    # evidence check and the 089m/089o NOT_RUN handling below
+    # depend on whether the probe showed the runner available.
+    phase5_env_log = results_dir / "phase5_env.log"
+    phase5_env_present = phase5_env_log.is_file()
+    probe_ok = (
+        _phase5_probe_succeeded(read_full_text(phase5_env_log))
+        if phase5_env_present else None
+    )
+
+    # v1.5.7 089o (#329) Task 1: FAIL on RED/GREEN overclaim. A
+    # receipt tagged RED or GREEN asserts the test was actually
+    # executed; a SUMMARY that admits non-execution ("by
+    # inspection", etc.) under that tag is a prediction mislabeled
+    # as an observation. This is the dishonest combination 089m's
+    # NOT_RUN WARN could not catch (the gson run mislabeled 15
+    # by-inspection receipts RED/GREEN so the first-line tag never
+    # said NOT_RUN). The remedy for an agent that can't execute is
+    # to run it for real OR tag NOT_RUN honestly (→ WARN, still
+    # passes) — so this FAIL targets only the overclaim, never
+    # honesty.
+    if overclaim_receipts:
+        for bid, phase, marker in overclaim_receipts:
+            tag = "RED" if phase == "red" else "GREEN"
+            # NB: the substring "but body admits non-execution" is
+            # kept contiguous on one source line — the v1.5.7 089p
+            # recap drift guard (test_recap_tdd_signal_drift_089p)
+            # greps quality_gate.py source for it.
+            fail(
+                f"{bid}.{phase}.log tagged {tag} "
+                f"but body admits non-execution"
+                f" (\"{marker}\"). A RED/GREEN tag "
+                f"asserts the test was actually run. Run the test "
+                f"for real (capture real runner output) or mark the "
+                f"receipt NOT_RUN (which WARN-passes per the honest-"
+                f"skip path)."
+            )
+        fail(
+            f"{len(overclaim_receipts)} TDD receipt(s) overclaim: "
+            f"tagged RED/GREEN over a by-inspection / non-execution "
+            f"body. A RED/GREEN tag must be backed by real test "
+            f"execution."
+        )
+
+    # v1.5.7 089q (D2): overclaim BY OMISSION. The D1 narrowing
+    # above only catches a receipt that NARRATES non-execution in
+    # a recognizable phrase — a paraphrased inspection-only receipt
+    # ("derived analytically", "confirmed from reading the source")
+    # slips past it. So: when the Phase 5 probe shows the runner
+    # demonstrably available (probe_ok is True), a RED/GREEN
+    # receipt MUST carry an affirmative execution signature
+    # (Command:/Exit code: line, runner transcript token). A
+    # RED/GREEN receipt with no signature, while the runner was
+    # available, is asserting an execution that left no trace →
+    # FAIL. Honesty preserved (089m): this requirement applies
+    # ONLY when probe_ok is True — a failed/ambiguous probe
+    # (False/None) requires NO evidence, so NOT_RUN stays the
+    # honest WARN/PASS path. A receipt already FAILed for a D1
+    # marker is not double-counted here.
+    if probe_ok is True:
+        _d1_flagged = {(b, p) for b, p, _ in overclaim_receipts}
+        omission_receipts = [
+            (b, p) for b, p, has_sig in red_green_receipts
+            if not has_sig and (b, p) not in _d1_flagged
+        ]
+        for bid, phase in omission_receipts:
+            tag = "RED" if phase == "red" else "GREEN"
+            fail(
+                f"{bid}.{phase}.log tagged {tag} but carries no "
+                f"runner output (overclaim by omission). The Phase "
+                f"5 probe shows the test runner IS available, so a "
+                f"{tag} tag must be backed by a real execution "
+                f"signature (a Command:/Exit code: line or runner "
+                f"transcript). Run the test for real and capture "
+                f"its output, or mark the receipt NOT_RUN."
+            )
+        if omission_receipts:
+            fail(
+                f"{len(omission_receipts)} TDD receipt(s) overclaim "
+                f"by omission: tagged RED/GREEN with the runner "
+                f"available but no captured runner output."
+            )
+
+    # v1.5.7 089o (#329) Task 2 + 089q (D3): phase5_env.log probe
+    # substantiation. A run with confirmed bugs must capture the
+    # test-runner probe (mvn -version / pytest --version / cargo
+    # --version / go version, with stdout+stderr+exit code) to
+    # quality/results/phase5_env.log BEFORE any RED/GREEN/NOT_RUN
+    # determination — this is what forces the agent to actually
+    # check runner availability rather than assume it. 089q D3:
+    # phase5_env.log is a NEW v1.5.7 (089o) artifact contract —
+    # version-gate it so pre-089o archived/replayed runs (which
+    # never produced it) do not spuriously FAIL.
+    if not phase5_env_present:
+        if _run_predates_phase5_env_contract(tdd_data, q):
+            warn(
+                "phase5_env.log absent — this run predates the "
+                "v1.5.7 089o Phase 5 test-runner-probe contract "
+                "(pre-1.5.7 runs never produced it). Not a failure "
+                "for a legacy run; a current-version run would "
+                "FAIL here."
+            )
+        else:
+            # NB: the substring "phase5_env.log is missing" is kept
+            # contiguous on one source line — the v1.5.7 089p recap
+            # drift guard (test_recap_tdd_signal_drift_089p) greps
+            # quality_gate.py source for it.
+            fail(
+                "Phase 5 must probe the test runner and capture "
+                "`<tool> --version` (stdout+stderr+exit code) to "
+                "quality/results/phase5_env.log before any "
+                "RED/GREEN/NOT_RUN determination — "
+                "phase5_env.log is missing."
+            )
+    else:
+        pass_("phase5_env.log present (test-runner probe captured)")
+
+    # v1.5.7 089m (#326 cheap half) + 089o Task 2: handle NOT_RUN
+    # receipts. NOT_RUN is an honestly-marked legitimate state — an
+    # environment that genuinely can't build records NOT_RUN per
+    # quality/RUN_TDD_TESTS.md — so the BASE case is WARN, the gate
+    # still PASSES. 089o escalates ONLY the contradicted case: if
+    # phase5_env.log shows the runner WAS available (a clean
+    # version probe) yet receipts are NOT_RUN, that's the assume-
+    # unavailable root cause — escalate to FAIL. An ambiguous or
+    # failed probe keeps the honest-skip WARN (089m unchanged).
+    if bugs_with_not_run > 0:
+        # probe_ok was resolved once, up front (089o/089q).
+        # v1.5.7 090g: separate the documented-no-in-tree-fix
+        # NOT_RUN bugs (legitimate WARN even when probe_ok=True)
+        # from the rest (FAIL when probe_ok=True).
+        bugs_with_undocumented_not_run = (
+            bugs_with_not_run - bugs_with_documented_no_in_tree_fix
+        )
+        if probe_ok is True and bugs_with_undocumented_not_run > 0:
+            # NB: the substring "phase5_env.log shows the test runner IS available"
+            # is kept contiguous on one source line — the v1.5.7 089p
+            # recap drift guard (test_recap_tdd_signal_drift_089p) greps
+            # quality_gate.py source for it.
+            fail(
+                f"{bugs_with_undocumented_not_run} of "
+                f"{len(bug_ids)} confirmed bug(s) have receipts "
+                f"marked NOT_RUN, but phase5_env.log shows the test runner IS available"
+                f" (the version probe succeeded). Run the red/green "
+                f"cycle — NOT_RUN is only honest when the probe "
+                f"itself failed OR when the green receipt "
+                f"documents a no-in-tree fix (e.g. upgrade-only "
+                f"CVE). Quote the failing probe output if the "
+                f"runner genuinely cannot run, or include a 'no "
+                f"in-tree fix' / 'upstream upgrade' marker in "
+                f"the green receipt body."
+            )
+        if bugs_with_documented_no_in_tree_fix > 0:
+            warn(
+                f"{bugs_with_documented_no_in_tree_fix} of "
+                f"{len(bug_ids)} confirmed bug(s) have green "
+                f"NOT_RUN receipts documenting no in-tree fix "
+                f"(e.g. upgrade-only CVEs). The red phase ran "
+                f"empirically; the green cycle skipped because "
+                f"the fix is out-of-tree. Operator action is "
+                f"the documented upstream upgrade. (v1.5.7 090g.)"
+            )
+        if probe_ok is not True and bugs_with_undocumented_not_run > 0:
+            warn(
+                f"TDD red/green cycle not executed for "
+                f"{bugs_with_undocumented_not_run} of {len(bug_ids)} "
+                f"confirmed bug(s) (receipts marked NOT_RUN). "
+                f"These bugs are patch-applicable and reasoned, "
+                f"but not empirically proven by a failing-then-"
+                f"passing test. Run quality/RUN_TDD_TESTS.md to "
+                f"complete the red/green cycle."
+            )
 
     # Sidecar-to-log cross-validation (BUG-M18)
     if tdd_data is not None and isinstance(tdd_data, dict):
@@ -1106,6 +3447,7 @@ def check_tdd_logs(q, bug_count, bug_ids, tdd_data):
             fail("TDD_TRACEABILITY.md missing (mandatory when bugs have red-phase results)")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_integration_sidecar(q, strictness):
     """Integration sidecar JSON section."""
     print("[Integration Sidecar JSON]")
@@ -1190,6 +3532,7 @@ def check_integration_sidecar(q, strictness):
         fail(f"{bad_uc} non-canonical uc_coverage value(s) (must be covered_pass/covered_fail/not_mapped)")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_recheck_sidecar(q):
     """Recheck sidecar JSON (schema 1.0, uses 'results' key not 'bugs')."""
     print("[Recheck Sidecar JSON]")
@@ -1235,6 +3578,7 @@ def check_recheck_sidecar(q):
         fail("recheck-summary.md missing (required companion to recheck-results.json)")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_use_cases(repo_dir, q, strictness):
     """Use case identifier section (benchmarks 43, 48)."""
     print("[Use Cases]")
@@ -1269,6 +3613,7 @@ def check_use_cases(repo_dir, q, strictness):
         fail("No canonical UC-NN identifiers in REQUIREMENTS.md")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_test_file_extension(repo_dir, q):
     """Test file extension matches project language (benchmark 47)."""
     print("[Test File Extension]")
@@ -1317,6 +3662,269 @@ def check_test_file_extension(repo_dir, q):
             fail(f"test_regression.{reg_ext} does not match project language ({detected_lang}) — expected .{primary}")
 
 
+# v1.5.7 instruction 090s: Task A — reject a functional test file
+# whose test functions are ALL trivial / no-assertion stubs. Motivated
+# by the 2026-05-25 Ory Keto run4 (Copilot in VS Code auto-mode =
+# gpt-5.3-codex): the agent fabricated a hollow run that the gate
+# PASSED — `quality/test_functional.go` was literally
+# `func TestFunctionalBaseline(t *testing.T) {}` (empty body, no
+# assertions), zero confirmed bugs, and the gate's functional-test
+# check only verified the file existed and matched the project
+# language. 090s closes the mechanically-catchable part: a file
+# where EVERY test function is trivial / no-assertion FAILs.
+#
+# Conservative direction (per 089m–q "under-escalate ambiguity"):
+# only FAIL when ALL test functions in the file are trivial. A file
+# with at least one real assertion-bearing test PASSES. This catches
+# the run4 hollow shape without touching legitimate test files (table-
+# driven tests, helper-only files, sub-test patterns).
+#
+# Detection is regex-based — pragmatic, not full-AST. The
+# assertion-pattern lists below MAY be extended as new ecosystems
+# surface, but should stay anchored to call-site shapes that have
+# zero false-positive overlap with non-assertion code.
+
+_GO_ASSERTION_PATTERNS: tuple[str, ...] = (
+    r"\bt\.Error\b",
+    r"\bt\.Errorf\b",
+    r"\bt\.Fatal\b",
+    r"\bt\.Fatalf\b",
+    r"\bt\.Fail\b",
+    r"\bt\.FailNow\b",
+    r"\bt\.Skip\b",            # Skip is a real signal (intentional)
+    r"\brequire\.",            # testify/require
+    r"\bassert\.",             # testify/assert
+    r"\bassertions\.",         # testify/assertions
+    r"\bg\.Expect\b",          # ginkgo/gomega
+    r"\bExpect\(.+\)\.To\b",   # ginkgo/gomega
+)
+
+# Python: tautological assertions (`assertTrue(True)`, `assertEqual(1, 1)`,
+# `assert True`) are stripped BEFORE the real-assertion scan so a body
+# containing ONLY tautologies counts as trivial.
+_PYTHON_ASSERTION_PATTERNS: tuple[str, ...] = (
+    r"\bself\.assert[A-Z]\w*\b",  # unittest-style (assertEqual, assertTrue, ...)
+    r"\bself\.fail\b",
+    r"\bpytest\.raises\b",
+    r"\bpytest\.fail\b",
+    r"\bpytest\.warns\b",
+    r"\bunittest\.skip\b",
+    # Bare `assert <expr>` with expr that isn't a constant-True
+    # tautology (filtered upstream — see `_body_has_real_assertion`).
+    r"\bassert\s+",
+)
+
+# Python tautology patterns — STRIPPED before the real-assertion scan.
+# These are the no-op forms a hollow run could insert to look like a
+# test without actually testing anything.
+_PYTHON_TAUTOLOGY_PATTERNS: tuple[str, ...] = (
+    r"\bself\.assertTrue\(\s*True\s*\)",
+    r"\bself\.assertFalse\(\s*False\s*\)",
+    r"\bself\.assertEqual\(\s*(\d+)\s*,\s*\1\s*\)",
+    r"\bself\.assertEqual\(\s*(\"[^\"]*\")\s*,\s*\1\s*\)",
+    r"\bself\.assertIs\(\s*True\s*,\s*True\s*\)",
+    r"\bassert\s+True\b",
+    r"\bassert\s+1\s*==\s*1\b",
+)
+
+
+def _go_test_function_bodies(source: str) -> list[str]:
+    """Return the body text of every ``func Test*(t *testing.T) { ... }``
+    in a Go test file. Handles nested braces via a simple depth
+    counter. (Pragmatic — not a full Go parser; rejects strings/
+    comments containing braces is out of scope here, but the
+    test-body shape is unambiguous enough that this is fine for the
+    run4 hollow-test pattern this check exists to detect.)"""
+    bodies: list[str] = []
+    # `func TestX(...)` opener — also tolerate method-form
+    # `func (s *Suite) TestX(...)`.
+    pattern = re.compile(
+        r"\bfunc\s*(?:\([^)]*\)\s*)?Test\w+\s*\([^)]*\)\s*\{"
+    )
+    for m in pattern.finditer(source):
+        start = m.end() - 1  # The opening `{`
+        depth = 0
+        i = start
+        while i < len(source):
+            c = source[i]
+            if c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    bodies.append(source[start + 1:i])
+                    break
+            i += 1
+    return bodies
+
+
+def _python_test_function_bodies(source: str) -> list[str]:
+    """Return the body text of every ``def test_*`` in a Python test
+    file. Uses indentation to find the end of each function block.
+    Pragmatic — not a full Python parser; close enough for the
+    no-op detection 090s targets."""
+    bodies: list[str] = []
+    lines = source.splitlines()
+    i = 0
+    while i < len(lines):
+        m = re.match(r"^(\s*)def\s+test_\w+\s*\(", lines[i])
+        if m:
+            indent = m.group(1)
+            body_lines: list[str] = []
+            j = i + 1
+            while j < len(lines):
+                line = lines[j]
+                if line.strip() == "":
+                    body_lines.append(line)
+                    j += 1
+                    continue
+                line_indent_match = re.match(r"^\s*", line)
+                line_indent = line_indent_match.group(0) if line_indent_match else ""
+                if len(line_indent) <= len(indent):
+                    break  # dedent — end of body
+                body_lines.append(line)
+                j += 1
+            bodies.append("\n".join(body_lines))
+            i = j
+        else:
+            i += 1
+    return bodies
+
+
+def _body_has_real_assertion(body: str, lang: str) -> bool:
+    """True iff a test-function body contains at least one real
+    assertion call (after stripping tautologies for Python). For
+    Go, a tautology like `t.Error()` with no message is still a
+    real assertion-call shape (it's an explicit fail signal), so
+    Go has no tautology stripping. Unknown languages return True
+    (pass-through — don't over-fire on unrecognized shapes per
+    089m–q)."""
+    if lang == "go":
+        for pat in _GO_ASSERTION_PATTERNS:
+            if re.search(pat, body):
+                return True
+        return False
+    if lang == "py":
+        # Strip Python tautologies first so a body containing ONLY
+        # `assertTrue(True)` / `assert True` / `assertEqual(1, 1)`
+        # counts as trivial.
+        normalized = body
+        for pat in _PYTHON_TAUTOLOGY_PATTERNS:
+            normalized = re.sub(pat, "", normalized)
+        for pat in _PYTHON_ASSERTION_PATTERNS:
+            if re.search(pat, normalized):
+                return True
+        return False
+    # Unrecognized language: pass-through (conservative direction).
+    return True
+
+
+@verdict_category(VERDICT_SUBSTANTIVE)
+def check_functional_test_has_assertions(q):
+    """v1.5.7 090s Task A: FAIL when the functional test file's
+    test functions are ALL trivial / no-assertion stubs (the
+    2026-05-25 Ory Keto run4 hollow shape — empty
+    `TestFunctionalBaseline`). Conservative: a file with ≥1
+    assertion-bearing test passes; unrecognized languages
+    pass-through (don't over-fire).
+
+    Anchored to `quality/test_functional.{go,py,...}` only — the
+    canonical functional-test file path; regression test files
+    (`quality/test_regression.*`) are out of scope (they're
+    auto-generated from patches, with their own coverage checks)."""
+    print("[Functional Test Content]")
+    func_test = first_file_matching(
+        q, ["test_functional.*", "functional_test.*",
+            "FunctionalSpec.*", "FunctionalTest.*",
+            "functional.test.*"],
+    )
+    if func_test is None:
+        # No file → the existing extension check already warns; this
+        # check has nothing to evaluate.
+        info("No functional test file — content check skipped")
+        return
+
+    ext = func_test.suffix.lstrip(".") if func_test.suffix else ""
+    lang_map = {"go": "go", "py": "py"}
+    lang = lang_map.get(ext)
+    if not lang:
+        # Unrecognized language → pass-through per the conservative
+        # direction (don't over-fire on shapes the detector doesn't
+        # know).
+        info(
+            f"{func_test.name}: language {ext!r} not in the 090s "
+            f"no-op detection set — content check skipped "
+            f"(conservative pass-through; 090s targets Go + Python "
+            f"only)",
+        )
+        return
+
+    try:
+        source = func_test.read_text(encoding="utf-8", errors="ignore")
+    except OSError as exc:
+        warn(
+            f"{func_test.name}: could not read for content check: "
+            f"{type(exc).__name__}: {exc}",
+        )
+        return
+
+    if lang == "go":
+        bodies = _go_test_function_bodies(source)
+    else:
+        bodies = _python_test_function_bodies(source)
+
+    if not bodies:
+        # No `func Test*` / `def test_*` patterns found — the file
+        # exists but doesn't carry any conventional test function.
+        # This is a DIFFERENT shape from "all test functions are
+        # trivial" (the load-bearing 090s pattern). Conservative
+        # direction (per 089m–q): WARN, not FAIL — adopters with
+        # helper-only files / non-canonical test naming should not
+        # be wrongly failed. The "all-trivial" check below catches
+        # the actual run4 shape (a real `func Test*` with an empty
+        # body).
+        warn(
+            f"{func_test.name}: no test functions found "
+            f"(expected `func Test*` for Go or `def test_*` for "
+            f"Python). The file exists and matches the language "
+            f"but doesn't carry conventional test functions; check "
+            f"whether the assertions live in an unconventional "
+            f"shape this detector doesn't recognize. v1.5.7 090s."
+        )
+        return
+
+    real_count = sum(1 for b in bodies
+                     if _body_has_real_assertion(b, lang))
+    if real_count == 0:
+        fail(
+            f"{func_test.name}: ALL {len(bodies)} test function(s) "
+            f"are trivial / no-assertion stubs (the 2026-05-25 Ory "
+            f"Keto run4 hollow shape). A functional test file with "
+            f"no real assertions doesn't prove anything about the "
+            f"codebase. Add at least one assertion-bearing test "
+            f"(Go: `t.Error` / `t.Fatal` / `require.*` / `assert.*`; "
+            f"Python: a real `assert <expr>` / `self.assert*` / "
+            f"`pytest.raises`). v1.5.7 090s.",
+        )
+    else:
+        pass_(
+            f"{func_test.name}: {real_count} of {len(bodies)} test "
+            f"function(s) carry real assertions (v1.5.7 090s "
+            f"no-op detection)"
+        )
+
+
+# v1.5.7 instruction 090s: Task B — track repos with zero confirmed
+# bugs so the gate verdict can be loudly qualified. A clean codebase
+# may legitimately have zero bugs, but a hollow / shallow run also
+# produces zero bugs; the qualification line tells the operator to
+# verify the run actually explored before trusting the PASS. Does
+# NOT change pass/fail semantics — only adds a prominent line
+# adjacent to RESULT:.
+_ZERO_BUG_REPOS: list[str] = []
+
+
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_terminal_gate(q):
     """Terminal Gate section in PROGRESS.md."""
     print("[Terminal Gate]")
@@ -1330,6 +3938,7 @@ def check_terminal_gate(q):
         fail("PROGRESS.md missing Terminal Gate section")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_mechanical(q):
     """Mechanical verification section."""
     print("[Mechanical Verification]")
@@ -1337,12 +3946,65 @@ def check_mechanical(q):
     if not mech_dir.is_dir():
         info("No mechanical/ directory")
         return
+    # v1.5.7 instruction 080c (closes 080b codex F1). W4 (§6): the
+    # gate now ACTUALLY INVOKES the mechanical verifier — re-running
+    # the ORIGINAL shell pipeline fresh is the v1.3.23 witness; the
+    # 080b presence-only check never re-ran anything (codex F1).
+    # Prefer verify.py (W4 Python orchestrator); fall back to
+    # verify.sh (pre-W4 back-compat); if neither exists but
+    # *_cases.txt extraction artifacts do, mechanical verification is
+    # required and missing → FAIL; an empty mechanical/ is
+    # non-conformant. The verifier runs from the target repo root
+    # (q.parent — verify.py's recorded paths like
+    # quality/mechanical/<f>_cases.txt and the source files the shell
+    # pipeline reads are relative to it). The verifier's exit code IS
+    # the gate verdict; its stdout/stderr is surfaced on failure so
+    # adopters see WHAT failed, not just "verification failed".
+    target_root = q.parent
+    verify_py = mech_dir / "verify.py"
     verify_sh = mech_dir / "verify.sh"
-    if not verify_sh.is_file():
-        fail("mechanical/ exists but verify.sh missing")
+    if verify_py.is_file():
+        pass_("verify.py exists")
+        verifier_cmd = [sys.executable, "quality/mechanical/verify.py"]
+        which = "verify.py"
+    elif verify_sh.is_file():
+        pass_("verify.sh exists (pre-W4 back-compat)")
+        verifier_cmd = ["bash", "quality/mechanical/verify.sh"]
+        which = "verify.sh"
+    else:
+        if list(mech_dir.glob("*_cases.txt")):
+            fail("verify.py or verify.sh expected but neither found; "
+                 "cases.txt files exist, so mechanical verification is "
+                 "required for this project.")
+        else:
+            fail("mechanical/ exists but verify.py missing")
         return
-    pass_("verify.sh exists")
 
+    try:
+        proc = subprocess.run(
+            verifier_cmd, cwd=str(target_root),
+            capture_output=True, text=True, timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        fail(f"{which} timed out after 300s — mechanical verification "
+             f"did not complete")
+        return
+    except OSError as exc:
+        fail(f"{which} could not be executed: {exc}")
+        return
+    if proc.returncode == 0:
+        pass_(f"{which} ran clean (exit 0)")
+    else:
+        out = (proc.stdout or "").strip()
+        err = (proc.stderr or "").strip()
+        fail(f"{which} FAILED (exit {proc.returncode}) — mechanical "
+             f"artifact mismatch or extraction error. "
+             f"stdout: {out[:800]} | stderr: {err[:400]}")
+
+    # Receipt cross-check (unchanged). The gate's own fresh invocation
+    # above is the authoritative pass/fail; these receipts additionally
+    # prove the agent ran the verifier at the Phase-2a immediate gate /
+    # Phase 6 (verification.md §35/§37 benchmarks depend on them).
     mv_log = _resolve_artifact_path(q, "results/mechanical-verify.log")
     mv_exit = _resolve_artifact_path(q, "results/mechanical-verify.exit")
     if mv_log.is_file() and mv_exit.is_file():
@@ -1359,6 +4021,7 @@ def check_mechanical(q):
         fail("Verification receipt files missing")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_patches(q, bug_count, bug_ids, strictness):
     """Patches section (benchmark 44)."""
     print("[Patches]")
@@ -1439,6 +4102,7 @@ def _writeup_diff_is_non_empty(text):
     return False
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_writeups(q, bug_count):
     """Bug writeups section (benchmark 30)."""
     print("[Bug Writeups]")
@@ -1514,6 +4178,24 @@ def check_writeups(q, bug_count):
             pass_("No writeups contain unfilled template sentinels")
 
 
+# v1.5.7 089d (F24): classification rationale — kept SUBSTANTIVE.
+# check_version_stamps FAILs when SKILL.md, PROGRESS.md, and the
+# JSON sidecars disagree on `skill_version`. Naively this looks
+# like record-keeping (the audit happened, the paperwork is
+# mis-stamped) but the failure mode it catches is cross-run
+# contamination — an INDEX from one version mixed with artifacts
+# from another. That cross-version mix means the audit isn't
+# COHERENT: the gate cannot tell which version's contract to
+# enforce, and downstream consumers (compensation grid by version,
+# v1.5.x schema features, benchmark replay) silently mis-apply
+# rules. Per the opus-bootstrap analysis, "version stamps drifted
+# across runs" looks like paperwork but is actually substrate
+# corruption — keep as substantive so the gate hard-FAILs rather
+# than silently downgrading to cleanup. Instruction 089d "Things
+# to NOT do": "Don't bump version stamps in tracked files to
+# silence F24 baseline FAILs (that defeats the cross-run-
+# contamination check by design)."
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_version_stamps(repo_dir, q):
     """Version stamp consistency (benchmark 26). Returns detected skill_version."""
     print("[Version Stamps]")
@@ -1552,6 +4234,7 @@ def check_version_stamps(repo_dir, q):
     return skill_version
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_cross_run_contamination(repo_dir, q, version_arg, skill_version):
     """Cross-run contamination detection."""
     print("[Cross-Run Contamination]")
@@ -1591,6 +4274,7 @@ def _check_exploration_sections(path):
             fail(f"EXPLORATION.md missing required section: {section!r}")
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_run_metadata(q):
     """Validate the run-metadata sidecar JSON (run-YYYY-MM-DDTHH-MM-SS.json)."""
     print("[Run Metadata]")
@@ -1725,12 +4409,29 @@ _V153_VALID_FORMAL_DOC_ROLES = (
 _V153_FIELD_KEYS = frozenset({"source_type", "divergence_type", "role"})
 
 
+# v1.5.7 instruction 089 (F9 — bootstrap WARN investigation, KEEP
+# decision): the formal_docs / requirements / bugs "legacy manifest
+# detected" WARNs are a DELIBERATE, documented backward-compat shim,
+# NOT v1.5.6-era cruft. The v1.5.3 schema extension (schemas.md
+# §3.6–§3.10) added the role / source_type / divergence_type fields
+# (_V153_FIELD_KEYS). A manifest carrying NONE of them is "pre-v1.5.3
+# shaped"; the gate applies the schemas.md §3.10 documented defaults
+# (role→external-spec, source_type→code-derived, divergence_type→
+# code-spec) and WARN+skips strict validation rather than hard-FAILing
+# a repo last audited before v1.5.3. KEEP rationale: removing the shim
+# would hard-FAIL every pre-v1.5.3 manifest — a breaking change
+# inappropriate for the v1.5.7 patch-stabilization line; adopters on
+# old manifests would have to re-run Phase 2 with no warning. The
+# WARN text is clarified (089) to say the documented default was
+# applied (not a defect); behavior unchanged. When v1.6.0 drops
+# pre-v1.5.3 manifest compat, remove this shim + the three checks'
+# legacy branches and add a CHANGELOG breaking-change note.
 def _is_v1_5_3_shaped(manifest):
     """Return True iff any record in *manifest* carries a v1.5.3 field.
 
     Walks the records (or `reviews`) once. Presence of any key in
     _V153_FIELD_KEYS on any record toggles strict-mode validation per
-    schemas.md §3.10. Empty / unparseable manifests return False so
+    schemas.md §3.10. Empty / unparsable manifests return False so
     legacy fixtures stay on the soft-warn path.
 
     DQ-3 design note: the checked-key set is sourced from
@@ -1769,6 +4470,7 @@ def _v150_manifest(q, name):
     return None
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_v1_5_0_cite_extensions(repo_dir):
     """§10 invariant #9 — reference_docs/cite/ contains only .txt/.md.
 
@@ -1807,6 +4509,7 @@ def check_v1_5_0_cite_extensions(repo_dir):
         pass_("reference_docs/cite/: all files use supported extensions")
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_0_manifest_wrappers(q):
     """§10 invariant #13 — manifest wrapper shape.
 
@@ -1955,6 +4658,7 @@ def _check_citation_block(repo_dir, req_id, citation, formal_docs_by_path, req_t
         )
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_0_requirements_manifest(repo_dir, q):
     """§10 invariants #1, #4, #8, #11, #14 — REQ shape, citation gating, functional_section."""
     req_data = _v150_manifest(q, "requirements_manifest.json")
@@ -2028,18 +4732,39 @@ def check_v1_5_0_requirements_manifest(repo_dir, q):
     pass_("requirements_manifest.json: v1.5.1 Layer-1 REQ checks complete")
 
 
+_V157_CANONICAL_SEVERITIES = ("HIGH", "MEDIUM", "LOW")
+
+
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_0_bugs_manifest(q):
-    """§10 invariants #7, #12 — disposition completeness + legal fix_type × disposition."""
+    """§10 invariants #7, #12 — disposition completeness + legal fix_type × disposition.
+
+    v1.5.7 fix Q3: also emits a WARN per record whose `severity`
+    field is non-canonical case. The canonical case per schemas.md
+    §3.3 is uppercase (HIGH / MEDIUM / LOW). Non-canonical values
+    (`high`, `Medium`, `low`, etc.) are auto-normalized at read-time
+    elsewhere in the codebase but the raw record drift here is
+    surfaced as WARN — auto-normalize + warn is the operator-friendly
+    choice (tightening to FAIL would break adopters with legacy
+    lowercase entries; ignoring the drift lets it spread).
+    """
     data = _v150_manifest(q, "bugs_manifest.json")
     if data is None:
         return
     records = data.get("records")
     if not isinstance(records, list):
         return
+    severity_drift: list[tuple[str, str]] = []
     for idx, rec in enumerate(records):
         if not isinstance(rec, dict):
             continue
         bug_id = rec.get("id", f"<#{idx}>")
+        # v1.5.7 fix Q3: severity-case check (WARN, not FAIL).
+        sev_raw = rec.get("severity")
+        if isinstance(sev_raw, str) and sev_raw.strip():
+            sev_normalized = sev_raw.strip().upper()
+            if sev_normalized in _V157_CANONICAL_SEVERITIES and sev_raw.strip() != sev_normalized:
+                severity_drift.append((bug_id, sev_raw))
         disp = rec.get("disposition")
         if disp not in _V150_VALID_DISPOSITIONS:
             fail(
@@ -2070,9 +4795,201 @@ def check_v1_5_0_bugs_manifest(q):
                 f"({disp}, {ft}) per schemas.md §3.4 / §10 invariant #12",
             )
 
+    if severity_drift:
+        # v1.5.7 fix Q3: surface non-canonical severity case as WARN so
+        # the drift is visible without breaking back-compat. Pre-Q3 the
+        # field went through `.upper()` silently for the challenge-gate
+        # check — drift accumulated invisibly across runs.
+        examples = ", ".join(
+            f"{bug_id}={sev!r}" for bug_id, sev in severity_drift[:5]
+        )
+        more = f" (+ {len(severity_drift) - 5} more)" if len(severity_drift) > 5 else ""
+        warn(
+            f"bugs_manifest.json: {len(severity_drift)} BUG record(s) "
+            f"have non-canonical severity case (schemas.md §3.3 mandates "
+            f"HIGH / MEDIUM / LOW uppercase): {examples}{more}. Auto-"
+            f"normalized for downstream checks; rewrite the records to "
+            f"the canonical case to silence the warning."
+        )
+
     pass_("bugs_manifest.json: v1.5.1 Layer-1 BUG checks complete")
 
 
+# v1.5.7 instruction 090j: triage precision guardrails — D1 reachability,
+# D2 KNOWN-ISSUE classification, D3 tighter security-HIGH bar. Surfaced by
+# the 2026-05-23 OpenFGA Mode-A dogfood: 0/3 HIGH findings were real
+# (BUG-003 missed an upstream tryCache guard; BUG-006 missed an upstream
+# userType filter AND cited a CVE whose affected range doesn't include
+# v1.5.7; BUG-009 was a verbatim CVE restatement, no in-tree defect).
+# This check is the v1.5.7 band-aid — same-agent triage rules enforced at
+# the manifest. The fresh-context FP-audit sub-agent + first-class NFR
+# derivation are reserved for v1.6.0.
+
+# Heuristic substrings (case-insensitive) that say "the audited version
+# is within the cited CVE's affected range." When `cve_reference` is set
+# and `cve_version_applies` is missing/None, the gate looks for any of
+# these substrings in `reachability_analysis` as a fallback — adopters
+# who write the prose but forget the boolean flag should not be
+# auto-failed. If neither the boolean nor the prose marker is present,
+# the gate FAILs per D3.
+_CVE_APPLIES_PROSE_MARKERS: tuple[str, ...] = (
+    "version is within the affected range",
+    "version is within the cited",
+    "audited version is in the affected range",
+    "in the affected range",
+    "cve applies",
+    "cve_version_applies=true",
+)
+_HIGH_MED_SEVERITIES: frozenset = frozenset({"HIGH", "MEDIUM"})
+
+
+def _has_cve_applies_prose_marker(text: str) -> bool:
+    """True iff a reachability_analysis string contains a phrase that
+    clearly asserts the audited version is within the cited CVE's
+    affected range."""
+    if not isinstance(text, str):
+        return False
+    lowered = text.lower()
+    return any(m in lowered for m in _CVE_APPLIES_PROSE_MARKERS)
+
+
+@verdict_category(VERDICT_RECORD_KEEPING)
+def check_v1_5_7_090j_triage_precision(q):
+    """v1.5.7 090j — D1 (reachability) + D2 (KNOWN-ISSUE) + D3 (security-HIGH).
+
+    For each record in ``bugs_manifest.json`` classified as a `bug` (or
+    absent classification — default is `bug`):
+
+      * D1: severity HIGH/MEDIUM requires a non-empty
+        ``reachability_analysis`` field — FAIL absent. severity LOW
+        requires it too but absence is a WARN, not a FAIL.
+      * D2: when ``cve_reference`` is set, ``classification`` must be
+        ``known-issue`` OR the record MUST carry a non-empty
+        ``reachability_analysis`` documenting the in-tree code path
+        (i.e. the finding was independently located, not advisory-only).
+        FAIL otherwise.
+      * D3: when ``cve_reference`` is set AND severity is HIGH, the
+        record MUST also have ``cve_version_applies == true`` (or, as a
+        prose fallback, a `reachability_analysis` substring stating the
+        audited version is within the CVE's affected range). FAIL if
+        ``cve_version_applies`` is missing or false AND the prose
+        fallback is absent.
+
+    Records with ``classification == "known-issue"`` are excluded from
+    these checks (advisory notes are recorded for adopter awareness;
+    they are not bugs).
+
+    Mutation-test evidence (in-tree per
+    ai_context/DEVELOPMENT_PROCESS.md:152-160) — bites are documented
+    inline in the test class
+    ``TestTriagePrecisionGuardrails090j``:
+      D1: drop the ``reachability_analysis`` field from a HIGH bug →
+        fail. Restoring the field re-greens the test.
+      D2: keep ``cve_reference`` but drop ``classification`` ⇒
+        default `bug` ⇒ advisory-only-without-reachability FAILs.
+      D3: HIGH + ``cve_reference`` + ``cve_version_applies=False`` →
+        fail. Flip to True → pass.
+    """
+    data = _v150_manifest(q, "bugs_manifest.json")
+    if data is None:
+        return
+    records = data.get("records")
+    if not isinstance(records, list):
+        return
+
+    d1_fails: list[str] = []
+    d1_warns: list[str] = []
+    d2_fails: list[str] = []
+    d3_fails: list[str] = []
+
+    for idx, rec in enumerate(records):
+        if not isinstance(rec, dict):
+            continue
+        bug_id = rec.get("id", f"<#{idx}>")
+        classification = rec.get("classification", "bug")
+        # Records explicitly classified as known-issue/advisory-note
+        # are recorded for adopter awareness and excluded from these
+        # bug-precision checks. (They remain subject to the other
+        # bugs_manifest checks.)
+        if classification == "known-issue":
+            continue
+
+        sev_raw = rec.get("severity")
+        sev = sev_raw.strip().upper() if isinstance(sev_raw, str) else ""
+        reach = rec.get("reachability_analysis")
+        reach_present = isinstance(reach, str) and bool(reach.strip())
+        cve_ref = rec.get("cve_reference")
+        cve_set = isinstance(cve_ref, str) and bool(cve_ref.strip())
+        cve_applies = rec.get("cve_version_applies")
+
+        # D1: reachability analysis required on HIGH/MEDIUM bugs.
+        if sev in _HIGH_MED_SEVERITIES and not reach_present:
+            d1_fails.append(
+                f"record_id={bug_id} severity={sev}: missing or empty "
+                f"`reachability_analysis` (v1.5.7 090j D1 — show the "
+                f"upstream-guard / filter / early-return / compensation "
+                f"search performed before confirming the bug; if the "
+                f"finding has no in-tree defect, reclassify as "
+                f"classification=known-issue)"
+            )
+        elif sev == "LOW" and not reach_present:
+            d1_warns.append(
+                f"record_id={bug_id} severity=LOW: missing "
+                f"`reachability_analysis` (v1.5.7 090j D1 recommended; "
+                f"WARN, not FAIL, on LOW)"
+            )
+
+        # D2: advisory-only finding classified as bug.
+        if cve_set and not reach_present:
+            d2_fails.append(
+                f"record_id={bug_id} cve_reference={cve_ref!r}: an "
+                f"advisory/CVE-cited finding with no "
+                f"`reachability_analysis` cannot be classification=bug "
+                f"(v1.5.7 090j D2 — reclassify as "
+                f"classification=known-issue, or add a reachability "
+                f"analysis that locates the in-tree code defect)"
+            )
+
+        # D3: security-HIGH bar — CVE-cited HIGH requires version
+        # applicability evidence.
+        if sev == "HIGH" and cve_set:
+            applies_true = (cve_applies is True)
+            prose_fallback = (
+                reach_present and _has_cve_applies_prose_marker(reach)
+            )
+            if not (applies_true or prose_fallback):
+                d3_fails.append(
+                    f"record_id={bug_id} severity=HIGH "
+                    f"cve_reference={cve_ref!r}: missing "
+                    f"`cve_version_applies=true` AND no prose marker "
+                    f"in `reachability_analysis` asserting the audited "
+                    f"version is within the CVE's affected range "
+                    f"(v1.5.7 090j D3 — security-HIGH on a CVE basis "
+                    f"requires the audited version to be verified IN "
+                    f"the CVE's affected range; otherwise downgrade "
+                    f"severity or reclassify as "
+                    f"classification=known-issue)"
+                )
+
+    # Emit per-rule failures.
+    for msg in d1_fails:
+        fail("bugs_manifest.json", msg)
+    for msg in d2_fails:
+        fail("bugs_manifest.json", msg)
+    for msg in d3_fails:
+        fail("bugs_manifest.json", msg)
+    for msg in d1_warns:
+        warn(msg)
+
+    if not (d1_fails or d2_fails or d3_fails):
+        pass_(
+            "bugs_manifest.json: v1.5.7 090j triage precision "
+            "(D1 reachability + D2 known-issue + D3 security-HIGH) "
+            "complete"
+        )
+
+
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_v1_5_0_index_md(q):
     """§10 invariant #10 — quality/INDEX.md exists with all §11 required fields.
 
@@ -2192,19 +5109,36 @@ def check_v1_5_0_index_md(q):
         if isinstance(val, str) and not val:
             fail(f"quality/INDEX.md: field {key!r} is empty string (schemas.md §11)")
     summary = payload.get("summary")
-    if isinstance(summary, dict):
-        for sub in _V150_REQUIRED_SUMMARY_KEYS:
-            if sub not in summary:
-                fail(
-                    f"quality/INDEX.md: summary missing {sub!r} sub-key "
-                    "(schemas.md §11)"
-                )
+    # v1.5.7 089e (BUG-011): non-dict `summary` (string / null / list /
+    # anything other than a JSON object) is a §11 contract violation —
+    # schemas.md:1128 says `summary | object | yes`. Pre-089e the
+    # `if isinstance(summary, dict)` guard silently skipped the
+    # required-keys loop and the trailing `pass_` fired anyway, so the
+    # gate soft-passed `summary: "pending"` / `summary: null` /
+    # `summary: []` while validate_phase_artifacts FAILed them. Mirror
+    # the validator's FAIL message shape (bin/validate_phase_artifacts.
+    # py:_validate_index). Early-return so the trailing pass_ doesn't
+    # claim "§11 fields present" against a structurally-broken INDEX.
+    if not isinstance(summary, dict):
+        fail(
+            f"quality/INDEX.md: §11 'summary' must be a JSON object "
+            f"(got {type(summary).__name__!r}; schemas.md:1128 requires "
+            f"`summary | object | yes`)"
+        )
+        return
+    for sub in _V150_REQUIRED_SUMMARY_KEYS:
+        if sub not in summary:
+            fail(
+                f"quality/INDEX.md: summary missing {sub!r} sub-key "
+                "(schemas.md §11)"
+            )
     pass_("quality/INDEX.md: §11 fields present")
 
 
 _V150_VALID_VERDICTS = ("supports", "overreaches", "unclear")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_v1_5_0_semantic_check(q):
     """§10 invariant #17 — Council-of-Three majority-overreaches rule.
 
@@ -2548,6 +5482,7 @@ def _challenge_record_has_verdict(path):
     return False
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_challenge_gate_coverage(q):
     """v1.5.1 Item 5.2 — every bug whose fingerprints trigger the challenge
     gate must have a quality/challenge/BUG-NNN-challenge.md with a valid
@@ -2616,6 +5551,7 @@ def check_challenge_gate_coverage(q):
         )
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_3_formal_doc_role_validation(q):
     """schemas.md §10 invariant #23 — FORMAL_DOC.role on v1.5.3-shaped manifests.
 
@@ -2631,8 +5567,12 @@ def check_v1_5_3_formal_doc_role_validation(q):
         return  # wrapper check already reported
     if not _is_v1_5_3_shaped(data):
         warn(
-            "formal_docs_manifest.json: legacy manifest detected; treating absent "
-            "FORMAL_DOC.role as 'external-spec' per schemas.md §3.10 backward-compat rule"
+            "formal_docs_manifest.json: legacy manifest detected "
+            "(pre-v1.5.3 manifest shape — no role/source_type/"
+            "divergence_type fields); applying the schemas.md §3.10 "
+            "documented default FORMAL_DOC.role='external-spec' and "
+            "skipping v1.5.3 strict role validation. This is the "
+            "intended backward-compat path (089 F9 KEEP), not a defect"
         )
         return
     any_fail = False
@@ -2653,6 +5593,7 @@ def check_v1_5_3_formal_doc_role_validation(q):
         pass_("formal_docs_manifest.json: v1.5.3 role validation complete")
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_3_source_type_validation(q):
     """schemas.md §10 invariants #21 (first part) — REQ.source_type presence.
 
@@ -2668,8 +5609,13 @@ def check_v1_5_3_source_type_validation(q):
         return
     if not _is_v1_5_3_shaped(data):
         warn(
-            "requirements_manifest.json: legacy manifest detected; treating absent "
-            "REQ.source_type as 'code-derived' per schemas.md §3.10 backward-compat rule"
+            "requirements_manifest.json: legacy manifest detected "
+            "(pre-v1.5.3 manifest shape — no role/source_type/"
+            "divergence_type fields); applying the schemas.md §3.10 "
+            "documented default REQ.source_type='code-derived' and "
+            "skipping v1.5.3 strict source_type validation. This is "
+            "the intended backward-compat path (089 F9 KEEP), not a "
+            "defect"
         )
         return
     any_fail = False
@@ -2691,6 +5637,7 @@ def check_v1_5_3_source_type_validation(q):
         pass_("requirements_manifest.json: v1.5.3 source_type validation complete")
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_3_skill_section_consistency(q):
     """schemas.md §10 invariant #21 (second part) — skill_section consistency.
 
@@ -2750,6 +5697,7 @@ def check_v1_5_3_skill_section_consistency(q):
         pass_("requirements_manifest.json: v1.5.3 skill_section consistency complete")
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_3_divergence_type_validation(q):
     """schemas.md §10 invariant #22 — BUG.divergence_type on v1.5.3-shaped manifests.
 
@@ -2796,8 +5744,14 @@ _V153_COUNCIL_INBOX_ITEM_TYPES = frozenset({
 })
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_3_council_inbox_validation(q):
-    """Phase 3b BLOCK-4 cross-reference + DQ-5 structural validation.
+    """Skill-derivation Pass D 3b BLOCK-4 cross-reference + DQ-5
+    structural validation (v1.5.7 fix Q4: this is the
+    skill-derivation four-pass pipeline's Pass D, NOT the playbook's
+    Phase 3 Code Review — naming kept as `phase3/` on disk for
+    historical v1.5.3 compatibility; the directory name pre-dates
+    the v1.5.4 phase rename).
 
     Validates quality/phase3/pass_d_council_inbox.json against the
     DQ-5 schema AND verifies that every Pass D rejection / Tier-5
@@ -2814,18 +5768,19 @@ def check_v1_5_3_council_inbox_validation(q):
          {rejected, demoted_to_tier_5} has no matching item in the
          inbox.
 
-    Phase 3 artifact set is at <repo>/quality/phase3/, NOT at the
-    top-level <repo>/quality/. The check returns silently if the
-    phase3 directory does not exist (the project is Code-only or
-    Phase 3 has not been run yet).
+    Skill-derivation artifact set is at <repo>/quality/phase3/, NOT
+    at the top-level <repo>/quality/. The check returns silently if
+    the phase3 directory does not exist (the project is Code-only
+    or the skill-derivation pipeline has not been run yet — this is
+    DIFFERENT from the playbook's Phase 3 not having run).
     """
     phase3_dir = _resolve_artifact_path(q, "phase3")
     if not phase3_dir.is_dir():
-        return  # phase 3 not run; not in scope for this manifest set
+        return  # skill-derivation pipeline not run; not in scope here
     inbox_path = phase3_dir / "pass_d_council_inbox.json"
     audit_path = phase3_dir / "pass_d_audit.json"
     if not inbox_path.is_file():
-        return  # phase 3 partially run; skip silently
+        return  # skill-derivation Pass D partially run; skip silently
 
     inbox_data = load_json(inbox_path)
     if not isinstance(inbox_data, dict):
@@ -2933,7 +5888,7 @@ def check_v1_5_3_council_inbox_validation(q):
 
 def _load_role_map(q):
     """Return the parsed exploration_role_map.json dict, or None when
-    absent / unparseable. v1.5.4 inline replacement for the prior
+    absent / unparsable. v1.5.4 inline replacement for the prior
     project_type.json reader."""
     return load_json(q / "exploration_role_map.json")
 
@@ -2953,16 +5908,26 @@ def _role_map_has_role(role_map, role_set):
 def _phase4_project_type(q):
     """Return the v1.5.3-equivalent classification string ('Code' /
     'Skill' / 'Hybrid') derived from the Phase-1 role map, or None
-    when the role map is absent / unparseable.
+    when the role map is absent / unparsable.
 
     Mapping (mirrors bin/role_map.derive_legacy_project_type):
       - has skill-prose AND has code  -> 'Hybrid'
       - has skill-prose, no code      -> 'Skill'
       - no skill-prose                -> 'Code'
+
+    v1.5.7 fix Q1/Q5 (option c): when the role map is absent, fall
+    back to artifact-shape detection rather than returning None
+    (which made Phase 4 skill-derivation gate checks emit
+    "skip (project_type=None)" INFO lines that LOOKED like missed
+    work). The fallback is conservative — it only returns 'Code'
+    when the absence-of-skill signal is strong (no SKILL.md at the
+    target root AND no references/ directory). Otherwise returns
+    None so the gate's skip diagnostic surfaces "role map not yet
+    produced" honestly rather than guessing Skill/Hybrid.
     """
     role_map = _load_role_map(q)
     if role_map is None:
-        return None
+        return _phase4_project_type_from_artifact_shape(q)
     skill = _role_map_has_role(role_map, ("skill-prose", "skill-reference"))
     code = _role_map_has_role(role_map, ("code",))
     if skill and code:
@@ -2972,6 +5937,27 @@ def _phase4_project_type(q):
     return "Code"
 
 
+def _phase4_project_type_from_artifact_shape(q):
+    """v1.5.7 Q1/Q5 (option c) fallback: derive a project-type from
+    target-repo shape when the Phase-1 role map is absent.
+
+    Conservative: returns 'Code' ONLY when both skill-indicator paths
+    are absent (no root SKILL.md, no references/ directory at the
+    repo root). Otherwise returns None — the gate then emits a
+    "role map not yet produced" SKIP rather than guessing.
+
+    The repo root is the parent of the quality/ directory (q itself
+    IS quality/).
+    """
+    repo_root = q.parent if q.name == "quality" else q
+    has_skill_md = (repo_root / "SKILL.md").is_file()
+    has_references = (repo_root / "references").is_dir()
+    if not has_skill_md and not has_references:
+        return "Code"
+    return None
+
+
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_skill_section_req_coverage(repo_dir, q):
     """Skill / Hybrid: every operational SKILL.md section per
     pass_d_section_coverage.json has ≥1 promoted REQ. Meta-allowlist
@@ -2980,15 +5966,27 @@ def check_skill_section_req_coverage(repo_dir, q):
     SKIPS for Code projects."""
     print("[Phase 4: skill-section REQ coverage]")
     classification = _phase4_project_type(q)
+    if classification == "Code":
+        info(
+            "check_skill_section_req_coverage: skip — not applicable for "
+            "Code projects (skill-derivation Pass D only fires on Skill / "
+            "Hybrid targets)"
+        )
+        return
     if classification not in ("Skill", "Hybrid"):
-        info(f"check_skill_section_req_coverage: skip (project_type={classification!r})")
+        info(
+            "check_skill_section_req_coverage: skip — role map absent "
+            "and project shape is ambiguous (no clear Code signal); "
+            "run Phase 1 to produce exploration_role_map.json then "
+            "rerun the gate"
+        )
         return
     coverage_path = _resolve_artifact_path(q, "phase3/pass_d_section_coverage.json")
     data = load_json(coverage_path)
     if not isinstance(data, dict):
         info(
             "check_skill_section_req_coverage: skip "
-            "(pass_d_section_coverage.json missing or unparseable)"
+            "(pass_d_section_coverage.json missing or unparsable)"
         )
         return
     failures = 0
@@ -3014,6 +6012,7 @@ def check_skill_section_req_coverage(repo_dir, q):
         pass_("check_skill_section_req_coverage: every operational section has ≥1 promoted REQ")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_reference_file_req_coverage(repo_dir, q):
     """Skill / Hybrid: every reference file under references/ has ≥1
     REQ citing it OR a `<!-- non-normative -->` marker in its first
@@ -3022,8 +6021,17 @@ def check_reference_file_req_coverage(repo_dir, q):
     SKIPS for Code projects."""
     print("[Phase 4: reference-file REQ coverage]")
     classification = _phase4_project_type(q)
+    if classification == "Code":
+        info(
+            "check_reference_file_req_coverage: skip — not applicable "
+            "for Code projects (no references/ directory expected)"
+        )
+        return
     if classification not in ("Skill", "Hybrid"):
-        info(f"check_reference_file_req_coverage: skip (project_type={classification!r})")
+        info(
+            "check_reference_file_req_coverage: skip — role map absent "
+            "and project shape is ambiguous; run Phase 1 first"
+        )
         return
     references_dir = repo_dir / "references"
     if not references_dir.is_dir():
@@ -3033,7 +6041,10 @@ def check_reference_file_req_coverage(repo_dir, q):
     if not formal_path.is_file():
         info(
             "check_reference_file_req_coverage: skip "
-            "(pass_c_formal.jsonl missing — Phase 3 not run yet)"
+            "(pass_c_formal.jsonl missing — skill-derivation Pass C "
+            "not run yet; this is the four-pass skill-derivation "
+            "pipeline's Pass C output, not the playbook's Phase 3 "
+            "Code Review output)"
         )
         return
     cited_documents = set()
@@ -3068,6 +6079,7 @@ def check_reference_file_req_coverage(repo_dir, q):
         pass_("check_reference_file_req_coverage: every reference file has ≥1 citing REQ or non-normative marker")
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
 def check_hybrid_cross_cutting_reqs(repo_dir, q):
     """Hybrid only: ≥1 REQ has triangulated evidence —
     `source_type=skill-section` AND its acceptance_criteria references
@@ -3077,14 +6089,34 @@ def check_hybrid_cross_cutting_reqs(repo_dir, q):
     SKIPS for Skill or Code projects."""
     print("[Phase 4: hybrid cross-cutting REQs]")
     classification = _phase4_project_type(q)
+    if classification == "Code":
+        info(
+            "check_hybrid_cross_cutting_reqs: skip — not applicable "
+            "for Code projects (cross-cutting triangulation requires "
+            "both skill-section and code-derived REQs)"
+        )
+        return
+    if classification == "Skill":
+        info(
+            "check_hybrid_cross_cutting_reqs: skip — not applicable "
+            "for Skill projects (no code-derived REQs to triangulate "
+            "against)"
+        )
+        return
     if classification != "Hybrid":
-        info(f"check_hybrid_cross_cutting_reqs: skip (project_type={classification!r})")
+        info(
+            "check_hybrid_cross_cutting_reqs: skip — role map absent "
+            "and project shape is ambiguous; run Phase 1 first"
+        )
         return
     formal_path = _resolve_artifact_path(q, "phase3/pass_c_formal.jsonl")
     if not formal_path.is_file():
         info(
             "check_hybrid_cross_cutting_reqs: skip "
-            "(pass_c_formal.jsonl missing — Phase 3 not run yet)"
+            "(pass_c_formal.jsonl missing — skill-derivation Pass C "
+            "not run yet; this is the four-pass skill-derivation "
+            "pipeline's Pass C output, not the playbook's Phase 3 "
+            "Code Review output)"
         )
         return
     skill_section_reqs = []
@@ -3142,6 +6174,7 @@ def check_hybrid_cross_cutting_reqs(repo_dir, q):
         )
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_role_map_consistency(repo_dir, q):
     """All projects: exploration_role_map.json (when present) parses as
     a JSON object, declares schema_version '1.0', carries a 'files'
@@ -3215,6 +6248,7 @@ def check_role_map_consistency(repo_dir, q):
     )
 
 
+@verdict_category(VERDICT_RECORD_KEEPING)
 def check_v1_5_2_cardinality_gate(repo_dir):
     """v1.5.2 Lever 3: Phase 5 cardinality reconciliation gate.
 
@@ -3234,6 +6268,11 @@ def check_v1_5_0_gate_invariants(repo_dir, q):
     check_v1_5_0_manifest_wrappers(q)
     check_v1_5_0_requirements_manifest(repo_dir, q)
     check_v1_5_0_bugs_manifest(q)
+    # v1.5.7 instruction 090j: triage precision guardrails (D1 reachability
+    # + D2 known-issue + D3 security-HIGH bar). Runs after the v1.5.0
+    # disposition / fix_type checks so the manifest is shape-validated
+    # before the precision rules examine it.
+    check_v1_5_7_090j_triage_precision(q)
     check_v1_5_0_index_md(q)
     # Phase 6 invariant #17 runs after requirements_manifest so it sees
     # shape-validated REQ records.
@@ -3266,6 +6305,74 @@ def check_v1_5_0_gate_invariants(repo_dir, q):
     check_role_map_consistency(repo_dir, q)
 
 
+# v1.5.7 instruction 047 Item 3 (A-5): mechanical net for the
+# Phase-1→Phase-2 asymmetry-promotion gap. Regex over EXPLORATION.md.
+_ASYMMETRY_PROSE_RE = re.compile(
+    r"compensates?\s+for"
+    r"|relies?\s+entirely\s+on"
+    r"|present\s+in\b.{0,80}?\bbut\s+not\s+in\b"
+    r"|implements?\b.{0,80}?\bbut\b.{0,40}?\b(?:do(?:es)?n.?t|lacks?)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+@verdict_category(VERDICT_SUBSTANTIVE)
+def check_compensation_asymmetry_promotion(q):
+    """v1.5.7 instruction 047 Item 3 (A-5) — WARN-only net for the
+    Phase-1→Phase-2 promotion gap: an architectural asymmetry noticed
+    in EXPLORATION.md prose ("X compensates for Y", "Z relies
+    entirely on W", "present in … but not in …", "implements … but
+    … doesn't") that never became a `Pattern:`-tagged REQ has no
+    cells for the v1.5.2 compensation-grid BUG-default and silently
+    never produces BUGs in Phase 3 (the v1.5.1 RING_RESET /
+    v1.5.7 virtio gap).
+
+    Conservative + non-fatal: if EXPLORATION.md contains
+    compensation-asymmetry prose, REQUIREMENTS.md must carry at least
+    ONE `- Pattern:` line. WARN (never FAIL) — the prompt-side
+    Asymmetry-Promotion Rule is the primary fix; this is the
+    belt-and-suspenders mechanical signal so a silent escape is at
+    least visible at gate time.
+    """
+    print("[Asymmetry promotion (A-5)]")
+    expl = q / "EXPLORATION.md"
+    reqs = q / "REQUIREMENTS.md"
+    if not expl.is_file():
+        info("EXPLORATION.md absent — asymmetry-promotion check skipped")
+        return
+    try:
+        expl_text = expl.read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        info(f"EXPLORATION.md unreadable ({exc}) — check skipped")
+        return
+    if not _ASYMMETRY_PROSE_RE.search(expl_text):
+        pass_("no compensation-asymmetry prose in EXPLORATION.md")
+        return
+    reqs_text = ""
+    if reqs.is_file():
+        try:
+            reqs_text = reqs.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            reqs_text = ""
+    pattern_tag_count = len(_REQ_PATTERN_RE.findall(reqs_text))
+    if pattern_tag_count == 0:
+        warn(
+            "EXPLORATION.md notes an architectural asymmetry "
+            "(compensation/parity framing) but REQUIREMENTS.md has "
+            "ZERO `Pattern:`-tagged REQs — the asymmetry was likely "
+            "demoted to prose instead of promoted to a multi-site "
+            "Pattern:-tagged REQ (A-5 / Phase-1 Asymmetry-Promotion "
+            "Rule). Without a pattern-tagged REQ the v1.5.2 "
+            "compensation-grid BUG-default has no cells and the "
+            "asymmetry never produces BUGs in Phase 3."
+        )
+    else:
+        pass_(
+            f"asymmetry prose present and {pattern_tag_count} "
+            f"Pattern:-tagged REQ(s) found in REQUIREMENTS.md"
+        )
+
+
 def check_repo(repo_dir, version_arg, strictness):
     """Run all checks for one repo. Writes output via pass_/fail_/warn/info."""
     repo_dir = Path(repo_dir)
@@ -3285,13 +6392,30 @@ def check_repo(repo_dir, version_arg, strictness):
     check_recheck_sidecar(q)
     check_use_cases(repo_dir, q, strictness)
     check_test_file_extension(repo_dir, q)
+    # v1.5.7 090s Task A: functional-test content check (anti-no-op).
+    check_functional_test_has_assertions(q)
+    # v1.5.7 090s Task B: track zero-bug repos for the verdict
+    # qualifier (a clean codebase MAY have zero bugs, but so does a
+    # hollow run — the qualifier tells the operator to verify the
+    # run actually explored before trusting the PASS).
+    if bug_count == 0:
+        _ZERO_BUG_REPOS.append(repo_name)
+    # v1.5.7 090w: capture run provenance (env-detected runner +
+    # self-reported model + gate-counted bugs vs self-reported
+    # bug_count) for the verdict block. Read-only / never emits
+    # FAIL/WARN — provenance is informational.
+    _capture_run_provenance(q, repo_name, bug_count)
     check_terminal_gate(q)
     check_mechanical(q)
     check_patches(q, bug_count, bug_ids, strictness)
     check_writeups(q, bug_count)
+    check_bugs_md_patches_consistency(q, bug_count, bug_ids)
+    check_verdict_shape(q)
+    check_no_workspace_dir(q)
     skill_version = check_version_stamps(repo_dir, q)
     check_cross_run_contamination(repo_dir, q, version_arg, skill_version)
     check_run_metadata(q)
+    check_compensation_asymmetry_promotion(q)
     check_v1_5_0_gate_invariants(repo_dir, q)
 
     print("")
@@ -3372,13 +6496,46 @@ def main(argv=None):
 
     print("")
     print("===========================================")
-    print(f"Total: {FAIL} FAIL, {WARN} WARN")
-    if FAIL > 0:
-        print(f"RESULT: GATE FAILED — {FAIL} check(s) must be fixed")
-        return 1
-    else:
-        print("RESULT: GATE PASSED")
-        return 0
+    total_line, result_line, exit_code = _compute_final_verdict(
+        _FAIL_RECORDS, WARN
+    )
+    print(total_line)
+    print(result_line)
+    # v1.5.7 090v: operator verdict-explanation layer. ADDITIVE
+    # presentation over the already-computed accumulators
+    # (_FAIL_RECORDS / _WARN_RECORDS / _ZERO_BUG_REPOS) — printed
+    # AFTER total_line + result_line; never reformats / replaces
+    # them and never changes exit_code (load-bearing per the
+    # downstream witness contract). Subsumes the standalone 090s
+    # zero-bug NOTE by folding the message into the shallow-pass
+    # narration; the 090s zero-bug semantics still appear, just
+    # inside the new block. Spec:
+    # docs/design/QPB_v1.6.x_Verdict_Explanation_Proposal.md.
+    _emit_operator_verdict(
+        _FAIL_RECORDS, _WARN_RECORDS, _ZERO_BUG_REPOS, exit_code,
+        run_provenance=_RUN_PROVENANCE,
+    )
+    # v1.5.7 109: emit the deterministic ::QPB:: gate-result
+    # sentinel for the Test Harness status layer (107/108) to
+    # parse. ONE line, AFTER the load-bearing total_line /
+    # result_line / verdict block — those are byte-identical and
+    # the existing verdict parsers (Phase-6 witness,
+    # what_just_happened, the harness fact extractors) anchor on
+    # their specific line patterns, unaffected by this additive
+    # line. For live display only: the harness's authoritative
+    # gate result for grading stays facts.rerun_installed_gate.
+    _gate_result = (
+        "FAIL" if exit_code != 0
+        else ("CLEANUP" if "CLEANUP NEEDED" in result_line
+              else "PASS")
+    )
+    _verdict_state = _compute_verdict_state(
+        exit_code, _FAIL_RECORDS, _WARN_RECORDS, _ZERO_BUG_REPOS,
+    )
+    print(_format_gate_sentinel(
+        gate_result=_gate_result, verdict_state=_verdict_state,
+    ))
+    return exit_code
 
 
 if __name__ == "__main__":

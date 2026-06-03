@@ -39,12 +39,19 @@ CANONICAL_ORDER = [
     ".cursor/skills/quality-playbook/SKILL.md",
     ".continue/skills/quality-playbook/SKILL.md",
     ".github/skills/quality-playbook/SKILL.md",
+    # v1.5.7 instruction 046 (A-3): 6 → 10 layouts. codex / windsurf /
+    # cline / aider. Order matches SKILL_FALLBACK_GUIDE +
+    # _GATE_INSTALL_LOCATIONS + benchmark_lib.SKILL_INSTALL_LOCATIONS.
+    ".codex/skills/quality-playbook/SKILL.md",
+    ".windsurf/skills/quality-playbook/SKILL.md",
+    ".cline/skills/quality-playbook/SKILL.md",
+    ".aider/skills/quality-playbook/SKILL.md",
 ]
 
 
 class SkillResolutionOrderTests(unittest.TestCase):
     """All surfaces that document skill-resolution order must list the
-    six canonical locations in the canonical order (BUG-004 v1.5.5
+    ten canonical locations in the canonical order (BUG-004 v1.5.5
     + BUG-008 v1.5.6)."""
 
     def test_run_playbook_skill_fallback_guide_lists_canonical_order(self) -> None:
@@ -98,11 +105,13 @@ class SkillResolutionOrderTests(unittest.TestCase):
         """Parse the first contiguous numbered list of SKILL.md install
         paths from a markdown file. Tolerant of trailing parenthetical
         annotations like '(Copilot, flat layout)'. v1.5.6 widened the
-        regex from [1-4] to [1-9] to accommodate the .cursor and
-        .continue additions (CANONICAL_ORDER is now 6 items)."""
+        regex from [1-4] to [1-9] for the .cursor/.continue additions;
+        v1.5.7 instruction 046 widened it again to \\d{1,2} because
+        CANONICAL_ORDER is now 10 items (item 10 is two digits — a
+        single-digit class would mis-parse '10.' as '1')."""
         text = path.read_text(encoding="utf-8")
         pattern = re.compile(
-            r"^\s*([1-9])\.\s+`([^`]*SKILL\.md)`",
+            r"^\s*(\d{1,2})\.\s+`([^`]*SKILL\.md)`",
             re.MULTILINE,
         )
         matches = pattern.findall(text)
@@ -125,7 +134,7 @@ class SkillResolutionOrderTests(unittest.TestCase):
 
 class BenchmarkLibFallbackOrderTests(unittest.TestCase):
     """v1.5.6 BUG-002 + BUG-003: bin/benchmark_lib.SKILL_INSTALL_LOCATIONS
-    must contain the same six entries as CANONICAL_ORDER in the same
+    must contain the same ten entries as CANONICAL_ORDER in the same
     order. Pre-fix the helper started with .github/skills/SKILL.md
     while the runtime started with SKILL.md (root) — helper code
     could pick a different installed copy than the runtime. The
@@ -161,6 +170,11 @@ class GateInstallLocationsResolutionTests(unittest.TestCase):
         ".cursor/skills/quality-playbook/quality_gate.py",
         ".continue/skills/quality-playbook/quality_gate.py",
         ".github/skills/quality-playbook/quality_gate.py",
+        # v1.5.7 instruction 046 (A-3): 6 → 10 layouts.
+        ".codex/skills/quality-playbook/quality_gate.py",
+        ".windsurf/skills/quality-playbook/quality_gate.py",
+        ".cline/skills/quality-playbook/quality_gate.py",
+        ".aider/skills/quality-playbook/quality_gate.py",
     ]
 
     def test_gate_install_locations_match_skill_canonical_order(self) -> None:

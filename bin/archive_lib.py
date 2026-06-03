@@ -66,11 +66,94 @@ LEGACY_ARCHIVE_DIRNAME = "runs"
 PARTIAL_SENTINEL_NAME = ".partial"
 
 _VERSION_HEADER_PATTERN = re.compile(r"Quality Playbook v([0-9]+(?:\.[0-9]+)+)", re.IGNORECASE)
-_BUG_HEADING_PATTERN = re.compile(r"^###\s+BUG-([A-Za-z0-9][A-Za-z0-9\-]*)(?::\s+.+)?\s*$", re.MULTILINE)
+# v1.5.7 089d (F22): the canonical BUG-NNN heading pattern lives in
+# `bin/run_state_lib.BUG_HEADING_PATTERN_RE` (see that constant for
+# the rationale + scope). archive_lib re-exports it via this local
+# alias to preserve the existing name (avoids touching ~30 call
+# sites of `_BUG_HEADING_PATTERN`).
+#
+# v1.5.7 090c: foreign-bin-proof import. `from bin.run_state_lib`
+# succeeds when this runs as `python -m bin.archive_lib` from the
+# clone, but a script-form invocation (or any context where `bin/`
+# isn't a package on sys.path) hits ImportError. The fallback
+# path-loads `run_state_lib.py` from the SAME directory as this
+# file — anchored on `Path(__file__)` so it can never resolve to a
+# foreign sibling repo's `bin/`.
+try:
+    from bin.run_state_lib import (
+        BUG_HEADING_PATTERN_RE as _BUG_HEADING_PATTERN,
+    )
+except ImportError:
+    import importlib.util as _ilu
+    _rsl_path = Path(__file__).resolve().parent / "run_state_lib.py"
+    _rsl_spec = _ilu.spec_from_file_location(
+        "_qpb_run_state_lib_via_archive_lib", _rsl_path,
+    )
+    if _rsl_spec is None or _rsl_spec.loader is None:
+        raise ImportError(
+            f"archive_lib: cannot resolve run_state_lib — "
+            f"`from bin import` failed and path-load fallback "
+            f"target {_rsl_path} is missing."
+        )
+    _rsl_mod = _ilu.module_from_spec(_rsl_spec)
+    # v1.5.7 090c: register in sys.modules BEFORE exec_module so
+    # any dataclass/typing machinery inside run_state_lib that
+    # consults `sys.modules[__module__]` finds the module. Without
+    # this, dataclasses.field() raises AttributeError because
+    # `cls.__module__` is the private namespaced name but
+    # `sys.modules` has no entry for it. The 089u/089v shim's
+    # `_load_bundled_script` has the same shape but works because
+    # install_skill (the only loaded module) does not use
+    # dataclasses; this script does.
+    sys.modules[_rsl_spec.name] = _rsl_mod
+    _rsl_spec.loader.exec_module(_rsl_mod)
+    _BUG_HEADING_PATTERN = _rsl_mod.BUG_HEADING_PATTERN_RE
 _REQ_HEADING_PATTERN = re.compile(r"^###\s+REQ-([A-Za-z0-9]+)", re.MULTILINE)
 _SEVERITY_PATTERN = re.compile(r"\*\*Severity\*\*\s*[:.-]\s*(HIGH|MEDIUM|LOW)", re.IGNORECASE)
 _PHASE_CHECK_PATTERN = re.compile(r"^-\s*\[x\]\s*Phase\s*([0-9a-zA-Z]+)", re.MULTILINE)
-_GATE_RESULT_PATTERN = re.compile(r"gate_result['\"]?\s*[:=]\s*['\"](PASS|FAIL|WARN)['\"]?", re.IGNORECASE)
+# v1.5.7 089d (F18): the canonical gate output source is
+# `quality/results/quality-gate.log` (gate stdout captured by
+# run_playbook._finalize_iteration). The v1.5.7 gate emits one of
+# three lines:
+#     RESULT: GATE PASSED
+#     RESULT: GATE PASSED WITH CLEANUP NEEDED — N audit record-keeping gap(s)
+#     RESULT: GATE FAILED — N substantive issue(s) must be fixed
+# Group 1 captures the verdict tail; _GATE_RESULT_TO_VERDICT maps it
+# to the schemas.md §11 gate_verdict enum value (incl. the F17
+# "pass-with-cleanup" value). PASSED-WITH-CLEANUP-NEEDED is listed
+# first so longest-match wins (avoid mis-matching "PASSED" inside
+# "PASSED WITH CLEANUP NEEDED"). Pre-089d this pattern read
+# `gate_result: 'PASS'` key=value (zero matches on v1.5.7 output —
+# Mode B archive wrote gate_verdict: "unknown" for every run, which
+# the validator then rejected).
+_GATE_RESULT_PATTERN = re.compile(
+    r"^RESULT:\s+GATE\s+(PASSED WITH CLEANUP NEEDED|PASSED|FAILED)\b",
+    re.MULTILINE,
+)
+
+# Legacy `gate_result: 'PASS|FAIL|WARN'` key=value form. Pre-v1.5.7
+# archives stored this in run-*.json / gate-report-latest.json. Kept
+# strictly for back-compat — v1.5.7 runs hit the new pattern above
+# against quality-gate.log first.
+_GATE_RESULT_LEGACY_PATTERN = re.compile(
+    r"gate_result['\"]?\s*[:=]\s*['\"]?(PASS|FAIL|WARN)['\"]?",
+    re.IGNORECASE,
+)
+
+# Unified verdict mapping. v1.5.7 verbatim tokens
+# ("PASSED" / "PASSED WITH CLEANUP NEEDED" / "FAILED") use the F17
+# enum values; legacy tokens ("PASS" / "FAIL" / "WARN") map to the
+# pre-F17 enum values for back-compat with archived runs.
+_GATE_RESULT_TO_VERDICT = {
+    # v1.5.7 (089d F18) — quality-gate.log shapes:
+    "PASSED": "pass",
+    "PASSED WITH CLEANUP NEEDED": "pass-with-cleanup",
+    "FAILED": "fail",
+    # Legacy (pre-v1.5.7) — run-*.json key=value shapes:
+    "PASS": "pass",
+    "FAIL": "fail",
+    "WARN": "partial",
+}
 
 
 class ArchiveError(Exception):
@@ -356,7 +439,19 @@ def _extract_req_tier_counts(run_folder: Path) -> Dict[str, int]:
     if not text:
         return counts
     for segment in _split_by_heading(text, _REQ_HEADING_PATTERN):
-        tier_match = re.search(r"\*\*Tier\*\*\s*[:.-]\s*([1-5])", segment, re.IGNORECASE)
+        # v1.5.7 Issue 3 (chi-surfaced) — conceptually-equivalent
+        # instance of the Artifact-Summary tier-count drift. The prior
+        # pattern `\*\*Tier\*\*\s*[:.-]\s*([1-5])` only matched the
+        # legacy `**Tier**: N` form (colon OUTSIDE the bold markers).
+        # The canonical REQ-record prose is `- **Tier:** N` (colon
+        # INSIDE the bold), so every record fell to the `unknown`
+        # bucket — chi-1.5.1's 16 Tier-3 REQs all counted as unknown
+        # in the INDEX.md `summary.requirements` payload. The `:?`
+        # before `\*\*` plus the optional `[:.-]?` tolerate both forms
+        # without a schema change.
+        tier_match = re.search(
+            r"\*\*Tier:?\*\*\s*[:.-]?\s*([1-5])", segment, re.IGNORECASE
+        )
         if tier_match:
             counts[tier_match.group(1)] += 1
         else:
@@ -383,19 +478,39 @@ def _extract_phases_executed(run_folder: Path) -> List[Dict[str, str]]:
 def _extract_gate_verdict(run_folder: Path) -> str:
     results_dir = run_folder / "quality" / "results"
     if results_dir.is_dir():
-        for candidate in sorted(results_dir.glob("run-*.json")):
-            match = _GATE_RESULT_PATTERN.search(_read_text(candidate))
+        # v1.5.7 089d (F18): the canonical v1.5.7 source is the
+        # captured gate stdout at quality-gate.log; it carries one
+        # of three `RESULT: GATE …` lines that _GATE_RESULT_PATTERN
+        # matches. Pre-089d this function only looked at run-*.json
+        # / gate-report-latest.json for a `gate_result: 'PASS'`
+        # key=value form that v1.5.7 never emits, so Mode B archive
+        # wrote gate_verdict: "unknown" → validator rejected it.
+        gate_log = results_dir / "quality-gate.log"
+        if gate_log.is_file():
+            match = _GATE_RESULT_PATTERN.search(_read_text(gate_log))
             if match:
-                return {"PASS": "pass", "FAIL": "fail", "WARN": "partial"}.get(
-                    match.group(1).upper(), "partial"
+                return _GATE_RESULT_TO_VERDICT.get(
+                    match.group(1).upper(), "partial",
+                )
+        # Legacy fallback: pre-v1.5.7 archives stored the verdict in
+        # run-*.json / gate-report-latest.json key=value JSON form.
+        # _GATE_RESULT_LEGACY_PATTERN matches those; the unified
+        # _GATE_RESULT_TO_VERDICT map handles both vocabularies.
+        for candidate in sorted(results_dir.glob("run-*.json")):
+            match = _GATE_RESULT_LEGACY_PATTERN.search(
+                _read_text(candidate)
+            )
+            if match:
+                return _GATE_RESULT_TO_VERDICT.get(
+                    match.group(1).upper(), "partial",
                 )
         latest = results_dir / "gate-report-latest.json"
         if latest.is_file():
             raw = _read_text(latest)
-            match = _GATE_RESULT_PATTERN.search(raw)
+            match = _GATE_RESULT_LEGACY_PATTERN.search(raw)
             if match:
-                return {"PASS": "pass", "FAIL": "fail", "WARN": "partial"}.get(
-                    match.group(1).upper(), "partial"
+                return _GATE_RESULT_TO_VERDICT.get(
+                    match.group(1).upper(), "partial",
                 )
     progress = _read_text(run_folder / "quality" / "PROGRESS.md") or _read_text(
         run_folder / "PROGRESS.md"
@@ -771,6 +886,33 @@ def archive_run(
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
+    if not _argv_list_089x:
+        _print_command_intro(
+            name='archive_lib',
+            summary=(
+            "QPB run-archive helpers — snapshot quality/ between "
+            "runs + restore from a snapshot. "
+            ),
+            role=(
+            "Imported by run_playbook.py to archive each iteration's "
+            "quality/ outputs into quality/previous_runs/. Has a CLI "
+            "for operator-side snapshot management. "
+            ),
+            usage_hint='python3 -m bin.archive_lib --list <target>',
+        )
+        return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(_argv_list_089x)
+
     parser = argparse.ArgumentParser(
         description=(
             "Archive the current quality/ tree to "

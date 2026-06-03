@@ -1,0 +1,50 @@
+{
+  "$header_note": "AUP ACCUMULATION EXPERIMENT (v1.5.7). Hypothesis: AUP refusals on QPB are driven by ACCUMULATED single-session context, not single-phase content. Test: run the SAME repo (gson — the one that tripped) two ways and compare the AUP-trip rate. Variant A (mode:A) = one session that runs all 6 phases (context accumulates). Variant B (mode:B) = run_playbook drives all 6 phases EACH IN ITS OWN CLEAN-CONTEXT SESSION (no accumulation). All runs are claude/opus so we're measuring Claude's classifier. Trimmed to 2+2 (4 runs) to conserve weekly quota — full runs are token-heavy. HOW TO READ RESULTS: with instruction 112/113 landed, an AUP refusal records as terminal_state=BLOCKED → the SUMMARY 'result' column shows N/A and status.json carries terminal_reason (e.g. 'API Error: ... Usage Policy ...'). NOTE: a weekly-limit cutoff ('You've hit your weekly limit') and a socket error ALSO surface as is_error→BLOCKED, so READ terminal_reason to distinguish a real AUP refusal from a quota/network stop. Count genuine-AUP BLOCKED runs per variant; if Variant A trips materially more than Variant B, the accumulation hypothesis holds and Mode B is the AUP-resilient way to run QPB on Claude. expect is intentionally empty {} — we measure BLOCKED rate, not grading verdicts. Requires instruction 115 (Mode B operator-env) landed, else Mode B FAILs on the anti-agent guard. Run on fresh quota.",
+
+  "pools": {
+    "claude": 2
+  },
+
+  "runs": [
+    {
+      "description": "Variant A run 1: a single Claude Opus session runs the full Quality Playbook (all 6 phases) on gson without stopping, so the entire phase-1-through-6 context accumulates in one conversation. This is the configuration that tripped the AUP classifier on the first live run.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "clone",
+      "mode": "A",
+      "expect": {}
+    },
+    {
+      "description": "Variant A run 2: identical single-session full-pipeline gson run, repeated to estimate the AUP-trip rate of the accumulating-context configuration.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "clone",
+      "mode": "A",
+      "expect": {}
+    },
+    {
+      "description": "Variant B run 1: Mode B runs the same gson review via run_playbook, which executes each of the 6 phases in its OWN separate clean-context session (the recommended QPB flow). Each request carries only one phase's context, so accumulated security-flavored content stays small. Tests whether separate contexts avoid the AUP trip.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "clone",
+      "mode": "B",
+      "expect": {}
+    },
+    {
+      "description": "Variant B run 2: identical Mode B phase-per-clean-session gson run, repeated to estimate the AUP-trip rate of the separate-context configuration.",
+      "repo": "https://github.com/google/gson",
+      "ref": "27d9ba1eeeeb156540cf5397504a4f9f256e911f",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "clone",
+      "mode": "B",
+      "expect": {}
+    }
+  ]
+}

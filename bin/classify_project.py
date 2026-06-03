@@ -89,10 +89,19 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
+
+# v1.5.7 instruction 077 (addendum §5.2 W3 entry-point audit): uniform
+# entry-point bootstrap. classify_project.py is stdlib-only and imports
+# no sibling bin.* module today, so this is a defensive no-op that
+# keeps script-form invocation (`python <clone>/bin/classify_project.py
+# …` from any cwd) robust if a future sibling import is added (the
+# module docstring already discusses the bin.role_map replacement path).
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 CLASSIFIER_VERSION = "1.0"
 # Bumped from "1.0" to "1.1" in v1.5.3 Phase 2 to signal the additive
@@ -212,10 +221,40 @@ CODE_EXTENSIONS = frozenset(EXTENSION_LANGUAGE.keys())
 # Conventional ignore directories for filesystem walk (used when target_dir
 # is not a git repo). git ls-files takes precedence when available because
 # it already respects .gitignore.
+# v1.5.7 instruction 054 (A-10): the trailing block (.claude … .aider)
+# are the 8 adopter install marker dirs. QPB installs its own skill
+# tree (incl. post-050 Python closure modules) under one of these
+# markers; classify_project's walker would otherwise descend and
+# miscount QPB's own files when classifying Code/Skill/Hybrid.
+# Canonical source is bin/install_skill.AI_TOOL_MAP.values();
+# intentionally DUPLICATED (Option B, additive — instruction-053
+# precedent) for parity with the two quality_gate.py walkers, which
+# cannot import install_skill (standalone-deployed gate).
+#
+# DELIBERATE DEVIATION FROM THE INSTRUCTION (verify-before-claim):
+# the instruction directs adding ``"bin"`` to ALL THREE sites, but
+# ``"bin"`` is NOT added HERE. classify_project's purpose is to
+# *count adopter source* to classify Code/Skill/Hybrid; adopter
+# projects legitimately keep source in a top-level ``bin/`` —
+# excluding it misclassifies them (proven: the in-tree
+# ``hybrid_fixture`` keeps its Python in ``bin/`` and a blanket
+# ``"bin"`` exclusion regressed it Hybrid → Skill). The two
+# quality_gate.py walkers DO exclude ``"bin"`` because the gson A-10
+# ship-blocker is specifically language *detection* (a first-match
+# heuristic) returning "py" from QPB's flat-layout ``target/bin/*.py``
+# — a different role with a different trade-off. The 8 markers fully
+# cover the dominant install_skill.py layout AND the flat
+# ``.github/skills/`` tree; the only residual is the flat-layout
+# root-level ``target/bin/*.py`` (setup_repos), an accepted minor
+# under-exclusion here vs. breaking every ``bin/``-using adopter.
+# TODO(v1.5.7.x): consolidate the exclusion-set copies behind a
+# single gate-standalone-safe shared constant.
 DEFAULT_IGNORE_DIRS = frozenset({
     ".git", "node_modules", "__pycache__", ".venv", "venv", "env",
     "target", "build", "dist", ".idea", ".vscode", ".pytest_cache",
     ".mypy_cache", ".tox", ".eggs", "vendor",
+    ".claude", ".cursor", ".github", ".continue",
+    ".codex", ".windsurf", ".cline", ".aider",
 })
 
 
@@ -765,6 +804,36 @@ def _parse_args(argv: Optional[list[str]] = None) -> "argparse.Namespace":
 
 
 def _main(argv: Optional[list[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    import sys as _sys
+    _argv_list = list(_sys.argv[1:] if argv is None else argv)
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
+    if not _argv_list:
+        # v1.5.7 090a: full attribution banner + purpose banner.
+        _print_command_intro(
+            name="classify_project",
+            summary=(
+                "Classify a target repo as code / skill / hybrid "
+                "based on file composition + role distribution."
+            ),
+            role=(
+                "Phase 1 helper — called by run_playbook.py to "
+                "decide which exploration / generation strategy "
+                "to use against the target. Also runnable "
+                "standalone to inspect the classification."
+            ),
+            usage_hint="python3 -m bin.classify_project --target <repo>",
+        )
+        return 0
+
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(_argv_list)
+
     args = _parse_args(argv)
 
     if args.benchmark:

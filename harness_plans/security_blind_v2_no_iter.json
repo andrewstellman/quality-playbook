@@ -1,0 +1,162 @@
+{
+  "$header_note": "QPB v1.5.7 BLIND CVE-benchmark v2 REBUILD \u2014 NO-ITERATIONS ARM. Identical to security_blind_v2_rebuild.json except include_iterations=false on every row (uses the 106 default Mode A prompt: phases 1-6 + gate, no iteration strategies). Direct A/B vs. the with-iterations run 20260603T030042Z, which had setuptools DETECTED \u2192 MISSED regression (adversarial iteration dismissed _resolve_download_filename as a false positive). Baseline without iterations: setuptools DETECTED in run 20260602T222932Z. This re-fires the no-iterations baseline against the v2 corpora for direct comparison. Wall time estimate: 7 runs \u00d7 ~45-75min on opus, pool=2 = ~3-4 hours. Same v2 corpora (both Gate 1 + Gate 2 passed) at repos/docs_gathered/<repo>/.",
+  "pools": {
+    "claude": 2
+  },
+  "runs": [
+    {
+      "description": "CASE-001 setuptools (path traversal, CWE-22) \u2014 claude/opus at vulnerable parent SHA. Pass criterion per PILOT.md: flag setuptools/package_index.py::_resolve_download_filename for unvalidated os.path.join allowing escape outside tmpdir. Corpus: repos/docs_gathered/setuptools/ (v2 rebuild, both gates passed).",
+      "repo": "https://github.com/pypa/setuptools",
+      "ref": "d8390feaa99091d1ba9626bec0e4ba7072fc507a",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "include_iterations": false,
+      "expect": {
+        "gate_result": [
+          "PASS",
+          "CLEANUP",
+          "FAIL"
+        ],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "CASE-002 jsPDF (LFI, CWE-35/73) \u2014 claude/opus at vulnerable parent SHA. Pass criterion per PILOT.md: flag src/modules/fileloading.js::nodeReadFile for reading an unrestricted caller-supplied path from the filesystem. Corpus: repos/docs_gathered/jsPDF/ (v2 rebuild, both gates passed; Gate 2 reviewer surfaced an unrelated XSS surface in html.js \u2014 different file, different bug class).",
+      "repo": "https://github.com/parallax/jsPDF",
+      "ref": "a504e973eeebac633351b41860945ca2a2cdf096",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "include_iterations": false,
+      "expect": {
+        "gate_result": [
+          "PASS",
+          "CLEANUP",
+          "FAIL"
+        ],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "CASE-005 avro (code injection, CWE-94) \u2014 claude/opus at vulnerable parent SHA. Pass criterion per PILOT.md: flag SpecificCompiler.java::javaAnnotations for schema-property \u2192 generated-source unvalidated taint flow. Corpus: repos/docs_gathered/avro/ (v2 rebuild, both gates passed).",
+      "repo": "https://github.com/apache/avro",
+      "ref": "80400781a796bc0e90dd8ea1db42234926db33e9",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "include_iterations": false,
+      "expect": {
+        "gate_result": [
+          "PASS",
+          "CLEANUP",
+          "FAIL"
+        ],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "CASE-007 spark (insecure deserialization, CWE-502) \u2014 claude/opus at vulnerable parent SHA. Pass criterion per PILOT.md: flag JsonProtocol.scala::sparkEventFromJson for polymorphic class instantiation from event-log JSON without a type allowlist. Corpus: repos/docs_gathered/spark/ (v2 rebuild, both gates passed; Gate 2 reviewer surfaced unrelated REST-submit-port-6066 concern).",
+      "repo": "https://github.com/apache/spark",
+      "ref": "7f9ca1b37e140303af0d70e2895d19314f812661",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "include_iterations": false,
+      "expect": {
+        "gate_result": [
+          "PASS",
+          "CLEANUP",
+          "FAIL"
+        ],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "CASE-008 dasel (resource-exhaustion DoS, CWE-400) \u2014 claude/opus at vulnerable parent SHA. Pass criterion per PILOT.md: flag parsing/yaml/yaml_reader.go::yamlValue.UnmarshalYAML for recursive yaml alias expansion with no depth/size bound. Corpus: repos/docs_gathered/dasel/ (v2 rebuild, both gates passed; Gate 2 reviewer surfaced unrelated readFile-builtin attack surface).",
+      "repo": "https://github.com/TomWright/dasel",
+      "ref": "0dd6132e0c58edbd9b1a5f7ffd00dfab1e6085ad",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "include_iterations": false,
+      "expect": {
+        "gate_result": [
+          "PASS",
+          "CLEANUP",
+          "FAIL"
+        ],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "CASE-009 evervault-go (crypto verification, CWE-347) \u2014 claude/opus at vulnerable parent SHA. Pass criterion per PILOT.md: flag attestation/pcrs.go for accepting attestation with empty/incomplete PCRs (no SatisfiedBy minimum-set check). Lowest QE-catchability of the set per PILOT \u2014 toughest blind target. Corpus: repos/docs_gathered/evervault-go/ (v2 rebuild, both gates passed; Gate 2 reviewer surfaced unrelated relay.go plain-HTTP CA concern \u2014 different file, may be a real new finding worth separate investigation).",
+      "repo": "https://github.com/evervault/evervault-go",
+      "ref": "841dca607a6dcdc9c20457d82e8965b82359f9a4",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "include_iterations": false,
+      "expect": {
+        "gate_result": [
+          "PASS",
+          "CLEANUP",
+          "FAIL"
+        ],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "CASE-010 gogs (broken access control, CWE-284) \u2014 claude/opus at vulnerable parent SHA. Pass criterion per PILOT.md: flag internal/route/api/v1/api.go DELETE /repos/:username/:reponame for using only repoAssignment() (read check) and missing reqRepoOwner() (admin/owner check) \u2014 sibling sensitive routes use reqRepoAdmin. Corpus: repos/docs_gathered/gogs/ (v2 rebuild, both gates passed; Gate 2 reviewer surfaced unrelated SSH-command-parsing concern).",
+      "repo": "https://github.com/gogs/gogs",
+      "ref": "d568e048315dc9729c8518d8085cab7dbbfac80f",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "include_iterations": false,
+      "expect": {
+        "gate_result": [
+          "PASS",
+          "CLEANUP",
+          "FAIL"
+        ],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    }
+  ]
+}

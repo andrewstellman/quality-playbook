@@ -1,0 +1,100 @@
+{
+  "$header_note": "QPB v1.5.7 retest plan — failures from the last 3 harness runs only (MET rows skipped). Built 2026-05-30 after the 13:43:22Z retest. Pools: claude=2 (haiku + opus simultaneously; fits the anthropic global cap of 2), codex=2 (chi + gson Mode B), copilot=1 (express only). MET rows from previous retests intentionally excluded: express claude/sonnet (MET in 13:43:22Z), chi copilot/gpt-5.4 (MET in 13:43:22Z AND 20:18:47Z), keto copilot/gpt-5.4 (MET in 20:18:47Z). Each row's description references the prior failure and the fix expected to resolve it. All expects are permissive on gate_result; strict on observability assertions. This is a NARROW retest, not a full matrix — passing rows are not re-validated.",
+
+  "pools": {
+    "claude": 2,
+    "codex": 2,
+    "copilot": 1
+  },
+
+  "runs": [
+    {
+      "description": "RETEST of gson claude/haiku (pip-local-wheel, Mode A). Last failed 2026-05-30 13:43:22Z run-00 NOT-MET on `phase0_first_probe=False` — 3 probe attempts ending in OK, but the bare-path-fail detection over-matched on the agent's absolute path with `qpb_validate` as a tail substring. Fixed by 163 (tightened `_RE_PHASE0_BARE_PATH_FAIL` regex with negative lookbehind). Expected: MET.",
+      "repo": "https://github.com/google/gson",
+      "ref": "main",
+      "runner": "claude",
+      "model": "haiku",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "RETEST of keto claude/opus (pip-local-wheel, Mode A). Last starved 2026-05-30 13:43:22Z run-02 PENDING — the orchestrator's anthropic-cap-2 timed out acquiring a claude slot (159 trade-off: orchestrator didn't hang but no retry). Fixed by 161 (collector retries starved PENDING runs when slots free). With only 2 claude rows in this retest (haiku + opus = 2 ≤ anthropic cap of 2), starvation shouldn't happen at all — both rows should launch concurrently and the 161 collector-retry path is a safety net, not the primary path.",
+      "repo": "https://github.com/ory/keto",
+      "ref": "master",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "RETEST of chi codex/gpt-5.3-codex (npm-local-tgz, Mode B). Last failed 2026-05-30 13:43:22Z run-03 FAILED at Phase 4 due to ChatGPT account quota (not a harness bug — runs through P1/P2/P3 cleanly proved 156's install-target fix works). Re-run after account quota resets at 2:43 PM EDT. If the codex Mode B supervisor still hangs post-abort on a NEW failure, 164 (deferred Task B from 159) provides the cleanup.",
+      "repo": "https://github.com/go-chi/chi",
+      "ref": "master",
+      "runner": "codex",
+      "model": "gpt-5.3-codex",
+      "channel": "npm-local-tgz",
+      "mode": "B",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "RETEST of gson codex/gpt-5.3-codex (pip-local-wheel, Mode B). Same quota failure as run-02 above (last failed 2026-05-30 13:43:22Z run-04 FAILED at Phase 5, having cleanly completed P1-P4). Re-run after quota resets. 156 install-target fix already validated by the partial progress observed before quota hit.",
+      "repo": "https://github.com/google/gson",
+      "ref": "main",
+      "runner": "codex",
+      "model": "gpt-5.3-codex",
+      "channel": "pip-local-wheel",
+      "mode": "B",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "RETEST of express copilot/gpt-5.4 (pip-local-wheel, Mode A). Last failed 2026-05-30 13:43:22Z run-05 NOT-MET on `provenance_model_labeled_selfreport=False` — agent emitted `Model: not recorded` in the gate's provenance block (didn't self-report). The chi copilot run-06 with the IDENTICAL model self-reported correctly → variance is agent-behavior-side, not harness-side. Fixed by 162 (outcome-based check: when plan has the model AND agent didn't contradict, assertion succeeds). All other assertions previously passed including the post-157 gitignore_remediation_followed.",
+      "repo": "https://github.com/expressjs/express",
+      "ref": "master",
+      "runner": "copilot",
+      "model": "gpt-5.4",
+      "channel": "pip-local-wheel",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true,
+        "provenance_model_labeled_selfreport": true
+      }
+    }
+  ]
+}

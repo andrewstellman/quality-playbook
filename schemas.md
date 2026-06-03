@@ -1,5 +1,18 @@
-> Quality Playbook v1.5.3 — Data Contract (`schemas.md`)
+> Quality Playbook v1.5.7 — Data Contract (`schemas.md`)
 > Versioned with the playbook skill. Do not edit per-run.
+>
+> v1.5.7 reaffirms the v1.5.3 data contract; no record-shape changes since v1.5.3.
+> Two v1.5.7 fixes reinforced existing rules via Phase 2/3 prompts (not new fields):
+> - Q3 (commit `16c3214`): the §3.3 `severity` enum is MANDATORILY uppercase
+>   (`HIGH` / `MEDIUM` / `LOW`). Phase 3 prompt + `phase2_generation_guide.md`
+>   explicitly require it; the gate WARNs on case drift (auto-normalizes for
+>   downstream invariant checks).
+> - Q2 (commit `c017f89`): `FORMAL_DOC.role` (§3.6) and `BUG.divergence_type`
+>   (§3.8) — both "conditional" per §3.10 — are now explicit mandates in the
+>   Phase 2/3 prompts. `bin/reference_docs_ingest.py` emits
+>   `role: "external-spec"` automatically; agents writing BUG records must
+>   include `divergence_type` per §3.8. The gate WARN-vs-FAIL choice is
+>   preserved (legacy back-compat); the prompt+ingest path is forward-only.
 
 # Quality Playbook Data Schemas
 
@@ -141,6 +154,7 @@ authoritative; ingest rejects anything not listed.
 |-----------|-------------------------------------------------------------|
 | `.txt`    | Plain UTF-8 text. Preferred for spec excerpts from PDF.     |
 | `.md`     | CommonMark-ish Markdown. Allowed for spec bodies and notes. |
+| `.rst`    | reStructuredText (Linux-kernel / Python ecosystem; e.g. the VIRTIO 1.2 spec `virtio.rst`). Treated as **plaintext** — no `.rst` parser. Byte-equality (§5.4) is format-agnostic; section resolution (§5.5) uses the plaintext branch, matching the title text line and ignoring `=====`/`-----` underline rows (weaker than `.md` `#` headings — prefer an explicit `line` locator for precise `.rst` citations). Added v1.5.7 instruction 060 (A-12). |
 
 Common extensions that are **deliberately excluded** and will fail ingest:
 
@@ -361,6 +375,28 @@ the version coupling. Once a manifest carries any v1.5.3 field, all of
 them are required on that manifest's record type — no half-populated
 v1.5.3 manifests.
 
+### 3.11 `bug_classification` — bug vs known-issue/advisory-note (v1.5.7 090j+)
+
+Constrains `BUG.classification` (see §8.1). Distinguishes findings the
+audit independently located + verified in the audited tree (`bug`)
+from findings whose sole basis is a gathered advisory/CVE/doc with no
+located in-tree code defect (`known-issue`).
+
+| Value         | Meaning                                                                                                                |
+|---------------|------------------------------------------------------------------------------------------------------------------------|
+| `bug`         | (default) A defect independently located and verified in the audited tree, with a reachability analysis recorded.       |
+| `known-issue` | An advisory/CVE/doc note about this version that the audit did not independently reproduce in the tree. Recorded for adopter awareness but **excluded from the confirmed-bug count and precision metrics.** |
+
+Rationale (v1.5.7 instruction 090j). The 2026-05-23 OpenFGA Mode-A
+dogfood reported `BUG-009` as a CVE-2024-42473 restatement, no code
+defect located in the audited tree. Such advisory-only findings should
+be SURFACED to operators (they should upgrade) but should NOT inflate
+the bug count or skew precision metrics. The `classification` field
+encodes the separation; the gate flags `BUG-NNN` records that cite
+only an advisory/CVE with no in-tree defect + reachability analysis
+(see invariant 090j-D2 enforced by
+`check_v1_5_7_090j_triage_precision`).
+
 ---
 
 ## 4. `FORMAL_DOC`
@@ -563,7 +599,7 @@ This matches ATX-style headings (`# 2.4`, `## 2.4 Device reset`, up through
 `######`). The regex is applied to each raw line (no stripping). The first
 line that matches is the anchor; `L` is that line's 1-based index.
 
-**Plaintext sources (`.txt`).** For section string `S`:
+**Plaintext sources (`.txt`, `.rst`).** For section string `S`:
 
 ```
 ^<re.escape(S)>(?:[ \t]|$)
@@ -571,6 +607,12 @@ line that matches is the anchor; `L` is that line's 1-based index.
 
 Applied to each line after `lstrip()` (removing leading whitespace only).
 The first line whose left-stripped content matches is the anchor.
+`.rst` uses this same plaintext branch (v1.5.7 instruction 060, A-12):
+a reStructuredText underline heading is the title text on one line
+followed by an `=====`/`-----` row, so `S` matches the **title text
+line** (the underline row never matches `^<S>`). This is weaker than
+`.md` ATX-heading detection — for precise `.rst` citations prefer an
+explicit `line` locator (always valid per §5.1).
 
 **Resolution rules.**
 
@@ -788,6 +830,10 @@ code behavior. Stored in `quality/bugs_manifest.json`; rendered to
 | `covers`                    | array[string] | no | Array of cell IDs this BUG addresses, form `REQ-N/cell-<item>-<site>`. REQUIRED when the BUG's primary requirement has `pattern:` set. |
 | `consolidation_rationale`   | string        | no | REQUIRED when `covers` has ≥2 entries. Explains why cells share a BUG (shared fix path, same function, etc.). Non-empty. |
 | `divergence_type`           | string        | conditional | v1.5.3+. Member of the `bug_divergence_type` enum (§3.8). REQUIRED on every BUG in a v1.5.3-shaped manifest (any record carrying a v1.5.3 field — see §3.10); absent on legacy manifests, where the validator emits one WARN per check function and treats it as `code-spec` for back-compat. |
+| `classification`            | string        | no          | v1.5.7 090j+. Member of the `bug_classification` enum (§3.11): `bug` (default if absent) or `known-issue`. Records classified `known-issue` are advisory/CVE notes the audit did not independently reproduce in the tree; they are excluded from the confirmed-bug count and precision metrics. |
+| `reachability_analysis`     | string        | conditional | v1.5.7 090j+. Required (gate-enforced) when `classification == "bug"` (or absent) and `severity` is `HIGH` or `MEDIUM`. A non-empty description of the upstream-guard / filter / early-return / compensation search performed before confirming the bug — at minimum, a one-sentence statement either citing the absence of a short-circuit ("no guard; cache.Get reached unconditionally") or quoting the guard found ("tryCache guard at cached_resolver.go:169 short-circuits HIGHER_CONSISTENCY → finding unreachable, demoting"). On `severity == LOW` the field is recommended but its absence is a WARN, not a FAIL. |
+| `cve_reference`             | string        | no          | v1.5.7 090j+. A CVE / GHSA identifier when the finding cites a published advisory (e.g. `CVE-2025-48371` or `GHSA-3f6g-m4hr-59h8`). When set, `cve_version_applies` is required and the gate enforces 090j-D3 (security-HIGH bar). |
+| `cve_version_applies`       | boolean       | conditional | v1.5.7 090j+. REQUIRED when `cve_reference` is set. `true` iff the audited project version is verified to be within the CVE's affected range; `false` iff the audit verified the version is OUTSIDE the affected range (in which case the finding should be `classification: known-issue` or have its severity downgraded). |
 
 ### Cell-identity invariants
 
@@ -910,7 +956,7 @@ instead of `records`:
 | Field      | Type   | Required | Notes                                                                  |
 |------------|--------|----------|------------------------------------------------------------------------|
 | `req_id`   | string | yes      | `REQ-NNN` matching an existing REQ in `requirements_manifest.json`. The REQ MUST have `tier ∈ {1, 2}`. |
-| `reviewer` | string | yes      | Identifier of the council member, e.g. `"claude-opus-4.7"`, `"gpt-5.4"`, `"gemini-2.5-pro"`. Free-form but stable across entries from the same reviewer. |
+| `reviewer` | string | yes      | Identifier of the council member, e.g. `"claude-opus-4.7"`, `"gpt-5.5"`, `"claude-sonnet-4.6"`. Free-form but stable across entries from the same reviewer. The canonical roster lives at `bin/council_config.DEFAULT_COUNCIL_MEMBERS`. |
 | `verdict`  | string | yes      | Member of the `verdict` enum (§3.5).                                   |
 | `notes`    | string | yes      | Reviewer's reasoning for the verdict. May be empty string. Not gate-enforced for content. |
 
@@ -929,13 +975,13 @@ instead of `records`:
     },
     {
       "req_id": "REQ-017",
-      "reviewer": "gpt-5.4",
+      "reviewer": "gpt-5.5",
       "verdict": "supports",
       "notes": "Clear match."
     },
     {
       "req_id": "REQ-017",
-      "reviewer": "gemini-2.5-pro",
+      "reviewer": "claude-sonnet-4.6",
       "verdict": "supports",
       "notes": ""
     }
@@ -1107,7 +1153,7 @@ every required field below is present and non-empty.
 | `phases_executed`        | array of object | yes      | One entry per phase run. Each: `{phase_id, model, start, end, exit_status}`.                                                  |
 | `summary.requirements`   | object          | yes      | Counts by tier — keys `"1"`..`"5"`, integer values.                                                                          |
 | `summary.bugs`           | object          | yes      | Counts by severity and disposition. Keys include every enum value from §3.2 and §3.3; integer values.                        |
-| `summary.gate_verdict`   | string          | yes      | One of `"pass"`, `"fail"`, `"partial"`.                                                                                      |
+| `summary.gate_verdict`   | string          | yes      | One of `"pass"`, `"pass-with-cleanup"`, `"fail"`, `"partial"`. The `"pass-with-cleanup"` value (v1.5.7 089d F17) corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line — the review completed and the bug findings stand; only audit record-keeping is incomplete (non-blocking outcome, exit 0). |
 | `artifacts`              | array of string | yes      | Relative paths (within the run folder) to every artifact produced during this run.                                           |
 
 **INDEX schema migration (v1.5.3 → v1.5.4).** v1.5.3 INDEX files
@@ -1224,47 +1270,53 @@ in `bin/run_playbook._code_review_should_skip`).
 
 ---
 
-## 11.2. End-of-Run Quality Folder Layout (v1.5.4 Phase 3.6.4)
+## 11.2. End-of-Run Quality Folder Layout (v1.5.4 Phase 3.6.4 — REMOVED in v1.5.7 F-4z)
 
-`bin/run_playbook._finalize_quality_layout` runs at the end of
-Phase 6 (after the gate, before `archive_run`) to organize
-`quality/` into canonical-deliverable + workspace-intermediate
-shape. The gate's `_resolve_artifact_path` reads from both
-top-level (legacy / pre-reorg) and `workspace/` (post-reorg) so
-consumers don't have to track which side an artifact landed on.
+**Status: the v1.5.4 Phase 3.6.4 `workspace/` reshape described below
+was removed in v1.5.7 F-4z. The gate now actively FAILS any run that
+emits a `workspace/` directory under `quality/` — see
+`check_no_workspace_dir` at
+`.github/skills/quality_gate/quality_gate.py`. The
+`_finalize_quality_layout` runner-side reshape function was deleted in
+the same fix; do not look for it in `bin/run_playbook.py`.**
 
-```
-quality/
-├── REQUIREMENTS.md          # canonical at top level
-├── QUALITY.md
-├── BUGS.md
-├── RUN_CODE_REVIEW.md
-├── RUN_SPEC_AUDIT.md
-├── RUN_INTEGRATION_TESTS.md
-├── RUN_TDD_TESTS.md
-├── EXPLORATION.md
-├── INDEX.md
-├── PROGRESS.md
-├── exploration_role_map.json
-├── previous_runs/           # archive subtree (B-19; legacy `runs/` also accepted)
-└── workspace/               # intermediate / pipeline artifacts
-    ├── control_prompts/
-    ├── results/
-    ├── code_reviews/
-    ├── spec_audits/
-    ├── patches/
-    ├── writeups/
-    ├── mechanical/
-    ├── phase3/              # four-pass pipeline outputs
-    ├── EXPLORATION_ITER*.md
-    └── EXPLORATION_MERGED.md
-```
+**Current canonical end-of-run layout (v1.5.7):**
 
-The reorganization is idempotent and operator-friendly: pre-existing
-`workspace/` children are preserved (we only move tree → workspace,
-never overwrite). Pre-Phase-3.6 archives that lack the `workspace/`
-sub-tree remain fully readable via the gate's path-resolver
-fallback.
+- **Phase artifacts** (REQUIREMENTS.md, QUALITY.md, BUGS.md, the four
+  `RUN_*.md` audits, EXPLORATION.md, INDEX.md, PROGRESS.md,
+  exploration_role_map.json) land at the top of the per-target
+  `quality/` tree. No `workspace/` subdirectory.
+- **Per-run logs** (playbook log, `run_state.jsonl`, RUN_MODE.md,
+  control_prompts transcripts) are centralized under
+  `quality/logs/<run-id>/` per the v1.5.7 D3 deliverable, with a
+  `quality/logs/latest` symlink updated at run completion. The
+  `--logs-flat` CLI flag (or `QPB_LOGS_LEGACY=1` env var) restores the
+  v1.5.6 scattered layout for adopter tooling that hasn't migrated.
+- **Phase 2 gate-failure preservation** (v1.5.7 D1): when the Phase 2
+  gate aborts, the failed `quality/` directory is preserved as
+  `quality.gate-failed-<UTC-timestamp>/` so operators can inspect the
+  rejected agent output. Implementation:
+  `bin/run_playbook.py::_preserve_quality_on_gate_failure` (invoked
+  from `run_one_phase()`).
+- **Archive subtree** at `quality/previous_runs/` (legacy `runs/` also
+  accepted) per B-19.
+
+**Cross-references for the current layout:**
+
+- `ai_context/BENCHMARK_PROTOCOL.md` — operator-facing description of
+  the v1.5.7 D1 + D3 layout.
+- `references/run_state_schema.md` — canonical schema for the
+  centralized run-state log, including the `run_id` / `log_layout`
+  discriminator fields on the `run_start` event.
+- `references/what_just_happened.md` — D1 preservation mechanics
+  cross-reference.
+
+The v1.5.4 Phase 3.6.4 section heading is preserved here so future
+readers searching for "workspace/" or "Phase 3.6.4" find the deletion
+record. The tree diagram and the "idempotent reorganization" prose
+that previously occupied this section are removed; consult the git
+history (`git log --all -- schemas.md`) for the pre-F-4z text if
+forensic context on the deprecated layout is needed.
 
 ---
 

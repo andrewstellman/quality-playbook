@@ -26,33 +26,85 @@ class BenchmarkLibTests(unittest.TestCase):
             self.assertEqual(lib.detect_repo_skill_version(temp_path), "1.4.2")
 
     def test_detect_repo_skill_version_falls_back_to_claude_and_root(self) -> None:
+        """v1.5.7 BUG-001/002: nested install layouts are unambiguous
+        QPB locations (no frontmatter check needed); the root SKILL.md
+        is the ambiguous case and requires `name: quality-playbook`
+        frontmatter for the helper to recognize it as QPB-installed."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
+            # Nested install layout: no frontmatter identity required.
             write(temp_path / ".claude" / "skills" / "quality-playbook" / "SKILL.md", "version: 2.0.0\n")
             self.assertEqual(lib.detect_repo_skill_version(temp_path), "2.0.0")
 
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
-            write(temp_path / "SKILL.md", "version: 3.0.0\n")
+            # Root SKILL.md MUST have `name: quality-playbook` frontmatter
+            # to qualify (v1.5.7 BUG-001/002 — pre-fix, ANY root SKILL.md
+            # was accepted, including a target project's own non-QPB
+            # skill).
+            write(
+                temp_path / "SKILL.md",
+                "---\nname: quality-playbook\nversion: 3.0.0\n---\n",
+            )
             self.assertEqual(lib.detect_repo_skill_version(temp_path), "3.0.0")
 
         with TemporaryDirectory() as temp_dir:
             self.assertEqual(lib.detect_repo_skill_version(Path(temp_dir)), "")
 
+    def test_detect_repo_skill_version_rejects_non_qpb_root_skill_md(self) -> None:
+        """v1.5.7 BUG-001/002 bite: a root SKILL.md without
+        `name: quality-playbook` frontmatter (i.e., a target project's
+        own skill that happens to share the filename) must NOT be
+        treated as QPB-installed. Pre-fix this returned the target's
+        version string spuriously."""
+        with TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            write(
+                temp_path / "SKILL.md",
+                "---\nname: target-project-skill\nversion: 9.9.9\n---\n",
+            )
+            self.assertEqual(
+                lib.detect_repo_skill_version(temp_path), "",
+                "non-QPB root SKILL.md must not be detected as installed",
+            )
+
     def test_find_installed_skill_returns_first_hit(self) -> None:
-        """v1.5.6 BUG-002: SKILL_INSTALL_LOCATIONS now leads with the
-        repo-root SKILL.md to match the runtime canonical order
-        (matches CANONICAL_ORDER in test_skill_resolution_order.py).
-        Pre-fix the helper started with .github/skills/SKILL.md and
-        could pick a different installed copy than the runtime."""
+        """v1.5.6 BUG-002 + v1.5.7 BUG-001/002:
+        SKILL_INSTALL_LOCATIONS leads with the repo-root SKILL.md to
+        match the runtime canonical order. The root SKILL.md case
+        requires `name: quality-playbook` frontmatter to qualify as
+        QPB-installed (v1.5.7 BUG-001/002 identity check)."""
         with TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
             root_skill = temp_path / "SKILL.md"
             gh_skill = temp_path / ".github" / "skills" / "SKILL.md"
-            write(root_skill, "version: 2.0.0\n")
+            write(
+                root_skill,
+                "---\nname: quality-playbook\nversion: 2.0.0\n---\n",
+            )
             write(gh_skill, "version: 1.0.0\n")
             # Root SKILL.md is searched first (canonical order).
             self.assertEqual(lib.find_installed_skill(temp_path), root_skill)
+
+    def test_find_installed_skill_skips_non_qpb_root_skill_md(self) -> None:
+        """v1.5.7 BUG-001/002 bite: when the root SKILL.md is a target's
+        own non-QPB skill, the helper must skip it and fall through to
+        the next canonical install layout. Pre-fix the root SKILL.md
+        won the lookup unconditionally and the runner treated the
+        target's own skill as if it were QPB-installed."""
+        with TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            root_skill = temp_path / "SKILL.md"
+            gh_skill = temp_path / ".github" / "skills" / "SKILL.md"
+            # Root SKILL.md is the target's own skill — NOT QPB's.
+            write(
+                root_skill,
+                "---\nname: target-project-skill\nversion: 2.0.0\n---\n",
+            )
+            # Nested install layout has the actual QPB skill.
+            write(gh_skill, "version: 1.0.0\n")
+            # Helper must skip the non-QPB root and pick the nested one.
+            self.assertEqual(lib.find_installed_skill(temp_path), gh_skill)
 
     def test_find_installed_skill_falls_through_to_github_when_root_absent(self) -> None:
         """When root SKILL.md is absent, the next canonical hit
@@ -232,6 +284,177 @@ class BenchmarkLibTests(unittest.TestCase):
             self.assertIn("BUGS", output)
             self.assertIn("chi-1.4.2", output)
             self.assertIn("=== Quality Checks ===", output)
+
+    def test_tier_counts_read_from_manifest_not_requirements_md(self) -> None:
+        """v1.5.7 Issue 3 (chi-surfaced) regression. The Artifact
+        Summary's T1/T2/T3 columns must come from
+        requirements_manifest.json's integer `tier` field, NOT a
+        `[Tier N]` substring regex over REQUIREMENTS.md prose (which
+        never matched the canonical `- **Tier:** N` record format, so
+        a 16-Tier-3 run printed 0 0 0).
+
+        Mutation contract: reverting build_summary_rows to
+        `count_matching_lines(requirements_file, r"\\[Tier N\\]")`
+        makes this fail — REQUIREMENTS.md here uses the real
+        `- **Tier:** N` prose and contains zero `[Tier N]` literals,
+        so the old regex yields 0/0/0 while the manifest says 1/2/3.
+        """
+        import json
+        with TemporaryDirectory() as temp_dir:
+            repo_dir = Path(temp_dir) / "chi-1.5.1"
+            # REQUIREMENTS.md in the *real* canonical prose format —
+            # the old [Tier N] regex finds nothing here.
+            write(
+                repo_dir / "quality" / "REQUIREMENTS.md",
+                "### REQ-001\n- **Tier:** 1\n\n### REQ-002\n- **Tier:** 2\n"
+                "\n### REQ-003\n- **Tier:** 2\n\n### REQ-004\n"
+                "- **Tier:** 3\n\n### REQ-005\n- **Tier:** 3\n\n"
+                "### REQ-006\n- **Tier:** 3\n",
+            )
+            write(
+                repo_dir / "quality" / "requirements_manifest.json",
+                json.dumps(
+                    {
+                        "schema_version": "1.5.3",
+                        "generated_at": "2026-05-15T00:00:00Z",
+                        "records": [
+                            {"id": "REQ-001", "tier": 1},
+                            {"id": "REQ-002", "tier": 2},
+                            {"id": "REQ-003", "tier": 2},
+                            {"id": "REQ-004", "tier": 3},
+                            {"id": "REQ-005", "tier": 3},
+                            {"id": "REQ-006", "tier": 3},
+                        ],
+                    }
+                ),
+            )
+
+            self.assertEqual(
+                lib._count_req_tiers_from_manifest(repo_dir / "quality"),
+                (1, 2, 3),
+                "tier counts must come from the manifest's integer "
+                "`tier` field",
+            )
+
+            rows = lib.build_summary_rows([repo_dir])
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(
+                (rows[0].tier1, rows[0].tier2, rows[0].tier3),
+                (1, 2, 3),
+                "build_summary_rows must surface the manifest tier "
+                "counts in the Artifact Summary row",
+            )
+
+            output = lib.print_summary([repo_dir])
+            self.assertIn("=== Artifact Summary ===", output)
+
+    def test_artifact_summary_tdd_verified_count_matches_results_json(self) -> None:
+        """v1.5.7 instruction 046 (A-4, chi-surfaced) regression. The
+        Quality Checks `tdd(verified=N failed=M)` count must come from
+        quality/results/tdd-results.json's summary block, NOT a
+        `TDD verified` substring count over TDD_TRACEABILITY.md (which
+        reported verified=1 on chi-1.5.1 while the JSON summary said
+        9).
+
+        Mutation contract: reverting print_summary to
+        `count_matching_lines(TDD_TRACEABILITY.md, r"TDD verified")`
+        makes this fail — the TDD_TRACEABILITY.md written here contains
+        zero literal `TDD verified` lines, so the old regex yields
+        verified=0 while the JSON summary says 9.
+        """
+        import json
+        with TemporaryDirectory() as temp_dir:
+            repo_dir = Path(temp_dir) / "chi-1.5.1"
+            write(
+                repo_dir / "quality" / "REQUIREMENTS.md",
+                "### REQ-001\n- **Tier:** 3\n",
+            )
+            # Prose file deliberately WITHOUT the literal "TDD verified"
+            # phrasing the old regex matched — proves the count now
+            # comes from the JSON, not this file.
+            write(
+                repo_dir / "quality" / "TDD_TRACEABILITY.md",
+                "# TDD Traceability\n\nAll nine bugs reproduced and "
+                "closed; see results JSON for the authoritative tally.\n",
+            )
+            write(
+                repo_dir / "quality" / "results" / "tdd-results.json",
+                json.dumps(
+                    {
+                        "schema_version": "1.5.2",
+                        "skill_version": "1.5.7",
+                        "summary": {
+                            "total": 9,
+                            "verified": 9,
+                            "confirmed_open": 0,
+                            "red_failed": 0,
+                            "green_failed": 0,
+                            "deferred": 0,
+                        },
+                    }
+                ),
+            )
+
+            self.assertEqual(
+                lib._tdd_counts_from_results_json(repo_dir / "quality"),
+                (9, 0),
+                "TDD counts must come from tdd-results.json summary",
+            )
+
+            output = lib.print_summary([repo_dir])
+            self.assertIn(
+                "tdd(verified=9 failed=0)", output,
+                "the Quality Checks line must reflect the JSON summary "
+                "verified count (9), not the TDD_TRACEABILITY.md prose",
+            )
+
+    def test_tdd_counts_failed_sums_red_and_green(self) -> None:
+        """failed = red_failed + green_failed; graceful (0,0) when the
+        results file is absent or unparseable."""
+        import json
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir) / "quality"
+            self.assertEqual(
+                lib._tdd_counts_from_results_json(quality), (0, 0)
+            )
+            write(quality / "results" / "tdd-results.json", "{ not json")
+            self.assertEqual(
+                lib._tdd_counts_from_results_json(quality), (0, 0)
+            )
+            write(
+                quality / "results" / "tdd-results.json",
+                json.dumps(
+                    {"summary": {"verified": 4, "red_failed": 2,
+                                 "green_failed": 3}}
+                ),
+            )
+            self.assertEqual(
+                lib._tdd_counts_from_results_json(quality), (4, 5)
+            )
+
+    def test_tier_counts_zero_when_manifest_absent_or_bad(self) -> None:
+        """Graceful fallback: no manifest, or unparseable manifest,
+        yields (0, 0, 0) rather than crashing the summary."""
+        import json
+        with TemporaryDirectory() as temp_dir:
+            quality = Path(temp_dir) / "quality"
+            # No manifest at all.
+            self.assertEqual(
+                lib._count_req_tiers_from_manifest(quality), (0, 0, 0)
+            )
+            # Unparseable manifest.
+            write(quality / "requirements_manifest.json", "{ not json")
+            self.assertEqual(
+                lib._count_req_tiers_from_manifest(quality), (0, 0, 0)
+            )
+            # Well-formed but no records list.
+            write(
+                quality / "requirements_manifest.json",
+                json.dumps({"schema_version": "1.5.3"}),
+            )
+            self.assertEqual(
+                lib._count_req_tiers_from_manifest(quality), (0, 0, 0)
+            )
 
     def test_log_and_logboth_format_and_write(self) -> None:
         message = lib.log("hello")

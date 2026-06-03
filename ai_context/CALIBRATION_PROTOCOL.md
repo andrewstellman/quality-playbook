@@ -2,7 +2,7 @@
 
 *Self-contained operational protocol. Designed to be paste-able to any AI agent (Cowork, Claude Code, codex, claude CLI, Cursor agent, etc.) that has read access to a QPB repository. The AI executes the steps below as the **executing AI**; the **operator** (Andrew) provides inputs, runs subprocesses the AI cannot run, and gates the STOP boundaries; a **Council of Three** review gates the final lever change.*
 
-*Last updated: 2026-05-06 (v1.5.6 cluster G refresh — the v1.5.6 Pattern 7 displacement-recovery cycle exercised this protocol end-to-end and surfaced lessons about session-lifetime constraints, API budget as a binding constraint on express post-lever orchestration, and REQ-ID instability across runs. CALIBRATION_PROTOCOL.md remains the methodology doc; the cluster F.1 commit (`ba64584`) folded three concrete operational learnings into the executable orchestrator template (`agents/calibration_orchestrator.md`): API-budget-exhausted recovery path, reduced-scope option's three preconditions (named in audit, flagged for follow-up, NOT the benchmark most directly tied to the hypothesis), mid-benchmark post-lever interruption failure mode. Cross-reference there for the operational mechanics; this protocol stays focused on the methodology).*
+*Last updated: 2026-05-14 (v1.5.7 ship — calibration protocol unchanged from v1.5.6 baseline. v1.5.7 D1 and D3 surface changes (calibration cells now produce `quality.gate-failed-<UTC-timestamp>/` on Phase 2 abort and emit logs under `quality/logs/<run-id>/`) do not affect the 12-step calibration workflow; protocol steps 1-12 unchanged. The v1.5.6 cluster F.1 operational learnings folded into `agents/calibration_orchestrator.md` (API-budget-exhausted recovery path, reduced-scope option's three preconditions, mid-benchmark post-lever interruption failure mode) remain current — cross-reference there for the operational mechanics; this protocol stays focused on the methodology.)*
 
 *Methodology context (read first if unfamiliar): `~/Documents/QPB/ai_context/IMPROVEMENT_LOOP.md` describes WHY the lever inventory exists and WHAT each lever controls. This protocol describes HOW to actually run a calibration cycle.*
 
@@ -38,8 +38,8 @@ These lessons live here for future cycle planners; the protocol's 12-step struct
 The protocol involves four distinct roles. Keeping them straight is critical for the STOP boundaries to make sense:
 
 - **Executing AI** — the agent reading this protocol and executing it. Performs Steps 1-12 (or hands subprocess invocations to the operator). Could be Cowork, Claude Code, codex, claude CLI, Cursor agent, etc.
-- **Operator** — Andrew Stellman. Provides inputs at the top, runs any subprocess the executing AI cannot run from its tool environment (e.g., long-running playbook invocations the AI's session cannot block on; Council `gh copilot` invocations across three terminals), and gates STOP boundaries.
-- **Council of Three** — three-reviewer panel run via `gh copilot --prompt --model <X>` from three terminals on the operator's machine. The executing AI drafts the Council prompt; the operator runs the three CLI commands; the executing AI synthesizes the responses.
+- **Operator** — Andrew Stellman. Provides inputs at the top, runs any subprocess the executing AI cannot run from its tool environment (e.g., long-running playbook invocations the AI's session cannot block on; Council Copilot CLI invocations across three terminals — the new standalone `copilot` per v1.5.7 089f, or the deprecated `gh copilot` extension during the grace period), and gates STOP boundaries.
+- **Council of Three** — three-reviewer panel run via the GitHub Copilot CLI from three terminals on the operator's machine. New canonical form: `copilot -p "..." --model <X> --allow-all` (per v1.5.7 089f). Legacy form during the grace period: `gh copilot --prompt "..." --model <X> --yolo`. The executing AI drafts the Council prompt; the operator runs the three CLI commands; the executing AI synthesizes the responses.
 - **Committing agent** — a fresh Claude Code session (separate from the executing AI) that lands the canonical commit after Council Ship. Per `DEVELOPMENT_PROCESS.md`'s "fresh session for canonical commit" discipline.
 
 ---
@@ -49,7 +49,7 @@ The protocol involves four distinct roles. Keeping them straight is critical for
 The protocol supports two modes, selected by whether `<runner>` is specified in Inputs:
 
 - **Mode 1: Fully autonomous (default; no `<runner>` specified).** The executing AI runs the entire cycle without operator intervention between Steps 1-12. It walks Phases 1-3 of the playbook inline (reading canonical phase prompts from `~/Documents/QPB/phase_prompts/phase1.md`, `phase2.md`, `phase3.md`), spawns sub-agents for the Council review (Step 7), runs validation and cross-benchmark checks via inline phase execution or sub-agent fan-out, and reports a terminal-state outcome to the operator. Sub-agents are the executing AI's environment-specific mechanism for parallel independent work (Cowork's Agent tool; claude CLI invocations spawned from bash; the equivalent in any AI tool). Operator's role: provide initial inputs, review the terminal-state report, approve the ship (or direct dead-end remediation). Cost lives in the executing AI's session token budget.
-- **Mode 2: Runner-driven, operator-in-the-loop (`<runner>` specified).** The executing AI surfaces commands for the operator to run, including `python3 -m bin.run_playbook --<runner> ...` for playbook runs and `gh copilot --prompt ...` for Council. Operator runs subprocess commands, pastes back results. Right mode when the executing AI's environment can't drive Phases 1-3 inline (e.g., a UI tool with no bash access) or when the operator wants the orchestrator off the critical path (debugging; cost containment in their separate billing account).
+- **Mode 2: Runner-driven, operator-in-the-loop (`<runner>` specified).** The executing AI surfaces commands for the operator to run, including `python3 -m bin.run_playbook --<runner> ...` for playbook runs and the GitHub Copilot CLI for Council (`copilot -p "..."` per v1.5.7 089f, or `gh copilot --prompt "..."` during the grace period — both shapes shimmed by `bin/copilot_resolver.py`). Operator runs subprocess commands, pastes back results. Right mode when the executing AI's environment can't drive Phases 1-3 inline (e.g., a UI tool with no bash access) or when the operator wants the orchestrator off the critical path (debugging; cost containment in their separate billing account).
 
 **Default to Mode 1.** Mode 1 is the v1.5.5 activation criterion (now satisfied): an AI tool given just the protocol + target + expected-bug list can autonomously run the full improvement loop and converge on a ship-or-dead-end verdict, using `agents/calibration_orchestrator.md` as the spawn-and-resume template. Mode 2 is documented as an alternative for environments that can't support Mode 1 fully.
 
@@ -111,7 +111,7 @@ Each observation is a candidate for one cycle, which produces (at most) one leve
 - Runner CLI installed and on PATH (`<runner>` from Inputs)
 - Operator availability to run subprocess commands and paste back results
 
-**Neither mode needs:** ability to spawn long-running background processes, ability to run `gh copilot` against three concurrent terminals (the operator does this for Council), ability to commit (commits are delegated to the committing agent).
+**Neither mode needs:** ability to spawn long-running background processes, ability to run the Copilot CLI (`copilot` per v1.5.7 089f, or `gh copilot` during the grace period) against three concurrent terminals (the operator does this for Council), ability to commit (commits are delegated to the committing agent).
 
 ---
 
@@ -286,7 +286,7 @@ Do NOT commit. Do NOT run the playbook again yet. The change exists only in the 
 
 ### Step 7 — Council review of the lever-change draft
 
-This step is **continuous work for the executing AI**, not a halt. The AI drafts the Council prompt, synthesizes the responses, and produces a verdict. The only operator-blocking sub-step is the `gh copilot` invocation in 7.3 (which requires three terminals on the operator's machine). The actual halt points are the failure modes (Council Block verdict; iteration-limit reached) — those are tracked in the failure-modes table at the bottom.
+This step is **continuous work for the executing AI**, not a halt. The AI drafts the Council prompt, synthesizes the responses, and produces a verdict. The only operator-blocking sub-step is the Copilot CLI invocation in 7.3 (`copilot` per v1.5.7 089f, or `gh copilot` during the grace period; requires three terminals on the operator's machine). The actual halt points are the failure modes (Council Block verdict; iteration-limit reached) — those are tracked in the failure-modes table at the bottom.
 
 **Iteration policy:** by default, keep working-tree edits and refine on top across iterations. Reset (`git restore <home_file>`) only when the orchestrator or Council requests a fresh attempt. Capture each iteration's diff + feedback in the audit trail.
 
@@ -336,9 +336,9 @@ The three lenses by default (the executing AI may adapt per cycle):
 
 Each sub-agent reads the canonical docs (CALIBRATION_PROTOCOL.md, IMPROVEMENT_LOOP.md, the home file at HEAD, the draft diff, the chi-1.3.45 / target's BUGS.md history) and produces an independent verdict and finding list. Sub-agents do NOT see each other's output — independence is the point.
 
-**Mode 2 (operator-in-the-loop):** the executing AI surfaces three `gh copilot --prompt --model <X>` commands for the operator to run from three terminals (per workspace CLAUDE.md's nested-panel Council protocol). The operator pastes back the response file paths.
+**Mode 2 (operator-in-the-loop):** the executing AI surfaces three Copilot CLI commands for the operator to run from three terminals: `copilot -p "..." --model <X> --allow-all` per v1.5.7 089f, or the legacy `gh copilot --prompt "..." --model <X> --yolo` form during the grace period (per workspace CLAUDE.md's nested-panel Council protocol). The operator pastes back the response file paths.
 
-In either mode, three independent perspectives are produced. Cowork's parallel-Agent fan-out is NOT a fully nested 9-perspective Council (each Agent is a single perspective, not an Agent that itself spawns three reviewers). For most calibration cycles three independent perspectives are sufficient; if a cycle is high-stakes (e.g., a foundational architectural change, not a typical lever pull), the executing AI may choose to fan out further or escalate to Mode 2 for the full nested 9-perspective gh-copilot Council.
+In either mode, three independent perspectives are produced. Cowork's parallel-Agent fan-out is NOT a fully nested 9-perspective Council (each Agent is a single perspective, not an Agent that itself spawns three reviewers). For most calibration cycles three independent perspectives are sufficient; if a cycle is high-stakes (e.g., a foundational architectural change, not a typical lever pull), the executing AI may choose to fan out further or escalate to Mode 2 for the full nested 9-perspective Copilot CLI Council.
 
 **7.4 — Synthesize.** The executing AI reads all three sub-agent responses (or operator-pasted Council outputs in Mode 2), produces a `council_synthesis.md` with:
 
@@ -556,7 +556,7 @@ The executing AI must NEVER:
 - **`~/Documents/QPB/bin/run_state_lib.py`** — v1.5.5 read/parse/validate helpers + writers for the event log; use these rather than hand-parsing the JSONL
 - **`~/Documents/QPB/bin/visualize_calibration.py`** — v1.5.5 cycle visualization (four charts: per-bug × cycle heatmap, lever × benchmark heatmap, recall trajectory, Mermaid lever-interaction graph)
 - **`~/Documents/QPB/ai_context/DEVELOPMENT_PROCESS.md`** — Council protocol invocation, mutation-test discipline, calibrated reporting, AI-identity discipline, fresh-Claude-Code-session-for-canonical-commit
-- **`~/Documents/AI-Driven Development/CLAUDE.md`** — Council protocol mechanics (the actual `gh copilot` invocation discipline, cd-into-repo requirement, nested-panel header), source-edit lanes, verify-before-claiming
+- **`~/Documents/AI-Driven Development/CLAUDE.md`** — Council protocol mechanics (the actual Copilot CLI invocation discipline — `copilot` per v1.5.7 089f, or `gh copilot` during the grace period, cd-into-repo requirement, nested-panel header), source-edit lanes, verify-before-claiming
 - **`~/Documents/QPB/docs/process/Lever_Calibration_Log.md`** — the historical record of all cycles; canonical home (workspace `Quality Playbook/Reviews/Lever_Calibration_Log.md` is a replica per DEVELOPMENT_PROCESS.md)
 - **`~/Documents/QPB/docs/design/QPB_v1.5.5_Design.md`** and **`QPB_v1.5.5_Implementation_Plan.md`** — canonical home for the v1.5.5 orchestration substrate that this protocol uses
 - **`~/Documents/QPB/docs/design/QPB_v1.6.x_Requirements_Review_Proposal.md`** — canonical scope for v1.6.0 (Requirements Review feature; the prior "first iterative-improvement release" framing is now satisfied by v1.5.5 + v1.5.6)

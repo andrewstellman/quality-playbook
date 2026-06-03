@@ -1,0 +1,22 @@
+--- a/quality/test_regression.py
++++ b/quality/test_regression.py
+@@ -70,3 +70,19 @@
+             (refs / "spec.pdf").write_bytes(b"%PDF-1.4\n")
+             self.assertFalse(run_playbook.docs_present(repo))
+ 
++    @xfail(
++        reason=(
++            "BUG-003: load_tier4_context() ingests nested non-cite archives; "
++            "remove after applying quality/patches/BUG-003-fix.patch"
++        )
++    )
++    def test_bug_003_tier4_context_excludes_nested_non_cite_archives(self) -> None:
++        with TemporaryDirectory() as tmp:
++            repo = Path(tmp)
++            refs = repo / "reference_docs"
++            (refs / "cite").mkdir(parents=True)
++            (refs / "top.md").write_text("top\n", encoding="utf-8")
++            (refs / "nested" / "archive").mkdir(parents=True)
++            (refs / "nested" / "archive" / "notes.md").write_text("nested\n", encoding="utf-8")
++            self.assertEqual(rdi.load_tier4_context(repo), [("reference_docs/top.md", "top\n")])
++

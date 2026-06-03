@@ -47,9 +47,9 @@ Public surface:
 CLI (for operator re-assembly from captured per-member JSON files):
 
     python -m bin.council_semantic_check <repo_dir> \
-        --member claude-opus-4.7 --response path/to/claude.json \
-        --member gpt-5.4          --response path/to/gpt.json \
-        --member gemini-2.5-pro   --response path/to/gemini.json
+        --member claude-opus-4.7   --response path/to/opus.json \
+        --member gpt-5.5           --response path/to/gpt.json \
+        --member claude-sonnet-4.6 --response path/to/sonnet.json
 """
 
 from __future__ import annotations
@@ -333,14 +333,39 @@ def _extract_first_json_array(text: str):
             return json.loads(stripped)
         except json.JSONDecodeError:
             pass
-    # Fallback: find the outermost `[...]` that parses.
-    match = _JSON_ARRAY_PATTERN.search(text)
-    if not match:
-        return None
-    try:
-        return json.loads(match.group(0))
-    except json.JSONDecodeError:
-        return None
+    # Fallback (BUG-006 fix): find the FIRST balanced `[...]` substring that
+    # parses as JSON. The previous greedy regex `\[[\s\S]*\]` matched from
+    # the first `[` to the LAST `]`, so a valid array followed by trailing
+    # prose containing any `]` (e.g. "see item [2]") failed to parse and the
+    # whole reviewer response was dropped — contradicting this function's
+    # "first balanced block / outermost that parses" docstring.
+    start = text.find("[")
+    while start != -1:
+        depth = 0
+        in_str = False
+        esc = False
+        for i in range(start, len(text)):
+            c = text[i]
+            if in_str:
+                if esc:
+                    esc = False
+                elif c == "\\":
+                    esc = True
+                elif c == '"':
+                    in_str = False
+            elif c == '"':
+                in_str = True
+            elif c == "[":
+                depth += 1
+            elif c == "]":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[start:i + 1])
+                    except json.JSONDecodeError:
+                        break
+        start = text.find("[", start + 1)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -632,8 +657,35 @@ def _assemble_main(argv: List[str]) -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+    # v1.5.7 089x: no-args is purpose-banner-safe.
+    _argv_list_089x = list(sys.argv[1:] if argv is None else argv)
+    try:
+        from bin._purpose import print_command_intro as _print_command_intro
+        from bin._purpose import print_help_banner as _print_help_banner
+    except ImportError:
+        from _purpose import print_command_intro as _print_command_intro  # type: ignore[no-redef]
+        from _purpose import print_help_banner as _print_help_banner  # type: ignore[no-redef]
+    if not _argv_list_089x:
+        _print_command_intro(
+            name='council_semantic_check',
+            summary=(
+            "Council-style semantic cross-check runner — assembles N "
+            "reviewer responses for a single REQ/UC and compares "
+            "them. "
+            ),
+            role=(
+            "Called by Phase 4 semantic-check (via "
+            "quality_playbook.py) to fan out one Council-of-Three "
+            "pass per cross-check item. "
+            ),
+            usage_hint='python3 -m bin.council_semantic_check --help',
+        )
+        return 0
+
     if argv is None:
         argv = sys.argv[1:]
+    # v1.5.7 090a: full attribution banner at top of --help.
+    _print_help_banner(argv)
     if argv and argv[0] == "plan":
         return _plan_main(argv[1:])
     if argv and argv[0] == "assemble":

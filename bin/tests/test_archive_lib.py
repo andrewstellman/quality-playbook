@@ -561,5 +561,178 @@ class BugHeadingPatternTests(unittest.TestCase):
         self.assertEqual(match.group(1), "001-fix-2")
 
 
+class ExtractReqTierCountsTests(unittest.TestCase):
+    """v1.5.7 Issue 3 (chi-surfaced) — conceptually-equivalent
+    instance of the Artifact-Summary tier-count drift, in the
+    INDEX.md `summary.requirements` aggregator. The tier-label regex
+    must match the canonical `- **Tier:** N` REQ-record prose (colon
+    INSIDE the bold), not only the legacy `**Tier**: N` form.
+
+    Mutation contract: reverting the regex to
+    `\\*\\*Tier\\*\\*\\s*[:.-]\\s*([1-5])` makes
+    `test_canonical_tier_prose_is_counted` fail — the canonical-form
+    REQs all fall to the `unknown` bucket (the exact chi-1.5.1
+    16-Tier-3-as-unknown defect).
+    """
+
+    def test_canonical_tier_prose_is_counted(self) -> None:
+        with TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            _write(
+                run / "quality" / "REQUIREMENTS.md",
+                "# Requirements\n\n"
+                "### REQ-001: A\n- **Tier:** 1\nBody.\n\n"
+                "### REQ-002: B\n- **Tier:** 3\nBody.\n\n"
+                "### REQ-003: C\n- **Tier:** 3\nBody.\n",
+            )
+            counts = al._extract_req_tier_counts(run)
+            self.assertEqual(counts["1"], 1)
+            self.assertEqual(counts["3"], 2)
+            self.assertEqual(
+                counts["unknown"], 0,
+                "canonical `- **Tier:** N` prose must NOT fall to the "
+                "unknown bucket (chi-1.5.1 Issue 3 regression)",
+            )
+
+    def test_legacy_tier_prose_still_counted(self) -> None:
+        """Negative control: the broadened regex must still match the
+        legacy `**Tier**: N` form (colon outside the bold)."""
+        with TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            _write(
+                run / "quality" / "REQUIREMENTS.md",
+                "# Requirements\n\n### REQ-001\n\n**Tier**: 2\nBody.\n",
+            )
+            counts = al._extract_req_tier_counts(run)
+            self.assertEqual(counts["2"], 1)
+            self.assertEqual(counts["unknown"], 0)
+
+
+class GateResultPatternTests(unittest.TestCase):
+    """v1.5.7 089d (F18): the gate-result regex + _extract_gate_verdict
+    must read the v1.5.7 gate's `RESULT: GATE …` lines from
+    quality/results/quality-gate.log and map to the schemas.md §11
+    gate_verdict enum (incl. the F17 `pass-with-cleanup` value).
+
+    Pre-089d the pattern matched `gate_result: 'PASS'` key=value form
+    in run-*.json — zero matches across v1.5.7 gate output → Mode B
+    archive wrote `gate_verdict: "unknown"` for every run → validator
+    rejected it.
+    """
+
+    # Representative samples — exactly the three v1.5.7 verdict lines
+    # quality_gate.py emits (see .github/skills/quality_gate/
+    # quality_gate.py _compute_final_verdict).
+    _V157_PASSED = (
+        "===========================================\n"
+        "Total: 0 FAIL, 0 WARN\n"
+        "RESULT: GATE PASSED\n"
+    )
+    _V157_CLEANUP = (
+        "===========================================\n"
+        "Total: 4 CLEANUP, 2 WARN\n"
+        "RESULT: GATE PASSED WITH CLEANUP NEEDED — 4 audit "
+        "record-keeping gap(s)\n"
+    )
+    _V157_FAILED = (
+        "===========================================\n"
+        "Total: 23 FAIL (20 substantive, 3 record-keeping), 4 WARN\n"
+        "RESULT: GATE FAILED — 20 substantive issue(s) must be fixed\n"
+    )
+
+    def test_pattern_matches_all_three_v157_verdicts(self) -> None:
+        """_GATE_RESULT_PATTERN matches each of the three v1.5.7
+        verdict-line shapes and captures the right token.
+
+        Mutation-test evidence (ai_context/DEVELOPMENT_PROCESS.md:
+        152-160), instruction-089d F18:
+          Mutation: in bin/archive_lib.py, revert
+          _GATE_RESULT_PATTERN to the pre-089d
+          `gate_result['"]?\\s*[:=]…` key=value form.
+          Expected failure: THIS test fails — the new pattern no
+          longer matches `RESULT: GATE …` lines so all three
+          `assertIsNotNone(_GATE_RESULT_PATTERN.search(s))` calls
+          fail.
+          Restoration: revert; passes. Bite executed during 089d
+          development; PASS→FAIL→PASS confirmed (__pycache__ purged
+          between mutate and restore).
+        """
+        from bin import archive_lib as al
+
+        # Each sample matches; the captured group is the verdict.
+        m = al._GATE_RESULT_PATTERN.search(self._V157_PASSED)
+        self.assertIsNotNone(m, "PASSED sample should match")
+        self.assertEqual(m.group(1), "PASSED")
+
+        m = al._GATE_RESULT_PATTERN.search(self._V157_CLEANUP)
+        self.assertIsNotNone(m, "CLEANUP NEEDED sample should match")
+        # Longest-match-first ensures we don't truncate at "PASSED".
+        self.assertEqual(m.group(1), "PASSED WITH CLEANUP NEEDED")
+
+        m = al._GATE_RESULT_PATTERN.search(self._V157_FAILED)
+        self.assertIsNotNone(m, "FAILED sample should match")
+        self.assertEqual(m.group(1), "FAILED")
+
+    def test_verdict_map_covers_v157_and_legacy_tokens(self) -> None:
+        """_GATE_RESULT_TO_VERDICT maps both v1.5.7 captured tokens
+        and legacy `PASS|FAIL|WARN` tokens to the right enum value."""
+        from bin import archive_lib as al
+
+        self.assertEqual(al._GATE_RESULT_TO_VERDICT["PASSED"], "pass")
+        self.assertEqual(
+            al._GATE_RESULT_TO_VERDICT["PASSED WITH CLEANUP NEEDED"],
+            "pass-with-cleanup",
+        )
+        self.assertEqual(al._GATE_RESULT_TO_VERDICT["FAILED"], "fail")
+        # Legacy back-compat:
+        self.assertEqual(al._GATE_RESULT_TO_VERDICT["PASS"], "pass")
+        self.assertEqual(al._GATE_RESULT_TO_VERDICT["FAIL"], "fail")
+        self.assertEqual(al._GATE_RESULT_TO_VERDICT["WARN"], "partial")
+
+    def test_extract_gate_verdict_v157_quality_gate_log(self) -> None:
+        """_extract_gate_verdict reads quality/results/quality-gate.log
+        first and maps each v1.5.7 verdict line to the right enum."""
+        from bin import archive_lib as al
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        for sample, expected in (
+            (self._V157_PASSED, "pass"),
+            (self._V157_CLEANUP, "pass-with-cleanup"),
+            (self._V157_FAILED, "fail"),
+        ):
+            with TemporaryDirectory() as tmp:
+                run = Path(tmp)
+                results = run / "quality" / "results"
+                results.mkdir(parents=True)
+                (results / "quality-gate.log").write_text(
+                    sample, encoding="utf-8",
+                )
+                got = al._extract_gate_verdict(run)
+                self.assertEqual(
+                    got, expected,
+                    f"v1.5.7 sample mapped wrong: "
+                    f"expected {expected!r}, got {got!r}",
+                )
+
+    def test_extract_gate_verdict_legacy_fallback(self) -> None:
+        """Pre-v1.5.7 archives carrying the `gate_result: 'PASS'`
+        key=value form in run-*.json still resolve (back-compat) when
+        no quality-gate.log is present."""
+        from bin import archive_lib as al
+        from pathlib import Path
+        from tempfile import TemporaryDirectory
+
+        with TemporaryDirectory() as tmp:
+            run = Path(tmp)
+            results = run / "quality" / "results"
+            results.mkdir(parents=True)
+            (results / "run-2026-01-01T00-00-00.json").write_text(
+                '{"gate_result": "PASS", "skill_version": "1.4.3"}',
+                encoding="utf-8",
+            )
+            self.assertEqual(al._extract_gate_verdict(run), "pass")
+
+
 if __name__ == "__main__":
     unittest.main()
