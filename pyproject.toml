@@ -29,7 +29,7 @@ backend-path = ["."]
 
 [project]
 name = "quality-playbook"
-version = "1.5.7"
+version = "1.5.8"
 description = "Quality engineering for AI-driven development — a skill for AI coding agents that finds the bugs review misses."
 readme = "README.md"
 requires-python = ">=3.10"

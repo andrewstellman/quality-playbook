@@ -3,7 +3,7 @@ name: quality-playbook
 description: "Run a complete quality engineering audit on any codebase. Derives behavioral requirements from the code, generates spec-traced functional tests, runs a three-pass code review with regression tests, executes a multi-model spec audit (Council of Three), and produces a consolidated bug report with TDD-verified patches. Finds the 35% of real defects that structural code review alone cannot catch. Works with any language. Trigger on 'quality playbook', 'spec audit', 'Council of Three', 'fitness-to-purpose', or 'coverage theater'."
 license: Complete terms in LICENSE.txt
 metadata:
-  version: 1.5.7
+  version: 1.5.8
   # NOTE: Inline occurrences of the skill version exist throughout this file (frontmatter,
   # banner, version stamp template, sidecar JSON examples, run metadata, recheck template).
   # When bumping the version, update ALL occurrences — search for the old version string
@@ -329,7 +329,7 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 ```json
 {
   "schema_version": "1.1",
-  "skill_version": "1.5.7",
+  "skill_version": "1.5.8",
   "date": "2026-04-12",
   "project": "repo-name",
   "bugs": [
@@ -356,7 +356,7 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 ```json
 {
   "schema_version": "1.1",
-  "skill_version": "1.5.7",
+  "skill_version": "1.5.8",
   "date": "2026-04-12",
   "project": "repo-name",
   "recommendation": "SHIP",
@@ -377,7 +377,7 @@ Every playbook run creates a timestamped metadata file at `quality/results/run-Y
 ```json
 {
   "schema_version": "1.0",
-  "skill_version": "1.5.7",
+  "skill_version": "1.5.8",
   "project": "repo-name",
   "model": "claude-sonnet-4.6",
   "model_provider": "anthropic",
@@ -548,7 +548,7 @@ Two files in `quality/` track this run's state across the filesystem so the run 
 
 If `quality/run_state.jsonl` does not exist:
 1. Create `quality/` if absent.
-2. Append the `_index` event to `quality/run_state.jsonl`. Required fields: `event=_index`, `ts` (ISO 8601 UTC with `Z`), `schema_version="1.5.7"`, `event_types` (array listing all event types this run will use — at minimum `_index`, `run_start`, `phase_start`, `pattern_walked`, `pass_started`, `pass_ended`, `finding_logged`, `artifact_written`, `gate_check`, `phase_end`, `error`, `run_end`), `benchmark` (target name), `lever_state` (e.g. `"baseline"` for normal runs), `started_at`.
+2. Append the `_index` event to `quality/run_state.jsonl`. Required fields: `event=_index`, `ts` (ISO 8601 UTC with `Z`), `schema_version="1.5.8"`, `event_types` (array listing all event types this run will use — at minimum `_index`, `run_start`, `phase_start`, `pattern_walked`, `pass_started`, `pass_ended`, `finding_logged`, `artifact_written`, `gate_check`, `phase_end`, `error`, `run_end`), `benchmark` (target name), `lever_state` (e.g. `"baseline"` for normal runs), `started_at`.
 3. Append the `run_start` event. Required fields: `event=run_start`, `ts`, `runner` (one of `claude`/`codex`/`copilot`/`cursor`), `playbook_version` (read from SKILL.md frontmatter `version` field), `target_path`.
 4. Write `quality/PROGRESS.md` per the format spec in `references/run_state_schema.md`. Include header (Started / Benchmark / Lever / Runner / Playbook version), empty phase checklist with all six phases, empty Recent events / Artifacts produced sections.
 
@@ -966,7 +966,7 @@ Note: The recheck schema uses `"schema_version": "1.0"` (not `"1.1"`) because it
 ```json
 {
   "schema_version": "1.0",
-  "skill_version": "1.5.7",
+  "skill_version": "1.5.8",
   "date": "YYYY-MM-DD",
   "project": "<project name>",
   "source_run": {

@@ -5,6 +5,65 @@ All notable changes to the Quality Playbook will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.8] — 2026-06-03
+
+Windows ship-readiness + harness UX + methodology hardening. Adds Windows as a first-class supported platform for both Mode A (claude) and Mode B (codex via run_playbook), closes the cp1252-on-Windows hazard surface at all three sites, formalizes the Worker self-Council protocol as load-bearing methodology, graduates the AUDIT-table invariant test pattern to standard mechanism, and lands the v2 blind CVE benchmark methodology under `Security Research/CVE_BENCHMARK_METHODOLOGY_v2.md`. Next is v1.6.0 (Requirements Review — feature-complete).
+
+### Windows compatibility (180 chain, 10 followups)
+
+- **180** Windows harness compatibility — fork/tmp/start_new_session/fcntl substitutions for cross-platform process management.
+- **180-followup-2** sys.argv reinvocation broken on Windows — fix.
+- **180-followup-3** signal.SIGHUP AttributeError + fail-fast spawn verification.
+- **180-followup-4** npm/npx Windows shutil.which lookup + fail-fast scope extension.
+- **180-followup-5** TUI curses fallback + comprehensive Windows sweep.
+- **180-followup-6** signal.SIGKILL not available on Windows + complete signal sweep + manifest "RUNNING" check.
+- **180-followup-7** launch-failure diagnosability — traceback + breadcrumbs + env snapshot in `launch_error.txt`.
+- **180-followup-8** diagnosability hardening — reattach + broad swallow + coverage sweep + TUI surfacing.
+- **180-followup-9** launch-log consolidation + mtime-cached TUI reads.
+- **180-followup-10** `_pid_alive` Windows divergence + git core.longpaths defensive flag.
+- **181** Cross-platform support requirements documented in `docs/design/QPB_Test_Harness_1.5.7_Design.md` Section O + `reference_docs/33`.
+- **182** psutil migration — pid_alive / kill_process_tree / process_create_time / pid_alive_with_identity / wait_for_process now use psutil instead of platform-specific shims. Fixes the latent Windows kill-tree-only-leader bug where descendant processes were orphaned after a tree-kill.
+- **183** CREATE_NO_WINDOW flag swap — `popen_kwargs_detached()` uses `CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP` instead of `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP` so background spawns don't flash console windows on Windows. Propagates to child processes inheriting creationflags.
+- **184** Residual `_pid_alive` divergence sweep — 4 sibling modules (watchdog.py, runner.py, status.py, manager.py) had local `_pid_alive` definitions using POSIX `os.kill(pid, 0)`; all consolidated to alias `_platform.pid_alive`. First **AUDIT-table invariant test pattern** — `NoResidualPidAliveDivergenceTests` codifies the sweep as a maintenance contract via a runtime `is`-identity check across all 5 alias sites.
+
+### Windows cp1252 hazard surface — all three sites closed
+
+The Windows cp1252 default codec ate three orthogonal failure modes across this release. All three sites now carry explicit `encoding="utf-8", errors="replace"` (or the equivalent), AND each landed with its own AUDIT-table invariant test, AND the three sites together are documented as a design contract in `docs/design/QPB_Test_Harness_1.5.7_Design.md` Section O ("Windows cp1252 hazard surface"). Future PR reviewers reference Section O before approving any new `subprocess.run` / `open(text=True)` site.
+
+- **185** Site (a) — WRITE from Python to stdout/stderr: high-bit Unicode replaced with 7-bit ASCII in QPB print paths (FINDING-27); facts parser accepts BOTH ASCII and emoji verdict markers for backward-compat (FINDING-28); `PYTHONIOENCODING=utf-8` set in child env (FINDING-29).
+- **189** Site (b) — READ from external log files: `bin/qpb_harness.py` orchestrator log read + harness.log read gain `errors="replace"` + `UnicodeDecodeError` catch (FINDING-44). 14-site sweep audit across `run_playbook.py` + `install_skill.py` + `harness/{facts,runner,plan_runner,prepare}.py` (FINDING-45).
+- **190** Site (c) — WRITE from Python to subprocess stdin: `bin/run_playbook.py:2186-2197` `subprocess.run(text=True)` gains explicit `encoding="utf-8"` + `errors="replace"` for the codex/cursor stdin path (FINDING-46). 14-entry per-file AUDIT table across `bin/run_playbook.py` + `bin/harness/**/*.py` (FINDING-47). Fixes the U+2265 (≥) crash that masked operator-visible Windows codex Mode B failures.
+
+### Harness UX
+
+- **186** Removed `ABANDONED_STARVED` terminal state + the 1-hour PENDING auto-kill deadline introduced in 165. For sequential `pool=1` plans with long-running rows, the deadline killed runs before the pool could free a slot. Replaced with operator-visible signals: status shows `pending Nh Mm` waiting time + collector heartbeat-age health (FINDING-31a/b); explicit `qpb_harness force-run <run-NN>` CLI subcommand bypasses pool acquire (FINDING-33); TUI `E` keybinding force-executes the highlighted PENDING row out of pool after a confirmation modal (FINDING-32).
+- **186-followup-1** Pending-duration display gaps in CLI grouped view + TUI detail state cell; force-run drive-bys.
+- **187** NEW `include_iterations: bool = False` plan-row field. When `true`, the Mode A launch prompt drops the "Do not run the iteration strategies" exclusion clause so QPB runs all 4 iteration strategies (gap/unfiltered/parity/adversarial) per its documented default. Default-False preserves the 106 acceptance-plan behavior. **Empirical caveat (2026-06-03 blind CVE benchmark A/B):** iterations made detection WORSE in 2/2 directly-comparable rows — the adversarial pass over-dismisses real findings when call-graph reasoning is shallow. Default `include_iterations: false` for security plans is now the documented recommendation.
+- **188** `kill <harness-run>` now cancels PENDING runs (previously skipped them). New `CANCELLED` terminal state via `cancel_pending_run` helper; the collector's PENDING-retry loop and `_try_acquire_pool_slot` both check `state != "PENDING"` so cancellations can't silently resurrect. Status / TUI render CANCELLED rows in their own section. `HarnessRunSummary.cancelled` field + `C={cancelled}` column added across CLI status, TUI runs table, and curses TUI summary — same 6-site shape as the 113 BLOCKED-fix pattern.
+
+### Methodology
+
+- **Worker self-Council protocol** (Protocol 1) — formalization of the "Parallel-Agent reviewers" Council flavor with stricter discipline. Documented in `ai_context/DEVELOPMENT_PROCESS.md`. Used since 186-followup-1; has demonstrably caught ship-blockers across 187 / 188 / 189 / 190 that a single-reviewer pass would have shipped (187's manifest round-trip persistence gap, 188's `_try_acquire_pool_slot` race, 188's 6-site `CANCELLED` display gap, 190's em-dash-IS-in-cp1252 boundary distinction). Codifies: 3 panelist charters in parallel via Task tool, each Write-to-file artifact at `Reviews/v<NNN>_self_council/panelist_<X>_<charter>.md`, synthesis to `Reviews/v<NNN>_self_council/synthesis.md`, FIX-REQUIRED iterates in-branch BEFORE filing v1 to Cowork.
+- **AUDIT-table invariant test pattern** (v1.5.7 184+) — graduated from "pattern" to "standard mechanism" after 3 confirmed reuses (184 `_pid_alive` divergence, 189 log-read encoding, 190 subprocess stdin encoding). When a defect-class shape is observed for the third time, file an exhaustive-sweep invariant test alongside the targeted fix. Documented in `ai_context/DEVELOPMENT_PROCESS.md`.
+- **Blind CVE benchmark methodology v2** — `Security Research/CVE_BENCHMARK_METHODOLOGY_v2.md` extends the v1 framework with three orthogonal failure modes (token-level / structural / training-data contamination), explicit gathering whitelist+blacklist, two-gate verification (regex scan + blind-reviewer localization), baseline calibration requirement, and per-repo audit-trail discipline. Triggered by the 2026-06-02 Contamination Council finding that the v1-gathered `docs_gathered/` corpus was structurally contaminated; the prior cited "wins" (CASE-005 avro, CASE-009 evervault-go) were disqualified for cite until rebuilt. The 7 CVE-benchmark-eligible corpora were rebuilt via parallel blinded forward-gatherers and both gates passed. The 2026-06-03 blind benchmark run produced 2/7 DETECTED (setuptools CASE-001 + evervault-go CASE-009) — first methodologically-trustworthy blind security wins.
+
+### Other
+
+- **Worker queue infrastructure:** `ai_context/DEVELOPMENT_PROCESS.md` adds Worker self-Council protocol + AUDIT-table invariant pattern sections.
+- **`ai_context/DEVELOPMENT_CONTEXT.md`** + **`ai_context/TOOLKIT.md`** currency pass for 180-190 work.
+- **Plan files:** `harness_plans/security_blind_v2_rebuild.json` (7-row blind CVE benchmark, all `include_iterations: true`) + `security_blind_v2_no_iter.json` (A/B comparison arm, `false` on every row); `windows_codex_smoke.json` (Windows codex Mode B 1-row smoke test).
+- **`bin/harness/requirements.txt`** — runtime deps for harness (build + psutil + textual + windows-curses with `sys_platform=='win32'` marker). Install via `python3 -m pip install -r bin/harness/requirements.txt` before firing harness runs on a fresh machine.
+- **`Security Research/`** new artifacts: `CVE_BENCHMARK_METHODOLOGY_v2.md`, `Gatherer Prompt Template.md`, `CVE_BENCHMARK_REBUILD_RESULTS_2026-06-02.md`.
+
+### Known issues at ship time
+
+- **Windows codex Mode B with small models** may fail the Phase 1 → Phase 2 gate due to limited reasoning depth (observed with `gpt-5.4-mini` on chi 2026-06-03). The harness behaves correctly — child runs cleanly post-190, abort discipline records `ABORTED_PHASE` with actionable reason — but the model can't produce sufficient Phase 1 artifacts. Use `gpt-5.5` or `gpt-5.4` for actual quality runs. Documented in `ai_context/DEVELOPMENT_CONTEXT.md` "Gotchas" + "Current known issues" sections.
+- **codex CLI model availability varies by account tier.** `gpt-5.3-codex` is restricted on ChatGPT-account Codex tiers as of codex-cli v0.136.0; use `gpt-5.5` (universal default) or `gpt-5.4-mini` (cheaper). Plan files now use universally-available models.
+- **Iterations are net-negative for blind-CVE security work.** Default `include_iterations: false` for security plans. Opt-in only where breadth-search semantics outweigh the over-dismissal risk.
+- **3 CVE benchmark targets missing corpora** (CASE-003 keras, CASE-004 CPython tarfile, CASE-006 Budibase) — fresh blind forward-gathering needed to fill the benchmark to 10. Tracked for v1.5.8.x or v1.6.0.
+- **avro / spark scope-selection ambiguity** in the v2 blind benchmark — when the corpus describes multiple subsystems with equal depth, QPB picks one to drill into and may pick the wrong one. Tracked for v1.5.8.x or v1.6.0.
+- **evervault-go `relay.go` plain-HTTP CA finding** surfaced by Gate 2 in the v2 corpus rebuild — could be a real new security finding or a gatherer-phrasing artifact. Spot-check pending.
+
 ## [1.5.7] — 2026-05-21
 
 Research-grade hardening release. Last v1.5.x; next is v1.6.0 (Requirements Review — feature-complete).
