@@ -167,7 +167,7 @@ Marks the end of a phase. Cross-validated against the phase's expected artifacts
 - Phase 3: `{"bugs_identified": N, "bug_writeups": M}`
 - Phase 4: `{"req_count": N, "uc_count": M, "passes_complete": K}` (K should be 4)
 - Phase 5: `{"gate_checks_total": N, "gate_failures": M}`
-- Phase 6: `{"bugs_md_count": N, "gate_verdict": "pass|pass-with-cleanup|fail|partial"}` (the `pass-with-cleanup` value, v1.5.7 089d F17, corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line; see `schemas.md` §11)
+- Phase 6: `{"bugs_md_count": N, "gate_verdict": "pass|pass-with-cleanup|fail|partial"}` (the `pass-with-cleanup` value, v1.5.7 089d F17, corresponds to the gate's `RESULT: GATE PASSED WITH CLEANUP NEEDED` line)
 
 ### `error`
 

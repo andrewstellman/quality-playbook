@@ -97,8 +97,8 @@ account login flow.
 
 The Council-of-Three is QPB's Phase 4 audit mechanism. Three
 independent AI reviewers vote on each Tier 1/2 requirement's
-citation_excerpt (per `schemas.md` §9 + invariant #17). Why three,
-and why model-family diverse?
+citation_excerpt; the gate requires a 2-of-3 majority before
+accepting the citation. Why three, and why model-family diverse?
 
 ### Why three (not four, not five, not one)
 
@@ -220,7 +220,5 @@ This document is updated when Phase 6b lands.
   used by the Phase 4 audit.
 - `phase_prompts/phase4.md` — agent-facing Phase 4 prompt including
   Council launch instructions.
-- `schemas.md` §9 + §10 invariant #17 — Council audit schema and
-  gate validation rules.
 - `docs/design/QPB_v1.5.7_Design.md` Deliverable 6 — design rationale
   for the v1.5.7 Council resilience work.

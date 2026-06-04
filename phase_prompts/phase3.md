@@ -12,9 +12,9 @@ Read these files to get context:
 Execute Phase 3: Code Review + Regression Tests.
 Run the 3-pass code review per quality/RUN_CODE_REVIEW.md. For every confirmed bug:
 - Add to quality/BUGS.md with ### BUG-NNN heading format
-- Write the BUG record with `severity` exactly uppercase: `HIGH` / `MEDIUM` / `LOW` per schemas.md §3.3 (v1.5.7 fix Q3 mandate — Phase 6 gate WARN on case drift). Write `divergence_type` per schemas.md §3.8 (v1.5.7 fix Q2 mandate): `code-spec` / `internal-prose` / `cross-source`.
-- **MANDATORY reachability analysis** (v1.5.7 090j D1, see references/challenge_gate.md "Precision guardrails"): before confirming any HIGH or MEDIUM bug, search the cited code path for upstream guards, filters, early-returns, or compensating mechanisms that would make the defect unreachable. Record the result on the manifest as the field `reachability_analysis` (schemas.md §8.1) — either quote the guard found (and then DEMOTE the candidate, do NOT confirm) or state plainly "no guard; <defect path> reached unconditionally." The Phase 6 gate FAILs any HIGH/MEDIUM bug without this field; LOW severity gets a WARN.
-- **If the finding cites a CVE** (v1.5.7 090j D2/D3): set `cve_reference: "<CVE-id>"` AND `cve_version_applies: true | false` (boolean — `true` iff the audited version is within the CVE's affected range). If the audited version is OUTSIDE the CVE's affected range, downgrade severity to MEDIUM or below — HIGH on a CVE basis requires applicability. If the finding's sole basis is the advisory with no in-tree code defect located, set `classification: known-issue` (schemas.md §3.11) — the record is surfaced to operators but is excluded from the bug count and precision metrics.
+- Write the BUG record with `severity` exactly uppercase: `HIGH` / `MEDIUM` / `LOW` (v1.5.7 fix Q3 mandate — Phase 6 gate WARN on case drift). Write `divergence_type` (v1.5.7 fix Q2 mandate): `code-spec` / `internal-prose` / `cross-source`.
+- **MANDATORY reachability analysis** (v1.5.7 090j D1, see references/challenge_gate.md "Precision guardrails"): before confirming any HIGH or MEDIUM bug, search the cited code path for upstream guards, filters, early-returns, or compensating mechanisms that would make the defect unreachable. Record the result on the manifest as the field `reachability_analysis` — either quote the guard found (and then DEMOTE the candidate, do NOT confirm) or state plainly "no guard; <defect path> reached unconditionally." The Phase 6 gate FAILs any HIGH/MEDIUM bug without this field; LOW severity gets a WARN.
+- **If the finding cites a CVE** (v1.5.7 090j D2/D3): set `cve_reference: "<CVE-id>"` AND `cve_version_applies: true | false` (boolean — `true` iff the audited version is within the CVE's affected range). If the audited version is OUTSIDE the CVE's affected range, downgrade severity to MEDIUM or below — HIGH on a CVE basis requires applicability. If the finding's sole basis is the advisory with no in-tree code defect located, set `classification: known-issue` — the record is surfaced to operators but is excluded from the bug count and precision metrics.
 - Write a regression test (xfail-marked)
 - Generate quality/patches/BUG-NNN-regression-test.patch (MANDATORY for every confirmed bug)
 - Generate quality/patches/BUG-NNN-fix.patch (strongly encouraged)
@@ -81,7 +81,7 @@ Cell IDs are mechanical: `REQ-<N>/cell-<item>-<site>`. No whitespace, uppercase 
 - the item is absent from any shared filter AND
 - the item is absent from the site's compensation path
 
-→ the cell DEFAULTS to BUG. Emit one `### BUG-NNN` entry with the cell's file:line citation, spec basis, and expected-vs-actual behavior. Include a `- Covers: [REQ-N/cell-<item>-<site>]` line (see schemas.md §8 for the field contract).
+→ the cell DEFAULTS to BUG. Emit one `### BUG-NNN` entry with the cell's file:line citation, spec basis, and expected-vs-actual behavior. Include a `- Covers: [REQ-N/cell-<item>-<site>]` line.
 
 **Step 5. Downgrade to QUESTION requires a structured JSON record.** Append one record per downgraded cell to `quality/compensation_grid_downgrades.json`:
 

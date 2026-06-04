@@ -366,10 +366,13 @@ class ModeAInstallStepContractTests(unittest.TestCase):
             "### Mode A — skill-direct walkthrough (UI-context)",
             "\n### Mode B —",
         )
+        # v1.5.7 191 FINDING-52: "Phase 0" renamed to "Phase 0 entry
+        # contract" so the seed-loading and install-validator passes
+        # don't share the bare "Phase 0" name.
         self.assertIn(
-            "Phase 0 (MANDATORY first action)", mode_a,
+            "Phase 0 entry contract (MANDATORY first action)", mode_a,
             "SKILL.md Mode A intro must carry the MANDATORY Phase-0 "
-            "pointer (072/073 A-18; 078 validator-first)",
+            "entry contract pointer",
         )
         self.assertIn(
             "qpb_validate", mode_a,

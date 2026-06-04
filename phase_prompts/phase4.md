@@ -21,7 +21,7 @@ Run the spec audit per quality/RUN_SPEC_AUDIT.md. Produce:
 **Precision guardrails apply to net-new spec-audit bugs** (v1.5.7 090j; see references/challenge_gate.md "Precision guardrails"): every HIGH/MEDIUM bug emerging from the spec audit MUST carry a `reachability_analysis` field (D1); a CVE-cited bug must carry `cve_reference` + `cve_version_applies` (D3) and may need `classification: known-issue` if the audit did not independently locate the in-tree defect (D2). The Phase 6 gate enforces these via `check_v1_5_7_090j_triage_precision`.
 
 Part B — Layer-2 semantic citation check (v1.5.1):
-The gate's invariant #17 (schemas.md §10) requires three Council members to
+The gate requires three Council members to
 vote on each Tier 1/2 REQ's citation_excerpt. Execute these steps:
 
 1. Generate per-Council-member prompts:
@@ -46,7 +46,7 @@ vote on each Tier 1/2 REQ's citation_excerpt. Execute these steps:
        --member claude-opus-4.7  --response quality/council_semantic_check_responses/claude-opus-4.7.json \
        --member gpt-5.5          --response quality/council_semantic_check_responses/gpt-5.5.json \
        --member claude-sonnet-4.6 --response quality/council_semantic_check_responses/claude-sonnet-4.6.json
-   This writes quality/citation_semantic_check.json per schemas.md §9.
+   This writes quality/citation_semantic_check.json with the assembled per-REQ verdicts (a `{schema_version, generated_at, reviews[]}` wrapper carrying one entry per Tier 1/2 REQ).
 
 4. Verify the output file exists. Phase 6's gate invariant #17 requires
    it on every Tier 1/2 run.
