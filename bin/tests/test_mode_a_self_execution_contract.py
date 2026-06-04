@@ -142,16 +142,26 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
         self.assertIn(
             "agents/quality-playbook-claude.agent.md", section,
         )
-        # The reproduction citation grounds the rule in a verified
-        # failure (per the guardrail-citation discipline).
-        self.assertIn("2026-05-16", section)
+        # The failure mode is described in prose (the SKILL.md trim
+        # of 2026-06-04 / commit 45d4520 removed the "2026-05-16"
+        # date citation as unactionable; the "witness" anchor still
+        # pins the rule's mechanism — Phase 6 witness contract).
         self.assertIn("witness", section.lower())
 
     def test_skill_md_guardrail_1_cites_a17_express_failure(self) -> None:
-        """SKILL.md guardrail #1 names BOTH verified failure modes
-        (B-15 and the new A-17 / 2026-05-16 express opus-4.6) and adds
-        the `quality-playbook` skill-invocation mechanism to the
-        forbidden list."""
+        """SKILL.md guardrail #1 names BOTH verified failure-mode
+        mechanisms (the delegated-agent-silent-death pattern and the
+        sub-skill-fabricated-PASS pattern) and adds the
+        `quality-playbook` skill-invocation mechanism to the
+        forbidden list.
+
+        v1.5.7 192: trim 45d4520 removed the A-17/B-15 instruction
+        codes and the dated `2026-05-16 express opus-4.6` citation
+        as unactionable references — the running agent cannot look
+        up what 'A-17' means and the date doesn't change the rule.
+        Updated to assert on the surviving mechanism descriptions
+        instead of the removed codes.
+        """
         guardrail_1 = _slice(
             _SKILL_MD.read_text(encoding="utf-8"),
             "1. **Synchronous execution — no sub-agent delegation.**",
@@ -161,21 +171,28 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
             "the `quality-playbook` skill-invocation mechanism",
             guardrail_1,
             "guardrail #1 must add the sub-skill invocation mechanism "
-            "to the forbidden list (A-17)",
+            "to the forbidden list",
         )
+        # Failure mode (a) — the delegated-agent silent-death pattern.
         self.assertIn(
-            "A-17", guardrail_1,
-            "guardrail #1 must cite the A-17 failure mode",
+            "phases 2", guardrail_1,
+            "guardrail #1 must describe the delegated-agent "
+            "silent-death failure mode (phases 2-6 die in a delegated "
+            "agent)",
         )
+        # Failure mode (b) — the sub-skill PASS-fabrication pattern.
         self.assertIn(
-            "2026-05-16 express opus-4.6", guardrail_1,
-            "guardrail #1 must cite the 2026-05-16 express reproduction",
+            "fabricates", guardrail_1,
+            "guardrail #1 must describe the sub-skill PASS-fabrication "
+            "failure mode (sub-skill fabricates gate log)",
         )
-        # B-15 must NOT be dropped — both failure modes coexist.
+        # The Phase 6 verification exception (the principled carve-
+        # out) must be present in the same guardrail.
         self.assertIn(
-            "B-15", guardrail_1,
-            "guardrail #1 must preserve the original B-15 citation "
-            "alongside the new A-17 one",
+            "Phase 6 verification", guardrail_1,
+            "guardrail #1 must carry the Phase 6 verification "
+            "exception (mandatory sub-agent for verification, "
+            "forbidden for execution)",
         )
 
     def test_agents_md_orchestrator_rows_marked_automation_only(self) -> None:
@@ -393,15 +410,30 @@ class ModeAInstallStepContractTests(unittest.TestCase):
         )
 
     def test_skill_md_mode_a_cites_httpx_failure_mode(self) -> None:
+        """The Phase-0 pointer must describe the skipped-install
+        failure mode that motivates the MANDATORY-first-action rule.
+
+        v1.5.7 192: trim 45d4520 removed the `2026-05-17 httpx`
+        date-citation as unactionable; the failure mode itself is
+        still described in the surrounding prose
+        ("skipped/fabricated validation ... documented adopter
+        failure modes"). Updated to assert on the failure-mode
+        description rather than the dropped date.
+        """
         mode_a = _slice(
             _SKILL_MD.read_text(encoding="utf-8"),
             "### Mode A — skill-direct walkthrough (UI-context)",
             "\n### Mode B —",
         )
         self.assertIn(
-            "2026-05-17 httpx", mode_a,
-            "the Phase-0 pointer must cite the 2026-05-17 httpx "
-            "skipped-install failure as rationale (A-18)",
+            "skipped/fabricated validation", mode_a,
+            "the Phase-0 pointer must cite the skipped/fabricated "
+            "validation failure mode as rationale",
+        )
+        self.assertIn(
+            "documented adopter failure modes", mode_a,
+            "the Phase-0 pointer must label the failure modes as "
+            "documented (not theoretical)",
         )
 
     def test_agents_md_has_mode_a_entry_sequence_full_protocol(self) -> None:

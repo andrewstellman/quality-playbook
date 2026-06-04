@@ -63,13 +63,18 @@ class Phase0InstallLocationAware090tTests(unittest.TestCase):
         Mutation bite: revert SKILL.md:77 or :94 to bare
         ``python3 bin/qpb_validate.py`` (the pre-090t shape) →
         this test FAILs because the install-root token disappears.
+
+        v1.5.7 192: trim 45d4520 dropped the ``(v1.5.7 090t)``
+        instruction-code parenthetical. The install-location-aware
+        framing is preserved; the assertion is updated to the
+        current canonical form (no parenthetical).
         """
         # The Phase 0 numbered step (~line 77) must carry the
-        # 090t install-location-aware framing.
+        # install-location-aware framing.
         self.assertIn(
-            "Invocation form is install-location-aware (v1.5.7 090t)",
+            "Invocation form is install-location-aware:",
             self.skill_text,
-            "SKILL.md Phase 0 numbered step must carry the 090t "
+            "SKILL.md Phase 0 numbered step must carry the "
             "install-location-aware framing.",
         )
         # And the install-root-prefixed form.
@@ -132,23 +137,36 @@ class Phase0InstallLocationAware090tTests(unittest.TestCase):
         )
 
     def test_phase0_invocations_cite_run4_motivation(self) -> None:
-        """The 090t guidance must cite the 2026-05-25 Keto run4
-        first-probe failure in both surfaces so a future reader
-        understands which adopter failure mode drove the rule.
+        """The 090t guidance must describe the run4 first-probe
+        failure mode so a future reader understands which adopter
+        failure mode drove the rule.
 
-        Mutation bite: drop the citation → future readers won't
-        know which adopter failure mode justifies the more
-        verbose install-root-aware form.
+        Mutation bite: drop the failure-mode description → future
+        readers won't know which adopter failure mode justifies the
+        more verbose install-root-aware form.
+
+        v1.5.7 192: trim 45d4520 removed the "2026-05-25 Keto run4"
+        date+repo citation from SKILL.md as unactionable (a running
+        agent can't act on the date or the specific repo name).
+        AGENTS.md retains the citation because AGENTS.md was not
+        trimmed and serves a different audience (the operator
+        reads AGENTS.md for entry-sequence context). SKILL.md's
+        failure-mode prose is preserved via the surviving
+        `bare-path-from-repo-root` language in the Phase 0 pointer.
         """
-        for text, name in (
-            (self.skill_text, "SKILL.md"),
-            (self.agents_text, "AGENTS.md"),
-        ):
-            self.assertIn(
-                "2026-05-25 Keto run4", text,
-                f"{name}: must cite the 2026-05-25 Keto run4 first-"
-                f"probe failure as the 090t motivation.",
-            )
+        # AGENTS.md retains the dated citation — adopter-facing.
+        self.assertIn(
+            "2026-05-25 Keto run4", self.agents_text,
+            "AGENTS.md: must cite the 2026-05-25 Keto run4 first-"
+            "probe failure as the 090t motivation.",
+        )
+        # SKILL.md describes the failure mode in mechanism-
+        # descriptive prose (the date was trimmed as unactionable).
+        self.assertIn(
+            "bare-path-from-repo-root", self.skill_text,
+            "SKILL.md: must describe the bare-path-from-repo-root "
+            "failure mode (the mechanism the run4 citation labeled).",
+        )
 
     def test_skill_md_size_under_ceiling(self) -> None:
         """Sanity-pin alongside the canonical test_skill_md_size:

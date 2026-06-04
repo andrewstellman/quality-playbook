@@ -207,11 +207,34 @@ class NpmChannelPackageParity089vStructuralTests(unittest.TestCase):
 
     def test_package_json_name_and_version_match_wheel(self) -> None:
         """The npm package's name + version must match the wheel
-        (operator publishes both as the same release version)."""
+        (operator publishes both as the same release version) AND
+        the SKILL.md frontmatter version (the single source of
+        truth for the skill version, per the SKILL.md NOTE: 'When
+        bumping the version, update ALL occurrences').
+
+        v1.5.7 192: was hard-coded to "1.5.7"; the SKILL.md version
+        was bumped to 1.5.8 in commit 02c8626 pre-191. Updated to
+        dynamically read the SKILL.md frontmatter so this test
+        survives future version bumps.
+        """
         package_json = json.loads(
             (REPO_ROOT / "package.json").read_text())
         self.assertEqual(package_json.get("name"), "quality-playbook")
-        self.assertEqual(package_json.get("version"), "1.5.7")
+        # Read the canonical version from SKILL.md frontmatter
+        # (the single source of truth).
+        from bin import _purpose
+        skill_version = _purpose.get_version()
+        self.assertNotEqual(
+            skill_version, "unknown",
+            "SKILL.md frontmatter version must resolve; got "
+            "'unknown'",
+        )
+        self.assertEqual(
+            package_json.get("version"), skill_version,
+            f"package.json version must match SKILL.md frontmatter "
+            f"version. SKILL.md={skill_version!r}, "
+            f"package.json={package_json.get('version')!r}.",
+        )
 
 
 @unittest.skipUnless(

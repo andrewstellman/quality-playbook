@@ -175,10 +175,19 @@ class Phase6SubAgentContractTests(unittest.TestCase):
         self.assertIn("you will not", auditor.lower())
 
     def test_skill_md_a17_has_verification_exception(self) -> None:
-        """SKILL.md carries the principled A-17 verification
-        exception in BOTH the Mode A intro AND guardrail #1
-        (execution = no sub-agent; verification = mandatory
-        sub-agent; same principle, opposite mechanism)."""
+        """SKILL.md carries the principled verification exception
+        in BOTH the Mode A intro AND guardrail #1 (execution = no
+        sub-agent; verification = mandatory sub-agent; same
+        principle, opposite mechanism).
+
+        v1.5.7 192: trim 45d4520 removed instruction codes (A-17,
+        B-15, A-13 hybrid) and the dated `2026-05-16 express` /
+        `2026-05-17 httpx` citations as unactionable. The structural
+        contract (exception is MANDATED, scoped to Phase 6
+        verification, points at phase6_auditor.md) is preserved in
+        cleaner prose. Assertions updated to the current canonical
+        wording.
+        """
         skill = _SKILL_MD.read_text(encoding="utf-8")
         mode_a = _slice(
             skill,
@@ -186,12 +195,12 @@ class Phase6SubAgentContractTests(unittest.TestCase):
             "\n### Mode B —",
         )
         self.assertIn(
-            "EXCEPTION (v1.5.7 A-13 hybrid)", mode_a,
-            "SKILL.md Mode A intro must carry the A-13-hybrid "
-            "verification exception",
+            "EXCEPTION:", mode_a,
+            "SKILL.md Mode A intro must carry the verification "
+            "EXCEPTION callout",
         )
         self.assertIn(
-            "MANDATES sub-agent delegation for VERIFICATION", mode_a,
+            "MANDATED for VERIFICATION", mode_a,
             "Mode A exception must MANDATE (not merely allow) "
             "sub-agent delegation for Phase 6 verification",
         )
@@ -207,13 +216,29 @@ class Phase6SubAgentContractTests(unittest.TestCase):
             guardrail_1,
             "guardrail #1 must distinguish Phase 1-5 execution "
             "(no sub-agent) from Phase 6 verification (mandatory "
-            "sub-agent) (A-13 hybrid)",
+            "sub-agent)",
         )
-        self.assertIn("principled A-17 exception", guardrail_1)
-        # The original A-17/B-15 execution citations must survive
-        # (the exception is additive, not a replacement).
-        self.assertIn("B-15", guardrail_1)
-        self.assertIn("A-17", guardrail_1)
+        # The principled-exception framing (execution forbidden,
+        # verification mandated) must survive as descriptive prose.
+        self.assertIn(
+            "opposite mechanism", guardrail_1,
+            "guardrail #1 must frame the verification exception as "
+            "the same principle but opposite mechanism (visibility "
+            "for execution; isolation for verification)",
+        )
+        # Both failure modes the rule closes must be described in
+        # the surviving prose (the trim collapsed instruction codes
+        # but kept the mechanism descriptions).
+        self.assertIn(
+            "phases 2", guardrail_1,
+            "guardrail #1 must describe the phases-2-6-silent-death "
+            "failure mode (originally cited as B-15)",
+        )
+        self.assertIn(
+            "fabricates", guardrail_1,
+            "guardrail #1 must describe the sub-skill "
+            "PASS-fabrication failure mode (originally cited as A-17)",
+        )
 
 
 if __name__ == "__main__":

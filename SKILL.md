@@ -42,15 +42,15 @@ Every bug found traces back to a requirement, and every requirement traces back 
 **MANDATORY FIRST ACTION:** After reading and understanding the plan above, print the following attribution banner **exactly as written below — do NOT condense, abbreviate, summarize, reformat, or add a version number**. Reproduce the full 8-line canonical block including the two `===…===` rules, both taglines, the blank lines, and the license line, byte-for-byte matching `bin/_purpose.print_attribution_banner()` (the single source of truth). Then explain the plan in your own words — what you'll do, what each phase produces, and why the exploration phase matters most. Emphasize that exploration starts with open-ended domain-driven investigation, followed by domain-knowledge risk analysis that reasons about what goes wrong in systems like this, then supplemented by selected structured patterns. Do not copy the plan verbatim; paraphrase it to demonstrate understanding.
 
 ```
-════════════════════════════════════════════════════════════════════════════════
-  Quality Playbook — by Andrew Stellman
+================================================================================
+  Quality Playbook -- by Andrew Stellman
   https://github.com/andrewstellman/quality-playbook
 
   AI code review is good. Quality engineering is better.
   Because code that looks right can still do the wrong thing.
 
   Licensed under the Apache License, Version 2.0
-════════════════════════════════════════════════════════════════════════════════
+================================================================================
 ```
 
 Generate a complete quality system tailored to a specific codebase. Unlike test stub generators that work mechanically from source code, this skill explores the project first — understanding its domain, architecture, specifications, and failure history — then produces a quality playbook grounded in what it finds.
@@ -212,6 +212,8 @@ A successful run produces this canonical set under the target's `quality/` direc
 | `AGENTS.md` (target repo root) | Per-project orientation generated post-Phase-6. Carries a QPB sentinel marker so future runs detect QPB-managed copies. |
 
 The gate verdict in `quality/INDEX.md` (`pass` / `pass-with-cleanup` / `partial` / `fail`) is the operator-facing summary of how the run went. The 089c F15 three-state taxonomy maps the gate's `RESULT:` line to this enum: `RESULT: GATE PASSED` → `pass`; `RESULT: GATE PASSED WITH CLEANUP NEEDED` → `pass-with-cleanup` (review completed, bug findings stand, only audit record-keeping incomplete — non-blocking); `RESULT: GATE FAILED` → `fail` (a substantive issue). `partial` covers aborted / WARN-only runs. If the verdict is anything other than `pass`, surface why before considering the run done; `pass-with-cleanup` is a successful outcome, but the State CN emit (per `references/what_just_happened.md`) walks the adopter through completing the remaining audit records.
+
+`quality/INDEX.md` uses `schema_version: "2.0"` and carries a `target_role_breakdown` field with the per-role counts and percentages computed from `quality/exploration_role_map.json`. Pipelines activate from the role map's per-file role tags (`skill-prose`, `skill-reference`, `skill-tool`, `code`, `test`, `docs`, `config`, `fixture`, `formal-spec`, `playbook-output`) rather than a project-type label — the skill-derivation pipeline runs over files tagged `skill-prose`/`skill-reference`, the code-review pipeline runs over files tagged `code`, the prose-to-code divergence check runs over files tagged `skill-tool`, and when the role map shows zero of a role that pipeline no-ops cleanly. Both pipelines run when both surfaces are present.
 
 ### Locating reference files
 
