@@ -217,6 +217,33 @@ The v1.5.7 distribution channels (pip / uvx / pipx + npx) produced a string of b
 
 **Generalization — gate before any channel publish.** A release that publishes a distribution channel does not get tagged until: (1) a **clean-clone cold-build test** — build the wheel/sdist and `npm pack` from a fresh checkout with NO pre-staged bundle, asserting the artifacts contain the complete bundle (an empty or partial bundle must be impossible, not merely warned about at runtime); (2) a **built-artifact end-to-end test** — install the built wheel/tarball into a throwaway environment and run the real entry points (`install` + `validate`), not just the clone path; and (3) an **architecture review** (Council on the channel packaging) before the tag. Bundled scripts must be *foreign-`bin`-proof*: any `from bin import X` needs a path-load fallback (anchored on the script's own location) so it can never resolve to a sibling repo's `bin/`. Treat "the channel tests pass" as insufficient evidence until the built artifact has been installed and run from a clean clone.
 
+### Publish scripts (pip + npm + awesome-copilot)
+
+**Origin: 2026-06-06 v1.5.8 instruction 202 — hand-typed publishes accumulate invisible failures.**
+
+The v1.5.8 ship sequence formalizes three publish channels into scripted form so each publish is reproducible and each pre-condition is checked before any irreversible upload:
+
+- **pip** — `bin/publish_pip.py`. Eight pre-flight checks (clean tree, version parity across pyproject/package/init, tag exists, tag is HEAD ancestor, `bin/build_channel_package.py` stages cleanly + `python -m build` produces wheel+sdist, 089u parity test passes, no forbidden contents in dist artifacts, twine auth configured). Two-phase publish: test PyPI first → operator runs the printed `pip install -i https://test.pypi.org/simple/ ...` in a clean venv → operator confirms → prod PyPI upload → `pip index versions` verification (or curl fallback to `https://pypi.org/pypi/quality-playbook/json`). `--dry-run` flag exercises every step except the actual twine upload.
+
+- **npm** — `bin/publish_npm.py`. Seven pre-flight checks (clean tree, version parity, tag exists, `npm whoami` succeeds, `build_channel_package.py --stage` succeeds, no forbidden contents in staged bundle, `npm pack --dry-run` succeeds and emits a clean file list). Operator-confirmed `npm publish --access public` then `npm view quality-playbook version` verification. `--dry-run` flag.
+
+- **awesome-copilot** — `bin/submit_awesome_copilot.py`. The registry is `github/awesome-copilot` (34k stars, official GitHub org). Skills live at `skills/<skill-name>/SKILL.md` with frontmatter (`name`, `description`, `license`) and the registry's own tooling (`npm run skill:create`, `npm run skill:validate`, `npm run build`) is intended to run inside a clone of awesome-copilot, not inside QPB. Because the QPB skill ships seven support directories that would exceed the registry's typical-skill footprint as bundled assets, the QPB script generates a **submission packet** under `dist/awesome_copilot_submission/` containing (a) a trimmed `skills/quality-playbook/SKILL.md` that links back to the canonical QPB repo for the full toolkit, (b) `PR_BODY.md` the operator pastes into the PR, and (c) `MANUAL_STEPS.md` walking through the fork → copy in → `npm run skill:validate` → push → `gh pr create` flow. The script does NOT call `gh pr create` or push directly; the operator runs the manual steps after reviewing the packet.
+
+**Awesome-copilot operator workflow (paraphrased from `MANUAL_STEPS.md` in the generated packet):**
+
+1. Run `python3 bin/submit_awesome_copilot.py` from a clean working tree at the target version.
+2. Fork `github/awesome-copilot` once (`gh repo fork github/awesome-copilot --clone=true`); `npm install` in the fork.
+3. Branch off `upstream/main` (`git checkout -b add-quality-playbook-<version> upstream/main`).
+4. Copy `dist/awesome_copilot_submission/skills/quality-playbook/SKILL.md` into the fork's `skills/quality-playbook/`.
+5. Run `npm run skill:validate` then `npm run build` in the fork; iterate until both succeed.
+6. Commit, push to the fork, and `gh pr create --repo github/awesome-copilot --body-file <packet>/PR_BODY.md`.
+
+The submission packet is regenerated each run so it always reflects the current QPB version + SKILL.md frontmatter; the version-string parity check at the top of the script halts before generating anything if the three manifests disagree.
+
+**Logging.** All three publish scripts write a per-run log to `~/.qpb/publish_logs/<channel>_<version>_<UTC-ISO8601>.log` so post-mortem of a botched publish has a trail. The log captures every pre-flight check verdict + every subprocess's stdout/stderr.
+
+**Generalization:** every release-time external interaction (PyPI upload, npm publish, registry PR) is scripted, dry-runnable, and idempotent. The operator's job is to review the packet/file-list/confirmation prompt and type `y`, not to remember the command syntax. Hand-typed publishes are the documented failure mode this avoids.
+
 ### Mutation-test discipline
 
 **Origin: pattern across multiple Council rounds where unit tests passed but real-input behavior failed.**
