@@ -154,6 +154,14 @@ def _read_version(path: Path, regex: re.Pattern) -> Optional[str]:
 
 
 def check_clean_tree(repo_root: Path) -> Tuple[bool, str]:
+    """Check 1: ``git status --porcelain`` empty.
+
+    The bundle directory ``quality_playbook_cli/_bundle/`` is gitignored
+    (``.gitignore:99``), so `git status --porcelain` correctly excludes it
+    even when it exists on disk. The bundle is rebuilt deterministically by
+    check 5 (``build_channel_package.py --stage``); any stale state is
+    overwritten before ``npm publish`` sees it.
+    """
     r = _run(["git", "status", "--porcelain"], cwd=repo_root)
     if r.returncode != 0:
         return False, f"git status failed: {r.stderr.strip()}"
@@ -163,18 +171,6 @@ def check_clean_tree(repo_root: Path) -> Tuple[bool, str]:
             + r.stdout
             + "\nCommit or stash before publishing."
         )
-    bundle = repo_root / "quality_playbook_cli" / "_bundle"
-    if bundle.exists():
-        r2 = _run(
-            ["git", "status", "--porcelain", "--ignored", str(bundle)],
-            cwd=repo_root,
-        )
-        if r2.returncode == 0 and r2.stdout.strip():
-            return False, (
-                "build_channel_package may have left state under "
-                f"{bundle.relative_to(repo_root)} — clean it before "
-                "publishing:\n" + r2.stdout
-            )
     return True, "Working tree clean."
 
 

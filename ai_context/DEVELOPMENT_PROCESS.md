@@ -227,16 +227,19 @@ The v1.5.8 ship sequence formalizes three publish channels into scripted form so
 
 - **npm** — `bin/publish_npm.py`. Seven pre-flight checks (clean tree, version parity, tag exists, `npm whoami` succeeds, `build_channel_package.py --stage` succeeds, no forbidden contents in staged bundle, `npm pack --dry-run` succeeds and emits a clean file list). Operator-confirmed `npm publish --access public` then `npm view quality-playbook version` verification. `--dry-run` flag.
 
-- **awesome-copilot** — `bin/submit_awesome_copilot.py`. The registry is `github/awesome-copilot` (34k stars, official GitHub org). Skills live at `skills/<skill-name>/SKILL.md` with frontmatter (`name`, `description`, `license`) and the registry's own tooling (`npm run skill:create`, `npm run skill:validate`, `npm run build`) is intended to run inside a clone of awesome-copilot, not inside QPB. Because the QPB skill ships seven support directories that would exceed the registry's typical-skill footprint as bundled assets, the QPB script generates a **submission packet** under `dist/awesome_copilot_submission/` containing (a) a trimmed `skills/quality-playbook/SKILL.md` that links back to the canonical QPB repo for the full toolkit, (b) `PR_BODY.md` the operator pastes into the PR, and (c) `MANUAL_STEPS.md` walking through the fork → copy in → `npm run skill:validate` → push → `gh pr create` flow. The script does NOT call `gh pr create` or push directly; the operator runs the manual steps after reviewing the packet.
+- **awesome-copilot** — `bin/submit_awesome_copilot.py`. The registry is `github/awesome-copilot` (34k stars, official GitHub org). Skills live at `skills/<skill-name>/SKILL.md` with frontmatter (`name`, `description`, `license`) and the registry's own tooling (`npm start` — canonical pre-submit command that runs `skill:validate` + regenerates top-level `README.md`) is intended to run inside a clone of awesome-copilot, not inside QPB. **PRs must target the `staged` branch, not `main`** — the registry's `CONTRIBUTING.md` warns that branches from `main` "may be outright rejected." Because the QPB skill ships seven support directories that would exceed the registry's typical-skill footprint as bundled assets, the QPB script generates a **submission packet** under `dist/awesome_copilot_submission/` containing (a) a trimmed `skills/quality-playbook/SKILL.md` that links back to the canonical QPB repo for the full toolkit, (b) `PR_BODY.md` with the registry's required checklist, (c) `MANUAL_STEPS.md` walking through the fork → branch-from-staged → copy in → `npm start` → push → `gh pr create --base staged` flow. The script does NOT call `gh pr create` or push directly; the operator runs the manual steps after reviewing the packet.
 
 **Awesome-copilot operator workflow (paraphrased from `MANUAL_STEPS.md` in the generated packet):**
 
 1. Run `python3 bin/submit_awesome_copilot.py` from a clean working tree at the target version.
 2. Fork `github/awesome-copilot` once (`gh repo fork github/awesome-copilot --clone=true`); `npm install` in the fork.
-3. Branch off `upstream/main` (`git checkout -b add-quality-playbook-<version> upstream/main`).
+3. Branch off `upstream/staged` — **not** `upstream/main` (`git checkout -b add-quality-playbook-<version> upstream/staged`). The registry's `CONTRIBUTING.md` warns that PRs targeting `main` "may be outright rejected."
 4. Copy `dist/awesome_copilot_submission/skills/quality-playbook/SKILL.md` into the fork's `skills/quality-playbook/`.
-5. Run `npm run skill:validate` then `npm run build` in the fork; iterate until both succeed.
-6. Commit, push to the fork, and `gh pr create --repo github/awesome-copilot --body-file <packet>/PR_BODY.md`.
+5. Run `npm start` in the fork (canonical pre-submit command — runs `skill:validate` + regenerates the top-level `README.md`); iterate until it succeeds.
+6. `git add skills/quality-playbook/ README.md` (top-level `README.md`, NOT `docs/README.skills.md`), commit, push to the fork.
+7. `gh pr create --repo github/awesome-copilot --base staged --body-file <packet>/PR_BODY.md` — target the `staged` branch explicitly.
+
+The generated `PR_BODY.md` includes the registry's required checklist: read CONTRIBUTING, targeting `staged`, contribution type (new skill), `npm start` run locally, and a license note flagging QPB's Apache-2.0 vs the registry's MIT-only PR-template assertion (the operator-visible flag asks the maintainers to confirm before merging).
 
 The submission packet is regenerated each run so it always reflects the current QPB version + SKILL.md frontmatter; the version-string parity check at the top of the script halts before generating anything if the three manifests disagree.
 

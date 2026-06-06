@@ -286,16 +286,26 @@ ls ./test-target-repo/.claude/skills/quality-playbook/   # or similar
 Then in the target repo's AI agent, say "run the quality playbook"
 and the skill activates.
 
-## Checklist
+## Checklist (per `github/awesome-copilot` CONTRIBUTING.md)
 
+- [x] I have read `CONTRIBUTING.md` and followed the submission
+      guidelines.
+- [x] This PR targets the `staged` branch (not `main`).
+- [x] Contribution type: **new skill** (adds `skills/{SKILL_NAME}/`).
 - [x] `SKILL.md` frontmatter has `name`, `description`, and `license`.
 - [x] `name` matches the folder name (`{SKILL_NAME}`).
 - [x] `description` is clear and non-empty.
+- [x] `npm start` run locally — `skill:validate` passes and
+      top-level `README.md` regenerated; both staged in this PR.
 - [x] Canonical repo + license linked.
-- [ ] `npm run skill:validate` run by maintainer in awesome-copilot
-      clone after copying the folder in.
-- [ ] `npm run build` run by maintainer to update generated README
-      tables.
+
+## License note for maintainers
+
+The Quality Playbook toolkit ships under **Apache 2.0** (see
+`LICENSE.txt` in the canonical repo). The frontmatter `license:` field
+in this PR's `SKILL.md` is set to `Apache-2.0`. If the registry
+requires `license: MIT` for all skill entries, please flag and we will
+re-evaluate licensing options with the QPB maintainers.
 
 ## Canonical source
 
@@ -328,12 +338,14 @@ fork-and-PR is operator-side.
    npm install
    ```
 
-2. **Pull main and create a branch**:
+2. **Pull `staged` and create a branch** (the registry's CONTRIBUTING.md
+   warns that PRs targeting `main` "may be outright rejected" — branch
+   from and target `staged`):
 
    ```bash
    cd /path/to/your/awesome-copilot-fork
-   git fetch upstream main
-   git checkout -b add-{SKILL_NAME}-{version} upstream/main
+   git fetch upstream staged
+   git checkout -b add-{SKILL_NAME}-{version} upstream/staged
    ```
 
 3. **Copy the generated skill folder in**:
@@ -346,30 +358,34 @@ fork-and-PR is operator-side.
    (`<packet>` is wherever this script wrote the submission — by
    default `dist/awesome_copilot_submission/` in the QPB repo.)
 
-4. **Run the registry's validators**:
+4. **Run the registry's pre-submit command**:
 
    ```bash
-   npm run skill:validate
-   npm run build
+   npm start
    ```
 
-   If `skill:validate` complains about anything, edit
-   `skills/{SKILL_NAME}/SKILL.md` and re-run. Do NOT edit any of the
-   generated README tables by hand; `npm run build` updates them.
+   This is the canonical command in CONTRIBUTING.md — it runs
+   `skill:validate` + regenerates the top-level `README.md`.
+   If validation complains, edit `skills/{SKILL_NAME}/SKILL.md` and
+   re-run. Do NOT edit the generated `README.md` table by hand;
+   `npm start` updates it.
 
-5. **Commit + push to your fork**:
+5. **Commit + push to your fork** (note: top-level `README.md` is what
+   `npm start` regenerates — not `docs/README.skills.md`):
 
    ```bash
-   git add skills/{SKILL_NAME}/ docs/README.skills.md
+   git add skills/{SKILL_NAME}/ README.md
    git commit -m "Add {SKILL_NAME} skill v{version}"
    git push -u origin add-{SKILL_NAME}-{version}
    ```
 
-6. **Open the PR using the generated body**:
+6. **Open the PR using the generated body** (target `staged`, not
+   `main`):
 
    ```bash
    gh pr create \\
      --repo {AWESOME_COPILOT_REPO} \\
+     --base staged \\
      --title "Add {SKILL_NAME} skill v{version}" \\
      --body-file <packet>/PR_BODY.md
    ```
