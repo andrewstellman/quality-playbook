@@ -10,7 +10,27 @@ The playbook closes that gap. It reads your codebase, derives behavioral require
 
 ## How to install the Quality Playbook
 
-The fastest way is to let your AI coding tool do it.
+**The fastest path: install from npm or pip.** From your project's root directory, pick one:
+
+```bash
+# From npm — no global install:
+npx quality-playbook install --into . --ai-tool <tool>
+
+# From pip / uvx / pipx (Python 3.10+):
+uvx quality-playbook install --into . --ai-tool <tool>           # one-shot, no global install
+pipx run quality-playbook install --into . --ai-tool <tool>
+pip install quality-playbook && quality-playbook install --into . --ai-tool <tool>
+```
+
+Where `<tool>` is one of `claude`, `cursor`, `copilot`, `continue`, `codex`, `windsurf`, `cline`, or `aider`. The skill installs into `.<tool>/skills/quality-playbook/` (or `.github/skills/quality-playbook/` for `copilot`). Concrete examples:
+
+```bash
+npx quality-playbook install --into . --ai-tool claude       # Claude Code
+npx quality-playbook install --into . --ai-tool cursor       # Cursor
+npx quality-playbook install --into . --ai-tool copilot      # GitHub Copilot
+```
+
+**Alternative: ask your AI coding tool to install it from a clone of this repo.**
 
 1. **Clone this repo** somewhere on your machine — for example, `git clone https://github.com/andrewstellman/quality-playbook ~/quality-playbook`. One clone installs into any number of projects.
 
@@ -24,7 +44,7 @@ The fastest way is to let your AI coding tool do it.
 
 Prefer to install by hand or use the script directly? See [Step 1 of the walkthrough](#step-1-install-the-skill) for the script invocation and [Step 3](#step-3-install-the-skill-manual-flow--fallback) for the manual `cp` recipes.
 
-**Prerequisite:** Python 3.10 or later on your `PATH`. QPB's runtime floor was raised from 3.9 to 3.10 in v1.5.7 089i — adopters must have 3.10+ available (the test suite uses 3.10-only features such as `unittest.TestCase.assertNoLogs`).
+**Prerequisite:** Python 3.10 or later on your `PATH`. QPB's runtime floor was raised from 3.9 to 3.10 in v1.5.7 089i — adopters must have 3.10+ available (the test suite uses 3.10-only features such as `unittest.TestCase.assertNoLogs`). The npm package is a thin shim over the same Python installer, so Python 3.10+ is required even when installing via `npx`.
 
 **The more documentation you give it, the better it finds bugs.** The playbook reads written specs, design docs, GitHub or Jira issues from real users, chat history, and post-mortems — then derives what your code is *supposed* to do from those sources. Without documentation it still runs (from the source tree alone), but bug recall drops materially. See [Step 2: Provide documentation (strongly recommended)](#step-2-provide-documentation-strongly-recommended) for what to gather and the best ways to gather it.
 
@@ -127,7 +147,7 @@ python3 -m bin.install_skill --verbose                                      # hu
 
 `--ai-tool <name>` is the canonical way to invoke when you know which tool will use the project; values are `cursor`, `claude`, `copilot` (alias `github`), `continue`, `codex`, `windsurf`, `cline`, and `aider` — the full 8-tool set the installer supports. The script creates the marker directory if it doesn't exist and installs into that tool's canonical subdirectory (`.cursor/skills/quality-playbook/`, `.claude/skills/quality-playbook/`, `.github/skills/quality-playbook/`, `.continue/skills/quality-playbook/`, `.codex/skills/quality-playbook/`, `.windsurf/skills/quality-playbook/`, `.cline/skills/quality-playbook/`, or `.aider/skills/quality-playbook/`). Bare `--into <target-repo>` falls back to auto-detecting from a marker directory inside the target — which only works if the target has been opened by your AI tool at least once. Codex, Windsurf, Cline, and Aider don't pre-create a project marker directory (nor do Cursor and Copilot before first project open), so bare-`--into` auto-detection won't find them — but in the recommended flow (the "How to install" section above) you don't have to worry about this: the AI agent doing the install **self-identifies its own tool and passes the matching `--ai-tool` itself**, which installs to the canonical subdirectory and creates the marker dir whether or not it exists yet. You only pass `--ai-tool <tool>` yourself when you run the installer directly, with no agent in the loop. `--target <path>` treats the path as the literal install root and writes the skill files directly there; useful for operators with a non-standard install location. `--target` is mutually exclusive with both `--into` and `--ai-tool`.
 
-**Alternative: install via pip or npm (no clone needed).** If you'd rather not clone the QPB repo, install from a package manager. The Quality Playbook ships as an **application / scaffolder** that copies the skill into your project — not a library you import:
+**Alternative: install via pip or npm (no clone needed).** If you'd rather not clone the QPB repo, install from a package manager. As of v1.5.8 both channels are published and live on PyPI / npm. The Quality Playbook ships as an **application / scaffolder** that copies the skill into your project — not a library you import:
 
 ```bash
 # pip / uvx / pipx (Python):
@@ -136,7 +156,7 @@ pipx run quality-playbook install --into /path/to/target-repo --ai-tool <tool>
 pip install quality-playbook && quality-playbook install --into /path/to/target-repo --ai-tool <tool>
 
 # npx (Node):
-npx quality-playbook init --ai-tool=<tool>                                        # e.g. --ai-tool=claude
+npx quality-playbook install --into /path/to/target-repo --ai-tool <tool>        # e.g. --ai-tool claude
 ```
 
 Both channels run the **same Python installer** (Python 3.10+ is still required at runtime — the npm package is a thin Node shim, not a reimplementation), route the skill into the tool's canonical directory, and support the same `--ai-tool` self-identification described above. The channel sets `QPB_CHANNEL` (`pip` / `npm`) so the Phase-0 validator's remediation hints are channel-aware; neither channel ships compiled `.pyc` artifacts.

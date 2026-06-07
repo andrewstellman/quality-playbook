@@ -227,7 +227,8 @@ class MainEndToEndTests(unittest.TestCase):
             with mock.patch.object(
                 sub, "__file__", str(root / "bin" / "submit_awesome_copilot.py")
             ), mock.patch("sys.stdout", new=io.StringIO()):
-                rc = sub.main(["--dest", str(dest)])
+                # v1.5.8 instruction 206: --dry-run XOR --submit required.
+                rc = sub.main(["--dry-run", "--dest", str(dest)])
         self.assertEqual(rc, sub.EX_OK)
 
     def test_main_halts_on_version_mismatch(self) -> None:
@@ -238,7 +239,7 @@ class MainEndToEndTests(unittest.TestCase):
             with mock.patch.object(
                 sub, "__file__", str(root / "bin" / "submit_awesome_copilot.py")
             ), mock.patch("sys.stdout", new=io.StringIO()):
-                rc = sub.main(["--dest", str(dest)])
+                rc = sub.main(["--dry-run", "--dest", str(dest)])
         self.assertEqual(rc, sub.EX_DATAERR)
 
     def test_main_halts_on_missing_skill_md(self) -> None:
@@ -250,7 +251,7 @@ class MainEndToEndTests(unittest.TestCase):
             with mock.patch.object(
                 sub, "__file__", str(root / "bin" / "submit_awesome_copilot.py")
             ), mock.patch("sys.stdout", new=io.StringIO()):
-                rc = sub.main(["--dest", str(dest)])
+                rc = sub.main(["--dry-run", "--dest", str(dest)])
         self.assertEqual(rc, sub.EX_DATAERR)
 
     def test_main_no_args_prints_banner(self) -> None:
@@ -279,6 +280,408 @@ class ArgParseTests(unittest.TestCase):
             with mock.patch("sys.stdout", new=io.StringIO()):
                 sub.parse_args(["--help"])
         self.assertEqual(cm.exception.code, 0)
+
+
+class SubmitFlagTests(unittest.TestCase):
+    """v1.5.8 instruction 206 — automate the fork-and-PR steps via
+    --submit. Pins the flag affirmation (XOR with --dry-run) and the
+    automation step sequence. Subprocess calls are mocked; we assert
+    on the call order + arguments, not on actual gh/npm/git
+    invocations.
+    """
+
+    # -- helpers ----------------------------------------------------------
+
+    def _make_completed(self, returncode: int = 0, stdout: str = "", stderr: str = "") -> mock.MagicMock:
+        cp = mock.MagicMock()
+        cp.returncode = returncode
+        cp.stdout = stdout
+        cp.stderr = stderr
+        return cp
+
+    def _patch_subprocess(self, responses):
+        """Patch subprocess.run inside the script module with a stateful
+        responder. ``responses`` is a callable mapping argv -> CompletedProcess.
+        Returns the patcher's mock plus the call-log list."""
+        calls = []
+
+        def fake_run(args, **kwargs):
+            calls.append((list(args), dict(kwargs)))
+            cp = responses(list(args), kwargs)
+            return cp
+
+        return mock.patch.object(sub.subprocess, "run", side_effect=fake_run), calls
+
+    def _stub_log_open(self, root: Path):
+        """Force _open_log to write inside a tempdir so tests don't pollute
+        ~/.qpb/submit_logs."""
+        log_dir = root / "submit_logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        def fake_open_log(version):
+            p = log_dir / f"awesome_copilot_{version}.log"
+            return p, p.open("w", encoding="utf-8")
+
+        return mock.patch.object(sub, "_open_log", side_effect=fake_open_log)
+
+    # -- flag-affirmation tests ------------------------------------------
+
+    def test_no_args_prints_intro_and_exits_zero(self) -> None:
+        buf = io.StringIO()
+        with mock.patch("sys.stdout", new=buf):
+            rc = sub.main([])
+        self.assertEqual(rc, 0)
+        out = buf.getvalue()
+        self.assertIn("Quality Playbook v", out)
+        self.assertIn("--dry-run", out)
+        self.assertIn("--submit", out)
+
+    def test_dry_run_and_submit_mutually_exclusive(self) -> None:
+        stderr = io.StringIO()
+        with mock.patch("sys.stderr", new=stderr):
+            rc = sub.main(["--dry-run", "--submit"])
+        self.assertEqual(rc, sub.EX_USAGE)
+        self.assertIn("mutually exclusive", stderr.getvalue())
+
+    def test_neither_flag_errors_with_must_affirm(self) -> None:
+        # Pass only --dest, which is a real flag but doesn't satisfy the
+        # XOR gate.
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory() as td:
+            with mock.patch("sys.stderr", new=stderr):
+                rc = sub.main(["--dest", td])
+        self.assertEqual(rc, sub.EX_USAGE)
+        self.assertIn("must pass --dry-run or --submit", stderr.getvalue())
+
+    # -- submission-step tests -------------------------------------------
+
+    def test_submit_calls_gh_fork_when_fork_path_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _make_fake_repo(root)
+            fork_path = root / "no-such-fork"  # absent on purpose
+            packet = root / "out"
+
+            # Responder: gh auth status OK; gh repo fork "creates" the dir
+            # (we simulate by writing .git/ + package.json); subsequent
+            # git/npm calls return 0.
+            def responder(args, kwargs):
+                if args[:3] == ["gh", "auth", "status"]:
+                    return self._make_completed(0, "Logged in")
+                if args[:3] == ["gh", "repo", "fork"]:
+                    # Simulate the fork being cloned to fork_path.
+                    fork_path.mkdir(parents=True, exist_ok=True)
+                    (fork_path / ".git").mkdir(exist_ok=True)
+                    (fork_path / "package.json").write_text("{}", encoding="utf-8")
+                    return self._make_completed(0, "Cloned to " + str(fork_path))
+                # Everything else: 0 / empty stdout-stderr.
+                # For `git remote get-url upstream`: pretend upstream missing.
+                if args[:4] == ["git", "remote", "get-url", "upstream"]:
+                    return self._make_completed(1, "", "no such remote")
+                # rev-parse upstream/staged for branch existence
+                if args[:3] == ["git", "rev-parse", "upstream/staged"]:
+                    return self._make_completed(0, "deadbeef\n")
+                # branch existence rev-parse: pretend not present
+                if len(args) >= 4 and args[0] == "git" and args[1] == "rev-parse" and args[2] == "--verify":
+                    return self._make_completed(1, "", "no such ref")
+                # default for npm install / npm start
+                return self._make_completed(0, "ok")
+
+            patcher, calls = self._patch_subprocess(responder)
+            with patcher, self._stub_log_open(root), \
+                    mock.patch.object(sub, "__file__", str(root / "bin" / "submit_awesome_copilot.py")), \
+                    mock.patch.object(sub, "_confirm", side_effect=[False]), \
+                    mock.patch("sys.stdout", new=io.StringIO()):
+                rc = sub.main([
+                    "--submit",
+                    "--dest", str(packet),
+                    "--fork-path", str(fork_path),
+                ])
+            # We expect the script to halt at the first confirmation gate
+            # (which is step 6 commit+push, since fork was created clean,
+            # branch created, npm start mocked OK). The presence of the
+            # gh fork call is what we're pinning.
+            gh_fork_calls = [c for c in calls if c[0][:3] == ["gh", "repo", "fork"]]
+            self.assertEqual(
+                len(gh_fork_calls), 1,
+                f"expected exactly 1 `gh repo fork` call; got {len(gh_fork_calls)} of {len(calls)}",
+            )
+            self.assertIn(sub.AWESOME_COPILOT_REPO, gh_fork_calls[0][0])
+            # Returned non-OK (we declined the commit gate) — script halts EX_SOFTWARE.
+            self.assertEqual(rc, sub.EX_SOFTWARE)
+
+    def test_submit_skips_fork_when_path_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _make_fake_repo(root)
+            packet = root / "out"
+            fork_path = root / "existing-fork"
+            fork_path.mkdir()
+            (fork_path / ".git").mkdir()
+            (fork_path / "package.json").write_text("{}", encoding="utf-8")
+            (fork_path / "node_modules").mkdir()  # skip npm install
+
+            def responder(args, kwargs):
+                # No gh auth / gh fork should be called.
+                if args[:3] == ["gh", "auth", "status"]:
+                    self.fail("gh auth status should not be called when fork exists")
+                if args[:3] == ["gh", "repo", "fork"]:
+                    self.fail("gh repo fork should not be called when fork exists")
+                if args[:4] == ["git", "remote", "get-url", "upstream"]:
+                    return self._make_completed(
+                        0, "https://github.com/github/awesome-copilot.git\n"
+                    )
+                if args[:3] == ["git", "rev-parse", "upstream/staged"]:
+                    return self._make_completed(0, "abc123\n")
+                if len(args) >= 3 and args[0] == "git" and args[1] == "rev-parse" and args[2] == "--verify":
+                    return self._make_completed(1, "", "no ref")
+                return self._make_completed(0, "ok")
+
+            patcher, calls = self._patch_subprocess(responder)
+            with patcher, self._stub_log_open(root), \
+                    mock.patch.object(sub, "__file__", str(root / "bin" / "submit_awesome_copilot.py")), \
+                    mock.patch.object(sub, "_confirm", side_effect=[False]), \
+                    mock.patch("sys.stdout", new=io.StringIO()):
+                rc = sub.main([
+                    "--submit",
+                    "--dest", str(packet),
+                    "--fork-path", str(fork_path),
+                ])
+            gh_fork_calls = [c for c in calls if c[0][:3] == ["gh", "repo", "fork"]]
+            self.assertEqual(len(gh_fork_calls), 0)
+            # Declined at commit gate.
+            self.assertEqual(rc, sub.EX_SOFTWARE)
+
+    def test_submit_branch_create_uses_versioned_name(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _make_fake_repo(root)
+            packet = root / "out"
+            fork_path = root / "fork"
+            fork_path.mkdir()
+            (fork_path / ".git").mkdir()
+            (fork_path / "package.json").write_text("{}", encoding="utf-8")
+            (fork_path / "node_modules").mkdir()
+
+            def responder(args, kwargs):
+                if args[:4] == ["git", "remote", "get-url", "upstream"]:
+                    return self._make_completed(
+                        0, "https://github.com/github/awesome-copilot.git\n"
+                    )
+                if args[:3] == ["git", "rev-parse", "upstream/staged"]:
+                    return self._make_completed(0, "abc123\n")
+                if len(args) >= 3 and args[0] == "git" and args[1] == "rev-parse" and args[2] == "--verify":
+                    return self._make_completed(1, "", "no ref")
+                return self._make_completed(0, "ok")
+
+            patcher, calls = self._patch_subprocess(responder)
+            with patcher, self._stub_log_open(root), \
+                    mock.patch.object(sub, "__file__", str(root / "bin" / "submit_awesome_copilot.py")), \
+                    mock.patch.object(sub, "_confirm", side_effect=[False]), \
+                    mock.patch("sys.stdout", new=io.StringIO()):
+                sub.main([
+                    "--submit",
+                    "--dest", str(packet),
+                    "--fork-path", str(fork_path),
+                ])
+            checkout_calls = [
+                c for c in calls
+                if c[0][:3] == ["git", "checkout", "-b"]
+            ]
+            self.assertEqual(
+                len(checkout_calls), 1,
+                f"expected exactly 1 `git checkout -b` call; got {len(checkout_calls)}",
+            )
+            argv = checkout_calls[0][0]
+            self.assertEqual(argv, [
+                "git", "checkout", "-b",
+                f"add-{sub.SKILL_NAME}-1.5.8",
+                "upstream/staged",
+            ])
+
+    def test_submit_halts_when_npm_start_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _make_fake_repo(root)
+            packet = root / "out"
+            fork_path = root / "fork"
+            fork_path.mkdir()
+            (fork_path / ".git").mkdir()
+            (fork_path / "package.json").write_text("{}", encoding="utf-8")
+            (fork_path / "node_modules").mkdir()
+
+            def responder(args, kwargs):
+                if args[:4] == ["git", "remote", "get-url", "upstream"]:
+                    return self._make_completed(
+                        0, "https://github.com/github/awesome-copilot.git\n"
+                    )
+                if args[:3] == ["git", "rev-parse", "upstream/staged"]:
+                    return self._make_completed(0, "abc123\n")
+                if len(args) >= 3 and args[0] == "git" and args[1] == "rev-parse" and args[2] == "--verify":
+                    return self._make_completed(1, "", "no ref")
+                if args[:2] == ["npm", "start"]:
+                    return self._make_completed(
+                        2, "stdout junk", "ERROR: skill:validate failed",
+                    )
+                return self._make_completed(0, "ok")
+
+            patcher, calls = self._patch_subprocess(responder)
+            with patcher, self._stub_log_open(root), \
+                    mock.patch.object(sub, "__file__", str(root / "bin" / "submit_awesome_copilot.py")), \
+                    mock.patch("sys.stdout", new=io.StringIO()):
+                rc = sub.main([
+                    "--submit",
+                    "--dest", str(packet),
+                    "--fork-path", str(fork_path),
+                ])
+            # No commit / push attempted because step 5 halted.
+            commit_calls = [c for c in calls if c[0][:2] == ["git", "commit"]]
+            push_calls = [c for c in calls if c[0][:2] == ["git", "push"]]
+            self.assertEqual(commit_calls, [])
+            self.assertEqual(push_calls, [])
+            self.assertEqual(rc, sub.EX_SOFTWARE)
+
+    def test_submit_skips_push_on_n_confirmation(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _make_fake_repo(root)
+            packet = root / "out"
+            fork_path = root / "fork"
+            fork_path.mkdir()
+            (fork_path / ".git").mkdir()
+            (fork_path / "package.json").write_text("{}", encoding="utf-8")
+            (fork_path / "node_modules").mkdir()
+
+            def responder(args, kwargs):
+                if args[:4] == ["git", "remote", "get-url", "upstream"]:
+                    return self._make_completed(
+                        0, "https://github.com/github/awesome-copilot.git\n"
+                    )
+                if args[:3] == ["git", "rev-parse", "upstream/staged"]:
+                    return self._make_completed(0, "abc123\n")
+                if len(args) >= 3 and args[0] == "git" and args[1] == "rev-parse" and args[2] == "--verify":
+                    return self._make_completed(1, "", "no ref")
+                return self._make_completed(0, "ok")
+
+            patcher, calls = self._patch_subprocess(responder)
+            # First _confirm call is the commit+push gate. Return False.
+            with patcher, self._stub_log_open(root), \
+                    mock.patch.object(sub, "__file__", str(root / "bin" / "submit_awesome_copilot.py")), \
+                    mock.patch.object(sub, "_confirm", side_effect=[False]), \
+                    mock.patch("sys.stdout", new=io.StringIO()):
+                rc = sub.main([
+                    "--submit",
+                    "--dest", str(packet),
+                    "--fork-path", str(fork_path),
+                ])
+            self.assertEqual(rc, sub.EX_SOFTWARE)
+            push_calls = [c for c in calls if c[0][:2] == ["git", "push"]]
+            commit_calls = [c for c in calls if c[0][:2] == ["git", "commit"]]
+            self.assertEqual(push_calls, [], "push must NOT run on N confirmation")
+            self.assertEqual(commit_calls, [], "commit must NOT run on N confirmation")
+
+    def test_submit_skips_pr_create_on_n_confirmation(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _make_fake_repo(root)
+            packet = root / "out"
+            fork_path = root / "fork"
+            fork_path.mkdir()
+            (fork_path / ".git").mkdir()
+            (fork_path / "package.json").write_text("{}", encoding="utf-8")
+            (fork_path / "node_modules").mkdir()
+
+            def responder(args, kwargs):
+                if args[:4] == ["git", "remote", "get-url", "upstream"]:
+                    return self._make_completed(
+                        0, "https://github.com/github/awesome-copilot.git\n"
+                    )
+                if args[:3] == ["git", "rev-parse", "upstream/staged"]:
+                    return self._make_completed(0, "abc123\n")
+                if len(args) >= 3 and args[0] == "git" and args[1] == "rev-parse" and args[2] == "--verify":
+                    return self._make_completed(1, "", "no ref")
+                return self._make_completed(0, "ok")
+
+            patcher, calls = self._patch_subprocess(responder)
+            # First _confirm = commit+push gate (True), second = PR gate (False).
+            with patcher, self._stub_log_open(root), \
+                    mock.patch.object(sub, "__file__", str(root / "bin" / "submit_awesome_copilot.py")), \
+                    mock.patch.object(sub, "_confirm", side_effect=[True, False]), \
+                    mock.patch("sys.stdout", new=io.StringIO()):
+                rc = sub.main([
+                    "--submit",
+                    "--dest", str(packet),
+                    "--fork-path", str(fork_path),
+                ])
+            self.assertEqual(rc, sub.EX_SOFTWARE)
+            pr_calls = [c for c in calls if c[0][:3] == ["gh", "pr", "create"]]
+            self.assertEqual(pr_calls, [], "gh pr create must NOT run on N PR confirmation")
+            # Push DID run because we confirmed step 6.
+            push_calls = [c for c in calls if c[0][:2] == ["git", "push"]]
+            self.assertEqual(len(push_calls), 1, "push should have run on Y commit gate")
+
+    def test_submit_logs_redacted_pr_url_on_success(self) -> None:
+        """All gates Yes; gh pr create returns a PR URL; the URL is
+        printed to stdout / written to the log file."""
+        pr_url = "https://github.com/github/awesome-copilot/pull/12345"
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _make_fake_repo(root)
+            packet = root / "out"
+            fork_path = root / "fork"
+            fork_path.mkdir()
+            (fork_path / ".git").mkdir()
+            (fork_path / "package.json").write_text("{}", encoding="utf-8")
+            (fork_path / "node_modules").mkdir()
+
+            def responder(args, kwargs):
+                if args[:4] == ["git", "remote", "get-url", "upstream"]:
+                    return self._make_completed(
+                        0, "https://github.com/github/awesome-copilot.git\n"
+                    )
+                if args[:3] == ["git", "rev-parse", "upstream/staged"]:
+                    return self._make_completed(0, "abc123\n")
+                if len(args) >= 3 and args[0] == "git" and args[1] == "rev-parse" and args[2] == "--verify":
+                    return self._make_completed(1, "", "no ref")
+                if args[:3] == ["gh", "pr", "create"]:
+                    return self._make_completed(0, pr_url + "\n", "")
+                return self._make_completed(0, "ok")
+
+            patcher, calls = self._patch_subprocess(responder)
+            stdout_buf = io.StringIO()
+            log_path_holder = {}
+
+            log_dir = root / "submit_logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+
+            def fake_open_log(version):
+                p = log_dir / f"awesome_copilot_{version}.log"
+                log_path_holder["p"] = p
+                return p, p.open("w", encoding="utf-8")
+
+            with patcher, \
+                    mock.patch.object(sub, "_open_log", side_effect=fake_open_log), \
+                    mock.patch.object(sub, "__file__", str(root / "bin" / "submit_awesome_copilot.py")), \
+                    mock.patch.object(sub, "_confirm", side_effect=[True, True]), \
+                    mock.patch("sys.stdout", new=stdout_buf):
+                rc = sub.main([
+                    "--submit",
+                    "--dest", str(packet),
+                    "--fork-path", str(fork_path),
+                ])
+            self.assertEqual(rc, sub.EX_OK)
+            pr_calls = [c for c in calls if c[0][:3] == ["gh", "pr", "create"]]
+            self.assertEqual(len(pr_calls), 1, "exactly 1 gh pr create call expected")
+            argv = pr_calls[0][0]
+            self.assertIn("--repo", argv)
+            self.assertIn(sub.AWESOME_COPILOT_REPO, argv)
+            self.assertIn("--base", argv)
+            self.assertIn("staged", argv)
+            # PR URL surfaces in stdout AND in the log file.
+            out = stdout_buf.getvalue()
+            self.assertIn(pr_url, out)
+            log_text = log_path_holder["p"].read_text(encoding="utf-8")
+            self.assertIn(pr_url, log_text)
 
 
 if __name__ == "__main__":

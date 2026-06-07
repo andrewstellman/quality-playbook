@@ -290,3 +290,15 @@ Active issues only. Historical issues that have shipped fixes (RING_RESET, v1.5.
 **Run quality_gate.py after testing.** The gate validates artifact conformance mechanically. If it passes on your test repos, the change is safe to commit.
 
 **Update TOOLKIT.md and this file.** If your change affects how users run the playbook or how maintainers work on it, update the relevant context file.
+
+### Release tooling (v1.5.8+)
+
+When the skill is ready to ship a new release, three publish scripts handle the distribution channels. All three live in `bin/` and follow the same `--dry-run` XOR `--publish` (or `--submit`) affirmation pattern — running them with no flag prints intro/help, requiring an explicit choice between safe rehearsal and live publish.
+
+- **`bin/publish_pip.py`** — eight pre-flight checks (clean tree, version parity across pyproject/package/init, tag exists + ancestor, build, parity test, no forbidden contents, twine auth), then two-phase publish: test PyPI → operator confirmation → prod PyPI → `pip index versions` verification. Logs at `~/.qpb/publish_logs/pip_<ver>_<ts>.log`.
+- **`bin/publish_npm.py`** — seven pre-flight checks (clean tree, version parity, tag, `npm whoami`, stage bundle, no forbidden contents, `npm pack --dry-run`), then `npm publish --access public` + `npm view` verification. Pre-204 had a UX bug where any non-`--dry-run` flag fell through to live publish; 204 added the explicit `--publish` affirmation. 205 adds `--otp` support for 2FA-enabled accounts (workaround: granular access token with bypass-2FA enabled, deleted immediately after use).
+- **`bin/submit_awesome_copilot.py`** — generates a submission packet (trimmed SKILL.md + PR_BODY.md + MANUAL_STEPS.md + submission.json) for github/awesome-copilot. Originally manual-only (operator runs the steps in MANUAL_STEPS.md); 206 adds `--submit` to automate fork-and-PR via `gh` CLI with confirmation gates before destructive actions.
+
+The full release close-out sequence — push branch → tag move → live publishes (pip + npm + awesome-copilot) → README/TOOLKIT install instructions → DEVELOPMENT_CONTEXT refresh → release-specific channel work → merge to main → branch next version — is canonical in `ai_context/DEVELOPMENT_PROCESS.md` § "Release close-out sequence." Read that section before starting any close-out work; the merge-to-main step explicitly moves to the END of close-out (not at tag time) so post-tag publish-channel work lives on the release branch rather than fragmenting onto a patch branch.
+
+The publish-channel hardening arc that produced these scripts: instructions 202 (created the scripts), 203 (fixed `npm pack --dry-run --json` JSON parse failure caused by prepack writing progress to stdout), 204 (added the `--publish` XOR `--dry-run` affirmation), 205 (`--otp` support), 206 (awesome-copilot `--submit` automation). All landed during v1.5.8 close-out.
