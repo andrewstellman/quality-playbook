@@ -1,0 +1,26 @@
+{
+    "pools": {
+        "claude": 1
+    },
+    "runs": [
+        {
+            "description": "Pre-publish regression: claude/opus reviews gson via pip-local-wheel (Mode A) against the post-192 SKILL.md and freshly-staged _bundle. gson is the only repo without clean post-192 data — express (opus npm) and chi (codex Mode B) both MET on the post-191 harness run, and the 192 delta (1 kind-B paragraph restoration + 12 kind-A test updates + banner ASCII conversion) is small enough that re-running them adds runtime with near-zero signal value. Expected outcome: 1-2 bug yield on gson@main (single-pass opus ceiling per three prior runs). The secondary signal is reproducibility of the Phase 5 API timeout that BLOCKED the prior post-192 attempt — if it recurs, that's a real claude-code stream-json mode issue worth investigating before publish.",
+            "repo": "https://github.com/google/gson",
+            "ref": "main",
+            "runner": "claude",
+            "model": "opus",
+            "channel": "pip-local-wheel",
+            "prep": "acceptance",
+            "docs": "gather",
+            "expect": {
+                "gate_result": ["PASS", "CLEANUP", "FAIL"],
+                "no_false_pass": true,
+                "no_false_fail": true,
+                "phase0_first_probe": true,
+                "banner_rendered": true,
+                "gitignore_remediation_followed": true,
+                "provenance_runner_matches": true
+            }
+        }
+    ]
+}
