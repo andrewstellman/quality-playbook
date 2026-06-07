@@ -10,8 +10,6 @@ that file is the canonical list. This cookbook does NOT enumerate roles inline
 because the cookbook would drift if the taxonomy evolves; the discovery query
 at the bottom of this file reads the live role set from a real role map.
 
-The full schema is documented at `schemas.md` §11.1 (`Phase-1 Role Map`).
-
 ## Canonical queries
 
 All source-code file paths:

@@ -20,12 +20,31 @@ Versioned historical artifacts (per-release retrospectives, Council syntheses, B
   - For commits: `git log origin/<branch> --oneline -5` shows the commit
   - When the bash sandbox can't authenticate to origin: explicitly say so and ask for confirmation rather than claiming success based on command issuance
   - This rule was born from the 2026-04-26 "v1.5.2 fully shipped" incident where a commit sat dangling locally for hours after a push that never reached origin
-- **Merge to main:** at tag time. Feature branch (`1.5.4`) merges into main as part of the release commit chain; subsequent feature work branches off main again.
+- **Merge to main:** at the end of release close-out, NOT at tag time. See close-out sequence below.
+
+### Release close-out sequence
+
+Once the work is implemented, tested, Council-reviewed Ship, and the tag is in place, the close-out sequence to fully ship a feature release runs these steps in order. Each step must complete cleanly before the next begins. The orchestrating AI prepares each step's artifacts; Andrew executes any irreversible action (push, publish, merge).
+
+1. **Push the release branch** to origin (`git push origin <branch>`). Verify via `git ls-remote origin <branch>` per the verify-before-claiming rule.
+2. **Move the tag if needed** and force-push (`git tag -f v<X.Y.Z> <commit> && git push --force origin refs/tags/v<X.Y.Z>`). Verify via `git ls-remote origin refs/tags/v<X.Y.Z>`. Default policy: the tag tracks the release-HEAD that includes all post-Council fixes the release actually shipped, so adopters who clone the tag get the working version. If a tag move would conflict with adopter consumption of a previously-published artifact, defer to operator judgment.
+3. **Run live publishes** for every distribution channel via the scripted publish gates (`bin/publish_pip.py`, `bin/publish_npm.py`, `bin/submit_awesome_copilot.py`, plus any release-specific new channels). Each script enforces its pre-flight gate (clean tree, version parity, tag presence, no forbidden bundle contents, channel auth) before any irreversible upload. Two-phase where applicable: test channel first, operator-confirmed prod publish second.
+4. **Update README.md + ai_context/TOOLKIT.md** with the new release's install instructions for each channel. These updates land on the release branch as post-tag commits; they describe the just-published artifacts, so they can only be authoritative after step 3.
+5. **Refresh ai_context/DEVELOPMENT_CONTEXT.md** to reflect any operationally-relevant changes (install flow, bootstrap completeness, new channels, new commands). Also a post-tag commit on the release branch.
+6. **Ship any release-specific channel work** (e.g., new marketplace submission process, new packaging format, new plugin manifest). If a new publish script is warranted, file it as a runner instruction and let it land on the **release branch** BEFORE the merge. This keeps everything publish-channel-related contained in the release that owns it — no patch-branching or cherry-picking afterward.
+7. **Merge the release branch into main** (`git checkout main && git pull && git merge --no-ff <branch> -m "Merge <branch> into main"`). Push main and verify on origin per the verify-before-claiming rule.
+8. **Branch the next feature version off main** only AFTER step 7 lands cleanly on origin. Never cut the next-version branch before close-out is complete; in-flight publish-script work, README updates, and orientation-doc refreshes belong to the closing release, not the next one.
+
+**Why merge happens at the end, not at tag time.** The methodology previously specified "merge to main at tag time." Empirically, v1.5.8's close-out (instructions 197-203) showed that real publish-channel work — discovering bugs in the publish scripts during dry-run, fixing them, adding new channels — happens AFTER the tag is in place. Merging at tag time would force all that work onto a patch branch (`v1.5.8.1`) or cherry-picked onto main, both of which fragment the release's history. Keeping the release branch open through full close-out lets every commit related to that release live in one branch boundary.
+
+**Why publish happens before the README install instructions.** The install instructions describe the just-published artifacts. Merging install-instruction commits to main that point at a not-yet-published version is a documentation lie window — anyone reading main during that window gets instructions for non-existent artifacts. Publish first, document second.
+
+**Why each publish channel needs a script and a dry-run gate.** Per § "Distribution-channel publish safety" below. Hand-typed publishes accumulate invisible failures; every new channel earns a script. The scripts MUST be exercised via `--dry-run` on the operator's machine before any live publish, because the dry-run gate validates the full publish path end-to-end against real artifacts (not mocked subprocess responses, which is the gap that produced instruction 203's npm-pack JSON parse bug).
 
 ### Branch model
 
-- One feature branch per minor version (`1.5.4`, `1.6.0`). Long-lived during the release's development arc.
-- Branched from main; merged back at tag.
+- One feature branch per minor version (`1.5.4`, `1.6.0`). Long-lived during the release's development arc, INCLUDING through full close-out per the sequence above.
+- Branched from main; merged back at the END of close-out (step 7 above), not at tag time.
 - Patch corrections branch off the tag (`v1.5.4.1` from `v1.5.4`), merge back to main and to any in-flight minor branch.
 
 ### Commit hygiene
@@ -216,6 +235,36 @@ The v1.5.7 distribution channels (pip / uvx / pipx + npx) produced a string of b
 **Failure mode:** a published package version is effectively irreversible — PyPI and npm do not let you cleanly replace a version once published — and clone-based tests do not exercise the channel install path. So packaging bugs ship green and reach real adopters before anyone notices.
 
 **Generalization — gate before any channel publish.** A release that publishes a distribution channel does not get tagged until: (1) a **clean-clone cold-build test** — build the wheel/sdist and `npm pack` from a fresh checkout with NO pre-staged bundle, asserting the artifacts contain the complete bundle (an empty or partial bundle must be impossible, not merely warned about at runtime); (2) a **built-artifact end-to-end test** — install the built wheel/tarball into a throwaway environment and run the real entry points (`install` + `validate`), not just the clone path; and (3) an **architecture review** (Council on the channel packaging) before the tag. Bundled scripts must be *foreign-`bin`-proof*: any `from bin import X` needs a path-load fallback (anchored on the script's own location) so it can never resolve to a sibling repo's `bin/`. Treat "the channel tests pass" as insufficient evidence until the built artifact has been installed and run from a clean clone.
+
+### Publish scripts (pip + npm + awesome-copilot)
+
+**Origin: 2026-06-06 v1.5.8 instruction 202 — hand-typed publishes accumulate invisible failures.**
+
+The v1.5.8 ship sequence formalizes three publish channels into scripted form so each publish is reproducible and each pre-condition is checked before any irreversible upload:
+
+- **pip** — `bin/publish_pip.py`. Eight pre-flight checks (clean tree, version parity across pyproject/package/init, tag exists, tag is HEAD ancestor, `bin/build_channel_package.py` stages cleanly + `python -m build` produces wheel+sdist, 089u parity test passes, no forbidden contents in dist artifacts, twine auth configured). Two-phase publish: test PyPI first → operator runs the printed `pip install -i https://test.pypi.org/simple/ ...` in a clean venv → operator confirms → prod PyPI upload → `pip index versions` verification (or curl fallback to `https://pypi.org/pypi/quality-playbook/json`). `--dry-run` flag exercises every step except the actual twine upload.
+
+- **npm** — `bin/publish_npm.py`. Seven pre-flight checks (clean tree, version parity, tag exists, `npm whoami` succeeds, `build_channel_package.py --stage` succeeds, no forbidden contents in staged bundle, `npm pack --dry-run` succeeds and emits a clean file list). Operator-confirmed `npm publish --access public` then `npm view quality-playbook version` verification. `--dry-run` flag.
+
+- **awesome-copilot** — `bin/submit_awesome_copilot.py`. The registry is `github/awesome-copilot` (34k stars, official GitHub org). Skills live at `skills/<skill-name>/SKILL.md` with frontmatter (`name`, `description`, `license`) and the registry's own tooling (`npm start` — canonical pre-submit command that runs `skill:validate` + regenerates top-level `README.md`) is intended to run inside a clone of awesome-copilot, not inside QPB. **PRs must target the `staged` branch, not `main`** — the registry's `CONTRIBUTING.md` warns that branches from `main` "may be outright rejected." Because the QPB skill ships seven support directories that would exceed the registry's typical-skill footprint as bundled assets, the QPB script generates a **submission packet** under `dist/awesome_copilot_submission/` containing (a) a trimmed `skills/quality-playbook/SKILL.md` that links back to the canonical QPB repo for the full toolkit, (b) `PR_BODY.md` with the registry's required checklist, (c) `MANUAL_STEPS.md` walking through the fork → branch-from-staged → copy in → `npm start` → push → `gh pr create --base staged` flow. The script does NOT call `gh pr create` or push directly; the operator runs the manual steps after reviewing the packet.
+
+**Awesome-copilot operator workflow (paraphrased from `MANUAL_STEPS.md` in the generated packet):**
+
+1. Run `python3 bin/submit_awesome_copilot.py` from a clean working tree at the target version.
+2. Fork `github/awesome-copilot` once (`gh repo fork github/awesome-copilot --clone=true`); `npm install` in the fork.
+3. Branch off `upstream/staged` — **not** `upstream/main` (`git checkout -b add-quality-playbook-<version> upstream/staged`). The registry's `CONTRIBUTING.md` warns that PRs targeting `main` "may be outright rejected."
+4. Copy `dist/awesome_copilot_submission/skills/quality-playbook/SKILL.md` into the fork's `skills/quality-playbook/`.
+5. Run `npm start` in the fork (canonical pre-submit command — runs `skill:validate` + regenerates the top-level `README.md`); iterate until it succeeds.
+6. `git add skills/quality-playbook/ README.md` (top-level `README.md`, NOT `docs/README.skills.md`), commit, push to the fork.
+7. `gh pr create --repo github/awesome-copilot --base staged --body-file <packet>/PR_BODY.md` — target the `staged` branch explicitly.
+
+The generated `PR_BODY.md` includes the registry's required checklist: read CONTRIBUTING, targeting `staged`, contribution type (new skill), `npm start` run locally, and a license note flagging QPB's Apache-2.0 vs the registry's MIT-only PR-template assertion (the operator-visible flag asks the maintainers to confirm before merging).
+
+The submission packet is regenerated each run so it always reflects the current QPB version + SKILL.md frontmatter; the version-string parity check at the top of the script halts before generating anything if the three manifests disagree.
+
+**Logging.** All three publish scripts write a per-run log to `~/.qpb/publish_logs/<channel>_<version>_<UTC-ISO8601>.log` so post-mortem of a botched publish has a trail. The log captures every pre-flight check verdict + every subprocess's stdout/stderr.
+
+**Generalization:** every release-time external interaction (PyPI upload, npm publish, registry PR) is scripted, dry-runnable, and idempotent. The operator's job is to review the packet/file-list/confirmation prompt and type `y`, not to remember the command syntax. Hand-typed publishes are the documented failure mode this avoids.
 
 ### Mutation-test discipline
 

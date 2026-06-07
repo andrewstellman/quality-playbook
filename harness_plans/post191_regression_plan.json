@@ -1,0 +1,62 @@
+{
+  "$header_note": "Post-191 regression check — validates that the 1.5.8 pre-publish fixes (commit 198a7f9, FINDING-48..54 + F-A1/F-A2) and the token-trim commits (45d4520 + a58f51e) didn't break the skill in production conditions. 3 runs: two parallel claude/opus (one per channel: pip-local-wheel + npm-local-tgz) + one codex/gpt-5.4 Mode B at medium reasoning effort. Pools: claude=2 (opus rows parallel), codex=1. Expects mirror ship_readiness_mac_plan: permissive on gate_result, tight on observability assertions.",
+  "pools": {
+    "claude": 2,
+    "codex": 1
+  },
+  "runs": [
+    {
+      "description": "Post-191 regression A: claude/opus reviews gson via pip-local-wheel (Mode A). Exercises the pip channel + the trimmed/191-edited SKILL.md prose end-to-end (Phase 0 entry contract rename, Phase 7 canonical paragraph, schemas.md strip). Permissive gate_result; tight observability.",
+      "repo": "https://github.com/google/gson",
+      "ref": "main",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "pip-local-wheel",
+      "mode": "A",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Post-191 regression B: claude/opus reviews express via npm-local-tgz (Mode A). Same SKILL.md regression surface as run A but through the npm channel — validates the re-staged bundle (FINDING-50 strip + bundle parity) installs and runs cleanly via npx. Permissive gate_result; tight observability.",
+      "repo": "https://github.com/expressjs/express",
+      "ref": "master",
+      "runner": "claude",
+      "model": "opus",
+      "channel": "npm-local-tgz",
+      "mode": "A",
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "phase0_first_probe": true,
+        "banner_rendered": true,
+        "gitignore_remediation_followed": true,
+        "provenance_runner_matches": true
+      }
+    },
+    {
+      "description": "Post-191 regression C: codex/gpt-5.4 at medium reasoning effort reviews chi via npm-local-tgz (Mode B — the production pattern for codex). Validates the npm bundle + 150 npx --yes install path under a non-claude runner against the 191-edited phase prompts. Permissive gate_result; gate-integrity expects only (Mode A observability assertions don't all apply to the codex lane).",
+      "repo": "https://github.com/go-chi/chi",
+      "ref": "master",
+      "runner": "codex",
+      "model": "gpt-5.4",
+      "channel": "npm-local-tgz",
+      "mode": "B",
+      "parameters": ["--runner-extra-args", "-c 'model_reasoning_effort=\"medium\"'"],
+      "prep_timeout_s": 900,
+      "expect": {
+        "gate_result": ["PASS", "CLEANUP", "FAIL"],
+        "no_false_pass": true,
+        "no_false_fail": true,
+        "provenance_runner_matches": true
+      }
+    }
+  ]
+}

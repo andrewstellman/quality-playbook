@@ -250,10 +250,12 @@ class PipChannelE2E089uTests(unittest.TestCase):
             f"after wheel install. rc={r.returncode}; stderr:\n"
             f"{r.stderr}",
         )
+        # v1.5.7 191 FINDING-48: __version__ stamp now matches
+        # pyproject.toml = 1.5.8.
         self.assertIn(
-            "1.5.7", r.stdout,
+            "1.5.8", r.stdout,
             f"089u: quality_playbook_cli.__version__ should be "
-            f"1.5.7. Got: {r.stdout!r}",
+            f"1.5.8. Got: {r.stdout!r}",
         )
 
     def test_console_script_help_works(self) -> None:

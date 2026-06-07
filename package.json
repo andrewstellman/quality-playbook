@@ -1,7 +1,7 @@
 {
   "name": "quality-playbook",
-  "version": "1.5.7",
-  "description": "Quality engineering for AI-driven development — a skill for AI coding agents that finds the bugs review misses. (npx Node shim over the bundled Python installer; v1.5.7 089v block C.)",
+  "version": "1.5.8",
+  "description": "Quality engineering for AI-driven development — a skill for AI coding agents that finds the bugs review misses.",
   "license": "Apache-2.0",
   "author": "Andrew Stellman <andrew@stellman.com>",
   "homepage": "https://github.com/andrewstellman/quality-playbook",

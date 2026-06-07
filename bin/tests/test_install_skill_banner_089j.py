@@ -172,22 +172,24 @@ class BannerOnStderrTests(unittest.TestCase):
         )
         # 089l: box rule is exactly 80 chars wide (width pin to catch
         # accidental width regressions).
-        # v1.5.7 090n: rule character changed from `=` to `═`
-        # (U+2550 BOX DRAWINGS DOUBLE HORIZONTAL) so the bottom rule
-        # under the license line doesn't render as a Markdown setext
-        # H1 when an agent emits the banner as Markdown at skill-load.
+        # v1.5.7 185 FINDING-27: rule character reverted to ASCII `=`
+        # (from U+2550) because cp1252 codec on Windows crashed on the
+        # box-drawing char. The pure ASCII rule is also Markdown-inert
+        # in the banner context (no setext H1 trigger since the banner
+        # block opens with the top rule line, not a preceded content
+        # line + blank line).
         self.assertEqual(install_skill._BANNER_BOX_WIDTH, 80)
-        self.assertEqual(install_skill._BANNER_BOX_RULE, "═" * 80)
+        self.assertEqual(install_skill._BANNER_BOX_RULE, "=" * 80)
         # Banner text contains the 80-wide rule line, exactly twice
         # (top + bottom).
         rendered_lines = install_skill._BANNER_TEXT.splitlines()
         rule_lines = [
-            line for line in rendered_lines if line == "═" * 80
+            line for line in rendered_lines if line == "=" * 80
         ]
         self.assertEqual(
             len(rule_lines), 2,
-            f"089l/090n: banner must have exactly two 80-wide box "
-            f"rules using `═` (U+2550), top + bottom. Found: "
+            f"089l/185: banner must have exactly two 80-wide box "
+            f"rules using ASCII `=`, top + bottom. Found: "
             f"{rule_lines!r}",
         )
         # And NO line is exactly 60 `=` (regression guard against
@@ -199,6 +201,16 @@ class BannerOnStderrTests(unittest.TestCase):
                 line, "=" * 60,
                 "089l: banner must not contain a line of exactly "
                 "60 `=` (the pre-089l box width). Width regressed.",
+            )
+        # 185 FINDING-27 regression guard: no banner line may contain
+        # the U+2550 box-drawing char (the pre-185 form that crashes
+        # Windows cp1252).
+        for line in rendered_lines:
+            self.assertNotIn(
+                "═", line,
+                "185 FINDING-27: banner line must not contain "
+                "U+2550 BOX DRAWINGS DOUBLE HORIZONTAL (cp1252 "
+                "crash char on Windows). Use ASCII `=` instead.",
             )
 
 
@@ -377,12 +389,12 @@ class BannerPlacement089kTests(unittest.TestCase):
                            "stderr must contain the banner")
         # 089l: pin to the FULL 80-wide rule (exact equality) — this
         # catches both a width regression AND a missing closing
-        # border in one assertion. v1.5.7 090n: rule char is now
-        # `═` (U+2550) — Markdown-inert.
+        # border in one assertion. v1.5.7 185 FINDING-27: rule char
+        # reverted to ASCII `=` (cp1252-safe on Windows).
         self.assertEqual(
-            stderr_lines[-1], "═" * 80,
-            f"089l/090n: stderr's last non-empty line must be the "
-            f"banner's closing box border (80 `═` chars, U+2550), not "
+            stderr_lines[-1], "=" * 80,
+            f"089l/185: stderr's last non-empty line must be the "
+            f"banner's closing box border (80 `=` chars, ASCII), not "
             f"{stderr_lines[-1]!r}",
         )
 
@@ -563,22 +575,21 @@ class BannerAgentsMdDriftGuard089kTests(unittest.TestCase):
     def test_banner_box_rule_is_80_wide_in_agents_md(self) -> None:
         """089l: the box rule embedded in AGENTS.md must be exactly
         80 chars (matching install_skill._BANNER_BOX_WIDTH).
-        v1.5.7 090n: rule char is now `═` (U+2550) — Markdown-inert
-        so the bottom rule under the license line doesn't render
-        as a setext H1 when the banner is emitted as Markdown."""
+        v1.5.7 185 FINDING-27: rule char reverted to ASCII `=`
+        (cp1252-safe on Windows)."""
         agents_lines = self._extract_banner_from_agents_md()
         self.assertGreater(len(agents_lines), 0)
         # First and last non-empty lines should be the 80-wide rule.
         non_empty = [line for line in agents_lines if line.strip()]
         self.assertEqual(
-            non_empty[0], "═" * 80,
-            f"089l/090n: AGENTS.md banner's opening box rule must "
-            f"be exactly 80 `═` chars (U+2550), not {non_empty[0]!r}",
+            non_empty[0], "=" * 80,
+            f"089l/185: AGENTS.md banner's opening box rule must "
+            f"be exactly 80 `=` chars (ASCII), not {non_empty[0]!r}",
         )
         self.assertEqual(
-            non_empty[-1], "═" * 80,
-            f"089l/090n: AGENTS.md banner's closing box rule must "
-            f"be exactly 80 `═` chars (U+2550), not {non_empty[-1]!r}",
+            non_empty[-1], "=" * 80,
+            f"089l/185: AGENTS.md banner's closing box rule must "
+            f"be exactly 80 `=` chars (ASCII), not {non_empty[-1]!r}",
         )
 
 

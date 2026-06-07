@@ -193,8 +193,11 @@ class BannerDirectivePresence090mTests(unittest.TestCase):
 
     # Lines of the canonical _purpose banner that MUST appear verbatim
     # in SKILL.md's MANDATORY FIRST ACTION fenced block.
+    # v1.5.7 185 FINDING-27: em-dash separator + box-drawing rule
+    # reverted to ASCII (`--` and `=`) because cp1252 on Windows
+    # crashed on the Unicode chars.
     _CANONICAL_BANNER_LINES = (
-        "  Quality Playbook — by Andrew Stellman",
+        "  Quality Playbook -- by Andrew Stellman",
         "  https://github.com/andrewstellman/quality-playbook",
         "  AI code review is good. Quality engineering is better.",
         "  Because code that looks right can still do the wrong thing.",
@@ -216,18 +219,18 @@ class BannerDirectivePresence090mTests(unittest.TestCase):
             body = m.group(1)
             normalized_body = "\n".join(ln.lstrip()
                                         for ln in body.splitlines())
-            # v1.5.7 090n: rule char is `═` (U+2550), not `=`.
+            # v1.5.7 185 FINDING-27: rule char is ASCII `=`.
             if (
-                "═" * 80 in normalized_body
-                and "Quality Playbook — by Andrew Stellman"
+                "=" * 80 in normalized_body
+                and "Quality Playbook -- by Andrew Stellman"
                     in normalized_body
                 and "Apache License" in normalized_body
             ):
                 return body
         self.fail(
             "could not extract banner fence — must contain the "
-            "80-wide ═══ rule (U+2550 per 090n), the canonical "
-            "author line, and the license line.",
+            "80-wide === rule (ASCII per 185 FINDING-27), the "
+            "canonical author line, and the license line.",
         )
 
     def test_skill_md_mandatory_first_action_carries_full_banner(
@@ -246,9 +249,9 @@ class BannerDirectivePresence090mTests(unittest.TestCase):
         # in sync.
         self.assertIn("bin/_purpose.print_attribution_banner()", text)
         # Full canonical block must be present.
-        # v1.5.7 090n: rule char is `═` (U+2550), Markdown-inert.
-        self.assertIn("═" * 80, text,
-                      "SKILL.md: missing 80-wide ═══ rule (U+2550)")
+        # v1.5.7 185 FINDING-27: rule char is ASCII `=`.
+        self.assertIn("=" * 80, text,
+                      "SKILL.md: missing 80-wide === rule (ASCII)")
         for line in self._CANONICAL_BANNER_LINES:
             self.assertIn(
                 line, text,
@@ -281,8 +284,8 @@ class BannerDirectivePresence090mTests(unittest.TestCase):
         from bin import _purpose
         canonical = _purpose.BANNER_TEXT
         # Sanity-check the canonical.
-        # v1.5.7 090n: rule char is `═` (U+2550), Markdown-inert.
-        self.assertIn("═" * 80, canonical)
+        # v1.5.7 185 FINDING-27: rule char is ASCII `=`.
+        self.assertIn("=" * 80, canonical)
         for line in self._CANONICAL_BANNER_LINES:
             self.assertIn(line, canonical,
                           f"_purpose.BANNER_TEXT missing {line!r}")
@@ -325,13 +328,13 @@ class BannerDirectivePresence090mTests(unittest.TestCase):
             "attribution banner' directive — 090m removed it; "
             "SKILL.md is now the single source.",
         )
-        # phase1.md must not contain the canonical 80-wide ═══ rule
+        # phase1.md must not contain the canonical 80-wide === rule
         # (that's banner-block evidence) — its body is phase-1
         # exploration prose, never the attribution banner.
-        # v1.5.7 090n: rule char is `═` (U+2550).
+        # v1.5.7 185 FINDING-27: rule char is ASCII `=`.
         self.assertNotIn(
-            "═" * 80, phase1_text,
-            "phase_prompts/phase1.md contains the 80-wide ═══ rule "
+            "=" * 80, phase1_text,
+            "phase_prompts/phase1.md contains the 80-wide === rule "
             "— this is banner-block evidence; 090m removed the "
             "banner directive from this file.",
         )

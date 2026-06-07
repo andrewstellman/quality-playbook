@@ -120,7 +120,7 @@ The full FP-audit sub-agent + first-class NFR-requirement derivation are reserve
 
 ### D1 — Reachability check (MANDATORY before confirming any bug)
 
-Before a candidate becomes a confirmed `BUG-NNN`, perform a **reachability analysis**: search the cited code path for any **upstream guard, filter, early-return, or compensating mechanism** that would make the claimed defect unreachable. Capture the result on the manifest record as the field `reachability_analysis` (see schemas.md §8.1). The field is non-empty-required when the record's `classification` is `bug` (the default) and `severity` is `HIGH` or `MEDIUM`; on `LOW` severity, absence is a WARN, not a FAIL.
+Before a candidate becomes a confirmed `BUG-NNN`, perform a **reachability analysis**: search the cited code path for any **upstream guard, filter, early-return, or compensating mechanism** that would make the claimed defect unreachable. Capture the result on the manifest record as the field `reachability_analysis`. The field is non-empty-required when the record's `classification` is `bug` (the default) and `severity` is `HIGH` or `MEDIUM`; on `LOW` severity, absence is a WARN, not a FAIL.
 
 **Two outcomes:**
 
@@ -131,7 +131,7 @@ Before a candidate becomes a confirmed `BUG-NNN`, perform a **reachability analy
 
 ### D2 — KNOWN-ISSUE classification for advisory/CVE-only findings
 
-A finding may only be a `BUG-NNN` if the specific code defect is **independently located and verified in the audited tree** (with D1's reachability analysis). A finding whose **sole basis is a gathered advisory/CVE/doc** — with no located in-tree code defect — must be classified `classification: known-issue` (see schemas.md §3.11 / §8.1), not as a bug.
+A finding may only be a `BUG-NNN` if the specific code defect is **independently located and verified in the audited tree** (with D1's reachability analysis). A finding whose **sole basis is a gathered advisory/CVE/doc** — with no located in-tree code defect — must be classified `classification: known-issue`, not as a bug.
 
 **Why:** advisories should be SURFACED to operators (they should upgrade), but they should NOT inflate the bug count or skew precision metrics. The BUG-009 case (CVE-2024-42473 restatement, no in-tree defect found) belongs in a separate `known-issue` category that the gate excludes from bug counts.
 

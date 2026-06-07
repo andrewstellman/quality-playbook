@@ -32,7 +32,7 @@ You WILL:
 1. Run mechanical verify (`python quality/mechanical/verify.py` if present).
 2. Run `quality_gate.py` against the target.
 3. Capture the gate's verbatim verdict lines.
-4. Validate `quality/INDEX.md` presence + schemas.md §11 fields + gate_verdict.
+4. Validate `quality/INDEX.md` presence + required INDEX.md fields + gate_verdict.
 5. Run `validate_phase_artifacts` for Phase 6.
 6. Return a structured verdict with literal gate + validator output quoted.
 
@@ -105,7 +105,7 @@ FAILs.** A PASS WITH CLEANUP NEEDED verdict is legitimate ONLY when the
 Resolve `bin/` via the documented install-root fallback —
 `PYTHONPATH=<install_root> python3 -m bin.validate_phase_artifacts . --phase 6`
 for an `install_skill.py`-layout adopter. `--phase 6` re-checks
-`quality/INDEX.md` presence + the schemas.md §11 required fields AND
+`quality/INDEX.md` presence + the required INDEX.md fields AND
 requires `summary.gate_verdict` to be one of `pass` / `partial` / `fail`
 (it is `"pending"` after Phase 5 — Phase 6 MUST have updated it to the real
 verdict). The validator emits a self-authenticating final `RESULT:` line:

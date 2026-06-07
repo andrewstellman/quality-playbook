@@ -230,7 +230,7 @@ The cardinality gate is blocking. It is intentionally stricter than the Phase 3 
 
 ### STEP — Write quality/INDEX.md (v1.5.7 A-15)
 
-`quality/INDEX.md` is required on every run (schemas.md §10 invariant #10 / §11). In **Mode B** the runner/orchestrator emits it (it alone tracks phase timing + model assignments). In **Mode A** there is no runner — YOU must write it now, in Phase 5, before closing the phase. Write `quality/INDEX.md` as markdown containing a single fenced ` ```json ` block carrying the schemas.md §11 fields:
+`quality/INDEX.md` is required on every run. In **Mode B** the runner/orchestrator emits it (it alone tracks phase timing + model assignments). In **Mode A** there is no runner — YOU must write it now, in Phase 5, before closing the phase. Write `quality/INDEX.md` as markdown containing a single fenced ` ```json ` block carrying these fields:
 
 - `schema_version`: `"2.0"` (new runs MUST emit `"2.0"` — `"1.0"`/absent is the archived-legacy read path only).
 - `run_timestamp_start`, `run_timestamp_end`: ISO 8601 with explicit timezone (Z preferred) — the run's actual start (when Phase 1 began) and now.
@@ -249,7 +249,7 @@ Compute fields with Python where possible; do NOT hand-write counts. After writi
 
     python3 -m bin.validate_phase_artifacts . --phase 5
 
-Resolve `bin/` via the documented install-root fallback (`PYTHONPATH=<install_root>` for an `install_skill.py`-layout adopter). Exit 0 is required to proceed; a non-zero exit means INDEX.md is missing or missing required §11 fields — fix and re-run. This closes the 2026-05-16 express opus-4.6 Mode-A defect where INDEX.md was never written (no runner — Mode A), the gate FAILED on §10 invariant #10, and the agent reported PASS anyway.
+Resolve `bin/` via the documented install-root fallback (`PYTHONPATH=<install_root>` for an `install_skill.py`-layout adopter). Exit 0 is required to proceed; a non-zero exit means INDEX.md is missing or missing required fields — fix and re-run. This closes the 2026-05-16 express opus-4.6 Mode-A defect where INDEX.md was never written (no runner — Mode A), the gate FAILED on the INDEX.md-required invariant, and the agent reported PASS anyway.
 
 Mark Phase 5 complete in PROGRESS.md (use the checkbox format `- [x] Phase 5 - Reconciliation` — do NOT switch to a table).
 

@@ -359,15 +359,18 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # no EXPECTED_HASHES entry). Hash recomputed — this
         # baseline update IS the sanctioned change-acknowledgement
         # signal.
-        "phase2":                (10096, "ecb68817dfdacc979d9dca4c5765e179e209e0970a4633df717856ab5a1f2e3f"),
+        # v1.5.7 191 FINDING-50: schemas.md prose citations stripped (kind-B)
+        # and rewritten (kind-C). Hash recomputed.
+        "phase2":                (10114, "4ad72d9beb4b0cb229b92324554de0e5eafc602c5733dd337b3590484a98a022"),
         # v1.5.7 090j: phase3.md + phase4.md gained the triage
         # precision-guardrail pointers (D1 reachability_analysis on
         # HIGH/MED bugs + D2 KNOWN-ISSUE classification for advisory-
         # only findings + D3 security-HIGH bar via cve_version_applies).
         # phase3: 10969 → 12167 codepoints; phase4: 3911 → 4398.
         # Hashes recomputed.
-        "phase3":                (12167, "6add8a7e37a63fa441f06866194ae9ddcffdeebbe7053336ecbdd079e898d3a3"),
-        "phase4":                ( 4398, "2cfdcb0617b00bb0be2fbffdcebc1cd9fe97fc61c07e1faccdbc163366968b41"),
+        # v1.5.7 191 FINDING-50: schemas.md prose citations stripped/rewritten.
+        "phase3":                (12047, "5d06b2ff3f5d5b602b79f4cec7afb0853723e641a03efb7d8583edc68cb718ce"),
+        "phase4":                ( 4475, "b4c4dd6a103cbfe71d5f136b1a2bc5ebdf136125ec276e8a9c84129620b9c289"),
         # v1.5.7 090g: phase5.md gained the explicit apply→run→
         # revert green-cycle block. v1.5.7 090o: phase5.md gained
         # the build-prep paragraph (Keto cold-cache fix:
@@ -379,7 +382,8 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # environment failure — never launder a real RED via the
         # remediation/skip path). Codepoints 21004 → 25914;
         # hash recomputed.
-        "phase5":                (25914, "461ce001112ca376b13f8fa4420b7a86746ec464bad3f8bd2d7395e932d4860c"),
+        # v1.5.7 191 FINDING-50: schemas.md prose citations stripped/rewritten.
+        "phase5":                (25874, "73ec995d76e142939f03ee70fe226cf5ff7629ac468e27ba3490928409ca2056"),
         # v1.5.7 instruction 071 (A-13 hybrid): phase6.md rewritten
         # for fresh-context sub-agent delegation of Phase 6
         # verification (principled A-17 exception). The old inline
@@ -440,7 +444,8 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # run_playbook-rendered prompts). Hash recomputed — this
         # baseline update IS the sanctioned change-acknowledgement
         # signal.
-        "phase6":                ( 9152, "8e7dee0f0dff29104f6b24b13ef86477fccedef11b64b41011304da3c9216f36"),
+        # v1.5.7 191 FINDING-50: schemas.md prose citations stripped/rewritten.
+        "phase6":                ( 9151, "b64921d1ea22c3c777e7cc244fe9795917c33b43a44ebea58f2ea166c24e2017"),
         # v1.5.6 BUG-008: SKILL_FALLBACK_GUIDE grew from 4 to 6
         # documented install paths (added .cursor + .continue), so
         # every prompt that interpolates the guide grows by ~86 bytes.

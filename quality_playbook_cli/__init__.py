@@ -1,34 +1,20 @@
-"""v1.5.7 089u — quality_playbook_cli: thin entry-point shim for the
-pip distribution channel.
+"""quality_playbook_cli: thin entry-point shim for the pip
+distribution channel.
 
 `quality-playbook` (the console script) routes through
-`quality_playbook_cli.main()`, which:
+`quality_playbook_cli.main()`, which locates the bundled QPB
+source-layout data under `_bundle/`, sets ``QPB_CHANNEL=pip``,
+loads the bundled ``install_skill.py`` / ``qpb_validate.py`` via
+importlib (NOT via a top-level ``import bin``), and delegates to
+the same entry points the clone workflow uses.
 
-  1. Locates the package's bundled QPB source-layout data (staged at
-     publish time from `bin.install_skill._bundle_files()` by
-     `bin/build_channel_package.py`).
-  2. Sets ``QPB_CHANNEL=pip`` in the environment so
-     ``bin/qpb_validate.py``'s remediation emits the
-     ``uvx quality-playbook …`` / ``pipx run quality-playbook …``
-     form rather than the clone form (back-compat default).
-  3. Loads the bundled ``bin/install_skill.py`` via importlib (NOT
-     via a top-level ``import bin``) — that file is stdlib-only and
-     self-contained, so it runs cleanly without any sibling
-     ``from bin import`` resolution.
-  4. Defaults ``--source`` to the packaged bundle root and invokes
-     the same ``install_skill.main()`` the clone workflow uses, so
-     the install behavior is byte-identical to ``python3 -m
-     bin.install_skill`` from a clone.
+**Hard packaging constraint**: the full ``bin/`` tooling closure
+ships as **package data**, NOT as an importable top-level ``bin``
+package. After ``pip install quality-playbook``, ``python -c
+"import bin"`` MUST FAIL — only ``import quality_playbook_cli``
+resolves.
 
-**Hard packaging constraint** (089u decision, 2026-05-22): the full
-``bin/`` tooling closure ships as **package data**, NOT as an
-importable top-level ``bin`` package. After ``pip install
-quality-playbook``, ``python -c "import bin"`` MUST FAIL — only
-``import quality_playbook_cli`` resolves. The shim never adds the
-bundle's ``bin/`` to top-level ``sys.path``; it loads
-``install_skill.py`` by file path via ``importlib.util``.
-
-Public CLI surface (thin aliases over the bundled scripts):
+Public CLI surface:
 
     quality-playbook install <target-repo> --ai-tool <tool>
     quality-playbook install --into <repo> --ai-tool <tool> --force
@@ -36,18 +22,6 @@ Public CLI surface (thin aliases over the bundled scripts):
     quality-playbook validate <target-repo>    # runs qpb_validate
     quality-playbook validate --help           # qpb_validate help
     quality-playbook --help                    # alias for `install --help`
-
-Two subcommand verbs are wired at v1.5.7: ``install`` (routes to
-``bin/install_skill.py``) and ``validate`` (routes to
-``bin/qpb_validate.py``). The latter exists so the pip-channel
-remediation strings ``qpb_validate.py`` emits — e.g. *"verify with:
-`uvx quality-playbook validate <target>`"* — actually resolve to a
-runnable command at the adopter end. Both verbs follow the same
-load pattern: the bundled script is loaded via
-``importlib.util.spec_from_file_location`` (NOT via a top-level
-``import bin``), called with the remaining argv. ``install`` also
-defaults ``--source`` to the packaged bundle root before
-delegating to ``install_skill.main()``.
 """
 
 from __future__ import annotations
@@ -61,7 +35,7 @@ from pathlib import Path
 __all__ = ["main"]
 
 # Public version (mirrors the pyproject.toml + the live clone).
-__version__ = "1.5.7"
+__version__ = "1.5.8"
 
 
 def _bundle_root() -> Path:
@@ -96,8 +70,8 @@ def _load_bundled_script(bundle: Path, script_rel: str,
             f"{script} (importlib spec resolution failed)."
         )
     module = importlib.util.module_from_spec(spec)
-    # v1.5.7 090c: register in sys.modules BEFORE exec_module so
-    # dataclass/typing machinery in path-loaded modules can resolve
+    # Register in sys.modules BEFORE exec_module so dataclass /
+    # typing machinery in path-loaded modules can resolve
     # `sys.modules[cls.__module__]`. Without this, dataclasses
     # raises AttributeError on `cls.__module__.__dict__` because
     # the private namespaced name isn't in sys.modules.
@@ -151,10 +125,10 @@ def main(argv: list[str] | None = None) -> int:
     os.environ.setdefault("QPB_CHANNEL", "pip")
 
     # Subcommand dispatch. ``install`` is the default verb when
-    # none is given (back-compat with the v1.5.7 089u initial
-    # release that only supported install) — but we now also
-    # recognize ``validate``, which routes to qpb_validate.py from
-    # the bundle so the remediation string
+    # none is given (back-compat with the initial release that
+    # only supported install) — but we now also recognize
+    # ``validate``, which routes to qpb_validate.py from the
+    # bundle so the remediation string
     # ``uvx quality-playbook validate <target>`` actually resolves.
     verb = "install"
     if argv and argv[0] in ("install", "validate"):

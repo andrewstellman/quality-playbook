@@ -37,7 +37,7 @@ Place plaintext documentation files in the target repo's `reference_docs/` tree 
       protocol_v3.txt        # Tier 1/2 — formal specifications
 ```
 
-Files at the top level of `reference_docs/` count as informal context (Tier 4). Files under `reference_docs/cite/` count as citable evidence (Tier 1 or 2 depending on the source's authority — see `schemas.md` §3.1). Both `.md` and `.txt` are recognized; other formats are ignored.
+Files at the top level of `reference_docs/` count as informal context (Tier 4). Files under `reference_docs/cite/` count as citable evidence (Tier 1 for the project's own formal spec, Tier 2 for an external formal standard like an RFC, W3C, or ISO document). Both `.md` and `.txt` are recognized; other formats are ignored.
 
 After dropping in documentation, re-run the playbook. Phase 1 will detect the populated `reference_docs/` and skip the code-only-mode downgrade. The new run's EXPLORATION.md, REQUIREMENTS.md, and BUGS.md will reflect the richer evidence base.
 

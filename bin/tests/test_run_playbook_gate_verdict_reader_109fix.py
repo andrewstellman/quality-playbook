@@ -235,14 +235,22 @@ class RunPlaybookGateVerdictReader109FixTests(unittest.TestCase):
         sentinel. If a future refactor removes the operator
         block or the sentinel, this precondition test breaks
         first, signaling that the mutation-bite premise has
-        changed."""
+        changed.
+
+        v1.5.7 185 FINDING-27: the 090v lead verdict line was
+        switched from emoji + Unicode em-dash
+        ("✅ GATE PASSED — this run looks solid") to the ASCII
+        bracketed form ("[PASS] GATE PASSED -- this run looks
+        solid") to fix a Windows cp1252 UnicodeEncodeError.
+        Assertion updated to the current canonical ASCII form.
+        """
         gate_output = _generate_gate_log(_populate_solid_pass)
-        # 090v operator block lead line.
+        # 090v operator block lead line (post-185 ASCII form).
         self.assertIn(
-            "GATE PASSED — this run looks solid", gate_output,
-            "090v operator-verdict block must be present in "
-            "gate stdout — otherwise the 109-fix premise is "
-            "moot",
+            "[PASS] GATE PASSED -- this run looks solid", gate_output,
+            "090v operator-verdict block (post-185 ASCII form) "
+            "must be present in gate stdout — otherwise the "
+            "109-fix premise is moot",
         )
         # 109 ::QPB:: sentinel.
         self.assertIn(

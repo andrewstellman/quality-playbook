@@ -541,13 +541,20 @@ def main(argv: Iterable[str] | None = None) -> int:
         print(_purpose.get_version())
         return 0
 
+    # Stdout discipline (instruction 203): nothing on stdout. All
+    # progress/diagnostic messages go to sys.stderr so consumers (e.g.,
+    # `npm pack --dry-run --json` via the prepack script) can parse our
+    # stdout cleanly. `--version` is the only exception — that output
+    # IS intended for stdout consumers.
+
     # Stamp the channel manifests from SKILL.md (089x T4 — single
     # source of truth: pip wheel + npm tarball versions match SKILL).
     changed = stamp_channel_manifest_versions(REPO_ROOT)
     for path, before, after in changed:
         print(
             f"build_channel_package: stamped "
-            f"{path.relative_to(REPO_ROOT)}: {before} -> {after}"
+            f"{path.relative_to(REPO_ROOT)}: {before} -> {after}",
+            file=sys.stderr,
         )
 
     if args.stamp_only:
@@ -556,7 +563,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     staged = stage(REPO_ROOT, args.dest, clean=not args.no_clean)
     print(
         f"build_channel_package: staged {len(staged)} files into "
-        f"{args.dest}"
+        f"{args.dest}",
+        file=sys.stderr,
     )
     return 0
 

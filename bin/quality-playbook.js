@@ -1,17 +1,16 @@
 #!/usr/bin/env node
 //
-// v1.5.7 089v — Quality Playbook npm channel: Node shim over the
-// bundled Python installer.
+// Quality Playbook npm channel: Node shim over the bundled Python
+// installer.
 //
 // This file does ONLY transport + translate; it is NEVER the install
-// brain. The single routing brain stays `quality_playbook_cli.main()`
-// (which loads `bin/install_skill.py` from the packaged
-// `_bundle/`). The shim's responsibilities:
+// brain. The routing brain is `quality_playbook_cli.main()`, which
+// loads `bin/install_skill.py` from the packaged `_bundle/`. The
+// shim's responsibilities:
 //
 //   1. Detect a usable Python (>= 3.10). On miss / too-old: exit
 //      non-zero with an actionable one-line message — NEVER a Node
-//      stack trace (the operator should see something they can act
-//      on, not a JS traceback).
+//      stack trace.
 //   2. Locate the packaged Python entry (`quality_playbook_cli/`
 //      with its `_bundle/` data) relative to __dirname — NOT the
 //      operator's cwd. The npm tarball ships this tree alongside
@@ -26,12 +25,11 @@
 //        → python3 -m quality_playbook_cli install \
 //                  --into <cwd> --ai-tool <tool> [extras...]
 //
-//      089w decision (2026-05-22): the npm surface uses the
-//      same `--ai-tool` flag the pip channel, install_skill,
-//      AGENTS.md, and README all use — one vocabulary across
-//      both channels and all docs. The shim's ONLY argv-level
-//      changes are mapping `init` -> `install` and injecting
-//      `--into <cwd>` for install (the default target —
+//      The npm surface uses the same `--ai-tool` flag the pip
+//      channel, install_skill, AGENTS.md, and README all use — one
+//      vocabulary across both channels and all docs. The shim's
+//      ONLY argv-level changes are mapping `init` -> `install` and
+//      injecting `--into <cwd>` for install (the default target —
 //      operators of npx-style scaffolders expect to "install
 //      into here"). Everything else, including the entire
 //      `--ai-tool` flag, is forwarded verbatim.
@@ -139,13 +137,12 @@ function findPython() {
  *     python -m quality_playbook_cli install \
  *            --into <cwd> --ai-tool <tool> [extras...]
  *
- * **089w decision (2026-05-22):** the npm surface uses the same
- * `--ai-tool` flag the pip channel, the Python installer,
- * AGENTS.md, and README all use — the shim simply forwards
- * `--ai-tool` (both `=` and spaced forms) verbatim to the Python
- * entry. One vocabulary across both channels and all docs, and
- * no second alias map for the shim to keep in sync with the
- * Python side.
+ * The npm surface uses the same `--ai-tool` flag the pip channel,
+ * the Python installer, AGENTS.md, and README all use — the shim
+ * simply forwards `--ai-tool` (both `=` and spaced forms) verbatim
+ * to the Python entry. One vocabulary across both channels and all
+ * docs, and no second alias map for the shim to keep in sync with
+ * the Python side.
  *
  * The shim therefore has TWO concerns left for argv:
  *   1. Map the npx-idiomatic verb `init` -> the Python entry's
@@ -156,7 +153,7 @@ function findPython() {
  * Everything else, including the entire `--ai-tool` flag, is
  * forwarded unchanged. If the operator omits `--ai-tool`, the
  * shim does NOT inject one — `install_skill.py` applies its
- * agent-self-identification resolution (089s priority order).
+ * agent-self-identification resolution.
  *
  * Verbs:
  *   - `init` → `install` (npx-style scaffolder vocabulary).
@@ -188,7 +185,7 @@ function translateArgv(argv, cwd) {
   }
 
   // Forward the remaining argv verbatim — including --ai-tool=
-  // and --ai-tool <tool>. No semantic translation here (089w).
+  // and --ai-tool <tool>. No semantic translation here.
   while (i < argv.length) {
     const tok = argv[i];
     out.push(tok);

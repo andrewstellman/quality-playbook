@@ -50,8 +50,12 @@ class ModeABParityDocumentedTests(unittest.TestCase):
             "for the three by-design behavior differences.",
         )
         # All three named:
-        self.assertIn("Phase 0 install-validator", s,
-                      "F21 asymmetry #1 (Phase 0 validator) missing")
+        # v1.5.7 191 FINDING-52: "Phase 0 install-validator" renamed
+        # to "Phase 0 entry contract — install validator" so the seed-
+        # loading "Phase 0 (Prior Run Analysis)" pass and the install
+        # validator first-probe pass don't share the bare "Phase 0" name.
+        self.assertIn("Phase 0 entry contract", s,
+                      "F21 asymmetry #1 (Phase 0 entry contract) missing")
         self.assertIn("End-of-run archive", s,
                       "F21 asymmetry #2 (archive step) missing")
         self.assertIn(
