@@ -282,6 +282,115 @@ class NpmPackDryRunTests(unittest.TestCase):
             )
         self.assertFalse(ok)
 
+    def test_polluted_stdout_with_progress_line_parses(self) -> None:
+        # Defense-in-depth (instruction 203): prepack progress line on
+        # stdout before npm's JSON output must NOT break parsing. Find
+        # the '[' and parse from there.
+        payload = (
+            "build_channel_package: staged 59 files into /tmp/_bundle\n"
+            + json.dumps(
+                [
+                    {
+                        "files": [
+                            {"path": "package.json"},
+                            {"path": "quality_playbook_cli/_bundle/SKILL.md"},
+                        ]
+                    }
+                ]
+            )
+        )
+        log_fh = io.StringIO()
+        with mock.patch.object(publish_npm, "_run") as m_run:
+            m_run.return_value = mock.Mock(
+                returncode=0, stdout=payload, stderr=""
+            )
+            ok, msg, files = publish_npm.npm_pack_dry_run(
+                Path("/fake"), "/usr/local/bin/npm", log_fh
+            )
+        self.assertTrue(ok, f"expected ok, got: {msg}")
+        self.assertIn("SKILL.md", "\n".join(files))
+
+    def test_stdout_with_no_bracket_fails_with_clear_error(self) -> None:
+        # Degenerate case: stdout contains no '[' at all. Function
+        # should return False with an error citing the stdout snippet.
+        log_fh = io.StringIO()
+        with mock.patch.object(publish_npm, "_run") as m_run:
+            m_run.return_value = mock.Mock(
+                returncode=0, stdout="nothing useful here\n", stderr=""
+            )
+            ok, msg, files = publish_npm.npm_pack_dry_run(
+                Path("/fake"), "/usr/local/bin/npm", log_fh
+            )
+        self.assertFalse(ok)
+        self.assertIn("no '['", msg)
+        self.assertIn("nothing useful here", msg)
+
+    def test_log_captures_full_unmodified_stdout(self) -> None:
+        # Log captures unmodified stdout (including any pollution) for
+        # post-mortem, even when we strip the prefix for parsing.
+        polluted = "PREPACK NOISE\n" + json.dumps(
+            [{"files": [{"path": "package.json"}]}]
+        )
+        log_fh = io.StringIO()
+        with mock.patch.object(publish_npm, "_run") as m_run:
+            m_run.return_value = mock.Mock(
+                returncode=0, stdout=polluted, stderr=""
+            )
+            publish_npm.npm_pack_dry_run(
+                Path("/fake"), "/usr/local/bin/npm", log_fh
+            )
+        log_contents = log_fh.getvalue()
+        self.assertIn("PREPACK NOISE", log_contents)
+
+
+class NpmPackRoundTripStdoutTests(unittest.TestCase):
+    """Real round-trip against the on-disk package.json + prepack
+    script — NOT a mock. Closes the test-coverage gap that let the
+    prepack-stdout-pollution bug ship in 202. Skips if npm or python3
+    aren't on PATH (CI without npm).
+    """
+
+    def test_npm_pack_dry_run_stdout_is_pure_json(self) -> None:
+        import shutil as _shutil  # local import; module's top doesn't
+        npm = _shutil.which("npm")
+        py = _shutil.which("python3")
+        if npm is None or py is None:
+            self.skipTest("npm or python3 not on PATH")
+        repo_root = Path(__file__).resolve().parents[2]
+        if not (repo_root / "package.json").is_file():
+            self.skipTest("package.json not at repo root")
+        import subprocess as _sub  # local; module-level subprocess
+        r = _sub.run(
+            [npm, "pack", "--dry-run", "--json"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=120,
+        )
+        self.assertEqual(
+            r.returncode,
+            0,
+            f"npm pack failed (exit {r.returncode}):\n"
+            f"stdout={r.stdout[:500]}\nstderr={r.stderr[:500]}",
+        )
+        # The contract: stdout starts with '[' (possibly with leading
+        # whitespace), i.e., is pure JSON. No prepack-progress prefix.
+        self.assertTrue(
+            r.stdout.lstrip().startswith("["),
+            "npm pack stdout is NOT pure JSON — prepack stdout "
+            "pollution detected. First 200 chars of stdout:\n"
+            + repr(r.stdout[:200]),
+        )
+        # Parse + validate the contract.
+        data = json.loads(r.stdout)
+        self.assertIsInstance(data, list)
+        self.assertGreater(len(data), 0)
+        first = data[0]
+        self.assertIn("files", first)
+        self.assertEqual(first.get("name"), "quality-playbook")
+
 
 class ScanForForbiddenTests(unittest.TestCase):
     def test_pycache_fragment(self) -> None:

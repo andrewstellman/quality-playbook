@@ -305,8 +305,24 @@ def npm_pack_dry_run(
     log_fh.write(r.stderr or "")
     if r.returncode != 0:
         return False, f"npm pack --dry-run failed (exit {r.returncode}).", []
+    # npm prepack may emit progress text to stdout before npm's JSON
+    # output. Find the JSON array (or object) start and parse from
+    # there. Belt + suspenders with build_channel_package's stderr
+    # discipline (instruction 203). Full unmodified stdout is still
+    # captured to the publish log above for post-mortem.
+    stdout = r.stdout or ""
+    json_start = stdout.find("[")
+    if json_start < 0:
+        return (
+            False,
+            "npm pack JSON parse failed: no '[' in stdout (stdout="
+            + repr(stdout[:200])
+            + ")",
+            [],
+        )
+    json_payload = stdout[json_start:]
     try:
-        data = json.loads(r.stdout or "[]")
+        data = json.loads(json_payload)
     except json.JSONDecodeError as e:
         return False, f"npm pack JSON parse failed: {e}", []
     if not data:
