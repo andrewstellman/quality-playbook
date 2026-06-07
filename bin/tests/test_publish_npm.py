@@ -505,5 +505,50 @@ class ArgParseTests(unittest.TestCase):
         self.assertEqual(cm.exception.code, 0)
 
 
+class PublishFlagTests(unittest.TestCase):
+    """v1.5.8 — pin the --publish vs --dry-run affirmation semantics
+    added in instruction 204. main() must require an explicit choice
+    between dry-run and live publish; no-args prints intro; passing
+    both is mutually exclusive; passing any non-affirmation flag alone
+    (e.g. --skip-stage) must NOT trigger live publish."""
+
+    def test_no_args_prints_intro_and_exits_zero(self) -> None:
+        with mock.patch.object(sys, "argv", ["publish_npm"]):
+            with mock.patch("sys.stdout", new=io.StringIO()):
+                rc = publish_npm.main()
+        self.assertEqual(rc, 0)
+
+    def test_dry_run_and_publish_mutually_exclusive(self) -> None:
+        captured_err = io.StringIO()
+        with mock.patch.object(
+            sys, "argv", ["publish_npm", "--dry-run", "--publish"]
+        ):
+            with mock.patch("sys.stderr", new=captured_err):
+                rc = publish_npm.main()
+        self.assertEqual(rc, publish_npm.EX_USAGE)
+        self.assertIn("mutually exclusive", captured_err.getvalue())
+
+    def test_skip_stage_alone_is_not_a_publish_trigger(self) -> None:
+        # Passing --skip-stage alone (no --dry-run, no --publish) must
+        # NOT trigger live publish. Pins the pre-204 regression where
+        # any-flag-fell-through to the live path.
+        captured_err = io.StringIO()
+        with mock.patch.object(sys, "argv", ["publish_npm", "--skip-stage"]):
+            with mock.patch("sys.stderr", new=captured_err):
+                rc = publish_npm.main()
+        self.assertEqual(rc, publish_npm.EX_USAGE)
+        self.assertIn("must pass --dry-run or --publish", captured_err.getvalue())
+
+    def test_publish_flag_parses_as_store_true(self) -> None:
+        args = publish_npm.parse_args(["--publish"])
+        self.assertTrue(args.publish)
+        self.assertFalse(args.dry_run)
+
+    def test_dry_run_flag_parses_as_store_true(self) -> None:
+        args = publish_npm.parse_args(["--dry-run"])
+        self.assertTrue(args.dry_run)
+        self.assertFalse(args.publish)
+
+
 if __name__ == "__main__":
     unittest.main()

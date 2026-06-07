@@ -16,9 +16,15 @@ on PATH instead of letting subprocess pick up an unexpected binary.
 
 Usage::
 
-    python3 bin/publish_npm.py                # full publish flow
-    python3 bin/publish_npm.py --dry-run      # everything except npm publish
+    python3 bin/publish_npm.py                # show intro (no destructive action)
+    python3 bin/publish_npm.py --dry-run      # preflights + pack, no npm publish
+    python3 bin/publish_npm.py --publish      # preflights + pack + npm publish (LIVE)
     python3 bin/publish_npm.py --help
+
+``--dry-run`` and ``--publish`` are mutually exclusive; one must be
+passed to run the workflow. ``--skip-stage`` modifies behavior
+orthogonally and requires either ``--dry-run`` or ``--publish``
+to take effect.
 
 Exit codes:
 
@@ -424,7 +430,14 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
     p.add_argument(
         "--dry-run",
         action="store_true",
-        help="Run all pre-flight checks + npm pack, but DON'T call npm publish.",
+        help="Run all pre-flight checks + npm pack, but DON'T call npm publish. "
+             "Mutually exclusive with --publish.",
+    )
+    p.add_argument(
+        "--publish",
+        action="store_true",
+        help="Run all pre-flight checks + npm pack + `npm publish --access "
+             "public` (LIVE). Mutually exclusive with --dry-run.",
     )
     p.add_argument(
         "--skip-stage",
@@ -457,7 +470,10 @@ def _print_intro() -> None:
             "succeeded. Logs every run to "
             "~/.qpb/publish_logs/npm_<version>_<timestamp>.log."
         ),
-        usage_hint="python3 bin/publish_npm.py --dry-run",
+        usage_hint=(
+            "python3 bin/publish_npm.py --dry-run\n"
+            "  or: python3 bin/publish_npm.py --publish"
+        ),
     )
 
 
@@ -467,6 +483,27 @@ def main(argv: Optional[list[str]] = None) -> int:
         _print_intro()
         return 0
     args = parse_args(argv_list)
+
+    # v1.5.8 instruction 204: require explicit --dry-run XOR --publish
+    # affirmation. Pre-204, any flag (e.g. --skip-stage alone) would
+    # fall through to the live publish path because args.dry_run was
+    # False — same bug shape as publish_pip.py.
+    if args.dry_run and args.publish:
+        print(
+            "ERROR: --dry-run and --publish are mutually exclusive. "
+            "Pick one.",
+            file=sys.stderr,
+        )
+        return EX_USAGE
+    if not args.dry_run and not args.publish:
+        print(
+            "ERROR: must pass --dry-run or --publish.\n"
+            "  --dry-run runs preflights + npm pack without publishing.\n"
+            "  --publish runs preflights + npm pack + npm publish "
+            "--access public.",
+            file=sys.stderr,
+        )
+        return EX_USAGE
     repo_root = Path(__file__).resolve().parent.parent
 
     py_version = _read_version(repo_root / "pyproject.toml", _VERSION_RE_TOML)

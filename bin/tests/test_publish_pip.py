@@ -551,5 +551,53 @@ class ArgParseTests(unittest.TestCase):
         self.assertEqual(cm.exception.code, 0)
 
 
+class PublishFlagTests(unittest.TestCase):
+    """v1.5.8 — pin the --publish vs --dry-run affirmation semantics
+    added in instruction 204. main() must require an explicit choice
+    between dry-run and live publish; no-args prints intro; passing
+    both is mutually exclusive; passing any non-affirmation flag alone
+    must NOT trigger live publish."""
+
+    def test_no_args_prints_intro_and_exits_zero(self) -> None:
+        # No-args case: print intro, exit 0, no preflights run.
+        with mock.patch.object(sys, "argv", ["publish_pip"]):
+            with mock.patch("sys.stdout", new=io.StringIO()):
+                rc = publish_pip.main()
+        self.assertEqual(rc, 0)
+
+    def test_dry_run_and_publish_mutually_exclusive(self) -> None:
+        captured_err = io.StringIO()
+        with mock.patch.object(
+            sys, "argv", ["publish_pip", "--dry-run", "--publish"]
+        ):
+            with mock.patch("sys.stderr", new=captured_err):
+                rc = publish_pip.main()
+        self.assertEqual(rc, publish_pip.EX_USAGE)
+        self.assertIn("mutually exclusive", captured_err.getvalue())
+
+    def test_skip_tests_alone_is_not_a_publish_trigger(self) -> None:
+        # Passing any random flag alone (not --dry-run, not --publish)
+        # must NOT trigger live publish. Pins the regression that
+        # instruction 204 fixes — pre-204 any-flag-fell-through was
+        # the bug.
+        captured_err = io.StringIO()
+        with mock.patch.object(sys, "argv", ["publish_pip", "--skip-tests"]):
+            with mock.patch("sys.stderr", new=captured_err):
+                rc = publish_pip.main()
+        self.assertEqual(rc, publish_pip.EX_USAGE)
+        self.assertIn("must pass --dry-run or --publish", captured_err.getvalue())
+
+    def test_publish_flag_parses_as_store_true(self) -> None:
+        # parse_args yields publish=True when --publish is passed.
+        args = publish_pip.parse_args(["--publish"])
+        self.assertTrue(args.publish)
+        self.assertFalse(args.dry_run)
+
+    def test_dry_run_flag_parses_as_store_true(self) -> None:
+        args = publish_pip.parse_args(["--dry-run"])
+        self.assertTrue(args.dry_run)
+        self.assertFalse(args.publish)
+
+
 if __name__ == "__main__":
     unittest.main()
