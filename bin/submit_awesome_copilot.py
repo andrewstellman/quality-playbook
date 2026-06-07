@@ -805,22 +805,16 @@ def step6_commit_and_push(
     version: str,
     log_fh,
 ) -> Tuple[bool, str]:
-    """Step 6: show diff --stat, prompt y/N, commit + push."""
-    r_diff = _run(["git", "diff", "--stat"], cwd=fork_path)
-    diff_text = r_diff.stdout or ""
-    print("\n--- git diff --stat in fork ---")
-    print(diff_text)
-    print("--- end diff ---\n")
-    log_fh.write("--- git diff --stat ---\n")
-    log_fh.write(diff_text)
-    log_fh.write("--- end ---\n")
-    ok = _confirm("Commit and push this submission to your fork? [y/N] ")
-    if not ok:
-        return False, (
-            "Step 6: operator declined commit+push. SKILL.md was copied "
-            "and `npm start` ran but nothing was committed. Re-run --submit "
-            "to retry, or commit manually."
-        )
+    """Step 6: stage, show diff --stat --cached, prompt y/N, commit + push.
+
+    v1.5.8 instruction 206 + Panelist B's CONCERN: stage BEFORE preview so
+    the diff includes the just-copied (and previously untracked) SKILL.md.
+    Pre-fix, `git diff --stat` (no ref) showed only modifications to
+    tracked files; the headline file was invisible at the gate.
+    """
+    # Stage first so the preview reflects what will actually be committed.
+    # `git add` is idempotent on already-staged paths; if there's nothing
+    # to stage (idempotent re-run), `git commit` below handles it.
     r_add = _run(
         ["git", "add", f"skills/{SKILL_NAME}/", "README.md"],
         cwd=fork_path,
@@ -828,6 +822,23 @@ def step6_commit_and_push(
     _log_subprocess(log_fh, "git add", r_add)
     if r_add.returncode != 0:
         return False, f"Step 6: `git add` failed (exit {r_add.returncode})."
+
+    r_diff = _run(["git", "diff", "--stat", "--cached"], cwd=fork_path)
+    diff_text = r_diff.stdout or ""
+    print("\n--- git diff --stat --cached in fork ---")
+    print(diff_text)
+    print("--- end diff ---\n")
+    log_fh.write("--- git diff --stat --cached ---\n")
+    log_fh.write(diff_text)
+    log_fh.write("--- end ---\n")
+    ok = _confirm("Commit and push this submission to your fork? [y/N] ")
+    if not ok:
+        return False, (
+            "Step 6: operator declined commit+push. SKILL.md was copied "
+            "and `npm start` ran AND changes are now staged in the fork; "
+            "no commit was made. Re-run --submit to retry, or "
+            "`git reset HEAD` in the fork to un-stage and inspect."
+        )
     r_commit = _run(
         ["git", "commit", "-m", f"Add {SKILL_NAME} skill v{version}"],
         cwd=fork_path,
