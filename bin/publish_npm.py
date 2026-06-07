@@ -16,15 +16,24 @@ on PATH instead of letting subprocess pick up an unexpected binary.
 
 Usage::
 
-    python3 bin/publish_npm.py                # show intro (no destructive action)
-    python3 bin/publish_npm.py --dry-run      # preflights + pack, no npm publish
-    python3 bin/publish_npm.py --publish      # preflights + pack + npm publish (LIVE)
+    python3 bin/publish_npm.py                          # show intro
+    python3 bin/publish_npm.py --dry-run                # preflights + pack, no publish
+    python3 bin/publish_npm.py --publish                # preflights + pack + publish (LIVE)
+    python3 bin/publish_npm.py --publish --otp 123456   # publish with pre-generated OTP
     python3 bin/publish_npm.py --help
 
 ``--dry-run`` and ``--publish`` are mutually exclusive; one must be
 passed to run the workflow. ``--skip-stage`` modifies behavior
 orthogonally and requires either ``--dry-run`` or ``--publish``
 to take effect.
+
+2FA-enabled npm accounts (recommended) require a per-publish OTP
+code. If ``--otp`` isn't passed on the command line, the script
+prompts interactively (``getpass.getpass``, no terminal echo)
+immediately after the y/N confirmation. The OTP value is redacted
+in the publish log so leaked logs can't expose it. Operators with
+token-delete-after-use policies should rely on interactive OTP
+rather than long-lived granular access tokens with bypass-2FA.
 
 Exit codes:
 
@@ -57,6 +66,7 @@ Logging: ``~/.qpb/publish_logs/npm_<version>_<UTC-ISO8601>.log``.
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import os
 import re
@@ -358,23 +368,52 @@ def npm_pack_dry_run(
 # ---------------------------------------------------------------------------
 
 
+def run_npm_publish(
+    repo_root: Path,
+    npm: str,
+    otp: Optional[str],
+    log_fh,
+) -> Tuple[bool, str]:
+    """Run ``npm publish --access public`` with optional 2FA OTP.
+
+    v1.5.8 instruction 205: npm rejects publish from 2FA-enabled
+    accounts with E403 unless ``--otp <code>`` is passed. ``otp`` is
+    an empty string or None for accounts without 2FA. The OTP value
+    is redacted (``<REDACTED>``) in the publish log so leaked logs
+    can't expose it.
+    """
+    cmd = [npm, "publish", "--access", "public"]
+    if otp:
+        cmd.extend(["--otp", otp])
+    # Log-discipline: write the command line with the OTP value
+    # redacted before invoking the subprocess.
+    redacted_cmd = list(cmd)
+    for i, tok in enumerate(redacted_cmd):
+        if tok == "--otp" and i + 1 < len(redacted_cmd):
+            redacted_cmd[i + 1] = "<REDACTED>"
+    _log(log_fh, f"npm publish cmd: {redacted_cmd}")
+    r = _run(cmd, cwd=repo_root, capture=False)
+    if r.returncode != 0:
+        return False, f"npm publish failed (exit {r.returncode})."
+    return True, "Published to npm."
+
+
+# Backwards-compat shim for the dry-run path. Pre-205 callers passed
+# ``dry_run=True`` to get a "would run" message without invoking
+# subprocess. main() now handles the dry-run branch directly before
+# calling run_npm_publish, but keep the legacy wrapper for callers
+# that import npm_publish by name.
 def npm_publish(
     repo_root: Path,
     npm: str,
     log_fh,
     *,
     dry_run: bool,
+    otp: Optional[str] = None,
 ) -> Tuple[bool, str]:
     if dry_run:
         return True, "[dry-run] Would run: npm publish --access public"
-    r = _run(
-        [npm, "publish", "--access", "public"],
-        cwd=repo_root,
-        capture=False,
-    )
-    if r.returncode != 0:
-        return False, f"npm publish failed (exit {r.returncode})."
-    return True, "Published to npm."
+    return run_npm_publish(repo_root, npm, otp, log_fh)
 
 
 def verify_npm_version(
@@ -444,6 +483,17 @@ def parse_args(argv: Optional[list[str]] = None) -> argparse.Namespace:
         action="store_true",
         help="Skip the build_channel_package stage step (assume bundle is fresh).",
     )
+    p.add_argument(
+        "--otp",
+        type=str,
+        default=None,
+        metavar="CODE",
+        help="6-digit npm 2FA OTP code. Required if your npm account "
+             "has 2FA enabled. If not provided on the command line "
+             "and --publish is set, the script prompts for it "
+             "interactively (via getpass, no echo) immediately before "
+             "calling `npm publish`.",
+    )
     return p.parse_args(argv)
 
 
@@ -472,7 +522,8 @@ def _print_intro() -> None:
         ),
         usage_hint=(
             "python3 bin/publish_npm.py --dry-run\n"
-            "  or: python3 bin/publish_npm.py --publish"
+            "  or: python3 bin/publish_npm.py --publish "
+            "[--otp <code>]"
         ),
     )
 
@@ -588,8 +639,23 @@ def main(argv: Optional[list[str]] = None) -> int:
             _log(log_fh, "Operator declined npm publish. Halting.")
             return EX_OK
 
+        # v1.5.8 instruction 205: resolve OTP for 2FA-enabled accounts.
+        # Prompt happens AFTER the y/N confirmation and immediately
+        # before `npm publish` to minimize the OTP-expiry window
+        # (~30s). getpass.getpass suppresses terminal echo so the
+        # operator's typed OTP doesn't end up in shell scrollback.
+        otp = args.otp
+        if otp is None:
+            try:
+                otp = getpass.getpass(
+                    "Enter npm 2FA OTP code (6 digits; leave empty "
+                    "if no 2FA on account): "
+                ).strip()
+            except EOFError:
+                otp = ""
+
         _log(log_fh, "Publishing to npm...")
-        ok, msg = npm_publish(repo_root, npm, log_fh, dry_run=args.dry_run)
+        ok, msg = run_npm_publish(repo_root, npm, otp or None, log_fh)
         _log(log_fh, msg)
         if not ok:
             _log(log_fh, "Publish state may be partial — check the "

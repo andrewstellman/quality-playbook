@@ -505,6 +505,67 @@ class ArgParseTests(unittest.TestCase):
         self.assertEqual(cm.exception.code, 0)
 
 
+class OtpHandlingTests(unittest.TestCase):
+    """v1.5.8 instruction 205 — OTP flag pass-through to npm publish.
+    Pins the 2FA support added after Andrew's v1.5.8 publish hit E403
+    on the first npm publish attempt."""
+
+    def test_otp_flag_parses(self) -> None:
+        args = publish_npm.parse_args(["--publish", "--otp", "123456"])
+        self.assertEqual(args.otp, "123456")
+
+    def test_otp_default_is_none(self) -> None:
+        args = publish_npm.parse_args(["--publish"])
+        self.assertIsNone(args.otp)
+
+    def test_npm_publish_includes_otp_when_provided(self) -> None:
+        # When otp is non-empty, the npm publish subprocess invocation
+        # must include --otp <code>.
+        log_fh = io.StringIO()
+        with mock.patch.object(publish_npm, "_run") as m_run:
+            m_run.return_value = mock.Mock(returncode=0, stdout="ok", stderr="")
+            publish_npm.run_npm_publish(
+                Path("/fake"), "/usr/local/bin/npm", "123456", log_fh
+            )
+        call_args = m_run.call_args[0][0]
+        self.assertIn("--otp", call_args)
+        self.assertIn("123456", call_args)
+
+    def test_npm_publish_omits_otp_when_empty(self) -> None:
+        # If OTP is empty / None, the npm publish invocation must
+        # NOT include --otp at all (avoid passing --otp '').
+        log_fh = io.StringIO()
+        with mock.patch.object(publish_npm, "_run") as m_run:
+            m_run.return_value = mock.Mock(returncode=0, stdout="ok", stderr="")
+            publish_npm.run_npm_publish(
+                Path("/fake"), "/usr/local/bin/npm", None, log_fh
+            )
+        call_args = m_run.call_args[0][0]
+        self.assertNotIn("--otp", call_args)
+        # Also test the empty-string case explicitly.
+        with mock.patch.object(publish_npm, "_run") as m_run2:
+            m_run2.return_value = mock.Mock(returncode=0, stdout="ok", stderr="")
+            publish_npm.run_npm_publish(
+                Path("/fake"), "/usr/local/bin/npm", "", log_fh
+            )
+        call_args2 = m_run2.call_args[0][0]
+        self.assertNotIn("--otp", call_args2)
+
+    def test_log_does_not_contain_raw_otp(self) -> None:
+        # The publish log captures the npm publish command line but
+        # MUST redact the OTP value. Pass a recognizable OTP; verify
+        # the log contains <REDACTED> but not the raw value.
+        log_fh = io.StringIO()
+        with mock.patch.object(publish_npm, "_run") as m_run:
+            m_run.return_value = mock.Mock(returncode=0, stdout="ok", stderr="")
+            publish_npm.run_npm_publish(
+                Path("/fake"), "/usr/local/bin/npm", "654321", log_fh
+            )
+        log_contents = log_fh.getvalue()
+        self.assertNotIn("654321", log_contents)
+        self.assertIn("<REDACTED>", log_contents)
+
+
 class PublishFlagTests(unittest.TestCase):
     """v1.5.8 — pin the --publish vs --dry-run affirmation semantics
     added in instruction 204. main() must require an explicit choice
