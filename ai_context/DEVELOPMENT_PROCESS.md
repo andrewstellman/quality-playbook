@@ -20,12 +20,31 @@ Versioned historical artifacts (per-release retrospectives, Council syntheses, B
   - For commits: `git log origin/<branch> --oneline -5` shows the commit
   - When the bash sandbox can't authenticate to origin: explicitly say so and ask for confirmation rather than claiming success based on command issuance
   - This rule was born from the 2026-04-26 "v1.5.2 fully shipped" incident where a commit sat dangling locally for hours after a push that never reached origin
-- **Merge to main:** at tag time. Feature branch (`1.5.4`) merges into main as part of the release commit chain; subsequent feature work branches off main again.
+- **Merge to main:** at the end of release close-out, NOT at tag time. See close-out sequence below.
+
+### Release close-out sequence
+
+Once the work is implemented, tested, Council-reviewed Ship, and the tag is in place, the close-out sequence to fully ship a feature release runs these steps in order. Each step must complete cleanly before the next begins. The orchestrating AI prepares each step's artifacts; Andrew executes any irreversible action (push, publish, merge).
+
+1. **Push the release branch** to origin (`git push origin <branch>`). Verify via `git ls-remote origin <branch>` per the verify-before-claiming rule.
+2. **Move the tag if needed** and force-push (`git tag -f v<X.Y.Z> <commit> && git push --force origin refs/tags/v<X.Y.Z>`). Verify via `git ls-remote origin refs/tags/v<X.Y.Z>`. Default policy: the tag tracks the release-HEAD that includes all post-Council fixes the release actually shipped, so adopters who clone the tag get the working version. If a tag move would conflict with adopter consumption of a previously-published artifact, defer to operator judgment.
+3. **Run live publishes** for every distribution channel via the scripted publish gates (`bin/publish_pip.py`, `bin/publish_npm.py`, `bin/submit_awesome_copilot.py`, plus any release-specific new channels). Each script enforces its pre-flight gate (clean tree, version parity, tag presence, no forbidden bundle contents, channel auth) before any irreversible upload. Two-phase where applicable: test channel first, operator-confirmed prod publish second.
+4. **Update README.md + ai_context/TOOLKIT.md** with the new release's install instructions for each channel. These updates land on the release branch as post-tag commits; they describe the just-published artifacts, so they can only be authoritative after step 3.
+5. **Refresh ai_context/DEVELOPMENT_CONTEXT.md** to reflect any operationally-relevant changes (install flow, bootstrap completeness, new channels, new commands). Also a post-tag commit on the release branch.
+6. **Ship any release-specific channel work** (e.g., new marketplace submission process, new packaging format, new plugin manifest). If a new publish script is warranted, file it as a runner instruction and let it land on the **release branch** BEFORE the merge. This keeps everything publish-channel-related contained in the release that owns it — no patch-branching or cherry-picking afterward.
+7. **Merge the release branch into main** (`git checkout main && git pull && git merge --no-ff <branch> -m "Merge <branch> into main"`). Push main and verify on origin per the verify-before-claiming rule.
+8. **Branch the next feature version off main** only AFTER step 7 lands cleanly on origin. Never cut the next-version branch before close-out is complete; in-flight publish-script work, README updates, and orientation-doc refreshes belong to the closing release, not the next one.
+
+**Why merge happens at the end, not at tag time.** The methodology previously specified "merge to main at tag time." Empirically, v1.5.8's close-out (instructions 197-203) showed that real publish-channel work — discovering bugs in the publish scripts during dry-run, fixing them, adding new channels — happens AFTER the tag is in place. Merging at tag time would force all that work onto a patch branch (`v1.5.8.1`) or cherry-picked onto main, both of which fragment the release's history. Keeping the release branch open through full close-out lets every commit related to that release live in one branch boundary.
+
+**Why publish happens before the README install instructions.** The install instructions describe the just-published artifacts. Merging install-instruction commits to main that point at a not-yet-published version is a documentation lie window — anyone reading main during that window gets instructions for non-existent artifacts. Publish first, document second.
+
+**Why each publish channel needs a script and a dry-run gate.** Per § "Distribution-channel publish safety" below. Hand-typed publishes accumulate invisible failures; every new channel earns a script. The scripts MUST be exercised via `--dry-run` on the operator's machine before any live publish, because the dry-run gate validates the full publish path end-to-end against real artifacts (not mocked subprocess responses, which is the gap that produced instruction 203's npm-pack JSON parse bug).
 
 ### Branch model
 
-- One feature branch per minor version (`1.5.4`, `1.6.0`). Long-lived during the release's development arc.
-- Branched from main; merged back at tag.
+- One feature branch per minor version (`1.5.4`, `1.6.0`). Long-lived during the release's development arc, INCLUDING through full close-out per the sequence above.
+- Branched from main; merged back at the END of close-out (step 7 above), not at tag time.
 - Patch corrections branch off the tag (`v1.5.4.1` from `v1.5.4`), merge back to main and to any in-flight minor branch.
 
 ### Commit hygiene
