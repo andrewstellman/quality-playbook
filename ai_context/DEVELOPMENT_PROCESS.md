@@ -113,6 +113,22 @@ Formalization of the "Parallel-Agent reviewers" Council flavor with stricter dis
 
 The "sweep completeness" charter shows up specifically for AUDIT-table-pattern instructions (see next section); the "encoding-strategy correctness" charter showed up for both cp1252 instructions in the trifecta and codified the per-character boundary (Panelist B in 190 pinned that cp1252 actually maps U+2014 em-dash to byte 0x97 — only U+2265, U+2264, → and similar crash, not em-dashes).
 
+### Defensive-sweep Council charter for content-fix instructions (v1.5.8 207+)
+
+When an instruction enumerates specific text changes to a single artifact (template strings, hardcoded facts, prose corrections), at least one Council panelist's charter MUST include a defensive sweep: **"is this defect class present elsewhere in the same artifact?"** Not just "do the listed fixes match canonical sources" — the panelist actively grep's the same template / file / function for additional instances of the same defect shape that the instruction didn't enumerate.
+
+**Why this matters.** An instruction's enumerated fix list + the worker's mechanical application can agree with each other while leaving identical defects elsewhere in the same artifact. The worker correctly applies the 6 listed fixes; the panelist correctly verifies the 6 listed fixes match canonical sources; both are technically right; the regenerated artifact still ships with 1-4 identical-class defects that were never enumerated. Without a defensive sweep, the next adopter or the next PR review surfaces those identical defects and we re-spend the same instruction-Council-fix cycle on what should have been one pass.
+
+**Origin: 2026-06-07 instruction 207.** Andrew's review of the trimmed awesome-copilot SKILL.md surfaced 8 specific factual errors (Python version, command names, phase names, bundle count). The instruction enumerated all 8. Panelists A and B verified all 8 fixes matched canonical sources. Panelist C's defensive sweep caught a 9th instance in the SKILL.md body (the same "seven phase-prompt directories" miscount that PR_BODY error #6 fixed in a different file) — same defect class as an instruction-enumerated fix, present in a sibling artifact, NOT listed in the spec. C's `FIX-REQUIRED` correctly forced the worker back through the template with the same lens before push. Pre-207 default behavior was "fix exactly what's enumerated, NIT-defer everything else as out-of-scope"; that ships a half-fixed artifact.
+
+**Structural shape.** This pattern echoes the 199 → 199-followup-1 mock-reality divergence (test mocks + production agreed with each other while disagreeing with reality). Both are instances of "two layers of verification agree with each other while leaving reality incomplete." For 199 it was mocks ↔ production; for 207 it's instruction-enumeration ↔ mechanical-application. The structural fix is the same: a verification step that grounds itself in reality / canonical truth / the same defect class, not in the prior layer's claims.
+
+**Required Council charter language.** For any instruction that enumerates specific text fixes (vs. structural / behavioral / test-coverage changes), the panelist charter should include this clause verbatim or equivalent:
+
+> "Identify whether the same defect class extends beyond the specific sites named in the spec. Grep the affected template / file / module for additional instances of the same shape. Treat any matches found as in-scope FIX-REQUIRED unless the instruction explicitly OUT-OF-SCOPED them with rationale."
+
+Apply this for: hardcoded string corrections, factual-claim updates, terminology consistency, version-bump propagation, command-rename refactors, schema-field updates. Skip this for: pure behavior changes (a new function, an algorithm fix), test additions, refactors where the defect class is structural rather than textual.
+
 ### AUDIT-table invariant test pattern (v1.5.7 184+)
 
 When a defect class shape is observed across multiple sites in the codebase, the fix is incomplete unless it includes an exhaustive-sweep invariant test that scans the entire relevant tree and asserts the contract holds at every site. Has shipped across 184 (`_pid_alive` divergence), 189 (log-read encoding fallback), 190 (subprocess stdin encoding) — three confirmed reuses graduate it from "pattern" to "standard mechanism."
