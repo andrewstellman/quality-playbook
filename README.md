@@ -30,6 +30,25 @@ npx quality-playbook install --into . --ai-tool cursor       # Cursor
 npx quality-playbook install --into . --ai-tool copilot      # GitHub Copilot
 ```
 
+**Alternative: install via the Claude Code plugin marketplace.** If you use Claude Code, you can add QPB as a marketplace plugin — one command to add the marketplace, one command to install:
+
+```
+/plugin marketplace add https://github.com/andrewstellman/quality-playbook
+/plugin install quality-playbook
+```
+
+Use the full `https://` URL — the shorthand `github.com/...` form makes Claude Code attempt an SSH clone, which fails on machines without a GitHub SSH key configured.
+
+After install, the QPB skill is auto-discoverable in any project you open with Claude Code — no `quality-playbook install --into ...` step needed. To update later when a new QPB version ships: `/plugin marketplace update` then re-install.
+
+For local development against an unmerged QPB checkout (e.g., testing a fork), use `--plugin-dir` instead of the marketplace:
+
+```
+claude --plugin-dir /path/to/quality-playbook/plugins/quality-playbook
+```
+
+The `--plugin-dir` argument takes an absolute path to the plugin directory inside the QPB clone, loading the plugin for that Claude Code session only.
+
 **Alternative: ask your AI coding tool to install it from a clone of this repo.**
 
 1. **Clone this repo** somewhere on your machine — for example, `git clone https://github.com/andrewstellman/quality-playbook ~/quality-playbook`. One clone installs into any number of projects.
