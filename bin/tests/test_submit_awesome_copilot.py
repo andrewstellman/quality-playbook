@@ -684,5 +684,101 @@ class SubmitFlagTests(unittest.TestCase):
             self.assertIn(pr_url, log_text)
 
 
+class TrimTemplateContentTests(unittest.TestCase):
+    """v1.5.8 instruction 207 — assert the trim template's hardcoded
+    factual claims match canonical sources (pyproject.toml entry
+    point, README.md phase names, QPB's actual runtime version
+    requirement). Pre-207 the template carried 6 distinct factual
+    errors that would have shipped to awesome-copilot users."""
+
+    def setUp(self) -> None:
+        fm = {
+            "name": "quality-playbook",
+            "description": (
+                'Trigger on "quality playbook", "spec audit", '
+                '"Council of Three", "fitness-to-purpose", or '
+                '"coverage theater".'
+            ),
+        }
+        self.skill_md = sub.generate_trimmed_skill_md("1.5.8", fm)
+        self.pr_body = sub.generate_pr_body("1.5.8", fm)
+
+    def test_skill_md_says_python_310_not_38(self) -> None:
+        self.assertIn("Python 3.10+", self.skill_md)
+        self.assertNotIn("Python 3.8+", self.skill_md)
+        self.assertNotIn("Python 3.9+", self.skill_md)
+
+    def test_skill_md_install_command_is_quality_playbook_not_qpb(
+        self,
+    ) -> None:
+        # The pip/npm entry point per pyproject.toml is
+        # `quality-playbook`, not `qpb`. Pre-207 the template said
+        # `qpb install`, which fails with command-not-found.
+        self.assertIn("quality-playbook install", self.skill_md)
+        self.assertNotIn("qpb install", self.skill_md)
+
+    def test_skill_md_npx_invocation_includes_subcommand(self) -> None:
+        # `npx quality-playbook` bare prints intro + exits; the real
+        # install command needs `install --into ... --ai-tool ...`.
+        npx_lines = [
+            line
+            for line in self.skill_md.splitlines()
+            if "npx quality-playbook" in line
+        ]
+        self.assertTrue(
+            npx_lines, "no npx invocation found in SKILL.md"
+        )
+        for line in npx_lines:
+            self.assertIn(
+                "install",
+                line,
+                f"npx invocation missing subcommand: {line!r}",
+            )
+
+    def test_skill_md_phase_5_is_reconcile_not_consolidate(self) -> None:
+        # README.md canonical naming: "explore, generate ..., code
+        # review, spec audit, reconcile findings, verify".
+        self.assertIn("Phase 5 (Reconcile)", self.skill_md)
+        self.assertNotIn("Phase 5 (Consolidate)", self.skill_md)
+
+    def test_skill_md_phase_6_is_verify_not_ship(self) -> None:
+        self.assertIn("Phase 6 (Verify)", self.skill_md)
+        self.assertNotIn("Phase 6 (Ship)", self.skill_md)
+
+    def test_pr_body_install_command_is_quality_playbook_not_qpb(
+        self,
+    ) -> None:
+        self.assertIn("quality-playbook install", self.pr_body)
+        self.assertNotIn("qpb install", self.pr_body)
+
+    def test_pr_body_bundle_count_is_five_not_seven(self) -> None:
+        # The actual bundle is 5 directories: references, phase_prompts,
+        # agents, bin, ai_context. Pre-207 said "seven support
+        # directories" listing 4 dirs + 3 files (miscount +
+        # miscategorization).
+        self.assertIn("five support directories", self.pr_body)
+        self.assertNotIn("seven support directories", self.pr_body)
+
+    def test_skill_md_includes_ai_tool_list(self) -> None:
+        # The 8 valid --ai-tool values must be documented near the
+        # install command so adopters know what to pass.
+        skill_lower = self.skill_md.lower()
+        for tool in [
+            "claude",
+            "cursor",
+            "copilot",
+            "continue",
+            "codex",
+            "windsurf",
+            "cline",
+            "aider",
+        ]:
+            self.assertIn(
+                tool,
+                skill_lower,
+                f"--ai-tool value missing: {tool}",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

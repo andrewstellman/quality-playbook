@@ -180,7 +180,7 @@ def generate_trimmed_skill_md(
 name: {name}
 description: "{description_safe}"
 license: Apache-2.0
-compatibility: "Cross-platform. Requires Python 3.8+ and git. Install via `pip install {PACKAGE_NAME}` or `npx {PACKAGE_NAME}`."
+compatibility: "Cross-platform. Requires Python 3.10+ and git. Install via `pip install {PACKAGE_NAME}` or `npx {PACKAGE_NAME} install --into <repo> --ai-tool <tool>`."
 metadata:
   version: "{version}"
   author: Andrew Stellman
@@ -202,21 +202,22 @@ one command:
 ```bash
 pip install {PACKAGE_NAME}
 # or
-npx {PACKAGE_NAME}
+npx {PACKAGE_NAME} install --into <repo> --ai-tool <tool>
 ```
 
 After installation, run:
 
 ```bash
-qpb install --into /path/to/your/repo
+quality-playbook install --into /path/to/your/repo --ai-tool <tool>
 ```
 
-That copies the skill files (`SKILL.md`, `quality_gate.py`,
-`references/`, `phase_prompts/`, `agents/`, `bin/citation_verifier.py`)
-into the right place for your AI coding agent (Claude Code, Cursor,
-GitHub Copilot CLI, etc.) — auto-detecting `.claude/`, `.github/`,
-`.cursor/`, `.continue/`, `.codex/`, `.windsurf/`, `.cline/`, or
-`.aider/`.
+`<tool>` is one of: `claude`, `cursor`, `copilot`, `continue`, `codex`,
+`windsurf`, `cline`, `aider`. The installer copies the skill files
+(`SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`,
+`agents/`, `bin/citation_verifier.py`) into the right place for your
+AI coding agent (Claude Code, Cursor, GitHub Copilot CLI, etc.) —
+auto-detecting `.claude/`, `.github/`, `.cursor/`, `.continue/`,
+`.codex/`, `.windsurf/`, `.cline/`, or `.aider/`.
 
 ## What it does
 
@@ -234,9 +235,9 @@ or "coverage theater" — this skill drives the following workflow:
 4. **Phase 4 (Spec Audit)** — Three independent AI auditors review the
    code against requirements. Council-of-Three triage with verification
    probes. Layer-2 semantic citation check.
-5. **Phase 5 (Consolidate)** — Combined bug report with TDD-verified
+5. **Phase 5 (Reconcile)** — Combined bug report with TDD-verified
    patches.
-6. **Phase 6 (Ship)** — Final ship-readiness verdict + AGENTS.md
+6. **Phase 6 (Verify)** — Final ship-readiness verdict + AGENTS.md
    regeneration.
 
 The trigger language is intentional: this is an opt-in heavy workflow
@@ -271,15 +272,17 @@ This PR adds the **Quality Playbook** skill (v{version}) to the
 The full Quality Playbook toolkit is published on pip + npm as
 `{PACKAGE_NAME}` (v{version}). The `SKILL.md` added here gives users
 a one-line install (`pip install {PACKAGE_NAME}` or
-`npx {PACKAGE_NAME}`) plus the canonical `qpb install --into <repo>`
+`npx {PACKAGE_NAME} install --into <repo> --ai-tool <tool>`) plus
+the canonical `quality-playbook install --into <repo> --ai-tool <tool>`
 command, which copies the skill files into the adopter's AI-tool
 skills directory (auto-detecting `.claude/`, `.github/`, `.cursor/`,
 `.continue/`, `.codex/`, `.windsurf/`, `.cline/`, `.aider/`).
 
-The skill ships seven support directories (references, phase prompts,
-agents, citation verifier, Council runner, quality gate, AI context
-slice) that together exceed the typical in-repo-skill footprint. So
-the `SKILL.md` in this PR links back to {QPB_REPO_URL} as the canonical
+The skill ships five support directories (`references/`,
+`phase_prompts/`, `agents/`, `bin/`, `ai_context/`) plus `SKILL.md`
+and `quality_gate.py`. The full bundle is ~64 files (132KB SKILL.md
+alone) which exceeds the typical in-repo-skill footprint. So the
+`SKILL.md` in this PR links back to {QPB_REPO_URL} as the canonical
 source instead of inlining the assets.
 
 ## Verification
@@ -288,7 +291,7 @@ The maintainer can verify the skill by running:
 
 ```bash
 pip install {PACKAGE_NAME}=={version}
-qpb install --into ./test-target-repo
+quality-playbook install --into ./test-target-repo --ai-tool claude
 ls ./test-target-repo/.claude/skills/quality-playbook/   # or similar
 ```
 
