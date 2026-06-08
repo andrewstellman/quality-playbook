@@ -334,10 +334,14 @@ class GitignoreRemediationSubstitution090uTests(unittest.TestCase):
         from pathlib import Path
         # Sanity-check the source file exists at the QPB clone root
         # (this is also where the bundle picks it up).
+        # v1.5.8 instruction 208: skill-template.gitignore moved into
+        # skills/quality-playbook/ alongside the rest of the bundle
+        # sources.
         self.assertTrue(
-            (_REPO_ROOT / "skill-template.gitignore").is_file(),
-            "skill-template.gitignore must exist at the QPB clone "
-            "root (the bundle source).",
+            (_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
+             / "skill-template.gitignore").is_file(),
+            "skill-template.gitignore must exist at the QPB skill "
+            "source folder (the bundle source).",
         )
 
 

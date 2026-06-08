@@ -286,7 +286,26 @@ def classify_project(
             raise ValueError("override_rationale is required when override is set")
 
     target_dir = Path(target_dir).resolve()
+    # v1.5.8 instruction 209: standard self-hosted marketplace
+    # plugin layout keeps SKILL.md under
+    # ``plugins/<plugin>/skills/<skill>/SKILL.md``. 208 had it at
+    # ``skills/<name>/SKILL.md``. Look for the post-209 location
+    # first, fall back to the 208 location, then to the repo-root
+    # form for legacy adopters.
     skill_md_path = target_dir / "SKILL.md"
+    if not skill_md_path.is_file():
+        nested_209 = (
+            target_dir / "plugins" / "quality-playbook"
+            / "skills" / "quality-playbook" / "SKILL.md"
+        )
+        if nested_209.is_file():
+            skill_md_path = nested_209
+        else:
+            nested_208 = (
+                target_dir / "skills" / "quality-playbook" / "SKILL.md"
+            )
+            if nested_208.is_file():
+                skill_md_path = nested_208
     skill_md_present = skill_md_path.is_file()
     skill_md_word_count = _count_words(skill_md_path) if skill_md_present else None
 
@@ -325,10 +344,13 @@ def classify_project(
             "skill_md_present": skill_md_present,
             # Repo-relative POSIX-style path -- never absolute -- so the
             # JSON record stays portable across machines and CI environments
-            # (C.2 polish). The classifier only ever looks for SKILL.md at
-            # target_dir / "SKILL.md", so the relative path is fixed when
-            # SKILL.md is present.
-            "skill_md_path": "SKILL.md" if skill_md_present else None,
+            # (C.2 polish). v1.5.8 instruction 208: with the plugin-native
+            # restructure the SKILL.md may live at the repo root OR under
+            # skills/<name>/SKILL.md; the actual resolved path is emitted.
+            "skill_md_path": (
+                skill_md_path.relative_to(target_dir).as_posix()
+                if skill_md_present else None
+            ),
             "skill_md_word_count": skill_md_word_count,
             "total_code_loc": total_code_loc,
             "code_languages": sorted(code_languages),

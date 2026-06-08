@@ -46,7 +46,10 @@ from pathlib import Path
 from bin import run_playbook
 
 
-PHASE_PROMPTS_DIR = Path(__file__).resolve().parents[2] / "phase_prompts"
+# v1.5.8 instruction 208: phase_prompts/ moved into the plugin skill folder.
+PHASE_PROMPTS_DIR = (
+    Path(__file__).resolve().parents[2] / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "phase_prompts"
+)
 
 
 class PhasePromptsDirectoryTests(unittest.TestCase):

@@ -34,9 +34,11 @@ import unittest
 from pathlib import Path
 
 _QPB_ROOT = Path(__file__).resolve().parents[2]
-_PHASE6 = _QPB_ROOT / "phase_prompts" / "phase6.md"
-_VERIFY_GUIDE = _QPB_ROOT / "references" / "phase6_verify_guide.md"
-_WJH = _QPB_ROOT / "references" / "what_just_happened.md"
+# v1.5.8 instruction 208: phase_prompts/ + references/ moved into the plugin skill folder.
+_SKILL_DIR = _QPB_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
+_PHASE6 = _SKILL_DIR / "phase_prompts" / "phase6.md"
+_VERIFY_GUIDE = _SKILL_DIR / "references" / "phase6_verify_guide.md"
+_WJH = _SKILL_DIR / "references" / "what_just_happened.md"
 
 _WITNESS_MARKER = "MANDATORY gate-verdict witness"
 # v1.5.7 089c (F15): the binary "No PASS claim without N=0 FAILs" rule

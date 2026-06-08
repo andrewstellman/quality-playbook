@@ -3257,8 +3257,9 @@ class GateResolveArtifactPathTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         import importlib.util
         repo_root = Path(__file__).resolve().parents[2]
+        # v1.5.8 instruction 208: quality_gate.py moved to skills/quality-playbook/scripts/.
         gate_path = (
-            repo_root / ".github" / "skills" / "quality_gate" / "quality_gate.py"
+            repo_root / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "quality_gate.py"
         )
         spec = importlib.util.spec_from_file_location(
             "qpb_gate_for_b16_test", gate_path
@@ -3939,9 +3940,14 @@ class Round8Fix6SourcePathsCoverageTests(unittest.TestCase):
 
     def test_source_paths_preserves_prior_coverage(self) -> None:
         """Negative control: the additions must not displace the
-        pre-existing coverage."""
-        for path in ("bin/", ".github/skills/", "agents/",
-                     "references/", "SKILL.md"):
+        pre-existing coverage.
+
+        v1.5.8 instruction 208: bundled skill paths consolidated under
+        ``skills/quality-playbook/``; the pre-208 ``agents/`` /
+        ``references/`` / ``SKILL.md`` separate entries collapsed into
+        the umbrella entry."""
+        for path in ("bin/", ".github/skills/",
+                     "skills/quality-playbook/"):
             self.assertIn(path, run_playbook._QPB_SOURCE_PATHS)
 
     def test_verifier_diffs_against_schemas_md_changes(self) -> None:
@@ -4010,7 +4016,12 @@ class CouncilRound2P04PhasePromptsSourcePathTests(unittest.TestCase):
     Same class of finding F-2 closed for AGENTS.md."""
 
     def test_source_paths_includes_phase_prompts(self) -> None:
-        self.assertIn("phase_prompts/", run_playbook._QPB_SOURCE_PATHS)
+        # v1.5.8 instruction 208: phase_prompts/ moved under
+        # skills/quality-playbook/; coverage flows through the
+        # umbrella entry.
+        self.assertIn(
+            "skills/quality-playbook/", run_playbook._QPB_SOURCE_PATHS
+        )
 
     def test_verifier_diffs_against_phase_prompts_changes(self) -> None:
         """Pin that the diff machinery treats phase_prompts/ as a
@@ -4047,7 +4058,10 @@ class CouncilRound2P04PhasePromptsSourcePathTests(unittest.TestCase):
             subprocess.run(
                 ["git", "config", "user.name", "T"], cwd=repo, check=True
             )
-            pp = repo / "phase_prompts" / "phase1.md"
+            # v1.5.8 instruction 208: phase_prompts/ moved under
+            # skills/quality-playbook/; the watched path is now
+            # ``skills/quality-playbook/phase_prompts/...``.
+            pp = repo / "skills" / "quality-playbook" / "phase_prompts" / "phase1.md"
             pp.parent.mkdir(parents=True, exist_ok=True)
             pp.write_text("# phase1 prompt v1 baseline\n", encoding="utf-8")
             subprocess.run(["git", "add", "-A"], cwd=repo, check=True)
@@ -4065,22 +4079,27 @@ class CouncilRound2P04PhasePromptsSourcePathTests(unittest.TestCase):
                 repo, baseline
             )
             phase_prompts_changes = [
-                m for m in modified if m.startswith("phase_prompts/")
+                m for m in modified
+                if m.startswith("skills/quality-playbook/phase_prompts/")
             ]
             self.assertGreater(
                 len(phase_prompts_changes), 0,
                 "_verify_qpb_source_unchanged must surface an "
-                "uncommitted phase_prompts/ modification now that the "
-                "directory is in _QPB_SOURCE_PATHS. If this fails after "
-                "a code change, the most likely cause is 'phase_prompts/' "
-                "was removed from the tuple — restore it.",
+                "uncommitted phase_prompts/ modification under the "
+                "umbrella skills/quality-playbook/ entry. If this "
+                "fails after a code change, the most likely cause is "
+                "the umbrella entry was removed from the tuple — "
+                "restore it.",
             )
 
     def test_source_paths_preserves_prior_coverage_after_p04(self) -> None:
         """Negative control: P0-4's addition must not displace any
-        prior coverage."""
-        for path in ("bin/", ".github/skills/", "agents/", "references/",
-                     "SKILL.md", "schemas.md", "AGENTS.md"):
+        prior coverage.
+
+        v1.5.8 instruction 208: agents/, references/, SKILL.md
+        collapsed into the umbrella skills/quality-playbook/ entry."""
+        for path in ("bin/", ".github/skills/", "skills/quality-playbook/",
+                     "schemas.md", "AGENTS.md"):
             self.assertIn(path, run_playbook._QPB_SOURCE_PATHS)
 
 
@@ -4636,7 +4655,7 @@ class InstallFallbackPinningTests(unittest.TestCase):
         .github/skills/references/. Cluster 5 closed this; pinned here."""
         for phase_num in range(2, 7):
             with self.subTest(phase=phase_num):
-                content = (self.REPO_ROOT / "phase_prompts" / f"phase{phase_num}.md").read_text(encoding="utf-8")
+                content = (self.REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "phase_prompts" / f"phase{phase_num}.md").read_text(encoding="utf-8")
                 self.assertIn(
                     "{skill_fallback_guide}", content,
                     f"phase{phase_num}.md missing skill_fallback_guide placeholder — "
@@ -4673,7 +4692,7 @@ class InstallFallbackPinningTests(unittest.TestCase):
         Pre-fix the Copilot flat/nested positions were reversed in the
         agent file; cluster A reconciled. v1.5.7 instruction 046 A-3
         expanded the canonical list 6 → 10 (codex/windsurf/cline/aider)."""
-        agent_text = (self.REPO_ROOT / "agents" / "quality-playbook-claude.agent.md").read_text(encoding="utf-8")
+        agent_text = (self.REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "agents" / "quality-playbook-claude.agent.md").read_text(encoding="utf-8")
         # Find the "Look for SKILL.md in these locations" section's
         # numbered list and capture the order.
         import re

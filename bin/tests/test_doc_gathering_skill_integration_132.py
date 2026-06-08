@@ -33,17 +33,28 @@ import sys
 import unittest
 
 _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(_REPO_ROOT / "bin"))
+# v1.5.8 instruction 208: install_skill.py canonical source moved to
+# skills/quality-playbook/scripts/. Source root for _bundle_files()
+# is the skill folder, not the repo root.
+_SKILL_DIR = _REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
+sys.path.insert(0, str(_SKILL_DIR / "scripts"))
 
 from install_skill import _bundle_files  # noqa: E402
 
 
 def _bundle():
-    return list(_bundle_files(_REPO_ROOT))
+    return list(_bundle_files(_SKILL_DIR))
 
 
 def _read(rel: str) -> str:
-    return (_REPO_ROOT / rel).read_text(encoding="utf-8")
+    """Read a bundle-relative file. ``SKILL.md``/``references/...``/
+    ``ai_context/TOOLKIT.md`` etc. now live under the skill folder;
+    repo-root files (README.md) live at the repo root. Resolves via
+    the skill folder first, falling back to the repo root."""
+    p = _SKILL_DIR / rel
+    if not p.is_file():
+        p = _REPO_ROOT / rel
+    return p.read_text(encoding="utf-8")
 
 
 class DocGatheringBundleTests(unittest.TestCase):
@@ -114,8 +125,16 @@ class NoStaleRootPathTests(unittest.TestCase):
     _BARE = re.compile(r"(?<!references/)DOC_GATHERING_PROMPT\.md")
 
     def test_no_bare_root_reference_in_adopter_docs(self) -> None:
-        for rel in ("SKILL.md", "README.md", "ai_context/TOOLKIT.md"):
-            path = _REPO_ROOT / rel
+        # v1.5.8 instruction 208: bundled adopter-facing docs (SKILL.md,
+        # ai_context/TOOLKIT.md) live under the skill folder; README.md
+        # stays at the repo root.
+        paths_to_check = (
+            _SKILL_DIR / "SKILL.md",
+            _REPO_ROOT / "README.md",
+            _SKILL_DIR / "ai_context" / "TOOLKIT.md",
+        )
+        for path in paths_to_check:
+            rel = path.name if path.parent in (_REPO_ROOT, _SKILL_DIR) else path.parent.name + "/" + path.name
             if not path.is_file():
                 continue
             text = path.read_text(encoding="utf-8")

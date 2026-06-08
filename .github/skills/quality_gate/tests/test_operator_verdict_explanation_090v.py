@@ -669,7 +669,7 @@ class ScopeGuard090vTests(unittest.TestCase):
 
     def test_skill_md_not_touched_by_090v(self) -> None:
         repo_root = Path(__file__).resolve().parents[4]
-        text = (repo_root / "SKILL.md").read_text(encoding="utf-8")
+        text = (repo_root / "skills" / "quality-playbook" / "SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn(
             "090v", text,
             "SKILL.md must not carry 090v anchors — 090v is gate "

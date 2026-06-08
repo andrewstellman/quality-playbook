@@ -482,7 +482,8 @@ class BackendStampsSkillMdVersion090eTests(unittest.TestCase):
         not the pre-stamp pyproject value. Restores SKILL.md
         + pyproject.toml + package.json on teardown.
         """
-        skill_md = REPO_ROOT / "SKILL.md"
+        # v1.5.8 instruction 208: SKILL.md moved into the plugin skill folder.
+        skill_md = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "SKILL.md"
         pyproject = REPO_ROOT / "pyproject.toml"
         package_json = REPO_ROOT / "package.json"
         skill_backup = skill_md.read_text(encoding="utf-8")

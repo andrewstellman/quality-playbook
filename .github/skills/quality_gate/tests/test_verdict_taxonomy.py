@@ -23,8 +23,12 @@ import sys
 import unittest
 from pathlib import Path
 
+# v1.5.8 instruction 208: quality_gate.py moved to
+# skills/quality-playbook/scripts/quality_gate.py.
 PACKAGE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(PACKAGE_DIR))
+_REPO_ROOT = PACKAGE_DIR.parent.parent.parent
+_SCRIPTS_DIR = _REPO_ROOT / "skills" / "quality-playbook" / "scripts"
+sys.path.insert(0, str(_SCRIPTS_DIR))
 import quality_gate  # noqa: E402
 
 S = quality_gate.VERDICT_SUBSTANTIVE

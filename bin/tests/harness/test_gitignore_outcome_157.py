@@ -48,7 +48,14 @@ class LoadBearingEntriesContractTests(unittest.TestCase):
         # The 3 entries MUST appear in skill-template.gitignore;
         # otherwise we'd be checking for the wrong markers.
         repo_root = Path(__file__).resolve().parents[3]
-        template = repo_root / "skill-template.gitignore"
+        # v1.5.8 instruction 209: skill-template.gitignore lives
+        # under the standard self-hosted marketplace plugin layout
+        # alongside the rest of the bundle.
+        template = (
+            repo_root / "plugins" / "quality-playbook"
+            / "skills" / "quality-playbook"
+            / "skill-template.gitignore"
+        )
         self.assertTrue(template.is_file())
         text = template.read_text(encoding="utf-8")
         for entry in F._GITIGNORE_LOAD_BEARING_ENTRIES:

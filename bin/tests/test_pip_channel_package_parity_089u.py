@@ -73,8 +73,13 @@ class SkillBundleParity089uTests(unittest.TestCase):
         ``skill_bundle_paths`` not in the manifest. Expected
         failure: this test fails with the missing/extra path
         named."""
+        # v1.5.8 instruction 208: _bundle_files() reads from the
+        # skill-source root (skills/quality-playbook/); skill_bundle_paths
+        # accepts either the QPB repo root or the skill folder and
+        # normalizes internally.
+        skill_root = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
         from_bundle_files = {
-            src for src, _dest_rel in install_skill._bundle_files(REPO_ROOT)
+            src for src, _dest_rel in install_skill._bundle_files(skill_root)
         }
         from_build_script = set(
             build_channel_package.skill_bundle_paths(REPO_ROOT)
@@ -99,12 +104,18 @@ class SkillBundleParity089uTests(unittest.TestCase):
         otherwise the shim has nothing to load at adopter ``pip
         install`` time.
 
+        v1.5.8 instruction 208: canonical install_skill.py source
+        moved to ``skills/quality-playbook/scripts/install_skill.py``;
+        ``executor_paths()`` was updated in lockstep.
+
         Mutation candidate: comment out the
-        ``repo_root / 'bin' / 'install_skill.py'`` entry in
+        ``scripts_root / 'install_skill.py'`` entry in
         ``executor_paths``. Expected failure: this test fails
         because ``install_skill.py not in executor_paths``."""
         executor_set = set(build_channel_package.executor_paths(REPO_ROOT))
-        install_skill_path = REPO_ROOT / "bin" / "install_skill.py"
+        install_skill_path = (
+            REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "install_skill.py"
+        )
         self.assertIn(
             install_skill_path, executor_set,
             "089u: executor_paths must include bin/install_skill.py "
@@ -148,11 +159,21 @@ class StageRoundTrip089uTests(unittest.TestCase):
 
     def test_stage_mirrors_clone_relative_layout(self) -> None:
         """``stage(repo_root, dest_dir)`` produces a directory tree
-        whose files mirror the clone-relative source layout for
+        whose files mirror the FROZEN bundle internal layout for
         every member of ``enumerate_bundle(repo_root)``. In
-        particular: ``SKILL.md`` at the dest root,
-        ``.github/skills/quality_gate/quality_gate.py`` at its
-        nested path, ``bin/install_skill.py`` at ``bin/``, etc."""
+        particular: ``SKILL.md`` at the dest root, ``bin/<name>``
+        for every bundled script, etc.
+
+        v1.5.8 instruction 208: the layout the stage targets is the
+        bundle's CANONICAL layout (``_bundle_files()``'s ``dst_rel``
+        for skill-bundle entries; ``bin/<name>`` for executors). The
+        pre-208 source-relative invariant happened to coincide with
+        the canonical layout only because source paths matched the
+        bundle layout one-to-one — the 208 restructure broke that
+        coincidence (sources moved to ``skills/quality-playbook/``)
+        but the canonical layout is preserved (FROZEN by the
+        published v1.5.8 wheel + tarball)."""
+        from bin import install_skill
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp) / "bundle"
             staged = build_channel_package.stage(REPO_ROOT, dest)
@@ -163,10 +184,15 @@ class StageRoundTrip089uTests(unittest.TestCase):
         # sides before comparing.
         dest_resolved = dest.resolve()
         staged_rel = {Path(p).resolve().relative_to(dest_resolved) for p in staged}
+        # Expected layout: skill-bundle entries land at ``dst_rel``;
+        # executors land at ``bin/<name>``.
+        skill_root = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
         expected_rel = {
-            p.resolve().relative_to(REPO_ROOT)
-            for p in build_channel_package.enumerate_bundle(REPO_ROOT)
+            dst_rel
+            for _src, dst_rel in install_skill._bundle_files(skill_root)
         }
+        for ex in build_channel_package.executor_paths(REPO_ROOT):
+            expected_rel.add(Path("bin") / ex.name)
         missing = expected_rel - staged_rel
         extra = staged_rel - expected_rel
         self.assertEqual(
@@ -181,20 +207,23 @@ class StageRoundTrip089uTests(unittest.TestCase):
         )
 
     def test_stage_handles_dotted_source_dirs(self) -> None:
-        """The bundle includes ``.github/skills/quality_gate/
-        quality_gate.py`` — a dotted-source-dir path. Confirm
-        staging preserves the dot-prefix (setuptools package-data
-        globs for the wheel include them explicitly; this test
-        pins the staging-side behavior)."""
+        """The bundle's destination layout includes ``quality_gate.py``
+        at the staged root.
+
+        v1.5.8 instruction 208: quality_gate.py canonical source
+        moved from ``.github/skills/quality_gate/quality_gate.py`` to
+        ``skills/quality-playbook/scripts/quality_gate.py``. The
+        staged destination remains ``<bundle>/quality_gate.py``
+        (FROZEN bundle internal layout — the published v1.5.8 wheel
+        + npm tarball both ship it at this location)."""
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp) / "bundle"
             build_channel_package.stage(REPO_ROOT, dest)
-            gate_path = dest / ".github" / "skills" / "quality_gate" / "quality_gate.py"
+            gate_path = dest / "quality_gate.py"
             self.assertTrue(
                 gate_path.is_file(),
-                f"089u stage: dotted-source-dir path .github/skills/"
-                f"quality_gate/quality_gate.py was not preserved "
-                f"under the staging dest {dest}.",
+                f"089u stage: quality_gate.py was not staged at the "
+                f"frozen-bundle destination {gate_path}.",
             )
 
     def test_stage_clean_removes_prior_contents(self) -> None:

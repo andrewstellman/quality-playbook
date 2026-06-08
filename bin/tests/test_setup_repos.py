@@ -29,49 +29,57 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 def _build_minimal_fixture(qpb_root: Path, short: str = "dummytest", version: str = "1.5.7") -> tuple[Path, Path]:
     """Build a minimal QPB-like layout under qpb_root that setup_repos.sh
-    can run against. Returns (script_path, dst_path)."""
-    (qpb_root / "SKILL.md").write_text(
+    can run against. Returns (script_path, dst_path).
+
+    v1.5.8 instruction 208: bundle sources live under
+    ``skills/quality-playbook/`` (SKILL.md + references/ +
+    phase_prompts/ + agents/ + scripts/). The pre-208 fixture put
+    them at the QPB root + bin/; that's the layout setup_repos.sh
+    cannot read after 208."""
+    skill_src = qpb_root / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
+    skill_src.mkdir(parents=True, exist_ok=True)
+    (skill_src / "SKILL.md").write_text(
         f"---\nversion: {version}\nname: x\ndescription: y\n---\n",
         encoding="utf-8",
     )
-    (qpb_root / "references").mkdir()
-    (qpb_root / "references" / "x.md").write_text("ref content\n", encoding="utf-8")
+    (skill_src / "references").mkdir()
+    (skill_src / "references" / "x.md").write_text("ref content\n", encoding="utf-8")
     (qpb_root / "AGENTS.md").write_text("agents\n", encoding="utf-8")
-    (qpb_root / ".github" / "skills" / "quality_gate").mkdir(parents=True)
-    (qpb_root / ".github" / "skills" / "quality_gate" / "quality_gate.py").write_text(
-        "# stub\n", encoding="utf-8",
-    )
-    (qpb_root / "bin").mkdir(exist_ok=True)
-    (qpb_root / "bin" / "install_skill.py").write_text("# stub\n", encoding="utf-8")
-    (qpb_root / "bin" / "citation_verifier.py").write_text("# stub\n", encoding="utf-8")
+    scripts_dir = skill_src / "scripts"
+    scripts_dir.mkdir(parents=True, exist_ok=True)
+    (scripts_dir / "quality_gate.py").write_text("# stub\n", encoding="utf-8")
+    (scripts_dir / "install_skill.py").write_text("# stub\n", encoding="utf-8")
+    (scripts_dir / "citation_verifier.py").write_text("# stub\n", encoding="utf-8")
     # v1.5.7 instruction 049 A-6: source stubs so setup_repos.sh's
     # reference_docs_ingest/benchmark_lib cp lines have something to
     # copy (the cp uses `2>/dev/null || true`, so a missing source is
     # silently skipped — the stubs make the end-to-end bundle test
     # able to distinguish "fix present" from "fix absent").
-    (qpb_root / "bin" / "reference_docs_ingest.py").write_text("# stub\n", encoding="utf-8")
-    (qpb_root / "bin" / "benchmark_lib.py").write_text("# stub\n", encoding="utf-8")
+    (scripts_dir / "reference_docs_ingest.py").write_text("# stub\n", encoding="utf-8")
+    (scripts_dir / "benchmark_lib.py").write_text("# stub\n", encoding="utf-8")
     # v1.5.7 instruction 050 A-7: source phase_prompts/ + agents/ so
     # setup_repos.sh's new A-7 cp lines have something to copy.
-    (qpb_root / "phase_prompts").mkdir(exist_ok=True)
+    (skill_src / "phase_prompts").mkdir(exist_ok=True)
     for _pp in ("phase1.md", "phase2.md", "iteration.md", "single_pass.md"):
-        (qpb_root / "phase_prompts" / _pp).write_text("# pp stub\n", encoding="utf-8")
-    (qpb_root / "agents").mkdir(exist_ok=True)
-    (qpb_root / "agents" / "quality-playbook.agent.md").write_text(
+        (skill_src / "phase_prompts" / _pp).write_text("# pp stub\n", encoding="utf-8")
+    (skill_src / "agents").mkdir(exist_ok=True)
+    (skill_src / "agents" / "quality-playbook.agent.md").write_text(
         "# agent stub\n", encoding="utf-8",
     )
     # v1.5.7 instruction 050 A-6.2: source closure stubs + __init__.py
     # so setup_repos.sh's A-6.2 closure cp lines have something to
-    # copy (cp uses `2>/dev/null || true` — missing source silently
-    # skipped, so the stubs let the end-to-end test distinguish
-    # "fix present" from "fix absent").
-    (qpb_root / "bin" / "__init__.py").write_text("# pkg\n", encoding="utf-8")
+    # copy.
+    (scripts_dir / "__init__.py").write_text("# pkg\n", encoding="utf-8")
     for _m in (
         "quality_playbook.py", "archive_lib.py",
         "council_semantic_check.py", "migrate_v1_5_0_layout.py",
         "role_map.py", "council_config.py",
+        # v1.5.7 086 A-26 trio + 090k + 109 — also required by
+        # setup_repos.sh under the post-208 layout.
+        "run_state_lib.py", "validate_phase_artifacts.py", "qpb_config.py",
+        "qpb_validate.py", "qpb_phase.py", "_purpose.py",
     ):
-        (qpb_root / "bin" / _m).write_text("# stub\n", encoding="utf-8")
+        (scripts_dir / _m).write_text("# stub\n", encoding="utf-8")
     repos = qpb_root / "repos"
     repos.mkdir()
     # Copy the real scripts so the test exercises the actual code.

@@ -13,6 +13,12 @@ import re
 import unittest
 
 _REPO = pathlib.Path(__file__).resolve().parents[2]
+# v1.5.8 instruction 209: references/ lives under the standard
+# self-hosted marketplace plugin layout.
+_SKILL_DIR = (
+    _REPO / "plugins" / "quality-playbook"
+    / "skills" / "quality-playbook"
+)
 
 
 class GitStashCautionTests(unittest.TestCase):
@@ -24,7 +30,7 @@ class GitStashCautionTests(unittest.TestCase):
         immediately preceded by a **Caution:** paragraph
         warning about discarded working-tree state."""
         text = (
-            _REPO / "references" / "phase2_generation_guide.md"
+            _SKILL_DIR / "references" / "phase2_generation_guide.md"
         ).read_text(encoding="utf-8")
         # Find the fallback sentence + verify a **Caution:**
         # paragraph precedes it within a short window.
@@ -46,7 +52,7 @@ class GitStashCautionTests(unittest.TestCase):
         --include-untracked` as the safer alternative when
         the operator is unsure."""
         text = (
-            _REPO / "references" / "phase2_generation_guide.md"
+            _SKILL_DIR / "references" / "phase2_generation_guide.md"
         ).read_text(encoding="utf-8")
         m = re.search(
             r"\*\*Caution:\*\*[^\n]*?"
@@ -62,7 +68,7 @@ class GitStashCautionTests(unittest.TestCase):
         conflicts and tell the operator to resolve manually
         rather than rerun."""
         text = (
-            _REPO / "references" / "phase2_generation_guide.md"
+            _SKILL_DIR / "references" / "phase2_generation_guide.md"
         ).read_text(encoding="utf-8")
         # Look for both pieces in the caution paragraph
         m = re.search(

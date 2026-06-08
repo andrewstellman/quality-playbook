@@ -113,16 +113,28 @@ class SubprocessEncodingSweepTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        # v1.5.8 instruction 209: bin/install_skill.py is a thin
+        # shim after the plugin-native + standard self-hosted
+        # marketplace restructures; the canonical source (and the
+        # text=True / subprocess.run sites) lives at
+        # plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py.
+        # Read the canonical for the install_skill.py audit row so
+        # the sweep targets the source-of-truth, not the shim.
+        _AUDIT_PATHS = {
+            "bin/run_playbook.py": _REPO / "bin" / "run_playbook.py",
+            "bin/install_skill.py": (
+                _REPO / "plugins" / "quality-playbook"
+                / "skills" / "quality-playbook"
+                / "scripts" / "install_skill.py"
+            ),
+            "bin/harness/facts.py": _REPO / "bin" / "harness" / "facts.py",
+            "bin/harness/runner.py": _REPO / "bin" / "harness" / "runner.py",
+            "bin/harness/plan_runner.py": _REPO / "bin" / "harness" / "plan_runner.py",
+            "bin/harness/prepare.py": _REPO / "bin" / "harness" / "prepare.py",
+        }
         cls.files = {
-            relpath: (_REPO / relpath).read_text(encoding="utf-8")
-            for relpath in (
-                "bin/run_playbook.py",
-                "bin/install_skill.py",
-                "bin/harness/facts.py",
-                "bin/harness/runner.py",
-                "bin/harness/plan_runner.py",
-                "bin/harness/prepare.py",
-            )
+            relpath: path.read_text(encoding="utf-8")
+            for relpath, path in _AUDIT_PATHS.items()
         }
 
     def test_codex_stdin_site_source_pins_utf8(self) -> None:

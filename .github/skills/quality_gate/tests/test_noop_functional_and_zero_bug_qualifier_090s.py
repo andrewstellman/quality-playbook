@@ -540,7 +540,7 @@ class ScopeGuard090sTests(unittest.TestCase):
 
     def test_skill_md_not_touched_by_090s(self) -> None:
         repo_root = Path(__file__).resolve().parents[4]
-        text = (repo_root / "SKILL.md").read_text(encoding="utf-8")
+        text = (repo_root / "skills" / "quality-playbook" / "SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn(
             "v1.5.7 090s", text,
             "SKILL.md must not carry 090s anchors (32K BPE ceiling).",

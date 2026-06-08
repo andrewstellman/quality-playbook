@@ -50,21 +50,35 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 # than a hard FAIL — the gate continues with reduced enforcement.
 _CITATION_VERIFIER = None
 _VERIFIER_SEARCH_ROOTS = [
-    SCRIPT_DIR.parent.parent.parent,  # source-clone layout
+    SCRIPT_DIR.parent.parent.parent,  # source-clone layout (pre-208)
     SCRIPT_DIR,                       # gate + bin/ siblings (uncommon)
     SCRIPT_DIR.parent.parent,         # nested-skills layout (.github/skills/quality_gate.py)
 ]
-for _candidate_root in _VERIFIER_SEARCH_ROOTS:
-    _verifier_file = _candidate_root / "bin" / "citation_verifier.py"
-    if _verifier_file.is_file():
-        try:
-            if str(_candidate_root) not in sys.path:
-                sys.path.insert(0, str(_candidate_root))
-            from bin import citation_verifier as _CITATION_VERIFIER  # noqa: E402
-            break
-        except Exception:  # noqa: BLE001 — missing / misinstalled bin/ is tolerable
-            _CITATION_VERIFIER = None
-            continue
+# v1.5.8 instruction 208: in the post-208 QPB clone the canonical
+# citation_verifier.py lives alongside quality_gate.py in
+# skills/quality-playbook/scripts/ (i.e. SCRIPT_DIR itself).
+# Try the sibling-script form first so the byte-equality
+# citation check resolves in the post-208 clone.
+_sibling_verifier = SCRIPT_DIR / "citation_verifier.py"
+if _sibling_verifier.is_file():
+    try:
+        if str(SCRIPT_DIR) not in sys.path:
+            sys.path.insert(0, str(SCRIPT_DIR))
+        import citation_verifier as _CITATION_VERIFIER  # noqa: E402
+    except Exception:  # noqa: BLE001
+        _CITATION_VERIFIER = None
+if _CITATION_VERIFIER is None:
+    for _candidate_root in _VERIFIER_SEARCH_ROOTS:
+        _verifier_file = _candidate_root / "bin" / "citation_verifier.py"
+        if _verifier_file.is_file():
+            try:
+                if str(_candidate_root) not in sys.path:
+                    sys.path.insert(0, str(_candidate_root))
+                from bin import citation_verifier as _CITATION_VERIFIER  # noqa: E402
+                break
+            except Exception:  # noqa: BLE001 — missing / misinstalled bin/ is tolerable
+                _CITATION_VERIFIER = None
+                continue
 
 # Global counters — reset per invocation via main(). Tests that call check_repo
 # directly should reset these in setUp.

@@ -883,7 +883,20 @@ class Emitter:
 # tracked clone-only paths (so they also survive a download-zip
 # extract). The OR-set stays robust if any single one drifts (worker
 # design call per 077b Task 1; HALT_077-named candidate set).
-_CLONE_ONLY_MARKERS = ("setup_repos.sh", ".git", "docs/design", "ai_context")
+_CLONE_ONLY_MARKERS = (
+    # v1.5.8 instruction 208: dropped ``ai_context`` from the marker
+    # set because the post-208 layout creates
+    # ``skills/quality-playbook/ai_context/`` (TOOLKIT.md moved into
+    # the plugin skill folder), which would false-positive a clone
+    # detection at the skill-dir level. ``ai_context/DEVELOPMENT_PROCESS.md``
+    # is a more specific marker — that file only exists at the QPB
+    # repo root, not inside the plugin skill folder. The other three
+    # markers are unchanged.
+    "setup_repos.sh",
+    ".git",
+    "docs/design",
+    "ai_context/DEVELOPMENT_PROCESS.md",
+)
 
 # An installed validator lives at
 # <target>/<marker>/skills/quality-playbook/bin/qpb_validate.py.
@@ -916,11 +929,27 @@ def detect_invocation_context(script_path: Path) -> "tuple[str, Path]":
                 and anc.parent.name == "skills"
                 and anc.parent.parent.name in _INSTALL_MARKERS):
             return "installed", anc
-    root = resolved.parent.parent
-    # (2) clone: any bundle-absent marker at the clone root
-    if any((root / m).exists() for m in _CLONE_ONLY_MARKERS):
-        return "clone", root
-    # (3) ambiguous (true fallback)
+    # v1.5.8 instruction 209: the canonical clone-side script now
+    # lives at ``<clone>/plugins/quality-playbook/skills/quality-playbook/scripts/<script>.py``
+    # (208 had ``<clone>/skills/quality-playbook/scripts/<script>.py``;
+    # pre-208 was ``<clone>/bin/<script>.py``). Walk up to find the
+    # clone root by looking for any clone-only marker (.git /
+    # setup_repos.sh / docs/design / ai_context). Try each ancestor
+    # depth in order to handle all three layouts (and any future
+    # restructure within reason).
+    candidates = []
+    cur = resolved.parent
+    for _ in range(7):  # up to 7 levels up: pre-208 (2) through 209 (5) + slack
+        cur = cur.parent
+        if cur == cur.parent:
+            break
+        candidates.append(cur)
+    for candidate in candidates:
+        if any((candidate / m).exists() for m in _CLONE_ONLY_MARKERS):
+            return "clone", candidate
+    # (3) ambiguous (true fallback): use the first candidate as the
+    # reported root (mirrors the pre-209 behavior of `parent.parent`).
+    root = candidates[0] if candidates else resolved.parent
     return "ambiguous", root
 
 

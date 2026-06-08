@@ -1086,7 +1086,20 @@ def main(argv: Optional[list] = None) -> int:
     if not ok:
         return EX_DATAERR
 
-    skill_md = repo_root / "SKILL.md"
+    # v1.5.8 instruction 209: SKILL.md now lives under the standard
+    # self-hosted marketplace plugin layout
+    # (plugins/quality-playbook/skills/quality-playbook/SKILL.md).
+    # 208 placed it at skills/quality-playbook/SKILL.md; that path
+    # is retained as a fallback for transitional clones.
+    skill_md_209 = (
+        repo_root / "plugins" / "quality-playbook"
+        / "skills" / "quality-playbook" / "SKILL.md"
+    )
+    skill_md_208 = repo_root / "skills" / "quality-playbook" / "SKILL.md"
+    if skill_md_209.is_file():
+        skill_md = skill_md_209
+    else:
+        skill_md = skill_md_208
     try:
         frontmatter = read_skill_frontmatter(skill_md)
     except (FileNotFoundError, ValueError) as e:

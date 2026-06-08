@@ -221,7 +221,19 @@ def _qpb_version() -> str:
     installer's convention). Best-effort — falls back to
     ``"unknown"``."""
     try:
-        skill_md = Path(__file__).resolve().parents[1] / "SKILL.md"
+        # v1.5.8 instruction 209: SKILL.md lives under the standard
+        # self-hosted marketplace plugin layout
+        # (plugins/quality-playbook/skills/quality-playbook/SKILL.md);
+        # 208 placed it at skills/quality-playbook/SKILL.md.
+        repo_root = Path(__file__).resolve().parents[1]
+        skill_md_209 = (
+            repo_root / "plugins" / "quality-playbook"
+            / "skills" / "quality-playbook" / "SKILL.md"
+        )
+        skill_md_208 = (
+            repo_root / "skills" / "quality-playbook" / "SKILL.md"
+        )
+        skill_md = skill_md_209 if skill_md_209.is_file() else skill_md_208
         for line in skill_md.read_text(encoding="utf-8").splitlines()[:20]:
             if line.startswith("version:"):
                 return line.split(":", 1)[1].strip()

@@ -49,7 +49,8 @@ from pathlib import Path
 
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_PHASE5 = _REPO_ROOT / "phase_prompts" / "phase5.md"
+# v1.5.8 instruction 208: phase_prompts/ moved into the plugin skill folder.
+_PHASE5 = _REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "phase_prompts" / "phase5.md"
 
 
 class Phase5BuildPrepAndEnvRemediation090oTests(unittest.TestCase):
@@ -226,7 +227,7 @@ class Phase5BuildPrepAndEnvRemediation090oTests(unittest.TestCase):
         This test confirms SKILL.md does not contain the 090o anchors
         — if it does, the contract leaked into the wrong surface.
         """
-        skill_text = (_REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill_text = (_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn(
             "v1.5.7 090o — build-prep before the red/green",
             skill_text,

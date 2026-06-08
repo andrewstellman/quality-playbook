@@ -16,7 +16,10 @@ import unittest
 from pathlib import Path
 
 
-DOC_PATH = Path(__file__).resolve().parent.parent.parent / "references" / "runners_and_models.md"
+# v1.5.8 instruction 208: references/ moved into the plugin skill folder.
+DOC_PATH = (
+    Path(__file__).resolve().parent.parent.parent / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "references" / "runners_and_models.md"
+)
 
 
 class RunnersAndModelsDocTests(unittest.TestCase):

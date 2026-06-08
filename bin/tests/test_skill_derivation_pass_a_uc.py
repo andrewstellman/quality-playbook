@@ -72,7 +72,10 @@ class SectionKindClassificationTests(unittest.TestCase):
         """Brief A.1 pre-flight verification: 8-12 sections fire UC
         derivation under the chosen keyword list (Haiku target = 10 ± 20%).
         """
-        skill_path = Path(__file__).resolve().parents[2] / "SKILL.md"
+        # v1.5.8 instruction 208: SKILL.md moved into the plugin skill folder.
+        skill_path = (
+            Path(__file__).resolve().parents[2] / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "SKILL.md"
+        )
         if not skill_path.is_file():
             self.skipTest("QPB SKILL.md not at expected location")
         secs = sections.enumerate_sections(

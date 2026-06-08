@@ -261,7 +261,7 @@ class ScopeGuard090qTests(unittest.TestCase):
     (Task A) and `AGENTS.md` (Task B), not in SKILL.md."""
 
     def test_skill_md_not_touched_by_090q(self) -> None:
-        text = (_REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        text = (_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "SKILL.md").read_text(encoding="utf-8")
         self.assertNotIn(
             "v1.5.7 090q", text,
             "SKILL.md contains a 090q anchor — 090q's halt "

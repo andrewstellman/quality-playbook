@@ -25,8 +25,10 @@ import unittest
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-COOKBOOK_PATH = REPO_ROOT / "references" / "role_map_queries.md"
-PHASE2_PROMPT_PATH = REPO_ROOT / "phase_prompts" / "phase2.md"
+# v1.5.8 instruction 208: references/ + phase_prompts/ moved into the plugin skill folder.
+_SKILL_DIR = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
+COOKBOOK_PATH = _SKILL_DIR / "references" / "role_map_queries.md"
+PHASE2_PROMPT_PATH = _SKILL_DIR / "phase_prompts" / "phase2.md"
 
 # Canonical query anchors (substrings that distinguish each canonical
 # query — taken from ``docs/design/QPB_v1.5.7_Design.md`` Deliverable 2).
@@ -206,10 +208,11 @@ class Phase2PromptCookbookReferenceTests(unittest.TestCase):
         and this test module's PHASE2_PROMPT_PATH constant is stale."""
         run_playbook = REPO_ROOT / "bin" / "run_playbook.py"
         rp_text = run_playbook.read_text(encoding="utf-8")
-        # The runner's loader is _load_phase_prompt("phase2", ...) and
-        # the directory is PHASE_PROMPTS_DIR = parents[1] / "phase_prompts".
+        # v1.5.8 instruction 208: PHASE_PROMPTS_DIR construction now
+        # nests through ``skills/quality-playbook/`` to match the
+        # plugin-native layout.
         self.assertIn(
-            'PHASE_PROMPTS_DIR = Path(__file__).resolve().parents[1] / "phase_prompts"',
+            '"skills" / "quality-playbook" / "phase_prompts"',
             rp_text,
             "runner's PHASE_PROMPTS_DIR construction has moved; update "
             "PHASE2_PROMPT_PATH in this test to match",

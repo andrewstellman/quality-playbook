@@ -107,7 +107,10 @@ def _install_skill_bin_basenames() -> set[str]:
     """Return the set of `bin/*.py`-style basenames
     `_bundle_files()` ships under the target's bin/ directory."""
     out: set[str] = set()
-    for _src, dest in install_skill._bundle_files(REPO_ROOT):
+    # v1.5.8 instruction 208: bundle source root is the plugin
+    # skill folder under skills/quality-playbook/.
+    for _src, dest in install_skill._bundle_files(
+            REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"):
         parts = dest.parts
         # We want direct children of bin/ — no subdir entries.
         if len(parts) == 2 and parts[0] == "bin":

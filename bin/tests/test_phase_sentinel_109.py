@@ -52,7 +52,7 @@ def _load_qpb_phase():
     surface). Mirrors the pattern other 089x/090c tests use."""
     spec = importlib.util.spec_from_file_location(
         "qpb_phase_under_test",
-        str(_REPO_ROOT / "bin" / "qpb_phase.py"),
+        str(_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "qpb_phase.py"),
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -189,7 +189,7 @@ class QpbPhaseCliTests(unittest.TestCase):
     def _run(self, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run(
             [sys.executable,
-             str(_REPO_ROOT / "bin" / "qpb_phase.py"), *args],
+             str(_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "qpb_phase.py"), *args],
             capture_output=True, text=True, timeout=10,
         )
 
@@ -262,7 +262,9 @@ class QpbPhaseImportDisciplineTests(unittest.TestCase):
         `from _purpose import ...`, then path-load). They must
         NOT import from any OTHER ``bin/`` script. qpb_phase
         ships, so its only ``bin/`` import is _purpose."""
-        src = (_REPO_ROOT / "bin" / "qpb_phase.py").read_text(
+        # v1.5.8 instruction 208: qpb_phase.py moved to skills/quality-playbook/scripts/.
+        src = (_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
+               / "scripts" / "qpb_phase.py").read_text(
             encoding="utf-8")
         # Allowed: `from bin._purpose import ...`
         # Forbidden: `from bin.X import ...` for X != _purpose
@@ -293,7 +295,7 @@ class QpbPhaseImportDisciplineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             result = subprocess.run(
                 [sys.executable,
-                 str(_REPO_ROOT / "bin" / "qpb_phase.py"),
+                 str(_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "qpb_phase.py"),
                  "0", "start"],
                 cwd=tmp,  # foreign cwd → no implicit bin/
                 env=env,
@@ -315,9 +317,10 @@ class QpbPhaseImportDisciplineTests(unittest.TestCase):
 def _import_gate_module():
     """Load quality_gate.py as a module — same pattern as the
     gate test suite uses internally."""
+    # v1.5.8 instruction 208: quality_gate.py moved to skills/quality-playbook/scripts/.
     spec = importlib.util.spec_from_file_location(
         "quality_gate_under_test",
-        str(_REPO_ROOT / ".github" / "skills" / "quality_gate"
+        str(_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts"
              / "quality_gate.py"),
     )
     mod = importlib.util.module_from_spec(spec)

@@ -15,10 +15,12 @@ _QPB_ROOT = Path(__file__).resolve().parents[2]
 # The 3 files carrying the 5 per-phase boundary instructions
 # (phase1_exploration_guide → P2, phase2_generation_guide → P3,
 # SKILL.md → P4/P5/P6).
+# v1.5.8 instruction 208: references/ + SKILL.md moved into the plugin skill folder.
+_SKILL_DIR = _QPB_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 _LOCI = (
-    _QPB_ROOT / "references" / "phase1_exploration_guide.md",
-    _QPB_ROOT / "references" / "phase2_generation_guide.md",
-    _QPB_ROOT / "SKILL.md",
+    _SKILL_DIR / "references" / "phase1_exploration_guide.md",
+    _SKILL_DIR / "references" / "phase2_generation_guide.md",
+    _SKILL_DIR / "SKILL.md",
 )
 # The old unconditional-STOP phrasing (the F11 defect): "STOP. Do
 # not proceed to Phase N unless the user explicitly asks".

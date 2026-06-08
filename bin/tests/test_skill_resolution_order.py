@@ -77,7 +77,7 @@ class SkillResolutionOrderTests(unittest.TestCase):
         locations as numbered items in canonical order. Regression for
         BUG-004 (positions 3 and 4 were swapped in v1.5.4)."""
         order = self._read_numbered_skill_list(
-            REPO_ROOT / "agents" / "quality-playbook-claude.agent.md"
+            REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "agents" / "quality-playbook-claude.agent.md"
         )
         self.assertEqual(
             order,
@@ -92,7 +92,7 @@ class SkillResolutionOrderTests(unittest.TestCase):
         but is checked here so any future drift in EITHER agent file is
         caught immediately."""
         order = self._read_numbered_skill_list(
-            REPO_ROOT / "agents" / "quality-playbook.agent.md"
+            REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "agents" / "quality-playbook.agent.md"
         )
         self.assertEqual(
             order,
@@ -264,10 +264,10 @@ class CrossSurfaceDriftDetectionTests(unittest.TestCase):
         # Surface 3: agent files (parsed via the existing helper).
         helper = SkillResolutionOrderTests()
         claude_agent = helper._read_numbered_skill_list(
-            REPO_ROOT / "agents" / "quality-playbook-claude.agent.md"
+            REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "agents" / "quality-playbook-claude.agent.md"
         )
         general_agent = helper._read_numbered_skill_list(
-            REPO_ROOT / "agents" / "quality-playbook.agent.md"
+            REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "agents" / "quality-playbook.agent.md"
         )
 
         for name, surface in (

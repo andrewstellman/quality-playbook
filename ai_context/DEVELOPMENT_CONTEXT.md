@@ -24,75 +24,78 @@ Each section is self-contained; jump to the heading you need rather than reading
 
 ## Project structure
 
+v1.5.8 instruction 208 restructured the repo to a plugin-native
+layout; instruction 209 then completed the restructure to Claude
+Code's **standard self-hosted marketplace** layout
+(`.claude-plugin/marketplace.json` at the repo root + plugin
+content under `plugins/<plugin-name>/`) so the plugin loads
+correctly via `claude --plugin-dir` AND the marketplace works via
+`/plugin marketplace add`. Bundled adopter-facing files (SKILL.md +
+references/ + phase_prompts/ + agents/ + scripts/ +
+ai_context/TOOLKIT.md + skill-template.gitignore) live under
+`plugins/quality-playbook/skills/quality-playbook/`. The pip wheel
++ npm tarball internal layout (`_bundle/SKILL.md`,
+`_bundle/bin/...`, etc.) is unchanged and ships from
+`bin/build_channel_package.py`.
+
 ```
 quality-playbook/
 ├── AGENTS.md                          ← AI coding agent entry point (repo root)
-├── SKILL.md                           ← The skill — full operational instructions for running the playbook
 ├── LICENSE.txt                        ← License terms
-├── agents/                            ← Orchestrator agent files for autonomous runs
-│   ├── quality-playbook-claude.agent.md   ← Claude Code orchestrator (single-level sub-agent model)
-│   ├── quality-playbook.agent.md          ← Copilot / generic orchestrator
-│   └── calibration_orchestrator.md        ← v1.5.5 spawn-and-resume orchestrator template for calibration cycles (Mode 1 autonomous driver per ai_context/CALIBRATION_PROTOCOL.md)
-├── bin/                               ← Standard-library benchmark automation package
-│   ├── __init__.py                    ← Package marker
-│   ├── benchmark_lib.py               ← Shared helpers (versioned from repos/_benchmark_lib.sh)
-│   ├── run_playbook.py                ← Main runner — positional args are target directories (python3 bin/run_playbook.py); v1.5.5 wires validate_no_source_edits into _finalize_iteration as the Phase 5 source-edit guardrail
-│   ├── run_state_lib.py               ← v1.5.5 run-state instrumentation: read/parse/validate helpers (read_events, last_in_progress_phase, validate_run_state_file, validate_phase_artifacts, validate_no_source_edits) plus writers (append_event, write_progress_md)
-│   ├── visualize_calibration.py       ← v1.5.5 four-chart cycle visualization (per-bug × cycle heatmap, lever × benchmark heatmap, recall trajectory, Mermaid lever-interaction graph)
-│   ├── classify_project.py            ← v1.5.3 Phase 0 project-type classifier (Code / Skill / Hybrid)
-│   ├── citation_verifier.py           ← v1.5.0 byte-deterministic citation excerpt extractor
+├── README.md                          ← Adopter-facing introduction + install guide
+├── pyproject.toml                     ← Pip channel manifest
+├── package.json                       ← Npm channel manifest
+├── .claude-plugin/                    ← Standard self-hosted marketplace catalog (v1.5.8 209)
+│   └── marketplace.json               ← Marketplace entry — points at ./plugins/quality-playbook
+├── plugins/                           ← Standard self-hosted marketplace plugins (v1.5.8 209)
+│   └── quality-playbook/              ← The plugin
+│       ├── .claude-plugin/
+│       │   └── plugin.json            ← Plugin metadata (name, description, version, author)
+│       └── skills/
+│           └── quality-playbook/      ← The skill bundle source
+│               ├── SKILL.md           ← The skill — full operational instructions
+│               ├── references/        ← Reference files read during specific phases
+│               ├── phase_prompts/     ← Per-phase prompts (Mode A + Mode B single source of truth)
+│               ├── agents/            ← Orchestrator agent files for autonomous runs
+│               ├── ai_context/        ← Adopter-facing AI context (TOOLKIT.md)
+│               │   └── TOOLKIT.md     ← For users' AI assistants (setup, run, interpret, recheck)
+│               ├── scripts/           ← Bundled scripts (canonical source)
+│               │   ├── quality_gate.py        ← Mechanical Phase 5 gate (3000+ lines, Python 3.10+)
+│               │   ├── install_skill.py       ← Adopter-side installer (canonical; bin/install_skill.py shims here)
+│               │   ├── qpb_validate.py        ← Phase 0 validator
+│               │   ├── qpb_phase.py           ← Phase-sentinel emitter
+│               │   ├── citation_verifier.py   ← v1.5.0 byte-deterministic citation excerpt extractor
+│               │   ├── benchmark_lib.py       ← Shared helpers (versioned from repos/_benchmark_lib.sh)
+│               │   ├── reference_docs_ingest.py ← Phase 1 doc ingest
+│               │   ├── _purpose.py            ← Shared banner / version-reader helpers
+│               │   ├── quality_playbook.py + archive_lib.py + council_*.py + role_map.py + run_state_lib.py + ... ← Mode-A closure
+│               │   └── __init__.py            ← Package marker
+│               └── skill-template.gitignore   ← Adopter-target gitignore sentinel
+├── bin/                               ← Repo-level runner + build scripts (Python 3.10+)
+│   ├── __init__.py                    ← Package marker — extends __path__ to plugins/quality-playbook/skills/quality-playbook/scripts/
+│   ├── run_playbook.py                ← Mode B runner — positional args are target directories
+│   ├── build_channel_package.py       ← Stages quality_playbook_cli/_bundle/ from plugins/quality-playbook/skills/quality-playbook/
+│   ├── publish_pip.py + publish_npm.py + submit_awesome_copilot.py ← Release-channel scripts
+│   ├── classify_project.py            ← v1.5.3 Phase 0 project-type classifier
+│   ├── visualize_calibration.py       ← v1.5.5 four-chart cycle visualization
+│   ├── qpb_harness.py + harness/      ← Test harness (dev-only)
 │   ├── skill_derivation/              ← v1.5.3 Skill / Hybrid four-pass derivation + divergence detection
-│   │   ├── __main__.py                ← CLI entry: `python3 -m bin.skill_derivation --phase {3,4} --part {a1..d,all} <target>`
-│   │   ├── pass_a.py / pass_b.py / pass_c.py / pass_d.py   ← Phase 3 four-pass driver modules
-│   │   ├── citation_search.py         ← Pass B fuzzy search with token-overlap pre-filter
-│   │   ├── sections.py                ← Section enumeration + EXECUTION_MODE_KEYWORDS
-│   │   ├── divergence_internal.py     ← Phase 4 Part A.1 internal-prose detection (precision-tuned in v1.5.3 Phase 5)
-│   │   ├── divergence_prose_to_code_mechanical.py    ← Phase 4 A.2 Tier 1 mechanical
-│   │   ├── divergence_prose_to_code_llm.py           ← Phase 4 A.3 Tier 2 LLM-driven (Hybrid only, resumable)
-│   │   ├── divergence_execution.py    ← Phase 4 Part B archived-gate aggregator
-│   │   ├── divergence_to_bugs.py      ← Phase 4 Part D.1 BUG production with §8.1 consolidation
-│   │   ├── phase4_inbox.py            ← Phase 4 Part D.2 inbox + triage_batch_key backfill
-│   │   └── curate_requirements.py     ← v1.5.3 Phase 5 Stage 5A curated REQUIREMENTS.md generator
-│   └── tests/                         ← Stdlib-only tests for the runner package (662 tests at v1.5.3)
+│   ├── install_skill.py               ← Thin shim — delegates to plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py
+│   └── tests/                         ← Stdlib-only tests for the runner package
 ├── pytest/                            ← Local stdlib-only shim so python3 -m pytest works without installs
-├── references/                        ← Reference files read during specific phases
-│   ├── challenge_gate.md              ← False-positive detection challenge gate (v1.4.3+)
-│   ├── constitution.md                ← Guidance for drafting the quality constitution
-│   ├── defensive_patterns.md          ← Forensic inversion of defensive code (try/except, null guards)
-│   ├── exploration_patterns.md        ← Pattern library for Phase 1 exploration
-│   ├── functional_tests.md            ← Functional-test generation reference (all languages)
-│   ├── iteration.md                   ← Iteration strategies (gap, unfiltered, parity, adversarial)
-│   ├── orchestrator_protocol.md       ← Shared hardening rules imported by both agent files (v1.4.4+)
-│   ├── requirements_pipeline.md       ← Requirements derivation and post-review reconciliation
-│   ├── requirements_refinement.md     ← Coverage / completeness refinement pass
-│   ├── requirements_review.md         ← Pre-finalization requirements review
-│   ├── review_protocols.md            ← Three-pass code review protocol and regression test conventions
-│   ├── run_state_schema.md            ← v1.5.5 event taxonomy + cross-validation rules + format invariants for the per-cycle quality/run_state.jsonl event log
-│   ├── schema_mapping.md              ← tdd-results.json / recheck-results.json schema reference
-│   ├── spec_audit.md                  ← Council of Three spec audit protocol
-│   └── verification.md                ← 45 self-check benchmarks for Phase 6
-├── .github/                           ← Installed-copy layout used inside target repos
+├── .github/                           ← Installed-copy benchmark layout (preserved for setup_repos.sh)
 │   └── skills/
-│       ├── SKILL.md                   ← Installed skill entry point
-│       ├── references/                ← Installed references bundle
-│       ├── quality_gate.py            ← Symlink → quality_gate/quality_gate.py (stable invocation path)
-│       └── quality_gate/              ← Gate script package (sole mechanical gate since v1.4.5; bash retired)
-│           ├── __init__.py            ← Re-exports public API
-│           ├── quality_gate.py        ← Mechanical validation (34 check_* functions at v1.5.3, 3000+ lines, Python 3.10+)
-│           └── tests/
-│               ├── __init__.py
-│               ├── README.md          ← v1.5.3: documents `unittest discover` as the canonical runner (DQ-5-8)
-│               ├── test_quality_gate.py  ← 215 stdlib-only unit tests at v1.5.3
-│               └── test_req_pattern.py   ← 6 stdlib-only unit tests
-├── ai_context/                        ← AI-readable context files
-│   ├── TOOLKIT.md                     ← For users' AI assistants (setup, run, interpret, recheck)
+│       └── quality_gate/              ← Pre-208 gate package — quality_gate.py canonical at plugins/quality-playbook/skills/quality-playbook/scripts/
+│           ├── __init__.py            ← Re-exports public API via importlib path-load from the new canonical location
+│           └── tests/                 ← Gate test suite (unchanged location; paths updated to find script at new location)
+├── ai_context/                        ← Maintainer-facing AI context (orientation docs)
 │   ├── DEVELOPMENT_CONTEXT.md         ← For maintainers' AI assistants (this file)
-│   ├── DEVELOPMENT_PROCESS.md         ← How the QPB project itself is developed (mechanical procedures, rationale, open directions)
-│   ├── VERSION_HISTORY.md             ← Curated release-evolution narrative (v1.3.13 → present); CHANGELOG.md has the mechanical per-release log
-│   ├── IMPROVEMENT_LOOP.md            ← Methodology doc: how QPB applies QE to itself (verification dimensions, lever inventory, regression replay, SPC trajectory)
-│   ├── CALIBRATION_PROTOCOL.md        ← 12-step Mode 1 (autonomous) / Mode 2 (operator-driven) protocol for driving a calibration cycle
-│   ├── TOOLKIT_TEST_PROTOCOL.md       ← Release-gate review protocol for orientation docs (orientation-doc analog of Council-of-Three)
-│   └── BENCHMARK_PROTOCOL.md          ← Clean-folder run protocol for contamination-free benchmarks; benchmark set, "Why bootstrap is a benchmark target", result interpretation, and the agent-capability table
+│   ├── DEVELOPMENT_PROCESS.md         ← How the QPB project itself is developed
+│   ├── VERSION_HISTORY.md             ← Curated release-evolution narrative
+│   ├── IMPROVEMENT_LOOP.md            ← Methodology doc — how QPB applies QE to itself
+│   ├── CALIBRATION_PROTOCOL.md        ← 12-step calibration protocol
+│   ├── TOOLKIT_TEST_PROTOCOL.md       ← Release-gate review protocol for orientation docs
+│   └── BENCHMARK_PROTOCOL.md          ← Clean-folder benchmark run protocol
 ├── repos/                             ← Benchmark repos and setup tooling
 │   ├── setup_repos.sh                 ← Copies skill files into target repos
 │   ├── _benchmark_lib.sh              ← Shell helpers shared by setup_repos.sh, run_tdd.sh, etc.

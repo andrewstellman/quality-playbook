@@ -43,10 +43,14 @@ class InstalledBundleFreshnessTests(unittest.TestCase):
     the target's installed bundle is reported as missing."""
 
     def _make_qpb_source(self, root: Path) -> None:
-        _write(root / "references" / "what_just_happened.md")
-        _write(root / "references" / "verification.md")
-        _write(root / "phase_prompts" / "phase1.md")
-        _write(root / "agents" / "quality-playbook.agent.md")
+        # v1.5.8 instruction 208: bundled skill files moved into
+        # skills/quality-playbook/. _check_installed_bundle_freshness
+        # reads from that location now.
+        skill_src = root / "skills" / "quality-playbook"
+        _write(skill_src / "references" / "what_just_happened.md")
+        _write(skill_src / "references" / "verification.md")
+        _write(skill_src / "phase_prompts" / "phase1.md")
+        _write(skill_src / "agents" / "quality-playbook.agent.md")
 
     def _make_target_bundle(self, target: Path, *, include: set[str]) -> None:
         """Install a `.github/skills/` bundle (unambiguous nested
@@ -138,16 +142,16 @@ class InstalledBundleFreshnessTests(unittest.TestCase):
         install_skill._bundle_files copies (citation_verifier.py,
         reference_docs_ingest.py, benchmark_lib.py). SKILL.md +
         quality_gate.py are unconditional _bundle_files entries."""
+        # v1.5.8 instruction 208: bundle sources live under
+        # skills/quality-playbook/ (md trees + scripts/); the
+        # ``_bundle_files_soft()`` enumeration looks there.
         self._make_qpb_source(root)
-        _write(root / "SKILL.md", "name: quality-playbook\n")
-        _write(
-            root / ".github" / "skills" / "quality_gate"
-            / "quality_gate.py",
-            "# gate\n",
-        )
-        _write(root / "bin" / "citation_verifier.py", "# cv\n")
-        _write(root / "bin" / "reference_docs_ingest.py", "# ingest\n")
-        _write(root / "bin" / "benchmark_lib.py", "# bench\n")
+        skill_src = root / "skills" / "quality-playbook"
+        _write(skill_src / "SKILL.md", "name: quality-playbook\n")
+        _write(skill_src / "scripts" / "quality_gate.py", "# gate\n")
+        _write(skill_src / "scripts" / "citation_verifier.py", "# cv\n")
+        _write(skill_src / "scripts" / "reference_docs_ingest.py", "# ingest\n")
+        _write(skill_src / "scripts" / "benchmark_lib.py", "# bench\n")
 
     def test_installed_bundle_freshness_warns_on_missing_bin_module(self) -> None:
         """v1.5.7 instruction 047 Item 2 (A-2-recast). A stale install

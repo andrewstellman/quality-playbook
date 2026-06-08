@@ -32,7 +32,18 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 _FIXTURES_ROOT = Path(__file__).resolve().parent / "fixtures" / "phase7_variations"
-_GATE_DIR = Path(__file__).resolve().parents[2] / ".github" / "skills" / "quality_gate"
+# v1.5.8 instruction 209: quality_gate.py now lives under the
+# standard self-hosted marketplace layout at
+# plugins/quality-playbook/skills/quality-playbook/scripts/. 208
+# placed it at skills/quality-playbook/scripts/; that path is
+# retained as a fallback for transitional clones.
+_QPB_ROOT = Path(__file__).resolve().parents[2]
+_GATE_DIR_209 = (
+    _QPB_ROOT / "plugins" / "quality-playbook"
+    / "skills" / "quality-playbook" / "scripts"
+)
+_GATE_DIR_208 = _QPB_ROOT / "skills" / "quality-playbook" / "scripts"
+_GATE_DIR = _GATE_DIR_209 if _GATE_DIR_209.is_dir() else _GATE_DIR_208
 if str(_GATE_DIR) not in sys.path:
     sys.path.insert(0, str(_GATE_DIR))
 import quality_gate  # noqa: E402

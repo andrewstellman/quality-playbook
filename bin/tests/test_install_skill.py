@@ -26,7 +26,15 @@ from tempfile import TemporaryDirectory
 from bin import install_skill
 
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+# v1.5.8 instruction 208: bundle source root moved from the repo
+# root to the plugin skill folder. ``REPO_ROOT`` here is the
+# install_skill source root for bundle enumeration (passed as
+# ``source_root=...`` everywhere), which is now
+# ``skills/quality-playbook/``. The actual git repo root is
+# ``_REPO_ROOT_GIT`` for tests that read repo-root files like
+# README.md.
+_REPO_ROOT_GIT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = _REPO_ROOT_GIT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 
 
 def _capture_install(**kwargs) -> tuple[int, str]:

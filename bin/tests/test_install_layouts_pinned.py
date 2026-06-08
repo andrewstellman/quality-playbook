@@ -97,7 +97,32 @@ class InstallLayoutsEnumerationPinTests(unittest.TestCase):
         if marker_str is None:
             # `intro_short` is a local variable inside `_run`; recover
             # it by reading the source and reconstructing the build.
-            src = Path(install_skill.__file__).read_text(encoding="utf-8")
+            # v1.5.8 instruction 209: bin/install_skill.py is now a
+            # thin shim; the canonical source lives at
+            # plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py
+            # under the standard self-hosted marketplace layout (209).
+            # 208 placed it at skills/quality-playbook/scripts/; both
+            # paths are accepted for transitional clones. Read the
+            # canonical file via the impl module so the framing
+            # assertion targets the source-of-truth, not the shim.
+            _repo_root = (
+                Path(install_skill.__file__).resolve().parent.parent
+            )
+            canonical_209 = (
+                _repo_root / "plugins" / "quality-playbook"
+                / "skills" / "quality-playbook" / "scripts"
+                / "install_skill.py"
+            )
+            canonical_208 = (
+                _repo_root / "skills" / "quality-playbook"
+                / "scripts" / "install_skill.py"
+            )
+            if canonical_209.is_file():
+                src = canonical_209.read_text(encoding="utf-8")
+            elif canonical_208.is_file():
+                src = canonical_208.read_text(encoding="utf-8")
+            else:
+                src = Path(install_skill.__file__).read_text(encoding="utf-8")
             self.assertIn(
                 'auto-detection scans for the marker (', src,
                 "install_skill intro_short marker-list framing missing",

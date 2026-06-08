@@ -29,7 +29,34 @@ import unittest
 from pathlib import Path
 
 _QPB_ROOT = Path(__file__).resolve().parents[2]
-_BIN = _QPB_ROOT / "bin"
+# v1.5.8 instruction 208: bundled scripts moved to
+# skills/quality-playbook/scripts/. The audit list includes both
+# bundled and unbundled scripts, so resolve each by trying the
+# nested location first then the legacy bin/ location.
+_NESTED_BIN = _QPB_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts"
+_LEGACY_BIN = _QPB_ROOT / "bin"
+
+
+def _resolve_audited_script(script: str) -> Path:
+    nested = _NESTED_BIN / script
+    if nested.is_file():
+        return nested
+    return _LEGACY_BIN / script
+
+
+# Backward-compat: tests may reference ``_BIN / <script>`` as if
+# all audited scripts live in one folder. Expose ``_BIN`` as a
+# helper-object whose ``/`` operator delegates to
+# ``_resolve_audited_script`` while a path-shaped repr still works.
+class _BinResolver:
+    def __truediv__(self, script: str) -> Path:
+        return _resolve_audited_script(script)
+
+    def __repr__(self) -> str:
+        return f"<BinResolver nested={_NESTED_BIN} legacy={_LEGACY_BIN}>"
+
+
+_BIN = _BinResolver()
 
 _AUDITED = (
     "validate_phase_artifacts.py",

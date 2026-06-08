@@ -56,7 +56,12 @@ class BundleCompletenessTests(unittest.TestCase):
         phase_prompts/*.md, verify the corresponding file is either
         bundled by install_skill.py::_bundle_files() OR in the
         operator-side allowlist."""
-        qpb_root = Path(__file__).resolve().parent.parent.parent
+        # v1.5.8 instruction 208: SKILL.md + phase_prompts/ moved into
+        # the plugin skill folder. _bundle_files() now accepts the
+        # skill folder as source_root.
+        qpb_root = (
+            Path(__file__).resolve().parent.parent.parent / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
+        )
         text_sources = [qpb_root / "SKILL.md"]
         phase_prompts = qpb_root / "phase_prompts"
         if phase_prompts.is_dir():
@@ -79,10 +84,16 @@ class BundleCompletenessTests(unittest.TestCase):
                 for match in SLASH_PATTERN.finditer(text):
                     referenced.add(f"bin.{match.group(1)}")  # normalize
 
+        # v1.5.8 instruction 208: derive the bundled module set from
+        # the install-target destination paths (which still land
+        # under bin/) instead of the source-side parent name (now
+        # "scripts" at the clone, but "bin" inside the bundle/install
+        # tree). Using dst_rel keeps this check invariant to source
+        # restructuring.
         bundled = {
-            f"bin.{src.name[:-3]}"  # strip .py
-            for src, _dst in install_skill._bundle_files(qpb_root)
-            if src.suffix == ".py" and src.parent.name == "bin"
+            f"bin.{Path(dst).name[:-3]}"  # strip .py
+            for _src, dst in install_skill._bundle_files(qpb_root)
+            if str(dst).startswith("bin/") and str(dst).endswith(".py")
         }
 
         for ref in sorted(referenced):
@@ -132,15 +143,30 @@ class AgentsMdCpBlocksMatchBundleTests(unittest.TestCase):
     """
 
     def test_agents_md_cp_blocks_match_bundle(self) -> None:
-        qpb_root = Path(__file__).resolve().parent.parent.parent
-        agents_md = (qpb_root / "AGENTS.md").read_text(encoding="utf-8")
+        # v1.5.8 instruction 208: bundle source root is the skill
+        # folder; AGENTS.md still lives at repo root. The destination
+        # paths in _bundle_files() land under bin/ in the install
+        # tree, so derive the bundle filename set from dst_rel.
+        qpb_root_git = Path(__file__).resolve().parent.parent.parent
+        skill_root = qpb_root_git / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
+        agents_md = (qpb_root_git / "AGENTS.md").read_text(encoding="utf-8")
+        # v1.5.8 instruction 208: the cp recipes now source from
+        # ``"$QPB_SKILL_SRC"/scripts/<name>.py`` (post-208) or
+        # legacy ``"$QPB"/bin/<name>.py`` (pre-208). The pattern
+        # accepts both prefix forms but constrains the destination
+        # to ``.../bin/<name>.py`` so the ``quality_gate.py`` cp
+        # recipe (sourced from scripts/ but destined for the
+        # install root, not bin/) doesn't false-match the bundle
+        # comparison.
         cp_pattern = re.compile(
-            r'cp\s+"\$QPB"/bin/([a-z_][a-z0-9_]+\.py)\s')
+            r'cp\s+"\$(?:QPB_SKILL_SRC|QPB)"/(?:scripts|bin)/'
+            r'([a-z_][a-z0-9_]+\.py)\s+\S+/bin/[a-z_][a-z0-9_]+\.py'
+        )
         agents_cp_files = set(cp_pattern.findall(agents_md))
         bundle_files = {
-            src.name
-            for src, _dst in install_skill._bundle_files(qpb_root)
-            if src.suffix == ".py" and src.parent.name == "bin"
+            Path(dst).name
+            for _src, dst in install_skill._bundle_files(skill_root)
+            if str(dst).startswith("bin/") and str(dst).endswith(".py")
         }
         missing = bundle_files - agents_cp_files
         extra = agents_cp_files - bundle_files
@@ -189,15 +215,28 @@ class AllMdCpBlocksMatchBundleTests(unittest.TestCase):
       snapshot); test passes.
     """
 
-    # Prefixed (AGENTS.md): cp "$QPB"/bin/<name>.py <dest>
+    # v1.5.8 instruction 208: cp recipes now source from
+    # ``"$QPB_SKILL_SRC"/scripts/<name>.py`` (post-208) or the
+    # legacy ``"$QPB"/bin/<name>.py`` shape (pre-208). The
+    # detection patterns accept both so the sweep keeps catching
+    # drift across recipe-format changes. The destination is pinned
+    # to ``.../bin/<name>.py`` so the quality_gate.py recipe
+    # (which lands at the install root, not bin/) doesn't false-match.
+    # Prefixed (AGENTS.md): cp "$QPB"/bin/<name>.py <.../bin/<name>.py>
+    #                    OR cp "$QPB_SKILL_SRC"/scripts/<name>.py <.../bin/<name>.py>
     PREFIXED_PATTERN = re.compile(
-        r'cp\s+"\$QPB"/bin/([a-z_][a-z0-9_]+\.py)\s')
-    # Bare (README Step 3): cp bin/<name>.py <dest>
+        r'cp\s+"\$(?:QPB_SKILL_SRC|QPB)"/(?:scripts|bin)/'
+        r'([a-z_][a-z0-9_]+\.py)\s+\S+/bin/[a-z_][a-z0-9_]+\.py'
+    )
+    # Bare (README Step 3): cp bin/<name>.py <.../bin/<name>.py>
     BARE_PATTERN = re.compile(
-        r'(?:^|\s)cp\s+bin/([a-z_][a-z0-9_]+\.py)\s')
+        r'(?:^|\s)cp\s+bin/([a-z_][a-z0-9_]+\.py)\s+\S+/bin/[a-z_][a-z0-9_]+\.py'
+    )
     # Any bin/ cp recipe line (prefixed OR bare) — scan-set selector.
     _RECIPE_LINE = re.compile(
-        r'cp\s+(?:"\$QPB"/)?bin/[a-z_][a-z0-9_]+\.py\s')
+        r'cp\s+(?:"\$(?:QPB_SKILL_SRC|QPB)"/(?:scripts|bin)/|bin/)'
+        r'[a-z_][a-z0-9_]+\.py\s+\S+/bin/[a-z_][a-z0-9_]+\.py'
+    )
     # Reuse 088's placeholder exclusion (citation-format teaching
     # examples), mapped basename -> dotted to match the existing set.
     _PLACEHOLDER_BASENAMES = frozenset(
@@ -222,13 +261,18 @@ class AllMdCpBlocksMatchBundleTests(unittest.TestCase):
         return out
 
     def test_all_md_cp_recipes_match_bundle(self) -> None:
-        qpb_root = Path(__file__).resolve().parents[2]
+        # v1.5.8 instruction 208: source root for the bundle is the
+        # plugin skill folder; the scan over *.md docs stays at the
+        # git repo root.
+        qpb_root_git = Path(__file__).resolve().parents[2]
+        skill_root = qpb_root_git / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
         bundle_files = {
-            src.name
-            for src, _dst in install_skill._bundle_files(qpb_root)
-            if src.suffix == ".py" and src.parent.name == "bin"
+            Path(dst).name
+            for _src, dst in install_skill._bundle_files(skill_root)
+            if str(dst).startswith("bin/") and str(dst).endswith(".py")
         }
-        scanned = self._scan_set(qpb_root)
+        scanned = self._scan_set(qpb_root_git)
+        qpb_root = qpb_root_git  # legacy var name used below
         self.assertTrue(
             scanned,
             "no *.md with a bin/ cp recipe found — scan-set selector "

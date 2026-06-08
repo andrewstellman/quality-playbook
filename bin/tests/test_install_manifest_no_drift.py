@@ -22,7 +22,11 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-_QPB_ROOT = Path(__file__).resolve().parents[2]
+# v1.5.8 instruction 208: bundle source root moved into the plugin
+# skill folder.
+_QPB_ROOT = (
+    Path(__file__).resolve().parents[2] / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
+)
 
 
 class InstallClosureNoDriftTests(unittest.TestCase):
