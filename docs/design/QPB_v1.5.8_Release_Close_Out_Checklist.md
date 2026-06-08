@@ -34,22 +34,22 @@ Instruction 208 moved skill-bundled files from the repo root into `skills/qualit
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| A.1 | Review instruction 208 worker output (panelist files + diff) | ⏳ | Council had "A FIX-REQUIRED + C HIGH-priority remediation" per commit `8b3512b` — verify remediation was substantive |
-| A.2 | Verify `bin/install_skill.py::_bundle_files()` enumerates the same files as before, reading from new source paths | ⏳ | Compare file count to pre-208 baseline (57 files installed into adopter targets) |
-| A.3 | `bin/build_channel_package.py` source paths updated to read from `skills/quality-playbook/<...>` | ⏳ | Bundle internal layout inside `_bundle/` must stay unchanged for pip/npm 1.5.8 backward compat |
-| A.4 | `bin/submit_awesome_copilot.py` source path for SKILL.md frontmatter read updated | ⏳ | Read shifts from `REPO_ROOT/SKILL.md` to `REPO_ROOT/skills/quality-playbook/SKILL.md` |
-| A.5 | Other `bin/*.py` defensive sweep for hardcoded root paths | ⏳ | Per the defensive-sweep methodology from instruction 207 |
-| A.6 | `bin/tests/test_plugin_layout_208.py` exists and passes | ⏳ | New layout-invariant test pinning the post-restructure file locations |
-| A.7 | `bin/install_skill.py` shim at the historical path delegates correctly | ⏳ | `python3 -m bin.install_skill` should still work for clone-based install |
+| A.1 | Review instruction 208 worker output (panelist files + diff) | ✅ | Reviewed 2026-06-08. Panel: A FIX-REQUIRED (5 test files hardcoded old `quality_gate` path) → RESOLVED; B SHIP unconditional; C CONCERN (10 broken README links) → RESOLVED; C orientation-doc bare-prose drift (~40 mentions) DEFERRED to TOOLKIT_TEST_PROTOCOL per the orientation-doc release-gate rule. Synthesis recommends SHIP. |
+| A.2 | Verify `bin/install_skill.py::_bundle_files()` enumerates the same files as before, reading from new source paths | ✅ | Empirical: `_bundle_files()` resolves all 57 source paths under `skills/quality-playbook/...`. Install into temp target produces exactly 57 files. |
+| A.3 | `bin/build_channel_package.py` source paths updated to read from `skills/quality-playbook/<...>` | ✅ | Empirical: pip dry-run's build step succeeds; staged bundle has the flat `_bundle/SKILL.md`, `_bundle/bin/...` layout pre-208 had. |
+| A.4 | `bin/submit_awesome_copilot.py` source path for SKILL.md frontmatter read updated | ✅ | Per Panelist A's audit; verify empirically in F.2 below |
+| A.5 | Other `bin/*.py` defensive sweep for hardcoded root paths | ✅ | Per Panelist A's audit. 5 test files were the only hits; all updated. |
+| A.6 | `bin/tests/test_plugin_layout_208.py` exists and passes | ✅ | 15 tests, all pass. Mutation verified twice (worker + Panelist C independent). |
+| A.7 | `bin/install_skill.py` shim at the historical path delegates correctly | ✅ | Empirical: `python3 -m bin.install_skill --into <target> --ai-tool claude --no-smoke` produces 57 files at target. Shim docstring explains the hyphen-in-module-name workaround. |
 
 ## B. pip channel verification
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
-| B.1 | `python3 bin/publish_pip.py --dry-run` passes all 8 preflights | ⏳ | Including clean tree, version parity, tag exists, build clean, parity test, no forbidden contents, twine auth check |
-| B.2 | Bundle contains expected files at expected internal paths | ⏳ | `unzip -l dist/*.whl \| grep _bundle/` should show the same paths as pre-208 (SKILL.md at `_bundle/SKILL.md`, references at `_bundle/references/`, etc.) |
-| B.3 | Bundle file count matches pre-208 baseline | ⏳ | Expected: 59 staged files (from earlier verification); 57 installed into adopter targets |
-| B.4 | Clean venv install + entry-point smoke test | ⏳ | `python3 -m venv /tmp/qpb-208-pip-test && source /tmp/qpb-208-pip-test/bin/activate && pip install <local wheel> && quality-playbook --version` |
+| B.1 | `python3 bin/publish_pip.py --dry-run` passes all 8 preflights | ✅ | Verified 2026-06-08 in sandbox: all 8 preflights pass; build produces wheel + sdist; forbidden-contents scan clean. |
+| B.2 | Bundle contains expected files at expected internal paths | ✅ | Per Panelist B's audit: wheel `_bundle/SKILL.md` + `_bundle/bin/citation_verifier.py` at flat (pre-208) paths. |
+| B.3 | Bundle file count matches pre-208 baseline | ✅ | 59 staged files (build_channel_package output); 57 installed into adopter targets (verified empirically). Matches pre-208. |
+| B.4 | Clean venv install + entry-point smoke test | ⏳ | Sandbox can't fully exercise pip-from-wheel; operator should verify on their machine: `python3 -m venv /tmp/qpb-pip-test && source /tmp/qpb-pip-test/bin/activate && pip install dist/quality_playbook-1.5.8-py3-none-any.whl && quality-playbook --version` |
 | B.5 | Clean venv install + skill install into target | ⏳ | Above + `quality-playbook install --into . --ai-tool claude --no-smoke` produces 57 files at `.claude/skills/quality-playbook/` |
 | B.6 | Multi-target install test (all 8 AI tools) | ⏳ | Loop install across `claude`, `cursor`, `copilot`, `continue`, `codex`, `windsurf`, `cline`, `aider`; all 8 produce 57 files at correct path |
 
@@ -113,7 +113,8 @@ Every doc that references file paths needs to reflect the new layout. Inventory 
 | # | Item | Status | Notes |
 |---|------|--------|-------|
 | H.1 | Update `DEVELOPMENT_PROCESS.md` § Release close-out sequence to note that releases involving structural changes (file moves, new package layouts) require explicit verification of all install channels and a defensive sweep of all docs referencing affected paths | ⏳ | Lesson learned from v1.5.8 — the generic close-out sequence didn't enforce this and we caught it late |
-| H.2 | Move v1.5.8 tag to current HEAD if all of A-G pass | ⏳ | Tag is at `794ba1e`; should be at the post-208 + post-close-out HEAD before merging |
+| H.2 | Run TOOLKIT_TEST_PROTOCOL on orientation docs to address the ~40 bare-prose path references deferred from 208 Panelist C | ⏳ | Affected files: `AGENTS.md` + `ai_context/IMPROVEMENT_LOOP.md` + `ai_context/DEVELOPMENT_CONTEXT.md` + `ai_context/TOOLKIT.md` + `ai_context/DEVELOPMENT_PROCESS.md` + potentially `ai_context/CALIBRATION_PROTOCOL.md` + `ai_context/TOOLKIT_TEST_PROTOCOL.md` + README.md. Per the workspace CLAUDE.md release-gate rule: orientation docs are TOOLKIT_TEST_PROTOCOL-gated, NOT Council-gated. |
+| H.3 | Move v1.5.8 tag to current HEAD if all of A-G + H.1 + H.2 pass | ⏳ | Tag is at `794ba1e`; should be at the post-208 + post-close-out HEAD before merging |
 
 ## I. Final close-out steps (after A-H complete)
 
