@@ -303,6 +303,78 @@ PR #3035 (gson BUG-001) by contrast was SHIP-WORTHY — the bug had real correct
 - **Operator override**: can the operator force a LOCAL-FIX-WORTHY classification to SHIP-WORTHY? Probably yes — the classification is a recommendation, not a gate.
 - **Connection to B-6 (combine findings)**: when bugs cluster into a single PR, does cost/benefit apply per-bug or per-cluster?
 
+### 2.10 B-10: Claim-vs-implementation consistency check on generated patches
+
+**Origin: 2026-06-08 review of BUG-005 from gson run `20260604T220125Z`.** QPB Phase 3 generated a fix for `JsonTreeReader.nextInt` with a write-up claiming the patch *"mirrors JsonReader.nextInt"* — where the reference's pattern is `result = (int) asDouble; if (result != asDouble) throw NumberFormatException`. The actual patch used `new BigDecimal(prim.getAsString()).intValueExact()`. The two implementations agree on most inputs but diverge at the 2^53 boundary where double's mantissa precision runs out: the reference returns the lossy value silently; the patch throws ArithmeticException. The claim-vs-patch mismatch is invisible if you just compare them as code — both "throw on bad input, return on good." The mismatch only surfaces when reasoning about boundary inputs where the two implementations disagree.
+
+QPB's current pipeline (Phase 1-6 + B-8 weak-assertion + B-9 cost/benefit) doesn't catch this class of error. The TDD test passes because the patch DOES fix the specific bug; B-9's cost/benefit evaluation is favorable; but the patch's actual semantics diverge from the writeup's claim. Filing upstream with this mismatch invites the maintainer to call it out ("you claim mirror but you don't").
+
+#### What B-10 detects
+
+When a bug writeup or fix description references mirroring, matching, or using the same pattern as an existing code location, B-10 verifies that the patch actually implements the same semantics. Three implementation levels in increasing sophistication:
+
+**Level 1 — Structural pattern match.** Parse the cited reference's AST and the patch's AST. Flag divergence in operators, types, control flow shape. Catches obvious mismatches (e.g., reference uses `(int)` cast, patch uses BigDecimal method calls).
+
+**Level 2 — Equivalence by structural similarity.** Beyond raw AST diff: does the patch use the same operator family on equivalent types? Catches "uses different-but-structurally-similar code" cases.
+
+**Level 3 — Adversarial boundary testing.** The discriminating one. Generate inputs designed to expose divergence at:
+
+- Type boundaries (max int, max long, byte/short overflow points)
+- Precision boundaries (2^53 for double's mantissa, smallest subnormal, MIN_VALUE)
+- Special values (NaN, Infinity, -0.0)
+- Overflow / underflow transition points
+- Encoding boundaries (UTF-8 multibyte starts, surrogate pairs for strings)
+
+Run BOTH the reference pattern AND the patch on each input. Flag any disagreement with both behaviors named in the report.
+
+Level 3 is the strongest and most practical for v1.5.10. Levels 1 and 2 are weaker fallbacks for when boundary-input generation is infeasible.
+
+#### Empirical validation: BUG-005
+
+BUG-005's fix is the canonical Level-3 example. Adversarial input generation should produce `"9007199254740993"` (= 2^53 + 1) among its test cases. Running:
+
+- Reference pattern `(int) Double.parseDouble("9007199254740993")` returns `9007199254740992` silently (double mantissa rounds)
+- Patch `new BigDecimal("9007199254740993").intValueExact()` throws `ArithmeticException`
+
+B-10 flags the divergence with both behaviors named. The operator decides:
+
+- Update the writeup ("strengthen the precision check beyond the streaming reader's") — keep the patch
+- Update the patch to literally mirror (`(int) prim.getAsDouble(); compare`) — match the claim
+- Either is operator-decidable; the gate just requires the choice be made explicitly before upstream submission.
+
+#### Where this lands in the QPB pipeline
+
+After B-9 cost/benefit classification, before Phase 7 / B-7 bugspec emit:
+
+1. Phase 3 TDD: red → green
+2. B-8 gate: test actually catches the bug, not passing for the wrong reason
+3. B-9 classification: SHIP-WORTHY / OPT-IN-WORTHY / LOCAL-FIX-WORTHY / DEFENSIVE-NOTE
+4. **B-10 gate: claimed pattern matches actual semantics**
+5. Phase 7 / B-7: bugspec emit + target-conformance + mutation verification
+
+A patch that fails B-10 doesn't get auto-demoted from SHIP-WORTHY. Instead, it gets flagged with the divergence specifically named, and the operator decides which side to update (writeup OR patch). The B-9 classification may be revisited after resolution if the stronger contract changes incidence or overhead estimates.
+
+#### Connection to other capabilities
+
+- **B-7 (bugspec emit)** target-conformance covers structural/stylistic/scope dimensions (where files live, naming conventions, license headers, test scope mirroring fix scope). B-10 covers the SEMANTIC dimension (do the operators in the patch implement the contract the writeup claims).
+- **B-8 (weak-assertion)** addresses "is the test verifying the right thing?" B-10 addresses "does the patch's actual semantics match what we claim?" — different lens.
+- **B-9 (cost/benefit)** addresses "is this fix worth shipping?" B-10 addresses "does what we ship match what we describe?" — different concern.
+
+The four capabilities (B-7 / B-8 / B-9 / B-10) form complementary gates before upstream submission. None subsumes another.
+
+#### Open questions for design phase
+
+1. **AST parsing infrastructure**: which languages does B-10 target initially? Java (gson is a primary QPB benchmark) and Python (most QPB targets) are highest-priority. Other languages added as benchmark targets demand.
+2. **Adversarial input generation strategy**: hand-curated boundary sets per type/operation, OR property-based generation (Hypothesis-style), OR LLM-driven adversarial generation. Different cost/effectiveness trade-offs; default for v1.5.10 implementation likely starts with hand-curated boundary sets for common types and grows.
+3. **Reference site detection**: how does B-10 know which sites the patch claims to mirror? Explicit `file:line` citations in the writeup are the cleanest; free-prose phrases like "mirrors X" need extraction. Force writeup-format to include explicit citations? OR LLM-extract the references? Both have failure modes.
+4. **What counts as "divergence"?**: should B-10 flag ALL behavioral differences, or only differences that would matter for the bug's input domain? The 2^53 case in BUG-005 might be intentional (operator wants stronger contract) — needs operator-decidable surface, not auto-reject.
+
+#### What this is NOT
+
+- Not a static-analysis-only check. Level 3 (adversarial boundary testing) requires runtime execution of both the reference pattern and the patch. The AST-level checks (Levels 1-2) are weaker pre-filters; Level 3 is the discriminating gate.
+- Not a proof of equivalence. B-10 surfaces detected divergence on specific boundary inputs. Cases where reference and patch agree on ALL chosen inputs but might still differ on un-tested inputs are possible. The boundary-input set is the protocol's contract.
+- Not a substitute for B-8 or B-9. A patch that passes B-10 (semantics match claim) can still fail B-8 (test passes for wrong reason) or B-9 (fix not worth shipping). All four gates apply independently.
+
 ## Part 3 — Design decisions to make before v1.5.10 implementation
 
 ### 3.1 Architectural choice for Part 1 (see §1.5 table)
@@ -311,13 +383,13 @@ PR #3035 (gson BUG-001) by contrast was SHIP-WORTHY — the bug had real correct
 
 ### 3.2 Scope — which of Part 2 lands in v1.5.10 vs deferred further
 
-9 capabilities (B-1 through B-9). Some are user-blocking (B-1 prompt-injection isolation is a security concern; B-8 weak-assertion blocks shipping flaky QPB tests; B-9 fix-worth-shipping evaluation prevents wasted upstream-maintainer review time). Some are nice-to-have (B-4 bug-neighborhood iteration is a quality-of-life improvement). v1.5.10 implementation should pick a subset based on:
+10 capabilities (B-1 through B-10). Some are user-blocking (B-1 prompt-injection isolation is a security concern; B-8 weak-assertion blocks shipping flaky QPB tests; B-9 fix-worth-shipping evaluation prevents wasted upstream-maintainer review time; B-10 claim-vs-implementation consistency prevents semantically-wrong upstream submissions). Some are nice-to-have (B-4 bug-neighborhood iteration is a quality-of-life improvement). v1.5.10 implementation should pick a subset based on:
 
 - Empirical evidence from v1.5.9 release runs (what bit adopters?)
-- Coordination availability with external maintainers (B-8 ties to bugspec; B-7 ties to bug-PR automation downstream; B-9 ties into B-7's emit filter)
-- Token-cost budget (adding 9 capabilities at once is a large context expansion in SKILL.md, which v1.5.9 just trimmed)
+- Coordination availability with external maintainers (B-8 ties to bugspec; B-7 ties to bug-PR automation downstream; B-9 ties into B-7's emit filter; B-10 ties into B-7/B-9 as a complementary gate)
+- Token-cost budget (adding 10 capabilities at once is a large context expansion in SKILL.md, which v1.5.9 just trimmed)
 
-Default recommendation: prioritize B-1 (security) + B-8 (test quality) + B-9 (fix-worth-shipping evaluation) for v1.5.10. Defer B-2 / B-4 / B-5 to v1.5.11 unless surfacing demand. B-9 is new (added 2026-06-08 after the gson PR #3036 closure) and is closely coupled to B-7's bugspec emit — the two should land together if either does.
+Default recommendation: prioritize B-1 (security) + B-8 (test quality) + B-9 (fix-worth-shipping evaluation) + B-10 (claim-vs-implementation consistency) for v1.5.10. Defer B-2 / B-4 / B-5 to v1.5.11 unless surfacing demand. B-9 and B-10 are both new (added 2026-06-08 — B-9 after the gson PR #3036 closure; B-10 after the BUG-005 fix-claim review of gson run `20260604T220125Z`). All four default-set capabilities (B-1 / B-8 / B-9 / B-10) are complementary gates that share a B-7-emit-pipeline integration; they should land together for coherent v1.5.10 scope.
 
 ### 3.3 Voice / opinionation level for the §1.3 semantic Council prompt
 
