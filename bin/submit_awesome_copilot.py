@@ -8,11 +8,11 @@ frontmatter plus optional bundled assets. The repo's own tooling
 (``npm run skill:create`` / ``npm run skill:validate`` / ``npm start``)
 is intended to run inside a clone of awesome-copilot, not inside QPB.
 
-For QPB we have a single Skill (``quality-playbook``) but it ships seven
-support directories (``bin/``, ``references/``, ``phase_prompts/``,
-``agents/``, ``quality_gate.py``, ``ai_context/`` slice, and so on) that
-cannot be sensibly carried as in-repo assets without exceeding the
-registry's typical-skill footprint. So this script:
+For QPB we have a single Skill (``quality-playbook``) but it ships five
+support directories (``references/``, ``phase_prompts/``, ``agents/``,
+``bin/``, ``ai_context/``) plus ``SKILL.md`` and ``quality_gate.py`` —
+a ~64-file bundle that exceeds the typical in-repo skill footprint.
+So this script:
 
 1. Reads QPB's authoritative metadata from ``SKILL.md`` frontmatter +
    ``pyproject.toml``.
@@ -194,10 +194,10 @@ Run a complete quality engineering audit on any codebase. Derives behavioral req
 ## Installation
 
 This skill is distributed as a standalone toolkit because the full bundle
-(seven phase-prompt directories, the citation verifier, the Council
-runner, the bundled references, and the cross-platform install scripts)
-exceeds the typical in-repo skill footprint. The canonical install is
-one command:
+(five support directories: `references/`, `phase_prompts/`, `agents/`,
+`bin/`, `ai_context/` — plus `SKILL.md` and `quality_gate.py`) exceeds
+the typical in-repo skill footprint. The canonical install is one
+command:
 
 ```bash
 pip install {PACKAGE_NAME}
@@ -241,7 +241,8 @@ or "coverage theater" — this skill drives the following workflow:
    regeneration.
 
 The trigger language is intentional: this is an opt-in heavy workflow
-(it can take 30-90 minutes on a large codebase), not a always-on hook.
+(it can take 15-90 minutes depending on project size), not a always-on
+hook.
 
 ## License
 

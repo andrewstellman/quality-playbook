@@ -759,6 +759,28 @@ class TrimTemplateContentTests(unittest.TestCase):
         self.assertIn("five support directories", self.pr_body)
         self.assertNotIn("seven support directories", self.pr_body)
 
+    def test_skill_md_installation_prose_lists_actual_bundle_dirs(
+        self,
+    ) -> None:
+        # v1.5.8 207 Panelist C defensive sweep: SKILL.md's Installation
+        # prose (the artifact awesome-copilot adopters READ — distinct
+        # from PR_BODY which only maintainers read) had the same
+        # "seven phase-prompt directories" miscount the PR_BODY fix
+        # corrected. Pin BOTH artifacts now.
+        self.assertIn("five support directories", self.skill_md)
+        self.assertNotIn("seven phase-prompt directories", self.skill_md)
+        self.assertNotIn("seven support directories", self.skill_md)
+
+    def test_skill_md_workflow_duration_is_canonical_15_90_minutes(
+        self,
+    ) -> None:
+        # v1.5.8 207 Panelist C defensive sweep: README line 410 is
+        # canonical ("15-90 minutes depending on project size"); pre-207
+        # the trim template said "30-90 minutes" which is neither the
+        # supervised (15-90) nor the autonomous (60-180) range.
+        self.assertIn("15-90 minutes", self.skill_md)
+        self.assertNotIn("30-90 minutes", self.skill_md)
+
     def test_skill_md_includes_ai_tool_list(self) -> None:
         # The 8 valid --ai-tool values must be documented near the
         # install command so adopters know what to pass.
