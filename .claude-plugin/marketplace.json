@@ -9,19 +9,8 @@
   "plugins": [
     {
       "name": "quality-playbook",
-      "description": "AI code review catches structural issues — null derefs, leaks, races — about 65% of real defects. The other 35% are intent violations: bugs only catchable when you know what the code is supposed to do. Quality Playbook derives behavioral requirements from your codebase AND your docs (specs, issues, chat history), then drives a six-phase review against them. Finds the bugs that look right but aren't.",
-      "version": "1.5.8",
-      "author": {
-        "name": "Andrew Stellman",
-        "email": "andrew@stellman.com"
-      },
-      "homepage": "https://github.com/andrewstellman/quality-playbook",
-      "category": "productivity",
       "source": ".",
-      "strict": false,
-      "skills": [
-        "./SKILL.md"
-      ]
+      "category": "productivity"
     }
   ]
 }

@@ -25,6 +25,21 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+# v1.5.8 instruction 208: skill-bundled docs (SKILL.md, references/,
+# phase_prompts/, agents/, ai_context/TOOLKIT.md) moved into the
+# plugin skill folder.
+_SKILL_DIR = REPO_ROOT / "skills" / "quality-playbook"
+
+
+def _resolve_doc(rel: str) -> Path:
+    """Resolve a doc path. Bundled docs live under the skill folder;
+    repo-root docs (README.md, AGENTS.md, CHANGELOG.md, LICENSE.txt)
+    live at the repo root. Tries the skill folder first, falls back
+    to the repo root."""
+    p = _SKILL_DIR / rel
+    if p.is_file() or p.is_dir():
+        return p
+    return REPO_ROOT / rel
 
 
 class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
@@ -125,7 +140,7 @@ class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
         README-only scan missed."""
         offenders: list[tuple[str, str]] = []
         for rel in self.INVOCATION_SURFACES:
-            path = REPO_ROOT / rel
+            path = _resolve_doc(rel)
             self.assertTrue(
                 path.is_file(),
                 f"INVOCATION_SURFACES references missing file: {rel}",
@@ -190,7 +205,7 @@ class SkillReferenceDocsRoutingTests(unittest.TestCase):
         `docs_gathered/`. Scans every file in OPERATOR_SURFACES."""
         offenders: list[str] = []
         for rel in self.OPERATOR_SURFACES:
-            path = REPO_ROOT / rel
+            path = _resolve_doc(rel)
             if not path.is_file():
                 self.fail(f"OPERATOR_SURFACES references missing file: {rel}")
             text = path.read_text(encoding="utf-8")
@@ -214,7 +229,7 @@ class SkillReferenceDocsRoutingTests(unittest.TestCase):
         protocol prose.)"""
         for rel in self.OPERATOR_SURFACES:
             with self.subTest(file=rel):
-                path = REPO_ROOT / rel
+                path = _resolve_doc(rel)
                 text = path.read_text(encoding="utf-8")
                 self.assertIn(
                     "reference_docs",
@@ -327,7 +342,7 @@ class SixInstallLayoutsConsistencyTests(unittest.TestCase):
         during instruction 047 development."""
         misses: list[tuple[str, str]] = []
         for rel in self.SOURCE_EDIT_SURFACES:
-            path = REPO_ROOT / rel
+            path = _resolve_doc(rel)
             self.assertTrue(
                 path.is_file(),
                 f"SOURCE_EDIT_SURFACES references missing file: {rel}",

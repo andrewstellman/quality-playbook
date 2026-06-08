@@ -211,9 +211,14 @@ for short in "${REPOS[@]}"; do
     fi
 
     # Install skill files
+    # v1.5.8 instruction 208: bundled skill sources moved into the
+    # plugin-native skills/quality-playbook/ folder. The benchmark
+    # install destinations under .github/skills/ keep the pre-208
+    # flat layout (matches adopter installs).
+    QPB_SKILL_SRC="${QPB_DIR}/skills/quality-playbook"
     mkdir -p "${dst}/.github/skills/references"
-    cp "${QPB_DIR}/SKILL.md" "${dst}/.github/skills/SKILL.md"
-    cp "${QPB_DIR}/references/"* "${dst}/.github/skills/references/" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/SKILL.md" "${dst}/.github/skills/SKILL.md"
+    cp "${QPB_SKILL_SRC}/references/"* "${dst}/.github/skills/references/" 2>/dev/null || true
     # v1.5.7 instruction 050 A-7: bundle phase_prompts/ and agents/.
     # install_skill.py._bundle_files() already bundles these (lines
     # ~105-126); setup_repos.sh diverged when v1.5.6 added them
@@ -230,10 +235,13 @@ for short in "${REPOS[@]}"; do
     # one bundle source of truth (instruction 050 chose the additive
     # option to keep this ship-blocker fix low-risk).
     mkdir -p "${dst}/.github/skills/phase_prompts"
-    cp "${QPB_DIR}/phase_prompts/"*.md "${dst}/.github/skills/phase_prompts/" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/phase_prompts/"*.md "${dst}/.github/skills/phase_prompts/" 2>/dev/null || true
     mkdir -p "${dst}/.github/skills/agents"
-    cp "${QPB_DIR}/agents/"*.md "${dst}/.github/skills/agents/" 2>/dev/null || true
-    cp "${QPB_DIR}/.github/skills/quality_gate/quality_gate.py" "${dst}/.github/skills/quality_gate.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/agents/"*.md "${dst}/.github/skills/agents/" 2>/dev/null || true
+    # v1.5.8 instruction 208: quality_gate.py canonical source moved
+    # from .github/skills/quality_gate/quality_gate.py to
+    # skills/quality-playbook/scripts/quality_gate.py.
+    cp "${QPB_SKILL_SRC}/scripts/quality_gate.py" "${dst}/.github/skills/quality_gate.py" 2>/dev/null || true
     # v1.5.7 089n (#183 "B-9"): no longer copy LICENSE.txt or the
     # QPB-root AGENTS.md to the target. install_skill.py::_bundle_files()
     # ships neither — those copies were adopter-parity drift. The
@@ -251,14 +259,14 @@ for short in "${REPOS[@]}"; do
     # Playbook" + AGENTS.md install procedure. Keep with this
     # justifying comment so a future reader doesn't mistake it for
     # drift.
-    cp "${QPB_DIR}/bin/install_skill.py" "${dst}/bin/install_skill.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/install_skill.py" "${dst}/bin/install_skill.py" 2>/dev/null || true
     # v1.5.6 BUG-005: bundle bin/citation_verifier.py so the installed
     # quality_gate.py can run the v1.5.1 byte-equality citation check
     # instead of silently falling back to the WARN path. Pre-fix the
     # gate's soft-import resolved only against the QPB source clone,
     # leaving harness-installed copies effectively without Layer-1
     # protection.
-    cp "${QPB_DIR}/bin/citation_verifier.py" "${dst}/bin/citation_verifier.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/citation_verifier.py" "${dst}/bin/citation_verifier.py" 2>/dev/null || true
     # v1.5.7 instruction 049 A-6: bundle bin/reference_docs_ingest.py so
     # Phase 1's mandatory ingest step (python3 -m bin.reference_docs_ingest .)
     # resolves. Without this, codex CLI runs against setup_repos.sh-installed
@@ -266,11 +274,11 @@ for short in "${REPOS[@]}"; do
     # (codex correctly stops per the skill's stop-on-install-defect protocol;
     # Phase 2 gate then aborts on missing EXPLORATION.md). This was the
     # root cause of the May 14/15 codex CLI virtio Phase-1 failures.
-    cp "${QPB_DIR}/bin/reference_docs_ingest.py" "${dst}/bin/reference_docs_ingest.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/reference_docs_ingest.py" "${dst}/bin/reference_docs_ingest.py" 2>/dev/null || true
     # reference_docs_ingest.py imports `from bin import benchmark_lib`
     # at module load (version detection); benchmark_lib is stdlib-only
     # (no internal bin/ deps) so the closure is exactly these two.
-    cp "${QPB_DIR}/bin/benchmark_lib.py" "${dst}/bin/benchmark_lib.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/benchmark_lib.py" "${dst}/bin/benchmark_lib.py" 2>/dev/null || true
     # v1.5.7 instruction 050 A-6.2: bundle the quality_playbook
     # closure so a Mode-A run hitting Phase 4's `python3 -m
     # bin.quality_playbook semantic-check ...` (phase_prompts/phase4.md
@@ -283,19 +291,19 @@ for short in "${REPOS[@]}"; do
     # ship-blocker low-risk; the duplication is intentional + tracked).
     # __init__.py is required for the `from .` package syntax to
     # resolve at target/bin/.
-    cp "${QPB_DIR}/bin/__init__.py" "${dst}/bin/__init__.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/__init__.py" "${dst}/bin/__init__.py" 2>/dev/null || true
     # v1.5.7 089x: _purpose.py is the shared purpose-banner +
     # version-reader + attribution-banner helper that bundled bin/
     # modules import (lazily, with a file-path fallback). Required
     # at adopter targets so no-args invocations of bundled scripts
     # print a real purpose banner.
-    cp "${QPB_DIR}/bin/_purpose.py" "${dst}/bin/_purpose.py" 2>/dev/null || true
-    cp "${QPB_DIR}/bin/quality_playbook.py" "${dst}/bin/quality_playbook.py" 2>/dev/null || true
-    cp "${QPB_DIR}/bin/archive_lib.py" "${dst}/bin/archive_lib.py" 2>/dev/null || true
-    cp "${QPB_DIR}/bin/council_semantic_check.py" "${dst}/bin/council_semantic_check.py" 2>/dev/null || true
-    cp "${QPB_DIR}/bin/migrate_v1_5_0_layout.py" "${dst}/bin/migrate_v1_5_0_layout.py" 2>/dev/null || true
-    cp "${QPB_DIR}/bin/role_map.py" "${dst}/bin/role_map.py" 2>/dev/null || true
-    cp "${QPB_DIR}/bin/council_config.py" "${dst}/bin/council_config.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/_purpose.py" "${dst}/bin/_purpose.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/quality_playbook.py" "${dst}/bin/quality_playbook.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/archive_lib.py" "${dst}/bin/archive_lib.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/council_semantic_check.py" "${dst}/bin/council_semantic_check.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/migrate_v1_5_0_layout.py" "${dst}/bin/migrate_v1_5_0_layout.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/role_map.py" "${dst}/bin/role_map.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/council_config.py" "${dst}/bin/council_config.py" 2>/dev/null || true
     # v1.5.7 089n (#183 "B-9"): the A-26 trio (instruction 086).
     # install_skill.py::_bundle_files() ships these three at
     # bin/install_skill.py:220-227; setup_repos.sh diverged when
@@ -307,17 +315,17 @@ for short in "${REPOS[@]}"; do
     # validate_phase_artifacts.py's only internal import is
     # `from bin import role_map` (already copied above). The
     # benchmark bundle now matches the adopter bundle.
-    cp "${QPB_DIR}/bin/run_state_lib.py" "${dst}/bin/run_state_lib.py" 2>/dev/null || true
-    cp "${QPB_DIR}/bin/validate_phase_artifacts.py" "${dst}/bin/validate_phase_artifacts.py" 2>/dev/null || true
-    cp "${QPB_DIR}/bin/qpb_config.py" "${dst}/bin/qpb_config.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/run_state_lib.py" "${dst}/bin/run_state_lib.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/validate_phase_artifacts.py" "${dst}/bin/validate_phase_artifacts.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/qpb_config.py" "${dst}/bin/qpb_config.py" 2>/dev/null || true
     # v1.5.7 090k: ship qpb_validate.py so the benchmark bundle
     # matches the adopter closure (Phase 0 validator now lives at
     # the install root per the openfga-run3 dogfood fix).
-    cp "${QPB_DIR}/bin/qpb_validate.py" "${dst}/bin/qpb_validate.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/qpb_validate.py" "${dst}/bin/qpb_validate.py" 2>/dev/null || true
     # v1.5.7 109: ship qpb_phase.py so the benchmark bundle
     # mirrors the adopter closure for the phase-sentinel emitter
     # the SKILL.md phase-boundary directive calls at runtime.
-    cp "${QPB_DIR}/bin/qpb_phase.py" "${dst}/bin/qpb_phase.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/qpb_phase.py" "${dst}/bin/qpb_phase.py" 2>/dev/null || true
     # v1.5.7 089z: the per-target `bin/run_playbook.sh` wrapper
     # (F-5b + 089n) is removed. The canonical run forms remain
     # and are sufficient: from the QPB clone root,

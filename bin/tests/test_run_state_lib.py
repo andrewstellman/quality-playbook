@@ -1337,7 +1337,7 @@ class WriteProgressMdTests(unittest.TestCase):
         its canonical schema doc (`run_state_schema.md`).
         """
         repo_root = Path(__file__).resolve().parents[2]
-        schema_md = repo_root / "references" / "run_state_schema.md"
+        schema_md = repo_root / "skills" / "quality-playbook" / "references" / "run_state_schema.md"
         self.assertTrue(
             schema_md.is_file(),
             "references/run_state_schema.md must exist as the canonical "
@@ -1430,7 +1430,7 @@ class WriteProgressMdTests(unittest.TestCase):
         repo_root = Path(__file__).resolve().parents[2]
 
         # --- Form 1 of 2: automation snapshot ---
-        automation_schema_doc = repo_root / "references" / "run_state_schema.md"
+        automation_schema_doc = repo_root / "skills" / "quality-playbook" / "references" / "run_state_schema.md"
         self.assertTrue(
             automation_schema_doc.is_file(),
             f"automation-form schema doc missing: {automation_schema_doc} "
@@ -1497,7 +1497,7 @@ class WriteProgressMdTests(unittest.TestCase):
 
         # --- Form 2 of 2: agent-maintained deliverable ---
         deliverable_schema_doc = (
-            repo_root / "references" / "phase1_exploration_guide.md"
+            repo_root / "skills" / "quality-playbook" / "references" / "phase1_exploration_guide.md"
         )
         self.assertTrue(
             deliverable_schema_doc.is_file(),
@@ -2225,8 +2225,10 @@ class Phase1DiagnosticSkillRefNotStaleTests(unittest.TestCase):
     """
 
     def test_phase1_diagnostic_has_no_stale_skill_lineno_ref(self) -> None:
+        # v1.5.8 instruction 208: run_state_lib.py moved to skills/quality-playbook/scripts/.
         src = (Path(__file__).resolve().parents[2]
-               / "bin" / "run_state_lib.py").read_text(encoding="utf-8")
+               / "skills" / "quality-playbook" / "scripts"
+               / "run_state_lib.py").read_text(encoding="utf-8")
         # SCOPED to the F14 finding only: the Phase 1
         # candidate-bugs-source-mix diagnostic (the `:463` message
         # that said "see SKILL.md:1271"). NOT a file-wide assertion —
@@ -2251,7 +2253,9 @@ class Phase1DiagnosticSkillRefNotStaleTests(unittest.TestCase):
 
     def test_phase1_diagnostic_section_ref_resolves(self) -> None:
         repo_root = Path(__file__).resolve().parents[2]
-        src = (repo_root / "bin" / "run_state_lib.py").read_text(
+        # v1.5.8 instruction 208: run_state_lib.py moved to skills/quality-playbook/scripts/.
+        src = (repo_root / "skills" / "quality-playbook" / "scripts"
+               / "run_state_lib.py").read_text(
             encoding="utf-8")
         m = re.search(r'see SKILL\.md "([^"]+)"', src)
         self.assertIsNotNone(
@@ -2259,7 +2263,7 @@ class Phase1DiagnosticSkillRefNotStaleTests(unittest.TestCase):
             '`see SKILL.md "<section>"` reference — F14 cross-ref '
             "scheme changed; update this test to match.")
         section = m.group(1)
-        skill = (repo_root / "SKILL.md").read_text(encoding="utf-8")
+        skill = (repo_root / "skills" / "quality-playbook" / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn(
             section, skill,
             f"SKILL.md section {section!r} (referenced by the Phase 1 "

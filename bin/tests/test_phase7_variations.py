@@ -32,7 +32,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 _FIXTURES_ROOT = Path(__file__).resolve().parent / "fixtures" / "phase7_variations"
-_GATE_DIR = Path(__file__).resolve().parents[2] / ".github" / "skills" / "quality_gate"
+# v1.5.8 instruction 208: quality_gate.py moved to skills/quality-playbook/scripts/.
+_GATE_DIR = (
+    Path(__file__).resolve().parents[2]
+    / "skills" / "quality-playbook" / "scripts"
+)
 if str(_GATE_DIR) not in sys.path:
     sys.path.insert(0, str(_GATE_DIR))
 import quality_gate  # noqa: E402

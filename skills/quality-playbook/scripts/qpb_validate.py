@@ -883,7 +883,20 @@ class Emitter:
 # tracked clone-only paths (so they also survive a download-zip
 # extract). The OR-set stays robust if any single one drifts (worker
 # design call per 077b Task 1; HALT_077-named candidate set).
-_CLONE_ONLY_MARKERS = ("setup_repos.sh", ".git", "docs/design", "ai_context")
+_CLONE_ONLY_MARKERS = (
+    # v1.5.8 instruction 208: dropped ``ai_context`` from the marker
+    # set because the post-208 layout creates
+    # ``skills/quality-playbook/ai_context/`` (TOOLKIT.md moved into
+    # the plugin skill folder), which would false-positive a clone
+    # detection at the skill-dir level. ``ai_context/DEVELOPMENT_PROCESS.md``
+    # is a more specific marker — that file only exists at the QPB
+    # repo root, not inside the plugin skill folder. The other three
+    # markers are unchanged.
+    "setup_repos.sh",
+    ".git",
+    "docs/design",
+    "ai_context/DEVELOPMENT_PROCESS.md",
+)
 
 # An installed validator lives at
 # <target>/<marker>/skills/quality-playbook/bin/qpb_validate.py.
@@ -916,7 +929,23 @@ def detect_invocation_context(script_path: Path) -> "tuple[str, Path]":
                 and anc.parent.name == "skills"
                 and anc.parent.parent.name in _INSTALL_MARKERS):
             return "installed", anc
+    # v1.5.8 instruction 208: the canonical clone-side script now
+    # lives at ``<clone>/skills/quality-playbook/scripts/<script>.py``
+    # (was ``<clone>/bin/<script>.py`` pre-208). Resolve the clone
+    # root by walking up to the directory containing the clone-only
+    # markers (.git / setup_repos.sh / docs/design / ai_context),
+    # rather than hard-coding ``parent.parent`` which gives the wrong
+    # depth post-208.
     root = resolved.parent.parent
+    if not any((root / m).exists() for m in _CLONE_ONLY_MARKERS):
+        # Try one level deeper (the post-208 clone-script depth).
+        candidate = resolved.parent.parent.parent
+        if any((candidate / m).exists() for m in _CLONE_ONLY_MARKERS):
+            return "clone", candidate
+        # Try two levels deeper for safety.
+        candidate2 = candidate.parent if candidate.parent != candidate else candidate
+        if any((candidate2 / m).exists() for m in _CLONE_ONLY_MARKERS):
+            return "clone", candidate2
     # (2) clone: any bundle-absent marker at the clone root
     if any((root / m).exists() for m in _CLONE_ONLY_MARKERS):
         return "clone", root

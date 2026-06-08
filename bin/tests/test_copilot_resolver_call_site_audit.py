@@ -47,9 +47,12 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # (it's the legitimate home of these literals); test files are
 # excluded (they may construct the literal as expected-argv for the
 # fallback path).
+# v1.5.8 instruction 208: bundled skill scripts moved into
+# skills/quality-playbook/scripts/; sweep there instead of the
+# legacy .github/skills/quality_gate/ location.
 _AUDIT_DIRS = [
     _REPO_ROOT / "bin",
-    _REPO_ROOT / ".github" / "skills" / "quality_gate",
+    _REPO_ROOT / "skills" / "quality-playbook" / "scripts",
 ]
 _RESOLVER_PATH = _REPO_ROOT / "bin" / "copilot_resolver.py"
 

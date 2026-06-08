@@ -26,8 +26,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 _QPB_ROOT = Path(__file__).resolve().parents[2]
-_SKILL_MD = _QPB_ROOT / "SKILL.md"
-_PHASE1_GUIDE = _QPB_ROOT / "references" / "phase1_exploration_guide.md"
+# v1.5.8 instruction 208: SKILL.md + references/ moved into the
+# plugin skill folder.
+_SKILL_DIR = _QPB_ROOT / "skills" / "quality-playbook"
+_SKILL_MD = _SKILL_DIR / "SKILL.md"
+_PHASE1_GUIDE = _SKILL_DIR / "references" / "phase1_exploration_guide.md"
 
 from bin import install_skill  # noqa: E402
 

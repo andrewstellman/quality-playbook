@@ -1086,7 +1086,9 @@ def main(argv: Optional[list] = None) -> int:
     if not ok:
         return EX_DATAERR
 
-    skill_md = repo_root / "SKILL.md"
+    # v1.5.8 instruction 208: SKILL.md moved into the plugin-native
+    # skill folder. The previous repo-root location is gone.
+    skill_md = repo_root / "skills" / "quality-playbook" / "SKILL.md"
     try:
         frontmatter = read_skill_frontmatter(skill_md)
     except (FileNotFoundError, ValueError) as e:

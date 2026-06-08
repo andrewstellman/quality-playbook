@@ -117,7 +117,53 @@ Surface this work to the bugspec maintainers (Andrew) for v0.3.3+ adoption.
 
 ---
 
-## Phase 5 — Remaining B-N capabilities (deferrable)
+## Phase 5 — Capability B-9 (Fix cost/benefit evaluation)
+
+**Per Design § 2.9.** Origin: 2026-06-08 closure of gson PR #3036 after Marcono1234's review surfaced that the fix's per-call overhead wasn't justified by the bug's rare incidence. The lesson: QPB Phase 6 verifies bug-exists + fix-correct; it doesn't evaluate fix-worth-shipping. B-9 closes that gap.
+
+### Phase 5A — Evaluation sub-pass scaffold
+
+Add a new sub-pass between Phase 5 (reconcile) and Phase 6 (verify) that evaluates each TDD-verified bug across the five dimensions enumerated in Design § 2.9: incidence, fix overhead distribution, security framing, architectural cost, symmetry-as-contract.
+
+Output schema: a per-bug classification (SHIP-WORTHY / OPT-IN-WORTHY / LOCAL-FIX-WORTHY / DEFENSIVE-NOTE) plus a one-paragraph rationale per dimension. Lives at `quality/fix_evaluation.json` (new artifact).
+
+### Phase 5B — Static analysis hooks for incidence + overhead
+
+The evaluation needs measurable inputs. Build:
+
+- **Incidence estimator**: count trigger-condition occurrences in the target codebase via the existing role-map traversal. Cross-reference with QPB's existing benchmark corpus to calibrate "common case" thresholds empirically.
+- **Overhead estimator**: static analysis of the fix's locus — does it add work in the hot path (every map serialization) or only in the bug-trigger path (when a specific condition is met)?
+- **Security framing classifier**: cross-reference the bug's category (read-side parser input vs. write-side output emission vs. logic vs. state mutation) with known CVE patterns.
+
+### Phase 5C — Integration with B-7 (bugspec emit) and B-6 (combine PRs)
+
+Phase 7 bugspec emission becomes classification-aware: only SHIP-WORTHY bugs get emitted by default. OPT-IN-WORTHY emits to a separate `quality/config_flag_candidates.json` stream for operator triage.
+
+B-6 (combine findings into PR) groups SHIP-WORTHY bugs into clusters. OPT-IN-WORTHY and LOCAL-FIX-WORTHY bugs don't enter the upstream-PR pipeline.
+
+### Phase 5D — Operator override mechanism
+
+The evaluation is a recommendation, not a gate. Operator can force any classification to SHIP-WORTHY (or downgrade SHIP-WORTHY to LOCAL-FIX-WORTHY) via `quality/fix_evaluation_overrides.yaml`. Overrides are logged in BUGS.md with the rationale the operator provides.
+
+### Phase 5E — Empirical validation against historical PRs
+
+Run B-9 retrospectively against QPB's history of generated upstream PRs:
+
+- **PR #3035 (gson BUG-001)** — should classify SHIP-WORTHY. Real correctness consequence, tight fix, no per-call overhead.
+- **PR #3036 (gson BUG-002)** — should classify OPT-IN-WORTHY or LOCAL-FIX-WORTHY. Rare corner case, per-call overhead. Matches Marcono1234's review verdict.
+- Any other past PRs filed and accepted or rejected by upstream maintainers — verify the classification matches the empirical outcome.
+
+If the retrospective classification doesn't match outcomes, recalibrate the dimensions before shipping.
+
+### Phase 5 Ship Gate
+
+- Self-Council Protocol 1 — panelists cover: classification correctness on the historical PR corpus; static-analysis hook reliability; operator-override safety.
+- Empirical validation against the historical PR set — at least 5 past PRs classified with matching outcomes
+- Integration tested with B-7's bugspec emit filter
+
+---
+
+## Phase 6 — Remaining B-N capabilities (deferrable)
 
 These are documented in Design § 2.1-2.7. Each has its own sub-phase if implemented, or moves to v1.5.11.
 
@@ -126,13 +172,13 @@ These are documented in Design § 2.1-2.7. Each has its own sub-phase if impleme
 - B-4: Bug-neighborhood iteration strategy (Design § 2.4)
 - B-5: Adversarial fresh-context review pass (Design § 2.5)
 - B-6: Combine related findings into single coherent PR (Design § 2.6)
-- B-7: Phase 7 bugspec-format emit (Design § 2.7)
+- B-7: Phase 7 bugspec-format emit (Design § 2.7) — includes the no-tool-promotional-content-in-source-artifacts constraint per Design § 2.7's subsection. The constraint is implementable independently of the rest of B-7 if needed (it's a stripper + regression test against the existing PR-generation flow).
 
-Operator decides at Phase 5 entry which to land in v1.5.10. Default: defer all to v1.5.11 unless one becomes blocking.
+Operator decides at Phase 6 entry which to land in v1.5.10. Default: defer all to v1.5.11 unless one becomes blocking.
 
 ---
 
-## Phase 6 — Release prep + ship
+## Phase 7 — Release prep + ship
 
 After all selected phases ship:
 
@@ -152,13 +198,13 @@ After all selected phases ship:
 Phase 0 (v1.5.9 stabilization) ──→ Phase 1 (methodology absorption) ─┐
                                                                      ↓
 Phase 2 (ship-gate) ─────┐
-                         ├──→ Phase 6 (release ship) ──→ v1.5.10 tag
 Phase 3 (B-1) ───────────┤
-Phase 4 (B-8) ───────────┘
-(Phase 5 capabilities — operator's pick; may all defer to v1.5.11)
+Phase 4 (B-8) ───────────┼──→ Phase 7 (release ship) ──→ v1.5.10 tag
+Phase 5 (B-9) ───────────┘
+(Phase 6 capabilities B-2..B-7 — operator's pick; may all defer to v1.5.11)
 ```
 
-Phases 2-4 are parallelizable.
+Phases 2-5 are parallelizable. B-9 (Phase 5) integrates with B-7 (bugspec emit) so if both land in v1.5.10, sequence Phase 5 before any Phase 6 work that depends on B-7.
 
 ---
 
@@ -183,8 +229,13 @@ Phases 2-4 are parallelizable.
 | 7 | Prompt-injection sanitization (B-1) | 3 | Pending |
 | 8 | Weak-assertion Layer 1 static detection (B-8) | 4A | Pending |
 | 9 | Weak-assertion Layer 2 adversarial critique (B-8) | 4B | Pending |
-| 10 | B-2..B-7 capability scoping decision | 5 | Pending operator decision at Phase 5 entry |
-| 11 | Release ship steps 1-8 | 6 | Pending Phase 2 + Phase 3 + Phase 4 ship gates |
+| 10 | Fix cost/benefit evaluation sub-pass scaffold (B-9) | 5A | Pending |
+| 11 | Static-analysis hooks for incidence + overhead (B-9) | 5B | Pending |
+| 12 | Integration with B-7 (bugspec emit) + B-6 (combine PRs) (B-9) | 5C | Pending |
+| 13 | Operator override mechanism (B-9) | 5D | Pending |
+| 14 | Empirical validation against historical PRs incl. gson #3035 / #3036 (B-9) | 5E | Pending |
+| 15 | B-2..B-7 capability scoping decision | 6 | Pending operator decision at Phase 6 entry |
+| 16 | Release ship steps 1-8 | 7 | Pending Phase 2 + Phase 3 + Phase 4 + Phase 5 ship gates |
 
 ---
 

@@ -221,7 +221,12 @@ def _qpb_version() -> str:
     installer's convention). Best-effort — falls back to
     ``"unknown"``."""
     try:
-        skill_md = Path(__file__).resolve().parents[1] / "SKILL.md"
+        # v1.5.8 instruction 208: SKILL.md moved to the plugin-native
+        # location.
+        skill_md = (
+            Path(__file__).resolve().parents[1]
+            / "skills" / "quality-playbook" / "SKILL.md"
+        )
         for line in skill_md.read_text(encoding="utf-8").splitlines()[:20]:
             if line.startswith("version:"):
                 return line.split(":", 1)[1].strip()

@@ -235,7 +235,7 @@ class BannerDirectivePresence090mTests(unittest.TestCase):
 
     def test_skill_md_mandatory_first_action_carries_full_banner(
             self) -> None:
-        text = (_REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        text = (_REPO_ROOT / "skills" / "quality-playbook" / "SKILL.md").read_text(encoding="utf-8")
         # The MANDATORY FIRST ACTION must explicitly instruct against
         # condensation (090m mutation guard — the live openfga-run3
         # Mode-A runs emitted a 2-line condensed banner against the
@@ -289,7 +289,7 @@ class BannerDirectivePresence090mTests(unittest.TestCase):
         for line in self._CANONICAL_BANNER_LINES:
             self.assertIn(line, canonical,
                           f"_purpose.BANNER_TEXT missing {line!r}")
-        text = (_REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        text = (_REPO_ROOT / "skills" / "quality-playbook" / "SKILL.md").read_text(encoding="utf-8")
         directive_banner = self._extract_first_banner_block(text)
 
         def _normalize(block: str) -> str:
@@ -317,7 +317,7 @@ class BannerDirectivePresence090mTests(unittest.TestCase):
         AGENTS.md) → this test FAILs.
         """
         phase1_text = (
-            _REPO_ROOT / "phase_prompts" / "phase1.md"
+            _REPO_ROOT / "skills" / "quality-playbook" / "phase_prompts" / "phase1.md"
         ).read_text(encoding="utf-8")
         # The 090k/090l directive carried this distinctive heading;
         # 090m removed it.

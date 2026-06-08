@@ -52,11 +52,23 @@ from typing import Iterable
 def _load_purpose_from_this_clone():
     import importlib.util as _ilu
     repo_root = Path(__file__).resolve().parent.parent
-    script = repo_root / "bin" / "_purpose.py"
-    if not script.is_file():
+    # v1.5.8 instruction 208: canonical source moved to
+    # skills/quality-playbook/scripts/_purpose.py. Fall back to the
+    # pre-208 bin/_purpose.py path for clones that still have the
+    # legacy layout (defensive — should not be hit in the post-208
+    # main branch).
+    nested = (
+        repo_root / "skills" / "quality-playbook" / "scripts" / "_purpose.py"
+    )
+    legacy = repo_root / "bin" / "_purpose.py"
+    if nested.is_file():
+        script = nested
+    elif legacy.is_file():
+        script = legacy
+    else:
         raise RuntimeError(
-            f"build_channel_package: cannot path-load _purpose "
-            f"from {script} — file missing in clone."
+            f"build_channel_package: cannot path-load _purpose — "
+            f"neither {nested} nor {legacy} is a file."
         )
     spec = _ilu.spec_from_file_location(
         "_qpb_purpose_from_build_channel_package", script,
@@ -98,13 +110,23 @@ def _import_install_skill():
     as this script — regardless of cwd, sys.path, or sibling
     repos."""
     import importlib.util as _ilu
-    script = REPO_ROOT / "bin" / "install_skill.py"
-    if not script.is_file():
+    # v1.5.8 instruction 208: canonical install_skill.py moved to
+    # skills/quality-playbook/scripts/install_skill.py. Fall back to
+    # the legacy bin/install_skill.py path for pre-208 clones.
+    nested = (
+        REPO_ROOT / "skills" / "quality-playbook" / "scripts"
+        / "install_skill.py"
+    )
+    legacy = REPO_ROOT / "bin" / "install_skill.py"
+    if nested.is_file():
+        script = nested
+    elif legacy.is_file():
+        script = legacy
+    else:
         raise RuntimeError(
             f"build_channel_package: cannot path-load "
-            f"install_skill from {script} — file missing. "
-            f"REPO_ROOT={REPO_ROOT} (anchored on __file__ via "
-            f"Path(__file__).resolve().parent.parent)."
+            f"install_skill — neither {nested} nor {legacy} is a "
+            f"file. REPO_ROOT={REPO_ROOT}."
         )
     spec = _ilu.spec_from_file_location(
         "_qpb_install_skill_from_build_channel_package", script,
@@ -120,15 +142,35 @@ def _import_install_skill():
     return mod
 
 
+def _bundle_source_root(repo_root: Path) -> Path:
+    """v1.5.8 instruction 208: resolve the bundle-source root from a
+    QPB-clone path. Returns the plugin skill folder
+    (``<repo_root>/skills/quality-playbook``) when present, falling
+    back to ``repo_root`` itself for pre-208 clones or when the
+    caller already passed the skill folder. The function
+    ``_bundle_files()`` accepts either layout via its own
+    ``_scripts_dirname()`` detection."""
+    skill_folder = repo_root / "skills" / "quality-playbook"
+    if (skill_folder / "SKILL.md").is_file():
+        return skill_folder
+    return repo_root
+
+
 def skill_bundle_paths(repo_root: Path) -> list[Path]:
     """Return the SKILL-BUNDLE source paths — exactly the set
     ``install_skill._bundle_files(repo_root)`` enumerates.
 
     These are the files that get copied into an adopter's target
     repo at install time. The parity test pins this set to
-    ``_bundle_files()`` member-for-member."""
+    ``_bundle_files()`` member-for-member.
+
+    v1.5.8 instruction 208: ``repo_root`` may be either the QPB
+    clone root OR the plugin skill folder
+    (``skills/quality-playbook/``); ``_bundle_source_root()``
+    normalizes between the two."""
     install_skill = _import_install_skill()
-    return [src for src, _dest_rel in install_skill._bundle_files(repo_root)]
+    source_root = _bundle_source_root(repo_root)
+    return [src for src, _dest_rel in install_skill._bundle_files(source_root)]
 
 
 def executor_paths(repo_root: Path) -> list[Path]:
@@ -154,9 +196,14 @@ def executor_paths(repo_root: Path) -> list[Path]:
     level. Both load cleanly via ``importlib.util`` without any
     sibling-package resolution. If a future edit adds an internal
     import to either, extend this function."""
+    # v1.5.8 instruction 208: canonical sources moved to
+    # skills/quality-playbook/scripts/. The bundle internal layout
+    # (``_bundle/bin/install_skill.py``, ``_bundle/bin/qpb_validate.py``)
+    # is UNCHANGED — only the source paths shift.
+    scripts_root = repo_root / "skills" / "quality-playbook" / "scripts"
     return [
-        repo_root / "bin" / "install_skill.py",
-        repo_root / "bin" / "qpb_validate.py",
+        scripts_root / "install_skill.py",
+        scripts_root / "qpb_validate.py",
     ]
 
 
@@ -268,7 +315,7 @@ def _purge_compiled_artifacts(dest_dir: Path) -> None:
 def stage(repo_root: Path, dest_dir: Path,
           *, clean: bool = True) -> list[Path]:
     """Copy every file enumerated by ``enumerate_bundle(repo_root)``
-    into ``dest_dir``, preserving the clone-relative path layout.
+    into ``dest_dir`` at the bundle's frozen internal layout.
 
     Returns the list of staged file paths (under ``dest_dir``).
     With ``clean=True`` (default), removes any prior ``dest_dir``
@@ -278,6 +325,20 @@ def stage(repo_root: Path, dest_dir: Path,
     ``.pyo`` that may have appeared under ``dest_dir`` (e.g. from
     test imports of the staged modules) — neither channel ships
     compiled artifacts.
+
+    v1.5.8 instruction 208: destinations are derived from the
+    bundle's CANONICAL relative paths — ``_bundle_files()``'s
+    ``dst_rel`` for each skill-bundle entry; and an explicit
+    ``Path("bin") / <name>`` for each executor. Pre-208 the
+    destinations were derived from
+    ``src.resolve().relative_to(repo_root)``, which happened to
+    match the bundle layout because clone-side sources lived at the
+    same relative paths the bundle layout used. After the 208
+    restructure the clone-side sources live under
+    ``skills/quality-playbook/scripts/``, but the bundle layout is
+    FROZEN (already-shipped v1.5.8 wheel + npm tarball), so the
+    destinations must be computed from the bundle's own layout
+    table, not from the source-side clone layout.
     """
     repo_root = repo_root.resolve()
     dest_dir = dest_dir.resolve()
@@ -285,34 +346,31 @@ def stage(repo_root: Path, dest_dir: Path,
         shutil.rmtree(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
 
+    install_skill = _import_install_skill()
+    source_root = _bundle_source_root(repo_root)
+    bundle_pairs = install_skill._bundle_files(source_root)
+    executors = executor_paths(repo_root)
+
+    # Build the (src, dst_rel) work list: bundle pairs use the
+    # canonical ``dst_rel`` from ``_bundle_files()``; executors
+    # always land at ``_bundle/bin/<name>`` because that's where
+    # the pip channel shim and npm shim path-load them from.
+    work: list[tuple[Path, Path]] = list(bundle_pairs)
+    for ex in executors:
+        work.append((ex, Path("bin") / ex.name))
+
     staged: list[Path] = []
-    for src in enumerate_bundle(repo_root):
-        try:
-            rel = src.resolve().relative_to(repo_root)
-        except ValueError:
-            # The path isn't under repo_root — refuse to stage
-            # something from outside the clone (defense against
-            # an unexpected _bundle_files() entry pointing
-            # elsewhere).
-            raise RuntimeError(
-                f"build_channel_package: refusing to stage source "
-                f"path {src} which is not under repo_root "
-                f"{repo_root}. _bundle_files() returned an "
-                f"unexpected entry — investigate before publishing."
-            )
-        target = dest_dir / rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        if src.is_file():
-            shutil.copy2(src, target)
-            staged.append(target)
-        else:
-            # _bundle_files() should only yield files; surface a
-            # build error rather than silently dropping a dir.
+    for src, dst_rel in work:
+        if not src.is_file():
             raise RuntimeError(
                 f"build_channel_package: source path {src} is not "
-                f"a regular file. _bundle_files() yielded a non-"
-                f"file entry — investigate."
+                f"a regular file. Enumeration yielded a non-file "
+                f"entry — investigate."
             )
+        target = dest_dir / dst_rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, target)
+        staged.append(target)
     # v1.5.7 089y T-B: purge compiled-Python cruft from the staged
     # tree (only effective for the --no-clean incremental case; a
     # clean stage starts from an empty dir so there's nothing to
@@ -375,6 +433,19 @@ _PYPROJECT_VERSION_RE = re.compile(
     r'^(version\s*=\s*)"([^"]+)"\s*$', re.MULTILINE
 )
 _PACKAGE_JSON_VERSION_RE = re.compile(
+    r'^(\s*"version"\s*:\s*)"([^"]+)"', re.MULTILINE
+)
+# v1.5.8 instruction 208: stamp marketplace.json's nested plugin
+# version (under ``plugins[0]``) and plugin.json's top-level
+# version so the plugin marketplace and pip/npm channels stay in
+# lockstep. marketplace.json's outer level has no version field;
+# only the inner plugin entry does (the regex matches whichever
+# ``"version": "..."`` line appears at any indent — the file is
+# single-plugin so there's exactly one such line).
+_MARKETPLACE_JSON_VERSION_RE = re.compile(
+    r'^(\s*"version"\s*:\s*)"([^"]+)"', re.MULTILINE
+)
+_PLUGIN_JSON_VERSION_RE = re.compile(
     r'^(\s*"version"\s*:\s*)"([^"]+)"', re.MULTILINE
 )
 
@@ -446,6 +517,46 @@ def stamp_channel_manifest_versions(repo_root: Path) -> list[tuple[Path, str, st
             package_json.write_text(new_text, encoding="utf-8")
             old = _PACKAGE_JSON_VERSION_RE.search(text).group(2)
             changed.append((package_json, old, skill_version))
+
+    # v1.5.8 instruction 208: stamp the Claude Code plugin
+    # marketplace manifests so the plugin's advertised version stays
+    # in lockstep with SKILL.md alongside pip/npm.
+    marketplace_json = repo_root / ".claude-plugin" / "marketplace.json"
+    if marketplace_json.is_file():
+        text = marketplace_json.read_text(encoding="utf-8")
+        new_text, n = _MARKETPLACE_JSON_VERSION_RE.subn(
+            lambda m: f'{m.group(1)}"{skill_version}"',
+            text, count=1,
+        )
+        if n == 0:
+            # The marketplace.json shape may legitimately omit a
+            # ``version`` field (when the plugin metadata lives in
+            # plugin.json under ``strict: true``). Skip silently in
+            # that case instead of failing the build.
+            pass
+        elif new_text != text:
+            marketplace_json.write_text(new_text, encoding="utf-8")
+            old = _MARKETPLACE_JSON_VERSION_RE.search(text).group(2)
+            changed.append((marketplace_json, old, skill_version))
+
+    plugin_json = repo_root / ".claude-plugin" / "plugin.json"
+    if plugin_json.is_file():
+        text = plugin_json.read_text(encoding="utf-8")
+        new_text, n = _PLUGIN_JSON_VERSION_RE.subn(
+            lambda m: f'{m.group(1)}"{skill_version}"',
+            text, count=1,
+        )
+        if n == 0:
+            raise RuntimeError(
+                f"build_channel_package: plugin.json has no "
+                f"matchable `\"version\": \"...\"` line — manifest "
+                f"shape changed; update the regex deliberately."
+            )
+        if new_text != text:
+            plugin_json.write_text(new_text, encoding="utf-8")
+            old = _PLUGIN_JSON_VERSION_RE.search(text).group(2)
+            changed.append((plugin_json, old, skill_version))
+
     return changed
 
 

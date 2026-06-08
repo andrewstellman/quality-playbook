@@ -196,7 +196,7 @@ class CodeOnlyModeDocTests(unittest.TestCase):
     def test_code_only_mode_doc_loads(self) -> None:
         """Spec asked for `test_code_only_mode_doc_loads` — verify the
         doc parses and has expected sections."""
-        path = REPO_ROOT / "references" / "code-only-mode.md"
+        path = REPO_ROOT / "skills" / "quality-playbook" / "references" / "code-only-mode.md"
         self.assertTrue(
             path.is_file(),
             f"expected references/code-only-mode.md at {path}",

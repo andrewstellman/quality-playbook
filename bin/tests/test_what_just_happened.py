@@ -27,9 +27,11 @@ from pathlib import Path
 from bin import run_playbook
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-REFERENCE_PATH = REPO_ROOT / "references" / "what_just_happened.md"
-SKILL_PATH = REPO_ROOT / "SKILL.md"
-PHASE_PROMPTS_DIR = REPO_ROOT / "phase_prompts"
+# v1.5.8 instruction 208: bundled skill files moved to skills/quality-playbook/.
+_SKILL_DIR = REPO_ROOT / "skills" / "quality-playbook"
+REFERENCE_PATH = _SKILL_DIR / "references" / "what_just_happened.md"
+SKILL_PATH = _SKILL_DIR / "SKILL.md"
+PHASE_PROMPTS_DIR = _SKILL_DIR / "phase_prompts"
 
 
 class WhatJustHappenedReferenceExistsTests(unittest.TestCase):

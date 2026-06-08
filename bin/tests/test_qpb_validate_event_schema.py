@@ -16,8 +16,11 @@ import unittest
 from pathlib import Path
 
 _QPB_ROOT = Path(__file__).resolve().parents[2]
-_QPB_VALIDATE = _QPB_ROOT / "bin" / "qpb_validate.py"
-_SCHEMA_DOC = _QPB_ROOT / "references" / "qpb_validate_event_schema.md"
+# v1.5.8 instruction 208: qpb_validate.py + references/ moved into
+# skills/quality-playbook/.
+_SKILL_DIR = _QPB_ROOT / "skills" / "quality-playbook"
+_QPB_VALIDATE = _SKILL_DIR / "scripts" / "qpb_validate.py"
+_SCHEMA_DOC = _SKILL_DIR / "references" / "qpb_validate_event_schema.md"
 
 _EMIT_LITERAL = re.compile(r'\bem\.emit\(\s*"([a-z_]+)"')
 # The one dynamically-named emit: em.emit(info.pop("event"), **info)

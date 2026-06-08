@@ -40,12 +40,16 @@ mkdir -p .github/skills/references
 mkdir -p .github/skills/phase_prompts
 mkdir -p .github/skills/agents
 mkdir -p .github/skills/bin
-cp "$QPB"/SKILL.md .github/skills/SKILL.md
-cp "$QPB"/.github/skills/quality_gate/quality_gate.py .github/skills/quality_gate.py
-cp "$QPB"/references/* .github/skills/references/
-cp "$QPB"/phase_prompts/*.md .github/skills/phase_prompts/
+# v1.5.8 instruction 208: source paths now nest through
+# skills/quality-playbook/; the cp DESTINATIONS at .github/skills/...
+# are unchanged (the adopter-target layout is frozen).
+QPB_SKILL_SRC="$QPB"/skills/quality-playbook
+cp "$QPB_SKILL_SRC"/SKILL.md .github/skills/SKILL.md
+cp "$QPB_SKILL_SRC"/scripts/quality_gate.py .github/skills/quality_gate.py
+cp "$QPB_SKILL_SRC"/references/* .github/skills/references/
+cp "$QPB_SKILL_SRC"/phase_prompts/*.md .github/skills/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
-cp "$QPB"/agents/*.md .github/skills/agents/
+cp "$QPB_SKILL_SRC"/agents/*.md .github/skills/agents/
 # v1.5.7 088 (A-29): the bin/ closure required for Mode A walkthroughs
 # to resolve every module SKILL.md + phase_prompts hard-reference.
 # This list is MIRRORED from install_skill.py::_bundle_files() and
@@ -53,22 +57,22 @@ cp "$QPB"/agents/*.md .github/skills/agents/
 # test_agents_md_cp_blocks_match_bundle. DO NOT add/remove a module
 # here without updating _bundle_files() in lockstep (drift recreates
 # the A-26 ship-blocker via this doc-sanctioned alternate path).
-cp "$QPB"/bin/__init__.py                          .github/skills/bin/__init__.py
-cp "$QPB"/bin/_purpose.py                          .github/skills/bin/_purpose.py
-cp "$QPB"/bin/archive_lib.py                       .github/skills/bin/archive_lib.py
-cp "$QPB"/bin/benchmark_lib.py                     .github/skills/bin/benchmark_lib.py
-cp "$QPB"/bin/citation_verifier.py                 .github/skills/bin/citation_verifier.py
-cp "$QPB"/bin/council_config.py                    .github/skills/bin/council_config.py
-cp "$QPB"/bin/council_semantic_check.py            .github/skills/bin/council_semantic_check.py
-cp "$QPB"/bin/migrate_v1_5_0_layout.py             .github/skills/bin/migrate_v1_5_0_layout.py
-cp "$QPB"/bin/qpb_config.py                        .github/skills/bin/qpb_config.py
-cp "$QPB"/bin/quality_playbook.py                  .github/skills/bin/quality_playbook.py
-cp "$QPB"/bin/reference_docs_ingest.py             .github/skills/bin/reference_docs_ingest.py
-cp "$QPB"/bin/role_map.py                          .github/skills/bin/role_map.py
-cp "$QPB"/bin/run_state_lib.py                     .github/skills/bin/run_state_lib.py
-cp "$QPB"/bin/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
-cp "$QPB"/bin/qpb_validate.py                      .github/skills/bin/qpb_validate.py
-cp "$QPB"/bin/qpb_phase.py                         .github/skills/bin/qpb_phase.py
+cp "$QPB_SKILL_SRC"/scripts/__init__.py                          .github/skills/bin/__init__.py
+cp "$QPB_SKILL_SRC"/scripts/_purpose.py                          .github/skills/bin/_purpose.py
+cp "$QPB_SKILL_SRC"/scripts/archive_lib.py                       .github/skills/bin/archive_lib.py
+cp "$QPB_SKILL_SRC"/scripts/benchmark_lib.py                     .github/skills/bin/benchmark_lib.py
+cp "$QPB_SKILL_SRC"/scripts/citation_verifier.py                 .github/skills/bin/citation_verifier.py
+cp "$QPB_SKILL_SRC"/scripts/council_config.py                    .github/skills/bin/council_config.py
+cp "$QPB_SKILL_SRC"/scripts/council_semantic_check.py            .github/skills/bin/council_semantic_check.py
+cp "$QPB_SKILL_SRC"/scripts/migrate_v1_5_0_layout.py             .github/skills/bin/migrate_v1_5_0_layout.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                        .github/skills/bin/qpb_config.py
+cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py                  .github/skills/bin/quality_playbook.py
+cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py             .github/skills/bin/reference_docs_ingest.py
+cp "$QPB_SKILL_SRC"/scripts/role_map.py                          .github/skills/bin/role_map.py
+cp "$QPB_SKILL_SRC"/scripts/run_state_lib.py                     .github/skills/bin/run_state_lib.py
+cp "$QPB_SKILL_SRC"/scripts/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_validate.py                      .github/skills/bin/qpb_validate.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_phase.py                         .github/skills/bin/qpb_phase.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 # Place adopter docs here — citable specs/RFCs in reference_docs/cite/.
 # (v1.5.7 090h retired informal_docs/; reference_docs/ is the sole
@@ -81,7 +85,7 @@ mkdir -p reference_docs reference_docs/cite
 mkdir -p quality
 echo "# Run Index" > quality/RUN_INDEX.md
 # Optional: append suggested .gitignore rules for adopters.
-cat "$QPB"/skill-template.gitignore >> .gitignore
+cat "$QPB_SKILL_SRC"/skill-template.gitignore >> .gitignore
 ```
 
 **Claude Code:**
@@ -90,12 +94,14 @@ mkdir -p .claude/skills/quality-playbook/references
 mkdir -p .claude/skills/quality-playbook/phase_prompts
 mkdir -p .claude/skills/quality-playbook/agents
 mkdir -p .claude/skills/quality-playbook/bin
-cp "$QPB"/SKILL.md .claude/skills/quality-playbook/SKILL.md
-cp "$QPB"/.github/skills/quality_gate/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
-cp "$QPB"/references/* .claude/skills/quality-playbook/references/
-cp "$QPB"/phase_prompts/*.md .claude/skills/quality-playbook/phase_prompts/
+# v1.5.8 instruction 208: source paths nest through skills/quality-playbook/.
+QPB_SKILL_SRC="$QPB"/skills/quality-playbook
+cp "$QPB_SKILL_SRC"/SKILL.md .claude/skills/quality-playbook/SKILL.md
+cp "$QPB_SKILL_SRC"/scripts/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
+cp "$QPB_SKILL_SRC"/references/* .claude/skills/quality-playbook/references/
+cp "$QPB_SKILL_SRC"/phase_prompts/*.md .claude/skills/quality-playbook/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
-cp "$QPB"/agents/*.md .claude/skills/quality-playbook/agents/
+cp "$QPB_SKILL_SRC"/agents/*.md .claude/skills/quality-playbook/agents/
 # v1.5.7 088 (A-29): the bin/ closure required for Mode A walkthroughs
 # to resolve every module SKILL.md + phase_prompts hard-reference.
 # This list is MIRRORED from install_skill.py::_bundle_files() and
@@ -103,21 +109,21 @@ cp "$QPB"/agents/*.md .claude/skills/quality-playbook/agents/
 # test_agents_md_cp_blocks_match_bundle. DO NOT add/remove a module
 # here without updating _bundle_files() in lockstep (drift recreates
 # the A-26 ship-blocker via this doc-sanctioned alternate path).
-cp "$QPB"/bin/__init__.py                  .claude/skills/quality-playbook/bin/__init__.py
-cp "$QPB"/bin/_purpose.py                  .claude/skills/quality-playbook/bin/_purpose.py
-cp "$QPB"/bin/archive_lib.py               .claude/skills/quality-playbook/bin/archive_lib.py
-cp "$QPB"/bin/benchmark_lib.py             .claude/skills/quality-playbook/bin/benchmark_lib.py
-cp "$QPB"/bin/citation_verifier.py         .claude/skills/quality-playbook/bin/citation_verifier.py
-cp "$QPB"/bin/council_config.py            .claude/skills/quality-playbook/bin/council_config.py
-cp "$QPB"/bin/council_semantic_check.py    .claude/skills/quality-playbook/bin/council_semantic_check.py
-cp "$QPB"/bin/migrate_v1_5_0_layout.py     .claude/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
-cp "$QPB"/bin/qpb_config.py                .claude/skills/quality-playbook/bin/qpb_config.py
-cp "$QPB"/bin/quality_playbook.py          .claude/skills/quality-playbook/bin/quality_playbook.py
-cp "$QPB"/bin/reference_docs_ingest.py     .claude/skills/quality-playbook/bin/reference_docs_ingest.py
-cp "$QPB"/bin/role_map.py                  .claude/skills/quality-playbook/bin/role_map.py
-cp "$QPB"/bin/run_state_lib.py             .claude/skills/quality-playbook/bin/run_state_lib.py
-cp "$QPB"/bin/validate_phase_artifacts.py  .claude/skills/quality-playbook/bin/validate_phase_artifacts.py
-cp "$QPB"/bin/qpb_validate.py              .claude/skills/quality-playbook/bin/qpb_validate.py
+cp "$QPB_SKILL_SRC"/scripts/__init__.py                  .claude/skills/quality-playbook/bin/__init__.py
+cp "$QPB_SKILL_SRC"/scripts/_purpose.py                  .claude/skills/quality-playbook/bin/_purpose.py
+cp "$QPB_SKILL_SRC"/scripts/archive_lib.py               .claude/skills/quality-playbook/bin/archive_lib.py
+cp "$QPB_SKILL_SRC"/scripts/benchmark_lib.py             .claude/skills/quality-playbook/bin/benchmark_lib.py
+cp "$QPB_SKILL_SRC"/scripts/citation_verifier.py         .claude/skills/quality-playbook/bin/citation_verifier.py
+cp "$QPB_SKILL_SRC"/scripts/council_config.py            .claude/skills/quality-playbook/bin/council_config.py
+cp "$QPB_SKILL_SRC"/scripts/council_semantic_check.py    .claude/skills/quality-playbook/bin/council_semantic_check.py
+cp "$QPB_SKILL_SRC"/scripts/migrate_v1_5_0_layout.py     .claude/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                .claude/skills/quality-playbook/bin/qpb_config.py
+cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py          .claude/skills/quality-playbook/bin/quality_playbook.py
+cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py     .claude/skills/quality-playbook/bin/reference_docs_ingest.py
+cp "$QPB_SKILL_SRC"/scripts/role_map.py                  .claude/skills/quality-playbook/bin/role_map.py
+cp "$QPB_SKILL_SRC"/scripts/run_state_lib.py             .claude/skills/quality-playbook/bin/run_state_lib.py
+cp "$QPB_SKILL_SRC"/scripts/validate_phase_artifacts.py  .claude/skills/quality-playbook/bin/validate_phase_artifacts.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_validate.py              .claude/skills/quality-playbook/bin/qpb_validate.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 # Place adopter docs here — citable specs/RFCs in reference_docs/cite/.
 # (v1.5.7 090h retired informal_docs/; reference_docs/ is the sole
@@ -129,7 +135,7 @@ mkdir -p reference_docs reference_docs/cite
 # files missing"; install_skill.py creates this too).
 mkdir -p quality
 echo "# Run Index" > quality/RUN_INDEX.md
-cat "$QPB"/skill-template.gitignore >> .gitignore
+cat "$QPB_SKILL_SRC"/skill-template.gitignore >> .gitignore
 ```
 
 Then tell your AI tool:

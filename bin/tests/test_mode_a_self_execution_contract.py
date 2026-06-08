@@ -33,10 +33,12 @@ import unittest
 from pathlib import Path
 
 _QPB_ROOT = Path(__file__).resolve().parents[2]
-_SKILL_MD = _QPB_ROOT / "SKILL.md"
+# v1.5.8 instruction 208: SKILL.md + agents/ moved into the plugin skill folder.
+_SKILL_DIR = _QPB_ROOT / "skills" / "quality-playbook"
+_SKILL_MD = _SKILL_DIR / "SKILL.md"
 _AGENTS_MD = _QPB_ROOT / "AGENTS.md"
-_AGENT_GENERAL = _QPB_ROOT / "agents" / "quality-playbook.agent.md"
-_AGENT_CLAUDE = _QPB_ROOT / "agents" / "quality-playbook-claude.agent.md"
+_AGENT_GENERAL = _SKILL_DIR / "agents" / "quality-playbook.agent.md"
+_AGENT_CLAUDE = _SKILL_DIR / "agents" / "quality-playbook-claude.agent.md"
 
 _AUTOMATION_ONLY_DESC_PREFIX = (
     'description: "AUTOMATION ONLY — DO NOT INVOKE FROM AN '

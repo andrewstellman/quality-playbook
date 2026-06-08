@@ -14,7 +14,25 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, Tuple
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-QPB_DIR = SCRIPT_DIR.parent
+# v1.5.8 instruction 208: SCRIPT_DIR may resolve to either:
+#   - ``<qpb>/skills/quality-playbook/scripts/`` (post-208 QPB clone)
+#   - ``<qpb>/bin/`` (pre-208 clone, legacy bundle layout)
+#   - ``<install>/bin/`` (adopter install / bundled tree)
+# In every case the SKILL closure root is one level up from
+# SCRIPT_DIR. For the post-208 clone case, the QPB project root is
+# the grandparent of skills/quality-playbook/, i.e. SCRIPT_DIR up 3
+# levels. Auto-detect via marker-file: prefer the closest ancestor
+# that contains ``pyproject.toml`` (the QPB project root); fall
+# back to ``SCRIPT_DIR.parent`` for non-QPB-clone contexts.
+def _resolve_qpb_dir() -> Path:
+    for ancestor in (SCRIPT_DIR.parent, SCRIPT_DIR.parent.parent,
+                     SCRIPT_DIR.parent.parent.parent):
+        if (ancestor / "pyproject.toml").is_file():
+            return ancestor
+    return SCRIPT_DIR.parent
+
+
+QPB_DIR = _resolve_qpb_dir()
 DEFAULT_MODEL = os.environ.get("QPB_MODEL", "gpt-5.4")
 
 # Single source of truth for the current release version. Compared against
@@ -186,7 +204,26 @@ def skill_version() -> Optional[str]:
 
 
 def detect_repo_skill_version(repo_dir: Path) -> str:
-    """Read the `version:` value from an installed-copy SKILL.md for display."""
+    """Read the `version:` value from an installed-copy SKILL.md for display.
+
+    v1.5.8 instruction 208: when ``repo_dir`` is the QPB clone itself,
+    SKILL.md now lives under ``skills/quality-playbook/``. This
+    plugin-native location is checked FIRST so a fresh QPB-self
+    lookup resolves to the live source — without disturbing the
+    canonical ten-layout resolver order (pinned by
+    ``bin/tests/test_skill_resolution_order.py``) which governs
+    adopter-side lookups."""
+    # v1.5.8 instruction 208 priority: post-208 plugin-native QPB
+    # self-bootstrap location wins over the legacy ten layouts when
+    # the caller is asking about the QPB clone itself (the only repo
+    # that has the canonical SKILL.md under ``skills/quality-playbook/``).
+    plugin_native = (
+        repo_dir / "skills" / "quality-playbook" / "SKILL.md"
+    )
+    if _is_qpb_skill_md(plugin_native, plugin_native):
+        version = _read_version(plugin_native)
+        if version:
+            return version
     for rel in SKILL_INSTALL_LOCATIONS:
         candidate = repo_dir / rel
         if not _is_qpb_skill_md(candidate, rel):

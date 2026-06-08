@@ -1217,7 +1217,10 @@ SKILL_FALLBACK_GUIDE = (
 # this externalization, an edit to a phase prompt would have to be
 # duplicated in two places. See ``phase_prompts/README.md`` for the
 # substitution conventions.
-PHASE_PROMPTS_DIR = Path(__file__).resolve().parents[1] / "phase_prompts"
+PHASE_PROMPTS_DIR = (
+    Path(__file__).resolve().parents[1]
+    / "skills" / "quality-playbook" / "phase_prompts"
+)
 
 
 def _load_phase_prompt(name: str, **substitutions: str) -> str:
@@ -2700,9 +2703,11 @@ def _verify_sentinels(repo_dir: Path) -> List[str]:
 _QPB_SOURCE_PATHS = (
     "bin/",
     ".github/skills/",
-    "agents/",
-    "references/",
-    "SKILL.md",
+    # v1.5.8 instruction 208: bundled skill files moved into the
+    # plugin-native layout under skills/quality-playbook/. The
+    # source-edit gate must watch the new location (agents/,
+    # references/, SKILL.md, phase_prompts/ all live there now).
+    "skills/quality-playbook/",
     # v1.5.4 Phase 3.7 Fix 6 (Round 8 HIGH): CLAUDE.md's source-edit
     # lane includes schemas.md and AGENTS.md too. Codex's specific
     # patch was to bin/archive_lib.py (already covered) but a future
@@ -2712,17 +2717,11 @@ _QPB_SOURCE_PATHS = (
     # source-unchanged invariant.
     "schemas.md",
     "AGENTS.md",
-    # Council Round 2 2026-04-30 P0-4: F-1's externalization made
-    # phase_prompts/*.md load-bearing single-source-of-truth runtime
-    # prompt content read by both Mode A (skill-direct) and Mode B
-    # (runner-driven). A mid-run Phase-N LLM rewriting any
-    # phase_prompts/*.md file would shift downstream phases without
-    # the SHA256 byte-equality test catching it (that test pins
-    # between-commit drift, not within-run mutation). Same class of
-    # gap as F-2 closed for AGENTS.md — F-1 introduced a new
-    # load-bearing directory and missed the matching invariant
-    # update.
-    "phase_prompts/",
+    # v1.5.8 instruction 208: phase_prompts/ moved into
+    # skills/quality-playbook/phase_prompts/; the umbrella
+    # ``skills/quality-playbook/`` entry above already covers it.
+    # The pre-208 dedicated entry would have referenced the now-
+    # empty repo-root location.
 )
 
 
@@ -2921,8 +2920,13 @@ def _check_installed_bundle_freshness(
         return []
     bundle_dir = installed_skill.parent
     missing: List[str] = []
+    # v1.5.8 instruction 208: bundled markdown subdirs moved into
+    # the plugin-native skill folder; install targets keep the flat
+    # layout (``<install>/references/``, etc.), so the source side
+    # gets a different prefix than the destination side.
+    _skill_src_root = qpb_root / "skills" / "quality-playbook"
     for subdir in ("references", "phase_prompts", "agents"):
-        source_dir = qpb_root / subdir
+        source_dir = _skill_src_root / subdir
         installed_dir = bundle_dir / subdir
         if not source_dir.is_dir():
             continue
@@ -3013,11 +3017,20 @@ def _check_installed_bundle_freshness(
 
         bundle_bin = bundle_dir / "bin"
         target_bin = Path(target) / "bin"
-        src_bin = qpb_root / "bin"
+        # v1.5.8 instruction 208: source-of-bundled-bin moved from
+        # ``qpb_root/bin`` to ``qpb_root/skills/quality-playbook/scripts``.
+        # The pre-208 src_bin path is also accepted as a self-audit
+        # match so partially-restructured or legacy clones still
+        # short-circuit cleanly.
+        src_bin_nested = (
+            qpb_root / "skills" / "quality-playbook" / "scripts"
+        )
+        src_bin_legacy = qpb_root / "bin"
 
         def _is_source_tree(p: Path) -> bool:
             try:
-                return p.resolve() == src_bin.resolve()
+                pr = p.resolve()
+                return pr in {src_bin_nested.resolve(), src_bin_legacy.resolve()}
             except OSError:
                 return False
 

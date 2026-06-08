@@ -93,7 +93,7 @@ Start with `BUGS.md` for the headline findings. Then read `REQUIREMENTS.md` to s
 
 The rest of this README has detailed instructions for installing and running the playbook — commands, prompts, screenshots, the whole walkthrough. But the easiest way to get started is to skip the documentation entirely: **download one file, upload it to your favorite AI chatbot, and ask it for help.**
 
-The file is [`ai_context/TOOLKIT.md`](https://github.com/andrewstellman/quality-playbook/blob/main/ai_context/TOOLKIT.md). It's a single Markdown document that explains everything about the Quality Playbook in a format designed for AI assistants to read and answer questions from.
+The file is [`skills/quality-playbook/ai_context/TOOLKIT.md`](https://github.com/andrewstellman/quality-playbook/blob/main/skills/quality-playbook/ai_context/TOOLKIT.md). It's a single Markdown document that explains everything about the Quality Playbook in a format designed for AI assistants to read and answer questions from.
 
 Open a chat in whatever AI tool you use — Claude, ChatGPT, Cursor, GitHub Copilot, Gemini — attach `TOOLKIT.md`, and tell it:
 
@@ -243,32 +243,34 @@ mkdir -p .claude/skills/quality-playbook/references
 mkdir -p .claude/skills/quality-playbook/phase_prompts
 mkdir -p .claude/skills/quality-playbook/agents
 mkdir -p .claude/skills/quality-playbook/bin
-cp SKILL.md .claude/skills/quality-playbook/SKILL.md
-cp .github/skills/quality_gate/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
-cp references/* .claude/skills/quality-playbook/references/
-cp phase_prompts/*.md .claude/skills/quality-playbook/phase_prompts/
+# v1.5.8 instruction 208: source paths nest through skills/quality-playbook/.
+QPB_SKILL_SRC=skills/quality-playbook
+cp "$QPB_SKILL_SRC"/SKILL.md .claude/skills/quality-playbook/SKILL.md
+cp "$QPB_SKILL_SRC"/scripts/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
+cp "$QPB_SKILL_SRC"/references/* .claude/skills/quality-playbook/references/
+cp "$QPB_SKILL_SRC"/phase_prompts/*.md .claude/skills/quality-playbook/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
-cp agents/*.md .claude/skills/quality-playbook/agents/
+cp "$QPB_SKILL_SRC"/agents/*.md .claude/skills/quality-playbook/agents/
 # v1.5.7 089 (F1/A-29): the full bin/ closure SKILL.md + phase_prompts
 # hard-reference. MIRRORED from install_skill.py::_bundle_files() and
 # pinned by test_install_skill_bundle_completeness (drift recreates
 # the A-26 ship-blocker via this doc-sanctioned manual path).
-cp bin/__init__.py                          .claude/skills/quality-playbook/bin/__init__.py
-cp bin/_purpose.py                          .claude/skills/quality-playbook/bin/_purpose.py
-cp bin/archive_lib.py                       .claude/skills/quality-playbook/bin/archive_lib.py
-cp bin/benchmark_lib.py                     .claude/skills/quality-playbook/bin/benchmark_lib.py
-cp bin/citation_verifier.py                 .claude/skills/quality-playbook/bin/citation_verifier.py
-cp bin/council_config.py                    .claude/skills/quality-playbook/bin/council_config.py
-cp bin/council_semantic_check.py            .claude/skills/quality-playbook/bin/council_semantic_check.py
-cp bin/migrate_v1_5_0_layout.py             .claude/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
-cp bin/qpb_config.py                        .claude/skills/quality-playbook/bin/qpb_config.py
-cp bin/quality_playbook.py                  .claude/skills/quality-playbook/bin/quality_playbook.py
-cp bin/reference_docs_ingest.py             .claude/skills/quality-playbook/bin/reference_docs_ingest.py
-cp bin/role_map.py                          .claude/skills/quality-playbook/bin/role_map.py
-cp bin/run_state_lib.py                     .claude/skills/quality-playbook/bin/run_state_lib.py
-cp bin/validate_phase_artifacts.py          .claude/skills/quality-playbook/bin/validate_phase_artifacts.py
-cp bin/qpb_validate.py                      .claude/skills/quality-playbook/bin/qpb_validate.py
-cp bin/qpb_phase.py                         .claude/skills/quality-playbook/bin/qpb_phase.py
+cp "$QPB_SKILL_SRC"/scripts/__init__.py                          .claude/skills/quality-playbook/bin/__init__.py
+cp "$QPB_SKILL_SRC"/scripts/_purpose.py                          .claude/skills/quality-playbook/bin/_purpose.py
+cp "$QPB_SKILL_SRC"/scripts/archive_lib.py                       .claude/skills/quality-playbook/bin/archive_lib.py
+cp "$QPB_SKILL_SRC"/scripts/benchmark_lib.py                     .claude/skills/quality-playbook/bin/benchmark_lib.py
+cp "$QPB_SKILL_SRC"/scripts/citation_verifier.py                 .claude/skills/quality-playbook/bin/citation_verifier.py
+cp "$QPB_SKILL_SRC"/scripts/council_config.py                    .claude/skills/quality-playbook/bin/council_config.py
+cp "$QPB_SKILL_SRC"/scripts/council_semantic_check.py            .claude/skills/quality-playbook/bin/council_semantic_check.py
+cp "$QPB_SKILL_SRC"/scripts/migrate_v1_5_0_layout.py             .claude/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                        .claude/skills/quality-playbook/bin/qpb_config.py
+cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py                  .claude/skills/quality-playbook/bin/quality_playbook.py
+cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py             .claude/skills/quality-playbook/bin/reference_docs_ingest.py
+cp "$QPB_SKILL_SRC"/scripts/role_map.py                          .claude/skills/quality-playbook/bin/role_map.py
+cp "$QPB_SKILL_SRC"/scripts/run_state_lib.py                     .claude/skills/quality-playbook/bin/run_state_lib.py
+cp "$QPB_SKILL_SRC"/scripts/validate_phase_artifacts.py          .claude/skills/quality-playbook/bin/validate_phase_artifacts.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_validate.py                      .claude/skills/quality-playbook/bin/qpb_validate.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_phase.py                         .claude/skills/quality-playbook/bin/qpb_phase.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 # No README ships — cite/ contents are adopter-provided plaintext.
 mkdir -p reference_docs reference_docs/cite
@@ -280,7 +282,7 @@ echo "# Run Index" > quality/RUN_INDEX.md
 # Optional: append the suggested .gitignore rules for adopters (keeps bulk
 # archived runs + reference_docs content out of version control while tracking
 # the top-level RUN_INDEX.md).
-cat skill-template.gitignore >> .gitignore
+cat "$QPB_SKILL_SRC"/skill-template.gitignore >> .gitignore
 ```
 
 **GitHub Copilot (flat layout):**
@@ -289,32 +291,34 @@ mkdir -p .github/skills/references
 mkdir -p .github/skills/phase_prompts
 mkdir -p .github/skills/agents
 mkdir -p .github/skills/bin
-cp SKILL.md .github/skills/SKILL.md
-cp .github/skills/quality_gate/quality_gate.py .github/skills/quality_gate.py
-cp references/* .github/skills/references/
-cp phase_prompts/*.md .github/skills/phase_prompts/
+# v1.5.8 instruction 208: source paths nest through skills/quality-playbook/.
+QPB_SKILL_SRC=skills/quality-playbook
+cp "$QPB_SKILL_SRC"/SKILL.md .github/skills/SKILL.md
+cp "$QPB_SKILL_SRC"/scripts/quality_gate.py .github/skills/quality_gate.py
+cp "$QPB_SKILL_SRC"/references/* .github/skills/references/
+cp "$QPB_SKILL_SRC"/phase_prompts/*.md .github/skills/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
-cp agents/*.md .github/skills/agents/
+cp "$QPB_SKILL_SRC"/agents/*.md .github/skills/agents/
 # v1.5.7 089 (F1/A-29): the full bin/ closure SKILL.md + phase_prompts
 # hard-reference. MIRRORED from install_skill.py::_bundle_files() and
 # pinned by test_install_skill_bundle_completeness (drift recreates
 # the A-26 ship-blocker via this doc-sanctioned manual path).
-cp bin/__init__.py                          .github/skills/bin/__init__.py
-cp bin/_purpose.py                          .github/skills/bin/_purpose.py
-cp bin/archive_lib.py                       .github/skills/bin/archive_lib.py
-cp bin/benchmark_lib.py                     .github/skills/bin/benchmark_lib.py
-cp bin/citation_verifier.py                 .github/skills/bin/citation_verifier.py
-cp bin/council_config.py                    .github/skills/bin/council_config.py
-cp bin/council_semantic_check.py            .github/skills/bin/council_semantic_check.py
-cp bin/migrate_v1_5_0_layout.py             .github/skills/bin/migrate_v1_5_0_layout.py
-cp bin/qpb_config.py                        .github/skills/bin/qpb_config.py
-cp bin/quality_playbook.py                  .github/skills/bin/quality_playbook.py
-cp bin/reference_docs_ingest.py             .github/skills/bin/reference_docs_ingest.py
-cp bin/role_map.py                          .github/skills/bin/role_map.py
-cp bin/run_state_lib.py                     .github/skills/bin/run_state_lib.py
-cp bin/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
-cp bin/qpb_validate.py                      .github/skills/bin/qpb_validate.py
-cp bin/qpb_phase.py                         .github/skills/bin/qpb_phase.py
+cp "$QPB_SKILL_SRC"/scripts/__init__.py                          .github/skills/bin/__init__.py
+cp "$QPB_SKILL_SRC"/scripts/_purpose.py                          .github/skills/bin/_purpose.py
+cp "$QPB_SKILL_SRC"/scripts/archive_lib.py                       .github/skills/bin/archive_lib.py
+cp "$QPB_SKILL_SRC"/scripts/benchmark_lib.py                     .github/skills/bin/benchmark_lib.py
+cp "$QPB_SKILL_SRC"/scripts/citation_verifier.py                 .github/skills/bin/citation_verifier.py
+cp "$QPB_SKILL_SRC"/scripts/council_config.py                    .github/skills/bin/council_config.py
+cp "$QPB_SKILL_SRC"/scripts/council_semantic_check.py            .github/skills/bin/council_semantic_check.py
+cp "$QPB_SKILL_SRC"/scripts/migrate_v1_5_0_layout.py             .github/skills/bin/migrate_v1_5_0_layout.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                        .github/skills/bin/qpb_config.py
+cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py                  .github/skills/bin/quality_playbook.py
+cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py             .github/skills/bin/reference_docs_ingest.py
+cp "$QPB_SKILL_SRC"/scripts/role_map.py                          .github/skills/bin/role_map.py
+cp "$QPB_SKILL_SRC"/scripts/run_state_lib.py                     .github/skills/bin/run_state_lib.py
+cp "$QPB_SKILL_SRC"/scripts/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_validate.py                      .github/skills/bin/qpb_validate.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_phase.py                         .github/skills/bin/qpb_phase.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
 # v1.5.7: the quality/RUN_INDEX.md sentinel for the gitignore negation
@@ -322,7 +326,7 @@ mkdir -p reference_docs reference_docs/cite
 # sentinel files missing"; install_skill.py creates it too).
 mkdir -p quality
 echo "# Run Index" > quality/RUN_INDEX.md
-cat skill-template.gitignore >> .gitignore
+cat "$QPB_SKILL_SRC"/skill-template.gitignore >> .gitignore
 ```
 
 **GitHub Copilot (nested layout):**
@@ -331,31 +335,33 @@ mkdir -p .github/skills/quality-playbook/references
 mkdir -p .github/skills/quality-playbook/phase_prompts
 mkdir -p .github/skills/quality-playbook/agents
 mkdir -p .github/skills/quality-playbook/bin
-cp SKILL.md .github/skills/quality-playbook/SKILL.md
-cp .github/skills/quality_gate/quality_gate.py .github/skills/quality-playbook/quality_gate.py
-cp references/* .github/skills/quality-playbook/references/
-cp phase_prompts/*.md .github/skills/quality-playbook/phase_prompts/
+# v1.5.8 instruction 208: source paths nest through skills/quality-playbook/.
+QPB_SKILL_SRC=skills/quality-playbook
+cp "$QPB_SKILL_SRC"/SKILL.md .github/skills/quality-playbook/SKILL.md
+cp "$QPB_SKILL_SRC"/scripts/quality_gate.py .github/skills/quality-playbook/quality_gate.py
+cp "$QPB_SKILL_SRC"/references/* .github/skills/quality-playbook/references/
+cp "$QPB_SKILL_SRC"/phase_prompts/*.md .github/skills/quality-playbook/phase_prompts/
 # v1.5.6: agents/*.md needed by README Step 4's `claude --agent agents/...` invocation.
-cp agents/*.md .github/skills/quality-playbook/agents/
+cp "$QPB_SKILL_SRC"/agents/*.md .github/skills/quality-playbook/agents/
 # v1.5.7 089 (F1/A-29): the full bin/ closure SKILL.md + phase_prompts
 # hard-reference. MIRRORED from install_skill.py::_bundle_files() and
 # pinned by test_install_skill_bundle_completeness (drift recreates
 # the A-26 ship-blocker via this doc-sanctioned manual path).
-cp bin/__init__.py                          .github/skills/quality-playbook/bin/__init__.py
-cp bin/_purpose.py                          .github/skills/quality-playbook/bin/_purpose.py
-cp bin/archive_lib.py                       .github/skills/quality-playbook/bin/archive_lib.py
-cp bin/benchmark_lib.py                     .github/skills/quality-playbook/bin/benchmark_lib.py
-cp bin/citation_verifier.py                 .github/skills/quality-playbook/bin/citation_verifier.py
-cp bin/council_config.py                    .github/skills/quality-playbook/bin/council_config.py
-cp bin/council_semantic_check.py            .github/skills/quality-playbook/bin/council_semantic_check.py
-cp bin/migrate_v1_5_0_layout.py             .github/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
-cp bin/qpb_config.py                        .github/skills/quality-playbook/bin/qpb_config.py
-cp bin/quality_playbook.py                  .github/skills/quality-playbook/bin/quality_playbook.py
-cp bin/reference_docs_ingest.py             .github/skills/quality-playbook/bin/reference_docs_ingest.py
-cp bin/role_map.py                          .github/skills/quality-playbook/bin/role_map.py
-cp bin/run_state_lib.py                     .github/skills/quality-playbook/bin/run_state_lib.py
-cp bin/validate_phase_artifacts.py          .github/skills/quality-playbook/bin/validate_phase_artifacts.py
-cp bin/qpb_validate.py                      .github/skills/quality-playbook/bin/qpb_validate.py
+cp "$QPB_SKILL_SRC"/scripts/__init__.py                          .github/skills/quality-playbook/bin/__init__.py
+cp "$QPB_SKILL_SRC"/scripts/_purpose.py                          .github/skills/quality-playbook/bin/_purpose.py
+cp "$QPB_SKILL_SRC"/scripts/archive_lib.py                       .github/skills/quality-playbook/bin/archive_lib.py
+cp "$QPB_SKILL_SRC"/scripts/benchmark_lib.py                     .github/skills/quality-playbook/bin/benchmark_lib.py
+cp "$QPB_SKILL_SRC"/scripts/citation_verifier.py                 .github/skills/quality-playbook/bin/citation_verifier.py
+cp "$QPB_SKILL_SRC"/scripts/council_config.py                    .github/skills/quality-playbook/bin/council_config.py
+cp "$QPB_SKILL_SRC"/scripts/council_semantic_check.py            .github/skills/quality-playbook/bin/council_semantic_check.py
+cp "$QPB_SKILL_SRC"/scripts/migrate_v1_5_0_layout.py             .github/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                        .github/skills/quality-playbook/bin/qpb_config.py
+cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py                  .github/skills/quality-playbook/bin/quality_playbook.py
+cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py             .github/skills/quality-playbook/bin/reference_docs_ingest.py
+cp "$QPB_SKILL_SRC"/scripts/role_map.py                          .github/skills/quality-playbook/bin/role_map.py
+cp "$QPB_SKILL_SRC"/scripts/run_state_lib.py                     .github/skills/quality-playbook/bin/run_state_lib.py
+cp "$QPB_SKILL_SRC"/scripts/validate_phase_artifacts.py          .github/skills/quality-playbook/bin/validate_phase_artifacts.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_validate.py                      .github/skills/quality-playbook/bin/qpb_validate.py
 cp bin/qpb_phase.py                         .github/skills/quality-playbook/bin/qpb_phase.py
 # v1.5.2: single reference_docs/ tree at the target repo root.
 mkdir -p reference_docs reference_docs/cite
@@ -364,7 +370,7 @@ mkdir -p reference_docs reference_docs/cite
 # sentinel files missing"; install_skill.py creates it too).
 mkdir -p quality
 echo "# Run Index" > quality/RUN_INDEX.md
-cat skill-template.gitignore >> .gitignore
+cat "$QPB_SKILL_SRC"/skill-template.gitignore >> .gitignore
 ```
 
 **Cursor, Windsurf, other tools:** Use any of the locations above, or put the full skill bundle (50 files: `SKILL.md`, `quality_gate.py`, `references/`, `phase_prompts/`, `agents/`, and 13 `bin/*.py` modules — see `bin/install_skill.py::_bundle_files()` for the authoritative list, or the Step 3 manual recipe above) in your project root. The runner, gate, and orchestrator agents check all ten documented install layouts in order — repo-root `SKILL.md` plus the canonical `<marker>/skills/quality-playbook/` subdirectory for each of the 8 supported tools (`.claude`, `.github`, `.cursor`, `.continue`, `.codex`, `.windsurf`, `.cline`, `.aider`), with `.github/skills/` also accepted for the flat Copilot layout. The simplest path for any of these tools is still `python3 -m bin.install_skill --ai-tool <tool>`, which writes to the right subdirectory automatically.
@@ -1149,45 +1155,64 @@ options:
 
 ## Repository structure
 
+v1.5.8 instruction 208: restructured to Claude Code's plugin-native
+layout so the marketplace mechanism (`/plugin marketplace add github.com/andrewstellman/quality-playbook`)
+can auto-discover the skill. Bundled skill files now live under
+`skills/quality-playbook/`; the pip/npm bundle internal layout
+(`_bundle/SKILL.md`, `_bundle/bin/...`, etc.) is unchanged.
+
 ```
 quality-playbook/
-├── SKILL.md                 # The skill (main file — full operational instructions)
-├── references/              # Protocol and pipeline reference docs
-│   ├── challenge_gate.md         # False-positive detection gate for CRITICAL findings
-│   ├── constitution.md           # Guidance for drafting the quality constitution
-│   ├── defensive_patterns.md     # Forensic inversion of try/except, null guards, fallback paths
-│   ├── exploration_patterns.md   # Pattern library for Phase 1 exploration
-│   ├── functional_tests.md       # Functional-test generation (all languages, import patterns)
-│   ├── iteration.md              # Iteration strategies (gap, unfiltered, parity, adversarial)
-│   ├── orchestrator_protocol.md  # Shared hardening rules for orchestrator agents
-│   ├── requirements_pipeline.md  # Requirements derivation and post-review reconciliation
-│   ├── requirements_refinement.md # Coverage / completeness refinement pass
-│   ├── requirements_review.md    # Pre-finalization requirements review
-│   ├── review_protocols.md       # Three-pass code review protocol
-│   ├── schema_mapping.md         # tdd-results.json / recheck-results.json schema reference
-│   ├── spec_audit.md             # Council of Three spec audit protocol
-│   └── verification.md           # 45 self-check benchmarks for Phase 6
-├── agents/                  # Orchestrator agent files for autonomous runs
-│   ├── quality-playbook-claude.agent.md   # Claude Code orchestrator (sub-agent architecture)
-│   └── quality-playbook.agent.md          # General-purpose orchestrator
-├── bin/                     # Standard-library runner package (Python 3.10+)
+├── .claude-plugin/          # Claude Code plugin marketplace manifests
+│   ├── marketplace.json     # Marketplace entry (auto-discovers skills/quality-playbook/)
+│   └── plugin.json          # Plugin metadata (name, description, version, author)
+├── skills/                  # Plugin-native skill folder layout (v1.5.8 208)
+│   └── quality-playbook/
+│       ├── SKILL.md         # The skill (main file — full operational instructions)
+│       ├── references/      # Protocol and pipeline reference docs
+│       │   ├── challenge_gate.md
+│       │   ├── constitution.md
+│       │   ├── defensive_patterns.md
+│       │   ├── exploration_patterns.md
+│       │   ├── functional_tests.md
+│       │   ├── iteration.md
+│       │   ├── orchestrator_protocol.md
+│       │   ├── requirements_pipeline.md
+│       │   ├── requirements_refinement.md
+│       │   ├── requirements_review.md
+│       │   ├── review_protocols.md
+│       │   ├── schema_mapping.md
+│       │   ├── spec_audit.md
+│       │   └── verification.md
+│       ├── phase_prompts/   # Per-phase agent prompts (Mode A + Mode B)
+│       ├── agents/          # Orchestrator agent files for autonomous runs
+│       │   ├── quality-playbook-claude.agent.md
+│       │   └── quality-playbook.agent.md
+│       ├── ai_context/      # Adopter-facing AI context
+│       │   └── TOOLKIT.md   # For users' AI assistants (setup, run, interpret, recheck)
+│       ├── scripts/         # Bundled scripts (canonical source; flattened to bin/ in the install bundle)
+│       │   ├── quality_gate.py
+│       │   ├── install_skill.py
+│       │   ├── qpb_validate.py
+│       │   └── ... (other bundled scripts)
+│       └── skill-template.gitignore
+├── bin/                     # Repo-level runner + build scripts (Python 3.10+)
 │   ├── __init__.py
-│   ├── benchmark_lib.py     # Shared logging, cleanup, artifact discovery, and summary helpers
-│   ├── run_playbook.py      # Main entry point — positional args are target directories; defaults to cwd
-│   └── tests/               # 92 stdlib-only unit tests (python3 -m pytest bin/tests/)
-├── .github/skills/          # Installed-copy layout (also used in target repos)
-│   ├── quality_gate.py      # Symlink → quality_gate/quality_gate.py (stable invocation path)
-│   └── quality_gate/        # Gate script package (sole mechanical gate; bash version retired in v1.4.5)
-│       ├── __init__.py
-│       ├── quality_gate.py  # Mechanical validation script (14 check sections, 1100+ lines)
-│       └── tests/           # 108 stdlib-only unit tests for the gate
+│   ├── run_playbook.py      # Mode B runner (positional args are target directories)
+│   ├── build_channel_package.py  # Stages the pip/npm bundle from skills/quality-playbook/
+│   ├── publish_pip.py       # Pip publish path
+│   ├── publish_npm.py       # Npm publish path
+│   ├── submit_awesome_copilot.py  # awesome-copilot submission automation
+│   ├── install_skill.py     # Thin shim — delegates to skills/quality-playbook/scripts/install_skill.py
+│   └── tests/               # stdlib-only unit tests (python3 -m pytest bin/tests/)
+├── .github/skills/          # Installed-copy benchmark layout (preserved for setup_repos.sh)
 ├── pytest/                  # Local stdlib-only shim (python3 -m pytest works without installs)
-├── ai_context/              # AI-readable context files (orientation docs)
-│   ├── TOOLKIT.md           # For users' AI assistants (setup, run, interpret, recheck)
-│   ├── DEVELOPMENT_CONTEXT.md  # For maintainers' AI assistants
-│   ├── IMPROVEMENT_LOOP.md  # PDCA loop, verification dimensions, improvement levers, regression replay
-│   ├── TOOLKIT_TEST_PROTOCOL.md  # Release-gate review for orientation docs (14 reader personas)
-│   └── BENCHMARK_PROTOCOL.md  # Benchmark conventions and target-resolution rules
+├── ai_context/              # AI-readable maintainer-facing context (orientation docs)
+│   ├── DEVELOPMENT_CONTEXT.md
+│   ├── DEVELOPMENT_PROCESS.md
+│   ├── IMPROVEMENT_LOOP.md
+│   ├── TOOLKIT_TEST_PROTOCOL.md
+│   └── BENCHMARK_PROTOCOL.md
 ├── AGENTS.md                # AI bootstrap file (repo root)
 ├── LICENSE.txt              # Apache 2.0
 └── quality/                 # Generated quality infrastructure (from running the skill on itself)

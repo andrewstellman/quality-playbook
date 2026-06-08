@@ -28,8 +28,9 @@ from bin import role_map as rm
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
+# v1.5.8 instruction 208: quality_gate.py moved to skills/quality-playbook/scripts/.
 GATE_PATH = (
-    REPO_ROOT / ".github" / "skills" / "quality_gate" / "quality_gate.py"
+    REPO_ROOT / "skills" / "quality-playbook" / "scripts" / "quality_gate.py"
 )
 
 

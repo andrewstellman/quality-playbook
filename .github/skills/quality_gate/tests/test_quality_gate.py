@@ -42,13 +42,22 @@ import unittest
 from datetime import date, timedelta
 from pathlib import Path
 
+# v1.5.8 instruction 208: quality_gate.py canonical source moved
+# from .github/skills/quality_gate/quality_gate.py to
+# skills/quality-playbook/scripts/quality_gate.py. PACKAGE_DIR
+# still points at the legacy tests' package dir because the
+# tests + fixtures stay here (only the script moved). SCRIPT_PATH
+# resolves the new canonical location.
 PACKAGE_DIR = Path(__file__).resolve().parent.parent
-SCRIPT_PATH = PACKAGE_DIR / "quality_gate.py"
+_REPO_ROOT = PACKAGE_DIR.parent.parent.parent
+SCRIPT_PATH = (
+    _REPO_ROOT / "skills" / "quality-playbook" / "scripts" / "quality_gate.py"
+)
 
 # Import the module for direct helper tests.
-# Insert the package dir first so `import quality_gate` resolves to the module
-# file (quality_gate.py) rather than the package (quality_gate/__init__.py).
-sys.path.insert(0, str(PACKAGE_DIR))
+# Insert the scripts dir first so `import quality_gate` resolves to the
+# module file (quality_gate.py) at the new canonical location.
+sys.path.insert(0, str(SCRIPT_PATH.parent))
 import quality_gate  # noqa: E402
 
 
@@ -366,7 +375,7 @@ class TestFailHelperFormat(unittest.TestCase):
     def test_no_FAIL_prefix_in_gate_module_source(self):
         """The literal 'FAIL: ' must not appear in gate output per Phase 5 r3
         format contract (grep acceptance criterion)."""
-        src = PACKAGE_DIR.joinpath("quality_gate.py").read_text(encoding="utf-8")
+        src = SCRIPT_PATH.read_text(encoding="utf-8")
         # Allow comments/docstrings to mention the string, but the actual
         # print() calls must not emit it. Scan format literals.
         import re

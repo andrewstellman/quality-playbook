@@ -23,7 +23,26 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 _QPB_ROOT = Path(__file__).resolve().parents[2]
-_BIN = _QPB_ROOT / "bin"
+# v1.5.8 instruction 208: bundled scripts moved to
+# skills/quality-playbook/scripts/. classify_project.py stays at the
+# legacy bin/ location (it's not bundled with the skill).
+_BIN_NESTED = _QPB_ROOT / "skills" / "quality-playbook" / "scripts"
+_BIN_LEGACY = _QPB_ROOT / "bin"
+
+
+def _resolve_script(script: str) -> Path:
+    nested = _BIN_NESTED / script
+    if nested.is_file():
+        return nested
+    return _BIN_LEGACY / script
+
+
+class _BinResolver:
+    def __truediv__(self, script: str) -> Path:
+        return _resolve_script(script)
+
+
+_BIN = _BinResolver()
 
 # install_skill (the installer itself, launch-prompt invoked) + the
 # five §5.2 "Audit and apply if missing" entry points.

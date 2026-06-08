@@ -51,8 +51,10 @@ import unittest
 from pathlib import Path
 
 
-SKILL_MD = Path(__file__).resolve().parents[2] / "SKILL.md"
-REFERENCES_DIR = Path(__file__).resolve().parents[2] / "references"
+# v1.5.8 instruction 208: SKILL.md + references/ moved into the plugin skill folder.
+_SKILL_DIR = Path(__file__).resolve().parents[2] / "skills" / "quality-playbook"
+SKILL_MD = _SKILL_DIR / "SKILL.md"
+REFERENCES_DIR = _SKILL_DIR / "references"
 
 
 class SkillMdSizeTests(unittest.TestCase):

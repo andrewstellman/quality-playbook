@@ -31,7 +31,11 @@ from unittest import mock
 from bin import qpb_validate as v
 
 _QPB_ROOT = Path(__file__).resolve().parents[2]
-_VALIDATOR = _QPB_ROOT / "bin" / "qpb_validate.py"
+# v1.5.8 instruction 208: qpb_validate.py moved to
+# skills/quality-playbook/scripts/.
+_VALIDATOR = (
+    _QPB_ROOT / "skills" / "quality-playbook" / "scripts" / "qpb_validate.py"
+)
 _INSTALLER = _QPB_ROOT / "bin" / "install_skill.py"
 
 _NONCE_RE = re.compile(r"\bnonce=([0-9a-f]{32})\b")
@@ -270,18 +274,29 @@ class DetectInvocationContextTests(unittest.TestCase):
 
     def test_detect_invocation_context_returns_clone_for_clone_root(self):
         """A clone-shaped tree (bundle-absent marker present, no
-        installed ancestor) classifies as 'clone'."""
+        installed ancestor) classifies as 'clone'.
+
+        v1.5.8 instruction 208: the marker set dropped the bare
+        ``ai_context`` directory because the post-208 layout creates
+        ``skills/quality-playbook/ai_context/`` (TOOLKIT.md moved
+        into the plugin skill folder), which would false-positive
+        the detection at the skill-folder level. The more specific
+        ``ai_context/DEVELOPMENT_PROCESS.md`` is the replacement
+        marker (that file only ever lives at the QPB repo root)."""
         for marker in ("setup_repos.sh", ".git", "docs/design",
-                       "ai_context"):
+                       "ai_context/DEVELOPMENT_PROCESS.md"):
             with self.subTest(marker=marker), TemporaryDirectory() as td:
                 clone = Path(td) / "QPBclone"
                 (clone / "bin").mkdir(parents=True)
                 (clone / "SKILL.md").write_text("x")
                 mk = clone / marker
-                if "/" in marker or marker in ("docs/design",):
+                if marker == "docs/design":
                     mk.mkdir(parents=True)
-                elif marker in (".git", "ai_context"):
+                elif marker == ".git":
                     mk.mkdir()
+                elif marker == "ai_context/DEVELOPMENT_PROCESS.md":
+                    mk.parent.mkdir(parents=True, exist_ok=True)
+                    mk.write_text("# DEVELOPMENT_PROCESS marker\n")
                 else:
                     mk.write_text("#!/bin/bash\n")
                 fake = clone / "bin" / "qpb_validate.py"

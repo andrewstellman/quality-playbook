@@ -22,9 +22,11 @@ import unittest
 from pathlib import Path
 
 _QPB_ROOT = Path(__file__).resolve().parents[2]
-_PHASE6 = _QPB_ROOT / "phase_prompts" / "phase6.md"
-_AUDITOR = _QPB_ROOT / "phase_prompts" / "phase6_auditor.md"
-_SKILL_MD = _QPB_ROOT / "SKILL.md"
+# v1.5.8 instruction 208: phase_prompts/ + SKILL.md moved into the plugin skill folder.
+_SKILL_DIR = _QPB_ROOT / "skills" / "quality-playbook"
+_PHASE6 = _SKILL_DIR / "phase_prompts" / "phase6.md"
+_AUDITOR = _SKILL_DIR / "phase_prompts" / "phase6_auditor.md"
+_SKILL_MD = _SKILL_DIR / "SKILL.md"
 
 
 def _slice(text: str, header: str, *stops: str) -> str:

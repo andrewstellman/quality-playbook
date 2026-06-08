@@ -35,10 +35,11 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-QUALITY_GATE = (
-    REPO_ROOT / ".github" / "skills" / "quality_gate" / "quality_gate.py"
-)
-WHAT_JUST_HAPPENED = REPO_ROOT / "references" / "what_just_happened.md"
+# v1.5.8 instruction 208: quality_gate.py + references/ moved into
+# skills/quality-playbook/.
+_SKILL_DIR = REPO_ROOT / "skills" / "quality-playbook"
+QUALITY_GATE = _SKILL_DIR / "scripts" / "quality_gate.py"
+WHAT_JUST_HAPPENED = _SKILL_DIR / "references" / "what_just_happened.md"
 
 
 # The literal gate-log substrings the 089p recap augmentation

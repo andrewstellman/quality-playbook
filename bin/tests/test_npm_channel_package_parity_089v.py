@@ -117,9 +117,13 @@ class NpmChannelPackageParity089vStructuralTests(unittest.TestCase):
         clone-relative bundle file must be present in the npm
         tarball, plus the executors, the Python shim, and the
         npm-only extras."""
+        # v1.5.8 instruction 208: pass the skill-source root to
+        # _bundle_files so it resolves sources from the post-208
+        # plugin layout.
+        skill_root = REPO_ROOT / "skills" / "quality-playbook"
         npm_paths = set(bcp.enumerate_npm_tarball(REPO_ROOT))
         bundle_sources = {src for src, _dest_rel in
-                          install_skill._bundle_files(REPO_ROOT)}
+                          install_skill._bundle_files(skill_root)}
         missing = bundle_sources - npm_paths
         self.assertFalse(
             missing,
@@ -343,9 +347,14 @@ class NpmChannelPackageParity089vE2ETests(unittest.TestCase):
         absent from the tarball manifest."""
         names = self._npm_pack_filelist()
         missing = []
-        for src, _dest_rel in install_skill._bundle_files(REPO_ROOT):
-            rel = src.resolve().relative_to(REPO_ROOT)
-            tarball_rel = "quality_playbook_cli/_bundle/" + rel.as_posix()
+        # v1.5.8 instruction 208: bundle internal layout is FROZEN
+        # (_bundle/SKILL.md, _bundle/bin/*.py, etc.). Source-side
+        # paths shifted into skills/quality-playbook/, so derive the
+        # tarball path from dst_rel (the bundle-internal layout)
+        # instead of from the clone-relative source path.
+        skill_root = REPO_ROOT / "skills" / "quality-playbook"
+        for _src, dst_rel in install_skill._bundle_files(skill_root):
+            tarball_rel = "quality_playbook_cli/_bundle/" + Path(dst_rel).as_posix()
             if tarball_rel not in names:
                 missing.append(tarball_rel)
         self.assertFalse(
