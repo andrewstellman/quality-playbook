@@ -172,7 +172,9 @@ These are documented in Design § 2.1-2.7. Each has its own sub-phase if impleme
 - B-4: Bug-neighborhood iteration strategy (Design § 2.4)
 - B-5: Adversarial fresh-context review pass (Design § 2.5)
 - B-6: Combine related findings into single coherent PR (Design § 2.6)
-- B-7: Phase 7 bugspec-format emit (Design § 2.7) — includes the no-tool-promotional-content-in-source-artifacts constraint per Design § 2.7's subsection. The constraint is implementable independently of the rest of B-7 if needed (it's a stripper + regression test against the existing PR-generation flow).
+- B-7: Phase 7 bugspec-format emit (Design § 2.7) — includes two sub-constraints per Design § 2.7's subsections, both implementable independently of the rest of B-7:
+  - **Target-project conformance** (Design § 2.7 sub-constraint): a 7-dimension conformance pipeline (A no-tool-promo content, B no-new-directories, C integrate-into-existing-test-class, D match-target-test-style, E match-naming, F match-license-header, G test-scope-mirrors-fix-scope). Each dimension is a separable stripper / detector / generator with its own regression test. Born from gson PR #3035's 7 cleanup categories.
+  - **Mutation verification before SHIP-WORTHY classification** (Design § 2.7 sub-constraint): every TDD-verified test runs a revert→run→restore→run cycle in a temp worktree; tests that don't fail on the unfix'd target get demoted to LOCAL-FIX-WORTHY. Complementary to B-8 (which catches assertion-quality issues); this gate catches any reason a test would pass without the fix. Logged to `quality/mutation_verification.json`.
 
 Operator decides at Phase 6 entry which to land in v1.5.10. Default: defer all to v1.5.11 unless one becomes blocking.
 
