@@ -29,7 +29,7 @@ from pathlib import Path
 
 _QPB_ROOT = Path(__file__).resolve().parents[2]
 # v1.5.8 instruction 208: phase_prompts/ + references/ moved into the plugin skill folder.
-_SKILL_DIR = _QPB_ROOT / "skills" / "quality-playbook"
+_SKILL_DIR = _QPB_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 _PP = _SKILL_DIR / "phase_prompts"
 _REF = _SKILL_DIR / "references"
 

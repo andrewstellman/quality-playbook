@@ -26,7 +26,7 @@ _QPB_ROOT = Path(__file__).resolve().parents[2]
 # v1.5.8 instruction 208: bundled scripts moved to
 # skills/quality-playbook/scripts/. classify_project.py stays at the
 # legacy bin/ location (it's not bundled with the skill).
-_BIN_NESTED = _QPB_ROOT / "skills" / "quality-playbook" / "scripts"
+_BIN_NESTED = _QPB_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts"
 _BIN_LEGACY = _QPB_ROOT / "bin"
 
 

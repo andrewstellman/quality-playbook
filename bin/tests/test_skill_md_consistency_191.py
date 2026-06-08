@@ -22,8 +22,12 @@ _REPO = pathlib.Path(__file__).resolve().parents[2]
 
 
 def _skill_md() -> str:
-    # v1.5.8 instruction 208: SKILL.md moved into the plugin skill folder.
-    return (_REPO / "skills" / "quality-playbook" / "SKILL.md").read_text(encoding="utf-8")
+    # v1.5.8 instruction 209: SKILL.md lives under the standard
+    # self-hosted marketplace plugin layout.
+    return (
+        _REPO / "plugins" / "quality-playbook"
+        / "skills" / "quality-playbook" / "SKILL.md"
+    ).read_text(encoding="utf-8")
 
 
 class Phase0NamingTests(unittest.TestCase):

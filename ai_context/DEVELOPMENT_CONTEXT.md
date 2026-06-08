@@ -24,14 +24,19 @@ Each section is self-contained; jump to the heading you need rather than reading
 
 ## Project structure
 
-v1.5.8 instruction 208 restructured the repo to Claude Code's
-plugin-native layout (`skills/<name>/SKILL.md`) so the plugin
-marketplace auto-discovers the skill. Bundled adopter-facing files
-(SKILL.md + references/ + phase_prompts/ + agents/ + scripts/ +
+v1.5.8 instruction 208 restructured the repo to a plugin-native
+layout; instruction 209 then completed the restructure to Claude
+Code's **standard self-hosted marketplace** layout
+(`.claude-plugin/marketplace.json` at the repo root + plugin
+content under `plugins/<plugin-name>/`) so the plugin loads
+correctly via `claude --plugin-dir` AND the marketplace works via
+`/plugin marketplace add`. Bundled adopter-facing files (SKILL.md +
+references/ + phase_prompts/ + agents/ + scripts/ +
 ai_context/TOOLKIT.md + skill-template.gitignore) live under
-`skills/quality-playbook/`. The pip wheel + npm tarball internal
-layout (`_bundle/SKILL.md`, `_bundle/bin/...`, etc.) is unchanged
-and ships from `bin/build_channel_package.py`.
+`plugins/quality-playbook/skills/quality-playbook/`. The pip wheel
++ npm tarball internal layout (`_bundle/SKILL.md`,
+`_bundle/bin/...`, etc.) is unchanged and ships from
+`bin/build_channel_package.py`.
 
 ```
 quality-playbook/
@@ -40,44 +45,47 @@ quality-playbook/
 ├── README.md                          ← Adopter-facing introduction + install guide
 ├── pyproject.toml                     ← Pip channel manifest
 ├── package.json                       ← Npm channel manifest
-├── .claude-plugin/                    ← Claude Code plugin marketplace manifests (v1.5.8 208)
-│   ├── marketplace.json               ← Marketplace entry — auto-discovers skills/quality-playbook/
-│   └── plugin.json                    ← Plugin metadata (name, description, version, author)
-├── skills/                            ← Plugin-native skill folder layout (v1.5.8 208)
-│   └── quality-playbook/
-│       ├── SKILL.md                   ← The skill — full operational instructions
-│       ├── references/                ← Reference files read during specific phases
-│       ├── phase_prompts/             ← Per-phase prompts (Mode A + Mode B single source of truth)
-│       ├── agents/                    ← Orchestrator agent files for autonomous runs
-│       ├── ai_context/                ← Adopter-facing AI context (TOOLKIT.md)
-│       │   └── TOOLKIT.md             ← For users' AI assistants (setup, run, interpret, recheck)
-│       ├── scripts/                   ← Bundled scripts (canonical source)
-│       │   ├── quality_gate.py        ← Mechanical Phase 5 gate (3000+ lines, Python 3.10+)
-│       │   ├── install_skill.py       ← Adopter-side installer (canonical; bin/install_skill.py shims here)
-│       │   ├── qpb_validate.py        ← Phase 0 validator
-│       │   ├── qpb_phase.py           ← Phase-sentinel emitter
-│       │   ├── citation_verifier.py   ← v1.5.0 byte-deterministic citation excerpt extractor
-│       │   ├── benchmark_lib.py       ← Shared helpers (versioned from repos/_benchmark_lib.sh)
-│       │   ├── reference_docs_ingest.py ← Phase 1 doc ingest
-│       │   ├── _purpose.py            ← Shared banner / version-reader helpers
-│       │   ├── quality_playbook.py + archive_lib.py + council_*.py + role_map.py + run_state_lib.py + ... ← Mode-A closure
-│       │   └── __init__.py            ← Package marker
-│       └── skill-template.gitignore   ← Adopter-target gitignore sentinel
+├── .claude-plugin/                    ← Standard self-hosted marketplace catalog (v1.5.8 209)
+│   └── marketplace.json               ← Marketplace entry — points at ./plugins/quality-playbook
+├── plugins/                           ← Standard self-hosted marketplace plugins (v1.5.8 209)
+│   └── quality-playbook/              ← The plugin
+│       ├── .claude-plugin/
+│       │   └── plugin.json            ← Plugin metadata (name, description, version, author)
+│       └── skills/
+│           └── quality-playbook/      ← The skill bundle source
+│               ├── SKILL.md           ← The skill — full operational instructions
+│               ├── references/        ← Reference files read during specific phases
+│               ├── phase_prompts/     ← Per-phase prompts (Mode A + Mode B single source of truth)
+│               ├── agents/            ← Orchestrator agent files for autonomous runs
+│               ├── ai_context/        ← Adopter-facing AI context (TOOLKIT.md)
+│               │   └── TOOLKIT.md     ← For users' AI assistants (setup, run, interpret, recheck)
+│               ├── scripts/           ← Bundled scripts (canonical source)
+│               │   ├── quality_gate.py        ← Mechanical Phase 5 gate (3000+ lines, Python 3.10+)
+│               │   ├── install_skill.py       ← Adopter-side installer (canonical; bin/install_skill.py shims here)
+│               │   ├── qpb_validate.py        ← Phase 0 validator
+│               │   ├── qpb_phase.py           ← Phase-sentinel emitter
+│               │   ├── citation_verifier.py   ← v1.5.0 byte-deterministic citation excerpt extractor
+│               │   ├── benchmark_lib.py       ← Shared helpers (versioned from repos/_benchmark_lib.sh)
+│               │   ├── reference_docs_ingest.py ← Phase 1 doc ingest
+│               │   ├── _purpose.py            ← Shared banner / version-reader helpers
+│               │   ├── quality_playbook.py + archive_lib.py + council_*.py + role_map.py + run_state_lib.py + ... ← Mode-A closure
+│               │   └── __init__.py            ← Package marker
+│               └── skill-template.gitignore   ← Adopter-target gitignore sentinel
 ├── bin/                               ← Repo-level runner + build scripts (Python 3.10+)
-│   ├── __init__.py                    ← Package marker — extends __path__ to skills/quality-playbook/scripts/
+│   ├── __init__.py                    ← Package marker — extends __path__ to plugins/quality-playbook/skills/quality-playbook/scripts/
 │   ├── run_playbook.py                ← Mode B runner — positional args are target directories
-│   ├── build_channel_package.py       ← Stages quality_playbook_cli/_bundle/ from skills/quality-playbook/
+│   ├── build_channel_package.py       ← Stages quality_playbook_cli/_bundle/ from plugins/quality-playbook/skills/quality-playbook/
 │   ├── publish_pip.py + publish_npm.py + submit_awesome_copilot.py ← Release-channel scripts
 │   ├── classify_project.py            ← v1.5.3 Phase 0 project-type classifier
 │   ├── visualize_calibration.py       ← v1.5.5 four-chart cycle visualization
 │   ├── qpb_harness.py + harness/      ← Test harness (dev-only)
 │   ├── skill_derivation/              ← v1.5.3 Skill / Hybrid four-pass derivation + divergence detection
-│   ├── install_skill.py               ← Thin shim — delegates to skills/quality-playbook/scripts/install_skill.py
+│   ├── install_skill.py               ← Thin shim — delegates to plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py
 │   └── tests/                         ← Stdlib-only tests for the runner package
 ├── pytest/                            ← Local stdlib-only shim so python3 -m pytest works without installs
 ├── .github/                           ← Installed-copy benchmark layout (preserved for setup_repos.sh)
 │   └── skills/
-│       └── quality_gate/              ← Pre-208 gate package — quality_gate.py moved to skills/quality-playbook/scripts/
+│       └── quality_gate/              ← Pre-208 gate package — quality_gate.py canonical at plugins/quality-playbook/skills/quality-playbook/scripts/
 │           ├── __init__.py            ← Re-exports public API via importlib path-load from the new canonical location
 │           └── tests/                 ← Gate test suite (unchanged location; paths updated to find script at new location)
 ├── ai_context/                        ← Maintainer-facing AI context (orientation docs)

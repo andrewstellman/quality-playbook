@@ -74,8 +74,7 @@ class SectionKindClassificationTests(unittest.TestCase):
         """
         # v1.5.8 instruction 208: SKILL.md moved into the plugin skill folder.
         skill_path = (
-            Path(__file__).resolve().parents[2]
-            / "skills" / "quality-playbook" / "SKILL.md"
+            Path(__file__).resolve().parents[2] / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "SKILL.md"
         )
         if not skill_path.is_file():
             self.skipTest("QPB SKILL.md not at expected location")

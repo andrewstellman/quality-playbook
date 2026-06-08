@@ -33,7 +33,7 @@ _QPB_ROOT = Path(__file__).resolve().parents[2]
 # skills/quality-playbook/scripts/. The audit list includes both
 # bundled and unbundled scripts, so resolve each by trying the
 # nested location first then the legacy bin/ location.
-_NESTED_BIN = _QPB_ROOT / "skills" / "quality-playbook" / "scripts"
+_NESTED_BIN = _QPB_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts"
 _LEGACY_BIN = _QPB_ROOT / "bin"
 
 

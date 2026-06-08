@@ -77,7 +77,7 @@ class SkillBundleParity089uTests(unittest.TestCase):
         # skill-source root (skills/quality-playbook/); skill_bundle_paths
         # accepts either the QPB repo root or the skill folder and
         # normalizes internally.
-        skill_root = REPO_ROOT / "skills" / "quality-playbook"
+        skill_root = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
         from_bundle_files = {
             src for src, _dest_rel in install_skill._bundle_files(skill_root)
         }
@@ -114,7 +114,7 @@ class SkillBundleParity089uTests(unittest.TestCase):
         because ``install_skill.py not in executor_paths``."""
         executor_set = set(build_channel_package.executor_paths(REPO_ROOT))
         install_skill_path = (
-            REPO_ROOT / "skills" / "quality-playbook" / "scripts" / "install_skill.py"
+            REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "install_skill.py"
         )
         self.assertIn(
             install_skill_path, executor_set,
@@ -186,7 +186,7 @@ class StageRoundTrip089uTests(unittest.TestCase):
         staged_rel = {Path(p).resolve().relative_to(dest_resolved) for p in staged}
         # Expected layout: skill-bundle entries land at ``dst_rel``;
         # executors land at ``bin/<name>``.
-        skill_root = REPO_ROOT / "skills" / "quality-playbook"
+        skill_root = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
         expected_rel = {
             dst_rel
             for _src, dst_rel in install_skill._bundle_files(skill_root)

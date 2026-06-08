@@ -60,8 +60,7 @@ class BundleCompletenessTests(unittest.TestCase):
         # the plugin skill folder. _bundle_files() now accepts the
         # skill folder as source_root.
         qpb_root = (
-            Path(__file__).resolve().parent.parent.parent
-            / "skills" / "quality-playbook"
+            Path(__file__).resolve().parent.parent.parent / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
         )
         text_sources = [qpb_root / "SKILL.md"]
         phase_prompts = qpb_root / "phase_prompts"
@@ -149,7 +148,7 @@ class AgentsMdCpBlocksMatchBundleTests(unittest.TestCase):
         # paths in _bundle_files() land under bin/ in the install
         # tree, so derive the bundle filename set from dst_rel.
         qpb_root_git = Path(__file__).resolve().parent.parent.parent
-        skill_root = qpb_root_git / "skills" / "quality-playbook"
+        skill_root = qpb_root_git / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
         agents_md = (qpb_root_git / "AGENTS.md").read_text(encoding="utf-8")
         # v1.5.8 instruction 208: the cp recipes now source from
         # ``"$QPB_SKILL_SRC"/scripts/<name>.py`` (post-208) or
@@ -266,7 +265,7 @@ class AllMdCpBlocksMatchBundleTests(unittest.TestCase):
         # plugin skill folder; the scan over *.md docs stays at the
         # git repo root.
         qpb_root_git = Path(__file__).resolve().parents[2]
-        skill_root = qpb_root_git / "skills" / "quality-playbook"
+        skill_root = qpb_root_git / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
         bundle_files = {
             Path(dst).name
             for _src, dst in install_skill._bundle_files(skill_root)

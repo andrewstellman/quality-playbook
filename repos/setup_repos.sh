@@ -211,11 +211,18 @@ for short in "${REPOS[@]}"; do
     fi
 
     # Install skill files
-    # v1.5.8 instruction 208: bundled skill sources moved into the
-    # plugin-native skills/quality-playbook/ folder. The benchmark
-    # install destinations under .github/skills/ keep the pre-208
-    # flat layout (matches adopter installs).
-    QPB_SKILL_SRC="${QPB_DIR}/skills/quality-playbook"
+    # v1.5.8 instruction 209: bundled skill sources now live under
+    # the standard self-hosted marketplace layout at
+    # plugins/quality-playbook/skills/quality-playbook/. 208 placed
+    # them at skills/quality-playbook/; that path is retained as a
+    # fallback for transitional clones. The benchmark install
+    # destinations under .github/skills/ keep the pre-208 flat
+    # layout (matches adopter installs).
+    if [ -d "${QPB_DIR}/plugins/quality-playbook/skills/quality-playbook" ]; then
+        QPB_SKILL_SRC="${QPB_DIR}/plugins/quality-playbook/skills/quality-playbook"
+    else
+        QPB_SKILL_SRC="${QPB_DIR}/skills/quality-playbook"
+    fi
     mkdir -p "${dst}/.github/skills/references"
     cp "${QPB_SKILL_SRC}/SKILL.md" "${dst}/.github/skills/SKILL.md"
     cp "${QPB_SKILL_SRC}/references/"* "${dst}/.github/skills/references/" 2>/dev/null || true

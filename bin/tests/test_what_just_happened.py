@@ -28,7 +28,7 @@ from bin import run_playbook
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # v1.5.8 instruction 208: bundled skill files moved to skills/quality-playbook/.
-_SKILL_DIR = REPO_ROOT / "skills" / "quality-playbook"
+_SKILL_DIR = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 REFERENCE_PATH = _SKILL_DIR / "references" / "what_just_happened.md"
 SKILL_PATH = _SKILL_DIR / "SKILL.md"
 PHASE_PROMPTS_DIR = _SKILL_DIR / "phase_prompts"

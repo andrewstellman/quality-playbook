@@ -68,10 +68,14 @@ def _make_fake_repo(
     (cli / "__init__.py").write_text(
         f'__version__ = "{init_version}"\n', encoding="utf-8"
     )
-    # v1.5.8 instruction 208: SKILL.md lives at
-    # skills/quality-playbook/SKILL.md after the plugin-native
-    # restructure; mirror the layout in the test fixture.
-    skill_dir = root / "skills" / "quality-playbook"
+    # v1.5.8 instruction 209: SKILL.md lives at
+    # plugins/quality-playbook/skills/quality-playbook/SKILL.md
+    # under the standard self-hosted marketplace plugin layout;
+    # mirror the post-209 layout in the test fixture.
+    skill_dir = (
+        root / "plugins" / "quality-playbook"
+        / "skills" / "quality-playbook"
+    )
     skill_dir.mkdir(parents=True, exist_ok=True)
     (skill_dir / "SKILL.md").write_text(_SKILL_MD, encoding="utf-8")
 
@@ -251,8 +255,13 @@ class MainEndToEndTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             _make_fake_repo(root)
-            # v1.5.8 instruction 208: SKILL.md now lives under skills/quality-playbook/.
-            (root / "skills" / "quality-playbook" / "SKILL.md").unlink()
+            # v1.5.8 instruction 209: SKILL.md lives under
+            # plugins/quality-playbook/skills/quality-playbook/
+            # in the standard self-hosted marketplace layout.
+            (
+                root / "plugins" / "quality-playbook"
+                / "skills" / "quality-playbook" / "SKILL.md"
+            ).unlink()
             dest = root / "out"
             with mock.patch.object(
                 sub, "__file__", str(root / "bin" / "submit_awesome_copilot.py")

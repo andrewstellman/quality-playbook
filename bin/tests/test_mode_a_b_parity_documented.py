@@ -26,7 +26,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # v1.5.8 instruction 208: SKILL.md + phase_prompts/ moved into
 # skills/quality-playbook/.
-_SKILL_DIR = _REPO_ROOT / "skills" / "quality-playbook"
+_SKILL_DIR = _REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 _SKILL_MD = _SKILL_DIR / "SKILL.md"
 _PHASE6_AUDITOR = _SKILL_DIR / "phase_prompts" / "phase6_auditor.md"
 

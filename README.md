@@ -48,7 +48,7 @@ Prefer to install by hand or use the script directly? See [Step 1 of the walkthr
 
 **The more documentation you give it, the better it finds bugs.** The playbook reads written specs, design docs, GitHub or Jira issues from real users, chat history, and post-mortems — then derives what your code is *supposed* to do from those sources. Without documentation it still runs (from the source tree alone), but bug recall drops materially. See [Step 2: Provide documentation (strongly recommended)](#step-2-provide-documentation-strongly-recommended) for what to gather and the best ways to gather it.
 
-**Gather it in one step.** Copy [`skills/quality-playbook/references/DOC_GATHERING_PROMPT.md`](skills/quality-playbook/references/DOC_GATHERING_PROMPT.md), open your project in Claude Code, Codex, Copilot, Cursor, Windsurf (or any capable AI tool), paste it in, and run it — it confirms your project, then crawls its docs, issues, and advisories into `reference_docs/` for you. See [Step 2](#step-2-provide-documentation-strongly-recommended) for details.
+**Gather it in one step.** Copy [`plugins/quality-playbook/skills/quality-playbook/references/DOC_GATHERING_PROMPT.md`](plugins/quality-playbook/skills/quality-playbook/references/DOC_GATHERING_PROMPT.md), open your project in Claude Code, Codex, Copilot, Cursor, Windsurf (or any capable AI tool), paste it in, and run it — it confirms your project, then crawls its docs, issues, and advisories into `reference_docs/` for you. See [Step 2](#step-2-provide-documentation-strongly-recommended) for details.
 
 ## How to run the Quality Playbook
 
@@ -93,7 +93,7 @@ Start with `BUGS.md` for the headline findings. Then read `REQUIREMENTS.md` to s
 
 The rest of this README has detailed instructions for installing and running the playbook — commands, prompts, screenshots, the whole walkthrough. But the easiest way to get started is to skip the documentation entirely: **download one file, upload it to your favorite AI chatbot, and ask it for help.**
 
-The file is [`skills/quality-playbook/ai_context/TOOLKIT.md`](https://github.com/andrewstellman/quality-playbook/blob/main/skills/quality-playbook/ai_context/TOOLKIT.md). It's a single Markdown document that explains everything about the Quality Playbook in a format designed for AI assistants to read and answer questions from.
+The file is [`plugins/quality-playbook/skills/quality-playbook/ai_context/TOOLKIT.md`](https://github.com/andrewstellman/quality-playbook/blob/main/plugins/quality-playbook/skills/quality-playbook/ai_context/TOOLKIT.md). It's a single Markdown document that explains everything about the Quality Playbook in a format designed for AI assistants to read and answer questions from.
 
 Open a chat in whatever AI tool you use — Claude, ChatGPT, Cursor, GitHub Copilot, Gemini — attach `TOOLKIT.md`, and tell it:
 
@@ -183,7 +183,7 @@ The playbook produces better requirements, fewer false positives, and more speci
 - **[Cowork](https://claude.ai/cowork)** — Anthropic's desktop tool for non-developers; can connect to GitHub, Jira, Slack, Google Drive, Notion, and similar sources via MCP connectors, search across them, and export results to files. Good fit if you're already in the Anthropic ecosystem and want a graphical workflow.
 - **[OpenClaw](https://openclaw.ai)** — open-source AI agent that runs as a local gateway connecting LLMs to your messaging platforms (Slack, Teams, Discord, IRC, plus 20+ others). Uses the same `SKILL.md`-based skills system QPB does, so you can give it tooling and ask it to traverse your channels and export the relevant threads. Good fit if your project's intent lives in chat history and you want self-hosted, open-source tooling.
 
-**The easiest way: the guided gathering prompt.** Copy [`skills/quality-playbook/references/DOC_GATHERING_PROMPT.md`](skills/quality-playbook/references/DOC_GATHERING_PROMPT.md) (or fetch it raw from `https://raw.githubusercontent.com/andrewstellman/quality-playbook/refs/heads/main/skills/quality-playbook/references/DOC_GATHERING_PROMPT.md`), paste it into any of the tools above, and run it — it only needs a project name to start. With QPB installed, you can also just ask your AI tool to gather docs for a project and it follows the same protocol. It identifies the project, proposes a source plan you can narrow or extend (including internal Jira/Confluence/Slack via your connectors), and writes well-structured files into `reference_docs/` (with `cite/` for authoritative specs). It grounds itself in the playbook first, so it gathers the *intent and invariants* QPB checks against rather than generic docs.
+**The easiest way: the guided gathering prompt.** Copy [`plugins/quality-playbook/skills/quality-playbook/references/DOC_GATHERING_PROMPT.md`](plugins/quality-playbook/skills/quality-playbook/references/DOC_GATHERING_PROMPT.md) (or fetch it raw from `https://raw.githubusercontent.com/andrewstellman/quality-playbook/refs/heads/main/plugins/quality-playbook/skills/quality-playbook/references/DOC_GATHERING_PROMPT.md`), paste it into any of the tools above, and run it — it only needs a project name to start. With QPB installed, you can also just ask your AI tool to gather docs for a project and it follows the same protocol. It identifies the project, proposes a source plan you can narrow or extend (including internal Jira/Confluence/Slack via your connectors), and writes well-structured files into `reference_docs/` (with `cite/` for authoritative specs). It grounds itself in the playbook first, so it gathers the *intent and invariants* QPB checks against rather than generic docs.
 
 **Or a quick one-liner** if you just want something fast:
 
@@ -243,8 +243,9 @@ mkdir -p .claude/skills/quality-playbook/references
 mkdir -p .claude/skills/quality-playbook/phase_prompts
 mkdir -p .claude/skills/quality-playbook/agents
 mkdir -p .claude/skills/quality-playbook/bin
-# v1.5.8 instruction 208: source paths nest through skills/quality-playbook/.
-QPB_SKILL_SRC=skills/quality-playbook
+# v1.5.8 instruction 209: source paths nest through plugins/quality-playbook/skills/quality-playbook/
+# (standard self-hosted marketplace plugin layout).
+QPB_SKILL_SRC=plugins/quality-playbook/skills/quality-playbook
 cp "$QPB_SKILL_SRC"/SKILL.md .claude/skills/quality-playbook/SKILL.md
 cp "$QPB_SKILL_SRC"/scripts/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
 cp "$QPB_SKILL_SRC"/references/* .claude/skills/quality-playbook/references/
@@ -291,8 +292,9 @@ mkdir -p .github/skills/references
 mkdir -p .github/skills/phase_prompts
 mkdir -p .github/skills/agents
 mkdir -p .github/skills/bin
-# v1.5.8 instruction 208: source paths nest through skills/quality-playbook/.
-QPB_SKILL_SRC=skills/quality-playbook
+# v1.5.8 instruction 209: source paths nest through plugins/quality-playbook/skills/quality-playbook/
+# (standard self-hosted marketplace plugin layout).
+QPB_SKILL_SRC=plugins/quality-playbook/skills/quality-playbook
 cp "$QPB_SKILL_SRC"/SKILL.md .github/skills/SKILL.md
 cp "$QPB_SKILL_SRC"/scripts/quality_gate.py .github/skills/quality_gate.py
 cp "$QPB_SKILL_SRC"/references/* .github/skills/references/
@@ -335,8 +337,9 @@ mkdir -p .github/skills/quality-playbook/references
 mkdir -p .github/skills/quality-playbook/phase_prompts
 mkdir -p .github/skills/quality-playbook/agents
 mkdir -p .github/skills/quality-playbook/bin
-# v1.5.8 instruction 208: source paths nest through skills/quality-playbook/.
-QPB_SKILL_SRC=skills/quality-playbook
+# v1.5.8 instruction 209: source paths nest through plugins/quality-playbook/skills/quality-playbook/
+# (standard self-hosted marketplace plugin layout).
+QPB_SKILL_SRC=plugins/quality-playbook/skills/quality-playbook
 cp "$QPB_SKILL_SRC"/SKILL.md .github/skills/quality-playbook/SKILL.md
 cp "$QPB_SKILL_SRC"/scripts/quality_gate.py .github/skills/quality-playbook/quality_gate.py
 cp "$QPB_SKILL_SRC"/references/* .github/skills/quality-playbook/references/

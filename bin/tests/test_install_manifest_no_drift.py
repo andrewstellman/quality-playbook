@@ -25,8 +25,7 @@ from pathlib import Path
 # v1.5.8 instruction 208: bundle source root moved into the plugin
 # skill folder.
 _QPB_ROOT = (
-    Path(__file__).resolve().parents[2]
-    / "skills" / "quality-playbook"
+    Path(__file__).resolve().parents[2] / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 )
 
 

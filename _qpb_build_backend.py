@@ -95,11 +95,15 @@ def _is_source_tree_build() -> bool:
     machinery (per 090f's halt-condition: don't ship dev
     machinery in the sdist as the "fix").
 
-    v1.5.8 instruction 208: SKILL.md moved into the plugin skill
-    folder (``skills/quality-playbook/SKILL.md``); the discriminator
-    flips to the new canonical location. The legacy root-SKILL.md
-    fallback stays as a safety net for in-progress restructures."""
+    v1.5.8 instruction 209: SKILL.md lives under the standard
+    self-hosted marketplace plugin layout
+    (``plugins/quality-playbook/skills/quality-playbook/SKILL.md``).
+    208 placed it at ``skills/quality-playbook/SKILL.md``; both are
+    accepted with the pre-208 root-SKILL.md form as a final safety
+    net for in-progress restructures."""
     skill_md_locations = (
+        _REPO_ROOT / "plugins" / "quality-playbook"
+        / "skills" / "quality-playbook" / "SKILL.md",
         _REPO_ROOT / "skills" / "quality-playbook" / "SKILL.md",
         _REPO_ROOT / "SKILL.md",
     )

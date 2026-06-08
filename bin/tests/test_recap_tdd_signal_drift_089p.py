@@ -37,7 +37,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # v1.5.8 instruction 208: quality_gate.py + references/ moved into
 # skills/quality-playbook/.
-_SKILL_DIR = REPO_ROOT / "skills" / "quality-playbook"
+_SKILL_DIR = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 QUALITY_GATE = _SKILL_DIR / "scripts" / "quality_gate.py"
 WHAT_JUST_HAPPENED = _SKILL_DIR / "references" / "what_just_happened.md"
 

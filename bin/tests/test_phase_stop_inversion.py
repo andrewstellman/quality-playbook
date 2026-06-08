@@ -16,7 +16,7 @@ _QPB_ROOT = Path(__file__).resolve().parents[2]
 # (phase1_exploration_guide → P2, phase2_generation_guide → P3,
 # SKILL.md → P4/P5/P6).
 # v1.5.8 instruction 208: references/ + SKILL.md moved into the plugin skill folder.
-_SKILL_DIR = _QPB_ROOT / "skills" / "quality-playbook"
+_SKILL_DIR = _QPB_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 _LOCI = (
     _SKILL_DIR / "references" / "phase1_exploration_guide.md",
     _SKILL_DIR / "references" / "phase2_generation_guide.md",

@@ -338,7 +338,7 @@ class GitignoreRemediationSubstitution090uTests(unittest.TestCase):
         # skills/quality-playbook/ alongside the rest of the bundle
         # sources.
         self.assertTrue(
-            (_REPO_ROOT / "skills" / "quality-playbook"
+            (_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
              / "skill-template.gitignore").is_file(),
             "skill-template.gitignore must exist at the QPB skill "
             "source folder (the bundle source).",

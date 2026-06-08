@@ -52,7 +52,7 @@ def _load_qpb_phase():
     surface). Mirrors the pattern other 089x/090c tests use."""
     spec = importlib.util.spec_from_file_location(
         "qpb_phase_under_test",
-        str(_REPO_ROOT / "skills" / "quality-playbook" / "scripts" / "qpb_phase.py"),
+        str(_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "qpb_phase.py"),
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -189,7 +189,7 @@ class QpbPhaseCliTests(unittest.TestCase):
     def _run(self, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run(
             [sys.executable,
-             str(_REPO_ROOT / "skills" / "quality-playbook" / "scripts" / "qpb_phase.py"), *args],
+             str(_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "qpb_phase.py"), *args],
             capture_output=True, text=True, timeout=10,
         )
 
@@ -263,7 +263,7 @@ class QpbPhaseImportDisciplineTests(unittest.TestCase):
         NOT import from any OTHER ``bin/`` script. qpb_phase
         ships, so its only ``bin/`` import is _purpose."""
         # v1.5.8 instruction 208: qpb_phase.py moved to skills/quality-playbook/scripts/.
-        src = (_REPO_ROOT / "skills" / "quality-playbook"
+        src = (_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
                / "scripts" / "qpb_phase.py").read_text(
             encoding="utf-8")
         # Allowed: `from bin._purpose import ...`
@@ -295,7 +295,7 @@ class QpbPhaseImportDisciplineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             result = subprocess.run(
                 [sys.executable,
-                 str(_REPO_ROOT / "skills" / "quality-playbook" / "scripts" / "qpb_phase.py"),
+                 str(_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "qpb_phase.py"),
                  "0", "start"],
                 cwd=tmp,  # foreign cwd → no implicit bin/
                 env=env,
@@ -320,7 +320,7 @@ def _import_gate_module():
     # v1.5.8 instruction 208: quality_gate.py moved to skills/quality-playbook/scripts/.
     spec = importlib.util.spec_from_file_location(
         "quality_gate_under_test",
-        str(_REPO_ROOT / "skills" / "quality-playbook" / "scripts"
+        str(_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts"
              / "quality_gate.py"),
     )
     mod = importlib.util.module_from_spec(spec)

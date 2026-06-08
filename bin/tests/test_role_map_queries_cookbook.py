@@ -26,7 +26,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # v1.5.8 instruction 208: references/ + phase_prompts/ moved into the plugin skill folder.
-_SKILL_DIR = REPO_ROOT / "skills" / "quality-playbook"
+_SKILL_DIR = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 COOKBOOK_PATH = _SKILL_DIR / "references" / "role_map_queries.md"
 PHASE2_PROMPT_PATH = _SKILL_DIR / "phase_prompts" / "phase2.md"
 

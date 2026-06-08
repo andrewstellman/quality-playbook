@@ -175,7 +175,7 @@ class PreShipDocRegressionTests(unittest.TestCase):
     recommends these.)"""
 
     def test_phase6_a27_non_optional_framing_present(self) -> None:
-        text = (_QPB_ROOT / "skills" / "quality-playbook"
+        text = (_QPB_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
                 / "phase_prompts" / "phase6.md").read_text(
             encoding="utf-8")
         self.assertIn("Phase 6 sub-agent delegation is NON-OPTIONAL.",

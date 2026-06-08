@@ -113,16 +113,18 @@ class SubprocessEncodingSweepTests(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        # v1.5.8 instruction 208: bin/install_skill.py is a thin shim
-        # after the plugin-native restructure; the canonical source
-        # (and the text=True / subprocess.run sites) lives at
-        # skills/quality-playbook/scripts/install_skill.py. Read the
-        # canonical for the install_skill.py audit row so the sweep
-        # targets the source-of-truth, not the shim.
+        # v1.5.8 instruction 209: bin/install_skill.py is a thin
+        # shim after the plugin-native + standard self-hosted
+        # marketplace restructures; the canonical source (and the
+        # text=True / subprocess.run sites) lives at
+        # plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py.
+        # Read the canonical for the install_skill.py audit row so
+        # the sweep targets the source-of-truth, not the shim.
         _AUDIT_PATHS = {
             "bin/run_playbook.py": _REPO / "bin" / "run_playbook.py",
             "bin/install_skill.py": (
-                _REPO / "skills" / "quality-playbook"
+                _REPO / "plugins" / "quality-playbook"
+                / "skills" / "quality-playbook"
                 / "scripts" / "install_skill.py"
             ),
             "bin/harness/facts.py": _REPO / "bin" / "harness" / "facts.py",

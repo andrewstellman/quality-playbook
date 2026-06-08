@@ -23,9 +23,18 @@ from pathlib import Path
 
 from bin.run_playbook import phase3_prompt
 
-# v1.5.8 instruction 208: quality_gate.py moved to skills/quality-playbook/scripts/.
+# v1.5.8 instruction 209: quality_gate.py now lives under the
+# standard self-hosted marketplace layout at
+# plugins/quality-playbook/skills/quality-playbook/scripts/. 208
+# placed it at skills/quality-playbook/scripts/; that path is
+# retained as a fallback for transitional clones.
 QPB_ROOT = Path(__file__).resolve().parent.parent.parent
-GATE_DIR = QPB_ROOT / "skills" / "quality-playbook" / "scripts"
+_GATE_DIR_209 = (
+    QPB_ROOT / "plugins" / "quality-playbook"
+    / "skills" / "quality-playbook" / "scripts"
+)
+_GATE_DIR_208 = QPB_ROOT / "skills" / "quality-playbook" / "scripts"
+GATE_DIR = _GATE_DIR_209 if _GATE_DIR_209.is_dir() else _GATE_DIR_208
 sys.path.insert(0, str(GATE_DIR))
 
 import quality_gate  # type: ignore

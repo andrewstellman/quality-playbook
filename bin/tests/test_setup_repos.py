@@ -36,7 +36,7 @@ def _build_minimal_fixture(qpb_root: Path, short: str = "dummytest", version: st
     phase_prompts/ + agents/ + scripts/). The pre-208 fixture put
     them at the QPB root + bin/; that's the layout setup_repos.sh
     cannot read after 208."""
-    skill_src = qpb_root / "skills" / "quality-playbook"
+    skill_src = qpb_root / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
     skill_src.mkdir(parents=True, exist_ok=True)
     (skill_src / "SKILL.md").write_text(
         f"---\nversion: {version}\nname: x\ndescription: y\n---\n",

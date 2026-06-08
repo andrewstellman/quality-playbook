@@ -28,7 +28,7 @@ from pathlib import Path
 
 
 # v1.5.8 instruction 208: SKILL.md + references/ moved into the plugin skill folder.
-_SKILL_DIR = Path(__file__).resolve().parents[2] / "skills" / "quality-playbook"
+_SKILL_DIR = Path(__file__).resolve().parents[2] / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 SKILL_MD = _SKILL_DIR / "SKILL.md"
 PHASE2_GUIDE = _SKILL_DIR / "references" / "phase2_generation_guide.md"
 

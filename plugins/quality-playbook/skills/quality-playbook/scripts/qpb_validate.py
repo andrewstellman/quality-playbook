@@ -929,27 +929,27 @@ def detect_invocation_context(script_path: Path) -> "tuple[str, Path]":
                 and anc.parent.name == "skills"
                 and anc.parent.parent.name in _INSTALL_MARKERS):
             return "installed", anc
-    # v1.5.8 instruction 208: the canonical clone-side script now
-    # lives at ``<clone>/skills/quality-playbook/scripts/<script>.py``
-    # (was ``<clone>/bin/<script>.py`` pre-208). Resolve the clone
-    # root by walking up to the directory containing the clone-only
-    # markers (.git / setup_repos.sh / docs/design / ai_context),
-    # rather than hard-coding ``parent.parent`` which gives the wrong
-    # depth post-208.
-    root = resolved.parent.parent
-    if not any((root / m).exists() for m in _CLONE_ONLY_MARKERS):
-        # Try one level deeper (the post-208 clone-script depth).
-        candidate = resolved.parent.parent.parent
+    # v1.5.8 instruction 209: the canonical clone-side script now
+    # lives at ``<clone>/plugins/quality-playbook/skills/quality-playbook/scripts/<script>.py``
+    # (208 had ``<clone>/skills/quality-playbook/scripts/<script>.py``;
+    # pre-208 was ``<clone>/bin/<script>.py``). Walk up to find the
+    # clone root by looking for any clone-only marker (.git /
+    # setup_repos.sh / docs/design / ai_context). Try each ancestor
+    # depth in order to handle all three layouts (and any future
+    # restructure within reason).
+    candidates = []
+    cur = resolved.parent
+    for _ in range(7):  # up to 7 levels up: pre-208 (2) through 209 (5) + slack
+        cur = cur.parent
+        if cur == cur.parent:
+            break
+        candidates.append(cur)
+    for candidate in candidates:
         if any((candidate / m).exists() for m in _CLONE_ONLY_MARKERS):
             return "clone", candidate
-        # Try two levels deeper for safety.
-        candidate2 = candidate.parent if candidate.parent != candidate else candidate
-        if any((candidate2 / m).exists() for m in _CLONE_ONLY_MARKERS):
-            return "clone", candidate2
-    # (2) clone: any bundle-absent marker at the clone root
-    if any((root / m).exists() for m in _CLONE_ONLY_MARKERS):
-        return "clone", root
-    # (3) ambiguous (true fallback)
+    # (3) ambiguous (true fallback): use the first candidate as the
+    # reported root (mirrors the pre-209 behavior of `parent.parent`).
+    root = candidates[0] if candidates else resolved.parent
     return "ambiguous", root
 
 

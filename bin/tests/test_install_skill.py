@@ -34,7 +34,7 @@ from bin import install_skill
 # ``_REPO_ROOT_GIT`` for tests that read repo-root files like
 # README.md.
 _REPO_ROOT_GIT = Path(__file__).resolve().parent.parent.parent
-REPO_ROOT = _REPO_ROOT_GIT / "skills" / "quality-playbook"
+REPO_ROOT = _REPO_ROOT_GIT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 
 
 def _capture_install(**kwargs) -> tuple[int, str]:

@@ -13,8 +13,12 @@ import re
 import unittest
 
 _REPO = pathlib.Path(__file__).resolve().parents[2]
-# v1.5.8 instruction 208: references/ moved into the plugin skill folder.
-_SKILL_DIR = _REPO / "skills" / "quality-playbook"
+# v1.5.8 instruction 209: references/ lives under the standard
+# self-hosted marketplace plugin layout.
+_SKILL_DIR = (
+    _REPO / "plugins" / "quality-playbook"
+    / "skills" / "quality-playbook"
+)
 
 
 class GitStashCautionTests(unittest.TestCase):

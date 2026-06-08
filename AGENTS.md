@@ -40,10 +40,12 @@ mkdir -p .github/skills/references
 mkdir -p .github/skills/phase_prompts
 mkdir -p .github/skills/agents
 mkdir -p .github/skills/bin
-# v1.5.8 instruction 208: source paths now nest through
-# skills/quality-playbook/; the cp DESTINATIONS at .github/skills/...
-# are unchanged (the adopter-target layout is frozen).
-QPB_SKILL_SRC="$QPB"/skills/quality-playbook
+# v1.5.8 instruction 209: source paths now nest through
+# plugins/quality-playbook/skills/quality-playbook/ (standard
+# self-hosted marketplace plugin layout); the cp DESTINATIONS at
+# .github/skills/... are unchanged (the adopter-target layout is
+# frozen).
+QPB_SKILL_SRC="$QPB"/plugins/quality-playbook/skills/quality-playbook
 cp "$QPB_SKILL_SRC"/SKILL.md .github/skills/SKILL.md
 cp "$QPB_SKILL_SRC"/scripts/quality_gate.py .github/skills/quality_gate.py
 cp "$QPB_SKILL_SRC"/references/* .github/skills/references/
@@ -94,8 +96,9 @@ mkdir -p .claude/skills/quality-playbook/references
 mkdir -p .claude/skills/quality-playbook/phase_prompts
 mkdir -p .claude/skills/quality-playbook/agents
 mkdir -p .claude/skills/quality-playbook/bin
-# v1.5.8 instruction 208: source paths nest through skills/quality-playbook/.
-QPB_SKILL_SRC="$QPB"/skills/quality-playbook
+# v1.5.8 instruction 209: source paths nest through plugins/quality-playbook/skills/quality-playbook/
+# (standard self-hosted marketplace plugin layout).
+QPB_SKILL_SRC="$QPB"/plugins/quality-playbook/skills/quality-playbook
 cp "$QPB_SKILL_SRC"/SKILL.md .claude/skills/quality-playbook/SKILL.md
 cp "$QPB_SKILL_SRC"/scripts/quality_gate.py .claude/skills/quality-playbook/quality_gate.py
 cp "$QPB_SKILL_SRC"/references/* .claude/skills/quality-playbook/references/

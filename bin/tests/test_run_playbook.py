@@ -3259,7 +3259,7 @@ class GateResolveArtifactPathTests(unittest.TestCase):
         repo_root = Path(__file__).resolve().parents[2]
         # v1.5.8 instruction 208: quality_gate.py moved to skills/quality-playbook/scripts/.
         gate_path = (
-            repo_root / "skills" / "quality-playbook" / "scripts" / "quality_gate.py"
+            repo_root / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "quality_gate.py"
         )
         spec = importlib.util.spec_from_file_location(
             "qpb_gate_for_b16_test", gate_path
@@ -4655,7 +4655,7 @@ class InstallFallbackPinningTests(unittest.TestCase):
         .github/skills/references/. Cluster 5 closed this; pinned here."""
         for phase_num in range(2, 7):
             with self.subTest(phase=phase_num):
-                content = (self.REPO_ROOT / "skills" / "quality-playbook" / "phase_prompts" / f"phase{phase_num}.md").read_text(encoding="utf-8")
+                content = (self.REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "phase_prompts" / f"phase{phase_num}.md").read_text(encoding="utf-8")
                 self.assertIn(
                     "{skill_fallback_guide}", content,
                     f"phase{phase_num}.md missing skill_fallback_guide placeholder — "
@@ -4692,7 +4692,7 @@ class InstallFallbackPinningTests(unittest.TestCase):
         Pre-fix the Copilot flat/nested positions were reversed in the
         agent file; cluster A reconciled. v1.5.7 instruction 046 A-3
         expanded the canonical list 6 → 10 (codex/windsurf/cline/aider)."""
-        agent_text = (self.REPO_ROOT / "skills" / "quality-playbook" / "agents" / "quality-playbook-claude.agent.md").read_text(encoding="utf-8")
+        agent_text = (self.REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "agents" / "quality-playbook-claude.agent.md").read_text(encoding="utf-8")
         # Find the "Look for SKILL.md in these locations" section's
         # numbered list and capture the order.
         import re

@@ -286,15 +286,26 @@ def classify_project(
             raise ValueError("override_rationale is required when override is set")
 
     target_dir = Path(target_dir).resolve()
-    # v1.5.8 instruction 208: plugin-native projects keep SKILL.md
-    # under ``skills/<name>/SKILL.md`` instead of the repo root.
-    # Look for the plugin-native location first, fall back to the
-    # repo-root form for legacy adopters.
+    # v1.5.8 instruction 209: standard self-hosted marketplace
+    # plugin layout keeps SKILL.md under
+    # ``plugins/<plugin>/skills/<skill>/SKILL.md``. 208 had it at
+    # ``skills/<name>/SKILL.md``. Look for the post-209 location
+    # first, fall back to the 208 location, then to the repo-root
+    # form for legacy adopters.
     skill_md_path = target_dir / "SKILL.md"
     if not skill_md_path.is_file():
-        nested = target_dir / "skills" / "quality-playbook" / "SKILL.md"
-        if nested.is_file():
-            skill_md_path = nested
+        nested_209 = (
+            target_dir / "plugins" / "quality-playbook"
+            / "skills" / "quality-playbook" / "SKILL.md"
+        )
+        if nested_209.is_file():
+            skill_md_path = nested_209
+        else:
+            nested_208 = (
+                target_dir / "skills" / "quality-playbook" / "SKILL.md"
+            )
+            if nested_208.is_file():
+                skill_md_path = nested_208
     skill_md_present = skill_md_path.is_file()
     skill_md_word_count = _count_words(skill_md_path) if skill_md_present else None
 

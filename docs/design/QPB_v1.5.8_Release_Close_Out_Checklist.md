@@ -10,8 +10,8 @@
 
 v1.5.8 close-out has been longer and more complex than typical:
 
-- 9 instructions filed during close-out (191, 192, 197-208), each landing real source changes after the v1.5.8 tag was placed
-- Instruction 208 restructured the entire repo to plugin-native layout (`skills/quality-playbook/` instead of root-level SKILL.md + supporting files)
+- 10 instructions filed during close-out (191, 192, 197-209), each landing real source changes after the v1.5.8 tag was placed
+- Instruction 208 restructured the repo to a plugin-native layout (`skills/quality-playbook/` instead of root-level SKILL.md + supporting files), and instruction 209 completed the restructure to the **standard self-hosted marketplace layout** (`.claude-plugin/marketplace.json` at root + plugin content under `plugins/quality-playbook/`). The 208 hybrid empirically failed Claude Code's `--plugin-dir` load test; 209 fixes the layout so both `--plugin-dir` and `/plugin marketplace add` work.
 - Three install channels (pip, npm, Claude Code plugin marketplace) all depend on the file layout being correct
 - Three sets of documentation (adopter-facing README, AI-assistant TOOLKIT, maintainer DEVELOPMENT_CONTEXT) all reference file paths that changed
 
@@ -28,9 +28,9 @@ The generic close-out sequence in `DEVELOPMENT_PROCESS.md` § Release close-out 
 
 ---
 
-## A. Source restructure verification (post-instruction 208)
+## A. Source restructure verification (post-instructions 208 + 209)
 
-Instruction 208 moved skill-bundled files from the repo root into `skills/quality-playbook/`. Each install path that consumes those files needs explicit verification:
+Instruction 208 moved skill-bundled files from the repo root into `skills/quality-playbook/`; instruction 209 then moved them again into `plugins/quality-playbook/skills/quality-playbook/` (standard self-hosted marketplace layout). Each install path that consumes those files needs explicit verification:
 
 | # | Item | Status | Notes |
 |---|------|--------|-------|

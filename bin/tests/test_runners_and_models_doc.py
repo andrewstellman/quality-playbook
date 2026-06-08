@@ -18,8 +18,7 @@ from pathlib import Path
 
 # v1.5.8 instruction 208: references/ moved into the plugin skill folder.
 DOC_PATH = (
-    Path(__file__).resolve().parent.parent.parent
-    / "skills" / "quality-playbook" / "references" / "runners_and_models.md"
+    Path(__file__).resolve().parent.parent.parent / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "references" / "runners_and_models.md"
 )
 
 

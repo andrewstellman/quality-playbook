@@ -34,7 +34,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # v1.5.8 instruction 208: quality_gate.py moved to the plugin-native
 # skills/quality-playbook/scripts/ location.
-_GATE_PY = _REPO_ROOT / "skills" / "quality-playbook" / "scripts" / "quality_gate.py"
+_GATE_PY = _REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "quality_gate.py"
 
 
 class BugHeadingPatternPinTests(unittest.TestCase):

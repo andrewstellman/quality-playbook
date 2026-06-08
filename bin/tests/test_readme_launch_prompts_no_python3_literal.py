@@ -111,11 +111,14 @@ class ReadmeLaunchPromptsNoPython3LiteralTest(unittest.TestCase):
         shifts the prompts, this fails immediately and forces a
         conscious re-pin (instruction-079b Task 3 note)."""
         lines = README.read_text(encoding="utf-8").splitlines()
+        # v1.5.8 instruction 209: README reflow (added path-comment
+        # lines around the cp recipes) shifted the launch-prompt
+        # markers from their pre-209 line numbers.
         markers = {
-            356: "**Claude Code:**",
-            362: "**GitHub Copilot:**",
-            370: "**Cursor:**",
-            372: "**Windsurf:**",
+            385: "**Claude Code:**",
+            391: "**GitHub Copilot:**",
+            399: "**Cursor:**",
+            401: "**Windsurf:**",
         }
         for lineno, marker in markers.items():
             self.assertTrue(

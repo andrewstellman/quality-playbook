@@ -1,11 +1,13 @@
-"""bin/install_skill.py — v1.5.8 instruction 208 thin shim.
+"""bin/install_skill.py — v1.5.8 instructions 208 + 209 thin shim.
 
 The canonical install_skill.py lives at
-``skills/quality-playbook/scripts/install_skill.py`` after the
-plugin-native restructure (208). This thin shim preserves the
-historical ``python3 -m bin.install_skill`` invocation for the QPB
-clone-based install path so README docs / test commands /
-``bin/run_playbook.py`` / ``bin/publish_pip.py`` /
+``plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py``
+after the standard self-hosted marketplace restructure (209). 208
+placed it at ``skills/quality-playbook/scripts/install_skill.py``;
+that path is retained as a fallback for transitional clones. This
+thin shim preserves the historical ``python3 -m bin.install_skill``
+invocation for the QPB clone-based install path so README docs /
+test commands / ``bin/run_playbook.py`` / ``bin/publish_pip.py`` /
 ``bin/publish_npm.py`` keep working without churn.
 
 Implementation: load the canonical script by file path (NOT a
@@ -26,17 +28,25 @@ import importlib.util
 import sys
 from pathlib import Path
 
-_CANONICAL = (
-    Path(__file__).resolve().parent.parent
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+_CANONICAL_209 = (
+    _REPO_ROOT / "plugins" / "quality-playbook"
     / "skills" / "quality-playbook" / "scripts" / "install_skill.py"
 )
+_CANONICAL_208 = (
+    _REPO_ROOT / "skills" / "quality-playbook" / "scripts" / "install_skill.py"
+)
 
-if not _CANONICAL.is_file():
+if _CANONICAL_209.is_file():
+    _CANONICAL = _CANONICAL_209
+elif _CANONICAL_208.is_file():
+    _CANONICAL = _CANONICAL_208
+else:
     raise RuntimeError(
         f"bin/install_skill.py shim: canonical script missing at "
-        f"{_CANONICAL}. The plugin-native repo restructure "
-        f"(v1.5.8 instruction 208) expects the install script at "
-        f"this location; the clone appears partial."
+        f"{_CANONICAL_209} (post-209 standard self-hosted "
+        f"marketplace layout) and at {_CANONICAL_208} (208 "
+        f"transitional layout). The clone appears partial."
     )
 
 _spec = importlib.util.spec_from_file_location(

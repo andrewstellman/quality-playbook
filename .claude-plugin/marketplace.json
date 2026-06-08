@@ -9,7 +9,7 @@
   "plugins": [
     {
       "name": "quality-playbook",
-      "source": ".",
+      "source": "./plugins/quality-playbook",
       "category": "productivity"
     }
   ]

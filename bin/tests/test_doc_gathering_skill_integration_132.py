@@ -36,7 +36,7 @@ _REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 # v1.5.8 instruction 208: install_skill.py canonical source moved to
 # skills/quality-playbook/scripts/. Source root for _bundle_files()
 # is the skill folder, not the repo root.
-_SKILL_DIR = _REPO_ROOT / "skills" / "quality-playbook"
+_SKILL_DIR = _REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 sys.path.insert(0, str(_SKILL_DIR / "scripts"))
 
 from install_skill import _bundle_files  # noqa: E402

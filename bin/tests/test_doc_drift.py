@@ -28,7 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # v1.5.8 instruction 208: skill-bundled docs (SKILL.md, references/,
 # phase_prompts/, agents/, ai_context/TOOLKIT.md) moved into the
 # plugin skill folder.
-_SKILL_DIR = REPO_ROOT / "skills" / "quality-playbook"
+_SKILL_DIR = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 
 
 def _resolve_doc(rel: str) -> Path:

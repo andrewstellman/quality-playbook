@@ -34,7 +34,7 @@ _QPB_ROOT = Path(__file__).resolve().parents[2]
 # v1.5.8 instruction 208: qpb_validate.py moved to
 # skills/quality-playbook/scripts/.
 _VALIDATOR = (
-    _QPB_ROOT / "skills" / "quality-playbook" / "scripts" / "qpb_validate.py"
+    _QPB_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "qpb_validate.py"
 )
 _INSTALLER = _QPB_ROOT / "bin" / "install_skill.py"
 

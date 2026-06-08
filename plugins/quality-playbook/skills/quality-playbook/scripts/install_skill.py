@@ -229,23 +229,36 @@ def _bundle_files_soft(
 
 
 def _resolve_bundle_source_root(source_root: Path) -> Path:
-    """v1.5.8 instruction 208: callers historically passed the QPB
-    clone root as ``source_root``; the post-208 restructure makes
-    the actual bundle source root the plugin skill folder
-    (``<repo>/skills/quality-playbook/``). Tolerate both forms.
+    """v1.5.8 instructions 208 + 209: callers historically passed
+    the QPB clone root as ``source_root``; the post-209 standard
+    self-hosted marketplace restructure makes the actual bundle
+    source root the plugin skill folder
+    (``<repo>/plugins/quality-playbook/skills/quality-playbook/``).
+    208 had it at ``<repo>/skills/quality-playbook/``; both are
+    tolerated.
 
-    Returns ``source_root`` unchanged when SKILL.md is already
-    present at that level (the post-208 skill folder, the
-    pre-208 clone root that still has SKILL.md at the top, or the
-    flat bundle / adopter install root). When ``SKILL.md`` is
-    missing at ``source_root`` but exists under
-    ``<source_root>/skills/quality-playbook/`` (the post-208 QPB
-    clone-root case), return that nested path instead."""
+    Resolution order (first hit wins):
+      1. ``source_root/SKILL.md`` is a file — return source_root
+         (already the skill folder, the pre-208 clone root with
+         SKILL.md at top, or the flat bundle / adopter install
+         root).
+      2. ``source_root/plugins/quality-playbook/skills/quality-playbook/SKILL.md``
+         (post-209 QPB clone root) — return that nested path.
+      3. ``source_root/skills/quality-playbook/SKILL.md``
+         (208-era QPB clone root) — return that nested path.
+      4. Fall through — return source_root unchanged so the
+         caller surfaces a clear missing-file error."""
     if (source_root / "SKILL.md").is_file():
         return source_root
-    nested = source_root / "skills" / "quality-playbook"
-    if (nested / "SKILL.md").is_file():
-        return nested
+    nested_209 = (
+        source_root / "plugins" / "quality-playbook"
+        / "skills" / "quality-playbook"
+    )
+    if (nested_209 / "SKILL.md").is_file():
+        return nested_209
+    nested_208 = source_root / "skills" / "quality-playbook"
+    if (nested_208 / "SKILL.md").is_file():
+        return nested_208
     return source_root
 
 

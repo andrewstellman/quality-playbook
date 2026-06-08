@@ -224,8 +224,7 @@ class QPBSkillFixtureTests(unittest.TestCase):
     def setUp(self):
         # v1.5.8 instruction 208: SKILL.md moved into the plugin skill folder.
         self.skill_path = (
-            Path(__file__).resolve().parents[2]
-            / "skills" / "quality-playbook" / "SKILL.md"
+            Path(__file__).resolve().parents[2] / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "SKILL.md"
         )
         self.repo_root = Path(__file__).resolve().parents[2]
         if not self.skill_path.is_file():

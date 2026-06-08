@@ -51,7 +51,7 @@ class Phase0InstallLocationAware090tTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         # v1.5.8 instruction 208: SKILL.md moved to skills/quality-playbook/.
         cls.skill_text = (
-            _REPO_ROOT / "skills" / "quality-playbook" / "SKILL.md"
+            _REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "SKILL.md"
         ).read_text(encoding="utf-8")
         cls.agents_text = (_REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
 

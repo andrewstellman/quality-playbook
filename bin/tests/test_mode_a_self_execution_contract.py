@@ -34,7 +34,7 @@ from pathlib import Path
 
 _QPB_ROOT = Path(__file__).resolve().parents[2]
 # v1.5.8 instruction 208: SKILL.md + agents/ moved into the plugin skill folder.
-_SKILL_DIR = _QPB_ROOT / "skills" / "quality-playbook"
+_SKILL_DIR = _QPB_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
 _SKILL_MD = _SKILL_DIR / "SKILL.md"
 _AGENTS_MD = _QPB_ROOT / "AGENTS.md"
 _AGENT_GENERAL = _SKILL_DIR / "agents" / "quality-playbook.agent.md"

@@ -483,7 +483,7 @@ class BackendStampsSkillMdVersion090eTests(unittest.TestCase):
         + pyproject.toml + package.json on teardown.
         """
         # v1.5.8 instruction 208: SKILL.md moved into the plugin skill folder.
-        skill_md = REPO_ROOT / "skills" / "quality-playbook" / "SKILL.md"
+        skill_md = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "SKILL.md"
         pyproject = REPO_ROOT / "pyproject.toml"
         package_json = REPO_ROOT / "package.json"
         skill_backup = skill_md.read_text(encoding="utf-8")

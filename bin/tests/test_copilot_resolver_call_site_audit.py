@@ -52,7 +52,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 # legacy .github/skills/quality_gate/ location.
 _AUDIT_DIRS = [
     _REPO_ROOT / "bin",
-    _REPO_ROOT / "skills" / "quality-playbook" / "scripts",
+    _REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts",
 ]
 _RESOLVER_PATH = _REPO_ROOT / "bin" / "copilot_resolver.py"
 

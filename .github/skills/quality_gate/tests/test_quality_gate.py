@@ -42,16 +42,27 @@ import unittest
 from datetime import date, timedelta
 from pathlib import Path
 
-# v1.5.8 instruction 208: quality_gate.py canonical source moved
-# from .github/skills/quality_gate/quality_gate.py to
-# skills/quality-playbook/scripts/quality_gate.py. PACKAGE_DIR
-# still points at the legacy tests' package dir because the
-# tests + fixtures stay here (only the script moved). SCRIPT_PATH
-# resolves the new canonical location.
+# v1.5.8 instruction 209: quality_gate.py canonical source moved
+# from .github/skills/quality_gate/quality_gate.py (pre-208) to
+# skills/quality-playbook/scripts/quality_gate.py (208) to its
+# current home at
+# plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py
+# (209, standard self-hosted marketplace layout). PACKAGE_DIR
+# still points at the legacy tests' package dir because the tests
+# + fixtures stay here (only the script moved). SCRIPT_PATH
+# resolves to the post-209 location, falling back to the 208 path
+# for transitional clones.
 PACKAGE_DIR = Path(__file__).resolve().parent.parent
 _REPO_ROOT = PACKAGE_DIR.parent.parent.parent
-SCRIPT_PATH = (
+_SCRIPT_PATH_209 = (
+    _REPO_ROOT / "plugins" / "quality-playbook"
+    / "skills" / "quality-playbook" / "scripts" / "quality_gate.py"
+)
+_SCRIPT_PATH_208 = (
     _REPO_ROOT / "skills" / "quality-playbook" / "scripts" / "quality_gate.py"
+)
+SCRIPT_PATH = (
+    _SCRIPT_PATH_209 if _SCRIPT_PATH_209.is_file() else _SCRIPT_PATH_208
 )
 
 # Import the module for direct helper tests.

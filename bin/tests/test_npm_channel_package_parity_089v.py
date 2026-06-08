@@ -120,7 +120,7 @@ class NpmChannelPackageParity089vStructuralTests(unittest.TestCase):
         # v1.5.8 instruction 208: pass the skill-source root to
         # _bundle_files so it resolves sources from the post-208
         # plugin layout.
-        skill_root = REPO_ROOT / "skills" / "quality-playbook"
+        skill_root = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
         npm_paths = set(bcp.enumerate_npm_tarball(REPO_ROOT))
         bundle_sources = {src for src, _dest_rel in
                           install_skill._bundle_files(skill_root)}
@@ -352,7 +352,7 @@ class NpmChannelPackageParity089vE2ETests(unittest.TestCase):
         # paths shifted into skills/quality-playbook/, so derive the
         # tarball path from dst_rel (the bundle-internal layout)
         # instead of from the clone-relative source path.
-        skill_root = REPO_ROOT / "skills" / "quality-playbook"
+        skill_root = REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
         for _src, dst_rel in install_skill._bundle_files(skill_root):
             tarball_rel = "quality_playbook_cli/_bundle/" + Path(dst_rel).as_posix()
             if tarball_rel not in names:
