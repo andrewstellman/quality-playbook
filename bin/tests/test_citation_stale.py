@@ -33,8 +33,9 @@ from pathlib import Path
 
 from bin import reference_docs_ingest as rdi
 
+# v1.5.8 instruction 208: quality_gate.py moved to skills/quality-playbook/scripts/.
 _QPB_ROOT = Path(__file__).resolve().parents[2]
-_GATE_DIR = _QPB_ROOT / ".github" / "skills" / "quality_gate"
+_GATE_DIR = _QPB_ROOT / "skills" / "quality-playbook" / "scripts"
 if str(_GATE_DIR) not in sys.path:
     sys.path.insert(0, str(_GATE_DIR))
 import quality_gate  # noqa: E402

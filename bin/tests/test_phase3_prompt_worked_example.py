@@ -23,8 +23,9 @@ from pathlib import Path
 
 from bin.run_playbook import phase3_prompt
 
+# v1.5.8 instruction 208: quality_gate.py moved to skills/quality-playbook/scripts/.
 QPB_ROOT = Path(__file__).resolve().parent.parent.parent
-GATE_DIR = QPB_ROOT / ".github" / "skills" / "quality_gate"
+GATE_DIR = QPB_ROOT / "skills" / "quality-playbook" / "scripts"
 sys.path.insert(0, str(GATE_DIR))
 
 import quality_gate  # type: ignore

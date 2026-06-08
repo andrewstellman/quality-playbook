@@ -33,7 +33,8 @@ from bin.council_config import DEFAULT_COUNCIL_MEMBERS
 
 # Import the gate module from its package directory so we exercise the
 # real check function rather than a re-implementation.
-_GATE_DIR = Path(__file__).resolve().parents[2] / ".github" / "skills" / "quality_gate"
+# v1.5.8 instruction 208: quality_gate.py moved to skills/quality-playbook/scripts/.
+_GATE_DIR = Path(__file__).resolve().parents[2] / "skills" / "quality-playbook" / "scripts"
 if str(_GATE_DIR) not in sys.path:
     sys.path.insert(0, str(_GATE_DIR))
 import quality_gate  # noqa: E402
