@@ -1,6 +1,6 @@
 # Quality Playbook v1.5.9 — Harness Skill Design
 
-*Status: drafted 2026-06-06 (Cowork session). Revised 2026-06-06 post-Council review to adopt tick-based execution per operator direction. This document captures the broad-strokes architecture; detailed schema definitions and implementation steps are deferred to a companion Implementation Plan.*
+*Status: drafted 2026-06-06 (Cowork session). Revised 2026-06-06 post-Council review to adopt tick-based execution per operator direction. **Revised 2026-06-09 to replace the external scheduler entirely with in-session `ScheduleWakeup` polling** — the same mechanism the v1.5.7 watcher (`ai_context/WATCHER_PROMPT.md`) has used reliably for weeks. Prior drafts proposed an external scheduler (first Cowork's `mcp__scheduled-tasks` MCP, then a self-spawned Python sidecar daemon); both were superseded after empirical evidence — (a) the MCP is unavailable in build-agent sub-sessions and Cowork-locked anyway, (b) the daemon's fire mechanism (`claude --print`) hit the June 15 `claude -p` deprecation. The branch holding the daemon scaffolding is preserved as `archive/1.5.9-daemon-architecture`. Tick contract, state machine, idempotency invariants, heartbeat contract, and dispatch Mode 1 (Task subagent) are unchanged across both pivots; only the external-fire mechanism is replaced — this time with in-session polling that needs no external mechanism at all.*
 
 *Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule.*
 
@@ -17,24 +17,29 @@ The QPB test harness becomes a **skill**, not a Python program. Two skills coope
 - `quality-playbook-harness` — new skill. Orchestration logic lives in its `SKILL.md` as prose instructions. Any orchestration-capable agent (Claude Code, Codex, Copilot, eventually Cursor/Windsurf) loads it and follows it.
 - `quality-playbook` — existing skill, modified to add a deterministic heartbeat contract. Workers (loaded with the QPB skill) emit heartbeat events to a known file so the harness can track progress.
 
-**Tick-based execution.** The harness skill does NOT run as a long-lived polling loop. Each invocation executes exactly ONE tick of the state machine: read state from disk, advance any transitions that are ready, write state back to disk, exit. A scheduled task fires the skill at the desired cadence (e.g., every 10 min). This pattern is well-trodden — state machine on disk + idempotent stepper + external scheduler — and dissolves the long-running-session concerns (context drift, sleep timeouts, accumulating conversation history) by construction.
+**Tick-based execution via in-session polling.** The harness skill runs inside ONE operator Claude Code session (the operator pastes a bootstrap prompt into a fresh Claude Code session; that session becomes the harness orchestrator for the plan's duration). Each tick of the state machine runs as a single agent turn inside that session: read state from disk, advance any transitions that are ready, dispatch any new Task subagents, print a status summary, and call `ScheduleWakeup(now + N minutes)` to schedule the next tick. The session goes idle between ticks; `ScheduleWakeup` brings the agent back at the configured cadence.
 
-The harness skill can dispatch workers via the host CLI's subagent mechanism (Task tool in Claude Code), via shell-out to a different CLI (`copilot --model X`, `codex ...`, `claude ...`), or via operator-driven manual launch in a separate window. These can mix freely in one plan execution.
+This pattern — state machine on disk + idempotent stepper + `ScheduleWakeup` — dissolves the long-running-session concerns (context drift, sleep timeouts, accumulating conversation history) the way the v1.5.7 watcher does: each tick's prose is short and deterministic (run a Python script, parse its JSON output, dispatch a small number of Task calls, print a table, schedule next wakeup), so per-tick context growth is bounded. Heavy lifting — state-machine logic, heartbeat parsing, dispatch decisions, status table formatting — happens in `bin/qpb_harness_tick.py`, a deterministic Python script the agent invokes each tick. The agent's per-tick role is small and fixed; the script is where the work lives.
+
+**Why `ScheduleWakeup`, not an external scheduler.** Two earlier drafts proposed external mechanisms — Cowork's `mcp__scheduled-tasks` MCP, then a self-spawned Python sidecar daemon firing `claude --print` — and both failed against deployment constraints. The MCP is unavailable outside Cowork-equipped top-level sessions (empirically confirmed across three build-agent sessions); the daemon's fire mechanism (`claude --print`) hits the June 15 `claude -p` deprecation. `ScheduleWakeup` has none of these problems: it's the same primitive the v1.5.7 watcher has been running reliably for weeks, it lives inside the operator's existing Claude Code session, and it has no external dependency at all. The trade-off — the operator's Claude Code session must stay open for the plan's duration — is the same constraint the v1.5.7 watcher already operates under and has not caused operational pain.
+
+**Dispatch is Task-tool-only for MVP.** The harness dispatches workers via Claude Code's `Task` tool — fresh-context subagents within the orchestrator's session, returning short summaries per Council finding A-3 so orchestrator context stays bounded. Cross-CLI dispatch (Mode 2 in earlier drafts) and operator-manual dispatch (Mode 3) are deferred to v1.6+; the question of how a non-Claude-Code worker emits a heartbeat that the orchestrator's tick can observe needs more design work than v1.5.9 should absorb.
 
 Communication between the harness and workers is folder-based for v1.5.9. Schemas are designed so they can later be wrapped in A2A Task envelopes if cross-machine or cross-org dispatch becomes a goal, but A2A transport is not implemented now.
 
-This design retires the existing Python harness (`bin/harness/launcher.py`, `sentinel_reader.py`, the TUI, `subprocess_runner.py`, the substrate-immutability rule) once the skill validates against real benchmark plans. The June 15 `claude -p` deprecation is irrelevant because the skill never calls `claude -p` — it shells out to interactive CLIs that have their own auth.
+This design retires the existing Python harness (`bin/harness/launcher.py`, `sentinel_reader.py`, the TUI, `subprocess_runner.py`, the substrate-immutability rule) once the skill validates against real benchmark plans.
 
 ---
 
 ## Goals
 
-1. **Skill, not subprocess pool.** The harness is a `SKILL.md` that any orchestration-capable agent reads and acts on.
-2. **Cross-CLI orchestration.** Harness in Claude Code can dispatch workers in Codex, Copilot, or another Claude Code instance.
-3. **Deterministic heartbeat.** The QPB skill emits a structured heartbeat to a known file at deterministic moments. The harness reads heartbeats to track progress and detect stalls.
-4. **Tick-based execution.** Each invocation runs exactly one tick: read state, advance, write state, exit. A scheduled task drives the cadence. Idempotency is mandatory — running the same tick twice in a row must be safe.
+1. **Skill, not subprocess pool.** The harness is a `SKILL.md` that the operator's Claude Code session reads and acts on.
+2. **No external scheduler.** `ScheduleWakeup` inside the orchestrator session is the cadence primitive. Same mechanism the v1.5.7 watcher uses; no MCP, no daemon, no `claude --print`, no cron, no external process.
+3. **Deterministic heartbeat.** The QPB worker skill emits a structured heartbeat to a known file at deterministic moments. The harness reads heartbeats each tick to track progress and detect stalls.
+4. **Tick-based execution.** Each tick runs as one agent turn: invoke `bin/qpb_harness_tick.py`, parse JSON output, dispatch any new Task subagents listed in the script's output, print the script's status table, call `ScheduleWakeup` for the next tick. Idempotency is mandatory — running the same tick twice in a row must be safe. Most state-machine logic lives in the Python script; the agent's prose role is small and fixed.
 5. **Folder-based comm with A2A-ready schemas.** Filesystem transport for v1.5.9; schemas shaped so A2A migration is a transport swap, not a redesign.
-6. **No version-staging.** This is the architecture for v1.5.9. Not staged across releases. Not built in parts. MVP scope captured below.
+6. **MVP host: Claude Code only.** `ScheduleWakeup` is Claude Code's primitive. Other host CLIs (Codex, Copilot) become a v1.6+ question — adding them requires either an equivalent polling primitive in that CLI or a different architecture for that host.
+7. **No version-staging.** This is the architecture for v1.5.9. Not staged across releases. Not built in parts. MVP scope captured below.
 
 ---
 
@@ -43,6 +48,9 @@ This design retires the existing Python harness (`bin/harness/launcher.py`, `sen
 - Backwards compatibility with the existing Python harness CLI surface.
 - A2A transport implementation.
 - Cross-machine dispatch.
+- Cross-CLI dispatch (Mode 2 in earlier drafts) — workers spawned via `copilot --print`, `codex ...`, etc. Deferred to v1.6+.
+- Operator-manual dispatch (Mode 3 in earlier drafts) — redundant once the orchestrator runs in the operator's session.
+- Cross-host scheduler (Codex, Copilot, etc.) — `ScheduleWakeup` is Claude-Code-specific for v1.5.9.
 - Web UI or TUI beyond what the host CLI's conversation provides.
 
 ---
@@ -53,14 +61,13 @@ This design retires the existing Python harness (`bin/harness/launcher.py`, `sen
 
 ```
 skills/quality-playbook-harness/
-├── SKILL.md                       ← orchestration logic as prose (state-machine stepper)
+├── SKILL.md                       ← orchestration prose: invoke tick script, dispatch, print, ScheduleWakeup
 ├── schemas/
-│   ├── plan.schema.json           ← reuses v1.5.7 plan format
+│   ├── plan.schema.json           ← reuses v1.5.7 plan format (Mode 1 entries only for MVP)
 │   ├── job_manifest.schema.json
 │   └── result.schema.json
 └── references/
-    ├── DISPATCH_GUIDE.md          ← how to dispatch via Task / Bash / operator
-    ├── STATE_MACHINE.md           ← state transitions the tick advances
+    ├── STATE_MACHINE.md           ← state transitions the tick script advances
     └── examples/
         └── small_plan.json
 ```
@@ -73,6 +80,16 @@ skills/quality-playbook/
 └── schemas/
     └── heartbeat.schema.json      ← single source of truth (harness references it from here)
 ```
+
+Repo-level additions:
+
+```
+bin/
+├── qpb_harness_tick.py            ← deterministic state-machine script invoked once per tick
+└── qpb_heartbeat.py               ← worker-side heartbeat emit helper (already present from v1.5.7-era 210 design; carries forward)
+```
+
+The harness skill's SKILL.md prose is small — roughly: "On invocation, run `python3 bin/qpb_harness_tick.py <run-dir>`. Parse its stdout as JSON. For each entry in `dispatch_list`, invoke the `Task` tool with the prompt the script supplies. Print the `status_table` field verbatim. Call `ScheduleWakeup(now + <next_tick_minutes> minutes)`. Exit." The state-machine logic is in the Python script, not in prose.
 
 ### Heartbeat emission via helper script
 
@@ -136,62 +153,61 @@ harness_runs/<ts>/
 
 ### Tick-based execution model
 
-Each harness skill invocation is one tick. The tick's job:
+Each tick is one agent turn inside the orchestrator's Claude Code session. The agent's prose role per tick is small and fixed; the work lives in `bin/qpb_harness_tick.py`.
+
+**Per-tick sequence (the agent's prose):**
+
+1. Run `python3 bin/qpb_harness_tick.py <run-dir>`. Capture stdout.
+2. Parse the stdout as JSON. The script returns `{dispatch_list, status_table, next_tick_minutes, done, stop}`.
+3. If `stop` is true (operator wrote a STOP file at the run-dir root): print status_table, do NOT call ScheduleWakeup, exit.
+4. If `done` is true (all entries in results/): print the script's final summary, print status_table, do NOT call ScheduleWakeup, exit.
+5. For each entry in `dispatch_list`: invoke the `Task` tool with the prompt the script supplies.
+6. Print `status_table` verbatim (it's already formatted as ASCII; the agent just relays it to the operator's view).
+7. Call `ScheduleWakeup(now + next_tick_minutes)`. End the agent turn.
+
+**The Python script's role (`bin/qpb_harness_tick.py`):**
 
 1. Read `harness_status.json`. Read `plan.json`. Build the authoritative current-state view from disk.
 2. For each in-flight run: read the last N lines of `heartbeat.ndjson`. Determine current state (running / stalled / completed / failed).
-3. Apply available state transitions:
-   - For each pending job in queue and free pool slot: dispatch one
-   - For each in-flight run with a terminal sentinel: move job manifest to results/
-   - For each in-flight run with stale heartbeat past `stall_threshold`: mark STALLED
-   - For each completed plan: write final summary, optionally self-disable the scheduled task
+3. Apply state transitions:
+   - For each pending job in queue + free pool slot: emit a dispatch entry (path, worker prompt, task_id) to `dispatch_list` — the agent invokes Task per entry.
+   - For each in-flight run with a terminal sentinel: move job manifest to `results/`.
+   - For each in-flight run with stale heartbeat past `stall_threshold`: mark `STALLED`.
+   - If all entries are in `results/`: set `done = true`, write final summary.
+   - If `<run-dir>/STOP` exists: set `stop = true`.
 4. Write updated `harness_status.json`.
-5. Exit.
+5. Format the status table (ASCII, similar shape to the old harness's `--status` output).
+6. Pick the next-tick cadence (default `tick_interval_minutes`; shorter when active work is in flight, longer when idle).
+7. Exit, printing JSON to stdout.
 
-**Idempotency is mandatory.** Every transition checks "is this already done?" before applying. If the job is already in claimed/, don't re-dispatch. If the result file is already present, don't re-move. Running the same tick twice in a row produces no observable change after the first.
+**Idempotency is mandatory.** Every transition in the script checks "is this already done?" before applying. If the job is already in `claimed/`, don't re-emit a dispatch entry. If the result file is already present, don't re-move. Running the same tick twice in a row produces no observable change after the first.
 
-**Setup model.** On first invocation against a new plan, the harness skill creates a scheduled task (`mcp__scheduled-tasks__create_scheduled_task`) that re-invokes the harness skill with the `<ts>` directory as argument. Cadence comes from the plan's `tick_interval_minutes` field (default: 10). The schedule survives session restarts, machine reboots, anything.
+**Loop-continuation discipline (NON-NEGOTIABLE).** Per the watcher prompt's pattern: every tick MUST end with either `ScheduleWakeup` OR a clean exit (STOP / done). Any tick that finishes without one of these silently terminates the polling loop. The harness SKILL.md prose makes this load-bearing by literally including a checklist at the end: "Did I call ScheduleWakeup OR was this a clean exit? If neither, call ScheduleWakeup now." Same failure mode as the watcher, same defense.
 
-**Operator override.** The operator can invoke the harness skill manually at any time to force an immediate tick. Useful when something just changed and they don't want to wait for the next scheduled fire. Falls out for free because tick is idempotent.
+**Setup model.** On first invocation against a new plan, the agent runs `qpb_harness_tick.py --init <plan-path>` instead of `<run-dir>`. The script creates `harness_runs/<ISO timestamp>/` populated with plan.json + queue/ entries + initial harness_status.json. The agent then proceeds to step 5 above (dispatch + status + ScheduleWakeup) using the newly-created run-dir.
 
-**Self-disable.** When all plan entries are in results/ (success or failure), the final tick disables the scheduled task and exits cleanly.
+**Operator override.** The operator can ask the agent to "run another tick" at any time; the agent runs the tick script and re-schedules. The tick script's idempotency makes this safe.
 
-### Dispatch modes
+**Self-disable.** When the script sets `done = true`, the agent prints the final summary and exits without calling ScheduleWakeup. The polling loop terminates cleanly.
 
-Three supported modes, declared per-entry in the plan:
+**STOP semantics.** If the operator writes a `STOP` file at the run-dir root, the next tick observes it via the script, prints the final state, and exits without calling ScheduleWakeup. Same convention as the v1.5.7 watcher's `STOP` file at the runner root.
 
-**Mode 1: in-process Task subagent (Claude Code).**
+### Dispatch — Mode 1 only for MVP
 
-The tick dispatches by invoking the Task tool with a worker prompt that includes:
+The harness dispatches workers via Claude Code's `Task` tool. Each dispatched subagent receives a worker prompt that includes:
 
 ```
 HEARTBEAT_PATH=<absolute path to run-NN/heartbeat.ndjson>
 TASK_ID=<uuid>
 RUN_DIR=<absolute path to run-NN/>
-TARGET_REPO=<path>
+TARGET_REPO=<absolute path>
 ```
 
-…as the literal first paragraph the subagent reads. Per Council A-2, all paths absolute, never derived from cwd. Subagent loads the QPB skill, runs the playbook, emits heartbeats via `qpb_heartbeat.py`.
+…as the literal first paragraph the subagent reads. Per Council A-2, all paths absolute, never derived from cwd. The subagent loads the QPB skill, runs the playbook on the target repo, emits heartbeats via `bin/qpb_heartbeat.py`.
 
-Per Council A-3: subagent prompt mandates "return ONLY a short summary on completion — phase, last status, mtime age. Do NOT echo heartbeat content." Caps in-process pool at ≤3 to keep orchestrator's context bounded across many ticks.
+Per Council A-3: the subagent prompt mandates *"return ONLY a short summary on completion — phase, last status, mtime age. Do NOT echo heartbeat content."* This caps the orchestrator's context growth across many ticks. The pool size default is 3 in-process subagents (configurable per plan); empirical subscription concurrency caps may lower this.
 
-**Mode 2: cross-CLI shell-out.**
-
-The tick dispatches by running:
-
-```
-cd <run-dir> && <cli-command> -p "$(cat worker_prompt.md)" > worker.log 2>&1 &
-```
-
-…where `<cli-command>` is `copilot --model X --allow-all`, `codex --model Y`, or similar. The worker_prompt.md is generated by the harness from a template, includes the same absolute path block as Mode 1.
-
-Per Council B-1, before dispatching to any CLI, the harness runs a pre-flight auth check (`<cli> --version` + a tiny `<cli> -p "echo ok"` round-trip). Failure marks the dispatch entry `AUTH_FAILED` and skips it. If the dispatched worker doesn't write a STARTUP heartbeat within 60 sec, the next tick marks it `AUTH_OR_LAUNCH_FAILED` — distinct from STALLED.
-
-**Mode 3: operator-manual dispatch.**
-
-The tick writes the worker prompt to `<run-dir>/operator_prompt.md` and writes an "ACTION REQUIRED" banner to `harness_status.json` with a unique tag (`MANUAL_DISPATCH_NNN`). Operator opens a new window, pastes the prompt, includes the tag in a `<run-dir>/operator_started` file to acknowledge. Subsequent ticks detect the acknowledgment and proceed normally.
-
-Mode 3 is intended for "watch this one run interactively," not as a scaling primitive. Document discouraged for pool > 2.
+**Mode 2 (cross-CLI shell-out) and Mode 3 (operator-manual) are deferred to v1.6+.** Both have unresolved questions: Mode 2 needs a way for non-Claude-Code workers to emit observable heartbeats AND deals with shell-spawned process lifecycle the orchestrator doesn't naturally manage; Mode 3 is mostly redundant in the in-session model since the orchestrator IS the operator's session. The v1.5.9 plan schema accepts only `dispatch_mode: "subagent"` entries; future v1.6+ schema versions add Mode 2 with a different dispatch surface.
 
 ### A2A-ready schema shape
 
@@ -199,33 +215,45 @@ Schemas include `task_id` (UUID), `schema_version` (string), and avoid filesyste
 
 ---
 
-## Cross-CLI scenario (worked example)
+## Worked example
 
-Operator opens Claude Code in the QPB repo, invokes the harness skill with a plan covering 5 repos. The plan has mixed dispatch (2 subagent, 2 copilot, 1 codex). `tick_interval_minutes: 10`.
+Operator opens Claude Code in the QPB repo and pastes the harness bootstrap prompt against a plan covering 3 repos (3 subagent entries, all Mode 1). `tick_interval_minutes: 10`.
 
-**First invocation (tick 1):**
+**First tick (operator just pasted the prompt):**
 
-- Skill creates scheduled task that re-invokes itself every 10 min
-- Reads plan, validates, creates `harness_runs/2026-06-06T14-00-00/`, populates queue/ with 5 jobs
-- Pool size 3, queue has 5, dispatches first 3 (one Task call with two subagent prompts in one message + one Bash backgrounded copilot)
-- Updates harness_status.json: 3 claimed, 2 queued, 0 results
-- Exits
+- Agent reads the harness SKILL.md, then runs `qpb_harness_tick.py --init <plan-path>`.
+- Script creates `harness_runs/2026-06-09T14-00-00/`, populates queue/ with 3 jobs, writes initial harness_status.json (`{queued: 3, claimed: 0, completed: 0}`), sets `done = false`.
+- Pool size 3, queue has 3, all dispatchable now. Script emits 3 dispatch entries; agent invokes 3 `Task` calls in one agent message.
+- Agent prints the status table:
+  ```
+  Run-Dir: 2026-06-09T14-00-00 (cycle 1)
+  ─────────────────────────────────────────────────
+  RUN  REPO              MODE    STATE       PHASE   LAST-HB
+  01   /tmp/repo-a       subgnt  claimed     -       -
+  02   /tmp/repo-b       subgnt  claimed     -       -
+  03   /tmp/repo-c       subgnt  claimed     -       -
+  ─────────────────────────────────────────────────
+  Queue: 0  Claimed: 3  Completed: 0  Stalled: 0
+  Next tick in 10 min
+  ```
+- Agent calls `ScheduleWakeup(now + 10 minutes)`. Agent turn ends.
 
-**Tick 2 (10 min later, fires from scheduled task):**
+**Tick 2 (10 min later, ScheduleWakeup fires):**
 
-- Fresh agent invocation, fresh context
-- Reads harness_status.json: 3 claimed, 2 queued
-- Reads each in-flight run's heartbeat tail
-- Subagent #1: phase 2, IN_PROGRESS, recent — healthy
-- Subagent #2: phase 7, COMPLETED terminal — move to results/, free pool slot
-- Copilot shell-out: phase 1, IN_PROGRESS, recent — healthy
-- Dispatches next queue entry (the codex shell-out) into the freed slot
-- Updates harness_status.json: 3 claimed, 1 queued, 1 result
-- Exits
+- Agent runs `qpb_harness_tick.py <run-dir>`.
+- Script reads harness_status.json (3 claimed). Reads each run's heartbeat tail:
+  - run-01: phase 2 IN_PROGRESS, mtime 1 min ago — healthy
+  - run-02: phase 3 IN_PROGRESS, mtime 30 sec ago — healthy
+  - run-03: phase 5 COMPLETED terminal — move manifest to results/
+- Script updates harness_status.json (`{queued: 0, claimed: 2, completed: 1}`).
+- No new dispatches (queue empty). Status table reflects new state.
+- Agent prints status table, calls ScheduleWakeup, turn ends.
 
-**Ticks 3..N:** same shape. Each is bounded, fresh-context, advances the state machine by whatever's ready.
+**Ticks 3..N:** same shape. Each is one agent turn, bounded prose, ScheduleWakeup at the end.
 
-**Final tick:** all 5 plan entries in results/. Writes summary. Disables scheduled task. Exits.
+**Final tick:** all 3 entries in results/. Script sets `done = true`. Agent prints final summary + status table, does NOT call ScheduleWakeup, exits. Polling loop terminates.
+
+**Estimated wall time:** ~30 min agent compute across the tick turns + however long the workers take.
 
 If the operator wants immediate advancement at any point, they invoke the skill manually — same code path, same idempotency.
 
@@ -235,15 +263,16 @@ If the operator wants immediate advancement at any point, they invoke the skill 
 
 | Concern | Previous Python harness | Harness skill |
 |---|---|---|
-| Implementation | ~10K lines Python | One `SKILL.md` + 3-4 schemas + 1 helper script |
+| Implementation | ~10K lines Python | `qpb_harness_tick.py` (~300-400 lines stdlib) + harness SKILL.md (~80-150 lines prose) + 4 schemas + 1 worker-side helper |
 | Substrate immutability rule | Required | Not needed |
-| Windows compat | 10+ followup fixes | Bash + Python; cross-platform on day 1 |
-| `claude -p` dependency | Yes; June 15 forcing function | No |
-| Polling primitive | Python event loop | Scheduled-tasks MCP |
-| Long-running concerns | Subprocess pool, signals, encoding | None — tick-based |
-| TUI | Custom Python | Host CLI's conversation; status file viewable separately |
-| Cross-CLI dispatch | Separate codepaths | Native via dispatch modes |
-| Cross-machine future | Doesn't exist | A2A-ready schemas |
+| Windows compat | 10+ followup fixes | stdlib Python only; cross-platform on day 1 |
+| `claude -p` / `claude --print` dependency | Yes; June 15 forcing function | None — agent runs inside the operator's existing session |
+| Polling primitive | Python event loop | `ScheduleWakeup` inside the orchestrator's Claude Code session — same as the v1.5.7 watcher |
+| External scheduler | N/A | None — `ScheduleWakeup` is in-session |
+| Long-running concerns | Subprocess pool, signals, encoding | Bounded — agent prose per tick is small; deterministic Python does the work; subagent returns are short summaries |
+| TUI | Custom Python | Host CLI's conversation; status table printed each tick |
+| Cross-CLI dispatch | Separate codepaths | Deferred to v1.6+ (Mode 1 / Task only for MVP) |
+| Cross-machine future | Doesn't exist | A2A-ready schemas; transport swap is the remaining work |
 
 ---
 
@@ -251,21 +280,24 @@ If the operator wants immediate advancement at any point, they invoke the skill 
 
 Initial build covers:
 
-1. `skills/quality-playbook-harness/SKILL.md` — single-tick prose, three dispatch modes documented inline, idempotency rules
-2. `skills/quality-playbook-harness/schemas/` — plan, job_manifest, result schemas
-3. `skills/quality-playbook-harness/references/STATE_MACHINE.md` — state transitions enumerated
-4. `bin/qpb_heartbeat.py` — emit helper, single source of truth for append discipline
-5. `skills/quality-playbook/SKILL.md` — Heartbeat emission section added
-6. `skills/quality-playbook/schemas/heartbeat.schema.json` — referenced by both skills
-7. `quality_gate.py` invariants for new schemas
-8. End-to-end validation: harness skill against a 2-3 repo plan with mixed dispatch (subagent + one shell-out)
+1. **`bin/qpb_harness_tick.py`** — deterministic Python state-machine script. Reads disk state, applies transitions, emits JSON output `{dispatch_list, status_table, next_tick_minutes, done, stop}`. Stdlib-only. ~300-400 lines.
+2. **`bin/qpb_heartbeat.py`** — worker-side heartbeat emit helper. Single source of truth for NDJSON append discipline (Council A-1). Stdlib-only.
+3. **`plugins/quality-playbook-harness/.claude-plugin/plugin.json`** + **`plugins/quality-playbook-harness/skills/quality-playbook-harness/SKILL.md`** — second plugin in the existing self-hosted marketplace. SKILL.md prose is short (the agent's per-tick role: run script, dispatch, print, ScheduleWakeup). ~80-150 lines.
+4. **`plugins/quality-playbook-harness/skills/quality-playbook-harness/schemas/`** — plan, job_manifest, heartbeat (worker-side copy), result schemas.
+5. **`plugins/quality-playbook-harness/skills/quality-playbook-harness/references/STATE_MACHINE.md`** — state transitions enumerated.
+6. **`plugins/quality-playbook-harness/skills/quality-playbook-harness/references/BOOTSTRAP_PROMPT.md`** — the prompt the operator pastes into a fresh Claude Code session to invoke the harness against a plan. Same shape as `ai_context/WATCHER_PROMPT.md`; specialized for harness orchestration.
+7. **`plugins/quality-playbook/skills/quality-playbook/SKILL.md`** — Heartbeat emission section added (worker side of the contract).
+8. **`plugins/quality-playbook/skills/quality-playbook/schemas/heartbeat.schema.json`** — referenced by both skills; byte-identical to the harness-side copy.
+9. **`quality_gate.py`** invariants for the new schemas (carries forward Council A-1 / C-3 / A-2).
+10. **`bin/tests/test_qpb_harness_tick.py`** — unit tests for the state-machine script's transitions, idempotency, and JSON output shape.
+11. **End-to-end validation:** harness skill orchestrating a 2-3 repo plan with all Mode 1 subagent dispatches. Validates the loop closes end-to-end — `ScheduleWakeup` cadence, state advancement, subagent context bounded, terminal exit clean.
 
-Out of scope for MVP, to figure out by building:
+Out of scope for MVP, to figure out by building or defer:
 
-- Operator-manual dispatch UX polish (Mode 3 banner, tag correlation) — basic version ships, UX iteration in v1.5.10 if needed
-- A2A field mapping document — schemas designed forward-compatible; explicit A2A reference doc deferred
-- Sophisticated stall-detection (per-phase thresholds) — global 45 min + mandatory 3-min keepalive is the v1.5.9 default
-- Test strategy automation — manual end-to-end validation for MVP; CI tests for the helper script and schemas
+- Mode 2 (cross-CLI shell-out) and Mode 3 (operator-manual) — deferred to v1.6+ entirely; the schema's `dispatch_mode` enum is locked to `"subagent"` for MVP.
+- Multi-host scheduler (Codex, Copilot, etc.) — Claude Code only for MVP.
+- A2A field mapping document — schemas designed forward-compatible; explicit A2A reference doc deferred.
+- Sophisticated stall-detection (per-phase thresholds) — global 45 min + mandatory 3-min keepalive is the v1.5.9 default.
 
 Existing Python harness (`bin/harness/`, `subprocess_runner.py`) gets deleted in the same release once the skill validates.
 
@@ -273,33 +305,34 @@ Existing Python harness (`bin/harness/`, `subprocess_runner.py`) gets deleted in
 
 ## Open questions
 
-**Dissolved by tick-based architecture:**
+**Dissolved by in-session `ScheduleWakeup` architecture:**
 
-- ~~#1 polling primitive viability~~ — scheduled-tasks MCP, one tick per invocation
-- ~~#4 Sonnet drift over long polling loops~~ — N/A, no long loop
-- ~~#6 resume semantics~~ — every tick is a resume
+- ~~#1 polling primitive viability~~ — `ScheduleWakeup` inside the orchestrator's Claude Code session. Same primitive the watcher uses.
+- ~~#2 cross-CLI heartbeat path~~ — N/A in MVP, only Mode 1 (Task) is supported.
+- ~~#4 Sonnet drift over long polling loops~~ — N/A; deterministic Python script handles per-tick state, agent prose is small and fixed.
+- ~~#6 resume semantics~~ — every tick re-reads disk state; if the operator's Claude Code session crashes mid-run, restarting the bootstrap prompt resumes from disk state.
+- ~~CC-1 main Design §0 conflict~~ — superseded with the in-session architecture.
 
-**Resolved per Council:**
+**Resolved per Council (carried forward from original v1.5.9 review):**
 
-- #2 cross-CLI heartbeat path: absolute paths in prompt body
-- #5 stall threshold: 45 min global + mandatory 3-min keepalive in QPB heartbeat discipline
-- C-1 polling primitive (Council BLOCKER): scheduled-tasks MCP
-- A-1 heartbeat append collision: `bin/qpb_heartbeat.py` helper as single mechanism
-- A-2 cross-CLI path handwaving: absolute paths in prompt body
-- A-3 context bloat: tick model eliminates; subagents return summaries only
-- A-5 shell-out resume: worker.lock file with PID + start-time + cwd verification
-- B-1 cross-CLI auth: pre-dispatch round-trip + STARTUP-heartbeat-within-60-sec check
-- B-4 stall threshold default: 45 min + mandatory keepalive
-- C-3 schema drift: single source of truth in `quality-playbook/schemas/` + `schema_version` field
-- CC-1 main Design §0 conflict: this design supersedes main Design §0 substrate work; main Design §0 to be edited accordingly when this lands
+- #5 stall threshold: 45 min global + mandatory 3-min keepalive in QPB heartbeat discipline.
+- A-1 heartbeat append collision: `bin/qpb_heartbeat.py` helper as single mechanism.
+- A-3 context bloat: subagents return short summaries only (per dispatch prompt); orchestrator agent's prose is small per tick by design.
+- B-4 stall threshold default: 45 min + mandatory keepalive.
+- C-3 schema drift: single source of truth in `quality-playbook/schemas/` + `schema_version` field.
+
+**No longer applicable (Mode 2/3 deferred):**
+
+- A-2 cross-CLI path handwaving — Mode 2 deferred; will need re-examination when Mode 2 lands in v1.6+.
+- A-5 shell-out resume — Mode 2 deferred; same.
+- B-1 cross-CLI auth — Mode 2 deferred; same.
 
 **MVP-deferred — figure out by building:**
 
-- #3 subscription concurrency caps — measure empirically during MVP validation
-- #7 operator-manual dispatch UX — basic version ships, iterate after operator use
-- #8 A2A schema specifics — designed forward-compatible, explicit mapping doc deferred
-- #9 SKILL.md edit scope on QPB skill — define during implementation
-- #10 test strategy — MVP is manual end-to-end; CI for helper + schemas
+- #3 subscription concurrency caps for in-process Task subagents — measure empirically during MVP validation.
+- #8 A2A schema specifics — designed forward-compatible, explicit mapping doc deferred.
+- #9 SKILL.md edit scope on QPB skill — define during implementation.
+- #10 test strategy — MVP is manual end-to-end + the unit tests above; CI integration for the helper + schemas.
 
 ---
 
@@ -307,13 +340,14 @@ Existing Python harness (`bin/harness/`, `subprocess_runner.py`) gets deleted in
 
 | Risk | Mitigation |
 |---|---|
-| Scheduled-tasks MCP unavailable on some host CLI | SKILL.md frontmatter declares dependency; fall back to operator-manual tick documented as supported-but-not-recommended |
-| Cross-CLI shell-outs hit auth quirks | Pre-dispatch auth check + startup-heartbeat-window detection |
-| Heartbeat append race | `bin/qpb_heartbeat.py` uses `O_APPEND`; one writer per run-NN/ directory; isolation by construction |
-| Subscription concurrency caps bite at pool > N | Plan-tunable pool_size; document empirical limit when found |
-| Stall threshold misfires on legitimate long phases | Mandatory 3-min keepalive emission makes 45-min threshold safe; per-phase override deferred to v1.5.10 |
-| Idempotency bug ships → duplicate dispatch | Schema invariants + explicit "is this already done?" check on every transition; MVP validation specifically tests double-tick safety |
-| Operator misses Mode 3 ACTION REQUIRED banner | OS notification via osascript on Mac; tagged correlation file required to acknowledge |
+| Orchestrator agent forgets to call `ScheduleWakeup` → polling loop terminates silently | Hard-coded check in the SKILL.md prose: every tick ends with "Did I call ScheduleWakeup OR was this a clean exit? If neither, call ScheduleWakeup now." Same defense the v1.5.7 watcher uses. Operator restart spell: re-paste the bootstrap prompt. |
+| Orchestrator session context grows over many ticks → eventual context limit | Deterministic Python does the state work; agent prose per tick is small and fixed (~10-20 lines). Status table is a small ASCII snippet, not full heartbeat content. Subagent returns are short summaries per Council A-3. Empirical: the watcher pattern has held for weeks of continuous operation. |
+| Operator's Claude Code session crashes mid-run | State is on disk; restart the bootstrap prompt and resume. The script re-reads disk state each tick; mid-run resume just means the next tick picks up where the last one left off. |
+| Heartbeat append race | `bin/qpb_heartbeat.py` uses `O_APPEND`; one writer per run-NN/ directory; isolation by construction. |
+| Subscription concurrency caps bite at pool > N | Plan-tunable pool_size; document empirical limit when found. |
+| Stall threshold misfires on legitimate long phases | Mandatory 3-min keepalive emission makes 45-min threshold safe; per-phase override deferred to v1.5.10. |
+| Idempotency bug ships → duplicate dispatch | Schema invariants + explicit "is this already done?" check in `qpb_harness_tick.py` for every transition; unit tests specifically test double-tick safety. |
+| Plan size exceeds what one Claude Code session can hold | The script bounds context growth; in principle the orchestrator can run for hours. Hard empirical limit is unknown; v1.5.9 MVP plans should be small (3-5 entries) until evidence accumulates. Larger plans become a v1.6+ question. |
 
 ---
 

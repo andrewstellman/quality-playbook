@@ -2,7 +2,7 @@
 
 *Companion to: `QPB_v1.5.9_Design.md`*
 
-*Status: drafted 2026-06-06, revised 2026-06-07 to match scoped-down design (two focus items: harness-as-skill + SKILL.md trim). Prior broader-scope phases moved to `QPB_v1.5.10_Implementation_Plan.md`.*
+*Status: drafted 2026-06-06, revised 2026-06-07 to match scoped-down design (two focus items: harness-as-skill + SKILL.md trim). **Revised 2026-06-09 to replace the external-scheduler architecture with in-session `ScheduleWakeup` polling** per the second architectural pivot (see `QPB_v1.5.9_Harness_Skill_Design.md` for the empirical rationale). Phase 1 is replanned from scratch on a fresh `1.5.9` branch from main; the prior daemon-architecture work (instructions 210, 211, 211-followup-1, 213) is preserved on `archive/1.5.9-daemon-architecture` and is NOT cherry-picked because the architectural mistakes were embedded throughout that scaffolding. Some artifacts are portable in spirit (the heartbeat schema, the worker-side qpb_heartbeat.py helper, the worker SKILL.md heartbeat section) but will be rebuilt in this branch under the new architecture rather than carried forward. Prior broader-scope phases moved to `QPB_v1.5.10_Implementation_Plan.md`.*
 
 *Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule.*
 
@@ -17,60 +17,66 @@
 
 ---
 
-## Phase 0 — v1.5.8 Stabilization Confirmation
+## Phase 0 — Branch hygiene
 
-Before any v1.5.9 work begins, confirm v1.5.8 has fully shipped:
+Before any v1.5.9 work begins:
 
-- `v1.5.8` tag on origin, pointing at the post-close-out HEAD (currently `794ba1e` — may move to include 203/204/205/206/207 fixes per operator decision)
-- `1.5.8` branch merged to `main`, pushed to origin
-- pip + npm channels published (live on PyPI + npmjs) — already confirmed
-- awesome-copilot PR opened OR explicitly deferred to v1.5.9 (the v1.5.9 SKILL.md trim affects this — see Phase 2)
-- Claude Code plugin marketplace functional (`.claude-plugin/marketplace.json` on `main`)
+- Fresh `1.5.9` branch from `main` exists locally and on origin (the rename of the prior daemon-architecture branch to `archive/1.5.9-daemon-architecture` should already be on origin).
+- `v1.5.8` tag still on origin at the post-close-out HEAD.
+- `main` clean and current.
 
-If any of these are incomplete, finish them before starting v1.5.9 implementation.
-
-**Worker instruction at start of v1.5.9:** `cd ~/Documents/QPB && git checkout main && git pull && git checkout -b 1.5.9 && git push -u origin 1.5.9`. Verify the new branch is on origin before any commits.
+If the archive branch hasn't been pushed yet, do that first.
 
 ---
 
-## Phase 1 — Harness-as-skill
+## Phase 1 — Harness-as-skill (in-session `ScheduleWakeup` architecture)
 
-**Per `QPB_v1.5.9_Harness_Skill_Design.md` § MVP scope.** This phase has its own internal sub-phasing, captured in the sub-design. Summary:
+**Per `QPB_v1.5.9_Harness_Skill_Design.md` § MVP scope.** This phase has TWO instructions: an instruction-1 spike that empirically validates the riskiest assumption (prose-driven tick loop survives across `ScheduleWakeup` cadence with deterministic Python doing the state work), and an instruction-2 hardening that lands the production-shaped artifacts only AFTER the spike's empirical result. If the spike fails, instruction 2 changes shape based on what failed.
 
-### Phase 1A — Scaffolding
+### Phase 1A — Tracer-bullet spike (instruction 1)
 
-- Create `skills/quality-playbook-harness/` directory with `SKILL.md`, `schemas/`, `references/` substructure
-- Create `bin/qpb_heartbeat.py` helper (the canonical emit mechanism for the heartbeat contract)
-- Define the 3-4 schemas (plan, job_manifest, heartbeat, result) per the sub-design
-- Add `references/STATE_MACHINE.md` enumerating state transitions
+**The riskiest assumption being empirically tested:** *the orchestrator agent reliably runs `qpb_harness_tick.py`, parses its JSON output, dispatches the listed Task calls, prints the listed status table, calls ScheduleWakeup, and yields the agent turn — without doing extra stuff and without dropping the polling loop across multiple ticks.*
 
-### Phase 1B — QPB skill modifications
+**Minimum scope to test it (≤ 300 lines added across all files):**
 
-- Add "Heartbeat emission" section to `skills/quality-playbook/SKILL.md` (the worker side of the contract)
-- Wire the heartbeat schema into `quality-playbook/schemas/heartbeat.schema.json` (single source of truth shared with harness skill)
-- Update phase prompts to include heartbeat emission at phase boundaries
-- This work is COORDINATED with Phase 2 (SKILL.md trim) — both edit `skills/quality-playbook/SKILL.md`. Sequencing: either land Phase 2 trim FIRST then add heartbeat to the trimmed version, or land Phase 1B's heartbeat first then trim around it. Operator picks sequence; worker proceeds in declared order.
+- A ~150-line `bin/qpb_harness_tick.py` that handles the minimum state machine: queued → claimed → completed. No stall detection, no failure subtypes, no Mode 2 plumbing.
+- A ~80-line harness SKILL.md whose entire prose body is: run the script, parse JSON, dispatch each entry in `dispatch_list`, print `status_table`, call `ScheduleWakeup(now + 5 minutes)`, end turn.
+- A `harness_plans/spike_validation.json` — 1 entry, Mode 1, against a small test target.
+- A `BOOTSTRAP_PROMPT.md` modeled on `ai_context/WATCHER_PROMPT.md` — the operator pastes it into a fresh Claude Code session to invoke the harness.
 
-### Phase 1C — Validator + invariant tests
+**Validation run:**
 
-- `quality_gate.py` invariants for the 4 new schemas
-- Test for cross-skill schema consistency (the heartbeat schema in `quality-playbook-harness/schemas/` byte-matches the one in `quality-playbook/schemas/`)
-- Test for the tick idempotency contract: running the same tick twice produces no observable change after the first
+- Operator pastes the bootstrap into a fresh Claude Code session.
+- Observe 3-4 ticks fire on `ScheduleWakeup` cadence. After each tick, capture `harness_status.json`, the heartbeat tail for the dispatched run, and the agent's stdout (status table + ScheduleWakeup call).
+- The script's `done` flag flips when the worker emits a terminal sentinel; agent prints final summary, does NOT call ScheduleWakeup, exits cleanly.
+- Operator writes a STOP file during tick 2 of a separate mini-run to verify clean stop semantics.
+- Forced re-tick (operator says "run another tick now") shows empty diff in harness_status.json — idempotency check.
 
-### Phase 1D — End-to-end validation
+**Possible outcomes:**
+- **Spike succeeds:** the architectural premise holds. Phase 1B (hardening) is straightforward thickening of the production-shaped surface.
+- **Spike fails:** the failure mode tells us specifically what needs to change. Possible: agent doesn't reliably invoke ScheduleWakeup → SKILL.md prose needs sharper structure; agent does extra reasoning between script calls → script needs to be smaller and stricter; subagent return contract leaks heartbeat content into orchestrator context → A-3 enforcement needs to be tighter. The script-and-prose are small enough that pivoting is cheap.
 
-- Run the harness skill against a 2-3 repo plan with mixed dispatch (1 in-process Task subagent + 1 cross-CLI shell-out + optionally 1 operator-manual)
-- Verify heartbeats land in `harness_runs/<ts>/run-NN/heartbeat.ndjson` correctly
-- Verify state-machine transitions advance over multiple ticks
-- Verify resume — kill the scheduled task, restart, observe state restoration from disk
-- Capture cost calibration (orchestrator + worker token counts per cycle) for the Risk Register
+**Spike NOT subject to worker self-Council.** The artifact is ≤300 lines; Council is theater at this scale. The empirical result (the run output) is the verdict.
 
-### Phase 1 Ship Gate
+### Phase 1B — Production hardening (instruction 2)
 
-- Council Self-Review Protocol 1 with three panelists per the harness sub-design's panelist enumeration (architectural correctness, operational viability, prose reliability)
-- All Open Questions from the sub-design either resolved or explicitly MVP-deferred with documented rationale
-- End-to-end validation captured in the worker's review-request file
-- `bin/harness/` Python code marked for deletion (commit message notes the deletion plan; actual `rm` happens after a buffer period to allow rollback)
+Conditional on Phase 1A producing a successful spike. Only files after the spike's evidence is captured. Contents depend on what 1A learned. Likely shape:
+
+- Expand `qpb_harness_tick.py` to handle full state machine: stall detection, AUTH_OR_LAUNCH_FAILED (if Mode 1 dispatch fails), terminal FAILED status, idempotency invariants, error logging.
+- Expand harness SKILL.md prose with the loop-continuation discipline checklist verbatim (mirroring the watcher prompt's "EVERY tick MUST end with ScheduleWakeup" section).
+- Build out the second plugin properly (`plugins/quality-playbook-harness/.claude-plugin/plugin.json`, marketplace.json catalog entry, schemas, references including STATE_MACHINE.md).
+- Add `bin/tests/test_qpb_harness_tick.py` — stdlib-only unit tests for state-machine transitions, idempotency, JSON output shape, double-tick safety.
+- Add `quality_gate.py` invariants for the schemas (carry forward Council A-1, C-3, A-2 disciplines from the original v1.5.9 review).
+- Re-validate end-to-end against a 2-3 entry plan; capture evidence.
+
+### Phase 1B sub-Council
+
+After Phase 1B lands its commit:
+
+- Worker self-Council Protocol 1 with three panelists: (A) state-machine correctness + idempotency, (B) SKILL.md prose reliability + ScheduleWakeup discipline, (C) cross-skill schema consistency + validator coverage.
+- All Open Questions from the harness sub-design either resolved or explicitly MVP-deferred with documented rationale.
+- End-to-end validation evidence captured in the worker's review-request file.
+- `bin/harness/` Python code marked for deletion (commit message notes the deletion plan; actual `rm` happens after a buffer period to allow rollback).
 
 ---
 
@@ -164,19 +170,26 @@ Phase 1 and Phase 2 are parallelizable. Phase 3 waits for both.
 
 | # | Item | Phase | Status |
 |---|------|-------|--------|
-| 1 | Harness skill scaffold + schemas | 1A | Designed (sub-design); not yet implemented |
-| 2 | `bin/qpb_heartbeat.py` helper | 1A | Designed; not yet implemented |
-| 3 | QPB SKILL.md heartbeat emission section | 1B | Designed; not yet implemented |
-| 4 | `quality_gate.py` schema invariants | 1C | Designed; not yet implemented |
-| 5 | End-to-end harness validation run | 1D | Pending Phase 1A-1C |
-| 6 | SKILL.md content audit | 2A | Pending — first concrete step of Phase 2 |
-| 7 | Mechanical content extraction | 2B | Pending audit |
-| 8 | SKILL.md restructure + reference directives | 2C | Pending extraction |
-| 9 | Reference-resolves validator | 2D | Pending |
-| 10 | Token-ceiling ratchet (32K → ~12K) | 2D | Pending |
-| 11 | Benchmark regression run | 2E | Pending Phase 2 implementation |
-| 12 | awesome-copilot re-submission with full canonical SKILL.md | 2 Ship Gate | Pending Phase 2 |
-| 13 | Release ship steps 1-8 | 3 | Pending Phase 1 + Phase 2 ship gates |
+| 1 | Tracer-bullet spike: minimal `qpb_harness_tick.py` + minimal harness SKILL.md + bootstrap prompt + 1-entry plan + empirical 3-4-tick validation | 1A | PENDING — first instruction filed against this branch |
+| 2 | Production-shaped `qpb_harness_tick.py` (full state machine, idempotency, error handling) | 1B | PENDING — gated on spike result |
+| 3 | Production harness SKILL.md prose (loop-continuation discipline, full status table, dispatch contract) | 1B | PENDING |
+| 4 | Second-plugin scaffolding (`plugins/quality-playbook-harness/.claude-plugin/plugin.json` + marketplace.json catalog entry + schemas + references) | 1B | PENDING |
+| 5 | `bin/qpb_heartbeat.py` worker-side helper | 1B | PENDING — re-build (the archive branch's version was sound but built on different scaffolding) |
+| 6 | QPB worker SKILL.md heartbeat emission section | 1B | PENDING — re-add (same artifact as archive but on new branch) |
+| 7 | Heartbeat schema byte-identical copies on both sides | 1B | PENDING |
+| 8 | `quality_gate.py` invariants for harness schemas | 1B | PENDING |
+| 9 | `bin/tests/test_qpb_harness_tick.py` — unit tests for state machine + idempotency | 1B | PENDING |
+| 10 | End-to-end validation run with operator-driven 2-3 entry plan | 1B Ship Gate | PENDING |
+| 11 | SKILL.md content audit | 2A | PENDING — Phase 2 workstream is independent and can run in parallel with Phase 1 |
+| 12 | Mechanical content extraction | 2B | PENDING audit |
+| 13 | SKILL.md restructure + reference directives | 2C | PENDING extraction |
+| 14 | Reference-resolves validator | 2D | PENDING |
+| 15 | Token-ceiling ratchet (32K → ~12K) | 2D | PENDING |
+| 16 | Benchmark regression run | 2E | PENDING Phase 2 implementation |
+| 17 | awesome-copilot re-submission with full canonical SKILL.md | 2 Ship Gate | PENDING Phase 2 |
+| 18 | Release ship steps 1-8 | 3 | PENDING Phase 1B + Phase 2 ship gates |
+
+**Note on the daemon-architecture archive.** Instructions 210, 211, 211-followup-1, and 213 landed on `archive/1.5.9-daemon-architecture`. They contain working artifacts (worker-side heartbeat helper, schemas, worker SKILL.md heartbeat prose, validators) that are conceptually portable to the new architecture. They are NOT cherry-picked because the architectural mistakes (MCP scheduler, then daemon scheduler) were embedded throughout that scaffolding and the cleaner path is to rebuild on the new substrate. Some prose and code patterns will be re-used in spirit; nothing is moved in literal form.
 
 ---
 

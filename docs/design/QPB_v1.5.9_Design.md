@@ -1,6 +1,6 @@
 # Quality Playbook v1.5.9 — Design Document
 
-*Status: drafted 2026-06-06 with broad scope, revised 2026-06-07 to scope down to two focus items per operator direction. The previously-in-scope ship-gate feature, B-1 through B-8 capabilities, and related design decisions move to `QPB_v1.5.10_Design.md`.*
+*Status: drafted 2026-06-06 with broad scope, revised 2026-06-07 to scope down to two focus items per operator direction, **revised 2026-06-09 to replace the proposed external scheduler with in-session `ScheduleWakeup` polling** — same primitive the v1.5.7 watcher (`ai_context/WATCHER_PROMPT.md`) has used reliably for weeks. Two earlier drafts proposed external mechanisms (Cowork's `mcp__scheduled-tasks` MCP, then a self-spawned Python sidecar daemon firing `claude --print`) and both failed against deployment constraints: the MCP is unavailable in build-agent sub-sessions and Cowork-locked anyway, the daemon's fire mechanism hit the June 15 `claude -p` deprecation. The daemon-architecture branch is preserved as `archive/1.5.9-daemon-architecture`. See `QPB_v1.5.9_Harness_Skill_Design.md` for the empirical rationale. The previously-in-scope ship-gate feature, B-1 through B-8 capabilities, and related design decisions move to `QPB_v1.5.10_Design.md`.*
 
 *Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule.*
 
@@ -10,7 +10,7 @@
 
 v1.5.9 is scoped to **two focused workstreams**, independent of each other and parallelizable:
 
-1. **Harness-as-skill** — replace the Python subprocess harness (`bin/harness/`, `subprocess_runner.py`, the TUI) with a `quality-playbook-harness` skill that runs on the orchestrating agent's Task tool plus the scheduled-tasks MCP. Retires the substrate-immutability rule and the `claude -p` dependency in one move. Detailed sub-design lives in `QPB_v1.5.9_Harness_Skill_Design.md` (this document references it as authoritative for the harness work).
+1. **Harness-as-skill** — replace the Python subprocess harness (`bin/harness/`, `subprocess_runner.py`, the TUI) with a `quality-playbook-harness` skill that runs inside the operator's Claude Code session and dispatches workers via the `Task` tool. The harness's cadence is driven by `ScheduleWakeup` — the same in-session polling primitive the v1.5.7 watcher uses. Retires the substrate-immutability rule and the `claude -p` dependency without introducing a new external dependency (no MCP, no daemon, no cron). Detailed sub-design lives in `QPB_v1.5.9_Harness_Skill_Design.md` (this document references it as authoritative for the harness work).
 
 2. **SKILL.md trim** — move content from the 1256-line source `SKILL.md` into `references/*.md` files that the skill loads on-demand per phase. Goal: source SKILL.md small enough (~200-400 lines) that the awesome-copilot submission can ship the **full canonical** SKILL.md without the redirect-to-install framing that the maintainers explicitly reject.
 
@@ -27,14 +27,15 @@ The two v1.5.9 workstreams are independent: SKILL.md trim affects what the skill
 **Summary (canonical text in sub-design):**
 
 - Two skills cooperate: `quality-playbook-harness` (new orchestration skill) + `quality-playbook` (existing worker skill, modified to emit a deterministic heartbeat contract).
-- **Tick-based execution.** The harness skill is invoked by a scheduled task every N minutes. Each invocation runs one tick: read state from disk, advance any state-machine transitions that are ready, write state back, exit. State machine lives entirely on disk; the agent is a stateless stepper.
+- **Tick-based execution via in-session `ScheduleWakeup`.** The harness runs inside one operator Claude Code session (the operator pastes a bootstrap prompt; that session becomes the harness orchestrator for the plan's duration). Each tick is one agent turn: run the `qpb_harness_tick.py` Python script, parse its JSON output, dispatch any new `Task` subagents, print the status table, call `ScheduleWakeup(now + N minutes)`. State machine lives entirely on disk; the deterministic Python script is the state-machine engine; the agent's per-tick prose is small and fixed.
 - **Folder-based communication** with A2A-ready schemas (schemas designed so future cross-machine A2A migration is a transport swap, not a redesign).
-- **Three dispatch modes** mix freely per plan entry: in-process Task subagent (Claude Code), cross-CLI shell-out (`copilot`, `codex`, `claude`), operator-manual launch.
+- **Dispatch is Mode 1 (`Task` subagent) only for MVP.** Cross-CLI dispatch (Mode 2 in earlier drafts) and operator-manual (Mode 3) are deferred to v1.6+ — they have unresolved questions about heartbeat observability and process lifecycle that v1.5.9 should not absorb.
 - **Heartbeat contract** added to `quality-playbook` SKILL.md: emit via `bin/qpb_heartbeat.py` helper at phase boundaries, every ~3 min mid-phase mandatory keepalive, on any error, and terminal sentinel on completion.
+- **MVP host: Claude Code only.** `ScheduleWakeup` is Claude Code's primitive. Other host CLIs become a v1.6+ question.
 
 **What this retires:**
 
-- `bin/harness/launcher.py`, `bin/harness/sentinel_reader.py`, the harness TUI, `subprocess_runner.py`, all the Windows compat fixes (180-190 chain), the substrate-immutability rule, the `claude -p` dependency (June 15 deprecation becomes moot).
+- `bin/harness/launcher.py`, `bin/harness/sentinel_reader.py`, the harness TUI, `subprocess_runner.py`, all the Windows compat fixes (180-190 chain), the substrate-immutability rule. Nothing in the new architecture invokes `claude -p` / `claude --print` — the orchestrator runs inside the operator's existing session, so the June 15 deprecation is moot.
 - The earlier v1.5.9 draft's "Part 0" sentinel-and-paste-buffer design — substantially obviated by the harness skill model. What remains needed for Mode A (interactive QPB without harness) + one-shot worker invocations migrates to the harness sub-design's §0.6 Mode A path and is handled there.
 
 **Out of scope for v1.5.9 (deferred to v1.5.10 or later):**
