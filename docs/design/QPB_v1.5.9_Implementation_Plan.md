@@ -2,7 +2,7 @@
 
 *Companion to: `QPB_v1.5.9_Design.md`*
 
-*Status: drafted 2026-06-06, revised 2026-06-07 to match scoped-down design (two focus items: harness-as-skill + SKILL.md trim). Prior broader-scope phases moved to `QPB_v1.5.10_Implementation_Plan.md`.*
+*Status: drafted 2026-06-06, revised 2026-06-07 to match scoped-down design (two focus items: harness-as-skill + SKILL.md trim). **Revised 2026-06-09 to replace MCP-based scheduler with sidecar daemon** per operator direction (see `QPB_v1.5.9_Harness_Skill_Design.md` for the empirical rationale). Phase 1 sub-phases 1A-1C landed under instruction 210 with the MCP-based scheduler; this revision adds Phase 1E covering the daemon swap + adversarial coverage + B-1 roundtrip + Phase 1D end-to-end revalidation. Prior broader-scope phases moved to `QPB_v1.5.10_Implementation_Plan.md`.*
 
 *Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule.*
 
@@ -57,19 +57,32 @@ If any of these are incomplete, finish them before starting v1.5.9 implementatio
 - Test for cross-skill schema consistency (the heartbeat schema in `quality-playbook-harness/schemas/` byte-matches the one in `quality-playbook/schemas/`)
 - Test for the tick idempotency contract: running the same tick twice produces no observable change after the first
 
-### Phase 1D — End-to-end validation
+### Phase 1D — End-to-end validation (partial — operator-manual mode)
 
-- Run the harness skill against a 2-3 repo plan with mixed dispatch (1 in-process Task subagent + 1 cross-CLI shell-out + optionally 1 operator-manual)
-- Verify heartbeats land in `harness_runs/<ts>/run-NN/heartbeat.ndjson` correctly
-- Verify state-machine transitions advance over multiple ticks
-- Verify resume — kill the scheduled task, restart, observe state restoration from disk
-- Capture cost calibration (orchestrator + worker token counts per cycle) for the Risk Register
+LANDED via instruction 211-followup-1 (commit `024e642`). Captures all F4-F14 evidence including the fresh-context restart that proves the disk-state-as-truth recovery premise. The MCP path was NOT validated because the build agent's session lacked `mcp__scheduled-tasks` — a structural gap confirmed across three independent build-agent sessions. This validation evidence carries forward as the operator-manual coverage; the daemon-based end-to-end validation lands as part of Phase 1E.
+
+### Phase 1E — Daemon swap + B-1 + adversarial coverage + revalidation (REPLACES the MCP path validation that Phase 1D originally bundled)
+
+Replaces the MCP-based scheduler with a self-spawned sidecar daemon and fills the remaining Phase 1 coverage gaps:
+
+- Add `bin/qpb_tick_daemon.py` — cross-platform detached Python process, PID-file lock via `O_EXCL`, mtime-updated heartbeat file, `done.marker` polling for clean exit. Stdlib only. ~100-150 lines.
+- Add `bin/qpb_harness.py` — operator-facing CLI: `status` (list active daemons), `stop <run-dir>` (signal-then-kill), `gc` (sweep stale PID files).
+- Edit harness SKILL.md: replace § First-tick setup MCP-scheduled-task creation with daemon spawn; replace § Self-disable scheduled-task delete with `done.marker` write; **remove** the § Fallback: no-MCP operator-manual mode section added by 211-followup-1 (single mechanism now — no fallback needed); remove `mcp__scheduled-tasks` from frontmatter dependencies; remove the `update_scheduled_task` gap note.
+- Edit STATE_MACHINE.md: remove MCP-specific transitions; add daemon crash → re-spawn invariant if it doesn't fall out of the existing state machine.
+- Edit DISPATCH_GUIDE.md to reflect daemon-based first-tick.
+- **G4 — B-1 cross-CLI `--print "echo ok"` roundtrip** (carried forward from 212): the full roundtrip auth check that 211-followup-1 only completed in `--version` form.
+- **G5 — Transition #4 (AUTH_OR_LAUNCH_FAILED) adversarial trigger**: dispatch Mode 2 worker with broken `cli_command`, verify next tick marks job `failed`/`failure_subtype=AUTH_OR_LAUNCH_FAILED`.
+- **G6 — Transition #2 (FAILED terminal) adversarial trigger**: dispatch worker that emits `terminal --status FAILED`, verify state machine handles it.
+- **G7 — (stretch) Transition #3 (stall detection) adversarial trigger**: plan with `stall_threshold_minutes=1`, worker emits STARTING then nothing, verify `stalled` marking.
+- End-to-end revalidation in daemon mode against a small benchmark plan (≥1 subagent + ≥1 cross-CLI). Capture daemon spawn evidence, automated tick firing, daemon self-exit on `done.marker`.
+- Updated `quality_gate.py` invariants for the PID-file format and daemon-related state.
+- Two new tests: `bin/tests/test_daemon_lifecycle.py` (spawn → heartbeat → done-marker exit → PID cleanup) + `bin/tests/test_daemon_crash_recovery.py` (kill daemon mid-run, verify next harness invocation re-spawns).
 
 ### Phase 1 Ship Gate
 
 - Council Self-Review Protocol 1 with three panelists per the harness sub-design's panelist enumeration (architectural correctness, operational viability, prose reliability)
 - All Open Questions from the sub-design either resolved or explicitly MVP-deferred with documented rationale
-- End-to-end validation captured in the worker's review-request file
+- End-to-end validation (operator-manual coverage from 211-followup-1 + daemon coverage from Phase 1E) captured in the worker's review-request file
 - `bin/harness/` Python code marked for deletion (commit message notes the deletion plan; actual `rm` happens after a buffer period to allow rollback)
 
 ---
@@ -164,11 +177,18 @@ Phase 1 and Phase 2 are parallelizable. Phase 3 waits for both.
 
 | # | Item | Phase | Status |
 |---|------|-------|--------|
-| 1 | Harness skill scaffold + schemas | 1A | Designed (sub-design); not yet implemented |
-| 2 | `bin/qpb_heartbeat.py` helper | 1A | Designed; not yet implemented |
-| 3 | QPB SKILL.md heartbeat emission section | 1B | Designed; not yet implemented |
-| 4 | `quality_gate.py` schema invariants | 1C | Designed; not yet implemented |
-| 5 | End-to-end harness validation run | 1D | Pending Phase 1A-1C |
+| 1 | Harness skill scaffold + schemas | 1A | LANDED (instruction 210, commit `a19fc9a`) |
+| 2 | `bin/qpb_heartbeat.py` helper | 1A | LANDED (210) |
+| 3 | QPB SKILL.md heartbeat emission section | 1B | LANDED (210) |
+| 4 | `quality_gate.py` schema invariants | 1C | LANDED (210) |
+| 5 | End-to-end harness validation — operator-manual coverage | 1D | LANDED (instruction 211-followup-1, commit `024e642`) |
+| 5b | `bin/qpb_tick_daemon.py` sidecar daemon | 1E | PENDING (instruction 213) |
+| 5c | `bin/qpb_harness.py` operator CLI (status/stop/gc) | 1E | PENDING (213) |
+| 5d | Harness SKILL.md daemon swap + remove no-MCP fallback prose | 1E | PENDING (213) |
+| 5e | B-1 `--print "echo ok"` roundtrip | 1E | PENDING (213) |
+| 5f | Adversarial transitions #2(FAILED), #3(stall), #4(AUTH_OR_LAUNCH_FAILED) | 1E | PENDING (213) |
+| 5g | End-to-end validation in daemon mode | 1E | PENDING (213) |
+| 5h | Daemon lifecycle + crash recovery tests | 1E | PENDING (213) |
 | 6 | SKILL.md content audit | 2A | Pending — first concrete step of Phase 2 |
 | 7 | Mechanical content extraction | 2B | Pending audit |
 | 8 | SKILL.md restructure + reference directives | 2C | Pending extraction |
@@ -176,7 +196,7 @@ Phase 1 and Phase 2 are parallelizable. Phase 3 waits for both.
 | 10 | Token-ceiling ratchet (32K → ~12K) | 2D | Pending |
 | 11 | Benchmark regression run | 2E | Pending Phase 2 implementation |
 | 12 | awesome-copilot re-submission with full canonical SKILL.md | 2 Ship Gate | Pending Phase 2 |
-| 13 | Release ship steps 1-8 | 3 | Pending Phase 1 + Phase 2 ship gates |
+| 13 | Release ship steps 1-8 | 3 | Pending Phase 1E + Phase 2 ship gates |
 
 ---
 

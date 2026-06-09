@@ -1,6 +1,6 @@
 # Quality Playbook v1.5.9 — Harness Skill Design
 
-*Status: drafted 2026-06-06 (Cowork session). Revised 2026-06-06 post-Council review to adopt tick-based execution per operator direction. This document captures the broad-strokes architecture; detailed schema definitions and implementation steps are deferred to a companion Implementation Plan.*
+*Status: drafted 2026-06-06 (Cowork session). Revised 2026-06-06 post-Council review to adopt tick-based execution per operator direction. **Revised 2026-06-09 to replace the scheduled-tasks MCP scheduler with a self-spawned sidecar daemon** per operator direction — eliminates the Cowork-MCP vendor coupling and the sub-session MCP-propagation failure mode empirically observed across three independent build-agent sessions (211 / 211-followup-1 / 212 HALTs). The tick contract, state machine, idempotency invariants, dispatch modes, schemas, and heartbeat contract are unchanged; only the external-scheduler implementation is swapped.*
 
 *Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule.*
 
@@ -17,7 +17,9 @@ The QPB test harness becomes a **skill**, not a Python program. Two skills coope
 - `quality-playbook-harness` — new skill. Orchestration logic lives in its `SKILL.md` as prose instructions. Any orchestration-capable agent (Claude Code, Codex, Copilot, eventually Cursor/Windsurf) loads it and follows it.
 - `quality-playbook` — existing skill, modified to add a deterministic heartbeat contract. Workers (loaded with the QPB skill) emit heartbeat events to a known file so the harness can track progress.
 
-**Tick-based execution.** The harness skill does NOT run as a long-lived polling loop. Each invocation executes exactly ONE tick of the state machine: read state from disk, advance any transitions that are ready, write state back to disk, exit. A scheduled task fires the skill at the desired cadence (e.g., every 10 min). This pattern is well-trodden — state machine on disk + idempotent stepper + external scheduler — and dissolves the long-running-session concerns (context drift, sleep timeouts, accumulating conversation history) by construction.
+**Tick-based execution.** The harness skill does NOT run as a long-lived polling loop. Each invocation executes exactly ONE tick of the state machine: read state from disk, advance any transitions that are ready, write state back to disk, exit. A **sidecar daemon** — a tiny Python background process the harness skill spawns on first-tick — fires the skill at the desired cadence (e.g., every 10 min). The daemon holds zero AI context; it is a dumb wakeup timer that invokes `claude --print` (or the equivalent for the host CLI) each tick. This pattern is well-trodden — state machine on disk + idempotent stepper + external scheduler — and dissolves the long-running-session concerns (context drift, sleep timeouts, accumulating conversation history) by construction. The daemon's "long-running" property does NOT have those failure modes because the daemon is not an AI context, just a clock.
+
+**Why a self-spawned daemon, not the Cowork scheduled-tasks MCP.** An earlier (2026-06-06) draft used Cowork's `mcp__scheduled-tasks` as the external scheduler. Empirical validation (instructions 211, 211-followup-1, 212) confirmed three failure modes: (1) vendor lock — adopters running QPB through Codex, Copilot CLI, Cursor, or the bare `claude` CLI without Cowork have no access to the MCP; (2) sub-session topology — even within Anthropic's stack, sub-sessions spawned via the Task tool do not inherit the MCP, breaking the cross-CLI dispatch model; (3) bus factor — coupling the harness's autonomy story to one specific MCP server. The sidecar daemon eliminates all three: it depends only on Python (which is already required by the worker skill), runs anywhere the worker runs, and works identically in any session topology.
 
 The harness skill can dispatch workers via the host CLI's subagent mechanism (Task tool in Claude Code), via shell-out to a different CLI (`copilot --model X`, `codex ...`, `claude ...`), or via operator-driven manual launch in a separate window. These can mix freely in one plan execution.
 
@@ -32,7 +34,7 @@ This design retires the existing Python harness (`bin/harness/launcher.py`, `sen
 1. **Skill, not subprocess pool.** The harness is a `SKILL.md` that any orchestration-capable agent reads and acts on.
 2. **Cross-CLI orchestration.** Harness in Claude Code can dispatch workers in Codex, Copilot, or another Claude Code instance.
 3. **Deterministic heartbeat.** The QPB skill emits a structured heartbeat to a known file at deterministic moments. The harness reads heartbeats to track progress and detect stalls.
-4. **Tick-based execution.** Each invocation runs exactly one tick: read state, advance, write state, exit. A scheduled task drives the cadence. Idempotency is mandatory — running the same tick twice in a row must be safe.
+4. **Tick-based execution with a self-spawned sidecar daemon.** Each invocation runs exactly one tick: read state, advance, write state, exit. The harness skill spawns a detached Python daemon on first-tick that fires `claude --print` (or equivalent) at the configured cadence. Idempotency is mandatory — running the same tick twice in a row must be safe. The daemon has zero AI context (it is a dumb wakeup clock) so it does not exhibit the failure modes of long-running in-context loops.
 5. **Folder-based comm with A2A-ready schemas.** Filesystem transport for v1.5.9; schemas shaped so A2A migration is a transport swap, not a redesign.
 6. **No version-staging.** This is the architecture for v1.5.9. Not staged across releases. Not built in parts. MVP scope captured below.
 
@@ -144,17 +146,26 @@ Each harness skill invocation is one tick. The tick's job:
    - For each pending job in queue and free pool slot: dispatch one
    - For each in-flight run with a terminal sentinel: move job manifest to results/
    - For each in-flight run with stale heartbeat past `stall_threshold`: mark STALLED
-   - For each completed plan: write final summary, optionally self-disable the scheduled task
+   - For each completed plan: write final summary, write `done.marker` (the daemon exits on its next wake), remove PID file
 4. Write updated `harness_status.json`.
 5. Exit.
 
 **Idempotency is mandatory.** Every transition checks "is this already done?" before applying. If the job is already in claimed/, don't re-dispatch. If the result file is already present, don't re-move. Running the same tick twice in a row produces no observable change after the first.
 
-**Setup model.** On first invocation against a new plan, the harness skill creates a scheduled task (`mcp__scheduled-tasks__create_scheduled_task`) that re-invokes the harness skill with the `<ts>` directory as argument. Cadence comes from the plan's `tick_interval_minutes` field (default: 10). The schedule survives session restarts, machine reboots, anything.
+**Setup model.** On first invocation against a new plan, the harness skill spawns a sidecar daemon (`python3 bin/qpb_tick_daemon.py <run-dir>` via `subprocess.Popen` with platform-correct detachment flags — `os.setsid()` on Unix, `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP` on Windows). The daemon writes a PID file at `<run-dir>/daemon.pid` for lifecycle management. Cadence comes from the plan's `tick_interval_minutes` field (default: 10). The daemon survives the operator's session ending because it is detached from the terminal session.
 
-**Operator override.** The operator can invoke the harness skill manually at any time to force an immediate tick. Useful when something just changed and they don't want to wait for the next scheduled fire. Falls out for free because tick is idempotent.
+**The daemon's responsibility is exactly one thing**: every `tick_interval_minutes`, invoke `claude --print --plugin-dir <harness-skill-path> -p "tick harness on run-dir <run-dir>"` (or the equivalent for whichever host CLI is configured for the plan). The daemon does NOT make state-machine decisions, does NOT read heartbeats, does NOT touch the queue/claimed/results directories. The harness skill — invoked fresh each tick — does all of that. The daemon is a clock with `subprocess.run` attached.
 
-**Self-disable.** When all plan entries are in results/ (success or failure), the final tick disables the scheduled task and exits cleanly.
+**Daemon lifecycle:**
+
+1. **Spawn.** First-tick setup creates `<run-dir>/daemon.pid` (lock file via `O_EXCL`) and launches the daemon process. If the lock file already exists and the PID is alive, the harness skill refuses to start a second daemon for the same run-dir.
+2. **Heartbeat.** The daemon writes `<run-dir>/daemon.heartbeat` (mtime updated each tick) so the harness skill can detect a dead daemon on subsequent operator-manual invocations.
+3. **Self-disable.** When the harness skill detects all plan entries are in `results/`, it writes `<run-dir>/done.marker`. The daemon checks for this marker before each sleep cycle; when present, the daemon exits cleanly and removes the PID file.
+4. **Crash recovery.** If the daemon dies unexpectedly (machine reboot, `kill -9`, OOM), the next operator invocation of the harness skill detects a stale `daemon.pid` (PID not running OR heartbeat older than 3 × `tick_interval_minutes`) and re-spawns the daemon. The state machine is unaffected — the daemon is just a clock; only the cadence of clock ticks is lost during the outage.
+
+**Operator override.** The operator can invoke the harness skill manually at any time to force an immediate tick. Useful when something just changed and they don't want to wait for the next daemon fire. Falls out for free because the tick is idempotent and the daemon's wake/sleep loop is independent of operator invocations.
+
+**Self-disable.** When all plan entries are in `results/` (success or failure), the final tick writes `done.marker`, the daemon exits on its next wake check, the PID file is removed, and the harness writes the run's final summary.
 
 ### Dispatch modes
 
@@ -205,13 +216,13 @@ Operator opens Claude Code in the QPB repo, invokes the harness skill with a pla
 
 **First invocation (tick 1):**
 
-- Skill creates scheduled task that re-invokes itself every 10 min
+- Skill spawns sidecar daemon that re-invokes the harness skill via `claude --print` every 10 min; daemon writes PID file at `<run-dir>/daemon.pid`
 - Reads plan, validates, creates `harness_runs/2026-06-06T14-00-00/`, populates queue/ with 5 jobs
 - Pool size 3, queue has 5, dispatches first 3 (one Task call with two subagent prompts in one message + one Bash backgrounded copilot)
 - Updates harness_status.json: 3 claimed, 2 queued, 0 results
 - Exits
 
-**Tick 2 (10 min later, fires from scheduled task):**
+**Tick 2 (10 min later, fires from daemon):**
 
 - Fresh agent invocation, fresh context
 - Reads harness_status.json: 3 claimed, 2 queued
@@ -225,7 +236,7 @@ Operator opens Claude Code in the QPB repo, invokes the harness skill with a pla
 
 **Ticks 3..N:** same shape. Each is bounded, fresh-context, advances the state machine by whatever's ready.
 
-**Final tick:** all 5 plan entries in results/. Writes summary. Disables scheduled task. Exits.
+**Final tick:** all 5 plan entries in results/. Writes summary. Writes `done.marker` (daemon exits on next wake). Removes PID file. Exits.
 
 If the operator wants immediate advancement at any point, they invoke the skill manually — same code path, same idempotency.
 
@@ -239,7 +250,7 @@ If the operator wants immediate advancement at any point, they invoke the skill 
 | Substrate immutability rule | Required | Not needed |
 | Windows compat | 10+ followup fixes | Bash + Python; cross-platform on day 1 |
 | `claude -p` dependency | Yes; June 15 forcing function | No |
-| Polling primitive | Python event loop | Scheduled-tasks MCP |
+| Polling primitive | Python event loop | Self-spawned sidecar daemon (dumb wakeup clock) |
 | Long-running concerns | Subprocess pool, signals, encoding | None — tick-based |
 | TUI | Custom Python | Host CLI's conversation; status file viewable separately |
 | Cross-CLI dispatch | Separate codepaths | Native via dispatch modes |
@@ -251,14 +262,16 @@ If the operator wants immediate advancement at any point, they invoke the skill 
 
 Initial build covers:
 
-1. `skills/quality-playbook-harness/SKILL.md` — single-tick prose, three dispatch modes documented inline, idempotency rules
+1. `skills/quality-playbook-harness/SKILL.md` — single-tick prose, three dispatch modes documented inline, idempotency rules. **No MCP-based fire mechanism**: the harness skill spawns a sidecar daemon via `subprocess.Popen` on first-tick.
 2. `skills/quality-playbook-harness/schemas/` — plan, job_manifest, result schemas
 3. `skills/quality-playbook-harness/references/STATE_MACHINE.md` — state transitions enumerated
-4. `bin/qpb_heartbeat.py` — emit helper, single source of truth for append discipline
-5. `skills/quality-playbook/SKILL.md` — Heartbeat emission section added
-6. `skills/quality-playbook/schemas/heartbeat.schema.json` — referenced by both skills
-7. `quality_gate.py` invariants for new schemas
-8. End-to-end validation: harness skill against a 2-3 repo plan with mixed dispatch (subagent + one shell-out)
+4. `bin/qpb_heartbeat.py` — emit helper, single source of truth for append discipline (worker side)
+5. `bin/qpb_tick_daemon.py` — sidecar wakeup daemon, cross-platform detached spawn, PID-file lock, heartbeat mtime, `done.marker` polling for clean exit (~100-150 lines stdlib only)
+6. `bin/qpb_harness.py` — small operator-facing CLI: `qpb harness status` (list active daemons), `qpb harness stop <run-dir>` (signal-then-kill), `qpb harness gc` (sweep stale PID files)
+7. `skills/quality-playbook/SKILL.md` — Heartbeat emission section added
+8. `skills/quality-playbook/schemas/heartbeat.schema.json` — referenced by both skills
+9. `quality_gate.py` invariants for new schemas + the daemon PID-file format
+10. End-to-end validation: harness skill against a 2-3 repo plan with mixed dispatch (subagent + one shell-out). Runs in ANY session topology — no MCP required.
 
 Out of scope for MVP, to figure out by building:
 
@@ -275,7 +288,7 @@ Existing Python harness (`bin/harness/`, `subprocess_runner.py`) gets deleted in
 
 **Dissolved by tick-based architecture:**
 
-- ~~#1 polling primitive viability~~ — scheduled-tasks MCP, one tick per invocation
+- ~~#1 polling primitive viability~~ — sidecar daemon spawned by harness skill; daemon is a dumb wakeup clock with no AI context, eliminating the in-context polling failure modes (was previously the scheduled-tasks MCP; replaced 2026-06-09 due to vendor coupling + sub-session propagation failures)
 - ~~#4 Sonnet drift over long polling loops~~ — N/A, no long loop
 - ~~#6 resume semantics~~ — every tick is a resume
 
@@ -283,7 +296,7 @@ Existing Python harness (`bin/harness/`, `subprocess_runner.py`) gets deleted in
 
 - #2 cross-CLI heartbeat path: absolute paths in prompt body
 - #5 stall threshold: 45 min global + mandatory 3-min keepalive in QPB heartbeat discipline
-- C-1 polling primitive (Council BLOCKER): scheduled-tasks MCP
+- C-1 polling primitive (Council BLOCKER): sidecar daemon (was scheduled-tasks MCP in the original Council resolution; replaced 2026-06-09 because empirical validation across 3 build-agent sessions confirmed the MCP isn't available outside Cowork-equipped top-level sessions — see § Why a self-spawned daemon, not the Cowork scheduled-tasks MCP)
 - A-1 heartbeat append collision: `bin/qpb_heartbeat.py` helper as single mechanism
 - A-2 cross-CLI path handwaving: absolute paths in prompt body
 - A-3 context bloat: tick model eliminates; subagents return summaries only
@@ -307,7 +320,10 @@ Existing Python harness (`bin/harness/`, `subprocess_runner.py`) gets deleted in
 
 | Risk | Mitigation |
 |---|---|
-| Scheduled-tasks MCP unavailable on some host CLI | SKILL.md frontmatter declares dependency; fall back to operator-manual tick documented as supported-but-not-recommended |
+| Sidecar daemon crashes mid-run (OS kill, OOM, machine reboot) | Daemon writes mtime-updated heartbeat file; next operator invocation of harness skill detects stale PID and re-spawns daemon. State machine is unaffected; only the cadence of ticks is lost during the outage. |
+| Operator unaware a background process is running | First-tick output explicitly tells operator "spawned daemon PID N at <run-dir>/daemon.pid; stop it via `qpb harness stop <run-dir>` or kill the PID". `qpb harness status` lists active daemons across all `harness_runs/*/`. |
+| Multiple harness skill invocations against same run-dir race to spawn daemons | PID file via `O_EXCL` open mode — second spawn detects lock and exits without action. Prevents daemon duplication. |
+| Daemon left running after operator abandons a run | `qpb harness gc` command (or harness skill manual invocation with `--gc` flag) sweeps `harness_runs/*/daemon.pid`, identifies daemons whose run-dirs have `done.marker` or no recent worker activity, and terminates them. Documented as part of operator-facing maintenance. |
 | Cross-CLI shell-outs hit auth quirks | Pre-dispatch auth check + startup-heartbeat-window detection |
 | Heartbeat append race | `bin/qpb_heartbeat.py` uses `O_APPEND`; one writer per run-NN/ directory; isolation by construction |
 | Subscription concurrency caps bite at pool > N | Plan-tunable pool_size; document empirical limit when found |

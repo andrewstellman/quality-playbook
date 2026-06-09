@@ -1,6 +1,6 @@
 # Quality Playbook v1.5.9 — Design Document
 
-*Status: drafted 2026-06-06 with broad scope, revised 2026-06-07 to scope down to two focus items per operator direction. The previously-in-scope ship-gate feature, B-1 through B-8 capabilities, and related design decisions move to `QPB_v1.5.10_Design.md`.*
+*Status: drafted 2026-06-06 with broad scope, revised 2026-06-07 to scope down to two focus items per operator direction, **revised 2026-06-09 to replace the scheduled-tasks MCP scheduler with a self-spawned sidecar daemon** (see `QPB_v1.5.9_Harness_Skill_Design.md` § Why a self-spawned daemon, not the Cowork scheduled-tasks MCP for the empirical rationale). The previously-in-scope ship-gate feature, B-1 through B-8 capabilities, and related design decisions move to `QPB_v1.5.10_Design.md`.*
 
 *Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule.*
 
@@ -27,7 +27,8 @@ The two v1.5.9 workstreams are independent: SKILL.md trim affects what the skill
 **Summary (canonical text in sub-design):**
 
 - Two skills cooperate: `quality-playbook-harness` (new orchestration skill) + `quality-playbook` (existing worker skill, modified to emit a deterministic heartbeat contract).
-- **Tick-based execution.** The harness skill is invoked by a scheduled task every N minutes. Each invocation runs one tick: read state from disk, advance any state-machine transitions that are ready, write state back, exit. State machine lives entirely on disk; the agent is a stateless stepper.
+- **Tick-based execution.** The harness skill is invoked by a self-spawned sidecar daemon every N minutes. Each invocation runs one tick: read state from disk, advance any state-machine transitions that are ready, write state back, exit. State machine lives entirely on disk; the agent is a stateless stepper.
+- **Sidecar daemon as the external scheduler.** The harness skill spawns `bin/qpb_tick_daemon.py` on first-tick. The daemon is a detached Python process that wakes every `tick_interval_minutes` and invokes `claude --print` (or equivalent) to fire the next tick. It holds zero AI context — just a wakeup clock with `subprocess.run` attached. Cross-platform (stdlib only, works wherever Python runs). Replaces the originally-designed Cowork `mcp__scheduled-tasks` scheduler after empirical validation across three build-agent sessions confirmed the MCP isn't available outside Cowork-equipped top-level sessions.
 - **Folder-based communication** with A2A-ready schemas (schemas designed so future cross-machine A2A migration is a transport swap, not a redesign).
 - **Three dispatch modes** mix freely per plan entry: in-process Task subagent (Claude Code), cross-CLI shell-out (`copilot`, `codex`, `claude`), operator-manual launch.
 - **Heartbeat contract** added to `quality-playbook` SKILL.md: emit via `bin/qpb_heartbeat.py` helper at phase boundaries, every ~3 min mid-phase mandatory keepalive, on any error, and terminal sentinel on completion.
