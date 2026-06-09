@@ -1,0 +1,11 @@
+{
+  "name": "quality-playbook-harness",
+  "description": "Tick-based orchestration harness that runs Quality Playbook plans across multiple repos with mixed dispatch (in-process Task subagent, cross-CLI shell-out, operator-manual). Reads worker heartbeats from disk; survives session restarts via scheduled-tasks MCP.",
+  "version": "1.5.9",
+  "author": {
+    "name": "Andrew Stellman",
+    "email": "andrew@stellman.com"
+  },
+  "homepage": "https://github.com/andrewstellman/quality-playbook",
+  "license": "Apache-2.0"
+}

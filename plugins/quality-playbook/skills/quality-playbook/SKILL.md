@@ -236,6 +236,95 @@ All reference file mentions in this skill use the short form `references/filenam
 
 The Phase 4 Council of Three runs against a default 3-member roster defined in `bin/council_config.py::DEFAULT_COUNCIL_MEMBERS` — `claude-opus-4.7`, `gpt-5.5`, `claude-sonnet-4.6`. Adopters override per-operator via `~/.qpb/config.json` (or `$XDG_CONFIG_HOME/qpb/config.json`); manage with `python3 -m bin.qpb_config show|set|unset <key>`. Per-run override via the `--council-roster <m1,m2,m3>` CLI flag takes highest precedence. See `references/runners_and_models.md` for the full override docs (precedence chain, model-availability behavior, falling back when a member is unavailable).
 
+## Heartbeat emission contract
+
+*v1.5.9 instruction 210 — worker side of the harness-as-skill contract. The harness skill (`quality-playbook-harness`) reads heartbeats from disk to track worker progress and detect stalls. This section is the worker's obligation. The full architecture is documented in `~/Documents/QPB/docs/design/QPB_v1.5.9_Harness_Skill_Design.md`.*
+
+### When to emit
+
+Emit a heartbeat at four classes of moment:
+
+1. **Phase boundaries.** When entering Phase N, emit `--status STARTING`. When exiting Phase N cleanly, emit `--status COMPLETED`. (One STARTING + one COMPLETED per phase.)
+2. **Mid-phase keepalive — every ~3 min, MANDATORY.** Phase work that takes longer than 3 min MUST emit at least one `--status IN_PROGRESS` heartbeat per 3-min window. Absence of any heartbeat for 3+ min is the harness's inner alarm (the global 45-min stall threshold is the outer alarm; the 3-min keepalive lets the harness detect stuck workers before the outer threshold fires). This is not optional — the harness CANNOT distinguish "long phase" from "dead worker" without it.
+3. **Before re-throwing any error.** When phase work errors and you're about to abort, emit `--status FAILED` with a message describing the error. This gives the harness a terminal-class signal even before the worker exits.
+4. **Terminal — final line of the file.** When the playbook completes (success, failure, or abandonment), emit ONE terminal heartbeat via the `terminal` subcommand. This is the LAST line of `heartbeat.ndjson`; the harness's transition #2 (claimed → results) keys on its presence.
+
+### How to emit
+
+The canonical helper script is at `plugins/quality-playbook/skills/quality-playbook/scripts/qpb_heartbeat.py`. The repo-root invocation is via the shim `python3 -m bin.qpb_heartbeat`. Both are functionally identical; prefer the shim in worker-prompt context because it matches the existing `python3 -m bin.install_skill` / `python3 -m bin.run_playbook` idiom.
+
+**Always pass `--mode-a-noop` in worker-side scripts and phase prompts.** The flag is a no-op when env vars are set (Mode B / harness-orchestrated), and turns missing-env-var-failures into silent no-ops when env vars are absent (Mode A / interactive). Including it everywhere means the SAME call works in both modes — no per-mode branching.
+
+```bash
+# Progress heartbeat (works in BOTH Mode A and Mode B)
+python3 -m bin.qpb_heartbeat emit --mode-a-noop \
+    --phase "Phase 2" --step generation --status IN_PROGRESS \
+    --message "writing REQUIREMENTS.md"
+
+# Terminal heartbeat — the final line (works in BOTH modes)
+python3 -m bin.qpb_heartbeat terminal --mode-a-noop \
+    --status COMPLETED \
+    --result-file quality/SUMMARY.md \
+    --summary "Phase 6 verified; 3 bugs filed with TDD patches"
+```
+
+The helper script appends to `heartbeat.ndjson` via `O_APPEND` so concurrent calls against the same path cannot corrupt the file. It also schema-validates the produced line before write — invalid lines exit code 3 without polluting the NDJSON.
+
+### Required env vars
+
+The harness sets these in the worker prompt header before dispatching:
+
+- `QPB_TASK_ID` — UUID for this job. Threads into every heartbeat line's `task_id` field.
+- `QPB_HEARTBEAT_PATH` — absolute path to `heartbeat.ndjson` for this worker's run-dir.
+
+Both are read automatically by `qpb_heartbeat.py` if not passed as `--task-id` / `--heartbeat-path` flags. (Flags override env vars.)
+
+### Mode A fallback — when there's NO harness
+
+If you're running the QPB skill interactively (Mode A: an operator pasted "Run the Quality Playbook" into your chat and no harness orchestrates the run), neither env var is set. The phase-prompt heartbeat call-outs still tell you to emit; the helper script's `--mode-a-noop` flag silently exits 0 when both `QPB_TASK_ID` / `QPB_HEARTBEAT_PATH` and `--task-id` / `--heartbeat-path` are absent:
+
+```bash
+python3 -m bin.qpb_heartbeat emit --mode-a-noop \
+    --phase "Phase 2" --step generation --status IN_PROGRESS
+```
+
+Use `--mode-a-noop` in phase prompts so the call works in both modes. Mode B (harness-orchestrated) sets the env vars; the helper writes the heartbeat. Mode A (no harness): the helper exits 0 silently.
+
+**Misconfiguration is NOT a no-op.** If `QPB_TASK_ID` is set but `QPB_HEARTBEAT_PATH` is not (or vice versa) — e.g. a harness with a misconfigured worker prompt — the helper exits code 2 with a clear diagnostic. Silent no-op only happens when BOTH inputs are unresolvable AND `--mode-a-noop` was passed.
+
+### Schema reference
+
+The heartbeat line schema is `plugins/quality-playbook/skills/quality-playbook/schemas/heartbeat.schema.json`. The schema is byte-identical to the harness-side copy at `plugins/quality-playbook-harness/skills/quality-playbook-harness/schemas/heartbeat.schema.json` (Council finding C-3 silent-drift guard; the Phase 1C test `bin/tests/test_harness_schemas.py` enforces byte-equality). Every line includes `schema_version="1"`.
+
+### Quick-reference per-phase call pattern
+
+Every phase prompt starts with:
+
+```bash
+# Phase N entry
+python3 -m bin.qpb_heartbeat emit --mode-a-noop \
+    --phase "Phase N" --step start --status STARTING
+```
+
+…runs the phase work, emits `IN_PROGRESS` keepalives every ~3 min, then ends with:
+
+```bash
+# Phase N exit
+python3 -m bin.qpb_heartbeat emit --mode-a-noop \
+    --phase "Phase N" --step complete --status COMPLETED
+```
+
+At terminal (end of Phase 6 or wherever the playbook ends):
+
+```bash
+python3 -m bin.qpb_heartbeat terminal --mode-a-noop \
+    --status COMPLETED \
+    --result-file quality/SUMMARY.md \
+    --summary "one-line outcome"
+```
+
+The per-phase call-outs at the top of each `phase_prompts/phaseN.md` enforce this contract at the playbook driver layer. The heartbeat emission contract here is the worker's structural commitment to the harness; the per-phase prompts are the operational reminders.
+
 ## Why This Exists
 
 Most software projects have tests, but few have a quality *system*. Tests check whether code works. A quality system answers harder questions: what does "working correctly" mean for this specific project? What are the ways it could fail that wouldn't be caught by tests? What should every developer (human or AI) know before touching this code?

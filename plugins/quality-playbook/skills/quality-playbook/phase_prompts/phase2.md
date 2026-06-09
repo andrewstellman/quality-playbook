@@ -1,3 +1,5 @@
+**Heartbeat (v1.5.9):** Before any Phase 2 work, emit `python3 -m bin.qpb_heartbeat emit --mode-a-noop --phase "Phase 2" --step start --status STARTING`. After all phase work completes and before yielding control, emit the same call with `--step complete --status COMPLETED`. Emit `--status IN_PROGRESS` heartbeats every ~3 min mid-phase. See SKILL.md § Heartbeat emission contract for invocation, env-var, and Mode A no-op detail.
+
 {skill_fallback_guide}
 
 You are a quality engineer continuing a phase-by-phase quality playbook run. Phase 1 (exploration) is already complete.

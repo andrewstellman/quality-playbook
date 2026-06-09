@@ -1,3 +1,5 @@
+**Heartbeat (v1.5.9):** Before any Phase 6 work, emit `python3 -m bin.qpb_heartbeat emit --mode-a-noop --phase "Phase 6" --step start --status STARTING`. After all phase work completes and before yielding control, emit the terminal heartbeat via `python3 -m bin.qpb_heartbeat terminal --mode-a-noop --status COMPLETED --result-file quality/SUMMARY.md --summary "one-line outcome"`. Emit `--status IN_PROGRESS` heartbeats every ~3 min mid-phase. See SKILL.md § Heartbeat emission contract for invocation, env-var, and Mode A no-op detail.
+
 {skill_fallback_guide}
 
 You are a quality engineer at the verification boundary of a quality playbook run. Phases 1-5 are complete.

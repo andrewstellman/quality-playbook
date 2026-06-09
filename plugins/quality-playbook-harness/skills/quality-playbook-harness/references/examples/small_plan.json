@@ -1,0 +1,20 @@
+{
+  "task_id": "11111111-1111-1111-1111-111111111111",
+  "schema_version": "1",
+  "tick_interval_minutes": 10,
+  "pool_size": 2,
+  "stall_threshold_minutes": 45,
+  "entries": [
+    {
+      "repo": "https://github.com/pallets/click",
+      "dispatch_mode": "subagent",
+      "worker_prompt_template": "templates/qpb_worker.md"
+    },
+    {
+      "repo": "https://github.com/sindresorhus/is",
+      "dispatch_mode": "cross_cli",
+      "cli_command": "copilot --model claude-sonnet-4.6 --allow-all",
+      "worker_prompt_template": "templates/qpb_worker.md"
+    }
+  ]
+}

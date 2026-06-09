@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/andrewstellman/quality-playbook/schemas/job_manifest.schema.json",
+  "title": "QPB harness job manifest",
+  "description": "Per-job manifest. Lives in queue/, then claimed/, then results/. Mirrored across the three states via atomic rename (Council A-5 two-phase commit).",
+  "type": "object",
+  "required": ["task_id", "schema_version", "repo", "dispatch_mode", "state"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID for this job. Threaded into worker prompt header (TASK_ID=<uuid>) and emitted in every heartbeat line."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Schema-version pin. Currently '1'.",
+      "enum": ["1"]
+    },
+    "repo": {
+      "type": "string",
+      "description": "Absolute path or URL of the target repo."
+    },
+    "dispatch_mode": {
+      "type": "string",
+      "enum": ["subagent", "cross_cli", "operator_manual"],
+      "description": "How this job is dispatched."
+    },
+    "state": {
+      "type": "string",
+      "enum": ["queued", "claimed", "completed", "failed", "stalled"],
+      "description": "State-machine position. Transitions enumerated in references/STATE_MACHINE.md."
+    },
+    "cli_command": {
+      "type": "string",
+      "description": "Required when dispatch_mode=cross_cli. Verbatim shell command (sans worker prompt)."
+    },
+    "dispatched_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 timestamp when the harness moved this manifest queue/->claimed/. Absent for state=queued."
+    },
+    "last_heartbeat_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 timestamp of the most recent heartbeat read in the last tick. Used for stall detection."
+    },
+    "result_file": {
+      "type": "string",
+      "description": "Path (relative to run-dir) of the terminal result file. Populated by the tick that moves manifest claimed/->results/."
+    },
+    "failure_subtype": {
+      "type": "string",
+      "enum": ["AUTH_OR_LAUNCH_FAILED", "STALLED", "WORKER_FAILED"],
+      "description": "Present when state=failed. Distinguishes 'never started' from 'started then stalled' from 'started then explicitly failed'."
+    }
+  }
+}

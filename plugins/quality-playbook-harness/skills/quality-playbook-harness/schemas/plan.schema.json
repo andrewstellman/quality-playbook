@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/andrewstellman/quality-playbook/schemas/plan.schema.json",
+  "title": "QPB harness plan",
+  "description": "Top-level plan document the harness skill reads on first tick. Drives the state machine: each entry becomes one job in queue/. Schema is A2A-ready (task_id is UUID, schema_version is string) so a future v1.6.x can wrap it in a Task envelope without redesign.",
+  "type": "object",
+  "required": ["task_id", "schema_version", "tick_interval_minutes", "pool_size", "entries"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID identifying this plan as a whole. Each entry derives its own task_id."
+    },
+    "schema_version": {
+      "type": "string",
+      "description": "Schema-version pin. Currently '1'. Harness warns on mismatch.",
+      "enum": ["1"]
+    },
+    "tick_interval_minutes": {
+      "type": "integer",
+      "description": "Cadence at which the scheduled task re-invokes the harness skill. Default 10.",
+      "minimum": 1,
+      "maximum": 1440
+    },
+    "pool_size": {
+      "type": "integer",
+      "description": "Maximum number of jobs in flight (state=claimed) at once. Default 3 per Council A-3 in-process cap.",
+      "minimum": 1,
+      "maximum": 32
+    },
+    "stall_threshold_minutes": {
+      "type": "integer",
+      "description": "Global stall threshold. Heartbeat older than this -> state=stalled. Default 45.",
+      "minimum": 5,
+      "maximum": 360,
+      "default": 45
+    },
+    "early_warn_minutes": {
+      "type": "integer",
+      "description": "Intermediate stall-warning threshold; surfaces stall warnings in harness_status.json when last_heartbeat_at exceeds this but is still below stall_threshold_minutes. Default 10 (midpoint between the 3-min keepalive cadence and the 45-min global cutoff, giving the operator ~35 min lead time to investigate before fast-fail).",
+      "minimum": 1,
+      "maximum": 60,
+      "default": 10
+    },
+    "entries": {
+      "type": "array",
+      "description": "One entry per plan job. Each becomes one job in queue/ on first tick.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["repo", "dispatch_mode", "worker_prompt_template"],
+        "properties": {
+          "repo": {
+            "type": "string",
+            "description": "Absolute path or URL of the target repo to audit."
+          },
+          "dispatch_mode": {
+            "type": "string",
+            "enum": ["subagent", "cross_cli", "operator_manual"],
+            "description": "Mode 1 (subagent) / Mode 2 (cross_cli) / Mode 3 (operator_manual) per the harness SKILL.md."
+          },
+          "cli_command": {
+            "type": "string",
+            "description": "Required when dispatch_mode=cross_cli. Example: 'copilot --model claude-sonnet-4.6 --allow-all' or 'codex --model gpt-5.5'."
+          },
+          "worker_prompt_template": {
+            "type": "string",
+            "description": "Path (relative to the run-dir) or inline template the harness fills in with absolute path block + task_id + repo. The filled prompt is what the worker reads."
+          }
+        }
+      }
+    }
+  }
+}

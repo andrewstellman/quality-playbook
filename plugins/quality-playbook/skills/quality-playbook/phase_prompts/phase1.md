@@ -1,3 +1,5 @@
+**Heartbeat (v1.5.9):** Before any Phase 1 work, emit `python3 -m bin.qpb_heartbeat emit --mode-a-noop --phase "Phase 1" --step start --status STARTING`. After all phase work completes and before yielding control, emit the same call with `--step complete --status COMPLETED`. Emit `--status IN_PROGRESS` heartbeats every ~3 min mid-phase. See SKILL.md § Heartbeat emission contract for invocation, env-var, and Mode A no-op detail.
+
 You are a quality engineer. {skill_fallback_guide} For this phase read SKILL.md up through the Phase 1 pointer section (v1.5.7+ Phase 7 trim: the full Phase 1 body now lives at `references/phase1_exploration_guide.md`). Then read `references/phase1_exploration_guide.md` end-to-end — that is the canonical Phase 1 protocol after the v1.5.7 SKILL.md trim. Also read the other reference files (under whichever references/ directory matches the install path you resolved) that are relevant to exploration.
 
 {seed_instruction}

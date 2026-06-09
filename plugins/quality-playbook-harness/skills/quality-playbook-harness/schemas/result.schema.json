@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/andrewstellman/quality-playbook/schemas/result.schema.json",
+  "title": "QPB harness terminal result",
+  "description": "Per-job terminal result the harness writes to results/result-NNNNN.json when it sees a terminal heartbeat sentinel. Derived from the terminal heartbeat line + job_manifest + run-dir stats. A2A-ready: schema_version + task_id + UUID typing.",
+  "type": "object",
+  "required": ["task_id", "schema_version", "repo", "status", "result_file"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID matching the job_manifest task_id."
+    },
+    "schema_version": {
+      "type": "string",
+      "enum": ["1"],
+      "description": "Schema-version pin. Currently '1'."
+    },
+    "repo": {
+      "type": "string",
+      "description": "Absolute path or URL of the target repo (copied from job_manifest)."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["COMPLETED", "FAILED", "ABANDONED"],
+      "description": "Terminal status copied from the worker's terminal heartbeat sentinel."
+    },
+    "result_file": {
+      "type": "string",
+      "description": "Absolute path to the worker's terminal artifact (typically quality/SUMMARY.md or quality/BUGS.md). Copied from the terminal heartbeat's result_file field."
+    },
+    "duration_sec": {
+      "type": "number",
+      "description": "Wall-clock seconds from dispatched_at to terminal heartbeat ts.",
+      "minimum": 0
+    },
+    "total_heartbeats": {
+      "type": "integer",
+      "description": "Count of lines in heartbeat.ndjson (progress + terminal).",
+      "minimum": 1
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-line outcome from the terminal heartbeat's summary field."
+    },
+    "failure_subtype": {
+      "type": "string",
+      "enum": ["AUTH_OR_LAUNCH_FAILED", "STALLED", "WORKER_FAILED"],
+      "description": "Present when status=FAILED. Mirrors job_manifest.failure_subtype."
+    }
+  }
+}

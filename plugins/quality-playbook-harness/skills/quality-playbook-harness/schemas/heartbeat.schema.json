@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/andrewstellman/quality-playbook/schemas/heartbeat.schema.json",
+  "title": "QPB heartbeat line",
+  "description": "One JSON object per line in heartbeat.ndjson. The worker emits via plugins/quality-playbook/skills/quality-playbook/scripts/qpb_heartbeat.py (canonical) or the bin/qpb_heartbeat.py shim. Two forms: progress (oneOf branch 1) and terminal (oneOf branch 2). The harness reads tail and applies state-machine transitions. This file is byte-identical to plugins/quality-playbook-harness/skills/quality-playbook-harness/schemas/heartbeat.schema.json — the cross-skill consistency contract is load-bearing (Council finding C-3 silent drift risk; the Phase 1C test test_harness_schemas.py enforces byte-equality).",
+  "type": "object",
+  "required": ["ts", "task_id", "schema_version", "status"],
+  "properties": {
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO8601 timestamp. The append-only NDJSON ordering invariant: ts of later lines is >= ts of earlier lines in the same file."
+    },
+    "task_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "UUID matching the job_manifest task_id. Threaded from worker prompt header (TASK_ID=<uuid>) or env var QPB_TASK_ID."
+    },
+    "schema_version": {
+      "type": "string",
+      "enum": ["1"],
+      "description": "Schema-version pin. Currently '1'. Harness warns on mismatch."
+    },
+    "phase": {
+      "type": "string",
+      "description": "QPB phase name (e.g. 'Phase 1', 'Phase 2'). Required for progress heartbeats; omitted on terminal."
+    },
+    "step": {
+      "type": "string",
+      "description": "Specific step within the phase (e.g. 'explore', 'role_map', 'gate'). Required for progress heartbeats; omitted on terminal."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["STARTING", "IN_PROGRESS", "COMPLETED", "FAILED", "ABANDONED"],
+      "description": "Progress: STARTING / IN_PROGRESS / COMPLETED / FAILED. Terminal: COMPLETED / FAILED / ABANDONED (last line of the file)."
+    },
+    "message": {
+      "type": "string",
+      "description": "Optional human-readable detail."
+    },
+    "result_file": {
+      "type": "string",
+      "description": "Path (relative to run-dir) of the terminal result file. Present on the terminal line; absent on progress lines."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-line outcome. Present on the terminal line; absent on progress lines."
+    }
+  },
+  "oneOf": [
+    {
+      "title": "Progress heartbeat",
+      "required": ["phase", "step"],
+      "not": {
+        "required": ["result_file"]
+      }
+    },
+    {
+      "title": "Terminal sentinel",
+      "required": ["result_file", "summary"]
+    }
+  ]
+}

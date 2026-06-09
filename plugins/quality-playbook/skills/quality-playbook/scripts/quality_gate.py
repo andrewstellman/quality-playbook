@@ -87,6 +87,254 @@ WARN = 0
 
 
 # ---------------------------------------------------------------------------
+# v1.5.9 instruction 210 — harness schema invariants.
+#
+# The v1.5.9 harness-as-skill workstream introduces a second plugin
+# (plugins/quality-playbook-harness/) plus four schemas (plan,
+# job_manifest, heartbeat, result) plus a heartbeat schema duplicated
+# at plugins/quality-playbook/skills/quality-playbook/schemas/. These
+# invariants validate the cross-skill consistency contract:
+#
+#   1. Every schema file referenced by either skill exists at the
+#      expected path.
+#   2. Every schema is valid JSON.
+#   3. Every schema includes top-level task_id (uuid) and
+#      schema_version (string) fields — the A2A-ready contract.
+#   4. The two heartbeat schemas are byte-identical (cross-skill
+#      consistency; Council finding C-3 silent drift risk).
+#   5. Every reference doc the harness SKILL.md mentions exists at
+#      the expected path.
+#   6. Every `Read references/X.md` directive in either SKILL.md
+#      resolves to an existing file (forward-looking: this catches
+#      future Phase 2 trim's potential broken refs too).
+#
+# Run via --schemas-only flag for a fast, repos-free invariant check
+# (no per-repo iteration; one-shot pass/fail).
+# ---------------------------------------------------------------------------
+
+# Repo root inferred from this script's location:
+#   SCRIPT_DIR = .../plugins/quality-playbook/skills/quality-playbook/scripts/
+#   parents[4] = repo root
+_QPB_REPO_ROOT_FROM_GATE = SCRIPT_DIR.parents[4] if len(SCRIPT_DIR.parents) >= 5 else SCRIPT_DIR
+
+_HARNESS_SCHEMAS = [
+    "plugins/quality-playbook-harness/skills/quality-playbook-harness/schemas/plan.schema.json",
+    "plugins/quality-playbook-harness/skills/quality-playbook-harness/schemas/job_manifest.schema.json",
+    "plugins/quality-playbook-harness/skills/quality-playbook-harness/schemas/heartbeat.schema.json",
+    "plugins/quality-playbook-harness/skills/quality-playbook-harness/schemas/result.schema.json",
+]
+_WORKER_HEARTBEAT_SCHEMA = (
+    "plugins/quality-playbook/skills/quality-playbook/schemas/heartbeat.schema.json"
+)
+_HARNESS_HEARTBEAT_SCHEMA = (
+    "plugins/quality-playbook-harness/skills/quality-playbook-harness/schemas/heartbeat.schema.json"
+)
+_HARNESS_SKILL_MD = (
+    "plugins/quality-playbook-harness/skills/quality-playbook-harness/SKILL.md"
+)
+_WORKER_SKILL_MD = (
+    "plugins/quality-playbook/skills/quality-playbook/SKILL.md"
+)
+_HARNESS_REFS = [
+    "plugins/quality-playbook-harness/skills/quality-playbook-harness/references/STATE_MACHINE.md",
+    "plugins/quality-playbook-harness/skills/quality-playbook-harness/references/DISPATCH_GUIDE.md",
+    "plugins/quality-playbook-harness/skills/quality-playbook-harness/references/examples/small_plan.json",
+]
+
+
+def _has_a2a_fields(schema_data: dict) -> "tuple[bool, list[str]]":
+    """Check that a parsed schema declares top-level task_id (uuid)
+    and schema_version (string) properties — AND that both are in
+    the schema's ``required`` array (A2A-ready contract: mandatory,
+    not just declared).
+
+    Returns (ok, errors). The check looks at the schema's
+    ``properties`` block (the JSON Schema declaration of the fields
+    the schema's instances will have), then also confirms the
+    fields appear in ``required`` so a future schema edit can't
+    silently make them optional. Per panelist C's Q2 finding on
+    the v210 self-Council review (`reviews/v210_self_council/
+    panelist_C_validators.md` Q2-required-gap).
+    """
+    errors: list[str] = []
+    props = schema_data.get("properties", {}) or {}
+    required = schema_data.get("required", []) or []
+
+    task_id_prop = props.get("task_id")
+    if not isinstance(task_id_prop, dict):
+        errors.append("missing 'task_id' property declaration")
+    else:
+        if task_id_prop.get("type") != "string":
+            errors.append(
+                f"'task_id' property type is "
+                f"{task_id_prop.get('type')!r}, expected 'string'"
+            )
+        if task_id_prop.get("format") != "uuid":
+            errors.append(
+                f"'task_id' property format is "
+                f"{task_id_prop.get('format')!r}, expected 'uuid'"
+            )
+    if "task_id" not in required:
+        errors.append(
+            "'task_id' is not in the schema's required[] array "
+            "(A2A-ready contract requires it be mandatory)"
+        )
+
+    sv_prop = props.get("schema_version")
+    if not isinstance(sv_prop, dict):
+        errors.append("missing 'schema_version' property declaration")
+    else:
+        if sv_prop.get("type") != "string":
+            errors.append(
+                f"'schema_version' property type is "
+                f"{sv_prop.get('type')!r}, expected 'string'"
+            )
+    if "schema_version" not in required:
+        errors.append(
+            "'schema_version' is not in the schema's required[] "
+            "array (A2A-ready contract requires it be mandatory)"
+        )
+
+    return (not errors, errors)
+
+
+def check_harness_schemas(repo_root: "Path | None" = None) -> int:
+    """v1.5.9 instruction 210 harness-skill schema invariants.
+
+    Returns 0 on PASS, 1 on FAIL. Prints diagnostics to stdout.
+    Intended as a fast, repos-free check runnable via:
+
+        python3 .../quality_gate.py --schemas-only
+    """
+    import json as _json  # local alias so we don't shadow top-level
+
+    root = repo_root if repo_root is not None else _QPB_REPO_ROOT_FROM_GATE
+    failures: list[str] = []
+    passes: list[str] = []
+
+    all_schemas = list(_HARNESS_SCHEMAS) + [_WORKER_HEARTBEAT_SCHEMA]
+
+    # Invariant 1+2: every schema file exists and parses as valid JSON.
+    parsed: dict[str, dict] = {}
+    for rel in all_schemas:
+        path = root / rel
+        if not path.is_file():
+            failures.append(f"MISSING schema file: {rel}")
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                parsed[rel] = _json.load(fh)
+            passes.append(f"schema parses: {rel}")
+        except _json.JSONDecodeError as exc:
+            failures.append(f"INVALID JSON in {rel}: {exc}")
+
+    # Invariant 3: every schema declares A2A-ready task_id + schema_version.
+    for rel, data in parsed.items():
+        ok, errs = _has_a2a_fields(data)
+        if ok:
+            passes.append(f"A2A-ready fields present: {rel}")
+        else:
+            for err in errs:
+                failures.append(f"A2A invariant fail in {rel}: {err}")
+
+    # Invariant 4: byte-identity between worker-side and harness-side heartbeat.
+    worker_hb = root / _WORKER_HEARTBEAT_SCHEMA
+    harness_hb = root / _HARNESS_HEARTBEAT_SCHEMA
+    if worker_hb.is_file() and harness_hb.is_file():
+        worker_bytes = worker_hb.read_bytes()
+        harness_bytes = harness_hb.read_bytes()
+        if worker_bytes == harness_bytes:
+            passes.append(
+                "heartbeat schemas byte-identical "
+                "(worker-side == harness-side)"
+            )
+        else:
+            failures.append(
+                "heartbeat schemas DIVERGE: "
+                f"{_WORKER_HEARTBEAT_SCHEMA} != "
+                f"{_HARNESS_HEARTBEAT_SCHEMA} "
+                "(Council finding C-3 silent drift; fix by "
+                "re-copying one onto the other)"
+            )
+    else:
+        if not worker_hb.is_file():
+            failures.append(f"MISSING for byte-identity check: {_WORKER_HEARTBEAT_SCHEMA}")
+        if not harness_hb.is_file():
+            failures.append(f"MISSING for byte-identity check: {_HARNESS_HEARTBEAT_SCHEMA}")
+
+    # Invariant 5: harness reference docs exist.
+    for rel in _HARNESS_REFS:
+        path = root / rel
+        if path.is_file():
+            passes.append(f"reference doc present: {rel}")
+        else:
+            failures.append(f"MISSING reference doc: {rel}")
+
+    # Invariant 6: every `Read references/X.md` (or `references/examples/X.json`)
+    # directive in either SKILL.md resolves to an existing file under the
+    # corresponding skill's directory.
+    for skill_rel in (_HARNESS_SKILL_MD, _WORKER_SKILL_MD):
+        skill_path = root / skill_rel
+        if not skill_path.is_file():
+            failures.append(f"MISSING SKILL.md: {skill_rel}")
+            continue
+        skill_dir = skill_path.parent
+        text = skill_path.read_text(encoding="utf-8")
+        # Find `references/<path>.md` or `references/<path>.json` mentions
+        # in `Read references/X.md` style directives. The regex is
+        # intentionally broad — any reference to a `references/...md` path
+        # is verified.
+        pattern = re.compile(
+            r"references/([A-Za-z0-9_\-./]+\.(?:md|json))",
+        )
+        seen: set[str] = set()
+        # Placeholder names that appear in prose (e.g. the SKILL.md
+        # docstring "references/filename.md" example) — skip them so
+        # they're not flagged as broken links. Add to this set only
+        # for literal placeholders that prose explains as such; do
+        # NOT add real file names a typo might match.
+        PLACEHOLDER_NAMES = {"filename.md", "X.md", "X.json"}
+        for match in pattern.finditer(text):
+            rel_path = match.group(1)
+            if rel_path in seen:
+                continue
+            seen.add(rel_path)
+            if rel_path in PLACEHOLDER_NAMES:
+                passes.append(
+                    f"reference link skipped (placeholder): "
+                    f"{skill_rel} -> references/{rel_path}"
+                )
+                continue
+            target = skill_dir / "references" / rel_path
+            if target.is_file():
+                passes.append(
+                    f"reference link resolves: {skill_rel} -> "
+                    f"references/{rel_path}"
+                )
+            else:
+                failures.append(
+                    f"BROKEN reference link in {skill_rel}: "
+                    f"references/{rel_path} -> not found "
+                    f"({target})"
+                )
+
+    print("=== quality_gate --schemas-only (v1.5.9 instruction 210) ===")
+    print(f"Repo root: {root}")
+    print(f"Passes: {len(passes)}")
+    for p in passes:
+        print(f"  PASS  {p}")
+    print(f"Failures: {len(failures)}")
+    for f in failures:
+        print(f"  FAIL  {f}")
+    print("===========================================================")
+    if failures:
+        print("GATE FAILED — schema invariants")
+        return 1
+    print("GATE PASSED — schema invariants")
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # v1.5.7 instruction 089c (F15) — three-state verdict taxonomy.
 #
 # Round 2 ship-validation surfaced an adopter-UX defect: the old binary
@@ -6442,6 +6690,14 @@ def main(argv=None):
     _reset_counters()
     if argv is None:
         argv = sys.argv[1:]
+
+    # v1.5.9 instruction 210: --schemas-only short-circuits all
+    # repo iteration and runs the harness-skill schema invariants
+    # only. Returns 0 on PASS, 1 on FAIL — same exit-code semantics
+    # as the full gate. Intended for fast invariant checks (CI hook,
+    # pre-commit, post-edit smoke test) without needing repos/.
+    if "--schemas-only" in argv:
+        return check_harness_schemas()
 
     repo_dirs = []
     version = ""
