@@ -28,7 +28,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 from unittest import mock
 
-from bin import qpb_harness as Q
+from bin import qpb_harness_legacy as Q
 from bin.harness import tui as T
 from bin.harness.status import TuiPathKind
 

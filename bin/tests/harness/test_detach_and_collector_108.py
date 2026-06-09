@@ -306,7 +306,7 @@ class CollectorSpawnKwargsTests(unittest.TestCase):
             cmd = captured["cmd"]
             self.assertEqual(cmd[0], sys.executable)
             self.assertEqual(cmd[1:4],
-                              ["-m", "bin.qpb_harness",
+                              ["-m", "bin.qpb_harness_legacy",
                                "collect"])
             self.assertEqual(cmd[4], str(harness_run))
             # **THE ANTI-SIGTTIN PIN**.

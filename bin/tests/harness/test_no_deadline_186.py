@@ -496,7 +496,7 @@ class ForceRunInKnownSubcommandsTests(unittest.TestCase):
     the plan-file shortcut + help/error text recognize it."""
 
     def test_force_run_in_known_subcommands(self) -> None:
-        from bin import qpb_harness
+        from bin import qpb_harness_legacy as qpb_harness
         self.assertIn(
             "force-run", qpb_harness._KNOWN_SUBCOMMANDS,
             "force-run subcommand must be in "

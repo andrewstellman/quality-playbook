@@ -31,7 +31,7 @@ import unittest
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 
-from bin import qpb_harness as Q
+from bin import qpb_harness_legacy as Q
 from bin.harness import status as ST
 
 

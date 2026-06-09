@@ -20,7 +20,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 from unittest import mock
 
-from bin import qpb_harness as Q
+from bin import qpb_harness_legacy as Q
 
 VALID_PLAN = {
     "pools": {"claude": 1},
@@ -188,7 +188,7 @@ class GracefulAbsentDefaultTests(unittest.TestCase):
             self.assertFalse((Path(tmp) / "harness_runs").exists())
             env = dict(os.environ, PYTHONPATH=str(repo_root))
             proc = subprocess.run(
-                [sys.executable, "-m", "bin.qpb_harness",
+                [sys.executable, "-m", "bin.qpb_harness_legacy",
                  "tui", "--dump", "detail"],
                 cwd=tmp, env=env,
                 capture_output=True, text=True, timeout=30,

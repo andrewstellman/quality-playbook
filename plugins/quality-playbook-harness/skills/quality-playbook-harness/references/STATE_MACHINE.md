@@ -9,20 +9,21 @@ A job_manifest's `state` field is one of: `queued`, `claimed`, `completed`, `fai
 - `queued` — job is in `queue/`, not yet dispatched.
 - `claimed` — job is in `claimed/`, worker is dispatched or in flight.
 - `completed` — job is in `results/`, terminal heartbeat had `status=COMPLETED`.
-- `failed` — job is in `results/`, terminal heartbeat had `status=FAILED`, OR the harness detected AUTH_OR_LAUNCH_FAILED, OR the operator marked a stalled job as abandoned.
+- `failed` — job is in `results/`, terminal heartbeat had `status=FAILED`, OR the harness detected AUTH_FAILED / AUTH_OR_LAUNCH_FAILED / WORKER_FAILED, OR the operator marked a stalled job as abandoned.
 - `stalled` — job is in `claimed/` with `last_heartbeat_at > stall_threshold_minutes` old. Operator decides whether to wait or abandon.
 
 ## Transition table
 
 | # | Pre-state | Trigger condition | Action | Post-state | Idempotency invariant |
 |---|-----------|-------------------|--------|------------|------------------------|
-| 1 | `queued` job + free pool slot | always (unless paused; pool slot = `pool_size - count(claimed)` > 0) | dispatch via configured `dispatch_mode`; move job_manifest queue/ → claimed/; set `dispatched_at` | `claimed` | Job already in `claimed/` → no-op (the queue lookup wouldn't return it). |
+| 1 | `queued` job + free pool slot | always (unless paused; pool slot = `pool_size - count(claimed)` > 0); for Mode 2, B-1 pre-flight (`--version` AND `--print "echo ok"`) must PASS first | dispatch via configured `dispatch_mode`; move job_manifest queue/ → claimed/; set `dispatched_at`; write worker lock file | `claimed` | Job already in `claimed/` → no-op (the queue lookup wouldn't return it). |
 | 2 | `claimed` job with terminal sentinel in heartbeat | last heartbeat line has `result_file` AND `summary` AND `status ∈ {COMPLETED, FAILED, ABANDONED}` | write `results/result-NNNNN.json` from terminal heartbeat + job_manifest + run-dir stats; move job_manifest claimed/ → results/; set `state` to match terminal `status` mapped to manifest enum (`COMPLETED→completed`, `FAILED→failed`, `ABANDONED→failed` with `failure_subtype=WORKER_FAILED`) | `completed` or `failed` | Result file already exists in `results/` → no-op. |
 | 3 | `claimed` job with stale heartbeat | `now - last_heartbeat_at > stall_threshold_minutes` (default 45) | set `state=stalled`; surface in `harness_status.json` under `stalls[]` | `stalled` | `state` already `stalled` → no-op. |
 | 4 | `claimed` job with no STARTUP heartbeat 60 sec post-dispatch | `heartbeat.ndjson` empty OR missing AND `now - dispatched_at > 60 sec` | set `state=failed`, `failure_subtype=AUTH_OR_LAUNCH_FAILED`; write `result-NNNNN.json` with placeholder fields; move manifest claimed/ → results/; delete lock file | `failed` | Result file already exists in `results/` → no-op. |
 | 5 | `stalled` job with operator abandon decision | operator wrote a file `run-NN/abandon` (any contents) | set `state=failed`, `failure_subtype=STALLED`; write `result-NNNNN.json`; move manifest claimed/ → results/; delete lock file | `failed` | Result file already exists in `results/` → no-op. |
 | 6 | `claimed` job (Mode 2 only) with worker PID gone | `kill -0 <pid_from_lock>` returns ESRCH AND no heartbeat in `stall_threshold_minutes` AND `now - start_time > 60 sec` | set `state=failed`, `failure_subtype=WORKER_FAILED`; write `result-NNNNN.json`; move manifest claimed/ → results/; delete lock file | `failed` | Result file already exists in `results/` → no-op. Council A-5 early-detection mechanism — fires before the 45-min stall window for cross-CLI workers that crash. |
-| 7 | All entries in `results/` (any terminal state combination) | terminal | write `harness_status.json` with `state=done`; write `<run-dir>/SUMMARY.md`; call `mcp__scheduled-tasks__delete_scheduled_task` | `done` | `state` already `done` → no-op (do NOT re-delete the scheduled task). |
+| 7 | All entries in `results/` (any terminal state combination) | terminal | write `harness_status.json` with `state=done`; write `<run-dir>/SUMMARY.md`; write `<run-dir>/done.marker` (signals the daemon to exit on its next wake) | `done` | `state` already `done` AND `done.marker` already on disk → no-op. |
+| 8 | `queued` Mode 2 job with FAILED B-1 pre-flight | `<cli_command_first_word> --version` rc != 0 OR `<cli_command> --print "echo ok"` rc != 0 OR roundtrip stdout missing "ok" | set `state=failed`, `failure_subtype=AUTH_FAILED`; write `result-NNNNN.json` with `auth_check_probes` block; move manifest queue/ → results/ DIRECTLY (skip claimed/) | `failed` | Result file already exists in `results/` → no-op. Distinct from transition #4 (which fires post-dispatch when the worker never emits a STARTUP heartbeat). |
 
 **No other transitions exist.** If the tick encounters a state the table doesn't cover (e.g. a manifest in `claimed/` whose `task_id` doesn't match any heartbeat line's `task_id`), surface a WARN in `harness_status.json` under `warnings[]` and leave the job untouched — do not attempt recovery in the same tick.
 
@@ -56,6 +57,20 @@ Lock file deletion: the same tick that moves the manifest claimed/ → results/ 
 
 Two-phase commit covers the manifest move; the lock file is its own independent artifact — its presence does NOT block transitions (the manifest's location is the state truth, not the lock).
 
+## Daemon lifecycle invariants
+
+The state-machine transitions above are tick-level. The daemon (`bin/qpb_tick_daemon.py`) is a separate OS process that fires the tick. These invariants hold across the daemon's lifecycle and are cross-cutting to the transition table — they are not transitions of any individual job_manifest but they DO bound the cadence and re-spawn of the tick driver.
+
+1. **PID-file exclusive create.** The daemon acquires `<run-dir>/daemon.pid` via `os.open(..., O_CREAT | O_EXCL | O_WRONLY)`. If the open fails with `FileExistsError`, the daemon reads the existing PID and checks `os.kill(pid, 0)`. If the existing PID is alive, the daemon exits with code 7 (lock held). If stale (PID not alive), the daemon overwrites and continues. This is the only "two daemons race" defense — the kernel atomicity of `O_EXCL` is load-bearing.
+
+2. **Heartbeat mtime is the only liveness signal.** The daemon `touch`es `<run-dir>/daemon.heartbeat` at the top of every wake-loop iteration. The harness skill (during manual operator invocations) uses `mtime(daemon.heartbeat)` to detect a dead daemon: age > `3 × tick_interval_minutes` ⇒ presumed dead. The operator CLI (`bin/qpb_harness.py status` and `gc`) uses the same signal.
+
+3. **`done.marker` is written by the harness; consumed by the daemon.** Transition #7 above writes `<run-dir>/done.marker`. The daemon, at the top of every wake-loop iteration, checks for this file BEFORE firing the next tick. When present, the daemon logs "done.marker present — daemon exiting cleanly", removes its `daemon.pid`, and exits. The harness never signals the daemon directly — the marker is the signal.
+
+4. **Daemon-crash → harness-driven re-spawn.** If the daemon dies unexpectedly (machine reboot, `kill -9`, OOM), the state machine on disk is unaffected. The next manual operator invocation of the harness skill detects the dead daemon (via PID-liveness check OR heartbeat-mtime age > 3 × interval) and re-spawns the daemon using the same `subprocess.Popen` invocation as the first-tick setup. Re-spawn is NOT part of the transition table — it's a daemon-process-management concern outside the state machine. Only the cadence of ticks is lost during the outage; no transitions are missed because the next tick re-reads disk state and resumes.
+
+5. **Daemon and state machine are decoupled.** The daemon does NOT read or write `harness_status.json`, `queue/`, `claimed/`, `results/`, or `heartbeat.ndjson`. It only owns its own PID file, heartbeat mtime, and log. This decoupling is what makes the daemon a "dumb wakeup clock" — it can be replaced (with cron, systemd, a different scheduler) without touching the state machine at all.
+
 ## Worked example — 5-repo plan with mixed dispatch
 
 Plan: 5 entries, 2 subagent + 2 cross_cli (copilot) + 1 cross_cli (codex). `tick_interval_minutes=10`, `pool_size=3`. Operator runs `harness-skill` against the plan at `14:00 UTC`.
@@ -63,26 +78,26 @@ Plan: 5 entries, 2 subagent + 2 cross_cli (copilot) + 1 cross_cli (codex). `tick
 ### Tick 1 (14:00, first invocation)
 
 - Read plan; validate OK.
-- Create `harness_runs/2026-06-08T14-00-00Z/`. Populate `queue/job-00001.json` … `queue/job-00005.json`.
-- Register scheduled task at 10-min cadence.
+- Create `harness_runs/2026-06-09T14-00-00Z/`. Populate `queue/job-00001.json` … `queue/job-00005.json`.
+- Spawn the sidecar daemon at 10-min interval. Daemon writes `daemon.pid`.
 - Pool free slots: 3. Queue: 5. Dispatch first 3 (in plan order):
   - job-00001 (subagent) → Task tool invocation, manifest queue/ → claimed/, `dispatched_at=14:00:05`.
   - job-00002 (subagent) → same.
-  - job-00003 (cross_cli copilot) → pre-flight auth check (copilot --version + roundtrip) PASS; shell-out backgrounded; manifest queue/ → claimed/, `dispatched_at=14:00:18`.
+  - job-00003 (cross_cli copilot) → pre-flight B-1 two-probe (copilot --version + copilot -p "echo ok" roundtrip) PASS; shell-out backgrounded; manifest queue/ → claimed/, `dispatched_at=14:00:18`.
 - Update `harness_status.json`: `jobs_claimed=3, jobs_queued=2, jobs_completed=0`.
 - Exit.
 
-### Tick 2 (14:10, scheduled fire — fresh context)
+### Tick 2 (14:10, daemon fire — fresh context)
 
 - Read `harness_status.json`. Read each claimed run's `heartbeat.ndjson` tail:
   - job-00001 (subagent): last line `phase=2, step=generation, status=IN_PROGRESS, ts=14:09:42`. Age 18 sec → healthy.
   - job-00002 (subagent): last line `phase=6, step=verify, status=COMPLETED, result_file=quality/SUMMARY.md, summary=…`. **Terminal sentinel.** Apply transition #2: write `results/result-00002.json` (`status=COMPLETED`), move manifest claimed/ → results/.
   - job-00003 (copilot): last line `phase=1, step=explore, status=IN_PROGRESS, ts=14:09:55`. Healthy.
-- Free pool slot. Queue has job-00004 and job-00005. Apply transition #1 to job-00004 (cross_cli copilot): auth check PASS, shell-out, manifest queue/ → claimed/.
+- Free pool slot. Queue has job-00004 and job-00005. Apply transition #1 to job-00004 (cross_cli copilot): B-1 pre-flight PASS, shell-out, manifest queue/ → claimed/.
 - Update `harness_status.json`: `jobs_claimed=3, jobs_queued=1, jobs_completed=1`.
 - Exit.
 
-### Tick 3 (14:20, scheduled fire)
+### Tick 3 (14:20, daemon fire)
 
 - Read state. Tail heartbeats:
   - job-00001 (subagent): last heartbeat `ts=14:19:48`. Healthy.
@@ -98,7 +113,7 @@ Plan: 5 entries, 2 subagent + 2 cross_cli (copilot) + 1 cross_cli (codex). `tick
   - job-00001: terminal sentinel. Apply #2.
   - job-00003: last heartbeat `ts=14:27:00`. Age 3 min → still healthy but close.
   - job-00004: terminal sentinel. Apply #2.
-- Free pool slots: 2. Queue has job-00005. Dispatch (transition #1) job-00005 (cross_cli codex): auth check passes, shell-out, manifest queue/ → claimed/.
+- Free pool slots: 2. Queue has job-00005. Dispatch (transition #1) job-00005 (cross_cli codex): B-1 pre-flight passes, shell-out, manifest queue/ → claimed/.
 - Update state. `jobs_claimed=2, jobs_queued=0, jobs_completed=3`.
 - Exit.
 
@@ -113,15 +128,16 @@ Plan: 5 entries, 2 subagent + 2 cross_cli (copilot) + 1 cross_cli (codex). `tick
 
 ### Final tick
 
-- All 5 in `results/`. Apply transition #6: write `SUMMARY.md`, mark `state=done`, delete scheduled task.
+- All 5 in `results/`. Apply transition #7: write `SUMMARY.md`, mark `state=done`, write `done.marker`.
+- Daemon's next wake: sees `done.marker`, logs the exit, removes `daemon.pid`, exits cleanly.
 - Print final operator status. Exit.
 
 ## Operator-driven force-tick
 
-The operator can force an immediate tick at any time by invoking the skill manually with the run-dir argument. Same code path as a scheduled fire. Idempotency means this never harms state — if no transitions are ready, the tick is a no-op.
+The operator can force an immediate tick at any time by invoking the skill manually with the run-dir argument. Same code path as a daemon fire. Idempotency means this never harms state — if no transitions are ready, the tick is a no-op.
 
 Useful when:
-- Operator just acked a Mode 3 dispatch (don't wait 10 min for the next scheduled fire).
+- Operator just acked a Mode 3 dispatch (don't wait 10 min for the next daemon wake).
 - Operator just fixed an auth issue and wants the harness to retry.
 - Operator wants to see fresh state without tailing files manually.
 

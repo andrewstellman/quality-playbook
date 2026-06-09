@@ -439,7 +439,7 @@ class DumpCliInvocationTests(unittest.TestCase):
             runs_root = Path(tmp)
             _build_harness_run_with_sentinel(runs_root)
             proc = subprocess.run(
-                [sys.executable, "-m", "bin.qpb_harness",
+                [sys.executable, "-m", "bin.qpb_harness_legacy",
                   "tui", "--dump", "runs",
                   "--runs-root", str(runs_root)],
                 cwd=str(_REPO_ROOT),
@@ -459,7 +459,7 @@ class DumpCliInvocationTests(unittest.TestCase):
             hr = _build_harness_run_with_sentinel(
                 runs_root, phase=3)
             proc = subprocess.run(
-                [sys.executable, "-m", "bin.qpb_harness",
+                [sys.executable, "-m", "bin.qpb_harness_legacy",
                   "tui", "--dump", "detail",
                   "--dump-path", str(hr)],
                 cwd=str(_REPO_ROOT),
@@ -480,7 +480,7 @@ class DumpCliInvocationTests(unittest.TestCase):
                 encoding="utf-8",
             )
             proc = subprocess.run(
-                [sys.executable, "-m", "bin.qpb_harness",
+                [sys.executable, "-m", "bin.qpb_harness_legacy",
                   "tui", "--dump", "output",
                   "--dump-path", str(run_dir),
                   "--lines", "100"],
@@ -499,7 +499,7 @@ class DumpCliInvocationTests(unittest.TestCase):
         falls back to the default runs-root resolution and dumps
         the inferred page (exit 0) instead of erroring."""
         proc = subprocess.run(
-            [sys.executable, "-m", "bin.qpb_harness",
+            [sys.executable, "-m", "bin.qpb_harness_legacy",
               "tui", "--dump", "detail"],
             cwd=str(_REPO_ROOT),
             capture_output=True, text=True, timeout=30,
@@ -512,7 +512,7 @@ class DumpCliInvocationTests(unittest.TestCase):
             self) -> None:
         """As above for the ``--dump output`` enum form."""
         proc = subprocess.run(
-            [sys.executable, "-m", "bin.qpb_harness",
+            [sys.executable, "-m", "bin.qpb_harness_legacy",
               "tui", "--dump", "output"],
             cwd=str(_REPO_ROOT),
             capture_output=True, text=True, timeout=30,
@@ -548,7 +548,7 @@ class DumpCliNoTextualTests(unittest.TestCase):
                 "sys.argv = ['qpb_harness', 'tui', '--dump', "
                 "'runs', '--runs-root', "
                 f"{str(runs_root)!r}]; "
-                "runpy.run_module('bin.qpb_harness', "
+                "runpy.run_module('bin.qpb_harness_legacy', "
                 "run_name='__main__')"
             )
             proc = subprocess.run(

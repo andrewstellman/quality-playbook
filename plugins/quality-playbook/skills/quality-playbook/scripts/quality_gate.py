@@ -318,7 +318,141 @@ def check_harness_schemas(repo_root: "Path | None" = None) -> int:
                     f"({target})"
                 )
 
-    print("=== quality_gate --schemas-only (v1.5.9 instruction 210) ===")
+    # ----- v1.5.9 instruction 213 — daemon invariants -----
+    #
+    # The v1.5.9 sidecar daemon (bin/qpb_tick_daemon.py) writes a PID
+    # file at <run-dir>/daemon.pid. These invariants validate the
+    # PID-file format and surface daemon liveness for operator
+    # diagnosis. They do NOT walk every harness_runs/* directory by
+    # default — that would require a working run, which is not always
+    # present in CI. Instead, they check ANY daemon.pid files that
+    # exist under the repo's harness_runs/ tree, treating missing
+    # harness_runs/ as a no-op.
+    #
+    # Invariants:
+    #   1. PID-file format: <run-dir>/daemon.pid (when present) contains
+    #      exactly one integer (the PID) and nothing else. Trailing
+    #      newlines are tolerated; embedded whitespace / non-integer
+    #      content fails.
+    #   2. Done-marker semantics: if both daemon.pid (PID alive) and
+    #      done.marker exist, their mtime delta > 2 x interval ⇒
+    #      WARNING (daemon may be stuck on done.marker check).
+    #   3. PID liveness: informational — report alive / stale per
+    #      run-dir. Not a fail condition.
+    #   4. Reference resolution carry-forward — already covered by
+    #      invariant 6 above; this comment pins the carry-forward
+    #      after the v213 SKILL.md / STATE_MACHINE.md / DISPATCH_GUIDE.md
+    #      edits.
+    #
+    # The check skips silently if harness_runs/ is missing. It surfaces
+    # WARNs (not FAILs) for done-marker-still-running cases because
+    # that's a diagnostic signal, not a substantive failure.
+    daemon_warns: list[str] = []
+    daemon_passes: list[str] = []
+    daemon_failures: list[str] = []
+    harness_runs_dir = root / "harness_runs"
+    if harness_runs_dir.is_dir():
+        try:
+            run_dir_iter = sorted(harness_runs_dir.iterdir())
+        except OSError as exc:
+            daemon_warns.append(
+                f"daemon check: could not iterate {harness_runs_dir}: {exc}"
+            )
+            run_dir_iter = []
+        for run_dir in run_dir_iter:
+            if not run_dir.is_dir():
+                continue
+            pid_path = run_dir / "daemon.pid"
+            if not pid_path.is_file():
+                continue
+            # Invariant 1: PID-file format check.
+            try:
+                raw = pid_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                daemon_failures.append(
+                    f"daemon.pid unreadable at {pid_path}: {exc}"
+                )
+                continue
+            stripped = raw.strip()
+            try:
+                pid_value = int(stripped)
+                if pid_value <= 0:
+                    raise ValueError("non-positive PID")
+                daemon_passes.append(
+                    f"daemon.pid format OK ({pid_value}) at "
+                    f"{pid_path.relative_to(root)}"
+                )
+            except ValueError:
+                daemon_failures.append(
+                    f"daemon.pid format INVALID at "
+                    f"{pid_path.relative_to(root)}: "
+                    f"content {raw!r} is not a single integer"
+                )
+                continue
+            # Invariant 3: PID liveness (informational).
+            alive = False
+            try:
+                import os as _os
+                _os.kill(pid_value, 0)
+                alive = True
+            except ProcessLookupError:
+                alive = False
+            except (PermissionError, OSError):
+                # Conservative: treat as alive when permission denied.
+                alive = True
+            daemon_passes.append(
+                f"daemon liveness ({pid_value}): "
+                f"{'alive' if alive else 'stale'} at "
+                f"{pid_path.relative_to(root)}"
+            )
+            # Invariant 2: done-marker semantics.
+            done_marker = run_dir / "done.marker"
+            if alive and done_marker.is_file():
+                try:
+                    pid_mtime = pid_path.stat().st_mtime
+                    done_mtime = done_marker.stat().st_mtime
+                    age_since_done = abs(pid_mtime - done_mtime)
+                    # Read tick_interval_minutes from plan.json if
+                    # present; default 10 min.
+                    plan_path = run_dir / "plan.json"
+                    interval_minutes = 10.0
+                    if plan_path.is_file():
+                        try:
+                            plan_data = _json.loads(
+                                plan_path.read_text(encoding="utf-8")
+                            )
+                            interval_minutes = float(
+                                plan_data.get(
+                                    "tick_interval_minutes", 10
+                                )
+                            )
+                        except (OSError, ValueError):
+                            pass
+                    threshold = 2 * interval_minutes * 60
+                    if age_since_done > threshold:
+                        daemon_warns.append(
+                            f"daemon stuck? PID {pid_value} alive AND "
+                            f"done.marker present for {age_since_done:.0f}s "
+                            f"(> 2 x {interval_minutes:.1f}min interval) at "
+                            f"{pid_path.relative_to(root)}"
+                        )
+                    else:
+                        daemon_passes.append(
+                            f"done.marker recent ({age_since_done:.0f}s) at "
+                            f"{pid_path.relative_to(root)}"
+                        )
+                except OSError as exc:
+                    daemon_warns.append(
+                        f"done-marker mtime check failed at {pid_path}: {exc}"
+                    )
+    # Merge daemon results into the main passes/failures lists for the
+    # consolidated print summary.
+    for p in daemon_passes:
+        passes.append(p)
+    for f_ in daemon_failures:
+        failures.append(f_)
+
+    print("=== quality_gate --schemas-only (v1.5.9 instruction 210+213) ===")
     print(f"Repo root: {root}")
     print(f"Passes: {len(passes)}")
     for p in passes:
@@ -326,6 +460,10 @@ def check_harness_schemas(repo_root: "Path | None" = None) -> int:
     print(f"Failures: {len(failures)}")
     for f in failures:
         print(f"  FAIL  {f}")
+    if daemon_warns:
+        print(f"Warnings: {len(daemon_warns)}")
+        for w in daemon_warns:
+            print(f"  WARN  {w}")
     print("===========================================================")
     if failures:
         print("GATE FAILED — schema invariants")

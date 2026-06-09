@@ -182,13 +182,13 @@ Phase 1 and Phase 2 are parallelizable. Phase 3 waits for both.
 | 3 | QPB SKILL.md heartbeat emission section | 1B | LANDED (210) |
 | 4 | `quality_gate.py` schema invariants | 1C | LANDED (210) |
 | 5 | End-to-end harness validation — operator-manual coverage | 1D | LANDED (instruction 211-followup-1, commit `024e642`) |
-| 5b | `bin/qpb_tick_daemon.py` sidecar daemon | 1E | PENDING (instruction 213) |
-| 5c | `bin/qpb_harness.py` operator CLI (status/stop/gc) | 1E | PENDING (213) |
-| 5d | Harness SKILL.md daemon swap + remove no-MCP fallback prose | 1E | PENDING (213) |
-| 5e | B-1 `--print "echo ok"` roundtrip | 1E | PENDING (213) |
-| 5f | Adversarial transitions #2(FAILED), #3(stall), #4(AUTH_OR_LAUNCH_FAILED) | 1E | PENDING (213) |
-| 5g | End-to-end validation in daemon mode | 1E | PENDING (213) |
-| 5h | Daemon lifecycle + crash recovery tests | 1E | PENDING (213) |
+| 5b | `bin/qpb_tick_daemon.py` sidecar daemon | 1E | LANDED (instruction 213) |
+| 5c | `bin/qpb_harness.py` operator CLI (status/stop/gc) | 1E | LANDED (213) |
+| 5d | Harness SKILL.md daemon swap + remove no-MCP fallback prose | 1E | LANDED (213) |
+| 5e | B-1 `--print "echo ok"` roundtrip | 1E | LANDED-DOC (213; documented + plan-encoded in `harness_plans/v213_daemon_validation.json` entry #5; empirical fire deferred to operator validation) |
+| 5f | Adversarial transitions #2(FAILED), #3(stall), #4(AUTH_OR_LAUNCH_FAILED) | 1E | LANDED-DOC (213; plan-encoded in entries #1-#3; empirical fire deferred to operator validation per § Done definition's deferral allowance) |
+| 5g | End-to-end validation in daemon mode | 1E | LANDED-DAEMON (213; daemon lifecycle empirically validated in `/tmp/qpb_h10_validation/`; harness-skill-driven dispatch deferred to operator validation) |
+| 5h | Daemon lifecycle + crash recovery tests | 1E | LANDED (213; 11 cases passing + mutation verification) |
 | 6 | SKILL.md content audit | 2A | Pending — first concrete step of Phase 2 |
 | 7 | Mechanical content extraction | 2B | Pending audit |
 | 8 | SKILL.md restructure + reference directives | 2C | Pending extraction |

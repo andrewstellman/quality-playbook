@@ -132,7 +132,7 @@ class ModuleSurfaceTests(unittest.TestCase):
 class ChildArgsReinvocationTests(unittest.TestCase):
     """v1.5.7 180 FIX (FINDING-2): qpb_harness.py's Windows
     spawn path must construct child_args as
-    ``[sys.executable, "-m", "bin.qpb_harness"] + sys.argv[1:]``,
+    ``[sys.executable, "-m", "bin.qpb_harness_legacy"] + sys.argv[1:]``,
     NOT ``list(sys.argv)``. Pre-fix the latter caused
     ``WinError 193 ("%1 is not a valid Win32 application")``
     because sys.argv[0] is the .py path which Windows
@@ -141,7 +141,7 @@ class ChildArgsReinvocationTests(unittest.TestCase):
     def test_180_child_args_uses_explicit_module_invocation(
             self) -> None:
         src = (
-            _REPO / "bin" / "qpb_harness.py"
+            _REPO / "bin" / "qpb_harness_legacy.py"
         ).read_text(encoding="utf-8")
         self.assertNotIn(
             "child_args = list(sys.argv)", src,
@@ -196,7 +196,7 @@ class SpawnVerifyTests(unittest.TestCase):
     def test_180_spawn_detached_followed_by_liveness_check(
             self) -> None:
         src = (
-            _REPO / "bin" / "qpb_harness.py"
+            _REPO / "bin" / "qpb_harness_legacy.py"
         ).read_text(encoding="utf-8")
         self.assertTrue(
             "pid_alive" in src
@@ -294,7 +294,7 @@ class FailFastScopeTests(unittest.TestCase):
     def test_180_fail_fast_waits_for_manifest_json(
             self) -> None:
         src = (
-            _REPO / "bin" / "qpb_harness.py"
+            _REPO / "bin" / "qpb_harness_legacy.py"
         ).read_text(encoding="utf-8")
         self.assertIn(
             "manifest.json", src,
@@ -315,14 +315,14 @@ class ManifestRunningStateTests(unittest.TestCase):
 
     def test_180_at_least_one_running_helper_exists(
             self) -> None:
-        from bin import qpb_harness
+        from bin import qpb_harness_legacy as qpb_harness
         self.assertTrue(
             hasattr(qpb_harness, "_at_least_one_running"))
 
     def test_180_at_least_one_running_returns_false_on_all_failed(
             self) -> None:
         import tempfile, json as _json
-        from bin import qpb_harness
+        from bin import qpb_harness_legacy as qpb_harness
         with tempfile.NamedTemporaryFile(
                 mode="w", suffix=".json", delete=False) as f:
             _json.dump({"runs": [
@@ -341,7 +341,7 @@ class ManifestRunningStateTests(unittest.TestCase):
     def test_180_at_least_one_running_returns_true_on_mixed(
             self) -> None:
         import tempfile, json as _json
-        from bin import qpb_harness
+        from bin import qpb_harness_legacy as qpb_harness
         with tempfile.NamedTemporaryFile(
                 mode="w", suffix=".json", delete=False) as f:
             _json.dump({"runs": [
@@ -361,7 +361,7 @@ class ManifestRunningStateTests(unittest.TestCase):
         # PENDING is acceptable — runs may be mid-spawn but not
         # yet RUNNING; the launch has not failed.
         import tempfile, json as _json
-        from bin import qpb_harness
+        from bin import qpb_harness_legacy as qpb_harness
         with tempfile.NamedTemporaryFile(
                 mode="w", suffix=".json", delete=False) as f:
             _json.dump({"runs": [
@@ -376,13 +376,13 @@ class ManifestRunningStateTests(unittest.TestCase):
 
     def test_180_at_least_one_running_handles_missing_or_garbage(
             self) -> None:
-        from bin import qpb_harness
+        from bin import qpb_harness_legacy as qpb_harness
         self.assertFalse(
             qpb_harness._at_least_one_running(
                 pathlib.Path("/nonexistent/qpb-test")))
 
     def test_180_surface_all_failed_helper_exists(self) -> None:
-        from bin import qpb_harness
+        from bin import qpb_harness_legacy as qpb_harness
         self.assertTrue(
             hasattr(qpb_harness,
                     "_surface_all_failed_at_launch"))
@@ -397,7 +397,7 @@ class ManifestRunningStateTests(unittest.TestCase):
         # at least one CALL beyond the def. Counting occurrences
         # of `_at_least_one_running(` requires ≥2: one for def,
         # at least one for call.
-        src = (_REPO / "bin" / "qpb_harness.py").read_text(
+        src = (_REPO / "bin" / "qpb_harness_legacy.py").read_text(
             encoding="utf-8")
         occurrences = src.count("_at_least_one_running(")
         self.assertGreaterEqual(
@@ -987,6 +987,19 @@ class NoResidualPidAliveDivergenceTests(unittest.TestCase):
     ``_platform.pid_alive`` so a single canonical
     implementation backs the entire harness."""
 
+    # v1.5.9 instruction 213: the new daemon mode files
+    # (qpb_tick_daemon.py, qpb_harness.py) are stdlib-only by
+    # design -- they CAN'T import from bin/harness/_platform
+    # because bin/harness/ is scheduled for deletion after the
+    # v1.5.9 release tag (see commit message + STATE_MACHINE.md
+    # § Daemon lifecycle invariants). The cross-platform PID
+    # liveness checks live inline in those files with their own
+    # ProcessLookupError / PermissionError handling. These tests
+    # remain in force for legacy bin/qpb_harness_legacy.py and
+    # bin/harness/ modules until those are deleted; the v1.5.9
+    # daemon files are excluded here.
+    _V159_DAEMON_FILES = {"qpb_tick_daemon.py", "qpb_harness.py"}
+
     def test_184_no_local_pid_alive_definitions_in_bin(
             self) -> None:
         import re
@@ -998,6 +1011,8 @@ class NoResidualPidAliveDivergenceTests(unittest.TestCase):
                 continue
             if f.name == "_platform.py":
                 continue  # canonical home for the primitive
+            if f.name in self._V159_DAEMON_FILES:
+                continue  # v1.5.9 stdlib-only daemon design
             src = f.read_text(encoding="utf-8")
             matches = forbidden_pattern.findall(src)
             self.assertFalse(
@@ -1019,6 +1034,8 @@ class NoResidualPidAliveDivergenceTests(unittest.TestCase):
                 continue
             if f.name == "_platform.py":
                 continue
+            if f.name in self._V159_DAEMON_FILES:
+                continue  # v1.5.9 stdlib-only daemon design
             src = f.read_text(encoding="utf-8")
             matches = pattern.findall(src)
             self.assertFalse(

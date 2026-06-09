@@ -3672,7 +3672,7 @@ def _spawn_collector(harness_run_dir: Path,
     """
     collector_log = harness_run_dir / "collector.log"
     cmd = [
-        sys.executable, "-m", "bin.qpb_harness",
+        sys.executable, "-m", "bin.qpb_harness_legacy",
         "collect", str(harness_run_dir),
     ]
     log_fp = open(collector_log, "ab")
@@ -3706,7 +3706,7 @@ def _spawn_watchdog(harness_run_dir: Path,
     """
     watchdog_log = harness_run_dir / "watchdog.log"
     cmd = [
-        sys.executable, "-m", "bin.qpb_harness",
+        sys.executable, "-m", "bin.qpb_harness_legacy",
         "watchdog", str(harness_run_dir),
     ]
     log_fp = open(watchdog_log, "ab")

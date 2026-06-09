@@ -180,7 +180,7 @@ class KillCmdCancelsPendingTests(unittest.TestCase):
     rows. End-to-end CLI test."""
 
     def test_kill_harness_run_cancels_pending(self) -> None:
-        from bin import qpb_harness
+        from bin import qpb_harness_legacy as qpb_harness
         with tempfile.TemporaryDirectory() as td:
             hr = pathlib.Path(td) / "20260602T222932Z"
             hr.mkdir()
@@ -211,7 +211,7 @@ class KillCmdCancelsPendingTests(unittest.TestCase):
         # "No running runs to kill and no pending runs to
         # cancel." Replaces the pre-188 "No running runs to
         # kill." message.
-        from bin import qpb_harness
+        from bin import qpb_harness_legacy as qpb_harness
         with tempfile.TemporaryDirectory() as td:
             hr = pathlib.Path(td) / "20260602T222932Z"
             hr.mkdir()

@@ -6,6 +6,83 @@ The three modes are documented in the harness SKILL.md § Dispatch modes at a hi
 
 ---
 
+## First-tick spawn — the daemon
+
+Before any plan-entry dispatch happens, the very first tick spawns the v1.5.9 sidecar daemon. The spawn is `subprocess.Popen` with platform-appropriate detachment:
+
+**Unix:**
+
+```python
+import subprocess, sys
+from pathlib import Path
+
+daemon_py = Path("bin/qpb_tick_daemon.py").resolve()
+run_dir = Path("harness_runs/2026-06-09T14-30-00Z/").resolve()
+claude_binary = "/usr/local/bin/claude"           # absolute path
+harness_plugin_dir = Path("plugins/quality-playbook-harness").resolve()
+
+subprocess.Popen(
+    [sys.executable, str(daemon_py),
+     "--run-dir", str(run_dir),
+     "--interval-minutes", "10",
+     "--claude-binary", claude_binary,
+     "--harness-plugin-dir", str(harness_plugin_dir)],
+    start_new_session=True,                       # os.setsid in child
+    stdout=open(run_dir / "daemon.log", "ab"),
+    stderr=subprocess.STDOUT,
+    stdin=subprocess.DEVNULL,
+)
+```
+
+The `start_new_session=True` flag is critical — it calls `os.setsid()` in the child before exec, detaching the daemon from the orchestrator's terminal session. Without it, the daemon dies when the orchestrator's shell exits.
+
+**Windows:**
+
+```python
+subprocess.Popen(
+    [sys.executable, str(daemon_py), ...same args...],
+    creationflags=(
+        subprocess.DETACHED_PROCESS
+        | subprocess.CREATE_NEW_PROCESS_GROUP
+    ),
+    stdout=open(run_dir / "daemon.log", "ab"),
+    stderr=subprocess.STDOUT,
+    stdin=subprocess.DEVNULL,
+)
+```
+
+On Windows, `os.setsid` doesn't exist; detachment is achieved via the `creationflags` at spawn time.
+
+**Daemon CLI flags / env vars.** Both invocation paths are equivalent — the daemon prefers the CLI flag when both are present:
+
+| CLI flag | Env var | Required? | Notes |
+|---|---|---|---|
+| `--run-dir` | `QPB_RUN_DIR` | yes | Absolute path to the harness run-dir. |
+| `--interval-minutes` | `QPB_TICK_INTERVAL_MINUTES` | yes | Float minutes between wakes. |
+| `--claude-binary` | `QPB_CLAUDE_BINARY` | yes | Absolute path to the host `claude` CLI. |
+| `--harness-plugin-dir` | `QPB_HARNESS_PLUGIN_DIR` | no | Forwarded to `claude --print --plugin-dir`. |
+
+**Lifecycle contract.** Once spawned, the daemon:
+
+1. Acquires `<run-dir>/daemon.pid` via `O_EXCL` open. On race-loss it exits code 7 (lock held by another live daemon).
+2. Installs SIGTERM / SIGINT handlers (Unix) for graceful exit.
+3. Enters the wakeup loop. Each iteration: touch `daemon.heartbeat` (mtime updated), check for `<run-dir>/done.marker` (exit cleanly if present, removing `daemon.pid`), fire `claude --print -p "tick harness on run-dir <run-dir>"` with `timeout = 0.9 × interval_seconds`, sleep `interval_seconds`.
+4. Logs every wake / fire / result / sleep / signal / shutdown event to `<run-dir>/daemon.log` with ISO timestamps.
+
+**Operator-facing management.** The operator CLI is `bin/qpb_harness.py`:
+
+```bash
+python3 bin/qpb_harness.py status                  # list all active daemons
+python3 bin/qpb_harness.py stop <run-dir>          # SIGTERM then SIGKILL after 5s
+python3 bin/qpb_harness.py gc                      # sweep stale PID files
+```
+
+Exit codes: 0 normal, 2 bad invocation, 5 run-dir not found, 7 PID file present but PID not alive.
+
+**Crash recovery from the harness side.** If the harness skill is invoked manually on a run whose daemon has died (heartbeat mtime > 3× interval OR PID not alive), the harness re-spawns the daemon using the exact same `subprocess.Popen` invocation as above. The daemon's PID-file lock will overwrite the stale lock automatically.
+
+---
+
 ## Mode 1 — in-process Task subagent (Claude Code only)
 
 **When to use.** The host CLI is Claude Code and the orchestrator wants the worker to run as a subagent of the same Claude Code session. Lowest latency, simplest auth (same session = same auth). Subject to subscription concurrency caps (Council finding A-3 capped default `pool_size=3`).
@@ -49,23 +126,50 @@ Per Council finding A-2, absolute paths are mandatory; never derive from cwd. Th
 
 **When to use.** The orchestrator runs in one CLI (e.g. Claude Code) and dispatches workers to a different CLI (`copilot`, `codex`, another `claude` instance). Maximum dispatch flexibility and bypasses per-CLI concurrency caps (each CLI has its own quota). Most useful when the operator wants to run >3 workers in parallel.
 
-**Pre-flight auth check (Council finding B-1).** BEFORE the dispatch shell-out, run TWO probes against the CLI binary:
+**Pre-flight auth check (Council finding B-1) — TWO probes, BOTH mandatory.** BEFORE the dispatch shell-out, run TWO probes against the CLI binary:
 
-1. **Binary present:**
+1. **Binary present (`--version` probe):**
    ```bash
    <cli_command_first_word> --version
    ```
-   Example: `copilot --version`. Expected: exit 0 with a version string. Failure → mark job AUTH_OR_LAUNCH_FAILED, skip.
+   Example: `copilot --version`. Expected: exit 0 within 10 sec with a version string. Failure → mark `state=failed`, `failure_subtype=AUTH_FAILED`, do NOT dispatch.
 
-2. **Auth round-trip:**
+2. **Auth round-trip (`--print "echo ok"` probe — B-1 ROUNDTRIP):**
    ```bash
-   <cli_command> -p "echo ok"
+   <cli_command> --print "echo ok"
    ```
-   Example: `copilot --model claude-sonnet-4.6 --allow-all -p "echo ok"`. Expected: roundtrip within 30 sec with output containing "ok" (CLI may wrap it in explanation). Failure → mark AUTH_OR_LAUNCH_FAILED, skip.
+   (Or the CLI's equivalent one-shot flag. Examples below.) Expected: roundtrip within 30 sec, exit 0, AND stdout must contain the substring "ok" (CLI may wrap it in narrative — substring-match, don't equality-check). Failure → mark `state=failed`, `failure_subtype=AUTH_FAILED`, do NOT dispatch.
 
-Write both probe outcomes to `run-NN/auth_check.log`. If either fails, do NOT dispatch — write `result-NNNNN.json` with `status=FAILED`, `failure_subtype=AUTH_OR_LAUNCH_FAILED`, move manifest queue/ → results/ directly (bypass `claimed/`).
+Both probe outputs (stdout, stderr, rc) MUST be written to `<run-dir>/run-NN/auth_check.log` AND surfaced in `harness_status.json` under the entry's `auth_check_probes` block for operator diagnosis:
 
-**Dispatch shell-out template:**
+```json
+"auth_check_probes": {
+  "version": {"rc": 0, "stdout": "claude version 2.1.0\n", "stderr": ""},
+  "roundtrip": {"rc": 0, "stdout": "ok\n", "stderr": ""}
+}
+```
+
+If either probe fails, write `result-NNNNN.json` with `status=FAILED`, `failure_subtype=AUTH_FAILED`, move manifest queue/ → results/ directly (bypass `claimed/`).
+
+**Distinction:** `AUTH_FAILED` (this transition, transition #8) fires PRE-dispatch when either probe fails. `AUTH_OR_LAUNCH_FAILED` (transition #4) fires POST-dispatch when the worker dispatches successfully but never emits a STARTUP heartbeat within 60 sec. They are different failure modes with different diagnostic signals.
+
+**Per-CLI probe examples.**
+
+```bash
+# GitHub Copilot CLI
+copilot --version
+copilot --model claude-sonnet-4.6 --allow-all -p "echo ok"
+
+# Codex CLI (note: exec subcommand, --sandbox workspace-write)
+codex --version
+codex exec --sandbox workspace-write --model gpt-5.5 "echo ok"
+
+# Claude CLI
+claude --version
+claude --print --model opus-4.7 --dangerously-skip-permissions "echo ok"
+```
+
+**Dispatch shell-out template (after pre-flight passes):**
 
 ```bash
 cd <absolute run-NN> && \
@@ -77,7 +181,7 @@ disown $WORKER_PID
 
 - `cd <absolute run-NN>` ensures the worker's `worker.log` and any incidentals land in the run-dir.
 - `QPB_TASK_ID` and `QPB_HEARTBEAT_PATH` are exported so the worker's `qpb_heartbeat.py` calls find them.
-- `-p` is the headless / one-shot prompt flag (most CLIs support this; codex uses `exec --full-auto`; substitute per-CLI).
+- `-p` is the headless / one-shot prompt flag (most CLIs support this; codex uses `exec --sandbox workspace-write`; substitute per-CLI).
 - `> worker.log 2>&1 &` backgrounds and captures both streams.
 - `WORKER_PID=$!` captures the backgrounded worker's PID — write this immediately to `claimed/job-NNNNN.lock` per the SKILL.md § Worker lock file section.
 - `disown $WORKER_PID` detaches from the orchestrator's job table so the worker survives the orchestrator's exit at end-of-tick.
@@ -101,21 +205,6 @@ This is distinct from STALLED (heartbeats stopped) and AUTH_OR_LAUNCH_FAILED (no
 **Worker prompt header.** Same absolute-path block as Mode 1. The worker should read the env vars and write heartbeats to the absolute path. (The block is identical so workers don't need to know which dispatch mode brought them up.)
 
 **STARTUP heartbeat window.** After dispatch, the worker has 60 sec to emit its first heartbeat. The next tick checks: if `heartbeat.ndjson` is empty or missing AND `now - dispatched_at > 60 sec`, mark `failure_subtype=AUTH_OR_LAUNCH_FAILED`. Distinct from STALLED (which means "started then stopped"); this captures "never started."
-
-**Per-CLI examples.**
-
-```
-# GitHub Copilot CLI
-copilot --model claude-sonnet-4.6 --allow-all -p "$(cat worker_prompt.md)"
-
-# Codex CLI (note: exec subcommand instead of -p)
-codex exec --full-auto --model gpt-5.5 -c model_reasoning_effort='"medium"' "$(cat worker_prompt.md)"
-
-# Claude CLI
-claude --print --model opus-4.7 --dangerously-skip-permissions "$(cat worker_prompt.md)"
-```
-
-The plan entry's `cli_command` field is the verbatim shell command sans the worker prompt — the harness appends `-p "$(cat worker_prompt.md)"` (or the CLI's equivalent flag) at dispatch time.
 
 ---
 
@@ -162,7 +251,8 @@ These hold regardless of dispatch mode:
 4. **Schema version "1" in every emitted artifact.** Plan, job_manifest, result, heartbeat. Forward-compat is via `schema_warnings[]` on read; drift is caught by the Phase 1C tests.
 5. **STARTUP heartbeat within 60 sec post-dispatch.** Otherwise AUTH_OR_LAUNCH_FAILED. Applies to all three modes (Mode 3 measures from ack-file creation, not from prompt write).
 6. **Worker lock file at dispatch time (Council A-5).** Every dispatch writes `claimed/job-NNNNN.lock` sibling to the manifest, containing PID (Mode 2) or orchestrator PID (Mode 1) or omitted (Mode 3), start_time, cwd, dispatch_mode. The lock file is deleted when the manifest moves claimed/ → results/. Mode 2 uses the PID for `kill -0` liveness; the other modes treat the lock as informational only. See `STATE_MACHINE.md` § Worker lock file for the liveness algorithm.
+7. **Mode 2 B-1 pre-flight is two probes.** `--version` AND `--print "echo ok"`. Both must succeed; one failure → `AUTH_FAILED` (transition #8 in `STATE_MACHINE.md`).
 
 ---
 
-*See `STATE_MACHINE.md` for transition table and worked example. Schemas in `../schemas/`. Example plan at `examples/small_plan.json`.*
+*See `STATE_MACHINE.md` for transition table and worked example, plus § Daemon lifecycle invariants for the daemon-side contracts. Schemas in `../schemas/`. Example plan at `examples/small_plan.json`.*

@@ -135,7 +135,7 @@ class LogReadSweepSourcePinTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.qpb_harness_src = (
-            _REPO / "bin" / "qpb_harness.py").read_text(
+            _REPO / "bin" / "qpb_harness_legacy.py").read_text(
                 encoding="utf-8")
 
     def test_orchestrator_log_site_uses_replace_fallback(
@@ -222,23 +222,23 @@ class LogReadSweepSourcePinTests(unittest.TestCase):
         # Each entry is one source-line we expect to find.
         AUDIT = [
             # bin/qpb_harness.py
-            ("bin/qpb_harness.py", "open(log_path",
+            ("bin/qpb_harness_legacy.py", "open(log_path",
                 "external-replace"),
-            ("bin/qpb_harness.py", "open(harness_log",
+            ("bin/qpb_harness_legacy.py", "open(harness_log",
                 "external-replace"),
-            ("bin/qpb_harness.py",
+            ("bin/qpb_harness_legacy.py",
                 "launch.stream_path.read_text(\n                encoding=\"utf-8\", errors=\"ignore\"",
                 "external-ignore"),
             # internal JSON reads (manifest / config / SKILL.md)
-            ("bin/qpb_harness.py", "skill_md.read_text(encoding=\"utf-8\")",
+            ("bin/qpb_harness_legacy.py", "skill_md.read_text(encoding=\"utf-8\")",
                 "internal-json"),
-            ("bin/qpb_harness.py",
+            ("bin/qpb_harness_legacy.py",
                 "open(manifest_path, \"r\", encoding=\"utf-8\")",
                 "internal-json"),
-            ("bin/qpb_harness.py",
+            ("bin/qpb_harness_legacy.py",
                 "cfg_path.read_text(encoding=\"utf-8\")",
                 "internal-json"),
-            ("bin/qpb_harness.py",
+            ("bin/qpb_harness_legacy.py",
                 "manifest_path.read_text(encoding=\"utf-8\"))",
                 "internal-json"),
             # bin/harness/grade_security.py — child output reads

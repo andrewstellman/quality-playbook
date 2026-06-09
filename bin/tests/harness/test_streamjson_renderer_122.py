@@ -410,7 +410,7 @@ class CliRawFlagTests(unittest.TestCase):
             (run_dir / "stream.ndjson").write_text(
                 _REAL_INIT + "\n", encoding="utf-8")
             proc = subprocess.run(
-                [sys.executable, "-m", "bin.qpb_harness",
+                [sys.executable, "-m", "bin.qpb_harness_legacy",
                   "tail", str(run_dir)],
                 cwd=str(_REPO_ROOT),
                 capture_output=True, text=True, timeout=30,
@@ -427,7 +427,7 @@ class CliRawFlagTests(unittest.TestCase):
             (run_dir / "stream.ndjson").write_text(
                 _REAL_INIT + "\n", encoding="utf-8")
             proc = subprocess.run(
-                [sys.executable, "-m", "bin.qpb_harness",
+                [sys.executable, "-m", "bin.qpb_harness_legacy",
                   "tail", str(run_dir), "--raw"],
                 cwd=str(_REPO_ROOT),
                 capture_output=True, text=True, timeout=30,
@@ -444,7 +444,7 @@ class CliRawFlagTests(unittest.TestCase):
             (run_dir / "stream.ndjson").write_text(
                 _REAL_INIT + "\n", encoding="utf-8")
             proc = subprocess.run(
-                [sys.executable, "-m", "bin.qpb_harness",
+                [sys.executable, "-m", "bin.qpb_harness_legacy",
                   "tui", "--dump", "output",
                   "--dump-path", str(run_dir), "--raw"],
                 cwd=str(_REPO_ROOT),
@@ -462,7 +462,7 @@ class CliRawFlagTests(unittest.TestCase):
             (run_dir / "stream.ndjson").write_text(
                 _REAL_INIT + "\n", encoding="utf-8")
             proc = subprocess.run(
-                [sys.executable, "-m", "bin.qpb_harness",
+                [sys.executable, "-m", "bin.qpb_harness_legacy",
                   "tui", "--dump", "output",
                   "--dump-path", str(run_dir)],
                 cwd=str(_REPO_ROOT),

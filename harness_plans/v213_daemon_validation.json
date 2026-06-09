@@ -1,0 +1,96 @@
+{
+  "schema_version": "1",
+  "name": "v213_daemon_validation",
+  "description": "v1.5.9 instruction 213 H7-H10 daemon mode + adversarial transition validation plan. Three adversarial entries (AUTH_OR_LAUNCH_FAILED via nonexistent CLI; FAILED terminal via worker emitting terminal --status FAILED; stall detection via STARTING then sleep) + one happy-path subagent + one happy-path cross-CLI claude. Captures end-to-end daemon mode coverage for the Phase 1 ship gate.",
+  "tick_interval_minutes": 5,
+  "stall_threshold_minutes": 1,
+  "early_warn_minutes": 0.5,
+  "pool_size": 2,
+  "runs": [
+    {
+      "index": 1,
+      "name": "h7_auth_or_launch_failed_nonexistent_cli",
+      "purpose": "H7 transition #4 adversarial trigger: cli_command 'nonexistent-qpb-cli' produces no STARTUP heartbeat within 60 sec post-dispatch. Next tick marks state=failed, failure_subtype=AUTH_OR_LAUNCH_FAILED. Captures worker_prompt content, claimed/job-NNNNN.lock content if PID capturable, harness_status.json failure_subtype.",
+      "dispatch_mode": "cross_cli",
+      "cli_command": "nonexistent-qpb-cli-h7",
+      "repo": "synthetic://h7-adversarial",
+      "ref": "n/a",
+      "runner": "nonexistent",
+      "model": "n/a",
+      "channel": "n/a",
+      "expect": {
+        "state": "failed",
+        "failure_subtype": "AUTH_OR_LAUNCH_FAILED"
+      }
+    },
+    {
+      "index": 2,
+      "name": "h8_failed_terminal_status",
+      "purpose": "H8 transition #2 adversarial trigger: worker prompt invokes qpb_heartbeat.py terminal --status FAILED. Next tick moves manifest to results/ with state=failed, result_file populated, no failure_subtype (failure is intentional, not transitional). Captures heartbeat.ndjson tail, result-NNNNN.json, harness_status.json.",
+      "dispatch_mode": "subagent",
+      "repo": "synthetic://h8-adversarial",
+      "ref": "n/a",
+      "runner": "claude",
+      "model": "sonnet",
+      "channel": "n/a",
+      "worker_prompt_override": "You are a synthetic adversarial worker for QPB instruction 213 H8. Your single job: emit a STARTING heartbeat then immediately a terminal --status FAILED. Do NOT run any real work. Use the env vars in the prompt header for QPB_TASK_ID and QPB_HEARTBEAT_PATH.\n\nStep 1:\n  python3 -m bin.qpb_heartbeat emit --phase 'Phase 1' --step 'h8-start' --status STARTING\n\nStep 2:\n  python3 -m bin.qpb_heartbeat terminal --status FAILED --result-file /tmp/h8-no-result --summary 'intentional failure for H8 test'\n\nThen return a one-line summary string. Do not echo heartbeat content.",
+      "expect": {
+        "state": "failed",
+        "failure_subtype": null,
+        "note": "Worker emitted terminal --status FAILED voluntarily; this is transition #2 in STATE_MACHINE.md, not #4 or #6."
+      }
+    },
+    {
+      "index": 3,
+      "name": "h9_stall_detection_starting_then_sleep",
+      "purpose": "H9 transition #3 adversarial trigger: worker prompt emits ONE STARTING heartbeat then sleeps. Plan's stall_threshold_minutes=1 + early_warn_minutes=0.5 give a manageable validation window. After dispatch + 60 sec next tick should mark stalled (early_warn). After dispatch + 90 sec past 1-min stall threshold the next tick marks failed with failure_subtype=STALLED. May be deferred per § Done definition.",
+      "dispatch_mode": "subagent",
+      "repo": "synthetic://h9-adversarial",
+      "ref": "n/a",
+      "runner": "claude",
+      "model": "sonnet",
+      "channel": "n/a",
+      "worker_prompt_override": "You are a synthetic adversarial worker for QPB instruction 213 H9. Your single job: emit a STARTING heartbeat then sleep 300 sec without emitting any further heartbeats. Use the env vars in the prompt header for QPB_TASK_ID and QPB_HEARTBEAT_PATH.\n\nStep 1:\n  python3 -m bin.qpb_heartbeat emit --phase 'Phase 1' --step 'h9-start' --status STARTING\n\nStep 2:\n  sleep 300\n\nThis worker is expected to be marked STALLED by the harness's next tick after stall_threshold_minutes elapses.",
+      "expect": {
+        "state": "stalled then failed",
+        "failure_subtype": "STALLED",
+        "deferral_allowed": true
+      }
+    },
+    {
+      "index": 4,
+      "name": "h10_happy_path_subagent",
+      "purpose": "H10 end-to-end happy path: one subagent worker that emits STARTING, runs a trivial in-context check, then emits terminal --status COMPLETED. Validates the full daemon lifecycle: daemon spawn, automated tick firing, worker completion, harness reconciliation, done.marker write, daemon clean exit, PID file removal.",
+      "dispatch_mode": "subagent",
+      "repo": "synthetic://h10-happy-subagent",
+      "ref": "n/a",
+      "runner": "claude",
+      "model": "sonnet",
+      "channel": "n/a",
+      "worker_prompt_override": "You are a synthetic happy-path worker for QPB instruction 213 H10. Emit STARTING, then a single IN_PROGRESS, then terminal COMPLETED. Use the env vars in the prompt header.\n\nStep 1: STARTING heartbeat for 'Phase 1'.\nStep 2: IN_PROGRESS heartbeat for 'Phase 1, step probe'.\nStep 3: terminal --status COMPLETED with --result-file /tmp/h10-synthetic-result --summary 'h10 happy-path probe ok'.\n\nReturn a one-line summary. Total wall time should be < 30 sec.",
+      "expect": {
+        "state": "completed"
+      }
+    },
+    {
+      "index": 5,
+      "name": "h10_happy_path_cross_cli_claude",
+      "purpose": "H10 end-to-end happy path: cross-CLI shell-out to a separate `claude --print` instance running the same trivial worker. Validates the B-1 two-probe pre-flight (--version + --print 'echo ok' roundtrip) against a known-working CLI, then the full daemon lifecycle for a cross-CLI worker.",
+      "dispatch_mode": "cross_cli",
+      "cli_command": "claude --print --model opus-4.7 --dangerously-skip-permissions",
+      "repo": "synthetic://h10-happy-cross-cli",
+      "ref": "n/a",
+      "runner": "claude",
+      "model": "opus-4.7",
+      "channel": "n/a",
+      "worker_prompt_override": "You are a synthetic happy-path cross-CLI worker for QPB instruction 213 H10. Same shape as the subagent variant: STARTING -> IN_PROGRESS -> terminal COMPLETED. Use the env vars in the prompt header.\n\nReturn a one-line summary. Wall time should be < 60 sec.",
+      "expect": {
+        "state": "completed",
+        "auth_check_probes": {
+          "version": {"rc": 0},
+          "roundtrip": {"rc": 0, "stdout_contains": "ok"}
+        }
+      }
+    }
+  ]
+}

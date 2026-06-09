@@ -550,7 +550,7 @@ class CliStatusSmokeTests(unittest.TestCase):
 
     def _run(self, *args: str) -> subprocess.CompletedProcess:
         return subprocess.run(
-            [sys.executable, "-m", "bin.qpb_harness", *args],
+            [sys.executable, "-m", "bin.qpb_harness_legacy", *args],
             cwd=str(Path(__file__).resolve().parents[3]),
             capture_output=True, text=True, timeout=30,
         )

@@ -245,7 +245,7 @@ class CliWiringTests(unittest.TestCase):
 
     def test_watchdog_subcommand_wired(self) -> None:
         src = (Path(__file__).resolve().parents[3]
-                / "bin" / "qpb_harness.py").read_text(
+                / "bin" / "qpb_harness_legacy.py").read_text(
                     encoding="utf-8")
         self.assertIn('args.command == "watchdog"', src)
         self.assertIn("_cmd_watchdog", src)
@@ -270,7 +270,7 @@ class AutoSpawnWiringTests(unittest.TestCase):
 
     def test_banner_includes_watchdog_pid(self) -> None:
         src = (Path(__file__).resolve().parents[3]
-                / "bin" / "qpb_harness.py").read_text(
+                / "bin" / "qpb_harness_legacy.py").read_text(
                     encoding="utf-8")
         self.assertIn("watchdog_pid", src)
         self.assertIn('"  watchdog pid {watchdog_pid}"'

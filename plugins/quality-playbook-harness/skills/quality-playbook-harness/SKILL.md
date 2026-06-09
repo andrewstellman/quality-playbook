@@ -1,20 +1,20 @@
 ---
 name: quality-playbook-harness
-description: Tick-based orchestration harness that runs Quality Playbook plans across multiple repos with mixed dispatch (in-process Task subagent, cross-CLI shell-out, operator-manual). Reads worker heartbeats from disk; survives session restarts via scheduled-tasks MCP.
+description: Tick-based orchestration harness that runs Quality Playbook plans across multiple repos with mixed dispatch (in-process Task subagent, cross-CLI shell-out, operator-manual). Reads worker heartbeats from disk; survives session restarts via a self-spawned Python sidecar daemon.
 version: 1.5.9
 license: Apache-2.0
 author: Andrew Stellman
-dependencies:
-  - mcp__scheduled-tasks
 ---
 
 # Quality Playbook Harness
 
 You are the QPB harness orchestrator. Your job is to run a **plan** (a JSON document listing repos to audit) by dispatching one **worker** per entry, each worker running the `quality-playbook` skill against its assigned repo, and tracking progress via on-disk heartbeats until every entry has a terminal result.
 
-You run as a **tick-based state machine**. Each invocation of this skill is exactly ONE tick. A tick reads state from disk, advances any state-machine transitions that are ready, writes state back to disk, and exits. A scheduled task (registered via the `mcp__scheduled-tasks` MCP) re-invokes this skill at the plan's declared cadence so the state machine keeps stepping forward across operator session restarts, sleeps, and reboots.
+You run as a **tick-based state machine**. Each invocation of this skill is exactly ONE tick. A tick reads state from disk, advances any state-machine transitions that are ready, writes state back to disk, and exits. A **self-spawned Python sidecar daemon** (`bin/qpb_tick_daemon.py`) re-invokes this skill at the plan's declared cadence so the state machine keeps stepping forward across operator session restarts, sleeps, and reboots. The daemon is a dumb wakeup clock with `subprocess.run` attached — it holds zero AI context and depends only on stdlib Python (no MCP, no vendor coupling).
 
 > **Why tick-based?** Long-running in-context polling loops drift, leak tokens, hit context limits, and die when the host session ends. The state machine on disk + idempotent stepper + external scheduler pattern (well-trodden — kubernetes controllers, systemd timers, cron) dissolves every one of those concerns by construction. Each tick is fresh-context, bounded, and inherently safe to re-run.
+
+> **Why a sidecar daemon, not an MCP scheduler?** Three failure modes empirically observed across instructions 211 / 211-followup-1 / 212 ruled out Cowork's `mcp__scheduled-tasks` MCP: (1) vendor lock — adopters running QPB through Codex / Copilot CLI / Cursor / bare `claude` without Cowork have no access to the MCP; (2) sub-session topology — Task-tool subagents don't inherit MCPs; (3) bus factor — coupling autonomy to one MCP server. The sidecar daemon depends only on Python (already required by the worker skill), runs anywhere the worker runs, and works identically in any session topology.
 
 Read this SKILL.md end-to-end. Then load the two reference files (see § Reference loads at the bottom). Then execute the tick.
 
@@ -28,11 +28,11 @@ Read this SKILL.md end-to-end. Then load the two reference files (see § Referen
 2. Create the run directory `harness_runs/<ISO timestamp>/` (UTC, format `YYYY-MM-DDTHH-MM-SSZ`).
 3. Populate `queue/` with one `job-NNNNN.json` per plan entry (each job is a `job_manifest` per `schemas/job_manifest.schema.json`).
 4. Snapshot the plan to `<run-dir>/plan.json`.
-5. Register a scheduled task via `mcp__scheduled-tasks__create_scheduled_task` that re-invokes this skill with the run-dir as argument. Cadence is `plan.tick_interval_minutes` (default 10).
-6. Execute the first tick now (don't wait for the scheduled fire).
+5. Spawn the sidecar daemon (`bin/qpb_tick_daemon.py`) — see § First-tick setup for the detached `subprocess.Popen` invocation, the PID-file lock, and the heartbeat / done-marker contract.
+6. Execute the first tick now (don't wait for the daemon's first wake).
 7. Exit.
 
-**Subsequent invocations (scheduled task fires OR operator manual force).** The scheduled task re-invokes you with the run-dir argument. You execute one tick and exit. The operator can also manually invoke you with the run-dir to force an immediate tick (idempotent — same code path, no harm if state hasn't changed).
+**Subsequent invocations (daemon fires OR operator manual force).** The daemon fires `claude --print -p "tick harness on run-dir <run-dir>"` at the configured cadence; that invocation loads this skill afresh and runs one tick. The operator can also manually invoke this skill with the run-dir to force an immediate tick (idempotent — same code path, no harm if state hasn't changed).
 
 If neither a fresh plan nor a run-dir argument is provided, ask the operator which mode they want.
 
@@ -42,7 +42,7 @@ If neither a fresh plan nor a run-dir argument is provided, ask the operator whi
 
 **Exactly ONE tick per invocation.** Do not loop. Do not poll. Do not wait on workers. Read state, advance the transitions that are ready RIGHT NOW, write state, exit.
 
-**Mode-agnostic ticks.** Ticks are functionally identical regardless of whether they were triggered by a scheduled task firing (with-MCP mode) or by an operator manually invoking this skill (no-MCP fallback mode — see § Fallback: no-MCP operator-manual mode). The state machine, idempotency invariants, heartbeat reading, and dispatch logic are mode-agnostic. The only difference between the two modes is **what drives the cadence** — an automated scheduler vs the operator.
+**One mechanism, one code path.** Ticks are triggered by the daemon's wakeup loop OR by manual operator invocation. Both produce identical behavior because the tick is idempotent — the only difference between them is what drives the cadence (an automated clock vs the operator). There is no with-MCP vs no-MCP fallback; there is no dual-mode framing; there is one tick.
 
 **Idempotency is mandatory.** Every transition begins with "is this already done?" Re-running the same tick must produce no observable change after the first. If a job is already in `claimed/`, do not re-dispatch. If a result is already in `results/`, do not re-move. The Phase 1C test `bin/tests/test_harness_tick_idempotency.py` enforces this at the helper-script layer; the broader state-machine idempotency is your responsibility at every transition.
 
@@ -56,9 +56,9 @@ If neither a fresh plan nor a run-dir argument is provided, ask the operator whi
    - `claimed/` job with heartbeat older than `stall_threshold_minutes` (default 45) → mark `state=stalled`
    - `claimed/` job with no STARTUP heartbeat 60 sec post-dispatch → mark `state=failed`, `failure_subtype=AUTH_OR_LAUNCH_FAILED`
    - `claimed/` job (Mode 2 only) with worker PID gone (`kill -0` returns ESRCH) AND no recent heartbeat AND `start_time` older than 60 sec → mark `state=failed`, `failure_subtype=WORKER_FAILED` (A-5 early-detection path)
-   - All entries in `results/` → write final summary, disable scheduled task, exit (see § Self-disable)
+   - All entries in `results/` → write final summary, write `<run-dir>/done.marker` so the daemon exits on its next wake, exit (see § Self-disable)
 4. **Write updated `harness_status.json`.** Single atomic write — write to `harness_status.json.tmp`, fsync, rename onto `harness_status.json`.
-5. **Exit.** Do not sleep, do not poll, do not wait. The scheduled task fires you again at the next cadence.
+5. **Exit.** Do not sleep, do not poll, do not wait. The daemon fires you again at the next cadence.
 
 If any step fails partway, do NOT attempt recovery in the same tick — let the next tick re-read disk state and resume. The state machine is the recovery mechanism.
 
@@ -66,71 +66,80 @@ If any step fails partway, do NOT attempt recovery in the same tick — let the 
 
 ## First-tick setup (only on first invocation per plan)
 
-1. Generate the run-dir name: `harness_runs/<UTC ISO timestamp with - separators in time>/`. Example: `harness_runs/2026-06-08T14-30-00Z/`.
+1. Generate the run-dir name: `harness_runs/<UTC ISO timestamp with - separators in time>/`. Example: `harness_runs/2026-06-09T14-30-00Z/`.
 2. Create the run-dir and its subdirs: `queue/`, `claimed/`, `results/`, `run-01/`, `run-02/`, …, `run-NN/` (one per plan entry).
 3. For each plan entry index `i`:
    - Generate a UUID for `task_id`.
    - Write `queue/job-NNNNN.json` (NNNNN = i zero-padded to 5 digits) matching `schemas/job_manifest.schema.json` with `state=queued`, `task_id=<uuid>`, `repo=<from plan>`, `dispatch_mode=<from plan>`, `cli_command=<from plan if cross_cli>`, `schema_version="1"`.
    - Render the worker prompt to `run-NN/worker_prompt.md` from `plan.worker_prompt_template` (substituting `{repo}`, `{task_id}`, `{heartbeat_path}` placeholders with **absolute paths** — never derive from cwd; Council finding A-2).
 4. Snapshot the plan to `<run-dir>/plan.json`.
-5. Register the scheduled task. The MCP call is `mcp__scheduled-tasks__create_scheduled_task` with `interval_minutes=plan.tick_interval_minutes` and a prompt that re-invokes this skill with the run-dir as argument.
-6. Write the initial `harness_status.json`: `{schema_version: "1", run_dir: "...", plan_task_id: "...", scheduled_task_id: "...", pool_size: N, jobs_queued: <count>, jobs_claimed: 0, jobs_completed: 0, jobs_failed: 0, jobs_stalled: 0}`.
+5. **Spawn the sidecar daemon.** Resolve absolute paths for the daemon script (`bin/qpb_tick_daemon.py`), the run-dir, the host claude CLI binary, and the harness plugin dir. Then on **Unix**:
+
+   ```python
+   import subprocess, sys
+   subprocess.Popen(
+       [sys.executable, str(daemon_py),
+        "--run-dir", str(run_dir),
+        "--interval-minutes", str(plan["tick_interval_minutes"]),
+        "--claude-binary", claude_binary_path,
+        "--harness-plugin-dir", harness_plugin_dir],
+       start_new_session=True,                # os.setsid in child before exec
+       stdout=open(run_dir / "daemon.log", "ab"),
+       stderr=subprocess.STDOUT,
+       stdin=subprocess.DEVNULL,
+   )
+   ```
+
+   On **Windows** the spawn-site flags differ:
+
+   ```python
+   subprocess.Popen(
+       [...same args...],
+       creationflags=(
+           subprocess.DETACHED_PROCESS
+           | subprocess.CREATE_NEW_PROCESS_GROUP
+       ),
+       stdout=open(run_dir / "daemon.log", "ab"),
+       stderr=subprocess.STDOUT,
+       stdin=subprocess.DEVNULL,
+   )
+   ```
+
+   The daemon writes its own PID to `<run-dir>/daemon.pid` via an `O_CREAT | O_EXCL | O_WRONLY` open. If the daemon detects an existing PID file with a still-alive PID, it exits with code 7 (lock held). If the PID is stale (process gone), the daemon overwrites the file. The harness skill does not need to handle this race itself — the daemon's lock is authoritative.
+
+6. Write the initial `harness_status.json`:
+
+   ```json
+   {
+     "schema_version": "1",
+     "run_dir": "...",
+     "plan_task_id": "...",
+     "daemon_pid_file": "<run-dir>/daemon.pid",
+     "pool_size": N,
+     "jobs_queued": <count>,
+     "jobs_claimed": 0,
+     "jobs_completed": 0,
+     "jobs_failed": 0,
+     "jobs_stalled": 0
+   }
+   ```
+
+   The harness skill does NOT inspect the PID file content directly. Liveness is tracked by the operator CLI (`bin/qpb_harness.py status`); the harness's own crash-recovery path (re-spawn the daemon on stale PID detection) only fires when the harness is invoked manually after the daemon dies.
+
 7. Now execute the first tick (the § Tick contract above).
 
 ---
 
-## Fallback: no-MCP operator-manual mode
+## Daemon crash recovery
 
-This skill's frontmatter declares `mcp__scheduled-tasks` as a dependency. **If that MCP is not loaded in the orchestrator's host CLI session**, the first-tick setup step 5 (register scheduled task) cannot run. Rather than HALTing, the harness follows a documented fallback path: the operator manually re-invokes this skill at the desired cadence in place of an automated scheduler.
+The daemon is a separate OS process. It can die for reasons unrelated to the state machine: machine reboot, `kill -9`, OOM. The harness skill detects a dead daemon when invoked manually on a run that has not yet written `done.marker`:
 
-This fallback is the design's explicit risk mitigation per `QPB_v1.5.9_Harness_Skill_Design.md` § Risks — the row titled **"Scheduled-tasks MCP unavailable on some host CLI"** lists the mitigation as *"SKILL.md frontmatter declares dependency; fall back to operator-manual tick documented as supported-but-not-recommended"*. This section IS that documented fallback — not an ad-hoc workaround. The same § "Tick-based execution model" **Operator override** paragraph confirms that "the operator can invoke the harness skill manually at any time to force an immediate tick … Falls out for free because tick is idempotent." No-MCP mode simply makes operator-driven invocation the *primary* tick driver instead of an override.
+1. Read `harness_status.json`. If `state == "done"`, no recovery needed (the daemon has already exited cleanly).
+2. Check `<run-dir>/daemon.pid`. If missing OR the PID is not alive (`os.kill(pid, 0)` raises `ProcessLookupError`) OR the `<run-dir>/daemon.heartbeat` mtime is older than `3 × tick_interval_minutes`, the daemon is presumed dead.
+3. **Re-spawn the daemon** using the same `subprocess.Popen` invocation as § First-tick setup step 5. The daemon's PID-file lock will overwrite the stale lock automatically.
+4. Continue with the tick. The state machine itself is unaffected — the daemon is just a clock; only the cadence of ticks is lost during the outage.
 
-### Detecting no-MCP mode
-
-If `mcp__scheduled-tasks__create_scheduled_task` is not callable from the orchestrator's session (the tool is absent from the available toolset, the MCP server isn't loaded, or the host CLI is non-Claude-Code without the MCP), the harness MUST take the no-MCP path automatically on first-tick setup. Do not attempt the call and parse a failure; detect by tool availability before invoking.
-
-### Modified first-tick setup (no-MCP path)
-
-Steps 1-4 are unchanged from § First-tick setup. Step 5 is replaced; steps 6-7 are adjusted:
-
-1. Validate the plan against `schemas/plan.schema.json`. *(unchanged)*
-2. Create the run-dir and its subdirs. *(unchanged)*
-3. Render each `queue/job-NNNNN.json` + `run-NN/worker_prompt.md`. *(unchanged)*
-4. Snapshot the plan to `<run-dir>/plan.json`. *(unchanged)*
-5. **SKIPPED in no-MCP mode.** Do NOT attempt to register a scheduled task. Instead, in step 6's `harness_status.json` write `"scheduled_task_id": null` and add a new field `"dispatch_mode_override": "operator_manual_ticks"`. The `tick_interval_minutes` from the plan remains in the snapshot as informational metadata (it tells the operator the recommended cadence) but is not enforced by any scheduler.
-6. Write the initial `harness_status.json`: `{schema_version: "1", run_dir: "...", plan_task_id: "...", scheduled_task_id: null, dispatch_mode_override: "operator_manual_ticks", pool_size: N, jobs_queued: <count>, jobs_claimed: 0, jobs_completed: 0, jobs_failed: 0, jobs_stalled: 0}`.
-7. **Write `<run-dir>/OPERATOR_README.md`** — an ACTION REQUIRED note explaining that the operator must manually re-invoke the harness skill at the desired cadence. Recommended cadence: every 10-15 min while workers are active, more often if state changes are needed sooner. The README MUST include:
-   - The exact reinvocation prompt the operator should use: `Invoke the harness skill with run-dir harness_runs/<ts>`.
-   - The absolute path of the run-dir for copy-paste.
-   - The recommended cadence drawn from `plan.tick_interval_minutes`.
-   - A note that each manual invocation = one tick, and that ticks are idempotent (re-running immediately is safe and a no-op if no transitions are ready).
-   - A note that the operator should STOP invoking ticks once the run is complete (signaled by a `RUN COMPLETE` banner appended to the same `OPERATOR_README.md` on self-disable).
-8. Now execute the first tick (the § Tick contract above) — unchanged.
-
-### Subsequent ticks in no-MCP mode
-
-Functionally identical to scheduled-fire ticks. The operator triggers each tick by invoking this skill manually with the run-dir argument instead of a scheduled task firing automatically. The state machine logic, idempotency rules, dispatch behavior, heartbeat reading, and self-disable logic are **mode-agnostic** — there is exactly one tick code path, and the operator-manual cadence is the only difference.
-
-Because tick is idempotent, the operator can invoke the skill arbitrarily often without harm — back-to-back invocations produce empty diffs in `harness_status.json` when no transitions are ready, and only advance state when something has actually changed (a heartbeat landed, a worker terminated, a stall threshold was crossed).
-
-### `harness_status.json` schema additions
-
-In no-MCP mode the harness emits two fields beyond the with-MCP schema:
-
-- `"scheduled_task_id": null` — explicitly null (not omitted) so a reader can distinguish "no-MCP mode" from "field forgotten." With-MCP mode writes a UUID string here.
-- `"dispatch_mode_override": "operator_manual_ticks"` — present only in no-MCP mode. With-MCP mode omits this field entirely. The field signals to any tool reading the status file that the cadence is operator-driven.
-
-Both additions are forward-compatible with the existing `schema_version: "1"` contract — they are new optional keys; consumers that don't recognize them ignore them.
-
-### Self-disable in no-MCP mode
-
-When all plan entries are in `results/`, the self-disable transition (§ Self-disable, transition #7 in `STATE_MACHINE.md`) runs unchanged except for the scheduled-task delete step. Since no scheduled task exists, **skip** the `mcp__scheduled-tasks__delete_scheduled_task` call and instead **append a `RUN COMPLETE` banner to `<run-dir>/OPERATOR_README.md`** with the final per-entry outcome summary and a sentence telling the operator to stop invoking ticks. The `harness_status.json` `state=done` write proceeds normally; the SUMMARY.md write proceeds normally.
-
-This makes the no-MCP self-disable distinguishable to a returning operator: if they see the RUN COMPLETE banner in `OPERATOR_README.md`, they know not to invoke any more ticks.
-
-### Scope limits and recommendations
-
-The no-MCP fallback is **supported but not recommended for large plans** because each operator-driven tick is a fresh Claude Code session invocation (no persistent in-memory state across ticks), which carries per-invocation orchestrator-session overhead — measured in F13 of instruction 211-followup-1. For plans larger than 5-10 entries with long expected runtimes, prefer a session that has the `mcp__scheduled-tasks` MCP loaded. For 2-5 entry plans or operator-attended runs, the no-MCP path is fully functional.
+The harness does NOT attempt to re-spawn on every tick — that's the daemon's job once it's alive. The re-spawn path only fires on manual operator invocation after a detected daemon-death, and is bounded by the harness's existing once-per-tick rule (no daemon-monitoring loop inside the tick).
 
 ---
 
@@ -186,12 +195,21 @@ cd <absolute run-NN/> && <cli_command> -p "$(cat worker_prompt.md)" > worker.log
 
 …where `<cli_command>` is from the plan entry (e.g. `copilot --model claude-sonnet-4.6 --allow-all`, `codex --model gpt-5.5`, `claude --model opus-4.7 --dangerously-skip-permissions`).
 
-**Pre-flight auth check (Council finding B-1).** BEFORE the dispatch shell-out, run TWO probes:
+**Pre-flight auth check (Council finding B-1) — BOTH probes mandatory.** BEFORE the dispatch shell-out, run TWO probes:
 
-1. `<cli_command> --version` — must exit 0 (binary installed).
-2. `<cli_command> -p "echo ok"` — must round-trip a response within 30 sec (auth healthy).
+1. `<cli_command_first_word> --version` — must exit 0 within 10 sec (binary installed + reachable).
+2. `<cli_command> --print "echo ok"` (or the CLI's equivalent one-shot flag — `-p` for copilot, `exec --full-auto` for codex) — must round-trip a response within 30 sec, exit 0, AND stdout must contain "ok" (CLI may wrap it in narrative — substring-match, don't equality-check). This is the B-1 ROUNDTRIP probe: it confirms the CLI can actually complete an inference round-trip with the configured auth, distinct from the `--version` probe which only confirms binary reachability.
 
-If either probe fails, mark the job `state=failed`, `failure_subtype=AUTH_OR_LAUNCH_FAILED`, write the diagnostic to `run-NN/auth_check.log`, do NOT dispatch.
+Both must succeed before dispatch. If either probe fails, mark the entry `state=failed`, `failure_subtype=AUTH_FAILED` (distinct from `AUTH_OR_LAUNCH_FAILED` which fires post-dispatch when the worker never starts emitting heartbeats). Write both probes' stdout/stderr to `<run-dir>/run-NN/auth_check.log` AND surface the captured probe outputs in `harness_status.json` under the entry's `auth_check_probes` field for operator diagnosis:
+
+```json
+"auth_check_probes": {
+  "version": {"rc": 0, "stdout": "...", "stderr": "..."},
+  "roundtrip": {"rc": 0, "stdout": "ok\n", "stderr": ""}
+}
+```
+
+If either probe fails, do NOT dispatch; the entry goes straight to `results/` with `failure_subtype=AUTH_FAILED`.
 
 **STARTUP heartbeat window.** After dispatch, the worker has 60 sec to emit its first heartbeat (the Phase 1 STARTING line). If the next tick (or the dispatch tick if more than 60 sec has passed) sees `heartbeat.ndjson` is empty or missing, mark `state=failed`, `failure_subtype=AUTH_OR_LAUNCH_FAILED`. This is distinct from STALLED — it captures "the worker never started" vs "the worker started then stopped emitting."
 
@@ -254,12 +272,10 @@ When all plan entries are in `results/` (any combination of `state=completed`, `
 
 1. Write a final `harness_status.json` with `state=done` and a `summary` block listing per-entry outcome.
 2. Write a human-readable `<run-dir>/SUMMARY.md` (one section per entry: repo, status, result_file pointer, duration_sec, total_heartbeats — fields directly from each `results/result-NNNNN.json`).
-3. Call `mcp__scheduled-tasks__delete_scheduled_task` with the scheduled-task ID from `harness_status.json`.
+3. **Write `<run-dir>/done.marker`** (any contents — a single ISO timestamp line is sufficient). The daemon's next wake checks for this file and exits cleanly, removing its own `daemon.pid`. The harness does NOT signal the daemon directly; the marker is the signal.
 4. Print a final status line to the operator and exit.
 
-Self-disable is idempotent: re-running a tick after self-disable sees `state=done` and exits immediately without re-deleting the (already-deleted) scheduled task.
-
-**Self-disable in no-MCP fallback mode.** There is no scheduled task to delete. Skip step 3 above; instead append a `RUN COMPLETE` banner to `<run-dir>/OPERATOR_README.md` summarizing the final per-entry outcomes and telling the operator to stop invoking manual ticks. Idempotency is preserved — the banner append is itself idempotent (check whether the RUN COMPLETE banner is already present before appending). Steps 1, 2, and 4 are unchanged.
+Self-disable is idempotent: re-running a tick after self-disable sees `state=done` and `done.marker` already present, and exits immediately without re-writing the marker.
 
 ---
 
@@ -284,12 +300,12 @@ The Phase 1C test `bin/tests/test_harness_schemas.py` enforces byte-identity. Th
 
 Before executing the tick, load these reference files via the `Read` tool:
 
-- `Read references/STATE_MACHINE.md` — full enumeration of every state transition the tick can apply, plus a worked example.
-- `Read references/DISPATCH_GUIDE.md` — per-mode dispatch detail with concrete examples.
+- `Read references/STATE_MACHINE.md` — full enumeration of every state transition the tick can apply, plus a worked example. Includes the daemon-lifecycle invariants subsection (PID-file format, heartbeat mtime, done.marker contract).
+- `Read references/DISPATCH_GUIDE.md` — per-mode dispatch detail with concrete examples, including the B-1 two-probe pre-flight auth check (`--version` AND `--print "echo ok"`) and the daemon-based first-tick spawn.
 
 The example plan at `references/examples/small_plan.json` is also available for reference if you want to see the schema shape concretely. It's a 2-entry plan suitable for validating the harness against `plan.schema.json`.
 
-**MCP method coverage.** This skill uses `mcp__scheduled-tasks__create_scheduled_task` (first-tick setup, with-MCP mode only) and `mcp__scheduled-tasks__delete_scheduled_task` (self-disable on completion, with-MCP mode only). Pausing or rescheduling an existing task is handled via **delete-then-create** rather than the MCP's `update_scheduled_task` method — this keeps the state model simple (a scheduled-task entry either exists with the current cadence, or doesn't; there is no in-place mutation). The harness state on disk (`harness_status.json`) is the authoritative source of truth; the scheduled task is just an external trigger. The no-MCP fallback path (§ Fallback: no-MCP operator-manual mode) sidesteps the MCP entirely — the operator IS the trigger.
+**Daemon vs harness boundary.** The daemon (`bin/qpb_tick_daemon.py`) is a clock with `subprocess.run` attached. It does NOT read or write `harness_status.json`, `queue/`, `claimed/`, `results/`, or `heartbeat.ndjson`. It does NOT make state-machine decisions. The harness skill — invoked fresh each tick — does all of that. The operator-facing CLI (`bin/qpb_harness.py status | stop | gc`) manages daemon lifecycle from outside the tick.
 
 ---
 
@@ -299,6 +315,7 @@ The example plan at `references/examples/small_plan.json` is also available for 
 - It does NOT do cross-machine dispatch — folder-based comm on the local filesystem. A2A migration is a future v1.6.x transport swap (schemas are A2A-ready: `task_id` UUID + `schema_version` string).
 - It does NOT implement its own TUI — the host CLI's conversation IS the TUI; operators can also tail `harness_status.json` or `heartbeat.ndjson` in a separate window.
 - It does NOT replace the operator's judgment on dispatch mode mixing, pool sizing, or stall handling. It provides defaults and surfaces signals; the operator decides.
+- It does NOT depend on any MCP server. The v1.5.9 design intentionally removed the Cowork `mcp__scheduled-tasks` dependency in favor of a self-spawned sidecar daemon; see § Why a sidecar daemon, not an MCP scheduler above.
 
 ---
 
