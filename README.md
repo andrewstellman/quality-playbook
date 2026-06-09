@@ -4,11 +4,17 @@
 
 ## Find the bugs that code review misses
 
-The Quality Playbook is an AI-driven quality engineering pipeline. It explores your codebase, derives behavioral requirements from your code AND your documentation (specs, issues, chat history, post-mortems), generates a complete quality infrastructure (requirements, functional tests, integration tests, contracts, coverage matrix, code-review and spec-audit protocols), and runs three-pass code review plus a multi-model spec audit (Council of Three) against the derived requirements. The result is a quality system grounded in **intent**, not just structure.
+**Bugs the Quality Playbook has found have been accepted and merged upstream by maintainers at Google (gson) and the Linux Kernel (zram).** It also finds bugs that thorough adversarial code review prompts with Claude Opus 4.8 miss.
 
-It finds bugs that look right but aren't — bugs that adversarial review prompts with Opus 4.8 miss, including bugs accepted and merged upstream by maintainers at Google (gson) and the Linux Kernel (zram). Functions that silently return null instead of throwing; duplicate-key checks that pass when the first value is null; sanitization that runs after the branch decision it was meant to guard. These look correct to any reviewer who doesn't know the spec.
+How: by grounding review in **intent**, not just structure. The playbook explores your codebase, derives behavioral requirements from your code AND your documentation (specs, issues, chat history, post-mortems), and runs three-pass code review plus a multi-model spec audit (Council of Three) against those requirements. The bugs it surfaces are the ones that look correct to any reviewer who doesn't know the spec:
 
-For a deeper look at this problem, see the O'Reilly Radar article [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/).
+- A function that silently returns null instead of throwing.
+- A duplicate-key check that passes when the first value is null.
+- Sanitization that runs *after* the branch decision it was meant to guard.
+
+Beyond bug-finding, QPB generates a complete quality infrastructure for your project — derived requirements, functional tests, integration-test protocol, contracts, coverage matrix, code-review and spec-audit protocols, TDD verification protocol — that future review cycles run against.
+
+For deeper context, see the O'Reilly Radar article [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/).
 
 ## How to install the Quality Playbook
 
@@ -112,7 +118,7 @@ Start with `BUGS.md` for the headline findings. Then read `REQUIREMENTS.md` to s
 
 ## Need help? Just ask your AI
 
-The rest of this README has detailed instructions for installing and running the playbook — commands, prompts, screenshots, the whole walkthrough. But the easiest way to get started is to skip the documentation entirely: **download one file, upload it to your favorite AI chatbot, and ask it for help.**
+The rest of this README hits the high points of the playbook — phases, output files, automation flags. But the easiest way to get answers is to skip reading entirely: **download one file, attach it to your favorite AI chatbot, and ask it whatever you want to know.**
 
 The file is [`plugins/quality-playbook/skills/quality-playbook/ai_context/TOOLKIT.md`](https://github.com/andrewstellman/quality-playbook/blob/main/plugins/quality-playbook/skills/quality-playbook/ai_context/TOOLKIT.md). It's a single Markdown document that explains everything about the Quality Playbook in a format designed for AI assistants to read and answer questions from.
 
@@ -125,8 +131,6 @@ Open a chat in whatever AI tool you use — Claude, ChatGPT, Cursor, GitHub Copi
 Then ask it anything: How do I set this up? What does Phase 3 actually do? How does it find bugs that structural code review misses? What's the difference between gap and adversarial iteration? Why did my run only find one bug? Your AI assistant will walk you through setup, running, interpreting results, and improving your next run.
 
 [Here's what that conversation looks like in ChatGPT](https://chatgpt.com/share/69f78fc3-186c-83ea-9be6-70866b88db82) — it works the same in any other AI tool.
-
-If you'd rather read the docs yourself, the rest of this README hits the high points and points at `TOOLKIT.md` for the detail.
 
 ## Contents
 
@@ -161,7 +165,7 @@ After the baseline, **iterations** find more bugs: gap → unfiltered → parity
 
 After fixing bugs, say *"recheck"* — recheck mode verifies fixes against the existing bug report without re-running the full pipeline (2-10 minutes).
 
-For autonomous / CI / runner-specific invocations, see the "Want to learn more?" prompts above (`"Read TOOLKIT.md. How do I run the playbook autonomously or in CI?"`) and `agents/quality-playbook.agent.md` for the orchestrator-agent path.
+For autonomous / CI / runner-specific invocations, see *[Want to learn more?](#want-to-learn-more)* below (specifically `"Read TOOLKIT.md. How do I run the playbook autonomously or in CI?"`) and `agents/quality-playbook.agent.md` for the orchestrator-agent path.
 
 ### Rate limits and run budgets
 
@@ -185,7 +189,7 @@ The playbook generates these files:
 | `QUALITY.md` | `quality/` | Quality constitution defining what "correct" means for this specific project, with fitness-to-purpose scenarios and coverage theater prevention. |
 | `test_functional.*` | `quality/` | Functional tests in the project's native language, traced to requirements rather than generated from source code. |
 | `RUN_CODE_REVIEW.md` | `quality/` | Three-pass protocol: structural review, requirement verification, cross-requirement consistency. Each pass finds bugs the others can't. |
-| `RUN_SPEC_AUDIT.md` | `quality/` | Council of Three: three independent AI models audit the code against requirements. Different models have different blind spots, and the triage uses confidence weighting, not majority vote. |
+| `RUN_SPEC_AUDIT.md` | `quality/` | Council of Three: three independent AI models audit the code against requirements. Different models have different blind spots, and the triage uses verification probes — targeted checks asking "is this actually true?" — rather than majority vote. |
 | `RUN_INTEGRATION_TESTS.md` | `quality/` | End-to-end test protocol grounded in use cases, with a traceability column mapping each test to the user outcome it validates. |
 | `RUN_TDD_TESTS.md` | `quality/` | Red-green TDD verification protocol: for each confirmed bug, prove the regression test fails on unpatched code and passes with the fix. |
 | `BUGS.md` | `quality/` | Consolidated bug report with spec basis, severity, reproduction steps, and patch references for every confirmed finding. |
@@ -264,7 +268,7 @@ For the future direction — v1.5.9 (harness-as-skill + SKILL.md trim) and v1.5.
 
 The playbook is validated against the [Quality Playbook Benchmark](https://github.com/andrewstellman/quality-playbook-benchmark): 2,564 real defects from 50 open-source repositories across 14 programming languages. Instead of injecting synthetic faults, we use real historical bugs tied to single fix commits as ground truth.
 
-The key finding: approximately 65% of real defects are detectable by structural code review alone. The remaining 35% are intent violations that require knowing what the code is supposed to do. The playbook's value is in closing that gap.
+The key finding: a large portion of real defects are intent violations that require knowing what the code is *supposed* to do — and structural code review alone, AI or human, can't see them. The playbook's value is in closing that gap.
 
 ## Setting up automation scripts
 
@@ -284,16 +288,7 @@ For deeper detail — runner flags, the bare-name benchmark convenience, rate-li
 
 ## Repository structure
 
-v1.5.8 instructions 208 + 209: restructured to Claude Code's standard
-**self-hosted marketplace** layout so the marketplace mechanism
-(`/plugin marketplace add github.com/andrewstellman/quality-playbook`)
-can auto-discover the skill AND `claude --plugin-dir
-~/Documents/QPB/plugins/quality-playbook` loads the plugin for local
-testing. The plugin (including all bundled skill files) lives under
-`plugins/quality-playbook/`; `marketplace.json` stays at the repo
-root pointing into `plugins/<name>/`. The pip/npm bundle internal
-layout (`_bundle/SKILL.md`, `_bundle/bin/...`, etc.) is unchanged
-across both 208 and 209.
+QPB uses Claude Code's standard self-hosted marketplace layout: `marketplace.json` at the repo root points at the plugin under `plugins/quality-playbook/`, which contains the skill files. The pip/npm publish channels stage from the same skill directory.
 
 ```
 quality-playbook/
