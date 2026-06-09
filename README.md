@@ -120,7 +120,7 @@ Start with `BUGS.md` for the headline findings. Then read `REQUIREMENTS.md` to s
 
 The rest of this README hits the high points of the playbook — phases, output files, automation flags. But the easiest way to get answers is to skip reading entirely: **download one file, attach it to your favorite AI chatbot, and ask it whatever you want to know.**
 
-The file is [`plugins/quality-playbook/skills/quality-playbook/ai_context/TOOLKIT.md`](https://github.com/andrewstellman/quality-playbook/blob/main/plugins/quality-playbook/skills/quality-playbook/ai_context/TOOLKIT.md). It's a single Markdown document that explains everything about the Quality Playbook in a format designed for AI assistants to read and answer questions from.
+The file is [`ai_context/TOOLKIT.md`](https://github.com/andrewstellman/quality-playbook/blob/main/ai_context/TOOLKIT.md). It's a single Markdown document that explains everything about the Quality Playbook in a format designed for AI assistants to read and answer questions from.
 
 Open a chat in whatever AI tool you use — Claude, ChatGPT, Cursor, GitHub Copilot, Gemini — attach `TOOLKIT.md`, and tell it:
 
@@ -321,7 +321,7 @@ quality-playbook/
 │               │   ├── quality-playbook-claude.agent.md
 │               │   └── quality-playbook.agent.md
 │               ├── ai_context/      # Adopter-facing AI context
-│               │   └── TOOLKIT.md   # For users' AI assistants (setup, run, interpret, recheck)
+│               │   └── TOOLKIT.md   # Symlink → repo-root ai_context/TOOLKIT.md (ships into the bundle for users' AI assistants)
 │               ├── scripts/         # Bundled scripts (canonical source; flattened to bin/ in the install bundle)
 │               │   ├── quality_gate.py
 │               │   ├── install_skill.py
@@ -339,12 +339,13 @@ quality-playbook/
 │   └── tests/               # stdlib-only unit tests (python3 -m pytest bin/tests/)
 ├── .github/skills/          # Installed-copy benchmark layout (preserved for setup_repos.sh)
 ├── pytest/                  # Local stdlib-only shim (python3 -m pytest works without installs)
-├── ai_context/              # AI-readable maintainer-facing context (orientation docs)
+├── ai_context/              # AI-readable context (maintainer orientation docs + adopter-facing TOOLKIT.md)
 │   ├── DEVELOPMENT_CONTEXT.md
 │   ├── DEVELOPMENT_PROCESS.md
 │   ├── IMPROVEMENT_LOOP.md
 │   ├── TOOLKIT_TEST_PROTOCOL.md
-│   └── BENCHMARK_PROTOCOL.md
+│   ├── BENCHMARK_PROTOCOL.md
+│   └── TOOLKIT.md           # Adopter-facing AI context; symlinked into the skill bundle
 ├── AGENTS.md                # AI bootstrap file (repo root)
 ├── LICENSE.txt              # Apache 2.0
 └── quality/                 # Generated quality infrastructure (from running the skill on itself)
