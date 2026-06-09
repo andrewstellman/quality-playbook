@@ -1,0 +1,21 @@
+{
+  "task_id": "f7211211-fb01-4211-a211-211211211211",
+  "schema_version": "1",
+  "tick_interval_minutes": 5,
+  "pool_size": 2,
+  "stall_threshold_minutes": 45,
+  "early_warn_minutes": 3,
+  "entries": [
+    {
+      "repo": "/Users/andrewstellman/Documents/QPB/repos/cobra-1.3.43",
+      "dispatch_mode": "subagent",
+      "worker_prompt_template": "templates/qpb_worker.md"
+    },
+    {
+      "repo": "/Users/andrewstellman/Documents/QPB/repos/virtio-1.5.3",
+      "dispatch_mode": "cross_cli",
+      "cli_command": "claude --model haiku --dangerously-skip-permissions",
+      "worker_prompt_template": "templates/qpb_worker.md"
+    }
+  ]
+}

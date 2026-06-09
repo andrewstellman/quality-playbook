@@ -42,6 +42,8 @@ If neither a fresh plan nor a run-dir argument is provided, ask the operator whi
 
 **Exactly ONE tick per invocation.** Do not loop. Do not poll. Do not wait on workers. Read state, advance the transitions that are ready RIGHT NOW, write state, exit.
 
+**Mode-agnostic ticks.** Ticks are functionally identical regardless of whether they were triggered by a scheduled task firing (with-MCP mode) or by an operator manually invoking this skill (no-MCP fallback mode — see § Fallback: no-MCP operator-manual mode). The state machine, idempotency invariants, heartbeat reading, and dispatch logic are mode-agnostic. The only difference between the two modes is **what drives the cadence** — an automated scheduler vs the operator.
+
 **Idempotency is mandatory.** Every transition begins with "is this already done?" Re-running the same tick must produce no observable change after the first. If a job is already in `claimed/`, do not re-dispatch. If a result is already in `results/`, do not re-move. The Phase 1C test `bin/tests/test_harness_tick_idempotency.py` enforces this at the helper-script layer; the broader state-machine idempotency is your responsibility at every transition.
 
 **Five steps per tick (cite as authoritative: `QPB_v1.5.9_Harness_Skill_Design.md` § Tick-based execution model).**
@@ -74,6 +76,61 @@ If any step fails partway, do NOT attempt recovery in the same tick — let the 
 5. Register the scheduled task. The MCP call is `mcp__scheduled-tasks__create_scheduled_task` with `interval_minutes=plan.tick_interval_minutes` and a prompt that re-invokes this skill with the run-dir as argument.
 6. Write the initial `harness_status.json`: `{schema_version: "1", run_dir: "...", plan_task_id: "...", scheduled_task_id: "...", pool_size: N, jobs_queued: <count>, jobs_claimed: 0, jobs_completed: 0, jobs_failed: 0, jobs_stalled: 0}`.
 7. Now execute the first tick (the § Tick contract above).
+
+---
+
+## Fallback: no-MCP operator-manual mode
+
+This skill's frontmatter declares `mcp__scheduled-tasks` as a dependency. **If that MCP is not loaded in the orchestrator's host CLI session**, the first-tick setup step 5 (register scheduled task) cannot run. Rather than HALTing, the harness follows a documented fallback path: the operator manually re-invokes this skill at the desired cadence in place of an automated scheduler.
+
+This fallback is the design's explicit risk mitigation per `QPB_v1.5.9_Harness_Skill_Design.md` § Risks — the row titled **"Scheduled-tasks MCP unavailable on some host CLI"** lists the mitigation as *"SKILL.md frontmatter declares dependency; fall back to operator-manual tick documented as supported-but-not-recommended"*. This section IS that documented fallback — not an ad-hoc workaround. The same § "Tick-based execution model" **Operator override** paragraph confirms that "the operator can invoke the harness skill manually at any time to force an immediate tick … Falls out for free because tick is idempotent." No-MCP mode simply makes operator-driven invocation the *primary* tick driver instead of an override.
+
+### Detecting no-MCP mode
+
+If `mcp__scheduled-tasks__create_scheduled_task` is not callable from the orchestrator's session (the tool is absent from the available toolset, the MCP server isn't loaded, or the host CLI is non-Claude-Code without the MCP), the harness MUST take the no-MCP path automatically on first-tick setup. Do not attempt the call and parse a failure; detect by tool availability before invoking.
+
+### Modified first-tick setup (no-MCP path)
+
+Steps 1-4 are unchanged from § First-tick setup. Step 5 is replaced; steps 6-7 are adjusted:
+
+1. Validate the plan against `schemas/plan.schema.json`. *(unchanged)*
+2. Create the run-dir and its subdirs. *(unchanged)*
+3. Render each `queue/job-NNNNN.json` + `run-NN/worker_prompt.md`. *(unchanged)*
+4. Snapshot the plan to `<run-dir>/plan.json`. *(unchanged)*
+5. **SKIPPED in no-MCP mode.** Do NOT attempt to register a scheduled task. Instead, in step 6's `harness_status.json` write `"scheduled_task_id": null` and add a new field `"dispatch_mode_override": "operator_manual_ticks"`. The `tick_interval_minutes` from the plan remains in the snapshot as informational metadata (it tells the operator the recommended cadence) but is not enforced by any scheduler.
+6. Write the initial `harness_status.json`: `{schema_version: "1", run_dir: "...", plan_task_id: "...", scheduled_task_id: null, dispatch_mode_override: "operator_manual_ticks", pool_size: N, jobs_queued: <count>, jobs_claimed: 0, jobs_completed: 0, jobs_failed: 0, jobs_stalled: 0}`.
+7. **Write `<run-dir>/OPERATOR_README.md`** — an ACTION REQUIRED note explaining that the operator must manually re-invoke the harness skill at the desired cadence. Recommended cadence: every 10-15 min while workers are active, more often if state changes are needed sooner. The README MUST include:
+   - The exact reinvocation prompt the operator should use: `Invoke the harness skill with run-dir harness_runs/<ts>`.
+   - The absolute path of the run-dir for copy-paste.
+   - The recommended cadence drawn from `plan.tick_interval_minutes`.
+   - A note that each manual invocation = one tick, and that ticks are idempotent (re-running immediately is safe and a no-op if no transitions are ready).
+   - A note that the operator should STOP invoking ticks once the run is complete (signaled by a `RUN COMPLETE` banner appended to the same `OPERATOR_README.md` on self-disable).
+8. Now execute the first tick (the § Tick contract above) — unchanged.
+
+### Subsequent ticks in no-MCP mode
+
+Functionally identical to scheduled-fire ticks. The operator triggers each tick by invoking this skill manually with the run-dir argument instead of a scheduled task firing automatically. The state machine logic, idempotency rules, dispatch behavior, heartbeat reading, and self-disable logic are **mode-agnostic** — there is exactly one tick code path, and the operator-manual cadence is the only difference.
+
+Because tick is idempotent, the operator can invoke the skill arbitrarily often without harm — back-to-back invocations produce empty diffs in `harness_status.json` when no transitions are ready, and only advance state when something has actually changed (a heartbeat landed, a worker terminated, a stall threshold was crossed).
+
+### `harness_status.json` schema additions
+
+In no-MCP mode the harness emits two fields beyond the with-MCP schema:
+
+- `"scheduled_task_id": null` — explicitly null (not omitted) so a reader can distinguish "no-MCP mode" from "field forgotten." With-MCP mode writes a UUID string here.
+- `"dispatch_mode_override": "operator_manual_ticks"` — present only in no-MCP mode. With-MCP mode omits this field entirely. The field signals to any tool reading the status file that the cadence is operator-driven.
+
+Both additions are forward-compatible with the existing `schema_version: "1"` contract — they are new optional keys; consumers that don't recognize them ignore them.
+
+### Self-disable in no-MCP mode
+
+When all plan entries are in `results/`, the self-disable transition (§ Self-disable, transition #7 in `STATE_MACHINE.md`) runs unchanged except for the scheduled-task delete step. Since no scheduled task exists, **skip** the `mcp__scheduled-tasks__delete_scheduled_task` call and instead **append a `RUN COMPLETE` banner to `<run-dir>/OPERATOR_README.md`** with the final per-entry outcome summary and a sentence telling the operator to stop invoking ticks. The `harness_status.json` `state=done` write proceeds normally; the SUMMARY.md write proceeds normally.
+
+This makes the no-MCP self-disable distinguishable to a returning operator: if they see the RUN COMPLETE banner in `OPERATOR_README.md`, they know not to invoke any more ticks.
+
+### Scope limits and recommendations
+
+The no-MCP fallback is **supported but not recommended for large plans** because each operator-driven tick is a fresh Claude Code session invocation (no persistent in-memory state across ticks), which carries per-invocation orchestrator-session overhead — measured in F13 of instruction 211-followup-1. For plans larger than 5-10 entries with long expected runtimes, prefer a session that has the `mcp__scheduled-tasks` MCP loaded. For 2-5 entry plans or operator-attended runs, the no-MCP path is fully functional.
 
 ---
 
@@ -202,6 +259,8 @@ When all plan entries are in `results/` (any combination of `state=completed`, `
 
 Self-disable is idempotent: re-running a tick after self-disable sees `state=done` and exits immediately without re-deleting the (already-deleted) scheduled task.
 
+**Self-disable in no-MCP fallback mode.** There is no scheduled task to delete. Skip step 3 above; instead append a `RUN COMPLETE` banner to `<run-dir>/OPERATOR_README.md` summarizing the final per-entry outcomes and telling the operator to stop invoking manual ticks. Idempotency is preserved — the banner append is itself idempotent (check whether the RUN COMPLETE banner is already present before appending). Steps 1, 2, and 4 are unchanged.
+
 ---
 
 ## Schema-version handling
@@ -229,6 +288,8 @@ Before executing the tick, load these reference files via the `Read` tool:
 - `Read references/DISPATCH_GUIDE.md` — per-mode dispatch detail with concrete examples.
 
 The example plan at `references/examples/small_plan.json` is also available for reference if you want to see the schema shape concretely. It's a 2-entry plan suitable for validating the harness against `plan.schema.json`.
+
+**MCP method coverage.** This skill uses `mcp__scheduled-tasks__create_scheduled_task` (first-tick setup, with-MCP mode only) and `mcp__scheduled-tasks__delete_scheduled_task` (self-disable on completion, with-MCP mode only). Pausing or rescheduling an existing task is handled via **delete-then-create** rather than the MCP's `update_scheduled_task` method — this keeps the state model simple (a scheduled-task entry either exists with the current cadence, or doesn't; there is no in-place mutation). The harness state on disk (`harness_status.json`) is the authoritative source of truth; the scheduled task is just an external trigger. The no-MCP fallback path (§ Fallback: no-MCP operator-manual mode) sidesteps the MCP entirely — the operator IS the trigger.
 
 ---
 
