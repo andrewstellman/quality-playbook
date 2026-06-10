@@ -58,6 +58,74 @@ If the archive branch hasn't been pushed yet, do that first.
 
 **Spike NOT subject to worker self-Council.** The artifact is ≤300 lines; Council is theater at this scale. The empirical result (the run output) is the verdict.
 
+#### Phase 1A scope notes — resolved decisions before the chat starts
+
+These resolve specific gaps that would otherwise cost the implementing chat its first turn to re-derive.
+
+**(A) `ScheduleWakeup` invocation.** It's documented empirically in `ai_context/WATCHER_PROMPT.md` — `ScheduleWakeup(now + N minutes)` — as the load-bearing primitive. The watcher has weeks of evidence it works inside Claude Code; how Claude Code recognizes and acts on the call is opaque from the prose, but it does. The spike SKILL.md prose uses the same form. **If the spike's first tick demonstrates that the primitive isn't being invoked correctly OR doesn't fire the next tick, that failure mode IS the spike's deliverable** — we'd discover empirically what the watcher has been relying on. Don't try to "verify" the primitive's existence in code before running the spike; the spike IS the verification.
+
+**(B) Where the spike's files live.** The spike works in a temporary directory in the work tree, NOT in the production `plugins/quality-playbook-harness/...` paths. Suggested location: `spike/v1.5.9_phase_1A/` at the repo root. Contents: `qpb_harness_tick.py`, `harness-spike-SKILL.md` (NOT named `SKILL.md` to avoid plugin-discovery confusion if any tool scans for SKILL.md files), `spike_plan.json`, `BOOTSTRAP_PROMPT.md`, `spike-evidence.md`. The spike directory is committed ONLY if Phase 1A SHIPs; if it fails, the directory is preserved in the work tree as diagnostic context but not committed (or committed to a `archive/spike_v1.5.9_phase_1A_failed` branch for posterity). The production plugin layout (`plugins/quality-playbook-harness/...`) is built fresh in Phase 1B based on what the spike learned — not by promoting spike files in place.
+
+**(C) Worker-side heartbeat for the spike.** The spike's worker emits a heartbeat via plain bash, NOT via `qpb_heartbeat.py` (which doesn't exist on this branch and shouldn't be built for the spike — `qpb_heartbeat.py` is a Phase 1B deliverable). The worker prompt instructs the Task subagent to run: `printf '{"ts": "%s", "task_id": "<uuid>", "schema_version": "1", "phase": "stub", "step": "stub", "status": "STARTING"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> /tmp/spike/run-01/heartbeat.ndjson` then exit. One literal line of JSON, append-only, no helper. The harness tick script reads the tail of this file via `Path.read_text().splitlines()[-N:]` — no schema validation, just substring match on `"status": "STARTING"` / `"status": "COMPLETED"` to drive state transitions. Schemas and validators land in Phase 1B.
+
+**(D) Stub worker, not real QPB.** The spike's worker is a stub: it emits one STARTING heartbeat, sleeps briefly, emits one terminal sentinel (`{"status": "COMPLETED", "result_file": "/tmp/spike/run-01/done.txt"}`), writes a one-line `result_file`, and exits. It does NOT run QPB on a real target. The spike tests the harness orchestrator loop only — can a fresh-context tick reliably dispatch a worker, observe its heartbeat, and transition state. Real-QPB-under-Task validation lives in Phase 1B (where the worker prompt includes the actual QPB skill invocation and the heartbeat helper). Mixing the two questions in the spike conflates the failure surface.
+
+**(E) Spike evidence capture format.** A single file `spike/v1.5.9_phase_1A/spike-evidence.md` with this structure:
+
+```
+# Phase 1A spike evidence
+
+## Run setup
+- date/time spike started, host CLI version, plan file path
+
+## Tick 1
+- Operator prompt that triggered tick 1 (the bootstrap)
+- Agent's stdout, verbatim (status table, any tool calls, ScheduleWakeup call)
+- `harness_status.json` contents AFTER tick 1
+- `heartbeat.ndjson` contents AFTER tick 1
+- Time of next-tick fire (observed)
+
+## Tick 2
+- (same shape)
+
+## Tick 3..N
+- (same shape)
+
+## Idempotency check
+- Forced re-tick command + diff of harness_status.json (expect empty)
+
+## STOP semantics check
+- STOP file write timing + observed tick behavior
+
+## Verdict
+- SHIP / FIX-REQUIRED with named failure mode
+- If FIX-REQUIRED, specific recommendation for what to change in Phase 1B
+```
+
+No worker self-Council, no panelist files, no synthesis. The evidence file IS the artifact.
+
+**(F) Archive branch is reference-only.** The implementing chat MAY run `git show archive/1.5.9-daemon-architecture:<path>` to read the daemon-arc's `bin/qpb_heartbeat.py` (clean stdlib implementation), heartbeat schema, worker SKILL.md heartbeat section, and `bin/tests/test_harness_*.py` patterns for reference. Pattern reuse — "the daemon arc's heartbeat helper used `O_APPEND` and `--mode-a-noop` for these reasons" — is fine and good. Literal cherry-pick (importing the file) is NOT — the daemon arc embedded architectural assumptions that don't apply to ScheduleWakeup. Reference the archive for prior art; rebuild for the new architecture.
+
+**(G) Plan schema for the spike.** Single entry, three fields:
+
+```json
+{
+  "tick_interval_minutes": 5,
+  "entries": [
+    {
+      "task_id": "<uuid>",
+      "target_repo": "<absolute path>",
+      "dispatch_mode": "subagent",
+      "worker_prompt": "<literal Task prompt with HEARTBEAT_PATH, TASK_ID, RUN_DIR, TARGET_REPO absolute-path block per Council A-2>"
+    }
+  ]
+}
+```
+
+No `pool_size` (defaults to 1 for a one-entry plan). No `stall_threshold_minutes` (no stall detection in spike). No `early_warn_minutes`. No optional fields. Schema validation is not enforced — the harness tick script reads these fields directly via `json.load`.
+
+**(H) What "≤ 300 lines" counts.** Counts: `qpb_harness_tick.py`, `harness-spike-SKILL.md`, `spike_plan.json`, `BOOTSTRAP_PROMPT.md`, and `spike-evidence.md` cumulative. Does NOT count: the worker prompt's bash commands (literal strings inside the prompt count toward SKILL.md but not as separate files), evidence captures inside `spike-evidence.md` from the run (those are observed output, not authored lines). If the total approaches 250 lines and the spike isn't running yet, stop and ask the operator — that's a signal the spike is over-shaped.
+
 ### Phase 1B — Production hardening (instruction 2)
 
 Conditional on Phase 1A producing a successful spike. Only files after the spike's evidence is captured. Contents depend on what 1A learned. Likely shape:
