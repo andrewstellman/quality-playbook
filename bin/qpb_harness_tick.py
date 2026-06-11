@@ -178,9 +178,15 @@ def _heartbeat_path(run_dir: Path, run_name: str) -> Path:
 
 
 def _tail(hb: Path) -> list[str]:
+    # v1.5.9 [Phase 2 prep] / 189-class: heartbeat.ndjson is EXTERNAL
+    # content (worker-written), so the read uses errors="replace" — a
+    # stray non-UTF-8 byte from a worker must not crash the tick on a
+    # Windows cp1252 host (the 185/189/190 hazard chain). The substring
+    # liveness matching downstream is unaffected by a replacement char.
     if not hb.exists():
         return []
-    return [ln for ln in hb.read_text(encoding="utf-8").splitlines()[-TAIL_LINES:]
+    return [ln for ln in hb.read_text(encoding="utf-8", errors="replace")
+            .splitlines()[-TAIL_LINES:]
             if ln.strip()]
 
 
@@ -519,10 +525,12 @@ def _format_table(run_dir, status, plan, terminal: bool) -> str:
             c.get("failed", 0) + c.get("auth_or_launch_failed", 0)
             + c.get("abandoned", 0)))
     if terminal:
+        # ASCII only (no em-dash / box-drawing / arrows) — the status
+        # table prints on Windows cp1252 consoles (185 print-path lesson).
         if status.get("done"):
-            rows.append("DONE — all runs terminal. No further ticks.")
+            rows.append("DONE - all runs terminal. No further ticks.")
         else:
-            rows.append("STOP — halting. No further ticks.")
+            rows.append("STOP - halting. No further ticks.")
     else:
         rows.append("Next tick in %d min" % _next_cadence(
             status, _cfg(plan, "tick_interval_minutes",

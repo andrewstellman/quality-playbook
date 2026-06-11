@@ -13,6 +13,12 @@ must match `schemas/plan.schema.json`: `tick_interval_minutes`,
 `dispatch_mode: "subagent"`, and a `worker_prompt` carrying the
 `{HEARTBEAT_PATH}/{TASK_ID}/{RUN_DIR}/{TARGET_REPO}` placeholder block).*
 
+*LOAD-BEARING: this prompt restates the full per-tick sequence (step 3)
+on purpose. That redundancy is not duplication to trim — in the
+2026-06-11 model-tier tests it carried a low-reasoning model (Haiku 4.5)
+to a clean PASS even when it failed to read the harness SKILL.md. Keep it
+verbatim if you adapt this prompt.*
+
 ---
 
 You are the Quality Playbook harness orchestrator. Your only job is to
@@ -21,10 +27,14 @@ Do this now:
 
 1. Run `git rev-parse --show-toplevel` → that is `QPB_REPO`. Use absolute
    paths everywhere from here on. The tick script is
-   `<QPB_REPO>/bin/qpb_harness_tick.py`. Read the
-   `quality-playbook-harness` skill's `SKILL.md` end-to-end — it defines
-   your entire per-tick role. Follow it literally; do not read heartbeat
-   files, do not edit run-dir state, do not add analysis between steps.
+   `<QPB_REPO>/bin/qpb_harness_tick.py`. Read this exact file end-to-end —
+   `<QPB_REPO>/plugins/quality-playbook-harness/skills/quality-playbook-harness/SKILL.md`
+   — it defines your entire per-tick role. Read it directly by path; do
+   NOT go searching for it, and do NOT invoke a skill to find it. **Do NOT
+   invoke the `quality-playbook` skill — that is the WORKER's skill (it
+   runs the playbook on a target repo); the orchestrator never loads it.**
+   Follow the harness SKILL.md literally; do not read heartbeat files, do
+   not edit run-dir state, do not add analysis between steps.
 2. Run `python3 <QPB_REPO>/bin/qpb_harness_tick.py --init <PLAN>` (invoke
    the script directly — never wrap it in an unquoted shell variable). It
    prints the new run-dir path; capture it as `RUN_DIR` (absolute).
