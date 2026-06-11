@@ -3637,6 +3637,69 @@ def check_recheck_sidecar(q):
         fail("recheck-summary.md missing (required companion to recheck-results.json)")
 
 
+def check_heartbeat_sidecar(q):
+    """v1.5.9 1B — heartbeat.ndjson conformance (present only under the
+    harness; the file sits beside quality/ in the run-dir). Carries the
+    harness Council disciplines into the gate surface:
+      * C-3 — every line pins ``schema_version="1"`` (silent-drift guard);
+      * A-1 — clean O_APPEND NDJSON framing: one valid JSON object per
+        line, never a torn line;
+      * the progress/terminal status enum + terminal-sentinel discipline.
+    A-2 (absolute dispatch paths) is enforced dispatch-side in
+    qpb_harness_tick.py, not re-checked here. NON-BLOCKING (``warn``):
+    heartbeat is orchestration metadata, never a grading input
+    (design §Dispatch — the gate verdict does not depend on it)."""
+    print("[Heartbeat NDJSON]")
+    hb = q.parent / "heartbeat.ndjson"
+    if not hb.is_file():
+        info("heartbeat.ndjson not present (only emitted under the harness)")
+        return
+    pass_("heartbeat.ndjson present (harness-orchestrated run)")
+    try:
+        lines = [ln for ln in hb.read_text(encoding="utf-8").splitlines()
+                 if ln.strip()]
+    except OSError:
+        warn("heartbeat.ndjson could not be read")
+        return
+    if not lines:
+        warn("heartbeat.ndjson is empty (worker emitted no heartbeats)")
+        return
+    progress = {"STARTING", "IN_PROGRESS", "COMPLETED", "FAILED"}
+    terminal = {"COMPLETED", "FAILED", "ABANDONED"}
+    bad_json = bad_ver = bad_status = 0
+    last_obj = None
+    for ln in lines:
+        try:
+            obj = json.loads(ln)
+        except json.JSONDecodeError:
+            bad_json += 1
+            continue
+        last_obj = obj
+        if obj.get("schema_version") != "1":
+            bad_ver += 1
+        if obj.get("status") not in progress | terminal:
+            bad_status += 1
+    if bad_json:
+        warn(f"{bad_json} heartbeat line(s) are not valid JSON "
+             f"(A-1 NDJSON framing)")
+    else:
+        pass_("all heartbeat lines are valid JSON (A-1 framing intact)")
+    if bad_ver:
+        warn(f"{bad_ver} heartbeat line(s) missing schema_version=='1' "
+             f"(C-3 drift)")
+    else:
+        pass_("all heartbeat lines pin schema_version=='1' (C-3)")
+    if bad_status:
+        warn(f"{bad_status} heartbeat line(s) carry an unknown status value")
+    if isinstance(last_obj, dict) and last_obj.get("status") in terminal:
+        if last_obj.get("result_file") and last_obj.get("summary"):
+            pass_("terminal sentinel present (status + result_file + summary)")
+        else:
+            warn("terminal heartbeat missing result_file/summary")
+    else:
+        info("no terminal sentinel yet (run in flight or orphaned)")
+
+
 @verdict_category(VERDICT_SUBSTANTIVE)
 def check_use_cases(repo_dir, q, strictness):
     """Use case identifier section (benchmarks 43, 48)."""
@@ -6449,6 +6512,7 @@ def check_repo(repo_dir, version_arg, strictness):
     check_tdd_logs(q, bug_count, bug_ids, tdd_data)
     check_integration_sidecar(q, strictness)
     check_recheck_sidecar(q)
+    check_heartbeat_sidecar(q)
     check_use_cases(repo_dir, q, strictness)
     check_test_file_extension(repo_dir, q)
     # v1.5.7 090s Task A: functional-test content check (anti-no-op).
