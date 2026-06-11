@@ -67,6 +67,7 @@ cp "$QPB_SKILL_SRC"/scripts/citation_verifier.py                 .github/skills/
 cp "$QPB_SKILL_SRC"/scripts/council_config.py                    .github/skills/bin/council_config.py
 cp "$QPB_SKILL_SRC"/scripts/council_semantic_check.py            .github/skills/bin/council_semantic_check.py
 cp "$QPB_SKILL_SRC"/scripts/migrate_v1_5_0_layout.py             .github/skills/bin/migrate_v1_5_0_layout.py
+cp "$QPB_SKILL_SRC"/scripts/phase_identity.py                    .github/skills/bin/phase_identity.py
 cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                        .github/skills/bin/qpb_config.py
 cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py                  .github/skills/bin/quality_playbook.py
 cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py             .github/skills/bin/reference_docs_ingest.py
@@ -120,6 +121,7 @@ cp "$QPB_SKILL_SRC"/scripts/citation_verifier.py         .claude/skills/quality-
 cp "$QPB_SKILL_SRC"/scripts/council_config.py            .claude/skills/quality-playbook/bin/council_config.py
 cp "$QPB_SKILL_SRC"/scripts/council_semantic_check.py    .claude/skills/quality-playbook/bin/council_semantic_check.py
 cp "$QPB_SKILL_SRC"/scripts/migrate_v1_5_0_layout.py     .claude/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
+cp "$QPB_SKILL_SRC"/scripts/phase_identity.py            .claude/skills/quality-playbook/bin/phase_identity.py
 cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                .claude/skills/quality-playbook/bin/qpb_config.py
 cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py          .claude/skills/quality-playbook/bin/quality_playbook.py
 cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py     .claude/skills/quality-playbook/bin/reference_docs_ingest.py

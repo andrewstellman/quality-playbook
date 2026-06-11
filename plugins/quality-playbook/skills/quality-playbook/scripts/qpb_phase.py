@@ -24,16 +24,21 @@ Usage:
 
 Self-describing on no-args / --help (089x).
 
-Import-discipline clean (090c): stdlib only, no imports from
-other ``bin/`` scripts. Shipped in BOTH channel closures (the
-skill calls it at each phase boundary at adopter runtime).
+Import-discipline clean (090c, amended v1.5.9 1B.0): stdlib only,
+PLUS the shared ``phase_identity`` bundled module — the single
+source of truth for the phase number→name table and the
+``::QPB::`` envelope writer. The number→name table used to live
+here as ``_PHASE_NAMES``; v1.5.9 1B.0 extracted it to
+``phase_identity`` so the sentinel, the ``run_state.jsonl`` phase
+events, and the heartbeat ``phase`` field all read ONE table and
+cannot drift. Shipped in BOTH channel closures (the skill calls
+this at each phase boundary at adopter runtime).
 """
 from __future__ import annotations
 
 import argparse
-import json
+import importlib.util as _ilu
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -47,49 +52,43 @@ _HARNESS_USAGE = (
     "qpb_phase <phase:int> <start|done> [--note '...']"
 )
 
-
-# v1.5.7 109: deterministic phase-number → canonical-name table.
-# Sourced from SKILL.md's phase headings ("Phase 0: Prior Run
-# Analysis", "Phase 1: Explore the Codebase", ..., "Phase 6:
-# Verify"). The model only ever supplies the phase NUMBER — the
-# harness status layer (107/108) uses THIS table's slugs as the
-# phase identity, so they never drift from model output.
-_PHASE_NAMES = {
-    0: "validation",      # Mode A install validator / Phase 0
-    1: "exploration",     # Phase 1: Explore the Codebase
-    2: "generation",      # Phase 2: Generate the Quality Playbook
-    3: "code-review",     # Phase 3: Code Review + Regression Tests
-    4: "spec-audit",      # Phase 4: Spec Audit and Triage
-    5: "reconciliation",  # Phase 5: Post-Review Reconciliation
-    6: "verification",    # Phase 6: Verify
-}
-
-_VALID_STATES = ("start", "done")
+# Display-only constant for the --note argparse help text. The
+# AUTHORITATIVE truncation/sanitization lives in
+# ``phase_identity.sanitize_note``; this mirrors only the number
+# quoted in the help string (not phase identity).
 _NOTE_MAX_CHARS = 240
 
 
-def _utc_now_iso() -> str:
-    """UTC ISO-8601 in the format the harness uses elsewhere
-    (Zulu suffix, no microseconds)."""
-    return datetime.now(timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
+def _resolve_phase_identity():
+    """v1.5.9 1B.0: 3-step anchored resolver for the shared
+    ``phase_identity`` module — same pattern qpb_validate /
+    qpb_phase use for ``_purpose``. Resolves at ANY install layout
+    (package form ``bin.phase_identity`` / flat form / path-load
+    from this file's own directory) without ever touching a foreign
+    sibling ``bin/``."""
+    try:
+        from bin import phase_identity as _pi  # type: ignore[import]
+        return _pi
+    except ImportError:
+        pass
+    try:
+        import phase_identity as _pi  # type: ignore[no-redef, import]
+        return _pi
+    except ImportError:
+        pass
+    _pp = Path(__file__).resolve().parent / "phase_identity.py"
+    _ps = _ilu.spec_from_file_location(
+        "_qpb_phase_identity", _pp,
     )
-
-
-def _sanitize_note(note: Optional[str]) -> Optional[str]:
-    """Collapse all whitespace runs (newlines, tabs, multiple
-    spaces) to a single space; truncate to ``_NOTE_MAX_CHARS``.
-    None or empty-after-collapse ⇒ None (the JSON object omits
-    the key)."""
-    if note is None:
-        return None
-    cleaned = " ".join(note.split())
-    if not cleaned:
-        return None
-    if len(cleaned) > _NOTE_MAX_CHARS:
-        # Reserve one char for the ellipsis.
-        cleaned = cleaned[:_NOTE_MAX_CHARS - 1] + "…"
-    return cleaned
+    if _ps is None or _ps.loader is None:
+        raise ImportError(
+            f"qpb_phase: cannot resolve phase_identity — path-load "
+            f"fallback target {_pp} is missing."
+        )
+    _pi = _ilu.module_from_spec(_ps)
+    sys.modules[_ps.name] = _pi
+    _ps.loader.exec_module(_pi)
+    return _pi
 
 
 def format_sentinel(*, phase: int, state: str,
@@ -97,33 +96,15 @@ def format_sentinel(*, phase: int, state: str,
                      ts: Optional[str] = None) -> str:
     """Return the ``::QPB:: {json}`` line (no trailing newline).
 
-    Unit-testable; ``main`` shells out to this then prints.
+    Thin delegate over ``phase_identity.build_phase_sentinel`` — the
+    phase name and the envelope shape both come from the shared
+    definition, so this sentinel can never disagree with the
+    run-state events or the heartbeat. Unit-testable; ``main``
+    shells out to this then prints. Raises ``ValueError`` on a bad
+    phase/state (surfaced from ``phase_identity``).
     """
-    if phase not in _PHASE_NAMES:
-        raise ValueError(
-            f"phase {phase!r} not in 0..{max(_PHASE_NAMES)}; "
-            f"legal: {sorted(_PHASE_NAMES)}"
-        )
-    if state not in _VALID_STATES:
-        raise ValueError(
-            f"state {state!r} must be one of {_VALID_STATES}"
-        )
-    payload = {
-        "v": 1,
-        "kind": "phase",
-        "phase": phase,
-        "name": _PHASE_NAMES[phase],
-        "state": state,
-        "ts": ts or _utc_now_iso(),
-    }
-    clean_note = _sanitize_note(note)
-    if clean_note is not None:
-        payload["note"] = clean_note
-    # Compact separators keep the entire payload on one line so
-    # the parser's "split on the prefix" stays trivial.
-    return (
-        f"::QPB:: "
-        f"{json.dumps(payload, separators=(',', ':'))}"
+    return _resolve_phase_identity().build_phase_sentinel(
+        phase=phase, state=state, note=note, ts=ts,
     )
 
 
@@ -202,7 +183,7 @@ def main(argv: "list[str] | None" = None) -> int:
         help="Phase number (0..6).",
     )
     parser.add_argument(
-        "state", choices=list(_VALID_STATES),
+        "state", choices=list(_resolve_phase_identity().PHASE_STATES),
         help="Phase boundary state.",
     )
     parser.add_argument(

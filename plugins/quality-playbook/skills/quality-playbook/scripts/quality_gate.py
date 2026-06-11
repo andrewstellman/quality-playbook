@@ -254,6 +254,45 @@ def _compute_verdict_state(exit_code, fail_records,
     return "shallow" if is_shallow_pass else "solid"
 
 
+def _resolve_phase_identity():
+    """v1.5.9 1B.0: anchored resolver for the shared
+    ``phase_identity`` module — the single writer of the
+    ``::QPB:: {json}`` envelope line. quality_gate.py ships at the
+    install ROOT (not under ``bin/``), so the path-load fallback
+    tries this file's own directory (dev/source layout, where
+    phase_identity sits beside it in ``scripts/``) AND a ``bin/``
+    subdirectory (installed root layout, where bundled modules live
+    under ``<install>/bin/``). Never touches a foreign sibling.
+    """
+    try:
+        from bin import phase_identity as _pi  # type: ignore[import]
+        return _pi
+    except ImportError:
+        pass
+    try:
+        import phase_identity as _pi  # type: ignore[no-redef, import]
+        return _pi
+    except ImportError:
+        pass
+    import importlib.util as _ilu
+    _here = Path(__file__).resolve().parent
+    for _cand in (_here / "phase_identity.py",
+                   _here / "bin" / "phase_identity.py"):
+        if _cand.is_file():
+            _ps = _ilu.spec_from_file_location(
+                "_quality_gate_phase_identity", _cand,
+            )
+            if _ps is not None and _ps.loader is not None:
+                _pi = _ilu.module_from_spec(_ps)
+                sys.modules[_ps.name] = _pi
+                _ps.loader.exec_module(_pi)
+                return _pi
+    raise ImportError(
+        "quality_gate: cannot resolve phase_identity — path-load "
+        f"fallback targets under {_here} are missing."
+    )
+
+
 def _format_gate_sentinel(*, gate_result: str,
                             verdict_state: str,
                             ts: "str | None" = None) -> str:
@@ -267,6 +306,12 @@ def _format_gate_sentinel(*, gate_result: str,
     ``::QPB:: {"v":1,"kind":"gate","gate_result":"PASS",
     "verdict_state":"solid","ts":"2026-05-26T..."}``.
 
+    v1.5.9 1B.0: the one-line ``::QPB::`` envelope is now written by
+    the shared ``phase_identity.format_qpb_envelope`` (single writer
+    of that line shape). The gate PAYLOAD stays this function's own
+    concern — only the envelope is unified, a deliberately lighter
+    touch than the phase side (design decision 4).
+
     For LIVE DISPLAY ONLY. The harness's authoritative gate
     result for grading stays ``facts.rerun_installed_gate``
     (the collector's re-run, two-sourced per design §C); this
@@ -279,7 +324,7 @@ def _format_gate_sentinel(*, gate_result: str,
         "verdict_state": verdict_state,
         "ts": ts or _utc_now_iso(),
     }
-    return f"::QPB:: {json.dumps(payload, separators=(',', ':'))}"
+    return _resolve_phase_identity().format_qpb_envelope(payload)
 
 
 def _utc_now_iso() -> str:

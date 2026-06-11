@@ -46,13 +46,33 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+_SCRIPTS_DIR = (
+    _REPO_ROOT / "plugins" / "quality-playbook"
+    / "skills" / "quality-playbook" / "scripts"
+)
+
+
 def _load_qpb_phase():
     """Load bin/qpb_phase.py as a module without going through
     `bin/__init__.py` (which is its own bundle-discipline
     surface). Mirrors the pattern other 089x/090c tests use."""
     spec = importlib.util.spec_from_file_location(
         "qpb_phase_under_test",
-        str(_REPO_ROOT / "plugins" / "quality-playbook" / "skills" / "quality-playbook" / "scripts" / "qpb_phase.py"),
+        str(_SCRIPTS_DIR / "qpb_phase.py"),
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _load_phase_identity():
+    """v1.5.9 1B.0: load the shared phase_identity module — the
+    number→name table moved here out of qpb_phase._PHASE_NAMES, so
+    the table-coverage assertions now ground against this single
+    source of truth (relocated, not weakened)."""
+    spec = importlib.util.spec_from_file_location(
+        "phase_identity_under_test",
+        str(_SCRIPTS_DIR / "phase_identity.py"),
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -116,19 +136,27 @@ class QpbPhaseFormatTests(unittest.TestCase):
 
     def test_phase_name_table_covers_0_through_6(self):
         """The deterministic phase-name table covers exactly
-        phases 0..6 (the SKILL.md phase set)."""
-        self.assertEqual(
-            set(self.mod._PHASE_NAMES.keys()),
-            {0, 1, 2, 3, 4, 5, 6},
-        )
+        phases 0..6 (the SKILL.md phase set). v1.5.9 1B.0: the table
+        moved out of qpb_phase._PHASE_NAMES into the shared
+        phase_identity module; this asserts against that single
+        source of truth (relocated, not weakened — same 7 slugs)."""
+        pi = _load_phase_identity()
+        self.assertEqual(set(pi.PHASE_NUMBERS), {0, 1, 2, 3, 4, 5, 6})
         # Names match the SKILL.md phase headings via short slugs.
-        self.assertEqual(self.mod._PHASE_NAMES[0], "validation")
-        self.assertEqual(self.mod._PHASE_NAMES[1], "exploration")
-        self.assertEqual(self.mod._PHASE_NAMES[2], "generation")
-        self.assertEqual(self.mod._PHASE_NAMES[3], "code-review")
-        self.assertEqual(self.mod._PHASE_NAMES[4], "spec-audit")
-        self.assertEqual(self.mod._PHASE_NAMES[5], "reconciliation")
-        self.assertEqual(self.mod._PHASE_NAMES[6], "verification")
+        self.assertEqual(pi.phase_slug(0), "validation")
+        self.assertEqual(pi.phase_slug(1), "exploration")
+        self.assertEqual(pi.phase_slug(2), "generation")
+        self.assertEqual(pi.phase_slug(3), "code-review")
+        self.assertEqual(pi.phase_slug(4), "spec-audit")
+        self.assertEqual(pi.phase_slug(5), "reconciliation")
+        self.assertEqual(pi.phase_slug(6), "verification")
+        # And qpb_phase's emitted sentinel name agrees with the
+        # shared table for every phase (the no-drift guarantee).
+        for n in range(7):
+            payload = _parse_sentinel(
+                self.mod.format_sentinel(phase=n, state="start")
+            )
+            self.assertEqual(payload["name"], pi.phase_slug(n))
 
     def test_unknown_phase_raises_value_error(self):
         with self.assertRaises(ValueError):

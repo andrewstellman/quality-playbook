@@ -214,6 +214,11 @@ def _bundle_files_soft(
             "run_state_lib.py",
             "validate_phase_artifacts.py",
             "qpb_config.py",
+            # v1.5.9 1B.0: shared phase-identity table + ::QPB::
+            # envelope writer — imported by qpb_phase, quality_gate,
+            # and run_state_lib so the sentinel / run-state events /
+            # heartbeat all read ONE phase number→name table.
+            "phase_identity.py",
             # v1.5.7 109: qpb_phase ships at adopter runtime
             # (SKILL.md calls it at each phase boundary).
             "qpb_phase.py",
@@ -593,6 +598,22 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     files.append((
         _require_bundle_file(source_root / scripts_dir / "qpb_phase.py"),
         Path("bin") / "qpb_phase.py",
+    ))
+    # v1.5.9 instruction 1B.0: ship bin/phase_identity.py — the shared
+    # phase number→name table + the single ``::QPB::`` envelope writer.
+    # qpb_phase.py (sentinel), quality_gate.py (gate sentinel envelope),
+    # and run_state_lib.py (PROGRESS.md display labels + the phase-
+    # transition facade + heartbeat projection) all import it at adopter
+    # runtime, so the sentinel / run_state.jsonl phase events / heartbeat
+    # phase field derive their (number, name) from ONE table and cannot
+    # drift. Import closure: stdlib only (json, datetime, typing) — no
+    # internal ``bin/`` imports — so the closure terminates here. v1.5.7
+    # 090b mandatory-bundle pattern applies: a missing file would break
+    # the adopter's first phase-boundary sentinel AND the gate sentinel
+    # (both resolve phase_identity via the 3-step anchored fallback).
+    files.append((
+        _require_bundle_file(source_root / scripts_dir / "phase_identity.py"),
+        Path("bin") / "phase_identity.py",
     ))
     return files
 

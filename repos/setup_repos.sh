@@ -333,6 +333,11 @@ for short in "${REPOS[@]}"; do
     # mirrors the adopter closure for the phase-sentinel emitter
     # the SKILL.md phase-boundary directive calls at runtime.
     cp "${QPB_SKILL_SRC}/scripts/qpb_phase.py" "${dst}/bin/qpb_phase.py" 2>/dev/null || true
+    # v1.5.9 1B.0: ship phase_identity.py — the shared phase
+    # number→name table + ::QPB:: envelope writer that qpb_phase,
+    # quality_gate, and run_state_lib all import. Keeps the benchmark
+    # bundle a superset of the adopter closure (089n parity).
+    cp "${QPB_SKILL_SRC}/scripts/phase_identity.py" "${dst}/bin/phase_identity.py" 2>/dev/null || true
     # v1.5.7 089z: the per-target `bin/run_playbook.sh` wrapper
     # (F-5b + 089n) is removed. The canonical run forms remain
     # and are sufficient: from the QPB clone root,

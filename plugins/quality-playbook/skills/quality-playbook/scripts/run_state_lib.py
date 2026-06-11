@@ -37,6 +37,7 @@ import hashlib
 import json
 import os
 import re
+import sys
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -316,6 +317,46 @@ def read_events(jsonl_path: Path) -> list[Event]:
         extras = {k: v for k, v in obj.items() if k not in _REQUIRED_FIELDS}
         events.append(Event(ts=ts, event=ev, fields=extras))
     return events
+
+
+_PHASE_IDENTITY_CACHE = None
+
+
+def _phase_identity():
+    """v1.5.9 1B.0: cached 3-step anchored resolver for the shared
+    ``phase_identity`` module — the single source of truth for the
+    phase number→name table and the ``::QPB::`` envelope writer.
+    Resolves at ANY install layout (package form ``bin.phase_identity``
+    / flat form / path-load from this file's own ``bin/`` directory)
+    without ever touching a foreign sibling. ``run_state_lib`` is the
+    run-state writer + the home of the phase-transition facade, so it
+    reads phase identity from here (PROGRESS.md display labels, the
+    facade's sentinel/heartbeat projections)."""
+    global _PHASE_IDENTITY_CACHE
+    if _PHASE_IDENTITY_CACHE is not None:
+        return _PHASE_IDENTITY_CACHE
+    pi = None
+    try:
+        from bin import phase_identity as pi  # type: ignore[import]
+    except ImportError:
+        try:
+            import phase_identity as pi  # type: ignore[no-redef, import]
+        except ImportError:
+            import importlib.util as _ilu
+            _pp = Path(__file__).resolve().parent / "phase_identity.py"
+            _ps = _ilu.spec_from_file_location(
+                "_run_state_phase_identity", _pp,
+            )
+            if _ps is None or _ps.loader is None:
+                raise ImportError(
+                    f"run_state_lib: cannot resolve phase_identity — "
+                    f"path-load fallback target {_pp} is missing."
+                )
+            pi = _ilu.module_from_spec(_ps)
+            sys.modules[_ps.name] = pi
+            _ps.loader.exec_module(pi)
+    _PHASE_IDENTITY_CACHE = pi
+    return pi
 
 
 def last_in_progress_phase(events: list[Event]) -> Optional[int]:
@@ -1141,6 +1182,7 @@ _FLAT_LAYOUT_BUNDLED_BIN_FILES = frozenset({
     "council_config.py",
     "council_semantic_check.py",
     "migrate_v1_5_0_layout.py",
+    "phase_identity.py",            # v1.5.9 1B.0 shared phase identity
     "qpb_config.py",                # v1.5.7 086 A-26
     "qpb_phase.py",                 # v1.5.7 109
     "qpb_validate.py",              # v1.5.7 090k
@@ -1512,24 +1554,19 @@ def write_progress_md(
         elif event.event == "phase_end":
             phase_ends[phase] = event
 
-    # v1.5.6 cluster B: phase_names matches the shipped pipeline
+    # v1.5.6 cluster B: phase display labels match the shipped pipeline
     # documented in SKILL.md and references/orchestrator_protocol.md
     # (Phase 1=Explore / 2=Generate / 3=Code Review / 4=Spec Audit /
-    # 5=Reconciliation / 6=Verify). The pre-cluster-B labels were
-    # the v1.5.5 design's never-shipped Triage-model names — same
-    # drift class as BUG-014 (validator) and BUG-009/019 (orchestrator
-    # docs), now reconciled.
-    phase_names = {
-        1: "Explore",
-        2: "Generate",
-        3: "Code Review",
-        4: "Spec Audit",
-        5: "Reconciliation",
-        6: "Verify",
-    }
+    # 5=Reconciliation / 6=Verify). v1.5.9 1B.0: the labels are now
+    # sourced from the shared ``phase_identity`` table (was a local
+    # ``phase_names`` copy) so PROGRESS.md, the ``::QPB::`` sentinel,
+    # and the heartbeat all derive their phase identity from ONE table
+    # and cannot drift — the same drift class as BUG-014 (validator)
+    # and BUG-009/019 (orchestrator docs), now structurally closed.
+    _pi = _phase_identity()
 
     for phase in range(1, 7):
-        name = phase_names[phase]
+        name = _pi.phase_display(phase)
         if phase in phase_ends:
             end_event = phase_ends[phase]
             duration = end_event.fields.get("duration_seconds")
@@ -1636,6 +1673,120 @@ def append_event(jsonl_path: Path, event_obj: dict) -> None:
     jsonl_path.parent.mkdir(parents=True, exist_ok=True)
     with jsonl_path.open("a", encoding="utf-8") as handle:
         handle.write(line + "\n")
+
+
+# --- v1.5.9 1B.0: phase-transition facade + heartbeat projection ------------
+#
+# run_state.jsonl is the CANONICAL run position; the ``::QPB::`` sentinel and
+# the heartbeat ``phase`` field are PROJECTIONS of it. Neither computes a phase
+# independently — both derive their ``(number, name)`` from the shared
+# ``phase_identity`` table. The facade below is the single code path for a
+# phase boundary, so a boundary can't update one surface and forget another.
+# (Design: QPB_v1.5.9_Harness_Skill_Design.md → "Phase-identity source of
+# truth", decisions 2 + 3. The full ``qpb_heartbeat.py`` CLI surface is a
+# later 1B step; this lands the minimum the facade + keepalive + the 1B.0
+# regression test require.)
+
+
+def _append_heartbeat_line(heartbeat_path: Path, obj: dict) -> None:
+    """Append one heartbeat object as a single NDJSON line (O_APPEND,
+    one writer per run dir → race-free by construction). Minimal helper;
+    the full CLI helper (qpb_heartbeat.py) is plan item 6."""
+    line = json.dumps(obj, separators=(",", ":"))
+    if "\n" in line:
+        raise ValueError(
+            "encoded heartbeat line contains a literal newline; refusing "
+            "to corrupt NDJSON framing"
+        )
+    heartbeat_path.parent.mkdir(parents=True, exist_ok=True)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_APPEND
+    fd = os.open(heartbeat_path, flags, 0o644)
+    try:
+        os.write(fd, (line + "\n").encode("utf-8"))
+    finally:
+        os.close(fd)
+
+
+def current_phase(run_state_path: Path) -> Optional[int]:
+    """Read ``run_state_path`` and return the canonical current phase
+    number — the last ``phase_start`` without a matching ``phase_end``,
+    or None if the file is absent / no phase is open. This is the
+    canonical run position the keepalive heartbeat reads its phase from
+    (so even a mid-phase liveness ping can't drift from the sentinel)."""
+    if not run_state_path.is_file():
+        return None
+    return last_in_progress_phase(read_events(run_state_path))
+
+
+def emit_phase_transition(*, run_state_path: Path, phase: int, state: str,
+                          heartbeat_path: Optional[Path] = None,
+                          task_id: Optional[str] = None,
+                          note: Optional[str] = None,
+                          ts: Optional[str] = None,
+                          step: Optional[str] = None) -> str:
+    """The phase-transition facade. On a boundary, keyed off ONE shared
+    identity, it:
+
+      (a) appends the run-state event (``phase_start`` / ``phase_end``)
+          to ``run_state_path`` — the canonical position;
+      (b) — only when ``heartbeat_path`` is set (i.e. running under the
+          harness) — appends a heartbeat line whose ``phase`` field is
+          the same ``phase_identity`` slug; and
+      (c) returns the ``::QPB:: kind:"phase"`` sentinel line for the
+          caller to print to stdout.
+
+    All three derive ``(number, name)`` from ``phase_identity``, so they
+    agree by construction (the 1B.0 regression test pins this). Separate
+    code behind one entry point. ``state`` is ``"start"`` | ``"done"``.
+    Raises ``ValueError`` on a bad phase/state (from ``phase_identity``).
+    """
+    pi = _phase_identity()
+    # Validate up front via the shared identity so a bad phase/state
+    # never half-writes (run-state event written, sentinel rejected).
+    sentinel = pi.build_phase_sentinel(
+        phase=phase, state=state, note=note, ts=ts,
+    )
+    event_ts = ts or pi.utc_now_iso()
+    event_name = "phase_start" if state == "start" else "phase_end"
+    event_obj = {"ts": event_ts, "event": event_name, "phase": phase}
+    if note is not None and state == "done":
+        clean = pi.sanitize_note(note)
+        if clean is not None:
+            event_obj["note"] = clean
+    append_event(run_state_path, event_obj)
+    if heartbeat_path is not None:
+        hb_status = "STARTING" if state == "start" else "COMPLETED"
+        hb = pi.build_heartbeat_obj(
+            phase=phase, task_id=task_id or "",
+            step=step or event_name, status=hb_status,
+            ts=event_ts, message=pi.sanitize_note(note),
+        )
+        _append_heartbeat_line(heartbeat_path, hb)
+    return sentinel
+
+
+def emit_keepalive_heartbeat(*, run_state_path: Path, heartbeat_path: Path,
+                             task_id: Optional[str] = None,
+                             step: str = "keepalive",
+                             ts: Optional[str] = None) -> Optional[dict]:
+    """The mandatory ~3-min mid-phase liveness ping. It has no boundary
+    and emits no sentinel, so it can't be a side effect of a transition —
+    instead it reads the current phase from ``run_state.jsonl`` (the
+    canonical position) and reports THAT, so even the ping's phase
+    derives from the same truth and cannot drift from the sentinel.
+
+    Returns the heartbeat object appended, or None if no phase is open
+    yet (nothing to ping). ``IN_PROGRESS`` status."""
+    pi = _phase_identity()
+    phase = current_phase(run_state_path)
+    if phase is None:
+        return None
+    hb = pi.build_heartbeat_obj(
+        phase=phase, task_id=task_id or "", step=step,
+        status="IN_PROGRESS", ts=ts,
+    )
+    _append_heartbeat_line(heartbeat_path, hb)
+    return hb
 
 
 # --- Internal helpers -------------------------------------------------------

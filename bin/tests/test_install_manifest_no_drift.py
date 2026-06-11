@@ -88,8 +88,11 @@ class InstallClosureNoDriftTests(unittest.TestCase):
         # v1.5.7 132: 55 → 57 (+ai_context/TOOLKIT.md explicit entry,
         # +references/DOC_GATHERING_PROMPT.md moved here from repo root
         # so it auto-ships via the references/*.md glob).
+        # v1.5.9 1B.0: 57 → 58 (+bin/phase_identity.py — shared phase
+        # number→name table + ::QPB:: envelope writer imported by
+        # qpb_phase / quality_gate / run_state_lib).
         from bin.qpb_validate import INSTALL_CLOSURE
-        self.assertEqual(len(INSTALL_CLOSURE), 57)
+        self.assertEqual(len(INSTALL_CLOSURE), 58)
         paths = [e["path"] for e in INSTALL_CLOSURE]
         self.assertEqual(len(paths), len(set(paths)),
                          "duplicate path in INSTALL_CLOSURE")
