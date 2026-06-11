@@ -38,7 +38,7 @@
 - Observe 3-4 ticks fire on `ScheduleWakeup` cadence, **including at least one idle tick** — a tick where the dispatched worker is still `IN_PROGRESS`, `harness_status.json` counts are unchanged from the prior tick, and the agent reschedules anyway (this is the watcher death mode the spike exists to test). After each tick, capture `harness_status.json` (incl. its `cycle` counter), the heartbeat tail for the dispatched run, and the agent's stdout (status table + ScheduleWakeup call).
 - The script's `done` flag flips when the worker emits a terminal sentinel; agent prints final summary, does NOT call ScheduleWakeup, exits cleanly.
 - Operator writes a STOP file during tick 2 of a separate mini-run to verify clean stop semantics.
-- Forced re-tick (operator says "run another tick now") shows empty diff in harness_status.json — idempotency check.
+- Forced re-tick (operator says "run another tick now") shows **no change in harness_status.json except the `cycle` counter** — idempotency check (no double-dispatch, no double-move, no state/count change). A true "empty diff" is impossible by design: `cycle` increments on every tick because it is the idle-tick witness. (Spike-confirmed: the implementation resolves this exactly so.)
 
 **Possible outcomes (three-state — confirmed 2026-06-10; re-evaluate the whole framing after the spike runs):**
 - **PASS:** the run reaches `done=true` autonomously (zero operator re-prompts) with ≥ 1 observed idle tick, the STOP mini-run halts cleanly, and the forced re-tick is a no-op. The architectural premise holds; Phase 1B is straightforward thickening of the production-shaped surface.
@@ -86,7 +86,7 @@ These resolve specific gaps that would otherwise cost the implementing chat its 
 - Which tick(s) were idle (worker IN_PROGRESS, no state change) and confirmation each one still ended with ScheduleWakeup — this is the load-bearing observation
 
 ## Idempotency check
-- Forced re-tick command + diff of harness_status.json (expect empty)
+- Forced re-tick command + diff of harness_status.json (expect no change except the `cycle` counter)
 
 ## STOP semantics check
 - STOP file write timing + observed tick behavior
@@ -157,6 +157,16 @@ Conditional on Phase 1A producing a successful spike, and sequenced after Phase 
 - Add `bin/tests/test_qpb_harness_tick.py` — stdlib-only unit tests for state-machine transitions, idempotency, JSON output shape, double-tick safety.
 - Add `quality_gate.py` invariants for the schemas (carry forward Council A-1, C-3, A-2 disciplines from the original v1.5.9 review).
 - Re-validate end-to-end against a 2-3 entry plan; capture evidence.
+
+#### Phase 1A spike carry-forwards (logged 2026-06-11 from the spike dry-run + Council)
+
+These came out of the 1A apparatus dry-run and the 3-panelist sub-agent Council (instruction 003; synthesis was in the gitignored `runner/1.5.9/reviews/003-spike-council/`, captured here so it survives). All are **non-blocking for the 1A spike** and become 1B requirements:
+
+- **Settled, not a carry-forward — the Mode-1 dispatch premise holds.** The dry-run confirmed conclusively (real `pgrep` + heartbeat evidence) that a `nohup`-detached worker launched by a `Task` subagent **survives the subagent's turn ending** and keeps emitting heartbeats across many orchestrator ticks. No stub/worker-detachment rework is needed in 1B; the architecture's core "orchestrator observes worker via heartbeat across idle ticks" premise is mechanically sound.
+- **JSON-encode injected values in the heartbeat emitter (Council B-F3/F4).** The spike stub builds heartbeat lines with bash `printf '%s'`, which is fragile: a `task_id` containing a literal `%` would be misread as a format specifier, and a value containing `"` or `\` would emit invalid JSON. Safe for the spike's UUID/clean-path inputs; **the production `qpb_heartbeat.py` (1B) MUST JSON-encode values rather than `printf` them.**
+- **Guard the reap transition (Council A-F6).** The spike tick reap sets `state="completed"` even when the claimed job file is externally absent (benign at `POOL_SIZE=1` fixed-plan). Production multi-entry/multi-pool state machine should guard this transition.
+- **Carry the loop-continuation discipline verbatim + reconcile prose (Council C-1/2/3/6).** The production harness SKILL.md must include the "EVERY tick ends with ScheduleWakeup OR a clean exit" discipline verbatim, and the minor step-ordering/STOP-phrasing desync between the spike's `BOOTSTRAP_PROMPT.md` and `harness-spike-SKILL.md` should be reconciled when promoting to the production SKILL.
+- **Invocation hygiene (incidental).** Invoke the tick script directly (`python3 <path>/qpb_harness_tick.py <run-dir>`), never wrapped in an unquoted shell variable (zsh doesn't word-split it). The spike prompts already do this; preserve it in the production SKILL.
 
 ### Phase 1B sub-Council
 
