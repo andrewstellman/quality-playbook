@@ -1184,6 +1184,7 @@ _FLAT_LAYOUT_BUNDLED_BIN_FILES = frozenset({
     "migrate_v1_5_0_layout.py",
     "phase_identity.py",            # v1.5.9 1B.0 shared phase identity
     "qpb_config.py",                # v1.5.7 086 A-26
+    "qpb_heartbeat.py",             # v1.5.9 1B worker heartbeat helper
     "qpb_phase.py",                 # v1.5.7 109
     "qpb_validate.py",              # v1.5.7 090k
     "quality_playbook.py",

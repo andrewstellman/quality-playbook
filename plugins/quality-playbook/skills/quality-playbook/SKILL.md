@@ -549,6 +549,16 @@ At every phase boundary (1 through 6), write events:
 - **At phase start:** append `{"event":"phase_start","ts":"<now>","phase":N}` to `quality/run_state.jsonl`. Update `quality/PROGRESS.md`: mark phase N as in-progress with current timestamp.
 - **At phase end:** *first* cross-validate the phase's expected artifacts (table below). If validation fails, append `{"event":"error","ts":"<now>","phase":N,"message":"<what's missing>","recoverable":true}` and re-run the phase. If validation passes, append `{"event":"phase_end","ts":"<now>","phase":N,"key_counts":{...},"artifacts_produced":[...]}`. Update PROGRESS.md: check off phase N with summary stats.
 
+### Heartbeat emission (only when running under the harness)
+
+If your dispatch prompt began with a `HEARTBEAT_PATH=…` / `TASK_ID=…` block (you were launched by the `quality-playbook-harness` orchestrator), emit liveness heartbeats so the orchestrator can track progress and detect stalls. If there is **no** such block (a normal interactive run), skip this section entirely — or pass `--mode-a-noop` and the calls silently no-op. Use the absolute `HEARTBEAT_PATH` and `TASK_ID` from that block verbatim; never derive paths from your cwd. The helper lives at `<install_root>/bin/qpb_heartbeat.py` (same `<install_root>` as `qpb_phase.py`).
+
+- **Every ~3 minutes mid-phase (mandatory keepalive):** `python3 <install_root>/bin/qpb_heartbeat.py keepalive --run-state quality/run_state.jsonl --heartbeat-path <HEARTBEAT_PATH> --task-id <TASK_ID>`. It reads your *current* phase from `run_state.jsonl` (the canonical position) and appends an `IN_PROGRESS` line — so the heartbeat's phase always matches the `::QPB::` sentinel. Without this ping a long phase trips the 45-minute stall threshold.
+- **On any error before you abort:** `… qpb_heartbeat.py emit --phase <N> --step <step> --status FAILED --message "<what failed>" --heartbeat-path <HEARTBEAT_PATH> --task-id <TASK_ID>`.
+- **At terminal (run end):** `… qpb_heartbeat.py terminal --status COMPLETED --result-file quality/SUMMARY.md --summary "<one-line outcome>" --heartbeat-path <HEARTBEAT_PATH> --task-id <TASK_ID>` (use `FAILED` / `ABANDONED` if the run did not finish clean). This terminal line is how the orchestrator reaps your run.
+
+Every value is JSON-encoded by the helper, so `%`, quotes, and backslashes in a message are safe. Phase identity comes from the shared `phase_identity` table — never hand-write a phase name. (Phase-boundary heartbeats are handled automatically by the phase-transition facade; you only issue the keepalive / error / terminal calls above.)
+
 **Phase 1 sub-events (in addition to phase_start/phase_end):**
 - After walking each of the seven exploration patterns: append `{"event":"pattern_walked","ts":"<now>","phase":1,"pattern":N,"findings_count":K}`. (One event per pattern, even if zero findings.)
 - When `quality/EXPLORATION.md` is written: append `{"event":"artifact_written","ts":"<now>","relative_path":"quality/EXPLORATION.md","byte_size":<size>,"line_count":<lines>}`.

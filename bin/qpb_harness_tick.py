@@ -41,7 +41,7 @@ Idempotency is mandatory: every transition checks "already done?" before
 mutating disk. Running the same tick twice in a row changes nothing but
 the `cycle` witness counter. A STOP file makes the tick fully read-only.
 
-Stdlib only. Cross-platform (no os.fork, no signals).
+Stdlib only. Cross-platform (no process forking, no signals).
 """
 from __future__ import annotations
 
@@ -519,15 +519,65 @@ def _format_table(run_dir, status, plan, terminal: bool) -> str:
     return "\n".join(rows)
 
 
+_HARNESS_NAME = "qpb_harness_tick"
+_HARNESS_SUMMARY = (
+    "Advance the Quality Playbook harness state machine by one tick "
+    "(deterministic; the orchestrator SKILL.md runs it per tick).")
+_HARNESS_USAGE = "qpb_harness_tick (--init <plan-path> | <run-dir>)"
+
+
+def _resolve_print_command_intro():
+    """089x self-describing banner via the canonical bin/_purpose helper,
+    3-step anchored. qpb_harness_tick lives directly in bin/ (orchestrator-
+    side, not bundled), so the path-load anchor is this file's own dir."""
+    try:
+        from bin._purpose import print_command_intro as p  # type: ignore
+        return p
+    except ImportError:
+        pass
+    try:
+        from _purpose import print_command_intro as p  # type: ignore[no-redef]
+        return p
+    except ImportError:
+        pass
+    import importlib.util as _ilu
+    pp = Path(__file__).resolve().parent / "_purpose.py"
+    spec = _ilu.spec_from_file_location("_qpb_harness_tick_purpose", pp)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"qpb_harness_tick: cannot resolve _purpose at {pp}")
+    mod = _ilu.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return mod.print_command_intro
+
+
+def _print_intro() -> None:
+    _resolve_print_command_intro()(
+        name=_HARNESS_NAME,
+        summary=_HARNESS_SUMMARY,
+        role=(
+            "v1.5.9 1B — the deterministic Python half of the harness-as-"
+            "skill. `--init <plan>` scaffolds a run-dir; `<run-dir>` runs "
+            "one tick (reads disk state, advances the state machine, prints "
+            "the {dispatch_list,…} JSON the orchestrator agent acts on). "
+            "Orchestrator-side; not bundled to adopter installs."),
+        usage_hint=_HARNESS_USAGE,
+    )
+
+
 def main(argv) -> int:
-    if len(argv) == 3 and argv[1] == "--init":
-        print(init_run(Path(argv[2]).resolve()))
+    args = list(argv[1:])
+    if not args or args in (["-h"], ["--help"]):
+        _print_intro()
         return 0
-    if len(argv) == 2 and argv[1] not in ("--init", "-h", "--help"):
-        print(json.dumps(tick(Path(argv[1]).resolve()), indent=2))
+    if len(args) == 2 and args[0] == "--init":
+        print(init_run(Path(args[1]).resolve()))
+        return 0
+    if len(args) == 1 and args[0] != "--init":
+        print(json.dumps(tick(Path(args[0]).resolve()), indent=2))
         return 0
     print(__doc__.strip(), file=sys.stderr)
-    return 2
+    return 64
 
 
 if __name__ == "__main__":

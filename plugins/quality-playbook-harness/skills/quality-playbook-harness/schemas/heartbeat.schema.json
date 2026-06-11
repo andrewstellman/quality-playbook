@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/andrewstellman/quality-playbook/schemas/heartbeat.schema.json",
+  "title": "QPB heartbeat line",
+  "description": "One JSON object per line in heartbeat.ndjson. The worker emits progress lines via the v1.5.9 1B.0 phase-transition facade (run_state_lib.emit_phase_transition, at phase boundaries) and via bin/qpb_heartbeat.py (the keepalive / on-error / terminal moments). The phase field is the canonical slug from phase_identity (single source of truth) so a heartbeat's phase always matches the ::QPB:: sentinel by construction. The harness (plugins/quality-playbook-harness/) tails heartbeat.ndjson and applies state-machine transitions per references/STATE_MACHINE.md. This file is byte-identical to plugins/quality-playbook-harness/skills/quality-playbook-harness/schemas/heartbeat.schema.json — the cross-skill byte-equality contract is load-bearing (Council C-3 silent-drift risk) and pinned by bin/tests/test_harness_schemas.py.",
+  "type": "object",
+  "required": ["ts", "task_id", "schema_version", "status"],
+  "properties": {
+    "ts": {
+      "type": "string",
+      "description": "ISO8601 UTC timestamp (Zulu, second precision). Append-only ordering invariant: later lines have ts >= earlier lines in the same file."
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Task id matching the job manifest. Threaded from the worker prompt header (TASK_ID=<id>) or env var QPB_TASK_ID."
+    },
+    "schema_version": {
+      "type": "string",
+      "enum": ["1"],
+      "description": "Schema-version pin. Currently '1'. The harness warns on mismatch (Council C-3)."
+    },
+    "phase": {
+      "type": "string",
+      "description": "Canonical phase slug from phase_identity (validation / exploration / generation / code-review / spec-audit / reconciliation / verification). Present on progress heartbeats; omitted on the terminal sentinel."
+    },
+    "step": {
+      "type": "string",
+      "description": "Specific step within the phase (e.g. 'keepalive', 'phase_start'). Present on progress heartbeats; omitted on the terminal sentinel."
+    },
+    "status": {
+      "type": "string",
+      "enum": ["STARTING", "IN_PROGRESS", "COMPLETED", "FAILED", "ABANDONED"],
+      "description": "Progress: STARTING / IN_PROGRESS / COMPLETED / FAILED. Terminal sentinel (last line): COMPLETED / FAILED / ABANDONED."
+    },
+    "message": {
+      "type": "string",
+      "description": "Optional human-readable detail."
+    },
+    "result_file": {
+      "type": "string",
+      "description": "Path of the terminal result file (quality/SUMMARY.md or equivalent). Present on the terminal sentinel; absent on progress lines."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One-line outcome. Present on the terminal sentinel; absent on progress lines."
+    }
+  },
+  "oneOf": [
+    {
+      "title": "Progress heartbeat",
+      "required": ["phase", "step"],
+      "not": { "required": ["result_file"] }
+    },
+    {
+      "title": "Terminal sentinel",
+      "required": ["result_file", "summary"]
+    }
+  ]
+}

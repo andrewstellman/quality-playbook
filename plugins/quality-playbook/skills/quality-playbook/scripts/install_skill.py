@@ -222,6 +222,9 @@ def _bundle_files_soft(
             # v1.5.7 109: qpb_phase ships at adopter runtime
             # (SKILL.md calls it at each phase boundary).
             "qpb_phase.py",
+            # v1.5.9 1B: qpb_heartbeat ships adopter-side (worker
+            # SKILL.md heartbeat section calls it under the harness).
+            "qpb_heartbeat.py",
             # v1.5.7 090k: qpb_validate is bundled adopter-side.
             "qpb_validate.py",
         ):
@@ -614,6 +617,16 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     files.append((
         _require_bundle_file(source_root / scripts_dir / "phase_identity.py"),
         Path("bin") / "phase_identity.py",
+    ))
+    # v1.5.9 Phase 1B: ship bin/qpb_heartbeat.py — the worker-side
+    # heartbeat emit helper the SKILL.md "Heartbeat emission" section
+    # calls (keepalive / on-error / terminal) under the harness. Reads
+    # phase identity from phase_identity.py and uses run_state_lib for
+    # the keepalive (both already bundled), via the 3-step anchored
+    # fallback. v1.5.7 090b mandatory-bundle pattern applies.
+    files.append((
+        _require_bundle_file(source_root / scripts_dir / "qpb_heartbeat.py"),
+        Path("bin") / "qpb_heartbeat.py",
     ))
     return files
 

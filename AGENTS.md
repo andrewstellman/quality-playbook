@@ -76,6 +76,7 @@ cp "$QPB_SKILL_SRC"/scripts/run_state_lib.py                     .github/skills/
 cp "$QPB_SKILL_SRC"/scripts/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
 cp "$QPB_SKILL_SRC"/scripts/qpb_validate.py                      .github/skills/bin/qpb_validate.py
 cp "$QPB_SKILL_SRC"/scripts/qpb_phase.py                         .github/skills/bin/qpb_phase.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_heartbeat.py                     .github/skills/bin/qpb_heartbeat.py
 # v1.5.2+: single reference_docs/ tree at the target repo root.
 # Place adopter docs here — citable specs/RFCs in reference_docs/cite/.
 # (v1.5.7 090h retired informal_docs/; reference_docs/ is the sole
@@ -122,6 +123,7 @@ cp "$QPB_SKILL_SRC"/scripts/council_config.py            .claude/skills/quality-
 cp "$QPB_SKILL_SRC"/scripts/council_semantic_check.py    .claude/skills/quality-playbook/bin/council_semantic_check.py
 cp "$QPB_SKILL_SRC"/scripts/migrate_v1_5_0_layout.py     .claude/skills/quality-playbook/bin/migrate_v1_5_0_layout.py
 cp "$QPB_SKILL_SRC"/scripts/phase_identity.py            .claude/skills/quality-playbook/bin/phase_identity.py
+cp "$QPB_SKILL_SRC"/scripts/qpb_heartbeat.py            .claude/skills/quality-playbook/bin/qpb_heartbeat.py
 cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                .claude/skills/quality-playbook/bin/qpb_config.py
 cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py          .claude/skills/quality-playbook/bin/quality_playbook.py
 cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py     .claude/skills/quality-playbook/bin/reference_docs_ingest.py

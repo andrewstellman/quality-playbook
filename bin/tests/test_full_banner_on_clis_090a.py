@@ -77,6 +77,10 @@ CLI_DOTTED_NAMES = [
     "bin.bootstrap_self_audit_docs",
     "bin.qpb_config",
     "bin.skill_derivation",
+    # v1.5.9 1B: worker-side heartbeat CLI + orchestrator-side harness
+    # tick CLI (both self-describe via the same _purpose banner).
+    "bin.qpb_heartbeat",
+    "bin.qpb_harness_tick",
 ]
 
 # Library modules that must NOT show the full banner. Sampling

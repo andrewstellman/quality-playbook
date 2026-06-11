@@ -338,6 +338,10 @@ for short in "${REPOS[@]}"; do
     # quality_gate, and run_state_lib all import. Keeps the benchmark
     # bundle a superset of the adopter closure (089n parity).
     cp "${QPB_SKILL_SRC}/scripts/phase_identity.py" "${dst}/bin/phase_identity.py" 2>/dev/null || true
+    # v1.5.9 1B: ship qpb_heartbeat.py — the worker-side heartbeat emit
+    # helper (keepalive / on-error / terminal). Mirrors the adopter
+    # closure so the benchmark bundle stays a superset (089n parity).
+    cp "${QPB_SKILL_SRC}/scripts/qpb_heartbeat.py" "${dst}/bin/qpb_heartbeat.py" 2>/dev/null || true
     # v1.5.7 089z: the per-target `bin/run_playbook.sh` wrapper
     # (F-5b + 089n) is removed. The canonical run forms remain
     # and are sufficient: from the QPB clone root,
