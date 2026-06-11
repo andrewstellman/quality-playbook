@@ -26,7 +26,7 @@ Tests (109 Task D):
     result_line / exit_code byte-identical to baseline,
     existing verdict parsers still parse correctly).
   * bundle-safety: qpb_phase.py present in BOTH channel
-    closures; bin/harness/ still excluded.
+    closures.
 
 Parser lives in the 107 status layer — out of scope for 109.
 """
@@ -297,13 +297,13 @@ class QpbPhaseImportDisciplineTests(unittest.TestCase):
         # Allowed: `from bin._purpose import ...`
         # Forbidden: `from bin.X import ...` for X != _purpose
         for forbidden in (
-            "from bin.harness",
+            # v1.5.9 2E: the old-Python-harness import entries were
+            # dropped here when that harness was deleted — the remaining
+            # sibling-import guards keep qpb_phase's discipline.
             "from bin.run_playbook",
             "from bin.install_skill",
             "from bin.qpb_validate",
-            "from bin.qpb_harness",
             "from bin.quality_playbook",
-            "import bin.harness",
             "import bin.run_playbook",
         ):
             self.assertNotIn(
@@ -561,21 +561,12 @@ class GateLoadBearingLinesRegressionTests(unittest.TestCase):
                             "interleaved with the load-bearing "
                             "verdict block)")
 
-    def test_facts_extraction_still_works_with_sentinel_present(
-            self) -> None:
-        """The harness's ``parse_gate_stdout`` still extracts
-        the correct ``gate_result`` / ``verdict_state`` from a
-        gate run that now includes the ::QPB:: sentinel line.
-        Mutation-bite: if the sentinel garbles a load-bearing
-        line, the parsers misextract."""
-        from bin.harness import facts as F
-        from bin.harness import schema as S
-        exit_code, stdout = self._run_gate(self._populate_solid)
-        gate, verdict, _prov = F.parse_gate_stdout(stdout)
-        # PASS / solid extracted correctly despite the sentinel.
-        self.assertEqual(gate.gate_result, S.GateResult.PASS)
-        self.assertEqual(verdict.verdict_state,
-                          S.VerdictState.SOLID)
+    # v1.5.9 [Phase 2E]: test_facts_extraction_still_works_with_sentinel_
+    # present REMOVED — it tested the old Python harness's gate-stdout
+    # parser, deleted with that harness. The surviving sentinel
+    # consumer is bin/run_playbook.py's gate-verdict parsing (covered by
+    # test_run_playbook); the sentinel-ordering + payload-agreement
+    # invariants are retained in the byte-identity tests below.
 
 
 # ---------------------------------------------------------------------------
@@ -664,8 +655,10 @@ class GateByteIdentityAcrossVerdictsTests(unittest.TestCase):
         write_tree(target, tree)
 
     def test_pass_path_load_bearing_invariants(self) -> None:
-        from bin.harness import facts as F
-        from bin.harness import schema as S
+        # v1.5.9 [Phase 2E]: the old harness's gate-stdout parser
+        # cross-check was removed with that harness; the surviving
+        # invariants (sentinel last, RESULT line above it, sentinel
+        # payload self-consistent) are retained.
         exit_code, stdout = self._run_gate(self._populate_solid)
         self.assertEqual(exit_code, 0)
         # Sentinel last; load-bearing line ABOVE it.
@@ -682,19 +675,15 @@ class GateByteIdentityAcrossVerdictsTests(unittest.TestCase):
         self.assertEqual(len(sentinel_indexes), 1)
         self.assertEqual(len(result_indexes), 1)
         self.assertLess(result_indexes[0], sentinel_indexes[0])
-        # parse_gate_stdout extracts PASS / solid.
-        gate, verdict, _prov = F.parse_gate_stdout(stdout)
-        self.assertEqual(gate.gate_result, S.GateResult.PASS)
-        self.assertEqual(verdict.verdict_state,
-                          S.VerdictState.SOLID)
-        # Sentinel agrees with the parser.
+        # Sentinel payload is self-consistent for the PASS/solid path.
         payload = self._gate_sentinel_payload(stdout)
         self.assertEqual(payload["gate_result"], "PASS")
         self.assertEqual(payload["verdict_state"], "solid")
 
     def test_failed_path_load_bearing_invariants(self) -> None:
-        from bin.harness import facts as F
-        from bin.harness import schema as S
+        # v1.5.9 [Phase 2E]: harness parse cross-check removed; surviving
+        # invariants retained (exit code, sentinel-after-RESULT ordering,
+        # self-consistent FAIL/failed sentinel payload).
         exit_code, stdout = self._run_gate(self._populate_failed)
         # Exit nonzero on FAIL.
         self.assertEqual(exit_code, 1)
@@ -712,14 +701,7 @@ class GateByteIdentityAcrossVerdictsTests(unittest.TestCase):
         self.assertEqual(len(sentinel_indexes), 1)
         self.assertEqual(len(result_indexes), 1)
         self.assertLess(result_indexes[0], sentinel_indexes[0])
-        # parse_gate_stdout extracts FAIL / failed.
-        gate, verdict, _prov = F.parse_gate_stdout(stdout)
-        self.assertEqual(gate.gate_result, S.GateResult.FAIL)
-        self.assertEqual(verdict.verdict_state,
-                          S.VerdictState.FAILED)
-        # Sentinel agrees with the parser (the 109 contract:
-        # operator-facing and harness-facing state slugs match
-        # via _compute_verdict_state).
+        # Sentinel payload is self-consistent for the FAIL/failed path.
         payload = self._gate_sentinel_payload(stdout)
         self.assertEqual(payload["gate_result"], "FAIL")
         self.assertEqual(payload["verdict_state"], "failed")
@@ -754,20 +736,9 @@ class QpbPhaseBundleInclusionTests(unittest.TestCase):
         dest_paths = [str(dst) for _src, dst in bundle]
         self.assertIn("bin/qpb_phase.py", dest_paths)
 
-    def test_harness_still_excluded(self) -> None:
-        """Defense-in-depth: the 091 harness-exclusion pin still
-        holds. Adding qpb_phase to the closure must not leak
-        ``bin/harness/`` or ``bin/qpb_harness.py``."""
-        from bin.install_skill import _bundle_files
-        bundle = _bundle_files(_REPO_ROOT)
-        for _src, dst in bundle:
-            p = str(dst)
-            self.assertFalse(
-                p.startswith("bin/harness/")
-                or p == "bin/qpb_harness.py",
-                f"109 must not perturb 091 harness exclusion: "
-                f"{p!r} leaked.",
-            )
+    # v1.5.9 Phase 2E: test_harness_still_excluded REMOVED — the old
+    # Python harness it guarded against bundling was deleted, so there
+    # is nothing left to exclude.
 
 
 if __name__ == "__main__":

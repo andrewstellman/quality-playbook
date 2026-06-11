@@ -62,19 +62,15 @@ BIN_DIR = REPO_ROOT / "bin"
 
 
 def _discover_scripts() -> list[tuple[str, Path]]:
-    """Discover every bin/**/*.py except tests + __init__ + the
-    v1.5.7 091 harness subpackage's LIBRARY modules. Return list
-    of ``(dotted_module_name, path)`` tuples so the unittest
+    """Discover every bin/**/*.py except tests + __init__. Return a
+    list of ``(dotted_module_name, path)`` tuples so the unittest
     output prints the module name.
 
-    v1.5.7 091: ``bin/harness/`` is a SUBPACKAGE of LIBRARY
-    modules (schema / prepare / runner / facts) consumed by the
-    single user-facing entry ``bin/qpb_harness.py``. The library
-    modules are not invoked bare — adding a 089x banner to each
-    would pollute library code with CLI scaffolding. The entry
-    ``qpb_harness.py`` IS in the sweep and carries the 089x
-    banner. The skip pattern mirrors the existing tests/
-    exclusion (library code that's not a user-facing script).
+    v1.5.9 Phase 2E: the old Python harness subpackage (a tree of
+    library modules with its own discovery exclusion) was removed.
+    The replacement harness scripts (``qpb_harness_tick.py`` /
+    ``qpb_heartbeat.py``) live at the bin/ top level and ARE swept —
+    both carry the 089x self-describe banner.
     """
     scripts: list[tuple[str, Path]] = []
     for path in sorted(BIN_DIR.rglob("*.py")):
@@ -86,11 +82,9 @@ def _discover_scripts() -> list[tuple[str, Path]]:
         # Exclude tests/ subtrees.
         if "tests" in parts:
             continue
-        # v1.5.7 091: exclude bin/harness/ library modules — not
-        # user-facing scripts. ``bin/qpb_harness.py`` (the entry)
-        # is at the bin/ top level and remains in the sweep.
-        if "harness" in parts:
-            continue
+        # v1.5.9 Phase 2E: the old Python harness subpackage (and its
+        # discovery exclusion) was removed; its replacements live at the
+        # bin/ top level and ARE swept (they self-describe).
         dotted = ".".join(parts)
         scripts.append((dotted, path))
     return scripts

@@ -67,11 +67,11 @@ def _write_harness_abort_status(phase, exit_code, reason: str) -> None:
     and either grades N/A from inference (the 13:43:22Z scenario)
     or waits forever (the 04:26 4-hour-alive zombie). Best-effort:
     filesystem errors are swallowed so a failed write doesn't crash
-    the supervisor's abort path. The env var is set ONLY when
-    run_playbook is invoked by the harness (``bin/harness/runner.py``
-    adds it to Mode B Popen env). Operator-direct invocations of
-    run_playbook (no env var) get the existing behavior — log +
-    return — with no status.json write."""
+    the supervisor's abort path. The env var was set ONLY when
+    run_playbook was invoked by the old Python harness (removed in
+    v1.5.9 Phase 2E); operator-direct invocations of run_playbook (no
+    env var) get the existing behavior — log + return — with no
+    status.json write."""
     import json as _json
     path = os.environ.get("QPB_HARNESS_STATUS_PATH")
     if not path:

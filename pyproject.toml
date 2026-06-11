@@ -46,16 +46,11 @@ classifiers = [
 [project.scripts]
 quality-playbook = "quality_playbook_cli:main"
 
-# Optional `harness` extra — the Test Harness (`bin/harness/*`)
-# is a DEV-ONLY tool, excluded from the shipped channel closure.
-# Adopters who only use the shipped skill don't pay for these
-# dependencies; `bin/harness/tui.py` lazy-imports textual.
-[project.optional-dependencies]
-# psutil + textual MUST NOT leak into the skill bundle — the bundle
-# installs into arbitrary target repos and extra deps would pollute
-# the target's install. Enforcement pinned by
-# bin/tests/harness/test_platform_compat_180.py.
-harness = ["textual>=0.50", "psutil>=5.9"]
+# v1.5.9 Phase 2E: the optional `harness` extra (textual + psutil for the
+# old Python Test Harness) was removed with that harness. The replacement
+# harness-as-skill (bin/qpb_harness_tick.py + bin/qpb_heartbeat.py + the
+# quality-playbook-harness plugin) is stdlib-only, so there is no
+# optional-dependencies block.
 
 [project.urls]
 Homepage = "https://github.com/andrewstellman/quality-playbook"

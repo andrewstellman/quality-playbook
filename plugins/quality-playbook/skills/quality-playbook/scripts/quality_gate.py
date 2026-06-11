@@ -769,9 +769,10 @@ def _emit_operator_verdict(fail_records, warn_records, zero_bug_repos,
     # ([PASS]/[WARN]/[FAIL]) replace the pre-185 emoji
     # markers (✅/⚠️/❌). On Windows the stream-captured
     # stdout path uses cp1252 codec and crashes print()
-    # with UnicodeEncodeError on the emoji. Both old and
-    # new forms parse via _RE_LEAD_* in bin/harness/facts.py
-    # (185 FINDING-28 dual-form parser).
+    # with UnicodeEncodeError on the emoji. The dual-form
+    # (emoji + ASCII) verdict lead lines are consumed by
+    # bin/run_playbook.py's gate-verdict reader (185 FINDING-28;
+    # the old Python harness's facts parser was removed in v1.5.9 2E).
     print("")
     print("--- Operator Verdict ---")
     if exit_code != 0:
