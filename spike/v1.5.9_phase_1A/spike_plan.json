@@ -1,0 +1,11 @@
+{
+  "tick_interval_minutes": 5,
+  "entries": [
+    {
+      "task_id": "b7dc2966-cf56-4ad9-8ce0-0bdf42bf73c2",
+      "target_repo": "/tmp/qpb-spike-target",
+      "dispatch_mode": "subagent",
+      "worker_prompt": "HEARTBEAT_PATH={HEARTBEAT_PATH}\nTASK_ID={TASK_ID}\nRUN_DIR={RUN_DIR}\nTARGET_REPO={TARGET_REPO}\n\nYou are a stub worker for the QPB v1.5.9 Phase 1A harness spike. All four paths above are absolute; use them verbatim -- never derive paths from your cwd. Do exactly the three steps below, in order, and nothing else.\n\nStep 1. Create the file {RUN_DIR}/stub_worker.sh with EXACTLY the content between the BEGIN/END markers (it is already fully resolved -- substitute nothing):\n\n----BEGIN stub_worker.sh----\n#!/bin/bash\n# Phase 1A spike stub worker -- detached heartbeat emitter (no real QPB work).\nHB='{HEARTBEAT_PATH}'\nTID='{TASK_ID}'\nRD='{RUN_DIR}'\nts() { date -u +%Y-%m-%dT%H:%M:%SZ; }\nhb() { printf '{\"ts\": \"%s\", \"task_id\": \"%s\", \"schema_version\": \"1\", \"phase\": \"stub\", \"step\": \"%s\", \"status\": \"%s\"%s}\\n' \"$(ts)\" \"$TID\" \"$1\" \"$2\" \"$3\" >> \"$HB\"; }\nhb start STARTING \"\"\nfor i in 1 2 3 4; do\n  sleep 150\n  hb \"work-$i\" IN_PROGRESS \"\"\ndone\nsleep 60\necho \"stub completed at $(ts)\" > \"$RD/result.txt\"\nhb done COMPLETED \", \\\"result_file\\\": \\\"$RD/result.txt\\\", \\\"summary\\\": \\\"stub run completed\\\"\"\n----END stub_worker.sh----\n\nStep 2. Launch it detached so it outlives your turn, using exactly:\n\nchmod +x {RUN_DIR}/stub_worker.sh\nnohup {RUN_DIR}/stub_worker.sh </dev/null >/dev/null 2>&1 &\n\nStep 3. Reply with ONLY this single line, then end your turn:\n\nStub worker launched for task {TASK_ID}; heartbeats appending in background (~11 min to terminal COMPLETED).\n\nDo NOT read, tail, cat, or echo the heartbeat file. Do NOT wait for, poll, or report on the background process. Do NOT touch any other file."
+    }
+  ]
+}

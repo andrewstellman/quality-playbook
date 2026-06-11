@@ -47,6 +47,8 @@
 
 **Re-evaluate post-spike (operator, 2026-06-10).** This threshold and the PASS/FAIL framing itself are provisional. The spike's actual behavior may show the line is drawn wrong — e.g. a transient single miss that self-recovers on the next *scheduled* tick (no re-prompt) may warrant tolerance the strict rule doesn't yet allow. Revisit with the operator once the run output is in hand, before this hardens into the 1B acceptance contract.
 
+**RESOLVED — PASS (2026-06-11).** Three validation passes on Sonnet (Claude Code 2.1.173): pass 1 — full autonomy, 4 ticks, 2 genuine idle ticks, clean self-termination on `done`, zero re-prompts; pass 2 — independent reproduction of the autonomy result (its STOP arrived post-completion, inconclusive on STOP only); pass 3 — agent-honored STOP: stop tick observed, halted without rescheduling, state untouched. Zero dropped reschedules across 9 non-terminal ticks, so the strict threshold required no tolerance and **stands as written for the 1B acceptance contract**. Full evidence: `spike/v1.5.9_phase_1A/spike-evidence.md` (incl. three non-blocking 1B observations: dispatch-tool naming Task-vs-Agent, terminal-tick status-table cosmetics, no kill semantics for in-flight workers on STOP).
+
 **Spike NOT subject to worker self-Council.** The artifact is ≤300 lines; Council is theater at this scale. The empirical result (the run output) is the verdict.
 
 #### Phase 1A scope notes — resolved decisions before the chat starts
@@ -191,11 +193,11 @@ Within this workstream the order is **1A spike → 1B.0 (phase-identity source o
 
 | # | Item | Phase | Status |
 |---|------|-------|--------|
-| 1 | Tracer-bullet spike: minimal `qpb_harness_tick.py` + minimal harness SKILL.md + bootstrap prompt + 1-entry plan + empirical 3-4-tick validation | 1A | PENDING — first instruction filed against this branch |
-| 2 | Production-shaped `qpb_harness_tick.py` (full state machine, idempotency, error handling) | 1B | PENDING — gated on spike result |
+| 1 | Tracer-bullet spike: minimal `qpb_harness_tick.py` + minimal harness SKILL.md + bootstrap prompt + 1-entry plan + empirical 3-4-tick validation | 1A | **DONE — PASS (2026-06-11).** Three passes on Sonnet; zero dropped reschedules; agent-honored STOP. Evidence: `spike/v1.5.9_phase_1A/spike-evidence.md` |
+| 2 | Production-shaped `qpb_harness_tick.py` (full state machine, idempotency, error handling) | 1B | PENDING — unblocked (spike PASS) |
 | 3 | Production harness SKILL.md prose (loop-continuation discipline, full status table, dispatch contract) | 1B | PENDING |
 | 4 | Second-plugin scaffolding (`plugins/quality-playbook-harness/.claude-plugin/plugin.json` + marketplace.json catalog entry + schemas + references) | 1B | PENDING |
-| 5 | **Phase-identity source of truth + unified emission**: shared number→name module (extracted from `qpb_phase.py`); `run_state.jsonl` as canonical position; thin facade emits run-state event + `::QPB::` sentinel + (under harness) heartbeat from one identity; ~3-min keepalive reads phase from run-state; `kind:"gate"` sentinel shares the envelope writer only. Lockstep: `INSTALL_CLOSURE` / `_bundle_files()` / `_FLAT_LAYOUT_BUNDLED_BIN_FILES` / `test_install_manifest_no_drift.py` / `test_phase_sentinel_109.py` / `run_playbook.py` gate parsing. | 1B.0 | PENDING — **FOUNDATIONAL**; lands first in 1B (after the 1A spike), gates items 6/7/9; own Self-Council |
+| 5 | **Phase-identity source of truth + unified emission**: shared number→name module (extracted from `qpb_phase.py`); `run_state.jsonl` as canonical position; thin facade emits run-state event + `::QPB::` sentinel + (under harness) heartbeat from one identity; ~3-min keepalive reads phase from run-state; `kind:"gate"` sentinel shares the envelope writer only. Lockstep: `INSTALL_CLOSURE` / `_bundle_files()` / `_FLAT_LAYOUT_BUNDLED_BIN_FILES` / `test_install_manifest_no_drift.py` / `test_phase_sentinel_109.py` / `run_playbook.py` gate parsing. | 1B.0 | IN PROGRESS — **FOUNDATIONAL**; instruction 004 filed 2026-06-11; gates items 6/7/9; own Self-Council |
 | 6 | `bin/qpb_heartbeat.py` worker-side helper (NET-NEW; reads phase identity from item 5's shared module, never a copy) | 1B | PENDING — re-build; the archive branch's version is reference-only prior art |
 | 7 | QPB worker SKILL.md heartbeat emission section (phase field sourced via item 5) | 1B | PENDING — re-add on new branch |
 | 8 | Heartbeat schema byte-identical copies on both sides | 1B | PENDING |

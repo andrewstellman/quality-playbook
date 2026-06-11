@@ -84,6 +84,9 @@ reviews/
 # Runner folder
 runner/
 
+# Test folder
+testing/
+
 # Pattern discovery working files
 pattern-discovery/
 qpb-bootstrap-iter-remaining.log
