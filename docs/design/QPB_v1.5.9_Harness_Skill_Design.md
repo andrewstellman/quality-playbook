@@ -366,7 +366,7 @@ Existing Python harness (`bin/harness/`, `subprocess_runner.py`) gets deleted in
 | Operator's Claude Code session crashes mid-run | State is on disk; restart the bootstrap prompt and resume. The script re-reads disk state each tick; mid-run resume just means the next tick picks up where the last one left off. |
 | Heartbeat append race | `bin/qpb_heartbeat.py` uses `O_APPEND`; one writer per run-NN/ directory; isolation by construction. |
 | Subscription concurrency caps bite at pool > N | Plan-tunable pool_size; document empirical limit when found. |
-| Stall threshold misfires on legitimate long phases | Mandatory 3-min keepalive emission makes 45-min threshold safe; per-phase override deferred to v1.5.10. |
+| Stall threshold misfires on legitimate long phases | Mandatory 3-min keepalive emission makes 45-min threshold safe; per-phase override deferred to v1.5.11 (renumbered from v1.5.10 on 2026-06-11). |
 | Idempotency bug ships → duplicate dispatch | Schema invariants + explicit "is this already done?" check in `qpb_harness_tick.py` for every transition; unit tests specifically test double-tick safety. |
 | Plan size exceeds what one Claude Code session can hold | The script bounds context growth; in principle the orchestrator can run for hours. Hard empirical limit is unknown; v1.5.9 MVP plans should be small (3-5 entries) until evidence accumulates. Larger plans become a v1.6+ question. |
 
