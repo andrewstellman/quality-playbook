@@ -81,6 +81,9 @@ Thumbs.db
 # affected by this rule.
 reviews/
 
+# Runner folder
+runner/
+
 # Pattern discovery working files
 pattern-discovery/
 qpb-bootstrap-iter-remaining.log
