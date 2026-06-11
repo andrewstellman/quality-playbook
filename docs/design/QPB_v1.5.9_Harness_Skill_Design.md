@@ -2,6 +2,8 @@
 
 *Status: drafted 2026-06-06 (Cowork session). Revised 2026-06-06 post-Council review to adopt tick-based execution per operator direction. **Revised 2026-06-09 to replace the external scheduler entirely with in-session `ScheduleWakeup` polling** — the same mechanism the v1.5.7 watcher (`ai_context/WATCHER_PROMPT.md`) has used reliably for weeks. Prior drafts proposed an external scheduler (first Cowork's `mcp__scheduled-tasks` MCP, then a self-spawned Python sidecar daemon); both were superseded after empirical evidence — (a) the MCP is unavailable in build-agent sub-sessions and Cowork-locked anyway, (b) the daemon's fire mechanism (`claude --print`) hit the June 15 `claude -p` deprecation. The branch holding the daemon scaffolding is preserved as `archive/1.5.9-daemon-architecture`. Tick contract, state machine, idempotency invariants, heartbeat contract, and dispatch Mode 1 (Task subagent) are unchanged across both pivots; only the external-fire mechanism is replaced — this time with in-session polling that needs no external mechanism at all.*
 
+*Revised 2026-06-10 to add the phase-identity source-of-truth contract — a single shared definition behind the `::QPB::` sentinel, the heartbeat, and `run_state.jsonl`, so the heartbeat's reported phase always matches the sentinel by construction — and to sequence it as a dedicated foundational step (Phase 1B.0) that lands after the 1A spike and before the rest of the heartbeat work. See "Phase-identity source of truth" under Architecture below, and Phase 1B.0 in the companion `QPB_v1.5.9_Harness_Skill_Implementation_Plan.md`.*
+
 *Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule.*
 
 *Supersedes: `QPB_v1.5.9_Agent_Harness_Design.md` (deleted — that draft framed the design as a process-pool with paste-buffer launches, which was the wrong abstraction).*
@@ -77,6 +79,9 @@ QPB skill changes:
 ```
 skills/quality-playbook/
 ├── SKILL.md                       ← gains a "Heartbeat emission" section
+├── scripts/
+│   ├── qpb_phase.py               ← REFACTORED: still emits the ::QPB:: kind:"phase" sentinel, but its number→name table is extracted to the shared phase-identity definition below (it imports, never copies)
+│   └── <phase-identity module>    ← NEW shared definition: phase number↔canonical-name table + "current phase" helpers. Single source of truth imported by qpb_phase.py, qpb_heartbeat.py, and the run-state writers. (Exact filename decided at implementation — not a contract yet.)
 └── schemas/
     └── heartbeat.schema.json      ← single source of truth (harness references it from here)
 ```
@@ -86,7 +91,7 @@ Repo-level additions:
 ```
 bin/
 ├── qpb_harness_tick.py            ← deterministic state-machine script invoked once per tick
-└── qpb_heartbeat.py               ← worker-side heartbeat emit helper (already present from v1.5.7-era 210 design; carries forward)
+└── qpb_heartbeat.py               ← worker-side heartbeat emit helper. NET-NEW on the 1.5.9 branch — the v1.5.7-era / daemon-arc version is NOT carried forward (it does not exist on this branch; see the Harness Skill Implementation Plan scope note (F) — reference-only prior art, rebuilt in Phase 1B). Reads phase identity from the shared definition above, never a private copy.
 ```
 
 The harness skill's SKILL.md prose is small — roughly: "On invocation, run `python3 bin/qpb_harness_tick.py <run-dir>`. Parse its stdout as JSON. For each entry in `dispatch_list`, invoke the `Task` tool with the prompt the script supplies. Print the `status_table` field verbatim. Call `ScheduleWakeup(now + <next_tick_minutes> minutes)`. Exit." The state-machine logic is in the Python script, not in prose.
@@ -129,6 +134,20 @@ Terminal sentinel (last line):
   "summary": "one-line outcome"
 }
 ```
+
+### Phase-identity source of truth — sentinel ↔ heartbeat ↔ run_state
+
+The harness acts on the worker's *current phase*: the tick script reads the heartbeat to decide running / stalled / completed, and a heartbeat that reports the wrong phase makes the state machine act on the wrong fact. The worker already exposes its phase three ways — the `::QPB:: kind:"phase"` stdout sentinel (`bin/qpb_phase.py`), the `phase_start` / `phase_end` events in `quality/.../run_state.jsonl` (`run_state_lib.append_event`), and now the new `heartbeat.ndjson` `phase` field. If those three derive the phase from independent copies of the number→name table, they drift, and the heartbeat's phase silently stops matching the sentinel. The contract below makes the match hold *by construction*. ("Single source of truth" here means one shared definition that everyone reads — NOT one function that does everything; the emitters stay separate code.)
+
+1. **One shared phase-identity definition.** The number→canonical-name table (`0:validation`, `1:exploration`, `2:generation`, `3:code-review`, `4:spec-audit`, `5:reconciliation`, `6:verification`) and the "what phase is this run in" helpers are extracted out of `qpb_phase.py` into a single shared module under the QPB skill's `scripts/`. `qpb_phase.py`, `qpb_heartbeat.py`, and the run-state writers all *import* it; no copy of the table exists anywhere else.
+
+2. **`run_state.jsonl` is the canonical run position; the sentinel and the heartbeat are projections of it.** Neither the `::QPB::` sentinel nor `heartbeat.ndjson` ever computes a phase independently. A thin phase-transition facade, on a phase boundary, (a) appends the run-state event, (b) emits the `::QPB:: kind:"phase"` sentinel, and (c) — only when `HEARTBEAT_PATH` is set (i.e. the worker is running under the harness) — appends a heartbeat line, all keyed off the shared identity from (1). Separate code behind one facade, so a boundary can't update one surface and forget another.
+
+3. **The mandatory ~3-min keepalive reads its phase from `run_state.jsonl`.** The keepalive is a mid-phase liveness ping — no boundary, no sentinel — so it can't be a side effect of a transition. It reads the current phase from the canonical run-state position and reports *that*, so even the ping's phase derives from the same truth and cannot drift from the sentinel.
+
+4. **The `::QPB:: kind:"gate"` sentinel shares the envelope formatter only, not the phase identity.** `quality_gate.py`'s gate-verdict sentinel is a *result*, not a pipeline position, and `bin/run_playbook.py` (Mode B, which survives the harness deletion) parses it for the verdict. Unify only the one-line `::QPB:: {v:1,…}` envelope-writer so there's a single writer of that line shape; leave the gate's payload (`kind:"gate"`, `gate_result`) as its own emission. Same envelope source of truth, different payload — a deliberately lighter touch than the phase side.
+
+This contract is implemented in **Phase 1B.0** (see `QPB_v1.5.9_Harness_Skill_Implementation_Plan.md`), sequenced first within 1B — after the 1A spike proves the tick loop, before the real `qpb_heartbeat.py`, the worker SKILL.md heartbeat section, and the gate invariants build on it. It is **not** in the 1A spike: the spike's stub worker emits a hardcoded `"phase": "stub"` and never exercises real phase identity, so this refactor would add shipped-skill blast radius the spike can't validate. The lockstep touch-points (install closure + drift test + `run_playbook` gate parsing) are enumerated in the sub-plan's Phase 1B.0 step.
 
 ### Inter-skill communication contract
 
@@ -291,6 +310,8 @@ Initial build covers:
 9. **`quality_gate.py`** invariants for the new schemas (carries forward Council A-1 / C-3 / A-2).
 10. **`bin/tests/test_qpb_harness_tick.py`** — unit tests for the state-machine script's transitions, idempotency, and JSON output shape.
 11. **End-to-end validation:** harness skill orchestrating a 2-3 repo plan with all Mode 1 subagent dispatches. Validates the loop closes end-to-end — `ScheduleWakeup` cadence, state advancement, subagent context bounded, terminal exit clean.
+
+**Foundational — Phase 1B.0, sequenced first within 1B (see `QPB_v1.5.9_Harness_Skill_Implementation_Plan.md`).** The phase-identity source-of-truth refactor + unified emission described under Architecture → "Phase-identity source of truth": one shared number→name module (extracted from `qpb_phase.py`), `run_state.jsonl` as canonical position, the phase-transition facade, the keepalive-reads-run-state rule, and the `kind:"gate"` envelope-only unification. The `qpb_heartbeat.py` helper, the worker SKILL.md heartbeat section, and the `quality_gate.py` invariants above all build on it, so it lands before them. Its blast radius — `INSTALL_CLOSURE` in `bin/qpb_validate.py`, `_bundle_files()` in `install_skill.py`, `_FLAT_LAYOUT_BUNDLED_BIN_FILES` in `run_state_lib.py`, `test_install_manifest_no_drift.py`, `test_phase_sentinel_109.py`, and `run_playbook.py`'s `::QPB:: kind:"gate"` parsing — is enumerated in the sub-plan's Phase 1B.0 step.
 
 Out of scope for MVP, to figure out by building or defer:
 

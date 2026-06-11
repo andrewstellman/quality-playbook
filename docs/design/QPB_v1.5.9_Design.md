@@ -139,4 +139,4 @@ Inherited from `QPB_v1.5.9_Harness_Skill_Design.md`'s Open Questions section —
 
 ---
 
-*End of v1.5.9 Design. Implementation plan in `QPB_v1.5.9_Implementation_Plan.md`. Harness skill detailed design in `QPB_v1.5.9_Harness_Skill_Design.md`. Deferred broader scope in `QPB_v1.5.10_Design.md`.*
+*End of v1.5.9 Design. Umbrella implementation plan (Phase 0 + SKILL.md trim + release) in `QPB_v1.5.9_Implementation_Plan.md`. Harness skill detailed design in `QPB_v1.5.9_Harness_Skill_Design.md`, with its companion plan `QPB_v1.5.9_Harness_Skill_Implementation_Plan.md` (Phase 1). Deferred broader scope in `QPB_v1.5.10_Design.md`.*
