@@ -252,6 +252,57 @@ class LaunchFailureTests(_Base):
         self.assertTrue(rec.get("synthesized"))
 
 
+class HardeningTests(_Base):
+    """Panelist 1B-Council P2 hardening (A-F4 claimed_at=None, B-F3
+    mtime=None) — both latent traps, neither reachable in normal flow."""
+
+    def test_claimed_at_none_self_heals_then_grace_applies(self):
+        # A claimed run whose claimed_at was lost (hand-edit/anomaly) must
+        # NOT be permanently immune to launch-grace: the tick self-heals
+        # claimed_at, and grace then applies from that point.
+        rd = self._init(_plan([_entry("t-1")], pool_size=1,
+                              launch_grace_minutes=10))
+        os.environ["QPB_HARNESS_NOW"] = "1000000"
+        T.tick(rd)  # claim run-01
+        # corrupt: drop claimed_at
+        s = _status(rd)
+        s["runs"]["run-01"]["claimed_at"] = None
+        (rd / "harness_status.json").write_text(json.dumps(s))
+        # a tick with no heartbeat self-heals claimed_at (not failed yet)
+        T.tick(rd)
+        s = _status(rd)
+        self.assertEqual(s["runs"]["run-01"]["state"], "claimed")
+        self.assertEqual(s["runs"]["run-01"]["claimed_at"], 1000000)
+        # 11 min later, still no heartbeat → grace now applies → failed
+        os.environ["QPB_HARNESS_NOW"] = str(1000000 + 11 * 60)
+        T.tick(rd)
+        self.assertEqual(_status(rd)["runs"]["run-01"]["state"],
+                         "auth_or_launch_failed")
+
+    def test_unstateable_heartbeat_does_not_recover_a_stalled_run(self):
+        # If a heartbeat file exists but can't be stat'd (mtime=None), a
+        # stalled run must NOT be recovered to running off an unknowable
+        # mtime — that would mask a genuine stall.
+        rd = self._init(_plan([_entry("t-1")], pool_size=1,
+                              stall_threshold_minutes=45))
+        T.tick(rd)
+        _hb(rd, "run-01", ts="t", task_id="t-1", schema_version="1",
+            status="IN_PROGRESS")
+        future = (rd / "run-01" / "heartbeat.ndjson").stat().st_mtime + 46 * 60
+        os.environ["QPB_HARNESS_NOW"] = str(future)
+        T.tick(rd)
+        self.assertEqual(_status(rd)["runs"]["run-01"]["state"], "stalled")
+        # force mtime=None by monkeypatching _hb_observe for one tick
+        orig = T._hb_observe
+        T._hb_observe = lambda hb: (True, "IN_PROGRESS", "generation", None)
+        try:
+            T.tick(rd)
+        finally:
+            T._hb_observe = orig
+        # stayed stalled (conservative), not falsely recovered to running
+        self.assertEqual(_status(rd)["runs"]["run-01"]["state"], "stalled")
+
+
 class ReapGuardTests(_Base):
     def test_reap_guard_records_anomaly_when_claimed_file_absent(self):
         rd = self._init(_plan([_entry("t-1")], pool_size=1))

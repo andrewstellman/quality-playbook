@@ -376,7 +376,12 @@ def _advance(run_dir, runs, now, stall_secs, grace_secs):
         # 2. claimed + no heartbeat past launch grace ⇒ launch failed
         if state == "claimed" and not has_any:
             claimed_at = r.get("claimed_at")
-            if claimed_at is not None and (now - claimed_at) > grace_secs:
+            if claimed_at is None:
+                # Self-heal a claimed run with no claimed_at (hand-edit /
+                # partial-advance anomaly, panelist A-F4): start the grace
+                # clock now instead of being permanently immune to it.
+                r["claimed_at"] = now
+            elif (now - claimed_at) > grace_secs:
                 _synthesize_failure(run_dir, r,
                                     "auth_or_launch_failed",
                                     "no heartbeat within launch grace")
@@ -385,11 +390,18 @@ def _advance(run_dir, runs, now, stall_secs, grace_secs):
             continue
         # 3. heartbeat present ⇒ running; stale heartbeat ⇒ stalled
         if has_any:
-            if mtime is not None and (now - mtime) > stall_secs:
+            if mtime is None:
+                # Heartbeat exists but couldn't be stat'd (transient OS
+                # race, panelist B-F3). Be CONSERVATIVE: never recover to
+                # running off an unknowable mtime — leave the state as-is so
+                # a genuine stall isn't masked. The next tick re-evaluates.
+                pass
+            elif (now - mtime) > stall_secs:
                 if r["state"] != "stalled":
                     r["state"] = "stalled"
-                    _log(run_dir, f"{name}: STALLED (heartbeat mtime "
-                                  f"{int(now - mtime)}s > {int(stall_secs)}s)")
+                    _log(run_dir, f"{name}: STALLED (heartbeat age "
+                                  f"{int(now - mtime)}s > stall threshold "
+                                  f"{int(stall_secs)}s)")
             else:
                 # fresh heartbeat — (re)mark running (recovers from stalled)
                 if r["state"] in ("claimed", "stalled"):
