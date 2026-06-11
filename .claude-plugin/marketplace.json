@@ -11,6 +11,11 @@
       "name": "quality-playbook",
       "source": "./plugins/quality-playbook",
       "category": "productivity"
+    },
+    {
+      "name": "quality-playbook-harness",
+      "source": "./plugins/quality-playbook-harness",
+      "category": "productivity"
     }
   ]
 }

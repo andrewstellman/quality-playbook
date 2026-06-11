@@ -1,0 +1,20 @@
+{
+  "tick_interval_minutes": 10,
+  "pool_size": 2,
+  "stall_threshold_minutes": 45,
+  "launch_grace_minutes": 10,
+  "entries": [
+    {
+      "task_id": "00000000-0000-0000-0000-000000000001",
+      "target_repo": "/absolute/path/to/repo-a",
+      "dispatch_mode": "subagent",
+      "worker_prompt": "HEARTBEAT_PATH={HEARTBEAT_PATH}\nTASK_ID={TASK_ID}\nRUN_DIR={RUN_DIR}\nTARGET_REPO={TARGET_REPO}\n\nLoad the quality-playbook skill and run the playbook against TARGET_REPO. Use the absolute paths above verbatim; never derive paths from your cwd. Emit heartbeats per the SKILL.md 'Heartbeat emission' section: a ~3-min keepalive (qpb_heartbeat.py keepalive --run-state TARGET_REPO/quality/run_state.jsonl --heartbeat-path HEARTBEAT_PATH --task-id TASK_ID), an emit --status FAILED on any error before aborting, and a terminal line at run end. Return ONLY a one-line summary on completion (phase, last status) — do NOT echo heartbeat content."
+    },
+    {
+      "task_id": "00000000-0000-0000-0000-000000000002",
+      "target_repo": "/absolute/path/to/repo-b",
+      "dispatch_mode": "subagent",
+      "worker_prompt": "HEARTBEAT_PATH={HEARTBEAT_PATH}\nTASK_ID={TASK_ID}\nRUN_DIR={RUN_DIR}\nTARGET_REPO={TARGET_REPO}\n\nLoad the quality-playbook skill and run the playbook against TARGET_REPO. Use the absolute paths above verbatim; never derive paths from your cwd. Emit heartbeats per the SKILL.md 'Heartbeat emission' section. Return ONLY a one-line summary on completion — do NOT echo heartbeat content."
+    }
+  ]
+}

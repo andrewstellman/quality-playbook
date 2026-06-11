@@ -1,0 +1,11 @@
+{
+  "name": "quality-playbook-harness",
+  "description": "Orchestrate Quality Playbook runs across multiple repos from one Claude Code session. The harness skill drives a disk-backed state machine via in-session ScheduleWakeup polling: each tick dispatches QPB worker subagents (Task tool), tails their heartbeats, advances the state machine, prints a status table, and reschedules — until every run reaches a terminal state or you write a STOP file. No external scheduler, no long-running daemon; the same ScheduleWakeup primitive the v1.5.7 watcher has run reliably for weeks.",
+  "version": "1.5.9",
+  "author": {
+    "name": "Andrew Stellman",
+    "email": "andrew@stellman.com"
+  },
+  "homepage": "https://github.com/andrewstellman/quality-playbook",
+  "license": "Apache-2.0"
+}

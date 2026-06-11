@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/andrewstellman/quality-playbook/schemas/harness/result.schema.json",
+  "title": "QPB harness result record",
+  "description": "Terminal record written by `qpb_harness_tick.py` to results/result-NNNNN.json when a run reaches a terminal state. Sourced from the worker's terminal heartbeat sentinel (completed/failed) or synthesized by the harness (auth_or_launch_failed — no worker terminal was ever emitted).",
+  "type": "object",
+  "required": ["job_id", "task_id", "terminal_status", "reaped_ts"],
+  "properties": {
+    "job_id": {
+      "type": "string",
+      "pattern": "^job-[0-9]{5,}$"
+    },
+    "task_id": {
+      "type": "string",
+      "description": "Matches the plan/heartbeat task_id."
+    },
+    "terminal_status": {
+      "type": "string",
+      "enum": ["COMPLETED", "FAILED", "ABANDONED"],
+      "description": "Upper-cased terminal status. auth_or_launch_failed runs record FAILED with synthesized=true."
+    },
+    "result_file": {
+      "type": ["string", "null"],
+      "description": "Path of the worker's result file (quality/SUMMARY.md or equivalent), from the terminal heartbeat. null when synthesized."
+    },
+    "summary": {
+      "type": ["string", "null"],
+      "description": "One-line outcome from the terminal heartbeat, or the synthesis reason."
+    },
+    "reaped_ts": {
+      "type": "string",
+      "description": "ISO8601 UTC time the harness reaped this run."
+    },
+    "synthesized": {
+      "type": "boolean",
+      "description": "true when the harness wrote this record WITHOUT a worker terminal heartbeat (launch failure / abandon)."
+    },
+    "anomaly": {
+      "type": "string",
+      "description": "Set when a guard fired during reap (e.g. claimed_job_file_absent_at_reap) — the transition completed on the heartbeat's authority but the on-disk claimed file was unexpectedly absent."
+    },
+    "claimed": {
+      "description": "Snapshot of the claimed job file at reap (the wrapped plan entry), when it was present."
+    }
+  }
+}

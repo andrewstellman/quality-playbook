@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/andrewstellman/quality-playbook/schemas/harness/plan.schema.json",
+  "title": "QPB harness plan",
+  "description": "Input to `qpb_harness_tick.py --init`. One run per entry. v1.5.9 MVP accepts dispatch_mode='subagent' only (Mode 1); Mode 2/3 are deferred to v1.6+. Top-level knobs default in the tick script if omitted.",
+  "type": "object",
+  "required": ["entries"],
+  "properties": {
+    "tick_interval_minutes": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 10,
+      "description": "Minutes the orchestrator waits between ticks (ScheduleWakeup cadence) while work is in flight."
+    },
+    "pool_size": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 3,
+      "description": "Max concurrent in-flight runs (claimed/running/stalled). Subscription concurrency caps may force a lower value."
+    },
+    "stall_threshold_minutes": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 45,
+      "description": "A run whose heartbeat mtime is older than this is marked stalled. The mandatory ~3-min worker keepalive keeps a live run well under it."
+    },
+    "launch_grace_minutes": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 10,
+      "description": "A claimed run that emits NO heartbeat within this window is marked auth_or_launch_failed (the dispatch never started a worker)."
+    },
+    "idle_tick_multiplier": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Lengthens the tick cadence by this factor when nothing is actively running (all waiting/stalled). 1 = uniform cadence."
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["task_id", "target_repo", "dispatch_mode", "worker_prompt"],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "description": "Stable id for this run, threaded into the heartbeat and result. A2A-ready: a UUID is recommended."
+          },
+          "target_repo": {
+            "type": "string",
+            "description": "Absolute path to the repo the QPB worker reviews. Council A-2: absolute, never cwd-derived."
+          },
+          "dispatch_mode": {
+            "type": "string",
+            "enum": ["subagent"],
+            "description": "v1.5.9 MVP: 'subagent' (Claude Code Task tool) only."
+          },
+          "worker_prompt": {
+            "type": "string",
+            "description": "Literal Task prompt. MUST contain the {HEARTBEAT_PATH}/{TASK_ID}/{RUN_DIR}/{TARGET_REPO} placeholders the tick script substitutes with absolute paths at dispatch time, as the first block the subagent reads (Council A-2)."
+          }
+        }
+      }
+    }
+  }
+}

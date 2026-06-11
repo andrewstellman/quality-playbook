@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/andrewstellman/quality-playbook/schemas/harness/job_manifest.schema.json",
+  "title": "QPB harness job manifest",
+  "description": "Per-run manifest written by `qpb_harness_tick.py --init` to run-NN/manifest.json. The queue/ and claimed/ job-NNNNN.json files wrap a plan entry under {job_id, run, entry}; this schema describes the run-NN/manifest.json projection the harness and any monitor read.",
+  "type": "object",
+  "required": ["task_id", "target_repo", "dispatch_mode", "run", "job_id"],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "description": "Matches the plan entry's task_id and the heartbeat task_id."
+    },
+    "target_repo": {
+      "type": "string",
+      "description": "Absolute path the QPB worker reviews."
+    },
+    "dispatch_mode": {
+      "type": "string",
+      "enum": ["subagent"]
+    },
+    "run": {
+      "type": "string",
+      "pattern": "^run-[0-9]{2,}$",
+      "description": "Run directory name (run-01, run-02, …)."
+    },
+    "job_id": {
+      "type": "string",
+      "pattern": "^job-[0-9]{5,}$",
+      "description": "Job id (job-00001, …). The queue→claimed→results file moves key off this."
+    }
+  }
+}

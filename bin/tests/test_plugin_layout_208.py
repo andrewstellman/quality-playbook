@@ -168,10 +168,12 @@ class PluginLayoutTests(unittest.TestCase):
         )
 
     def test_marketplace_json_source_points_to_plugin_dir(self) -> None:
-        # 209: marketplace.json's plugin entry source must point at
-        # ``./plugins/quality-playbook`` (the subdirectory containing
-        # the plugin's own .claude-plugin/plugin.json) — NOT ``"."``
-        # which was the 208 hybrid form.
+        # 209: each marketplace.json plugin entry's source must point at
+        # ``./plugins/<plugin-name>`` (the subdirectory holding that
+        # plugin's own .claude-plugin/plugin.json) — NOT ``"."`` (the 208
+        # hybrid). v1.5.9 1B: generalized to validate EVERY plugin entry
+        # against its own dir (the harness is the 2nd plugin) — a stronger
+        # check than pinning one literal source string.
         manifest = self.repo_root / ".claude-plugin" / "marketplace.json"
         with open(manifest, encoding="utf-8") as f:
             data = json.load(f)
@@ -181,15 +183,24 @@ class PluginLayoutTests(unittest.TestCase):
             "marketplace.json must declare at least one plugin entry",
         )
         for plugin in plugins:
-            with self.subTest(plugin=plugin.get("name")):
+            name = plugin.get("name")
+            with self.subTest(plugin=name):
+                source = plugin.get("source")
                 self.assertEqual(
-                    plugin.get("source"),
-                    "./plugins/quality-playbook",
-                    "marketplace.json plugin entry ``source`` must "
-                    "point to ``./plugins/quality-playbook`` — the "
-                    "standard self-hosted marketplace layout (209). "
-                    "The 208 value of ``.`` produced a non-standard "
-                    "hybrid that Claude Code couldn't load.",
+                    source, f"./plugins/{name}",
+                    f"marketplace.json plugin '{name}' source must be "
+                    f"``./plugins/{name}`` (standard self-hosted layout, "
+                    f"209) — not ``.`` (the broken 208 hybrid) and not a "
+                    f"path that disagrees with the plugin name.",
+                )
+                plugin_manifest = (
+                    self.repo_root / source.lstrip("./")
+                    / ".claude-plugin" / "plugin.json")
+                self.assertTrue(
+                    plugin_manifest.is_file(),
+                    f"plugin '{name}' source {source} must contain "
+                    f".claude-plugin/plugin.json (missing at "
+                    f"{plugin_manifest}).",
                 )
 
     def test_marketplace_json_drops_inline_skills_field(self) -> None:
