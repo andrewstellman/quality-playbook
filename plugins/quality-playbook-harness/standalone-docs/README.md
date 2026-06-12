@@ -52,7 +52,7 @@ malformed line is skipped with a warning, never fatal. (FR-18, FR-19)
 
 ---
 
-## Quickstart — see the whole thing in a few minutes, zero API spend
+## Quickstart — watch the whole architecture happen, zero API spend
 
 Install at user level (no admin):
 
@@ -91,12 +91,14 @@ No agent session, no scheduler, no admin rights — just Python:
 The ticker replaces the agent: each tick it runs the engine, spawns the
 listed workers detached, prints the table, sleeps the cadence, repeats —
 until every job is terminal. This path uses **detached shell workers**
-(`dispatch_mode: "shell"`), the form required whenever something other than
-an in-session agent does the ticking. (UC-5, FR-24)
+(`dispatch_mode: "shell"`); the demo ships a shell-dispatch variant of the
+plan for it, since the ticker runs shell entries only (a subagent entry is
+reported and skipped with the rung-1 instruction). (UC-5, FR-24)
 
-> The demo's pace is set by the plan's `tick_interval_minutes` and the stub's
-> `--steps` / `--sleep`; tune them down for a faster run. Both paths produce
-> the **same** run directory — the artifacts are tier-invariant.
+> The demo runs in **~20 minutes** with the shipped example plan (UC-8); its
+> pace is set by the plan's `tick_interval_minutes` and the stub's `--steps`
+> / `--sleep`, so tune those down for a faster run. Both paths produce the
+> **same** run directory — the artifacts are tier-invariant.
 
 ---
 
@@ -144,7 +146,7 @@ trust a DESIGNED cell as if it were proven.
 
 | Host / rung | Dispatch | Status | Evidence |
 |---|---|---|---|
-| Claude Code, cadence 1 (in-session timer) | subagent | **VERIFIED** | 3 Sonnet validation passes + 2 Haiku 4.5 passes (low-reasoning-model bet — including an observed failure path), 2026-06-11; multi-entry pool run with staggered dispatch, agent-honored STOP, detached workers outliving the dispatch turn (pgrep-verified) |
+| Claude Code, cadence 1 (in-session timer) | subagent | **VERIFIED** | 3 Sonnet validation passes + Haiku 4.5 (one clean autonomous-loop pass + one observed failure path — the low-reasoning-model bet), 2026-06-11; multi-entry pool run with staggered dispatch, agent-honored STOP, detached workers outliving the dispatch turn (pgrep-verified) |
 | Foreground ticker, cadence 3 (no-admin floor), macOS | shell | **VERIFIED** | Live end-to-end demo in-repo, 2026-06-12: pool gating, real detached PIDs, idle tick, staggered dispatch on reap, clean DONE — independently reproduced |
 | Idempotency / idle-tick survival / STOP / resume | both | **VERIFIED** | Unit suite (mutation-verified) + spike passes; double-tick is cycle-only by construction |
 | Encoding safety (cp1252 / utf-8) | both | **VERIFIED** | AST sweep tests with mutation-verified pins |

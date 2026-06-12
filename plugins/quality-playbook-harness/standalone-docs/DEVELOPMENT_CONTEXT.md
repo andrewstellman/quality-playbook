@@ -61,7 +61,7 @@ All dates 2026:
 |---|---|---|
 | Autonomous multi-tick loop; idle ticks survive | VERIFIED | 3 Sonnet spike passes (`spike-evidence.md`) |
 | Pool + staggered dispatch, multi-entry | VERIFIED | Item-11 E2E run-dir `20260611T191325Z` |
-| Low-reasoning-model orchestration | VERIFIED | Haiku 4.5 ×2 (2026-06-11), incl. a failure-path observation |
+| Low-reasoning-model orchestration | VERIFIED | Haiku 4.5: one clean autonomous-loop pass + one observed failure path (2026-06-11) |
 | Detached workers outlive the dispatch turn | VERIFIED | Instruction-003 dry-run (pgrep + heartbeat) |
 | Agent honors STOP from prose | VERIFIED | Spike pass 3 (STOP mtime vs tick time, state untouched) |
 | Idempotency / cycle-only re-tick | VERIFIED | Unit suite (mutation-verified) + 002/003 |
@@ -92,10 +92,14 @@ in-session autonomous loop (rung 1) dropped 4 times in one session (gaps of
   retry, and the loop dies silently until a human nudges it (4/4 deaths).
 - **Compaction is refuted.** The session's single compaction postdates the
   last recovery; 0/4 drops follow one (E7 disproven).
-- **Model data.** All 4 drops were observed on **Opus 4.8** (the runner
-  worker). The Sonnet (×3) and Haiku (×2) validation passes did not report
-  this death; until the upstream fix lands, **prefer a Sonnet-class model for
-  long unattended rung-1 loops**, and in all cases deploy the safety tick.
+- **Model data (weak signal, not proof).** All 4 drops occurred in the
+  v1.5.9 runner worker session, which ran on **Opus 4.8**; the (different,
+  shorter) Sonnet and Haiku validation sessions did not surface this death.
+  Absence in those runs is not proof of immunity — the sample is tiny and the
+  failure is intermittent. Precautionary guidance until the upstream fix
+  lands: **prefer a Sonnet-class model for long unattended rung-1 loops**,
+  and in all cases deploy the safety tick (which fixes it regardless of
+  model).
 - **Mitigations.** (1) The **FR-26a safety tick** — an external `--once` tick
   is independent of the in-session turn and rescues every Class-C death
   within one safety interval, no detection logic. (2) Candidate in-band fix:
