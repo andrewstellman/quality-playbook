@@ -13,6 +13,20 @@ print the table it formats, and schedule the next tick. **All** the
 state-machine logic lives in `bin/qpb_harness_tick.py` — you never reason
 about run state yourself. (Details: `references/STATE_MACHINE.md`.)
 
+**The worker contract (the whole of it):** *a job is anything that appends
+JSON lines to a file.* `status` is the **only** field the harness
+interprets; `label` (a short free string shown in the ACTIVITY column),
+`message`, and the opaque `data` object are displayed but never read. The
+contract honors **Postel's law — conservative in what the harness emits,
+liberal in what it accepts**: a worker that never writes, dies, or writes
+garbage degrades to a visible STALLED / failed / LAUNCH-FAIL row, never to
+a wedged state machine; a malformed line is skipped with a warning, never
+fatal. Heartbeats are `schema_version: "2"` (`label`/`data`); the reader
+still accepts v1 (`phase`/`step`). **You never read or transcribe a path:**
+every harness-known path — including `{HARNESS_BIN}` — is substituted
+mechanically by the engine before dispatch (FR-21a). Pass each worker
+prompt **verbatim**; it is already fully resolved.
+
 ## Capability ladder — probe, announce, degrade (do this FIRST)
 
 The harness degrades along two axes; the disk state machine is identical at

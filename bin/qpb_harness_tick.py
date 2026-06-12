@@ -62,11 +62,23 @@ DEFAULT_IDLE_TICK_MULTIPLIER = 1          # >1 lengthens cadence when nothing is
 
 TAIL_LINES = 20
 _TERMINAL_HB = ("COMPLETED", "FAILED", "ABANDONED")
-_PLACEHOLDERS = ("HEARTBEAT_PATH", "TASK_ID", "RUN_DIR", "TARGET_REPO")
+# FR-21a (instruction 010): EVERY harness-known path a worker needs is
+# substituted MECHANICALLY by the engine before dispatch — a worker prompt
+# must NEVER ask a model to transcribe a literal path. {HARNESS_BIN} (the
+# engine's own bin directory) is the placeholder for the demo-worker /
+# helper location, replacing the hand-copied <HARNESS_BIN> that silently
+# killed run-02 in 20260612T005833Z (username hallucinated on transcription).
+_PLACEHOLDERS = ("HEARTBEAT_PATH", "TASK_ID", "RUN_DIR", "TARGET_REPO",
+                 "HARNESS_BIN")
 # v1.5.9 Phase 2B: shell dispatch adds {PROMPT_FILE} (the per-job prompt
 # written to queue/job-NNNNN.prompt.txt for quoting/arg-length safety).
 _SHELL_PLACEHOLDERS = _PLACEHOLDERS + ("PROMPT_FILE",)
-SCHEMA_VERSION = "1"
+# The engine knows its own bin directory (FR-21a {HARNESS_BIN}); a worker
+# never transcribes it.
+_HARNESS_BIN = str(Path(__file__).resolve().parent)
+# Heartbeat lines: current emit is "2" (label/data); the reader still
+# accepts "1" (phase/step) — Postel (FR-18/19).
+SCHEMA_VERSION = "2"
 # A wall-clock jump larger than this multiple of the tick interval means the
 # machine slept/hibernated (E2): heartbeat ages are inflated, so stall
 # marking is suppressed for one tick rather than false-STALLING.
@@ -76,6 +88,15 @@ _WALLCLOCK_JUMP_FACTOR = 4
 _TERMINAL_STATES = ("completed", "failed", "auth_or_launch_failed", "abandoned")
 # States that hold a pool slot (in-flight).
 _INFLIGHT_STATES = ("claimed", "running", "stalled")
+
+# FR-21b: AUTH_OR_LAUNCH_FAILED covers more causes than auth (transcribed
+# path, missing helper, bad worker_cmd) — the synthesized result + the table
+# footnote carry this actionable hint, not a bare "auth failed".
+_LAUNCH_FAIL_HINT = ("no heartbeat received within launch grace - check "
+                     "worker-side launch: auth, helper availability, paths")
+# FR-21b: long internal state names must not overflow the status-table
+# column. Display-only abbreviation (the on-disk state is unchanged).
+_STATE_DISPLAY = {"auth_or_launch_failed": "LAUNCH-FAIL"}
 
 
 def _now() -> float:
@@ -196,13 +217,19 @@ def init_run(plan_path: Path) -> Path:
         rd = run_dir / run_name
         rd.mkdir()
         (rd / "heartbeat.ndjson").touch()
-        _write_json(rd / "manifest.json", {
+        manifest = {
             "task_id": entry.get("task_id"),
             "target_repo": entry.get("target_repo"),
             "dispatch_mode": entry.get("dispatch_mode", "subagent"),
             "run": run_name,
             "job_id": job_id,
-        })
+        }
+        # FR-20: a plan entry MAY point the harness at a heartbeat file the
+        # job already writes (absolute). Recorded here so _heartbeat_path
+        # watches it instead of the run-dir default.
+        if entry.get("heartbeat_path"):
+            manifest["heartbeat_path"] = entry["heartbeat_path"]
+        _write_json(rd / "manifest.json", manifest)
         _write_json(run_dir / "queue" / (job_id + ".json"),
                     {"job_id": job_id, "run": run_name, "entry": entry})
         runs[run_name] = {
@@ -237,7 +264,24 @@ def _recount(runs: dict) -> dict:
 # --- heartbeat reading ------------------------------------------------------
 
 def _heartbeat_path(run_dir: Path, run_name: str) -> Path:
-    return run_dir / run_name / "heartbeat.ndjson"
+    """The file the engine watches for this run. Default: the run-dir's own
+    ``run-NN/heartbeat.ndjson``. FR-20 (specifiable heartbeat file): if the
+    plan entry declared an absolute ``heartbeat_path`` (recorded in the
+    per-run manifest at init), watch THAT file instead — so the harness can
+    point at a status file a pre-existing job already writes, with no change
+    to the job. The result/manifest layout is unaffected."""
+    default = run_dir / run_name / "heartbeat.ndjson"
+    mf = run_dir / run_name / "manifest.json"
+    if mf.is_file():
+        try:
+            override = json.loads(
+                mf.read_text(encoding="utf-8", errors="replace")
+            ).get("heartbeat_path")
+        except (OSError, ValueError):
+            override = None
+        if override:
+            return Path(override)
+    return default
 
 
 def _tail(hb: Path) -> list[str]:
@@ -254,11 +298,13 @@ def _tail(hb: Path) -> list[str]:
 
 
 def _hb_observe(hb: Path):
-    """Return (has_any, last_status_keyword, phase, mtime) for a heartbeat
-    file. Pure substring matching on the tail — no schema validation here
-    (the worker-side qpb_heartbeat.py owns valid emission; the harness only
-    reads liveness keywords). last_status is the terminal/progress keyword
-    on the LAST non-empty line."""
+    """Return (has_any, last_status_keyword, activity, mtime) for a
+    heartbeat file. Pure substring matching on the tail — no schema
+    validation here (the worker owns valid emission; the harness only reads
+    liveness keywords + the display label). last_status is the terminal/
+    progress keyword on the LAST non-empty line. ``activity`` is the v2
+    ``label`` of that line, falling back to the v1 ``phase`` (Postel: read
+    both) — it is display-only and never interpreted."""
     lines = _tail(hb)
     if not lines:
         return (False, None, None, None)
@@ -268,17 +314,31 @@ def _hb_observe(hb: Path):
         if kw in last:
             status = kw
             break
-    phase = None
-    if '"phase":' in last:
+    activity = None
+    if '"label":' in last or '"phase":' in last:
         try:
-            phase = json.loads(last).get("phase")
+            obj = json.loads(last)
+            activity = obj.get("label") or obj.get("phase")
         except (ValueError, TypeError):
-            phase = None
+            activity = None
     try:
         mtime = hb.stat().st_mtime
     except OSError:
         mtime = None
-    return (True, status, phase, mtime)
+    return (True, status, activity, mtime)
+
+
+def _count_malformed(hb: Path) -> int:
+    """Count non-empty heartbeat lines that aren't valid JSON. The reader
+    SKIPS these (Postel: liberal in what it accepts; a malformed line is
+    never fatal) — this is only for the non-fatal warning in _advance."""
+    bad = 0
+    for ln in _tail(hb):
+        try:
+            json.loads(ln)
+        except ValueError:
+            bad += 1
+    return bad
 
 
 def _terminal_status_of(hb: Path):
@@ -315,6 +375,7 @@ def _dispatch_prompt(entry: dict, run_dir: Path, run_name: str) -> str:
         "TASK_ID": str(entry.get("task_id", "")),
         "RUN_DIR": str(run_dir / run_name),
         "TARGET_REPO": str(entry.get("target_repo", "")),
+        "HARNESS_BIN": _HARNESS_BIN,
     }
     prompt = entry.get("worker_prompt", "")
     for key in _PLACEHOLDERS:
@@ -449,9 +510,16 @@ def _advance(run_dir, runs, now, stall_secs, grace_secs, suppress_stall=False):
         if state in _TERMINAL_STATES:
             continue
         hb = _heartbeat_path(run_dir, name)
-        has_any, last_status, phase, mtime = _hb_observe(hb)
+        has_any, last_status, _activity, mtime = _hb_observe(hb)
         if has_any:
             r["last_hb_status"] = last_status
+        # Postel: a malformed (non-JSON) heartbeat line is SKIPPED by the
+        # reader, never fatal — but surface it as a non-fatal warning so an
+        # operator can see a worker is writing garbage (FR-19).
+        bad = _count_malformed(hb)
+        if bad:
+            _log(run_dir, f"{name}: WARN {bad} malformed heartbeat line(s) "
+                          f"skipped (Postel: liberal accept, non-fatal)")
         # 1. terminal sentinel ⇒ reap
         terminal = _terminal_status_of(hb)
         if terminal is not None:
@@ -484,7 +552,7 @@ def _advance(run_dir, runs, now, stall_secs, grace_secs, suppress_stall=False):
             elif (now - claimed_at) > grace_secs:
                 _synthesize_failure(run_dir, r,
                                     "auth_or_launch_failed",
-                                    "no heartbeat within launch grace")
+                                    _LAUNCH_FAIL_HINT)
                 r["state"] = "auth_or_launch_failed"
                 _log(run_dir, f"{name}: AUTH_OR_LAUNCH_FAILED (no heartbeat)")
             continue
@@ -541,6 +609,7 @@ def _dispatch(run_dir, runs, entries, pool_size, now) -> list[dict]:
             "TASK_ID": str(entry.get("task_id", "")),
             "RUN_DIR": str(run_dir / name),
             "TARGET_REPO": str(entry.get("target_repo", "")),
+            "HARNESS_BIN": _HARNESS_BIN,
         }
         src = run_dir / "claimed" / (r["job_id"] + ".json")
         qsrc = run_dir / "queue" / (r["job_id"] + ".json")
@@ -635,24 +704,40 @@ def _hb_age_str(run_dir, name) -> str:
     return "%dm%02ds" % (age // 60, age % 60)
 
 
+def _ascii_trunc(value, width: int) -> str:
+    """Display-only: ASCII-sanitize (cp1252 console safety, NFR-7) and
+    truncate a free-form field to the column width. The raw value is
+    untouched on disk (FR-18)."""
+    s = "-" if value is None else str(value)
+    s = s.encode("ascii", "replace").decode("ascii")
+    return s[:width]
+
+
 def _format_table(run_dir, status, plan, terminal: bool) -> str:
     bar = "-" * 86
+    # FR-21b: STATE narrowed + abbreviated (LAUNCH-FAIL) so it can't
+    # overflow; ACTIVITY (the free-form label) widened and sanitized.
+    fmt = "%-5s%-22s%-8s%-13s%-16s%-13s%s"
     rows = [
         "Run-Dir: %s (cycle %d)" % (run_dir.name, status.get("cycle", 0)),
         bar,
-        "%-5s%-26s%-8s%-20s%-8s%-13s%s" % (
-            "RUN", "REPO", "MODE", "STATE", "PHASE", "LAST-HB", "HB-AGE"),
+        fmt % ("RUN", "REPO", "MODE", "STATE", "ACTIVITY", "LAST-HB",
+               "HB-AGE"),
     ]
+    any_launch_fail = False
     for name in sorted(status["runs"]):
         r = status["runs"][name]
-        _, _, phase, _ = _hb_observe(_heartbeat_path(run_dir, name))
-        rows.append("%-5s%-26s%-8s%-20s%-8s%-13s%s" % (
+        _, _, activity, _ = _hb_observe(_heartbeat_path(run_dir, name))
+        st = r["state"]
+        if st == "auth_or_launch_failed":
+            any_launch_fail = True
+        rows.append(fmt % (
             name[4:],
-            (r.get("target_repo") or "-")[:25],
+            _ascii_trunc(r.get("target_repo") or "-", 21),
             {"subagent": "subgnt", "shell": "shell"}.get(
                 r.get("dispatch_mode"), "-"),
-            r["state"],
-            (str(phase) if phase is not None else "-")[:7],
+            _STATE_DISPLAY.get(st, st)[:12],
+            _ascii_trunc(activity, 15),
             r.get("last_hb_status") or "-",
             _hb_age_str(run_dir, name),
         ))
@@ -665,6 +750,10 @@ def _format_table(run_dir, status, plan, terminal: bool) -> str:
             c.get("stalled", 0), c.get("completed", 0),
             c.get("failed", 0) + c.get("auth_or_launch_failed", 0)
             + c.get("abandoned", 0)))
+    if any_launch_fail:
+        # FR-21b: the diagnostic hint travels with the table, not just the
+        # result record — LAUNCH-FAIL covers more than auth.
+        rows.append("LAUNCH-FAIL: " + _LAUNCH_FAIL_HINT + ".")
     if terminal:
         # ASCII only (no em-dash / box-drawing / arrows) — the status
         # table prints on Windows cp1252 consoles (185 print-path lesson).

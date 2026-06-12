@@ -155,3 +155,67 @@ hibernated), heartbeat ages are inflated through no fault of the workers,
 so STALLED marking is **suppressed for that one tick** (a fresh heartbeat
 the next tick clears it). A normal-sized gap past the stall threshold
 still marks STALLED.
+
+## v1.5.9 instruction 010 additions
+
+### The worker contract + Postel's law
+
+*A job is anything that appends JSON lines to a file.* `status` is the
+**only** field the harness interprets (it drives the state machine);
+everything else is decoration it displays but never reads. The worker need
+not be an AI — a shell script, a make target, a CI job, or a human with
+`echo >>` all qualify; the heartbeat helper is a convenience, not a
+requirement. The contract honors **Postel's law — be conservative in what
+the harness emits, liberal in what it accepts**: a worker that never
+writes, dies mid-run, or writes garbage degrades to a visible
+STALLED/failed/LAUNCH-FAIL row, never to a wedged state machine, and a
+**malformed (non-JSON) line is skipped with a non-fatal warning** in the
+tick log, never fatal. The reader proves this: it tail-scans on substring
+keywords, `json.loads` each candidate line inside a `try`, and counts +
+logs the skipped malformed lines (`_count_malformed`) without ever raising
+into the tick.
+
+### Heartbeat schema v2 (`label` / `data`) — read both, emit v2
+
+Heartbeat lines are now `schema_version: "2"`: the v1 `phase`/`step` pair
+collapses to a single free-form **`label`** (displayed verbatim in the
+status-table **ACTIVITY** column — truncated to width and ASCII-sanitized
+for *display only*, raw preserved on disk) plus an optional opaque
+**`data`** object the harness never reads (the structure escape hatch / A2A
+path). Postel on read: the engine still accepts v1 lines, falling back to
+`phase` when no `label` is present. QPB's vendored worker maps its phase
+identity into `label` as `"<number>:<slug>"` (e.g. `2:generation`) and
+stashes the old step under `data.step`; that coupling never enters the
+generic core. The gate's C-3 drift check now accepts `"1"` or `"2"` and
+warns on anything else.
+
+### Specifiable heartbeat file (FR-20)
+
+By default the engine watches `run-NN/heartbeat.ndjson`. A plan entry MAY
+declare an absolute **`heartbeat_path`** to point the harness at a status
+file a pre-existing job already writes — recorded in the run's
+`manifest.json` at init; `_heartbeat_path` then watches it and
+`{HEARTBEAT_PATH}` resolves to it for the worker. The result/manifest
+layout is unchanged. *Point the harness at a file your job already writes.*
+
+### No model-transcribed paths (FR-21a) + LAUNCH-FAIL diagnostics (FR-21b)
+
+Every harness-known path a worker needs — `{HEARTBEAT_PATH}`, `{TASK_ID}`,
+`{RUN_DIR}`, `{TARGET_REPO}`, and the helper/demo-worker location
+**`{HARNESS_BIN}`** (the engine's own bin directory) — is substituted
+**mechanically by the engine before dispatch**. A worker prompt must never
+ask a model to copy or substitute a literal path: in run
+`20260612T005833Z` a hand-copied helper path was transcribed as
+`/Users/anthropic/...` (username hallucinated), silently killing every
+heartbeat while the job "completed" invisibly. The `<...>` notation that
+survives in the **operator** bootstrap (`<PLAN>`, `<QPB_REPO>`, `<RUN_DIR>`)
+is operator-supplied input or a value captured mechanically from command
+output (`git rev-parse`, `--init`), never a path a model retypes.
+
+`auth_or_launch_failed` covers more causes than auth (a transcribed path, a
+missing helper, a bad `worker_cmd`), so its synthesized result record AND
+the status table carry an actionable hint — *"no heartbeat received within
+launch grace - check worker-side launch: auth, helper availability,
+paths"*. The long state name is abbreviated to **`LAUNCH-FAIL`** in the
+table so it can never overflow its column (display-only; the on-disk state
+is unchanged).

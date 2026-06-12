@@ -533,5 +533,127 @@ class TerminalCosmeticsTests(_Base):
         self.assertIn("Next tick in", out["status_table"])
 
 
+class HeartbeatV2ReaderTests(_Base):
+    """Instruction 010 / FR-18: the reader displays the v2 `label`, and
+    still reads v1 `phase` (Postel: liberal in what it accepts)."""
+
+    def test_reads_v2_label_into_activity_column(self):
+        rd = self._init(_plan([_entry("t-1")], pool_size=1))
+        T.tick(rd)  # claim run-01
+        _hb(rd, "run-01", ts="t", task_id="t-1", schema_version="2",
+            label="2:generation", status="IN_PROGRESS", data={"step": "s"})
+        out = T.tick(rd)
+        self.assertIn("ACTIVITY", out["status_table"])
+        self.assertIn("2:generation", out["status_table"])
+
+    def test_reads_v1_phase_into_activity_column_postel(self):
+        rd = self._init(_plan([_entry("t-1")], pool_size=1))
+        T.tick(rd)
+        _hb(rd, "run-01", ts="t", task_id="t-1", schema_version="1",
+            phase="exploration", step="s", status="IN_PROGRESS")
+        out = T.tick(rd)
+        self.assertIn("exploration", out["status_table"])
+
+    def test_malformed_line_is_skipped_not_fatal_and_warned(self):
+        rd = self._init(_plan([_entry("t-1")], pool_size=1))
+        T.tick(rd)
+        # a torn / non-JSON line followed by a valid one
+        with (rd / "run-01" / "heartbeat.ndjson").open(
+                "a", encoding="utf-8") as fh:
+            fh.write('{"ts":"t","task_id" TORN\n')
+        _hb(rd, "run-01", ts="t", task_id="t-1", schema_version="2",
+            label="2:generation", status="IN_PROGRESS")
+        out = T.tick(rd)  # must not raise
+        # the valid line still drove the state to running
+        self.assertEqual(_status(rd)["runs"]["run-01"]["state"], "running")
+        # the non-fatal warning is logged
+        log = (rd / "harness_tick.log").read_text(encoding="utf-8")
+        self.assertIn("malformed heartbeat line", log)
+
+
+class HarnessBinPlaceholderTests(_Base):
+    """FR-21a: {HARNESS_BIN} is substituted MECHANICALLY by the engine
+    (never transcribed by a model)."""
+
+    def test_harness_bin_substituted_in_subagent_prompt(self):
+        e = _entry("t-1")
+        e["worker_prompt"] = "run {HARNESS_BIN}/harness_demo_worker.py"
+        rd = self._init(_plan([e], pool_size=1))
+        out = T.tick(rd)
+        wp = out["dispatch_list"][0]["worker_prompt"]
+        self.assertNotIn("{HARNESS_BIN}", wp)
+        self.assertIn(T._HARNESS_BIN, wp)
+        self.assertIn("/harness_demo_worker.py", wp)
+
+    def test_harness_bin_substituted_in_shell_cmd(self):
+        e = _shell_entry("t-1")
+        e["worker_cmd"] = ["python3", "{HARNESS_BIN}/harness_demo_worker.py",
+                           "--hb", "{HEARTBEAT_PATH}"]
+        rd = self._init(_plan([e], pool_size=1))
+        out = T.tick(rd)
+        cmd = out["dispatch_list"][0]["worker_cmd"]
+        self.assertEqual(cmd[1], T._HARNESS_BIN + "/harness_demo_worker.py")
+
+
+class HeartbeatPathOverrideTests(_Base):
+    """FR-20: a plan entry may point the harness at a heartbeat file the
+    job already writes (absolute) instead of the run-dir default."""
+
+    def test_override_is_watched_and_substituted(self):
+        external = self.tmp / "external_status.ndjson"
+        e = _entry("t-1")
+        e["heartbeat_path"] = str(external)
+        rd = self._init(_plan([e], pool_size=1))
+        # the manifest records the override
+        mf = json.loads((rd / "run-01" / "manifest.json").read_text())
+        self.assertEqual(mf["heartbeat_path"], str(external))
+        # dispatch substitutes {HEARTBEAT_PATH} to the override, not default
+        out = T.tick(rd)
+        wp = out["dispatch_list"][0]["worker_prompt"]
+        self.assertIn(str(external), wp)
+        self.assertNotIn(str(rd / "run-01" / "heartbeat.ndjson"), wp)
+        # the engine reads liveness from the override file
+        external.write_text(
+            '{"ts":"t","task_id":"t-1","schema_version":"2",'
+            '"label":"ext","status":"IN_PROGRESS"}\n', encoding="utf-8")
+        T.tick(rd)
+        self.assertEqual(_status(rd)["runs"]["run-01"]["state"], "running")
+
+
+class LaunchFailDisplayTests(_Base):
+    """FR-21b: the long state name is abbreviated (no column overflow) and
+    the diagnostic hint travels with the table."""
+
+    def test_launch_fail_abbreviated_and_hint_in_table(self):
+        rd = self._init(_plan([_entry("t-1")], pool_size=1,
+                              launch_grace_minutes=10))
+        os.environ["QPB_HARNESS_NOW"] = "1000000"
+        T.tick(rd)
+        os.environ["QPB_HARNESS_NOW"] = str(1000000 + 11 * 60)
+        out = T.tick(rd)
+        tbl = out["status_table"]
+        self.assertIn("LAUNCH-FAIL", tbl)
+        self.assertNotIn("auth_or_launch_failed", tbl)  # abbreviated in display
+        self.assertIn("check worker-side launch", tbl)   # FR-21b hint
+        # the synthesized result record carries the actionable hint too
+        rec = json.loads((rd / "results" / "result-00001.json").read_text())
+        self.assertIn("check worker-side launch", rec["summary"])
+
+    def test_table_columns_do_not_overflow(self):
+        rd = self._init(_plan([_entry("t-1")], pool_size=1,
+                              launch_grace_minutes=10))
+        os.environ["QPB_HARNESS_NOW"] = "1000000"
+        T.tick(rd)
+        os.environ["QPB_HARNESS_NOW"] = str(1000000 + 11 * 60)
+        out = T.tick(rd)
+        # the data row's STATE field is bounded — find the run-01 row and
+        # assert the abbreviated state sits in its 13-wide column.
+        for ln in out["status_table"].splitlines():
+            if ln.startswith("1 "):  # run-01 → name[4:] == "1"
+                # MODE starts at col 35 (5+22+8); STATE at col 35..48.
+                self.assertLessEqual(len(ln.split()[3]), 12)
+                break
+
+
 if __name__ == "__main__":
     unittest.main()
