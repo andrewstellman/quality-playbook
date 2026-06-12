@@ -1,4 +1,4 @@
-# {{NAME}} — Development Context
+# Wakecycle — Development Context
 
 *Read this once to bootstrap a fresh development chat to full context. It is
 a projection of `docs/REQUIREMENTS.md` (the spec) plus the history and the
@@ -151,8 +151,6 @@ in-session autonomous loop (rung 1) dropped 4 times in one session (gaps of
 
 ## Open questions
 
-- The product name (operator decision, before first publish; `{{NAME}}`
-  until then).
 - Whether the in-band Class-C Stop-hook fix belongs in the harness or is
   purely an upstream host concern.
 - The exact safety-tick cadence default to recommend (currently ~3× the plan

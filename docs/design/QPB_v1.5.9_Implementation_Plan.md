@@ -137,7 +137,7 @@ Phase 1 is complete (2026-06-11). Phase 2 is gated on the 2A operator decisions;
 
 | # | Item | Phase | Status |
 |---|------|-------|--------|
-| 1 | Name decision + npm/PyPI/GitHub verification (cascades: repo/packages/plugin/skill/CLI/article) | 2A | **DEFERRED with deadline** — any time before the standalone's first publish (operator, 2026-06-11). Shortlist + collision recon in Design Part 2. |
+| 1 | Name decision + npm/PyPI/GitHub verification (cascades: repo/packages/plugin/skill/CLI/article) | 2A | **RESOLVED 2026-06-12: `wakecycle`** (selection record in Design Part 2). Final registry verification + the `{{NAME}}` cascade = instruction 013; extraction (item 9) unblocks on its PASS. |
 | 2 | Repo-model + sequencing decisions | 2A | **RESOLVED 2026-06-11** — new repo at naming time, QPB vendors with lineage note + drift test; QPB tag waits for standalone first publish. Capability ladder canonicalized in Design Part 2. |
 | 3 | Genericized heartbeat helper (free-string phase, no run-state coupling) | 2B | PENDING — unblocked, name-free |
 | 4 | Python demo stub replacing the bash stub in the example plan | 2B | PENDING — unblocked |

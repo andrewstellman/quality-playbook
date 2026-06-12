@@ -1,4 +1,4 @@
-# {{NAME}} — Agent Guide
+# Wakecycle — Agent Guide
 
 *For an AI coding agent working **on** this repository. Read this, then the
 file you need from the table, then `docs/REQUIREMENTS.md` for the spec behind
@@ -30,7 +30,7 @@ Python 3.10+.
 | `bin/tests/` | The suite: `test_qpb_harness_tick.py` (engine), `test_harness_heartbeat_generic_2b.py` (helper), `test_harness_ticker_2b.py` (ticker), `test_harness_schemas.py` (schema byte-identity), `test_harness_windows_readiness_2e.py` (cross-platform + ASCII sweeps). | Before and after every change. |
 
 > At extraction the `qpb_`/`harness_` prefixes drop and these become the
-> `{{NAME}}` package's console entry points (`{{NAME}}`, `{{NAME}}-ticker`).
+> `wakecycle` package's console entry points (`wakecycle`, `wakecycle-ticker`).
 > The roles above are stable; only the names change.
 
 ## Load-bearing conventions (do not violate)

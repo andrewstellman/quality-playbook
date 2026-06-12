@@ -1,4 +1,4 @@
-# {{NAME}} Toolkit
+# Wakecycle Toolkit
 
 > This file is for your AI assistant to read — not for you to read yourself.
 > Open it in Claude Code, Cursor, Copilot, or any AI coding tool and say:
@@ -38,9 +38,9 @@ a CI job, or anything that can write a line.
 ## Install (user-level, no admin)
 
 ```bash
-pip install --user {{NAME}}      # Python 3.10+
+pip install --user wakecycle      # Python 3.10+
 # or
-npm install {{NAME}}
+npm install wakecycle
 ```
 
 Nothing needs root. The only requirements are user-level Python 3.10+ and, if
@@ -131,12 +131,12 @@ Ask, in order:
    drives the run. **Use `subagent` entries.** Keep the session open. *Pair
    with a safety tick (troubleshooting).*
 2. **No session, but you can add a cron/Task-Scheduler/launchd entry?**
-   Install the printed `{{NAME}}-ticker --once <run-dir>` schedule at the
+   Install the printed `wakecycle-ticker --once <run-dir>` schedule at the
    plan cadence. **Use `shell` entries.** No window stays open.
 3. **No scheduler rights (locked-down machine)?** Run
-   `{{NAME}}-ticker <plan.json>` in a terminal — the foreground loop. **Use
+   `wakecycle-ticker <plan.json>` in a terminal — the foreground loop. **Use
    `shell` entries.** The window stays open for the run.
-4. **Can't keep a window open?** Run `{{NAME}}-ticker --once <run-dir>` by
+4. **Can't keep a window open?** Run `wakecycle-ticker --once <run-dir>` by
    hand whenever convenient; each call is one safe tick. Every failure path
    prints this exact command.
 
@@ -148,9 +148,9 @@ is reported and skipped with the rung-1 instruction.
 Rung 1: paste the bootstrap, watch the table each tick. Rung 3:
 
 ```bash
-{{NAME}}-ticker path/to/plan.json     # loop: --init, then tick -> spawn -> sleep -> repeat
-{{NAME}}-ticker path/to/run-dir       # resume an existing run (loop)
-{{NAME}}-ticker --once path/to/run-dir  # exactly one tick (cron / manual floor)
+wakecycle-ticker path/to/plan.json     # loop: --init, then tick -> spawn -> sleep -> repeat
+wakecycle-ticker path/to/run-dir       # resume an existing run (loop)
+wakecycle-ticker --once path/to/run-dir  # exactly one tick (cron / manual floor)
 ```
 
 The table:
@@ -186,9 +186,9 @@ Next tick in M min
   on their own (no kill this release). Delete `STOP` and tick to continue.
 - **Resume after a crash / closed window / slept machine:** point a fresh
   session at the existing run directory (skip `--init`), or run
-  `{{NAME}}-ticker --once <run-dir>`. Disk state resumes; nothing
+  `wakecycle-ticker --once <run-dir>`. Disk state resumes; nothing
   double-runs.
-- **Manual ticks:** `{{NAME}}-ticker --once <run-dir>` as often as you like —
+- **Manual ticks:** `wakecycle-ticker --once <run-dir>` as often as you like —
   over-ticking is harmless (cycle-only).
 
 ## The worker contract — for custom (non-AI) jobs
@@ -209,9 +209,9 @@ per file). Lines are schema v2:
 **With the helper (convenience):**
 
 ```bash
-{{NAME}}-heartbeat emit      --task-id <id> --heartbeat-path <p> --label build --status IN_PROGRESS [--message ...] [--data '{"k":"v"}']
-{{NAME}}-heartbeat keepalive --task-id <id> --heartbeat-path <p>      # re-pings the last label
-{{NAME}}-heartbeat terminal  --task-id <id> --heartbeat-path <p> --status COMPLETED --result-file <f> --summary "done"
+wakecycle-heartbeat emit      --task-id <id> --heartbeat-path <p> --label build --status IN_PROGRESS [--message ...] [--data '{"k":"v"}']
+wakecycle-heartbeat keepalive --task-id <id> --heartbeat-path <p>      # re-pings the last label
+wakecycle-heartbeat terminal  --task-id <id> --heartbeat-path <p> --status COMPLETED --result-file <f> --summary "done"
 ```
 
 The helper JSON-encodes every value (so `%`, `"`, `\` in a field can't
@@ -230,7 +230,7 @@ skips a malformed line with a warning rather than dying.
 - **The loop went silent (rung 1).** This is the Class-C in-session failure:
   the wakeup fired but the resumed turn mis-serialized its first action and
   ended without rescheduling. **Fix:** deploy a **safety tick** — a
-  cron/scheduler or second terminal running `{{NAME}}-ticker --once <run-dir>`
+  cron/scheduler or second terminal running `wakecycle-ticker --once <run-dir>`
   at ~3× the plan cadence against the same run-dir. It's a no-op while the
   loop is healthy and rescues it within one interval if the turn dies. To
   resume right now, just run that command once. (Tracking:
