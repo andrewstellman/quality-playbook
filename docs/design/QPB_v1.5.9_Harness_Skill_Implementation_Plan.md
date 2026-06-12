@@ -212,3 +212,14 @@ Within this workstream the order is **1A spike → 1B.0 (phase-identity source o
 ---
 
 *End of Harness Skill Implementation Plan. Harness sub-design in `QPB_v1.5.9_Harness_Skill_Design.md`. v1.5.9 umbrella plan (Phase 0 + SKILL.md trim + release) in `QPB_v1.5.9_Implementation_Plan.md`. Umbrella design in `QPB_v1.5.9_Design.md`.*
+
+## Extraction (2B', instruction 014) — drift-test deferral (release-time item)
+
+The standalone wakecycle repo was scaffolded 2026-06-12 (umbrella tracker
+item 9). FR-30's **drift test** (QPB's vendored harness core vs an upstream
+wakecycle release) is **DEFERRED**: there is nothing to pin against until
+wakecycle cuts its first tagged release. Blast radius when it lands: the
+vendored `bin/qpb_harness_tick.py` / `harness_*.py` + the plugin's bundled
+schemas/references must be checked against the pinned upstream tag. Until
+then, the lineage notes (`EXTRACTED.md`, plugin `LINEAGE.md`,
+`bin/HARNESS_LINEAGE.md`) record the canonical source.
