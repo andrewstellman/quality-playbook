@@ -82,9 +82,15 @@ def _discover_scripts() -> list[tuple[str, Path]]:
         # Exclude tests/ subtrees.
         if "tests" in parts:
             continue
-        # v1.5.9 Phase 2E: the old Python harness subpackage (and its
-        # discovery exclusion) was removed; its replacements live at the
-        # bin/ top level and ARE swept (they self-describe).
+        # v1.5.9 Phase 2B: the GENERIC, name-free harness core scripts
+        # (harness_*.py — heartbeat helper, demo worker, ticker) are the
+        # standalone artifacts that extract to their own repo. They carry
+        # NO QPB "Quality Playbook v… / by Andrew Stellman" branding by
+        # design (they're payload-agnostic) and self-describe via their own
+        # __doc__/--help instead. QPB-branded CLIs (qpb_*.py, including
+        # qpb_harness_tick.py) keep the 089x banner and ARE swept.
+        if path.name.startswith("harness_"):
+            continue
         dotted = ".".join(parts)
         scripts.append((dotted, path))
     return scripts
