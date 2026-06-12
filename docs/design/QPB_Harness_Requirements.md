@@ -225,7 +225,7 @@ The harness was built as the Quality Playbook's test harness (replacing a ~10K-l
 - C-2: In-session subagents do not survive their session's turn ending in externally-ticked contexts — hence the cadence/dispatch coupling rule.
 - C-3: The orchestrator session (rung 1) or ticker window (rung 3) must stay open for the plan's duration; rung 2 has no such constraint.
 - C-4: Workers must be able to run the heartbeat helper (user-level Python 3 on their host).
-- C-5: ScheduleWakeup-class primitives may not survive context compaction (E7 — unverified; suspect in both observed loop-drops).
+- C-5: In-session autonomous loops have a host-side fragility that is NOT the timer: per the 2026-06-12 Class-C forensics, wakeups fired 4/4 reliably, but the wakeup-resumed model turn intermittently mis-serializes its first tool call into the text channel and dies silently on `end_turn`. Compaction/E7 was refuted as a cause (0/4). Treat every rung-1 resumed turn as fallible; the FR-26a safety tick is the standing mitigation, independent of root cause.
 
 ## 8. Out of scope (this release)
 
@@ -242,7 +242,7 @@ Kill semantics for in-flight workers on STOP (documented orphan behavior); per-p
 | Agent honors STOP from prose | Spike pass 3 (STOP mtime vs tick time, state untouched) |
 | Idempotency / cycle-only re-tick | 002 smoke + 003 dry-run + unit suite (mutation-verified) |
 | Encoding/cp1252 safety | 007/008 AST sweeps, mutation-verified incl. independent orchestrator re-run |
-| Wakeup primitives can silently drop | Observed twice 2026-06-11 (runner watcher); risk table + ladder rationale |
+| In-session loops can die silently (NOT the timer: Class-C resumed-turn tool-call mis-serialization; wakeups fired 4/4; E7/compaction refuted) | Instruction-011 transcript forensics, 4 drops root-caused with quoted evidence (`runner/1.5.9/outputs/011-loop-drop-self-forensics.md`); ladder + FR-26a safety-tick rationale |
 | Cadence 2/3/4, shell dispatch, Windows floor | PENDING — Phase 2B build + item-11-style validation matrix |
 
 ---
