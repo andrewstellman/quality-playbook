@@ -43,17 +43,28 @@ In brief: replace the Python subprocess harness with a `quality-playbook-harness
 
 *The SKILL.md trim that previously occupied this phase moved intact to `QPB_v1.5.10_Implementation_Plan.md` (2026-06-11). Canonical design for this phase: `QPB_v1.5.9_Design.md` Part 2, including the THREE OPEN DECISIONS (name, repo model, first-release sequencing) that must settle with the operator BEFORE distribution instructions are filed.*
 
-### Phase 2A — Decisions + naming (operator discussion in progress)
+### Phase 2A — Decisions ~~(operator discussion in progress)~~ RESOLVED 2026-06-11 (name deferred with deadline)
 
-- Settle the name (current shortlist + collision recon in the Design Part 2); verify npm + PyPI + GitHub availability before committing
-- Confirm the repo model (leaning: standalone repo canonical for the generic core; QPB vendors under `plugins/` with lineage note + candidate drift test)
-- Decide first-release sequencing relative to the QPB v1.5.9 tag
+- **Name: deferred until any time before the standalone's first publish** (registry-verify on choice; cascades into repo/packages/plugin/skill/CLI/article). Development proceeds name-free in the QPB vendored copy.
+- **Repo model: resolved** — new repo at naming time, canonical upstream; QPB keeps the vendored copy under `plugins/` with a lineage note + drift test.
+- **Sequencing: resolved** — QPB v1.5.9 tag waits for the standalone's first live publish; one close-out burst.
+- **Capability ladder: resolved** — canonical text in `QPB_v1.5.9_Design.md` Part 2 (two axes: cadence 1-4, dispatch 1-2; cadence 2-4 imply shell dispatch; manual floor always prints the exact recovery command; the no-admin Windows worst case = cadence 3 + dispatch 2 and MUST work in the first release).
 
-### Phase 2B — Extraction
+### Phase 2B — Generic-core development (in the QPB vendored copy; name-free; can start immediately)
 
-- Scaffold the standalone repo: generic tick script, generic heartbeat helper (`phase` as free string — no `phase_identity` / run-state coupling), harness SKILL.md, BOOTSTRAP_PROMPT.md, schemas, STATE_MACHINE.md, example stub plan (the ~20-minute demo derived from `testing/e2e_stub_plan.json`), tests, thesis-forward README, Apache-2.0
-- Annotate QPB's vendored copy with the lineage note (+ drift test if confirmed)
-- Development can use the orchestrator/worker runner pattern in the new repo (the generalized `WATCHER_PROMPT.md` was built for this)
+- Genericized heartbeat helper for the standalone surface (`phase` as free string — no `phase_identity` / run-state coupling; QPB's `qpb_heartbeat.py` keeps its integration)
+- Python demo stub replacing the bash stub in the example plan (cross-platform demo; bash is dead on locked-down Windows)
+- `harness_ticker.py` — cadence rungs 3-4: foreground loop (tick → spawn → sleep) + `--once` manual mode; platform-appropriate detach flags; stdlib-only; "window stays open" documented
+- Shell-dispatch mode — `dispatch_mode: "shell"` in the plan schema (schema_version bump), `worker_cmd` templates (invocation shapes from `runners.py` prior art), worker prompts as files (quoting/arg-length safety), PID + start-time lock files in `claimed/` (Council A-5), per-host auth pre-flight feeding `AUTH_OR_LAUNCH_FAILED`
+- Capability-ladder prose in SKILL.md + BOOTSTRAP: probe own tooling, announce selected rung, degrade with printed exact commands (the generalized restart spell)
+- Edge-case hardening: E1 per-run-dir tick lockfile (`fcntl`/`msvcrt`), E2 wall-clock-jump guard in stall logic, E4 synced-folder (OneDrive) pre-flight warning, E6 heartbeat-write-failure worker prose
+- Cross-platform hygiene: ASCII tables + encoding disciplines already sweep-tested (007/008); extend to the new files as they land
+
+### Phase 2B′ — Extraction (gated ONLY on the name decision)
+
+- Scaffold the new repo from the vendored copy: README with the ladder decision tree + host-support table, thesis-forward, Apache-2.0; tests carried over
+- Lineage notes both sides; drift test against the pinned upstream release
+- Development in the new repo can use the orchestrator/worker runner pattern (the generalized `WATCHER_PROMPT.md` was built for this)
 
 ### Phase 2C — Packaging + publish gates
 
@@ -126,14 +137,22 @@ Phase 1 is complete (2026-06-11). Phase 2 is gated on the 2A operator decisions;
 
 | # | Item | Phase | Status |
 |---|------|-------|--------|
-| 1 | Name decision + npm/PyPI/GitHub verification | 2A | **OPEN — discussion in progress** (shortlist + collision recon in Design Part 2) |
-| 2 | Repo-model + first-release-sequencing decisions | 2A | **OPEN — discussion in progress** (leaning standalone-canonical + QPB-vendored) |
-| 3 | Standalone repo extraction (generic core + demo + README + tests) | 2B | PENDING 2A |
-| 4 | QPB vendored-copy lineage note (+ drift test if confirmed) | 2B | PENDING 2A |
-| 5 | pip + npm packaging with publish gates (clean-clone cold-build + built-artifact E2E + dry-run) | 2C | PENDING 2B |
-| 6 | Claude marketplace submissions (harness plugin + QPB plugin) | 2D | PENDING 2C |
-| 7 | Delete `bin/harness/` + its tests (gate satisfied by item-11 E2E PASS) | 2E | READY — can land with the next worker instruction |
-| 8 | Release ship steps 1-8 | 3 | PENDING Phase 2 Ship Gate |
+| 1 | Name decision + npm/PyPI/GitHub verification (cascades: repo/packages/plugin/skill/CLI/article) | 2A | **DEFERRED with deadline** — any time before the standalone's first publish (operator, 2026-06-11). Shortlist + collision recon in Design Part 2. |
+| 2 | Repo-model + sequencing decisions | 2A | **RESOLVED 2026-06-11** — new repo at naming time, QPB vendors with lineage note + drift test; QPB tag waits for standalone first publish. Capability ladder canonicalized in Design Part 2. |
+| 3 | Genericized heartbeat helper (free-string phase, no run-state coupling) | 2B | PENDING — unblocked, name-free |
+| 4 | Python demo stub replacing the bash stub in the example plan | 2B | PENDING — unblocked |
+| 5 | `harness_ticker.py` (cadence rungs 3-4: foreground loop + `--once` manual; detach flags; stdlib) | 2B | PENDING — unblocked |
+| 6 | Shell-dispatch mode (schema `"shell"` + version bump; `worker_cmd` templates; prompt-files; A-5 PID locks; auth pre-flight) | 2B | PENDING — unblocked; REQUIRED for cadence rungs 2-4 incl. the no-admin floor |
+| 7 | Capability-ladder prose in SKILL + BOOTSTRAP (probe / announce / degrade-with-printed-command) | 2B | PENDING — unblocked |
+| 8 | Edge-case hardening E1 (tick lockfile), E2 (clock-jump guard), E4 (synced-folder warning), E6 (heartbeat-write-failure prose) | 2B | PENDING — unblocked |
+| 9 | Extraction to the new repo (scaffold + README ladder/host table + lineage notes + drift test) | 2B′ | PENDING item 1 (name) ONLY |
+| 10 | pip + npm packaging with publish gates (clean-clone cold-build + built-artifact E2E + dry-run) | 2C | PENDING 2B′ |
+| 11 | Validation matrix: cadence-3 ticker (macOS + no-admin Windows-like), cadence-2 cron (≥1 host), manual floor, Copilot `/every` cadence-1 experiment, E7 compaction probe | 2B/2C | PENDING items 5-6; cadence-1 DONE (Sonnet ×3, Haiku ×1, Haiku re-test in flight) |
+| 12 | Claude marketplace submissions (harness plugin + QPB plugin) | 2D | PENDING 2C |
+| 13 | ~~Delete `bin/harness/`~~ | 2E | **DONE (`5b5eee3`)** |
+| 14 | Release ship steps 1-8 (standalone first publish → QPB tag, one burst per 2A sequencing) | 3 | PENDING Phase 2 Ship Gate |
+
+**Deferred out of v1.5.9 (recorded in Design Part 2):** first real-QPB-under-harness run + live-pipeline facade wiring (both → v1.5.10, riding the trim's benchmark run), full Codex/Cursor per-host matrices (standalone v0.2), A2A transport.
 
 ---
 

@@ -59,20 +59,38 @@ The SKILL.md trim that previously occupied workstream 2 moves intact to **v1.5.1
 - Claude marketplace path confirmed (2026-06-11): `anthropics/claude-plugins-official` (launched 2026-05-22, pre-registered by default in Claude Code), third-party submission via the plugin directory submission form, automated screening on entry, optional stricter review for an "Anthropic Verified" badge. Both plugins (QPB + harness) already have the required plugin layout + marketplace.json shape.
 - The standalone's demo plan is essentially `testing/e2e_stub_plan.json` (the item-11 apparatus), genericized.
 
-**OPEN DECISIONS — discussion in progress (operator + orchestrator, 2026-06-11; continue before instructions are filed):**
+**DECISIONS (operator, 2026-06-11):**
 
-1. **Name.** Operator wants a broader brainstorm. Current shortlist with registry recon: `tickwork` (npm free; clockwork-architecture story, professional CLI feel), `wakeloop` (npm free; names the novel primitive), `wakecrew` (unchecked; wakes-and-checks-its-crew), `callboard` (unchecked; theater job-board metaphor), `coxswain` (best role metaphor — calls the cadence, doesn't row — but hard to spell/say), `octoharness`/`octoloop` (Octobatch brand family; insider-y). Ruled out for collisions: `powernap` (npm taken), `cadence` (Uber), `metronome` (billing co.), `bosun` (Stack Exchange monitoring), `nightwatch` (JS testing), `stagehand` (Browserbase). The name carries the article thesis — decide deliberately, then verify npm + PyPI + GitHub before committing anything.
-2. **Repo model.** Leaning model 1 of 3 — standalone repo is canonical for the generic core; QPB keeps its vendored copy under `plugins/` with a lineage note (and possibly a drift test against a pinned upstream release). Ruled-out-leaning: QPB-depends-on-package (breaks QPB's self-contained install closure) and publish-from-QPB-monorepo (the article's URL would point into a QPB subfolder; extraction later breaks links). NOT yet operator-confirmed.
-3. **Versioning/sequencing of the standalone's first release** relative to the QPB v1.5.9 tag (standalone starts at its own v0.x; does the QPB tag wait for the standalone's first publish or only for the marketplace submissions?).
+1. **Name — DEFERRED with a defined deadline:** decide any time before the standalone's first publish. Development proceeds name-free in the QPB vendored copy (see decision 2), so nothing blocks. Shortlist with registry recon preserved: `tickwork` (npm free), `wakeloop` (npm free), `wakecrew`, `callboard`, `coxswain`, `octoharness`/`octoloop`. Ruled out for collisions: `powernap`, `cadence`, `metronome`, `bosun`, `nightwatch`, `stagehand`. On choice: verify npm + PyPI + GitHub, then the name cascades into repo / both packages / plugin name / skill name / CLI command / article.
+2. **Repo model — RESOLVED:** new standalone repo is created (at naming time) as the canonical upstream for the generic core; QPB keeps its vendored copy under `plugins/` with a lineage note. Until the new repo exists, ALL generic-core development happens in the QPB vendored copy — this is what makes the name deferral free.
+3. **Sequencing — RESOLVED:** the QPB v1.5.9 tag WAITS for the standalone's first live publish; both happen in one close-out burst.
 
-**Scope for v1.5.9 (modulo the open decisions):**
+### The capability ladder (operator decision 2026-06-11; supersedes the research doc's tier framing as canonical text)
 
-1. Name chosen + verified across npm / PyPI / GitHub.
-2. New repo scaffolded: generic tick script, generic heartbeat helper, harness SKILL.md, BOOTSTRAP_PROMPT.md, schemas, STATE_MACHINE.md, example stub plan (the 20-minute demo), tests, README that sells the thesis in 30 seconds, Apache-2.0.
+The harness degrades along TWO independent axes — cadence (how the next tick happens) and dispatch (how workers start) — with a manual floor. The disk state machine is identical at every rung; only the substrate changes. At startup the orchestrating agent (when there is one) probes its own tooling and announces which rung it selected; below the agent rungs, the README's decision tree routes the operator to the right entry point.
+
+**Cadence axis (prefer the highest available):**
+1. In-session scheduling primitive — `ScheduleWakeup` (Claude Code; validated), `/every` (Copilot CLI; experiment pending).
+2. OS/host scheduler — cron / launchd / Task Scheduler / host Automations fire a one-tick non-interactive invocation on cadence. Survives window-closes; needs scheduler rights.
+3. Foreground ticker — `harness_ticker.py` loops tick → spawn → sleep in a plain terminal window. No scheduler rights needed; window must stay open. THE NO-ADMIN FLOOR for locked-down hosts.
+4. Manual — the operator ticks by hand. **Self-describing degradation: whenever a rung fails (scheduling unavailable, wakeup doesn't fire, ticker can't start), the harness prints the exact command to run in another window** — `python3 <abs-path>/harness_ticker.py --once <run-dir>` (or the loop form) — so the floor is always one copy-paste away. This generalizes the v1.5.7 "restart spell."
+
+**Dispatch axis:**
+1. In-session subagents (`Task`/`Agent`) — only valid when the orchestrator session persists across the workers' lifetime (cadence rung 1). Validated.
+2. Shell dispatch — workers as detached host-CLI subprocesses (`claude`/`codex exec`/`copilot -p`/`cursor agent` per `worker_cmd` template), heartbeats unchanged. REQUIRED for cadence rungs 2-4 (an externally-ticked session's subagents die with its turn) and therefore in v1.5.9 scope.
+
+Constraint coupling made explicit: **cadence rungs 2-4 imply dispatch rung 2.** The worst-case deployment (Windows, no admin, no cron) = cadence 3 + dispatch 2, and it MUST work in the first release.
+
+**Scope for v1.5.9 (per the decisions above):**
+
+1. Generic-core development in the QPB vendored copy (name-free): genericized heartbeat helper, Python demo stub (replaces bash), `harness_ticker.py` (cadence rungs 3-4), shell-dispatch mode (`dispatch_mode: "shell"`, `worker_cmd` templates, prompt-files, PID locks per Council A-5, per-host auth pre-flight), capability-ladder prose in SKILL + bootstrap (probe, announce, degrade with printed commands), edge-case hardening E1 (tick lockfile), E2 (wall-clock-jump stall guard), E4 (synced-folder warning), E6 (heartbeat-write-failure prose).
+2. At naming time: new repo scaffolded from the vendored copy (README with the ladder decision tree + host-support table, thesis-forward, Apache-2.0), lineage notes both sides, drift test against the pinned upstream release.
 3. pip + npm packages with publish scripts modeled on QPB's (dry-run gates mandatory before any live publish).
-4. QPB's vendored copy annotated with the lineage note (+ drift test if model 1 confirmed).
-5. Claude marketplace submissions: the standalone harness plugin AND the Quality Playbook plugin, via the official submission form.
-6. `bin/harness/` (the old Python harness) deleted — the item-11 PASS satisfied the deletion gate.
+4. Validation matrix: ladder rungs exercised with the stub plan — cadence 1 done (Sonnet ×3, Haiku; re-test in flight), cadence 3 (ticker) on macOS + Windows-like no-admin conditions, cadence 2 (cron) on at least one host, manual floor; Copilot `/every` cadence-1 experiment; E7 compaction probe (loop-drop diagnostic).
+5. Claude marketplace submissions: the standalone harness plugin AND the Quality Playbook plugin.
+6. ~~`bin/harness/` deleted~~ — DONE (`5b5eee3`).
+
+**Explicitly deferred from v1.5.9:** the first real-QPB-under-harness run (earmarked as the v1.5.10 trim's benchmark substrate — the harness orchestration surface is fully validated by the stub matrix; what a real run adds is worker-side integration evidence, which v1.5.10 produces anyway), the live-pipeline facade wiring (v1.5.10, rides the SKILL restructure), full Codex/Cursor per-host matrices (standalone v0.2), A2A transport (unchanged).
 
 ---
 
