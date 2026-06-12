@@ -53,9 +53,14 @@ class HarnessSchemaConsistencyTests(unittest.TestCase):
         # the four always-required top-level fields
         self.assertEqual(set(schema.get("required", [])),
                          {"ts", "task_id", "schema_version", "status"})
-        # schema_version pinned to "1"
+        # schema_version accepts v1 (legacy read) + v2 (current emit);
+        # Postel — the reader is liberal in what it accepts (FR-18/19).
         self.assertEqual(
-            schema["properties"]["schema_version"]["enum"], ["1"])
+            schema["properties"]["schema_version"]["enum"], ["1", "2"])
+        # v2 generic surface: label + opaque data, the v1 phase/step gone
+        # from the required set.
+        self.assertIn("label", schema["properties"])
+        self.assertIn("data", schema["properties"])
         # progress vs terminal oneOf branches present
         self.assertEqual(len(schema.get("oneOf", [])), 2)
 

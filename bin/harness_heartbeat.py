@@ -4,27 +4,34 @@
 
 The GENERIC heartbeat surface (FR-18..21). Unlike QPB's ``qpb_heartbeat.py``
 (which resolves a phase NUMBER through ``phase_identity`` and reads the
-keepalive phase from ``run_state.jsonl``), this helper treats ``phase`` as
-a FREE STRING (FR-20) and has no QPB coupling  -  it is the part that
+keepalive position from ``run_state.jsonl``), this helper treats ``label``
+as a FREE STRING (FR-18) and has no QPB coupling  -  it is the part that
 extracts to the standalone repo verbatim. QPB's vendored integration layers
-its phase-identity derivation on top; that coupling never enters this core.
+its phase-identity derivation on top (mapping phase identity into ``label``
+e.g. ``2:generation``); that coupling never enters this core.
 
 A worker appends single-line JSON heartbeat records to a known file so the
-tick engine can track progress and detect stalls. Subcommands:
+tick engine can track progress and detect stalls. The contract: ``status``
+is the ONLY field the harness interprets; ``label`` is a short free string
+it displays (column ACTIVITY) but never reads; ``data`` is an opaque object
+it never reads. Subcommands:
 
-  emit       progress record: --phase <str> --step <str>
+  emit       progress record: --label <str>
              --status STARTING|IN_PROGRESS|COMPLETED|FAILED [--message]
-  keepalive  mid-work liveness ping: reads the CURRENT phase from the LAST
-             heartbeat line (the canonical position in the generic core  - 
+             [--data <json-object>]
+  keepalive  mid-work liveness ping: reads the CURRENT label from the LAST
+             heartbeat line (the canonical position in the generic core  -
              there is no run_state.jsonl) and appends an IN_PROGRESS line,
-             so the ping's phase can't drift. --phase overrides; no-op if
-             no prior phase and no --phase.
+             so the ping's label can't drift. --label overrides; no-op if
+             no prior label and no --label.
   terminal   last line: --status COMPLETED|FAILED|ABANDONED
              --result-file <path> --summary <text>
 
 Disciplines (FR-19): every value is JSON-encoded via ``json.dumps`` (never
 printf-interpolated, so %/"/\\ are safe); appends are atomic ``O_APPEND``;
-every line carries ``schema_version="1"`` (FR-18).
+every line carries ``schema_version="2"`` (FR-18). Postel: the harness
+READER also accepts v1 lines (``phase``/``step``); this helper only EMITS
+v2.
 
 E6 (FR-21): if the append FAILS, the helper exits NONZERO loudly (it never
 swallows the error)  -  a silent worker must never look healthy. Worker
@@ -54,7 +61,7 @@ from typing import Optional
 _NAME = "harness_heartbeat"
 _PROGRESS_STATES = ("STARTING", "IN_PROGRESS", "COMPLETED", "FAILED")
 _TERMINAL_STATES = ("COMPLETED", "FAILED", "ABANDONED")
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 
 # Env aliases: generic names first, QPB names tolerated for vendored use.
 _HB_ENV = ("HARNESS_HEARTBEAT_PATH", "QPB_HEARTBEAT_PATH")
@@ -87,10 +94,12 @@ def append_line(heartbeat_path: Path, obj: dict) -> None:
         os.close(fd)
 
 
-def last_phase(heartbeat_path: Path) -> Optional[str]:
-    """Return the ``phase`` of the most recent heartbeat line carrying one
-    (the generic 'current position'), or None. Reads with errors='replace'
-    (NFR-7  -  external worker content)."""
+def last_label(heartbeat_path: Path) -> Optional[str]:
+    """Return the ``label`` of the most recent heartbeat line carrying one
+    (the generic 'current position'), or None. Postel: a v1 line carries
+    ``phase`` instead of ``label`` — fall back to it so the keepalive reuses
+    a v1 position too. Reads with errors='replace' (NFR-7  -  external
+    worker content); a malformed line is skipped, never fatal."""
     if not heartbeat_path.is_file():
         return None
     try:
@@ -105,23 +114,26 @@ def last_phase(heartbeat_path: Path) -> Optional[str]:
         try:
             obj = json.loads(ln)
         except ValueError:
-            continue
-        if isinstance(obj, dict) and obj.get("phase"):
-            return str(obj["phase"])
+            continue  # Postel: skip a malformed line, keep scanning
+        if isinstance(obj, dict) and (obj.get("label") or obj.get("phase")):
+            return str(obj.get("label") or obj.get("phase"))
     return None
 
 
-def build_progress(*, phase: str, task_id: str, step: str, status: str,
+def build_progress(*, label: str, task_id: str, status: str,
                    message: Optional[str] = None,
+                   data: Optional[dict] = None,
                    ts: Optional[str] = None) -> dict:
     if status not in _PROGRESS_STATES:
         raise ValueError(
             f"status {status!r} must be one of {_PROGRESS_STATES}")
     obj = {"ts": ts or _utc_iso(), "task_id": task_id,
-           "schema_version": SCHEMA_VERSION, "phase": str(phase),
-           "step": step, "status": status}
+           "schema_version": SCHEMA_VERSION, "label": str(label),
+           "status": status}
     if message is not None:
         obj["message"] = message
+    if data is not None:
+        obj["data"] = data
     return obj
 
 
@@ -169,11 +181,24 @@ def _append_or_die(hb: Path, obj: dict) -> int:
     return 0
 
 
+def _parse_data(raw: Optional[str]):
+    """Parse the optional --data JSON-object string. Returns None if unset;
+    raises ValueError if it isn't a JSON object."""
+    if raw is None:
+        return None
+    obj = json.loads(raw)
+    if not isinstance(obj, dict):
+        raise ValueError("--data must be a JSON object")
+    return obj
+
+
 def _cmd_emit(args) -> int:
     hb, tid = _require_io(args)
     try:
-        obj = build_progress(phase=args.phase, task_id=tid, step=args.step,
-                             status=args.status, message=args.message)
+        data = _parse_data(getattr(args, "data", None))
+        obj = build_progress(label=args.label, task_id=tid,
+                             status=args.status, message=args.message,
+                             data=data)
     except ValueError as exc:
         print(f"{_NAME} emit: {exc}", file=sys.stderr)
         return 3
@@ -182,11 +207,10 @@ def _cmd_emit(args) -> int:
 
 def _cmd_keepalive(args) -> int:
     hb, tid = _require_io(args)
-    phase = args.phase or last_phase(hb)
-    if phase is None:
+    label = args.label or last_label(hb)
+    if label is None:
         return 0  # nothing to ping yet  -  not an error
-    obj = build_progress(phase=phase, task_id=tid,
-                         step=args.step or "keepalive", status="IN_PROGRESS")
+    obj = build_progress(label=label, task_id=tid, status="IN_PROGRESS")
     return _append_or_die(hb, obj)
 
 
@@ -212,16 +236,17 @@ def _build_parser() -> argparse.ArgumentParser:
 
     em = sub.add_parser("emit", help="progress heartbeat")
     common(em)
-    em.add_argument("--phase", required=True, help="free-string phase label")
-    em.add_argument("--step", required=True)
+    em.add_argument("--label", required=True,
+                    help="free-string activity label (displayed, not interpreted)")
     em.add_argument("--status", required=True, choices=list(_PROGRESS_STATES))
     em.add_argument("--message", default=None)
+    em.add_argument("--data", default=None,
+                    help="optional opaque JSON object (harness never reads it)")
 
-    ka = sub.add_parser("keepalive", help="liveness ping (reuses last phase)")
+    ka = sub.add_parser("keepalive", help="liveness ping (reuses last label)")
     common(ka)
-    ka.add_argument("--phase", default=None,
-                    help="override; default = last heartbeat's phase")
-    ka.add_argument("--step", default="keepalive")
+    ka.add_argument("--label", default=None,
+                    help="override; default = last heartbeat's label")
 
     tm = sub.add_parser("terminal", help="terminal sentinel (last line)")
     common(tm)

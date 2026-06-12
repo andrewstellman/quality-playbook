@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://github.com/andrewstellman/quality-playbook/schemas/heartbeat.schema.json",
-  "title": "QPB heartbeat line",
-  "description": "One JSON object per line in heartbeat.ndjson. The worker emits progress lines via the v1.5.9 1B.0 phase-transition facade (run_state_lib.emit_phase_transition, at phase boundaries) and via bin/qpb_heartbeat.py (the keepalive / on-error / terminal moments). The phase field is the canonical slug from phase_identity (single source of truth) so a heartbeat's phase always matches the ::QPB:: sentinel by construction. The harness (plugins/quality-playbook-harness/) tails heartbeat.ndjson and applies state-machine transitions per references/STATE_MACHINE.md. This file is byte-identical to plugins/quality-playbook-harness/skills/quality-playbook-harness/schemas/heartbeat.schema.json — the cross-skill byte-equality contract is load-bearing (Council C-3 silent-drift risk) and pinned by bin/tests/test_harness_schemas.py.",
+  "title": "Harness heartbeat line",
+  "description": "One JSON object per line in heartbeat.ndjson. The worker contract (FR-18): a job is anything that appends these lines to a file. `status` is the ONLY field the harness interprets (it drives the state machine); everything else is decoration the harness displays but never reads. `label` is a single short free-form string shown verbatim in the status table (column ACTIVITY; truncated to width and ASCII-sanitized for DISPLAY only, raw preserved on disk) — it replaces the v1 `phase`/`step` pair. `data` is an opaque JSON object the harness never reads (the structure escape hatch / A2A path). schema_version is '2'; the harness honors Postel's law and still reads v1 lines (`phase`/`step`, schema_version '1') — be conservative in what it emits, liberal in what it accepts; a malformed line is skipped with a warning, never fatal. QPB's vendored integration sets `label` from its own phase identity (e.g. '2:generation') and carries the old step under `data.step`; that coupling never enters the generic core. This file is byte-identical to plugins/quality-playbook/skills/quality-playbook/schemas/heartbeat.schema.json — the cross-skill byte-equality contract is load-bearing (Council C-3 silent-drift risk) and pinned by bin/tests/test_harness_schemas.py.",
   "type": "object",
   "required": ["ts", "task_id", "schema_version", "status"],
   "properties": {
@@ -12,29 +12,37 @@
     },
     "task_id": {
       "type": "string",
-      "description": "Task id matching the job manifest. Threaded from the worker prompt header (TASK_ID=<id>) or env var QPB_TASK_ID."
+      "description": "Task id matching the job manifest. Threaded from the worker prompt header (TASK_ID=<id>) or env var HARNESS_TASK_ID / QPB_TASK_ID."
     },
     "schema_version": {
       "type": "string",
-      "enum": ["1"],
-      "description": "Schema-version pin. Currently '1'. The harness warns on mismatch (Council C-3)."
+      "enum": ["1", "2"],
+      "description": "Schema-version pin. Current emit version is '2' (label/data). v1 (phase/step) is still accepted on read (Postel). The harness warns on any OTHER value (Council C-3 drift)."
+    },
+    "label": {
+      "type": "string",
+      "description": "v2: a single short free-form activity string, displayed verbatim in the ACTIVITY column (truncated to column width and ASCII-sanitized for display; raw preserved on disk). Optional. Replaces the v1 phase/step pair. The harness never interprets it."
     },
     "phase": {
       "type": "string",
-      "description": "Canonical phase slug from phase_identity (validation / exploration / generation / code-review / spec-audit / reconciliation / verification). Present on progress heartbeats; omitted on the terminal sentinel."
+      "description": "v1 (legacy, read-only): the old canonical phase slug. Still accepted on read for back-compatibility; new lines use `label`."
     },
     "step": {
       "type": "string",
-      "description": "Specific step within the phase (e.g. 'keepalive', 'phase_start'). Present on progress heartbeats; omitted on the terminal sentinel."
+      "description": "v1 (legacy, read-only): the old step within a phase. Still accepted on read; new lines fold any equivalent under `data`."
     },
     "status": {
       "type": "string",
       "enum": ["STARTING", "IN_PROGRESS", "COMPLETED", "FAILED", "ABANDONED"],
-      "description": "Progress: STARTING / IN_PROGRESS / COMPLETED / FAILED. Terminal sentinel (last line): COMPLETED / FAILED / ABANDONED."
+      "description": "The ONLY field the harness interprets. Progress: STARTING / IN_PROGRESS / COMPLETED / FAILED. Terminal sentinel (last line): COMPLETED / FAILED / ABANDONED."
     },
     "message": {
       "type": "string",
-      "description": "Optional human-readable detail."
+      "description": "Optional human-readable detail (longer than label)."
+    },
+    "data": {
+      "type": "object",
+      "description": "Optional opaque JSON object the harness NEVER reads — the structure escape hatch and A2A migration path. A worker may carry any side payload here (QPB stashes the legacy step under data.step)."
     },
     "result_file": {
       "type": "string",
@@ -48,7 +56,6 @@
   "oneOf": [
     {
       "title": "Progress heartbeat",
-      "required": ["phase", "step"],
       "not": { "required": ["result_file"] }
     },
     {

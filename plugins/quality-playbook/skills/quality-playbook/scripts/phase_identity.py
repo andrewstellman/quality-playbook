@@ -67,7 +67,12 @@ _PHASES: dict[int, tuple[str, str]] = {
 PHASE_NUMBERS = frozenset(_PHASES)
 
 # Heartbeat NDJSON schema version (v1.5.9 harness design §Heartbeat).
-HEARTBEAT_SCHEMA_VERSION = "1"
+# v2 (instruction 010 / FR-18): the generic surface carries a single free
+# `label` string + an opaque `data` object instead of the v1 `phase`/`step`
+# pair. QPB maps its phase identity into `label` (e.g. "2:generation") and
+# stashes the legacy step under `data.step`. The harness reader still
+# accepts v1 lines (Postel).
+HEARTBEAT_SCHEMA_VERSION = "2"
 
 # Legal phase-boundary states (public — qpb_phase's argparse reads it).
 PHASE_STATES = ("start", "done")
@@ -183,9 +188,13 @@ def build_heartbeat_obj(*, phase: int, task_id: str, step: str,
                         message: Optional[str] = None,
                         schema_version: str = HEARTBEAT_SCHEMA_VERSION
                         ) -> dict:
-    """Build one heartbeat NDJSON object. The ``phase`` field is the
-    canonical ``phase_slug(phase)`` — same identity as the sentinel, so
-    the harness reads a phase that matches the sentinel by construction.
+    """Build one heartbeat NDJSON object (schema v2). QPB maps its phase
+    IDENTITY into the generic ``label`` field — ``"<number>:<slug>"`` (e.g.
+    ``"2:generation"``) — derived from the SAME shared table as the
+    sentinel, so a heartbeat's phase still matches the sentinel by
+    construction. The legacy ``step`` is preserved under the opaque
+    ``data.step`` escape hatch (the harness never reads ``data``). Callers
+    keep passing ``phase``/``step``; only the on-disk shape generalized.
     Raises ``ValueError`` on a bad phase/status."""
     _require_phase(phase)
     if status not in HEARTBEAT_STATES:
@@ -196,9 +205,9 @@ def build_heartbeat_obj(*, phase: int, task_id: str, step: str,
         "ts": ts or utc_now_iso(),
         "task_id": task_id,
         "schema_version": schema_version,
-        "phase": _PHASES[phase][0],
-        "step": step,
+        "label": "%d:%s" % (phase, _PHASES[phase][0]),
         "status": status,
+        "data": {"step": step},
     }
     if message is not None:
         obj["message"] = message

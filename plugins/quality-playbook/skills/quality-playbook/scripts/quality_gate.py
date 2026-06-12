@@ -3642,7 +3642,8 @@ def check_heartbeat_sidecar(q):
     """v1.5.9 1B — heartbeat.ndjson conformance (present only under the
     harness; the file sits beside quality/ in the run-dir). Carries the
     harness Council disciplines into the gate surface:
-      * C-3 — every line pins ``schema_version="1"`` (silent-drift guard);
+      * C-3 — every line pins a known ``schema_version`` (``"1"`` legacy or
+        ``"2"`` current; Postel) (silent-drift guard);
       * A-1 — clean O_APPEND NDJSON framing: one valid JSON object per
         line, never a torn line;
       * the progress/terminal status enum + terminal-sentinel discipline.
@@ -3680,7 +3681,7 @@ def check_heartbeat_sidecar(q):
             bad_json += 1
             continue
         last_obj = obj
-        if obj.get("schema_version") != "1":
+        if obj.get("schema_version") not in ("1", "2"):
             bad_ver += 1
         if obj.get("status") not in progress | terminal:
             bad_status += 1
@@ -3690,10 +3691,10 @@ def check_heartbeat_sidecar(q):
     else:
         pass_("all heartbeat lines are valid JSON (A-1 framing intact)")
     if bad_ver:
-        warn(f"{bad_ver} heartbeat line(s) missing schema_version=='1' "
-             f"(C-3 drift)")
+        warn(f"{bad_ver} heartbeat line(s) carry an unrecognized "
+             f"schema_version (not '1' or '2') (C-3 drift)")
     else:
-        pass_("all heartbeat lines pin schema_version=='1' (C-3)")
+        pass_("all heartbeat lines pin schema_version in {'1','2'} (C-3)")
     if bad_status:
         warn(f"{bad_status} heartbeat line(s) carry an unknown status value")
     if isinstance(last_obj, dict) and last_obj.get("status") in terminal:

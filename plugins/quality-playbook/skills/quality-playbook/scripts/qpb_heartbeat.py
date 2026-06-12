@@ -28,7 +28,8 @@ Carry-forwards honored (1A spike Council B-F3/F4): EVERY value is
 JSON-encoded via ``json.dumps`` — never ``printf``-interpolated — so a
 ``%``, ``"`` or ``\\`` in any field can't corrupt the line. Append is
 ``O_APPEND`` (Council A-1: concurrent appends to one file can't tear).
-Every line carries ``schema_version="1"`` (Council C-3).
+Every line carries ``schema_version="2"`` (instruction 010 / FR-18: the
+generic label/data surface; the harness reader still accepts v1, Postel).
 
 Phase identity comes from the shared ``phase_identity`` module (NEVER a
 private copy) — same single source of truth as the sentinel and the
@@ -207,7 +208,7 @@ def _cmd_terminal(args) -> int:
     obj = {
         "ts": _utc_iso(),
         "task_id": tid,
-        "schema_version": "1",
+        "schema_version": "2",
         "status": args.status,
         "result_file": args.result_file,
         "summary": args.summary,

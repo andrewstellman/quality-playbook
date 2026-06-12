@@ -58,7 +58,7 @@ def main(argv=None) -> int:
     ap.add_argument("--heartbeat-path", default=None)
     ap.add_argument("--task-id", default=None)
     ap.add_argument("--run-dir", default=None)
-    ap.add_argument("--phase", default="demo")
+    ap.add_argument("--label", default="demo")
     ap.add_argument("--steps", type=int, default=4)
     ap.add_argument("--sleep", type=float, default=150.0)
     args = ap.parse_args(list(sys.argv[1:] if argv is None else argv))
@@ -76,8 +76,11 @@ def main(argv=None) -> int:
     H = _load_heartbeat()
 
     def emit(step, status, message=None):
-        obj = H.build_progress(phase=args.phase, task_id=task_id, step=step,
-                               status=status, message=message)
+        # The stub's activity label is "<base>/<step>" (e.g. "demo/work-2"),
+        # carrying the old step under the opaque data escape hatch.
+        obj = H.build_progress(label=f"{args.label}/{step}", task_id=task_id,
+                               status=status, message=message,
+                               data={"step": step})
         try:
             H.append_line(hb, obj)
         except (OSError, ValueError) as exc:

@@ -3,15 +3,16 @@
 The gate carries the harness heartbeat disciplines (Council C-3 / A-1)
 into its validation surface: when a run was orchestrated by the harness
 (a heartbeat.ndjson sits beside quality/), the gate warns on any line
-that isn't valid JSON (A-1 framing) or doesn't pin schema_version="1"
-(C-3 drift). Non-blocking by design — heartbeat is orchestration
-metadata, not a grading input.
+that isn't valid JSON (A-1 framing) or carries a schema_version other than
+"1" or "2" (C-3 drift; Postel — both known versions accepted). Non-blocking
+by design — heartbeat is orchestration metadata, not a grading input.
 
 MUTATION-VERIFY EVIDENCE (in-tree per DEVELOPMENT_PROCESS.md §Mutation-
-test discipline), v1.5.9 instruction 005:
+test discipline), v1.5.9 instruction 005 / refreshed 010:
   Pin: test_warns_on_schema_version_drift.
   Mutation: in quality_gate.check_heartbeat_sidecar change the C-3
-    comparison `obj.get("schema_version") != "1"` to `== "1"`.
+    comparison `obj.get("schema_version") not in ("1", "2")` to
+    `in ("1", "2")`.
   Observed: test_warns_on_schema_version_drift FAILs (a drifted line no
     longer produces the C-3 warning). Restored → OK.
 """
@@ -71,23 +72,37 @@ class HeartbeatGateInvariantTests(unittest.TestCase):
         self.assertNotIn("WARN", out)
 
     def test_clean_heartbeat_passes(self):
+        # current emit is v2 (label/data); the terminal sentinel too.
         lines = [
-            _hb(ts="t", task_id="x", schema_version="1", phase="exploration",
-                step="s", status="STARTING"),
-            _hb(ts="t", task_id="x", schema_version="1",
+            _hb(ts="t", task_id="x", schema_version="2", label="2:generation",
+                status="STARTING", data={"step": "s"}),
+            _hb(ts="t", task_id="x", schema_version="2",
                 status="COMPLETED", result_file="quality/SUMMARY.md",
                 summary="done"),
         ]
         out = _run_check(lines)
         self.assertIn("all heartbeat lines are valid JSON", out)
-        self.assertIn("schema_version=='1'", out)
+        self.assertIn("schema_version in {'1','2'}", out)
         self.assertIn("terminal sentinel present", out)
+        self.assertNotIn("WARN", out)
+
+    def test_postel_accepts_v1_lines(self):
+        # A legacy v1 line (phase/step, schema_version "1") must still pass
+        # the C-3 check (Postel: the reader is liberal in what it accepts).
+        lines = [
+            _hb(ts="t", task_id="x", schema_version="1", phase="exploration",
+                step="s", status="STARTING"),
+            _hb(ts="t", task_id="x", schema_version="2", label="2:generation",
+                status="IN_PROGRESS"),
+        ]
+        out = _run_check(lines)
+        self.assertIn("schema_version in {'1','2'}", out)
         self.assertNotIn("WARN", out)
 
     def test_warns_on_torn_json_line(self):
         lines = [
-            _hb(ts="t", task_id="x", schema_version="1", phase="exploration",
-                step="s", status="STARTING"),
+            _hb(ts="t", task_id="x", schema_version="2", label="2:generation",
+                status="STARTING"),
             '{"ts":"t","task_id":"x" TORN',  # A-1 framing violation
         ]
         out = _run_check(lines)
@@ -96,8 +111,8 @@ class HeartbeatGateInvariantTests(unittest.TestCase):
 
     def test_warns_on_schema_version_drift(self):
         lines = [
-            _hb(ts="t", task_id="x", schema_version="2", phase="exploration",
-                step="s", status="IN_PROGRESS"),  # C-3 drift
+            _hb(ts="t", task_id="x", schema_version="3", label="x",
+                status="IN_PROGRESS"),  # C-3 drift — neither 1 nor 2
         ]
         out = _run_check(lines)
         self.assertIn("WARN", out)
@@ -106,8 +121,8 @@ class HeartbeatGateInvariantTests(unittest.TestCase):
 
     def test_in_flight_run_no_terminal_is_info(self):
         lines = [
-            _hb(ts="t", task_id="x", schema_version="1", phase="generation",
-                step="s", status="IN_PROGRESS"),
+            _hb(ts="t", task_id="x", schema_version="2", label="2:generation",
+                status="IN_PROGRESS"),
         ]
         out = _run_check(lines)
         self.assertIn("no terminal sentinel", out)

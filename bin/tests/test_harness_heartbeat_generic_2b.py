@@ -1,11 +1,12 @@
 """v1.5.9 Phase 2B — generic heartbeat helper + demo worker (FR-18..21).
 
-bin/harness_heartbeat.py is the payload-agnostic heartbeat core (phase is a
-FREE STRING, no phase_identity / run_state coupling — FR-20) that extracts
+bin/harness_heartbeat.py is the payload-agnostic heartbeat core (label is a
+FREE STRING, no phase_identity / run_state coupling — FR-18) that extracts
 to the standalone repo. bin/harness_demo_worker.py is the cross-platform
 stub (FR-31). This pins: JSON-encoding of every value (FR-19), free-string
-phase, keepalive-reuses-last-phase, the E6 loud-nonzero write-failure path
-(FR-21), Mode-A no-op, and the demo lifecycle.
+label, schema_version "2", the opaque `data` escape hatch, keepalive-reuses-
+last-label (incl. Postel fall-back to a v1 `phase`), the E6 loud-nonzero
+write-failure path (FR-21), Mode-A no-op, and the demo lifecycle.
 
 MUTATION-VERIFY EVIDENCE (DEVELOPMENT_PROCESS.md §Mutation-test), instr 009:
   Pin: test_e6_write_failure_exits_nonzero. Mutation: in
@@ -61,36 +62,67 @@ class GenericHeartbeatTests(unittest.TestCase):
     def _lines(self):
         return [json.loads(l) for l in self.hb.read_text().splitlines() if l.strip()]
 
-    def test_phase_is_free_string(self):
-        # any string is a legal phase — no phase_identity validation
-        for ph in ("demo", "build phase", "weird/slug-99", "Phase 1"):
+    def test_label_is_free_string(self):
+        # any string is a legal label — no phase_identity validation
+        for lb in ("demo", "build phase", "weird/slug-99", "2:generation"):
             H.append_line(self.hb, H.build_progress(
-                phase=ph, task_id="t", step="s", status="IN_PROGRESS"))
-        self.assertEqual([x["phase"] for x in self._lines()],
-                         ["demo", "build phase", "weird/slug-99", "Phase 1"])
+                label=lb, task_id="t", status="IN_PROGRESS"))
+        self.assertEqual([x["label"] for x in self._lines()],
+                         ["demo", "build phase", "weird/slug-99", "2:generation"])
+
+    def test_emits_schema_version_2(self):
+        H.append_line(self.hb, H.build_progress(
+            label="x", task_id="t", status="STARTING"))
+        self.assertEqual(self._lines()[-1]["schema_version"], "2")
 
     def test_values_json_encoded_special_chars(self):
-        rc = _run_cli(_HB, "emit", "--phase", "p%x", "--step", "s",
+        rc = _run_cli(_HB, "emit", "--label", "p%x",
                       "--status", "IN_PROGRESS", "--task-id", "t-1",
                       "--heartbeat-path", str(self.hb),
                       "--message", 'has % and " and \\ chars')
         self.assertEqual(rc.returncode, 0, rc.stderr)
         obj = self._lines()[-1]
         self.assertEqual(obj["message"], 'has % and " and \\ chars')
-        self.assertEqual(obj["phase"], "p%x")
-        self.assertEqual(obj["schema_version"], "1")
+        self.assertEqual(obj["label"], "p%x")
+        self.assertEqual(obj["schema_version"], "2")
 
-    def test_keepalive_reuses_last_phase(self):
+    def test_opaque_data_object_round_trips(self):
+        rc = _run_cli(_HB, "emit", "--label", "g", "--status", "IN_PROGRESS",
+                      "--task-id", "t", "--heartbeat-path", str(self.hb),
+                      "--data", '{"step":"work-3","attempt":2}')
+        self.assertEqual(rc.returncode, 0, rc.stderr)
+        self.assertEqual(self._lines()[-1]["data"],
+                         {"step": "work-3", "attempt": 2})
+
+    def test_data_must_be_json_object(self):
+        rc = _run_cli(_HB, "emit", "--label", "g", "--status", "IN_PROGRESS",
+                      "--task-id", "t", "--heartbeat-path", str(self.hb),
+                      "--data", "[1,2,3]")
+        self.assertEqual(rc.returncode, 3, rc.stderr)
+
+    def test_keepalive_reuses_last_label(self):
         H.append_line(self.hb, H.build_progress(
-            phase="builder", task_id="t", step="s", status="STARTING"))
+            label="builder", task_id="t", status="STARTING"))
         rc = _run_cli(_HB, "keepalive", "--task-id", "t",
                       "--heartbeat-path", str(self.hb))
         self.assertEqual(rc.returncode, 0, rc.stderr)
         last = self._lines()[-1]
-        self.assertEqual(last["phase"], "builder")
+        self.assertEqual(last["label"], "builder")
         self.assertEqual(last["status"], "IN_PROGRESS")
 
-    def test_keepalive_noop_when_no_prior_phase(self):
+    def test_keepalive_postel_falls_back_to_v1_phase(self):
+        # A v1 line carries `phase`, not `label` — the keepalive must still
+        # reuse it (Postel: liberal in what it accepts).
+        self.hb.parent.mkdir(parents=True, exist_ok=True)
+        self.hb.write_text(
+            '{"ts":"t","task_id":"t","schema_version":"1","phase":"explore",'
+            '"step":"s","status":"IN_PROGRESS"}\n', encoding="utf-8")
+        rc = _run_cli(_HB, "keepalive", "--task-id", "t",
+                      "--heartbeat-path", str(self.hb))
+        self.assertEqual(rc.returncode, 0, rc.stderr)
+        self.assertEqual(self._lines()[-1]["label"], "explore")
+
+    def test_keepalive_noop_when_no_prior_label(self):
         rc = _run_cli(_HB, "keepalive", "--task-id", "t",
                       "--heartbeat-path", str(self.hb))
         self.assertEqual(rc.returncode, 0)
@@ -105,21 +137,21 @@ class GenericHeartbeatTests(unittest.TestCase):
         self.assertEqual(last["status"], "COMPLETED")
         self.assertEqual(last["result_file"], "/tmp/x/SUMMARY.md")
         self.assertEqual(last["summary"], "ok")
-        self.assertNotIn("phase", last)
+        self.assertNotIn("label", last)
 
     def test_bad_status_exits_3(self):
-        rc = _run_cli(_HB, "emit", "--phase", "p", "--step", "s",
+        rc = _run_cli(_HB, "emit", "--label", "p",
                       "--status", "BOGUS", "--task-id", "t",
                       "--heartbeat-path", str(self.hb))
         self.assertNotEqual(rc.returncode, 0)  # argparse choices reject it
 
     def test_mode_a_noop(self):
-        rc = _run_cli(_HB, "emit", "--phase", "p", "--step", "s",
+        rc = _run_cli(_HB, "emit", "--label", "p",
                       "--status", "STARTING", "--mode-a-noop")
         self.assertEqual(rc.returncode, 0)
 
     def test_missing_io_exits_2(self):
-        rc = _run_cli(_HB, "emit", "--phase", "p", "--step", "s",
+        rc = _run_cli(_HB, "emit", "--label", "p",
                       "--status", "STARTING")
         self.assertEqual(rc.returncode, 2)
 
@@ -127,7 +159,7 @@ class GenericHeartbeatTests(unittest.TestCase):
         # Point the heartbeat path at a directory → O_APPEND open fails.
         blocked = Path(self._tmp.name) / "blocked_dir"
         blocked.mkdir()
-        rc = _run_cli(_HB, "emit", "--phase", "p", "--step", "s",
+        rc = _run_cli(_HB, "emit", "--label", "p",
                       "--status", "STARTING", "--task-id", "t",
                       "--heartbeat-path", str(blocked))
         self.assertEqual(rc.returncode, 5, rc.stderr)

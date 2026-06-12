@@ -32,9 +32,15 @@ test discipline), v1.5.9 instruction 004 — TWO axes, both BITE-EXECUTED
   else 2)`` so the heartbeat is built from a DIFFERENT phase than the
   sentinel (simulating a reintroduced second source).
   Observed: FAIL test_facade_emits_identical_number_name_across_three_
-  surfaces (heartbeat phase no longer matches the sentinel). Restored
-  -> OK. [This is the regression the cross-surface agreement defends:
-  any emitter computing its phase independently again.]
+  surfaces (the heartbeat ``label`` "<n>:<slug>" no longer matches the
+  sentinel). Restored -> OK. [This is the regression the cross-surface
+  agreement defends: any emitter computing its phase independently again.]
+
+  v1.5.9 instruction 010 / FR-18: heartbeats are now schema_version "2" —
+  the QPB phase identity is mapped into the generic ``label`` field as
+  ``"<number>:<slug>"`` (e.g. "2:generation"), and the legacy step is
+  carried under ``data.step``. The by-construction agreement is unchanged;
+  only the on-disk field that carries the slug moved (phase -> label).
 """
 from __future__ import annotations
 
@@ -130,10 +136,13 @@ class PhaseIdentitySourceOfTruthTests(unittest.TestCase):
                          self.pi.phase_slug(ev.fields["phase"])),
                         expected,
                     )
-                    # heartbeat (carries the slug in `phase`)
+                    # heartbeat (v2: carries the identity in `label` as
+                    # "<number>:<slug>"; legacy step under data.step)
                     self.assertEqual(
-                        (phase, hbline["phase"]), expected
+                        hbline["label"], "%d:%s" % expected
                     )
+                    self.assertEqual(hbline["schema_version"], "2")
+                    self.assertIn("step", hbline.get("data", {}))
                     # event kind matches the state
                     self.assertEqual(
                         ev.event,
@@ -187,7 +196,7 @@ class PhaseIdentitySourceOfTruthTests(unittest.TestCase):
                 run_state_path=rs, heartbeat_path=hb,
                 ts="2026-01-01T00:03:00Z",
             )
-            self.assertEqual(ka["phase"], self.pi.phase_slug(4))
+            self.assertEqual(ka["label"], "4:%s" % self.pi.phase_slug(4))
             self.assertEqual(ka["status"], "IN_PROGRESS")
             # current_phase reports 4 until phase_end closes it
             self.assertEqual(self.rsl.current_phase(rs), 4)
