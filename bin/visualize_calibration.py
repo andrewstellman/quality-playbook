@@ -149,7 +149,10 @@ def load_lever_log(log_path: Path) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     if not log_path.is_file():
         return entries
-    text = log_path.read_text(encoding="utf-8")
+    # 189-class: a calibration LOG can carry captured subprocess output —
+    # read with errors="replace" so a stray non-UTF-8 byte can't crash the
+    # visualizer on a cp1252 host.
+    text = log_path.read_text(encoding="utf-8", errors="replace")
     headings = list(_LEVER_HEADING_RE.finditer(text))
     for i, m in enumerate(headings):
         start = m.end()
@@ -535,7 +538,7 @@ def render_lever_interaction_graph(
              "-b", "white"],
             check=True,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             timeout=60,
         )
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):

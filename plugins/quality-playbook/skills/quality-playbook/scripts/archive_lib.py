@@ -308,7 +308,7 @@ def _git_log_timestamps(repo: Path, folder: Path) -> Tuple[Optional[str], Option
             cwd=repo,
             check=True,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
         )
     except (FileNotFoundError, subprocess.CalledProcessError):
         return None, None
@@ -327,7 +327,7 @@ def _git_head_sha(repo: Path) -> str:
             cwd=repo,
             check=True,
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
         )
     except subprocess.CalledProcessError:
         return "unknown"

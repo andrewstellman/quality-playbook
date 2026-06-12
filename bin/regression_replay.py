@@ -272,7 +272,7 @@ def _git_sha(repo: Path) -> str:
             ["git", "rev-parse", "HEAD"],
             cwd=str(repo),
             capture_output=True,
-            text=True,
+            text=True, encoding="utf-8", errors="replace",
             check=False,
         )
         if result.returncode == 0:

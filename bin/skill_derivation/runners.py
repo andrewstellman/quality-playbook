@@ -95,7 +95,7 @@ class ClaudeRunner:
                     ["claude", "--print", "--model", self.model]),
                 input=prompt,
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=self.timeout_seconds,
                 check=False,
             )
@@ -163,7 +163,7 @@ class CopilotRunner:
                 _resolve_runner_command(argv),
                 input=prompt,
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=self.timeout_seconds,
                 check=False,
             )
@@ -215,7 +215,7 @@ class CodexRunner:
                 argv,
                 input=prompt,
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=self.timeout_seconds,
                 check=False,
             )
@@ -277,7 +277,7 @@ class CursorRunner:
                 argv,
                 input=prompt,
                 capture_output=True,
-                text=True,
+                text=True, encoding="utf-8", errors="replace",
                 timeout=self.timeout_seconds,
                 check=False,
             )

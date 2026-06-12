@@ -396,7 +396,7 @@ def cleanup_repo(repo_dir: Path) -> bool:
         cwd=str(repo_dir),
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
-        text=True,
+        text=True, encoding="utf-8", errors="replace",
         check=False,
     )
     if status.returncode != 0 or not status.stdout.strip():

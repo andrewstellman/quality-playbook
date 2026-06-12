@@ -3657,7 +3657,11 @@ def check_heartbeat_sidecar(q):
         return
     pass_("heartbeat.ndjson present (harness-orchestrated run)")
     try:
-        lines = [ln for ln in hb.read_text(encoding="utf-8").splitlines()
+        # 189-class: heartbeat.ndjson is EXTERNAL worker content — read with
+        # errors="replace" so a stray non-UTF-8 byte can't crash the gate on
+        # a cp1252 host.
+        lines = [ln for ln in hb.read_text(
+                     encoding="utf-8", errors="replace").splitlines()
                  if ln.strip()]
     except OSError:
         warn("heartbeat.ndjson could not be read")
@@ -4106,7 +4110,7 @@ def check_mechanical(q):
     try:
         proc = subprocess.run(
             verifier_cmd, cwd=str(target_root),
-            capture_output=True, text=True, timeout=300,
+            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300,
         )
     except subprocess.TimeoutExpired:
         fail(f"{which} timed out after 300s — mechanical verification "
