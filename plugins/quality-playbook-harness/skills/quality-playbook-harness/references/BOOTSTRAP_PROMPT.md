@@ -35,6 +35,12 @@ Do this now:
    runs the playbook on a target repo); the orchestrator never loads it.**
    Follow the harness SKILL.md literally; do not read heartbeat files, do
    not edit run-dir state, do not add analysis between steps.
+1b. PROBE + ANNOUNCE the capability rungs (per the SKILL's "Capability
+   ladder" section). As a Claude Code session you have `ScheduleWakeup` and
+   a subagent tool, so announce in one line: "Harness: cadence rung 1
+   (ScheduleWakeup) + dispatch rung 1 (subagent)." If the plan's entries are
+   `dispatch_mode: "shell"`, you cannot run them in-session — print the
+   ticker command (step "degrade" below) and stop.
 2. Run `python3 <QPB_REPO>/bin/qpb_harness_tick.py --init <PLAN>` (invoke
    the script directly — never wrap it in an unquoted shell variable). It
    prints the new run-dir path; capture it as `RUN_DIR` (absolute).
@@ -55,9 +61,16 @@ Loop-continuation discipline (NON-NEGOTIABLE): every tick ends with
 `IN_PROGRESS`, counts unchanged) is still a tick and MUST reschedule.
 Idle is not done.
 
+Degrade (NON-NEGOTIABLE): if you ever cannot call `ScheduleWakeup`, or a
+wakeup silently never fires, print the EXACT command to continue this run
+in a plain window — `python3 <QPB_REPO>/bin/harness_ticker.py --once
+<RUN_DIR>` (one tick) or `python3 <QPB_REPO>/bin/harness_ticker.py
+<RUN_DIR>` (loop). No run is ever stranded.
+
 To halt early, write a `STOP` file at the run-dir root; the next tick
 observes it and exits cleanly. If this session crashes, re-paste this
 prompt in a fresh session and run a tick directly against the existing
-`RUN_DIR` (skip `--init`) — disk state resumes the loop.
+`RUN_DIR` (skip `--init`) — or run the ticker floor command above. Disk
+state resumes the loop either way.
 
 Start with step 1 now.

@@ -13,6 +13,39 @@ print the table it formats, and schedule the next tick. **All** the
 state-machine logic lives in `bin/qpb_harness_tick.py` — you never reason
 about run state yourself. (Details: `references/STATE_MACHINE.md`.)
 
+## Capability ladder — probe, announce, degrade (do this FIRST)
+
+The harness degrades along two axes; the disk state machine is identical at
+every rung. At startup, PROBE your own tooling and ANNOUNCE the rungs you
+selected, in one line to the operator:
+
+- **Cadence** (how the next tick happens): rung 1 = you have an in-session
+  scheduling primitive (`ScheduleWakeup`); rung 2 = an OS scheduler;
+  rung 3 = the foreground `harness_ticker.py` loop; rung 4 = manual ticks.
+- **Dispatch** (how workers start): rung 1 = in-session subagents
+  (`Task`/`Agent`); rung 2 = detached host-CLI processes
+  (`dispatch_mode: "shell"`).
+
+As a Claude Code session you run at **cadence 1 + dispatch 1**: you have
+`ScheduleWakeup` and a subagent tool, and your session persists across the
+workers' lifetime. Announce that: *"Harness: cadence rung 1 (ScheduleWakeup)
++ dispatch rung 1 (subagent). Plan has N entries, pool P."* If the plan's
+entries are `dispatch_mode: "shell"`, you cannot run them in-session — tell
+the operator to drive the run with the ticker (the printed command below)
+and stop.
+
+**Degrade with a printed command (NON-NEGOTIABLE, FR-25).** If ANY
+scheduling step fails — you cannot call `ScheduleWakeup`, a wakeup silently
+never fires, or the operator asks how to continue elsewhere — print the
+EXACT command to continue this run from a plain terminal window, with the
+absolute paths filled in:
+
+    To continue this run in another window, execute:
+      python3 <QPB_REPO>/bin/harness_ticker.py --once <RUN_DIR>
+    (or, to loop it automatically: python3 <QPB_REPO>/bin/harness_ticker.py <RUN_DIR>)
+
+The floor is always one copy-paste away; no run is ever stranded.
+
 ## Determine your paths first
 
 - `QPB_REPO` = `git rev-parse --show-toplevel` (run once; use absolute
@@ -87,9 +120,17 @@ immediately and reschedule as normal. The tick script is idempotent, so an
 extra tick is safe. To halt, the operator writes a `STOP` file at the
 run-dir root; the next tick observes it and exits cleanly.
 
-## If the session crashes mid-run
+## If the session crashes mid-run (or a wakeup silently never fires)
 
-State lives entirely on disk. Re-paste `references/BOOTSTRAP_PROMPT.md`
-into a fresh session and, instead of `--init`, run a tick directly against
-the existing `RUN_DIR` — the script re-reads disk state and the next tick
-picks up exactly where the last one left off.
+State lives entirely on disk. Recover ANY of these ways — they all resume
+from the exact same disk state, and idempotency guarantees nothing
+double-runs:
+- Re-paste `references/BOOTSTRAP_PROMPT.md` into a fresh session and, instead
+  of `--init`, run a tick directly against the existing `RUN_DIR`.
+- Or run the printed floor command in a plain window:
+  `python3 <QPB_REPO>/bin/harness_ticker.py --once <RUN_DIR>` (one tick) or
+  `python3 <QPB_REPO>/bin/harness_ticker.py <RUN_DIR>` (loop until done).
+
+The two silent wakeup-drops observed in the wild (2026-06-11) are exactly
+why the printed floor command exists — print it whenever you reschedule so
+the operator can always recover without re-finding this prompt.
