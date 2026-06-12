@@ -37,6 +37,8 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -69,6 +71,13 @@ def _entry(tid, repo="/tmp/x"):
     return {"task_id": tid, "target_repo": repo, "dispatch_mode": "subagent",
             "worker_prompt": ("HB={HEARTBEAT_PATH} TID={TASK_ID} "
                               "RD={RUN_DIR} TR={TARGET_REPO}")}
+
+
+def _shell_entry(tid, repo="/tmp/x"):
+    return {"task_id": tid, "target_repo": repo, "dispatch_mode": "shell",
+            "worker_prompt": "do work on {TARGET_REPO}",
+            "worker_cmd": ["python3", "w.py", "--hb", "{HEARTBEAT_PATH}",
+                           "--tid", "{TASK_ID}", "--prompt", "{PROMPT_FILE}"]}
 
 
 def _hb(run_dir: Path, run: str, **fields):
@@ -301,6 +310,141 @@ class HardeningTests(_Base):
             T._hb_observe = orig
         # stayed stalled (conservative), not falsely recovered to running
         self.assertEqual(_status(rd)["runs"]["run-01"]["state"], "stalled")
+
+
+class ShellDispatchTests(_Base):
+    """v1.5.9 Phase 2B — dispatch_mode:"shell" (FR-15)."""
+
+    def test_shell_dispatch_writes_prompt_file_and_resolves_cmd(self):
+        rd = self._init(_plan([_shell_entry("t-1", "/tmp/target")], pool_size=1))
+        out = T.tick(rd)
+        e = out["dispatch_list"][0]
+        self.assertEqual(e["dispatch_mode"], "shell")
+        # prompt written to a file (quoting/arg-length safety)
+        pf = Path(e["prompt_file"])
+        self.assertTrue(pf.is_file())
+        self.assertEqual(pf.read_text(), "do work on /tmp/target")
+        # worker_cmd fully resolved to absolute paths, no placeholders left
+        joined = " ".join(e["worker_cmd"])
+        self.assertNotIn("{", joined)
+        self.assertIn(str(rd / "run-01" / "heartbeat.ndjson"), e["worker_cmd"])
+        self.assertIn(str(pf), e["worker_cmd"])
+        # claim lock carries the mode + a pid placeholder for the spawner
+        lock = json.loads(
+            (rd / "claimed" / "job-00001.lock").read_text())
+        self.assertEqual(lock["dispatch_mode"], "shell")
+        self.assertIsNone(lock["pid"])
+
+    def test_subagent_dispatch_still_carries_worker_prompt(self):
+        rd = self._init(_plan([_entry("t-1")], pool_size=1))
+        e = T.tick(rd)["dispatch_list"][0]
+        self.assertEqual(e["dispatch_mode"], "subagent")
+        self.assertIn("worker_prompt", e)
+        self.assertNotIn("worker_cmd", e)
+
+
+class PidDeadTests(_Base):
+    """A-5: a shell worker whose recorded PID is dead and has no terminal
+    heartbeat is failed fast (dead-vs-slow discrimination)."""
+
+    def _claim_with_pid(self, pid):
+        rd = self._init(_plan([_shell_entry("t-1")], pool_size=1))
+        T.tick(rd)  # claim
+        lock_path = rd / "claimed" / "job-00001.lock"
+        data = json.loads(lock_path.read_text())
+        data["pid"] = pid
+        lock_path.write_text(json.dumps(data))
+        return rd
+
+    def test_dead_pid_no_terminal_fails(self):
+        rd = self._claim_with_pid(999999)  # not a live process
+        T.tick(rd)
+        self.assertEqual(_status(rd)["runs"]["run-01"]["state"], "failed")
+        rec = json.loads((rd / "results" / "result-00001.json").read_text())
+        self.assertEqual(rec["terminal_status"], "FAILED")
+
+    def test_live_pid_not_failed(self):
+        rd = self._claim_with_pid(os.getpid())  # this test process is alive
+        T.tick(rd)
+        self.assertIn(_status(rd)["runs"]["run-01"]["state"],
+                      ("claimed", "running"))
+
+    def test_dead_pid_but_terminal_heartbeat_reaps_completed(self):
+        # terminal reap takes priority over the dead-PID failure path
+        rd = self._claim_with_pid(999999)
+        _hb(rd, "run-01", ts="t", task_id="t-1", schema_version="1",
+            status="COMPLETED", result_file="x", summary="ok")
+        T.tick(rd)
+        self.assertEqual(_status(rd)["runs"]["run-01"]["state"], "completed")
+
+
+class WallClockJumpE2Tests(_Base):
+    def test_wall_clock_jump_suppresses_stall(self):
+        rd = self._init(_plan([_entry("t-1")], pool_size=1,
+                              stall_threshold_minutes=45))
+        os.environ["QPB_HARNESS_NOW"] = "1000000"
+        T.tick(rd)
+        hb = rd / "run-01" / "heartbeat.ndjson"
+        _hb(rd, "run-01", ts="t", task_id="t-1", schema_version="1",
+            phase="p", step="s", status="IN_PROGRESS")
+        os.utime(hb, (1000000, 1000000))
+        T.tick(rd)  # running; stores last_tick_wall=1000000
+        # jump 10h forward — heartbeat age is now huge but it's a sleep jump
+        os.environ["QPB_HARNESS_NOW"] = str(1000000 + 10 * 3600)
+        T.tick(rd)
+        self.assertEqual(_status(rd)["runs"]["run-01"]["state"], "running")
+
+    def test_normal_cadence_stale_heartbeat_still_stalls(self):
+        # control: a stale heartbeat WITHOUT a wall-clock jump still stalls
+        rd = self._init(_plan([_entry("t-1")], pool_size=1,
+                              stall_threshold_minutes=45))
+        os.environ["QPB_HARNESS_NOW"] = "2000000"
+        T.tick(rd)
+        hb = rd / "run-01" / "heartbeat.ndjson"
+        _hb(rd, "run-01", ts="t", task_id="t-1", schema_version="1",
+            phase="p", step="s", status="IN_PROGRESS")
+        os.utime(hb, (2000000, 2000000))
+        T.tick(rd)
+        # +50 min: > stall threshold but a normal-sized gap (no jump)
+        os.environ["QPB_HARNESS_NOW"] = str(2000000 + 50 * 60)
+        T.tick(rd)
+        self.assertEqual(_status(rd)["runs"]["run-01"]["state"], "stalled")
+
+
+class TickLockE1Tests(_Base):
+    def test_concurrent_tick_lock_blocks_then_releases(self):
+        rd = self._init(_plan([_entry("t-1")], pool_size=1))
+        l1 = T._TickLock(rd).__enter__()
+        try:
+            l2 = T._TickLock(rd)
+            l2.__enter__()
+            try:
+                self.assertTrue(l1.acquired)
+                self.assertFalse(l2.acquired)  # second is blocked
+            finally:
+                l2.__exit__()
+        finally:
+            l1.__exit__()
+        # after release, a fresh lock acquires
+        l3 = T._TickLock(rd)
+        l3.__enter__()
+        self.assertTrue(l3.acquired)
+        l3.__exit__()
+
+    def test_main_locked_skip_is_clean(self):
+        rd = self._init(_plan([_entry("t-1")], pool_size=1))
+        held = T._TickLock(rd).__enter__()
+        try:
+            proc = subprocess.run(
+                [sys.executable, str(T.__file__), str(rd)],
+                capture_output=True, text=True,
+                env={**os.environ}, encoding="utf-8")
+            out = json.loads(proc.stdout)
+            self.assertTrue(out.get("skipped"))
+            self.assertEqual(out["dispatch_list"], [])
+            self.assertIn("skipped cleanly", out["status_table"])
+        finally:
+            held.__exit__()
 
 
 class ReapGuardTests(_Base):

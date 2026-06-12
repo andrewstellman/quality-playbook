@@ -108,3 +108,50 @@ running/claimed (or the run is done); when nothing is actively running
 (all waiting/stalled) it is lengthened by `idle_tick_multiplier`. On
 `done`/`stop` ticks the table prints the terminal banner instead of a
 "Next tick in N min" line (1A carry-forward 6).
+
+## v1.5.9 Phase 2B additions
+
+### Shell dispatch (`dispatch_mode: "shell"`)
+
+The state machine is identical; only how a worker STARTS changes. On a
+shell dispatch the engine: writes the resolved `worker_prompt` to
+`queue/job-NNNNN.prompt.txt` (quoting / arg-length safety, FR-15);
+resolves the entry's `worker_cmd` argv template (the `{HEARTBEAT_PATH}/
+{TASK_ID}/{RUN_DIR}/{TARGET_REPO}` block plus `{PROMPT_FILE}`); and emits
+a `dispatch_list` entry carrying `dispatch_mode:"shell"` + the resolved
+`worker_cmd`. The **ticker** (rungs 2-4), not the engine, Popens that argv
+detached (POSIX `start_new_session=True`; Windows `DETACHED_PROCESS |
+CREATE_NEW_PROCESS_GROUP`) and records the child PID in the claim lock.
+Subagent mode is unchanged (the entry carries `worker_prompt` for the
+agent's Task/Agent tool). cadence rungs 2-4 REQUIRE shell dispatch — an
+externally-ticked session's subagents die with its turn.
+
+### Claim locks + PID liveness (Council A-5)
+
+`claimed/job-NNNNN.lock` records `{task_id, claimed_ts, dispatch_mode,
+pid}`. The engine writes `pid: null` at claim; the spawning ticker updates
+it with the real child PID after Popen. Stall detection then distinguishes
+a **dead** worker from a **slow** one: if a shell run's recorded PID is no
+longer alive (cross-platform check — `os.kill(pid,0)` POSIX,
+`OpenProcess`+exit-code Windows) AND no terminal heartbeat has landed, the
+run is failed FAST (no waiting out the launch grace). A terminal heartbeat
+always wins over the dead-PID path (reaped completed/failed first). A
+`pid: null` (claimed, not yet spawned) is skipped.
+
+### E1 — concurrent-tick lockfile (FR-12)
+
+Each tick acquires a non-blocking advisory lock on `<run-dir>/.tick.lock`
+(`fcntl.flock` POSIX / `msvcrt.locking` Windows). If another tick process
+holds it (overlapping cron fires, or a ticker loop plus a manual
+`--once`), this tick **skips cleanly** — it emits `{skipped: true,
+dispatch_list: [], …}` and mutates nothing — rather than racing the
+on-disk state. Re-entry next tick is safe by idempotency.
+
+### E2 — wall-clock-jump stall guard (FR-8)
+
+The engine stores `last_tick_wall` (wall-clock seconds) each tick. If the
+gap since the last tick is much larger than the cadence (machine slept /
+hibernated), heartbeat ages are inflated through no fault of the workers,
+so STALLED marking is **suppressed for that one tick** (a fresh heartbeat
+the next tick clears it). A normal-sized gap past the stall threshold
+still marks STALLED.

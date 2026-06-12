@@ -63,6 +63,14 @@ DEFAULT_IDLE_TICK_MULTIPLIER = 1          # >1 lengthens cadence when nothing is
 TAIL_LINES = 20
 _TERMINAL_HB = ("COMPLETED", "FAILED", "ABANDONED")
 _PLACEHOLDERS = ("HEARTBEAT_PATH", "TASK_ID", "RUN_DIR", "TARGET_REPO")
+# v1.5.9 Phase 2B: shell dispatch adds {PROMPT_FILE} (the per-job prompt
+# written to queue/job-NNNNN.prompt.txt for quoting/arg-length safety).
+_SHELL_PLACEHOLDERS = _PLACEHOLDERS + ("PROMPT_FILE",)
+SCHEMA_VERSION = "1"
+# A wall-clock jump larger than this multiple of the tick interval means the
+# machine slept/hibernated (E2): heartbeat ages are inflated, so stall
+# marking is suppressed for one tick rather than false-STALLING.
+_WALLCLOCK_JUMP_FACTOR = 4
 
 # Terminal run states (occupy no pool slot; count toward `done`).
 _TERMINAL_STATES = ("completed", "failed", "auth_or_launch_failed", "abandoned")
@@ -80,6 +88,61 @@ def _now() -> float:
         except ValueError:
             pass
     return time.time()
+
+
+def _pid_alive(pid) -> bool:
+    """Cross-platform 'is this PID still running?' (Council A-5: lets stall
+    detection tell a dead shell-worker process from a slow one). POSIX:
+    os.kill(pid, 0). Windows: OpenProcess + exit-code probe. Unknown/bad
+    pid ⇒ treated as NOT alive (conservative — a vanished process should
+    free its slot)."""
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if pid <= 0:
+        return False
+    if os.name == "nt":  # Windows
+        try:
+            import ctypes
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            STILL_ACTIVE = 259
+            k = ctypes.windll.kernel32
+            h = k.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+            if not h:
+                return False
+            try:
+                code = ctypes.c_ulong()
+                if not k.GetExitCodeProcess(h, ctypes.byref(code)):
+                    return False
+                return code.value == STILL_ACTIVE
+            finally:
+                k.CloseHandle(h)
+        except Exception:
+            return False
+    # POSIX
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # exists, owned by another user
+    except OSError:
+        return False
+
+
+def _lock_pid(run_dir: Path, job_id: str):
+    """Return the PID recorded in claimed/<job>.lock (shell dispatch),
+    or None. The lock is written by the tick engine at claim and updated
+    with the real PID by the spawning tier (ticker) per A-5."""
+    lock = run_dir / "claimed" / (job_id + ".lock")
+    if not lock.is_file():
+        return None
+    try:
+        return json.loads(lock.read_text(encoding="utf-8", errors="replace")).get("pid")
+    except (OSError, ValueError):
+        return None
 
 
 def _utc_iso() -> str:
@@ -332,15 +395,28 @@ def tick(run_dir: Path) -> dict:
     stop = (run_dir / "STOP").exists()
     dispatch_list: list[dict] = []
 
+    # E2: a wall-clock gap since the last tick much larger than the cadence
+    # means the machine slept/hibernated — heartbeat ages are inflated, so
+    # suppress STALLED marking for this one tick.
+    last_wall = status.get("last_tick_wall")
+    suppress_stall = bool(
+        last_wall is not None
+        and (now - last_wall) > max(stall_secs, tick_interval * 60)
+        * _WALLCLOCK_JUMP_FACTOR)
+
     if not stop:
         try:
-            _advance(run_dir, runs, now, stall_secs, grace_secs)
+            _advance(run_dir, runs, now, stall_secs, grace_secs, suppress_stall)
             dispatch_list = _dispatch(run_dir, runs, entries, pool_size, now)
         except Exception:  # never let a transition crash the loop
             _log(run_dir, "TICK ERROR:\n" + traceback.format_exc())
+        if suppress_stall:
+            _log(run_dir, f"E2: wall-clock jump ({int(now - last_wall)}s since "
+                          f"last tick) — stall marking suppressed this tick")
         status["counts"] = _recount(runs)
         status["done"] = all(r["state"] in _TERMINAL_STATES for r in runs.values())
         status["cycle"] = status.get("cycle", 0) + 1
+        status["last_tick_wall"] = now
         # strip transient field, then persist
         for r in runs.values():
             r.pop("_run_name", None)
@@ -361,9 +437,13 @@ def tick(run_dir: Path) -> dict:
     }
 
 
-def _advance(run_dir, runs, now, stall_secs, grace_secs):
+def _advance(run_dir, runs, now, stall_secs, grace_secs, suppress_stall=False):
     """Reap terminals, detect stalls and launch failures. Mutates run
-    state + disk. Every transition is guarded for idempotency."""
+    state + disk. Every transition is guarded for idempotency.
+
+    ``suppress_stall`` (E2): set when this tick detected a wall-clock jump
+    (machine slept/hibernated) — heartbeat ages are inflated this tick, so
+    STALLED marking is skipped to avoid false stalls."""
     for name, r in runs.items():
         state = r["state"]
         if state in _TERMINAL_STATES:
@@ -378,6 +458,20 @@ def _advance(run_dir, runs, now, stall_secs, grace_secs):
             if _move_to_results(run_dir, r, terminal, hb):
                 r["state"] = "failed" if terminal in ("FAILED", "ABANDONED") else "completed"
                 _log(run_dir, f"{name}: reaped → {r['state']} ({terminal})")
+            continue
+        # 1b. shell dispatch with a recorded-but-dead PID and no terminal
+        #     heartbeat ⇒ the worker process died without finishing (A-5).
+        #     Checked BEFORE the time-based grace/stall paths so a dead
+        #     process is failed fast and precisely (no waiting out the
+        #     launch grace). A recorded pid of None (just claimed, not yet
+        #     spawned) is skipped.
+        pid = _lock_pid(run_dir, r["job_id"])
+        if pid is not None and not _pid_alive(pid):
+            _synthesize_failure(run_dir, r, "failed",
+                                f"shell worker process {pid} exited without a "
+                                f"terminal heartbeat")
+            r["state"] = "failed"
+            _log(run_dir, f"{name}: FAILED (dead shell PID {pid}, no terminal)")
             continue
         # 2. claimed + no heartbeat past launch grace ⇒ launch failed
         if state == "claimed" and not has_any:
@@ -402,21 +496,36 @@ def _advance(run_dir, runs, now, stall_secs, grace_secs):
                 # running off an unknowable mtime — leave the state as-is so
                 # a genuine stall isn't masked. The next tick re-evaluates.
                 pass
-            elif (now - mtime) > stall_secs:
+            elif (now - mtime) > stall_secs and not suppress_stall:
                 if r["state"] != "stalled":
                     r["state"] = "stalled"
                     _log(run_dir, f"{name}: STALLED (heartbeat age "
                                   f"{int(now - mtime)}s > stall threshold "
                                   f"{int(stall_secs)}s)")
             else:
-                # fresh heartbeat — (re)mark running (recovers from stalled)
+                # fresh heartbeat (or stall suppressed by an E2 wall-clock
+                # jump this tick) — (re)mark running, recovering from stalled
                 if r["state"] in ("claimed", "stalled"):
                     r["state"] = "running"
 
 
+def _resolve_template(tpl: str, values: dict) -> str:
+    out = tpl
+    for key, val in values.items():
+        out = out.replace("{%s}" % key, val)
+    return out
+
+
 def _dispatch(run_dir, runs, entries, pool_size, now) -> list[dict]:
     """Emit dispatch entries for queued runs while a pool slot is free.
-    Guarded: a run already past queued is never re-dispatched."""
+    Guarded: a run already past queued is never re-dispatched.
+
+    dispatch_mode == "subagent" (default): the entry carries a resolved
+    ``worker_prompt`` for the orchestrator agent to launch via its
+    subagent tool. dispatch_mode == "shell": the prompt is written to
+    queue/job-NNNNN.prompt.txt (quoting/arg-length safety, FR-15) and the
+    entry carries a resolved ``worker_cmd`` argv for the ticker to Popen
+    detached; the placeholder block adds {PROMPT_FILE}."""
     inflight = sum(1 for r in runs.values() if r["state"] in _INFLIGHT_STATES)
     out: list[dict] = []
     for name in sorted(runs):
@@ -425,6 +534,14 @@ def _dispatch(run_dir, runs, entries, pool_size, now) -> list[dict]:
             continue
         if inflight >= pool_size:
             break
+        entry = entries[name]
+        mode = entry.get("dispatch_mode", "subagent")
+        values = {
+            "HEARTBEAT_PATH": str(_heartbeat_path(run_dir, name)),
+            "TASK_ID": str(entry.get("task_id", "")),
+            "RUN_DIR": str(run_dir / name),
+            "TARGET_REPO": str(entry.get("target_repo", "")),
+        }
         src = run_dir / "claimed" / (r["job_id"] + ".json")
         qsrc = run_dir / "queue" / (r["job_id"] + ".json")
         if qsrc.exists() and not src.exists():
@@ -433,16 +550,38 @@ def _dispatch(run_dir, runs, entries, pool_size, now) -> list[dict]:
                 "task_id": r["task_id"],
                 "claimed_ts": _utc_iso(),
                 "dispatched_by": "qpb_harness_tick",
+                "dispatch_mode": mode,
+                "pid": None,
             })
         r["state"] = "claimed"
         r["claimed_at"] = now
         inflight += 1
-        out.append({
-            "run": name,
-            "task_id": r["task_id"],
-            "worker_prompt": _dispatch_prompt(entries[name], run_dir, name),
-        })
-        _log(run_dir, f"{name}: dispatched (claimed)")
+        prompt = _resolve_template(entry.get("worker_prompt", ""), values)
+        if mode == "shell":
+            # Write the prompt to a file (quoting/arg-length safety) and
+            # resolve the worker_cmd template; the ticker Popens it detached.
+            prompt_file = run_dir / "queue" / (r["job_id"] + ".prompt.txt")
+            prompt_file.write_text(prompt, encoding="utf-8")
+            sh_values = dict(values, PROMPT_FILE=str(prompt_file))
+            worker_cmd = [_resolve_template(tok, sh_values)
+                          for tok in (entry.get("worker_cmd") or [])]
+            out.append({
+                "run": name, "task_id": r["task_id"],
+                "dispatch_mode": "shell",
+                "worker_cmd": worker_cmd,
+                "prompt_file": str(prompt_file),
+                "heartbeat_path": values["HEARTBEAT_PATH"],
+                "run_dir": values["RUN_DIR"],
+                "target_repo": values["TARGET_REPO"],
+                "auth_check": entry.get("auth_check"),
+            })
+        else:
+            out.append({
+                "run": name, "task_id": r["task_id"],
+                "dispatch_mode": "subagent",
+                "worker_prompt": prompt,
+            })
+        _log(run_dir, f"{name}: dispatched (claimed, {mode})")
     return out
 
 
@@ -585,6 +724,58 @@ def _print_intro() -> None:
     )
 
 
+class _TickLock:
+    """E1 (FR-12): a per-run-dir advisory lock that serializes concurrent
+    tick processes (overlapping cron fires / a ticker + a manual --once).
+    Non-blocking: ``acquired`` is False if another process holds it, and the
+    caller skips the tick cleanly. Stdlib both platforms (fcntl / msvcrt)."""
+
+    def __init__(self, run_dir: Path):
+        self._path = run_dir / ".tick.lock"
+        self._fh = None
+        self.acquired = False
+
+    def __enter__(self):
+        try:
+            self._fh = open(self._path, "a+")
+        except OSError:
+            self.acquired = True  # can't lock (read-only dir) — don't block
+            return self
+        try:
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(self._fh.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(self._fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self.acquired = True
+        except OSError:
+            self.acquired = False
+        return self
+
+    def __exit__(self, *exc):
+        if self._fh is not None:
+            try:
+                if self.acquired and os.name != "nt":
+                    import fcntl
+                    fcntl.flock(self._fh.fileno(), fcntl.LOCK_UN)
+            except OSError:
+                pass
+            self._fh.close()
+
+
+def _locked_skip_output(run_dir: Path) -> dict:
+    return {
+        "dispatch_list": [],
+        "status_table": ("Run-Dir: %s - another tick is already in progress; "
+                         "this tick skipped cleanly (E1)." % run_dir.name),
+        "next_tick_minutes": 1,
+        "done": False,
+        "stop": False,
+        "skipped": True,
+    }
+
+
 def main(argv) -> int:
     args = list(argv[1:])
     if not args or args in (["-h"], ["--help"]):
@@ -594,7 +785,12 @@ def main(argv) -> int:
         print(init_run(Path(args[1]).resolve()))
         return 0
     if len(args) == 1 and args[0] != "--init":
-        print(json.dumps(tick(Path(args[0]).resolve()), indent=2))
+        run_dir = Path(args[0]).resolve()
+        with _TickLock(run_dir) as lock:
+            if not lock.acquired:
+                print(json.dumps(_locked_skip_output(run_dir), indent=2))
+                return 0
+            print(json.dumps(tick(run_dir), indent=2))
         return 0
     print(__doc__.strip(), file=sys.stderr)
     return 64
