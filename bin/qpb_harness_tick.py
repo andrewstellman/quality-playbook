@@ -555,6 +555,7 @@ def _dispatch(run_dir, runs, entries, pool_size, now) -> list[dict]:
             })
         r["state"] = "claimed"
         r["claimed_at"] = now
+        r["dispatch_mode"] = mode
         inflight += 1
         prompt = _resolve_template(entry.get("worker_prompt", ""), values)
         if mode == "shell":
@@ -648,7 +649,8 @@ def _format_table(run_dir, status, plan, terminal: bool) -> str:
         rows.append("%-5s%-26s%-8s%-20s%-8s%-13s%s" % (
             name[4:],
             (r.get("target_repo") or "-")[:25],
-            "subgnt",
+            {"subagent": "subgnt", "shell": "shell"}.get(
+                r.get("dispatch_mode"), "-"),
             r["state"],
             (str(phase) if phase is not None else "-")[:7],
             r.get("last_hb_status") or "-",
