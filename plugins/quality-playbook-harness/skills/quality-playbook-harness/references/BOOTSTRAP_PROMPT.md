@@ -10,8 +10,12 @@ v1.5.7 watcher and the 1A spike bootstrap.)*
 *Replace `<PLAN>` with the absolute path to your harness plan JSON (it
 must match `schemas/plan.schema.json`: `tick_interval_minutes`,
 `pool_size`, and an `entries[]` list, each with `task_id`, `target_repo`,
-`dispatch_mode: "subagent"`, and a `worker_prompt` carrying the
-`{HEARTBEAT_PATH}/{TASK_ID}/{RUN_DIR}/{TARGET_REPO}` placeholder block).*
+`dispatch_mode` (`"subagent"` | `"shell"`), and a `worker_prompt` carrying
+the `{HEARTBEAT_PATH}/{TASK_ID}/{RUN_DIR}/{TARGET_REPO}` placeholder block —
+shell entries also carry a `worker_cmd`). NOTE: an in-session agent (this
+prompt) can only run `subagent` entries; a plan whose entries are
+`dispatch_mode: "shell"` must be driven by the ticker — you'll announce
+that and print the ticker command at step 1b instead of looping.*
 
 *LOAD-BEARING: this prompt restates the full per-tick sequence (step 3)
 on purpose. That redundancy is not duplication to trim — in the
@@ -47,10 +51,12 @@ Do this now:
 3. Immediately execute one tick against `RUN_DIR` per the SKILL's per-tick
    sequence: run the tick script, parse its `{dispatch_list, status_table,
    next_tick_minutes, done, stop}` JSON, invoke one worker subagent per
-   `dispatch_list` entry (its `worker_prompt` verbatim — use your session's
-   subagent-dispatch tool, `Task` or `Agent`), print `status_table`
-   verbatim, then call `ScheduleWakeup(now + next_tick_minutes minutes)`
-   and end the turn.
+   `dispatch_list` entry whose `dispatch_mode` is `"subagent"` (its
+   `worker_prompt` verbatim — use your session's subagent-dispatch tool,
+   `Task` or `Agent`). A `dispatch_mode: "shell"` entry is NOT yours to
+   launch in-session — if you see one, stop and print the ticker command
+   per step 1b. Then print `status_table` verbatim, call
+   `ScheduleWakeup(now + next_tick_minutes minutes)`, and end the turn.
 4. On every wakeup, run the per-tick sequence again. Continue until the
    script's JSON reports `done: true` or `stop: true`, then print the
    status table and exit cleanly WITHOUT calling ScheduleWakeup.

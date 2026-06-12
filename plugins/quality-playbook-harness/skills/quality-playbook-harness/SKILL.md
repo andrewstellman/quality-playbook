@@ -1,6 +1,6 @@
 ---
 name: quality-playbook-harness
-description: Orchestrate Quality Playbook runs across multiple repos from one Claude Code session. Drives a disk-backed state machine via in-session ScheduleWakeup polling — each tick dispatches QPB worker subagents, tails their heartbeats, advances the state machine, prints a status table, and reschedules — until every run is terminal or a STOP file appears. Use when asked to run QPB against several repos at once, run a benchmark plan, or orchestrate multi-repo quality reviews.
+description: Orchestrate Quality Playbook (or any) runs across multiple repos from one agent session. Drives a disk-backed state machine one idempotent tick at a time — each tick the tick script reads workers' heartbeats, advances the state machine, and lists which workers to dispatch; the orchestrator launches them, prints the script's status table, and schedules the next tick (via ScheduleWakeup at cadence rung 1, or the foreground ticker at lower rungs). Dispatch is in-session subagents (rung 1) or detached shell workers. Runs until every job is terminal or a STOP file appears. Use when asked to run QPB against several repos at once, run a benchmark plan, or orchestrate multi-repo quality reviews.
 version: 1.5.9
 license: Apache-2.0
 ---
