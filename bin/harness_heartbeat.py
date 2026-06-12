@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""harness_heartbeat — generic, payload-agnostic heartbeat emit helper
+"""harness_heartbeat  -  generic, payload-agnostic heartbeat emit helper
 (v1.5.9 Phase 2B; the standalone harness core).
 
 The GENERIC heartbeat surface (FR-18..21). Unlike QPB's ``qpb_heartbeat.py``
 (which resolves a phase NUMBER through ``phase_identity`` and reads the
 keepalive phase from ``run_state.jsonl``), this helper treats ``phase`` as
-a FREE STRING (FR-20) and has no QPB coupling — it is the part that
+a FREE STRING (FR-20) and has no QPB coupling  -  it is the part that
 extracts to the standalone repo verbatim. QPB's vendored integration layers
 its phase-identity derivation on top; that coupling never enters this core.
 
@@ -15,7 +15,7 @@ tick engine can track progress and detect stalls. Subcommands:
   emit       progress record: --phase <str> --step <str>
              --status STARTING|IN_PROGRESS|COMPLETED|FAILED [--message]
   keepalive  mid-work liveness ping: reads the CURRENT phase from the LAST
-             heartbeat line (the canonical position in the generic core —
+             heartbeat line (the canonical position in the generic core  - 
              there is no run_state.jsonl) and appends an IN_PROGRESS line,
              so the ping's phase can't drift. --phase overrides; no-op if
              no prior phase and no --phase.
@@ -27,7 +27,7 @@ printf-interpolated, so %/"/\\ are safe); appends are atomic ``O_APPEND``;
 every line carries ``schema_version="1"`` (FR-18).
 
 E6 (FR-21): if the append FAILS, the helper exits NONZERO loudly (it never
-swallows the error) — a silent worker must never look healthy. Worker
+swallows the error)  -  a silent worker must never look healthy. Worker
 guidance: on a nonzero heartbeat exit, abort the job with a FAILED
 terminal (the orchestrator will reap it as failed rather than stall).
 
@@ -90,7 +90,7 @@ def append_line(heartbeat_path: Path, obj: dict) -> None:
 def last_phase(heartbeat_path: Path) -> Optional[str]:
     """Return the ``phase`` of the most recent heartbeat line carrying one
     (the generic 'current position'), or None. Reads with errors='replace'
-    (NFR-7 — external worker content)."""
+    (NFR-7  -  external worker content)."""
     if not heartbeat_path.is_file():
         return None
     try:
@@ -162,7 +162,7 @@ def _append_or_die(hb: Path, obj: dict) -> int:
     try:
         append_line(hb, obj)
     except (OSError, ValueError) as exc:
-        print(f"{_NAME}: HEARTBEAT WRITE FAILED ({exc}) — the worker must "
+        print(f"{_NAME}: HEARTBEAT WRITE FAILED ({exc})  -  the worker must "
               f"abort this job with a FAILED terminal; a silent worker must "
               f"never look healthy (E6).", file=sys.stderr)
         return 5
@@ -184,7 +184,7 @@ def _cmd_keepalive(args) -> int:
     hb, tid = _require_io(args)
     phase = args.phase or last_phase(hb)
     if phase is None:
-        return 0  # nothing to ping yet — not an error
+        return 0  # nothing to ping yet  -  not an error
     obj = build_progress(phase=phase, task_id=tid,
                          step=args.step or "keepalive", status="IN_PROGRESS")
     return _append_or_die(hb, obj)

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""harness_demo_worker — cross-platform demo/stub worker (v1.5.9 Phase 2B).
+"""harness_demo_worker  -  cross-platform demo/stub worker (v1.5.9 Phase 2B).
 
 The payload-agnostic stub the example plan dispatches (FR-31 / UC-8 demo;
 replaces the bash stub so the demo runs identically on Windows, macOS, and
-Linux — NFR-1). It does NO real work: it walks the heartbeat lifecycle
+Linux  -  NFR-1). It does NO real work: it walks the heartbeat lifecycle
 STARTING -> IN_PROGRESS xN -> COMPLETED, sleeping between pings, so an
 operator watching the status table sees pool-limited dispatch, genuine
-idle ticks, staggered dispatch, and a clean reap — the architecture
+idle ticks, staggered dispatch, and a clean reap  -  the architecture
 demonstrated with zero API spend.
 
 Reads its identity from the absolute-path block the harness substitutes

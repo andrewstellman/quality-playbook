@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""harness_ticker — foreground / one-shot tick driver (v1.5.9 Phase 2B).
+"""harness_ticker  -  foreground / one-shot tick driver (v1.5.9 Phase 2B).
 
 The cadence rung-3 and rung-4 substrate (FR-24): when there is no in-session
 scheduling primitive (rung 1) and no OS scheduler rights (rung 2), this
-plain stdlib script drives the plan from a single terminal window — THE
+plain stdlib script drives the plan from a single terminal window  -  THE
 no-admin floor for locked-down hosts (UC-5). It replaces the orchestrator
 agent: each tick it runs the deterministic tick engine, spawns any shell
 dispatches the engine lists (detached, platform-appropriate), records their
@@ -15,18 +15,18 @@ Modes:
                                     -> repeat until done/stop. (rung 3)
   harness_ticker.py <run-dir>       loop against an existing run (resume).
   harness_ticker.py --once <run-dir>  a single tick (the cron target /
-                                    manual floor — rungs 2 and 4).
+                                    manual floor  -  rungs 2 and 4).
 
 HONEST semantics (NFR-8), also printed in --help:
-  * Loop mode: the window must stay OPEN for the plan's duration — the same
+  * Loop mode: the window must stay OPEN for the plan's duration  -  the same
     constraint a rung-1 agent session has. If you CLOSE the window, in-flight
     child workers may die with it; rerun the ticker to resume (state is on
     disk, re-detected from heartbeats + PID locks).
-  * Workers are dispatch_mode:"shell" only — an externally-ticked context
+  * Workers are dispatch_mode:"shell" only  -  an externally-ticked context
     can't launch in-session subagents. A subagent-mode entry is reported and
     skipped with the rung-1 instruction.
   * Every exit-without-done prints the exact command to continue the run in
-    another window (FR-25) — the floor is always one copy-paste away.
+    another window (FR-25)  -  the floor is always one copy-paste away.
 
 Stdlib only. Cross-platform (NFR-1/3). ASCII-safe output (NFR-7).
 """
@@ -159,14 +159,14 @@ def _spawn_dispatches(run_dir: Path, dispatch_list, auth_cache) -> None:
     for entry in dispatch_list:
         mode = entry.get("dispatch_mode", "subagent")
         if mode != "shell":
-            print("  NOTE: %s is dispatch_mode '%s' — the ticker only launches "
+            print("  NOTE: %s is dispatch_mode '%s'  -  the ticker only launches "
                   "shell workers. Use cadence rung 1 (an agent session) for "
                   "subagent dispatch, or set dispatch_mode:'shell'."
                   % (entry.get("run"), mode), file=sys.stderr)
             continue
         auth_check = entry.get("auth_check")
         if auth_check and not _auth_ok(auth_check, auth_cache):
-            print("  AUTH_OR_LAUNCH_FAILED: %s — auth pre-flight (%s) failed; "
+            print("  AUTH_OR_LAUNCH_FAILED: %s  -  auth pre-flight (%s) failed; "
                   "is the CLI installed and logged in?"
                   % (entry.get("run"), " ".join(auth_check)), file=sys.stderr)
             _fail_entry(entry, "auth pre-flight failed: %s" % " ".join(auth_check))
@@ -185,7 +185,7 @@ def _spawn_dispatches(run_dir: Path, dispatch_list, auth_cache) -> None:
             print("  spawned %s (pid %d): %s"
                   % (entry["run"], proc.pid, " ".join(entry["worker_cmd"][:3]) + " ..."))
         except (OSError, ValueError) as exc:
-            print("  AUTH_OR_LAUNCH_FAILED: %s — spawn failed (%s)"
+            print("  AUTH_OR_LAUNCH_FAILED: %s  -  spawn failed (%s)"
                   % (entry.get("run"), exc), file=sys.stderr)
             _fail_entry(entry, "spawn failed: %s" % exc)
 
