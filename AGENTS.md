@@ -2,6 +2,34 @@
 
 This file helps AI coding agents work on this repository. Read it first.
 
+## Rehydrate on context loss (ERR — read this first if you were summarized)
+
+If your context was summarized, truncated, compacted, or continued from a prior
+session — i.e. you are reasoning from a summary rather than the original material
+(you will usually see a system note that the conversation was continued) — then
+**before taking any action**:
+
+1. **Recognize** that your working context is now a lossy re-rendering. Summaries
+   drift toward restating *decisions* and *your own prior output*, and away from
+   the user's literal intent.
+2. **Rehydrate** from the **source of truth**: for the release in flight, the
+   canonical `docs/design/QPB_v<X.Y.Z>_Design.md` + `_Implementation_Plan.md`;
+   `ai_context/DEVELOPMENT_PROCESS.md` (how QPB is built); and `SKILL.md` (what the
+   skill must do). Read those as ground truth; treat the summary, your earlier
+   notes, and derived docs (`IMPROVEMENT_LOOP.md`, work-item lists, changelogs,
+   prior instructions, this guide's prose) as suspect — they are summaries, not
+   specifications.
+3. **Re-ground** the task against the *literal text* of the canonical doc — cite
+   the design-doc section / FR and check your action matches the words, not your
+   memory of them.
+4. If the source of truth and a derived artifact (or your own prior plan)
+   conflict, **stop and surface the conflict** rather than proceeding on the
+   drifted version.
+
+Do this on every context-loss event, not only when something feels wrong — drift
+is silent. (Externalize–Recognize–Rehydrate: the spec lives on disk; recognize
+the context-loss event; rehydrate from durable truth instead of the lossy summary.)
+
 ## What this repo is
 
 The Quality Playbook is a skill for AI coding agents that explores any codebase from scratch and finds real bugs. It generates nine quality artifacts including a consolidated bug report with regression test patches, fix patches, and TDD red/green verification. It works with any language (Python, Java, Go, Rust, TypeScript, C, etc.) and any AI coding agent (Claude Code, GitHub Copilot, Cursor). v1.5.3 adds a skill-as-code surface (project-type classifier; four-pass generate-then-verify pipeline; skill-divergence taxonomy with internal-prose / prose-to-code / execution categories; skill-project gate enforcement) so the same divergence model that finds defects in code can find defects in AI skills — see `previous_runs/v1.5.3/` for the bootstrap evidence.
