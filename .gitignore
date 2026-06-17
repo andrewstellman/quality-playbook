@@ -81,8 +81,14 @@ Thumbs.db
 # affected by this rule.
 reviews/
 
-# Runner folder
-runner/
+# Runner folder — live coordination mailboxes are ignored...
+runner/*
+# ...except the committed QPB skill-development worker runner (bootstrap + instruction/output/review record)
+!runner/quality-playbook/
+# ...minus its per-cycle churn
+runner/quality-playbook/STATUS.md
+runner/quality-playbook/STOP
+runner/quality-playbook/.claude/
 
 # Test folder
 testing/
