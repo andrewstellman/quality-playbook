@@ -2617,6 +2617,58 @@ def detect_skill_version(locations):
     return ""
 
 
+# v1.5.10 instruction 052 (the SKILL.md trim): the trim moves per-phase detail
+# into lazy-loaded references/*.md reachable from SKILL.md via the
+# ``See `references/X.md` `` pointer dialect (the SAME regex the
+# bin/tests/test_skill_md_size.py pointer test uses — NOT a second `Read` form).
+# The reference-resolves invariant guards against a trim that points at a file
+# it forgot to create / mis-names, and against a reference cycle.
+_SKILL_REF_POINTER = re.compile(r"See `(references/[^`]+\.md)`")
+
+
+def validate_skill_reference_resolves(skill_md_path):
+    """Verify every ``See `references/X.md` `` pointer in SKILL.md — and
+    transitively in the reference files those point to — resolves to an existing
+    file under the skill's ``references/`` dir, with cycle detection. Returns a
+    list of problem strings (empty list == clean). Pure: no global-counter side
+    effects, so callers (the gate CLI sub-mode + the regression test) share it
+    without disturbing the per-repo gate output contract."""
+    skill_md_path = Path(skill_md_path)
+    if not skill_md_path.is_file():
+        return ["SKILL.md not found at %s" % skill_md_path]
+    skill_dir = skill_md_path.parent
+    problems = []
+    visited = set()
+    stack = []  # files on the current DFS path -> cycle detector
+
+    def _walk(path):
+        if path in stack:
+            cyc = " -> ".join([p.name for p in stack] + [path.name])
+            problems.append("reference cycle detected: %s" % cyc)
+            return
+        if path in visited:
+            return
+        visited.add(path)
+        stack.append(path)
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError as exc:  # noqa: BLE001
+            problems.append("cannot read %s (%s)" % (path.name, exc))
+            stack.pop()
+            return
+        for rel in _SKILL_REF_POINTER.findall(text):
+            target = skill_dir / rel
+            if not target.is_file():
+                problems.append(
+                    "%s points at `%s` which does not exist" % (path.name, rel))
+                continue
+            _walk(target)
+        stack.pop()
+
+    _walk(skill_md_path)
+    return problems
+
+
 def read_skill_value_line(path, prefix):
     """Mimic: grep -m1 'prefix' FILE | sed 's/.*prefix *//' | tr -d ' '."""
     if not path.is_file():
@@ -6557,6 +6609,29 @@ def main(argv=None):
     _reset_counters()
     if argv is None:
         argv = sys.argv[1:]
+
+    # v1.5.10 instr 052: dedicated SKILL.md reference-resolves check. Kept as a
+    # standalone sub-mode (not wired into the per-repo FAIL flow) so it never
+    # perturbs the heavily-pinned gate output contract; CI runs it via the
+    # bin/tests regression test, an operator via this flag.
+    if "--check-skill-references" in argv:
+        candidates = [
+            SCRIPT_DIR / ".." / "SKILL.md", SCRIPT_DIR / "SKILL.md",
+            Path("SKILL.md"),
+            Path(".claude") / "skills" / "quality-playbook" / "SKILL.md",
+            Path(".github") / "skills" / "SKILL.md",
+            Path(".github") / "skills" / "quality-playbook" / "SKILL.md",
+        ]
+        skill_md = next((c for c in candidates if c.is_file()), candidates[0])
+        problems = validate_skill_reference_resolves(skill_md)
+        if problems:
+            print("SKILL reference integrity: FAIL (%s)" % skill_md)
+            for p in problems:
+                print("  - %s" % p)
+            return 1
+        print("SKILL reference integrity: PASS — all `See references/X.md` "
+              "pointers in %s resolve (no missing files, no cycles)" % skill_md)
+        return 0
 
     repo_dirs = []
     version = ""

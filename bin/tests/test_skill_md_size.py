@@ -34,9 +34,23 @@ History:
   headroom over the live ~30,113 BPE; future edits widen the
   ceiling DELIBERATELY (with a one-line rationale appended here),
   the same way prior widenings were documented.
+- **v1.5.10 instruction 052 (the repo-hygiene trim)** RATCHETED the
+  ceiling DOWN 32,000 → 20,000. The trim moved six sections into
+  lazy-loaded `references/` files (Recheck Mode, Phase 7 detail,
+  Phase 5 body, the artifact catalog, Run-state instrumentation, and
+  the Phase 4 spec-audit body), dropping the live size 31,038 →
+  18,478 BPE. The new 20,000 bound = post-trim size + ~1,500 BPE
+  headroom, so the tripwire now guards the *trimmed* baseline against
+  re-bloat. (The design's ~12,000 aspiration is unreachable: the
+  ~6,500-BPE "How to run" section — Mode A/B + Bootstrap + Guardrails
+  + the output-artifact contract + the install-location fallback list
+  — is pinned inline by test_skill_md_self_encoding /
+  test_mode_a_b_parity_documented and cannot be moved. 18,478 is the
+  realistic floor.) Ratchets-down follow the same rule as bumps-up:
+  one-line history bullet + mutation-evidence refresh.
 
 If a future SKILL.md edit legitimately grows the file past
-32,000, update the pin to match, add a one-line rationale here
+20,000, update the pin to match, add a one-line rationale here
 explaining why the change was worth the tokens, and re-check
 references/*.md for further trim opportunities — but understand
 that "we breached the ceiling" is NOT a forcing function on its
@@ -69,24 +83,23 @@ class SkillMdSizeTests(unittest.TestCase):
         Mutation-test evidence (in-tree per
         ai_context/DEVELOPMENT_PROCESS.md):
           Mutation: drop the ceiling below the live SKILL.md size —
-          set the `assertLess` bound to `30000` (live SKILL.md is
-          ~30,113 BPE post-090m; the 32,000 bound provides ~1,887
-          BPE headroom).
+          set the `assertLess` bound to `18000` (live SKILL.md is
+          ~18,478 BPE post-v1.5.10-trim; the 20,000 bound provides
+          ~1,522 BPE headroom).
           Expected failure: THIS test fails with
-            AssertionError: SKILL.md is 30113 BPE tokens — exceeds
-            the v1.5.7 size ceiling (30000 — an arbitrary, owner-
+            AssertionError: SKILL.md is 18478 BPE tokens — exceeds
+            the v1.5.10 size ceiling (18000 — an arbitrary, owner-
             chosen soft tripwire …).
-          (Returning to 31,000 would also fail by the same logic;
-          a useful bite is any value below the live size. A bite
-          that uses a value strictly above the live size — e.g.
-          33,000 — is NOT useful because the test would still
-          pass under either the original 32,000 bound or the
-          mutated one.)
-          Restoration: re-set the ceiling to 32,000; test passes
-          (30,113 < 32,000).
-          Mutation strategy unchanged from prior bumps — any future
-          widening adds a one-line history bullet to the module
-          docstring and keeps this mutation-evidence form.
+          (Any value below the live size is a useful bite; a value
+          strictly above the live size — e.g. 21,000 — is NOT useful
+          because the test would still pass under either the 20,000
+          bound or the mutated one.)
+          Restoration: re-set the ceiling to 20,000; test passes
+          (18,478 < 20,000).
+          Mutation strategy unchanged across bumps/ratchets — any
+          future widening OR tightening adds a one-line history
+          bullet to the module docstring and keeps this
+          mutation-evidence form.
         """
         try:
             import tiktoken
@@ -109,10 +122,20 @@ class SkillMdSizeTests(unittest.TestCase):
         # the 090m owner note: "if an extra 2k tokens make a
         # difference we're probably dealing with a far too
         # limited AI to do this work anyway.")
+        # v1.5.10 052 (the trim): RATCHETED 32,000 → 20,000. The
+        # repo-hygiene trim moved six SKILL.md sections into lazy-
+        # loaded references/ (Recheck, Phase 7, Phase 5 body,
+        # artifact catalog, Run-state instrumentation, Phase 4
+        # spec-audit body), dropping the live size 31,038 → 18,478
+        # BPE. The ceiling is re-set to the post-trim size + ~1,500
+        # BPE headroom so the tripwire now guards the trimmed
+        # baseline (the ~12K design target is unreachable: the
+        # ~6.5K "How to run" section is pinned inline by
+        # test_skill_md_self_encoding and cannot be moved).
         self.assertLess(
-            token_count, 32000,
+            token_count, 20000,
             f"SKILL.md is {token_count} BPE tokens — exceeds the "
-            f"v1.5.7 size ceiling (32000 — an arbitrary, owner-"
+            f"v1.5.10 size ceiling (20000 — an arbitrary, owner-"
             f"chosen soft tripwire, not a hard technical limit). "
             f"If the SKILL.md growth is intentional and worth the "
             f"tokens, bump the ceiling here with a one-line "
