@@ -93,8 +93,10 @@ class InstallClosureNoDriftTests(unittest.TestCase):
         # qpb_phase / quality_gate / run_state_lib).
         # v1.5.9 1B: 58 → 59 (+bin/qpb_heartbeat.py — worker-side
         # heartbeat emit helper the SKILL.md heartbeat section calls).
+        # v1.5.10 052 (SKILL.md trim): +references/recheck_mode.md (Recheck
+        # Mode section extracted from SKILL.md to a lazy-loaded reference).
         from bin.qpb_validate import INSTALL_CLOSURE
-        self.assertEqual(len(INSTALL_CLOSURE), 59)
+        self.assertEqual(len(INSTALL_CLOSURE), 60)
         paths = [e["path"] for e in INSTALL_CLOSURE]
         self.assertEqual(len(paths), len(set(paths)),
                          "duplicate path in INSTALL_CLOSURE")
