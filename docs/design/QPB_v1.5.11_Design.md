@@ -6,6 +6,21 @@
 
 ---
 
+## Clean starting point inherited from v1.5.10 (2026-06-18)
+
+v1.5.10 was expanded (operator decision) from a SKILL.md trim into a **repo-hygiene release** specifically so that v1.5.11 — the security work — starts from a clean, sensibly-organized repo. By the time v1.5.11 begins, v1.5.10 has delivered:
+
+- A trimmed canonical `SKILL.md` (~12K tokens) with per-phase detail in lazy-loaded `references/*.md`, and a reference-resolves validator.
+- The canonical `SKILL.md` + `references/` **relocated to the repo root** (real file at root; in-tree skill locations are symlinks), with the install-location fallback contract, packaging, and tests rewired to match.
+- Committed run-output and orphaned partial copies (`quality/previous_runs/`, top-level `previous_runs/`, `spike/`, the orphaned `.github/skills/quality_gate/`) removed from tracking and gitignored.
+- An arunner regression run confirming the trimmed/relocated skill still works end-to-end.
+
+Security-relevant implication: the v1.5.11 prompt-injection-isolation work (B-1) and the phase-isolated security improvement loop (B-2) build on the relocated root layout and the cleaned `references/` tree. Any path assumptions in the B-items below that referenced `plugins/quality-playbook/skills/quality-playbook/SKILL.md` should be re-read against the v1.5.10 root layout before implementation. See `QPB_v1.5.10_Design.md`.
+
+**Note on B-2 / B-5 vs. the 2026-06 security experiments.** The gen-003 security-improvement-loop experiments (see `~/Documents/AI-Driven Development/Security Improvement Loop/generations/gen-003/`) found the adversarial-LLM clearing pass (B-5 as originally drafted) unreliable, and the deterministic tool-belt + execution-enforcement approach reliable. Before implementing B-2/B-5, reconcile this design with those findings; a separate security-profile spec (security-tuned levers + detect-and-use tool belt + LLM-as-router/configurer/triage) is the likely successor to the original adversarial-pass framing.
+
+---
+
 ## Where v1.5.11 sits in the arc
 
 v1.5.11 picks up everything that the original v1.5.9 broad-scope draft contained, minus the two items that v1.5.9 actually ships:

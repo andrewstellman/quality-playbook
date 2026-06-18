@@ -1,66 +1,89 @@
 # Quality Playbook v1.5.10 — Implementation Plan
 
-*Companion to: `QPB_v1.5.10_Design.md`. Single workstream: the SKILL.md trim, moved verbatim from the v1.5.9 umbrella plan's Phase 2 on 2026-06-11 (operator decision: v1.5.9 refocused on the harness + standalone distribution). The phase letters below preserve the original 2A-2E structure for continuity with prior discussion; they are the whole release.*
+*Companion to `QPB_v1.5.10_Design.md`. **Scope expanded 2026-06-18** from "SKILL.md trim only" to a repo-hygiene release: folder cleanup + SKILL.md relocation to root + the trim + an arunner regression run. Phases below are sequenced so each is independently committable (checkpoint discipline) and so the riskiest step (relocation) lands on its own clean checkpoint.*
 
-*Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule.*
+*All source mutations are executed by the **Claude Code worker** (which polls `~/Documents/QPB/runner/1.5.9`). Cowork authors this plan, the worker brief, runs Council, and verifies — Cowork does not edit QPB source directly.*
+
+*Branch: `1.5.10`, cut from `1.5.9` HEAD.*
 
 ---
 
-## Phase 2A — Audit current SKILL.md content
+## Sequencing rationale
 
-- Catalog every section in the current SKILL.md by phase scope (Phase 1 only / Phase 2 only / cross-phase / contract-level)
-- For each section, classify: STAYS in SKILL.md / MOVES to references / DUPLICATES existing reference (consolidate)
-- Result: an audit table with file:line → destination
+Cleanup first (lowest risk, shrinks the surface), then the trim (mechanical, pattern proven), then the relocation (highest blast radius — lands last on a known-green base so a regression is unambiguously attributable). The arunner regression run gates the whole thing.
 
-## Phase 2B — Mechanical extraction
+---
 
-- Move classified sections to `references/phase_<N>_*.md` files per the audit table
-- Where target reference files already exist (`phase1_exploration_guide.md`, `phase2_generation_guide.md`, etc.), CONSOLIDATE — don't create duplicates
-- Each extraction is a single commit per phase-N detail file, traceable to the audit table
+## Phase A — Branch + folder cleanup (lowest risk first)
 
-## Phase 2C — SKILL.md restructure
+- **A0.** Cut branch `1.5.10` from `1.5.9` HEAD. Confirm `bin/tests/` is green on the fresh branch (baseline).
+- **A1.** For each cruft path in the design's audit table, grep the live source tree (exclude `repos/`) to confirm nothing imports/reads it.
+- **A2.** **Safety check:** read `bin/build_channel_package.py`; confirm it does NOT stage the repo-root `.github/skills/quality_gate/` into `_bundle/`. If it does → reclassify as build input, STOP, report.
+- **A3.** `git rm -r --cached` the confirmed-cruft paths (`quality/`, top-level `previous_runs/`, `spike/`, `.github/skills/quality_gate/`); add `.gitignore` rules. No history rewrite.
+- **A4.** Run `bin/tests/` — still green (removals shouldn't touch live code).
+- **CHECKPOINT COMMIT A:** `chore(v1.5.10): remove committed run-output + orphaned copies from tracking; gitignore`
 
-- Replace extracted sections in SKILL.md with one-line `Read references/phase_N_<purpose>.md` directives
-- Verify the trimmed SKILL.md still flows readably (the agent reads SKILL.md top-to-bottom; reference loads happen at phase boundaries)
-- Final SKILL.md target: ~200-400 lines
+## Phase B — SKILL.md content audit + extraction (the trim)
 
-## Phase 2D — Validator + token-ceiling update
+- **B1.** Produce the audit table: each SKILL.md section → STAYS / MOVES (new ref) / CONSOLIDATE (existing ref), with file:line → destination. (Design's token table is the starting point.)
+- **B2.** Mechanical extraction per the table. For CONSOLIDATE rows (`spec_audit.md`, `run_state_schema.md`, `phase6_verify_guide.md`), **diff inline vs. existing reference first**, reconcile drift, then point — do not blind-append. For MOVE rows, create new `references/phase5_reconciliation_guide.md`, `phase7_guide.md`, `recheck_mode.md`, `invocation_guide.md`.
+- **B3.** Replace extracted sections in SKILL.md with one-line `Read references/<file>.md` directives. Verify SKILL.md still reads top-to-bottom.
+- **CHECKPOINT COMMIT B (one per extracted section is ideal, traceable to the audit table):** `refactor(v1.5.10): extract <section> to references/<file>.md`
 
-- `quality_gate.py` gains the reference-resolves invariant
-- `bin/tests/test_skill_md_size.py` ratchets the ceiling from 32K to ~12K (or whatever empirical post-trim size + a small buffer)
-- Add a regression test that asserts `Read references/X.md` directives in SKILL.md all resolve
+## Phase C — Validator + token-ceiling update
 
-## Phase 2E — Benchmark regression run
+- **C1.** `quality_gate.py` gains the reference-resolves invariant: scan SKILL.md's `Read references/X.md` directives, confirm each resolves; cycle detection.
+- **C2.** Add a regression test asserting all `Read references/X.md` directives resolve.
+- **C3.** `bin/tests/test_skill_md_size.py`: ratchet the ceiling from 32K toward ~12K (empirical post-trim size + small buffer), with the rationale-doc-on-bump policy.
+- **C4.** Run `bin/tests/` — green.
+- **CHECKPOINT COMMIT C:** `feat(v1.5.10): reference-resolves validator + token-ceiling ratchet`
 
-- Standard 3-5 repo benchmark plan run against the trimmed SKILL.md (candidate substrate: the v1.5.9 harness skill — its first real multi-repo QPB workload)
-- Compare bug recall + REQUIREMENTS quality + Phase 6 verdict accuracy vs the pre-trim baseline
-- If recall drops materially, identify which extracted reference content the agent isn't loading and either: (a) move it back to SKILL.md, or (b) strengthen the load directive
+## Phase D — SKILL.md relocation to root (highest blast radius — lands on a green base)
+
+- **D1.** Before moving: read `bin/run_playbook.py` bundle_dir resolution (the `.github/skills/SKILL.md → bundle_dir.name == "skills"` logic) and confirm no fallback layout relies on SKILL.md being *absent* at repo root for repo-vs-adopter detection. If it does → flag, redesign the layout addition, STOP.
+- **D2.** `git mv` the real `SKILL.md` + `references/` from `plugins/quality-playbook/skills/quality-playbook/` to repo root. Replace the in-tree locations with **symlinks** back to root.
+- **D3.** Rewire the install-location fallback list to add root as a recognized layout (preserving adopter-side order) across: `bin/run_playbook.py`, `scripts/install_skill.py`, `scripts/benchmark_lib.py`, `scripts/qpb_validate.py`.
+- **D4.** Update `pyproject.toml` bundle globs and `bin/build_channel_package.py` staging — **dereference symlinks** when staging `_bundle/` so the published package ships real files.
+- **D5.** Repoint `bin/tests/test_skill_md_size.py` `_SKILL_DIR` to root. Update the resolution-order/install-layout tests (`test_skill_resolution_order.py`, `test_install_layouts_pinned.py`, `test_phase0_validator_install_location_aware_090t.py`, `test_doc_drift.py`, `test_run_playbook.py`, `test_benchmark_lib.py`, `test_phase_prompts_externalized.py`).
+- **D6.** Build the package (`build_channel_package.py` + `python -m build`); inspect the built artifact contains a **real** SKILL.md (no dangling symlink).
+- **D7.** Full `bin/tests/` suite green.
+- **CHECKPOINT COMMIT D:** `refactor(v1.5.10)!: relocate canonical SKILL.md to repo root; symlink in-tree locations; rewire install-fallback + packaging`
+
+## Phase E — arunner regression run
+
+- **E1.** Via the polling worker, launch an arunner run exercising Phases 1–3 on 3–5 standard benchmark repos against the trimmed + relocated skill.
+- **E2.** Confirm runtime SKILL.md resolution from the new root layout + per-phase `references/` loads at phase boundaries.
+- **E3.** Compare bug recall + REQUIREMENTS quality + Phase 6 verdict accuracy vs the pre-trim baseline.
+- **E4.** If recall drops materially or a reference fails to load: identify the offending extraction; move it back to SKILL.md or strengthen the load directive; re-run.
+- **CHECKPOINT COMMIT E:** `test(v1.5.10): arunner regression — <result summary>`
 
 ## Ship Gate
 
-- Council Self-Review Protocol 1 with three panelists (audit-table completeness, mechanical-extraction correctness, recall-regression sufficiency) + the defensive-sweep charter (see `DEVELOPMENT_PROCESS.md`). Note: "QPB Phase 1 (Explore)" in any sweep example means the audit pipeline's phase, not a release phase.
-- Trimmed SKILL.md passes the new validator + token-ceiling test
-- Benchmark regression run shows no material recall degradation
-- **awesome-copilot re-submission test:** regenerate the packet shipping the now-trimmed canonical SKILL.md directly; submit PR; iterate if rejected
-- Release prep: version stamps, CHANGELOG, README/TOOLKIT updates, Council umbrella review, tag + close-out per `DEVELOPMENT_PROCESS.md`
+- Council Self-Review Protocol 1, three panelists: (1) cleanup + audit-table completeness, (2) extraction + reconciliation correctness, (3) relocation + install-contract-preservation correctness — plus the defensive-sweep charter.
+- Trimmed SKILL.md passes validator + ratcheted token test; full suite green; package builds with real files; arunner regression clean.
+- **awesome-copilot re-submission:** regenerate the packet shipping the trimmed canonical SKILL.md directly; submit PR; iterate if rejected.
+- Release prep: version stamps, CHANGELOG, README/TOOLKIT updates, tag + close-out per `DEVELOPMENT_PROCESS.md`.
+- **Verify before claiming shipped:** `git ls-remote origin 1.5.10` (and the tag) per the workspace rule before reporting the release landed.
 
 ---
 
 ## Open work-items tracker
 
-*Item numbers are plan-local — always name the plan when cross-referencing a work item.*
-
 | # | Item | Phase | Status |
 |---|------|-------|--------|
-| 1 | SKILL.md content audit | 2A | PENDING — begins after v1.5.9 ships |
-| 2 | Mechanical content extraction | 2B | PENDING audit |
-| 3 | SKILL.md restructure + reference directives | 2C | PENDING extraction |
-| 4 | Reference-resolves validator | 2D | PENDING |
-| 5 | Token-ceiling ratchet (32K → ~12K) | 2D | PENDING |
-| 6 | Benchmark regression run | 2E | PENDING implementation |
-| 7 | awesome-copilot re-submission with full canonical SKILL.md | Ship Gate | PENDING |
-| 8 | Release ship steps | Ship Gate | PENDING |
+| 1 | Branch `1.5.10` + baseline green | A | PENDING |
+| 2 | Folder cleanup (git-rm cruft + gitignore) | A | PENDING — needs build-staging safety check |
+| 3 | SKILL.md content audit table | B | PENDING |
+| 4 | Mechanical extraction + drift reconciliation | B | PENDING audit |
+| 5 | Reference-resolves validator + test | C | PENDING |
+| 6 | Token-ceiling ratchet (32K → ~12K) | C | PENDING extraction |
+| 7 | SKILL.md relocation to root + rewire | D | PENDING — highest risk; verify repo-vs-adopter detection first |
+| 8 | Package build ships real files | D | PENDING relocation |
+| 9 | arunner regression run | E | PENDING all source work |
+| 10 | Council Self-Review | Ship Gate | PENDING |
+| 11 | awesome-copilot re-submission | Ship Gate | PENDING |
+| 12 | Release ship steps + push/tag verification | Ship Gate | PENDING |
 
 ---
 
-*End of v1.5.10 Implementation Plan. Design in `QPB_v1.5.10_Design.md`. Predecessor release in `QPB_v1.5.9_Design.md` + `QPB_v1.5.9_Implementation_Plan.md`. Successor backlog in `QPB_v1.5.11_Design.md` + `QPB_v1.5.11_Implementation_Plan.md`.*
+*End of v1.5.10 Implementation Plan. Design in `QPB_v1.5.10_Design.md`. Successor backlog (security) in `QPB_v1.5.11_Design.md` + `QPB_v1.5.11_Implementation_Plan.md`.*

@@ -1,69 +1,149 @@
 # Quality Playbook v1.5.10 — Design Document
 
-*Status: created 2026-06-11. This release is the **SKILL.md trim** workstream, moved verbatim out of v1.5.9 (where it was Part 2 of `QPB_v1.5.9_Design.md`) when v1.5.9 refocused entirely on the agent-based harness + its standalone distribution (operator decision, 2026-06-11). The broader-scope backlog that previously held the v1.5.10 number is now `QPB_v1.5.11_Design.md`. Work begins after v1.5.9 ships.*
+*Status: created 2026-06-11 as the SKILL.md-trim workstream; **scope expanded 2026-06-18** (operator decision) to a full **repo-hygiene release**: SKILL.md trim + SKILL.md relocation to repo root + folder-structure cleanup + an arunner regression run that confirms the trimmed/relocated skill still works end-to-end. The intent is to hand v1.5.11 (the security release) a clean, sensibly-organized starting point.*
 
-*Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule.*
+*The broader-scope backlog that previously held the v1.5.10 number is `QPB_v1.5.11_Design.md`. Work begins off the `1.5.9` branch HEAD on a new `1.5.10` branch.*
+
+*Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule. The design + implementation-plan docs in `docs/design/` are planning content authored by Cowork; the **source mutations they describe are executed by the Claude Code worker**, not by Cowork directly.*
 
 ---
 
 ## Where v1.5.10 sits in the arc
 
-One focused workstream: **SKILL.md trim** — move content from the 1256-line source `SKILL.md` into `references/*.md` files that the skill loads on-demand per phase. Goal: source SKILL.md small enough (~200-400 lines) that the awesome-copilot submission can ship the **full canonical** SKILL.md without the redirect-to-install framing that the maintainers explicitly reject.
+Three coordinated workstreams, all in service of one goal — **a clean repo before the security work**:
+
+1. **SKILL.md trim** — move per-phase detail from the 1,266-line source `SKILL.md` into `references/*.md` files loaded on-demand per phase. Target: source SKILL.md ~12K BPE tokens (from ~31K).
+2. **SKILL.md relocation to repo root** — the canonical SKILL.md currently lives buried at `plugins/quality-playbook/skills/quality-playbook/SKILL.md`. Operator decision (2026-06-18): moving it out of the root was a mistake. Move the **real file** back to the repo root as the single source of truth; **symlink** the in-tree skill locations back to it; rewire the install-location fallback contract, packaging, and tests accordingly.
+3. **Folder-structure cleanup** — the repo accumulated committed run-output and orphaned partial copies with little organizing logic. Remove the cruft from tracking (reversibly), gitignore it, and leave a structure with clear rhyme and reason.
+
+Closed out by an **arunner regression run** that exercises the trimmed + relocated skill on the standard benchmark set, confirming no behavioral break.
 
 **Why this matters:**
 
-1. **awesome-copilot submission.** The trimmed SKILL.md the awesome-copilot script generates is a different document from the source — explicitly a redirect to "install via pip/npm" rather than the actual skill. Maintainers reject this framing. If the source SKILL.md is small enough to ship verbatim, the trim becomes unnecessary and awesome-copilot gets the **canonical** functional skill.
-2. **Per-invocation token cost.** SKILL.md is loaded into the agent's context on every invocation. ~33K tokens × every QPB run × every adopter is significant cost. Lazy-loading phase content cuts the per-run baseline substantially.
-3. **Maintenance.** A 1256-line SKILL.md is hard to navigate and edit. Phase-isolated reference files give clearer separation of concerns; editing Phase 3 prose doesn't touch Phase 1 content.
+1. **awesome-copilot submission.** A small canonical SKILL.md can ship verbatim instead of the redirect-to-install framing the maintainers reject.
+2. **Per-invocation token cost.** SKILL.md loads into context on every invocation; ~31K tokens × every run × every adopter is real cost. Lazy-loading phase content cuts the baseline.
+3. **Maintainability + a clean base for v1.5.11.** A 1,266-line SKILL.md buried four directories deep, alongside committed run outputs and orphaned copies, is hard to navigate and reason about. The security work in v1.5.11 deserves a tidy starting point.
 
 ---
 
-## Design — what stays vs what moves
+## Operator decisions (2026-06-18)
 
-Stays in source SKILL.md (the trimmed canonical version):
+Two forks were surfaced from the repo audit and resolved by the operator:
 
-- Frontmatter (`name`, `description`, `license`, version, author, github)
-- Phase Overview — the "plan overview" prose that describes what each phase does at a high level (~200-300 words)
-- Phase entry contracts — what each phase reads and produces, in tabular form
-- Invocation forms (Mode A / Mode B / harness)
-- The reference file load instructions — "for Phase N detail, read `references/phase_N_guide.md`"
-- Critical contract content that's not phase-specific (run_state.jsonl schema, install-location fallback list, version-stamp invariants)
-- **v1.5.9 carry-forward:** the Heartbeat emission section (added in v1.5.9 Phase 1B) is contract-level content and stays.
-
-Moves to `references/`:
-
-- Phase 1 detailed exploration patterns + role-map querying detail → `references/phase1_detail.md` (consolidate with existing `phase1_exploration_guide.md`)
-- Phase 2 generation step-by-step instructions → `references/phase2_detail.md` (consolidate with existing `phase2_generation_guide.md`)
-- Phase 3-6 corresponding detail files
-- Challenge-gate prose (already partially in `references/challenge_gate.md` — consolidate)
-- Spec-audit Council protocol details (already in `references/spec_audit.md` — verify completeness)
-- Run-state event taxonomy detail (most already in `references/run_state_schema.md` — verify completeness)
-
-**Loading model.** The skill loads the trimmed SKILL.md at session start, then loads each `references/phase_N_*.md` file when the agent enters Phase N. The orchestrator agent reads the reference file via `Read` tool when crossing the phase boundary. This is the same on-demand model the existing references/ work uses — extending it to cover more of the per-phase content.
-
-**Backward compatibility.** Adopters running QPB skills installed pre-v1.5.10 (whose SKILL.md still has the full content) keep working. The trim is a source-side change; installed-skill semantics are identical for the previous installation.
-
-**Validator updates.** `quality_gate.py` gains an invariant that scans SKILL.md's `Read references/X.md` references and confirms each resolves to an existing file. Without this, a stale reference quietly breaks a phase mid-run.
-
-**Token-ceiling test (`bin/tests/test_skill_md_size.py`).** The current ceiling is 32K tokens (v1.5.7 instruction 090m). v1.5.10 ratchets it down to ~12K with the same rationale-doc-on-bump policy: future SKILL.md bloat is detected immediately.
+- **SKILL.md move → "Canonical file at root + rewire."** Move the real SKILL.md to the repo root as source of truth; symlink the in-tree skill locations to it; update the install-location fallback list, the pyproject bundle patterns, and the affected tests. This is the highest-fidelity option to the operator's intent and the **biggest-blast-radius** item in the release — the arunner regression run is therefore load-bearing, not optional.
+- **Cruft removal → "git-rm + gitignore (reversible)."** Remove stale run outputs and orphaned copies from tracking and add gitignore rules; git history preserves everything, so the change is fully reversible. **No history rewrite.** Every removal is preceded by a reference-check confirming nothing live depends on the path.
 
 ---
 
-## Open design questions (resolve during implementation)
+## Repo audit findings (2026-06-18)
 
-- **Boundary criteria — what's "phase-specific" enough to move?** Some content is read in Phase 1 but referenced in Phase 4 (defensive patterns, exploration role-map). Single-phase content moves cleanly; cross-phase content needs design decisions on duplication vs cross-references.
-- **Eager vs lazy reference loading.** Eager (load all phase references at session start) is simpler but defeats the point — we still pay the token cost. Lazy (load when entering phase) is the goal but requires the agent to actually invoke `Read` at phase boundaries, which the skill prose must enforce.
-- **Adopter-install upgrade path.** If an adopter has v1.5.9 installed and we ship a smaller SKILL.md in v1.5.10, do we tell them to re-install via `quality-playbook install`? Or does the next QPB run detect old-SKILL.md and prompt for update?
-- **Token-ceiling target.** 12K is a guess. The empirical question is "how small can we make SKILL.md while preserving recall on the standard benchmark set." Implementation pass needs to measure.
+Measured against the live `1.5.9` working tree.
+
+### Genuine cruft — committed by accident (remove from tracking, gitignore)
+
+| Path | Tracked files | What it is | Action |
+|---|---|---|---|
+| `quality/` (esp. `quality/previous_runs/`) | 989 (904 in previous_runs) | QPB's own self-run **output** dir + archived run history; last touched 2026-05-30 "Bootstrap run". Live output should never be committed. | `git rm -r --cached`; gitignore `quality/` (keep any genuine fixtures it may hold — verify first) |
+| `previous_runs/` (top-level) | 4 | Stale `BUGS_pre_v1.5.3.md` snapshots | `git rm --cached`; gitignore or move to an `archive/` |
+| `spike/v1.5.9_phase_1A/` | 5 | v1.5.9 phase-1A spike evidence | move to `docs/` archive or `git rm --cached` + gitignore |
+| `.github/skills/quality_gate/` | 44 | **Orphaned partial copy**: `__init__.py` + one `tests/test_quality_gate.py` + a large `tests/fixtures/challenge_coverage/` tree, with **no actual `quality_gate.py`** (the real module is `plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py`). No CI runs it (`.github/workflows/` is empty). | `git rm -r --cached` **after** the build-staging safety check below |
+
+**Safety check before removing `.github/skills/quality_gate/`:** `pyproject.toml` `[tool.setuptools.package-data]` explicitly lists `_bundle/.github/skills/quality_gate/**/*`. That references the *staged* `_bundle/` tree, not the repo-root dir — but the worker MUST read `bin/build_channel_package.py` and confirm the staging step does not copy the repo-root `.github/skills/quality_gate/` into `_bundle/`. If it does, the dir is a build input, not cruft — reclassify and stop. (`.github/workflows/` being empty already establishes CI doesn't run its tests.)
+
+### Intentional — leave alone
+
+- `pytest/` (top-level) — a deliberate **stdlib unittest shim** so `python -m pytest` works under the stdlib-only rule (NFR-3). Not cruft.
+- `repos/` (453) — benchmark material (secbench, qpb-ff, skill copies). Cowork's free-write subtree.
+- `build/`, `dist/`, `quality_playbook.egg-info/`, `__pycache__/`, `docs_gathered/`, `harness_runs/`, `informal_docs/`, `pattern-discovery/`, `testing/` — already gitignored.
+- `bin/`, `docs/`, `plugins/`, `harness_plans/`, `reviews/`, `metrics/`, `ai_context/`, `images/`, `reference_docs/`, `scripts/`, `quality_playbook_cli/` — legitimate source/project dirs.
+
+---
+
+## Design — the SKILL.md trim (workstream 1)
+
+Current source SKILL.md: **31,038 BPE tokens / 1,266 lines** (measured). Target ~12K. The `references/` scaffolding already exists (24 files), and Phases 1–2 are already trimmed to ~5-line pointers — the lazy-load pattern is proven in production, which retires the "will the agent actually `Read` at the phase boundary?" open question.
+
+**Stays in the trimmed canonical SKILL.md:** frontmatter; Phase Overview; phase entry contracts (tabular); invocation forms (Mode A / Mode B / harness — keep the mode-select, move the detail); the `Read references/...` load directives; non-phase-specific contract content (run_state schema pointer, install-location fallback list, version-stamp invariants); the v1.5.9 Heartbeat emission section.
+
+**Moves to `references/` (token budget — eight sections carry ~19K):**
+
+| Section | Tokens | Action |
+|---|---|---|
+| How to run — invocation contract | 6,506 | keep mode-select (~1.5K), move detail to `references/invocation_guide.md` |
+| Phase 5: Reconciliation | 5,159 | move → new `references/phase5_reconciliation_guide.md` |
+| How to Use | 3,040 | move detail, keep invocation |
+| What This Skill Produces | 2,800 | move artifact catalog to references |
+| Run-state instrumentation | 2,431 | **consolidate** into existing `references/run_state_schema.md` |
+| Phase 7: Interactive | 2,375 | move → new `references/phase7_guide.md` |
+| Phase 4: Spec Audit | 1,749 | **consolidate** into existing `references/spec_audit.md` |
+| Recheck Mode (+results) | ~1,300 | move → new `references/recheck_mode.md` |
+
+~22K of available savings against a 19K target — clears comfortably to ~9–12K.
+
+**The one real gotcha:** the "consolidate" rows are *reconcile-then-point*, not append. Only 3 `Read references/` directives are wired in today, so the existing reference files (`spec_audit.md`, `run_state_schema.md`, `phase6_verify_guide.md`) may have **drifted** from the inline SKILL.md text. The worker must diff the inline section against the existing reference and reconcile, not blindly append.
+
+**Loading model.** Trimmed SKILL.md loads at session start; each `references/phase_N_*.md` loads when the agent enters Phase N (same on-demand model the existing references use).
+
+**Backward compatibility.** Adopters running pre-v1.5.10 installs keep working; the trim is a source-side change.
+
+---
+
+## Design — SKILL.md relocation to root (workstream 2)
+
+**Target layout:** the real `SKILL.md` (and its `references/`) live at the repo root. The in-tree skill location(s) become **symlinks** back to the root file. The canonical skill source-of-truth becomes the root, matching the operator's mental model and making the file editable without descending four directories.
+
+**The rewire surface (the load-bearing part).** The "install-location fallback list" — the ordered set of ~10 canonical layouts the skill walks to locate `SKILL.md`/`quality_gate.py` at runtime — is referenced across these source + test files (pinned by audit):
+
+- Source: `bin/run_playbook.py`, `plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py`, `.../scripts/benchmark_lib.py`, `.../scripts/qpb_validate.py`
+- Tests: `bin/tests/test_skill_resolution_order.py`, `test_phase_prompts_externalized.py`, `test_benchmark_lib.py`, `test_run_playbook.py`, `test_doc_drift.py`
+
+Plus:
+
+- `pyproject.toml` `[tool.setuptools.package-data]` bundle globs (`_bundle/**/*`, `_bundle/.github/skills/**/*`).
+- `bin/build_channel_package.py` staging logic (what it copies into `_bundle/`).
+- `bin/tests/test_skill_md_size.py` — currently pins `_SKILL_DIR = parents[2] / "plugins" / "quality-playbook" / "skills" / "quality-playbook"`; must repoint to the root.
+
+**Design constraints for the move:**
+
+1. The relocation must **preserve the install-location fallback contract** for *adopters* — an installed skill at `.claude/skills/quality-playbook/SKILL.md` (etc.) must still resolve. The change is to where QPB's *own* canonical source lives, plus adding root as a recognized layout; it must not break the adopter-side fallback order.
+2. Symlinks vs. real-file: the **root copy is the real file**; in-tree locations are symlinks. The build/staging step (`build_channel_package.py`) must dereference symlinks when staging `_bundle/` so the published package ships real files, not dangling links.
+3. The SKILL.md-size test repoints to root and keeps the ratchet (see workstream 1).
+
+**Open question for the worker (resolve during implementation, flag if it forces a redesign):** whether any layout in the fallback list assumes SKILL.md is *not* at the repo root (e.g., a check that distinguishes "running inside the QPB repo" from "installed in an adopter project" by SKILL.md's absence at root). If so, adding root as a layout could change repo-vs-adopter detection — the worker must check `run_playbook.py`'s bundle_dir resolution (around the documented `.github/skills/SKILL.md → bundle_dir.name == "skills"` logic) before moving.
+
+---
+
+## Design — folder cleanup (workstream 3)
+
+Execute the audit table above:
+
+1. **Verify-then-remove.** For each cruft path, the worker first greps the live source tree (excluding `repos/`) to confirm nothing imports/reads it, then `git rm -r --cached` and adds a `.gitignore` entry. The `.github/skills/quality_gate/` removal additionally requires the `build_channel_package.py` staging check.
+2. **No history rewrite.** Removals are from the index + working-tree-going-forward only; history retains the files.
+3. **Result:** a top-level structure where every tracked dir is either source, docs, benchmark material (`repos/`), or a deliberate shim (`pytest/`) — no committed run outputs, no orphaned partial copies.
+
+---
+
+## arunner regression run (the ship gate's load-bearing check)
+
+Because the relocation touches the install-location contract, a green test suite is necessary but **not sufficient**. The release runs the standard benchmark via the **arunner harness** (launched through the Claude Code worker that polls `~/Documents/QPB/runner/1.5.9`) against the trimmed + relocated skill:
+
+- Exercise Phases 1–3 (minimum) on 3–5 standard benchmark repos.
+- Confirm the skill **resolves SKILL.md from the new root layout at runtime**, loads each `references/phase_N_*.md` at its phase boundary, and produces artifacts of the same shape/quality as the pre-trim baseline.
+- Compare bug recall + REQUIREMENTS quality + Phase 6 verdict accuracy vs the pre-trim baseline.
+- If recall drops materially or a reference fails to load, identify the offending extraction and either move it back to SKILL.md or strengthen the load directive.
 
 ---
 
 ## Ship criteria
 
-- The trimmed SKILL.md passes the new validator + the token-ceiling test.
-- A regression run against the standard benchmark set (3-5 repos) confirms no material recall degradation.
-- Council Self-Review Protocol 1 (three panelists: audit-table completeness, mechanical-extraction correctness, recall-regression sufficiency), with the **defensive-sweep charter** per `DEVELOPMENT_PROCESS.md` (v1.5.8 207+): any panelist verifying content moves also greps the trimmed SKILL.md for the same defect class elsewhere.
-- **awesome-copilot re-submission test:** regenerate the awesome-copilot packet WITHOUT the trim (ship the now-trimmed SKILL.md directly); confirm size is acceptable; submit PR. If accepted → trim succeeded its primary goal; if rejected → diagnose and iterate.
+- Trimmed SKILL.md passes the new reference-resolves validator + the ratcheted token-ceiling test (repointed to root).
+- Full `bin/tests/` suite green (including the rewired install-location/resolution-order tests).
+- The package builds (`build_channel_package.py` + `python -m build`) with the relocated layout, staging real files (symlinks dereferenced).
+- arunner regression run shows no material recall degradation and confirms runtime resolution from the root layout.
+- Folder cleanup complete; `git status` clean; no committed run outputs remain.
+- Council Self-Review Protocol 1 (panelists: audit-table/cleanup completeness, mechanical-extraction + reconciliation correctness, relocation/contract-preservation correctness) + the defensive-sweep charter per `DEVELOPMENT_PROCESS.md`.
+- **awesome-copilot re-submission test:** regenerate the packet shipping the now-trimmed canonical SKILL.md directly; submit PR; iterate if rejected.
+- Release prep: version stamps, CHANGELOG, README/TOOLKIT updates, tag + close-out per `DEVELOPMENT_PROCESS.md`. **Push/tag verification per the workspace rule** (`git ls-remote origin <ref>`) before claiming shipped.
 
 ---
 
@@ -71,11 +151,13 @@ Moves to `references/`:
 
 | Risk | Mitigation |
 |---|---|
-| SKILL.md trim degrades recall on the benchmark set | Standard 3-5 repo benchmark run before ship; abort if recall drops materially |
-| Phase-specific reference files have implicit dependencies on each other | Validator scans for `references/X.md` mentions and resolves them; cycle detection added |
-| Reference files duplicate content already in SKILL.md | Trim audit step: any content moved to references is REMOVED from SKILL.md; no copy-and-keep |
-| Adopter-install migration breaks active QPB runs | Backward compat is intentional — v1.5.9-installed skill keeps working; upgrade is opt-in |
+| Relocation breaks the install-location fallback contract (adopter-side resolution) | arunner regression run is the gate; rewired resolution-order tests must stay green; worker verifies repo-vs-adopter detection logic before moving |
+| Build ships dangling symlinks instead of real files | `build_channel_package.py` must dereference symlinks when staging `_bundle/`; verify the built artifact contains real SKILL.md |
+| SKILL.md trim degrades recall | benchmark regression run before ship; abort/iterate if recall drops |
+| Existing reference files drifted from inline text | "consolidate" rows are reconcile-then-point (diff first), not blind append |
+| `.github/skills/quality_gate/` is actually a build input, not cruft | mandatory `build_channel_package.py` staging check before removal |
+| Cowork accidentally edits source directly | all source mutations go through the Claude Code worker; Cowork authors planning docs + brief only |
 
 ---
 
-*End of v1.5.10 Design. Implementation plan in `QPB_v1.5.10_Implementation_Plan.md`. Predecessor release (harness + standalone distribution) in `QPB_v1.5.9_Design.md`. Deferred broader scope in `QPB_v1.5.11_Design.md`.*
+*End of v1.5.10 Design. Implementation plan in `QPB_v1.5.10_Implementation_Plan.md`. Predecessor (harness + standalone distribution) in `QPB_v1.5.9_Design.md`. Successor (security) in `QPB_v1.5.11_Design.md` — which inherits the clean repo this release produces.*
