@@ -519,13 +519,7 @@ Or say "keep going" to continue automatically.
 > **Required references for this phase:**
 > - `references/spec_audit.md` — Council of Three protocol, triage process, verification probes
 
-Run the spec audit protocol as described in File 5. The triage report **must** include a `## Pre-audit docs validation` section (see `references/spec_audit.md` for the full template). This section is required even if `reference_docs/` is empty — in that case, note what baseline the auditors used instead. Every verification probe in the triage must produce executable evidence (test assertions with line-number citations) per the "Verification probes must produce executable evidence" rule above. After triage, categorize each confirmed finding.
-
-**Effective council gating for enumeration checks.** If the effective council is less than 3/3 (fewer than three auditors returned usable reports) and the run includes any whitelist/enumeration/dispatch-function checks or any carried-forward seed checks, the audit may not conclude "no confirmed defects" for those checks without executed mechanical proof artifacts. An incomplete council with mechanical verification is acceptable. An incomplete council relying on prose-only validation for code-presence claims is not — escalate to "NEEDS VERIFICATION" and run the mechanical check before closing.
-
-**Pre-audit spot-checks must extract from code, not assert from docs.** When the spec audit prompt includes spot-check claims for pre-validation (e.g., "verify that function X handles constant Y at line Z"), the triage must validate each claim by extracting the actual code at the cited lines — not by confirming that the claim sounds plausible. For each spot-check claim about code contents, the pre-validation must report what the cited lines actually contain: "Line 3527 contains `default:` — NOT `case VIRTIO_F_RING_RESET:` as claimed." If the spot-check was generated from requirements or gathered docs rather than from the code itself, treat it as a hypothesis to test, not a fact to confirm. This rule prevents a contamination chain where a false spot-check claim is accepted as "accurate" without reading the actual lines, then propagated through the triage and into every downstream artifact.
-
-**Update PROGRESS.md:** Add every confirmed **code bug** from the spec audit to the cumulative BUG tracker with source "Spec Audit". This is critical — spec-audit bugs are systematically orphaned if they aren't added to the same tracker that the closure verification reads.
+See `references/spec_audit.md` for the full spec-audit execution detail — the Council-of-Three audit + triage protocol, the effective-council gating rule for enumeration checks, the pre-audit spot-checks-from-code rule, the post-spec-audit regression step, the mandatory individual-auditor artifacts, and the Phase 4 completion gate.
 
 ### Layer 2 — Semantic Citation Check (Council sub-pass)
 
@@ -546,18 +540,6 @@ After the main spec audit triage, each Council member runs a per-REQ verdict aga
 **Majority rule (gate-enforced).** For each Tier 1/2 REQ, the gate groups reviews by `req_id` and fails the run when ≥2 of 3 reviewers recorded `verdict == "overreaches"`. A single-member `overreaches` or `unclear` verdict surfaces as a warning but does not fail the gate. A REQ with fewer than three reviewer entries (missing reviewer, skipped batch) has insufficient evidence — the gate treats that as a fail.
 
 **No-op for Spec Gap runs.** If a run produces zero Tier 1/2 REQs, `citation_semantic_check.json` is still written with an empty `reviews` array — the file's existence is part of the artifact contract even when the check has nothing to evaluate.
-
-### Post-spec-audit regression tests
-
-After the spec audit triage, check the cumulative BUG tracker in PROGRESS.md. Any spec-audit BUG that doesn't have a regression test yet needs one now. Write regression tests for spec-audit confirmed code bugs using the same conventions as code-review regression tests (expected-failure markers, test-finding alignment, executable source files).
-
-**Why this step exists:** Code review bugs get regression tests immediately because tests are written right after the review. Spec audit runs after the tests are written, so its confirmed bugs are orphaned — they appear in the triage report but never get tests. This step closes that gap.
-
-**Individual auditor artifacts (mandatory).** The spec audit must produce individual auditor report files at `quality/spec_audits/` with filenames containing `auditor` (canonical format: `YYYY-MM-DD-auditor-N.md`, e.g., `2026-04-12-auditor-1.md`; also accepted: `auditor_<model>_<date>.md`). The gate globs for `*auditor*` — any conformant name will match. One file per auditor, not just the triage synthesis. Each auditor report records what that auditor found independently before triage reconciliation. If only the triage file exists with no individual auditor artifacts, the audit is incomplete — the triage cannot be verified because there is no record of pre-reconciliation findings. This requirement exists because a single triage file conflates discovery with reconciliation, making it impossible to tell whether a finding was independently confirmed or synthesized from a single source.
-
-**Phase 4 completion gate.** Phase 4 is not complete until a triage file exists at `quality/spec_audits/YYYY-MM-DD-triage.md` **and** individual auditor reports exist. If only auditor reports exist with no triage synthesis, mark Phase 4 as "partial — triage pending" in PROGRESS.md and complete the triage before proceeding. If only the triage exists with no individual reports, mark Phase 4 as "partial — auditor artifacts missing" and regenerate them. The PROGRESS.md checkbox must not be set until both the triage file and auditor reports are confirmed present.
-
-Update the BUG tracker entries with regression test references. Mark Phase 4 (Spec audit + triage) complete.
 
 **End-of-phase message (mandatory — print this after Phase 4 completes, then STOP):**
 
