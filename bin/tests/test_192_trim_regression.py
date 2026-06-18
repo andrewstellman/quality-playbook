@@ -26,12 +26,9 @@ import pathlib
 import unittest
 
 _REPO = pathlib.Path(__file__).resolve().parents[2]
-# v1.5.8 instruction 209: SKILL.md lives under the standard
-# self-hosted marketplace plugin layout.
-_SKILL = (
-    _REPO / "plugins" / "quality-playbook"
-    / "skills" / "quality-playbook" / "SKILL.md"
-)
+# v1.5.8 instruction 209 had SKILL.md under the plugin skill folder; v1.5.10
+# instruction 052 relocated the canonical real file back to the repo ROOT.
+_SKILL = _REPO / "SKILL.md"
 
 
 class TrimRegressionPreventionTest(unittest.TestCase):

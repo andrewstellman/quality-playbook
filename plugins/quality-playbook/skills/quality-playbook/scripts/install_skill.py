@@ -256,8 +256,16 @@ def _resolve_bundle_source_root(source_root: Path) -> Path:
          (208-era QPB clone root) — return that nested path.
       4. Fall through — return source_root unchanged so the
          caller surfaces a clear missing-file error."""
-    if (source_root / "SKILL.md").is_file():
-        return source_root
+    # v1.5.10 instr 052 (SKILL.md relocation): the canonical SKILL.md moved to
+    # the QPB repo ROOT (the in-tree skill folder symlinks back to it). A QPB
+    # *clone* now has SKILL.md at BOTH the clone root AND the nested skill
+    # folder, so the nested skill-folder probes (rules 2/3) MUST run BEFORE the
+    # bare ``source_root/SKILL.md`` probe (rule 1) — otherwise a caller passing
+    # the clone root resolves to the clone root and ``_bundle_files`` enumerates
+    # the wrong (flat / pre-208) layout and raises on a non-existent member.
+    # The nested skill folder is the bundle source; the root SKILL.md is the
+    # editable canonical file the in-tree symlink points at. (Pre-052 the clone
+    # root had NO SKILL.md, so bare-first was unambiguous.)
     nested_209 = (
         source_root / "plugins" / "quality-playbook"
         / "skills" / "quality-playbook"
@@ -267,6 +275,10 @@ def _resolve_bundle_source_root(source_root: Path) -> Path:
     nested_208 = source_root / "skills" / "quality-playbook"
     if (nested_208 / "SKILL.md").is_file():
         return nested_208
+    # Rule 1 (now last): source_root is already the skill folder itself, a
+    # pre-208 flat clone, or a flat / adopter install root.
+    if (source_root / "SKILL.md").is_file():
+        return source_root
     return source_root
 
 

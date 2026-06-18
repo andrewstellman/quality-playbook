@@ -65,8 +65,11 @@ import unittest
 from pathlib import Path
 
 
-# v1.5.8 instruction 208: SKILL.md + references/ moved into the plugin skill folder.
-_SKILL_DIR = Path(__file__).resolve().parents[2] / "plugins" / "quality-playbook" / "skills" / "quality-playbook"
+# v1.5.8 instruction 208 moved SKILL.md + references/ into the plugin skill
+# folder; v1.5.10 instruction 052 RELOCATED the canonical real files back to the
+# repo ROOT (the in-tree skill-folder copies are now symlinks). Pin the CANONICAL
+# real files at the root.
+_SKILL_DIR = Path(__file__).resolve().parents[2]
 SKILL_MD = _SKILL_DIR / "SKILL.md"
 REFERENCES_DIR = _SKILL_DIR / "references"
 

@@ -2,7 +2,7 @@
 
 *Extracted from SKILL.md in v1.5.10 (instr 052). SKILL.md keeps the `## Phase 7` heading + the canonical-treatment paragraph + a pointer here; this file carries Part 1 (summary table), Part 2 (drill-down), Part 3 (improvement menu), executing each improvement path, and iteration.*
 
-### Part 1: The Summary Table
+## Part 1: The Summary Table
 
 Present a single table the user can scan in 10 seconds:
 
@@ -54,7 +54,7 @@ After the Quick Start block, add one line:
 
 > "You can ask me about any of these to see the details — for example, 'show me Scenario 3' or 'walk me through the integration test matrix.'"
 
-### Part 2: Drill-Down on Demand
+## Part 2: Drill-Down on Demand
 
 When the user asks about a specific item, give a focused summary — not the whole file, but the key decisions and what you're uncertain about. Examples:
 
@@ -64,7 +64,7 @@ When the user asks about a specific item, give a focused summary — not the who
 
 The user may go through several drill-downs before they're ready to improve anything. That's fine — let them explore at their own pace.
 
-### Part 3: The Improvement Menu
+## Part 3: The Improvement Menu
 
 After the user has seen the summary (and optionally drilled into details), present the improvement options:
 
@@ -89,7 +89,7 @@ After the user has seen the summary (and optionally drilled into details), prese
 >
 > "You can do any combination of these, in any order. Which would you like to start with?"
 
-### Executing Each Improvement Path
+## Executing Each Improvement Path
 
 **Path 1: Review requirements interactively.** Point the user to `quality/REVIEW_REQUIREMENTS.md` and offer to walk through it together. The protocol supports self-guided (pick use cases), fully guided (sequential walkthrough), and cross-model audit (different model fact-checks the completeness report). Progress is tracked in `quality/REFINEMENT_HINTS.md` so the user can pick up where they left off.
 
@@ -116,6 +116,6 @@ After the user answers, revise the generated files and re-run tests.
 
 If the user already provided chat history in Step 0, you've already mined it — but they may want to point you to specific conversations, connect additional sources, or ask you to dig deeper into a particular topic.
 
-### Iteration
+## Iteration
 
 The user can cycle through these paths as many times as they want. Each pass makes the quality playbook more grounded. When they're satisfied, they'll move on naturally — there's no explicit "done" step.

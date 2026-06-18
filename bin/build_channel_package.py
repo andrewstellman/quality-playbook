@@ -424,7 +424,45 @@ def stage(repo_root: Path, dest_dir: Path,
     # qpb_validate (the channel executors) import _purpose at
     # module load.
     _assert_mandatory_staged_members(dest_dir)
+    # v1.5.10 instr 052 (SKILL.md relocation): the canonical SKILL.md +
+    # references/ now live at the repo ROOT; the in-tree skill-folder copies are
+    # SYMLINKS to them. `shutil.copy2` above dereferences symlinks, so the
+    # staged bundle must contain REAL files — never dangling/relative symlinks
+    # that would break a wheel/npm tarball unpacked on an adopter machine. This
+    # guard fails the build loudly if a future copy-variant change
+    # (`copytree(symlinks=True)`, `copy(follow_symlinks=False)`, `cp -P/-a`)
+    # ever preserved a symlink into the bundle.
+    _assert_staged_files_are_real(dest_dir)
     return staged
+
+
+def _assert_staged_files_are_real(dest_dir: Path) -> None:
+    """v1.5.10 052: every file under the staged ``_bundle/`` tree must be a
+    real file, not a symlink — adopters unpack the published artifact where the
+    symlink targets do not exist. Pins Council C4's anti-regression guard;
+    additionally asserts ``_bundle/SKILL.md`` content matches the relocated root
+    canonical SKILL.md."""
+    import os
+    bad_links = [
+        p for p in dest_dir.rglob("*")
+        if p.is_symlink()
+    ]
+    if bad_links:
+        rels = sorted(str(p.relative_to(dest_dir)) for p in bad_links)
+        raise RuntimeError(
+            "build_channel_package: staged _bundle/ contains symlink(s) "
+            "(must be real files — copy2 should have dereferenced): %s. Do NOT "
+            "use symlink-preserving copy variants." % rels)
+    staged_skill = dest_dir / "SKILL.md"
+    if staged_skill.is_file() and not staged_skill.is_symlink():
+        # content parity with the relocated root canonical SKILL.md
+        root_skill = Path(__file__).resolve().parent.parent / "SKILL.md"
+        if root_skill.is_file():
+            if staged_skill.read_bytes() != root_skill.read_bytes():
+                raise RuntimeError(
+                    "build_channel_package: staged _bundle/SKILL.md content "
+                    "does not match the relocated root SKILL.md (%s)" % root_skill)
+    assert not os.path.islink(staged_skill), "staged SKILL.md is a symlink"
 
 
 # v1.5.7 090b: load-time hard dependencies that MUST be present in

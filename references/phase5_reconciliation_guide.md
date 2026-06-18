@@ -2,6 +2,8 @@
 
 *Extracted from SKILL.md in v1.5.10 (instr 052) — loaded on entering Phase 5. SKILL.md keeps the `## Phase 5` heading, the instrumentation + source-edit guardrail + required-references preamble, and the mandatory end-of-phase message block (with its inverted default-continue boundary) inline; this file carries the entry gate, challenge gate, terminal gate, and reconciliation sub-gates.*
 
+## Phase 5 reconciliation procedure
+
 **Phase 5 entry gate (mandatory — HARD STOP).** Before proceeding, verify ALL of the following Phase 4 artifacts exist:
 
 1. `quality/spec_audits/` directory exists and contains at least one `*triage*` file (the triage synthesis)

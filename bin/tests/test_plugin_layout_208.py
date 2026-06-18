@@ -116,17 +116,27 @@ class PluginLayoutTests(unittest.TestCase):
             "doc-gathering protocol's Step 0 option (c) resolves here",
         )
 
-    def test_skill_md_not_at_repo_root_anymore(self) -> None:
-        # Defensive: catch accidental copy-don't-move that leaves
-        # SKILL.md in both places.
+    def test_skill_md_is_real_file_at_repo_root_v1_5_10(self) -> None:
+        # v1.5.10 instr 052 RELOCATION: the canonical SKILL.md moved BACK to
+        # the repo root as the REAL file; the in-tree skill-folder location is
+        # now a relative symlink to it. This deliberately reverses the 208/209
+        # "SKILL.md must NOT be at root" invariant (operator decision 2026-06-18).
+        root_skill = self.repo_root / "SKILL.md"
+        self.assertTrue(
+            root_skill.is_file(),
+            "v1.5.10 relocation: SKILL.md must be a real file at the repo root.")
         self.assertFalse(
-            (self.repo_root / "SKILL.md").is_file(),
-            "SKILL.md must NOT exist at the repo root — the standard "
-            "self-hosted marketplace restructure (instruction 209) "
-            "MOVED it into plugins/quality-playbook/skills/"
-            "quality-playbook/. A copy left behind would drift "
-            "silently.",
-        )
+            root_skill.is_symlink(),
+            "the repo-root SKILL.md must be the REAL canonical file, not a "
+            "symlink (the in-tree copy is the symlink).")
+        intree = self.skill_dir / "SKILL.md"
+        self.assertTrue(
+            intree.is_symlink(),
+            "the in-tree skill-folder SKILL.md must be a symlink to the root "
+            "canonical file (v1.5.10 relocation).")
+        self.assertEqual(
+            intree.resolve(), root_skill.resolve(),
+            "the in-tree SKILL.md symlink must resolve to the root SKILL.md.")
 
     def test_claude_plugin_marketplace_json_at_root(self) -> None:
         manifest = self.repo_root / ".claude-plugin" / "marketplace.json"
@@ -257,29 +267,64 @@ class PluginLayoutTests(unittest.TestCase):
             "lockstep at build time",
         )
 
-    def test_no_legacy_skill_md_at_repo_root(self) -> None:
-        # Backstop for the "did we actually move it" test
+    def test_skill_md_present_at_repo_root_v1_5_10(self) -> None:
+        # v1.5.10 instr 052: SKILL.md IS at the repo root (relocated, real file).
         files_at_root = {f.name for f in self.repo_root.iterdir() if f.is_file()}
-        self.assertNotIn(
+        self.assertIn(
             "SKILL.md", files_at_root,
-            "the post-209 layout REMOVES SKILL.md from the repo root "
-            "(it lives in plugins/quality-playbook/skills/"
-            "quality-playbook/)",
+            "v1.5.10 relocation: the canonical SKILL.md lives at the repo root.",
         )
 
-    def test_legacy_dirs_not_at_repo_root(self) -> None:
-        """references/ phase_prompts/ agents/ also moved — defensive
-        backstop that the moves were not accidentally undone by a
-        partial revert. Also asserts the 208-era ``skills/`` directory
-        at root is gone (209 moved it under plugins/)."""
-        for legacy in ("references", "phase_prompts", "agents", "skills"):
+    def test_built_bundle_ships_real_skill_md_v1_5_10(self) -> None:
+        """v1.5.10 relocation D6 / Council C4: the staged channel bundle must
+        ship a REAL SKILL.md + references/ (the in-tree symlinks dereferenced by
+        shutil.copy2), since adopters unpack the artifact where the symlink
+        targets do not exist. Bites if a future copy variant preserves symlinks."""
+        import os
+        import sys as _sys
+        import tempfile
+        _sys.path.insert(0, str(self.repo_root / "bin"))
+        import build_channel_package as bcp  # type: ignore[import-not-found]
+        dest = Path(tempfile.mkdtemp()) / "_bundle"
+        bcp.stage(self.repo_root, dest)
+        sk = dest / "SKILL.md"
+        self.assertTrue(sk.is_file(), "bundle must ship SKILL.md")
+        self.assertFalse(
+            os.path.islink(sk),
+            "bundle SKILL.md must be a REAL file, not a symlink (copy2 deref).")
+        self.assertEqual(
+            sk.read_bytes(), (self.repo_root / "SKILL.md").read_bytes(),
+            "bundle SKILL.md content must match the relocated root SKILL.md.")
+        refs = list((dest / "references").glob("*.md"))
+        self.assertTrue(refs, "bundle must ship references/*.md")
+        self.assertFalse(
+            any(os.path.islink(r) for r in refs),
+            "bundle references must be real files, not symlinks.")
+
+    def test_root_relocated_dirs_and_still_nested_dirs_v1_5_10(self) -> None:
+        """v1.5.10 instr 052: references/ relocated to the repo root alongside
+        SKILL.md (the in-tree skill-folder copy is a symlink). phase_prompts/,
+        agents/, and the 208-era skills/ stay NESTED under plugins/ — they must
+        NOT appear at the repo root."""
+        # references/ IS now at root (real dir; in-tree copy is a symlink to it).
+        root_refs = self.repo_root / "references"
+        self.assertTrue(
+            root_refs.is_dir() and not root_refs.is_symlink(),
+            "references/ must be a real directory at the repo root (v1.5.10).")
+        intree_refs = self.skill_dir / "references"
+        self.assertTrue(
+            intree_refs.is_symlink() and intree_refs.resolve() == root_refs.resolve(),
+            "in-tree references/ must be a symlink resolving to root references/.")
+        # These were NOT relocated — they stay nested under plugins/.
+        for legacy in ("phase_prompts", "agents", "skills"):
             with self.subTest(dir=legacy):
                 p = self.repo_root / legacy
                 self.assertFalse(
                     p.is_dir(),
                     f"{legacy}/ must NOT exist at the repo root "
-                    "(it MOVED into plugins/quality-playbook/skills/"
-                    "quality-playbook/{legacy}/ via 209)",
+                    "(only SKILL.md + references/ were relocated in v1.5.10; "
+                    f"{legacy}/ stays under plugins/quality-playbook/skills/"
+                    "quality-playbook/)",
                 )
 
     def test_bundle_internal_layout_frozen(self) -> None:

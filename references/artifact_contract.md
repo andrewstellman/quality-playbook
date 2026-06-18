@@ -2,7 +2,7 @@
 
 *Extracted from SKILL.md's `## What This Skill Produces` section in v1.5.10 (instr 052). SKILL.md keeps the nine-file orientation table + a pointer here; this file carries the exhaustive gate-validated artifact table, the canonical sidecar-JSON examples (tdd-results.json, integration-results.json), and the run-metadata schema.*
 
-### Complete Artifact Contract
+## Complete Artifact Contract
 
 The quality gate (`quality_gate.py`) validates these artifacts. If the gate checks for it, this skill must instruct its creation. This is the canonical list — any artifact not listed here should not be gate-enforced, and any gate check should trace to an artifact listed here.
 
@@ -48,7 +48,7 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 
 **Sidecar JSON lifecycle:** Write all bug writeups *before* finalizing `tdd-results.json` — the sidecar's `writeup_path` field must point to an existing file, not a placeholder. Similarly, run integration tests and collect results before writing `integration-results.json`.
 
-### Sidecar JSON Canonical Examples
+## Sidecar JSON Canonical Examples
 
 **`quality/results/tdd-results.json`** — the gate validates field names, not just presence:
 
@@ -94,7 +94,7 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 
 `recommendation` must be one of: `"SHIP"`, `"FIX BEFORE MERGE"`, `"BLOCK"`. `uc_coverage` maps UC identifiers from REQUIREMENTS.md to coverage status.
 
-### Run Metadata
+## Run Metadata
 
 Every playbook run creates a timestamped metadata file at `quality/results/run-YYYY-MM-DDTHH-MM-SS.json`. This enables multi-model comparison and run history tracking.
 

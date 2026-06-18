@@ -8,7 +8,7 @@ Recheck mode is a lightweight verification pass that checks whether bugs from a 
 
 **Do not use recheck mode** as a substitute for running the full playbook. Recheck only verifies previously found bugs — it does not find new ones.
 
-### Recheck procedure
+## Recheck procedure
 
 **Step 1: Read the bug inventory.**
 
@@ -135,6 +135,6 @@ Results saved to:
 - quality/results/recheck-summary.md (human-readable)
 ```
 
-### Triggering recheck mode
+## Triggering recheck mode
 
 Recheck mode activates when the user says any of: "recheck", "verify the bug fixes", "check which bugs are fixed", "recheck the bugs", "run recheck mode", or similar phrasing that clearly indicates they want to verify fixes rather than find new bugs. When triggered, skip Phases 1-7 entirely and execute only the recheck procedure above.
