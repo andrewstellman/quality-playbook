@@ -1,8 +1,0 @@
-GREEN
-Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_002_phase2_gate_enforces_written_contract (after patched code)
-
-.
-----------------------------------------------------------------------
-Ran 1 test in 0.002s
-
-OK

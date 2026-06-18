@@ -1,9 +1,0 @@
-probe-1 ok: cleanup fallback still widens to generic pkill patterns
-probe-2 ok: installed citation-verifier gap still exists
-probe-3 ok: direct-root and harness installs still expose different docs surfaces
-probe-4 ok: curated development-context counts are stale relative to the live repo
-probe-5 ok: curated bootstrap docs still advertise the older v1.5.1 framing
-probe-6 ok: gate still lacks an INDEX-vs-project_type cross-check
-probe-7 ok: later-phase prompt family still hardcodes flat Copilot skill/reference paths
-probe-8 ok: repository-side helper tuple and warning text still diverge from the canonical four-path order
-probe-9 ok: Claude orchestrator still reverses the two Copilot fallback positions

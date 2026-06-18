@@ -1,8 +1,0 @@
-GREEN
-Command: python3 -m unittest quality.test_regression.CodeReviewRegressionTests.test_bug_006_bootstrap_docs_match_live_release_framing (after patched code)
-
-.
-----------------------------------------------------------------------
-Ran 1 test in 0.001s
-
-OK

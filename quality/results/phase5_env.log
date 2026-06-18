@@ -1,5 +1,0 @@
-=== python ===
-Python 3.14.5
-=== real pytest (from /tmp to avoid the repo pytest/ shim) ===
-8.4.1 /Users/andrewstellman/Library/Python/3.14/lib/python/site-packages/pytest/__init__.py
-exit=0

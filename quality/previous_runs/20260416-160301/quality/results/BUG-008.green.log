@@ -1,5 +1,0 @@
-GREEN
---- Test output for BUG-008 green phase ---
-Command: /bin/bash -c set -uo pipefail; arr=(); for x in ${arr[@]+"${arr[@]}"}; do echo "$x"; done
-Exit code: 0
-OK

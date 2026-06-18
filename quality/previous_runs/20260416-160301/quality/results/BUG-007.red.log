@@ -1,6 +1,0 @@
-RED
-Test: test_bug_007_version_path_asymmetry
-Date: 2026-04-15
-Bug: BUG-007 — Version detection path asymmetry between global and per-repo checks
-Result: XFAIL — global version detection has 6 paths, per-repo stamp validation has 4 paths
-Evidence: sed -n '61p' quality_gate.sh shows 6 SKILL.md path entries; sed -n '581p' shows 4.

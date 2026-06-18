@@ -1,9 +1,0 @@
-GREEN
---- BUG-007 green ---
-Command: pytest ::test_bug_007_capture_phase_yn_no_false_completion --runxfail (fix applied)
-Exit code: 0
-.                                                                        [100%]
-==================================== PASSES ====================================
-=========================== short test summary info ============================
-PASSED ../../Users/andrewstellman/Documents/QPB/quality/test_regression.py::test_bug_007_capture_phase_yn_no_false_completion
-1 passed in 0.05s

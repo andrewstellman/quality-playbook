@@ -1,4 +1,0 @@
-Command: python3 -m unittest quality.test_functional.SpecRequirementTests.test_req_006_parses_canonical_titled_bug_headings quality.test_functional.SpecRequirementTests.test_req_008_keeps_playbook_output_out_of_intrinsic_surface_accounting -v
-Exit code: 1
-
-FAILED (failures=1)

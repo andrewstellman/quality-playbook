@@ -422,9 +422,9 @@ class QualityGateSentinelHelperTests(unittest.TestCase):
 
 # Reuse the canonical fixture builders from the gate test suite.
 sys.path.insert(0, str(
-    _REPO_ROOT / ".github" / "skills" / "quality_gate" / "tests"
+    Path(__file__).resolve().parent
 ))
-from test_quality_gate import (  # noqa: E402
+from test_quality_gate_gates import (  # noqa: E402
     minimal_zero_bug_tree, add_one_bug, write_tree,
 )
 

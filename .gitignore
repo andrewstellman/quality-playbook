@@ -113,3 +113,14 @@ build/
 dist/
 *.egg-info/
 quality-playbook-*.tgz
+
+# v1.5.10 repo-hygiene (instr 052): committed run-output + orphaned partial copies
+# removed from tracking (git history retains them; no rewrite). quality/ is QPB's
+# own self-run OUTPUT dir; quality/audits/ is carved out (read by
+# test_192_audit_log.py + test_schemas_audit_191.py with no skip guard).
+quality/*
+!quality/audits/
+/previous_runs/
+/spike/
+.github/skills/quality_gate/
+metrics/classifier_verification.log

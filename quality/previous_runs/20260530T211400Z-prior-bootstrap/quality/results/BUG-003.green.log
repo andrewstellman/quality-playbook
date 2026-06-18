@@ -1,9 +1,0 @@
-GREEN
-Command: temp-copy unittest for quality.test_regression.CodeReviewRegressionTests.test_bug_003_tier4_context_excludes_nested_non_cite_archives after git apply quality/patches/BUG-003-fix.patch
-Patch apply exit code: 0
-Exit code: 0
-
-Full test output:
-test_bug_003_tier4_context_excludes_nested_non_cite_archives (quality.test_regression.CodeReviewRegressionTests.test_bug_003_tier4_context_excludes_nested_non_cite_archives) ... ok
-
-OK

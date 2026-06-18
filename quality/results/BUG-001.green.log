@@ -1,9 +1,0 @@
-GREEN
---- BUG-001 green phase ---
-Command: pytest test_regression.py::test_bug_001_pending_pidless_not_graded_failed --runxfail (fix applied)
-Exit code: 0
-.                                                                        [100%]
-==================================== PASSES ====================================
-=========================== short test summary info ============================
-PASSED ../../Users/andrewstellman/Documents/QPB/quality/test_regression.py::test_bug_001_pending_pidless_not_graded_failed
-1 passed in 0.04s
