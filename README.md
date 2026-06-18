@@ -1,20 +1,63 @@
 # Quality Playbook
 
-**Version:** 1.5.8 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
+**Version:** 1.5.10 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
 
-## Find the bugs that code review misses
+**Find the bugs that code review misses**
 
-**Bugs the Quality Playbook has found have been accepted and merged upstream by maintainers at Google (gson) and the Linux Kernel (zram).** It also finds bugs that thorough adversarial code review prompts with Claude Opus 4.8 miss.
+Most code review looks at how the code is written. The Quality Playbook looks at what the code is supposed to do, and whether it actually does it.
 
-How: by grounding review in **intent**, not just structure. The playbook explores your codebase, derives behavioral requirements from your code AND your documentation (specs, issues, chat history, post-mortems), and runs three-pass code review plus a multi-model spec audit (Council of Three) against those requirements. The bugs it surfaces are the ones that look correct to any reviewer who doesn't know the spec:
+Here's how Quality Playbook finds bugs in your code. It explores your codebase and works out its behavioral requirements from two sources: the code itself, and your documentation (specs, issues, chat history, post-mortems). Then it runs a three-pass code review and a multi-model spec audit (the Council of Three) against those requirements. The bugs it turns up are the ones that look correct to anyone who doesn't already know the spec:
 
-- A function that silently returns null instead of throwing.
-- A duplicate-key check that passes when the first value is null.
-- Sanitization that runs *after* the branch decision it was meant to guard.
+- a function that silently returns null instead of throwing
+- a duplicate-key check that passes when the first value is null
+- sanitization that runs after the branch decision it was supposed to guard
 
-Beyond bug-finding, QPB generates a complete quality infrastructure for your project — derived requirements, functional tests, integration-test protocol, contracts, coverage matrix, code-review and spec-audit protocols, TDD verification protocol — that future review cycles run against.
+It even catches bugs that a thorough adversarial code-review prompt with Claude Opus 4.8 misses. It doesn't stop at finding bugs, though. Along the way it builds the quality infrastructure your project keeps reusing, and every later review cycle runs against it:
 
-For deeper context, see the O'Reilly Radar article [AI Is Writing Our Code Faster Than We Can Verify It](https://www.oreilly.com/radar/ai-is-writing-our-code-faster-than-we-can-verify-it/).
+- derived requirements
+- functional and integration tests
+- contracts and a coverage matrix
+- the code-review, spec-audit, and TDD verification protocols themselves
+
+*This isn't theoretical. Bugs the Quality Playbook found have been accepted and merged upstream, in Google's [gson](https://github.com/google/gson/pull/3006) and the Linux kernel's [zram](https://github.com/torvalds/linux/commit/2f529e73d72048743b6eaa241da6ac2bcb28099e).*
+
+## Quick start
+
+**Install** into your project's root directory (pick one):
+
+```bash
+npx quality-playbook install --into . --ai-tool claude     # from npm, no global install
+pip install quality-playbook && quality-playbook install --into . --ai-tool claude   # from pip
+git clone https://github.com/andrewstellman/quality-playbook   # or clone and ask your AI to install it
+```
+
+Swap `claude` for `cursor`, `copilot`, `continue`, `codex`, `windsurf`, `cline`, or `aider`. (Prerequisite: Python 3.10+ on your `PATH`.)
+
+**Run** by opening your project in your AI coding tool and telling the agent:
+
+> *"Run the Quality Playbook on this project."*
+
+That's it — the agent auto-discovers the installed skill, runs all six phases, and drops the results into a `quality/` folder. Findings start in `quality/BUGS.md`.
+
+<!-- TOKENS: pending benchmark run — replace with real input/output token usage from arunner recall runs, e.g. "A full baseline run against repos X / Y / Z cost N input / M output tokens." Do not invent numbers. -->
+
+## Contents
+
+- [How to install the Quality Playbook](#how-to-install-the-quality-playbook)
+- [How to run the Quality Playbook](#how-to-run-the-quality-playbook)
+- [Example output](#example-output)
+- [Need help? Just ask your AI](#need-help-just-ask-your-ai)
+- [Running the playbook](#running-the-playbook)
+- [What the playbook produces](#what-the-playbook-produces)
+- [How it works](#how-it-works)
+- [Want to learn more?](#want-to-learn-more)
+- [Recent releases](#recent-releases)
+- [Running across many repos with arunner](#running-across-many-repos-with-arunner)
+- [Repository structure](#repository-structure)
+- [How we improve the playbook](#how-we-improve-the-playbook)
+- [Context](#context)
+- [License](#license)
+- [Patent notice](#patent-notice)
 
 ## How to install the Quality Playbook
 
@@ -75,7 +118,7 @@ Prefer to install by hand or use the script directly? Ask your AI tool with `TOO
 
 **The more documentation you give it, the better it finds bugs.** The playbook reads written specs, design docs, GitHub or Jira issues from real users, chat history, and post-mortems — then derives what your code is *supposed* to do from those sources. Without documentation it still runs (from the source tree alone), but bug recall drops materially. Drop everything you have into a `reference_docs/` directory at the project root.
 
-**Gather it in one step.** Copy [`plugins/quality-playbook/skills/quality-playbook/references/DOC_GATHERING_PROMPT.md`](plugins/quality-playbook/skills/quality-playbook/references/DOC_GATHERING_PROMPT.md), open your project in Claude Code, Codex, Copilot, Cursor, Windsurf (or any capable AI tool), paste it in, and run it — it confirms your project, then crawls its docs, issues, and advisories into `reference_docs/` for you.
+**Gather it in one step.** Copy [`references/DOC_GATHERING_PROMPT.md`](references/DOC_GATHERING_PROMPT.md), open your project in Claude Code, Codex, Copilot, Cursor, Windsurf (or any capable AI tool), paste it in, and run it — it confirms your project, then crawls its docs, issues, and advisories into `reference_docs/` for you.
 
 ## How to run the Quality Playbook
 
@@ -116,6 +159,25 @@ quality/
 
 Start with `BUGS.md` for the headline findings. Then read `REQUIREMENTS.md` to see what the playbook learned your code is supposed to do — including requirements derived from issues and docs that you may not have realized were there. The gap between what `REQUIREMENTS.md` says and what your code actually does is exactly the bug surface the playbook is built to find.
 
+## Example output
+
+The `quality/` directory contains the results of running the playbook against itself. These are real outputs, not samples — every file was generated by the skill analyzing its own repository.
+
+| File | What to look at |
+|------|----------------|
+| [REQUIREMENTS.md](quality/REQUIREMENTS.md) | Behavioral requirements derived from the skill specification. This is the foundation that drives everything else. |
+| [QUALITY.md](quality/QUALITY.md) | Quality constitution defining fitness-to-purpose scenarios and coverage targets for the playbook itself. |
+| [test_functional.py](quality/test_functional.py) | Functional tests traced to requirements, written in the project's native language. |
+| [CONTRACTS.md](quality/CONTRACTS.md) | Raw behavioral contracts extracted from the codebase before requirement derivation. |
+| [COVERAGE_MATRIX.md](quality/COVERAGE_MATRIX.md) | Traceability matrix mapping every contract to the requirement that covers it. |
+| [COMPLETENESS_REPORT.md](quality/COMPLETENESS_REPORT.md) | Final gate report with post-reconciliation verdict. |
+| [RUN_CODE_REVIEW.md](quality/RUN_CODE_REVIEW.md) | Three-pass code review protocol ready for any AI session to execute. |
+| [RUN_SPEC_AUDIT.md](quality/RUN_SPEC_AUDIT.md) | Council of Three spec audit protocol. |
+| [RUN_TDD_TESTS.md](quality/RUN_TDD_TESTS.md) | Red-green TDD verification protocol for confirmed bugs. |
+| [PROGRESS.md](quality/PROGRESS.md) | Phase-by-phase checkpoint log with cumulative bug tracker — the external memory that prevents findings from being orphaned. |
+| [code_reviews/](quality/code_reviews/) | Actual code review output from the three-pass protocol. |
+| [spec_audits/](quality/spec_audits/) | Individual auditor reports and triage from the Council of Three. |
+
 ## Need help? Just ask your AI
 
 The rest of this README hits the high points of the playbook — phases, output files, automation flags. But the easiest way to get answers is to skip reading entirely: **download one file, attach it to your favorite AI chatbot, and ask it whatever you want to know.**
@@ -131,22 +193,6 @@ Open a chat in whatever AI tool you use — Claude, ChatGPT, Cursor, GitHub Copi
 Then ask it anything: How do I set this up? What does Phase 3 actually do? How does it find bugs that structural code review misses? What's the difference between gap and adversarial iteration? Why did my run only find one bug? Your AI assistant will walk you through setup, running, interpreting results, and improving your next run.
 
 [Here's what that conversation looks like in ChatGPT](https://chatgpt.com/share/69f78fc3-186c-83ea-9be6-70866b88db82) — it works the same in any other AI tool.
-
-## Contents
-
-- [Running the playbook](#running-the-playbook)
-- [What the playbook produces](#what-the-playbook-produces)
-- [How it works](#how-it-works)
-- [Want to learn more?](#want-to-learn-more)
-- [Recent releases](#recent-releases)
-- [Validation](#validation)
-- [Setting up automation scripts](#setting-up-automation-scripts)
-- [Repository structure](#repository-structure)
-- [Example output](#example-output)
-- [How we improve the playbook](#how-we-improve-the-playbook)
-- [Context](#context)
-- [License](#license)
-- [Patent notice](#patent-notice)
 
 ## Running the playbook
 
@@ -255,141 +301,91 @@ If `TOOLKIT.md` doesn't answer your question, file an issue at https://github.co
 
 Per-release detail lives in [`CHANGELOG.md`](CHANGELOG.md). Highlights:
 
+- **v1.5.10** — Repo-hygiene release. Canonical `SKILL.md` + `references/` moved back to the repo root as the single source of truth (in-tree skill locations are symlinks); `SKILL.md` trimmed, with per-phase detail lazy-loaded from `references/*.md`; committed run-output and orphaned partial copies removed from tracking. A clean base for the upcoming security work.
 - **v1.5.8** — Distribution channels: published to pip (PyPI), npm, and the Claude Code plugin marketplace. Publish scripts with affirmation gates (`--dry-run` / `--publish`, `--otp` for 2FA, automated awesome-copilot submission). Repository restructured to Claude Code's standard self-hosted plugin marketplace layout (`plugins/quality-playbook/`).
 - **v1.5.7** — Channel scaffolding (pip / uvx / pipx / npx). Phase-aware bundling. Council-of-Three review protocol formalized as load-bearing methodology. Worker self-Council pattern (parallel sub-agent reviewers via `Task` tool).
 - **v1.5.6** — Improvement-loop methodology formalized. Two-half development arc declared: v1.5.x = QC infrastructure (find bugs, validate skill prose), v1.6+ = QI built on it (statistical control, multi-operator workflows).
-- **v1.5.5** — Run-state instrumentation with append-only event log (`quality/run_state.jsonl`). Calibration protocol for cycle execution. Mode 1 autonomous-loop driver for cycles.
 
 Full chronological list (v1.3.20 → present): see [`CHANGELOG.md`](CHANGELOG.md).
 
-For the future direction — v1.5.9 (harness-as-skill + SKILL.md trim) and v1.5.10+ (statistical process control, multi-cell calibration cycles, cross-version trend tracking) — see [`docs/design/`](docs/design/).
+## Running across many repos with arunner
 
-## Validation
+For multi-repo runs, benchmark suites, or unattended batch work, drive the playbook with [**arunner**](https://github.com/andrewstellman/arunner) — a stdlib-only batch orchestrator for agentic coding systems. You point it at a list of jobs (run the playbook across these ten repos, audit these branches), and it runs them in a pool, watches each job's heartbeat, and leaves a complete record on disk. There's no server, daemon, or API key beyond your existing agent session, and crash recovery is "run one tick" — close the window or sleep the machine and it resumes exactly where it left off.
 
-The playbook is validated against the [Quality Playbook Benchmark](https://github.com/andrewstellman/quality-playbook-benchmark): 2,564 real defects from 50 open-source repositories across 14 programming languages. Instead of injecting synthetic faults, we use real historical bugs tied to single fix commits as ground truth.
+arunner is vendor-neutral by construction: the orchestration engine is plain Python, and a job is *anything that appends JSON lines to a file* — so a QPB run, a shell script, or a CI job all qualify. That makes it the recommended path for running QPB across a repo set without babysitting each one.
 
-The key finding: a large portion of real defects are intent violations that require knowing what the code is *supposed* to do — and structural code review alone, AI or human, can't see them. The playbook's value is in closing that gap.
-
-## Setting up automation scripts
-
-For multi-target runs, benchmark suites, or CI integration, the standard-library Python runner at `bin/run_playbook.py` accepts positional target directories and a runner-selection flag (`--claude` / `--copilot` / `--codex`). Examples:
-
-```bash
-python3 -m bin.run_playbook --phase all /path/to/my-project              # phase-by-phase (recommended)
-python3 -m bin.run_playbook --claude --model opus --phase all ./project
-python3 -m bin.run_playbook --next-iteration --strategy gap ./project
-```
-
-For deeper detail — runner flags, the bare-name benchmark convenience, rate-limit headroom for parallel vs sequential runs, the `--with-seeds` continuation-mode flag, and CI configuration — ask your AI tool with `TOOLKIT.md` loaded:
-
-> *"Read TOOLKIT.md. How do I set up automation scripts for QPB? Show me the run_playbook.py flags and explain when to use --phase all vs single-prompt mode, --parallel vs --sequential, and how to integrate with CI."*
-
-`python3 -m bin.run_playbook --help` prints the full usage.
+See the [arunner repository](https://github.com/andrewstellman/arunner) for the worker contract, plan formats, and host support table. (QPB-native multi-phase orchestration through arunner is in active development; until those job formats land, drive QPB through arunner as a shell/agent job, or run phase-by-phase per the *[How to run the Quality Playbook](#how-to-run-the-quality-playbook)* section above.)
 
 ## Repository structure
 
-QPB uses Claude Code's standard self-hosted marketplace layout: `marketplace.json` at the repo root points at the plugin under `plugins/quality-playbook/`, which contains the skill files. The pip/npm publish channels stage from the same skill directory.
+As of v1.5.10, the canonical `SKILL.md` and its `references/` directory live at the **repo root** as the single source of truth; the in-tree plugin skill locations are symlinks back to them. QPB still uses Claude Code's standard self-hosted marketplace layout: `.claude-plugin/marketplace.json` points at the plugin under `plugins/quality-playbook/`. The pip/npm publish channels stage real files from the root skill source (symlinks dereferenced).
 
 ```
 quality-playbook/
+├── SKILL.md                 # The skill — canonical source of truth (full operational instructions)
+├── references/              # Protocol + per-phase pipeline reference docs (lazy-loaded per phase)
+│   ├── DOC_GATHERING_PROMPT.md
+│   ├── exploration_patterns.md
+│   ├── requirements_pipeline.md
+│   ├── review_protocols.md
+│   ├── spec_audit.md
+│   ├── verification.md
+│   ├── phase1_exploration_guide.md
+│   ├── phase2_generation_guide.md
+│   ├── phase5_reconciliation_guide.md
+│   ├── phase6_verify_guide.md
+│   ├── phase7_guide.md
+│   ├── recheck_mode.md
+│   ├── run_state_schema.md
+│   └── ... (other reference docs)
+├── schemas.md               # Artifact schema definitions
+├── AGENTS.md                # AI bootstrap file (repo root)
 ├── .claude-plugin/          # ROOT-only: marketplace catalog
 │   └── marketplace.json     # Self-hosted marketplace entry (source: ./plugins/quality-playbook)
-├── plugins/                 # Plugin tree (v1.5.8 209 — standard self-hosted marketplace layout)
+├── plugins/                 # Plugin tree (standard self-hosted marketplace layout)
 │   └── quality-playbook/    # The plugin itself
 │       ├── .claude-plugin/
 │       │   └── plugin.json  # Plugin metadata (name, description, version, author)
-│       └── skills/          # Plugin's skills directory
+│       └── skills/
 │           └── quality-playbook/
-│               ├── SKILL.md         # The skill (main file — full operational instructions)
-│               ├── references/      # Protocol and pipeline reference docs
-│               │   ├── challenge_gate.md
-│               │   ├── constitution.md
-│               │   ├── defensive_patterns.md
-│               │   ├── exploration_patterns.md
-│               │   ├── functional_tests.md
-│               │   ├── iteration.md
-│               │   ├── orchestrator_protocol.md
-│               │   ├── requirements_pipeline.md
-│               │   ├── requirements_refinement.md
-│               │   ├── requirements_review.md
-│               │   ├── review_protocols.md
-│               │   ├── schema_mapping.md
-│               │   ├── spec_audit.md
-│               │   └── verification.md
+│               ├── SKILL.md      # Symlink → repo-root SKILL.md
+│               ├── references/   # Symlink → repo-root references/
 │               ├── phase_prompts/   # Per-phase agent prompts (Mode A + Mode B)
 │               ├── agents/          # Orchestrator agent files for autonomous runs
-│               │   ├── quality-playbook-claude.agent.md
-│               │   └── quality-playbook.agent.md
-│               ├── ai_context/      # Adopter-facing AI context
-│               │   └── TOOLKIT.md   # Symlink → repo-root ai_context/TOOLKIT.md (ships into the bundle for users' AI assistants)
-│               ├── scripts/         # Bundled scripts (canonical source; flattened to bin/ in the install bundle)
-│               │   ├── quality_gate.py
-│               │   ├── install_skill.py
-│               │   ├── qpb_validate.py
-│               │   └── ... (other bundled scripts)
-│               └── skill-template.gitignore
+│               ├── ai_context/      # Adopter-facing AI context (TOOLKIT.md symlink)
+│               └── scripts/         # Bundled scripts (quality_gate.py, install_skill.py, ...)
 ├── bin/                     # Repo-level runner + build scripts (Python 3.10+)
-│   ├── __init__.py          # Extends __path__ to plugins/.../scripts so `from bin import X` works for moved modules
 │   ├── run_playbook.py      # Mode B runner (positional args are target directories)
-│   ├── build_channel_package.py  # Stages the pip/npm bundle from plugins/quality-playbook/skills/quality-playbook/
+│   ├── build_channel_package.py  # Stages the pip/npm bundle (dereferences symlinks)
 │   ├── publish_pip.py       # Pip publish path
 │   ├── publish_npm.py       # Npm publish path
-│   ├── submit_awesome_copilot.py  # awesome-copilot submission automation
-│   ├── install_skill.py     # Thin shim — delegates to plugins/quality-playbook/skills/quality-playbook/scripts/install_skill.py
+│   ├── install_skill.py     # Thin shim — delegates to the plugin's scripts/install_skill.py
 │   └── tests/               # stdlib-only unit tests (python3 -m pytest bin/tests/)
-├── .github/skills/          # Installed-copy benchmark layout (preserved for setup_repos.sh)
 ├── pytest/                  # Local stdlib-only shim (python3 -m pytest works without installs)
-├── ai_context/              # AI-readable context (maintainer orientation docs + adopter-facing TOOLKIT.md)
+├── ai_context/              # Maintainer orientation docs + adopter-facing TOOLKIT.md
 │   ├── DEVELOPMENT_CONTEXT.md
 │   ├── DEVELOPMENT_PROCESS.md
 │   ├── IMPROVEMENT_LOOP.md
 │   ├── TOOLKIT_TEST_PROTOCOL.md
 │   ├── BENCHMARK_PROTOCOL.md
 │   └── TOOLKIT.md           # Adopter-facing AI context; symlinked into the skill bundle
-├── AGENTS.md                # AI bootstrap file (repo root)
-├── LICENSE.txt              # Apache 2.0
-└── quality/                 # Generated quality infrastructure (from running the skill on itself)
-    ├── REQUIREMENTS.md     # Behavioral requirements
-    ├── QUALITY.md          # Quality constitution
-    ├── test_functional.py  # Spec-traced functional tests
-    ├── CONTRACTS.md        # Extracted behavioral contracts
-    ├── COVERAGE_MATRIX.md  # Contract-to-requirement traceability
-    ├── COMPLETENESS_REPORT.md  # Final gate with verdict
-    ├── PROGRESS.md         # Phase checkpoint log + bug tracker
-    ├── BUGS.md             # Consolidated bug report with spec basis
-    ├── RUN_CODE_REVIEW.md  # Three-pass review protocol
-    ├── RUN_SPEC_AUDIT.md   # Council of Three audit protocol
-    ├── RUN_INTEGRATION_TESTS.md  # Integration test protocol (use-case traced)
-    ├── RUN_TDD_TESTS.md    # Red-green TDD verification protocol
-    ├── TDD_TRACEABILITY.md # Bug → requirement → spec → test mapping
-    ├── test_regression.*   # Regression tests for confirmed bugs
-    ├── SEED_CHECKS.md     # Prior-run seed list (continuation mode)
-    ├── results/            # TDD results, recheck results, verification logs
-    ├── mechanical/         # Shell-extracted verification artifacts + verify.sh
-    ├── writeups/           # Per-bug detailed writeups (BUG-NNN.md)
-    ├── patches/            # Fix and regression-test patches
-    ├── code_reviews/       # Code review output
-    └── spec_audits/        # Auditor reports + triage
+├── harness_plans/           # Parallel-pool benchmark plan formats
+├── runner/                  # arunner run directories (per-version harness state)
+├── docs/                    # Design docs, implementation plans, proposals
+├── reviews/                 # Council-of-Three review artifacts
+├── metrics/                 # Cross-version benchmark metrics
+├── images/                  # README images
+├── reference_docs/          # Documentation QPB reads to derive requirements
+├── scripts/                 # Repo-level helper scripts
+├── quality_playbook_cli/    # CLI package
+├── quality/                 # Generated quality infrastructure (from running the skill on itself)
+├── pyproject.toml           # Pip packaging + bundle globs
+├── package.json             # npm shim packaging
+├── CHANGELOG.md             # Per-release detail
+└── LICENSE.txt              # Apache 2.0
 ```
 
-## Example output
-
-The `quality/` directory contains the results of running the playbook against itself. These are real outputs, not samples — every file was generated by the skill analyzing its own repository.
-
-| File | What to look at |
-|------|----------------|
-| [REQUIREMENTS.md](quality/REQUIREMENTS.md) | Behavioral requirements derived from the skill specification. This is the foundation that drives everything else. |
-| [QUALITY.md](quality/QUALITY.md) | Quality constitution defining fitness-to-purpose scenarios and coverage targets for the playbook itself. |
-| [test_functional.py](quality/test_functional.py) | Functional tests traced to requirements, written in the project's native language. |
-| [CONTRACTS.md](quality/CONTRACTS.md) | Raw behavioral contracts extracted from the codebase before requirement derivation. |
-| [COVERAGE_MATRIX.md](quality/COVERAGE_MATRIX.md) | Traceability matrix mapping every contract to the requirement that covers it. |
-| [COMPLETENESS_REPORT.md](quality/COMPLETENESS_REPORT.md) | Final gate report with post-reconciliation verdict. |
-| [RUN_CODE_REVIEW.md](quality/RUN_CODE_REVIEW.md) | Three-pass code review protocol ready for any AI session to execute. |
-| [RUN_SPEC_AUDIT.md](quality/RUN_SPEC_AUDIT.md) | Council of Three spec audit protocol. |
-| [RUN_TDD_TESTS.md](quality/RUN_TDD_TESTS.md) | Red-green TDD verification protocol for confirmed bugs. |
-| [PROGRESS.md](quality/PROGRESS.md) | Phase-by-phase checkpoint log with cumulative bug tracker — the external memory that prevents findings from being orphaned. |
-| [code_reviews/](quality/code_reviews/) | Actual code review output from the three-pass protocol. |
-| [spec_audits/](quality/spec_audits/) | Individual auditor reports and triage from the Council of Three. |
+The generated `quality/` directory (produced by running the skill on itself) holds the example output linked in *[Example output](#example-output)* above — `REQUIREMENTS.md`, `BUGS.md`, the review/audit protocols, per-bug writeups, patches, and TDD results.
 
 ## How we improve the playbook
 
