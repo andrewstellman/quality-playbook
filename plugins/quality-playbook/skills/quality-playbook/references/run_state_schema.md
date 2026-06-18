@@ -1,4 +1,4 @@
-# Run-State Schema (v1.5.7)
+# Run-State Schema (v1.5.8)
 
 *Authoritative schema for `quality/run_state.jsonl`, `quality/PROGRESS.md`, and `Calibration Cycles/<cycle>/run_state.jsonl`. The playbook AI writes these files directly via the file-tool layer; the orchestrator AI reads them to drive multi-benchmark calibration cycles.*
 
@@ -31,7 +31,7 @@ Readers that need to find the canonical `quality-gate.log` or `run_metadata.json
 
 ## Schema versioning
 
-Every `run_state.jsonl` opens with an `_index` event recording `schema_version`. Current version: `"1.5.6"`. Schema bumps preserve backward compatibility — older files remain readable by newer parsers. Breaking schema changes bump the major number.
+Every `run_state.jsonl` opens with an `_index` event recording `schema_version`. Current version: `"1.5.8"` (refreshed v1.5.10 instr 052 to match the SKILL.md `_index` initialization — the event taxonomy is unchanged from v1.5.6; the bump only tracks the playbook release). Schema bumps preserve backward compatibility — older files remain readable by newer parsers. Breaking schema changes bump the major number.
 
 ---
 
