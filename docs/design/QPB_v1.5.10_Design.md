@@ -35,6 +35,40 @@ Two forks were surfaced from the repo audit and resolved by the operator:
 
 ---
 
+## Scope additions (2026-06-18, second pass)
+
+After the trim/relocation/cleanup landed and pushed, the operator added two QPB workstreams that fit the "refactoring + maintenance" character of the release, plus related arunner work tracked separately.
+
+### Workstream 4 — README simplification (orientation doc; Cowork may edit directly)
+
+- **Remove the Validation section** — we are not currently validating against the QPB benchmark; revisit later (out of scope for 1.5.10, no need to discuss the replacement now).
+- **Replace "Setting up automation scripts"** with an arunner-based section (we're replacing run-serial automation with arunner), or remove it.
+- **Update the repository-structure diagram** to the post-relocation/cleanup layout (SKILL.md + references/ at root; cruft removed).
+- **Move the Example Output section further up.**
+- **Move the Table of Contents up** — above "How to install Quality Playbook" (the playbook is shorter now, so the TOC belongs higher).
+- **Add a Quick Start section above the TOC** — "Install and run" in a very short block: the recommended way to run it, showing one of the three install paths (npm / pip / clone) + the actual prompt you give inside your repo after loading the skill into an agent runner like Claude Code.
+- **Real token usage in Quick Start** — show actual input/output token counts from real benchmark runs (smallest repo, or "running against these three open-source repos cost these token counts"). **Source: the arunner recall runs** (see token-reporting dependency below) — NOT fabricated.
+
+### Workstream 5 — CI/CD publish on tag (QPB source/infra; worker lane + Council)
+
+- Add `.github/workflows/publish.yml` so a `vX.Y.Z` tag push auto-publishes to **PyPI + npm** via **OIDC trusted publishing** (no stored tokens/OTP). Draft exists (operator-supplied, from a claude.ai design session) — improve it, then **Council-review it** (operator requirement).
+- Three `# CONFIRM:` items to verify against `bin/build_channel_package.py`: (1) exact stage invocation + staged output paths (`dist/npm/package.json`, `dist/pip/pyproject.toml`); (2) whether the build script already emits sdist+wheel (drop the `python -m build` step if so); (3) optionally extend the version-equality check beyond `package.json`+`pyproject.toml` to `plugin.json` + SKILL.md for internal consistency.
+- Marketplace channel needs no publish job (in-tree `marketplace.json`). Only pip + npm.
+- One-time external setup: register the trusted publisher (owner `andrewstellman`, repo `quality-playbook`, workflow `publish.yml`, environment `release`) in pypi.org + npmjs.com before the first tagged run — names must match exactly. (Operator step.)
+- This workstream is what makes the eventual v1.5.10 tag actually publish; sequence it before the release tag.
+
+### Related work — tracked separately (arunner repo + cross-version benchmark)
+
+These are part of the same effort but live outside the QPB 1.5.10 source release:
+
+- **arunner generic phase-orchestration FRs** (arunner `docs/REQUIREMENTS.md`): prompt-from-file (with light `{var}` templating — QPB prompts use `skill_fallback_guide` substitution), multi-step entries, deterministic continuation gates (default), reasoning gates (optional, fenced, separate judging context, kept OUT of the benchmark path), and a gate-outcome vocabulary richer than continue/halt (needs `skip-to-next` for QPB's Phase-3-skip; `code-only` behavior change). Build order: prompt-from-file → multi-step → deterministic gates → reasoning gates.
+- **arunner token reporting FR**: arunner reports input+output tokens per run/sub-run (run_playbook does not emit tokens). This is the source of the README Quick-Start token numbers.
+- **Recall validation (cross-version benchmark)**: (a) run_playbook recall baseline now (instr 053); (b) arunner-native multi-phase run of the same skill on the same repos once the FRs land; (c) cross-check they reproduce the same recall before promoting arunner-native to the standing gate and retiring run-serial / slimming run_playbook for that path.
+
+**Dependency notes:** the README Quick-Start token line is BLOCKED on (arunner token reporting + a benchmark run that uses it). The CI/CD workstream is BLOCKED on Council review. The arunner-native recall run is BLOCKED on the arunner FRs. The README structural edits (validation/automation/diagram/TOC/example/quick-start-shell) are NOT blocked and can land independently.
+
+---
+
 ## Repo audit findings (2026-06-18)
 
 Measured against the live `1.5.9` working tree.
