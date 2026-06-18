@@ -201,6 +201,7 @@ INSTALL_CLOSURE = [
     {"path": "references/phase1_exploration_guide.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/phase2_generation_guide.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/phase6_verify_guide.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "references/phase7_guide.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/qpb_validate_event_schema.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/recheck_mode.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/requirements_pipeline.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
