@@ -190,6 +190,7 @@ INSTALL_CLOSURE = [
     #      auto-ships via the references/*.md glob — uppercase 'D'
     #      sorts first under sorted()) ----
     {"path": "references/DOC_GATHERING_PROMPT.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "references/artifact_contract.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/challenge_gate.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/code-only-mode.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/constitution.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
