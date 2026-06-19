@@ -176,7 +176,7 @@ Execute the audit table above:
 Because the relocation touches the install-location contract, a green test suite is necessary but **not sufficient**. The release runs the standard benchmark **arunner-native** (FR-61–65: each QPB phase a step, prompts from `phase_prompts/`, deterministic `validate_phase_artifacts` gates between steps) against the trimmed + relocated skill. **`run_playbook` is not used** — it is being retired. The run is launched through the Claude Code worker (the sandbox can't authenticate `--claude` model calls):
 
 - Exercise Phases 1–3 (minimum) on the standard benchmark repos (chi / virtio / express), installed fresh via `setup_repos.sh` so the skill under test is exactly v1.5.10.
-- Confirm the skill **resolves SKILL.md from the new root layout at runtime**, loads each `references/phase_N_*.md` at its phase boundary, and produces artifacts of the same shape/quality as the pre-trim baseline.
+- Confirm the skill **resolves SKILL.md from the new root layout at runtime**, loads each `references/phase_N_*.md` at its phase boundary, and produces artifacts of the same shape/quality as before the trim (judged by the pinned ground truth — `run_playbook` is retired, so there is no fresh pre-trim run to diff).
 - Grade mechanically: the regression-test scorer (`bin/regression_replay.py`) scores bug-detection (recall = bugs found ÷ known bugs) against the pinned ground truth; also compare REQUIREMENTS quality + Phase 6 verdict accuracy. The verdict is computed, not judged.
 - If the score drops materially or a reference fails to load, identify the offending extraction and either move it back to SKILL.md or strengthen the load directive.
 

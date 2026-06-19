@@ -25,7 +25,7 @@
    - **`run_playbook` is not used.** It is being retired — we do not use it again.
    - **Repos:** the standard benchmark set (chi / virtio / express), installed fresh via `setup_repos.sh` so the skill under test is exactly v1.5.10.
    - **Grading is mechanical:** the regression-test scorer (`bin/regression_replay.py`) scores the bugs found against the pinned ground truth. The pass/fail verdict does not depend on Claude's judgment.
-   - **Independent Council** reviews the result; all evidence (the plan, gate outcomes, the score, the diff vs. the pre-trim baseline) is pasted.
+   - **Independent Council** reviews the result; all evidence (the plan, gate outcomes, the score vs. the pinned ground truth) is pasted. (`run_playbook` is retired, so there is no fresh pre-trim *run* to diff — the baseline is the pinned historical bug list.)
    - If a phase reference fails to load or the score drops materially: identify the extraction at fault, move it back into SKILL.md or strengthen the load pointer, re-run.
 
 3. **Land the three queued worker fixes** (worker instructions, each gated by self-Council):
@@ -126,7 +126,7 @@ Cleanup first (lowest risk, shrinks the surface), then the trim (mechanical, pat
 
 - **E1. Vehicle.** Use arunner (FR-61–65, landed on `fr-61-65-impl`) to run QPB's phases natively: each phase is an arunner step, prompts come from `phase_prompts/`, and a deterministic gate between steps runs `validate_phase_artifacts` (exit-code only). No `run_playbook`.
 - **E2. Environment.** Install the skill fresh into the standard benchmark repos (chi / virtio / express) via `setup_repos.sh` so the skill under test is exactly v1.5.10 (avoids the stale-install failures seen earlier). Confirm runtime SKILL.md resolution from the new **root** layout and per-phase `references/` loads at phase boundaries. **[Council C2]** Confirm QPB self-audit still classifies Skill/Hybrid post-relocation.
-- **E3. Mechanical grading.** Score bugs found with the regression-test scorer (`bin/regression_replay.py`) against the pinned ground truth, and compare REQUIREMENTS quality + Phase 6 verdict accuracy vs. the pre-trim baseline. The verdict is computed, not judged.
+- **E3. Mechanical grading.** Score bugs found with the regression-test scorer (`bin/regression_replay.py`) against the pinned ground truth (the recorded historical bug list — there is no fresh pre-trim run, `run_playbook` being retired), and compare REQUIREMENTS quality + Phase 6 verdict accuracy. The verdict is computed, not judged.
 - **E4. Independent Council** reviews the result with all evidence pasted (plan, gate outcomes, score, diff vs. baseline).
 - **E5. On failure** (a reference fails to load, or the score drops materially): identify the offending extraction; move it back to SKILL.md or strengthen the load pointer; re-run.
 - **Dependency:** the arunner-native vehicle requires FR-61–65 (done) plus a follow-up worker instruction that builds the QPB-native plan (phases as steps, `phase_prompts/`, gates = `validate_phase_artifacts`).
