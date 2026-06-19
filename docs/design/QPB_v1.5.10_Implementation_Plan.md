@@ -1,12 +1,71 @@
 # Quality Playbook v1.5.10 — Implementation Plan
 
-*Companion to `QPB_v1.5.10_Design.md`. **Scope expanded 2026-06-18** from "SKILL.md trim only" to a repo-hygiene release: folder cleanup + SKILL.md relocation to root + the trim + an arunner regression run. Phases below are sequenced so each is independently committable (checkpoint discipline) and so the riskiest step (relocation) lands on its own clean checkpoint.*
+*Companion to `QPB_v1.5.10_Design.md`. **Scope expanded 2026-06-18** from "SKILL.md trim only" to a repo-hygiene release: folder cleanup + SKILL.md relocation to root + the trim + an end-to-end test. Phases below are sequenced so each is independently committable (checkpoint discipline) and so the riskiest step (relocation) lands on its own clean checkpoint.*
+
+*The trim, relocation, and cleanup (Phases A–D) have landed and pushed. The remaining work to actually ship the release is the **Close-out checklist** directly below — that is the authoritative "what's left" view; Phases A–E are the detailed record.*
+
+*Terminology note (2026-06-19): the end-to-end check is a **regression + integration test**, not a "recall run." It integrates arunner with QPB and checks both for regressions in one pass. `run_playbook` is being **retired** and is not used by it. Earlier drafts of this doc used "recall run/baseline" — a misapplied science/public-health term; the correct quality-engineering terms are regression test and integration test.*
 
 *All source mutations are executed by the **Claude Code worker** (which polls `~/Documents/QPB/runner/1.5.9`). Cowork authors this plan, the worker brief, runs Council, and verifies — Cowork does not edit QPB source directly.*
 
 *Branch: `1.5.10`, cut from `1.5.9` HEAD.*
 
 *Council reviewed (2026-06-18, three panels) — all FIX-REQUIRED items folded in below, tagged `[Council X]`. Full synthesis: `~/Documents/AI-Driven Development/Quality Playbook/Reviews/QPB_v1.5.10_Council_Synthesis.md`.*
+
+---
+
+## Close-out checklist (remaining work to ship v1.5.10)
+
+*Plain-language list of everything left, agreed across the 2026-06-18/19 sessions. The trim, relocation, and cleanup (Phases A–D below) already landed.*
+
+1. **Clean working tree** — *[DONE]* all trim/relocation/cleanup/doc changes committed; `git status` clean.
+
+2. **arunner × QPB integration + regression test** — confirm the trimmed/relocated skill still finds bugs *and* that arunner correctly drives QPB's phases, in one test that exercises both systems.
+   - **Vehicle: arunner runs QPB's phases natively** (FR-61–65, landed on the arunner `fr-61-65-impl` branch). Each QPB phase is an arunner step; each step's prompt comes from a file in `phase_prompts/`; a **deterministic gate** between steps checks the phase produced its required artifacts (`validate_phase_artifacts`, exit-code only).
+   - **`run_playbook` is not used.** It is being retired — we do not use it again.
+   - **Repos:** the standard benchmark set (chi / virtio / express), installed fresh via `setup_repos.sh` so the skill under test is exactly v1.5.10.
+   - **Grading is mechanical:** `regression_replay.py` scores the bugs found against the pinned ground truth. The pass/fail verdict does not depend on Claude's judgment.
+   - **Independent Council** reviews the result; all evidence (the plan, gate outcomes, the score, the diff vs. the pre-trim baseline) is pasted.
+   - If a phase reference fails to load or the score drops materially: identify the extraction at fault, move it back into SKILL.md or strengthen the load pointer, re-run.
+
+3. **Land the three queued worker fixes** (worker instructions, each gated by self-Council):
+   - **054** — `.github/workflows/publish.yml` (CI/CD publish-on-tag; see item 7).
+   - **055** — lineage / orientation refresh (wakecycle → arunner language).
+   - **056** — Clojure quality-gate fix (Design Workstream 6): switch language detection from first-match to dominant-language-by-count; add Clojure to the three tables.
+
+4. **Verify the Clojure fix on a real Clojure project** — the 056 unit tests use file-tree fixtures (no runtime). Separately, run QPB once against the actual Clojure project (operator-run; Clojure toolchain installed) and confirm the gate now detects `clj` and accepts `test_functional.clj`.
+
+5. **Version bump + single source of truth** — bump 1.5.8 → 1.5.10 **and** consolidate where the version is stored to one canonical source (two at most).
+   - Today the version appears in several places (SKILL.md frontmatter, `pyproject.toml`, `package.json`, `plugin.json`, `marketplace.json`, `quality_playbook_cli`, README). `build_channel_package.py --stage` already stamps the packaging files **from** SKILL.md frontmatter, so SKILL.md is the de-facto source for those.
+   - Make SKILL.md frontmatter the **single canonical source**; have everything else read from it or be stamped from it — including `quality_playbook_cli/__init__.py` and the README header (stop hard-coding the version in either). If the Python package and the skill genuinely cannot share one source, two is the cap.
+   - This matters because the CI/CD publish workflow's version-equality guard is only trustworthy when one source feeds every stamp.
+
+6. **CHANGELOG entry** for v1.5.10.
+
+7. **CI/CD finalize (Design Workstream 5)** —
+   - publish.yml landed (054) and Council-reviewed.
+   - **Get publish.yml onto `origin/main` first** — trusted publishing can't be exercised until the workflow file is on the default branch.
+   - One-time operator registration: PyPI trusted publisher, TestPyPI pending publisher, npm trusted publisher, and create the `release` GitHub Environment — names must match exactly.
+   - Run the layered test plan from `docs/RELEASE_PUBLISHING.md`: local dry-run → stage-only on CI → TestPyPI → npm.
+
+8. **Fill the README Quick-Start token line with real numbers** from the integration+regression test's token reporting (arunner FR-65). It currently carries a placeholder, which must not ship.
+
+9. **Umbrella Council** on the whole release (Self-Review Protocol 1 panels + the defensive-sweep charter).
+
+10. **Tag v1.5.10 + push + verify** — `git ls-remote origin 1.5.10` and the tag before claiming shipped (workspace rule).
+
+11. **awesome-copilot re-submission** shipping the trimmed canonical SKILL.md directly.
+
+12. **Update CLAUDE.md: add checkable, mechanical gates** to avoid the pitfalls from this release cycle. Not restatements of existing rules (those already existed and were ignored) — gates that can be mechanically checked:
+    - Before claiming a deliverable is "what you asked for," paste its literal content and the original request in the same place, so the claim is checkable against the artifact. *(Pitfall: handed over an arunner plan that just wrapped `run_playbook` and described it as native.)*
+    - **Disclose substitutions** — whenever a fallback, wrapper, or shim stands in for the real thing, say so explicitly. *(Same pitfall.)*
+    - **Treat an on-screen warning as a hard stop**, not advisory. *(Pitfall: the "installed skill is stale" warning printed on every run and I ran past it.)*
+    - Before claiming success, **write down and run the exact command that would disprove the claim.** *(This is literally what caught the wrapper: `grep command <plan> | cut` returned `bin.run_playbook`.)*
+    - **Honesty rule:** the claim I make about a deliverable must be independently true of its contents.
+    - **Correct misapplied terminology early** (e.g. "recall run," "cells") — use real quality/software-engineering terms; the wrong word anchors the wrong concept.
+    - *Status: a Council vetted the diagnosis and confirmed aspirational restatements won't bind; wording is drafted; applying to CLAUDE.md awaits operator go-ahead.*
+
+**Adjacent (arunner repo — not the QPB v1.5.10 source release, tracked here for completeness):** FR-61–65 implemented on `fr-61-65-impl` (instruction 002, local) and the spec on `fr-61-65-spec` (001, local), both awaiting operator review/merge to arunner `main`; and committing the arunner `runner/` folder (an earlier sandbox mount restriction blocked it).
 
 ---
 
@@ -59,13 +118,17 @@ Cleanup first (lowest risk, shrinks the surface), then the trim (mechanical, pat
 - **D7.** Full `bin/tests/` suite green.
 - **CHECKPOINT COMMIT D:** `refactor(v1.5.10)!: relocate canonical SKILL.md to repo root; symlink in-tree locations; source-side resolution + packaging guardrails`
 
-## Phase E — arunner regression run
+## Phase E — arunner × QPB integration + regression test (run_playbook retired)
 
-- **E1.** Via the polling worker, launch an arunner run exercising Phases 1–3 on 3–5 standard benchmark repos against the trimmed + relocated skill.
-- **E2.** Confirm runtime SKILL.md resolution from the new root layout + per-phase `references/` loads at phase boundaries. **[Council C2]** Confirm QPB self-audit still classifies as Skill/Hybrid (not mis-detected post-relocation).
-- **E3.** Compare bug recall + REQUIREMENTS quality + Phase 6 verdict accuracy vs the pre-trim baseline.
-- **E4.** If recall drops materially or a reference fails to load: identify the offending extraction; move it back to SKILL.md or strengthen the load directive; re-run.
-- **CHECKPOINT COMMIT E:** `test(v1.5.10): arunner regression — <result summary>`
+*This is the close-out checklist's item 2, in detail. It is a **regression + integration test**: it checks the trimmed/relocated skill for behavioral regressions and simultaneously integrates QPB with arunner's new native phase orchestration. `run_playbook` is **not** used — it is being retired.*
+
+- **E1. Vehicle.** Use arunner (FR-61–65, landed on `fr-61-65-impl`) to run QPB's phases natively: each phase is an arunner step, prompts come from `phase_prompts/`, and a deterministic gate between steps runs `validate_phase_artifacts` (exit-code only). No `run_playbook`.
+- **E2. Environment.** Install the skill fresh into the standard benchmark repos (chi / virtio / express) via `setup_repos.sh` so the skill under test is exactly v1.5.10 (avoids the stale-install failures seen earlier). Confirm runtime SKILL.md resolution from the new **root** layout and per-phase `references/` loads at phase boundaries. **[Council C2]** Confirm QPB self-audit still classifies Skill/Hybrid post-relocation.
+- **E3. Mechanical grading.** Score bugs found with `regression_replay.py` against the pinned ground truth, and compare REQUIREMENTS quality + Phase 6 verdict accuracy vs. the pre-trim baseline. The verdict is computed, not judged.
+- **E4. Independent Council** reviews the result with all evidence pasted (plan, gate outcomes, score, diff vs. baseline).
+- **E5. On failure** (a reference fails to load, or the score drops materially): identify the offending extraction; move it back to SKILL.md or strengthen the load pointer; re-run.
+- **Dependency:** the arunner-native vehicle requires FR-61–65 (done) plus a follow-up worker instruction that builds the QPB-native plan (phases as steps, `phase_prompts/`, gates = `validate_phase_artifacts`).
+- **CHECKPOINT COMMIT E:** `test(v1.5.10): arunner x QPB integration+regression — <result summary>`
 
 ## Ship Gate
 
@@ -81,18 +144,26 @@ Cleanup first (lowest risk, shrinks the surface), then the trim (mechanical, pat
 
 | # | Item | Phase | Status |
 |---|------|-------|--------|
-| 1 | Branch `1.5.10` + baseline green | A | PENDING |
-| 2 | Folder cleanup (git-rm cruft + gitignore) | A | PENDING — needs build-staging safety check |
-| 3 | SKILL.md content audit table | B | PENDING |
-| 4 | Mechanical extraction + drift reconciliation | B | PENDING audit |
-| 5 | Reference-resolves validator + test | C | PENDING |
-| 6 | Token-ceiling ratchet (32K → ~12K) | C | PENDING extraction |
-| 7 | SKILL.md relocation to root + rewire | D | PENDING — highest risk; verify repo-vs-adopter detection first |
-| 8 | Package build ships real files | D | PENDING relocation |
-| 9 | arunner regression run | E | PENDING all source work |
-| 10 | Council Self-Review | Ship Gate | PENDING |
-| 11 | awesome-copilot re-submission | Ship Gate | PENDING |
-| 12 | Release ship steps + push/tag verification | Ship Gate | PENDING |
+| 1 | Branch `1.5.10` + baseline green | A | DONE |
+| 2 | Folder cleanup (git-rm cruft + gitignore) | A | DONE |
+| 3 | SKILL.md content audit table | B | DONE |
+| 4 | Mechanical extraction + drift reconciliation | B | DONE |
+| 5 | Reference-resolves validator + test | C | DONE |
+| 6 | Token-ceiling ratchet (32K → ~12K) | C | DONE |
+| 7 | SKILL.md relocation to root + rewire | D | DONE |
+| 8 | Package build ships real files | D | DONE |
+| **Close-out (remaining):** | | | |
+| 9 | arunner × QPB integration + regression test (arunner-native; run_playbook retired) | E / close-out 2 | PENDING — needs follow-up worker instruction (FR-61–65 done) |
+| 10 | Land worker fixes 054 (publish.yml) / 055 (lineage) / 056 (Clojure gate) | close-out 3 | PENDING |
+| 11 | Verify Clojure fix on a real Clojure project | close-out 4 | PENDING — operator-run, needs toolchain |
+| 12 | Version bump 1.5.8→1.5.10 + single source of truth | close-out 5 | PENDING |
+| 13 | CHANGELOG entry | close-out 6 | PENDING |
+| 14 | CI/CD finalize (publish.yml on main + registration + layered test plan) | close-out 7 | PENDING |
+| 15 | README Quick-Start real token numbers | close-out 8 | PENDING — blocked on item 9's token reporting |
+| 16 | Umbrella Council (Self-Review) | close-out 9 | PENDING |
+| 17 | Tag v1.5.10 + push + verify (`git ls-remote`) | close-out 10 | PENDING |
+| 18 | awesome-copilot re-submission | close-out 11 | PENDING |
+| 19 | Update CLAUDE.md with checkable mechanical gates | close-out 12 | PENDING — Council-vetted; awaits operator go |
 
 ---
 

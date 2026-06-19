@@ -16,7 +16,9 @@ Three coordinated workstreams, all in service of one goal — **a clean repo bef
 2. **SKILL.md relocation to repo root** — the canonical SKILL.md currently lives buried at `plugins/quality-playbook/skills/quality-playbook/SKILL.md`. Operator decision (2026-06-18): moving it out of the root was a mistake. Move the **real file** back to the repo root as the single source of truth; **symlink** the in-tree skill locations back to it; rewire the install-location fallback contract, packaging, and tests accordingly.
 3. **Folder-structure cleanup** — the repo accumulated committed run-output and orphaned partial copies with little organizing logic. Remove the cruft from tracking (reversibly), gitignore it, and leave a structure with clear rhyme and reason.
 
-Closed out by an **arunner regression run** that exercises the trimmed + relocated skill on the standard benchmark set, confirming no behavioral break.
+Closed out by an **arunner × QPB integration + regression test** that exercises the trimmed + relocated skill on the standard benchmark set, confirming no behavioral break.
+
+*Terminology note (2026-06-19): the end-to-end check is a **regression test** (does the refactor break bug-finding?) and an **integration test** (does arunner correctly drive QPB's phases?) — not a "recall run." Earlier drafts called it a "recall run/baseline," a misapplied science/public-health term; the correct quality-engineering names are regression test and integration test. "Bug recall" remains valid only as the metric it names (bugs found ÷ known bugs). Separately, **`run_playbook` is being retired** — the integration+regression test runs arunner-native (FR-61–65), and we do not use `run_playbook` going forward.*
 
 **Why this matters:**
 
@@ -47,7 +49,7 @@ After the trim/relocation/cleanup landed and pushed, the operator added two QPB 
 - **Move the Example Output section further up.**
 - **Move the Table of Contents up** — above "How to install Quality Playbook" (the playbook is shorter now, so the TOC belongs higher).
 - **Add a Quick Start section above the TOC** — "Install and run" in a very short block: the recommended way to run it, showing one of the three install paths (npm / pip / clone) + the actual prompt you give inside your repo after loading the skill into an agent runner like Claude Code.
-- **Real token usage in Quick Start** — show actual input/output token counts from real benchmark runs (smallest repo, or "running against these three open-source repos cost these token counts"). **Source: the arunner recall runs** (see token-reporting dependency below) — NOT fabricated.
+- **Real token usage in Quick Start** — show actual input/output token counts from real benchmark runs (smallest repo, or "running against these three open-source repos cost these token counts"). **Source: the arunner × QPB integration+regression test's token reporting** (FR-65; see token-reporting dependency below) — NOT fabricated.
 
 ### Workstream 5 — CI/CD publish on tag (QPB source/infra; worker lane + Council)
 
@@ -73,11 +75,11 @@ A real adopter-reported bug, diagnosed 2026-06-18 (`AI-Driven Development/Qualit
 
 These are part of the same effort but live outside the QPB 1.5.10 source release:
 
-- **arunner generic phase-orchestration FRs** (arunner `docs/REQUIREMENTS.md`): prompt-from-file (with light `{var}` templating — QPB prompts use `skill_fallback_guide` substitution), multi-step entries, deterministic continuation gates (default), reasoning gates (optional, fenced, separate judging context, kept OUT of the benchmark path), and a gate-outcome vocabulary richer than continue/halt (needs `skip-to-next` for QPB's Phase-3-skip; `code-only` behavior change). Build order: prompt-from-file → multi-step → deterministic gates → reasoning gates.
-- **arunner token reporting FR**: arunner reports input+output tokens per run/sub-run (run_playbook does not emit tokens). This is the source of the README Quick-Start token numbers.
-- **Recall validation (cross-version benchmark)**: (a) run_playbook recall baseline now (instr 053); (b) arunner-native multi-phase run of the same skill on the same repos once the FRs land; (c) cross-check they reproduce the same recall before promoting arunner-native to the standing gate and retiring run-serial / slimming run_playbook for that path.
+- **arunner generic phase-orchestration FRs (FR-61–65)** (arunner `docs/REQUIREMENTS.md`): prompt-from-file (with light `{var}` templating — QPB prompts use `skill_fallback_guide` substitution), multi-step entries, deterministic continuation gates (default), reasoning gates (optional, fenced, separate judging context, kept OUT of the measurement path), a gate-outcome vocabulary richer than continue/halt (`skip-to-next` for QPB's Phase-3-skip; `behavior-flag` for behavior changes), and token reporting. **Status: implemented 2026-06-19** on the arunner `fr-61-65-impl` branch (instruction 002, local; 378 tests, stdlib-only, 3-panel Council SHIP). Spec on `fr-61-65-spec` (001). Both await operator review/merge to arunner `main`.
+- **arunner token reporting (FR-65)**: arunner reports input+output tokens per step/sub-run/run (`run_playbook` does not emit tokens). This is the source of the README Quick-Start token numbers — another reason the integration+regression test runs arunner-native, not via the retired `run_playbook`.
+- **`run_playbook` retirement.** `run_playbook` is being retired. The standing end-to-end check becomes the arunner × QPB integration+regression test (FR-61–65 phases-as-steps), graded mechanically by `regression_replay.py` against pinned ground truth. The earlier "run a `run_playbook` baseline now" step (instr 053) is dropped — we do not use `run_playbook` going forward; the baseline for comparison is the existing pinned ground truth.
 
-**Dependency notes:** the README Quick-Start token line is BLOCKED on (arunner token reporting + a benchmark run that uses it). The CI/CD workstream is BLOCKED on Council review. The arunner-native recall run is BLOCKED on the arunner FRs. The README structural edits (validation/automation/diagram/TOC/example/quick-start-shell) are NOT blocked and can land independently.
+**Dependency notes:** the README Quick-Start token line is BLOCKED on the arunner × QPB integration+regression test (it provides the FR-65 token numbers). The CI/CD workstream is BLOCKED on Council review (done) and then on publish.yml reaching `origin/main` before trusted-publishing can be exercised. The integration+regression test needs a follow-up worker instruction that builds the QPB-native plan (phases as steps, `phase_prompts/`, gates = `validate_phase_artifacts`); FR-61–65 themselves are landed. The README structural edits (validation/automation/diagram/TOC/example/quick-start-shell) are NOT blocked and have landed.
 
 ---
 
@@ -169,14 +171,14 @@ Execute the audit table above:
 
 ---
 
-## arunner regression run (the ship gate's load-bearing check)
+## arunner × QPB integration + regression test (the ship gate's load-bearing check)
 
-Because the relocation touches the install-location contract, a green test suite is necessary but **not sufficient**. The release runs the standard benchmark via the **arunner harness** (launched through the Claude Code worker that polls `~/Documents/QPB/runner/1.5.9`) against the trimmed + relocated skill:
+Because the relocation touches the install-location contract, a green test suite is necessary but **not sufficient**. The release runs the standard benchmark **arunner-native** (FR-61–65: each QPB phase a step, prompts from `phase_prompts/`, deterministic `validate_phase_artifacts` gates between steps) against the trimmed + relocated skill. **`run_playbook` is not used** — it is being retired. The run is launched through the Claude Code worker (the sandbox can't authenticate `--claude` model calls):
 
-- Exercise Phases 1–3 (minimum) on 3–5 standard benchmark repos.
+- Exercise Phases 1–3 (minimum) on the standard benchmark repos (chi / virtio / express), installed fresh via `setup_repos.sh` so the skill under test is exactly v1.5.10.
 - Confirm the skill **resolves SKILL.md from the new root layout at runtime**, loads each `references/phase_N_*.md` at its phase boundary, and produces artifacts of the same shape/quality as the pre-trim baseline.
-- Compare bug recall + REQUIREMENTS quality + Phase 6 verdict accuracy vs the pre-trim baseline.
-- If recall drops materially or a reference fails to load, identify the offending extraction and either move it back to SKILL.md or strengthen the load directive.
+- Grade mechanically: `regression_replay.py` scores bug-detection (recall = bugs found ÷ known bugs) against the pinned ground truth; also compare REQUIREMENTS quality + Phase 6 verdict accuracy. The verdict is computed, not judged.
+- If the score drops materially or a reference fails to load, identify the offending extraction and either move it back to SKILL.md or strengthen the load directive.
 
 ---
 
@@ -185,7 +187,7 @@ Because the relocation touches the install-location contract, a green test suite
 - Trimmed SKILL.md passes the new reference-resolves validator + the ratcheted token-ceiling test (repointed to root).
 - Full `bin/tests/` suite green (including the rewired install-location/resolution-order tests).
 - The package builds (`build_channel_package.py` + `python -m build`) with the relocated layout, staging real files (symlinks dereferenced).
-- arunner regression run shows no material recall degradation and confirms runtime resolution from the root layout.
+- arunner × QPB integration+regression test shows no material bug-detection degradation (mechanically scored) and confirms runtime resolution from the root layout.
 - Folder cleanup complete; `git status` clean; no committed run outputs remain.
 - Council Self-Review Protocol 1 (panelists: audit-table/cleanup completeness, mechanical-extraction + reconciliation correctness, relocation/contract-preservation correctness) + the defensive-sweep charter per `DEVELOPMENT_PROCESS.md`.
 - **awesome-copilot re-submission test:** regenerate the packet shipping the now-trimmed canonical SKILL.md directly; submit PR; iterate if rejected.
