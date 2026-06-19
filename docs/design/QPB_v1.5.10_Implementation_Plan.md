@@ -24,7 +24,7 @@
    - **Vehicle: arunner runs QPB's phases natively** (FR-61–65, landed on the arunner `fr-61-65-impl` branch). Each QPB phase is an arunner step; each step's prompt comes from a file in `phase_prompts/`; a **deterministic gate** between steps checks the phase produced its required artifacts (`validate_phase_artifacts`, exit-code only).
    - **`run_playbook` is not used.** It is being retired — we do not use it again.
    - **Repos:** the standard benchmark set (chi / virtio / express), installed fresh via `setup_repos.sh` so the skill under test is exactly v1.5.10.
-   - **Grading is mechanical:** `regression_replay.py` scores the bugs found against the pinned ground truth. The pass/fail verdict does not depend on Claude's judgment.
+   - **Grading is mechanical:** the regression-test scorer (`bin/regression_replay.py`) scores the bugs found against the pinned ground truth. The pass/fail verdict does not depend on Claude's judgment.
    - **Independent Council** reviews the result; all evidence (the plan, gate outcomes, the score, the diff vs. the pre-trim baseline) is pasted.
    - If a phase reference fails to load or the score drops materially: identify the extraction at fault, move it back into SKILL.md or strengthen the load pointer, re-run.
 
@@ -64,6 +64,8 @@
     - **Honesty rule:** the claim I make about a deliverable must be independently true of its contents.
     - **Correct misapplied terminology early** (e.g. "recall run," "cells") — use real quality/software-engineering terms; the wrong word anchors the wrong concept.
     - *Status: a Council vetted the diagnosis and confirmed aspirational restatements won't bind; wording is drafted; applying to CLAUDE.md awaits operator go-ahead.*
+
+13. **Source terminology cleanup (worker lane).** QPB source bakes in made-up vocabulary the operator has flagged: `bin/regression_replay.py` + `metrics/regression_replay/` ("replay" is not a quality-engineering word), and "cell record" / "recall" (as a test name) inside the scorer and `metrics/regression_replay/SCHEMA.md`. Rename the script + dir (e.g. `regression_test.py` / `metrics/regression_test/`) and purge "replay" / "cell" / "recall-as-test-name" from QPB source, repointing the importers and tests. Worker-lane (it's source) + Council. Low priority but on the list so the clean-base goal is real.
 
 **Adjacent (arunner repo — not the QPB v1.5.10 source release, tracked here for completeness):** FR-61–65 implemented on `fr-61-65-impl` (instruction 002, local) and the spec on `fr-61-65-spec` (001, local), both awaiting operator review/merge to arunner `main`; and committing the arunner `runner/` folder (an earlier sandbox mount restriction blocked it).
 
@@ -124,7 +126,7 @@ Cleanup first (lowest risk, shrinks the surface), then the trim (mechanical, pat
 
 - **E1. Vehicle.** Use arunner (FR-61–65, landed on `fr-61-65-impl`) to run QPB's phases natively: each phase is an arunner step, prompts come from `phase_prompts/`, and a deterministic gate between steps runs `validate_phase_artifacts` (exit-code only). No `run_playbook`.
 - **E2. Environment.** Install the skill fresh into the standard benchmark repos (chi / virtio / express) via `setup_repos.sh` so the skill under test is exactly v1.5.10 (avoids the stale-install failures seen earlier). Confirm runtime SKILL.md resolution from the new **root** layout and per-phase `references/` loads at phase boundaries. **[Council C2]** Confirm QPB self-audit still classifies Skill/Hybrid post-relocation.
-- **E3. Mechanical grading.** Score bugs found with `regression_replay.py` against the pinned ground truth, and compare REQUIREMENTS quality + Phase 6 verdict accuracy vs. the pre-trim baseline. The verdict is computed, not judged.
+- **E3. Mechanical grading.** Score bugs found with the regression-test scorer (`bin/regression_replay.py`) against the pinned ground truth, and compare REQUIREMENTS quality + Phase 6 verdict accuracy vs. the pre-trim baseline. The verdict is computed, not judged.
 - **E4. Independent Council** reviews the result with all evidence pasted (plan, gate outcomes, score, diff vs. baseline).
 - **E5. On failure** (a reference fails to load, or the score drops materially): identify the offending extraction; move it back to SKILL.md or strengthen the load pointer; re-run.
 - **Dependency:** the arunner-native vehicle requires FR-61–65 (done) plus a follow-up worker instruction that builds the QPB-native plan (phases as steps, `phase_prompts/`, gates = `validate_phase_artifacts`).
@@ -164,6 +166,7 @@ Cleanup first (lowest risk, shrinks the surface), then the trim (mechanical, pat
 | 17 | Tag v1.5.10 + push + verify (`git ls-remote`) | close-out 10 | PENDING |
 | 18 | awesome-copilot re-submission | close-out 11 | PENDING |
 | 19 | Update CLAUDE.md with checkable mechanical gates | close-out 12 | PENDING — Council-vetted; awaits operator go |
+| 20 | Source terminology cleanup (rename replay/cell/recall in source) | close-out 13 | PENDING — worker lane; low priority |
 
 ---
 
