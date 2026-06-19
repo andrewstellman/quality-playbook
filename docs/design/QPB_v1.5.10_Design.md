@@ -57,6 +57,18 @@ After the trim/relocation/cleanup landed and pushed, the operator added two QPB 
 - One-time external setup: register the trusted publisher (owner `andrewstellman`, repo `quality-playbook`, workflow `publish.yml`, environment `release`) in pypi.org + npmjs.com before the first tagged run — names must match exactly. (Operator step.)
 - This workstream is what makes the eventual v1.5.10 tag actually publish; sequence it before the release tag.
 
+### Workstream 6 — Clojure quality-gate fix (skill source; worker lane + Council)
+
+A real adopter-reported bug, diagnosed 2026-06-18 (`AI-Driven Development/Quality Playbook/QPB_Clojure_Gate_Diagnosis.md`): `quality_gate.py` is **Clojure-blind**. `detect_project_language()` (`quality_gate.py:2712`) uses ordered **first-match** over a `language_order` list that lacks `.clj/.cljc/.cljs`, so a Clojure repo's stray `.py` build/lint scripts win → the project is detected as Python → the correct `test_functional.clj` fails the extension check. Missing on all three surfaces: `language_order`, `lang_to_valid` (:3816), `count_source_files` (:2759).
+
+**This is a recurring class, not a one-off.** A comment at `:2692` records the identical failure on a **Java** project (2026-05-16); that fix only excluded QPB's own install dirs, leaving the root fragility. So the fix is the principled one, not whack-a-mole:
+
+- **Switch `detect_project_language` from first-match-by-order to dominant-language-by-count** (pick the extension with the most files). This kills the "stray `.py` wins" class for Java, Clojure, and any future language.
+- Add Clojure to all three tables: `language_order`, `lang_to_valid` (`"clj": "clj cljc cljs"`), `count_source_files` exts.
+- Secondary: add a Clojure section to `references/phase2_generation_guide.md` (clojure.test/lein/kaocha structure, a skip-guard row — `(is false "BUG-NNN ...")` since clojure.test has no native xfail, JUnit-XML via `kaocha --plugin junit-xml`/`eftest`); teach `_body_has_real_assertion` / the 090s no-op detector (`:~3974`) to recognize `(deftest …)`/`(is …)`.
+
+**Highest risk:** changing first-match→dominant-count alters detection for EVERY project, so the Council + tests must confirm the existing benchmark repos (Go `chi`, Rust `virtio`, JS `express`, and a Java case) still detect correctly. Tests use file-tree fixtures (a Clojure tree + a stray `.py`) under `bin/tests/fixtures/` — **no Clojure runtime needed** for the unit tests. (Running red-green Phases 3–6 on the actual Clojure project is a separate operator task needing the Clojure toolchain installed locally; the gate fix itself does not.)
+
 ### Related work — tracked separately (arunner repo + cross-version benchmark)
 
 These are part of the same effort but live outside the QPB 1.5.10 source release:
