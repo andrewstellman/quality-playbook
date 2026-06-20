@@ -277,6 +277,7 @@ If `git worktree` is unavailable (shallow clone, detached HEAD), use `git stash 
 - **Python:** `python -m py_compile <changed_files>` for syntax, then `pytest --collect-only -q` for import/discovery validation
 - **JavaScript (Node.js):** `node --check <changed_files>` for syntax; if the project uses ESLint, `npx eslint <changed_files>` for structural issues
 - **JavaScript (Mocha/Jest):** Run the specific test in discovery-only mode (`mocha --dry-run` or `jest --listTests`) to verify it loads without errors
+- **Clojure:** `clojure -M -e "(compile 'your.ns)"` (or `lein check`) compiles a namespace; loading the test namespace (`lein test` / `clojure -X:test`) surfaces syntax/arity errors at require time
 
 If no compile/syntax check is feasible for the project's language, document this in the patch entry and rely on the TDD red phase to catch syntax errors.
 
@@ -302,6 +303,7 @@ A bug with a regression test but no fix patch and no justification is incomplete
 - **TypeScript/JavaScript (Jest):** `test.failing("BUG-NNN: [description]", () => { ... })`
 - **TypeScript/JavaScript (Vitest):** `test.fails("BUG-NNN: [description]", () => { ... })`
 - **JavaScript (Mocha):** `it.skip("BUG-NNN: [description]", () => { ... })` or `this.skip()` inside the test body for conditional skipping.
+- **Clojure (clojure.test):** clojure.test has **no native xfail / expected-failure**. Use an explicit failing assertion that names the bug as the open-bug marker — `(is false "BUG-NNN: [description] — replace with the real assertion after applying quality/patches/BUG-NNN-fix.patch")` as the `deftest` body. While the bug is open this is a known, bug-tagged failure (clojure.test has no strict-xpass to auto-detect the fix); the **red-phase log is the load-bearing evidence**, so run the real reproducing assertion against unpatched code and capture the FAIL (see the red/green cycle below). To keep the default suite green instead, tag the test `(deftest ^:bug-nnn test-...)` and exclude that metadata via the runner selector (`lein test :only` / kaocha `--skip-meta :bug-nnn`).
 
 When a bug is fixed (fix patch applied permanently), remove the skip guard and update the BUG tracker closure status from "confirmed open" to "fixed (test passes)". The skip guard message must reference the bug ID and the fix patch path so that someone encountering a skipped test knows exactly how to resolve it.
 
@@ -329,8 +331,30 @@ When a bug is fixed (fix patch applied permanently), remove the skip guard and u
 - **TypeScript/JavaScript (Jest):** `npx jest --verbose --testNamePattern="BUG-NNN"`
 - **TypeScript/JavaScript (Vitest):** `npx vitest run --reporter=verbose --testNamePattern="BUG-NNN"`
 - **C (kernel/make-based):** Source-inspection tests via shell script (grep/awk on source files) — log the script output.
+- **Clojure (Leiningen):** `lein test :only your.ns/test-bug-nnn`
+- **Clojure (tools.deps / Cognitect test-runner):** `clojure -X:test :nses '[your.ns]'`
+- **Clojure (kaocha):** `clojure -M:kaocha --focus your.ns/test-bug-nnn` (or `bin/kaocha --focus ...`)
 
 If the project uses a language or test framework not listed above, use whatever test runner the project already uses (check for `Makefile`, `package.json`, `build.gradle`, `Cargo.toml`, `go.mod`, `setup.py`, `pyproject.toml`, etc.) and adapt the pattern. Record `NOT_RUN` with an explanation **only after** the runner probe (captured to `quality/results/phase5_env.log`) actually exits non-zero — a probed-and-failed runner, not an assumed-unavailable one. Quote the failing probe output. Do not skip the log file entirely.
+
+**Clojure (clojure.test) functional tests + JUnit XML.** clojure.test is the stdlib test framework; `deftest` / `is` / `are` are the core forms. Structure `quality/test_functional.clj` like:
+
+```clojure
+(ns acme.functional-test
+  (:require [clojure.test :refer [deftest is are testing]]
+            [acme.core :as core]))
+
+(deftest documented-behavior
+  (testing "REQ-001: parser rejects empty input"
+    (is (thrown? IllegalArgumentException (core/parse "")))
+    (are [in out] (= out (core/parse in))
+      "a"  {:tag :a}
+      "ab" {:tag :ab})))
+```
+
+- **Real assertions** are `(is ...)` / `(are ...)`; a `deftest` carrying neither is a hollow test and FAILs the gate's functional-test content check (v1.5.10 instruction 056).
+- **Run commands:** `lein test` (Leiningen) · `clojure -X:test` (tools.deps + the Cognitect test-runner) · `clojure -M:kaocha` / `bin/kaocha` (kaocha).
+- **JUnit XML for the integration-test gate:** `lein test` emits **no** JUnit XML natively. Produce it with **kaocha** (`clojure -M:kaocha --plugin kaocha.plugin/junit-xml --junit-xml-file quality/results/junit.xml`) or **eftest** (`:report eftest.report.junit/report`, writing to `quality/results/junit.xml`). Point `quality/RUN_INTEGRATION_TESTS.md` at whichever the project already uses.
 
 **Log capture format.** Each `BUG-NNN.red.log` and `BUG-NNN.green.log` must follow this format:
 ```

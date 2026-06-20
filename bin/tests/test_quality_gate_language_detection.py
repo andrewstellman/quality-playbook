@@ -180,5 +180,163 @@ class GateWalkerInstallExclusionTests(unittest.TestCase):
                 )
 
 
+# ---------------------------------------------------------------------------
+# v1.5.10 instruction 056 — dominant-language-by-count + Clojure support.
+# ---------------------------------------------------------------------------
+
+
+def _clojure_deep_target(tmp: Path) -> Path:
+    """vaelii-shaped Clojure repo: deep `.clj` source under the standard
+    Leiningen layout `src/main/clojure/<ns>/` (namespace files at DEPTH
+    5) plus a couple of SHALLOW stray `.py` build scripts (depth 2).
+
+    Why this shape (not a flat clj-dominant tree): it reproduces the
+    real adopter bug. At walk depth <=3 the deep `.clj` is never reached
+    (the walk stops before `src/main/clojure/acme/`), so only the 2
+    shallow `.py` get counted → the OLD ordered first-match (which also
+    lacked any `clj` entry) mis-detects Python. At depth 5 the 4 `.clj`
+    files ARE counted (4 > 2) → Clojure wins. Margin is deliberately
+    realistic (4 vs 2), not lopsided."""
+    for ns in ("core", "util", "routes"):
+        f = tmp / "src" / "main" / "clojure" / "acme" / f"{ns}.clj"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        f.write_text(f"(ns acme.{ns})\n", encoding="utf-8")
+    (tmp / "src" / "main" / "clojure" / "acme" / "db.cljc").write_text(
+        "(ns acme.db)\n", encoding="utf-8")
+    scripts = tmp / "scripts"
+    scripts.mkdir(parents=True, exist_ok=True)
+    (scripts / "build.py").write_text("x = 1\n", encoding="utf-8")
+    (scripts / "release.py").write_text("x = 1\n", encoding="utf-8")
+    return tmp
+
+
+def _ts_with_dist_target(tmp: Path) -> Path:
+    """A TypeScript project (2 `.ts` under src/) whose compiled output
+    (3 `.js`) lives in `dist/`. Under dominant-count `dist/` MUST be
+    excluded or the compiled `.js` (3) out-counts the `.ts` (2) and
+    flips detection to `js` (ordered first-match was immune because
+    `ts` precedes `js`)."""
+    src = tmp / "src"
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "index.ts").write_text("export const x = 1;\n", encoding="utf-8")
+    (src / "app.ts").write_text("export const y = 2;\n", encoding="utf-8")
+    dist = tmp / "dist"
+    dist.mkdir(parents=True, exist_ok=True)
+    for n in ("index", "app", "vendor"):
+        (dist / f"{n}.js").write_text("var z=1;\n", encoding="utf-8")
+    return tmp
+
+
+def _java_dominant_stray_py_target(tmp: Path) -> Path:
+    """A Java project (3 `.java` under src/, depth 2 — within the walk)
+    plus ONE stray `.py` tool in scripts/ (depth 2). Under dominant-count
+    java (3) wins over py (1). Under the OLD ordered first-match `py`
+    precedes `java`, so a single `.py` made detection return 'py'. This
+    is the first-match-bite pin — distinct from the bundled-bin
+    exclusion pin above (which excludes `bin/` both ways and so does NOT
+    bite on a first-match revert)."""
+    src = tmp / "src"
+    src.mkdir(parents=True, exist_ok=True)
+    for n in ("Alpha", "Beta", "Gamma"):
+        (src / f"{n}.java").write_text(f"class {n} {{}}\n", encoding="utf-8")
+    scripts = tmp / "scripts"
+    scripts.mkdir(parents=True, exist_ok=True)
+    (scripts / "gen.py").write_text("x = 1\n", encoding="utf-8")
+    return tmp
+
+
+class DominantLanguageDetectionTests(unittest.TestCase):
+    """v1.5.10 instruction 056: `detect_project_language` switched from
+    ordered first-match to dominant-language-by-count (walk depth 5,
+    known-extension counting only, build-output dirs excluded), with
+    Clojure added to the tables + the hollow-test `lang_map`.
+
+    MUTATION-VERIFY EVIDENCE (per ai_context/DEVELOPMENT_PROCESS.md;
+    `__pycache__` purged between mutate/restore): reverting
+    `detect_project_language` to the pre-056 ordered first-match body
+    (the `for lang, ext in language_order: if present(...): return lang`
+    form, with no `clj` entry) turns BOTH detection pins below red:
+      - Clojure pin → first-match has no `clj` entry and finds the
+        shallow `scripts/*.py` first → returns 'py' (AssertionError
+        'py' != 'clj').
+      - Java pin → first-match checks `py` before `java`; the lone
+        `scripts/gen.py` is present → returns 'py' (AssertionError
+        'py' != 'java').
+    Bite executed during 056 development; PASS→FAIL→PASS confirmed."""
+
+    def test_clojure_deep_source_beats_shallow_stray_py(self) -> None:
+        with TemporaryDirectory() as t:
+            target = _clojure_deep_target(Path(t))
+            self.assertEqual(
+                quality_gate.detect_project_language(str(target)), "clj",
+                "deep .clj (depth 5) must out-count shallow stray .py",
+            )
+
+    def test_ts_project_excludes_build_output_dist(self) -> None:
+        with TemporaryDirectory() as t:
+            target = _ts_with_dist_target(Path(t))
+            self.assertEqual(
+                quality_gate.detect_project_language(str(target)), "ts",
+                "dist/ compiled .js must be excluded so .ts dominates",
+            )
+
+    def test_java_dominant_over_stray_py_bites_first_match(self) -> None:
+        with TemporaryDirectory() as t:
+            target = _java_dominant_stray_py_target(Path(t))
+            self.assertEqual(
+                quality_gate.detect_project_language(str(target)), "java",
+                "3 .java must out-count 1 stray .py (first-match returned py)",
+            )
+
+    def test_single_language_pins_unchanged(self) -> None:
+        """Go / Rust / C / JS / TS single-language repos still detect
+        correctly under dominant-count (regression pins)."""
+        cases = {
+            "go": "main.go", "rs": "lib.rs", "c": "core.c",
+            "js": "app.js", "ts": "app.ts",
+        }
+        for lang, fname in cases.items():
+            with self.subTest(lang=lang), TemporaryDirectory() as t:
+                (Path(t) / fname).write_text("// x\n", encoding="utf-8")
+                self.assertEqual(
+                    quality_gate.detect_project_language(str(t)), lang,
+                )
+
+    def test_clj_lang_map_reachable_hollow_fails_real_passes(self) -> None:
+        """Work item 4: the `lang_map` `clj` entry makes the hollow-test
+        content check reachable for Clojure. A `(deftest ...)` with no
+        `(is ...)` FAILs; one with `(is ...)` PASSes — proving the
+        Clojure assertion patterns + `(deftest ...)` body extractor are
+        not dead code."""
+        with TemporaryDirectory() as t:  # hollow
+            q = Path(t)
+            (q / "test_functional.clj").write_text(
+                "(ns acme.functional-test "
+                "(:require [clojure.test :refer :all]))\n"
+                "(deftest t-hollow)\n",
+                encoding="utf-8",
+            )
+            quality_gate._reset_counters()
+            quality_gate.check_functional_test_has_assertions(q)
+            self.assertEqual(
+                quality_gate.FAIL, 1,
+                "a hollow Clojure deftest (no (is ...)) must FAIL",
+            )
+        with TemporaryDirectory() as t:  # real
+            q = Path(t)
+            (q / "test_functional.clj").write_text(
+                "(ns acme.functional-test "
+                "(:require [clojure.test :refer :all]))\n"
+                "(deftest t-real (is (= 4 (+ 2 2))))\n",
+                encoding="utf-8",
+            )
+            quality_gate._reset_counters()
+            quality_gate.check_functional_test_has_assertions(q)
+            self.assertEqual(
+                quality_gate.FAIL, 0,
+                "a Clojure deftest with (is ...) must PASS",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

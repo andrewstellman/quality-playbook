@@ -2710,9 +2710,38 @@ _INSTALL_MARKER_DIRS = frozenset({
 
 
 def detect_project_language(repo_dir):
-    """Walk up to 3 dirs deep, return first language whose extension is present.
+    """Return the dominant language by source-file count (most files
+    wins), walking up to 5 dirs deep and counting only known language
+    extensions.
 
-    Mirrors bash `find -maxdepth 3 -not -path ...` behavior.
+    v1.5.10 (instruction 056): switched from ordered first-match to
+    dominant-language-by-count. First-match returned the earliest
+    language in ``language_order`` whose extension appeared *anywhere*,
+    so a Clojure repo with a few stray ``.py`` build scripts detected as
+    Python (``py`` precedes — and ``clj`` was absent entirely). Counting
+    instead means a handful of shallow stray scripts can't out-vote the
+    real source.
+
+    Depth 5 (was 3): standard Leiningen/Maven layout puts source at
+    ``src/main/clojure/<ns>/<ns>.clj`` — depth 5. At depth <=3 a Clojure
+    project with only deep source plus a few shallow ``.py`` STILL
+    mis-detects (sandbox: vaelii is clj-6 vs py-3 at <=3 but clj-128 vs
+    py-3 at <=5). Only ``language_order`` extensions are counted, so
+    ``.md`` / ``.sh`` / ``.edn`` never become candidates.
+
+    [056 Council B] Build-output dirs (dist/build/out/target) are
+    excluded so a TypeScript project's compiled ``.js`` can't out-count
+    its ``.ts`` (ordered first-match was immune because ``ts`` precedes
+    ``js``; dominant-count is not). Accepted tradeoff: an adopter repo
+    whose tooling ``.py`` outnumber its real source within depth 5 could
+    flip to ``py`` — judged acceptable because real source normally
+    dominates and the depth-5 walk reaches deep source. The QPB
+    install-marker dirs + bundled ``bin/`` stay excluded
+    (``_INSTALL_MARKER_DIRS``) so QPB's own Python closure never poisons
+    detection (instruction 054).
+
+    Deterministic tiebreak on equal counts: ``language_order`` order
+    (earliest wins). Returns "" when no known source extension is found.
     """
     language_order = [
         ("go", ".go"),
@@ -2724,40 +2753,54 @@ def detect_project_language(repo_dir):
         ("js", ".js"),
         ("scala", ".scala"),
         ("c", ".c"),
+        ("clj", ".clj"),
+        ("clj", ".cljc"),
+        ("clj", ".cljs"),
         ("agc", ".agc"),
     ]
-    excluded = {"vendor", "node_modules", ".git", "quality", "repos"} | _INSTALL_MARKER_DIRS
+    # [056 Council B] build-output dirs excluded so compiled artifacts
+    # don't out-count real source under dominant-by-count.
+    excluded = ({"vendor", "node_modules", ".git", "quality", "repos",
+                 "dist", "build", "out", "target"} | _INSTALL_MARKER_DIRS)
 
-    def present(base, target_ext):
-        stack = [(Path(base), 1)]
-        while stack:
-            curr, depth = stack.pop()
-            try:
-                for entry in os.scandir(curr):
-                    name = entry.name
-                    if entry.is_dir(follow_symlinks=False):
-                        if name in excluded:
-                            continue
-                        if depth < 3:
-                            stack.append((Path(entry.path), depth + 1))
-                    elif entry.is_file(follow_symlinks=False):
-                        if name.endswith(target_ext):
-                            return True
-            except (OSError, PermissionError):
-                continue
-        return False
+    ext_to_lang = {}
+    order_index = {}
+    for idx, (lang, ext) in enumerate(language_order):
+        ext_to_lang[ext] = lang
+        order_index.setdefault(lang, idx)
+    known_exts = set(ext_to_lang)
 
-    for lang, ext in language_order:
-        if present(repo_dir, ext):
-            return lang
-    return ""
+    counts = {}
+    stack = [(Path(repo_dir), 1)]
+    while stack:
+        curr, depth = stack.pop()
+        try:
+            for entry in os.scandir(curr):
+                name = entry.name
+                if entry.is_dir(follow_symlinks=False):
+                    if name in excluded:
+                        continue
+                    if depth < 5:
+                        stack.append((Path(entry.path), depth + 1))
+                elif entry.is_file(follow_symlinks=False):
+                    dot = name.rfind(".")
+                    if dot >= 0 and name[dot:] in known_exts:
+                        lang = ext_to_lang[name[dot:]]
+                        counts[lang] = counts.get(lang, 0) + 1
+        except (OSError, PermissionError):
+            continue
+
+    if not counts:
+        return ""
+    # Most files wins; tiebreak = earliest in language_order.
+    return max(counts, key=lambda lang: (counts[lang], -order_index[lang]))
 
 
 def count_source_files(repo_dir):
     """Count source files up to 4 dirs deep, excluding vendor/node_modules/etc."""
     src_count = 0
     exts = {".go", ".py", ".java", ".kt", ".rs", ".ts", ".js", ".scala",
-            ".c", ".h", ".agc"}
+            ".c", ".h", ".clj", ".cljc", ".cljs", ".agc"}
     # v1.5.7 instruction 054 (A-10): `repos` added here for parity
     # with detect_project_language (it had `repos`, this walker did
     # not — the slight pre-existing inconsistency the instruction
@@ -3823,6 +3866,7 @@ def check_test_file_extension(repo_dir, q):
         "js": "js ts",
         "scala": "scala",
         "c": "c py sh",
+        "clj": "clj cljc cljs",
         "agc": "py sh",
     }
     valid_ext = lang_to_valid.get(detected_lang, "")
@@ -3906,6 +3950,42 @@ _PYTHON_TAUTOLOGY_PATTERNS: tuple[str, ...] = (
     r"\bassert\s+True\b",
     r"\bassert\s+1\s*==\s*1\b",
 )
+
+# Clojure (v1.5.10 instruction 056): a real `clojure.test` assertion is
+# an `(is ...)` or `(are ...)` form. Like Go, there is no tautology
+# stripping — `(is ...)` is an explicit assertion-call shape (and the
+# skip-guard `(is false "BUG-NNN ...")`, clojure.test's xfail-substitute,
+# is intentionally a real signal). A `(deftest ...)` whose body has no
+# `(is ...)`/`(are ...)` is the hollow shape this check fails.
+_CLOJURE_ASSERTION_PATTERNS: tuple[str, ...] = (
+    r"\(is\b",
+    r"\(are\b",
+)
+
+
+def _clojure_test_function_bodies(source: str) -> list[str]:
+    """Return the full text of every ``(deftest name ...)`` form in a
+    Clojure test file, via balanced-paren matching. Pragmatic — does
+    not skip parens inside strings/comments (adequate for the
+    hollow-test detection this serves; the `(deftest ...)` shape is
+    unambiguous enough). v1.5.10 instruction 056."""
+    bodies: list[str] = []
+    pattern = re.compile(r"\(deftest\b")
+    for m in pattern.finditer(source):
+        start = m.start()  # the opening paren of `(deftest`
+        depth = 0
+        i = start
+        while i < len(source):
+            c = source[i]
+            if c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+                if depth == 0:
+                    bodies.append(source[start:i + 1])
+                    break
+            i += 1
+    return bodies
 
 
 def _go_test_function_bodies(source: str) -> list[str]:
@@ -3995,6 +4075,13 @@ def _body_has_real_assertion(body: str, lang: str) -> bool:
             if re.search(pat, normalized):
                 return True
         return False
+    if lang == "clj":
+        # No tautology stripping (mirrors Go): an `(is ...)`/`(are ...)`
+        # call is an explicit assertion shape. v1.5.10 instruction 056.
+        for pat in _CLOJURE_ASSERTION_PATTERNS:
+            if re.search(pat, body):
+                return True
+        return False
     # Unrecognized language: pass-through (conservative direction).
     return True
 
@@ -4025,7 +4112,10 @@ def check_functional_test_has_assertions(q):
         return
 
     ext = func_test.suffix.lstrip(".") if func_test.suffix else ""
-    lang_map = {"go": "go", "py": "py"}
+    # v1.5.10 instruction 056: `clj` added so a hollow Clojure
+    # functional test (a `(deftest ...)` with no `(is ...)`) is caught
+    # rather than pass-through-skipped.
+    lang_map = {"go": "go", "py": "py", "clj": "clj"}
     lang = lang_map.get(ext)
     if not lang:
         # Unrecognized language → pass-through per the conservative
@@ -4034,8 +4124,8 @@ def check_functional_test_has_assertions(q):
         info(
             f"{func_test.name}: language {ext!r} not in the 090s "
             f"no-op detection set — content check skipped "
-            f"(conservative pass-through; 090s targets Go + Python "
-            f"only)",
+            f"(conservative pass-through; 090s targets Go + Python + "
+            f"Clojure)",
         )
         return
 
@@ -4050,6 +4140,8 @@ def check_functional_test_has_assertions(q):
 
     if lang == "go":
         bodies = _go_test_function_bodies(source)
+    elif lang == "clj":
+        bodies = _clojure_test_function_bodies(source)
     else:
         bodies = _python_test_function_bodies(source)
 
@@ -4065,8 +4157,9 @@ def check_functional_test_has_assertions(q):
         # body).
         warn(
             f"{func_test.name}: no test functions found "
-            f"(expected `func Test*` for Go or `def test_*` for "
-            f"Python). The file exists and matches the language "
+            f"(expected `func Test*` for Go, `def test_*` for "
+            f"Python, or `(deftest ...)` for Clojure). The file exists "
+            f"and matches the language "
             f"but doesn't carry conventional test functions; check "
             f"whether the assertions live in an unconventional "
             f"shape this detector doesn't recognize. v1.5.7 090s."
@@ -4084,7 +4177,8 @@ def check_functional_test_has_assertions(q):
             f"codebase. Add at least one assertion-bearing test "
             f"(Go: `t.Error` / `t.Fatal` / `require.*` / `assert.*`; "
             f"Python: a real `assert <expr>` / `self.assert*` / "
-            f"`pytest.raises`). v1.5.7 090s.",
+            f"`pytest.raises`; Clojure: `(is ...)` / `(are ...)`). "
+            f"v1.5.7 090s.",
         )
     else:
         pass_(
