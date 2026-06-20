@@ -3079,9 +3079,20 @@ class SkillVersionStampTests(unittest.TestCase):
     """
 
     def test_skill_version_matches_release_constant(self) -> None:
+        # v1.5.10 instruction 057: RELEASE_VERSION now DERIVES from
+        # SKILL.md frontmatter (== detect_skill_version()), so this is
+        # no longer constant-vs-constant. Assert the canonical source
+        # resolves to a real (non-"unknown") version AND that
+        # RELEASE_VERSION equals it — i.e. the derivation is live.
         from bin import benchmark_lib as lib
-        detected = lib.detect_skill_version()
-        self.assertEqual(detected, lib.RELEASE_VERSION)
+        from bin import _purpose
+        frontmatter = _purpose.get_version()
+        self.assertNotEqual(
+            frontmatter, "unknown",
+            "SKILL.md frontmatter version must resolve",
+        )
+        self.assertEqual(lib.detect_skill_version(), frontmatter)
+        self.assertEqual(lib.RELEASE_VERSION, frontmatter)
 
     def test_repo_skill_version_matches_release_constant(self) -> None:
         """The installed-copy reader must report the same version as the root.

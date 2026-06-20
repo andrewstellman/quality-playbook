@@ -38,12 +38,11 @@ def _resolve_qpb_dir() -> Path:
 QPB_DIR = _resolve_qpb_dir()
 DEFAULT_MODEL = os.environ.get("QPB_MODEL", "gpt-5.4")
 
-# Single source of truth for the current release version. Compared against
-# `detect_skill_version()` in `bin/tests/test_run_playbook.py::SkillVersionStampTests`
-# so a future SKILL.md bump that forgets to update this constant fails the
-# test suite during release prep instead of after tag. Update both this
-# constant AND the SKILL.md `version:` stamp(s) when bumping the release.
-RELEASE_VERSION = "1.5.8"
+# v1.5.10 instruction 057: RELEASE_VERSION is no longer an independent
+# literal — it DERIVES from SKILL.md frontmatter (THE single canonical
+# source) via `detect_skill_version()`. The assignment lives just below
+# that function's definition (it can't run before the function exists).
+# There is nothing to hand-edit here on a version bump.
 
 FUNCTIONAL_TEST_PATTERNS = (
     "test_functional.*",
@@ -181,6 +180,15 @@ def detect_skill_version(qpb_dir: Optional[Path] = None) -> str:
             _ps.loader.exec_module(_purpose)
         return _purpose.get_version()
     return _read_version(qpb_dir / "SKILL.md")
+
+
+# v1.5.10 instruction 057: the single-source assignment promised at the
+# top of the module. RELEASE_VERSION reads SKILL.md frontmatter (via
+# _purpose.get_version()); falls back to the legacy string only if the
+# canonical reader returns "unknown" (never expected in a real clone).
+RELEASE_VERSION = detect_skill_version()
+if RELEASE_VERSION == "unknown":  # pragma: no cover - defensive
+    RELEASE_VERSION = "1.5.10"
 
 
 def skill_version() -> Optional[str]:

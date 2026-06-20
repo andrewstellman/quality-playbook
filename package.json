@@ -1,6 +1,6 @@
 {
   "name": "quality-playbook",
-  "version": "1.5.8",
+  "version": "1.5.10",
   "description": "Quality engineering for AI-driven development — a skill for AI coding agents that finds the bugs review misses.",
   "license": "Apache-2.0",
   "author": "Andrew Stellman <andrew@stellman.com>",

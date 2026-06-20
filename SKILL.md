@@ -3,12 +3,14 @@ name: quality-playbook
 description: "Run a complete quality engineering audit on any codebase. Derives behavioral requirements from the code, generates spec-traced functional tests, runs a three-pass code review with regression tests, executes a multi-model spec audit (Council of Three), and produces a consolidated bug report with TDD-verified patches. Finds the 35% of real defects that structural code review alone cannot catch. Works with any language. Trigger on 'quality playbook', 'spec audit', 'Council of Three', 'fitness-to-purpose', or 'coverage theater'."
 license: Complete terms in LICENSE.txt
 metadata:
-  version: 1.5.8
-  # NOTE: Inline occurrences of the skill version exist throughout this file (frontmatter,
-  # banner, version stamp template, sidecar JSON examples, run metadata, recheck template).
-  # When bumping the version, update ALL occurrences — search for the old version string
-  # globally. One historical reference to v1.4.6 edgequake benchmarking is intentionally
-  # preserved in the challenge-gate section and must NOT be bumped.
+  version: 1.5.10
+  # This frontmatter `version` is THE single canonical source of the skill version
+  # (instruction 057). Every other occurrence is derived: `quality_playbook_cli.__version__`
+  # and `benchmark_lib.RELEASE_VERSION` read it at runtime (via `_purpose.get_version()`);
+  # pyproject.toml / package.json / plugin.json / README are stamped from it at build/stage
+  # time by the channel build step (`build_channel_package --stage`). Bumping is one line here.
+  # (Any `v1.4.x` example or `schema_version` value elsewhere is NOT the skill version —
+  # historical examples and data-format versions are a separate concept, left untouched.)
   author: Andrew Stellman
   github: https://github.com/andrewstellman/quality-playbook
 ---

@@ -34,8 +34,48 @@ from pathlib import Path
 
 __all__ = ["main"]
 
-# Public version (mirrors the pyproject.toml + the live clone).
-__version__ = "1.5.8"
+
+def _detect_version() -> str:
+    """Read the skill version from SKILL.md frontmatter — THE single
+    canonical source (v1.5.10 instruction 057). ``__version__`` is no
+    longer a hand-maintained literal; it derives at import time.
+
+    Candidate SKILL.md locations, in order:
+      1. ``<this_file>/_bundle/SKILL.md`` — the staged bundle shipped
+         inside the installed pip wheel / npm tarball.
+      2. ``<this_file>/../SKILL.md`` — the repo-root SKILL.md when
+         running from a source clone (quality_playbook_cli/ sits one
+         level under the root).
+    Returns ``"0.0.0+unknown"`` only if neither is readable — never
+    raises, so importing the shim can't fail on a malformed tree."""
+    candidates = [
+        Path(__file__).resolve().parent / "_bundle" / "SKILL.md",
+        Path(__file__).resolve().parent.parent / "SKILL.md",
+    ]
+    for cand in candidates:
+        try:
+            text = cand.read_text(encoding="utf-8", errors="replace")
+        except (OSError, ValueError):
+            continue
+        # Bounded to frontmatter when present; SKILL.md only carries a
+        # `version:` line in frontmatter, never in the body.
+        block = text
+        if text.startswith("---"):
+            end = text.find("\n---", 3)
+            if end != -1:
+                block = text[:end]
+        for line in block.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("version:"):
+                val = stripped.split(":", 1)[1].strip()
+                if val:
+                    return val
+    return "0.0.0+unknown"  # pragma: no cover - defensive
+
+
+# Public version — derived from SKILL.md frontmatter (single source,
+# instruction 057), not a hand-maintained literal.
+__version__ = _detect_version()
 
 
 def _bundle_root() -> Path:

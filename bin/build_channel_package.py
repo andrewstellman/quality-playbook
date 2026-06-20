@@ -522,6 +522,14 @@ _MARKETPLACE_JSON_VERSION_RE = re.compile(
 _PLUGIN_JSON_VERSION_RE = re.compile(
     r'^(\s*"version"\s*:\s*)"([^"]+)"', re.MULTILINE
 )
+# v1.5.10 instruction 057: stamp the README's `**Version:** X.Y.Z`
+# badge from SKILL.md so it can't drift (it had already drifted to
+# 1.5.10 ahead of every other surface — the live proof the old
+# hand-edit scheme didn't hold). Matches the version token after the
+# bold `**Version:**` label on README line 3.
+_README_VERSION_RE = re.compile(
+    r'^(\*\*Version:\*\*\s*)([^\s|]+)', re.MULTILINE
+)
 
 
 def stamp_channel_manifest_versions(repo_root: Path) -> list[tuple[Path, str, str]]:
@@ -642,6 +650,38 @@ def stamp_channel_manifest_versions(repo_root: Path) -> list[tuple[Path, str, st
             plugin_json.write_text(new_text, encoding="utf-8")
             old = _PLUGIN_JSON_VERSION_RE.search(text).group(2)
             changed.append((plugin_json, old, skill_version))
+
+    # v1.5.10 instruction 057: stamp the README version badge from
+    # SKILL.md so it can't drift.
+    readme = repo_root / "README.md"
+    if readme.is_file():
+        text = readme.read_text(encoding="utf-8")
+        new_text, n = _README_VERSION_RE.subn(
+            lambda m: f"{m.group(1)}{skill_version}",
+            text, count=1,
+        )
+        if n == 0:
+            raise RuntimeError(
+                f"build_channel_package: README.md has no matchable "
+                f"`**Version:** X.Y.Z` line — README shape changed; "
+                f"update the regex deliberately."
+            )
+        if new_text != text:
+            readme.write_text(new_text, encoding="utf-8")
+            old = _README_VERSION_RE.search(text).group(2)
+            changed.append((readme, old, skill_version))
+
+    # v1.5.10 instruction 057: marketplace.json is DELIBERATELY NOT
+    # stamped/guarded for a version. It is a plugin *registry* — it
+    # points at plugins by source path (`plugins/quality-playbook`)
+    # and carries no `version` field; the plugin's authoritative
+    # version lives in that plugin's plugin.json (stamped above).
+    # Adding a redundant version here would re-introduce exactly the
+    # independent-literal drift this consolidation removes. The
+    # _MARKETPLACE_JSON_VERSION_RE / stamping block above remains a
+    # safe no-op for the transitional 208 shape that DID nest a
+    # version; the consistency guard excludes marketplace.json by the
+    # same reasoning.
 
     return changed
 

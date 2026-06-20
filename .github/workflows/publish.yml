@@ -41,12 +41,23 @@ jobs:
           V: ${{ steps.resolve.outputs.version }}
         run: |
           set -euo pipefail
+          # v1.5.10 instruction 057: SKILL.md frontmatter is the single
+          # source; the prior "Stamp manifests" step (--stage) re-derives
+          # every build-stamped surface (pyproject/package/plugin/README)
+          # from it, so checking them == tag here also proves they ==
+          # SKILL.md. The runtime-derived surfaces
+          # (quality_playbook_cli.__version__, benchmark_lib.RELEASE_VERSION)
+          # read SKILL.md frontmatter at import and CANNOT drift by
+          # construction, so they need no separate CI check. marketplace.json
+          # has no version field (a registry, not a versioned manifest) and
+          # is deliberately excluded.
           NPM_V=$(jq -r .version package.json)
           PIP_V=$(grep -m1 -E '^version[[:space:]]*=' pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
           PLUGIN_V=$(jq -r .version plugins/quality-playbook/.claude-plugin/plugin.json)
+          README_V=$(grep -m1 -E '^\*\*Version:\*\*' README.md | sed -E 's/^\*\*Version:\*\*[[:space:]]*([^ |]+).*/\1/')
           SKILL_V=$(python -m bin.build_channel_package --version)
           fail=0
-          for pair in "package.json:$NPM_V" "pyproject.toml:$PIP_V" "plugin.json:$PLUGIN_V" "SKILL.md:$SKILL_V"; do
+          for pair in "package.json:$NPM_V" "pyproject.toml:$PIP_V" "plugin.json:$PLUGIN_V" "README.md:$README_V" "SKILL.md:$SKILL_V"; do
             n="${pair%%:*}"; v="${pair#*:}"; [ "$v" = "$V" ] || { echo "::error::$n '$v' != tag '$V'"; fail=1; }
           done
           [ "$fail" -eq 0 ] || exit 1

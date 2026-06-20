@@ -250,12 +250,20 @@ class PipChannelE2E089uTests(unittest.TestCase):
             f"after wheel install. rc={r.returncode}; stderr:\n"
             f"{r.stderr}",
         )
-        # v1.5.7 191 FINDING-48: __version__ stamp now matches
-        # pyproject.toml = 1.5.8.
+        # v1.5.10 instruction 057: __version__ DERIVES from SKILL.md
+        # frontmatter (the single source) — read the canonical version
+        # dynamically rather than pinning a literal so this survives
+        # future bumps.
+        from bin import _purpose
+        skill_version = _purpose.get_version()
+        self.assertNotEqual(
+            skill_version, "unknown",
+            "089u: SKILL.md frontmatter version must resolve.",
+        )
         self.assertIn(
-            "1.5.8", r.stdout,
+            skill_version, r.stdout,
             f"089u: quality_playbook_cli.__version__ should be "
-            f"1.5.8. Got: {r.stdout!r}",
+            f"{skill_version} (from SKILL.md). Got: {r.stdout!r}",
         )
 
     def test_console_script_help_works(self) -> None:

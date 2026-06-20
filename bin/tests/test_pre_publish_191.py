@@ -43,15 +43,16 @@ def _read_pyproject_version() -> str:
 
 
 def _read_init_version() -> str:
-    text = (_REPO / "quality_playbook_cli" / "__init__.py"
-            ).read_text(encoding="utf-8")
-    m = re.search(r'^__version__\s*=\s*"([^"]+)"',
-                  text, re.MULTILINE)
-    if m is None:
-        raise AssertionError(
-            "quality_playbook_cli/__init__.py has no "
-            "__version__ assignment")
-    return m.group(1)
+    # v1.5.10 instruction 057: __version__ is no longer a hand-written
+    # literal — it DERIVES from SKILL.md frontmatter at import time. Read
+    # the runtime value (import the module) instead of regex-scanning for
+    # a literal that no longer exists.
+    import importlib
+    import sys
+    if str(_REPO) not in sys.path:
+        sys.path.insert(0, str(_REPO))
+    qpc = importlib.import_module("quality_playbook_cli")
+    return qpc.__version__
 
 
 def _read_package_json_description() -> str:
