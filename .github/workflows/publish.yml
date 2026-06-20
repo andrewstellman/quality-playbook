@@ -1,0 +1,107 @@
+# .github/workflows/publish.yml — PyPI + npm via OIDC trusted publishing on a published Release.
+name: publish
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (no leading v) — manual runs only'
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: publish-${{ github.event.release.tag_name || inputs.version }}
+  cancel-in-progress: false
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.resolve.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Resolve version
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then V="$INPUT_VERSION"; else V="${REF_NAME#v}"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"; echo "Publishing $V"
+      - name: Stamp manifests + stage shared bundle
+        run: python -m bin.build_channel_package --stage
+      - name: Verify all version surfaces == tag
+        env:
+          V: ${{ steps.resolve.outputs.version }}
+        run: |
+          set -euo pipefail
+          NPM_V=$(jq -r .version package.json)
+          PIP_V=$(grep -m1 -E '^version[[:space:]]*=' pyproject.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          PLUGIN_V=$(jq -r .version plugins/quality-playbook/.claude-plugin/plugin.json)
+          SKILL_V=$(python -m bin.build_channel_package --version)
+          fail=0
+          for pair in "package.json:$NPM_V" "pyproject.toml:$PIP_V" "plugin.json:$PLUGIN_V" "SKILL.md:$SKILL_V"; do
+            n="${pair%%:*}"; v="${pair#*:}"; [ "$v" = "$V" ] || { echo "::error::$n '$v' != tag '$V'"; fail=1; }
+          done
+          [ "$fail" -eq 0 ] || exit 1
+      - name: Build pip sdist + wheel
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade build
+          python -m build --outdir pip-dist .
+      - name: Build npm tarball
+        run: npm pack --pack-destination npm-dist
+      - name: Verify the wheel contains the bundle
+        run: |
+          set -euo pipefail
+          WHEEL=$(ls pip-dist/*.whl)
+          python - "$WHEEL" <<'PY'
+          import sys, zipfile
+          names = zipfile.ZipFile(sys.argv[1]).namelist()
+          need = ["quality_playbook_cli/_bundle/bin/install_skill.py"]
+          missing = [n for n in need if n not in names]
+          if missing: print("::error::wheel missing bundle:", missing); sys.exit(1)
+          print("wheel bundle OK:", len(names), "entries")
+          PY
+      - uses: actions/upload-artifact@v4
+        with: { name: pip-dist, path: pip-dist/ }
+      - uses: actions/upload-artifact@v4
+        with: { name: npm-dist, path: npm-dist/ }
+  pypi:
+    needs: stage
+    runs-on: ubuntu-latest
+    environment: release
+    permissions: { id-token: write }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: pip-dist, path: dist }
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with: { skip-existing: true }
+  npm:
+    needs: stage
+    runs-on: ubuntu-latest
+    environment: release
+    permissions: { id-token: write, contents: read }
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: npm-dist, path: npm-dist }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', registry-url: 'https://registry.npmjs.org' }
+      - run: npm install -g npm@latest
+      - name: Publish (idempotent on duplicate)
+        run: |
+          set -euo pipefail
+          TARBALL=$(ls npm-dist/*.tgz)
+          if ! npm publish "$TARBALL" --access public --provenance > out.log 2>&1; then
+            if grep -qiE 'cannot publish over|previously published|E403' out.log; then
+              echo "npm: already published — treating as success."; cat out.log; exit 0
+            fi
+            cat out.log; exit 1
+          fi
+          cat out.log
