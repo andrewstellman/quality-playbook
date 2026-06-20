@@ -1,0 +1,139 @@
+{
+  "_README": "arunner x QPB integration+regression test. SUBAGENT dispatch (the model arunner exists for): a Claude Code orchestrator runs this plan and spawns ONE subagent per QPB phase via its Task tool -- NOT a shelled `claude -p` per phase (that is the retired run_playbook shape; see TOOLKIT.md). Each step's worker_prompt_file carries the 5-placeholder header + STARTING/terminal heartbeat instructions + the pre-rendered phase body; the engine substitutes the placeholders at dispatch (str.replace, so the phase JSON braces survive). validate_phase_artifacts shell gate after phases 1 and 2 (measurement:true => shell-only gates). Proven --check-clean (fr-61-65-impl) 2026-06-19. run_playbook is NOT used. target_repo paths assume setup_repos.sh made repos/<repo>-1.5.8; re-run `python3 arunner/engine/tick.py --check plan.json` locally first. The run is operator-launched (a live Claude Code session is the orchestrator -- that IS subagent dispatch).",
+  "measurement": true,
+  "pool_size": 3,
+  "entries": [
+    {
+      "task_id": "chi-integration-regression",
+      "target_repo": "/Users/andrewstellman/Documents/QPB/repos/chi-1.5.8",
+      "dispatch_mode": "subagent",
+      "steps": [
+        {
+          "label": "phase1",
+          "dispatch_mode": "subagent",
+          "worker_prompt_file": "phase_prompts_rendered/phase1.subagent.md",
+          "gate": {
+            "kind": "shell",
+            "argv": [
+              "python3",
+              "-m",
+              "bin.validate_phase_artifacts",
+              "{TARGET_REPO}",
+              "--phase",
+              "1"
+            ]
+          }
+        },
+        {
+          "label": "phase2",
+          "dispatch_mode": "subagent",
+          "worker_prompt_file": "phase_prompts_rendered/phase2.subagent.md",
+          "gate": {
+            "kind": "shell",
+            "argv": [
+              "python3",
+              "-m",
+              "bin.validate_phase_artifacts",
+              "{TARGET_REPO}",
+              "--phase",
+              "2"
+            ]
+          }
+        },
+        {
+          "label": "phase3",
+          "dispatch_mode": "subagent",
+          "worker_prompt_file": "phase_prompts_rendered/phase3.subagent.md"
+        }
+      ]
+    },
+    {
+      "task_id": "virtio-integration-regression",
+      "target_repo": "/Users/andrewstellman/Documents/QPB/repos/virtio-1.5.8",
+      "dispatch_mode": "subagent",
+      "steps": [
+        {
+          "label": "phase1",
+          "dispatch_mode": "subagent",
+          "worker_prompt_file": "phase_prompts_rendered/phase1.subagent.md",
+          "gate": {
+            "kind": "shell",
+            "argv": [
+              "python3",
+              "-m",
+              "bin.validate_phase_artifacts",
+              "{TARGET_REPO}",
+              "--phase",
+              "1"
+            ]
+          }
+        },
+        {
+          "label": "phase2",
+          "dispatch_mode": "subagent",
+          "worker_prompt_file": "phase_prompts_rendered/phase2.subagent.md",
+          "gate": {
+            "kind": "shell",
+            "argv": [
+              "python3",
+              "-m",
+              "bin.validate_phase_artifacts",
+              "{TARGET_REPO}",
+              "--phase",
+              "2"
+            ]
+          }
+        },
+        {
+          "label": "phase3",
+          "dispatch_mode": "subagent",
+          "worker_prompt_file": "phase_prompts_rendered/phase3.subagent.md"
+        }
+      ]
+    },
+    {
+      "task_id": "express-integration-regression",
+      "target_repo": "/Users/andrewstellman/Documents/QPB/repos/express-1.5.8",
+      "dispatch_mode": "subagent",
+      "steps": [
+        {
+          "label": "phase1",
+          "dispatch_mode": "subagent",
+          "worker_prompt_file": "phase_prompts_rendered/phase1.subagent.md",
+          "gate": {
+            "kind": "shell",
+            "argv": [
+              "python3",
+              "-m",
+              "bin.validate_phase_artifacts",
+              "{TARGET_REPO}",
+              "--phase",
+              "1"
+            ]
+          }
+        },
+        {
+          "label": "phase2",
+          "dispatch_mode": "subagent",
+          "worker_prompt_file": "phase_prompts_rendered/phase2.subagent.md",
+          "gate": {
+            "kind": "shell",
+            "argv": [
+              "python3",
+              "-m",
+              "bin.validate_phase_artifacts",
+              "{TARGET_REPO}",
+              "--phase",
+              "2"
+            ]
+          }
+        },
+        {
+          "label": "phase3",
+          "dispatch_mode": "subagent",
+          "worker_prompt_file": "phase_prompts_rendered/phase3.subagent.md"
+        }
+      ]
+    }
+  ]
+}
