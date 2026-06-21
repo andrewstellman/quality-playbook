@@ -5,6 +5,8 @@
 
 ---
 
+> **⚠ SCOPE / SLOT UNDER RE-ASSESSMENT (2026-06-21).** The 1.6 sequencing is being reconsidered: the **1.6.0 slot may be reoriented to a security phase**, the NFR / requirements-grounded focus documented here may **bump to 1.7+**, and **another version may be inserted** before it. Experiments in a separate Cowork chat are informing this. Treat the 1.6.0 version assignment below as **provisional** — re-confirm the slot before starting 1.6.0 implementation on this scope. (Companion caveat: `QPB_v1.6.x_Skill_Surface_Routing_Proposal.md`.)
+
 ## ⚠️ Read this first — why v1.6.0 is the NFR feature
 
 v1.6.0 is **empirically motivated**, which is the QPB way: a release driven by a concrete missed/false finding, not a speculative feature. The 2026-05-23 OpenFGA Mode-A dogfood (QPB v1.5.7, npm-channel install, real 548-file Go repo, doc-enriched) reported 9 bugs including 3 HIGH "security" findings — and a unanimous 3-model Council review of those findings (instruction 090i) confirmed **0/3 HIGH precision**:
