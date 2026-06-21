@@ -110,6 +110,32 @@ except ModuleNotFoundError:
         _rm_spec.loader.exec_module(role_map)
 
 
+# v1.5.10 058 (D2 lockstep): import the gate's testable-language detector +
+# disclosure-threshold helper so the validator's conditional disclosure
+# check CANNOT drift from quality_gate.py. Same foreign-bin-proof ladder as
+# role_map above. Degrades gracefully: if the gate module can't be located
+# (unexpected), _gate_lang_helpers is None and the conditional is skipped
+# (the gate's own check_v1_5_0_index_md remains the primary enforcement).
+_gate_lang_helpers = None
+try:  # path-load quality_gate.py next to this file (the bundled layout)
+    import importlib.util as _ilu2
+    _qg_path = Path(__file__).resolve().parent / "quality_gate.py"
+    if _qg_path.is_file():
+        _qg_spec = _ilu2.spec_from_file_location(
+            "_qpb_quality_gate_via_validate_phase_artifacts", _qg_path,
+        )
+        if _qg_spec is not None and _qg_spec.loader is not None:
+            _qg_mod = _ilu2.module_from_spec(_qg_spec)
+            sys.modules[_qg_spec.name] = _qg_mod
+            _qg_spec.loader.exec_module(_qg_mod)
+            _gate_lang_helpers = (
+                _qg_mod.detect_project_languages,
+                _qg_mod.languages_over_disclosure_threshold,
+            )
+except Exception:  # noqa: BLE001 — never let an import break the validator
+    _gate_lang_helpers = None
+
+
 # Mirror of quality_gate.py::_V150_INDEX_COMMON_FIELDS +
 # _V154_INDEX_CURRENT_FIELDS. schemas.md §11 is the canonical
 # contract; test_validate_phase_artifacts pins this mirror so a
@@ -434,6 +460,38 @@ def _validate_index(quality: Path, phase: int, check_verdict_value: bool
                     f"must be one of {list(_INDEX_VALID_VERDICTS)} "
                     "(schemas.md §11)"
                 )
+        # v1.5.10 058 (D2 lockstep): conditional multi-language disclosure
+        # fields. Mirrors quality_gate.py::check_v1_5_0_index_md — when >=2
+        # testable languages clear the disclosure threshold (computed on
+        # quality.parent via the gate's own detector, so it can't drift),
+        # languages_detected / ran_on / untested_testable_languages MUST be
+        # present and non-empty. Legacy archives (schema_version "1.0") are
+        # exempt, matching the gate's is_legacy exemption. Skipped if the
+        # gate helpers couldn't be imported.
+        if _gate_lang_helpers is not None and sv != "1.0":
+            _detect, _over = _gate_lang_helpers
+            try:
+                fires = len(_over(_detect(quality.parent))) >= 2
+            except Exception:  # noqa: BLE001 — detection must not crash
+                fires = False
+            if fires:
+                for sub in (
+                    "languages_detected", "ran_on",
+                    "untested_testable_languages",
+                ):
+                    if sub not in summary:
+                        fails.append(
+                            f"FAIL: quality/INDEX.md summary missing {sub!r} "
+                            "sub-key — required because >=2 testable "
+                            "languages clear the disclosure threshold "
+                            "(schemas.md §11; v1.5.10 058)"
+                        )
+                    elif summary[sub] in (None, "", []):
+                        fails.append(
+                            f"FAIL: quality/INDEX.md summary {sub!r} is empty "
+                            "— multi-language disclosure requires a value "
+                            "(schemas.md §11; v1.5.10 058)"
+                        )
 
     if not fails:
         passes.append("PASS: quality/INDEX.md present with all §11 "

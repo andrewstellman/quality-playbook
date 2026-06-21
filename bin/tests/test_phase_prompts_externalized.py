@@ -364,7 +364,12 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # signal.
         # v1.5.7 191 FINDING-50: schemas.md prose citations stripped (kind-B)
         # and rewritten (kind-C). Hash recomputed.
-        "phase2":                (10114, "4ad72d9beb4b0cb229b92324554de0e5eafc602c5733dd337b3590484a98a022"),
+        # v1.5.10 058: phase2.md's "Functional tests" deliverable bullet
+        # gained the --language override honoring note (one language per
+        # run; honor LANGUAGE OVERRIDE). Length 10114 → 10395. Hash
+        # recomputed — this baseline update IS the sanctioned
+        # change-acknowledgement signal.
+        "phase2":                (10395, "b0ae1736140b369723d35e1e55a495c90cc840263d3eda882d2aea003ba0dbbd"),
         # v1.5.7 090j: phase3.md + phase4.md gained the triage
         # precision-guardrail pointers (D1 reachability_analysis on
         # HIGH/MED bugs + D2 KNOWN-ISSUE classification for advisory-

@@ -19,7 +19,7 @@ Execute Phase 2: Generate all quality artifacts. Use the exploration findings in
 - quality/CONTRACTS.md (behavioral contracts)
 - quality/REQUIREMENTS.md (with REQ-NNN and UC-NN identifiers from EXPLORATION.md)
 - quality/COVERAGE_MATRIX.md
-- Functional tests (quality/test_functional.*)
+- Functional tests (quality/test_functional.*) — **if a `--language <lang>` override is in effect (a `LANGUAGE OVERRIDE` directive appears above), write the functional and regression tests in THAT language and target only its source; the gate validates the test files against it. QPB tests one language per run (v1.5.10 058).**
 - quality/RUN_CODE_REVIEW.md (code review protocol)
 - quality/RUN_INTEGRATION_TESTS.md (integration test protocol)
 - quality/RUN_SPEC_AUDIT.md (spec audit protocol)

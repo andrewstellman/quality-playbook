@@ -559,6 +559,23 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("--model", help="Runner model override (copilot: gpt-5.5, claude: sonnet/opus/etc, codex: gpt-5-codex/etc).")
+    # v1.5.10 058 (D3/D4): target a specific testable language on a polyglot
+    # repo. Scopes Phase-2 generation to it, forwards --language to the
+    # quality gate, and ARCHIVES the current quality/ folder when it
+    # differs from the live run's recorded language (archive-on-switch).
+    # run_playbook.py is the deprecating legacy path; arunner threads the
+    # same var natively.
+    parser.add_argument(
+        "--language",
+        dest="language",
+        default=None,
+        help=(
+            "Target a specific testable language on a polyglot repo "
+            "(go/py/java/kt/rs/ts/js/scala/c/clj/agc). Scopes generation, "
+            "forwards to the gate, and ARCHIVES the current quality/ folder "
+            "when it differs from the prior run's language."
+        ),
+    )
     parser.add_argument(
         "--runner-extra-args",
         dest="runner_extra_args",
@@ -1323,6 +1340,34 @@ def _apply_prompt_prefix(body: str, prefix: str) -> str:
     if not prefix:
         return body
     return f"{prefix}\n\n{body}"
+
+
+def _language_prompt_directive(language: Optional[str]) -> str:
+    """v1.5.10 058 (D3): a Phase-2 generation directive scoping the run to
+    a single testable language under ``--language``. Empty when no override
+    is set. Derived from ``args.language`` (NOT baked into prompt_prefix),
+    so the parent->worker re-dispatch re-derives it from the child's own
+    --language and never double-applies."""
+    if not language:
+        return ""
+    return (
+        f"LANGUAGE OVERRIDE (`--language {language}`): this is a polyglot "
+        f"repository and the operator has scoped this run to the "
+        f"`{language}` codebase. In Phase 2, write the functional and "
+        f"regression tests in `{language}` (its conventional test "
+        f"framework) and target only `{language}` source. The quality gate "
+        f"validates the test files against `{language}`."
+    )
+
+
+def _effective_prefix(args: Optional[argparse.Namespace]) -> str:
+    """Combine the operator prompt-prefix with the --language generation
+    directive (v1.5.10 058 D3). Either may be empty."""
+    prefix = getattr(args, "prompt_prefix", "") or ""
+    directive = _language_prompt_directive(getattr(args, "language", None))
+    if prefix and directive:
+        return f"{prefix}\n\n{directive}"
+    return prefix or directive
 
 
 def build_phase_prompt(
@@ -2603,6 +2648,15 @@ def _inject_code_only_section_into_exploration(exploration_md_path: Path) -> boo
         return False
 
 
+# v1.5.10 instruction 058 (D4): the live run's targeted language, recorded
+# in quality/.qpb_language so archive-on-switch can detect a --language
+# change across runs. Preserved by _clear_live_quality (survives a normal
+# archive+clear) and treated as non-live by archive_previous_run (a tree
+# holding only the sentinel counts as empty, so a switch that already
+# cleared doesn't double-archive).
+_LANGUAGE_SENTINEL = ".qpb_language"
+
+
 def _clear_live_quality(quality_dir: Path) -> None:
     """Remove every live child of quality/ except the archive subtrees
     and RUN_INDEX.md (the append-only history).
@@ -2610,13 +2664,17 @@ def _clear_live_quality(quality_dir: Path) -> None:
     v1.5.4 Phase 3.6.2 (B-19, H3 fix): preserves both the current
     archive directory (``previous_runs/``) AND the legacy directory
     (``runs/``) so archives written by older QPB versions survive the
-    transition window."""
+    transition window.
+
+    v1.5.10 058 (D4): also preserves the ``.qpb_language`` sentinel so the
+    recorded run-language survives a normal archive+clear."""
     if not quality_dir.is_dir():
         return
     preserved = (
         archive_lib.ARCHIVE_DIRNAME,
         archive_lib.LEGACY_ARCHIVE_DIRNAME,
         "RUN_INDEX.md",
+        _LANGUAGE_SENTINEL,
     )
     for child in list(quality_dir.iterdir()):
         if child.name in preserved:
@@ -3196,7 +3254,12 @@ def archive_previous_run(repo_dir: Path, current_run_timestamp: str) -> None:
         archive_lib.ARCHIVE_DIRNAME,
         archive_lib.LEGACY_ARCHIVE_DIRNAME,
     )
-    if not any(child.name not in archive_dirs for child in quality_dir.iterdir()):
+    # v1.5.10 058 (D4): the .qpb_language sentinel is not live content — a
+    # tree holding only it (e.g. right after archive-on-switch cleared the
+    # live run) counts as empty, so the switch + this pre-run auto-archive
+    # don't double-archive a near-empty quality/.
+    non_live = set(archive_dirs) | {_LANGUAGE_SENTINEL}
+    if not any(child.name not in non_live for child in quality_dir.iterdir()):
         return
 
     prior_ts = _prior_run_id_from_live_index(quality_dir)
@@ -3242,6 +3305,112 @@ def archive_previous_run(repo_dir: Path, current_run_timestamp: str) -> None:
         )
         return
     _clear_live_quality(quality_dir)
+
+
+def _read_run_language(quality_dir: Path) -> str:
+    """Return the language the live quality/ run targeted: the
+    ``.qpb_language`` sentinel (preferred) or, failing that, the INDEX.md
+    §11 ``summary.ran_on`` field. "" when none is recorded. v1.5.10 058
+    (D4)."""
+    import re as _re  # run_playbook.py imports re/json locally per-function
+    import json as _json
+    sentinel = quality_dir / _LANGUAGE_SENTINEL
+    try:
+        if sentinel.is_file():
+            return sentinel.read_text(encoding="utf-8", errors="replace").strip()
+    except OSError:
+        pass
+    index = quality_dir / "INDEX.md"
+    try:
+        if index.is_file():
+            text = index.read_text(encoding="utf-8", errors="replace")
+            match = _re.search(r"```json\n(.*?)\n```", text, _re.DOTALL)
+            if match:
+                payload = _json.loads(match.group(1))
+                summary = payload.get("summary") if isinstance(payload, dict) else None
+                if isinstance(summary, dict):
+                    ran_on = summary.get("ran_on")
+                    if isinstance(ran_on, str):
+                        return ran_on.strip()
+    except (OSError, ValueError):
+        pass
+    return ""
+
+
+def _write_run_language(quality_dir: Path, language: str) -> None:
+    """Record the targeted language in the ``.qpb_language`` sentinel so a
+    later --language change can be detected. Best-effort. v1.5.10 058
+    (D4)."""
+    if not language:
+        return
+    try:
+        quality_dir.mkdir(parents=True, exist_ok=True)
+        (quality_dir / _LANGUAGE_SENTINEL).write_text(
+            language.strip() + "\n", encoding="utf-8"
+        )
+    except OSError:
+        pass
+
+
+def archive_on_language_switch(repo_dir: Path, requested_language: str) -> bool:
+    """v1.5.10 058 (D4): if the live quality/ run targeted a DIFFERENT
+    language than ``requested_language``, archive it (into
+    ``previous_runs/``) and clear the live tree so the new-language run
+    starts fresh. Returns True iff a switch-archive happened.
+
+    Error-gate — mirrors ``archive_previous_run`` (run_playbook.py
+    error-gate): if ``archive_run`` raises EITHER ``ArchiveError`` OR any
+    other ``Exception``, do NOT clear (a failed archive must never destroy
+    live artifacts) — replicate BOTH return branches. Idempotent with the
+    pre-run auto-archive: fires only on an actual language change, and only
+    when there is real live content to preserve."""
+    if not requested_language:
+        return False
+    repo_dir = Path(repo_dir)
+    quality_dir = repo_dir / "quality"
+    if not quality_dir.is_dir():
+        return False
+    prior = _read_run_language(quality_dir)
+    if not prior or prior == requested_language:
+        return False
+    # A genuine language switch with a recorded prior language. Only
+    # archive if there is live content beyond the archive subtrees + the
+    # language sentinel (an already-cleared tree needs no archive).
+    non_live = {
+        archive_lib.ARCHIVE_DIRNAME,
+        archive_lib.LEGACY_ARCHIVE_DIRNAME,
+        _LANGUAGE_SENTINEL,
+    }
+    if not any(child.name not in non_live for child in quality_dir.iterdir()):
+        return False
+    archive_ts = archive_lib.compute_archive_timestamp(quality_dir)
+    try:
+        archive_lib.archive_run(
+            repo_dir,
+            archive_ts,
+            status="partial",
+            gate_verdict_override="partial",
+        )
+    except archive_lib.ArchiveError as exc:
+        # A failed archive means the prior-language run was NOT preserved;
+        # do NOT clear — surface and bail (mirrors archive_previous_run).
+        sys.stderr.write(
+            f"WARN: archive_on_language_switch could not archive the prior "
+            f"{prior!r} run (archive_ts={archive_ts}): {exc}. Live quality/ "
+            f"tree preserved at {quality_dir}; NOT cleared. Diagnose and "
+            f"manually archive before switching language.\n"
+        )
+        return False
+    except Exception as exc:  # noqa: BLE001 — defensive: never destroy data
+        sys.stderr.write(
+            f"WARN: archive_on_language_switch raised unexpected "
+            f"{type(exc).__name__}: {exc}. Live quality/ tree preserved at "
+            f"{quality_dir}; NOT cleared.\n"
+        )
+        return False
+    _clear_live_quality(quality_dir)
+    _write_run_language(quality_dir, requested_language)
+    return True
 
 
 def _build_invocation_flags(args: Optional[argparse.Namespace], **overrides) -> dict:
@@ -3737,7 +3906,7 @@ def run_one_phase(
     phase_index = phase_list.index(phase) + 1 if phase in phase_list else 1
     prompt = build_phase_prompt(
         phase, no_seeds=args.no_seeds,
-        prefix=getattr(args, "prompt_prefix", "") or "",
+        prefix=_effective_prefix(args),
     )
     output_file = _control_prompts_dir(
         repo_dir, args=args, timestamp=timestamp,
@@ -4064,7 +4233,7 @@ def run_one_phase_group(
 
     prompt = _build_group_prompt(
         group, no_seeds=args.no_seeds,
-        prefix=getattr(args, "prompt_prefix", "") or "",
+        prefix=_effective_prefix(args),
     )
     exit_code = run_prompt(
         repo_dir,
@@ -4142,6 +4311,7 @@ def _log_phase_completion(
             repo_dir,
             label="post-phase-6",
             log_file=log_file,
+            language=getattr(args, "language", None),
         )
         gate_log = quality_dir / "results" / "quality-gate.log"
         # v1.5.7 109 (fix): the verdict reader scans for the
@@ -4614,7 +4784,14 @@ def run_one_phased(repo_dir: Path, phase_groups: Sequence[Sequence[str]], args: 
 
     flat_phases = [p for group in phase_groups for p in group]
     if "1" in flat_phases:
+        # v1.5.10 058 (D4): if --language differs from the live run's
+        # recorded language, archive-and-clear FIRST (idempotent — the
+        # pre-run auto-archive below then no-ops on the cleared tree).
+        if getattr(args, "language", None):
+            archive_on_language_switch(repo_dir, args.language)
         archive_previous_run(repo_dir, timestamp)
+        if getattr(args, "language", None):
+            _write_run_language(repo_dir / "quality", args.language)
         # Write a minimal quality/INDEX.md up front so an interrupted run
         # still satisfies schemas.md §10 invariant #10 when the gate is
         # invoked out-of-band on the partial tree.
@@ -4715,12 +4892,18 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         # execute_strategy_list handles multi-item lists one strategy at a time.
         strategy_name = args.strategy[0]
         prompt = iteration_prompt(
-            strategy_name, prefix=getattr(args, "prompt_prefix", "") or ""
+            strategy_name, prefix=_effective_prefix(args)
         )
         pass_label = f"iteration-{strategy_name}"
         lib.logboth(log_file, lib.log(f"Starting iteration ({strategy_name}): {repo_dir.name} (runner={args.runner}, building on existing quality/)"))
     else:
+        # v1.5.10 058 (D4): archive-on-switch before the pre-run auto-
+        # archive (idempotent — see the multi-pass branch above).
+        if getattr(args, "language", None):
+            archive_on_language_switch(repo_dir, args.language)
         archive_previous_run(repo_dir, timestamp)
+        if getattr(args, "language", None):
+            _write_run_language(repo_dir / "quality", args.language)
         write_live_index_stub(
             repo_dir,
             timestamp,
@@ -4728,7 +4911,7 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         )
         prompt = single_pass_prompt(
             no_seeds=args.no_seeds,
-            prefix=getattr(args, "prompt_prefix", "") or "",
+            prefix=_effective_prefix(args),
         )
         pass_label = "full"
         lib.logboth(log_file, lib.log(f"Starting playbook (single-pass): {repo_dir.name} (runner={args.runner})"))
@@ -4769,6 +4952,7 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
             log_file=log_file,
             aborted=True,
             abort_reason=f"runner exited {exit_code}",
+            language=getattr(args, "language", None),
         )
         return exit_code
     lib.logboth(log_file, lib.log(f"Playbook complete: {repo_dir.name}"))
@@ -4784,6 +4968,7 @@ def run_one_singlepass(repo_dir: Path, args: argparse.Namespace, timestamp: str)
         repo_dir,
         label=f"post-{finalize_label_base}",
         log_file=log_file,
+        language=getattr(args, "language", None),
     )
     # v1.5.7 Phase 5 FS-4: update quality/logs/latest -> <run-id>
     # symlink so operators can `cd quality/logs/latest` to inspect the
@@ -4980,6 +5165,7 @@ def _finalize_iteration(
     *,
     aborted: bool = False,
     abort_reason: str = "",
+    language: Optional[str] = None,
 ) -> str:
     """Orchestrator-authoritative post-iteration finalizer.
 
@@ -5036,8 +5222,14 @@ def _finalize_iteration(
             pass
     else:
         try:
+            # v1.5.10 058 (D3): forward --language so the orchestrator's
+            # authoritative gate rerun validates the test file against the
+            # targeted language (not the detected plurality).
+            gate_argv = ["python3", str(gate_script), str(repo_dir)]
+            if language:
+                gate_argv += ["--language", language]
             completed = subprocess.run(
-                ["python3", str(gate_script), str(repo_dir)],
+                gate_argv,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",  # 190 FINDING-47 (gate output may have unicode)
@@ -5317,7 +5509,7 @@ def run_one_iterations(
             before = lib.count_bug_writeups(repo_dir)
 
             prompt = iteration_prompt(
-                strategy, prefix=getattr(args, "prompt_prefix", "") or ""
+                strategy, prefix=_effective_prefix(args)
             )
             pass_label = f"iteration-{strategy}"
             output_file = _control_prompts_dir(
@@ -5344,6 +5536,7 @@ def run_one_iterations(
                     log_file=log_file,
                     aborted=True,
                     abort_reason=f"runner exited {exit_code}",
+                    language=getattr(args, "language", None),
                 )
                 return exit_code
 
@@ -5364,6 +5557,7 @@ def run_one_iterations(
                 repo_dir,
                 label=f"post-{strategy}",
                 log_file=log_file,
+                language=getattr(args, "language", None),
             )
             # Early-stop-on-zero-gain: unchanged semantics from
             # execute_strategy_list. v1.5.2 Phase 6: an explicit --iterations
@@ -5683,6 +5877,11 @@ def build_worker_command(args: argparse.Namespace, target_path: str) -> List[str
     prompt_prefix = getattr(args, "prompt_prefix", "") or ""
     if prompt_prefix:
         command.extend(["--prompt-prefix", prompt_prefix])
+    # v1.5.10 058 (D3/D4): forward --language so the worker child scopes
+    # generation, forwards to the gate, and applies archive-on-switch.
+    language = getattr(args, "language", None)
+    if language:
+        command.extend(["--language", language])
     command.append(target_path)
     return command
 

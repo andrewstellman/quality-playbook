@@ -1,0 +1,1 @@
+Labeled fixture for v1.5.10 058 disclosure tests: go=20 + py=8 (both over the >=10%% AND >=5-file disclosure threshold). Used by test_language_disclosure_override_058.py so the INDEX/stdout disclosure assertions run hermetically without a 20k-file real repo. The real-repo disclosure venue is repos/secbench2 (ts+py).

@@ -1585,6 +1585,9 @@ def _reset_counters():
     # v1.5.7 090w: clear the per-repo run-provenance ledger so the
     # verdict layer reads only this run's provenance.
     _RUN_PROVENANCE.clear()
+    # v1.5.10 058 (D2): clear the per-repo multi-language disclosure
+    # ledger so the post-RESULT disclosure block reads only this run.
+    _LANGUAGE_DISCLOSURES.clear()
 
 
 def fail(msg, reason=None, *, line=None, category=None):
@@ -2709,13 +2712,27 @@ _INSTALL_MARKER_DIRS = frozenset({
 })
 
 
-def detect_project_language(repo_dir):
-    """Return the dominant language by source-file count (most files
-    wins), walking up to 5 dirs deep and counting only known language
-    extensions.
+def detect_project_languages(repo_dir):
+    """Return the testable code-language counts for ``repo_dir`` as a list
+    of ``(lang, count)`` tuples ranked most-files-first, tiebroken by
+    ``language_order`` (earliest wins). Walks up to 5 dirs deep, counting
+    only known language extensions. v1.5.10 instruction 058 (D1).
 
-    v1.5.10 (instruction 056): switched from ordered first-match to
-    dominant-language-by-count. First-match returned the earliest
+    ``detect_project_language`` is a thin delegate returning element
+    ``[0]`` of this ranking, so the singular winner and the plural
+    ranking **cannot drift** — same walk / extension set / excludes /
+    tiebreak by construction. The winner is byte-identical to the
+    pre-058 implementation (regression-pinned across every baseline repo
+    + vaelii + a narrow-margin fixture).
+
+    Only ``language_order`` (testable code) extensions are counted —
+    Markdown / shell / edn and other non-code content are **never**
+    surfaced as a (testable) language, so disclosure/override never offer
+    a non-testable target. Returns ``[]`` when no known source extension
+    is found.
+
+    v1.5.10 (instruction 056): dominant-language-by-count (most files
+    wins) replaced ordered first-match. First-match returned the earliest
     language in ``language_order`` whose extension appeared *anywhere*,
     so a Clojure repo with a few stray ``.py`` build scripts detected as
     Python (``py`` precedes — and ``clj`` was absent entirely). Counting
@@ -2739,9 +2756,6 @@ def detect_project_language(repo_dir):
     install-marker dirs + bundled ``bin/`` stay excluded
     (``_INSTALL_MARKER_DIRS``) so QPB's own Python closure never poisons
     detection (instruction 054).
-
-    Deterministic tiebreak on equal counts: ``language_order`` order
-    (earliest wins). Returns "" when no known source extension is found.
     """
     language_order = [
         ("go", ".go"),
@@ -2791,9 +2805,114 @@ def detect_project_language(repo_dir):
             continue
 
     if not counts:
-        return ""
-    # Most files wins; tiebreak = earliest in language_order.
-    return max(counts, key=lambda lang: (counts[lang], -order_index[lang]))
+        return []
+    # Most files wins; tiebreak = earliest in language_order. Sorting
+    # ascending on (-count, order_index) puts the same winner at [0] that
+    # the pre-058 ``max(counts, key=(count, -order_index))`` produced.
+    return sorted(counts.items(), key=lambda kv: (-kv[1], order_index[kv[0]]))
+
+
+def detect_project_language(repo_dir):
+    """Return the dominant testable language (the winner of
+    :func:`detect_project_languages`), or "" when none is found. Thin
+    delegate (v1.5.10 instruction 058 D1) so the singular and plural
+    detectors cannot drift; the winner stays byte-identical to the 056
+    implementation."""
+    ranked = detect_project_languages(repo_dir)
+    return ranked[0][0] if ranked else ""
+
+
+# v1.5.10 instruction 058 (D3): the detected/override testable language ->
+# the test-file extensions the gate accepts for it. Lifted to module scope
+# (was local to check_test_file_extension) so BOTH the extension check AND
+# main's --language validator read one source — an unknown / non-testable
+# --language value is a usage error (exit 2) precisely because it is not a
+# key here.
+_LANG_TO_VALID = {
+    "go": "go",
+    "py": "py",
+    "java": "java",
+    "kt": "kt java",
+    "rs": "rs",
+    "ts": "ts",
+    "js": "js ts",
+    "scala": "scala",
+    "c": "c py sh",
+    "clj": "clj cljc cljs",
+    "agc": "py sh",
+}
+
+
+# v1.5.10 instruction 058 (D5): the multi-language disclosure fires only
+# when >=2 testable languages EACH clear both a minimum share and a
+# minimum file count, so a stray handful of files in a second language
+# never triggers noise. Boundary is >=-inclusive (exactly 10% AND exactly
+# 5 files fires).
+_DISCLOSURE_MIN_RATIO = 0.10
+_DISCLOSURE_MIN_FILES = 5
+
+
+def languages_over_disclosure_threshold(ranked):
+    """Given the ranked ``[(lang, count), ...]`` from
+    :func:`detect_project_languages`, return the sublist of languages that
+    each clear ``>=_DISCLOSURE_MIN_RATIO`` of the testable total AND
+    ``>=_DISCLOSURE_MIN_FILES`` files. Denominator is
+    ``sum(counts.values())`` from ``detect_project_languages`` (NOT
+    ``count_source_files`` — a different walker). v1.5.10 058 (D5)."""
+    total = sum(count for _, count in ranked)
+    if total <= 0:
+        return []
+    return [
+        (lang, count)
+        for lang, count in ranked
+        if count >= _DISCLOSURE_MIN_FILES
+        and (count / total) >= _DISCLOSURE_MIN_RATIO
+    ]
+
+
+def _disclosure_fires(ranked):
+    """True when >=2 testable languages clear the disclosure threshold."""
+    return len(languages_over_disclosure_threshold(ranked)) >= 2
+
+
+def _maybe_record_language_disclosure(repo_dir, repo_name, language=None):
+    """v1.5.10 058 (D2/D5): when >=2 testable languages clear the
+    disclosure threshold, record a per-repo disclosure entry for emission
+    after the final RESULT line. ``language`` (the --language override),
+    when set, is the tested language; otherwise the detected winner is."""
+    repo_dir = Path(repo_dir)
+    if not repo_dir.is_dir():
+        return
+    over = languages_over_disclosure_threshold(detect_project_languages(repo_dir))
+    if len(over) < 2:
+        return
+    tested = language or over[0][0]
+    untested = [lang for lang, _ in over if lang != tested]
+    _LANGUAGE_DISCLOSURES.append({
+        "repo": repo_name,
+        "detected": over,
+        "tested": tested,
+        "untested": untested,
+    })
+
+
+def _emit_language_disclosures(disclosures):
+    """v1.5.10 058 (D2): print the per-repo multi-language disclosure
+    block(s) AFTER the load-bearing RESULT/verdict lines (additive; the
+    ::QPB:: sentinel still trails). Fixed format so an operator — and the
+    regression tests — can rely on it."""
+    for d in disclosures:
+        detected = ", ".join(f"{lang}={count}" for lang, count in d["detected"])
+        untested = ", ".join(d["untested"]) or "(none)"
+        hint_lang = d["untested"][0] if d["untested"] else "<lang>"
+        print("")
+        print(f"LANGUAGES DETECTED (testable) [{d['repo']}]: {detected}")
+        print(f"TESTED: {d['tested']}")
+        print(f"TESTABLE LANGUAGES NOT TESTED: {untested}")
+        print(
+            f"To run QPB on {hint_lang}: re-run with --language {hint_lang} "
+            f"(this ARCHIVES the current quality/ folder)"
+        )
 
 
 def count_source_files(repo_dir):
@@ -3837,8 +3956,17 @@ def check_use_cases(repo_dir, q, strictness):
 
 
 @verdict_category(VERDICT_SUBSTANTIVE)
-def check_test_file_extension(repo_dir, q):
-    """Test file extension matches project language (benchmark 47)."""
+def check_test_file_extension(repo_dir, q, language=None):
+    """Test file extension matches project language (benchmark 47).
+
+    v1.5.10 instruction 058 (D3): when ``language`` (the ``--language``
+    override) is set, the gate validates the functional/regression test
+    files against the **override's** accepted extensions instead of the
+    detected language, and records ``ran_on = <override>``. The override is
+    threaded from ``main`` -> ``check_repo`` -> here so the gate validates
+    what the agent was actually told to target, not the plurality language
+    — editing this function body alone would leave the gate validating the
+    *detected* language while the agent tested the *override*."""
     print("[Test File Extension]")
     func_test = first_file_matching(q, ["test_functional.*", "functional_test.*",
                                         "FunctionalSpec.*", "FunctionalTest.*",
@@ -3850,25 +3978,20 @@ def check_test_file_extension(repo_dir, q):
         return
 
     ext = func_test.suffix.lstrip(".") if func_test.suffix else ""
-    detected_lang = detect_project_language(repo_dir) if repo_dir.is_dir() else ""
+    if language:
+        # --language override: validate against the requested language,
+        # not the detected plurality, and record ran_on so the operator
+        # sees which language this run actually targeted.
+        detected_lang = language
+        info(f"--language override active: ran_on={language}")
+    else:
+        detected_lang = detect_project_language(repo_dir) if repo_dir.is_dir() else ""
 
     if not detected_lang:
         info(f"Cannot detect project language — skipping extension check (test_functional.{ext})")
         return
 
-    lang_to_valid = {
-        "go": "go",
-        "py": "py",
-        "java": "java",
-        "kt": "kt java",
-        "rs": "rs",
-        "ts": "ts",
-        "js": "js ts",
-        "scala": "scala",
-        "c": "c py sh",
-        "clj": "clj cljc cljs",
-        "agc": "py sh",
-    }
+    lang_to_valid = _LANG_TO_VALID
     valid_ext = lang_to_valid.get(detected_lang, "")
     valid_list = valid_ext.split()
     primary = valid_list[0] if valid_list else ""
@@ -4196,6 +4319,14 @@ def check_functional_test_has_assertions(q):
 # NOT change pass/fail semantics — only adds a prominent line
 # adjacent to RESULT:.
 _ZERO_BUG_REPOS: list[str] = []
+
+
+# v1.5.10 instruction 058 (D2): per-repo multi-language disclosure blocks,
+# accumulated during check_repo and emitted AFTER the load-bearing
+# RESULT/verdict lines (additive — mirrors the _emit_operator_verdict /
+# ::QPB:: post-RESULT precedent; never alters RESULT strings). Each entry
+# is {"repo", "detected": [(lang,count),...], "tested", "untested": [...]}.
+_LANGUAGE_DISCLOSURES: list[dict] = []
 
 
 @verdict_category(VERDICT_SUBSTANTIVE)
@@ -5406,6 +5537,32 @@ def check_v1_5_0_index_md(q):
                 f"quality/INDEX.md: summary missing {sub!r} sub-key "
                 "(schemas.md §11)"
             )
+    # v1.5.10 058 (D2): conditional multi-language disclosure fields. When
+    # >=2 testable languages clear the disclosure threshold, the persisted
+    # §11 summary MUST carry languages_detected / ran_on /
+    # untested_testable_languages. This is gated on the SAME is_legacy
+    # exemption used above (archived legacy-schema runs predate the field
+    # and are not re-failed) and is NOT added to
+    # _V150_REQUIRED_SUMMARY_KEYS (that loop is unconditional and would
+    # FAIL every single-language and archived run). Detection is on the
+    # repo (q.parent); a single-language repo never fires it, so existing
+    # single-language runs are unaffected.
+    if not is_legacy and _disclosure_fires(detect_project_languages(q.parent)):
+        for sub in (
+            "languages_detected", "ran_on", "untested_testable_languages",
+        ):
+            if sub not in summary:
+                fail(
+                    f"quality/INDEX.md: summary missing {sub!r} sub-key — "
+                    "required because >=2 testable languages clear the "
+                    "disclosure threshold (schemas.md §11; v1.5.10 058)"
+                )
+            elif summary[sub] in (None, "", []):
+                fail(
+                    f"quality/INDEX.md: summary {sub!r} is empty — multi-"
+                    "language disclosure requires a value (schemas.md §11; "
+                    "v1.5.10 058)"
+                )
     pass_("quality/INDEX.md: §11 fields present")
 
 
@@ -6647,8 +6804,12 @@ def check_compensation_asymmetry_promotion(q):
         )
 
 
-def check_repo(repo_dir, version_arg, strictness):
-    """Run all checks for one repo. Writes output via pass_/fail_/warn/info."""
+def check_repo(repo_dir, version_arg, strictness, language=None):
+    """Run all checks for one repo. Writes output via pass_/fail_/warn/info.
+
+    v1.5.10 058 (D3): ``language`` is the ``--language`` override threaded
+    from ``main`` so the extension check validates the override (not the
+    detected plurality) and the disclosure block records it as tested."""
     repo_dir = Path(repo_dir)
     if str(repo_dir) == ".":
         repo_dir = Path.cwd()
@@ -6666,7 +6827,7 @@ def check_repo(repo_dir, version_arg, strictness):
     check_recheck_sidecar(q)
     check_heartbeat_sidecar(q)
     check_use_cases(repo_dir, q, strictness)
-    check_test_file_extension(repo_dir, q)
+    check_test_file_extension(repo_dir, q, language=language)
     # v1.5.7 090s Task A: functional-test content check (anti-no-op).
     check_functional_test_has_assertions(q)
     # v1.5.7 090s Task B: track zero-bug repos for the verdict
@@ -6692,6 +6853,11 @@ def check_repo(repo_dir, version_arg, strictness):
     check_run_metadata(q)
     check_compensation_asymmetry_promotion(q)
     check_v1_5_0_gate_invariants(repo_dir, q)
+
+    # v1.5.10 058 (D2): record the per-repo multi-language disclosure (if
+    # >=2 testable languages clear the threshold) for emission after the
+    # final RESULT/verdict lines.
+    _maybe_record_language_disclosure(repo_dir, repo_name, language)
 
     print("")
 
@@ -6731,15 +6897,24 @@ def main(argv=None):
     version = ""
     check_all = False
     strictness = "benchmark"
+    language_override = ""
 
     expect_version = False
+    expect_language = False
     for arg in argv:
         if expect_version:
             version = arg
             expect_version = False
             continue
+        if expect_language:
+            # v1.5.10 058 (D3): --language <lang> override.
+            language_override = arg
+            expect_language = False
+            continue
         if arg == "--version":
             expect_version = True
+        elif arg == "--language":
+            expect_language = True
         elif arg == "--all":
             check_all = True
         elif arg == "--benchmark":
@@ -6748,6 +6923,16 @@ def main(argv=None):
             strictness = "general"
         else:
             repo_dirs.append(arg)
+
+    # v1.5.10 058 (D3): validate the override against the known testable
+    # languages (the _LANG_TO_VALID keys). Unknown / non-testable value ->
+    # usage error, exit 2 (distinct from the exit-1 "no repos" usage).
+    if language_override and language_override not in _LANG_TO_VALID:
+        print(
+            f"Usage error: --language {language_override!r} is not a known "
+            f"testable language. Choices: {', '.join(sorted(_LANG_TO_VALID))}"
+        )
+        return 2
 
     if not version:
         version = detect_skill_version([
@@ -6790,7 +6975,7 @@ def main(argv=None):
     print(f"Repos:      {len(repo_dirs)}")
 
     for rd in repo_dirs:
-        check_repo(rd, version, strictness)
+        check_repo(rd, version, strictness, language=language_override or None)
 
     print("")
     print("===========================================")
@@ -6813,6 +6998,11 @@ def main(argv=None):
         _FAIL_RECORDS, _WARN_RECORDS, _ZERO_BUG_REPOS, exit_code,
         run_provenance=_RUN_PROVENANCE,
     )
+    # v1.5.10 058 (D2): multi-language disclosure block(s) — additive,
+    # AFTER the load-bearing RESULT/verdict lines and BEFORE the trailing
+    # ::QPB:: sentinel (so the sentinel stays the last line parsers anchor
+    # on). Never alters RESULT strings or exit_code.
+    _emit_language_disclosures(_LANGUAGE_DISCLOSURES)
     # v1.5.7 109: emit the deterministic ::QPB:: gate-result
     # sentinel for the Test Harness status layer (107/108) to
     # parse. ONE line, AFTER the load-bearing total_line /

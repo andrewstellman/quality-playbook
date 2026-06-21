@@ -212,6 +212,47 @@ curated alternatives (`gpt-4.1`, `claude-sonnet-4.5`,
 
 This document is updated when Phase 6b lands.
 
+## Targeting a language on a polyglot repo (`--language`, v1.5.10 058)
+
+QPB is **single-language-per-repo by design**: it detects the dominant
+testable language (most source files win, deterministic tiebreak) and
+validates the one functional/regression test against it. On a polyglot
+repo this means other substantial languages go untested.
+
+`--language <lang>` makes that honest and steerable:
+
+- **Disclosure (automatic).** When a repo has **≥2 testable languages**
+  each clearing the disclosure threshold (**≥10% of the testable file
+  total AND ≥5 files**), the quality gate prints, after the `RESULT:`
+  line, a block naming the languages detected, the one tested, and the
+  ones skipped — plus the `--language` re-run hint. The same disclosure
+  is persisted to `quality/INDEX.md` §11 `summary`
+  (`languages_detected` / `ran_on` / `untested_testable_languages`) and
+  is gate-enforced **only** under that ≥2-language condition (single-
+  language and legacy-archived runs are never failed for omitting it).
+  Markdown / shell / other non-code content is **never** counted as a
+  testable language.
+
+- **Override.** `python3 -m bin.run_playbook --language py <target>`
+  runs a fresh pass targeting Python: Phase 2 generation is scoped to
+  `py`, and the gate validates the test file against `py` (recording
+  `ran_on: py`) instead of the detected plurality. Valid values are the
+  testable languages `go, py, java, kt, rs, ts, js, scala, c, clj, agc`;
+  an unknown or non-testable value exits with status **2**.
+
+- **Archive-on-switch (⚠ data-moving).** When the requested `--language`
+  **differs** from the language the live `quality/` run targeted, the
+  prior run is first archived into `quality/previous_runs/<ts>/` and the
+  live tree is cleared so the new-language run starts fresh. **If the
+  archive fails, the live tree is left intact and NOT cleared** (a failed
+  archive never destroys data) — the operator diagnoses and archives
+  manually. This is idempotent with the normal pre-run auto-archive.
+
+`run_playbook.py` is the deprecating legacy path; the arunner harness
+threads the same value as a `{LANGUAGE}` template var into the Phase-2
+worker prompt and the gate argv. Full multi-language (parallel per-
+language runs) is a tracked 1.7+ backlog item, not this release.
+
 ## Pointer to canonical Council infrastructure
 
 - `bin/council_config.py` — canonical roster source. Update this

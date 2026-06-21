@@ -610,6 +610,12 @@ def _dispatch(run_dir, runs, entries, pool_size, now) -> list[dict]:
             "RUN_DIR": str(run_dir / name),
             "TARGET_REPO": str(entry.get("target_repo", "")),
             "HARNESS_BIN": _HARNESS_BIN,
+            # v1.5.10 058 (D3): expose the per-job --language override as a
+            # template var so a QPB phase plan can thread it into the
+            # Phase-2 worker_prompt (generation scoping) and the gate
+            # worker_cmd argv (`--language {LANGUAGE}`). Empty when the job
+            # set no language.
+            "LANGUAGE": str(entry.get("language", "")),
         }
         src = run_dir / "claimed" / (r["job_id"] + ".json")
         qsrc = run_dir / "queue" / (r["job_id"] + ".json")

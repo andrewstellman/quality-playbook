@@ -69,6 +69,8 @@
 
 14. **Re-pin the two doc-drift guards the README reflow broke (corrected 2026-06-20).** The known-failing `bin/tests/` count went **3 → 5** between the 052 Council (`reviews/052_self_council/SYNTHESIS.md:18` — "3 known baseline README failures") and the 056 Council (`reviews/056_self_council/SYNTHESIS.md:21` — "5 pre-existing"). The **+2 are NOT pre-existing** — they are regressions from the v1.5.10 README rewrite shifting line-pinned guards (`test_readme_launch_prompts_no_python3_literal.py`, `test_doc_drift.py`). Re-pin them to the new README layout (worker lane), or add an explicit `quality/audits/` entry with the reason; stop calling all 5 "pre-existing."
 
+15. **Language disclosure + override (Clojure/multi-language fix close-out).** When multiple languages are detected, keep testing the dominant one but **disclose** (which detected, which tested, which *testable* ones skipped) and allow a `--language` **override** that archives `quality/` and re-runs on another testable language. Markdown/doc languages are disclosed as context but are never test targets. Design + plan + 3-panel Council (SHIP-WITH-FIXES): `docs/design/QPB_v1.5.10_Language_Disclosure_And_Override_Design.md`. PENDING worker impl (arunner-native; `run_playbook.py` gets a cheap `--language` while deprecating). **Validation folds into item 11's vaelii run** plus a multi-language baseline slice (incl. QPB itself = Markdown + Python). Status (2026-06-20): design drafted; the v1.5.10 reframe + arunner threading + Markdown handling postdate the Council — a light re-Council on those is advised before the worker files.
+
 **Adjacent (arunner repo — not the QPB v1.5.10 source release, tracked here for completeness):** FR-61–65 implemented on `fr-61-65-impl` (instruction 002, local) and the spec on `fr-61-65-spec` (001, local), both awaiting operator review/merge to arunner `main`; and committing the arunner `runner/` folder (an earlier sandbox mount restriction blocked it).
 
 ---
@@ -170,6 +172,7 @@ Cleanup first (lowest risk, shrinks the surface), then the trim (mechanical, pat
 | 19 | Update CLAUDE.md with checkable mechanical gates | close-out 12 | PENDING — Council-vetted; awaits operator go |
 | 20 | Source terminology cleanup (rename replay/cell/recall in source) | close-out 13 | PENDING — worker lane; low priority; NOT cleaned (still in code + artifacts) |
 | 21 | Re-pin 2 doc-drift guards broken by README reflow (count 3→5; NOT pre-existing) | close-out 14 | PENDING — worker lane |
+| 22 | Language disclosure + `--language` override (Clojure/multi-language close-out; **language-only** scope — skill-surface split out to 1.6.x) | close-out 15 | **DONE (worker, instr 058, local-only — not pushed)** — D1 plural detector + byte-identical delegate; D2 disclosure (stdout block + conditional INDEX, lockstep schemas/validator); D3 `--language` threaded `main→check_repo→check_test_file_extension` (+ arunner `LANGUAGE` var + run_playbook forward); D4 archive-on-switch w/ both-branch error-gate; D5 ≥-inclusive threshold; 056 clj deep-check VERIFIED not rebuilt. 3-panel self-Council unanimous SHIP (`reviews/058_self_council/`). Suite 2443 ×3 stable, Py 3.14.6, only the 5 known README baseline failures. Disclosure venue: real-repo secbench2 (ts+py) + labeled fixture. |
 
 ---
 

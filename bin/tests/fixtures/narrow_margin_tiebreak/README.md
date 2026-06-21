@@ -1,0 +1,1 @@
+Narrow-margin tiebreak fixture for v1.5.10 058 byte-identical-winner pin: rs=6 == ts=6 (exact tie). language_order puts rs(idx4) before ts(idx5), so the deterministic tiebreak picks 'rs'. If the walk/exclude/tiebreak drifts, the winner flips -> the pin bites. (vaelii's 341:6 margin is too wide to exercise tiebreak.)

@@ -155,6 +155,7 @@ Use only when the operator asks for something specific:
 | Specific iteration | `--strategy <name> --next-iteration` | Iterates on an existing `quality/` run with a chosen strategy. |
 | Multi-target | pass several positional targets | Each runs independently. |
 | Per-phase CLI agent | `--claude` / `--copilot` / `--codex` / `--cursor` | Picks which CLI runner the orchestrator spawns. Default is `--copilot`. The `--cursor` runner requires cursor-cli 3.1+. |
+| Target a language on a polyglot repo | `--language <lang>` (go/py/java/kt/rs/ts/js/scala/c/clj/agc) | QPB tests one language per run. On a repo with ≥2 testable languages the gate discloses which were detected/tested/skipped; re-run with `--language` to audit a different one. **A `--language` re-run that differs from the prior run ARCHIVES the current `quality/` folder** into `previous_runs/` first (a failed archive never clears live data). Unknown/non-testable value → exit 2. |
 
 #### Recovering from a partial / aborted runner-driven run
 

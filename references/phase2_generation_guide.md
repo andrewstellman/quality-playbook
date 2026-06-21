@@ -119,6 +119,8 @@ Every scenario's "How to verify" must map to at least one test in the functional
 
 **This is the most important deliverable.** Read `references/functional_tests.md` for the complete guide.
 
+**Language scope (v1.5.10 058).** QPB tests **one language per run**. By default that is the repo's dominant testable language. If the run was invoked with `--language <lang>` (you will see a `LANGUAGE OVERRIDE` directive at the top of the prompt, and the orchestrator passes the same value to the gate), write the functional and regression tests in **that** language using its conventional test framework, and target only that language's source — even if another language has more files. The quality gate validates `quality/test_functional.*` / `quality/test_regression.*` against the chosen language; a mismatched extension FAILs. Do **not** attempt to test multiple languages in one run (full multi-language is a future feature) — scope to the one language and let the gate's disclosure block tell the operator which others remain to be audited in a separate `--language` run.
+
 Organize the tests into three logical groups (classes, describe blocks, modules, or whatever the test framework uses):
 
 - **Spec requirements** — One test per testable spec section. Each test's documentation cites the spec requirement it verifies.
