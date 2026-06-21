@@ -357,8 +357,41 @@ def print_help_banner(
 # ---------------------------------------------------------------------------
 
 
+def attribution_banner_text() -> str:
+    """The full 80-wide attribution banner, with the running skill
+    version rendered onto the title line (v1.5.10 instruction 059).
+
+    The version is read from ``get_version()`` (THE canonical
+    SKILL.md-frontmatter reader, 057) **at call time**, so a stale
+    install prints *its own* version — that's the whole point: an
+    operator confirms at a glance which version is actually running,
+    and a pre-056 copy installed in a target repo visibly announces
+    its old version instead of silently running old behavior (the
+    2026-06-21 vaelii stale-install gotcha).
+
+    ``BANNER_TEXT`` remains the versionless canonical skeleton (the
+    byte-for-byte single source for the SKILL.md / AGENTS.md banner
+    blocks); the version is layered on here at render time and so is
+    runtime-derived everywhere it is printed — never a second
+    hand-maintained literal that could drift from frontmatter (057
+    single-source principle)."""
+    version = get_version()
+    return (
+        f"{BANNER_BOX_RULE}\n"
+        f"  {BANNER_NAME} v{version} -- by {BANNER_AUTHOR}\n"
+        f"  {BANNER_URL}\n"
+        "\n"
+        f"  {BANNER_TAGLINE[0]}\n"
+        f"  {BANNER_TAGLINE[1]}\n"
+        "\n"
+        f"  Licensed under the {BANNER_LICENSE}\n"
+        f"{BANNER_BOX_RULE}\n"
+    )
+
+
 def print_attribution_banner(stream: Optional[TextIO] = None) -> None:
-    """Print the full 80-wide attribution banner.
+    """Print the full 80-wide attribution banner (incl. the running
+    version — v1.5.10 instruction 059; see ``attribution_banner_text``).
 
     Default stream is **stderr** (preserves the 089k clean-stdout-
     ``event=`` rule). Called by:
@@ -373,7 +406,7 @@ def print_attribution_banner(stream: Optional[TextIO] = None) -> None:
     if stream is None:
         stream = sys.stderr
     try:
-        stream.write(BANNER_TEXT)
+        stream.write(attribution_banner_text())
         stream.flush()
     except (OSError, ValueError):
         pass

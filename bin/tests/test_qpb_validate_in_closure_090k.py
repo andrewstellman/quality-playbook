@@ -241,9 +241,25 @@ class BannerDirectivePresence090mTests(unittest.TestCase):
         # Mode-A runs emitted a 2-line condensed banner against the
         # pre-090m SKILL.md blockquote).
         self.assertIn("MANDATORY FIRST ACTION", text)
+        # v1.5.10 instruction 059: the no-version clause was flipped —
+        # the banner now CARRIES the running version (rendered by
+        # print_attribution_banner from get_version). The
+        # anti-condensation guard remains; "or add a version number"
+        # was removed and the directive now instructs INCLUDING the
+        # version on the title line.
         self.assertIn(
-            "do NOT condense, abbreviate, summarize, reformat, or add a version number",
+            "do NOT condense, abbreviate, summarize, or reformat",
             text,
+        )
+        self.assertNotIn(
+            "or add a version number", text,
+            "059 flipped the no-version rule; this stale clause must "
+            "be gone.",
+        )
+        self.assertIn(
+            "include the running skill version", text,
+            "059: MANDATORY FIRST ACTION must instruct rendering the "
+            "version onto the banner title line.",
         )
         # Reference the single source of truth so wording stays
         # in sync.

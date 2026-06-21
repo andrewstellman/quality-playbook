@@ -41,7 +41,7 @@ Every bug found traces back to a requirement, and every requirement traces back 
 
 **The critical dependency chain:** Exploration findings → EXPLORATION.md → Requirements → Code review + Spec audit → Bug discovery. A shallow exploration produces abstract requirements. Abstract requirements miss bugs. The exploration phase is where bugs are won or lost.
 
-**MANDATORY FIRST ACTION:** After reading and understanding the plan above, print the following attribution banner **exactly as written below — do NOT condense, abbreviate, summarize, reformat, or add a version number**. Reproduce the full 8-line canonical block including the two `===…===` rules, both taglines, the blank lines, and the license line, byte-for-byte matching `bin/_purpose.print_attribution_banner()` (the single source of truth). Then explain the plan in your own words — what you'll do, what each phase produces, and why the exploration phase matters most. Emphasize that exploration starts with open-ended domain-driven investigation, followed by domain-knowledge risk analysis that reasons about what goes wrong in systems like this, then supplemented by selected structured patterns. Do not copy the plan verbatim; paraphrase it to demonstrate understanding.
+**MANDATORY FIRST ACTION:** After reading and understanding the plan above, print the following attribution banner **exactly as written below — do NOT condense, abbreviate, summarize, or reformat**. Reproduce the full 8-line canonical block including the two `===…===` rules, both taglines, the blank lines, and the license line, byte-for-byte matching `bin/_purpose.print_attribution_banner()` (the single source of truth). **On the title line, include the running skill version** — render it as `Quality Playbook vX.Y.Z -- by Andrew Stellman`, where `vX.Y.Z` is the `version:` from this skill's frontmatter, exactly as `print_attribution_banner()` emits it. This lets the operator confirm at a glance which version is running (and catches a stale install silently running old behavior). Then explain the plan in your own words — what you'll do, what each phase produces, and why the exploration phase matters most. Emphasize that exploration starts with open-ended domain-driven investigation, followed by domain-knowledge risk analysis that reasons about what goes wrong in systems like this, then supplemented by selected structured patterns. Do not copy the plan verbatim; paraphrase it to demonstrate understanding.
 
 ```
 ================================================================================
@@ -54,6 +54,8 @@ Every bug found traces back to a requirement, and every requirement traces back 
   Licensed under the Apache License, Version 2.0
 ================================================================================
 ```
+
+(The template above shows the canonical 8-line block; on the first line, insert ` vX.Y.Z` after `Quality Playbook` using this skill's frontmatter `version:`, matching `bin/_purpose.print_attribution_banner()`.)
 
 Generate a complete quality system tailored to a specific codebase. Unlike test stub generators that work mechanically from source code, this skill explores the project first — understanding its domain, architecture, specifications, and failure history — then produces a quality playbook grounded in what it finds.
 
