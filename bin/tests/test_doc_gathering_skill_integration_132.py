@@ -124,6 +124,30 @@ class NoStaleRootPathTests(unittest.TestCase):
     # preceded by "references/".
     _BARE = re.compile(r"(?<!references/)DOC_GATHERING_PROMPT\.md")
 
+    @staticmethod
+    def _strip_code_fences(text: str) -> str:
+        """Drop fenced ``` code blocks before scanning.
+
+        v1.5.10 instruction 060: the rewritten README carries a
+        repository-structure ASCII tree (inside a ``` fence) that lists
+        ``DOC_GATHERING_PROMPT.md`` correctly nested under a
+        ``references/`` directory line — the file's true home. That
+        tree entry is not a bare-root *reference* an adopter would copy;
+        the guard targets adopter-facing prose links/paths (e.g. the
+        inline ``references/DOC_GATHERING_PROMPT.md`` link). Scanning
+        only the un-fenced prose keeps the guard's teeth for real
+        references while not false-positiving on the structure diagram.
+        """
+        out: list[str] = []
+        in_fence = False
+        for line in text.splitlines():
+            if line.lstrip().startswith("```"):
+                in_fence = not in_fence
+                continue
+            if not in_fence:
+                out.append(line)
+        return "\n".join(out)
+
     def test_no_bare_root_reference_in_adopter_docs(self) -> None:
         # v1.5.8 instruction 208: bundled adopter-facing docs (SKILL.md,
         # ai_context/TOOLKIT.md) live under the skill folder; README.md
@@ -137,7 +161,7 @@ class NoStaleRootPathTests(unittest.TestCase):
             rel = path.name if path.parent in (_REPO_ROOT, _SKILL_DIR) else path.parent.name + "/" + path.name
             if not path.is_file():
                 continue
-            text = path.read_text(encoding="utf-8")
+            text = self._strip_code_fences(path.read_text(encoding="utf-8"))
             bare = self._BARE.findall(text)
             self.assertEqual(
                 bare, [],

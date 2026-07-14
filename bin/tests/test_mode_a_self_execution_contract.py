@@ -262,78 +262,22 @@ class ModeASelfExecutionContractTests(unittest.TestCase):
             )
 
 
-    def test_readme_step_4_claude_code_uses_interactive_pattern(self) -> None:
-        """v1.5.7 instruction 067 F1 (closing 066 SA1), updated by
-        instruction 073 Item-3 (A-18 re-scoped): README Step 4's
-        Claude Code subsection must use the interactive
-        read-the-skill pattern, NOT `claude --agent
-        agents/quality-playbook.agent.md` as the PRIMARY invocation
-        (the orchestrator-agent path is AUTOMATION ONLY per 064 — it
-        may appear ONLY in the explicit automation parenthetical).
-        073 Item-3 further mandates the prompt be INSTALL-FIRST
-        ("install … then read the installed SKILL.md and run the
-        playbook"), so the literal pre-073 "Read SKILL.md" string
-        was superseded by "read the installed SKILL.md".
-
-        v1.5.7 089q Task 3 reconciliation: the redundant "read the
-        installed SKILL.md" clause was dropped — the agent auto-
-        discovers the installed skill, so telling it to "read" the
-        file read as if the operator opens it. The install-first
-        contract is UNCHANGED (the prompt still runs the Phase 0
-        validator and blocks until `event=validation_complete
-        status=ok`); only the redundant read-the-file imperative
-        was removed, and the prompt now says the agent
-        "auto-discovers the installed skill". The 067 guarantees
-        (no orchestrator-agent primary; automation parenthetical
-        retained) are unchanged and still pinned below. Pin
-        updated in-commit per the 067 precedent for
-        instruction-directed prompt changes (the contract, not the
-        literal string, is what's load-bearing).
-        """
-        readme = (_QPB_ROOT / "README.md").read_text(encoding="utf-8")
-        step4 = _slice(readme, "### Step 4: Run the playbook",
-                        "\n### ", "\n## ")
-        cc = _slice(step4, "**Claude Code:**", "\n**")
-        # Install-first interactive pattern present (073 A-18 +
-        # 089q): the prompt routes through the Phase 0 validator
-        # and references the installed skill the agent auto-
-        # discovers (089q dropped the redundant "read the
-        # installed SKILL.md" imperative — the install-first
-        # contract holds via the validator gate, not a
-        # read-the-file instruction).
-        self.assertIn(
-            "install validator", cc,
-            "README Step 4 Claude Code subsection must direct the "
-            "agent through the Phase 0 install validator "
-            "(install-first interactive pattern — 067 F1 / 066 "
-            "SA1 / 073 Item-3 A-18 / 089q)",
-        )
-        self.assertIn(
-            "installed skill", cc,
-            "README Step 4 Claude Code subsection must reference "
-            "the INSTALLED skill the agent runs against (089q: "
-            "'the agent auto-discovers the installed skill')",
-        )
-        # The orchestrator-agent path must NOT be the primary
-        # instruction — only allowed inside the automation
-        # parenthetical that starts with "(For automated batch".
-        split = cc.split("(For automated batch invocation", 1)
-        primary = split[0]
-        self.assertNotIn(
-            "--agent agents/quality-playbook", primary,
-            "README Step 4 Claude Code PRIMARY instruction still "
-            "routes interactive sessions into the AUTOMATION-ONLY "
-            "orchestrator agent (the exact A-17 path 064 forbids) — "
-            "066 SA1 finding must stay closed",
-        )
-        # The automation parenthetical itself is retained (the
-        # automation path has legitimate use — reframed, not removed).
-        self.assertEqual(
-            len(split), 2,
-            "the automation-only parenthetical (orchestrator-agent "
-            "path for headless/CI) must be retained, not deleted "
-            "(067: reframe, not removal)",
-        )
+    # v1.5.10 instruction 060: `test_readme_step_4_claude_code_uses_
+    # interactive_pattern` was REMOVED here. It sliced the README on
+    # "### Step 4: Run the playbook" → "**Claude Code:**" to assert the
+    # per-IDE Claude Code launch prompt used the install-first
+    # interactive pattern. The v1.5.10 README rewrite removed the
+    # numbered install steps and the four per-IDE launch prompts by
+    # design, collapsing operator-facing invocation to the single
+    # natural-language "Run the Quality Playbook on this project."
+    # entry point (the slice now raises ValueError — the ERROR this
+    # removal resolves). The Mode-A self-execution safety contract this
+    # method guarded still lives in the canonical SKILL.md + AGENTS.md
+    # surfaces and is pinned by the sibling tests in this file
+    # (test_skill_md_mode_a_intro_forbids_sub_skill_delegation,
+    # test_agents_md_orchestrator_rows_marked_automation_only, etc.),
+    # which are unaffected. The README is no longer a pinned surface for
+    # this contract.
 
 
 class ModeAInstallStepContractTests(unittest.TestCase):
@@ -467,39 +411,18 @@ class ModeAInstallStepContractTests(unittest.TestCase):
         self.assertIn("install the skill into your target",
                       seq.lower())
 
-    def test_readme_claude_code_subsection_has_validator_step_in_prompt(self) -> None:
-        """README Step 4's Claude Code launch prompt is validator-
-        first (v1.5.7 instruction 078, addendum r3 §3.5): it invokes
-        `qpb_validate.py`, carries the do-not-proceed-until
-        `event=validation_complete status=ok` gate, and still
-        references the canonical `install_skill` command as the
-        validator's remediation. Same load-bearing contract as the
-        pre-078 pin (the CC launch prompt names the deterministic
-        MANDATORY Phase-0 action that closes the 2026-05-17 httpx
-        bad-launch-prompt root cause) — only the mechanism shifts to
-        the validator, per instruction-078 Task 4.2."""
-        readme = (_QPB_ROOT / "README.md").read_text(encoding="utf-8")
-        step4 = _slice(readme, "### Step 4: Run the playbook",
-                        "\n### ", "\n## ")
-        cc = _slice(step4, "**Claude Code:**", "\n**")
-        self.assertIn(
-            "qpb_validate", cc,
-            "README Claude Code launch prompt must invoke the "
-            "qpb_validate entry point (078 §3.5 launch-prompt "
-            "collapse)",
-        )
-        self.assertIn(
-            "event=validation_complete status=ok", cc,
-            "README Claude Code launch prompt must carry the "
-            "do-not-proceed-until status=ok Phase-0 gate (078 §3.5)",
-        )
-        self.assertIn(
-            "install_skill", cc,
-            "README Claude Code launch prompt must still reference "
-            "the canonical install_skill command as the validator's "
-            "remediation (078 — validator emits the platform-correct "
-            "install when status=remediable)",
-        )
+    # v1.5.10 instruction 060: `test_readme_claude_code_subsection_has_
+    # validator_step_in_prompt` was REMOVED here for the same reason as
+    # its sibling in ModeASelfExecutionContractTests above — the
+    # v1.5.10 README rewrite removed the "### Step 4" section and the
+    # per-IDE "**Claude Code:**" launch prompt (the slice raised
+    # ValueError → the ERROR this resolves). The validator-first /
+    # install-first Phase-0 contract this method guarded still lives in
+    # the canonical SKILL.md + AGENTS.md surfaces and is pinned by the
+    # sibling tests here (test_skill_md_mode_a_has_phase_0_validator_step,
+    # test_agents_md_has_mode_a_entry_sequence_full_protocol), which are
+    # unaffected. The README is no longer a pinned surface for the
+    # launch-prompt validator step.
 
 
 if __name__ == "__main__":

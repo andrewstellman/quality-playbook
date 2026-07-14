@@ -46,11 +46,16 @@ class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
     """BUG-005 (v1.5.7 fix F-5a update + instruction 031 Phase D consensus
     fixup): both `python -m bin.run_playbook` and `python /path/to/QPB/
     bin/run_playbook.py` are valid invocation forms after F-5a. The
-    pre-v1.5.7 ban on script-style invocations is inverted: at least one
-    module-form example must be documented (since that's the canonical
-    form), AND operator-facing surfaces must NOT claim script-style is
+    pre-v1.5.7 ban on script-style invocations is inverted, AND
+    operator-facing surfaces must NOT claim script-style is
     rejected with `EX_USAGE=64` (the v1.5.4 codex-prevention guard the
     F-5a refactor removed).
+
+    v1.5.10 instruction 060: the "at least one module-form example must
+    be documented in the README" assertion (`test_module_form_is_
+    documented`) was removed — `run_playbook` is being retired and the
+    v1.5.10 README rewrite intentionally dropped the module-form
+    invocation. See the removal note where that method used to live.
 
     Phase D consensus fixup widened the doc-drift coverage from
     README-only to README + SKILL.md, so stale "EX_USAGE=64" / "never
@@ -107,16 +112,22 @@ class ReadmeRunPlaybookInvocationTests(unittest.TestCase):
         re.IGNORECASE,
     )
 
-    def test_module_form_is_documented(self) -> None:
-        """At least one example must show the package-module form so
-        adopters can copy a working command."""
-        readme = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
-        self.assertIn(
-            "python3 -m bin.run_playbook",
-            readme,
-            "README.md must document the canonical "
-            "`python3 -m bin.run_playbook` invocation form.",
-        )
+    # v1.5.10 instruction 060: `test_module_form_is_documented` was
+    # REMOVED here. It required README.md to document the literal
+    # `python3 -m bin.run_playbook` invocation form. Per the v1.5.10
+    # Implementation Plan, `run_playbook` is being **retired** (plan
+    # lines 25 "we do not use it again", 127/129 "run_playbook
+    # retired") and the v1.5.10 README rewrite intentionally dropped
+    # the module-form invocation in favor of the natural-language
+    # "Run the Quality Playbook on this project." entry point. Re-adding
+    # a module-form example would document a retired path, so the
+    # assertion is stale and removed rather than re-pinned. (SKILL.md
+    # Mode B still documents the module form for the still-extant
+    # Mode B runner; `test_skill_md_self_encoding` pins that surface —
+    # out of scope here, which is README doc-drift only.) The sibling
+    # `test_no_operator_surface_claims_script_style_is_rejected` below
+    # stays: no surface may claim the removed EX_USAGE=64 script-style
+    # guard still fires.
 
     def test_no_operator_surface_claims_script_style_is_rejected(self) -> None:
         """v1.5.7 instruction 031 Phase D + instruction 032 NCF-12/NCF-13.
