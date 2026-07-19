@@ -1,176 +1,133 @@
 # Quality Playbook v1.6.0 — Implementation Plan
 
-*Companion to: `QPB_v1.6.0_Design.md`*
-*Status: reframed **2026-05-24** to the **NFR discovery + requirements-grounded FP-audit** feature. This supersedes the original "single lever pull" implementation plan (preserved at the bottom as historical context). Begins after v1.5.7 ships and clears a few clean new-repo runs.*
-*Depends on: v1.5.7 published (pip + npm) and stable; the 090j triage band-aid in place (this feature supersedes it at the requirements level); the OpenFGA Mode-A run preserved at `repos/openfpa-1.5.7/quality/` as the regression fixture.*
-
-> **What changed and why.** The pre-2026-05-24 plan below built v1.6.0 as a lever-pull workflow release. v1.6.0's canonical scope is now the **NFR discovery + requirements-grounded false-positive audit** feature, motivated by the 2026-05-23 OpenFGA precision failure (0/3 HIGH real, Council-confirmed in 090i). This plan is the sliced build plan for that feature. The lever-pull plan is preserved verbatim at the bottom for lineage.
+*Companion to: `QPB_v1.6.0_Design.md` (canonical, rewritten 2026-07-18, simplicity pass + pre-handoff decisions 2026-07-19).*
+*Status: rewritten **2026-07-19** to match the current design. Supersedes the 2026-05-24 plan (NFR+FP-audit-only scope, old slice order — preserved in git history) and the original lever-pull plan before it.*
+*All open decisions that gate implementation are resolved (Design §0 Decision Record #7); the two remaining ODs (OD-5 precision bar, OD-8 090j disposition) are release-time and marked at their phase gates below.*
 
 ---
 
 ## Operating Principles
 
-- **The OpenFGA re-run is the acceptance oracle.** v1.6.0 is not done until a fresh Mode-A run against `repos/openfpa-1.5.7/` (or a re-cloned equivalent) demonstrates that BUG-003 / BUG-006 / BUG-009 cannot stand as confirmed HIGH bugs, while BUG-001 / BUG-002 / BUG-004 still surface. Precision up, recall held.
-- **Two coupled pieces, built in dependency order.** (A) NFR discovery is the requirements-layer fix; (B) the fresh-context FP-audit is the catch-all precision gate. (A) lands first because the audit's requirements-traceability check depends on NFRs being derived.
-- **The FP-audit is general, not security-only.** Word every prompt/rubric so the audit covers all finding classes (the failure mode — a finding the producing agent didn't independently re-check — is class-agnostic). Security is the highest-scrutiny tier, not a separate detector.
-- **Independence is load-bearing.** The audit sub-agent must run fresh-context: no running skill, no phase prompts, no writeup reasoning — only finding + cited source + relevant derived REQ + rubric. If the audit can see the producing agent's rationalization, it inherits the bias that produced the FPs.
-- **Source edits go through the diagnosis→Claude Code lane.** Per workspace CLAUDE.md, Cowork proposes diffs and hands them to the worker; this plan describes the *what*, the worker implements. `docs/design/` planning content (this file) is Cowork-editable.
-- **Branch + ship discipline carries over from v1.5.7.** Fresh `1.6.0` branch from the v1.5.7 release tag as base; never push from the sandbox; verify any remote claim with `git ls-remote`.
+- **The design doc is the spec.** This plan sequences and gates; it does not pre-decompose. The implementing AI (Claude Code / Opus-class worker) reads `QPB_v1.6.0_Design.md` end-to-end and decomposes during execution, per `ai_context/DEVELOPMENT_PROCESS.md` (no per-phase briefs).
+- **Two independent tracks.** Track 1 (Phases 1-4: coherence → validation) is the release's goal and is strictly ordered by dependency. Track 2 (Phases 5-7: precision, Features A+B) is independent and may run in parallel with Track 1 or after it. Phase 8 (release) requires both.
+- **The manifest stays the source of truth.** Feature C is presentation-layer except where explicitly specified; Phase 1 carries a manifest-unchanged invariant. The FP-audit consumes the manifest, never the rendered document.
+- **Three acceptance oracles, all fixture-grounded:** the chi/express/virtio regeneration fixture (coherence, Design §5), the scripted interview fixture + re-run 2026-05-02 worked example (validation, Design §6), the OpenFGA re-run (precision, Design §4 — carried unchanged).
+- **Independence is load-bearing for the FP-audit** (carried): the audit sub-agent gets finding + cited source + relevant derived REQ + rubric — never the running skill, phase prompts, or writeup reasoning.
+- **Source edits go through the diagnosis→Claude Code lane** per workspace CLAUDE.md; this plan and the design doc are the Cowork-editable planning surface.
+- **Branch + ship discipline carries over:** fresh `1.6.0` branch, base SHA recorded; never push from a sandbox; verify every remote claim with `git ls-remote`; no wall-clock estimates anywhere.
 
 ---
 
-## Phase 0 — v1.5.7 ship + run-series confirmation
+## Phase 0 — Base confirmation (operator gate)
 
-Goal: confirm v1.5.7 is published and precision-stable enough that v1.6.0 has a clean base.
+Goal: a clean, explicit base for the `1.6.0` branch.
 
-Work items:
-- v1.5.7 tagged + published on PyPI and npm; the four-ref dance complete; `git ls-remote origin v1.5.7` confirms the tag.
-- The 090j triage band-aid (reachability note / KNOWN-ISSUE classification / security-HIGH bar) is landed and its OpenFGA regression fixtures pass (003/006/009 not confirmable HIGH under the same-agent rules).
-- A few clean Mode-A runs across new repos (language/channel matrix) — the run-series Andrew gates v1.6.0 start on.
-- The OpenFGA run output is preserved read-only as the v1.6.0 regression fixture (BUGS.md, writeups, results logs, and the cited `internal/`/`pkg/` source).
+- The current release line is closed out to Andrew's satisfaction: as of 2026-07-19 the last tag on origin is `v1.5.8`, with 1.5.10 in-flight (untagged) and 1.5.11 (security) design-only. **Whether 1.5.10/1.5.11 ship before 1.6.0 starts is Andrew's sequencing call — this plan takes no position**; it requires only that the base is a deliberately chosen, tagged-or-named commit.
+- `1.6.0` branch cut from that base; base SHA recorded in the branch's first commit message.
+- The three coherence fixture inputs preserved read-only: the `repos/{chi,express,virtio}-1.5.8/quality/` manifests + rendered REQUIREMENTS.md (the C-1…C-7 evidence). The OpenFGA run fixtures per the 2026-05-24 plan remain the precision oracle inputs.
 
-Gate to Phase 1: v1.5.7 tag confirmed on origin; run-series clean; `1.6.0` branch cut fresh from the v1.5.7 tag (record base SHA).
+Gate to Phase 1 (and Phase 5): branch cut confirmed; fixture trees preserved; worker session launched with the minimal-prompt handoff pointing at the design doc, this plan, and workspace CLAUDE.md.
 
 ---
 
-## Phase 1 — Slice 1A: first-class NFR discovery (core classes)
+# Track 1 — Coherence → Validation
 
-Goal: QPB's Phase 1/2 derivation derives **security, reliability, performance** NFRs as first-class, testable REQs.
+## Phase 1 — Slice 1: spec organization & coherence (Feature C + F-1 slot)
 
-Work items (worker, via diagnosis→Claude Code lane):
-- Extend the REQ record schema (`schemas.md` + the manifests) with an `nfr_class` tag and **mandatory** `acceptance_criterion` + `verification_method` fields for NFR REQs. Confirm backward-compat with existing functional REQ records (functional REQs unchanged).
-- Extend the skill-derivation passes (Pass A/C in the skill-derivation pipeline) to derive NFR records for the core classes, each tracing to evidence (code / formal docs / exploration) the same way functional REQs do.
-- Encode the **grounding rule**: an NFR finding is confirmable only if it traces to a derived NFR and demonstrates a violation of that NFR's acceptance criterion in the audited tree; an advisory/CVE with no derived-NFR violation is `KNOWN-ISSUE`, not `BUG`.
-- Reconcile the categorization tier: confirm the current categorization implementation in code (the "Lever 6 categorization tier" withdraw/return history must be grounded in what's actually there) before extending it with `nfr_class`.
-- Gate enforcement: `quality_gate.py` FAILs an NFR REQ that lacks an acceptance criterion or verification method (the "aspirational NFR" anti-pattern).
+Goal: the rendered REQUIREMENTS.md becomes a contract-checked, coherent document; tool-contract REQs relocate; the coverage-and-gaps statement gets its Overview slot.
 
-Tests:
-- Gate test: NFR REQ missing acceptance criterion / verification method → FAIL; complete NFR REQ → PASS. Mutation-bite each.
-- Derivation fixture: a security-relevant code path (e.g. the OpenFGA contextual-tuple type restriction) yields a derived `REQ-SEC` with an acceptance criterion, so a finding can be tested against it.
+Work items (worker decomposes; Design §5 is the spec):
 
-Gate to Phase 2: core-class NFR derivation lands; gate validates the new fields dual-env; SKILL.md token ceiling respected (rules in references/phase prompts, not SKILL.md).
+- **RUN_CONTRACT split (Design §5.1):** artifact-layout invariants render to `quality/RUN_CONTRACT.md`; REQUIREMENTS.md contains zero REQs whose References point exclusively into `quality/`. Gate enforces both (presence there, absence here).
+- **Document architecture (Design §5.2):** the eight-part canonical shape (header with accurate stamp / Overview incl. F-1 gaps statement / actors & roles / functional sections user-facing→infrastructure, ≥2 REQs or justified / NFR sections slot (degrades gracefully until Track 2 lands) / cross-cutting concerns / use cases / traceability appendix). Phase E of `references/requirements_pipeline.md` becomes unconditional; E.5 ordering and E.6 renumber become enforced. `references/phase2_generation_guide.md` updated to carry the architecture.
+- **Render contract in `quality_gate.py` (Design §5.3):** the six mechanical checks, each landed with the AUDIT-table invariant-test pattern and mutation-bitten. Plus the F-1 check: Overview contains a non-empty coverage-and-gaps statement.
+- **Intent-form rule (Design §5.4):** prompt-level rule in the derivation passes + Phase 4 Council rubric item; no new mechanical check (judgment, not regex).
+- **Manifest-unchanged invariant:** for a fixed input, `requirements_manifest.json` is unchanged modulo the renumber map. Test pins it.
 
----
+Tests: mutation-bite every render-contract check (re-introduce each defect class; gate must FAIL); manifest-unchanged test; fixture re-render smoke test.
 
-## Phase 2 — Slice 1B: fresh-context requirements-grounded FP-audit
+Gate to Phase 2: all checks land dual-env green; SKILL.md token ceiling respected (architecture detail lives in references/, not SKILL.md).
 
-Goal: a QPB-spun fresh-context sub-agent pass that adversarially re-verifies each *confirmed* finding against the derived REQs — the productionized 090i shape.
+## Phase 2 — Slice 1 acceptance + Council
 
-Work items (worker, via diagnosis→Claude Code lane):
-- Add the FP-audit pass after Phase 3/4 triage, at/before Phase 5 finalization, as a fresh-context pass over the confirmed finding set (analogous to the existing Phase-6 A-13 hybrid / Phase-4 Council fresh-context auditors, but a precision gate on *findings*, not artifacts).
-- Implement the **Slice 1 rubric checks**: **reachability** (BUG-003 class), **applicability** (incl. CVE version-range — BUG-006 class), **source-of-truth** (located code defect vs advisory restatement → KNOWN-ISSUE — BUG-009 class), and **requirements-traceability** (violates a derived REQ — functional or NFR — or untethered). Security is highest-scrutiny: a HIGH security/auth-bypass finding needs a demonstrated reachable path + (if a CVE is cited) a verified version match, else downgrade/reclassify.
-- Enforce **independence**: the sub-agent receives only finding + cited source + relevant derived REQ + compact rubric — NOT the running skill, phase prompts, or writeup reasoning. Document the invocation (which runner/model, how context is sealed).
-- **Output**: per-finding verdict (CONFIRMED / DEMOTED / RECLASSIFIED-KNOWN-ISSUE / UNCERTAIN) with reasoning; the confirmed-bug set + precision metrics updated; the audit transcript preserved as a run artifact.
+- **Regeneration fixture (the coherence oracle):** re-render the chi, express, and virtio manifests through the new renderer. Acceptance: C-1…C-7 all absent — mechanically (contract checks pass on all three) and by judgment (focused readability review of the three rendered docs).
+- **Worker self-Council** (3 panelists, per Design §13): render-contract correctness incl. mutation coverage; regeneration-fixture fidelity against C-1…C-7; regression safety on manifest semantics. FIX-REQUIRED iterates in-branch before the review-request files.
 
-Tests:
-- Fixtures from the OpenFGA findings: BUG-003 (reachable guard) → DEMOTED; BUG-006 (no reachable path + CVE n/a) → DEMOTED/RECLASSIFIED; BUG-009 (advisory-only) → RECLASSIFIED-KNOWN-ISSUE. BUG-001/002/004 → CONFIRMED (no over-firing).
-- A non-security fixture (reachability or applicability FP in a functional/performance class) → DEMOTED, proving the audit is general.
+Gate to Phase 3: oracle satisfied; self-Council synthesis SHIP; readability review clean.
 
-Gate to Phase 3: FP-audit lands; fixtures pass; independence verified (the sub-agent demonstrably has no skill/writeup context); gate + bin/tests green dual-env.
+## Phase 3 — Slice 2: the validation interview (Feature D + F-2)
 
----
+Goal: the fitness-for-purpose interview, as a skill-protocol chat, with durable write-back.
 
-## Phase 3 — Slice 1 acceptance: the OpenFGA re-run
+Work items (Design §6 + §8 F-2 are the spec; delivery shape and evidence shape resolved per Design §0 #7):
 
-Goal: prove the feature on the motivating case end-to-end.
+- **Interview protocol reference** (`references/requirements_interview.md` or worker-chosen equivalent name in references/): the three-stage progressive protocol (narrative → sections/use-cases → per-REQ on demand), the five moves (confirm/correct/add/drop/defer), elicitation content mapped from the 34 catching questions + the four worked-example question classes, the Stage-1 gaps-statement playback. Entry modes carry over from the shipped walkthrough (guided / self-guided / cross-model).
+- **Write-back:** corrections/additions land in the manifest as REQ records; re-render through the Feature C renderer after the session. A re-derivation within the run must not silently discard an `operator-confirmation`-backed REQ.
+- **Evidence (F-2):** `source_type: operator-confirmation` + citation into the preserved transcript (transcript-as-citable-source; §5.4 machinery applies). `schemas.md` extended; gate validates the shape.
+- **Artifacts:** `quality/REQUIREMENTS_REVIEW.md` defect log (by Wiegers attribute + move); transcripts to `quality/review_sessions/<TIMESTAMP>-<topic>.md` behind an explicit operator save-gate.
+- **Supersession:** the interview replaces `REVIEW_REQUIREMENTS.md`/`REFINE_REQUIREMENTS.md` generation — no orphaned generation path remains; the playbook-end summary offers the interview, never auto-starts it.
 
-Work items:
-- Re-run QPB Mode-A against OpenFGA (re-clone v1.5.7-equivalent or use the preserved fixture tree) with NFR discovery + FP-audit active.
-- Confirm the acceptance oracle: **BUG-003 / BUG-006 / BUG-009 cannot stand as confirmed HIGH bugs** (demoted/reclassified by the audit and/or never confirmed because they violate no derived NFR), **and BUG-001 / BUG-002 / BUG-004 still surface**.
-- Record HIGH-severity precision against the defined bar (resolve the bar number — see design Open Questions — before this gate).
-- Preserve the run output + audit transcripts as the v1.6.0 acceptance evidence.
+Tests: scripted fixture session against the QPB self-derivation (test-double operator issues one confirm, one correct, one add) — manifest updated with correctly-shaped records, re-render passes the render contract, artifacts gate-validated. Mutation: a correction that never reaches the manifest fails the fixture. Sweep test: no remaining generator of the superseded walkthrough files.
 
-Gate to Phase 4: acceptance oracle satisfied; precision ≥ bar; no genuine finding suppressed.
+Gate to Phase 4: fixture green dual-env; schemas + gate green.
 
----
+## Phase 4 — Slice 2 acceptance + Council
 
-## Phase 4 — Council review (Slice 1 surface)
+- Re-run the **2026-05-02 worked example** (`Reviews/QPB_v1.6.x_Requirements_Review_Worked_Example_2026-05-02.md`) as a semi-scripted acceptance walkthrough through the new protocol.
+- **Worker self-Council:** manifest write-back correctness; interview-artifact gate compliance; supersession completeness.
 
-Goal: independent confirmation of the requirements-layer fix + the audit + the regression result.
-
-Work items:
-- Nested 3×3 Council (gpt-5.4 / gpt-5.3-codex / claude-sonnet-4.6, each spawning an inner panel), `cd ~/Documents/QPB` so reviewers read live source + the OpenFGA fixture, tee to `Reviews/v1.6.0_responses/`.
-- Review scope: (1) NFR derivation produces testable REQs with acceptance criteria; the gate enforces it. (2) The FP-audit runs fresh-context (independence verified, not writeup-fed) and is general, not security-only. (3) The grounding rule routes advisory-only findings to KNOWN-ISSUE. (4) The OpenFGA regression comes out right (003/006/009 not HIGH; 001/002/004 surface) without suppressing genuine findings.
-- Acceptance checks on the responses: real source reads (not handoff fabrication), three distinct inner verdicts per outer file, self-doubt-bias and suspicious-convergence flags per workspace CLAUDE.md.
-
-Gate to Phase 5: Council verdict CLOSED/Ship within 3 cycles (else HALT + recalibrate); no blocking findings.
+Gate: walkthrough produces stage-appropriate questions and durable corrections; self-Council SHIP. **Track 1 complete.**
 
 ---
 
-## Phase 5 — Slice 2: breadth + completeness
+# Track 2 — Precision (independent; parallelizable with Track 1)
 
-Goal: complete the NFR taxonomy and the FP-audit rubric.
+## Phase 5 — Slice 3: NFR discovery + FP-audit core (Features A + B)
 
-Work items:
-- Remaining NFR classes: usability, portability, maintainability, integration/interoperability — same first-class shape (acceptance criterion + verification method).
-- Full FP-audit rubric: add **design-intent** (BUG-007/008 class — documented/intentional choice), **compensation** (handled elsewhere — cache/retry/default/validation), **severity-justification** (claimed severity matches a demonstrated impact path).
-- Emit inspection/precision metrics per run.
-- Tests + a Council pass on the Slice 2 surface.
+Carried from the 2026-05-24 plan in substance; Design §3-§4 are the spec.
 
-Gate to Phase 6: full taxonomy + rubric land; metrics emitted; gate + bin/tests green; Council clean.
+- **Feature A:** `nfr_class` + mandatory `acceptance_criterion`/`verification_method` in `schemas.md` + manifests (backward-compatible; functional REQs unchanged); derivation of core classes (security, reliability, performance) with evidence tracing; the grounding rule (advisory/CVE with no derived-NFR violation → `KNOWN-ISSUE`); categorization-tier state confirmed in code before extending (incl. the B-13 reconcile note); gate FAILs aspirational NFRs (mutation-bitten). NFR sections render into the Feature C architecture (or the pre-C render if Track 2 lands first — the render slot degrades gracefully in both directions).
+- **Feature B:** the fresh-context FP-audit pass post-triage / pre-finalization; core rubric (reachability, applicability incl. CVE version-range, source-of-truth, requirements-traceability); security highest-scrutiny; verdicts CONFIRMED / DEMOTED / RECLASSIFIED-KNOWN-ISSUE / UNCERTAIN with preserved transcript; independence sealed and verified; the `confirmed-open (integration-harness-required)` disposition admissible only on FP-audit CONFIRM; new dispositions narrated via the 090v verdict-explanation framework.
 
----
+Tests: gate tests for NFR fields; derivation fixture (OpenFGA contextual-tuple restriction → derived REQ-SEC with acceptance criterion); FP-audit fixtures (BUG-003 → DEMOTED, BUG-006 → DEMOTED/RECLASSIFIED, BUG-009 → RECLASSIFIED-KNOWN-ISSUE, BUG-001/002/004 → CONFIRMED); one non-security demotion fixture (generality).
 
-## Phase 6 — Release v1.6.0
+Gate to Phase 6: fixtures green; independence verified (auditor demonstrably lacks skill/writeup context).
 
-Goal: tag and publish v1.6.0.
+## Phase 6 — Slice 3 acceptance: the OpenFGA re-run
 
-Work items:
-- Version stamps: `bin/benchmark_lib.py::RELEASE_VERSION` → `"1.6.0"`; SKILL.md `version:` stamps; the channel package version (pip + npm) → 1.6.0.
-- README + CHANGELOG: v1.6.0 entry framing it as the NFR-discovery + requirements-grounded FP-audit release, with the OpenFGA precision result as the headline.
-- Decide the 090j disposition (design Open Question): retire the same-agent triage rules, retain them as a cheap first pass, or fold them into the FP-audit rubric — and reflect it in the release notes.
-- Final whole-surface Council review.
-- Tag `v1.6.0` on the `1.6.0` branch; publish to PyPI + npm; the four-ref dance; verify `git ls-remote origin v1.6.0` and the published package versions before claiming shipped.
+- Re-run Mode-A against the preserved OpenFGA fixture tree with NFR discovery + FP-audit active. **⚠ Resolve OD-5 (the HIGH-precision bar) before this gate.**
+- Acceptance: BUG-003/006/009 cannot stand as confirmed HIGH; BUG-001/002/004 still surface; precision ≥ bar; no genuine finding suppressed. Run output + audit transcripts preserved as acceptance evidence.
 
-Gate to release: tag confirmed on origin; packages live on both channels (verified, not assumed); Council verdict Ship; no blocking findings.
+## Phase 7 — Slice 4 breadth + precision Council
+
+- Remaining NFR classes (usability, portability, maintainability, interop); full FP-audit rubric (design-intent, compensation, severity-justification); per-run precision metrics.
+- **Nested 3×3 Council** (per Design §13 item 4): NFR derivation testability, FP-audit independence (the fabrication-tell check), grounding rule, OpenFGA regression. Standard acceptance checks on responses (real source reads, three inner verdicts per outer file, convergence flags).
+
+Gate: Council Ship within 3 cycles or HALT + recalibrate. **Track 2 complete.**
 
 ---
 
-## Slice 3 — QI-loop closure (deferred, depends on calibration infra)
+## Phase 8 — Release v1.6.0 (both tracks complete)
 
-Not part of the v1.6.0 ship. FP-audit + NFR-derivation defect patterns feed calibration cycles (Phase 1/2 prompt tuning). Shares machinery with the Requirements Review proposal's Slice 3; sequence after the regression-replay/calibration infrastructure is operational. Tracked as a later v1.6.x item.
-
----
-
-## Out of scope (defer)
-
-- The interactive Requirements Review operator UX (the 8-dimension session) — repositioned later v1.6.x point release; it builds on v1.6.0's NFR discovery.
-- Autonomous/continuous improvement scheduling (v1.7+).
-- Control charts / SPC limits (needs ~20-30 stable observations).
-- New levers, benchmark targets, or runners.
+- Version stamps from the single version source (SKILL.md frontmatter per v1.5.10 consolidation); channel package versions.
+- README + CHANGELOG: v1.6.0 framed as the requirements release — coherent contract-checked specs, the fitness-for-purpose validation interview, NFR grounding + FP-audit precision, with the regeneration + OpenFGA results as headlines.
+- **⚠ Resolve OD-8 (090j disposition)** and reflect it in the release notes.
+- Whole-surface umbrella Council; then the standard close-out sequence per `DEVELOPMENT_PROCESS.md` (Andrew tags; scripted publish gates; verify-before-claiming on every remote ref).
 
 ---
 
-## Risks and Mitigations
+## Documented seam (from resolved OD-10)
 
-- **Risk: NFR derivation over-fires — asserts aspirational NFRs with weak acceptance criteria, inflating REQ counts.** Mitigation: the gate FAILs an NFR REQ lacking a concrete acceptance criterion + verification method; the OpenFGA re-run guards against recall collapse.
-- **Risk: the FP-audit is too aggressive and demotes genuine findings (BUG-001/002/004 class).** Mitigation: the acceptance oracle requires the genuine findings to still surface; tune the rubric toward "show the analysis" not "there must be no defect." Self-halt + recalibrate if legit findings are suppressed.
-- **Risk: the audit sub-agent isn't actually fresh-context (leaks the writeup reasoning) and inherits the producing bias.** Mitigation: independence is a Phase 2 gate item — verify the sub-agent has no skill/phase-prompt/writeup context; a writeup-fed audit is a fabrication tell analogous to the cwd-sandbox Council failure.
-- **Risk: cost/latency of a fresh-context pass over every confirmed finding.** Mitigation: scope decision in the design Open Questions (all findings vs HIGH/MED only, like 090j); start narrow, widen if cheap.
-- **Risk: the categorization-tier reconciliation assumes a withdraw/return state that doesn't match code.** Mitigation: Phase 1 confirms the actual implementation in source before extending it.
+The code-path Phase A–E pipeline (`references/requirements_pipeline.md`) and the skill-derivation four-pass (`bin/skill_derivation/`) both produce REQs under the `schemas.md` REQ record but via different machinery. v1.6.0 does **not** unify them. Implementers touching either side must apply Feature A's schema extension and Feature C's render contract to **both** producers' outputs (the render contract checks the rendered document, so it covers both mechanically; the derivation-prompt changes must be applied per-pipeline). Unification is deferred work with no assigned version.
 
----
----
+## Out of scope (per Design §11)
 
-# Historical context (superseded — preserved for lineage)
+Interview Dimensions 2/5/8 + QI-loop closure; Feature E (B-4 first point-release candidate); mechanical F-1 enumerators; F-3 cross-run diff; SPC (v1.7.0 — docs stale, need rewrite); skill-surface routing; bug-report PR automation; Phase-6 structural enforcement.
 
-*The plan below is the original 2026-04-26 "single lever pull" implementation plan. It is no longer canonical; v1.6.0's scope is the NFR feature above. The lever-pull workflow goals were largely absorbed by v1.5.5/v1.5.6 (see the Design doc's superseded-framing section). Kept for reference.*
+## Risks and mitigations
 
-## (Superseded) Operating Principles
-
-- v1.6.0 is **one lever pull, no more** — exactly one focused change to one of Levers 1-5's home files; multi-lever bundles defeat recall-delta attribution.
-- The deliverable is the workflow, not the change; v1.6.0 establishes how v1.6.x releases work.
-- The release is governed by the v1.5.4 apparatus (`bin/regression_replay.py` produces the justifying cell.json files).
-- Cross-benchmark regression check is mandatory (no recall harm beyond σ on untargeted benchmarks).
-
-## (Superseded) Phases 0–6
-
-- **Phase 0** — v1.5.4 stabilization confirmation (tag on origin, regression_replay end-to-end, Lever_Calibration_Log with 3+ cycles, N≥5 cell, cross-version harness re-queue B-15).
-- **Phase 1** — Select the lever pull (promote the best-evidenced calibration cycle; document in `QPB_v1.6.0_Selection_Rationale.md`).
-- **Phase 2** — Pull the lever (focused commit on the lever's home file with calibration-cycle + cell.json references).
-- **Phase 3** — Validate via regression replay (recall improvement >2σ; cross-benchmark regression check; cell.json under `metrics/regression_replay/`).
-- **Phase 4** — Document the release template (`QPB_v1.6.x_Release_Template.md`; reference from IMPROVEMENT_LOOP.md).
-- **Phase 5** — IMPROVEMENT_LOOP.md status update (mark Stage C operational; TTP review).
-- **Phase 6** — Release (RELEASE_VERSION → 1.6.0; tag + push; verify via git ls-remote).
-
-Council scope was 4 rounds (lever change in isolation; regression measurement; template + loop update; whole-release). Out-of-scope deferred: workflow automation, multi-lever releases, new benchmark targets, hard cadence requirements. Risk register covered misdiagnosed lever pulls (corrective v1.6.0.1), too-lax cross-benchmark check (tighten 2σ→1σ), over-rigid template, wrong cadence expectation, and fast diminishing returns (a feature, not a bug).
+- **Render contract over-fires on exotic-but-legitimate documents** (a repo where a singleton section is right, or 120-char titles are natural). Mitigation: singleton-justification escape hatch is part of the contract; title cap is a cap, not a style enforcer; regeneration fixture spans three different repo shapes.
+- **Interview scope creep** (the protocol grows toward the full 8-dimension proposal mid-build). Mitigation: the MVP boundary is explicit in Design §6 ("Deferred from the proposal"); the self-Council's supersession/compliance charters check against it.
+- **Write-back corrupts the manifest** (an operator correction lands mis-shaped). Mitigation: gate validates all post-session records; the mutation fixture pins the write-back path; re-render must pass the render contract after every session.
+- **FP-audit too aggressive / not actually fresh-context / cost** — carried unchanged from the 2026-05-24 plan (acceptance oracle protects recall; independence is a phase-gate item; scope starts at HIGH/MED if cost bites).
+- **Tracks collide at the render slot** (Track 2's NFR sections vs Track 1's architecture landing in either order). Mitigation: the NFR render slot is specified to degrade gracefully in both directions (Phase 5 work item); whichever lands second runs the other's fixture suite before merging.
