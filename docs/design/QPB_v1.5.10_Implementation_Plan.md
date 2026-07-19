@@ -158,21 +158,23 @@ Cleanup first (lowest risk, shrinks the surface), then the trim (mechanical, pat
 | 6 | Token-ceiling ratchet (32K → ~12K) | C | DONE |
 | 7 | SKILL.md relocation to root + rewire | D | DONE |
 | 8 | Package build ships real files | D | DONE |
-| **Close-out (remaining):** | | | |
-| 9 | arunner × QPB integration + regression test (arunner-native; run_playbook retired) | E / close-out 2 | PENDING — needs follow-up worker instruction (FR-61–65 done) |
-| 10 | Land worker fixes 054 (publish.yml) / 055 (lineage) / 056 (Clojure gate) | close-out 3 | PENDING |
-| 11 | Verify Clojure fix on a real Clojure project | close-out 4 | PENDING — operator-run, needs toolchain |
-| 12 | Version bump 1.5.8→1.5.10 + single source of truth | close-out 5 | PENDING |
-| 13 | CHANGELOG entry | close-out 6 | PENDING |
-| 14 | CI/CD finalize (publish.yml on main + registration + layered test plan) | close-out 7 | PENDING |
-| 15 | README Quick-Start real token numbers | close-out 8 | PENDING — blocked on item 9's token reporting |
-| 16 | Umbrella Council (Self-Review) | close-out 9 | PENDING |
-| 17 | Tag v1.5.10 + push + verify (`git ls-remote`) | close-out 10 | PENDING |
-| 18 | awesome-copilot re-submission | close-out 11 | PENDING |
-| 19 | Update CLAUDE.md with checkable mechanical gates | close-out 12 | PENDING — Council-vetted; awaits operator go |
-| 20 | Source terminology cleanup (rename replay/cell/recall in source) | close-out 13 | PENDING — worker lane; low priority; NOT cleaned (still in code + artifacts) |
-| 21 | Re-pin 2 doc-drift guards broken by README reflow (count 3→5; NOT pre-existing) | close-out 14 | PENDING — worker lane |
+| **Close-out — status refreshed 2026-06-21 (post vaelii validation; cross-checked vs git/queue):** | | | |
+| 9 | arunner × QPB integration + regression test (arunner-native; run_playbook retired) | E / close-out 2 | **RUN DONE (qualitative)** — 053 ran: phases ran, gates passed, bugs found on all 3 repos; tokens NULL (no FR-65 emission). The *run itself* was never Council-reviewed → folds into item 16. |
+| 10 | Land worker fixes 054 (publish.yml) / 055 (lineage) / 056 (Clojure gate) | close-out 3 | **DONE** — 056 `518270c`; 054 `ed21e63` (⚠ message says "(Council-passed)" but NO `reviews/054*` artifact exists — unverified; see item 14); 055 landed. |
+| 11 | Verify Clojure fix on a real Clojure project | close-out 4 | **DONE 2026-06-21** — vaelii: clj detected, real `quality/test_functional.clj` (10 deftest / 19 assertions), live `lein` RED→GREEN, gate PASSED, fresh-auditor verified. |
+| 12 | Version bump 1.5.8→1.5.10 + single source of truth | close-out 5 | **DONE** — `e742fb3` (SKILL.md frontmatter = single source; stamp/read everywhere + consistency guard). |
+| 13 | CHANGELOG entry | close-out 6 | **DONE (this session)** — `[1.5.10]` entry added above `[1.5.8]`; awaiting commit. |
+| 14 | CI/CD finalize (publish.yml on main + registration + layered test plan) | close-out 7 | PENDING — `publish.yml` on branch (`ed21e63`); needs origin/main + operator trusted-publisher registration + `release` env + layered test plan. **Resolve the `ed21e63` "(Council-passed)" wording (no review artifact) — review publish.yml in item 16 or drop the claim.** |
+| 15 | README Quick-Start real token numbers | close-out 8 | **DEFERRED (verified)** — 053 reported `input/output: null`; README placeholder retained, do NOT fabricate. Revisit when a run emits real FR-65 tokens. |
+| 16 | Umbrella Council (Self-Review) | close-out 9 | PENDING — gates the tag; MUST include a review of the *actual* 053 run (only scaffolding was reviewed) + publish.yml (item 14). |
+| 17 | Tag v1.5.10 + push + verify (`git ls-remote`) | close-out 10 | PENDING — push 059 (`6a06530`) first; tag+push+`ls-remote` verify before any "shipped" claim (2026-04-26 lesson). |
+| 18 | awesome-copilot re-submission | close-out 11 | PENDING — post-release. |
+| 19 | Update CLAUDE.md with checkable mechanical gates | close-out 12 | **DONE** — gates live in workspace `AI-Driven Development/AGENTS.md` ("Mechanical honesty + verification gates (Cowork)"). |
+| 20 | Source terminology cleanup (rename replay/cell/recall in source) | close-out 13 | DEFERRED (optional, low priority) — NOT cleaned; still in `quality_gate.py` / `bin/regression_replay.py` + emitted artifacts. |
+| 21 | Re-pin doc-drift guards broken by README reflow (count 3→5; the +2 are NOT pre-existing) | close-out 14 | PENDING — worker instr 060 filed (this session). **Ship gate: full `bin/tests/` must be TRULY green before tag.** |
 | 22 | Language disclosure + `--language` override (Clojure/multi-language close-out; **language-only** scope — skill-surface split out to 1.6.x) | close-out 15 | **DONE (worker, instr 058, local-only — not pushed)** — D1 plural detector + byte-identical delegate; D2 disclosure (stdout block + conditional INDEX, lockstep schemas/validator); D3 `--language` threaded `main→check_repo→check_test_file_extension` (+ arunner `LANGUAGE` var + run_playbook forward); D4 archive-on-switch w/ both-branch error-gate; D5 ≥-inclusive threshold; 056 clj deep-check VERIFIED not rebuilt. 3-panel self-Council unanimous SHIP (`reviews/058_self_council/`). Suite 2443 ×3 stable, Py 3.14.6, only the 5 known README baseline failures. Disclosure venue: real-repo secbench2 (ts+py) + labeled fixture. |
+| 23 | Skill version rendered in the run-start attribution banner | close-out 16 | **DONE** — instr 059 `6a06530` (renders `get_version()` into `print_attribution_banner()`; banner-pin tests made version-aware). |
+| — | Language-only re-Council + 1.6.x `--surface` split-out | (supporting 22) | **DONE** — language-only re-Council unanimous SHIP-WITH-FIXES (`Reviews/QPB_v1.5.10_Language_Disclosure_ReCouncil/synthesis.md`); skill-surface routing split to `docs/design/QPB_v1.6.x_Skill_Surface_Routing_Proposal.md`. |
 
 ---
 

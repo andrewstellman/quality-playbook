@@ -5,6 +5,31 @@ All notable changes to the Quality Playbook will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.10] — 2026-06-22
+
+Repo-hygiene + multi-language correctness release. The canonical `SKILL.md` and `references/` move back to the repo root as the single source of truth (in-tree skill locations become symlinks), `SKILL.md` is trimmed with per-phase detail lazy-loaded from `references/*.md`, and committed run-output + orphaned partial copies are removed from tracking. On top of the hygiene base: the quality gate now detects Clojure (and any dominant language) correctly, multi-language repos are disclosed with an opt-in `--language` override, the skill version is consolidated to one source and shown in the run banner, and a CI/CD trusted-publishing pipeline is staged. A clean base for the upcoming security work.
+
+### Repo hygiene + SKILL.md relocation
+
+- Canonical `SKILL.md` + `references/` relocated to the repo root as the single source of truth; in-tree plugin skill locations are now symlinks back to root; the pip/npm channels stage real files (symlinks dereferenced).
+- `SKILL.md` trimmed; per-phase detail lazy-loaded from `references/*.md`; reference-resolves validator + token-ceiling ratchet added.
+- Committed run-output (`quality/`, except the carved-out `quality/audits/`), top-level `previous_runs/`, `spike/`, and orphaned partial copies removed from tracking (no history rewrite).
+
+### Multi-language correctness
+
+- **Clojure quality-gate fix** — language detection switched from first-match-over-an-ordered-list to **dominant-language-by-count** (depth ≥ 5 walk); `clj`/`cljc`/`cljs` added to the language tables and to the functional-test substance ("no hollow test") deep-check. Validated end-to-end on a real Clojure project (clj detected, real `.clj` test, live `lein` red→green, gate passed).
+- **Language disclosure + `--language` override** — when multiple testable languages are detected, the gate discloses which was detected, which was tested, and which testable ones were skipped; an opt-in `--language` override archives `quality/` and re-runs against another testable language. Markdown/docs are disclosed as context but are never test targets. (Skill-surface routing was split to a future 1.6.x proposal.)
+
+### Versioning + banner
+
+- **Single version source** — `SKILL.md` frontmatter is now the one canonical version; every other surface (`pyproject.toml`, `package.json`, `plugin.json`, README, CLI) reads from it or is stamped from it, with a consistency guard.
+- The running skill version is rendered in the run-start attribution banner.
+
+### CI/CD + orchestration
+
+- `publish.yml` — PyPI + npm publishing via OIDC trusted publishing on a published GitHub Release (no stored tokens). One-time trusted-publisher setup + layered test plan in `docs/RELEASE_PUBLISHING.md`.
+- arunner × QPB native integration + regression test (arunner drives QPB's phases as steps; `run_playbook` retired).
+
 ## [1.5.8] — 2026-06-03
 
 Windows ship-readiness + harness UX + methodology hardening. Adds Windows as a first-class supported platform for both Mode A (claude) and Mode B (codex via run_playbook), closes the cp1252-on-Windows hazard surface at all three sites, formalizes the Worker self-Council protocol as load-bearing methodology, graduates the AUDIT-table invariant test pattern to standard mechanism, and lands the v2 blind CVE benchmark methodology under `Security Research/CVE_BENCHMARK_METHODOLOGY_v2.md`. Next is v1.6.0 (Requirements Review — feature-complete).

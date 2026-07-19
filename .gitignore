@@ -125,3 +125,5 @@ quality/*
 .github/skills/quality_gate/
 metrics/classifier_verification.log
 metrics/v1.5.10_recall_baseline/
+# Integration-regression run artifacts (full quality/ dumps; not tracked — v1.5.10 hygiene)
+metrics/*integration_regression*/
