@@ -6927,6 +6927,20 @@ def _render_run_predates_contract(q, skill_version):
     return version < _RENDER_CONTRACT_MIN_VERSION, version
 
 
+def _render_blank_fences(text):
+    """Blank fenced code blocks, preserving length so offsets stay valid.
+
+    Structure detection must run over this, not the raw text: a ``##`` line
+    inside a code fence is quoted material, not a heading. Counting it lets
+    four lines inside one fence satisfy the entire §5.2 mandatory-part list
+    AND synthesize a functional section, so a completely flat requirement
+    list scores clean.
+    """
+    return _RENDER_FENCE_RE.sub(
+        lambda m: re.sub(r"[^\n]", " ", m.group(0)), text
+    )
+
+
 def _render_scan_internals(text):
     """Return human-readable descriptions of derivation internals in `text`.
 
@@ -6997,9 +7011,13 @@ def _render_classify_sections(text, level2):
 
 
 def _render_req_headings(text):
-    """Return [(req_id, number:int, title, start_offset)] in document order."""
+    """Return [(req_id, number:int, title, start_offset)] in document order.
+
+    Runs over fence-blanked text so a REQ heading quoted inside a code
+    block is not mistaken for a real one.
+    """
     out = []
-    for m in _RENDER_REQ_HEADING_RE.finditer(text):
+    for m in _RENDER_REQ_HEADING_RE.finditer(_render_blank_fences(text)):
         out.append((m.group(1), int(m.group(2)), m.group(3).strip(), m.start()))
     return out
 
@@ -7184,7 +7202,12 @@ def check_render_contract(repo_dir, q, skill_version=None):
                     )
 
     # -- Check 3 (C-3, C-4): required parts + section discipline. ----------
-    level2 = [(m.group(1).strip(), m.start()) for m in _RENDER_LEVEL2_RE.finditer(text)]
+    # Fence-blanked: a `##` line inside a code fence is quoted material.
+    structure_text = _render_blank_fences(text)
+    level2 = [
+        (m.group(1).strip(), m.start())
+        for m in _RENDER_LEVEL2_RE.finditer(structure_text)
+    ]
     has_overview = any(
         re.match(r"^(project\s+)?overview\b", h, re.IGNORECASE) for h, _ in level2
     )
@@ -7217,7 +7240,7 @@ def check_render_contract(repo_dir, q, skill_version=None):
                 "makes it mandatory on every run (v1.6.0 Design §5.2).",
             )
 
-    functional = _render_classify_sections(text, level2)
+    functional = _render_classify_sections(structure_text, level2)
 
     # A document that HAS requirements but no functional section at all has
     # opted out of the entire section discipline below. That is a FAIL in
@@ -7233,7 +7256,7 @@ def check_render_contract(repo_dir, q, skill_version=None):
             "(v1.6.0 Design §5.2 item 4).",
         )
     # Count REQs per functional section by document offset.
-    bounds = [off for _h, off in level2] + [len(text)]
+    bounds = [off for _h, off in level2] + [len(structure_text)]
     section_req_counts = {}
     section_intro_ok = {}
     for h, off in functional:
@@ -7273,7 +7296,7 @@ def check_render_contract(repo_dir, q, skill_version=None):
             for h in singletons:
                 idx = [x for x, _o in level2].index(h)
                 off = level2[idx][1]
-                body = text[off: bounds[idx + 1]]
+                body = structure_text[off: bounds[idx + 1]]
                 # Search only the intro zone (heading -> first REQ), not the
                 # whole section: otherwise a REQ title or condition of
                 # satisfaction containing "only requirement" silently
@@ -7384,7 +7407,7 @@ def check_render_contract(repo_dir, q, skill_version=None):
     # Scoped to the Overview, not the whole document: a stray "not covered"
     # in a traceability appendix is not a coverage disclosure. §8 also
     # requires the statement be non-empty, so a bare heading does not pass.
-    overview_body = _render_overview_body(text, level2)
+    overview_body = _render_overview_body(structure_text, level2)
     gaps_match = re.search(
         r"(coverage\s+and\s+(known\s+)?gaps|known\s+gaps|not\s+covered|"
         r"did\s+not\s+cover|out\s+of\s+reach|deliberately\s+(did\s+not|"

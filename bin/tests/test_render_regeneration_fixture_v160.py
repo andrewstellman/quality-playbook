@@ -463,30 +463,44 @@ class ManifestUnchangedInvariantTests(unittest.TestCase):
                         "render is a presentation of it.",
                     )
 
-    def test_manifest_sections_match_the_rendered_sections(self):
-        """Same reasoning for functional_section — kills the 'flatten' mutation."""
+    def test_each_req_renders_under_the_section_its_record_names(self):
+        """Per-record, not per-set.
+
+        Comparing only the *set* of section names lets two records swap
+        labels undetected — the same set-vs-per-record weakness that
+        Mutation B exposed in the references check, which is why this
+        assertion walks each REQ to the heading it actually renders under.
+        (Self-Council round 3, Mutation E3.)
+        """
         for target in TARGETS:
-            records = _load_json(target, "requirements_manifest.json")["records"]
-            sections = {
-                _norm(r["functional_section"])
-                for r in records
-                if r.get("functional_section")
+            records = {
+                r["id"]: r
+                for r in _load_json(target, "requirements_manifest.json")["records"]
             }
-            rendered = _load(target, "REQUIREMENTS.md") + _load(
-                target, "RUN_CONTRACT.md"
-            )
-            headings = {
-                _norm(m.group(1))
-                for m in re.finditer(r"^##\s+(.+)$", rendered, re.MULTILINE)
-            }
-            missing = sorted(s for s in sections if s not in headings)
-            with self.subTest(target=target):
-                self.assertEqual(
-                    missing, [],
-                    f"{target}: manifest names functional_section(s) that "
-                    f"appear as no rendered heading: {missing}. The manifest "
-                    "and the render must agree on the section structure.",
-                )
+            for doc in ("REQUIREMENTS.md", "RUN_CONTRACT.md"):
+                rendered = _load(target, doc)
+                # Walk the document, tracking the most recent level-2
+                # heading, and check each REQ against its record.
+                current = None
+                for line in rendered.splitlines():
+                    heading = re.match(r"^##\s+(.+)$", line)
+                    if heading:
+                        current = _norm(heading.group(1))
+                        continue
+                    req = re.match(r"^###\s+(REQ-\d+)\s*:", line)
+                    if not req:
+                        continue
+                    rec = records.get(req.group(1))
+                    if rec is None or not rec.get("functional_section"):
+                        continue
+                    with self.subTest(target=target, req=req.group(1)):
+                        self.assertEqual(
+                            _norm(rec["functional_section"]), current,
+                            f"{target}: {req.group(1)} renders under "
+                            f"{current!r} but its record names "
+                            f"{rec['functional_section']!r}. The manifest is "
+                            "the source of truth; the render presents it.",
+                        )
 
     def test_rendered_ids_match_the_manifest_ids(self):
         """The manifest and both renderings must agree on every identifier."""
