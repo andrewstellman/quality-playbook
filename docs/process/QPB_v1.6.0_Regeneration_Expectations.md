@@ -26,6 +26,26 @@ column. A row that still reads like the "current text" column means the
 prompt-level rule did not take, which is a finding about the rule — not an
 invitation to edit the document.
 
+## Provenance of the "expected resolved form" column
+
+Three kinds of claim appear below, and they are not equally strong:
+
+- **Council-supplied** — the fix the readability Council wrote (sonnet supplied
+  most directly). Carries the Council's judgment, not a source check.
+- **Source-verified** — checked against the target's actual code, cited by
+  `file:line`. Marked as such inline.
+- **Open question** — where the intended contract is a judgment about intent
+  rather than a fact recoverable from source, the expectation says so and routes
+  it to the validation interview instead of guessing.
+
+*The first draft of this file asserted two code facts it had not checked —
+that express's JSONP guard rejects chains, and that virtio clamps oversize
+queues. Both were wrong: the guard sanitizes and permits member access, and the
+resize path rejects with `-E2BIG`. Corrected against source before this file was
+used. That is the same fabrication class the instruction-001 self-Council caught
+as a P0 in virtio's coverage statement, and it is why the three-way distinction
+above is now explicit rather than implied.*
+
 ## Why these five
 
 All nine readability-Council panelists independently flagged this defect class,
@@ -79,10 +99,15 @@ escape hatch in specification-shaped clothing.
 > `res.send` preserves an explicitly-set charset and does not rewrite it to
 > utf-8.
 
-Note this commits to the behavior the implementation column already documents
-("string `send` rewrites charset to utf-8 via `setCharset`; Buffer `send`
-preserves it"). The requirement should assert the intended contract; if
-preserving-vs-rewriting is itself the defect, that belongs in BUGS.md.
+*Source-verified against `repos/express-1.5.8/lib/response.js`.* The `case
+'string'` branch (`:135`) rewrites the charset via `setCharset(type, 'utf-8')`
+(`:140`); the Buffer branch does not call `setCharset` at all, so an
+explicitly-set charset survives. The fixture's own implementation column says
+the same thing, and the source agrees with it.
+
+The requirement should assert the intended contract; if preserving-vs-rewriting
+is itself the defect rather than the contract, that belongs in BUGS.md and the
+requirement still states one behavior.
 
 ---
 
@@ -99,15 +124,30 @@ behavior pass, and "safe, well-defined grammar" is never actually stated — the
 requirement names a grammar it does not define, so even the non-disjunctive
 half is unverifiable.
 
-**Expected resolved form** (Council: "state the callback grammar as prose"):
+**Expected resolved form** (Council: "state the callback grammar as prose").
 
-> Callback names match `[A-Za-z_$][A-Za-z0-9_$]*` — a single identifier, no
-> member access, no subscripting, no whitespace. A callback name that does not
-> match is rejected and the response falls back to `res.json`.
-> `X-Content-Type-Options: nosniff` is set on every jsonp response.
+*Source-verified against `repos/express-1.5.8/lib/response.js:281-300`.* The guard
+does **not** reject: it **sanitizes in place**, stripping every character outside
+`[^\[\]\w$.]` (`response.js:286`), then interpolates the survivor into a
+`typeof …=== 'function' && …(…)` wrapper (`:300`). The permitted set therefore
+*includes* `.`, `[` and `]` — member access and subscripting are allowed by
+design, which is exactly why the Council could not tell whether chains are
+"rejected or proven safe".
 
-The grammar above is the one the code enforces; the expectation is that the
-regenerated requirement *states* it rather than gesturing at it.
+So the resolved requirement states the sanitize behavior, not a rejection:
+
+> `res.jsonp` sanitizes the callback name by removing every character outside
+> `[A-Za-z0-9_$.\[\]]` and emits the sanitized name; it does not reject.
+> `X-Content-Type-Options: nosniff` and `Content-Type: text/javascript` are set
+> on every jsonp response, and the body is prefixed with `/**/` as the
+> Rosetta-Flash mitigation.
+
+**Open question for the operator, not for the derivation to invent:** whether
+permitting member-access chains is the *intended* contract or a latent defect is
+a judgment about intent, not a fact in the source. The requirement should state
+what the system is required to do; if the answer is "chains should be rejected",
+that is an interview correction and a BUG, not something the derivation can
+infer.
 
 ---
 
@@ -149,15 +189,30 @@ requirement whose truth depends on a document nobody has located.
 opposite behaviors with different failure modes for the caller; two drivers
 could do opposite things and both pass.
 
-**Expected resolved form** (Council: "choose reject-or-clamp"):
+**Expected resolved form** (Council: "choose reject-or-clamp").
 
-> The virtqueue-creation path clamps a requested size larger than the
-> device-advertised `queue_size`/`num_max` down to that maximum, and does not
-> fail the creation.
+*Source-verified against `repos/virtio-1.5.8/drivers/virtio/virtio_ring.c`.* The
+answer is **reject**, and the requirement additionally conflates two different
+conditions:
 
-Clamping is what the code does; the expectation is that the requirement says so
-rather than offering the reader a choice. If a future reading shows it rejects,
-the expected form flips — the point is that exactly one is stated.
+- `virtqueue_resize` **rejects** with `-E2BIG` when `num > vq->vq.num_max`
+  (`virtio_ring.c:3342-3343`). That is the num_max condition the REQ names.
+- The halving loop in the creation path (`num /= 2`, gated on `may_reduce_num`,
+  `virtio_ring.c:1262-1270`) responds to **allocation pressure** — a ring larger
+  than `PAGE_SIZE` that will not allocate — and has nothing to do with the
+  device-advertised maximum. This is almost certainly the "clamps" the REQ has
+  in mind, and it answers a different question.
+
+> Requesting a virtqueue larger than the device-advertised `num_max` is
+> rejected with `-E2BIG` (`virtio_ring.c:3342`). Separately, when a ring of the
+> requested size cannot be allocated, the creation path halves the size until
+> allocation succeeds, but only when the caller passes `may_reduce_num`
+> (`virtio_ring.c:1262-1270`); with `may_reduce_num` false it returns `-ENOMEM`
+> rather than silently reducing.
+
+Splitting these into two conditions of satisfaction is part of the expectation:
+the current single clause is unverifiable not only because of the disjunction
+but because the two halves answer different questions.
 
 ---
 
