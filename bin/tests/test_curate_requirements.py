@@ -24,11 +24,6 @@ def _write_jsonl(path: Path, records: list[dict]) -> None:
             fh.write(json.dumps(r) + "\n")
 
 
-def _write_sections(path: Path, sections: list[dict]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps({"sections": sections}), encoding="utf-8")
-
-
 class JaccardClusteringTests(unittest.TestCase):
     def test_tokenize_drops_stop_words(self) -> None:
         self.assertEqual(
@@ -70,7 +65,6 @@ class CurationFlowTests(unittest.TestCase):
         with TemporaryDirectory() as tmp_str:
             tmp = Path(tmp_str)
             formal = tmp / "pass_c_formal.jsonl"
-            sections = tmp / "pass_a_sections.json"
             # 50 unique vocabulary roots so each (section_idx, j) has
             # a distinct token set after stop-word removal.
             roots = [
@@ -85,12 +79,7 @@ class CurationFlowTests(unittest.TestCase):
                 "umbra", "vellum", "weald", "xenon",
             ]
             recs = []
-            section_records = []
             for s in range(50):
-                section_records.append({
-                    "section_idx": s, "document": "SKILL.md",
-                    "heading": f"Section {s}",
-                })
                 root = roots[s]
                 # j=0 and j=1 use disjoint vocabulary so the Jaccard
                 # dedup doesn't cluster them.
@@ -112,25 +101,16 @@ class CurationFlowTests(unittest.TestCase):
                         "tier": 1,
                     })
             _write_jsonl(formal, recs)
-            _write_sections(sections, section_records)
-            cfg = CurateConfig(
-                formal_path=formal,
-                sections_path=sections,
-                output_path=tmp / "REQUIREMENTS.md",
-            )
+            cfg = CurateConfig(formal_path=formal)
             result = curate(cfg)
             self.assertEqual(result["input_accepted"], 100)
             self.assertGreaterEqual(result["total_requirements"], 80)
             self.assertLessEqual(result["total_requirements"], 110)
-            output = (tmp / "REQUIREMENTS.md").read_text(encoding="utf-8")
-            self.assertIn("# QPB v1.5.3 — REQUIREMENTS (curated bootstrap)", output)
-            self.assertIn("Section 0", output)
 
     def test_jaccard_dedup_collapses_near_duplicates(self) -> None:
         with TemporaryDirectory() as tmp_str:
             tmp = Path(tmp_str)
             formal = tmp / "pass_c_formal.jsonl"
-            sections = tmp / "pass_a_sections.json"
             # 10 REQs in section 0 — three near-duplicate pairs +
             # four unique. Jaccard at 0.6 should cluster 3 pairs into
             # 3 representatives + 4 unique = 7 distinct REQs.
@@ -159,14 +139,8 @@ class CurationFlowTests(unittest.TestCase):
                  "disposition": "accepted",
                  "acceptance_criteria": "different beta concept entirely"},
             ])
-            _write_sections(sections, [
-                {"section_idx": 0, "document": "SKILL.md",
-                 "heading": "Findings"},
-            ])
             cfg = CurateConfig(
                 formal_path=formal,
-                sections_path=sections,
-                output_path=tmp / "REQUIREMENTS.md",
                 target_min=1, target_max=20,  # don't iterate
                 initial_k=20,  # keep all post-dedup
             )
