@@ -39,9 +39,14 @@ rather than edited.
 
 ## Commits made
 
-All local on `1.6.0`. **Never pushed.** `git log origin/1.6.0..HEAD` = 13, of which
-12 are mine; the 13th is `39cc939` (the orchestrator's instruction-file commit),
-which was already ahead of origin at session start.
+All local on `1.6.0`. **Never pushed.** Final state: `git log origin/1.6.0..HEAD`
+= **14**, of which **13 are mine** (`71b1a81` … `9ca1029`); the 14th is `39cc939`,
+the orchestrator's instruction-file commit, already ahead of origin at session
+start.
+
+The table below lists 12 because it was written before the last two landed — the
+tracked-Council-copy commit `8db8af3` and `9ca1029`, the commit that adds this
+file. Corrected here rather than left as an off-by-one in the audit artifact.
 
 | SHA | Subject |
 |---|---|
@@ -56,7 +61,8 @@ which was already ahead of origin at session start.
 | `94c7e3d` | [Phase 2] close B-6/B-7 and end the loop with a differential test |
 | `7296569` | [Phase 2] close B-8 (HTML type 7) and generate the differential cases |
 | `aa4b4f6` | [Phase 2] model all seven HTML block types; restore the type-6 bite |
-| *(docs)* | tracked copy of the instruction-001 self-Council record |
+| `8db8af3` | docs: tracked copy of the instruction-001 self-Council record |
+| `9ca1029` | runner: this output file |
 
 **One commit message was wrong and is corrected in the next one, not rewritten.**
 `a95dcb5` claimed "the bite is re-pointed at a fixture WITH intro prose". It was
