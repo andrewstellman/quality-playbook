@@ -63,4 +63,12 @@ Disagreement between seats is signal. Do not average it away.
 
 Wiegers attributes are the field standard. The scoring-and-anchoring approach follows established LLM-as-a-judge practice (Prometheus, ICLR 2024 — rubric-scored evaluation reaching Pearson 0.897 with human raters; G-Eval), including its documented cautions: behavioral rather than evaluative level descriptions, no shared model family between generator and judge, one rubric per use case, and human calibration before scores are trusted at scale.
 
-The instrument that executes this rubric for Slice 1 lives at `~/Documents/AI-Driven Development/Quality Playbook/Reviews/QPB_v1.6.0_Slice1_Readability_Council_Prompt.md`. That prompt currently embeds a copy of the rubric for its run; **this file is canonical** and future prompts should cite it rather than restate it, to avoid the drift this release exists to eliminate.
+## Spec and implementation, not duplication
+
+This file is the **specification**. A Council prompt that embeds the rubric — for Slice 1, `~/Documents/AI-Driven Development/Quality Playbook/Reviews/QPB_v1.6.0_Slice1_Readability_Council_Prompt.md` — is an **implementation** of it. The two stating the same thing is not redundancy to be eliminated; it is the same relationship this entire tool is built on, where requirements and code independently express one intent and disagreement between them is a findable defect.
+
+So prompts **should** embed the rubric rather than cite this file. An embedded prompt is self-contained: the run reproduces from a single artifact, and no reviewer can silently read a different version or skip the reference. Citation would trade a checkable divergence for an invisible one.
+
+The control is the same one QPB applies everywhere else: **verify the implementation against the spec.** When a prompt is written or revised, check its embedded rubric against this file — dimensions, anchors, ground-truth rule, thresholds — and treat any difference as either a spec change to land here or a prompt defect to fix there. Never as an acceptable drift.
+
+*(Distinct from the manifest→render relationship in Feature C, which is genuinely a derived view: `requirements_manifest.json` is the single source of truth and `REQUIREMENTS.md` is a contract-checked presentation of it, not a second source. Both relationships exist in this release and they take different controls — derivation is enforced mechanically, spec-versus-implementation is verified by review.)*
