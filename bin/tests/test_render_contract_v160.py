@@ -833,6 +833,47 @@ UC-01 → REQ-001, REQ-002
                 self.assertGreaterEqual(fails, 1, out)
                 self.assertIn("unterminated code fence", out)
 
+    # HTML blocks suppress Markdown structure exactly as fences do — a
+    # `## Heading` inside <pre> is literal text, not a heading. Same
+    # concept, so it belongs in the same enumeration rather than being
+    # discovered as the next shape later.
+    _HTML_BLOCKS = {
+        "pre": ("<pre>\n", "</pre>\n"),
+        "script": ("<script>\n", "</script>\n"),
+        "style": ("<style>\n", "</style>\n"),
+        "textarea": ("<textarea>\n", "</textarea>\n"),
+    }
+
+    def test_mp3_html_blocks_hide_quoted_headings(self):
+        for name, (opener, closer) in self._HTML_BLOCKS.items():
+            with self.subTest(html_block=name):
+                self.write_requirements(self._flat_with_fence(opener, closer))
+                self.write_manifest(_manifest(tool_contract=False))
+                run_contract = self.q / "RUN_CONTRACT.md"
+                if run_contract.exists():
+                    run_contract.unlink()
+                fails, _w, out = self.run_check()
+                self.assertGreaterEqual(fails, 1, out)
+                self.assertIn("no functional section", out)
+
+    def test_mp3_html_blocks_permit_quoted_content(self):
+        for name, (opener, closer) in self._HTML_BLOCKS.items():
+            with self.subTest(html_block=name):
+                quoted = opener + "### REQ-099: An example\n" + closer
+                self.write_requirements(_clean_requirements_md() + "\n" + quoted)
+                self.write_run_contract(_clean_run_contract_md())
+                self.write_manifest(_manifest())
+                fails, warns, out = self.run_check()
+                self.assertEqual(fails, 0, out)
+                self.assertEqual(warns, 0, out)
+
+    def test_mp3_single_line_html_block_does_not_swallow_the_document(self):
+        """`<pre>x</pre>` opens and closes on one line."""
+        self.write_requirements(_clean_requirements_md() + "\n<pre>x</pre>\n")
+        fails, warns, out = self.run_check()
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+
     def test_mp3_req_headings_inside_a_fence_are_not_counted(self):
         text = _clean_requirements_md() + (
             "\n```markdown\n### REQ-099: An example REQ shown in documentation.\n```\n"

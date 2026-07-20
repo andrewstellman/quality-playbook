@@ -6904,6 +6904,17 @@ _RENDER_STRUCTURAL_HEADING_RE = re.compile(
 # way out of that loop.
 _RENDER_FENCE_OPEN_RE = re.compile(r"^(?P<indent>[ \t]*)(?P<fence>`{3,}|~{3,})(?P<info>[^`~]*)$")
 
+# HTML blocks that suppress Markdown structure the same way a code fence
+# does — a `## Heading` inside one is literal text, not a heading. Same
+# concept as fences, so it is handled in the same pass rather than as a
+# separate patch. (CommonMark HTML block type 1.)
+_RENDER_HTML_BLOCK_OPEN_RE = re.compile(
+    r"^[ \t]*<(?P<tag>pre|script|style|textarea)\b", re.IGNORECASE
+)
+_RENDER_HTML_BLOCK_CLOSE_RE = re.compile(
+    r"</(?P<tag>pre|script|style|textarea)\s*>", re.IGNORECASE
+)
+
 
 def _render_blank_fences(text):
     """Blank fenced code blocks, preserving length so offsets stay valid.
@@ -6936,8 +6947,25 @@ def _render_blank_fences_ex(text):
     fence_char = None
     fence_len = 0
     opened_at = None
+    html_tag = None
     for line_no, line in enumerate(text.split("\n"), start=1):
+        if html_tag is not None:
+            # Inside an HTML block: literal text until the closing tag.
+            out.append(" " * len(line))
+            m = _RENDER_HTML_BLOCK_CLOSE_RE.search(line)
+            if m and m.group("tag").lower() == html_tag:
+                html_tag = None
+            continue
         if fence_char is None:
+            m = _RENDER_HTML_BLOCK_OPEN_RE.match(line)
+            if m:
+                tag = m.group("tag").lower()
+                close = _RENDER_HTML_BLOCK_CLOSE_RE.search(line)
+                # A single-line <pre>…</pre> opens and closes at once.
+                if not (close and close.group("tag").lower() == tag):
+                    html_tag = tag
+                out.append(" " * len(line))
+                continue
             m = _RENDER_FENCE_OPEN_RE.match(line)
             if m:
                 fence_char = m.group("fence")[0]
