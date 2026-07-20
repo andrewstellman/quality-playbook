@@ -463,6 +463,32 @@ class ManifestUnchangedInvariantTests(unittest.TestCase):
                         "render is a presentation of it.",
                     )
 
+    def test_no_record_loses_a_field_it_started_with(self):
+        """Field *presence*, not just field agreement.
+
+        Every per-record comparison skips a record whose field is missing
+        (`if not rec.get(...): continue`), so dropping a single REQ's
+        `title` or `functional_section` left the whole invariant green.
+        That is the mirror image of the swap defect: the other checks ask
+        "does this field agree with the render?" and never "is it there?".
+        (Self-Council round 4, Mutation E4.)
+        """
+        for target in TARGETS:
+            for old_id, new_id, b, a in self._paired(target):
+                for field in sorted(b):
+                    with self.subTest(target=target, req=old_id, field=field):
+                        self.assertIn(
+                            field, a,
+                            f"{target}: {old_id}->{new_id} lost the {field!r} "
+                            "field entirely.",
+                        )
+                        if isinstance(b[field], str) and b[field].strip():
+                            self.assertTrue(
+                                str(a.get(field) or "").strip(),
+                                f"{target}: {old_id}->{new_id} blanked the "
+                                f"{field!r} field.",
+                            )
+
     def test_each_req_renders_under_the_section_its_record_names(self):
         """Per-record, not per-set.
 

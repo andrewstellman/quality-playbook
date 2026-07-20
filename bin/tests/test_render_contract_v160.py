@@ -287,7 +287,9 @@ class C1ToolContractSplitTests(RenderContractBase):
         self.write_requirements(text)
         fails, _w, out = self.run_check()
         self.assertGreaterEqual(fails, 1)
-        self.assertIn("tool-contract REQ", out)
+        # "tool-contract REQ" alone also matches "PASS: no tool-contract
+        # REQs in REQUIREMENTS.md" — assert the FAIL phrasing.
+        self.assertIn("tool-contract REQ(s) rendered into the", out)
         self.assertIn("REQ-006", out)
         self.assertIn("RUN_CONTRACT.md", out)
 
@@ -372,7 +374,8 @@ class C3SingletonSectionTests(RenderContractBase):
         self.write_requirements(text)
         fails, _w, out = self.run_check()
         self.assertGreaterEqual(fails, 1)
-        self.assertIn("intro prose", out)
+        # Not bare "intro prose": that matches the PASS line too.
+        self.assertIn("lack intro prose", out)
 
 
 class C4NarrativeConsistencyTests(RenderContractBase):
@@ -460,7 +463,8 @@ class C6RequirementTitleTests(RenderContractBase):
         self.write_requirements(text)
         fails, _w, out = self.run_check()
         self.assertGreaterEqual(fails, 1)
-        self.assertIn("terminal period", out)
+        # Not bare "terminal period": that matches the PASS line too.
+        self.assertIn("end with a terminal period", out)
 
     def test_c6_boundary_title_of_exactly_120_chars_passes(self):
         title = "A" * 120
@@ -511,7 +515,8 @@ class F1CoverageGapsAdvisoryTests(RenderContractBase):
         fails, warns, out = self.run_check()
         self.assertEqual(fails, 0, f"F-1 must never FAIL:\n{out}")
         self.assertEqual(warns, 1)
-        self.assertIn("coverage-and-gaps statement", out)
+        # Not bare "coverage-and-gaps statement": that matches the PASS.
+        self.assertIn("no coverage-and-gaps statement", out)
 
 
 class RenderContractInertnessTests(RenderContractBase):
@@ -743,6 +748,90 @@ UC-01 → REQ-001, REQ-002
         # substring matches "PASS: Actors & roles section present" and
         # would leave this test green with fence-blanking removed.
         self.assertIn("no Actors & roles section", out)
+
+    # The full CommonMark fence grammar, enumerated once. Four rounds of
+    # self-Council each fixed the fence shape it was shown and stopped at
+    # the boundary of the demonstration — ``` pairs, then tildes would have
+    # been next, then unterminated. These are the shapes, all of them,
+    # exercised in both directions: a quoted heading must never count as
+    # structure (bypass), and a conforming document that quotes a fence
+    # must never be failed for its contents (false positive).
+    _FENCE_SHAPES = {
+        "backtick_3": ("```markdown\n", "```\n"),
+        "backtick_6": ("``````markdown\n", "``````\n"),
+        "tilde_3": ("~~~markdown\n", "~~~\n"),
+        "tilde_5": ("~~~~~\n", "~~~~~\n"),
+        "indented": ("  ```markdown\n", "  ```\n"),
+    }
+
+    _UNTERMINATED_SHAPES = {
+        "unclosed_backtick": "```markdown\n",
+        "unclosed_tilde": "~~~\n",
+        # A closer must match the opener's character and length; neither of
+        # these closes, so both are unterminated.
+        "wrong_delimiter": "~~~\n{inner}```\n",
+        "short_closer": "`````\n{inner}```\n",
+    }
+
+    _INNER = (
+        "## Actors and roles\n## Use cases\n"
+        "## Traceability appendix\n## Request routing\n"
+    )
+
+    def _flat_with_fence(self, opener, closer):
+        return self._FLAT_DOC.replace(
+            "## Actors and roles\n\nApplication developers use testproj; "
+            "operators deploy it.\n",
+            opener + self._INNER + closer,
+        ).replace("## Use cases\n\n### UC-01: Somebody uses testproj\n", "").replace(
+            "## Traceability appendix\n\nUC-01 → REQ-001, REQ-002\n", ""
+        )
+
+    def test_mp3_every_fence_shape_hides_quoted_headings(self):
+        """Bypass direction: no fence shape may synthesize structure."""
+        for name, (opener, closer) in self._FENCE_SHAPES.items():
+            with self.subTest(fence=name):
+                self.write_requirements(self._flat_with_fence(opener, closer))
+                self.write_manifest(_manifest(tool_contract=False))
+                run_contract = self.q / "RUN_CONTRACT.md"
+                if run_contract.exists():
+                    run_contract.unlink()
+                fails, _w, out = self.run_check()
+                self.assertGreaterEqual(fails, 1, out)
+                self.assertIn("no functional section", out)
+                self.assertIn("no Actors & roles section", out)
+
+    def test_mp3_every_fence_shape_permits_quoted_content(self):
+        """False-positive direction: quoting a fence must not fail a good doc."""
+        for name, (opener, closer) in self._FENCE_SHAPES.items():
+            with self.subTest(fence=name):
+                quoted = (
+                    opener
+                    + "### REQ-099: An example REQ shown in documentation.\n"
+                    + "<!-- a template comment -->\n"
+                    + closer
+                )
+                self.write_requirements(_clean_requirements_md() + "\n" + quoted)
+                self.write_run_contract(_clean_run_contract_md())
+                self.write_manifest(_manifest())
+                fails, warns, out = self.run_check()
+                self.assertEqual(fails, 0, out)
+                self.assertEqual(warns, 0, out)
+
+    def test_mp3_unterminated_fence_fails_rather_than_going_inert(self):
+        """An unterminated fence swallows the document; refuse to certify it.
+
+        Everything after the opener is inside the code block, so the REQ
+        headings below it are invisible and every check would pass by
+        default on a document the contract cannot actually read.
+        """
+        for name, template in self._UNTERMINATED_SHAPES.items():
+            with self.subTest(fence=name):
+                fence = template.format(inner=self._INNER)
+                self.write_requirements(self._flat_with_fence(fence, ""))
+                fails, _w, out = self.run_check()
+                self.assertGreaterEqual(fails, 1, out)
+                self.assertIn("unterminated code fence", out)
 
     def test_mp3_req_headings_inside_a_fence_are_not_counted(self):
         text = _clean_requirements_md() + (

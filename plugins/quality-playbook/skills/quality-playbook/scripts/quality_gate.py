@@ -6888,7 +6888,80 @@ _RENDER_STRUCTURAL_HEADING_RE = re.compile(
 
 # Fenced code blocks are quoted material, not the document's own voice. A
 # requirement about a template engine must be able to show an HTML comment.
-_RENDER_FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
+#
+# Deliberately a line scanner over the full CommonMark fence grammar rather
+# than a regex over the shape most recently observed. The naive
+# ```...``` pair this replaced was a bypass in four independent ways
+# (self-Council rounds 3-4): tilde fences were missed entirely, a closing
+# pair was required so an unterminated fence left the rest of the document
+# scanned as prose, longer runs mis-paired, and it was not line-anchored.
+# Each one alone reproduces the flat-document bypass in full, and each also
+# fails good documents in the opposite direction — a conforming spec that
+# quotes a `~~~` block got failed for the REQ headings inside it.
+#
+# Four rounds of this Council each fixed the shape it was shown and stopped
+# at the boundary of the demonstration. Enumerating the grammar once is the
+# way out of that loop.
+_RENDER_FENCE_OPEN_RE = re.compile(r"^(?P<indent>[ \t]*)(?P<fence>`{3,}|~{3,})(?P<info>[^`~]*)$")
+
+
+def _render_blank_fences(text):
+    """Blank fenced code blocks, preserving length so offsets stay valid.
+
+    Structure detection must run over this, not the raw text: a ``##`` line
+    inside a code fence is quoted material, not a heading. Counting it lets
+    a handful of lines inside one fence satisfy the entire §5.2 mandatory-
+    part list AND synthesize a functional section, so a completely flat
+    requirement list scores clean.
+
+    Handles the full fence grammar: backtick and tilde delimiters, runs of
+    three or more, a closer at least as long as its opener, indentation,
+    and an unterminated fence (which runs to end of document per
+    CommonMark). A fence delimiter of the other character, or a shorter
+    run, does not close the block.
+    """
+    blanked, _unterminated = _render_blank_fences_ex(text)
+    return blanked
+
+
+def _render_blank_fences_ex(text):
+    """As :func:`_render_blank_fences`, also reporting an unterminated fence.
+
+    Returns ``(blanked_text, unterminated_line_number_or_None)``. An
+    unterminated fence swallows the rest of the document, which would make
+    the whole render contract silently inert — the caller FAILs on it
+    rather than certifying a document it cannot actually read.
+    """
+    out = []
+    fence_char = None
+    fence_len = 0
+    opened_at = None
+    for line_no, line in enumerate(text.split("\n"), start=1):
+        if fence_char is None:
+            m = _RENDER_FENCE_OPEN_RE.match(line)
+            if m:
+                fence_char = m.group("fence")[0]
+                fence_len = len(m.group("fence"))
+                opened_at = line_no
+                out.append(" " * len(line))
+                continue
+            out.append(line)
+        else:
+            stripped = line.strip()
+            # A closer must use the same character and be at least as long
+            # as its opener; a shorter run, or the other delimiter, does not
+            # close the block.
+            is_closer = (
+                stripped
+                and set(stripped) == {fence_char}
+                and len(stripped) >= fence_len
+            )
+            out.append(" " * len(line))
+            if is_closer:
+                fence_char = None
+                fence_len = 0
+                opened_at = None
+    return "\n".join(out), opened_at
 
 _RENDER_TITLE_MAX = 120
 
@@ -6927,20 +7000,6 @@ def _render_run_predates_contract(q, skill_version):
     return version < _RENDER_CONTRACT_MIN_VERSION, version
 
 
-def _render_blank_fences(text):
-    """Blank fenced code blocks, preserving length so offsets stay valid.
-
-    Structure detection must run over this, not the raw text: a ``##`` line
-    inside a code fence is quoted material, not a heading. Counting it lets
-    four lines inside one fence satisfy the entire §5.2 mandatory-part list
-    AND synthesize a functional section, so a completely flat requirement
-    list scores clean.
-    """
-    return _RENDER_FENCE_RE.sub(
-        lambda m: re.sub(r"[^\n]", " ", m.group(0)), text
-    )
-
-
 def _render_scan_internals(text):
     """Return human-readable descriptions of derivation internals in `text`.
 
@@ -6948,9 +7007,10 @@ def _render_scan_internals(text):
     numbers stay accurate) before scanning: a REQ about a template engine or
     an HTML sanitizer has to be able to quote an HTML comment.
     """
-    blank = lambda m: re.sub(r"[^\n]", " ", m.group(0))  # noqa: E731
-    scanned = _RENDER_FENCE_RE.sub(blank, text)
-    scanned = _RENDER_INLINE_CODE_RE.sub(blank, scanned)
+    scanned = _render_blank_fences(text)
+    scanned = _RENDER_INLINE_CODE_RE.sub(
+        lambda m: re.sub(r"[^\n]", " ", m.group(0)), scanned
+    )
     found = []
     for m in re.finditer(r"<!--", scanned):
         found.append(f"HTML comment at line {scanned[: m.start()].count(chr(10)) + 1}")
@@ -7071,6 +7131,19 @@ def check_render_contract(repo_dir, q, skill_version=None):
         info("REQUIREMENTS.md not present — render contract not applicable")
         return
     text = _read_text_safe(req_md)
+    # Checked before anything else: everything after an unterminated fence
+    # is inside the code block, so REQ headings below it are invisible and
+    # the contract would silently go inert on a document it cannot read.
+    # Refuse to certify rather than pass by default.
+    _blanked, unterminated_fence = _render_blank_fences_ex(text)
+    if unterminated_fence is not None:
+        fail(
+            "REQUIREMENTS.md",
+            f"unterminated code fence opened at line {unterminated_fence} — "
+            "everything after it is inside the code block, so the render "
+            "contract cannot read the rest of the document. Close the fence.",
+        )
+        return
     headings = _render_req_headings(text)
     if not headings:
         # A heading-level regression in the renderer would otherwise turn
@@ -7203,7 +7276,7 @@ def check_render_contract(repo_dir, q, skill_version=None):
 
     # -- Check 3 (C-3, C-4): required parts + section discipline. ----------
     # Fence-blanked: a `##` line inside a code fence is quoted material.
-    structure_text = _render_blank_fences(text)
+    structure_text, _unterminated = _render_blank_fences_ex(text)
     level2 = [
         (m.group(1).strip(), m.start())
         for m in _RENDER_LEVEL2_RE.finditer(structure_text)
