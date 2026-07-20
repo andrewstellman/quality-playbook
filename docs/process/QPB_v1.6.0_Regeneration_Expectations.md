@@ -4,7 +4,11 @@
 Council synthesis, Finding 2 (`Quality Playbook/Reviews/QPB_v1.6.0_Slice1_Readability_Council_Synthesis.md`).
 Rule that prevents recurrence: `references/phase2_generation_guide.md` §
 "One required behavior per requirement — no disjunctive acceptance", and the
-matching rule in `bin/skill_derivation/prompts/pass_a_section.md`.*
+matching rules in **both** skill-derivation Pass A prompts —
+`bin/skill_derivation/prompts/pass_a_section.md` and
+`pass_a_uc_section.md`. The UC prompt matters specifically for row 2: express
+UC-06.b is a **use-case** acceptance clause, so a rule landed only on the REQ
+prompt would not have prevented it.*
 
 ## What this file is, and is not
 

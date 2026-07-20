@@ -1,5 +1,15 @@
-"""curate_requirements.py — Phase 5 Stage 5A: curated REQUIREMENTS.md
-generator.
+"""curate_requirements.py — Phase 5 Stage 5A: requirements curation.
+
+Selects a curated REQ set from the skill-derivation Pass C output. Returns
+the selection as a summary dict; it does **not** render a document.
+
+The REQUIREMENTS.md renderer this module used to carry was deleted in
+v1.6.0 (instruction 002 item 2): it hardcoded a "QPB v1.5.3" stamp — the
+C-7 defect class — and was dead, with no callers outside its own test and
+no presence in the shipped bundle. The curation algorithm below survives
+because Design §1.3 and §7 name it as the B-4 backlog substrate (per-partition
+capping that never merges across partitions), and B-4 is the first
+point-release candidate.
 
 Implements the DQ-5-7 algorithm:
 
@@ -13,8 +23,8 @@ Implements the DQ-5-7 algorithm:
      Initial K=2; if total >110, decrease K to 1 for partitions with
      >5 post-dedup REQs; if total <80, increase K to 3 for
      partitions with >5 post-dedup REQs.
-  5. Render to REQUIREMENTS.md with phase-by-phase grouping using
-     SKILL.md heading hierarchy.
+Returns a summary dict: total_requirements, partitions_total,
+partitions_with_selections, iteration_log, input_accepted.
 
 Stdlib-only.
 """

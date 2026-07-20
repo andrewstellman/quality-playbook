@@ -65,7 +65,9 @@ Composition of the delta, measured rather than assumed:
 | express | 9 | +2 | +1 | 12 |
 | virtio | 6 | +2 | +1 | 9 |
 
-MP-1 is the §5.2 mandatory-part block added in self-Council round 3. The stamp
+MP-1 is the §5.2 mandatory-part block, added at `a95dcb5` (self-Council
+round 2, closing round 2's findings — not round 3, as an earlier draft of
+this note said). The stamp
 column needs explaining: round 1 measured the `.before` documents at
 `skill_version=1.5.8`, where express's and virtio's stamps *matched* and passed;
 the harness now holds the version at the fixture's `1.6.0`, so they mismatch and

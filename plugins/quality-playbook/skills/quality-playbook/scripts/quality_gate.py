@@ -6881,7 +6881,7 @@ _RENDER_INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 # what §5.2 exists to prevent.
 _RENDER_STRUCTURAL_HEADING_RE = re.compile(
     r"^(project\s+)?(overview|actors?(\s*(&|and)\s*roles?)?|use\s*cases?|"
-    r"glossary(\s*(&|and|/)\s*definitions)?|definitions|terms|"
+    r"glossary(\s*(&|and|/)\s*definitions)?|definitions|"
     r"cross[-\s]?cutting(\s+concerns)?|traceability(\s+appendix)?|"
     r"non[-\s]?functional(\s+\w+)*|nfr(\s+\w+)*|requirements?)\s*\Z",
     re.IGNORECASE,
