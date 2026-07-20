@@ -6849,10 +6849,23 @@ _RENDER_INTERNAL_PATTERNS = (
     (re.compile(r"^\s*[-*]?\s*cluster\s*:", re.MULTILINE), "cluster: annotation"),
     (re.compile(r"REQUIREMENTS_pre_narrative|pre_narrative"), "pre_narrative"),
     # Pass names — the derivation's own vocabulary for its internal stages.
+    # Anchored to the forms the pipeline actually emits. A bare "Pass A"
+    # is NOT enough: a compiler or assembler target legitimately has
+    # requirements about "Pass A" of its own pipeline, and blocking that
+    # would be the render contract over-firing on a correct document.
     (re.compile(r"\bnarrative pass\b", re.IGNORECASE), "narrative-pass name"),
     (re.compile(r"\bcontract-extraction v\d", re.IGNORECASE), "pipeline pass name"),
-    (re.compile(r"\bPass [A-E]\b"), "derivation pass name"),
+    (
+        re.compile(r"\b(?:derivation|skill[- ]derivation)\s+Pass\s+[A-E]\b", re.IGNORECASE),
+        "derivation pass name",
+    ),
+    (re.compile(r"\bPass\s+[A-E]/[A-E]\s+disposition\b", re.IGNORECASE),
+     "derivation pass name"),
 )
+
+# Inline code spans are quoted material for the same reason fenced blocks
+# are: a REQ about an HTML sanitizer has to be able to write `<!--`.
+_RENDER_INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 
 # Level-2 headings that are canonical non-functional parts of the eight-part
 # architecture. Everything else at level 2 is treated as a functional section.
@@ -6921,9 +6934,9 @@ def _render_scan_internals(text):
     numbers stay accurate) before scanning: a REQ about a template engine or
     an HTML sanitizer has to be able to quote an HTML comment.
     """
-    scanned = _RENDER_FENCE_RE.sub(
-        lambda m: re.sub(r"[^\n]", " ", m.group(0)), text
-    )
+    blank = lambda m: re.sub(r"[^\n]", " ", m.group(0))  # noqa: E731
+    scanned = _RENDER_FENCE_RE.sub(blank, text)
+    scanned = _RENDER_INLINE_CODE_RE.sub(blank, scanned)
     found = []
     for m in re.finditer(r"<!--", scanned):
         found.append(f"HTML comment at line {scanned[: m.start()].count(chr(10)) + 1}")
@@ -6937,13 +6950,24 @@ def _render_scan_internals(text):
 
 
 def _render_overview_body(text, level2):
-    """Return the Overview section's body, or '' when there is no Overview."""
+    """Return the prose F-1 may live in.
+
+    That is the Overview section, plus any dedicated coverage/gaps section —
+    §8 says the statement goes *in* the Overview, but a renderer that gives
+    it its own heading has satisfied the intent, and failing that would be
+    the contract over-firing on a correct document.
+    """
     bounds = [off for _h, off in level2] + [len(text)]
+    collected = []
     for idx, (heading, off) in enumerate(level2):
-        if re.match(r"^(project\s+)?overview\b", heading, re.IGNORECASE):
+        if re.match(
+            r"^((project\s+)?overview|coverage(\s+and\s+.*)?|known\s+gaps)\b",
+            heading,
+            re.IGNORECASE,
+        ):
             body = text[off: bounds[idx + 1]]
-            return body.split("\n", 1)[1] if "\n" in body else ""
-    return ""
+            collected.append(body.split("\n", 1)[1] if "\n" in body else "")
+    return "\n".join(collected)
 
 
 def _render_classify_sections(text, level2):
@@ -6959,10 +6983,16 @@ def _render_classify_sections(text, level2):
     for idx, (heading, off) in enumerate(level2):
         body = text[off: bounds[idx + 1]]
         has_reqs = bool(_RENDER_REQ_HEADING_RE.search(body))
-        if _RENDER_STRUCTURAL_HEADING_RE.match(heading) and not has_reqs:
+        if not has_reqs:
             continue
-        if has_reqs:
-            functional.append((heading, off))
+        if _RENDER_STRUCTURAL_HEADING_RE.match(heading):
+            # A canonical structural part (Overview, Use cases, …) that
+            # holds REQs is not thereby a functional section — parking
+            # every requirement under `## Overview` must not synthesize
+            # one. Leaving it out means `functional` ends up empty, which
+            # the caller reports as its own FAIL.
+            continue
+        functional.append((heading, off))
     return functional
 
 
@@ -7002,10 +7032,20 @@ def _render_tool_contract_ids(q):
 
 @verdict_category(VERDICT_SUBSTANTIVE)
 def check_render_contract(repo_dir, q, skill_version=None):
-    """v1.6.0 Feature C — the six mechanical render-contract checks (§5.3).
+    """v1.6.0 Feature C — the mechanical render-contract checks.
 
-    Inert on pre-v1.6.0 renders (a REQUIREMENTS.md with no `### REQ-NNN:`
-    headings), so legacy and minimal trees are unaffected.
+    Implements the six checks of Design §5.3, the mandatory-part list of
+    §5.2, and the F-1 advisory of §8.
+
+    Inert in two cases, both deliberate:
+
+    - the run recorded a skill version below the contract's floor (read
+      from PROGRESS.md, falling back to the detected SKILL.md version) —
+      earlier runs rendered to a different, unspecified contract;
+    - REQUIREMENTS.md carries no `### REQ-NNN:` headings at all, so there
+      is no contract-shaped render to check. REQ headings at the *wrong*
+      level WARN rather than passing silently, so a heading-level
+      regression cannot disable the contract unnoticed.
     """
     print("[Render Contract]")
     req_md = q / "REQUIREMENTS.md"
@@ -7015,10 +7055,22 @@ def check_render_contract(repo_dir, q, skill_version=None):
     text = _read_text_safe(req_md)
     headings = _render_req_headings(text)
     if not headings:
-        info(
-            "REQUIREMENTS.md carries no '### REQ-NNN:' headings — "
-            "not a contract-shaped render, render contract skipped"
-        )
+        # A heading-level regression in the renderer would otherwise turn
+        # the entire contract off with no operator signal, so say so louder
+        # than INFO when REQ headings exist at the wrong level.
+        if re.search(r"^#{2,6}\s+REQ-\d+\s*:", text, re.MULTILINE):
+            warn(
+                "REQUIREMENTS.md has REQ headings, but none at the '### "
+                "REQ-NNN:' level the render contract requires "
+                "(references/requirements_pipeline.md § 'Requirement heading "
+                "format') — the entire render contract is inert on this "
+                "document"
+            )
+        else:
+            info(
+                "REQUIREMENTS.md carries no '### REQ-NNN:' headings — "
+                "not a contract-shaped render, render contract skipped"
+            )
         return
     predates, detected = _render_run_predates_contract(q, skill_version)
     if predates:
@@ -7146,7 +7198,40 @@ def check_render_contract(repo_dir, q, skill_version=None):
             "references/requirements_pipeline.md § E.1).",
         )
 
+    # §5.2 makes eight parts canonical, four of them unconditionally
+    # mandatory. Checking only Overview and cross-cutting left a document
+    # that dumps every REQ into one undifferentiated bucket — no actors, no
+    # use cases, no traceability — scoring clean, which is precisely the
+    # "flat list, not a coherent document" shape §5.2 exists to reject.
+    for label, pattern in (
+        ("Actors & roles", r"^actors?\b"),
+        ("Use cases", r"^use\s*cases?\b"),
+        ("Traceability appendix", r"^traceability\b"),
+    ):
+        if any(re.match(pattern, h, re.IGNORECASE) for h, _ in level2):
+            pass_(f"{label} section present")
+        else:
+            fail(
+                "REQUIREMENTS.md",
+                f"no {label} section. The eight-part document architecture "
+                "makes it mandatory on every run (v1.6.0 Design §5.2).",
+            )
+
     functional = _render_classify_sections(text, level2)
+
+    # A document that HAS requirements but no functional section at all has
+    # opted out of the entire section discipline below. That is a FAIL in
+    # its own right, not a reason to skip the checks silently.
+    if not functional:
+        fail(
+            "REQUIREMENTS.md",
+            f"{len(headings)} REQ heading(s) but no functional section — "
+            "every requirement sits outside the section structure, so "
+            "section discipline (intro prose, singleton merge, cross-cutting "
+            "concerns) cannot apply. Group the requirements into functional "
+            "sections ordered user-facing to infrastructure "
+            "(v1.6.0 Design §5.2 item 4).",
+        )
     # Count REQs per functional section by document offset.
     bounds = [off for _h, off in level2] + [len(text)]
     section_req_counts = {}

@@ -22,9 +22,15 @@ pristine inputs live at ``repos/<target>-1.5.8/quality/`` and are read-only
 per the v1.6.0 Implementation Plan Phase 0.
 
 Manifest-unchanged invariant (Plan Phase 1): Feature C is presentation-layer.
-The regenerated manifest must carry the *same records* as the input manifest,
-differing only by the Phase E.6 renumber — same count, same content, same
-references. :class:`ManifestUnchangedInvariantTests` pins that.
+The regenerated manifest carries the *same records* as the input manifest,
+differing only by the Phase E.6 renumber **plus the two field rewrites the
+design itself mandates** — intent-form titles (§5.4) and reassigned
+``functional_section`` (§5.2 item 4) — plus ``conditions_of_satisfaction``
+growing to absorb normative text a title rewrite displaced.
+:class:`ManifestUnchangedInvariantTests` states that precisely and enforces
+it record by record; see its docstring for why the Plan's one-line
+"unchanged modulo the renumber map" is too strong for the work the design
+mandates.
 """
 
 import io
@@ -65,6 +71,11 @@ def _load(target, name):
 
 def _load_json(target, name):
     return json.loads(_load(target, name))
+
+
+def _norm(text):
+    """Normalize markdown emphasis/backticks and whitespace for comparison."""
+    return re.sub(r"\s+", " ", re.sub(r"[`*_]", "", str(text))).strip()
 
 
 def _run_render_contract(target, skill_version=FIXTURE_SKILL_VERSION):
@@ -422,6 +433,61 @@ class ManifestUnchangedInvariantTests(unittest.TestCase):
                     "REQ-001..REQ-NNN block.",
                 )
 
+    def test_manifest_titles_match_the_rendered_titles(self):
+        """The two sanctioned mutable fields still have to agree with the render.
+
+        Without this, the mutable-field allowlist is a hole: `title` is
+        allowed to change, so every title could be replaced with a
+        placeholder and the invariant would still report green. The manifest
+        is the source of truth and the render is a presentation of it — they
+        must say the same thing.
+        """
+        for target in TARGETS:
+            records = {
+                r["id"]: r
+                for r in _load_json(target, "requirements_manifest.json")["records"]
+            }
+            rendered = _load(target, "REQUIREMENTS.md") + _load(
+                target, "RUN_CONTRACT.md"
+            )
+            for m in quality_gate._RENDER_REQ_HEADING_RE.finditer(rendered):
+                rid, title = m.group(1), m.group(3).strip()
+                rec = records.get(rid)
+                if rec is None or "title" not in rec:
+                    continue
+                with self.subTest(target=target, req=rid):
+                    self.assertEqual(
+                        _norm(rec["title"]), _norm(title),
+                        f"{target}: {rid} manifest title and rendered title "
+                        "disagree. The manifest is the source of truth; the "
+                        "render is a presentation of it.",
+                    )
+
+    def test_manifest_sections_match_the_rendered_sections(self):
+        """Same reasoning for functional_section — kills the 'flatten' mutation."""
+        for target in TARGETS:
+            records = _load_json(target, "requirements_manifest.json")["records"]
+            sections = {
+                _norm(r["functional_section"])
+                for r in records
+                if r.get("functional_section")
+            }
+            rendered = _load(target, "REQUIREMENTS.md") + _load(
+                target, "RUN_CONTRACT.md"
+            )
+            headings = {
+                _norm(m.group(1))
+                for m in re.finditer(r"^##\s+(.+)$", rendered, re.MULTILINE)
+            }
+            missing = sorted(s for s in sections if s not in headings)
+            with self.subTest(target=target):
+                self.assertEqual(
+                    missing, [],
+                    f"{target}: manifest names functional_section(s) that "
+                    f"appear as no rendered heading: {missing}. The manifest "
+                    "and the render must agree on the section structure.",
+                )
+
     def test_rendered_ids_match_the_manifest_ids(self):
         """The manifest and both renderings must agree on every identifier."""
         for target in TARGETS:
@@ -445,77 +511,158 @@ class ManifestUnchangedInvariantTests(unittest.TestCase):
 
 
 class ManifestInvariantMutationTests(unittest.TestCase):
-    """Mutation bites for ManifestUnchangedInvariantTests.
+    """Mutation bites for :class:`ManifestUnchangedInvariantTests`.
 
-    Both mutations below PASSED the previous version of the invariant class,
-    which is why they are pinned here. Sourced from the instruction-001
-    self-Council (Panelist C, P1-1).
+    These run the **real** assertion methods against a mutated fixture tree
+    and require them to fail. An earlier version re-implemented the
+    comparison inline, which meant gutting every method of the class under
+    test left the bites green — a bite that does not exercise the code it
+    guards is theatre. (Instruction-001 self-Council round 2.)
     """
 
-    def _load_pairs(self, target):
-        before = {
-            r["id"]: r
-            for r in _load_json(target, "requirements_manifest.before.json")["records"]
-        }
-        after = {
-            r["id"]: r
-            for r in _load_json(target, "requirements_manifest.json")["records"]
-        }
-        rmap = _load_json(target, "renumber_map.json")
-        return before, after, rmap
+    def _run_invariants_against(self, tmpdir):
+        """Run ManifestUnchangedInvariantTests against a staged tree.
+
+        Returns the number of failures+errors. Patches the module-level
+        FIXTURE_ROOT so the real test methods read the mutated copy.
+        """
+        module = sys.modules[__name__]
+        original = module.FIXTURE_ROOT
+        module.FIXTURE_ROOT = Path(tmpdir)
+        try:
+            suite = unittest.TestLoader().loadTestsFromTestCase(
+                ManifestUnchangedInvariantTests
+            )
+            result = unittest.TextTestRunner(
+                stream=io.StringIO(), verbosity=0
+            ).run(suite)
+            return len(result.failures) + len(result.errors)
+        finally:
+            module.FIXTURE_ROOT = original
+
+    def _staged(self, tmpdir, mutate):
+        """Copy the fixture tree, apply `mutate` to each after-manifest."""
+        for target in TARGETS:
+            src = FIXTURE_ROOT / target / "quality"
+            dst = Path(tmpdir) / target / "quality"
+            dst.mkdir(parents=True)
+            for name in (
+                "REQUIREMENTS.md", "RUN_CONTRACT.md",
+                "REQUIREMENTS.before.md",
+                "requirements_manifest.before.json", "renumber_map.json",
+            ):
+                shutil.copy2(src / name, dst / name)
+            payload = json.loads(
+                (src / "requirements_manifest.json").read_text(encoding="utf-8")
+            )
+            payload["records"] = mutate(payload["records"])
+            (dst / "requirements_manifest.json").write_text(
+                json.dumps(payload, indent=2), encoding="utf-8"
+            )
+
+    def test_the_bite_harness_passes_on_the_unmutated_fixture(self):
+        """Control. Without this, every bite below could be passing for free."""
+        with tempfile.TemporaryDirectory() as tmp:
+            self._staged(tmp, lambda records: records)
+            self.assertEqual(
+                self._run_invariants_against(tmp), 0,
+                "the invariant class must pass on an unmutated copy of the "
+                "fixture — otherwise the mutation bites prove nothing.",
+            )
 
     def test_mutation_a_gutted_records_are_detected(self):
         """Replace every non-id, non-reference field with a placeholder."""
-        for target in TARGETS:
-            with self.subTest(target=target):
-                before, after, rmap = self._load_pairs(target)
-                caught = False
-                for old_id, new_id in rmap.items():
-                    b = before[old_id]
-                    gutted = {
-                        k: ("PWNED" if k not in ("id", "references") else v)
-                        for k, v in after[new_id].items()
-                    }
-                    fields = (set(b) | set(gutted)) - _MUTABLE_FIELDS
-                    if any(b.get(f) != gutted.get(f) for f in fields):
-                        caught = True
-                        break
-                self.assertTrue(
-                    caught,
-                    f"{target}: gutting every record's content did not trip "
-                    "the immutable-field comparison — the invariant is "
-                    "vacuous.",
-                )
+        def gut(records):
+            return [
+                {k: (v if k in ("id", "references") else "PWNED")
+                 for k, v in r.items()}
+                for r in records
+            ]
+        with tempfile.TemporaryDirectory() as tmp:
+            self._staged(tmp, gut)
+            self.assertGreater(
+                self._run_invariants_against(tmp), 0,
+                "gutting every record's content did not fail the invariant "
+                "class — the invariant is vacuous.",
+            )
 
     def test_mutation_b_rotated_references_are_detected(self):
         """Shift references by one so every REQ cites the wrong file.
 
         The multiset of reference-lists is unchanged by this mutation, which
-        is exactly why the multiset comparison could not see it.
+        is exactly why the original multiset comparison could not see it.
         """
-        for target in TARGETS:
-            with self.subTest(target=target):
-                before, after, rmap = self._load_pairs(target)
-                ordered = [after[rmap[o]] for o in sorted(rmap)]
-                refs = [r.get("references") for r in ordered]
-                rotated = refs[1:] + refs[:1]
-                caught = any(
-                    before[old].get("references") != rot
-                    for old, rot in zip(sorted(rmap), rotated)
-                )
-                self.assertTrue(
-                    caught,
-                    f"{target}: rotating references across records was not "
-                    "detected — per-record attachment is not being checked.",
-                )
+        def rotate(records):
+            refs = [r.get("references") for r in records]
+            refs = refs[1:] + refs[:1]
+            out = []
+            for r, new_refs in zip(records, refs):
+                copy = dict(r)
+                copy["references"] = new_refs
+                out.append(copy)
+            return out
+        with tempfile.TemporaryDirectory() as tmp:
+            self._staged(tmp, rotate)
+            self.assertGreater(
+                self._run_invariants_against(tmp), 0,
+                "rotating references across records was not detected — "
+                "per-record attachment is not being checked.",
+            )
+
+    def test_mutation_c_stubbed_titles_are_detected(self):
+        """Exploit the mutable-field allowlist: stub every title.
+
+        `title` is allowed to change (intent-form normalization), so a naive
+        allowlist lets a renderer replace every title with a placeholder and
+        still pass. The displaced-title check is what closes it.
+        """
+        def stub(records):
+            out = []
+            for r in records:
+                copy = dict(r)
+                if "title" in copy:
+                    copy["title"] = "REQ"
+                out.append(copy)
+            return out
+        with tempfile.TemporaryDirectory() as tmp:
+            self._staged(tmp, stub)
+            self.assertGreater(
+                self._run_invariants_against(tmp), 0,
+                "stubbing every title was not detected — the mutable-field "
+                "allowlist is being trusted without a content check.",
+            )
+
+    def test_mutation_d_flattened_sections_are_detected(self):
+        """Exploit the allowlist the other way: collapse every section.
+
+        `functional_section` is allowed to change (Phase E.5 merges), but
+        collapsing all of them into one is the degenerate case §5.2 exists
+        to reject, and the manifest must agree with the rendered document.
+        """
+        def flatten(records):
+            out = []
+            for r in records:
+                copy = dict(r)
+                if "functional_section" in copy:
+                    copy["functional_section"] = "Everything"
+                out.append(copy)
+            return out
+        with tempfile.TemporaryDirectory() as tmp:
+            self._staged(tmp, flatten)
+            self.assertGreater(
+                self._run_invariants_against(tmp), 0,
+                "flattening every functional_section was not detected — the "
+                "manifest and the rendered document no longer agree.",
+            )
 
     def test_multiset_comparison_alone_would_miss_rotation(self):
         """Documents *why* the per-record check exists, not just that it does."""
         for target in TARGETS:
             with self.subTest(target=target):
-                _b, after, rmap = self._load_pairs(target)
-                ordered = [after[rmap[o]] for o in sorted(rmap)]
-                refs = [tuple(r.get("references") or []) for r in ordered]
+                after = _load_json(
+                    target, "requirements_manifest.json"
+                )["records"]
+                refs = [tuple(r.get("references") or []) for r in after]
                 rotated = refs[1:] + refs[:1]
                 self.assertEqual(
                     sorted(refs), sorted(rotated),
