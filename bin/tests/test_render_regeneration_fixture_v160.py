@@ -1,8 +1,14 @@
 """v1.6.0 Feature C — the regeneration fixture (the coherence acceptance oracle).
 
 ``QPB_v1.6.0_Design.md`` §5 names the acceptance oracle for Feature C:
-re-render the chi, express, and virtio manifests through the new renderer
-and confirm defects C-1..C-7 are absent. This module pins that oracle so it
+re-render the chi, express, and virtio manifests and confirm defects
+C-1..C-7 are absent. (The Design said "through the new renderer"; the Plan
+corrected that on 2026-07-20 — there is no deterministic renderer and none
+is being built. REQUIREMENTS.md is agent-authored prose following
+``references/``, which is QPB's premise rather than a gap. The recorded
+consequence is that these fixtures are golden files, so a regression in the
+reference-doc prose cannot fail this suite; the mitigation is the
+readability Council plus reference-doc contract tests, not a renderer.) This module pins that oracle so it
 stays satisfied — a later change to the render contract, the reference
 docs, or the gate that reintroduces any of the seven defect classes into
 the regenerated fixtures fails here.
@@ -28,9 +34,8 @@ design itself mandates** — intent-form titles (§5.4) and reassigned
 ``functional_section`` (§5.2 item 4) — plus ``conditions_of_satisfaction``
 growing to absorb normative text a title rewrite displaced.
 :class:`ManifestUnchangedInvariantTests` states that precisely and enforces
-it record by record; see its docstring for why the Plan's one-line
-"unchanged modulo the renumber map" is too strong for the work the design
-mandates.
+it record by record, matching the Plan's corrected manifest-change invariant
+(:45).
 """
 
 import io
@@ -277,28 +282,32 @@ _MUTABLE_FIELDS = frozenset(
 class ManifestUnchangedInvariantTests(unittest.TestCase):
     """Feature C is presentation-layer, stated precisely.
 
-    The Implementation Plan (:45) says ``requirements_manifest.json`` is
-    "unchanged modulo the renumber map". That phrasing is **too strong for
-    the work the design itself mandates** — §5.4's intent-form rule rewrites
-    titles and §5.2's section merges rewrite ``functional_section``. The
-    honest invariant, enforced here, is:
+    Enforces the **manifest-change invariant** of the Implementation Plan
+    (:45). For a fixed input, ``requirements_manifest.json`` changes only in
+    the fields the Design mandates:
 
-        unchanged modulo (a) the renumber map, (b) title normalization,
-        (c) functional_section reassignment, and (d) conditions_of_
-        satisfaction growing to absorb displaced title text.
+        ``id`` (E.6 renumber), ``title`` (§5.4 intent-form),
+        ``functional_section`` (§5.2 merge), and
+        ``conditions_of_satisfaction`` where a title rewrite displaces
+        normative text into it.
 
-    Every other field is byte-identical, and no record is added, dropped,
-    merged, or weakened.
+    Every other field is byte-identical, record count is preserved, and no
+    record is added, dropped, merged, or weakened.
 
     This class is the safety rail for landing Feature C ahead of the
     FP-audit, so it pairs records through the explicit renumber map and
-    compares field by field. The previous version compared a *multiset* of
-    reference-lists, which survived rotating every REQ's references onto the
-    wrong record — see the mutation tests at the bottom.
+    compares field by field. An earlier version compared a *multiset* of
+    reference-lists, which survived both gutting every record and rotating
+    ``references`` onto the wrong record — see the mutation tests below.
 
-    (Divergence reported to the orchestrator: the Plan's one-line invariant
-    should be reconciled with this statement. The plan is the Cowork-editable
-    planning surface, so this worker did not edit it.)
+    *History (2026-07-20):* the Plan originally said "unchanged modulo the
+    renumber map", which Design §5.2/§5.4 directly contradict by mandating
+    title and section rewrites — measured, records identical modulo ``id``
+    were chi 11/16, virtio 8/17, express 0/16. This worker reported the
+    contradiction rather than editing the Plan (the Cowork-editable planning
+    surface); the orchestrator corrected it in ``33c671c``, and the wording
+    above now tracks the corrected text. The class name is kept for
+    continuity with the Plan's older label.
     """
 
     def _paired(self, target):
