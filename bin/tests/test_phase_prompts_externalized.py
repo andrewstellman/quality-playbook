@@ -369,7 +369,15 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # run; honor LANGUAGE OVERRIDE). Length 10114 → 10395. Hash
         # recomputed — this baseline update IS the sanctioned
         # change-acknowledgement signal.
-        "phase2":                (10395, "b0ae1736140b369723d35e1e55a495c90cc840263d3eda882d2aea003ba0dbbd"),
+        # v1.6.0 Feature C (instruction 001): phase2.md carries the
+        # render-contract handoff. The eight canonical artifact-location
+        # REQs now render to quality/RUN_CONTRACT.md instead of
+        # quality/REQUIREMENTS.md (C-1: in the 2026-06-19 express run they
+        # were half the product spec), RUN_CONTRACT.md joins the Phase 2
+        # generate list, and a new paragraph points at the eight-part
+        # document architecture in references/phase2_generation_guide.md.
+        # Hashes recomputed.
+        "phase2":                (12289, "e13ff2baa583edae97ec448a2c57e776a56885208c189f1ed894440df01fb9ee"),
         # v1.5.7 090j: phase3.md + phase4.md gained the triage
         # precision-guardrail pointers (D1 reachability_analysis on
         # HIGH/MED bugs + D2 KNOWN-ISSUE classification for advisory-

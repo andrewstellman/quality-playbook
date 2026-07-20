@@ -17,7 +17,8 @@ Read these files to get context:
 Execute Phase 2: Generate all quality artifacts. Use the exploration findings in EXPLORATION.md as your source - do not re-explore the codebase from scratch. Generate:
 - quality/QUALITY.md (quality constitution)
 - quality/CONTRACTS.md (behavioral contracts)
-- quality/REQUIREMENTS.md (with REQ-NNN and UC-NN identifiers from EXPLORATION.md)
+- quality/REQUIREMENTS.md (with REQ-NNN and UC-NN identifiers from EXPLORATION.md) — the product spec; render per the v1.6.0 render contract below
+- quality/RUN_CONTRACT.md (QPB's own run-layout invariants, split out of REQUIREMENTS.md — see the artifact-location REQ section below)
 - quality/COVERAGE_MATRIX.md
 - Functional tests (quality/test_functional.*) — **if a `--language <lang>` override is in effect (a `LANGUAGE OVERRIDE` directive appears above), write the functional and regression tests in THAT language and target only its source; the gate validates the test files against it. QPB tests one language per run (v1.5.10 058).**
 - quality/RUN_CODE_REVIEW.md (code review protocol)
@@ -27,7 +28,11 @@ Execute Phase 2: Generate all quality artifacts. Use the exploration findings in
 - quality/COMPLETENESS_REPORT.md (baseline, without verdict)
 - If dispatch/enumeration contracts exist: quality/mechanical/ with verify.py (a Python orchestrator that subprocess.runs the ORIGINAL shell extraction pipeline — reimplementing the extraction in Python is forbidden, v1.3.23 invariant) and extraction artifacts. Run `python quality/mechanical/verify.py` immediately and save receipts.
 
-**Canonical artifact-location REQs (v1.5.7 fix F-4c).** REQUIREMENTS.md MUST include explicit location requirements for the canonical artifact paths so the gate has concrete REQs to enforce against. Add these REQs verbatim (renumber to slot into your existing REQ-NNN sequence; do not omit any):
+**Canonical artifact-location REQs (v1.5.7 fix F-4c; relocated by v1.6.0 Feature C).** These are QPB's own run-layout invariants, **not requirements of the audited system**. They are still mandatory records in `quality/requirements_manifest.json` — do not omit any — but they render to **`quality/RUN_CONTRACT.md`**, NOT to `quality/REQUIREMENTS.md`. A tool-contract REQ appearing in REQUIREMENTS.md is a Phase 6 gate FAIL (`check_render_no_tool_contract_reqs`); the mechanical test is that its `references[]` point exclusively into `quality/`.
+
+*Why they moved:* in the 2026-06-19 express run these eight were half of REQUIREMENTS.md (8 of 16 REQs) — a reader looking for Express's requirements found QPB's filing conventions instead. They were never wrong as invariants, only mislocated as product requirements. See `references/phase2_generation_guide.md` § "Split the product spec from the tool contract".
+
+Add these REQs verbatim as manifest records (renumber to slot into your existing REQ-NNN sequence; do not omit any), and render them to `quality/RUN_CONTRACT.md`:
 
 - `REQ-NNN: Per-bug writeups are placed at quality/writeups/BUG-<id>.md.`
 - `REQ-NNN: Fix patches are placed at quality/patches/BUG-<id>-fix.patch.`
@@ -40,7 +45,9 @@ Execute Phase 2: Generate all quality artifacts. Use the exploration findings in
 
 **v1.5.7 fix Q2 — v1.5.3 field mandates.** Every BUG record written to `quality/bugs_manifest.json` MUST populate `divergence_type` (`code-spec` | `internal-prose` | `cross-source`). Every FORMAL_DOC record in `quality/formal_docs_manifest.json` MUST populate `role` (`external-spec` for records from `reference_docs/cite/`; `skill-self-spec` / `skill-reference` only for Skill/Hybrid targets' own documents). The Phase 6 gate (`check_v1_5_3_formal_doc_role_validation`, `check_v1_5_3_bug_divergence_type`) keeps WARN for back-compat with pre-v1.5.7 manifests that lack these fields, but every v1.5.7 run must produce v1.5.3-shaped output. `bin/reference_docs_ingest.py` emits `role: "external-spec"` automatically; BUG records the agent writes must include `divergence_type` explicitly.
 
-These REQs convert artifact-location compliance from prose-only guidance into testable requirements. The Phase 6 gate's `check_no_workspace_dir` enforces the last one mechanically; the others give human reviewers concrete REQs to grep for in compliance audits.
+These REQs convert artifact-location compliance from prose-only guidance into testable requirements. The Phase 6 gate's `check_no_workspace_dir` enforces the last one mechanically; the others give human reviewers concrete REQs to grep for in compliance audits. Rendering them to `RUN_CONTRACT.md` keeps that enforcement while removing the contamination from the product spec.
+
+**REQUIREMENTS.md render contract (v1.6.0 Feature C).** `quality/REQUIREMENTS.md` is no longer free-form. Read `references/phase2_generation_guide.md` § "REQUIREMENTS.md render contract" before writing it, and render the eight-part canonical architecture: header with an accurate version stamp / Overview including the coverage-and-gaps statement / actors & roles / functional sections ordered user-facing→infrastructure with ≥2 REQs each / NFR sections (absent for now) / cross-cutting concerns / use cases / traceability appendix. REQ IDs are strictly sequential in **document order**. `references/requirements_pipeline.md` Phase E is mandatory and unconditional — it is how you get to that shape. The Phase 6 gate enforces all of this mechanically (`check_render_*`); a jumbled document now FAILs.
 
 **MANDATORY artifact-contract validation (v1.5.7 A-14).** Before completing Phase 2, run the phase-boundary validator and quote its final `RESULT:` line verbatim in your chat output (it matches `RESULT: VALIDATION PASSED (phase 2)` or `RESULT: VALIDATION FAILED (phase 2 — X FAIL, Y PASS)` — VALIDATION FAILED means your artifacts violate the contract; fix them per the `FAIL:` messages above and re-run until VALIDATION PASSED):
 

@@ -16,6 +16,7 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 | Exploration findings | `quality/EXPLORATION.md` | Yes | Phase 1 |
 | Quality constitution | `quality/QUALITY.md` | Yes | Phase 2 |
 | Requirements (UC identifiers) | `quality/REQUIREMENTS.md` | Yes | Phase 2 |
+| Run contract (tool invariants) | `quality/RUN_CONTRACT.md` | If tool-contract REQs exist | Phase 2 |
 | Behavioral contracts | `quality/CONTRACTS.md` | Yes | Phase 2 |
 | Functional tests | `quality/test_functional.*` | Yes | Phase 2 |
 | Regression tests | `quality/test_regression.*` | If bugs found | Phase 3 |
@@ -45,6 +46,8 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 | Recheck summary (MD) | `quality/results/recheck-summary.md` | When recheck runs | Recheck |
 | Seed checks | `quality/SEED_CHECKS.md` | If Phase 0b ran | Phase 0b |
 | Run metadata | `quality/results/run-YYYY-MM-DDTHH-MM-SS.json` | Yes | Phase 1 (created), Throughout (updated) |
+
+**`quality/RUN_CONTRACT.md` (v1.6.0 Feature C):** QPB's own run-layout invariants render here, not into `quality/REQUIREMENTS.md`. Both render from `requirements_manifest.json`; a REQ whose `references[]` point exclusively into `quality/` is a tool-contract REQ. Required whenever the manifest carries at least one such record — enforced by the Phase 6 gate's `check_render_contract` (presence here, absence from REQUIREMENTS.md), not by the fixed Phase-2 artifact list, so pre-v1.6.0 runs and archived trees validate unchanged.
 
 **Sidecar JSON lifecycle:** Write all bug writeups *before* finalizing `tdd-results.json` — the sidecar's `writeup_path` field must point to an existing file, not a placeholder. Similarly, run integration tests and collect results before writing `integration-results.json`.
 

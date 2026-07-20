@@ -303,9 +303,19 @@ After the loop completes (or short-circuits), proceed to Phase E.
 
 This phase transforms the specification into a guide. Add explanatory tissue so a new team member, code reviewer, or AI agent can read the document top-to-bottom and understand the software.
 
-### E.1 — Project overview (new, top of document)
+**Phase E is mandatory and unconditional (v1.6.0 Feature C).** It is not a polish pass to run when the target is large enough or time allows. Every step below runs on every run, at every target size. The rendered structure Phase E produces is the contract `references/phase2_generation_guide.md` specifies and the Phase 6 gate mechanically enforces — skipping E now FAILs the gate rather than shipping a flat list.
+
+*Why this is now unconditional:* across the three 2026-06-19 benchmark runs, Phase E fired unpredictably — virtio rendered a project overview and cross-cutting concerns; chi and express rendered neither, from the same pipeline and the same skill version. Nothing detected the difference, because the gate validated the manifest and never looked at the rendered document. Unqualified imperatives with no enforcement are how that happens.
+
+**Read `references/phase2_generation_guide.md` § "REQUIREMENTS.md render contract" before starting.** It carries the canonical eight-part document architecture; the steps below are how you get there.
+
+### E.1 — Project overview (mandatory, top of document)
 
 Write 400–600 words of connected prose explaining: what the software is, who uses it and why (primary personas and goals), how data flows through the major components, and the design philosophy (key architectural decisions and why they were made).
+
+Mandatory on every run regardless of target size — a small target is exactly when the reader most needs to know what the derivation understood the system to be. Follow the overview with an **actors & roles** part naming who the requirements serve.
+
+Close the overview with the **coverage-and-gaps statement**: what this derivation covered, and what it knowingly did not — areas explored but not turned into REQs, files skimmed, surfaces out of reach, and why. Be honest rather than flattering; the statement's value is that it makes thin coverage visible. It is advisory (WARN, never FAIL) and it is the opening move of the requirements validation interview.
 
 ### E.2 — Use cases (new, after overview)
 
@@ -321,28 +331,44 @@ Write 6–8 use cases in the style of Applied Software Project Management (Stell
 
 Cover the major usage patterns. The use cases are the bridge between "what the software does" and "what the requirements specify."
 
-### E.3 — Cross-cutting concerns (new, after use cases)
+### E.3 — Cross-cutting concerns (mandatory whenever there is more than one functional section)
 
 Document architectural invariants that span multiple categories: threading model, null contract, error philosophy, backward compatibility strategy, configuration composition. Each references specific REQ-NNN numbers. Write as prose paragraphs.
+
+Omit this part only when the document has exactly one functional section — with nothing to cut across, the part is meaningless. At two or more sections it is required, and the gate checks for it.
 
 ### E.4 — Category narratives (augment existing)
 
 For each requirement category, add 2–4 sentences before the first requirement explaining what the category covers, how it relates to other categories, and what a reviewer should keep in mind.
 
-### E.5 — Reorder for top-down flow
+### E.5 — Reorder for top-down flow (enforced)
 
-Reorder categories from user-facing (entry points, configuration) to infrastructure (error handling, backward compatibility). Fold any catch-all sections into proper categories.
+Reorder categories from user-facing (entry points, configuration) to infrastructure (error handling, backward compatibility). State the ordering rationale in one line at the top of the section list. Fold any catch-all sections into proper categories.
 
-### E.6 — Renumber sequentially
+Fold **singleton sections** here: a section holding one REQ either merges into a related section or carries a one-line justification for standing alone. Six single-REQ sections (the 2026-06-19 express shape) mean the grouping conveys nothing.
 
-After reordering, renumber all requirements REQ-001 through REQ-NNN following document order. Update all internal cross-references.
+**Propagate every section rename or merge to all records that name a section.** `functional_section` is carried on REQ records and — depending on the producing pipeline — on UC records too (the 2026-06-19 virtio run carried it on all 11 UCs; chi and express carried it on none). A merge that updates only the REQ records leaves UC records naming a section that no longer exists. Sweep both manifests for the old section name before moving on.
+
+### E.6 — Renumber sequentially (enforced)
+
+After reordering, renumber all requirements REQ-001 through REQ-NNN following **document order** — the first REQ appearing in the rendered document is REQ-001, with no gaps and no backtracking. Update all internal cross-references.
+
+**Renumber the manifest in the same pass.** `requirements_manifest.json` and the rendered document must agree on every identifier; this is the one sanctioned case where the narrative pass writes back to the manifest. Update every cross-reference that carries a REQ id — REQ records' `use_cases[]`, UC records' `requirements[]`, BUG records' `requirement`, and COVERAGE_MATRIX.md — in the same pass, or the renumber corrupts traceability.
+
+This step was already specified before v1.6.0 and demonstrably did not fire: chi rendered REQ-001/004/005, then 002, then 003/006. It contradicted the older "ordered by REQ id" rendering convention, so an agent following that convention produced scrambled identifiers *by doing what it was told*. That contradiction is now resolved in favor of document order, and the gate checks the result.
+
+### E.7 — Split the tool contract out of the product spec (enforced)
+
+Render every REQ whose `references[]` point exclusively into `quality/` to `quality/RUN_CONTRACT.md`, not to `quality/REQUIREMENTS.md`. These are QPB's own run-layout invariants, not requirements of the audited system. The records stay in the manifest unchanged — only the rendering destination differs. See `references/phase2_generation_guide.md` § "Split the product spec from the tool contract".
 
 ### Rules
 
-- **Do not delete, merge, or weaken any existing requirement.**
+- **Do not delete, merge, or weaken any existing requirement.** (Merging *sections* per E.5 is expected; merging requirements is not.)
 - **Do not add new requirements in this pass.**
 - **Write the overview and use cases from the user's perspective.**
 - **Use cases must cite specific REQ numbers.**
+- **Do not emit derivation internals into the rendered document** — no HTML comments, no `Asymmetry-promotion:` provenance lines, no cluster annotations, no internal pass vocabulary. That metadata belongs in the manifest.
+- **Renumbering is the last step.** Anything that reorders content invalidates the numbers assigned before it.
 
 ---
 
@@ -394,14 +420,23 @@ Each version folder is a complete snapshot. Users can diff any two versions.
 
 ### Version stamping
 
-The REQUIREMENTS.md header includes the current version:
+Two different version concepts land in the REQUIREMENTS.md header; do not conflate them.
+
+1. **The skill version** — which QPB release produced this artifact. This is the mandatory attribution stamp specified in `references/phase2_generation_guide.md` § "Version stamp", read from SKILL.md `metadata.version`. The Phase 6 gate checks it. Every generated Markdown file carries it.
+2. **The requirements-document version** (`vX.Y` above) — this document's own refinement generation, incremented by the minor-bump scheme described earlier in this section. It tracks how many refinement passes the *spec* has been through, and is unrelated to the QPB release.
+
+Render the skill-version attribution stamp first (it is the gate-checked one), then the document-version metadata:
 
 ```markdown
 # Behavioral Requirements — [Project Name]
-Version: vX.Y
-Generated: [date]
-Pipeline: contract-extraction v2 with narrative pass
+
+> Generated by [Quality Playbook](https://github.com/andrewstellman/quality-playbook) v<SKILL_VERSION> — Andrew Stellman
+> Date: YYYY-MM-DD · Project: [Project Name]
+
+Version: vX.Y · Pipeline: contract-extraction v2 with narrative pass
 ```
+
+`<SKILL_VERSION>` is a placeholder — substitute SKILL.md `metadata.version`, never a literal copied from this file.
 
 ---
 
