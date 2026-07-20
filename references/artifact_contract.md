@@ -47,18 +47,22 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 | Seed checks | `quality/SEED_CHECKS.md` | If Phase 0b ran | Phase 0b |
 | Run metadata | `quality/results/run-YYYY-MM-DDTHH-MM-SS.json` | Yes | Phase 1 (created), Throughout (updated) |
 
-**`quality/RUN_CONTRACT.md` (v1.6.0 Feature C):** QPB's own run-layout invariants render here, not into `quality/REQUIREMENTS.md`. Both render from `requirements_manifest.json`; a REQ whose `references[]` point exclusively into `quality/` is a tool-contract REQ. Required whenever the manifest carries at least one such record — enforced by the Phase 6 gate's `check_render_contract` (presence here, absence from REQUIREMENTS.md), not by the fixed Phase-2 artifact list, so pre-v1.6.0 runs and archived trees validate unchanged.
+**`quality/RUN_CONTRACT.md` (v1.6.0 Feature C):** QPB's own run-layout invariants render here, not into `quality/REQUIREMENTS.md`. Both render from `requirements_manifest.json`; a REQ whose `references[]` point exclusively into `quality/` is a tool-contract REQ. Required whenever the manifest carries at least one such record. Enforced in two places: conditionally at the Phase 2 boundary (`validate_phase_artifacts.py --phase 2`) so an incomplete artifact set is rejected where it is produced, and at the Phase 6 gate by `check_render_contract` (presence here, absence from REQUIREMENTS.md). Deliberately **not** added to `run_state_lib.py`'s unconditional Phase-2 `required_fixed` list, which would retroactively fail every archived pre-v1.6.0 tree.
+
+The whole render contract applies only to runs recording skill version ≥ 1.6.0 (read from `PROGRESS.md`'s `Skill version:` line, falling back to the detected SKILL.md version). Earlier runs rendered to a different, unspecified contract and are skipped entirely. *Corrected 2026-07-19 (instruction 001 self-Council, Panelist C):* this paragraph previously claimed archived trees "validate unchanged" on the strength of a heading-shape predicate. That was false — the `### REQ-NNN:` shape long predates v1.6.0, 49 archived trees carry it, and two archived runs flipped GATE PASSED → GATE FAILED before the predicate was changed to a real version test.
 
 **Sidecar JSON lifecycle:** Write all bug writeups *before* finalizing `tdd-results.json` — the sidecar's `writeup_path` field must point to an existing file, not a placeholder. Similarly, run integration tests and collect results before writing `integration-results.json`.
 
 ## Sidecar JSON Canonical Examples
+
+**`<SKILL_VERSION>` in the examples below is a placeholder, not a literal.** Substitute this skill's SKILL.md frontmatter `metadata.version` at generation time. Do not copy a version number out of this file — the gate compares `tdd-results.json`'s `skill_version` against the detected skill version and FAILs on a mismatch, so a copied literal is a gate failure, not a cosmetic drift. (v1.6.0 instruction 001: these examples carried hardcoded `"1.5.8"`, the same defect class as the C-7 stamp template.)
 
 **`quality/results/tdd-results.json`** — the gate validates field names, not just presence:
 
 ```json
 {
   "schema_version": "1.1",
-  "skill_version": "1.5.8",
+  "skill_version": "<SKILL_VERSION>",
   "date": "2026-04-12",
   "project": "repo-name",
   "bugs": [
@@ -85,7 +89,7 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 ```json
 {
   "schema_version": "1.1",
-  "skill_version": "1.5.8",
+  "skill_version": "<SKILL_VERSION>",
   "date": "2026-04-12",
   "project": "repo-name",
   "recommendation": "SHIP",
@@ -106,7 +110,7 @@ Every playbook run creates a timestamped metadata file at `quality/results/run-Y
 ```json
 {
   "schema_version": "1.0",
-  "skill_version": "1.5.8",
+  "skill_version": "<SKILL_VERSION>",
   "project": "repo-name",
   "model": "claude-sonnet-4.6",
   "model_provider": "anthropic",

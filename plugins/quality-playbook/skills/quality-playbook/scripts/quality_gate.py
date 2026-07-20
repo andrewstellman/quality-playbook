@@ -6835,24 +6835,135 @@ _RENDER_STAMP_RE = re.compile(
 )
 
 # C-5: derivation internals that must never reach the adopter-facing render.
-# The metadata belongs in requirements_manifest.json.
-_RENDER_INTERNAL_VOCAB = (
-    "Asymmetry-promotion",
-    "cluster:",
-    "pre_narrative",
-    "REQUIREMENTS_pre_narrative",
+# The metadata belongs in requirements_manifest.json. Design §5.3 check 4
+# seeds this deny-list with `Asymmetry-promotion`, `cluster:` and pass names.
+#
+# Each entry is (compiled_pattern, human_label). Word-boundary anchored
+# rather than bare substring: a target whose own domain vocabulary includes
+# the word "cluster" (Kubernetes, databases, storage) must be able to state
+# its requirements. The pattern must match the *annotation* form, not the
+# English word.
+_RENDER_INTERNAL_PATTERNS = (
+    (re.compile(r"Asymmetry-promotion"), "Asymmetry-promotion"),
+    (re.compile(r"<!--[^>]*\bcluster\s*:"), "cluster: annotation"),
+    (re.compile(r"^\s*[-*]?\s*cluster\s*:", re.MULTILINE), "cluster: annotation"),
+    (re.compile(r"REQUIREMENTS_pre_narrative|pre_narrative"), "pre_narrative"),
+    # Pass names — the derivation's own vocabulary for its internal stages.
+    (re.compile(r"\bnarrative pass\b", re.IGNORECASE), "narrative-pass name"),
+    (re.compile(r"\bcontract-extraction v\d", re.IGNORECASE), "pipeline pass name"),
+    (re.compile(r"\bPass [A-E]\b"), "derivation pass name"),
 )
 
 # Level-2 headings that are canonical non-functional parts of the eight-part
 # architecture. Everything else at level 2 is treated as a functional section.
+#
+# Anchored with \Z (whole-heading match) rather than \b. A heading like
+# "Requirements" is structural; "Functional Requirements" or "Requirements
+# for the parser" is a functional section that merely starts with the word.
+# The classifier also refuses to call any heading structural if it actually
+# contains REQ headings — see _render_classify_sections. Without that
+# belt-and-braces pair, a document rendering every REQ under a flat
+# `## Requirements` heading silently opts out of the entire section
+# discipline (intro prose, singleton merge, cross-cutting), which is exactly
+# what §5.2 exists to prevent.
 _RENDER_STRUCTURAL_HEADING_RE = re.compile(
     r"^(project\s+)?(overview|actors?(\s*(&|and)\s*roles?)?|use\s*cases?|"
     r"cross[-\s]?cutting(\s+concerns)?|traceability(\s+appendix)?|"
-    r"non[-\s]?functional.*|nfr.*|requirements?)\b",
+    r"non[-\s]?functional(\s+\w+)*|nfr(\s+\w+)*|requirements?)\s*\Z",
     re.IGNORECASE,
 )
 
+# Fenced code blocks are quoted material, not the document's own voice. A
+# requirement about a template engine must be able to show an HTML comment.
+_RENDER_FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
+
 _RENDER_TITLE_MAX = 120
+
+# The render contract is a v1.6.0+ obligation. Runs produced by earlier
+# skill versions rendered to a different (unspecified) contract and must not
+# be retroactively failed — 49 archived trees under repos/ and metrics/
+# carry the `### REQ-NNN:` heading shape, which long predates v1.6.0, so
+# heading shape alone is not a version test.
+_RENDER_CONTRACT_MIN_VERSION = (1, 6, 0)
+
+
+def _render_version_tuple(text):
+    """Parse a dotted version string into a comparable tuple, or None."""
+    if not text:
+        return None
+    m = re.search(r"(\d+)\.(\d+)(?:\.(\d+))?", str(text))
+    if not m:
+        return None
+    return (int(m.group(1)), int(m.group(2)), int(m.group(3) or 0))
+
+
+def _render_run_predates_contract(q, skill_version):
+    """True when this run was produced before the render contract existed.
+
+    Prefers the run's OWN recorded version (PROGRESS.md `Skill version:`)
+    over the ambient SKILL.md, because the question is "which skill rendered
+    these artifacts", not "which skill is installed now".
+    """
+    recorded = None
+    progress = q / "PROGRESS.md"
+    if progress.is_file():
+        recorded = read_skill_value_line(progress, "Skill version:")
+    version = _render_version_tuple(recorded) or _render_version_tuple(skill_version)
+    if version is None:
+        return False, None
+    return version < _RENDER_CONTRACT_MIN_VERSION, version
+
+
+def _render_scan_internals(text):
+    """Return human-readable descriptions of derivation internals in `text`.
+
+    Fenced code blocks are blanked (length-preserving, so reported line
+    numbers stay accurate) before scanning: a REQ about a template engine or
+    an HTML sanitizer has to be able to quote an HTML comment.
+    """
+    scanned = _RENDER_FENCE_RE.sub(
+        lambda m: re.sub(r"[^\n]", " ", m.group(0)), text
+    )
+    found = []
+    for m in re.finditer(r"<!--", scanned):
+        found.append(f"HTML comment at line {scanned[: m.start()].count(chr(10)) + 1}")
+        break
+    for pattern, label in _RENDER_INTERNAL_PATTERNS:
+        m = pattern.search(scanned)
+        if m:
+            line_no = scanned[: m.start()].count("\n") + 1
+            found.append(f"{label} at line {line_no}")
+    return found
+
+
+def _render_overview_body(text, level2):
+    """Return the Overview section's body, or '' when there is no Overview."""
+    bounds = [off for _h, off in level2] + [len(text)]
+    for idx, (heading, off) in enumerate(level2):
+        if re.match(r"^(project\s+)?overview\b", heading, re.IGNORECASE):
+            body = text[off: bounds[idx + 1]]
+            return body.split("\n", 1)[1] if "\n" in body else ""
+    return ""
+
+
+def _render_classify_sections(text, level2):
+    """Split level-2 headings into (structural, functional).
+
+    A heading is structural only if it both matches the structural-name
+    pattern AND contains no REQ headings. The second condition is what makes
+    the classifier robust to a document that parks all its REQs under a
+    generically-named heading.
+    """
+    bounds = [off for _h, off in level2] + [len(text)]
+    functional = []
+    for idx, (heading, off) in enumerate(level2):
+        body = text[off: bounds[idx + 1]]
+        has_reqs = bool(_RENDER_REQ_HEADING_RE.search(body))
+        if _RENDER_STRUCTURAL_HEADING_RE.match(heading) and not has_reqs:
+            continue
+        if has_reqs:
+            functional.append((heading, off))
+    return functional
 
 
 def _render_req_headings(text):
@@ -6906,7 +7017,16 @@ def check_render_contract(repo_dir, q, skill_version=None):
     if not headings:
         info(
             "REQUIREMENTS.md carries no '### REQ-NNN:' headings — "
-            "pre-v1.6.0 render shape, render contract skipped"
+            "not a contract-shaped render, render contract skipped"
+        )
+        return
+    predates, detected = _render_run_predates_contract(q, skill_version)
+    if predates:
+        info(
+            f"run recorded skill version {detected[0]}.{detected[1]}."
+            f"{detected[2]} — the render contract is a v"
+            f"{_RENDER_CONTRACT_MIN_VERSION[0]}.{_RENDER_CONTRACT_MIN_VERSION[1]}."
+            f"{_RENDER_CONTRACT_MIN_VERSION[2]}+ obligation, skipped"
         )
         return
 
@@ -6953,9 +7073,12 @@ def check_render_contract(repo_dir, q, skill_version=None):
                 "product spec from the tool contract').",
             )
         else:
+            # Deliberately does NOT claim the REQs were "routed to
+            # RUN_CONTRACT.md" — that is the next branch's job to verify,
+            # and this line is printed before it runs.
             pass_(
                 "no tool-contract REQs in REQUIREMENTS.md "
-                f"({len(tool_ids)} routed to RUN_CONTRACT.md)"
+                f"({len(tool_ids)} tool-contract REQ(s) in the manifest)"
             )
         if tool_ids:
             run_contract = q / "RUN_CONTRACT.md"
@@ -6981,6 +7104,32 @@ def check_render_contract(repo_dir, q, skill_version=None):
                         f"RUN_CONTRACT.md carries all {len(tool_ids)} "
                         "tool-contract REQ(s)"
                     )
+                # RUN_CONTRACT.md is a generated Markdown artifact like any
+                # other: it carries the same stamp obligation and the same
+                # no-internals rule. Without this, C-7 and C-5 could ship
+                # undetected in the very artifact this release introduces.
+                rc_text = _read_text_safe(run_contract)
+                rc_stamp = _RENDER_STAMP_RE.search(rc_text)
+                if not rc_stamp:
+                    fail(
+                        "RUN_CONTRACT.md",
+                        "no 'Generated by Quality Playbook v<version>' "
+                        "attribution stamp (mandatory on every generated "
+                        "Markdown file).",
+                    )
+                elif skill_version and rc_stamp.group(1) != skill_version:
+                    fail(
+                        "RUN_CONTRACT.md",
+                        f"generator stamp says v{rc_stamp.group(1)} but the "
+                        f"skill version is v{skill_version} (C-7).",
+                    )
+                rc_internals = _render_scan_internals(rc_text)
+                if rc_internals:
+                    fail(
+                        "RUN_CONTRACT.md",
+                        "derivation internals leaked into the rendered "
+                        "document: " + "; ".join(rc_internals) + ".",
+                    )
 
     # -- Check 3 (C-3, C-4): required parts + section discipline. ----------
     level2 = [(m.group(1).strip(), m.start()) for m in _RENDER_LEVEL2_RE.finditer(text)]
@@ -6997,9 +7146,7 @@ def check_render_contract(repo_dir, q, skill_version=None):
             "references/requirements_pipeline.md § E.1).",
         )
 
-    functional = [
-        (h, off) for (h, off) in level2 if not _RENDER_STRUCTURAL_HEADING_RE.match(h)
-    ]
+    functional = _render_classify_sections(text, level2)
     # Count REQs per functional section by document offset.
     bounds = [off for _h, off in level2] + [len(text)]
     section_req_counts = {}
@@ -7042,10 +7189,17 @@ def check_render_contract(repo_dir, q, skill_version=None):
                 idx = [x for x, _o in level2].index(h)
                 off = level2[idx][1]
                 body = text[off: bounds[idx + 1]]
+                # Search only the intro zone (heading -> first REQ), not the
+                # whole section: otherwise a REQ title or condition of
+                # satisfaction containing "only requirement" silently
+                # satisfies the escape hatch. The justification is a
+                # statement the section makes about itself.
+                first_req = _RENDER_REQ_HEADING_RE.search(body)
+                intro_zone = body[: first_req.start()] if first_req else body
                 if not re.search(
-                    r"singleton|stands? alone|single[- ]REQ|only requirement|"
-                    r"deliberately (its own|separate)",
-                    body,
+                    r"singleton|stands? alone|standing alone|single[- ]REQ|"
+                    r"only requirement|deliberately (its own|separate)",
+                    intro_zone,
                     re.IGNORECASE,
                 ):
                     unjustified.append(h)
@@ -7081,14 +7235,7 @@ def check_render_contract(repo_dir, q, skill_version=None):
                 )
 
     # -- Check 4 (C-5): no derivation internals in the render. -------------
-    internals = []
-    if "<!--" in text:
-        line_no = text[: text.index("<!--")].count("\n") + 1
-        internals.append(f"HTML comment at line {line_no}")
-    for token in _RENDER_INTERNAL_VOCAB:
-        if token in text:
-            line_no = text[: text.index(token)].count("\n") + 1
-            internals.append(f"{token!r} at line {line_no}")
+    internals = _render_scan_internals(text)
     if internals:
         fail(
             "REQUIREMENTS.md",
@@ -7149,19 +7296,34 @@ def check_render_contract(repo_dir, q, skill_version=None):
     # -- F-1 (advisory, WARN only): coverage-and-gaps statement. -----------
     # Never FAILs — its purpose is to make thin coverage visible to the
     # operator, and to give the validation interview its Stage-1 opener.
-    gaps = re.search(
+    # Scoped to the Overview, not the whole document: a stray "not covered"
+    # in a traceability appendix is not a coverage disclosure. §8 also
+    # requires the statement be non-empty, so a bare heading does not pass.
+    overview_body = _render_overview_body(text, level2)
+    gaps_match = re.search(
         r"(coverage\s+and\s+(known\s+)?gaps|known\s+gaps|not\s+covered|"
-        r"did\s+not\s+cover|out\s+of\s+reach)",
-        text,
+        r"did\s+not\s+cover|out\s+of\s+reach|deliberately\s+(did\s+not|"
+        r"excluded))",
+        overview_body,
         re.IGNORECASE,
     )
-    if gaps:
-        pass_("coverage-and-gaps statement present in the Overview")
+    if gaps_match:
+        # Non-emptiness: require substantive prose after the cue phrase,
+        # not just the phrase itself.
+        tail = overview_body[gaps_match.start():].strip()
+        if len(tail) >= 80:
+            pass_("coverage-and-gaps statement present in the Overview")
+        else:
+            warn(
+                "REQUIREMENTS.md Overview names coverage-and-gaps but the "
+                "statement is empty or near-empty — the operator gets a "
+                "heading, not a disclosure (v1.6.0 F-1; advisory)"
+            )
     else:
         warn(
-            "REQUIREMENTS.md carries no coverage-and-gaps statement — the "
-            "operator has no signal about what the derivation chose not to "
-            "cover (v1.6.0 F-1; advisory, never a FAIL)"
+            "REQUIREMENTS.md Overview carries no coverage-and-gaps statement "
+            "— the operator has no signal about what the derivation chose "
+            "not to cover (v1.6.0 F-1; advisory, never a FAIL)"
         )
 
 

@@ -40,8 +40,13 @@ separately in `quality/RUN_CONTRACT.md`.
 lifecycle contracts: feature negotiation and the transport-bit whitelist, device reset, interrupt
 dispatch, and the packed/split ring publication invariants. Those surfaces were read closely and
 are where every requirement below comes from. The derivation knowingly did **not** cover: the
-per-device drivers that sit above this layer (virtio-net, -blk, -scsi and friends are outside the
-checkout entirely, so nothing constrains how they consume these contracts); the DMA/IOMMU mapping
+per-device drivers that sit above this layer — and this is the largest uncovered surface that is
+actually **in** the checkout. `virtio_balloon.c`, `virtio_mem.c`, `virtio_input.c`,
+`virtio_dma_buf.c` and the `virtio_rtc_*.c` family are all present in `drivers/virtio/` and none
+of them is referenced by any requirement below; nothing here constrains how they consume the
+contracts this document specifies. (The more familiar per-device drivers — virtio-net, -blk,
+-scsi — live outside `drivers/virtio/` and are genuinely outside the checkout, which is a
+different and weaker claim.) Also uncovered: the DMA/IOMMU mapping
 and unmapping paths in `virtio_ring.c`, which were skimmed for barrier placement only and never
 turned into REQs; the admin-virtqueue and SR-IOV command surfaces, which are referenced by
 feature bits 37 and 41 but whose command handling was not read; suspend/resume and hot-unplug

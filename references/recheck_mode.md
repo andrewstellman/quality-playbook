@@ -50,7 +50,7 @@ Note: The recheck schema uses `"schema_version": "1.0"` (not `"1.1"`) because it
 ```json
 {
   "schema_version": "1.0",
-  "skill_version": "1.5.8",
+  "skill_version": "<SKILL_VERSION>",
   "date": "YYYY-MM-DD",
   "project": "<project name>",
   "source_run": {

@@ -365,7 +365,70 @@ def _validate_phase2(quality: Path) -> tuple[list[str], list[str]]:
             f"PASS: {_SEMANTIC_CHECK_MANIFEST} not required — no Tier "
             "1/2 REQs (schemas.md §9.1 vacuous case)"
         )
+    # v1.6.0 Feature C: RUN_CONTRACT.md is CONDITIONALLY required — only
+    # when requirements_manifest.json carries at least one tool-contract
+    # REQ (references[] pointing exclusively into quality/). Same
+    # conditional shape as citation_semantic_check.json above, and for the
+    # same reason this module exists at all: phase boundaries should reject
+    # an incomplete artifact set AT the boundary rather than deferring to
+    # the Phase 6 gate. Deliberately NOT added to the unconditional
+    # required_fixed list in run_state_lib.py, which would retroactively
+    # fail every archived pre-v1.6.0 Phase-2 tree.
+    tool_contract_ids = _tool_contract_req_ids(quality)
+    if not tool_contract_ids:
+        passes.append(
+            "PASS: RUN_CONTRACT.md not required — no tool-contract REQs "
+            "in requirements_manifest.json (v1.6.0 Design §5.1 vacuous case)"
+        )
+    elif (quality / "RUN_CONTRACT.md").is_file():
+        passes.append(
+            f"PASS: RUN_CONTRACT.md present for {len(tool_contract_ids)} "
+            "tool-contract REQ(s)"
+        )
+    else:
+        fails.append(
+            "FAIL: required Phase 2 artifact absent: quality/RUN_CONTRACT.md "
+            f"({len(tool_contract_ids)} tool-contract REQ(s) in "
+            "requirements_manifest.json render there, not into "
+            "REQUIREMENTS.md — v1.6.0 Design §5.1; see "
+            "references/phase2_generation_guide.md § 'Split the product "
+            "spec from the tool contract')"
+        )
     return passes, fails
+
+
+def _tool_contract_req_ids(quality: Path) -> list[str]:
+    """REQ ids whose references[] point exclusively into quality/.
+
+    These are QPB's own run-layout invariants, not requirements of the
+    audited system. Returns [] when the manifest is absent or unreadable —
+    an absent manifest is already a FAIL above, and this helper must not
+    manufacture a second, confusing failure for the same cause.
+    """
+    path = quality / "requirements_manifest.json"
+    if not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(data, dict):
+        return []
+    records = data.get("records")
+    if not isinstance(records, list):
+        return []
+    ids = []
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        refs = rec.get("references")
+        if not isinstance(refs, list) or not refs:
+            continue
+        if all(str(r).startswith("quality/") for r in refs):
+            rid = rec.get("id")
+            if rid:
+                ids.append(str(rid))
+    return ids
 
 
 def _load_index_payload(quality: Path) -> tuple[dict | None, str | None]:

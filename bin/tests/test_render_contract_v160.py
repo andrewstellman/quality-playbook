@@ -526,7 +526,7 @@ class RenderContractInertnessTests(RenderContractBase):
         fails, warns, out = self.run_check()
         self.assertEqual(fails, 0)
         self.assertEqual(warns, 0)
-        self.assertIn("pre-v1.6.0 render shape", out)
+        self.assertIn("not a contract-shaped render", out)
 
     def test_tool_contract_split_skipped_without_manifest(self):
         (self.q / "requirements_manifest.json").unlink()
@@ -537,6 +537,193 @@ class RenderContractInertnessTests(RenderContractBase):
         """When SKILL.md cannot be read, the stamp check must not FAIL."""
         fails, _w, out = self.run_check(skill_version=None)
         self.assertEqual(fails, 0, out)
+
+
+class RenderContractVersionGatingTests(RenderContractBase):
+    """The contract is a v1.6.0+ obligation, not a heading-shape obligation.
+
+    Regression pin for instruction-001 self-Council P1 (Panelist C): the
+    original inertness predicate was "REQUIREMENTS.md has no ### REQ-NNN:
+    headings", but that shape long predates v1.6.0. 49 archived trees under
+    repos/ and metrics/ carry it, and two archived runs flipped
+    GATE PASSED -> GATE FAILED against documents that have no v1.6.0
+    obligation whatsoever.
+    """
+
+    def _write_progress(self, version):
+        (self.q / "PROGRESS.md").write_text(
+            f"# Progress\n\nSkill version: {version}\n", encoding="utf-8"
+        )
+
+    def test_pre_v160_run_is_skipped_entirely(self):
+        # Break the document thoroughly; an old run must still not FAIL.
+        self.write_requirements(
+            _clean_requirements_md().replace("REQ-002:", "REQ-009:")
+        )
+        self._write_progress("1.5.10")
+        fails, warns, out = self.run_check()
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+        self.assertIn("v1.6.0+ obligation", out)
+
+    def test_v160_run_is_evaluated(self):
+        self.write_requirements(
+            _clean_requirements_md().replace("REQ-002:", "REQ-009:")
+        )
+        self._write_progress("1.6.0")
+        fails, _warns, out = self.run_check()
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("not sequential", out)
+
+    def test_later_version_is_evaluated(self):
+        self._write_progress("1.7.2")
+        fails, warns, out = self.run_check()
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+
+    def test_run_recorded_version_beats_ambient_skill_version(self):
+        """The question is which skill RENDERED these artifacts."""
+        self._write_progress("1.5.8")
+        fails, _warns, out = self.run_check(skill_version="1.6.0")
+        self.assertEqual(fails, 0, out)
+        self.assertIn("v1.6.0+ obligation", out)
+
+    def test_absent_progress_falls_back_to_ambient_version(self):
+        fails, _warns, out = self.run_check(skill_version="1.5.10")
+        self.assertEqual(fails, 0, out)
+        self.assertIn("v1.6.0+ obligation", out)
+
+
+class RenderContractFalsePositiveTests(RenderContractBase):
+    """Documents that are legitimate but unusual must not be failed.
+
+    The Implementation Plan names render-contract over-firing as a top risk.
+    """
+
+    def test_html_comment_inside_a_fenced_code_block_is_allowed(self):
+        text = _clean_requirements_md().replace(
+            "- References: recover.go",
+            "- References: recover.go\n\n```html\n<!-- template placeholder -->\n```",
+        )
+        self.write_requirements(text)
+        fails, _w, out = self.run_check()
+        self.assertEqual(fails, 0, out)
+
+    def test_the_word_cluster_in_domain_prose_is_allowed(self):
+        text = _clean_requirements_md().replace(
+            "Application developers mount routers; operators deploy behind proxies.",
+            "Application developers mount routers; operators deploy behind "
+            "proxies. A cluster: of nodes is out of scope, and the cluster "
+            "topology is not modelled.",
+        )
+        self.write_requirements(text)
+        _f, _w, out = self.run_check()
+        # The prose form is allowed; only the annotation form is denied.
+        self.assertIn("no derivation internals", out)
+
+    def test_single_functional_section_needs_no_cross_cutting(self):
+        text = _clean_requirements_md()
+        start = text.index("## Error handling")
+        end = text.index("## Cross-cutting concerns")
+        text = text[:start] + text[end:]
+        cc_start = text.index("## Cross-cutting concerns")
+        cc_end = text.index("## Use cases")
+        text = text[:cc_start] + text[cc_end:]
+        text = text.replace("### REQ-004:", "### REQ-004_REMOVED:")
+        text = text.replace("### REQ-005:", "### REQ-005_REMOVED:")
+        self.write_requirements(text)
+        _f, _w, out = self.run_check()
+        self.assertNotIn("no Cross-cutting concerns section", out)
+
+    def test_flat_requirements_heading_cannot_bypass_section_discipline(self):
+        """A generically-named heading holding REQs is still a section.
+
+        Self-Council P1 (Panelists A and C, found independently): the
+        structural-heading pattern matched 'Requirements', so a document
+        parking every REQ under '## Requirements' emptied the functional
+        list and skipped intro-prose, singleton and cross-cutting checks
+        entirely — FAIL=0 on a document §5.2 exists to reject.
+        """
+        text = f"""# Requirements — testproj
+
+> Generated by [Quality Playbook](https://github.com/andrewstellman/quality-playbook) v{SKILL_VERSION} — Andrew Stellman
+
+## Overview
+
+testproj is a thing. Coverage and known gaps: everything was covered, and
+nothing at all was left out of this deliberately small derivation sample.
+
+## Requirements
+
+### REQ-001: A requirement with no section theme
+
+- References: a.go
+
+### REQ-002: Another requirement with no section theme
+
+- References: b.go
+"""
+        self.write_requirements(text)
+        self.write_manifest(_manifest(tool_contract=False))
+        (self.q / "RUN_CONTRACT.md").unlink()
+        fails, _w, out = self.run_check()
+        self.assertGreaterEqual(
+            fails, 1,
+            "a flat '## Requirements' heading must not opt the document out "
+            f"of section discipline:\n{out}",
+        )
+
+
+class RenderContractRunContractArtifactTests(RenderContractBase):
+    """RUN_CONTRACT.md is a generated artifact and carries the same rules."""
+
+    def test_stale_stamp_in_run_contract_is_caught(self):
+        self.write_run_contract(
+            _clean_run_contract_md().replace(f"v{SKILL_VERSION}", "v1.5.3")
+        )
+        fails, _w, out = self.run_check()
+        self.assertGreaterEqual(fails, 1)
+        self.assertIn("RUN_CONTRACT.md", out)
+
+    def test_missing_stamp_in_run_contract_is_caught(self):
+        text = _clean_run_contract_md()
+        start = text.index("> Generated by")
+        end = text.index("These are Quality Playbook")
+        self.write_run_contract(text[:start] + text[end:])
+        fails, _w, out = self.run_check()
+        self.assertGreaterEqual(fails, 1)
+        self.assertIn("attribution stamp", out)
+
+    def test_internals_in_run_contract_are_caught(self):
+        self.write_run_contract(
+            _clean_run_contract_md() + "\n<!-- cluster: heterogeneous -->\n"
+        )
+        fails, _w, out = self.run_check()
+        self.assertGreaterEqual(fails, 1)
+        self.assertIn("RUN_CONTRACT.md", out)
+
+
+class F1ScopingTests(RenderContractBase):
+    """F-1 is scoped to the Overview and requires a substantive statement."""
+
+    def test_gaps_phrase_outside_the_overview_does_not_satisfy_f1(self):
+        text = _clean_requirements_md()
+        start = text.index("Coverage and known gaps:")
+        end = text.index("## Actors and roles")
+        text = text[:start] + text[end:]
+        text += "\n\nUC-09 exercises a path not covered by any route.\n"
+        self.write_requirements(text)
+        _f, warns, out = self.run_check()
+        self.assertEqual(warns, 1, out)
+
+    def test_near_empty_gaps_statement_warns(self):
+        text = _clean_requirements_md()
+        start = text.index("Coverage and known gaps:")
+        end = text.index("## Actors and roles")
+        self.write_requirements(text[:start] + "Coverage and known gaps: none.\n\n" + text[end:])
+        fails, warns, out = self.run_check()
+        self.assertEqual(fails, 0, "F-1 must never FAIL")
+        self.assertEqual(warns, 1, out)
 
 
 class RenderContractAuditSweepTests(unittest.TestCase):

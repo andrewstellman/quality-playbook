@@ -81,12 +81,20 @@ def _run_render_contract(target, skill_version=FIXTURE_SKILL_VERSION):
     return quality_gate.FAIL, quality_gate.WARN, buf.getvalue()
 
 
-def _run_render_contract_on_before(target, skill_version="1.5.8"):
+def _run_render_contract_on_before(target, skill_version=FIXTURE_SKILL_VERSION):
     """Run the contract against the preserved pre-v1.6.0 render.
 
     Stages into a temporary tree rather than swapping files inside the
     committed fixture: an in-place swap leaves the fixture corrupted if the
     process dies mid-test, and races any concurrent test run.
+
+    Deliberately evaluates the before-document *as if* it were a v1.6.0
+    render (no PROGRESS.md is staged, and the skill version passed is the
+    fixture's). The question this harness asks is "does the contract
+    discriminate between the old shape and the new one?", which requires
+    holding the version constant. Whether a real 1.5.8 run is *obligated*
+    to satisfy the contract is a separate question, answered by the version
+    predicate and pinned in RenderContractVersionGatingTests.
     """
     src = FIXTURE_ROOT / target / "quality"
     with tempfile.TemporaryDirectory() as tmp:
@@ -237,54 +245,176 @@ class ToolContractSplitTests(unittest.TestCase):
                 )
 
 
-class ManifestUnchangedInvariantTests(unittest.TestCase):
-    """Feature C is presentation-layer: same records, renumbered only.
+# Fields Feature C is allowed to change, and why. Everything else must be
+# byte-identical across the render.
+#
+#   id                  Phase E.6 renumber to document order (Design §5.3 #1)
+#   title               intent-form normalization (Design §5.4)
+#   functional_section  Phase E.5 reorder/merge (Design §5.2 item 4)
+#   conditions_of_satisfaction
+#                       may only GROW, by absorbing the normative sentence a
+#                       title rewrite displaced — never shrink. Without this
+#                       the manifest loses contract text that survives only
+#                       in rendered prose, and the FP-audit (which consumes
+#                       the manifest, never the render) sees a weaker
+#                       requirement than a human reader does.
+_MUTABLE_FIELDS = frozenset(
+    {"id", "title", "functional_section", "conditions_of_satisfaction"}
+)
 
-    Plan Phase 1 work item — ``requirements_manifest.json`` for a fixed
-    input is unchanged modulo the renumber map. This is what makes Feature C
-    safe to land ahead of the FP-audit, which consumes the manifest and
-    must not be perturbed by render changes.
+
+class ManifestUnchangedInvariantTests(unittest.TestCase):
+    """Feature C is presentation-layer, stated precisely.
+
+    The Implementation Plan (:45) says ``requirements_manifest.json`` is
+    "unchanged modulo the renumber map". That phrasing is **too strong for
+    the work the design itself mandates** — §5.4's intent-form rule rewrites
+    titles and §5.2's section merges rewrite ``functional_section``. The
+    honest invariant, enforced here, is:
+
+        unchanged modulo (a) the renumber map, (b) title normalization,
+        (c) functional_section reassignment, and (d) conditions_of_
+        satisfaction growing to absorb displaced title text.
+
+    Every other field is byte-identical, and no record is added, dropped,
+    merged, or weakened.
+
+    This class is the safety rail for landing Feature C ahead of the
+    FP-audit, so it pairs records through the explicit renumber map and
+    compares field by field. The previous version compared a *multiset* of
+    reference-lists, which survived rotating every REQ's references onto the
+    wrong record — see the mutation tests at the bottom.
+
+    (Divergence reported to the orchestrator: the Plan's one-line invariant
+    should be reconciled with this statement. The plan is the Cowork-editable
+    planning surface, so this worker did not edit it.)
     """
 
-    def _pairs(self, target):
-        before = _load_json(target, "requirements_manifest.before.json")["records"]
-        after = _load_json(target, "requirements_manifest.json")["records"]
-        return before, after
+    def _paired(self, target):
+        """Yield (before_record, after_record) through the renumber map."""
+        before = {
+            r["id"]: r
+            for r in _load_json(target, "requirements_manifest.before.json")["records"]
+        }
+        after = {
+            r["id"]: r
+            for r in _load_json(target, "requirements_manifest.json")["records"]
+        }
+        rmap = _load_json(target, "renumber_map.json")
+        for old_id, new_id in rmap.items():
+            yield old_id, new_id, before[old_id], after[new_id]
+
+    def test_renumber_map_is_a_total_bijection(self):
+        """A partial or many-to-one map would let records vanish silently."""
+        for target in TARGETS:
+            with self.subTest(target=target):
+                before = _load_json(
+                    target, "requirements_manifest.before.json"
+                )["records"]
+                after = _load_json(target, "requirements_manifest.json")["records"]
+                rmap = _load_json(target, "renumber_map.json")
+                self.assertEqual(
+                    sorted(rmap), sorted(r["id"] for r in before),
+                    f"{target}: renumber map domain != before-manifest ids",
+                )
+                self.assertEqual(
+                    sorted(rmap.values()), sorted(r["id"] for r in after),
+                    f"{target}: renumber map range != after-manifest ids",
+                )
+                self.assertEqual(
+                    len(set(rmap.values())), len(rmap),
+                    f"{target}: renumber map is not injective — two records "
+                    "collapsed onto one id.",
+                )
 
     def test_record_count_is_unchanged(self):
         for target in TARGETS:
             with self.subTest(target=target):
-                before, after = self._pairs(target)
+                before = _load_json(
+                    target, "requirements_manifest.before.json"
+                )["records"]
+                after = _load_json(target, "requirements_manifest.json")["records"]
                 self.assertEqual(
                     len(before), len(after),
-                    f"{target}: the renumber changed the record count — "
-                    "Feature C must not add, drop, or merge requirements "
-                    "(references/requirements_pipeline.md Phase E rules).",
+                    f"{target}: record count changed — Feature C must not "
+                    "add, drop, or merge requirements.",
                 )
 
-    def test_reference_sets_are_preserved(self):
-        """References are the REQ's grounding; a renumber must not touch them."""
+    def test_every_immutable_field_is_byte_identical_per_record(self):
+        """The real invariant. Kills the 'gut every record' mutation."""
         for target in TARGETS:
-            with self.subTest(target=target):
-                before, after = self._pairs(target)
-                before_refs = sorted(
-                    tuple(sorted(str(x) for x in (r.get("references") or [])))
-                    for r in before
+            for old_id, new_id, b, a in self._paired(target):
+                fields = (set(b) | set(a)) - _MUTABLE_FIELDS
+                for field in sorted(fields):
+                    with self.subTest(target=target, req=old_id, field=field):
+                        self.assertEqual(
+                            b.get(field), a.get(field),
+                            f"{target}: {old_id}->{new_id} field {field!r} "
+                            "changed. Feature C is presentation-layer; only "
+                            f"{sorted(_MUTABLE_FIELDS)} may change.",
+                        )
+
+    def test_references_stay_attached_to_their_own_record(self):
+        """Kills the 'rotate references' mutation.
+
+        A multiset comparison cannot see this: rotating references across
+        records preserves the multiset while making every REQ cite the
+        wrong source file.
+        """
+        for target in TARGETS:
+            for old_id, new_id, b, a in self._paired(target):
+                with self.subTest(target=target, req=old_id):
+                    self.assertEqual(
+                        b.get("references"), a.get("references"),
+                        f"{target}: {old_id}->{new_id} references moved to a "
+                        "different record. References are the REQ's "
+                        "grounding.",
+                    )
+
+    def test_conditions_of_satisfaction_never_shrink(self):
+        """Title normalization must not silently drop normative content."""
+        for target in TARGETS:
+            for old_id, new_id, b, a in self._paired(target):
+                before_cos = (b.get("conditions_of_satisfaction") or "").strip()
+                after_cos = (a.get("conditions_of_satisfaction") or "").strip()
+                if not before_cos:
+                    continue
+                with self.subTest(target=target, req=old_id):
+                    self.assertIn(
+                        before_cos, after_cos,
+                        f"{target}: {old_id}->{new_id} conditions of "
+                        "satisfaction lost content.",
+                    )
+
+    def test_displaced_title_text_survives_in_the_manifest(self):
+        """A rewritten title must not take its contract text out of the manifest.
+
+        The FP-audit consumes the manifest and never the rendered document,
+        so a normative sentence that lives only in rendered prose is
+        invisible to it.
+        """
+        for target in TARGETS:
+            for old_id, new_id, b, a in self._paired(target):
+                old_title = (b.get("title") or "").strip().rstrip(".")
+                if not old_title or old_title == (a.get("title") or "").strip():
+                    continue
+                haystack = " ".join(
+                    str(a.get(f) or "")
+                    for f in ("title", "conditions_of_satisfaction", "text",
+                              "implementation")
                 )
-                after_refs = sorted(
-                    tuple(sorted(str(x) for x in (r.get("references") or [])))
-                    for r in after
-                )
-                self.assertEqual(
-                    before_refs, after_refs,
-                    f"{target}: the set of reference lists changed across the "
-                    "renumber — Feature C is presentation-layer.",
-                )
+                with self.subTest(target=target, req=old_id):
+                    self.assertIn(
+                        old_title, haystack,
+                        f"{target}: {old_id}->{new_id} was retitled and the "
+                        "displaced normative sentence is not anywhere in the "
+                        "record — it survives only in rendered prose.",
+                    )
 
     def test_ids_remain_a_dense_sequential_block(self):
         for target in TARGETS:
             with self.subTest(target=target):
-                _before, after = self._pairs(target)
+                after = _load_json(target, "requirements_manifest.json")["records"]
                 ids = sorted(int(r["id"].split("-")[1]) for r in after)
                 self.assertEqual(
                     ids, list(range(1, len(ids) + 1)),
@@ -311,6 +441,87 @@ class ManifestUnchangedInvariantTests(unittest.TestCase):
                     f"{target}: manifest ids and rendered ids diverge. The "
                     "manifest is the source of truth; the renderings must be "
                     "faithful presentations of it.",
+                )
+
+
+class ManifestInvariantMutationTests(unittest.TestCase):
+    """Mutation bites for ManifestUnchangedInvariantTests.
+
+    Both mutations below PASSED the previous version of the invariant class,
+    which is why they are pinned here. Sourced from the instruction-001
+    self-Council (Panelist C, P1-1).
+    """
+
+    def _load_pairs(self, target):
+        before = {
+            r["id"]: r
+            for r in _load_json(target, "requirements_manifest.before.json")["records"]
+        }
+        after = {
+            r["id"]: r
+            for r in _load_json(target, "requirements_manifest.json")["records"]
+        }
+        rmap = _load_json(target, "renumber_map.json")
+        return before, after, rmap
+
+    def test_mutation_a_gutted_records_are_detected(self):
+        """Replace every non-id, non-reference field with a placeholder."""
+        for target in TARGETS:
+            with self.subTest(target=target):
+                before, after, rmap = self._load_pairs(target)
+                caught = False
+                for old_id, new_id in rmap.items():
+                    b = before[old_id]
+                    gutted = {
+                        k: ("PWNED" if k not in ("id", "references") else v)
+                        for k, v in after[new_id].items()
+                    }
+                    fields = (set(b) | set(gutted)) - _MUTABLE_FIELDS
+                    if any(b.get(f) != gutted.get(f) for f in fields):
+                        caught = True
+                        break
+                self.assertTrue(
+                    caught,
+                    f"{target}: gutting every record's content did not trip "
+                    "the immutable-field comparison — the invariant is "
+                    "vacuous.",
+                )
+
+    def test_mutation_b_rotated_references_are_detected(self):
+        """Shift references by one so every REQ cites the wrong file.
+
+        The multiset of reference-lists is unchanged by this mutation, which
+        is exactly why the multiset comparison could not see it.
+        """
+        for target in TARGETS:
+            with self.subTest(target=target):
+                before, after, rmap = self._load_pairs(target)
+                ordered = [after[rmap[o]] for o in sorted(rmap)]
+                refs = [r.get("references") for r in ordered]
+                rotated = refs[1:] + refs[:1]
+                caught = any(
+                    before[old].get("references") != rot
+                    for old, rot in zip(sorted(rmap), rotated)
+                )
+                self.assertTrue(
+                    caught,
+                    f"{target}: rotating references across records was not "
+                    "detected — per-record attachment is not being checked.",
+                )
+
+    def test_multiset_comparison_alone_would_miss_rotation(self):
+        """Documents *why* the per-record check exists, not just that it does."""
+        for target in TARGETS:
+            with self.subTest(target=target):
+                _b, after, rmap = self._load_pairs(target)
+                ordered = [after[rmap[o]] for o in sorted(rmap)]
+                refs = [tuple(r.get("references") or []) for r in ordered]
+                rotated = refs[1:] + refs[:1]
+                self.assertEqual(
+                    sorted(refs), sorted(rotated),
+                    "rotation should preserve the multiset — if this fails "
+                    "the fixture no longer demonstrates the weakness the "
+                    "per-record check was added to close.",
                 )
 
 

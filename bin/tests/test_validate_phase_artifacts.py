@@ -720,3 +720,83 @@ class Phase2ManifestPresenceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Phase2RunContractConditionalTests(unittest.TestCase):
+    """v1.6.0 Feature C: RUN_CONTRACT.md is conditionally required.
+
+    Required exactly when requirements_manifest.json carries at least one
+    tool-contract REQ (references[] pointing exclusively into quality/).
+    Deliberately conditional, and deliberately NOT in run_state_lib.py's
+    unconditional ``required_fixed`` tuple, which would retroactively fail
+    every archived pre-v1.6.0 Phase-2 tree.
+
+    Origin: instruction-001 self-Council, Panelist C P2-2 — the first
+    implementation enforced the split only at the Phase 6 gate, which is the
+    exact deferral the comment above ``required_fixed`` says was closed on
+    purpose ("phase boundaries should reject incomplete artifact sets at the
+    boundary, not defer").
+    """
+
+    @staticmethod
+    def _with_tool_contract_req(q: Path) -> None:
+        _write(q / "requirements_manifest.json",
+               {"schema_version": "1.6.0", "generated_at": _ISO,
+                "records": [
+                    {"id": "REQ-001", "references": ["lib/router.js"]},
+                    {"id": "REQ-002", "references": ["quality/writeups/"]},
+                ]})
+
+    def test_tool_contract_req_without_run_contract_fails(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            self._with_tool_contract_req(q)
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertIn("RUN_CONTRACT.md", out)
+            self.assertIn("required Phase 2 artifact absent", out)
+
+    def test_tool_contract_req_with_run_contract_passes(self) -> None:
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            self._with_tool_contract_req(q)
+            (q / "RUN_CONTRACT.md").write_text("# Run contract\n",
+                                               encoding="utf-8")
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 0, out)
+            self.assertIn("RUN_CONTRACT.md present", out)
+
+    def test_no_tool_contract_req_does_not_require_run_contract(self) -> None:
+        """The vacuous case must not manufacture a failure."""
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            _write(q / "requirements_manifest.json",
+                   {"schema_version": "1.6.0", "generated_at": _ISO,
+                    "records": [{"id": "REQ-001",
+                                 "references": ["lib/router.js"]}]})
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 0, out)
+            self.assertIn("RUN_CONTRACT.md not required", out)
+
+    def test_empty_manifest_does_not_require_run_contract(self) -> None:
+        """Archived/pre-v1.6.0 shape: no records, no new obligation."""
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 0, out)
+            self.assertIn("RUN_CONTRACT.md not required", out)
+
+    def test_absent_manifest_does_not_add_a_second_failure(self) -> None:
+        """An absent manifest already FAILs; don't confuse the operator."""
+        with TemporaryDirectory() as tmp:
+            q = _quality(tmp)
+            _write_all_required_manifests(q)
+            (q / "requirements_manifest.json").unlink()
+            rc, out = _run(Path(tmp), 2)
+            self.assertEqual(rc, 1, out)
+            self.assertNotIn("required Phase 2 artifact absent: "
+                             "quality/RUN_CONTRACT.md", out)

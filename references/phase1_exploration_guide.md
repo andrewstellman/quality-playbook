@@ -14,7 +14,7 @@ mkdir -p quality/results
 cat > "quality/results/run-$(date -u +%Y-%m-%dT%H-%M-%S).json" <<'METADATA'
 {
   "schema_version": "1.0",
-  "skill_version": "1.5.7",
+  "skill_version": "<SKILL_VERSION>",
   "project": "<repo-name>",
   "model": "<model-string>",
   "model_provider": "<provider>",
