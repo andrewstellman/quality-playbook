@@ -1,0 +1,55 @@
+{
+  "schema_version": "1.5.2",
+  "reqs": {
+    "REQ-001": {
+      "pattern": "compensation",
+      "items": ["RING_RESET", "ADMIN_VQ", "SR_IOV", "NOTIF_CONFIG_DATA"],
+      "sites": ["PCI", "MMIO", "vDPA"],
+      "cells": [
+        {"cell_id": "REQ-001/cell-RING_RESET-PCI",        "item": "RING_RESET",        "site": "PCI",  "present": true,  "evidence": "drivers/virtio/virtio_pci_modern.c:376-377 (vp_transport_features re-adds VIRTIO_F_RING_RESET)"},
+        {"cell_id": "REQ-001/cell-RING_RESET-MMIO",        "item": "RING_RESET",        "site": "MMIO", "present": false, "evidence": "drivers/virtio/virtio_mmio.c:109-132 (vm_finalize_features: no re-add after vring_transport_features)"},
+        {"cell_id": "REQ-001/cell-RING_RESET-vDPA",        "item": "RING_RESET",        "site": "vDPA", "present": false, "evidence": "drivers/virtio/virtio_vdpa.c:389-397 (virtio_vdpa_finalize_features: no re-add)"},
+        {"cell_id": "REQ-001/cell-ADMIN_VQ-PCI",           "item": "ADMIN_VQ",          "site": "PCI",  "present": true,  "evidence": "drivers/virtio/virtio_pci_modern.c:379-380 (vp_transport_features re-adds VIRTIO_F_ADMIN_VQ)"},
+        {"cell_id": "REQ-001/cell-ADMIN_VQ-MMIO",          "item": "ADMIN_VQ",          "site": "MMIO", "present": false, "evidence": "drivers/virtio/virtio_mmio.c:109-132 (no admin virtqueue support)"},
+        {"cell_id": "REQ-001/cell-ADMIN_VQ-vDPA",          "item": "ADMIN_VQ",          "site": "vDPA", "present": false, "evidence": "drivers/virtio/virtio_vdpa.c:389-397 (no admin virtqueue support)"},
+        {"cell_id": "REQ-001/cell-SR_IOV-PCI",             "item": "SR_IOV",            "site": "PCI",  "present": true,  "evidence": "drivers/virtio/virtio_pci_modern.c:372-374 (vp_transport_features re-adds VIRTIO_F_SR_IOV gated on PCI SR-IOV ext cap)"},
+        {"cell_id": "REQ-001/cell-SR_IOV-MMIO",            "item": "SR_IOV",            "site": "MMIO", "present": false, "evidence": "drivers/virtio/virtio_mmio.c:109-132 (no PCI SR-IOV concept on MMIO bus)"},
+        {"cell_id": "REQ-001/cell-SR_IOV-vDPA",            "item": "SR_IOV",            "site": "vDPA", "present": false, "evidence": "drivers/virtio/virtio_vdpa.c:389-397 (no PCI SR-IOV concept on vDPA bus)"},
+        {"cell_id": "REQ-001/cell-NOTIF_CONFIG_DATA-PCI",  "item": "NOTIF_CONFIG_DATA", "site": "PCI",  "present": false, "evidence": "drivers/virtio/virtio_pci_modern.c:367-381 (vp_transport_features does NOT re-add VIRTIO_F_NOTIF_CONFIG_DATA, bit 39) even though :407 validates it and :676-702 implements vp_notify_with_data"},
+        {"cell_id": "REQ-001/cell-NOTIF_CONFIG_DATA-MMIO", "item": "NOTIF_CONFIG_DATA", "site": "MMIO", "present": false, "evidence": "drivers/virtio/virtio_mmio.c:109-132 (bit 39 is a PCI modern common-cfg feature; not an MMIO register)"},
+        {"cell_id": "REQ-001/cell-NOTIF_CONFIG_DATA-vDPA", "item": "NOTIF_CONFIG_DATA", "site": "vDPA", "present": false, "evidence": "drivers/virtio/virtio_vdpa.c:389-397 (bit 39 is a PCI modern common-cfg feature; vDPA uses backend set_features)"}
+      ]
+    },
+    "REQ-002": {
+      "pattern": "whitelist",
+      "items": ["SR_IOV", "NOTIF_CONFIG_DATA", "RING_RESET", "ADMIN_VQ"],
+      "sites": ["RING"],
+      "cells": [
+        {"cell_id": "REQ-002/cell-SR_IOV-RING",            "item": "SR_IOV",            "site": "RING", "present": false, "evidence": "drivers/virtio/virtio_ring.c:3511-3525 (vring_transport_features switch: bit 37 not a case label -> default: __virtio_clear_bit at 3527-3529). Receipt: quality/mechanical/vring_transport_features_cases.txt"},
+        {"cell_id": "REQ-002/cell-NOTIF_CONFIG_DATA-RING", "item": "NOTIF_CONFIG_DATA", "site": "RING", "present": false, "evidence": "drivers/virtio/virtio_ring.c:3511-3525 (bit 39 not a case label -> default clear). Receipt: quality/mechanical/vring_transport_features_cases.txt"},
+        {"cell_id": "REQ-002/cell-RING_RESET-RING",        "item": "RING_RESET",        "site": "RING", "present": false, "evidence": "drivers/virtio/virtio_ring.c:3511-3525 (bit 40 not a case label -> default clear). Receipt: quality/mechanical/vring_transport_features_cases.txt"},
+        {"cell_id": "REQ-002/cell-ADMIN_VQ-RING",          "item": "ADMIN_VQ",          "site": "RING", "present": false, "evidence": "drivers/virtio/virtio_ring.c:3511-3525 (bit 41 not a case label -> default clear). Receipt: quality/mechanical/vring_transport_features_cases.txt"}
+      ]
+    },
+    "REQ-003": {
+      "pattern": "parity",
+      "items": ["RESET_WAIT_FOR_ZERO"],
+      "sites": ["PCI", "MMIO", "PCI-LEGACY"],
+      "cells": [
+        {"cell_id": "REQ-003/cell-RESET_WAIT_FOR_ZERO-PCI",        "item": "RESET_WAIT_FOR_ZERO", "site": "PCI",        "present": true,  "evidence": "drivers/virtio/virtio_pci_modern.c:546-565 (vp_reset: while (vp_modern_get_status(mdev)) msleep(1))"},
+        {"cell_id": "REQ-003/cell-RESET_WAIT_FOR_ZERO-MMIO",       "item": "RESET_WAIT_FOR_ZERO", "site": "MMIO",       "present": false, "evidence": "drivers/virtio/virtio_mmio.c:251-257 (vm_reset: writel(0,...STATUS) only; NO status read-back poll)"},
+        {"cell_id": "REQ-003/cell-RESET_WAIT_FOR_ZERO-PCI-LEGACY", "item": "RESET_WAIT_FOR_ZERO", "site": "PCI-LEGACY", "present": true,  "evidence": "drivers/virtio/virtio_pci_legacy.c:93-103 (vp_reset: single vp_legacy_get_status read-back; legacy spec exemption -- documented divergence)"}
+      ]
+    },
+    "REQ-004": {
+      "pattern": "parity",
+      "items": ["CONFIG_IRQ_HANDLED"],
+      "sites": ["PCI", "MMIO", "vDPA"],
+      "cells": [
+        {"cell_id": "REQ-004/cell-CONFIG_IRQ_HANDLED-PCI",  "item": "CONFIG_IRQ_HANDLED", "site": "PCI",  "present": false, "evidence": "drivers/virtio/virtio_pci_common.c:120-123 (vp_interrupt: vp_config_changed return discarded; returns vp_vring_interrupt which is IRQ_NONE for config-only interrupt)"},
+        {"cell_id": "REQ-004/cell-CONFIG_IRQ_HANDLED-MMIO", "item": "CONFIG_IRQ_HANDLED", "site": "MMIO", "present": true,  "evidence": "drivers/virtio/virtio_mmio.c:296-299 (vm_interrupt: ret = IRQ_HANDLED on VIRTIO_MMIO_INT_CONFIG)"},
+        {"cell_id": "REQ-004/cell-CONFIG_IRQ_HANDLED-vDPA", "item": "CONFIG_IRQ_HANDLED", "site": "vDPA", "present": true,  "evidence": "drivers/virtio/virtio_vdpa.c (config callback path delivered via vdpa core; per-cb IRQ_HANDLED returned by vring_interrupt; no shared config/vring dispatcher to mis-report)"}
+      ]
+    }
+  }
+}

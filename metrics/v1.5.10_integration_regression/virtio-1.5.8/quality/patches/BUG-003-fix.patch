@@ -1,0 +1,26 @@
+From: Quality Playbook v1.5.8 <quality-playbook>
+Subject: [PATCH] BUG-003: vm_reset must wait for device_status read of 0 (spec section 5)
+
+Per the virtio spec section 5, after writing 0 to device_status the driver MUST
+wait for a read of device_status to return 0 before reinitializing the device.
+The PCI-modern (vp_reset) and legacy (vp_reset) transports do this; the MMIO
+transport's vm_reset wrote 0 and returned immediately, so a device that has not
+yet completed reset could be reinitialized against stale state.
+
+Add the read-back poll, matching the modern transport's wait-for-zero loop.
+
+--- a/drivers/virtio/virtio_mmio.c
++++ b/drivers/virtio/virtio_mmio.c
+@@ -251,6 +251,12 @@ static void vm_reset(struct virtio_device *vdev)
+ {
+ 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vdev);
+
+ 	/* 0 status means a reset. */
+ 	writel(0, vm_dev->base + VIRTIO_MMIO_STATUS);
++
++	/* After writing 0 to device_status, the driver MUST wait for a read of
++	 * device_status to return 0 before reinitializing the device.
++	 */
++	while (readl(vm_dev->base + VIRTIO_MMIO_STATUS))
++		cpu_relax();
+ }

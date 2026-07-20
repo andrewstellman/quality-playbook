@@ -1,0 +1,7 @@
+{"ts":"2026-06-19T21:56:47Z","task_id":"virtio-integration-regression","schema_version":"2","label":"phase2","status":"STARTING"}
+{"ts":"2026-06-19T21:57:07Z","task_id":"virtio-integration-regression","schema_version":"2","label":"reading references","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T21:58:38Z","task_id":"virtio-integration-regression","schema_version":"2","label":"generating artifacts","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T21:59:03Z","task_id":"virtio-integration-regression","schema_version":"2","label":"writing CONTRACTS+REQUIREMENTS","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:03:47Z","task_id":"virtio-integration-regression","schema_version":"2","label":"mechanical verify + tests","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:06:56Z","task_id":"virtio-integration-regression","schema_version":"2","label":"writing RUN_*.md protocols","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:10:39Z","task_id":"virtio-integration-regression","schema_version":"2","status":"COMPLETED","result_file":"/Users/andrewstellman/Documents/QPB/repos/virtio-1.5.8/quality/REQUIREMENTS.md","summary":"phase2 complete: 17 REQs, 11 UCs, 23 functional tests, mechanical receipt, 4 protocols; validator PASSED"}

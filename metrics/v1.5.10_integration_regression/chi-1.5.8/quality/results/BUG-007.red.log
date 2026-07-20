@@ -1,0 +1,6 @@
+=== RUN   TestBUG007_RoutePattern_LiteralInteriorWildcard
+    qpb_regression_test.go:171: RoutePattern must preserve a literal interior "*" segment; got "/files/meta" (interior /*/ erased)
+--- FAIL: TestBUG007_RoutePattern_LiteralInteriorWildcard (0.00s)
+FAIL
+FAIL	github.com/go-chi/chi/v5/middleware	0.265s
+FAIL

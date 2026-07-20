@@ -1,0 +1,115 @@
+{
+  "schema_version": "1.5.8",
+  "generated_at": "2026-06-19T21:59:26Z",
+  "records": [
+    {
+      "id": "UC-1.a",
+      "title": "SupressNotFound under a mounted sub-router",
+      "actors": ["chi Mux", "operator mounting a sub-router", "HTTP client"],
+      "preconditions": "root.Mount(\"/api\", child); child uses SupressNotFound",
+      "flow": "Request /api/ping; middleware must Match against canonical rctx.RoutePath (/ping), not r.URL.Path (/api/ping), using a throwaway context.",
+      "postconditions": "A defined /ping route is found; no spurious 404; live rctx unmutated.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-1.b",
+      "title": "PageRoute under a mounted sub-router",
+      "actors": ["chi Mux", "operator", "client"],
+      "preconditions": "root.Mount(\"/admin\", child); child uses PageRoute(\"/status\", h)",
+      "flow": "Request /admin/status; the match must compare against rctx.RoutePath (/status).",
+      "postconditions": "PageRoute fires for the mounted path.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-1.c",
+      "title": "PathRewrite under a mounted sub-router",
+      "actors": ["chi Mux", "operator", "client"],
+      "preconditions": "root.Mount(\"/svc\", child); child uses PathRewrite(old,new)",
+      "flow": "Rewrite must update the canonical routing path so chi's subsequent walk (which reads rctx.RoutePath) observes the rewrite.",
+      "postconditions": "chi routes the rewritten path, not the original.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-2",
+      "title": "RFC-correct request-header parsing (umbrella)",
+      "cluster": "heterogeneous",
+      "actors": ["compression/content-negotiation/real-IP middleware", "HTTP client behind a proxy"],
+      "preconditions": "Client sends Accept-Encoding: gzip;q=0 / Content-Type: text/plain; charset=\"utf-8\" / padded or ported X-Forwarded-For",
+      "flow": "Each parser tokenizes per its RFC (q-value honored, quoted params handled, whitespace trimmed) before deciding.",
+      "postconditions": "q=0 suppresses compression; quoted charset matched; valid XFF entries accepted.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-3",
+      "title": "HTTP-method closed-set consistency (umbrella)",
+      "actors": ["chi Mux", "application calling RegisterMethod"],
+      "preconditions": "A custom method is registered, or a request uses an unsupported method.",
+      "flow": "methodMap, reverseMethodMap, and mALL are updated together; routeHTTP and the 405 Allow builder read a consistent set.",
+      "postconditions": "Allow header lists exactly the registered methods; wildcard registration covers the new method.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-4.a",
+      "title": "Find mirrors live routing on a top-level route",
+      "actors": ["code calling Mux.Find"],
+      "preconditions": "A registered non-mounted route.",
+      "flow": "Find returns the pattern with the same context effects as a live walk.",
+      "postconditions": "Pattern returned; context state consistent.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-4.b",
+      "title": "Find mirrors live routing on a mounted route",
+      "actors": ["code calling Mux.Find against a mounted sub-router"],
+      "preconditions": "root.Mount(\"/api\", child)",
+      "flow": "Find shifts RoutePath AND performs the wildcard-URLParam reset the live closure does.",
+      "postconditions": "Returned pattern and resulting context match the live path exactly.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-5.a",
+      "title": "RoutePattern() for a route with a trailing wildcard",
+      "actors": ["instrumentation middleware reading RoutePattern()"],
+      "preconditions": "Route /files/*",
+      "flow": "replaceWildcards collapses only synthesized mount wildcards.",
+      "postconditions": "Reported pattern preserves a legitimate trailing *.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-5.b",
+      "title": "walk() full-route reconstruction with an interior literal *",
+      "actors": ["Walk consumers (docgen, route listing)"],
+      "preconditions": "A route whose pattern legitimately contains an interior * segment.",
+      "flow": "The /*/ to / collapse must not erase a literal interior segment.",
+      "postconditions": "The walked full route is faithful to the registered pattern.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-6",
+      "title": "Compressible content-type whitelist completeness",
+      "actors": ["chi Compress middleware", "HTTP client requesting compression"],
+      "preconditions": "A response with a content type in defaultCompressibleContentTypes vs one not in it.",
+      "flow": "isCompressible decides eligibility by exact membership (plus configured wildcards).",
+      "postconditions": "Only whitelisted (or wildcard-configured) types are compressed.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-7",
+      "title": "Compression writer does not over-declare Content-Encoding",
+      "actors": ["chi Compress middleware", "HTTP client"],
+      "preconditions": "A request whose Accept-Encoding falsely selects an encoder (REQ-002 surface).",
+      "flow": "WriteHeader/writer() couple so the declared Content-Encoding matches the bytes written.",
+      "postconditions": "No Content-Encoding header on a body that was not actually compressed.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-8",
+      "title": "Param backtracking keeps Keys/Values aligned",
+      "actors": ["chi router walking a deep tree with mixed param/regexp/catch-all siblings"],
+      "preconditions": "A registration set that forces backtracking across sibling node types.",
+      "flow": "findRoute unwinds candidate values without skewing Keys vs Values length.",
+      "postconditions": "URLParam returns the correct value by index; no param misalignment.",
+      "formal_doc_refs": []
+    }
+  ]
+}

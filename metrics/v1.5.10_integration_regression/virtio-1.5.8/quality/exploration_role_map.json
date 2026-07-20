@@ -1,0 +1,900 @@
+{
+  "breakdown": {
+    "files_by_role": {
+      "code": 81,
+      "config": 2,
+      "docs": 12,
+      "playbook-output": 2,
+      "skill-prose": 14,
+      "skill-reference": 28,
+      "skill-tool": 2
+    },
+    "percentages": {
+      "code_share": 0.44637362407096076,
+      "other_share": 0.18176608924256815,
+      "skill_share": 0.33243122571119554,
+      "tool_share": 0.03942906097527559
+    },
+    "size_by_role": {
+      "code": 1107719,
+      "config": 7938,
+      "docs": 159206,
+      "playbook-output": 283926,
+      "skill-prose": 222406,
+      "skill-reference": 602554,
+      "skill-tool": 97847
+    }
+  },
+  "files": [
+    {
+      "path": ".clean_checkout",
+      "rationale": "Provenance/config metadata describing the sparse kernel checkout (source repo, commit, sparse paths).",
+      "role": "config",
+      "size_bytes": 354
+    },
+    {
+      "path": ".github/skills/SKILL.md",
+      "rationale": "Root skill definition (SKILL.md) \u2014 declarative QPB skill prose that drives every phase.",
+      "role": "skill-prose",
+      "size_bytes": 81641
+    },
+    {
+      "path": ".github/skills/agents/calibration_orchestrator.md",
+      "rationale": "Agent definition file \u2014 declarative skill-shaped prose describing how an automation agent drives QPB phases.",
+      "role": "skill-prose",
+      "size_bytes": 22262
+    },
+    {
+      "path": ".github/skills/agents/quality-playbook-claude.agent.md",
+      "rationale": "Agent definition file \u2014 declarative skill-shaped prose describing how an automation agent drives QPB phases.",
+      "role": "skill-prose",
+      "size_bytes": 9382
+    },
+    {
+      "path": ".github/skills/agents/quality-playbook.agent.md",
+      "rationale": "Agent definition file \u2014 declarative skill-shaped prose describing how an automation agent drives QPB phases.",
+      "role": "skill-prose",
+      "size_bytes": 12562
+    },
+    {
+      "path": ".github/skills/phase_prompts/README.md",
+      "rationale": "Per-phase prompt content read verbatim by the agent driving each QPB phase; declarative skill prose (single source of truth for phase instructions).",
+      "role": "skill-prose",
+      "size_bytes": 1962
+    },
+    {
+      "path": ".github/skills/phase_prompts/iteration.md",
+      "rationale": "Per-phase prompt content read verbatim by the agent driving each QPB phase; declarative skill prose (single source of truth for phase instructions).",
+      "role": "skill-prose",
+      "size_bytes": 1472
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase1.md",
+      "rationale": "Per-phase prompt content read verbatim by the agent driving each QPB phase; declarative skill prose (single source of truth for phase instructions).",
+      "role": "skill-prose",
+      "size_bytes": 25175
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase2.md",
+      "rationale": "Per-phase prompt content read verbatim by the agent driving each QPB phase; declarative skill prose (single source of truth for phase instructions).",
+      "role": "skill-prose",
+      "size_bytes": 9654
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase3.md",
+      "rationale": "Per-phase prompt content read verbatim by the agent driving each QPB phase; declarative skill prose (single source of truth for phase instructions).",
+      "role": "skill-prose",
+      "size_bytes": 11588
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase4.md",
+      "rationale": "Per-phase prompt content read verbatim by the agent driving each QPB phase; declarative skill prose (single source of truth for phase instructions).",
+      "role": "skill-prose",
+      "size_bytes": 3983
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase5.md",
+      "rationale": "Per-phase prompt content read verbatim by the agent driving each QPB phase; declarative skill prose (single source of truth for phase instructions).",
+      "role": "skill-prose",
+      "size_bytes": 25522
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase6.md",
+      "rationale": "Per-phase prompt content read verbatim by the agent driving each QPB phase; declarative skill prose (single source of truth for phase instructions).",
+      "role": "skill-prose",
+      "size_bytes": 8723
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase6_auditor.md",
+      "rationale": "Per-phase prompt content read verbatim by the agent driving each QPB phase; declarative skill prose (single source of truth for phase instructions).",
+      "role": "skill-prose",
+      "size_bytes": 7599
+    },
+    {
+      "path": ".github/skills/phase_prompts/single_pass.md",
+      "rationale": "Per-phase prompt content read verbatim by the agent driving each QPB phase; declarative skill prose (single source of truth for phase instructions).",
+      "role": "skill-prose",
+      "size_bytes": 881
+    },
+    {
+      "path": ".github/skills/quality_gate.py",
+      "rationale": "quality_gate.py installed next to SKILL.md by the QPB installer \u2014 QPB-managed infrastructure, not the target's intrinsic surface (per role-map rule 2).",
+      "role": "playbook-output",
+      "size_bytes": 283830
+    },
+    {
+      "path": ".github/skills/references/DOC_GATHERING_PROMPT.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 27367
+    },
+    {
+      "path": ".github/skills/references/artifact_contract.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 7215
+    },
+    {
+      "path": ".github/skills/references/challenge_gate.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 16159
+    },
+    {
+      "path": ".github/skills/references/code-only-mode.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 6890
+    },
+    {
+      "path": ".github/skills/references/constitution.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 9699
+    },
+    {
+      "path": ".github/skills/references/defensive_patterns.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 13222
+    },
+    {
+      "path": ".github/skills/references/exploration_patterns.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 34297
+    },
+    {
+      "path": ".github/skills/references/functional_tests.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 11779
+    },
+    {
+      "path": ".github/skills/references/iteration.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 22162
+    },
+    {
+      "path": ".github/skills/references/orchestrator_protocol.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 5363
+    },
+    {
+      "path": ".github/skills/references/phase1_exploration_guide.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 86988
+    },
+    {
+      "path": ".github/skills/references/phase2_generation_guide.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 90686
+    },
+    {
+      "path": ".github/skills/references/phase5_reconciliation_guide.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 21652
+    },
+    {
+      "path": ".github/skills/references/phase6_verify_guide.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 22730
+    },
+    {
+      "path": ".github/skills/references/phase7_guide.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 10019
+    },
+    {
+      "path": ".github/skills/references/qpb_validate_event_schema.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 2745
+    },
+    {
+      "path": ".github/skills/references/recheck_mode.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 5906
+    },
+    {
+      "path": ".github/skills/references/requirements_pipeline.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 24716
+    },
+    {
+      "path": ".github/skills/references/requirements_refinement.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 5981
+    },
+    {
+      "path": ".github/skills/references/requirements_review.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 5772
+    },
+    {
+      "path": ".github/skills/references/review_protocols.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 41773
+    },
+    {
+      "path": ".github/skills/references/role_map_queries.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 3748
+    },
+    {
+      "path": ".github/skills/references/run_state_schema.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 20962
+    },
+    {
+      "path": ".github/skills/references/runners_and_models.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 10462
+    },
+    {
+      "path": ".github/skills/references/schema_mapping.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 6451
+    },
+    {
+      "path": ".github/skills/references/spec_audit.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 23530
+    },
+    {
+      "path": ".github/skills/references/verification.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 33723
+    },
+    {
+      "path": ".github/skills/references/what_just_happened.md",
+      "rationale": "Reference document named by SKILL.md (e.g. exploration_patterns, requirements_pipeline) that the skill prose directs the agent to read for a phase.",
+      "role": "skill-reference",
+      "size_bytes": 30557
+    },
+    {
+      "path": "bin/__init__.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 885
+    },
+    {
+      "path": "bin/_purpose.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 15135
+    },
+    {
+      "path": "bin/archive_lib.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 38729
+    },
+    {
+      "path": "bin/benchmark_lib.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 27997
+    },
+    {
+      "path": "bin/citation_verifier.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 15387
+    },
+    {
+      "path": "bin/council_config.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 5734
+    },
+    {
+      "path": "bin/council_semantic_check.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 25602
+    },
+    {
+      "path": "bin/install_skill.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 79162
+    },
+    {
+      "path": "bin/migrate_v1_5_0_layout.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 12738
+    },
+    {
+      "path": "bin/phase_identity.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 8979
+    },
+    {
+      "path": "bin/qpb_config.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 11400
+    },
+    {
+      "path": "bin/qpb_heartbeat.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 11204
+    },
+    {
+      "path": "bin/qpb_phase.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 7431
+    },
+    {
+      "path": "bin/qpb_validate.py",
+      "rationale": "SKILL.md Mode-A Phase 0 entry contract explicitly names this script and directs the agent to invoke `python3 <install_root>/bin/qpb_validate.py <target>` before any phase, so skill-tool.",
+      "role": "skill-tool",
+      "size_bytes": 79979,
+      "skill_prose_reference": "SKILL.md:94"
+    },
+    {
+      "path": "bin/quality_playbook.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 4691
+    },
+    {
+      "path": "bin/reference_docs_ingest.py",
+      "rationale": "SKILL.md Phase 1 explicitly names this module and directs the agent to run `PYTHONPATH=<install_root> python3 -m bin.reference_docs_ingest <target>` as the documentation-intake subtask, so skill-tool.",
+      "role": "skill-tool",
+      "size_bytes": 17868,
+      "skill_prose_reference": "SKILL.md:24"
+    },
+    {
+      "path": "bin/role_map.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 40676
+    },
+    {
+      "path": "bin/run_state_lib.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 82546
+    },
+    {
+      "path": "bin/validate_phase_artifacts.py",
+      "rationale": "Independent QPB orchestrator/library module with its own behavior contract; SKILL.md does not direct the agent to invoke it as a subtask, so code not skill-tool.",
+      "role": "code",
+      "size_bytes": 23255
+    },
+    {
+      "path": "docs_gathered/index.rst",
+      "rationale": "Gathered documentation (Tier 4 context / kernel + virtio docs) supplementing exploration; not citable formal spec (no cite/ subdir present).",
+      "role": "docs",
+      "size_bytes": 125
+    },
+    {
+      "path": "docs_gathered/linux-coding-style.rst",
+      "rationale": "Gathered documentation (Tier 4 context / kernel + virtio docs) supplementing exploration; not citable formal spec (no cite/ subdir present).",
+      "role": "docs",
+      "size_bytes": 45687
+    },
+    {
+      "path": "docs_gathered/virtio-community-development-history.md",
+      "rationale": "Gathered documentation (Tier 4 context / kernel + virtio docs) supplementing exploration; not citable formal spec (no cite/ subdir present).",
+      "role": "docs",
+      "size_bytes": 14463
+    },
+    {
+      "path": "docs_gathered/virtio-spec-behavioral-contracts.md",
+      "rationale": "Gathered documentation (Tier 4 context / kernel + virtio docs) supplementing exploration; not citable formal spec (no cite/ subdir present).",
+      "role": "docs",
+      "size_bytes": 7841
+    },
+    {
+      "path": "docs_gathered/virtio.rst",
+      "rationale": "Gathered documentation (Tier 4 context / kernel + virtio docs) supplementing exploration; not citable formal spec (no cite/ subdir present).",
+      "role": "docs",
+      "size_bytes": 5364
+    },
+    {
+      "path": "docs_gathered/writing_virtio_drivers.rst",
+      "rationale": "Gathered documentation (Tier 4 context / kernel + virtio docs) supplementing exploration; not citable formal spec (no cite/ subdir present).",
+      "role": "docs",
+      "size_bytes": 6123
+    },
+    {
+      "path": "drivers/virtio/Kconfig",
+      "rationale": "Kconfig build/feature configuration for the virtio driver subsystem.",
+      "role": "config",
+      "size_bytes": 7584
+    },
+    {
+      "path": "drivers/virtio/virtio.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 18578
+    },
+    {
+      "path": "drivers/virtio/virtio_anchor.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 464
+    },
+    {
+      "path": "drivers/virtio/virtio_balloon.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 35134
+    },
+    {
+      "path": "drivers/virtio/virtio_debug.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 3381
+    },
+    {
+      "path": "drivers/virtio/virtio_dma_buf.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 2418
+    },
+    {
+      "path": "drivers/virtio/virtio_input.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 11465
+    },
+    {
+      "path": "drivers/virtio/virtio_mem.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 87143
+    },
+    {
+      "path": "drivers/virtio/virtio_mmio.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 20930
+    },
+    {
+      "path": "drivers/virtio/virtio_pci_admin_legacy_io.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 6952
+    },
+    {
+      "path": "drivers/virtio/virtio_pci_common.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 22147
+    },
+    {
+      "path": "drivers/virtio/virtio_pci_common.h",
+      "rationale": "Target intrinsic source: virtio driver internal header (struct/macro definitions for the driver subsystem under audit).",
+      "role": "code",
+      "size_bytes": 6411
+    },
+    {
+      "path": "drivers/virtio/virtio_pci_legacy.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 6346
+    },
+    {
+      "path": "drivers/virtio/virtio_pci_legacy_dev.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 6221
+    },
+    {
+      "path": "drivers/virtio/virtio_pci_modern.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 34551
+    },
+    {
+      "path": "drivers/virtio/virtio_pci_modern_dev.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 22730
+    },
+    {
+      "path": "drivers/virtio/virtio_ring.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 104322
+    },
+    {
+      "path": "drivers/virtio/virtio_rtc_arm.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 518
+    },
+    {
+      "path": "drivers/virtio/virtio_rtc_class.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 6484
+    },
+    {
+      "path": "drivers/virtio/virtio_rtc_driver.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 35654
+    },
+    {
+      "path": "drivers/virtio/virtio_rtc_internal.h",
+      "rationale": "Target intrinsic source: virtio driver internal header (struct/macro definitions for the driver subsystem under audit).",
+      "role": "code",
+      "size_bytes": 3265
+    },
+    {
+      "path": "drivers/virtio/virtio_rtc_ptp.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 8794
+    },
+    {
+      "path": "drivers/virtio/virtio_vdpa.c",
+      "rationale": "Target intrinsic source: Linux virtio transport/device driver implementation (the codebase under audit).",
+      "role": "code",
+      "size_bytes": 12508
+    },
+    {
+      "path": "include/linux/virtio.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 12143
+    },
+    {
+      "path": "include/linux/virtio_anchor.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 507
+    },
+    {
+      "path": "include/linux/virtio_byteorder.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 1491
+    },
+    {
+      "path": "include/linux/virtio_caif.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 513
+    },
+    {
+      "path": "include/linux/virtio_config.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 21904
+    },
+    {
+      "path": "include/linux/virtio_dma_buf.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 1147
+    },
+    {
+      "path": "include/linux/virtio_features.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 2098
+    },
+    {
+      "path": "include/linux/virtio_net.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 13607
+    },
+    {
+      "path": "include/linux/virtio_pci_admin.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 1504
+    },
+    {
+      "path": "include/linux/virtio_pci_legacy.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 1401
+    },
+    {
+      "path": "include/linux/virtio_pci_modern.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 5395
+    },
+    {
+      "path": "include/linux/virtio_ring.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 3313
+    },
+    {
+      "path": "include/linux/virtio_vsock.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 8627
+    },
+    {
+      "path": "include/uapi/linux/virtio_9p.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 2052
+    },
+    {
+      "path": "include/uapi/linux/virtio_balloon.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 6071
+    },
+    {
+      "path": "include/uapi/linux/virtio_blk.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 10005
+    },
+    {
+      "path": "include/uapi/linux/virtio_bt.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 925
+    },
+    {
+      "path": "include/uapi/linux/virtio_config.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 4821
+    },
+    {
+      "path": "include/uapi/linux/virtio_console.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 3171
+    },
+    {
+      "path": "include/uapi/linux/virtio_crypto.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 16523
+    },
+    {
+      "path": "include/uapi/linux/virtio_fs.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 588
+    },
+    {
+      "path": "include/uapi/linux/virtio_gpio.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 1714
+    },
+    {
+      "path": "include/uapi/linux/virtio_gpu.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 11606
+    },
+    {
+      "path": "include/uapi/linux/virtio_i2c.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 1201
+    },
+    {
+      "path": "include/uapi/linux/virtio_ids.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 4347
+    },
+    {
+      "path": "include/uapi/linux/virtio_input.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 2515
+    },
+    {
+      "path": "include/uapi/linux/virtio_iommu.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 3941
+    },
+    {
+      "path": "include/uapi/linux/virtio_mem.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 7266
+    },
+    {
+      "path": "include/uapi/linux/virtio_mmio.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 4969
+    },
+    {
+      "path": "include/uapi/linux/virtio_net.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 20262
+    },
+    {
+      "path": "include/uapi/linux/virtio_pci.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 13228
+    },
+    {
+      "path": "include/uapi/linux/virtio_pcidev.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 2462
+    },
+    {
+      "path": "include/uapi/linux/virtio_pmem.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 892
+    },
+    {
+      "path": "include/uapi/linux/virtio_ring.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 8711
+    },
+    {
+      "path": "include/uapi/linux/virtio_rng.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 265
+    },
+    {
+      "path": "include/uapi/linux/virtio_rtc.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 5509
+    },
+    {
+      "path": "include/uapi/linux/virtio_scmi.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 652
+    },
+    {
+      "path": "include/uapi/linux/virtio_scsi.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 6085
+    },
+    {
+      "path": "include/uapi/linux/virtio_snd.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 13193
+    },
+    {
+      "path": "include/uapi/linux/virtio_spi.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 7597
+    },
+    {
+      "path": "include/uapi/linux/virtio_types.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 2168
+    },
+    {
+      "path": "include/uapi/linux/virtio_vsock.h",
+      "rationale": "Target intrinsic source: virtio public/UAPI header defining feature bits, structs, and the ABI the drivers implement.",
+      "role": "code",
+      "size_bytes": 3363
+    },
+    {
+      "path": "quality/formal_docs_manifest.json",
+      "rationale": "File inside the target's quality/ subtree produced by a playbook run.",
+      "role": "playbook-output",
+      "size_bytes": 96
+    },
+    {
+      "path": "reference_docs/index.rst",
+      "rationale": "Gathered documentation (Tier 4 context / kernel + virtio docs) supplementing exploration; not citable formal spec (no cite/ subdir present).",
+      "role": "docs",
+      "size_bytes": 125
+    },
+    {
+      "path": "reference_docs/linux-coding-style.rst",
+      "rationale": "Gathered documentation (Tier 4 context / kernel + virtio docs) supplementing exploration; not citable formal spec (no cite/ subdir present).",
+      "role": "docs",
+      "size_bytes": 45687
+    },
+    {
+      "path": "reference_docs/virtio-community-development-history.md",
+      "rationale": "Gathered documentation (Tier 4 context / kernel + virtio docs) supplementing exploration; not citable formal spec (no cite/ subdir present).",
+      "role": "docs",
+      "size_bytes": 14463
+    },
+    {
+      "path": "reference_docs/virtio-spec-behavioral-contracts.md",
+      "rationale": "Gathered documentation (Tier 4 context / kernel + virtio docs) supplementing exploration; not citable formal spec (no cite/ subdir present).",
+      "role": "docs",
+      "size_bytes": 7841
+    },
+    {
+      "path": "reference_docs/virtio.rst",
+      "rationale": "Gathered documentation (Tier 4 context / kernel + virtio docs) supplementing exploration; not citable formal spec (no cite/ subdir present).",
+      "role": "docs",
+      "size_bytes": 5364
+    },
+    {
+      "path": "reference_docs/writing_virtio_drivers.rst",
+      "rationale": "Gathered documentation (Tier 4 context / kernel + virtio docs) supplementing exploration; not citable formal spec (no cite/ subdir present).",
+      "role": "docs",
+      "size_bytes": 6123
+    }
+  ],
+  "provenance": "filesystem-walk-with-skips",
+  "schema_version": "1.0",
+  "summary": {
+    "file_count": 141,
+    "percentages": {
+      "code_share": 0.44637362407096076,
+      "other_share": 0.18176608924256815,
+      "skill_share": 0.33243122571119554,
+      "tool_share": 0.03942906097527559
+    },
+    "provenance": "filesystem-walk-with-skips",
+    "role_breakdown": {
+      "code": 81,
+      "config": 2,
+      "docs": 12,
+      "playbook-output": 2,
+      "skill-prose": 14,
+      "skill-reference": 28,
+      "skill-tool": 2
+    }
+  },
+  "timestamp_start": "2026-06-19T21:42:56Z"
+}

@@ -1,0 +1,4 @@
+=== RUN   TestBUG003_PageRoute_PathRewrite_UnderMount
+--- PASS: TestBUG003_PageRoute_PathRewrite_UnderMount (0.00s)
+PASS
+ok  	github.com/go-chi/chi/v5/middleware	0.267s

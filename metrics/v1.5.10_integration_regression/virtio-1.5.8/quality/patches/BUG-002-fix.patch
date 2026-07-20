@@ -1,0 +1,34 @@
+From: Quality Playbook v1.5.8 <quality-playbook>
+Subject: [PATCH] BUG-002: vp_interrupt must report IRQ_HANDLED for config-only interrupts
+
+vp_config_changed() returns IRQ_HANDLED, but vp_interrupt() discards that return
+value and instead returns vp_vring_interrupt(), which yields IRQ_NONE when no
+virtqueue was serviced. On a config-change-only interrupt (e.g. a shared MSI-X
+vector or INTx line) the handler therefore reports IRQ_NONE despite having
+serviced the event, which the kernel may treat as spurious.
+
+Capture the config handler's result and OR it into the final return value, the
+same way virtio_mmio's vm_interrupt() does.
+
+--- a/drivers/virtio/virtio_pci_common.c
++++ b/drivers/virtio/virtio_pci_common.c
+@@ -112,6 +112,7 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
+ {
+ 	struct virtio_pci_device *vp_dev = opaque;
+ 	u8 isr;
++	irqreturn_t ret = IRQ_NONE;
+
+ 	/* reading the ISR has the effect of also clearing it so it's very
+ 	 * important to save off the value. */
+@@ -120,9 +121,9 @@ static irqreturn_t vp_interrupt(int irq, void *opaque)
+
+ 	/* Configuration change?  Tell driver if it wants to know. */
+ 	if (isr & VIRTIO_PCI_ISR_CONFIG)
+-		vp_config_changed(irq, opaque);
++		ret = vp_config_changed(irq, opaque);
+
+-	return vp_vring_interrupt(irq, opaque);
++	return ret | vp_vring_interrupt(irq, opaque);
+ }
+
+ static int vp_request_msix_vectors(struct virtio_device *vdev, int nvectors,

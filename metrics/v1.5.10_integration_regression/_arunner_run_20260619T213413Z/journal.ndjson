@@ -1,0 +1,5 @@
+{"ts": "2026-06-19T21:34:18Z", "tick": 1, "type": "verdict", "verdict": "CONTINUE", "next_tick_due": 1781905458, "monitoring_paused": false}
+{"ts": "2026-06-19T21:55:04Z", "tick": 2, "type": "verdict", "verdict": "CONTINUE", "next_tick_due": 1781906705, "monitoring_paused": false}
+{"ts": "2026-06-19T22:14:04Z", "tick": 3, "type": "verdict", "verdict": "CONTINUE", "next_tick_due": 1781907845, "monitoring_paused": false}
+{"ts": "2026-06-19T23:36:14Z", "tick": 4, "type": "verdict", "verdict": "HALT:stalled", "next_tick_due": 1781912774, "monitoring_paused": false, "reason": "stalled"}
+{"ts": "2026-06-19T23:52:03Z", "tick": 5, "type": "verdict", "verdict": "HALT:done", "next_tick_due": 1781913724, "monitoring_paused": false, "reason": "done"}

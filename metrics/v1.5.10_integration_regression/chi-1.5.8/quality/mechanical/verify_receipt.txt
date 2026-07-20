@@ -1,0 +1,5 @@
+=== REQ-003 method closed-set mechanical verification ===
+  methodMap: 9 bits -> ['mCONNECT', 'mDELETE', 'mGET', 'mHEAD', 'mOPTIONS', 'mPATCH', 'mPOST', 'mPUT', 'mTRACE']
+  reverseMethodMap: 9 bits -> ['mCONNECT', 'mDELETE', 'mGET', 'mHEAD', 'mOPTIONS', 'mPATCH', 'mPOST', 'mPUT', 'mTRACE']
+  mALL: 9 bits -> ['mCONNECT', 'mDELETE', 'mGET', 'mHEAD', 'mOPTIONS', 'mPATCH', 'mPOST', 'mPUT', 'mTRACE']
+PASS: all three structures enumerate the identical 9-method closed set; mALL ORs every methodMap bit.

@@ -1,0 +1,1945 @@
+{
+  "breakdown": {
+    "files_by_role": {
+      "code": 7,
+      "config": 12,
+      "docs": 121,
+      "fixture": 21,
+      "playbook-output": 21,
+      "skill-prose": 14,
+      "skill-reference": 28,
+      "test": 91
+    },
+    "percentages": {
+      "code_share": 0.023832967536192018,
+      "other_share": 0.6592393135435352,
+      "skill_share": 0.3169277189202729,
+      "tool_share": 0.0
+    },
+    "size_by_role": {
+      "code": 62037,
+      "config": 15789,
+      "docs": 473246,
+      "fixture": 241,
+      "playbook-output": 793324,
+      "skill-prose": 222406,
+      "skill-reference": 602554,
+      "test": 433394
+    }
+  },
+  "files": [
+    {
+      "path": ".clean_checkout",
+      "rationale": "Build / lint / packaging configuration for the Express project.",
+      "role": "config",
+      "size_bytes": 183
+    },
+    {
+      "path": ".editorconfig",
+      "rationale": "Build / lint / packaging configuration for the Express project.",
+      "role": "config",
+      "size_bytes": 180
+    },
+    {
+      "path": ".eslintignore",
+      "rationale": "Build / lint / packaging configuration for the Express project.",
+      "role": "config",
+      "size_bytes": 22
+    },
+    {
+      "path": ".eslintrc.yml",
+      "rationale": "Build / lint / packaging configuration for the Express project.",
+      "role": "config",
+      "size_bytes": 415
+    },
+    {
+      "path": ".github/dependabot.yml",
+      "rationale": "GitHub repository configuration / templates.",
+      "role": "config",
+      "size_bytes": 373
+    },
+    {
+      "path": ".github/skills/SKILL.md",
+      "rationale": "The Quality Playbook SKILL.md \u2014 declarative skill prose that directs the agent through the phases.",
+      "role": "skill-prose",
+      "size_bytes": 81641
+    },
+    {
+      "path": ".github/skills/agents/calibration_orchestrator.md",
+      "rationale": "Agent definition markdown for the quality-playbook skill \u2014 declarative skill content.",
+      "role": "skill-prose",
+      "size_bytes": 22262
+    },
+    {
+      "path": ".github/skills/agents/quality-playbook-claude.agent.md",
+      "rationale": "Agent definition markdown for the quality-playbook skill \u2014 declarative skill content.",
+      "role": "skill-prose",
+      "size_bytes": 9382
+    },
+    {
+      "path": ".github/skills/agents/quality-playbook.agent.md",
+      "rationale": "Agent definition markdown for the quality-playbook skill \u2014 declarative skill content.",
+      "role": "skill-prose",
+      "size_bytes": 12562
+    },
+    {
+      "path": ".github/skills/phase_prompts/README.md",
+      "rationale": "Per-phase prompt markdown the skill dispatches \u2014 declarative skill content driving each phase.",
+      "role": "skill-prose",
+      "size_bytes": 1962
+    },
+    {
+      "path": ".github/skills/phase_prompts/iteration.md",
+      "rationale": "Per-phase prompt markdown the skill dispatches \u2014 declarative skill content driving each phase.",
+      "role": "skill-prose",
+      "size_bytes": 1472
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase1.md",
+      "rationale": "Per-phase prompt markdown the skill dispatches \u2014 declarative skill content driving each phase.",
+      "role": "skill-prose",
+      "size_bytes": 25175
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase2.md",
+      "rationale": "Per-phase prompt markdown the skill dispatches \u2014 declarative skill content driving each phase.",
+      "role": "skill-prose",
+      "size_bytes": 9654
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase3.md",
+      "rationale": "Per-phase prompt markdown the skill dispatches \u2014 declarative skill content driving each phase.",
+      "role": "skill-prose",
+      "size_bytes": 11588
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase4.md",
+      "rationale": "Per-phase prompt markdown the skill dispatches \u2014 declarative skill content driving each phase.",
+      "role": "skill-prose",
+      "size_bytes": 3983
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase5.md",
+      "rationale": "Per-phase prompt markdown the skill dispatches \u2014 declarative skill content driving each phase.",
+      "role": "skill-prose",
+      "size_bytes": 25522
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase6.md",
+      "rationale": "Per-phase prompt markdown the skill dispatches \u2014 declarative skill content driving each phase.",
+      "role": "skill-prose",
+      "size_bytes": 8723
+    },
+    {
+      "path": ".github/skills/phase_prompts/phase6_auditor.md",
+      "rationale": "Per-phase prompt markdown the skill dispatches \u2014 declarative skill content driving each phase.",
+      "role": "skill-prose",
+      "size_bytes": 7599
+    },
+    {
+      "path": ".github/skills/phase_prompts/single_pass.md",
+      "rationale": "Per-phase prompt markdown the skill dispatches \u2014 declarative skill content driving each phase.",
+      "role": "skill-prose",
+      "size_bytes": 881
+    },
+    {
+      "path": ".github/skills/quality_gate.py",
+      "rationale": "The QPB quality_gate.py the installer copied next to SKILL.md; per tagging rule 2 it is playbook-output, never code, to avoid LOC pollution.",
+      "role": "playbook-output",
+      "size_bytes": 283830
+    },
+    {
+      "path": ".github/skills/references/DOC_GATHERING_PROMPT.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 27367
+    },
+    {
+      "path": ".github/skills/references/artifact_contract.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 7215
+    },
+    {
+      "path": ".github/skills/references/challenge_gate.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 16159
+    },
+    {
+      "path": ".github/skills/references/code-only-mode.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 6890
+    },
+    {
+      "path": ".github/skills/references/constitution.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 9699
+    },
+    {
+      "path": ".github/skills/references/defensive_patterns.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 13222
+    },
+    {
+      "path": ".github/skills/references/exploration_patterns.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 34297
+    },
+    {
+      "path": ".github/skills/references/functional_tests.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 11779
+    },
+    {
+      "path": ".github/skills/references/iteration.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 22162
+    },
+    {
+      "path": ".github/skills/references/orchestrator_protocol.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 5363
+    },
+    {
+      "path": ".github/skills/references/phase1_exploration_guide.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 86988
+    },
+    {
+      "path": ".github/skills/references/phase2_generation_guide.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 90686
+    },
+    {
+      "path": ".github/skills/references/phase5_reconciliation_guide.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 21652
+    },
+    {
+      "path": ".github/skills/references/phase6_verify_guide.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 22730
+    },
+    {
+      "path": ".github/skills/references/phase7_guide.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 10019
+    },
+    {
+      "path": ".github/skills/references/qpb_validate_event_schema.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 2745
+    },
+    {
+      "path": ".github/skills/references/recheck_mode.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 5906
+    },
+    {
+      "path": ".github/skills/references/requirements_pipeline.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 24716
+    },
+    {
+      "path": ".github/skills/references/requirements_refinement.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 5981
+    },
+    {
+      "path": ".github/skills/references/requirements_review.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 5772
+    },
+    {
+      "path": ".github/skills/references/review_protocols.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 41773
+    },
+    {
+      "path": ".github/skills/references/role_map_queries.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 3748
+    },
+    {
+      "path": ".github/skills/references/run_state_schema.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 20962
+    },
+    {
+      "path": ".github/skills/references/runners_and_models.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 10462
+    },
+    {
+      "path": ".github/skills/references/schema_mapping.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 6451
+    },
+    {
+      "path": ".github/skills/references/spec_audit.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 23530
+    },
+    {
+      "path": ".github/skills/references/verification.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 33723
+    },
+    {
+      "path": ".github/skills/references/what_just_happened.md",
+      "rationale": "Reference doc the SKILL.md names and resolves (references/*.md) \u2014 additional skill reference material.",
+      "role": "skill-reference",
+      "size_bytes": 30557
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "rationale": "GitHub Actions CI workflow configuration for the Express project.",
+      "role": "config",
+      "size_bytes": 3226
+    },
+    {
+      "path": ".github/workflows/codeql.yml",
+      "rationale": "GitHub Actions CI workflow configuration for the Express project.",
+      "role": "config",
+      "size_bytes": 2654
+    },
+    {
+      "path": ".github/workflows/legacy.yml",
+      "rationale": "GitHub Actions CI workflow configuration for the Express project.",
+      "role": "config",
+      "size_bytes": 2748
+    },
+    {
+      "path": ".github/workflows/scorecard.yml",
+      "rationale": "GitHub Actions CI workflow configuration for the Express project.",
+      "role": "config",
+      "size_bytes": 2981
+    },
+    {
+      "path": ".gitignore",
+      "rationale": "Build / lint / packaging configuration for the Express project.",
+      "role": "config",
+      "size_bytes": 257
+    },
+    {
+      "path": ".npmrc",
+      "rationale": "Build / lint / packaging configuration for the Express project.",
+      "role": "config",
+      "size_bytes": 19
+    },
+    {
+      "path": "History.md",
+      "rationale": "Project README / changelog / license \u2014 documentation.",
+      "role": "docs",
+      "size_bytes": 124523
+    },
+    {
+      "path": "LICENSE",
+      "rationale": "Project README / changelog / license \u2014 documentation.",
+      "role": "docs",
+      "size_bytes": 1249
+    },
+    {
+      "path": "Readme.md",
+      "rationale": "Project README / changelog / license \u2014 documentation.",
+      "role": "docs",
+      "size_bytes": 10165
+    },
+    {
+      "path": "bin/__init__.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 885
+    },
+    {
+      "path": "bin/_purpose.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 15135
+    },
+    {
+      "path": "bin/archive_lib.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 38729
+    },
+    {
+      "path": "bin/benchmark_lib.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 27997
+    },
+    {
+      "path": "bin/citation_verifier.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 15387
+    },
+    {
+      "path": "bin/council_config.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 5734
+    },
+    {
+      "path": "bin/council_semantic_check.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 25602
+    },
+    {
+      "path": "bin/install_skill.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 79162
+    },
+    {
+      "path": "bin/migrate_v1_5_0_layout.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 12738
+    },
+    {
+      "path": "bin/phase_identity.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 8979
+    },
+    {
+      "path": "bin/qpb_config.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 11400
+    },
+    {
+      "path": "bin/qpb_heartbeat.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 11204
+    },
+    {
+      "path": "bin/qpb_phase.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 7431
+    },
+    {
+      "path": "bin/qpb_validate.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 79979
+    },
+    {
+      "path": "bin/quality_playbook.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 4691
+    },
+    {
+      "path": "bin/reference_docs_ingest.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 17868
+    },
+    {
+      "path": "bin/role_map.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 40676
+    },
+    {
+      "path": "bin/run_state_lib.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 82546
+    },
+    {
+      "path": "bin/validate_phase_artifacts.py",
+      "rationale": "QPB infrastructure (validators, role_map, run_state_lib, install/ingest helpers) installed into the target by install_skill.py; playbook-managed installation per rule 2, not the target's own surface.",
+      "role": "playbook-output",
+      "size_bytes": 23255
+    },
+    {
+      "path": "docs_gathered/01_API_Reference.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 8757
+    },
+    {
+      "path": "docs_gathered/02_Getting_Started.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 3052
+    },
+    {
+      "path": "docs_gathered/03_Routing_Guide.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 5586
+    },
+    {
+      "path": "docs_gathered/04_Middleware_Architecture.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 5353
+    },
+    {
+      "path": "docs_gathered/05_Error_Handling.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 6253
+    },
+    {
+      "path": "docs_gathered/06_Security_Best_Practices.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 5879
+    },
+    {
+      "path": "docs_gathered/07_Static_Files_Serving.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 6050
+    },
+    {
+      "path": "docs_gathered/08_Migration_Guide_v4_to_v5.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 7044
+    },
+    {
+      "path": "docs_gathered/09_Performance_Optimization.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 5608
+    },
+    {
+      "path": "docs_gathered/10_Database_Integration.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 6551
+    },
+    {
+      "path": "docs_gathered/11_Application_Architecture.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 7771
+    },
+    {
+      "path": "docs_gathered/12_REST_API_Design.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 8335
+    },
+    {
+      "path": "docs_gathered/13_Testing_Guide.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 10005
+    },
+    {
+      "path": "docs_gathered/14_Known_Vulnerabilities.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 6342
+    },
+    {
+      "path": "docs_gathered/15_Template_Engines_Views.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 7455
+    },
+    {
+      "path": "docs_gathered/COLLECTION_SUMMARY.txt",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 10463
+    },
+    {
+      "path": "docs_gathered/INDEX.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 9534
+    },
+    {
+      "path": "docs_gathered/README.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 9915
+    },
+    {
+      "path": "docs_gathered/sources.md",
+      "rationale": "Gathered documentation snapshot mirroring reference_docs content.",
+      "role": "docs",
+      "size_bytes": 9032
+    },
+    {
+      "path": "examples/README.md",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1592
+    },
+    {
+      "path": "examples/auth/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 3570
+    },
+    {
+      "path": "examples/auth/views/foot.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 18
+    },
+    {
+      "path": "examples/auth/views/head.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 394
+    },
+    {
+      "path": "examples/auth/views/login.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 533
+    },
+    {
+      "path": "examples/content-negotiation/db.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 146
+    },
+    {
+      "path": "examples/content-negotiation/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1003
+    },
+    {
+      "path": "examples/content-negotiation/users.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 382
+    },
+    {
+      "path": "examples/cookie-sessions/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 551
+    },
+    {
+      "path": "examples/cookies/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1311
+    },
+    {
+      "path": "examples/downloads/files/CCTV\u5927\u8d5b\u4e0a\u6d77\u5206\u8d5b\u533a.txt",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 38
+    },
+    {
+      "path": "examples/downloads/files/amazing.txt",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 24
+    },
+    {
+      "path": "examples/downloads/files/notes/groceries.txt",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 22
+    },
+    {
+      "path": "examples/downloads/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1193
+    },
+    {
+      "path": "examples/ejs/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1331
+    },
+    {
+      "path": "examples/ejs/public/stylesheets/style.css",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 98
+    },
+    {
+      "path": "examples/ejs/views/footer.html",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 16
+    },
+    {
+      "path": "examples/ejs/views/header.html",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 236
+    },
+    {
+      "path": "examples/ejs/views/users.html",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 206
+    },
+    {
+      "path": "examples/error-pages/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 2665
+    },
+    {
+      "path": "examples/error-pages/views/404.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 90
+    },
+    {
+      "path": "examples/error-pages/views/500.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 218
+    },
+    {
+      "path": "examples/error-pages/views/error_header.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 186
+    },
+    {
+      "path": "examples/error-pages/views/footer.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 16
+    },
+    {
+      "path": "examples/error-pages/views/index.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 356
+    },
+    {
+      "path": "examples/error/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1333
+    },
+    {
+      "path": "examples/hello-world/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 269
+    },
+    {
+      "path": "examples/markdown/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1025
+    },
+    {
+      "path": "examples/markdown/views/index.md",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 58
+    },
+    {
+      "path": "examples/multi-router/controllers/api_v1.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 272
+    },
+    {
+      "path": "examples/multi-router/controllers/api_v2.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 272
+    },
+    {
+      "path": "examples/multi-router/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 387
+    },
+    {
+      "path": "examples/mvc/controllers/main/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 79
+    },
+    {
+      "path": "examples/mvc/controllers/pet/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 599
+    },
+    {
+      "path": "examples/mvc/controllers/pet/views/edit.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 448
+    },
+    {
+      "path": "examples/mvc/controllers/pet/views/show.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 334
+    },
+    {
+      "path": "examples/mvc/controllers/user-pet/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 468
+    },
+    {
+      "path": "examples/mvc/controllers/user/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 872
+    },
+    {
+      "path": "examples/mvc/controllers/user/views/edit.hbs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 731
+    },
+    {
+      "path": "examples/mvc/controllers/user/views/list.hbs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 388
+    },
+    {
+      "path": "examples/mvc/controllers/user/views/show.hbs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 601
+    },
+    {
+      "path": "examples/mvc/db.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 420
+    },
+    {
+      "path": "examples/mvc/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 2320
+    },
+    {
+      "path": "examples/mvc/lib/boot.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 2263
+    },
+    {
+      "path": "examples/mvc/public/style.css",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 206
+    },
+    {
+      "path": "examples/mvc/views/404.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 313
+    },
+    {
+      "path": "examples/mvc/views/5xx.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 336
+    },
+    {
+      "path": "examples/online/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1024
+    },
+    {
+      "path": "examples/params/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1353
+    },
+    {
+      "path": "examples/resource/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 2295
+    },
+    {
+      "path": "examples/route-map/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1419
+    },
+    {
+      "path": "examples/route-middleware/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 2399
+    },
+    {
+      "path": "examples/route-separation/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1136
+    },
+    {
+      "path": "examples/route-separation/post.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 292
+    },
+    {
+      "path": "examples/route-separation/public/style.css",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 286
+    },
+    {
+      "path": "examples/route-separation/site.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 115
+    },
+    {
+      "path": "examples/route-separation/user.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1006
+    },
+    {
+      "path": "examples/route-separation/views/footer.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 16
+    },
+    {
+      "path": "examples/route-separation/views/header.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 224
+    },
+    {
+      "path": "examples/route-separation/views/index.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 196
+    },
+    {
+      "path": "examples/route-separation/views/posts/index.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 209
+    },
+    {
+      "path": "examples/route-separation/views/users/edit.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 439
+    },
+    {
+      "path": "examples/route-separation/views/users/index.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 288
+    },
+    {
+      "path": "examples/route-separation/views/users/view.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 144
+    },
+    {
+      "path": "examples/search/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1577
+    },
+    {
+      "path": "examples/search/public/client.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 390
+    },
+    {
+      "path": "examples/search/public/index.html",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 483
+    },
+    {
+      "path": "examples/session/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 844
+    },
+    {
+      "path": "examples/session/redis.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 957
+    },
+    {
+      "path": "examples/static-files/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1363
+    },
+    {
+      "path": "examples/static-files/public/css/style.css",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 11
+    },
+    {
+      "path": "examples/static-files/public/hello.txt",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 3
+    },
+    {
+      "path": "examples/static-files/public/js/app.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 7
+    },
+    {
+      "path": "examples/vhost/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1037
+    },
+    {
+      "path": "examples/view-constructor/github-view.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1069
+    },
+    {
+      "path": "examples/view-constructor/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 1167
+    },
+    {
+      "path": "examples/view-locals/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 3127
+    },
+    {
+      "path": "examples/view-locals/user.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 730
+    },
+    {
+      "path": "examples/view-locals/views/index.ejs",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 500
+    },
+    {
+      "path": "examples/web-service/index.js",
+      "rationale": "Example application demonstrating Express usage \u2014 documentation-by-example, not framework source.",
+      "role": "docs",
+      "size_bytes": 3044
+    },
+    {
+      "path": "index.js",
+      "rationale": "Package entry point re-exporting lib/express.js; independent library code.",
+      "role": "code",
+      "size_bytes": 224
+    },
+    {
+      "path": "lib/application.js",
+      "rationale": "Express framework library source \u2014 independent code carrying its own behavior contract.",
+      "role": "code",
+      "size_bytes": 13977
+    },
+    {
+      "path": "lib/express.js",
+      "rationale": "Express framework library source \u2014 independent code carrying its own behavior contract.",
+      "role": "code",
+      "size_bytes": 1636
+    },
+    {
+      "path": "lib/request.js",
+      "rationale": "Express framework library source \u2014 independent code carrying its own behavior contract.",
+      "role": "code",
+      "size_bytes": 12254
+    },
+    {
+      "path": "lib/response.js",
+      "rationale": "Express framework library source \u2014 independent code carrying its own behavior contract.",
+      "role": "code",
+      "size_bytes": 24844
+    },
+    {
+      "path": "lib/utils.js",
+      "rationale": "Express framework library source \u2014 independent code carrying its own behavior contract.",
+      "role": "code",
+      "size_bytes": 5293
+    },
+    {
+      "path": "lib/view.js",
+      "rationale": "Express framework library source \u2014 independent code carrying its own behavior contract.",
+      "role": "code",
+      "size_bytes": 3809
+    },
+    {
+      "path": "package.json",
+      "rationale": "Build / lint / packaging configuration for the Express project.",
+      "role": "config",
+      "size_bytes": 2731
+    },
+    {
+      "path": "quality/formal_docs_manifest.json",
+      "rationale": "Inside the target's quality/ subtree \u2014 produced by the playbook run, not the target's intrinsic surface.",
+      "role": "playbook-output",
+      "size_bytes": 96
+    },
+    {
+      "path": "reference_docs/01_API_Reference.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 8757
+    },
+    {
+      "path": "reference_docs/02_Getting_Started.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 3052
+    },
+    {
+      "path": "reference_docs/03_Routing_Guide.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 5586
+    },
+    {
+      "path": "reference_docs/04_Middleware_Architecture.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 5353
+    },
+    {
+      "path": "reference_docs/05_Error_Handling.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 6253
+    },
+    {
+      "path": "reference_docs/06_Security_Best_Practices.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 5879
+    },
+    {
+      "path": "reference_docs/07_Static_Files_Serving.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 6050
+    },
+    {
+      "path": "reference_docs/08_Migration_Guide_v4_to_v5.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 7044
+    },
+    {
+      "path": "reference_docs/09_Performance_Optimization.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 5608
+    },
+    {
+      "path": "reference_docs/10_Database_Integration.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 6551
+    },
+    {
+      "path": "reference_docs/11_Application_Architecture.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 7771
+    },
+    {
+      "path": "reference_docs/12_REST_API_Design.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 8335
+    },
+    {
+      "path": "reference_docs/13_Testing_Guide.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 10005
+    },
+    {
+      "path": "reference_docs/14_Known_Vulnerabilities.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 6342
+    },
+    {
+      "path": "reference_docs/15_Template_Engines_Views.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 7455
+    },
+    {
+      "path": "reference_docs/COLLECTION_SUMMARY.txt",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 10463
+    },
+    {
+      "path": "reference_docs/INDEX.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 9534
+    },
+    {
+      "path": "reference_docs/README.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 9915
+    },
+    {
+      "path": "reference_docs/sources.md",
+      "rationale": "Gathered Tier-4 documentation context (API ref, guides, security notes) for the audit.",
+      "role": "docs",
+      "size_bytes": 9032
+    },
+    {
+      "path": "test/Route.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 6480
+    },
+    {
+      "path": "test/Router.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 17372
+    },
+    {
+      "path": "test/acceptance/auth.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 3064
+    },
+    {
+      "path": "test/acceptance/content-negotiation.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 1402
+    },
+    {
+      "path": "test/acceptance/cookie-sessions.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 942
+    },
+    {
+      "path": "test/acceptance/cookies.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 1746
+    },
+    {
+      "path": "test/acceptance/downloads.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 1265
+    },
+    {
+      "path": "test/acceptance/ejs.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 505
+    },
+    {
+      "path": "test/acceptance/error-pages.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 2315
+    },
+    {
+      "path": "test/acceptance/error.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 608
+    },
+    {
+      "path": "test/acceptance/hello-world.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 488
+    },
+    {
+      "path": "test/acceptance/markdown.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 476
+    },
+    {
+      "path": "test/acceptance/multi-router.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 1173
+    },
+    {
+      "path": "test/acceptance/mvc.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 3292
+    },
+    {
+      "path": "test/acceptance/params.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 1064
+    },
+    {
+      "path": "test/acceptance/resource.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 1844
+    },
+    {
+      "path": "test/acceptance/route-map.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 1048
+    },
+    {
+      "path": "test/acceptance/route-separation.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 2541
+    },
+    {
+      "path": "test/acceptance/vhost.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 1190
+    },
+    {
+      "path": "test/acceptance/web-service.js",
+      "rationale": "Acceptance test exercising example apps end-to-end.",
+      "role": "test",
+      "size_bytes": 3129
+    },
+    {
+      "path": "test/app.all.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 790
+    },
+    {
+      "path": "test/app.engine.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2246
+    },
+    {
+      "path": "test/app.head.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1412
+    },
+    {
+      "path": "test/app.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2738
+    },
+    {
+      "path": "test/app.listen.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1713
+    },
+    {
+      "path": "test/app.locals.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 806
+    },
+    {
+      "path": "test/app.options.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2845
+    },
+    {
+      "path": "test/app.param.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 7560
+    },
+    {
+      "path": "test/app.render.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 11092
+    },
+    {
+      "path": "test/app.request.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2983
+    },
+    {
+      "path": "test/app.response.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2973
+    },
+    {
+      "path": "test/app.route.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 4762
+    },
+    {
+      "path": "test/app.router.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 29831
+    },
+    {
+      "path": "test/app.routes.error.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1504
+    },
+    {
+      "path": "test/app.use.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 12605
+    },
+    {
+      "path": "test/config.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 5823
+    },
+    {
+      "path": "test/exports.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2344
+    },
+    {
+      "path": "test/express.json.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 23675
+    },
+    {
+      "path": "test/express.raw.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 16296
+    },
+    {
+      "path": "test/express.static.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 23498
+    },
+    {
+      "path": "test/express.text.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 17277
+    },
+    {
+      "path": "test/express.urlencoded.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 26741
+    },
+    {
+      "path": "test/fixtures/% of dogs.txt",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 3
+    },
+    {
+      "path": "test/fixtures/.name",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 4
+    },
+    {
+      "path": "test/fixtures/blog/index.html",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 12
+    },
+    {
+      "path": "test/fixtures/blog/post/index.tmpl",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 18
+    },
+    {
+      "path": "test/fixtures/broken.send",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 0
+    },
+    {
+      "path": "test/fixtures/default_layout/name.tmpl",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 12
+    },
+    {
+      "path": "test/fixtures/default_layout/user.tmpl",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 17
+    },
+    {
+      "path": "test/fixtures/email.tmpl",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 23
+    },
+    {
+      "path": "test/fixtures/empty.txt",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 0
+    },
+    {
+      "path": "test/fixtures/local_layout/user.tmpl",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 23
+    },
+    {
+      "path": "test/fixtures/name.tmpl",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 12
+    },
+    {
+      "path": "test/fixtures/name.txt",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 4
+    },
+    {
+      "path": "test/fixtures/nums.txt",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 9
+    },
+    {
+      "path": "test/fixtures/pets/names.txt",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 9
+    },
+    {
+      "path": "test/fixtures/snow \u2603/.gitkeep",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 0
+    },
+    {
+      "path": "test/fixtures/todo.html",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 18
+    },
+    {
+      "path": "test/fixtures/todo.txt",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 11
+    },
+    {
+      "path": "test/fixtures/user.html",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 20
+    },
+    {
+      "path": "test/fixtures/user.tmpl",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 17
+    },
+    {
+      "path": "test/fixtures/users/index.html",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 23
+    },
+    {
+      "path": "test/fixtures/users/tobi.txt",
+      "rationale": "Test fixture / example data consumed by the Express test suite.",
+      "role": "fixture",
+      "size_bytes": 6
+    },
+    {
+      "path": "test/middleware.basic.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1051
+    },
+    {
+      "path": "test/regression.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 377
+    },
+    {
+      "path": "test/req.accepts.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2964
+    },
+    {
+      "path": "test/req.acceptsCharsets.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1609
+    },
+    {
+      "path": "test/req.acceptsEncodings.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 953
+    },
+    {
+      "path": "test/req.acceptsLanguages.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1425
+    },
+    {
+      "path": "test/req.baseUrl.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2120
+    },
+    {
+      "path": "test/req.fresh.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1664
+    },
+    {
+      "path": "test/req.get.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1415
+    },
+    {
+      "path": "test/req.host.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 3536
+    },
+    {
+      "path": "test/req.hostname.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 4420
+    },
+    {
+      "path": "test/req.ip.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2979
+    },
+    {
+      "path": "test/req.ips.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1743
+    },
+    {
+      "path": "test/req.is.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 3782
+    },
+    {
+      "path": "test/req.path.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 412
+    },
+    {
+      "path": "test/req.protocol.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2579
+    },
+    {
+      "path": "test/req.query.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2703
+    },
+    {
+      "path": "test/req.range.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2351
+    },
+    {
+      "path": "test/req.route.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 662
+    },
+    {
+      "path": "test/req.secure.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2457
+    },
+    {
+      "path": "test/req.signedCookies.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 851
+    },
+    {
+      "path": "test/req.stale.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1102
+    },
+    {
+      "path": "test/req.subdomains.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 4328
+    },
+    {
+      "path": "test/req.xhr.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1030
+    },
+    {
+      "path": "test/res.append.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2925
+    },
+    {
+      "path": "test/res.attachment.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1948
+    },
+    {
+      "path": "test/res.clearCookie.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1606
+    },
+    {
+      "path": "test/res.cookie.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 7428
+    },
+    {
+      "path": "test/res.download.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 13140
+    },
+    {
+      "path": "test/res.format.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 5901
+    },
+    {
+      "path": "test/res.get.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 472
+    },
+    {
+      "path": "test/res.json.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 4812
+    },
+    {
+      "path": "test/res.jsonp.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 9154
+    },
+    {
+      "path": "test/res.links.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1877
+    },
+    {
+      "path": "test/res.locals.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 733
+    },
+    {
+      "path": "test/res.location.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 8421
+    },
+    {
+      "path": "test/res.redirect.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 6121
+    },
+    {
+      "path": "test/res.render.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 9137
+    },
+    {
+      "path": "test/res.send.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 13688
+    },
+    {
+      "path": "test/res.sendFile.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 23888
+    },
+    {
+      "path": "test/res.sendStatus.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 951
+    },
+    {
+      "path": "test/res.set.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2960
+    },
+    {
+      "path": "test/res.status.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 4807
+    },
+    {
+      "path": "test/res.type.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 2812
+    },
+    {
+      "path": "test/res.vary.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 1984
+    },
+    {
+      "path": "test/support/env.js",
+      "rationale": "Shared test-harness support module used across the Express mocha suite.",
+      "role": "test",
+      "size_bytes": 84
+    },
+    {
+      "path": "test/support/tmpl.js",
+      "rationale": "Shared test-harness support module used across the Express mocha suite.",
+      "role": "test",
+      "size_bytes": 717
+    },
+    {
+      "path": "test/support/utils.js",
+      "rationale": "Shared test-harness support module used across the Express mocha suite.",
+      "role": "test",
+      "size_bytes": 2089
+    },
+    {
+      "path": "test/utils.js",
+      "rationale": "Mocha test file for the Express framework.",
+      "role": "test",
+      "size_bytes": 3768
+    }
+  ],
+  "provenance": "filesystem-walk-with-skips",
+  "schema_version": "1.0",
+  "summary": {
+    "file_count": 315,
+    "percentages": {
+      "code_share": 0.023832967536192018,
+      "other_share": 0.6592393135435352,
+      "skill_share": 0.3169277189202729,
+      "tool_share": 0.0
+    },
+    "provenance": "filesystem-walk-with-skips",
+    "role_breakdown": {
+      "code": 7,
+      "config": 12,
+      "docs": 121,
+      "fixture": 21,
+      "playbook-output": 21,
+      "skill-prose": 14,
+      "skill-reference": 28,
+      "test": 91
+    }
+  },
+  "timestamp_start": "2026-06-19T21:47:59Z"
+}

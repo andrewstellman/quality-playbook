@@ -1,0 +1,27 @@
+--- /dev/null
++++ b/middleware/qpb_bug004_regression_test.go
+@@ -0,0 +1,24 @@
++// Regression test for BUG-004 (Quality Playbook v1.5.8). Place in middleware/ to run.
++package middleware
++
++import (
++	"net/http/httptest"
++	"testing"
++)
++
++// BUG-004: realIP does not TrimSpace the leftmost X-Forwarded-For element before net.ParseIP,
++// so a space-padded first element is dropped and RemoteAddr is left unchanged.
++// Desired: the leftmost element is trimmed and parsed.
++func TestBUG004_RealIP_TrimsLeftmostXFF(t *testing.T) {
++	t.Skip("BUG-004: realIP no-trim leftmost XFF — unskip after applying quality/patches/BUG-004-fix.patch")
++
++	req := httptest.NewRequest("GET", "/", nil)
++	// Leading space before the first element (RFC 7230 OWS after the comma list is permitted;
++	// a producer may also pad the first element).
++	req.Header.Set("X-Forwarded-For", " 203.0.113.7, 10.0.0.1")
++
++	got := realIP(req)
++	if got != "203.0.113.7" {
++		t.Errorf("realIP should trim and parse the padded leftmost XFF element; want %q got %q", "203.0.113.7", got)
++	}
++}

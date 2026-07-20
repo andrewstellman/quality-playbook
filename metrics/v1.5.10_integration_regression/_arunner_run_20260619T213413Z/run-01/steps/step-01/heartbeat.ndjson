@@ -1,0 +1,5 @@
+{"ts":"2026-06-19T21:36:43Z","task_id":"chi-integration-regression","schema_version":"2","label":"phase1","status":"STARTING"}
+{"ts":"2026-06-19T21:37:31Z","task_id":"chi-integration-regression","schema_version":"2","label":"reading SKILL.md + phase1 guide","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T21:38:22Z","task_id":"chi-integration-regression","schema_version":"2","label":"deep-reading middleware suite + core router","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T21:41:20Z","task_id":"chi-integration-regression","schema_version":"2","label":"building role map + EXPLORATION.md","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T21:47:07Z","task_id":"chi-integration-regression","schema_version":"2","status":"COMPLETED","result_file":"/Users/andrewstellman/Documents/QPB/repos/chi-1.5.8/quality/INDEX.md","summary":"phase1 complete"}

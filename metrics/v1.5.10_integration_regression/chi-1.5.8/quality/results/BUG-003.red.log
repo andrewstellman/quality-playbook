@@ -1,0 +1,6 @@
+=== RUN   TestBUG003_PageRoute_PathRewrite_UnderMount
+    qpb_regression_test.go:102: PageRoute("/status") under Mount("/admin") should fire for /admin/status; got fired=false status=404
+--- FAIL: TestBUG003_PageRoute_PathRewrite_UnderMount (0.00s)
+FAIL
+FAIL	github.com/go-chi/chi/v5/middleware	0.264s
+FAIL

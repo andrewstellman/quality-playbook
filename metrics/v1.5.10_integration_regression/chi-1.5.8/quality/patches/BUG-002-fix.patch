@@ -1,0 +1,18 @@
+--- a/middleware/supress_notfound.go
++++ b/middleware/supress_notfound.go
+@@ -16,7 +16,14 @@
+ 	return func(next http.Handler) http.Handler {
+ 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 			rctx := chi.RouteContext(r.Context())
+-			match := rctx.Routes.Match(rctx, r.Method, r.URL.Path)
++			// Probe with a throwaway context so the live routing context is not mutated
++			// (Mux.Match updates the *Context it is given). Match against the canonical
++			// mounted path (rctx.RoutePath) so the check is correct under Mount().
++			path := rctx.RoutePath
++			if path == "" {
++				path = r.URL.Path
++			}
++			match := rctx.Routes.Match(chi.NewRouteContext(), r.Method, path)
+ 			if !match {
+ 				router.NotFoundHandler().ServeHTTP(w, r)
+ 				return

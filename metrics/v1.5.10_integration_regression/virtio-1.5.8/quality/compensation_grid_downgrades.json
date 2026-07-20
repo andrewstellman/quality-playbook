@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.5.2",
+  "downgrades": [
+    {
+      "cell_id": "REQ-001/cell-RING_RESET-MMIO",
+      "authority_ref": "include/uapi/linux/virtio_config.h:116",
+      "site_citation": "drivers/virtio/virtio_mmio.c:109-132 (vm_finalize_features) + virtio_mmio_config_ops struct (no disable_vq_and_reset / enable_vq_after_reset ops)",
+      "reason_class": "intentionally-partial",
+      "falsifiable_claim": "MMIO defines neither disable_vq_and_reset nor enable_vq_after_reset in virtio_mmio_config_ops, so virtio_ring.c:2704-2707 (virtqueue_reset) early-returns -ENOENT regardless of whether RING_RESET survives; stripping the unusable bit is correct. Falsifiable by showing virtio_mmio_config_ops gains a *_vq_and_reset op while vm_finalize_features still strips bit 40."
+    },
+    {
+      "cell_id": "REQ-001/cell-RING_RESET-vDPA",
+      "authority_ref": "include/uapi/linux/virtio_config.h:116",
+      "site_citation": "drivers/virtio/virtio_vdpa.c:389-397 (virtio_vdpa_finalize_features) + virtio_vdpa_config_ops struct (no disable_vq_and_reset / enable_vq_after_reset ops)",
+      "reason_class": "intentionally-partial",
+      "falsifiable_claim": "vDPA defines neither disable_vq_and_reset nor enable_vq_after_reset in virtio_vdpa_config_ops, so virtio_ring.c:2704-2707 early-returns -ENOENT and RING_RESET is unusable even if the bit survived; stripping it is consistent. Falsifiable by showing virtio_vdpa_config_ops gains a *_vq_and_reset op while virtio_vdpa_finalize_features still strips bit 40."
+    },
+    {
+      "cell_id": "REQ-001/cell-ADMIN_VQ-MMIO",
+      "authority_ref": "include/uapi/linux/virtio_config.h:121",
+      "site_citation": "drivers/virtio/virtio_mmio.c: no admin virtqueue implementation (vp_is_avq / admin_queue_num are virtio_pci_modern-only)",
+      "reason_class": "out-of-scope",
+      "falsifiable_claim": "ADMIN_VQ is a PCI-modern feature backed by the PCI common-cfg admin_queue_num register (virtio_pci_modern.c:412) and vp_is_avq; MMIO has no admin-vq transport surface. Falsifiable by citing virtio-spec normative text requiring ADMIN_VQ on the MMIO transport."
+    },
+    {
+      "cell_id": "REQ-001/cell-ADMIN_VQ-vDPA",
+      "authority_ref": "include/uapi/linux/virtio_config.h:121",
+      "site_citation": "drivers/virtio/virtio_vdpa.c: no admin virtqueue implementation",
+      "reason_class": "out-of-scope",
+      "falsifiable_claim": "ADMIN_VQ is a PCI-modern admin-virtqueue feature; the vDPA transport delegates feature handling to the backend via vdpa_set_features and has no admin-vq surface. Falsifiable by citing virtio-spec normative text requiring ADMIN_VQ on the vDPA transport, or a vDPA admin-vq hookup in-tree."
+    },
+    {
+      "cell_id": "REQ-001/cell-SR_IOV-MMIO",
+      "authority_ref": "include/uapi/linux/virtio_config.h:100",
+      "site_citation": "drivers/virtio/virtio_mmio.c: no pci_find_ext_capability / PCI_EXT_CAP_ID_SRIOV (MMIO is not a PCI bus)",
+      "reason_class": "out-of-scope",
+      "falsifiable_claim": "SR_IOV propagation is gated on the PCI SR-IOV extended capability (virtio_pci_modern.c:372-374); the MMIO transport is not a PCI device and has no SR-IOV capability to discover. Falsifiable by showing an SR-IOV capability path on the MMIO bus."
+    },
+    {
+      "cell_id": "REQ-001/cell-SR_IOV-vDPA",
+      "authority_ref": "include/uapi/linux/virtio_config.h:100",
+      "site_citation": "drivers/virtio/virtio_vdpa.c: no pci_find_ext_capability / PCI_EXT_CAP_ID_SRIOV",
+      "reason_class": "out-of-scope",
+      "falsifiable_claim": "SR_IOV propagation is gated on the PCI SR-IOV extended capability; the vDPA transport is parent-bus-agnostic and exposes SR-IOV (if any) through its own bus, not the virtio feature bit. Falsifiable by showing a vDPA SR-IOV feature-bit path in-tree."
+    },
+    {
+      "cell_id": "REQ-001/cell-NOTIF_CONFIG_DATA-MMIO",
+      "authority_ref": "include/uapi/linux/virtio_config.h:111",
+      "site_citation": "drivers/virtio/virtio_mmio.c: NOTIF_CONFIG_DATA(39) has no MMIO register; MMIO notify-with-data is gated on NOTIFICATION_DATA(38) at virtio_mmio.c:355-357",
+      "reason_class": "out-of-scope",
+      "falsifiable_claim": "VIRTIO_F_NOTIF_CONFIG_DATA(39) reads the per-queue notify-data from the PCI modern common-cfg queue_notify_data field (virtio_pci_modern_dev.c:207); MMIO has no such config register and instead uses bit 38 (NOTIFICATION_DATA). Falsifiable by citing an MMIO register that carries queue_notify_data under bit 39."
+    },
+    {
+      "cell_id": "REQ-001/cell-NOTIF_CONFIG_DATA-vDPA",
+      "authority_ref": "include/uapi/linux/virtio_config.h:111",
+      "site_citation": "drivers/virtio/virtio_vdpa.c: NOTIF_CONFIG_DATA(39) is a PCI common-cfg feature; vDPA notify-with-data is gated on NOTIFICATION_DATA(38) at virtio_vdpa.c:155-157",
+      "reason_class": "out-of-scope",
+      "falsifiable_claim": "Bit 39 sources notify-data from the PCI modern common-cfg queue_notify_data register; vDPA has no such common-cfg surface and uses bit 38. Falsifiable by citing a vDPA mechanism that consumes bit 39's queue_notify_data."
+    },
+    {
+      "cell_id": "REQ-002/cell-SR_IOV-RING",
+      "authority_ref": "include/uapi/linux/virtio_config.h:100",
+      "site_citation": "drivers/virtio/virtio_ring.c:3527-3529 (default: clear) + drivers/virtio/virtio_pci_modern.c:372-374 (compensator re-adds)",
+      "reason_class": "handled-upstream",
+      "falsifiable_claim": "vring_transport_features intentionally clears SR_IOV because it is PCI-transport-specific; the PCI compensator vp_transport_features re-adds it gated on the PCI SR-IOV ext cap. The whitelist gap is closed by the compensator, not a defect in vring_transport_features. Falsifiable by showing a transport that needs SR_IOV but has no compensator re-adding it (none does)."
+    },
+    {
+      "cell_id": "REQ-002/cell-RING_RESET-RING",
+      "authority_ref": "include/uapi/linux/virtio_config.h:116",
+      "site_citation": "drivers/virtio/virtio_ring.c:3527-3529 (default: clear) + drivers/virtio/virtio_pci_modern.c:376-377 (compensator re-adds)",
+      "reason_class": "handled-upstream",
+      "falsifiable_claim": "vring_transport_features clears RING_RESET by design; the PCI compensator re-adds it, and transports lacking the reset-vq ops correctly leave it cleared (the unusable-feature case). The whitelist clear is intentional, not a vring defect. Falsifiable by showing the only correct behavior is for vring_transport_features itself to preserve bit 40 for all transports."
+    },
+    {
+      "cell_id": "REQ-002/cell-ADMIN_VQ-RING",
+      "authority_ref": "include/uapi/linux/virtio_config.h:121",
+      "site_citation": "drivers/virtio/virtio_ring.c:3527-3529 (default: clear) + drivers/virtio/virtio_pci_modern.c:379-380 (compensator re-adds)",
+      "reason_class": "handled-upstream",
+      "falsifiable_claim": "vring_transport_features clears ADMIN_VQ by design; the PCI compensator re-adds it. The transport-agnostic ring layer correctly does not enumerate a PCI-specific feature. Falsifiable by showing vring_transport_features must itself preserve bit 41 for non-PCI transports."
+    }
+  ]
+}

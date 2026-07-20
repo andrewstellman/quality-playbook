@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/test/regression_bug_006.test.js
+@@ -0,0 +1,40 @@
++'use strict'
++
++/*
++ * Regression test for BUG-006 (Express v5.2.1 Phase 3 code review).
++ * See quality/BUGS.md. Asserts desired-correct behavior; skipped until
++ * quality/patches/BUG-006-fix.patch lands. This file lives in test/, so express
++ * is required as '..'.
++ */
++
++var assert = require('node:assert')
++var express = require('..')
++var request = require('supertest')
++
++describe('regression: BUG-006', function () {
++  it.skip("BUG-006: req.host/hostname/subdomains undefined for trusted leading-comma X-Forwarded-Host — unskip after applying quality/patches/BUG-006-fix.patch", function (done) {
++    var app = express()
++    app.enable('trust proxy')
++    app.set('subdomain offset', 2)
++    app.use(function (req, res) {
++      res.json({
++        host: req.host,
++        hostname: req.hostname,
++        subdomains: req.subdomains
++      })
++    })
++    request(app)
++      .get('/')
++      .set('X-Forwarded-Host', ',sub.example.com')
++      .expect(200)
++      .end(function (err, res) {
++        if (err) return done(err)
++        // Desired: the present authority resolves; never undefined/[].
++        assert.strictEqual(res.body.hostname, 'sub.example.com')
++        assert.deepStrictEqual(res.body.subdomains, ['sub'])
++        done()
++      })
++  })
++
++})
++

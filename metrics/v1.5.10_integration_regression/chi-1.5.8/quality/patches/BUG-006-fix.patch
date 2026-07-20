@@ -1,0 +1,17 @@
+--- a/mux.go
++++ b/mux.go
+@@ -381,6 +381,14 @@
+ 		}
+ 
+ 		rctx.RoutePath = mx.nextRoutePath(rctx)
++
++		// Mirror the live mount closure: reset the wildcard URLParam that connects the
++		// subrouter, so Find leaves the same observable context state as a real walk.
++		n := len(rctx.URLParams.Keys) - 1
++		if n >= 0 && rctx.URLParams.Keys[n] == "*" && len(rctx.URLParams.Values) > n {
++			rctx.URLParams.Values[n] = ""
++		}
++
+ 		subPattern := node.subroutes.Find(rctx, method, rctx.RoutePath)
+ 		if subPattern == "" {
+ 			return ""

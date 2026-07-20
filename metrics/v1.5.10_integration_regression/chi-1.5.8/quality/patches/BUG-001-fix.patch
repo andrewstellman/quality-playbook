@@ -1,0 +1,36 @@
+--- a/middleware/compress.go
++++ b/middleware/compress.go
+@@ -237,11 +237,32 @@
+ 	return nil, "", func() {}
+ }
+ 
++// matchAcceptEncoding reports whether the requested coding appears as an exact
++// comma-list token in the Accept-Encoding header with a non-zero q-value.
++// Per RFC 7231 §5.3.4: list elements are comma-separated tokens with optional
++// ";q=<value>" parameters; q=0 is an explicit rejection of the coding.
+ func matchAcceptEncoding(accepted []string, encoding string) bool {
+ 	for _, v := range accepted {
+-		if strings.Contains(v, encoding) {
++		// Split the coding name from its parameters (";q=...").
++		name, params, _ := strings.Cut(v, ";")
++		if strings.TrimSpace(name) != encoding {
++			continue
++		}
++		// No parameters -> accepted (implicit q=1).
++		if params == "" {
+ 			return true
+ 		}
++		// Honor an explicit q-value: q=0 (and q=0.0, q=0.000) means rejected.
++		for _, prm := range strings.Split(params, ";") {
++			k, val, found := strings.Cut(prm, "=")
++			if !found || strings.TrimSpace(strings.ToLower(k)) != "q" {
++				continue
++			}
++			if q := strings.TrimSpace(val); q == "0" || q == "0.0" || q == "0.00" || q == "0.000" {
++				return false
++			}
++		}
++		return true
+ 	}
+ 	return false
+ }

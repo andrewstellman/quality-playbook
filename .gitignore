@@ -127,3 +127,6 @@ metrics/classifier_verification.log
 metrics/v1.5.10_recall_baseline/
 # Integration-regression run artifacts (full quality/ dumps; not tracked — v1.5.10 hygiene)
 metrics/*integration_regression*/
+
+# Row-16 evidence: the 053 integration/regression run (carry-forward P11)
+!metrics/v1.5.10_integration_regression/

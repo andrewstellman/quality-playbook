@@ -1,0 +1,25 @@
+--- a/lib/request.js
++++ b/lib/request.js
+@@ -307,11 +307,18 @@
+   // Note: X-Forwarded-Proto is normally only ever a
+   //       single value, but this is to be safe.
+   var header = this.get('X-Forwarded-Proto') || proto
+-  var index = header.indexOf(',')
+ 
+-  return index !== -1
+-    ? header.substring(0, index).trim()
+-    : header.trim()
++  // Select the first NON-EMPTY comma-separated element; a leading empty
++  // element (e.g. ", https") must not collapse the scheme to ''.
++  var values = header.split(',')
++  for (var i = 0; i < values.length; i++) {
++    var value = values[i].trim()
++    if (value) {
++      return value
++    }
++  }
++
++  return proto
+ });
+ 
+ /**

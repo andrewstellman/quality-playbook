@@ -1,0 +1,9 @@
+{
+  "task_id": "chi-integration-regression",
+  "target_repo": "/Users/andrewstellman/Documents/QPB/repos/chi-1.5.8",
+  "dispatch_mode": "subagent",
+  "run": "run-01",
+  "job_id": "job-00001-step-03",
+  "step_index": 2,
+  "step_count": 3
+}

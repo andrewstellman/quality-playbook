@@ -1,0 +1,97 @@
+{
+  "schema_version": "1",
+  "run_dir": "20260619T213413Z",
+  "done": true,
+  "generated_ts": "2026-06-19T23:52:03Z",
+  "counts": {
+    "queued": 0,
+    "claimed": 0,
+    "running": 0,
+    "stalled": 0,
+    "completed": 3,
+    "failed": 0,
+    "auth_or_launch_failed": 0,
+    "abandoned": 0
+  },
+  "tokens": {
+    "input_tokens": null,
+    "output_tokens": null,
+    "reported": 0,
+    "jobs": 3,
+    "label": "no token usage reported"
+  },
+  "jobs": [
+    {
+      "run": "run-01",
+      "task_id": "chi-integration-regression",
+      "state": "completed",
+      "result_file": null,
+      "summary": "all 3 step(s) completed",
+      "duration_seconds": 5879.0,
+      "steps": [
+        {
+          "step": "step-01",
+          "terminal_status": "COMPLETED"
+        },
+        {
+          "step": "step-02",
+          "terminal_status": "COMPLETED"
+        },
+        {
+          "step": "step-03",
+          "terminal_status": "COMPLETED"
+        }
+      ],
+      "input_tokens": null,
+      "output_tokens": null
+    },
+    {
+      "run": "run-02",
+      "task_id": "virtio-integration-regression",
+      "state": "completed",
+      "result_file": null,
+      "summary": "all 3 step(s) completed",
+      "duration_seconds": 4930.0,
+      "steps": [
+        {
+          "step": "step-01",
+          "terminal_status": "COMPLETED"
+        },
+        {
+          "step": "step-02",
+          "terminal_status": "COMPLETED"
+        },
+        {
+          "step": "step-03",
+          "terminal_status": "COMPLETED"
+        }
+      ],
+      "input_tokens": null,
+      "output_tokens": null
+    },
+    {
+      "run": "run-03",
+      "task_id": "express-integration-regression",
+      "state": "completed",
+      "result_file": null,
+      "summary": "all 3 step(s) completed",
+      "duration_seconds": 4930.0,
+      "steps": [
+        {
+          "step": "step-01",
+          "terminal_status": "COMPLETED"
+        },
+        {
+          "step": "step-02",
+          "terminal_status": "COMPLETED"
+        },
+        {
+          "step": "step-03",
+          "terminal_status": "COMPLETED"
+        }
+      ],
+      "input_tokens": null,
+      "output_tokens": null
+    }
+  ]
+}

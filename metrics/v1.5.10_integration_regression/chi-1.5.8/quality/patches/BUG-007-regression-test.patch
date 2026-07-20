@@ -1,0 +1,29 @@
+--- /dev/null
++++ b/middleware/qpb_bug007_regression_test.go
+@@ -0,0 +1,26 @@
++// Regression test for BUG-007 (Quality Playbook v1.5.8). Place in middleware/ to run.
++package middleware
++
++import (
++	"strings"
++	"testing"
++
++	"github.com/go-chi/chi/v5"
++)
++
++// BUG-007: replaceWildcards collapses any "/*/"→"/" textually, erasing a legitimate literal
++// interior "*" segment in the reported RoutePattern. Desired: an interior literal "*" survives.
++//
++// This test exercises replaceWildcards directly (the textual collapse cited at context.go:139-144).
++func TestBUG007_RoutePattern_LiteralInteriorWildcard(t *testing.T) {
++	t.Skip("BUG-007: replaceWildcards erases literal interior * — unskip after applying quality/patches/BUG-007-fix.patch (note: fix has an EXEMPTION; see writeup)")
++
++	// A reconstructed pattern containing a legitimate interior "*" segment must NOT be collapsed.
++	// (replaceWildcards is package chi's; exercised here via the public RoutePattern surface.)
++	rctx := chi.NewRouteContext()
++	rctx.RoutePatterns = []string{"/files", "/*", "/meta"}
++	got := rctx.RoutePattern()
++	if !strings.Contains(got, "*") {
++		t.Errorf("RoutePattern must preserve a literal interior \"*\" segment; got %q (interior /*/ erased)", got)
++	}
++}

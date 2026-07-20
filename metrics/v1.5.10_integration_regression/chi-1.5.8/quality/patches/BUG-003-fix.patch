@@ -1,0 +1,49 @@
+--- a/middleware/page_route.go
++++ b/middleware/page_route.go
+@@ -3,6 +3,8 @@
+ import (
+ 	"net/http"
+ 	"strings"
++
++	"github.com/go-chi/chi/v5"
+ )
+ 
+ // PageRoute is a simple middleware which allows you to route a static GET request
+@@ -10,7 +12,13 @@
+ func PageRoute(path string, handler http.Handler) func(http.Handler) http.Handler {
+ 	return func(next http.Handler) http.Handler {
+ 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+-			if r.Method == "GET" && strings.EqualFold(r.URL.Path, path) {
++			// Compare against chi's canonical mounted path so PageRoute fires correctly
++			// under Mount(); fall back to r.URL.Path when not routed by chi.
++			reqPath := r.URL.Path
++			if rctx := chi.RouteContext(r.Context()); rctx != nil && rctx.RoutePath != "" {
++				reqPath = rctx.RoutePath
++			}
++			if r.Method == "GET" && strings.EqualFold(reqPath, path) {
+ 				handler.ServeHTTP(w, r)
+ 				return
+ 			}
+--- a/middleware/path_rewrite.go
++++ b/middleware/path_rewrite.go
+@@ -3,6 +3,8 @@
+ import (
+ 	"net/http"
+ 	"strings"
++
++	"github.com/go-chi/chi/v5"
+ )
+ 
+ // PathRewrite is a simple middleware which allows you to rewrite the request URL path.
+@@ -10,6 +12,11 @@
+ 	return func(next http.Handler) http.Handler {
+ 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 			r.URL.Path = strings.Replace(r.URL.Path, old, new, 1)
++			// Update chi's canonical routing path too, so the subsequent route walk
++			// (which reads rctx.RoutePath first) observes the rewrite under Mount().
++			if rctx := chi.RouteContext(r.Context()); rctx != nil && rctx.RoutePath != "" {
++				rctx.RoutePath = strings.Replace(rctx.RoutePath, old, new, 1)
++			}
+ 			next.ServeHTTP(w, r)
+ 		})
+ 	}
