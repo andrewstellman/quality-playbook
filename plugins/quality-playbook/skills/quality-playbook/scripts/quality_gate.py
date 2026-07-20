@@ -6881,6 +6881,7 @@ _RENDER_INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 # what §5.2 exists to prevent.
 _RENDER_STRUCTURAL_HEADING_RE = re.compile(
     r"^(project\s+)?(overview|actors?(\s*(&|and)\s*roles?)?|use\s*cases?|"
+    r"glossary(\s*(&|and|/)\s*definitions)?|definitions|terms|"
     r"cross[-\s]?cutting(\s+concerns)?|traceability(\s+appendix)?|"
     r"non[-\s]?functional(\s+\w+)*|nfr(\s+\w+)*|requirements?)\s*\Z",
     re.IGNORECASE,
@@ -7206,6 +7207,20 @@ def _render_overview_body(text, level2):
             body = text[off: bounds[idx + 1]]
             collected.append(body.split("\n", 1)[1] if "\n" in body else "")
     return "\n".join(collected)
+
+
+def _render_named_section_body(text, level2, heading_pattern):
+    """Return the body of the first level-2 section whose heading matches.
+
+    Returns None when no such heading exists, so callers can distinguish
+    "absent" from "present but empty".
+    """
+    bounds = [off for _h, off in level2] + [len(text)]
+    for idx, (heading, off) in enumerate(level2):
+        if re.match(heading_pattern, heading, re.IGNORECASE):
+            body = text[off: bounds[idx + 1]]
+            return body.split("\n", 1)[1] if "\n" in body else ""
+    return None
 
 
 def _render_classify_sections(text, level2):
@@ -7671,6 +7686,37 @@ def check_render_contract(repo_dir, q, skill_version=None):
             "— the operator has no signal about what the derivation chose "
             "not to cover (v1.6.0 F-1; advisory, never a FAIL)"
         )
+
+    # -- Glossary / definitions (advisory, WARN only). ---------------------
+    # IEEE 830 §1.3 gives definitions their own slot because terminology
+    # drift is a top requirements defect class, and terminology stability is
+    # what the readability rubric's Consistent dimension scores.
+    #
+    # Deliberately modelled on the F-1 check above and bound by the same
+    # rule: this emits warn() and info() ONLY. It has no fail() path, by
+    # construction rather than by luck — a target whose vocabulary is
+    # genuinely unambiguous does not need a glossary, and a run that
+    # produced good requirements must not be failed for omitting one. The
+    # three v1.6.0 regeneration fixtures carry no glossary and must keep
+    # passing; see test_render_contract_v160.GlossarySlotTests.
+    glossary_body = _render_named_section_body(
+        structure_text, level2, r"^(glossary|definitions|terms(\s|$)|"
+        r"glossary\s*(&|and|/)\s*definitions)"
+    )
+    if glossary_body is None:
+        warn(
+            "REQUIREMENTS.md has no glossary/definitions section — domain "
+            "terms are undefined, which is the terminology-drift defect "
+            "class IEEE 830 §1.3 exists for (v1.6.0; advisory, never a FAIL)"
+        )
+    elif len(glossary_body.strip()) < 40:
+        warn(
+            "REQUIREMENTS.md glossary section is empty or near-empty — the "
+            "reader gets a heading, not definitions (v1.6.0; advisory, "
+            "never a FAIL)"
+        )
+    else:
+        pass_("glossary/definitions section present")
 
 
 def check_repo(repo_dir, version_arg, strictness, language=None):

@@ -116,16 +116,27 @@ QPB's own run-layout invariants — "per-bug writeups are placed at `quality/wri
 
 #### Canonical document architecture (contract items 1, 3)
 
-REQUIREMENTS.md renders these eight parts, in this order. Parts marked **mandatory** are rendered on every run regardless of target size; a missing mandatory part is a gate FAIL.
+REQUIREMENTS.md renders these parts, in this order. Parts marked **mandatory** are rendered on every run regardless of target size; a missing mandatory part is a gate FAIL. The part marked **advisory** is expected but never blocks — a missing advisory part is a WARN.
 
 1. **Header** (mandatory) — title, then the version stamp. The stamp's version MUST equal SKILL.md `metadata.version` (see the version-stamp section above).
 2. **Overview** (mandatory) — what the system is, the derivation scope and evidence base, the tier distribution, and the **coverage-and-gaps statement** (below). Never omit this because the target is small; a small target is exactly when the reader needs it.
 3. **Actors & roles** (mandatory) — who the requirements serve. This is also the natural organizer for the requirements validation interview.
-4. **Functional sections** — ordered **user-facing → infrastructure**. State the ordering rationale in one line at the top of the section list. Each section opens with intro prose stating that section's *contract theme* (not a restatement of its REQ titles). Each section carries **≥2 REQs**, or a one-line explicit justification for standing alone — otherwise merge it into a related section.
-5. **Non-functional sections** — NFR REQs grouped by `nfr_class`, after the functional sections. Absent until NFR derivation ships; the slot degrades gracefully to nothing.
-6. **Cross-cutting concerns** — mandatory whenever there is more than one functional section.
-7. **Use cases** — content unchanged. Render `formal_doc_refs`; do NOT list `requirements[]` (traceability is one-way REQ → UC).
-8. **Traceability appendix** — the reverse index UC → REQ, derived at render time, plus REQ → BUG links carrying final dispositions. The manifest keeps one-way REQ → UC; the reverse direction is render-time derivation only.
+4. **Glossary / definitions** (advisory) — the domain terms the requirements use, defined once. Placed here deliberately: the reader meets the vocabulary before the requirements that depend on it.
+5. **Functional sections** — ordered **user-facing → infrastructure**. State the ordering rationale in one line at the top of the section list. Each section opens with intro prose stating that section's *contract theme* (not a restatement of its REQ titles). Each section carries **≥2 REQs**, or a one-line explicit justification for standing alone — otherwise merge it into a related section.
+6. **Non-functional sections** — NFR REQs grouped by `nfr_class`, after the functional sections. Absent until NFR derivation ships; the slot degrades gracefully to nothing.
+7. **Cross-cutting concerns** — mandatory whenever there is more than one functional section.
+8. **Use cases** — content unchanged. Render `formal_doc_refs`; do NOT list `requirements[]` (traceability is one-way REQ → UC).
+9. **Traceability appendix** — the reverse index UC → REQ, derived at render time, plus REQ → BUG links carrying final dispositions. The manifest keeps one-way REQ → UC; the reverse direction is render-time derivation only.
+
+*Relationship to Design §5.2:* the Design specifies eight parts, all of the mandatory ones. The glossary is a ninth, **advisory** slot added in v1.6.0 instruction 002; it does not change which parts are mandatory and cannot cause a gate FAIL. Design §5.2 should absorb it at the orchestrator's convenience.
+
+#### Glossary / definitions (advisory)
+
+IEEE 830 §1.3 gives definitions their own slot because terminology drift is a top requirements defect class — and terminology stability is exactly what the readability rubric's **Consistent** dimension scores. A requirements document that uses "route", "pattern" and "handler" in shifting senses is unverifiable no matter how well organized it is.
+
+Define the domain terms the requirements actually use — the ones a competent reader of this codebase could reasonably interpret two ways. Do not pad it with terms the document never uses, and do not restate general programming vocabulary.
+
+**Advisory, never a gate FAIL.** The gate WARNs when the glossary is missing or empty, exactly as it does for the F-1 coverage-and-gaps statement (Design §8), and for the same reason: this is a quality signal to the operator, not a contract the derivation can always satisfy. A target whose vocabulary is genuinely unambiguous does not need one, and a run that produced good requirements should not be failed for omitting it.
 
 *Why user-facing → infrastructure rather than architectural layering:* the spec's first consumer is an operator deciding whether the derivation captured intent. Operators recognize user-visible behavior before internals. Implementers, who prefer architectural ordering, read the `References` fields anyway.
 

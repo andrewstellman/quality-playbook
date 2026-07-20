@@ -169,12 +169,76 @@ class RegenerationOracleTests(unittest.TestCase):
                     f"(Design §5, §10 criterion 1) is not satisfied:\n{out}",
                 )
 
-    def test_regenerated_documents_emit_no_advisory_warnings(self):
-        """F-1: every regenerated Overview carries a coverage-and-gaps statement."""
+    # Advisory WARNs the fixtures are known and expected to emit. Each entry
+    # is a deliberate, recorded gap — not a defect to fix by editing the
+    # fixture documents, which are snapshots of pipeline output and must not
+    # be hand-polished (instruction 002's standing constraint).
+    EXPECTED_FIXTURE_WARNS = {
+        # v1.6.0 instruction 002 item 3: the glossary slot is advisory. The
+        # three fixtures predate it and carry no glossary, so each WARNs.
+        # The instruction states this is "the expected and correct outcome";
+        # a FAIL here would mean the check was implemented wrong. The
+        # resolution is a future regeneration, not a fixture edit.
+        "glossary/definitions section",
+    }
+
+    def test_regenerated_documents_emit_only_expected_advisory_warnings(self):
+        """F-1 holds, and no *unexpected* advisory fires.
+
+        Asserts against the known-WARN allowlist rather than zero, so a new
+        advisory still fails this test while the recorded glossary gap does
+        not. Checking the count alone would let a new WARN slip in as one
+        went away.
+        """
         for target in TARGETS:
             with self.subTest(target=target):
                 _fails, warns, out = _run_render_contract(target)
-                self.assertEqual(warns, 0, f"{target}:\n{out}")
+                emitted = [
+                    line.strip() for line in out.splitlines()
+                    if line.strip().startswith("WARN:")
+                ]
+                unexpected = [
+                    w for w in emitted
+                    if not any(k in w for k in self.EXPECTED_FIXTURE_WARNS)
+                ]
+                self.assertEqual(
+                    unexpected, [],
+                    f"{target}: unexpected advisory WARN(s) — either a "
+                    f"regression, or a new expected gap that needs a row in "
+                    f"EXPECTED_FIXTURE_WARNS:\n{out}",
+                )
+                self.assertEqual(
+                    warns, len(emitted),
+                    f"{target}: WARN counter disagrees with emitted lines",
+                )
+
+    def test_the_expected_warn_allowlist_is_not_stale(self):
+        """An allowlist entry that stopped firing is a stale row.
+
+        Without this, the allowlist silently becomes permission for a
+        future advisory nobody reviewed — the same failure the render
+        contract's INTENTIONAL_DIVERGENCES guard prevents.
+        """
+        for key in self.EXPECTED_FIXTURE_WARNS:
+            with self.subTest(expected_warn=key):
+                still_fires = any(
+                    key in _run_render_contract(t)[2] for t in TARGETS
+                )
+                self.assertTrue(
+                    still_fires,
+                    f"no fixture emits a WARN matching {key!r} any more — "
+                    "delete the row rather than leaving it as blanket "
+                    "permission.",
+                )
+
+    def test_f1_coverage_and_gaps_still_passes_on_every_fixture(self):
+        """The F-1 advisory must be satisfied, not merely allowlisted."""
+        for target in TARGETS:
+            with self.subTest(target=target):
+                _f, _w, out = _run_render_contract(target)
+                self.assertIn(
+                    "coverage-and-gaps statement present in the Overview", out
+                )
 
     def test_before_documents_still_exhibit_the_defects(self):
         """The mutation bite for the whole oracle.

@@ -109,6 +109,12 @@ skimmed but produced no requirements.
 
 Application developers mount routers; operators deploy behind proxies.
 
+## Glossary
+
+**Route** — a pattern registered on a router, matched against a request path.
+
+**Mount** — attaching a sub-router beneath a path prefix.
+
 ## Request routing
 
 Sections are ordered user-facing first, infrastructure last. This section
@@ -1031,6 +1037,107 @@ class F1ScopingTests(RenderContractBase):
         fails, warns, out = self.run_check()
         self.assertEqual(fails, 0, "F-1 must never FAIL")
         self.assertEqual(warns, 1, out)
+
+
+class GlossarySlotTests(RenderContractBase):
+    """v1.6.0 instruction 002 item 3 — the glossary slot is WARN-only.
+
+    IEEE 830 §1.3 gives definitions their own slot because terminology
+    drift is a top requirements defect class, and terminology stability is
+    what the readability rubric's Consistent dimension scores.
+
+    The load-bearing property is that this check **cannot FAIL**. It is
+    modelled on F-1's coverage-and-gaps statement (Design §8), and the
+    instruction made the bar explicit: the three regeneration fixtures
+    carry no glossary and must not begin failing. A WARN on each is the
+    correct outcome; a FAIL on any of them means this was implemented
+    wrong.
+    """
+
+    _GLOSSARY_BLOCK = (
+        "## Glossary\n\n"
+        "**Route** — a pattern registered on a router, matched against a request path.\n\n"
+        "**Mount** — attaching a sub-router beneath a path prefix.\n\n"
+    )
+
+    def _without_glossary(self):
+        """The clean fixture carries a glossary; strip it."""
+        text = _clean_requirements_md().replace(self._GLOSSARY_BLOCK, "")
+        self.assertNotIn("## Glossary", text, "fixture mutation did not apply")
+        self.write_requirements(text)
+
+    def _replace_glossary(self, block):
+        text = _clean_requirements_md().replace(self._GLOSSARY_BLOCK, block)
+        self.write_requirements(text)
+
+    def test_absent_glossary_warns_and_does_not_fail(self):
+        self._without_glossary()
+        fails, warns, out = self.run_check()
+        self.assertEqual(fails, 0, f"the glossary check must never FAIL:\n{out}")
+        self.assertEqual(warns, 1, out)
+        self.assertIn("no glossary/definitions section", out)
+
+    def test_present_glossary_passes(self):
+        fails, warns, out = self.run_check()
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+        self.assertIn("glossary/definitions section present", out)
+
+    def test_empty_glossary_warns_and_does_not_fail(self):
+        self._replace_glossary("## Glossary\n\nTBD.\n\n")
+        fails, warns, out = self.run_check()
+        self.assertEqual(fails, 0, f"the glossary check must never FAIL:\n{out}")
+        self.assertEqual(warns, 1, out)
+        self.assertIn("empty or near-empty", out)
+
+    def test_definitions_and_terms_headings_are_accepted(self):
+        for heading in ("## Definitions", "## Terms", "## Glossary and definitions"):
+            with self.subTest(heading=heading):
+                self._replace_glossary(
+                    self._GLOSSARY_BLOCK.replace("## Glossary", heading)
+                )
+                fails, warns, out = self.run_check()
+                self.assertEqual(fails, 0, out)
+                self.assertEqual(warns, 0, out)
+
+    def test_glossary_is_not_counted_as_a_functional_section(self):
+        """A one-REQ-free structural part must not trip the section rules.
+
+        If the glossary were classified as a functional section it would
+        have no REQs and no intro-prose contract, and the singleton and
+        intro-prose checks would fire on it — turning an advisory slot into
+        a FAIL by the back door.
+        """
+        _f, _w, out = self.run_check()
+        self.assertNotIn("Glossary", out.split("glossary/definitions")[0])
+        self.assertIn("all 2 functional section(s) carry intro prose", out)
+
+    def test_the_check_has_no_fail_path_in_source(self):
+        """Structural guard: WARN-never-FAIL by construction, not by luck.
+
+        Asserts on the source of the glossary block rather than on one
+        run's behavior, so a future edit that adds a fail() there is caught
+        even if no fixture happens to exercise it.
+        """
+        source = (SCRIPT_DIR / "quality_gate.py").read_text(
+            encoding="utf-8", errors="replace"
+        )
+        start = source.index("# -- Glossary / definitions (advisory, WARN only)")
+        end = source.index("def check_repo(", start)
+        # Strip comment lines before asserting: the block's own commentary
+        # says it has "no fail() path", which would match the very pattern
+        # this test forbids.
+        block = "\n".join(
+            line for line in source[start:end].splitlines()
+            if not line.strip().startswith("#")
+        )
+        self.assertIn("warn(", block)
+        self.assertNotIn(
+            "fail(", block,
+            "the glossary check must have no fail() path — it is advisory, "
+            "exactly as F-1 is (Design §8). Adding a FAIL here would break "
+            "the three regeneration fixtures, which carry no glossary.",
+        )
 
 
 class RenderContractAuditSweepTests(unittest.TestCase):
