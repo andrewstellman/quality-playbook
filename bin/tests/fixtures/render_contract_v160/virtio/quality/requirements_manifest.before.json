@@ -1,0 +1,236 @@
+{
+  "schema_version": "1.5.8",
+  "generated_at": "2026-06-19T22:02:07Z",
+  "records": [
+    {
+      "id": "REQ-001",
+      "title": "All non-legacy transports must preserve device-offered transport feature bits (28..41) that vring_transport_features cannot enumerate",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from source (compensation asymmetry across transports)",
+      "functional_section": "Feature negotiation",
+      "pattern": "compensation",
+      "references": [
+        "drivers/virtio/virtio_pci_modern.c",
+        "drivers/virtio/virtio_mmio.c",
+        "drivers/virtio/virtio_vdpa.c"
+      ],
+      "use_cases": ["UC-1.a", "UC-1.b", "UC-1.c"],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-002",
+      "title": "vring_transport_features must enumerate or have a compensator for every transport feature bit any transport supports",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from source (closed-set enumeration vs authoritative header)",
+      "functional_section": "Feature negotiation",
+      "pattern": "whitelist",
+      "references": [
+        "drivers/virtio/virtio_ring.c",
+        "include/uapi/linux/virtio_config.h",
+        "drivers/virtio/virtio_pci_modern.c"
+      ],
+      "use_cases": ["UC-2"],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-003",
+      "title": "Every transport's device-reset path must satisfy the spec section 5 write-0-then-wait-for-status-0 contract, or document an intentional legacy exemption",
+      "tier": 4,
+      "tier_label": "Tier-4",
+      "source": "Tier-4 — behavioral-contracts.md §5",
+      "functional_section": "Device reset",
+      "pattern": "parity",
+      "references": [
+        "drivers/virtio/virtio_pci_modern.c",
+        "drivers/virtio/virtio_mmio.c",
+        "drivers/virtio/virtio_pci_legacy.c"
+      ],
+      "use_cases": ["UC-3.a", "UC-3.b", "UC-3.c"],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-004",
+      "title": "Every transport interrupt handler must return IRQ_HANDLED when it serviced a config-change interrupt, independent of vring activity",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from source (dispatcher return-value divergence)",
+      "functional_section": "Interrupt dispatch",
+      "pattern": "parity",
+      "references": [
+        "drivers/virtio/virtio_pci_common.c",
+        "drivers/virtio/virtio_mmio.c",
+        "drivers/virtio/virtio_vdpa.c"
+      ],
+      "use_cases": ["UC-4.a", "UC-4.b", "UC-4.c"],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-005",
+      "title": "NOTIF_CONFIG_DATA(39) must survive negotiation on any transport whose finalize validates it",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from source (compensator/validator disagreement)",
+      "functional_section": "Feature negotiation",
+      "pattern": "compensation",
+      "references": [
+        "drivers/virtio/virtio_pci_modern.c"
+      ],
+      "use_cases": ["UC-5"],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-006",
+      "title": "Negotiation acceptance is confirmed for VERSION_1 devices and intentionally absent for legacy",
+      "tier": 4,
+      "tier_label": "Tier-4",
+      "source": "Tier-4 — behavioral-contracts.md §1",
+      "functional_section": "Feature negotiation",
+      "pattern": null,
+      "references": [
+        "drivers/virtio/virtio.c"
+      ],
+      "use_cases": [],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-007",
+      "title": "Packed-ring wrap-counter and avail/used descriptor flags must toggle together on ring wrap",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from source (ownership-encoding invariant)",
+      "functional_section": "Virtqueue ring invariants",
+      "pattern": null,
+      "references": [
+        "drivers/virtio/virtio_ring.c"
+      ],
+      "use_cases": [],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-008",
+      "title": "Every descriptor write must be ordered before the index update that publishes it",
+      "tier": 4,
+      "tier_label": "Tier-4",
+      "source": "Tier-4 — behavioral-contracts.md §6",
+      "functional_section": "Virtqueue ring invariants",
+      "pattern": null,
+      "references": [
+        "drivers/virtio/virtio_ring.c"
+      ],
+      "use_cases": [],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-009",
+      "title": "Driver-requested virtqueue size must not exceed the device-advertised maximum",
+      "tier": 4,
+      "tier_label": "Tier-4",
+      "source": "Tier-4 — behavioral-contracts.md §9",
+      "functional_section": "Virtqueue ring invariants",
+      "pattern": null,
+      "references": [
+        "drivers/virtio/virtio_ring.c"
+      ],
+      "use_cases": [],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-010",
+      "title": "Per-bug writeups are placed at quality/writeups/BUG-<id>.md",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from QPB layout contract",
+      "functional_section": "Artifact location",
+      "pattern": null,
+      "references": ["quality/"],
+      "use_cases": [],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-011",
+      "title": "Fix patches are placed at quality/patches/BUG-<id>-fix.patch",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from QPB layout contract",
+      "functional_section": "Artifact location",
+      "pattern": null,
+      "references": ["quality/"],
+      "use_cases": [],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-012",
+      "title": "Regression-test patches are placed at quality/patches/BUG-<id>-regression-test.patch",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from QPB layout contract",
+      "functional_section": "Artifact location",
+      "pattern": null,
+      "references": ["quality/"],
+      "use_cases": [],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-013",
+      "title": "Code review output is placed at quality/code_reviews/",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from QPB layout contract",
+      "functional_section": "Artifact location",
+      "pattern": null,
+      "references": ["quality/"],
+      "use_cases": [],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-014",
+      "title": "Spec audit outputs (auditor reports + triage) are placed at quality/spec_audits/",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from QPB layout contract",
+      "functional_section": "Artifact location",
+      "pattern": null,
+      "references": ["quality/"],
+      "use_cases": [],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-015",
+      "title": "Sidecar JSON results (tdd-results.json, integration-results.json, recheck-results.json) are placed at quality/results/",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from QPB layout contract",
+      "functional_section": "Artifact location",
+      "pattern": null,
+      "references": ["quality/"],
+      "use_cases": [],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-016",
+      "title": "Mechanical-verification artifacts (verify.py + *_cases.txt) are placed at quality/mechanical/",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from QPB layout contract",
+      "functional_section": "Artifact location",
+      "pattern": null,
+      "references": ["quality/"],
+      "use_cases": [],
+      "formal_doc_refs": []
+    },
+    {
+      "id": "REQ-017",
+      "title": "quality/workspace/<name>/ is forbidden — top-level quality/<name>/ is the only canonical layout",
+      "tier": 3,
+      "tier_label": "inferred",
+      "source": "inferred — from QPB layout contract (Phase 6 gate check_no_workspace_dir)",
+      "functional_section": "Artifact location",
+      "pattern": null,
+      "references": ["quality/"],
+      "use_cases": [],
+      "formal_doc_refs": []
+    }
+  ]
+}
