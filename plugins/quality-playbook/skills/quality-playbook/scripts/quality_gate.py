@@ -6870,6 +6870,15 @@ _RENDER_INLINE_CODE_RE = re.compile(r"`[^`\n]*`")
 # Level-2 headings that are canonical non-functional parts of the eight-part
 # architecture. Everything else at level 2 is treated as a functional section.
 #
+# `definitions` is in this list and bare `terms` deliberately is not, and the
+# asymmetry is a judgment call rather than an oversight: any name here buys a
+# defect-to-pass bypass (a functional section so named escapes the intro-prose
+# and singleton checks), so the list is priced by how likely the word is to be
+# a real domain section heading. "Definitions" is a canonical IEEE 830 §1.3
+# part name; "Terms" is an ordinary domain noun ("Payment terms"), and it was
+# removed for exactly that reason (self-Council instr 002). Do not re-widen
+# this list without pricing the same trade.
+#
 # Anchored with \Z (whole-heading match) rather than \b. A heading like
 # "Requirements" is structural; "Functional Requirements" or "Requirements
 # for the parser" is a functional section that merely starts with the word.
