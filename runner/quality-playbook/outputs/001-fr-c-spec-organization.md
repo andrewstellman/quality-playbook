@@ -39,14 +39,15 @@ rather than edited.
 
 ## Commits made
 
-All local on `1.6.0`. **Never pushed.** Final state: `git log origin/1.6.0..HEAD`
-= **14**, of which **13 are mine** (`71b1a81` … `9ca1029`); the 14th is `39cc939`,
-the orchestrator's instruction-file commit, already ahead of origin at session
-start.
+All local on `1.6.0`. **Never pushed.** Every unpushed commit from `71b1a81`
+onward belongs to this instruction; `39cc939` (the instruction file itself) is the
+orchestrator's and predates the session.
 
-The table below lists 12 because it was written before the last two landed — the
-tracked-Council-copy commit `8db8af3` and `9ca1029`, the commit that adds this
-file. Corrected here rather than left as an off-by-one in the audit artifact.
+Deliberately a range, not a count. The first two versions of this line each gave an
+absolute total, and each was falsified by the very commit that recorded it — a
+count living inside the record it counts cannot survive its own landing. The table
+below covers the substantive work through `9ca1029`; the record-keeping commits
+after it are the corrections described here and are visible in `git log`.
 
 | SHA | Subject |
 |---|---|
