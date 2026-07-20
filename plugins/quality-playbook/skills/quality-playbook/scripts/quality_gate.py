@@ -6918,11 +6918,19 @@ _RENDER_FENCE_OPEN_RE = re.compile(
 # HTML blocks that suppress Markdown structure the same way a code fence
 # does — a `## Heading` inside one is literal text, not a heading.
 #
-# CommonMark type 1 (raw-text elements, closed by their end tag), type 2
-# (comments), types 6 and 7 (block-level tags and any complete tag alone on
-# its line, both closed by a blank line). Types 3/4/5 (processing
-# instructions, declarations, CDATA) are vanishingly unlikely in a
-# requirements document and are deliberately not modelled.
+# All seven CommonMark HTML block types. Type 1 (raw-text elements, closed
+# by their end tag), type 2 (comments), types 3/4/5 (processing
+# instructions, declarations, CDATA — each closed by its own terminator),
+# and types 6/7 (block-level tags and any complete tag alone on its line,
+# both closed by a blank line).
+#
+# Types 3/4/5 were excluded as "vanishingly unlikely in a requirements
+# document" and were, exactly like type 7 before them, a full FAIL=0 bypass
+# (self-Council round 7): `<?php`, `<!DOCTYPE` and `<![CDATA[` each hid the
+# three §5.2 mandatory sections while the gate reported all three present.
+# Round 7 adjudicated them non-blocking and shipped; they are modelled here
+# anyway, because leaving a known permissive divergence in place is how the
+# previous three rounds each began.
 #
 # Type 7 was excluded in 94c7e3d on the stated grounds that it "would
 # swallow ordinary inline HTML an adopter might legitimately use". That
@@ -6966,6 +6974,14 @@ _RENDER_HTML_TYPE7_OPEN_RE = re.compile(
     r")[ \t]*$"
 )
 
+# Types 3, 4 and 5 — each opens with its own marker and closes on its own
+# terminator rather than at a blank line.
+_RENDER_HTML_TYPE345 = (
+    (re.compile(r"^[ \t]*<\?"), "?>"),                       # 3: processing instruction
+    (re.compile(r"^[ \t]*<![A-Za-z]"), ">"),                  # 4: declaration
+    (re.compile(r"^[ \t]*<!\[CDATA\["), "]]>"),              # 5: CDATA
+)
+
 
 
 def _render_blank_fences(text, blank_html_comments=True):
@@ -7003,6 +7019,8 @@ def _render_blank_fences_ex(text, blank_html_comments=True):
     opened_at = None
     html_tag = None       # type 1: raw-text element, closed by its end tag
     html_until_blank = False  # types 2, 6 and 7: closed by a blank line
+    html_terminator = None   # types 3/4/5: closed by their own terminator
+    html_opened_at = None    # line of an unterminated types 1/3/4/5 block
     prev_blank = True  # start of document counts as a preceding blank line
     for line_no, line in enumerate(text.split("\n"), start=1):
         if html_tag is not None:
@@ -7010,6 +7028,14 @@ def _render_blank_fences_ex(text, blank_html_comments=True):
             m = _RENDER_HTML_RAWTEXT_CLOSE_RE.search(line)
             if m and m.group("tag").lower() == html_tag:
                 html_tag = None
+                html_opened_at = None
+            continue
+        if html_terminator is not None:
+            out.append(" " * len(line))
+            if html_terminator in line:
+                html_terminator = None
+                html_opened_at = None
+                prev_blank = False
             continue
         if html_until_blank:
             out.append(" " * len(line))
@@ -7025,10 +7051,26 @@ def _render_blank_fences_ex(text, blank_html_comments=True):
                 # A single-line <pre>…</pre> opens and closes at once.
                 if not (close and close.group("tag").lower() == tag):
                     html_tag = tag
+                    html_opened_at = line_no
                 out.append(" " * len(line))
                 continue
             stripped = line.strip()
             is_comment = stripped.startswith("<!--")
+            type345 = None
+            if not is_comment:
+                for pattern, terminator in _RENDER_HTML_TYPE345:
+                    if pattern.match(line):
+                        type345 = terminator
+                        break
+            if type345 is not None:
+                # Opens and closes on the same line when its terminator is
+                # already present.
+                if type345 not in line:
+                    html_terminator = type345
+                    html_opened_at = line_no
+                out.append(" " * len(line))
+                prev_blank = False
+                continue
             # Type 7 (any complete tag alone on its line) may not interrupt
             # a paragraph, so it requires a preceding blank line. Types 2
             # and 6 may. That restriction is exactly why blanking type 7
@@ -7078,7 +7120,10 @@ def _render_blank_fences_ex(text, blank_html_comments=True):
                 fence_char = None
                 fence_len = 0
                 opened_at = None
-    return "\n".join(out), opened_at
+    # An unterminated HTML block swallows the rest of the document exactly
+    # as an unterminated fence does, and the caller FAILs on either.
+    unterminated = [x for x in (opened_at, html_opened_at) if x is not None]
+    return "\n".join(out), (min(unterminated) if unterminated else None)
 
 _RENDER_TITLE_MAX = 120
 
@@ -7258,9 +7303,10 @@ def check_render_contract(repo_dir, q, skill_version=None):
     if unterminated_fence is not None:
         fail(
             "REQUIREMENTS.md",
-            f"unterminated code fence opened at line {unterminated_fence} — "
-            "everything after it is inside the code block, so the render "
-            "contract cannot read the rest of the document. Close the fence.",
+            f"unterminated code fence or HTML block opened at line "
+            f"{unterminated_fence} — everything after it is inside that "
+            "block, so the render contract cannot read the rest of the "
+            "document. Close it.",
         )
         return
     headings = _render_req_headings(text)

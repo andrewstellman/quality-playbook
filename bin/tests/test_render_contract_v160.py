@@ -874,6 +874,55 @@ UC-01 → REQ-001, REQ-002
         self.assertEqual(fails, 0, out)
         self.assertEqual(warns, 0, out)
 
+    # CommonMark HTML block types 3, 4 and 5. Each closes on its own
+    # terminator rather than at a blank line, so an unterminated one runs
+    # to end of document — the same shape as an unterminated fence, and
+    # reported the same way.
+    _HTML_TYPE345 = {
+        "type3_processing_instruction": ("<?php", "?>"),
+        "type4_declaration": ("<!DOCTYPE html>", ""),
+        "type5_cdata": ("<![CDATA[", "]]>"),
+    }
+
+    def test_mp3_html_types_345_hide_quoted_headings(self):
+        for name, (opener, closer) in self._HTML_TYPE345.items():
+            with self.subTest(html_block=name):
+                self.write_requirements(
+                    self._flat_with_fence(opener + "\n", (closer + "\n") if closer else "")
+                )
+                self.write_manifest(_manifest(tool_contract=False))
+                run_contract = self.q / "RUN_CONTRACT.md"
+                if run_contract.exists():
+                    run_contract.unlink()
+                fails, _w, out = self.run_check()
+                self.assertGreaterEqual(fails, 1, out)
+
+    def test_mp3_unterminated_html_block_fails_rather_than_going_inert(self):
+        """An unterminated <pre> or <?php swallows the document.
+
+        Same shape as an unterminated fence: everything after it is inside
+        the block, so every check would pass by default on a document the
+        contract cannot read.
+        """
+        for name, opener in {
+            "pre": "<pre>",
+            "processing_instruction": "<?php",
+            "cdata": "<![CDATA[",
+        }.items():
+            with self.subTest(html_block=name):
+                self.write_requirements(self._flat_with_fence(opener + "\n", ""))
+                fails, _w, out = self.run_check()
+                self.assertGreaterEqual(fails, 1, out)
+                self.assertIn("unterminated", out)
+
+    def test_mp3_leading_doctype_does_not_fail_a_good_document(self):
+        self.write_requirements(
+            "<!DOCTYPE html>\n\n" + _clean_requirements_md()
+        )
+        fails, warns, out = self.run_check()
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+
     def test_mp3_req_headings_inside_a_fence_are_not_counted(self):
         text = _clean_requirements_md() + (
             "\n```markdown\n### REQ-099: An example REQ shown in documentation.\n```\n"

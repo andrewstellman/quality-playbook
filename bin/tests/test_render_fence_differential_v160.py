@@ -113,8 +113,20 @@ def _generated_cases():
     for tag in ("pre", "script", "style", "textarea"):
         cases[f"html_type1_{tag}"] = f"<{tag}>\n## {PROBE_HEADING}\n</{tag}>\n"
 
-    # Type 2 comments.
+    # Type 2 comments, and types 3/4/5.
     cases["html_type2_comment"] = f"<!--\n## {PROBE_HEADING}\n-->\n"
+    cases["html_type3_pi"] = f"<?php\n## {PROBE_HEADING}\n?>\n"
+    cases["html_type4_declaration"] = f"<!DOCTYPE html>\n## {PROBE_HEADING}\n"
+    cases["html_type5_cdata"] = f"<![CDATA[\n## {PROBE_HEADING}\n]]>\n"
+
+    # Every HTML construct AGAIN, mid-paragraph. Round 7 found that
+    # generating every case after a blank line let type 7 backstop all 62
+    # type-6 cases, so neutering the type-6 model entirely left the whole
+    # differential green — breadth bought at the cost of a dimension of
+    # depth. Type 7 may not interrupt a paragraph; type 6 may. Placing each
+    # construct in both contexts restores the discriminating power.
+    for name in [k for k in cases if k.startswith("html_")]:
+        cases[f"{name}__midparagraph"] = "Running prose line.\n" + cases[name]
 
     # Fence delimiters x run lengths x info strings x termination.
     for char in ("`", "~"):
