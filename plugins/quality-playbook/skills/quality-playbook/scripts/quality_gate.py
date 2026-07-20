@@ -6919,11 +6919,24 @@ _RENDER_FENCE_OPEN_RE = re.compile(
 # does — a `## Heading` inside one is literal text, not a heading.
 #
 # CommonMark type 1 (raw-text elements, closed by their end tag), type 2
-# (comments), and type 6 (block-level tags, closed by a blank line). Types
-# 3/4/5 (processing instructions, declarations, CDATA) are vanishingly
-# unlikely in a requirements document and are deliberately not modelled;
-# type 7 (any complete tag on its own line) is excluded on purpose because
-# it would swallow ordinary inline HTML an adopter might legitimately use.
+# (comments), types 6 and 7 (block-level tags and any complete tag alone on
+# its line, both closed by a blank line). Types 3/4/5 (processing
+# instructions, declarations, CDATA) are vanishingly unlikely in a
+# requirements document and are deliberately not modelled.
+#
+# Type 7 was excluded in 94c7e3d on the stated grounds that it "would
+# swallow ordinary inline HTML an adopter might legitimately use". That
+# rationale was wrong, and the exclusion was a full bypass (self-Council
+# round 6, B-8): `<span>` around each of the three §5.2 mandatory sections
+# scored FAIL=0 with all three reported present, while a reader of the
+# rendered document sees none of them. Type 7 requires the tag to be ALONE
+# on its line and preceded by a blank line, so inline HTML in running prose
+# (`see <br> here`) is not affected — the concern that motivated the
+# exclusion does not arise.
+#
+# The general rule this encodes: a divergence from the reference grammar
+# may be conservative (see less structure, fail more documents) but never
+# permissive. A permissive divergence is a bypass wearing a rationale.
 _RENDER_HTML_RAWTEXT_OPEN_RE = re.compile(
     r"^[ \t]*<(?P<tag>pre|script|style|textarea)\b", re.IGNORECASE
 )
@@ -6942,17 +6955,17 @@ _RENDER_HTML_BLOCK_TAGS = (
 _RENDER_HTML_TYPE6_OPEN_RE = re.compile(
     rf"^[ \t]*</?(?:{_RENDER_HTML_BLOCK_TAGS})(?:\s|/?>|$)", re.IGNORECASE
 )
+# Type 7 — ANY complete open or closing tag alone on its line. Unlike type
+# 6 it may not interrupt a paragraph, so the scanner requires a preceding
+# blank line. That restriction is why blanking it does not touch inline
+# HTML in running prose.
+_RENDER_HTML_TYPE7_OPEN_RE = re.compile(
+    r"^[ \t]*(?:"
+    r"<[A-Za-z][A-Za-z0-9-]*(?:\s+[^<>]*?)?/?>"   # complete open tag
+    r"|</[A-Za-z][A-Za-z0-9-]*\s*>"               # complete closing tag
+    r")[ \t]*$"
+)
 
-# HTML blocks that suppress Markdown structure the same way a code fence
-# does — a `## Heading` inside one is literal text, not a heading. Same
-# concept as fences, so it is handled in the same pass rather than as a
-# separate patch. (CommonMark HTML block type 1.)
-_RENDER_HTML_BLOCK_OPEN_RE = re.compile(
-    r"^[ \t]*<(?P<tag>pre|script|style|textarea)\b", re.IGNORECASE
-)
-_RENDER_HTML_BLOCK_CLOSE_RE = re.compile(
-    r"</(?P<tag>pre|script|style|textarea)\s*>", re.IGNORECASE
-)
 
 
 def _render_blank_fences(text, blank_html_comments=True):
@@ -6989,7 +7002,8 @@ def _render_blank_fences_ex(text, blank_html_comments=True):
     fence_len = 0
     opened_at = None
     html_tag = None       # type 1: raw-text element, closed by its end tag
-    html_until_blank = False  # types 2 and 6: closed by a blank line
+    html_until_blank = False  # types 2, 6 and 7: closed by a blank line
+    prev_blank = True  # start of document counts as a preceding blank line
     for line_no, line in enumerate(text.split("\n"), start=1):
         if html_tag is not None:
             out.append(" " * len(line))
@@ -7001,6 +7015,7 @@ def _render_blank_fences_ex(text, blank_html_comments=True):
             out.append(" " * len(line))
             if not line.strip():
                 html_until_blank = False
+                prev_blank = True
             continue
         if fence_char is None:
             m = _RENDER_HTML_RAWTEXT_OPEN_RE.match(line)
@@ -7014,15 +7029,28 @@ def _render_blank_fences_ex(text, blank_html_comments=True):
                 continue
             stripped = line.strip()
             is_comment = stripped.startswith("<!--")
-            if (is_comment and blank_html_comments) or (
-                not is_comment and _RENDER_HTML_TYPE6_OPEN_RE.match(line)
+            # Type 7 (any complete tag alone on its line) may not interrupt
+            # a paragraph, so it requires a preceding blank line. Types 2
+            # and 6 may. That restriction is exactly why blanking type 7
+            # leaves inline HTML in running prose alone.
+            is_type7 = (
+                prev_blank
+                and not is_comment
+                and _RENDER_HTML_TYPE7_OPEN_RE.match(line)
+                and not _RENDER_HTML_TYPE6_OPEN_RE.match(line)
+            )
+            if (
+                (is_comment and blank_html_comments)
+                or (not is_comment and _RENDER_HTML_TYPE6_OPEN_RE.match(line))
+                or is_type7
             ):
-                # Types 2 and 6 both run until a blank line. A type-2
+                # Types 2, 6 and 7 all run until a blank line. A type-2
                 # comment that closes on its own line still ends its block
                 # at the next blank line, per CommonMark.
-                if not (stripped.startswith("<!--") and "-->" in stripped):
+                if not (is_comment and "-->" in stripped):
                     html_until_blank = True
                 out.append(" " * len(line))
+                prev_blank = False
                 continue
             m = _RENDER_FENCE_OPEN_RE.match(line)
             if m:
@@ -7031,8 +7059,10 @@ def _render_blank_fences_ex(text, blank_html_comments=True):
                 fence_len = len(run)
                 opened_at = line_no
                 out.append(" " * len(line))
+                prev_blank = False
                 continue
             out.append(line)
+            prev_blank = not line.strip()
         else:
             stripped = line.strip()
             # A closer must use the same character and be at least as long

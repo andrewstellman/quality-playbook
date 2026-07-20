@@ -71,77 +71,109 @@ def _reference_has_heading(text):
 
 
 def _our_model_has_heading(text):
-    """Does quality_gate's model see `## Actors and roles` as structure?"""
+    """Does quality_gate's model see `## Actors and roles` as structure?
+
+    Uses the gate's OWN `_RENDER_LEVEL2_RE` rather than a private regex, so
+    the half of the model that finds headings is audited against the
+    reference parser too — not just the half that blanks quoted regions.
+    """
     blanked = quality_gate._render_blank_fences(text)
-    for m in re.finditer(r"^##\s+(.+)$", blanked, re.MULTILINE):
+    for m in quality_gate._RENDER_LEVEL2_RE.finditer(blanked):
         if m.group(1).strip() == PROBE_HEADING:
             return True
     return False
 
 
-# Each case is a document fragment placed around the probe heading. The
-# names describe the construct, not the expected answer — the reference
-# parser supplies the expected answer, which is the whole point.
-CASES = {
-    # --- plain ---------------------------------------------------------
-    "bare_heading": f"## {PROBE_HEADING}\n",
-    "heading_after_prose": f"Some prose.\n\n## {PROBE_HEADING}\n",
-    "heading_first_line": f"## {PROBE_HEADING}\n\ntrailing prose\n",
+def _generated_cases():
+    """Build the case list mechanically, not from imagination.
 
-    # --- backtick fences ------------------------------------------------
-    "fence_backtick_3": f"```\n## {PROBE_HEADING}\n```\n",
-    "fence_backtick_4": f"````\n## {PROBE_HEADING}\n````\n",
-    "fence_backtick_6": f"``````\n## {PROBE_HEADING}\n``````\n",
-    "fence_backtick_info": f"```markdown\n## {PROBE_HEADING}\n```\n",
-    # B-6: a backtick fence's info string MAY contain tildes.
-    "fence_backtick_info_tilde": f"```text~ex\n## {PROBE_HEADING}\n```\n",
-    "fence_backtick_closed_longer": f"```\n## {PROBE_HEADING}\n`````\n",
-    "fence_backtick_closer_short": f"`````\n## {PROBE_HEADING}\n```\n",
-    "fence_backtick_unclosed": f"```\n## {PROBE_HEADING}\n",
-    "fence_backtick_indented": f"  ```\n  ## {PROBE_HEADING}\n  ```\n",
+    Round 6 of the self-Council named the flaw in a hand-written list: it is
+    written from the same model it audits, so it inherits that model's blind
+    spots. A type-7 HTML block was excluded from the model by a code comment
+    AND absent from the case list, so the differential could not see it.
 
-    # --- tilde fences ---------------------------------------------------
-    "fence_tilde_3": f"~~~\n## {PROBE_HEADING}\n~~~\n",
-    "fence_tilde_5": f"~~~~~\n## {PROBE_HEADING}\n~~~~~\n",
-    "fence_tilde_info": f"~~~markdown\n## {PROBE_HEADING}\n~~~\n",
-    # A tilde fence's info string may contain backticks.
-    "fence_tilde_info_backtick": f"~~~`x`\n## {PROBE_HEADING}\n~~~\n",
-    "fence_tilde_unclosed": f"~~~\n## {PROBE_HEADING}\n",
-    "fence_tilde_closed_by_backtick": f"~~~\n## {PROBE_HEADING}\n```\n",
-    "fence_backtick_closed_by_tilde": f"```\n## {PROBE_HEADING}\n~~~\n",
+    Generating the cases means the next construct someone adds to the model
+    — or forgets to — shows up as a test failure rather than a seventh
+    review round.
+    """
+    cases = {}
 
-    # --- fences that do NOT contain the heading -------------------------
-    "fence_before_heading": f"```\nquoted\n```\n\n## {PROBE_HEADING}\n",
-    "fence_after_heading": f"## {PROBE_HEADING}\n\n```\nquoted\n```\n",
-    "two_fences_heading_between": (
-        f"```\na\n```\n\n## {PROBE_HEADING}\n\n```\nb\n```\n"
-    ),
-    "fence_containing_fence_lookalike": (
-        f"````\n```\n````\n\n## {PROBE_HEADING}\n"
-    ),
+    # Every CommonMark type-6 block tag, plus a sample of type-7 shapes
+    # (any complete tag alone on its line) and some non-tags for contrast.
+    type6 = quality_gate._RENDER_HTML_BLOCK_TAGS.split("|")
+    for tag in type6:
+        cases[f"html_type6_{tag}"] = f"<{tag}>\n## {PROBE_HEADING}\n</{tag}>\n"
+    for tag in ("span", "a", "em", "strong", "mytag", "custom-element", "b"):
+        cases[f"html_type7_{tag}"] = f"<{tag}>\n## {PROBE_HEADING}\n</{tag}>\n"
+    cases["html_type7_attrs"] = f'<a href="x">\n## {PROBE_HEADING}\n</a>\n'
+    cases["html_type7_selfclose"] = f"<br/>\n## {PROBE_HEADING}\n"
+    cases["html_type7_closing_only"] = f"</span>\n## {PROBE_HEADING}\n"
 
-    # --- HTML blocks ----------------------------------------------------
-    "html_pre": f"<pre>\n## {PROBE_HEADING}\n</pre>\n",
-    "html_script": f"<script>\n## {PROBE_HEADING}\n</script>\n",
-    "html_textarea": f"<textarea>\n## {PROBE_HEADING}\n</textarea>\n",
-    "html_div": f"<div>\n## {PROBE_HEADING}\n</div>\n",
-    "html_table": f"<table>\n## {PROBE_HEADING}\n</table>\n",
-    "html_comment": f"<!--\n## {PROBE_HEADING}\n-->\n",
-    "html_div_then_blank_then_heading": (
-        f"<div>\nquoted\n</div>\n\n## {PROBE_HEADING}\n"
-    ),
-    "html_pre_closed_then_heading": (
-        f"<pre>\nquoted\n</pre>\n\n## {PROBE_HEADING}\n"
-    ),
-    "html_pre_single_line_then_heading": (
+    # Type 1 raw-text elements.
+    for tag in ("pre", "script", "style", "textarea"):
+        cases[f"html_type1_{tag}"] = f"<{tag}>\n## {PROBE_HEADING}\n</{tag}>\n"
+
+    # Type 2 comments.
+    cases["html_type2_comment"] = f"<!--\n## {PROBE_HEADING}\n-->\n"
+
+    # Fence delimiters x run lengths x info strings x termination.
+    for char in ("`", "~"):
+        for run in (3, 4, 6):
+            delim = char * run
+            label = f"{'backtick' if char == '`' else 'tilde'}_{run}"
+            cases[f"fence_{label}"] = f"{delim}\n## {PROBE_HEADING}\n{delim}\n"
+            cases[f"fence_{label}_info"] = (
+                f"{delim}markdown\n## {PROBE_HEADING}\n{delim}\n"
+            )
+            cases[f"fence_{label}_unclosed"] = f"{delim}\n## {PROBE_HEADING}\n"
+            cases[f"fence_{label}_indented"] = (
+                f"  {delim}\n  ## {PROBE_HEADING}\n  {delim}\n"
+            )
+            # Closed by the other delimiter — does not close.
+            other = ("~" if char == "`" else "`") * run
+            cases[f"fence_{label}_wrong_closer"] = (
+                f"{delim}\n## {PROBE_HEADING}\n{other}\n"
+            )
+            # Closer shorter than opener — does not close.
+            if run > 3:
+                cases[f"fence_{label}_short_closer"] = (
+                    f"{delim}\n## {PROBE_HEADING}\n{char * 3}\n"
+                )
+    # Info-string polarity, the round-5 B-6 case, both directions.
+    cases["fence_backtick_info_tilde"] = f"```text~ex\n## {PROBE_HEADING}\n```\n"
+    cases["fence_tilde_info_backtick"] = f"~~~`x`\n## {PROBE_HEADING}\n~~~\n"
+
+    # The heading OUTSIDE a quoted region — these must all be seen.
+    cases["plain_heading"] = f"## {PROBE_HEADING}\n"
+    cases["heading_after_prose"] = f"Some prose.\n\n## {PROBE_HEADING}\n"
+    cases["fence_before_heading"] = f"```\nq\n```\n\n## {PROBE_HEADING}\n"
+    cases["fence_after_heading"] = f"## {PROBE_HEADING}\n\n```\nq\n```\n"
+    cases["html_div_closed_then_heading"] = (
+        f"<div>\nq\n</div>\n\n## {PROBE_HEADING}\n"
+    )
+    cases["html_pre_single_line_then_heading"] = (
         f"<pre>x</pre>\n\n## {PROBE_HEADING}\n"
-    ),
+    )
+    cases["inline_html_in_prose_then_heading"] = (
+        f"See <br> here in a sentence.\n\n## {PROBE_HEADING}\n"
+    )
+    cases["fence_containing_fence_lookalike"] = (
+        f"````\n```\n````\n\n## {PROBE_HEADING}\n"
+    )
+    cases["two_fences_heading_between"] = (
+        f"```\na\n```\n\n## {PROBE_HEADING}\n\n```\nb\n```\n"
+    )
 
-    # --- indentation / other block contexts ------------------------------
-    "indented_code_block": f"    ## {PROBE_HEADING}\n",
-    "blockquoted": f"> ## {PROBE_HEADING}\n",
-    "list_item": f"- ## {PROBE_HEADING}\n",
-}
+    # Other block contexts.
+    cases["indented_code_block"] = f"    ## {PROBE_HEADING}\n"
+    cases["blockquoted"] = f"> ## {PROBE_HEADING}\n"
+    cases["list_item"] = f"- ## {PROBE_HEADING}\n"
+    cases["setext_heading"] = f"{PROBE_HEADING}\n---\n"
+
+    return cases
+
+
+CASES = _generated_cases()
 
 
 # Intentional divergences from CommonMark, with justification.
@@ -164,6 +196,11 @@ CASES = {
 INTENTIONAL_DIVERGENCES = {
     "blockquoted": "a document part must not be nested in a blockquote",
     "list_item": "a document part must not be nested in a list item",
+    "setext_heading": (
+        "the contract requires ATX headings; requirements_pipeline.md "
+        "mandates the `### REQ-NNN:` form and §5.2 parts follow suit, so a "
+        "setext-underlined part is not the canonical shape"
+    ),
 }
 
 
@@ -251,13 +288,14 @@ class FenceModelDifferentialTests(unittest.TestCase):
     def test_case_list_covers_the_constructs_that_broke(self):
         """Every construct a self-Council round found must stay covered."""
         for required in (
-            "fence_backtick_info_tilde",   # round 5, B-6
-            "fence_tilde_3",               # round 4, B-5
-            "fence_backtick_unclosed",     # round 4, B-5
-            "fence_backtick_closer_short",  # round 4, B-5
-            "html_pre",                    # round 5, B-7 (type 1)
-            "html_div",                    # round 5, B-7 (type 6)
-            "html_comment",                # round 5, B-7 (type 2)
+            "fence_backtick_info_tilde",     # round 5, B-6
+            "fence_tilde_3",                 # round 4, B-5
+            "fence_backtick_3_unclosed",     # round 4, B-5
+            "fence_backtick_4_short_closer",  # round 4, B-5
+            "html_type1_pre",                # round 5, B-7 (type 1)
+            "html_type2_comment",            # round 5, B-7 (type 2)
+            "html_type6_div",                # round 5, B-7 (type 6)
+            "html_type7_span",               # round 6, B-8 (type 7)
         ):
             with self.subTest(case=required):
                 self.assertIn(required, CASES)
