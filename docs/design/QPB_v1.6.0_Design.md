@@ -221,10 +221,10 @@ Interview Dimensions 2/5/8 and QI-loop closure; Feature E (B-4/B-5/B-6/B-7 — p
 
 ## 12. Open decisions
 
-**Still open** (both Slice 3 / release-time; neither blocks the Track 1 handoff):
+**Still open:** none. Both remaining ODs resolved 2026-07-20 (operator decision, orchestrator-recorded).
 
-- **OD-5 — HIGH-precision acceptance bar** (carried from the 2026-05-24 doc). Resolve before the Phase-gate on the OpenFGA re-run.
-- **OD-8 — 090j band-aid disposition** (carried): retire / retain as cheap first pass / fold into FP-audit rubric. Resolve at release notes time.
+- **OD-5 — HIGH-precision acceptance bar. RESOLVED: ≥90% precision on HIGH findings**, adopting Google's Tricorder threshold (an analyzer surfaced in code review may carry at most a **10% effective false positive rate**; above that, developers demonstrably dismiss or disable it — Tricorder's own rate runs just under 5%). Two riders. **(a)** Adopt Tricorder's *effective* false-positive definition: a finding counts as a false positive if the operator does not act on it, even when technically correct — this is precisely BUG-009's failure mode (an accurate advisory restatement with no located defect). **(b)** At the OpenFGA fixture's sample size a rate is not measurable — one FP in six findings is 17%. So ≥90% is the **reporting/policy bar**; the **executable acceptance test** remains §10 criterion 2: 003/006/009 must not stand as confirmed HIGH, 001/002/004 must still surface. Sources: Sadowski et al., *Lessons from Building Static Analysis Tools at Google* (CACM 2018); *Software Engineering at Google* ch. 20.
+- **OD-8 — 090j band-aid disposition. RESOLVED: retain, as a mechanical backstop beneath Feature B.** Not retired, not folded away. Rationale: **(a)** it is empirically proven — the 2026-05-24 OpenFGA channel Mode-A run recorded four confirmed bugs each carrying `reachability_analysis`, two FP-class candidates demoted via reachability, and zero confident-HIGH security false positives; **(b)** it is deterministic and free (gate checks, no LLM call), whereas Feature B's FP-audit is LLM judgment and therefore variable — a mechanical floor under a judgment layer is the correct architecture, not redundancy; **(c)** it is defense in depth: if the fresh-context audit is skipped, degraded, or unavailable, D1/D2/D3 still catch advisory-only findings. Feature B's rubric restates D1/D2/D3's substance (reachability, CVE version-range applicability, source-of-truth), so the two overlap by design; the `check_v1_5_7_090j_triage_precision` gate checks and the `reachability_analysis` field requirement **stay**. Release notes should describe 090j as a retained mechanical guardrail rather than a superseded band-aid.
 
 **Resolved** (recorded for traceability):
 
