@@ -6902,7 +6902,46 @@ _RENDER_STRUCTURAL_HEADING_RE = re.compile(
 # Four rounds of this Council each fixed the shape it was shown and stopped
 # at the boundary of the demonstration. Enumerating the grammar once is the
 # way out of that loop.
-_RENDER_FENCE_OPEN_RE = re.compile(r"^(?P<indent>[ \t]*)(?P<fence>`{3,}|~{3,})(?P<info>[^`~]*)$")
+# Info-string rules are per-delimiter, and getting them wrong inverts the
+# fence polarity rather than merely rejecting an opener: the line CommonMark
+# treats as the closer becomes the scanner's opener, so live document prose
+# after the block gets blanked while the fenced content is scanned. That is
+# a bypass, not just a false positive (self-Council round 5, B-6).
+#
+#   - a BACKTICK fence's info string may not contain a backtick, but may
+#     contain tildes;
+#   - a TILDE fence's info string may contain anything, backticks included.
+_RENDER_FENCE_OPEN_RE = re.compile(
+    r"^[ \t]*(?:(?P<btick>`{3,})(?P<binfo>[^`]*)|(?P<tilde>~{3,})(?P<tinfo>.*))$"
+)
+
+# HTML blocks that suppress Markdown structure the same way a code fence
+# does — a `## Heading` inside one is literal text, not a heading.
+#
+# CommonMark type 1 (raw-text elements, closed by their end tag), type 2
+# (comments), and type 6 (block-level tags, closed by a blank line). Types
+# 3/4/5 (processing instructions, declarations, CDATA) are vanishingly
+# unlikely in a requirements document and are deliberately not modelled;
+# type 7 (any complete tag on its own line) is excluded on purpose because
+# it would swallow ordinary inline HTML an adopter might legitimately use.
+_RENDER_HTML_RAWTEXT_OPEN_RE = re.compile(
+    r"^[ \t]*<(?P<tag>pre|script|style|textarea)\b", re.IGNORECASE
+)
+_RENDER_HTML_RAWTEXT_CLOSE_RE = re.compile(
+    r"</(?P<tag>pre|script|style|textarea)\s*>", re.IGNORECASE
+)
+# Type 6 — the CommonMark block-tag list. Closed by a blank line.
+_RENDER_HTML_BLOCK_TAGS = (
+    "address|article|aside|base|basefont|blockquote|body|caption|center|col|"
+    "colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|"
+    "footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|"
+    "iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|"
+    "option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|"
+    "title|tr|track|ul"
+)
+_RENDER_HTML_TYPE6_OPEN_RE = re.compile(
+    rf"^[ \t]*</?(?:{_RENDER_HTML_BLOCK_TAGS})(?:\s|/?>|$)", re.IGNORECASE
+)
 
 # HTML blocks that suppress Markdown structure the same way a code fence
 # does — a `## Heading` inside one is literal text, not a heading. Same
@@ -6916,7 +6955,7 @@ _RENDER_HTML_BLOCK_CLOSE_RE = re.compile(
 )
 
 
-def _render_blank_fences(text):
+def _render_blank_fences(text, blank_html_comments=True):
     """Blank fenced code blocks, preserving length so offsets stay valid.
 
     Structure detection must run over this, not the raw text: a ``##`` line
@@ -6931,11 +6970,13 @@ def _render_blank_fences(text):
     CommonMark). A fence delimiter of the other character, or a shorter
     run, does not close the block.
     """
-    blanked, _unterminated = _render_blank_fences_ex(text)
+    blanked, _unterminated = _render_blank_fences_ex(
+        text, blank_html_comments=blank_html_comments
+    )
     return blanked
 
 
-def _render_blank_fences_ex(text):
+def _render_blank_fences_ex(text, blank_html_comments=True):
     """As :func:`_render_blank_fences`, also reporting an unterminated fence.
 
     Returns ``(blanked_text, unterminated_line_number_or_None)``. An
@@ -6947,29 +6988,47 @@ def _render_blank_fences_ex(text):
     fence_char = None
     fence_len = 0
     opened_at = None
-    html_tag = None
+    html_tag = None       # type 1: raw-text element, closed by its end tag
+    html_until_blank = False  # types 2 and 6: closed by a blank line
     for line_no, line in enumerate(text.split("\n"), start=1):
         if html_tag is not None:
-            # Inside an HTML block: literal text until the closing tag.
             out.append(" " * len(line))
-            m = _RENDER_HTML_BLOCK_CLOSE_RE.search(line)
+            m = _RENDER_HTML_RAWTEXT_CLOSE_RE.search(line)
             if m and m.group("tag").lower() == html_tag:
                 html_tag = None
             continue
+        if html_until_blank:
+            out.append(" " * len(line))
+            if not line.strip():
+                html_until_blank = False
+            continue
         if fence_char is None:
-            m = _RENDER_HTML_BLOCK_OPEN_RE.match(line)
+            m = _RENDER_HTML_RAWTEXT_OPEN_RE.match(line)
             if m:
                 tag = m.group("tag").lower()
-                close = _RENDER_HTML_BLOCK_CLOSE_RE.search(line)
+                close = _RENDER_HTML_RAWTEXT_CLOSE_RE.search(line)
                 # A single-line <pre>…</pre> opens and closes at once.
                 if not (close and close.group("tag").lower() == tag):
                     html_tag = tag
                 out.append(" " * len(line))
                 continue
+            stripped = line.strip()
+            is_comment = stripped.startswith("<!--")
+            if (is_comment and blank_html_comments) or (
+                not is_comment and _RENDER_HTML_TYPE6_OPEN_RE.match(line)
+            ):
+                # Types 2 and 6 both run until a blank line. A type-2
+                # comment that closes on its own line still ends its block
+                # at the next blank line, per CommonMark.
+                if not (stripped.startswith("<!--") and "-->" in stripped):
+                    html_until_blank = True
+                out.append(" " * len(line))
+                continue
             m = _RENDER_FENCE_OPEN_RE.match(line)
             if m:
-                fence_char = m.group("fence")[0]
-                fence_len = len(m.group("fence"))
+                run = m.group("btick") or m.group("tilde")
+                fence_char = run[0]
+                fence_len = len(run)
                 opened_at = line_no
                 out.append(" " * len(line))
                 continue
@@ -7035,7 +7094,9 @@ def _render_scan_internals(text):
     numbers stay accurate) before scanning: a REQ about a template engine or
     an HTML sanitizer has to be able to quote an HTML comment.
     """
-    scanned = _render_blank_fences(text)
+    # blank_html_comments=False: an HTML comment in the render is
+    # itself the C-5 defect this scan reports, so it must stay visible.
+    scanned = _render_blank_fences(text, blank_html_comments=False)
     scanned = _RENDER_INLINE_CODE_RE.sub(
         lambda m: re.sub(r"[^\n]", " ", m.group(0)), scanned
     )
