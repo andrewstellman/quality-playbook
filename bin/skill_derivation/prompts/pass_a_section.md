@@ -45,6 +45,26 @@ Examples of NON-testable claims (do NOT emit REQs for):
 - Historical context, references to other documents.
 - Generic principles without measurable outcomes.
 
+## One required behavior per REQ — no disjunctive acceptance
+
+Distinct from the one-claim-per-REQ rule above: that one says don't *merge*
+claims; this one says don't leave a single claim *undecided*.
+
+`acceptance_criteria` must name one required behavior. Never:
+
+- "X, or document that not-X" — both branches pass, so no test decides it.
+- "rejects **or** clamps" — two implementations do opposite things and both
+  claim conformance.
+- "acceptable only if documented" without naming where that documentation
+  lives and what it must say.
+
+If the section genuinely permits alternatives, state the **decision
+procedure that selects between them** — the condition under which each
+applies — which is again one required behavior. If the source text is
+itself ambiguous about which branch is intended, capture the testable
+behavior it *does* state and leave the ambiguity to Pass D's coverage
+audit; do not launder it into an acceptance criterion.
+
 ## High recall, no excerpts
 
 Produce comprehensive REQs even when overreach is possible -- Pass B

@@ -150,6 +150,23 @@ A REQ title is a **noun-phrase-shaped statement of the contract**, ≤120 charac
 - A requirement never narrates a defect. "`Find` does NOT perform the wildcard-URLParam reset — so a `Find` against a mounted route leaves a stale `*` URLParam" is a bug report wearing a requirement's clothes. The intended behavior belongs in the REQ; the observed divergence belongs in the BUG record, linked from the traceability appendix.
 - The character cap and the terminal-period rule are mechanical proxies for noun-phrase discipline, checked by the gate. The real judgment — "does any REQ narrate a defect rather than state a contract?" — is a Phase 4 Council rubric item.
 
+#### One required behavior per requirement — no disjunctive acceptance
+
+A requirement states **one** required behavior. It does not offer the implementer a choice, and it does not accept documentation in place of behavior.
+
+Reject these shapes:
+
+- **"X, or document that not-X."** "`Find` must mirror live routing's context effects, *or* `Find` must be documented as not mirroring them." Both branches pass. There is no test to write.
+- **"A or B"** where both are permitted. "Oversize queue sizes may be **rejected or clamped**." Two implementations can do opposite things and both claim conformance.
+- **"Acceptable only if documented"** without naming *where* that documentation lives and *what it must say*. An escape hatch with no address is an escape hatch with no bottom.
+- **"…or the divergence must be explicitly specified."** Same defect wearing a specification-shaped coat.
+
+Write instead: pick the behavior the system is required to have, and state it. If the derivation genuinely cannot tell which branch is intended, that is a **finding for the operator**, not a requirement — put the question in the coverage-and-gaps statement or raise it in the validation interview. A requirement that encodes the derivation's own uncertainty transfers that uncertainty to every downstream consumer: the test author, the reviewer, and the next implementer.
+
+If alternatives really are both acceptable, the requirement states the **decision procedure that selects between them** — the condition under which each applies — which is once again one required behavior.
+
+*Why this is a prompt rule and not a gate check:* the distinction is semantic, not syntactic. "Returns 400 or 422 depending on which validator rejected the payload" is a perfectly good requirement; "rejects or clamps" is not, and no regex separates them. A mechanical check would false-positive on the first and false-negative on any rephrasing of the second, and a FAIL on that basis is worse than the defect it chases. This is prevention at the source — the same shape as the C-7 fix, where the cure was removing a hardcoded literal from the template rather than bolting on a checker. The judgment layer already catches this: it is the Verifiable dimension of the readability rubric, and nine of nine Council panelists flagged it independently on the first run.
+
 #### Coverage-and-gaps statement (F-1)
 
 The Overview carries an honest prose statement of what the derivation covered and what it did **not**: areas explored but not turned into REQs, files skimmed, surfaces out of reach, and why. Written by the pass that knows.
