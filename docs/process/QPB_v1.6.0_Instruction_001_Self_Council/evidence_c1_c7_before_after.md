@@ -38,12 +38,56 @@ Running `check_render_contract` (twelve checks) on each document:
 
 | Target | before | after |
 |---|---|---|
-| chi | 11 FAIL, 1 WARN | **0 FAIL, 0 WARN** |
-| express | 9 FAIL, 1 WARN | **0 FAIL, 0 WARN** |
-| virtio | 6 FAIL, 1 WARN | **0 FAIL, 0 WARN** |
+| chi | 13 FAIL, 2 WARN | **0 FAIL, 1 WARN** |
+| express | 12 FAIL, 2 WARN | **0 FAIL, 1 WARN** |
+| virtio | 9 FAIL, 2 WARN | **0 FAIL, 1 WARN** |
 
 The before-column is pinned by `test_before_documents_still_exhibit_the_defects` — if the
 pre-v1.6.0 renders ever stop failing, the oracle is vacuous and that test fails.
+
+### Provenance of these figures (corrected 2026-07-20, instruction 002 item 4)
+
+The gate-verdict row first read **11 / 9 / 6 FAIL, 1 WARN**. Those numbers were
+measured mid-instruction-001 and never regenerated against final gate behavior,
+even though this file was committed at `8db8af3` — *after* the Phase-2 code
+commits. Re-running `check_render_contract` against the `.before` fixtures with
+current code gives **13 / 12 / 9**.
+
+**The error direction was safe: actual detection is stronger than was reported,
+not weaker.** No defect went unreported; the contract catches more than the
+document claimed.
+
+Composition of the delta, measured rather than assumed:
+
+| Target | old | MP-1 (Actors + Traceability) | stamp | new |
+|---|---|---|---|---|
+| chi | 11 | +2 | — | 13 |
+| express | 9 | +2 | +1 | 12 |
+| virtio | 6 | +2 | +1 | 9 |
+
+MP-1 is the §5.2 mandatory-part block added in self-Council round 3. The stamp
+column needs explaining: round 1 measured the `.before` documents at
+`skill_version=1.5.8`, where express's and virtio's stamps *matched* and passed;
+the harness now holds the version at the fixture's `1.6.0`, so they mismatch and
+fail. chi is unaffected because its `v1.5.3` stamp mismatched either way — which
+is C-7 itself.
+
+*This differs from instruction 002's account, which attributed the third
+component to "a chi intro-prose FAIL". That FAIL was already inside the original
+11; verified by re-running both bases.*
+
+The WARN column moved 1 → 2 for the same reason a count in a living record always
+moves: instruction 002 item 3 added the advisory glossary check. These figures
+were therefore measured **after** items 1-3 landed, so they are stable as of
+`0e75fd2` rather than stale on arrival.
+
+**Failure class.** This is the same one the instruction-001 self-Council caught at
+round 3, where a commit message asserted work that was never done: a figure
+recorded once and never re-derived after the thing it measured changed. The
+durable fix is not vigilance — it is that
+`test_before_documents_still_exhibit_the_defects` pins the *property* (the before
+documents must still fail) rather than the number, so the property cannot rot
+even when a transcribed count does.
 
 ## Notes on what the numbers show
 

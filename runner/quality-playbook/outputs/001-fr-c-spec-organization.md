@@ -7,7 +7,12 @@ Scope executed: Phase 0 (base gate) + Track 1 Phase 1 (Feature C build) + Phase 
 instruction.
 
 Pre-flight: `git -C "$QPB_REPO" rev-parse --abbrev-ref HEAD` = `1.6.0` ✓.
-Python 3.14.6. Nothing pushed; 12 local commits.
+Python 3.14.6. Nothing pushed.
+
+*Corrected 2026-07-20 (instruction 002 item 4): this line read "12 local
+commits". It was wrong for the same reason the Commits section below was — it
+counted the work commits and not the record-keeping ones that followed. See
+that section for the range statement that replaces every count.*
 
 ---
 
@@ -92,7 +97,7 @@ independently of the gate, so the gate is not its own witness. Full method in
 | **C-6** titles > 120 chars | 7 → **0** | 1 → **0** | 3 → **0** |
 | **C-6** titles with terminal period | 16 → **0** | 8 → **0** | 0 → 0 |
 | **C-7** generator stamp | `v1.5.3` → **`v1.6.0`** | `v1.5.8` → `v1.6.0` | `v1.5.8` → `v1.6.0` |
-| Gate verdict | 11 FAIL → **0** | 9 FAIL → **0** | 6 FAIL → **0** |
+| Gate verdict | 13 FAIL → **0** | 12 FAIL → **0** | 9 FAIL → **0** |
 | Manifest record count | 16 → **16** | 16 → **16** | 17 → **17** |
 
 **The oracle is not vacuous:** `test_before_documents_still_exhibit_the_defects`
