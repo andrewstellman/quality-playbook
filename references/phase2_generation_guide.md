@@ -143,13 +143,16 @@ Worked example — one rendered requirement:
 - References: src/scheduler/dispatch.py, src/scheduler/retry.py
 ```
 
-**Never** use any of these — each one turns the render contract off on that document:
+**Never** use any of these. The first three make the requirement **invisible to the entire render contract** — the parser finds no heading, and (per Design §5.3) a populated manifest with zero readable headings FAILs:
 
 - `**REQ-007:** Title` (bold, no heading) — the exact defect a 2026-07-21 smoke test shipped unflagged
 - `### REQ-007 — Title` (em-dash instead of colon)
 - `### REQ-007. Title` (period instead of colon)
-- `## REQ-007: Title` (wrong heading level — WARNs, but still not read as a requirement)
-- `### REQ-7: Title` (not zero-padded to three digits)
+
+The next two are still wrong, but for a different reason — the parser *does* read them, so they do not disable the contract; they violate the format's other rules:
+
+- `## REQ-007: Title` (wrong heading level — the contract WARNs that a heading-level regression is turning it off, and the REQ is not counted)
+- `### REQ-7: Title` (not zero-padded to three digits — the parser reads it as REQ-7, but the zero-padded three-digit convention is what keeps IDs sortable and diffable; the gate does not currently reject un-padded IDs, so this is a convention the generator must honor, not one the checker enforces)
 
 *This rule is one leg of a three-way binding:* the same format is authored in `references/requirements_pipeline.md` § "Requirement heading format" and enforced by `_RENDER_REQ_HEADING_RE` in `plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py`. The canonical marker is `### REQ-NNN:`; kept in sync with those two — an edit to one is incomplete without the others.
 
