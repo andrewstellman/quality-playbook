@@ -502,6 +502,47 @@ class F2aDurabilityOracleTests(unittest.TestCase):
                 quality_gate.check_operator_confirmations_append_only, q)
             self.assertGreaterEqual(fails, 1, out)
 
+    def _well_formed_record(self):
+        return {
+            "ts": "2026-07-21T15:05:00Z", "move": "confirm",
+            "req_title": "The gate rejects a manifest with a bad wrapper key",
+            "conditions_of_satisfaction": "A manifest using 'requirements' is rejected.",
+            "operator_statement": "Yes, that rejection is exactly right.",
+            "session_id": SESSION_ID,
+        }
+
+    def test_gate_rejects_a_malformed_record_directly(self):
+        """The gate's shape check is type-not-presence (Panelist B residual).
+
+        A record whose required field is null or non-string passes a
+        presence check but is not what the sanctioned writer produces.
+        Drive check_operator_confirmations_append_only directly with such a
+        record (round-1 coverage only exercised the writer, run_state_lib.
+        append_confirmation) and require a FAIL.
+        """
+        good = self._well_formed_record()
+        for field, bad in [("move", None), ("req_title", 123),
+                           ("operator_statement", ""), ("session_id", None)]:
+            with self.subTest(field=field, bad=bad):
+                with tempfile.TemporaryDirectory() as tmp:
+                    q = self._session_tree(tmp)  # manifest carries op-conf REQs
+                    rec = dict(good, **{field: bad})
+                    (q / "operator_confirmations.jsonl").write_text(
+                        json.dumps(rec) + "\n", encoding="utf-8")
+                    fails, _w, out = _gate(
+                        quality_gate.check_operator_confirmations_append_only, q)
+                    self.assertGreaterEqual(fails, 1, out)
+                    self.assertIn("non-empty", out)
+
+    def test_gate_accepts_a_well_formed_record_directly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            q = self._session_tree(tmp)
+            (q / "operator_confirmations.jsonl").write_text(
+                json.dumps(self._well_formed_record()) + "\n", encoding="utf-8")
+            fails, _w, out = _gate(
+                quality_gate.check_operator_confirmations_append_only, q)
+            self.assertEqual(fails, 0, out)
+
 
 class Fixture_RunStateLibHelpersTests(unittest.TestCase):
     """Direct coverage of the run_state_lib helpers (Panelist D: the module's
