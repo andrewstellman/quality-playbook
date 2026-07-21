@@ -62,6 +62,18 @@ Gate to Phase 2: all checks land dual-env green; SKILL.md token ceiling respecte
 
 Gate to Phase 3: oracle satisfied; self-Council synthesis SHIP; readability Council returns Ship, with no dimension ≤2 on any document.
 
+> **Gate disposition, 2026-07-20 — closed by documented waiver, not by satisfaction. Recorded here because it was decided in conversation and not written down, which is the drift this release exists to eliminate.**
+>
+> The Council ran (9 perspectives, cross-family, nesting held): **6/9 SHIP-WITH-FIXES, 3/9 FIX-REQUIRED, 0/9 unconditional Ship.** All three FIX-REQUIRED verdicts came from the `gpt-5.4` outer run, which scored *Complete* as low as **1**. Read mechanically, the "no dimension ≤2" condition **failed**.
+>
+> **The criterion was waived on the ground that the dimension producing those scores was not measuring.** The same express document scored **1** from one panelist and **5** from another — a four-point spread on a five-point scale — because *Complete* and *Honest about gaps* could be satisfied by the same sentence, so a document admitting its own thinness could score either way. That is a specification defect in the rubric, since fixed (see the rubric's "declared scope is not mitigation"). Gating on an invalid measurement is the hazard the rubric's own threshold section warns about.
+>
+> **The distinction that makes this a waiver and not a dodge:** had the scores been narrow *and* low, the gate would stand. An invalid measurement cannot gate; a valid unfavourable one must.
+>
+> **What was genuinely found, and its disposition:** (i) *Well-organized* scored **5 on 24 of 27 cells** — Feature C's actual objective, unanimously met; (ii) all nine panelists flagged **disjunctive acceptance clauses** in five requirements — fixed at source by instruction 002's generation-guide rule, with the instances recorded in `docs/process/QPB_v1.6.0_Regeneration_Expectations.md` for a future regenerated run rather than hand-patched into the fixtures; (iii) the documents are **thin**, which is F-1/Feature-E territory (§1.3), not a Feature C defect, and should not be re-litigated as one.
+>
+> **Still owed before release:** the rubric has one scored run and no variance baseline, so it cannot yet detect drift. Re-scoring *Complete* against the corrected rubric is the first datapoint toward that baseline.
+
 ## Phase 3 — Slice 2: the validation interview (Feature D + F-2)
 
 Goal: the fitness-for-purpose interview, as a skill-protocol chat, with durable write-back.
