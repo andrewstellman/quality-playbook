@@ -4790,6 +4790,13 @@ _V153_VALID_SOURCE_TYPES = (
     # `references/`. The Phase 2 LLM disambiguates the two evidence
     # sources by name; the schema and gate now match.
     "docs-derived",
+    # v1.6.0 (Feature D): REQ confirmed/corrected/added by the operator in a
+    # requirements validation interview. Transcript-as-citable-source —
+    # REQ.citation points into quality/review_sessions/<TS>-<topic>.md.
+    # skill_section stays absent/null (invariant #21), which the sibling
+    # check_v1_5_3_skill_section_consistency already enforces for every
+    # non-'skill-section' source_type.
+    "operator-confirmation",
 )
 _V153_VALID_DIVERGENCE_TYPES = (
     "code-spec",

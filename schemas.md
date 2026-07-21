@@ -304,6 +304,7 @@ produced the REQ.
 | `reference-file`       | REQ derived from a QPB-shipped reference file (i.e., a file under `references/` such as `references/exploration_patterns.md`). |
 | `docs-derived`         | v1.5.6+. REQ derived from operator-supplied informal documentation under the target repo's `reference_docs/` tree (Tier 4 context — AI chats, design notes, retrospectives — or Tier 1/2 citable material under `reference_docs/cite/`). Distinct from `reference-file`, which names QPB-shipped reference files; `docs-derived` names target-repo reference docs. |
 | `execution-observation`| REQ inferred from observed run-time behavior captured in archived runs (Phase 5; reserved for forward-compat). |
+| `operator-confirmation`| v1.6.0+ (Feature D). REQ confirmed, corrected, or added by the operator in a requirements validation interview. **Transcript-as-citable-source** (Design §0 Decision Record #7): the citable document is the preserved session transcript at `quality/review_sessions/<TIMESTAMP>-<topic>.md`, so `REQ.citation` points into that transcript and the §5.4 byte-citation machinery applies unchanged — no new evidence tier is invented. `skill_section` MUST be absent/null (invariant #21). See `references/requirements_interview.md` for the protocol and §9.5 for the companion append-only `operator_confirmations.jsonl` that makes these durable across runs. |
 
 ### 3.8 `bug_divergence_type` — kind of divergence a BUG records (v1.5.3+)
 
@@ -1001,6 +1002,55 @@ instead of `records`:
   same council member across all of their reviews in the file — the
   majority computation in §10 invariant #17 is performed by grouping on
   `reviewer`.
+
+---
+
+## 9.5. `operator_confirmations.jsonl` (v1.6.0 Feature D / F-2a)
+
+`quality/operator_confirmations.jsonl` is the **append-only** durability log for
+the requirements validation interview. It is the one artifact that survives a
+re-derivation: the manifest is rebuilt on every run, but this file is never
+rewritten, so it is the only record that an operator already vouched for a
+requirement. Protocol: `references/requirements_interview.md`. Hazard and
+rationale: Design §8 F-2a.
+
+**One JSON object per line**, same framing discipline as `run_state.jsonl`
+(compact single-line JSON, no embedded newlines). Append with the
+`run_state_lib.append_confirmation` helper, which is the only sanctioned writer.
+
+### 9.5.1 Record fields
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `ts` | string | yes | ISO-8601 timestamp of the confirmation. |
+| `move` | string | yes | One of `confirm` / `correct` / `add` / `drop` / `defer` — the interview move that produced this record. |
+| `req_title` | string | yes | The REQ's title **at time of confirmation**. Content, not identity — see the not-keyed-on-id note below. |
+| `conditions_of_satisfaction` | string | yes | The REQ's conditions of satisfaction at time of confirmation. Together with `req_title` this is the durable *content* an advisory cross-run match keys on. |
+| `operator_statement` | string | yes | The operator's own words, verbatim. Never paraphrased. |
+| `transcript_citation` | string | conditional | A `path:line-range` citation into `quality/review_sessions/<TIMESTAMP>-<topic>.md`, per F-2's transcript-as-citable-source. Present when the operator saved the transcript (the save-gate); absent when they declined, in which case the confirmation is recorded but not citable. |
+| `session_id` | string | yes | Identifies the interview session, so records from one session group. |
+
+**Deliberately NOT keyed on REQ id.** Phase E.6 renumbers every run, so this
+run's `REQ-005` is not last run's `REQ-005`; an id would be meaningless across
+runs. Any later matching is content-based (`req_title` +
+`conditions_of_satisfaction`) and **advisory** — the read path surfaces prior
+confirmations for the operator to act on, it never auto-merges. Solving cross-run
+REQ identity is deferred with F-3 and needs its own design.
+
+### 9.5.2 Append-only invariant
+
+A derivation that **deletes, truncates, or shortens** `operator_confirmations.jsonl`
+fails the gate (`check_operator_confirmations_append_only`). "Shortens" is
+measured by line count: the file may only grow. This is the load-bearing
+guarantee — the whole point of F-2a is that a later run cannot destroy the
+operator's work. The append helper enforces one-object-per-line framing; the gate
+enforces monotonic growth against the archived prior state where one exists.
+
+### 9.5.3 Example record
+
+```json
+{"ts":"2026-07-21T15:04:00Z","move":"correct","req_title":"res.jsonp sanitizes callback names","conditions_of_satisfaction":"res.jsonp removes every character outside [A-Za-z0-9_$.[]] and emits the sanitized name; it does not reject.","operator_statement":"The guard sanitizes, it doesn't reject — say so.","transcript_citation":"quality/review_sessions/2026-07-21T150000Z-jsonp.md:42-58","session_id":"2026-07-21T150000Z-jsonp"}
+```
 
 ---
 
