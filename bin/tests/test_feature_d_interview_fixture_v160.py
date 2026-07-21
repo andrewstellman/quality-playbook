@@ -352,50 +352,68 @@ class InterviewFixtureSessionTests(unittest.TestCase):
         self.assertEqual(fails, 0, out)
 
 
-class CorrectionMustReachManifestMutationTests(unittest.TestCase):
-    """Mutation: a correction that never reaches the manifest fails the fixture."""
+def _apply_move_broken_correct(quality, manifest, move):
+    """A write-back with the 'correct' move's manifest write removed.
 
-    def test_correction_only_in_transcript_is_caught(self):
+    Everything else is honest: the transcript and the durable log still
+    record the correction, but the manifest record is never updated — the
+    exact defect Plan Phase 4's mutation requires the fixture to catch.
+    """
+    if move["move"] != "correct":
+        return _apply_move(quality, manifest, move)
+    # Log + transcript-citation only; NO manifest write.
+    run_state_lib.append_confirmation(quality / "operator_confirmations.jsonl", {
+        "ts": "2026-07-21T15:05:00Z", "move": "correct",
+        "req_title": move["new_title"], "conditions_of_satisfaction": move["new_cos"],
+        "operator_statement": move["operator_statement"],
+        "transcript_citation": f"{TRANSCRIPT}:{move['line']}", "session_id": SESSION_ID,
+    })
+    return {"dimension": move["dimension"], "move": "correct",
+            "req": move["req"], "statement": move["operator_statement"]}
+
+
+class CorrectionMustReachManifestMutationTests(unittest.TestCase):
+    """Mutation: a correction that never reaches the manifest fails the fixture.
+
+    Not a tautology (self-Council Panelist A): this drives a REAL session
+    through a mutated write-back whose 'correct' move skips the manifest
+    write, then asserts the fixture's own acceptance property — the
+    corrected text must be in the manifest — FAILS. A fixture that only
+    checked the durable log would pass while the spec is broken; this proves
+    the acceptance checks the manifest, the source of truth.
+    """
+
+    def test_correction_dropped_from_manifest_is_caught(self):
         with tempfile.TemporaryDirectory() as tmp:
             q = Path(tmp) / "quality"
             q.mkdir(parents=True)
-            # A broken session: the 'correct' move writes the transcript and
-            # the confirmation log but never updates the manifest record.
+            # Run the real session, but with the broken correct-move.
             manifest = _base_manifest()
             (q / "review_sessions").mkdir(parents=True)
             (q / f"review_sessions/{SESSION_ID}.md").write_text("t\n", encoding="utf-8")
-            # Apply only the confirm/add/merge honestly; drop the correct's
-            # manifest write to simulate the defect.
-            conf = q / "operator_confirmations.jsonl"
-            run_state_lib.append_confirmation(conf, {
-                "ts": "t", "move": "correct",
-                "req_title": "Phase E.6 renumbers requirements to strict document order",
-                "conditions_of_satisfaction": "no gaps",
-                "operator_statement": "say strict order",
-                "transcript_citation": f"{TRANSCRIPT}:20", "session_id": SESSION_ID})
+            for move in SCRIPTED_SESSION:
+                _apply_move_broken_correct(q, manifest, move)
             (q / "requirements_manifest.json").write_text(
                 json.dumps(manifest, indent=2), encoding="utf-8")
 
-            # The acceptance property: the corrected text the operator gave
-            # must be findable in the manifest. It is not — the correction
-            # was lost. This assertion is the fixture, and it fails.
-            correction_reached = _find(
-                manifest["records"], CORRECTED_TITLE) is not None
-            self.assertFalse(
-                correction_reached,
-                "control: this mutation deliberately drops the manifest write",
+            # The acceptance property the real fixture checks (see
+            # InterviewFixtureSessionTests.test_correction_reached_the_manifest):
+            # the corrected text must be in the manifest. Under the mutation it
+            # is not — so that acceptance check would fail, which is the point.
+            reached = _find(manifest["records"], CORRECTED_TITLE)
+            self.assertIsNone(
+                reached,
+                "the mutation dropped the manifest write, so the correction "
+                "must be absent from the manifest — this is what makes the "
+                "real fixture's acceptance check fail, catching the defect.",
             )
-            # The confirmation log claims the correction happened...
-            logged = run_state_lib.read_confirmations(conf)
-            claimed = any("strict document order" in r["req_title"] for r in logged)
-            self.assertTrue(claimed)
-            # ...so a fixture that only checked the log would pass while the
-            # spec is wrong. The real fixture checks the manifest, catching it:
-            self.assertNotEqual(
-                correction_reached, claimed,
-                "a correction logged but not applied to the manifest is the "
-                "exact defect Plan Phase 4's mutation requires the fixture to "
-                "catch — the manifest is the source of truth, not the log.",
+            # And the durable log DOES claim it — so a log-only check would
+            # have passed, which is why the acceptance must check the manifest.
+            logged = run_state_lib.read_confirmations(q / "operator_confirmations.jsonl")
+            self.assertTrue(
+                any(CORRECTED_TITLE in r["req_title"] for r in logged),
+                "the log records the correction the manifest lost — proving a "
+                "log-only fixture would falsely pass.",
             )
 
 
@@ -450,7 +468,141 @@ class F2aDurabilityOracleTests(unittest.TestCase):
             fails, _w, out = _gate(
                 quality_gate.check_operator_confirmations_append_only, q)
             self.assertGreaterEqual(fails, 1, out)
-            self.assertIn("append-only", out)
+
+    def test_deleting_the_log_while_reqs_remain_fails_without_a_snapshot(self):
+        """The hole Panelists A and D found, now closed.
+
+        Deleting the whole log — with no .prior snapshot — while the manifest
+        still carries operator-confirmation REQs must FAIL. Before the fix
+        this passed as 'no interview has run', silently destroying the
+        operator's work.
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            q = self._session_tree(tmp)
+            (q / "operator_confirmations.jsonl").unlink()
+            # No .prior.jsonl snapshot exists — the manifest is the only
+            # cross-reference, and it still names operator-confirmation REQs.
+            self.assertFalse((q / "operator_confirmations.prior.jsonl").exists())
+            manifest = json.loads(
+                (q / "requirements_manifest.json").read_text(encoding="utf-8"))
+            self.assertTrue(
+                any(r.get("source_type") == "operator-confirmation"
+                    for r in manifest["records"]),
+                "precondition: the session left operator-confirmation REQs")
+            fails, _w, out = _gate(
+                quality_gate.check_operator_confirmations_append_only, q)
+            self.assertGreaterEqual(fails, 1, out)
+            self.assertIn("no durable backing", out)
+
+    def test_emptying_the_log_while_reqs_remain_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            q = self._session_tree(tmp)
+            (q / "operator_confirmations.jsonl").write_text("", encoding="utf-8")
+            fails, _w, out = _gate(
+                quality_gate.check_operator_confirmations_append_only, q)
+            self.assertGreaterEqual(fails, 1, out)
+
+
+class Fixture_RunStateLibHelpersTests(unittest.TestCase):
+    """Direct coverage of the run_state_lib helpers (Panelist D: the module's
+    confirmations_append_only was dead + untested; the gate drove only its
+    inline mirror)."""
+
+    def test_confirmations_append_only_matches_the_gate_mirror(self):
+        # The two copies of the invariant must agree — a drift guard for the
+        # duplication Panelist D flagged.
+        cases = [
+            ("", "anything\n", True),
+            ("a\n", "a\nb\n", True),
+            ("a\nb\n", "a\n", False),        # truncation
+            ("a\nb\n", "x\nb\n", False),     # same-length rewrite
+            ("a\nb\n", "b\na\n", False),     # reorder
+            ("a\n", "a\n", True),            # unchanged
+            ("a", "a\nb\n", True),           # prior without trailing newline
+        ]
+        for prior, current, expected in cases:
+            with self.subTest(prior=prior, current=current):
+                self.assertEqual(
+                    run_state_lib.confirmations_append_only(prior, current),
+                    expected)
+                self.assertEqual(
+                    quality_gate._opconf_is_append_only(prior, current),
+                    expected,
+                    "the gate's inline mirror disagrees with run_state_lib — "
+                    "the two copies of the invariant have drifted")
+
+    def test_append_confirmation_rejects_bad_records(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = Path(tmp) / "operator_confirmations.jsonl"
+            good = {"ts": "t", "move": "correct", "req_title": "X",
+                    "conditions_of_satisfaction": "Y", "operator_statement": "Z",
+                    "session_id": "s"}
+            run_state_lib.append_confirmation(p, good)  # ok
+            with self.assertRaises(ValueError):
+                run_state_lib.append_confirmation(p, {**good, "move": "bogus"})
+            with self.assertRaises(ValueError):
+                run_state_lib.append_confirmation(p, {k: v for k, v in good.items()
+                                                      if k != "req_title"})
+            with self.assertRaises(ValueError):
+                run_state_lib.append_confirmation(p, {**good, "session_id": 5})
+
+    def test_read_confirmations_absent_file_is_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            self.assertEqual(
+                run_state_lib.read_confirmations(Path(tmp) / "nope.jsonl"), [])
+
+
+class RequirementsReviewGateTests(unittest.TestCase):
+    """check_requirements_review FAIL/WARN/PASS paths (Panelist B: the FAIL
+    paths had no automated coverage — a mutation that neutered the
+    Wiegers-dimension FAIL turned no test red)."""
+
+    def _run(self, body):
+        with tempfile.TemporaryDirectory() as tmp:
+            q = Path(tmp) / "quality"
+            q.mkdir(parents=True)
+            (q / "REQUIREMENTS_REVIEW.md").write_text(body, encoding="utf-8")
+            return _gate(quality_gate.check_requirements_review, q)
+
+    def test_empty_log_fails(self):
+        fails, _w, out = self._run("# Review\n")
+        self.assertGreaterEqual(fails, 1, out)
+
+    def test_no_wiegers_dimension_fails(self):
+        fails, _w, out = self._run(
+            "# Review\n\nThe operator looked at things and made changes to REQ-001.\n")
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("Wiegers", out)
+
+    def test_substring_only_dimension_does_not_pass(self):
+        # 'inconsistent' must NOT satisfy the 'consistent' dimension
+        # (Panelist B: substring false-PASS).
+        fails, _w, out = self._run(
+            "# Review\n\nThe requirements were inconsistent and confusing.\n")
+        self.assertGreaterEqual(fails, 1, out)
+
+    def test_dimension_without_move_warns_not_fails(self):
+        fails, warns, out = self._run(
+            "# Review\n\n## Verifiable\n\nThe verifiable dimension was examined.\n")
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 1, out)
+
+    def test_well_formed_passes(self):
+        fails, warns, out = self._run(
+            "# Review\n\n## Verifiable\n\n- **correct** REQ-001: tighten the wording.\n")
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+
+
+class FiveMovesConsistencyTests(unittest.TestCase):
+    """The five interview moves are declared in three places; they must agree
+    (Panelists A and B flagged uncoordinated copies)."""
+
+    def test_all_move_tuples_agree(self):
+        expected = ("confirm", "correct", "add", "drop", "defer")
+        self.assertEqual(set(run_state_lib._CONFIRMATION_MOVES), set(expected))
+        self.assertEqual(set(quality_gate._OPCONF_MOVES), set(expected))
+        self.assertEqual(set(quality_gate._REQ_REVIEW_MOVES), set(expected))
 
 
 class WorkedExample20260502Tests(unittest.TestCase):

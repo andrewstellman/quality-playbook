@@ -34,6 +34,7 @@ outputs/032-final-report.md for the rationale and history.
 """
 
 import json
+import re
 import os
 import subprocess
 import sys
@@ -4992,20 +4993,41 @@ class TestV160OperatorConfirmationSourceType(V150FixtureBase):
         )
 
     def test_schema_table_and_gate_enum_agree(self):
-        """Drift guard: every gate-enum value has a schemas.md §3.7 row.
+        """Drift guard: the gate enum and the schemas.md §3.7 table agree
+        BOTH ways.
 
-        The enum and the schema table are two statements of one contract;
-        a value in one but not the other is a findable defect.
+        The enum and the schema table are two statements of one contract; a
+        value in one but not the other is a findable defect. Self-Council
+        Panelist A found the original guard was one-directional (gate ⊆
+        schema), so removing a value from the gate enum left it green. This
+        checks the §3.7 table rows against the enum in both directions.
         """
         schemas = (_REPO_ROOT / "schemas.md").read_text(
             encoding="utf-8", errors="replace"
         )
-        for value in quality_gate._V153_VALID_SOURCE_TYPES:
-            with self.subTest(source_type=value):
+        enum = set(quality_gate._V153_VALID_SOURCE_TYPES)
+        # Direction 1: every enum value has a §3.7 row.
+        for value in enum:
+            with self.subTest(direction="enum->schema", source_type=value):
                 self.assertIn(
                     f"`{value}`", schemas,
                     f"source_type {value!r} is in the gate enum but has no "
                     "schemas.md §3.7 table row.",
+                )
+        # Direction 2: every §3.7 table row value is in the enum. Parse the
+        # §3.7 table's first-column code spans.
+        sec = schemas.split("### 3.7", 1)[1].split("### 3.8", 1)[0]
+        table_values = set(
+            re.findall(r"^\|\s*`([a-z-]+)`\s*\|", sec, re.MULTILINE)
+        )
+        self.assertTrue(table_values, "failed to parse the §3.7 table")
+        for value in table_values:
+            with self.subTest(direction="schema->enum", source_type=value):
+                self.assertIn(
+                    value, enum,
+                    f"source_type {value!r} has a schemas.md §3.7 row but is "
+                    "not in the gate enum _V153_VALID_SOURCE_TYPES — a "
+                    "manifest using it would be wrongly rejected.",
                 )
 
     def test_operator_confirmation_req_passes_invariant_21(self):

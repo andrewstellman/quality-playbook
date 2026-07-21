@@ -225,9 +225,17 @@ loss — it does **not** solve cross-run REQ identity, which is a separate hard
 problem deferred with F-3.
 
 - **`quality/operator_confirmations.jsonl` is append-only.** The derivation never
-  rewrites or truncates it. A run that would delete or shorten it **fails the
-  gate.** This is the load-bearing invariant — the whole point is that the
-  operator's work cannot be destroyed by a later run.
+  rewrites or truncates it. The gate enforces this two ways: (a) if the manifest
+  still carries `operator-confirmation` REQs, the log must be present and
+  non-empty — a run that keeps the confirmed REQs but drops their durable backing
+  FAILs, needing no snapshot; and (b) **a re-derivation MUST copy the log to
+  `quality/operator_confirmations.prior.jsonl` before it rewrites `quality/`**,
+  and the gate then proves the live file still has that snapshot as a byte prefix,
+  catching truncation, overwrite, or reorder even across runs where the manifest
+  no longer names the confirmed REQs. Without the snapshot, cross-run truncation
+  is invisible to the gate — so writing it is not optional. This is the
+  load-bearing invariant: the operator's work cannot be silently destroyed by a
+  later run.
 - **Each record carries the REQ's *content* at confirmation time** — the title
   and conditions of satisfaction, not merely an id — plus the operator's
   statement verbatim, an ISO date, and a citation into the saved transcript.

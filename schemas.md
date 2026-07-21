@@ -1040,11 +1040,17 @@ REQ identity is deferred with F-3 and needs its own design.
 ### 9.5.2 Append-only invariant
 
 A derivation that **deletes, truncates, or shortens** `operator_confirmations.jsonl`
-fails the gate (`check_operator_confirmations_append_only`). "Shortens" is
-measured by line count: the file may only grow. This is the load-bearing
-guarantee — the whole point of F-2a is that a later run cannot destroy the
-operator's work. The append helper enforces one-object-per-line framing; the gate
-enforces monotonic growth against the archived prior state where one exists.
+fails the gate (`check_operator_confirmations_append_only`), which enforces
+durability two ways. **Manifest-consistency:** if `requirements_manifest.json`
+carries `operator-confirmation` REQs, this log must be present and non-empty —
+so deleting or emptying it while the confirmed REQs remain FAILs, with no prior
+snapshot required. **Append-only prefix:** a re-derivation copies the log to
+`operator_confirmations.prior.jsonl` before rewriting `quality/`, and the gate
+proves the live file still has that snapshot as a **byte prefix** (stricter than
+a line count — a same-length in-place rewrite is caught too). The append helper
+enforces one-object-per-line framing; the gate enforces the byte-prefix
+invariant. This is the load-bearing guarantee — a later run cannot destroy the
+operator's work.
 
 ### 9.5.3 Example record
 

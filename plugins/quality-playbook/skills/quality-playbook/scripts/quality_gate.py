@@ -7770,20 +7770,68 @@ def _opconf_is_append_only(prior_text, current_text):
     return current_text.startswith(normalized)
 
 
+def _operator_confirmed_req_ids(q):
+    """REQ ids in the manifest whose source_type is operator-confirmation.
+
+    These are the REQs an interview produced; their existence in the manifest
+    is the cross-reference that makes the durability guarantee enforceable
+    without a snapshot — see check_operator_confirmations_append_only.
+    """
+    data = _v150_manifest(q, "requirements_manifest.json")
+    if not data:
+        return []
+    records = data.get("records")
+    if not isinstance(records, list):
+        return []
+    return [
+        r.get("id") for r in records
+        if isinstance(r, dict) and r.get("source_type") == "operator-confirmation"
+    ]
+
+
 @verdict_category(VERDICT_SUBSTANTIVE)
 def check_operator_confirmations_append_only(q):
-    """v1.6.0 F-2a — operator_confirmations.jsonl shape + append-only.
+    """v1.6.0 F-2a — operator_confirmations.jsonl durability + shape.
 
-    Conditional: silent when the file is absent (no interview has run). When
-    present, validates the §9.5.1 record shape, and — when a prior snapshot
-    exists — enforces the append-only invariant. A truncating re-derivation
-    is the failure mode this exists to catch, so it is substantive, not
-    record-keeping.
+    Two enforcement mechanisms, because the durability guarantee has two
+    halves (self-Council instr 003, Panelists A and D):
+
+    1. **Manifest-consistency (needs no snapshot).** If the manifest carries
+       operator-confirmation REQs, the durable log MUST be present and
+       non-empty — those REQs assert an interview produced confirmations, so
+       a re-derivation that keeps the REQs but deletes or empties their
+       backing has destroyed the operator's work. This closes the
+       "delete/empty the whole file" hole that a prior-snapshot-only check
+       missed: an absent file is not automatically "no interview ran".
+
+    2. **Append-only prefix (needs a snapshot).** When a re-derivation left
+       a .prior.jsonl snapshot, the live file must have it as a byte prefix
+       — catching truncation, rewrite, and reorder even across runs where
+       the manifest no longer names the confirmed REQs. The protocol
+       instructs a re-derivation to write that snapshot before rewriting
+       quality/ (references/requirements_interview.md).
+
+    Substantive, not record-keeping: a lost confirmation is lost operator
+    work, which is the whole point of F-2a.
     """
     print("[Operator Confirmations]")
     path = q / "operator_confirmations.jsonl"
+    confirmed_ids = _operator_confirmed_req_ids(q)
+
     if not path.is_file():
-        info("operator_confirmations.jsonl not present — no interview has run")
+        if confirmed_ids:
+            fail(
+                "operator_confirmations.jsonl",
+                f"absent, but requirements_manifest.json carries "
+                f"{len(confirmed_ids)} operator-confirmation REQ(s) "
+                f"({', '.join(str(i) for i in confirmed_ids[:5])}"
+                f"{'...' if len(confirmed_ids) > 5 else ''}) — the operator's "
+                "confirmations have no durable backing. A re-derivation that "
+                "kept the REQs but dropped the log destroyed the durability "
+                "record (F-2a; schemas.md §9.5.2).",
+            )
+        else:
+            info("operator_confirmations.jsonl not present — no interview has run")
         return
 
     text = _read_text_safe(path)
@@ -7809,23 +7857,34 @@ def check_operator_confirmations_append_only(q):
                  f"line {lineno} is not a JSON object (schemas.md §9.5.1)")
             shape_ok = False
             continue
-        missing = [f for f in _OPCONF_REQUIRED_FIELDS if f not in obj]
-        if missing:
-            fail("operator_confirmations.jsonl",
-                 f"line {lineno} missing required field(s) "
-                 f"{', '.join(missing)} (schemas.md §9.5.1)")
-            shape_ok = False
+        # Type-check, not mere presence: a null or non-string required field
+        # passes a presence check but is not what the sanctioned writer
+        # (run_state_lib.append_confirmation) produces (Panelists B, D).
+        for field in _OPCONF_REQUIRED_FIELDS:
+            val = obj.get(field)
+            if not isinstance(val, str) or not val.strip():
+                fail("operator_confirmations.jsonl",
+                     f"line {lineno} field {field!r} must be a non-empty "
+                     f"string, got {val!r} (schemas.md §9.5.1)")
+                shape_ok = False
         move = obj.get("move")
-        if move is not None and move not in _OPCONF_MOVES:
+        if isinstance(move, str) and move not in _OPCONF_MOVES:
             fail("operator_confirmations.jsonl",
                  f"line {lineno} move={move!r} is not one of "
                  f"{_OPCONF_MOVES} (schemas.md §9.5.1)")
             shape_ok = False
 
-    # Append-only enforcement against a prior snapshot, when one exists. A
-    # re-derivation that intends to preserve the log copies it to
-    # .prior.jsonl before rewriting quality/; the gate then proves the live
-    # file still starts with everything that was there.
+    # Mechanism 1: manifest names confirmed REQs but the log is empty.
+    if confirmed_ids and records == 0:
+        fail(
+            "operator_confirmations.jsonl",
+            f"is empty, but requirements_manifest.json carries "
+            f"{len(confirmed_ids)} operator-confirmation REQ(s) — the "
+            "confirmations were dropped (F-2a; schemas.md §9.5.2).",
+        )
+        shape_ok = False
+
+    # Mechanism 2: append-only prefix vs a prior snapshot, when one exists.
     prior_path = q / "operator_confirmations.prior.jsonl"
     if prior_path.is_file():
         prior_text = _read_text_safe(prior_path)
@@ -7844,8 +7903,10 @@ def check_operator_confirmations_append_only(q):
             )
     elif shape_ok:
         pass_(
-            f"operator_confirmations.jsonl well-formed ({records} record(s); "
-            "no prior snapshot to diff against)"
+            f"operator_confirmations.jsonl well-formed ({records} record(s)"
+            + (f", backing {len(confirmed_ids)} confirmed REQ(s)"
+               if confirmed_ids else "")
+            + ")"
         )
 
 
@@ -7884,7 +7945,9 @@ def check_requirements_review(q):
         )
         return
     lowered = text.lower()
-    if not any(dim in lowered for dim in _REQ_REVIEW_DIMENSIONS):
+    def _mentions(tokens):
+        return any(re.search(rf"\b{re.escape(tok)}\b", lowered) for tok in tokens)
+    if not _mentions(_REQ_REVIEW_DIMENSIONS):
         fail(
             "REQUIREMENTS_REVIEW.md",
             "names none of the Wiegers dimensions "
@@ -7893,7 +7956,7 @@ def check_requirements_review(q):
             "readability rubric and Council use (Design §6)",
         )
         return
-    if not any(mv in lowered for mv in _REQ_REVIEW_MOVES):
+    if not _mentions(_REQ_REVIEW_MOVES):
         warn(
             "REQUIREMENTS_REVIEW.md records no interview move "
             "(confirm/correct/add/drop/defer) — expected at least one "
