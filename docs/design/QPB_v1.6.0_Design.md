@@ -1,5 +1,7 @@
 # Quality Playbook v1.6.0 — Design Document: The Requirements Release
 
+> **Scope reduced 2026-07-21: this release is Track 1 only (Features C, D, F).** Track 2 — Features A and B, the precision scope — split out to `QPB_v1.6.1_Design.md` (version number provisional; see that file's Decision Record #2). Decision Record #8 below records the split and what it reverses.
+
 *Status: **canonical**, rewritten 2026-07-18; simplicity pass applied 2026-07-19 (Decision Record #4-6). Supersedes the 2026-05-24 "NFR discovery + FP-audit" framing of this file — which is **carried forward in full as Features A and B below**, not discarded — and closes the 2026-06-21 slot re-assessment (see Decision Record). Prior framings preserved in version-control history of this file and summarized in the Historical Appendix.*
 *Owner: Andrew Stellman. Authored: Cowork session 2026-07-18, from a two-agent dossier over the QPB repo, workspace Reviews, and chat archive, plus direct reads of the canonical docs and three generated specs.*
 *Depends on: the v1.5.10 close-out — **complete as of 2026-07-19**: `v1.5.10` tagged, merged to `main`, `1.6.0` branched from it. (v1.5.10 was deliberately **not** published to PyPI/npm; publishing resumes at 1.6.0.) Companion: `QPB_v1.6.0_Implementation_Plan.md` — **current**, rewritten 2026-07-19 and carrying 2026-07-20 corrections; read it alongside this document.*
@@ -21,15 +23,17 @@ Three more, from the 2026-07-19 simplicity pass:
 6. **F-1 slimmed.** The coverage signal ships as a derivation-emitted "coverage and known gaps" statement in the Overview, not mechanical per-language surface enumerators (deferred as later hardening).
 7. **(2026-07-19, pre-handoff)** OD-2 resolved: the interview is a **skill-protocol chat** (a protocol reference the agent follows in a normal session; no new interactive Python surface). OD-3 resolved: **transcript-as-citable-source** (existing citation machinery applies). OD-7 defaulted: **`quality/RUN_CONTRACT.md`**. Remaining open at implementation start: OD-5 (precision bar) and OD-8 (090j disposition) — both Slice 3/release-time decisions.
 
+8. **(2026-07-21, Andrew) Track 2 split out into its own release.** Features A and B — NFR discovery and the fresh-context FP-audit — move to `QPB_v1.6.1_Design.md`. **This partially reverses Decision Record #2 above.** #2's "full merge" pulled A/B and C/D into one release on the argument that all three defect classes live in the requirements pipeline; that argument still holds for C and D, and only the A/B half is undone. Rationale for undoing it: Track 1 has a complete acceptance story of its own (§10 criteria 1, 3, 5), so it can be tested and delivered without waiting on the OpenFGA precision re-run, and the precision work has never been able to start until the coherence work finished anyway. Consequence to carry into the release notes: with Feature B absent, the retained 090j triage is this release's **only** precision guard (see OD-8).
+
 ---
 
-## 1. Why v1.6.0 — three empirically observed defect classes
+## 1. Why v1.6.0 — two empirically observed defect classes
 
 QPB releases are motivated by concrete observed defects, not speculative features. v1.6.0 is motivated by three, all in the requirements pipeline.
 
-### 1.1 Precision: findings untethered from requirements (the OpenFGA failure)
+### 1.1 Precision — **moved to v1.6.1**
 
-The 2026-05-23 OpenFGA Mode-A dogfood (v1.5.7, real 548-file Go repo, doc-enriched) reported 3 HIGH "security" findings with **0/3 precision**, unanimously confirmed by the 090i Council: BUG-003 (missed the `tryCache` guard — unreachable), BUG-006 (the filter *is* applied upstream; cited CVE not even in version range), BUG-009 (verbatim advisory restatement, no located code defect). Root cause: QPB derives *functional* REQs rigorously but has **no equivalent rigor for non-functional requirements**, so gathered advisories pattern-match straight into "bugs" with no derived, testable security REQ to check against. v1.5.7 shipped the 090j same-agent triage band-aid; the real fix is requirements-level. *(This is the 2026-05-24 analysis, carried forward unchanged; full detail in this file's git history.)*
+The OpenFGA 0/3-precision failure that motivated Features A and B now motivates `QPB_v1.6.1_Design.md` §1, where the analysis lives in full. It is named here only so the numbering below stays stable against landed commits and so a reader of this file knows the defect class exists and is not addressed by this release.
 
 ### 1.2 Coherence: the generated spec is not a well-organized document
 
@@ -56,8 +60,8 @@ Direct reads of the three 2026-06-19 benchmark runs (`repos/chi-1.5.8/quality/RE
 
 | # | Feature | Class | Origin | Status of design |
 |---|---------|-------|--------|------------------|
-| A | NFR discovery as first-class REQs | precision | 2026-05-24 canonical scope | carried forward, grounded |
-| B | Fresh-context requirements-grounded FP-audit | precision | 2026-05-24 canonical scope | carried forward, grounded |
+| ~~A~~ | ~~NFR discovery as first-class REQs~~ | — | **moved to v1.6.1 (2026-07-21)** | see `QPB_v1.6.1_Design.md` §2 |
+| ~~B~~ | ~~Fresh-context requirements-grounded FP-audit~~ | — | **moved to v1.6.1 (2026-07-21)** | see `QPB_v1.6.1_Design.md` §3 |
 | C | Spec organization & coherence (document architecture + render contract) | coherence | this rewrite; operator observation + §1.2 evidence | new, grounded |
 | D | Requirements validation interview (progressive, fitness-for-purpose) | validation | `QPB_v1.6.x_Requirements_Review_Proposal.md` (2026-04-29), pulled back into v1.6.0; Juran framing 2026-07-19 | new synthesis, grounded |
 | ~~E~~ | ~~Curation & derivation fixes (B-4, B-5, B-6/B-7)~~ | — | **dropped 2026-07-19** (Decision Record #5) → point-release candidates, B-4 first | see §7 |
@@ -67,38 +71,9 @@ Direct reads of the three 2026-06-19 benchmark runs (`repos/chi-1.5.8/quality/RE
 
 ---
 
-## 3. Feature A — First-class NFR discovery
+## 3-4. Features A and B — **moved to v1.6.1**
 
-*Carried forward from the 2026-05-24 canonical scope; substance unchanged, restated compactly. Full original text in git history.*
-
-**Problem.** No derived, testable non-functional requirements → advisory-primed false positives (§1.1).
-
-**Design.**
-- Phase 1/2 derivation (and the skill-derivation passes) derive NFRs as first-class REQ records: same fields plus `nfr_class` (taxonomy per Wiegers / ISO-25010: security, performance/efficiency, reliability, usability, portability, maintainability, integration/interoperability) and **mandatory** `acceptance_criterion` + `verification_method`. An NFR without an acceptance criterion is invalid (the "aspirational NFR" anti-pattern).
-- **Grounding rule:** an NFR finding is confirmable only if it traces to a derived NFR and demonstrates a violation of that NFR's acceptance criterion in the audited tree. Advisory/CVE with no derived-NFR violation → `KNOWN-ISSUE`, not `BUG`.
-- Slice split: core classes (security, reliability, performance) first; remaining classes in the breadth slice.
-- Rendering: NFR REQs render into the Feature C document architecture as their own sections, grouped by `nfr_class`, after the functional sections (§5.2).
-
-**Verification.** Gate FAILs an NFR REQ lacking acceptance criterion / verification method (mutation-bitten both ways). Derivation fixture: the OpenFGA contextual-tuple restriction yields a derived `REQ-SEC` with an acceptance criterion. Acceptance oracle shared with Feature B (§4).
-
-**Dependencies.** `schemas.md` REQ record extension; categorization-tier state must be confirmed in code before extending (the Lever-6 withdraw/return history — carried open question). Backlog B-13 (per-bug categorization tagging, v1.5.4 backlog) is partially subsumed by `nfr_class` — reconcile during implementation, per the 2026-05-24 doc's note.
-
-## 4. Feature B — Fresh-context, requirements-grounded false-positive audit
-
-*Carried forward; substance unchanged, restated compactly.*
-
-**Problem.** Findings confirmed by the producing context inherit its confirmation bias and advisory priming (§1.1); the failure mode is class-agnostic, not security-specific.
-
-**Design.**
-- A fresh-context sub-agent pass over each *confirmed* finding, post Phase 3/4 triage, at/before Phase 5 finalization — the productionized 090i Council shape. **Independence is load-bearing:** the auditor receives only finding + cited source + relevant derived REQ + compact rubric; never the running skill, phase prompts, or writeup reasoning.
-- Rubric (precision core, Slice 3): reachability (BUG-003 class), applicability incl. CVE version-range (BUG-006 class), source-of-truth (BUG-009 class), requirements-traceability. The breadth slice (Slice 4) adds design-intent, compensation, severity-justification. Security is the highest-scrutiny tier, not a separate detector.
-- Verdicts: CONFIRMED / DEMOTED / RECLASSIFIED-KNOWN-ISSUE / UNCERTAIN, with reasoning; audit transcript preserved as a run artifact; precision metrics updated. New dispositions get plain-English narration via the shipped 090v verdict-explanation framework (proposal item E3).
-- The `confirmed-open (integration-harness-required)` disposition (pulled 090r) becomes admissible **only** when the FP-audit independently CONFIRMs — carried unchanged.
-- **Cross-link to Feature C (new):** the FP-audit's requirements-traceability check consumes the *manifest*, not the rendered document — so Feature C's render changes cannot perturb it. Where the audit demotes/reclassifies, Feature C's traceability appendix (§5.2) reflects the final disposition.
-
-**Verification.** OpenFGA fixture set: BUG-003 → DEMOTED, BUG-006 → DEMOTED/RECLASSIFIED, BUG-009 → RECLASSIFIED-KNOWN-ISSUE, BUG-001/002/004 → CONFIRMED. One non-security fixture demoted, proving generality. Independence verified as a gate item (a writeup-fed audit is a fabrication tell).
-
-**Dependencies.** Feature A (traceability check needs derived NFRs). Runner/model choice and cost scope are carried open questions.
+Both moved verbatim to `QPB_v1.6.1_Design.md` (§2 Feature A, §3 Feature B) on 2026-07-21. Section numbers 3 and 4 are retained here as a stub so §5's numbering stays stable against landed commits and cross-references.
 
 ## 5. Feature C — Spec organization & coherence (the headline)
 
@@ -253,34 +228,33 @@ Dropped per the simplicity pass (resolves former OD-6). The problem is real — 
 - **Slice 1 — Coherence (Feature C + 5.1's RUN_CONTRACT split + F-1's Overview slot).** First because it is self-contained, has a crisp acceptance oracle (the chi/express/virtio regeneration fixture), and the interview walks its output — a progressive interview over a jumbled document is not possible. *(Resolves former OD-1: coherence-first, by dependency rather than preference.)*
 - **Slice 2 — Validation (Feature D MVP + F-2).** The interview fixture + the re-run 2026-05-02 worked example.
 
-**Track 2 — carried precision scope (independent of Track 1; can run in parallel or after):**
-
-- **Slice 3 — Precision core (Features A + B, core NFR classes + slice-1 rubric).** The OpenFGA re-run acceptance oracle, carried unchanged: BUG-003/006/009 cannot stand as confirmed HIGH; BUG-001/002/004 still surface.
-- **Slice 4 — Precision breadth (remaining NFR classes, full FP-audit rubric).**
+**Track 2 — moved out 2026-07-21.** Slices 3 and 4 (Features A + B) are now `QPB_v1.6.1_Design.md`. This release is Track 1 only, so the two-track structure below reduces to a single ordered track.
 
 Post-v1.6.0 (unchanged from prior planning): interview Dimensions 2/5/8, QI-loop closure (needs calibration infra), Feature E's B-4 (first point-release candidate), mechanical F-1 hardening, cross-run spec diff, SPC (**v1.8.0** — renumbered from v1.7.0 on 2026-07-20 to free that slot for the security line; its design docs are stale twice over and need a rewrite before use: they still describe v1.6 as the Requirements Review release, **and** they declare a dependency on "v1.5.5 orchestration infrastructure," a release that was cancelled — the 1.5.x line ended at 1.5.4 before jumping to 1.6.0).
 
-**Track-coupling note (Track 2 readers):** §9 calls Track 2 independent and parallelizable, which is true of its work items — but Feature A's NFR sections render into Feature C's document architecture (§5.2 item 5). Scheduling Slice 3 first is supported (the render slot is specified to degrade gracefully in both directions, Plan Phase 5), but the coupling is real and whichever track lands second runs the other's fixture suite before merging.
+**Track-coupling note (now one-directional).** Feature A's NFR sections render into Feature C's document architecture (§5.2 item 5). Feature C ships the render slot specified to degrade gracefully in both directions, and it is already in the tree. Because Track 1 now lands first by construction, the "whichever lands second runs the other's fixture suite" rule applies only to v1.6.1, which runs this release's fixture suite before merging.
 
 ## 10. Success criteria
 
 1. **Coherence oracle:** the chi/express/virtio fixtures exhibit none of C-1…C-7; all render-contract checks pass and are mutation-bitten; the cross-family readability Council returns Ship with no rubric dimension ≤2 on any document. *(Corrected 2026-07-20 — no deterministic re-render exists; see §5 Verification (b). This criterion is satisfied by mechanical checks plus scored judgment, not by a regression test.)*
-2. **Precision oracle (carried):** OpenFGA re-run — 003/006/009 demoted/reclassified, 001/002/004 surface, advisory-only findings classified KNOWN-ISSUE. *(Corrected 2026-07-20 — this previously read "HIGH precision ≥ the bar (OD-5)," which cannot be evaluated: OD-5's own rider states the ≥90% figure is a reporting/policy bar, not measurable at fixture sample size, where one false positive in six findings is 17%. The named-bug behavior above **is** the executable test.)*
+2. *(Precision oracle — moved to `QPB_v1.6.1_Design.md` §4 on 2026-07-21. Numbering held so landed references stay valid.)*
 3. **Validation oracle:** the Feature D fixture session runs all three stages, round-trips confirm/correct/add into the manifest and a clean re-render; artifacts (defect log, transcript) gate-validated.
-4. NFR REQs derived with acceptance criteria + verification methods; gate rejects aspirational NFRs.
+4. *(NFR acceptance criteria — moved to `QPB_v1.6.1_Design.md` §4 on 2026-07-21.)*
 5. F-1 coverage-and-gaps statement present in the Overview on every run, and exercised by interview Stage 1.
 6. No recall collapse anywhere: bin/tests + gate green dual-env; QPB self-audit REQ coverage not reduced.
 
 ## 11. Out of scope for v1.6.0
 
+**Features A and B (Track 2 precision scope)** — moved to `QPB_v1.6.1_Design.md`, 2026-07-21. Everything below is unchanged from the 2026-07-19 pass.
+
 Interview Dimensions 2/5/8 and QI-loop closure; Feature E (B-4/B-5/B-6/B-7 — point-release candidates, B-4 first); mechanical F-1 surface enumerators; F-3 cross-run spec diff; control charts / SPC (v1.7.0); new benchmark targets or runners; skill-surface routing (`--surface`, own proposal); bug-report PR automation (own proposal); Phase-6 structural enforcement (own proposal).
 
 ## 12. Open decisions
 
-**Still open:** none. Both remaining ODs resolved 2026-07-20 (operator decision, orchestrator-recorded).
+**Still open:** none for this release. OD-5 moved to `QPB_v1.6.1_Design.md` §5 on 2026-07-21 (it gates that release's Phase 6). OD-8 is resolved and stays here, with its framing corrected for the split — see below.
 
-- **OD-5 — HIGH-precision acceptance bar. RESOLVED: ≥90% precision on HIGH findings**, adopting Google's Tricorder threshold (an analyzer surfaced in code review may carry at most a **10% effective false positive rate**; above that, developers demonstrably dismiss or disable it — Tricorder's own rate runs just under 5%). Two riders. **(a)** Adopt Tricorder's *effective* false-positive definition: a finding counts as a false positive if the operator does not act on it, even when technically correct — this is precisely BUG-009's failure mode (an accurate advisory restatement with no located defect). **(b)** At the OpenFGA fixture's sample size a rate is not measurable — one FP in six findings is 17%. So ≥90% is the **reporting/policy bar**; the **executable acceptance test** remains §10 criterion 2: 003/006/009 must not stand as confirmed HIGH, 001/002/004 must still surface. Sources: Sadowski et al., *Lessons from Building Static Analysis Tools at Google* (CACM 2018); *Software Engineering at Google* ch. 20.
-- **OD-8 — 090j band-aid disposition. RESOLVED: retain, as a mechanical backstop beneath Feature B.** Not retired, not folded away. Rationale: **(a)** it is empirically proven — the 2026-05-24 OpenFGA channel Mode-A run recorded four confirmed bugs each carrying `reachability_analysis`, two FP-class candidates demoted via reachability, and zero confident-HIGH security false positives; **(b)** it is deterministic and free (gate checks, no LLM call), whereas Feature B's FP-audit is LLM judgment and therefore variable — a mechanical floor under a judgment layer is the correct architecture, not redundancy; **(c)** it is defense in depth: if the fresh-context audit is skipped, degraded, or unavailable, D1/D2/D3 still catch advisory-only findings. Feature B's rubric restates D1/D2/D3's substance (reachability, CVE version-range applicability, source-of-truth), so the two overlap by design; the `check_v1_5_7_090j_triage_precision` gate checks and the `reachability_analysis` field requirement **stay**. Release notes should describe 090j as a retained mechanical guardrail rather than a superseded band-aid.
+- **OD-5 — moved to `QPB_v1.6.1_Design.md` §5** (2026-07-21). It gates that release's Phase 6 and is no longer a v1.6.0 release-time decision.
+- **OD-8 — 090j band-aid disposition. RESOLVED: retain, as a mechanical backstop beneath Feature B.** Not retired, not folded away. Rationale: **(a)** it is empirically proven — the 2026-05-24 OpenFGA channel Mode-A run recorded four confirmed bugs each carrying `reachability_analysis`, two FP-class candidates demoted via reachability, and zero confident-HIGH security false positives; **(b)** it is deterministic and free (gate checks, no LLM call), whereas Feature B's FP-audit is LLM judgment and therefore variable — a mechanical floor under a judgment layer is the correct architecture, not redundancy; **(c)** it is defense in depth: if the fresh-context audit is skipped, degraded, or unavailable, D1/D2/D3 still catch advisory-only findings. Feature B's rubric restates D1/D2/D3's substance (reachability, CVE version-range applicability, source-of-truth), so the two overlap by design; the `check_v1_5_7_090j_triage_precision` gate checks and the `reachability_analysis` field requirement **stay**. Release notes should describe 090j as a retained mechanical guardrail rather than a superseded band-aid. **Framing correction, 2026-07-21:** this resolution was written for a release containing Feature B, and describes 090j as a floor *beneath* a judgment layer. With Track 2 moved to v1.6.1, there is no layer above it — 090j is v1.6.0's **only** precision guard. The resolution to retain it holds and is strengthened by the split; the release notes must not describe a layer this release does not ship.
 
 **Resolved** (recorded for traceability):
 
@@ -294,7 +268,7 @@ Per `DEVELOPMENT_PROCESS.md`, pre-implementation Council of briefs is over-engin
 1. **This design doc (optional, cheap):** a focused single-panel sanity pass on §5's render contract and §6's write-back model — the two places a wrong design decision is expensive to unwind. Not a nested Council.
 2. **Slice 1 landed:** worker self-Council (3 panelists: render-contract correctness incl. mutation coverage; regeneration-fixture fidelity against C-1…C-7; regression safety on manifest semantics) + a focused readability review of the three regenerated fixture docs.
 3. **Slice 2 landed:** worker self-Council on manifest write-back correctness, interview-artifact gate compliance, and supersession completeness (no orphaned REVIEW_REQUIREMENTS.md generation path left behind).
-4. **Slice 3 landed:** the carried Phase-4 plan — nested 3×3 Council on NFR derivation, FP-audit independence (verify the auditor demonstrably lacks skill/writeup context — the fabrication-tell check), grounding rule, OpenFGA regression.
+4. *(Slice 3 Council — moved to `QPB_v1.6.1_Design.md` §7 on 2026-07-21.)*
 5. **Pre-tag:** whole-surface umbrella Council, standard.
 
 ## 14. Provenance
