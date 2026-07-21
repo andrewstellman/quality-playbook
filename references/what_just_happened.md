@@ -90,9 +90,21 @@ COVERAGE_MATRIX.md, the four `RUN_*.md` review-protocol files, and the functiona
 harness under `quality/`. Still no confirmed bugs — Phase 3 is the first phase that
 emits BUG-NNN records.
 
+**Your requirements are complete — this is the moment to validate them.** Phases 3–6
+(code review, integration tests, spec audit, TDD) all *build on* these requirements, so
+a correction made now propagates into everything downstream; a correction made at the end
+leaves every artifact built on the un-corrected spec. You can run the **requirements
+validation interview** (`references/requirements_interview.md`): I play back what I
+understood the system to be, then walk the spec with you — you **confirm** what's right
+(recorded as durable evidence), **correct** what's wrong (it lands in the requirements and
+re-renders), or **add** what I missed. It's opt-in and I will not start it unless you ask.
+
 ### What to do next
 
-Continue with Phase 3 (Code Review) by saying `keep going` or `run phase 3`.
+- **To validate the requirements first (recommended):** say `run the requirements interview`.
+- **To proceed straight to the review:** continue with Phase 3 (Code Review) by saying
+  `keep going` or `run phase 3`. (Validation stays available; you'll get one reminder at
+  the end of the run.)
 ```
 
 ### State P3 — Phase 3 just completed

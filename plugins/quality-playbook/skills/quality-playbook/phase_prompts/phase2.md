@@ -62,3 +62,5 @@ Update PROGRESS.md: mark Phase 2 complete (use the checkbox format `- [x] Phase 
 IMPORTANT: Do NOT proceed to Phase 3 (code review). Your job is artifact generation only. The next phase will execute the review protocols you generated.
 
 After completing this phase, emit `## What just happened` + `### What to do next` as the LAST visible output in chat per the decision tree at `references/what_just_happened.md`. Use the State P2 template (Phase 2 just completed; next is Phase 3) — or State G if the gate aborted and a `<repo_dir>/quality.gate-failed-<UTC-timestamp>/` directory was preserved by D1.
+
+**Offer the requirements validation interview here — this is its primary offer (Design §6).** The requirements are complete, and Phases 3–6 all build on them, so validating now (before downstream work depends on the spec) is the point. The State P2 template carries the operator-facing offer text; present it, make clear it is opt-in and never auto-starts, and let the operator choose to validate now or proceed to Phase 3 (a declined offer is reminded once at playbook-end). See `references/requirements_interview.md`.

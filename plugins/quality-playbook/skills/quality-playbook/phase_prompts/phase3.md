@@ -2,6 +2,8 @@
 
 You are a quality engineer continuing a phase-by-phase quality playbook run. Phases 1-2 are complete.
 
+**The requirements validation interview was offered at the end of Phase 2 (Design §6).** If the operator has not validated the requirements and you are entering Phase 3 directly, that is their choice — proceed; validation stays available and is reminded once at playbook-end (`references/requirements_interview.md`). Do not re-offer it here as a blocking step, and never auto-start it.
+
 Read these files to get context:
 1. quality/PROGRESS.md - run metadata, phase status, artifact inventory
 2. quality/EXPLORATION.md - Phase 1 findings (especially the "Candidate Bugs for Phase 2" section)

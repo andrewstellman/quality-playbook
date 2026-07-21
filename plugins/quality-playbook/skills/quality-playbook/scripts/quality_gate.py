@@ -6827,8 +6827,11 @@ def check_compensation_asymmetry_promotion(q):
 # document is a faithful, coherent presentation of it.
 # ---------------------------------------------------------------------------
 
-# `### REQ-NNN: Title` — the heading form mandated by
-# references/requirements_pipeline.md § "Requirement heading format".
+# `### REQ-NNN: Title` — the canonical marker format. This regex is the
+# enforcement leg of a three-way binding: the same rule is authored in
+# references/requirements_pipeline.md § "Requirement heading format" and
+# references/phase2_generation_guide.md § "Requirement heading format".
+# Kept in sync with those two — a change here is incomplete without them.
 _RENDER_REQ_HEADING_RE = re.compile(
     r"^###\s+(REQ-(\d+))\s*:\s*(.*)$", re.MULTILINE
 )
@@ -7303,6 +7306,40 @@ def _render_tool_contract_ids(q):
     return ids
 
 
+def _render_product_req_count(q):
+    """Count **product** REQ records in requirements_manifest.json.
+
+    Product = total REQ records minus the tool-contract ones (whose
+    references[] point exclusively into quality/, C-1). This is what the
+    render contract expects to see as `### REQ-NNN:` headings in
+    REQUIREMENTS.md; a tool-contract-only manifest renders to
+    RUN_CONTRACT.md instead and is not a product-render failure.
+
+    Returns None when no manifest is available — the contract then cannot
+    prove requirements exist, so the caller keeps the INFO skip rather than
+    FAILing without evidence (Design §5.3 "fail closed on a
+    manifest-vs-render marker mismatch").
+    """
+    data = _v150_manifest(q, "requirements_manifest.json")
+    if not data:
+        return None
+    records = data.get("records")
+    if not isinstance(records, list):
+        return None
+    tool_ids = _render_tool_contract_ids(q) or set()
+    n = 0
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        rid = rec.get("id")
+        if not rid:
+            continue
+        if str(rid) in tool_ids:
+            continue
+        n += 1
+    return n
+
+
 @verdict_category(VERDICT_SUBSTANTIVE)
 def check_render_contract(repo_dir, q, skill_version=None):
     """v1.6.0 Feature C — the mechanical render-contract checks.
@@ -7340,6 +7377,23 @@ def check_render_contract(repo_dir, q, skill_version=None):
             "document. Close it.",
         )
         return
+    # The version gate runs BEFORE the headings check: the whole contract is
+    # a v1.6.0+ obligation, so a pre-contract run is inert regardless of the
+    # marker shape it happens to carry. This MUST precede the fail-closed
+    # no-headings branch below — otherwise a genuine pre-v1.6.0 archived run
+    # (populated manifest, old-format render with no '### REQ-NNN:' headings)
+    # would FAIL against a contract it has no obligation to meet, the exact
+    # regression the inertness guards protect against.
+    predates, detected = _render_run_predates_contract(q, skill_version)
+    if predates:
+        info(
+            f"run recorded skill version {detected[0]}.{detected[1]}."
+            f"{detected[2]} — the render contract is a v"
+            f"{_RENDER_CONTRACT_MIN_VERSION[0]}.{_RENDER_CONTRACT_MIN_VERSION[1]}."
+            f"{_RENDER_CONTRACT_MIN_VERSION[2]}+ obligation, skipped"
+        )
+        return
+
     headings = _render_req_headings(text)
     if not headings:
         # A heading-level regression in the renderer would otherwise turn
@@ -7354,19 +7408,42 @@ def check_render_contract(repo_dir, q, skill_version=None):
                 "document"
             )
         else:
-            info(
-                "REQUIREMENTS.md carries no '### REQ-NNN:' headings — "
-                "not a contract-shaped render, render contract skipped"
-            )
-        return
-    predates, detected = _render_run_predates_contract(q, skill_version)
-    if predates:
-        info(
-            f"run recorded skill version {detected[0]}.{detected[1]}."
-            f"{detected[2]} — the render contract is a v"
-            f"{_RENDER_CONTRACT_MIN_VERSION[0]}.{_RENDER_CONTRACT_MIN_VERSION[1]}."
-            f"{_RENDER_CONTRACT_MIN_VERSION[2]}+ obligation, skipped"
-        )
+            # Design §5.3 "fail closed on a manifest-vs-render marker
+            # mismatch": the manifest already proves whether requirements
+            # exist, so the contract must not go inert just because the
+            # generator used the wrong marker (e.g. '**REQ-NNN:**' bold
+            # instead of '### REQ-NNN:'). A populated manifest with an
+            # unparseable render is the same situation as an unterminated
+            # fence — refuse to certify rather than pass by default.
+            product_reqs = _render_product_req_count(q)
+            if product_reqs:
+                fail(
+                    "REQUIREMENTS.md",
+                    f"requirements_manifest.json holds {product_reqs} product "
+                    "REQ record(s), but REQUIREMENTS.md carries zero '### "
+                    "REQ-NNN:' headings — the requirements were not rendered in "
+                    "contract shape (most likely the wrong marker format, e.g. "
+                    "'**REQ-NNN:**' bold instead of '### REQ-NNN:'). The whole "
+                    "render contract cannot read this document. Render each "
+                    "requirement as a '### REQ-NNN: Title' heading — see "
+                    "references/requirements_pipeline.md § 'Requirement heading "
+                    "format' and references/phase2_generation_guide.md § "
+                    "'Requirement heading format'.",
+                )
+            elif product_reqs == 0:
+                info(
+                    "REQUIREMENTS.md carries no '### REQ-NNN:' headings and "
+                    "requirements_manifest.json holds no product REQ records — "
+                    "nothing to render, render contract not applicable"
+                )
+            else:
+                # Manifest unavailable: cannot prove requirements exist, so
+                # skip rather than FAIL without evidence.
+                info(
+                    "REQUIREMENTS.md carries no '### REQ-NNN:' headings and "
+                    "requirements_manifest.json is unavailable — not a "
+                    "contract-shaped render, render contract skipped"
+                )
         return
 
     # -- Check 1 (C-2): REQ IDs strictly sequential in document order. -----

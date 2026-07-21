@@ -130,6 +130,29 @@ REQUIREMENTS.md renders these parts, in this order. Parts marked **mandatory** a
 
 *Relationship to Design §5.2:* the Design specifies eight parts, all of the mandatory ones. The glossary is a ninth, **advisory** slot added in v1.6.0 instruction 002; it does not change which parts are mandatory and cannot cause a gate FAIL. Design §5.2 should absorb it at the orchestrator's convenience.
 
+#### Requirement heading format
+
+Each requirement renders as a **`### REQ-NNN: Title`** heading — a level-3 (`###`) heading, the literal token `REQ-`, a zero-padded three-digit number, a colon, then the title. The gate parses exactly this shape; a requirement rendered any other way is invisible to the entire render contract, and (per Design §5.3) a populated manifest whose render carries **zero** `### REQ-NNN:` headings is a **FAIL**, not a skip — the checker refuses to certify a document it cannot read.
+
+Worked example — one rendered requirement:
+
+```
+### REQ-007: The scheduler retries a failed dispatch before surfacing an error
+
+- Conditions of satisfaction: A dispatch that fails on its first attempt is retried up to the configured limit; only after the final attempt fails is an error surfaced to the caller.
+- References: src/scheduler/dispatch.py, src/scheduler/retry.py
+```
+
+**Never** use any of these — each one turns the render contract off on that document:
+
+- `**REQ-007:** Title` (bold, no heading) — the exact defect a 2026-07-21 smoke test shipped unflagged
+- `### REQ-007 — Title` (em-dash instead of colon)
+- `### REQ-007. Title` (period instead of colon)
+- `## REQ-007: Title` (wrong heading level — WARNs, but still not read as a requirement)
+- `### REQ-7: Title` (not zero-padded to three digits)
+
+*This rule is one leg of a three-way binding:* the same format is authored in `references/requirements_pipeline.md` § "Requirement heading format" and enforced by `_RENDER_REQ_HEADING_RE` in `plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py`. The canonical marker is `### REQ-NNN:`; kept in sync with those two — an edit to one is incomplete without the others.
+
 #### Glossary / definitions (advisory)
 
 IEEE 830 §1.3 gives definitions their own slot because terminology drift is a top requirements defect class — and terminology stability is exactly what the readability rubric's **Consistent** dimension scores. A requirements document that uses "route", "pattern" and "handler" in shifting senses is unverifiable no matter how well organized it is.

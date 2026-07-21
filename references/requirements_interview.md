@@ -19,9 +19,16 @@ The interview walks the Feature C document architecture top-down. A coherent
 document is a precondition — a progressive interview over a jumbled one is not
 possible, which is why Feature C ships first.
 
-**It is offered, never auto-started.** The playbook-end summary points the
-operator at this protocol; it does not run it unbidden. A validation interview
-the operator did not ask for is an interruption, not a service.
+**It is offered, never auto-started.** The **primary offer is at the Phase 2 →
+Phase 3 boundary** — the moment the requirements are complete and before Phases
+3–6 build tests, reviews, and audits on them (Design §6; operator decision
+2026-07-21). Validating the spec *before* downstream work depends on it is the
+whole point: a correction made at the end leaves every derived artifact built on
+the un-corrected requirements. A run that declines gets **one reminder at
+playbook-end** that validation is still available — discoverability without
+moving the primary offer to the end. Either way the protocol only *points* the
+operator here; it does not run unbidden. A validation interview the operator did
+not ask for is an interruption, not a service.
 
 ## The vocabulary is the rubric's — do not invent a second one
 

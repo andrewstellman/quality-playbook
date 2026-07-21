@@ -91,6 +91,8 @@ Total contracts extracted: N
 
 All requirements in REQUIREMENTS.md must use the format `### REQ-NNN: Title` where NNN is a zero-padded three-digit number and Title is a short descriptive name. Do not use alternative formats like `### REQ-NNN — Title`, `### REQ-NNN. Title`, `**REQ-NNN**: Title`, or freeform headings without a number. Consistent formatting enables automated tooling to parse and cross-reference requirements.
 
+*This rule is one leg of a three-way binding:* the same format, with a worked example, is authored in `references/phase2_generation_guide.md` § "Requirement heading format" (the doc the Phase 2 generator is routed to) and enforced by `_RENDER_REQ_HEADING_RE` in `plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py` — where, per Design §5.3, a populated manifest whose render carries zero `### REQ-NNN:` headings now FAILs rather than skipping. The canonical marker is `### REQ-NNN:`; kept in sync with those two — an edit to one is incomplete without the others.
+
 ---
 
 ## Phase B: Derive requirements from contracts

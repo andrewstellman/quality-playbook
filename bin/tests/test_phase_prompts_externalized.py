@@ -377,7 +377,10 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # generate list, and a new paragraph points at the eight-part
         # document architecture in references/phase2_generation_guide.md.
         # Hashes recomputed.
-        "phase2":                (12289, "e13ff2baa583edae97ec448a2c57e776a56885208c189f1ed894440df01fb9ee"),
+        # v1.6.0 instruction 004 (Design §6): phase2.md gained the
+        # primary requirements-validation-interview offer at the Phase 2 →
+        # Phase 3 boundary. phase2: 12289 → 12810 codepoints. Recomputed.
+        "phase2":                (12810, "6a94888bf0102e4bfad95e845797cabbb530cc98d4e194749f68a8d59e8d4091"),
         # v1.5.7 090j: phase3.md + phase4.md gained the triage
         # precision-guardrail pointers (D1 reachability_analysis on
         # HIGH/MED bugs + D2 KNOWN-ISSUE classification for advisory-
@@ -385,7 +388,10 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # phase3: 10969 → 12167 codepoints; phase4: 3911 → 4398.
         # Hashes recomputed.
         # v1.5.7 191 FINDING-50: schemas.md prose citations stripped/rewritten.
-        "phase3":                (12047, "5d06b2ff3f5d5b602b79f4cec7afb0853723e641a03efb7d8583edc68cb718ce"),
+        # v1.6.0 instruction 004 (Design §6): phase3.md gained the note that
+        # the interview was offered at the end of Phase 2 (do not re-offer as
+        # a blocking step). phase3: 12047 → 12434 codepoints. Recomputed.
+        "phase3":                (12434, "604cd2f515129cdb8cfe5cff5dc8ce6884e300797718de637ff00917e0e152ed"),
         "phase4":                ( 4475, "b4c4dd6a103cbfe71d5f136b1a2bc5ebdf136125ec276e8a9c84129620b9c289"),
         # v1.5.7 090g: phase5.md gained the explicit apply→run→
         # revert green-cycle block. v1.5.7 090o: phase5.md gained
