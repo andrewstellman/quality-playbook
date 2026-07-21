@@ -2,7 +2,7 @@
 
 *Status: created 2026-06-11 as the SKILL.md-trim workstream; **scope expanded 2026-06-18** (operator decision) to a full **repo-hygiene release**: SKILL.md trim + SKILL.md relocation to repo root + folder-structure cleanup + an arunner regression run that confirms the trimmed/relocated skill still works end-to-end. The intent is to hand v1.5.11 (the security release) a clean, sensibly-organized starting point.*
 
-*The broader-scope backlog that previously held the v1.5.10 number is `QPB_v1.5.11_Design.md`. Work begins off the `1.5.9` branch HEAD on a new `1.5.10` branch.*
+*The broader-scope backlog that previously held the v1.5.10 number is `QPB_v1.7.0_Design.md` (renamed from `QPB_v1.5.11_Design.md` on 2026-07-20). Work begins off the `1.5.9` branch HEAD on a new `1.5.10` branch.*
 
 *Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule. The design + implementation-plan docs in `docs/design/` are planning content authored by Cowork; the **source mutations they describe are executed by the Claude Code worker**, not by Cowork directly.*
 
@@ -208,4 +208,4 @@ Because the relocation touches the install-location contract, a green test suite
 
 ---
 
-*End of v1.5.10 Design. Implementation plan in `QPB_v1.5.10_Implementation_Plan.md`. Predecessor (harness + standalone distribution) in `QPB_v1.5.9_Design.md`. Successor (security) in `QPB_v1.5.11_Design.md` — which inherits the clean repo this release produces.*
+*End of v1.5.10 Design. Implementation plan in `QPB_v1.5.10_Implementation_Plan.md`. Predecessor (harness + standalone distribution) in `QPB_v1.5.9_Design.md`. Successor (security) in `QPB_v1.7.0_Design.md` (renamed from `QPB_v1.5.11_Design.md` on 2026-07-20) — which inherits the clean repo this release produces.*

@@ -1,4 +1,13 @@
-# Quality Playbook v1.7.0 — Design Document
+# Quality Playbook v1.8.0 — Design Document
+
+> **⚠ STALE — NEEDS A REWRITE BEFORE USE.** This document is out of date for two independent reasons and should not be used to plan or implement work as written:
+>
+> 1. **v1.6.0 scope has changed.** This doc describes v1.6 throughout as "the Requirements Review release." v1.6.0 shipped (or is shipping) as the requirements-review release, but with a different, specific scope (Features A–D) than assumed here — see `QPB_v1.6.0_Design.md` for the actual v1.6.0 scope before relying on any v1.6-dependency claim in this document.
+> 2. **A stated dependency is unsatisfiable.** This doc declares a dependency on "v1.5.5 orchestration infrastructure" (calibration-cycle automation). **v1.5.5 was cancelled** — the 1.5.x line ended at v1.5.4 and the next release was v1.6.0. That dependency cannot be satisfied as written and needs to be re-derived against whatever actually shipped between v1.5.4 and v1.6.0.
+>
+> *(Renumbering note, added during the 2026-07-20 mechanical sweep: this document also still refers to itself as "v1.7" throughout its body text and to "v1.8" as unrelated future cross-operator work — both pre-date the 2026-07-20 renumbering and now collide with this document's own new v1.8.0 number. That collision was left unresolved by the sweep, since untangling it requires deciding real content questions (e.g., whether this release still starts right after v1.6.0, given the security work now occupies v1.7.0 in between) rather than a mechanical string replacement. Treat it as part of reason for the rewrite above, not yet fixed.)*
+
+*Renumbered on 2026-07-20: this release (SPC / statistical process control) moved from v1.7.0 to v1.8.0, and the file was `git mv`'d from `QPB_v1.7.0_Design.md` accordingly (operator decision). Only the title above was mechanically updated to v1.8.0; the pervasive bare "v1.7" self-references in the body were deliberately left untouched — see the staleness banner above.*
 
 *Status: drafted 2026-05-03 as part of the v1.5.5 roadmap pass. Implementation begins after v1.6 ships (Requirements Review feature).*
 *Authored: 2026-05-03*

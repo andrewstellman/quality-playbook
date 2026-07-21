@@ -22,7 +22,7 @@
 
 Goal: a clean, explicit base for the `1.6.0` branch.
 
-- The current release line is closed out to Andrew's satisfaction: as of 2026-07-19 the last tag on origin is `v1.5.8`, with 1.5.10 in-flight (untagged) and 1.5.11 (security) design-only. **Whether 1.5.10/1.5.11 ship before 1.6.0 starts is Andrew's sequencing call — this plan takes no position**; it requires only that the base is a deliberately chosen, tagged-or-named commit.
+- **Satisfied 2026-07-19.** The prior release line is closed out: `v1.5.10` is tagged (`4cb6781`), merged to `main` (`646b703`), and `1.6.0` is branched from it — all verified on origin. v1.5.10 was deliberately **not** published to PyPI/npm (the GitHub↔registry trusted-publisher interop was never wired); publishing resumes at 1.6.0, gated on the P1–P12 carry-forwards in `~/Documents/AI-Driven Development/Quality Playbook/QPB_Carry_Forward_To_1.6.0.md`. The security line is design-only and renumbered **v1.7.0** (from v1.5.11, 2026-07-20); SPC moved to v1.8.0.
 - `1.6.0` branch cut from that base; base SHA recorded in the branch's first commit message.
 - The three coherence fixture inputs preserved read-only: the `repos/{chi,express,virtio}-1.5.8/quality/` manifests + rendered REQUIREMENTS.md (the C-1…C-7 evidence). The OpenFGA run fixtures per the 2026-05-24 plan remain the precision oracle inputs.
 
@@ -52,7 +52,7 @@ Gate to Phase 2: all checks land dual-env green; SKILL.md token ceiling respecte
 
 - **Regeneration fixture (the coherence oracle):** re-render the chi, express, and virtio manifests. Acceptance: C-1…C-7 all absent — mechanically (contract checks pass on all three) and by judgment (the readability Council below).
 
-  *Note (2026-07-20): "through the new renderer" presumed a deterministic renderer that does not exist and is not being built. `REQUIREMENTS.md` is agent-authored prose following `references/` — that is QPB's premise, not a gap. Consequence, recorded: the fixtures are golden files, so a regression in the reference-doc prose cannot fail the suite. Mitigation is the readability Council plus reference-doc contract tests (see Phase 3 work items), not a renderer.*
+  *Note (2026-07-20): "through the new renderer" presumed a deterministic renderer that does not exist and is not being built. `REQUIREMENTS.md` is agent-authored prose following `references/` — that is QPB's premise, not a gap. Consequence, recorded: the fixtures are golden files, so a regression in the reference-doc prose cannot fail the suite. Mitigation is the readability Council plus prevention at source in the generation guide — landed via **runner instruction 002** (render-contract hardening), not Phase 3 and not a renderer. **The Council is not yet a functional drift detector:** one scored run exists, one of its six dimensions returned unusable scores and was respecified, and a variance baseline is required before scores can gate. Until that baseline exists, the honest claim is "checks pass and a Council read it."*
 - **Worker self-Council** (3 panelists, per Design §13): render-contract correctness incl. mutation coverage; regeneration-fixture fidelity against C-1…C-7; regression safety on manifest semantics. FIX-REQUIRED iterates in-branch before the review-request files.
 - **Readability Council — the judgment half of the oracle** *(specified 2026-07-20; the Design required it but never defined it)*. Scored against **Wiegers requirements quality attributes**, not an ad-hoc scale, so Phase 4's `REQUIREMENTS_REVIEW.md` defect log and Feature D's interview inherit one vocabulary: **complete / consistent / unambiguous / verifiable / well-organized**, plus **honest-about-gaps** (F-1 statement accuracy; a gaps statement that misdescribes scope is worse than none, per the virtio "outside the checkout entirely" finding). Each dimension scored 1–5 with behavioral anchors and a `REQ-NNN` citation per cell. Rubric: `docs/design/QPB_v1.6.0_Requirements_Readability_Rubric.md`.
 
@@ -129,7 +129,7 @@ The code-path Phase A–E pipeline (`references/requirements_pipeline.md`) and t
 
 ## Out of scope (per Design §11)
 
-Interview Dimensions 2/5/8 + QI-loop closure; Feature E (B-4 first point-release candidate); mechanical F-1 enumerators; F-3 cross-run diff; SPC (v1.7.0 — docs stale, need rewrite); skill-surface routing; bug-report PR automation; Phase-6 structural enforcement.
+Interview Dimensions 2/5/8 + QI-loop closure; Feature E (B-4 first point-release candidate); mechanical F-1 enumerators; F-3 cross-run diff; SPC (**v1.8.0** — renumbered from v1.7.0 on 2026-07-20; docs stale on two counts and need a rewrite, see Design §9); skill-surface routing; bug-report PR automation; Phase-6 structural enforcement.
 
 ## Risks and mitigations
 

@@ -33,6 +33,10 @@ Score each document on each dimension, **1–5**, with a one-sentence justificat
 | **1** | Pervasive; the document cannot be relied on for this dimension |
 
 1. **Complete** — Does the requirement set cover the behavior described in the project's documentation? Name documented capabilities no requirement addresses. Highest-value dimension; weight effort here.
+
+   **Declared scope is not mitigation.** Score coverage against the documentation, absolutely. A document that openly admits it is thin earns a high score on dimension 6 and **gains nothing here** — honesty about a gap does not close the gap. "Instances" for the anchor table below means *documented capabilities with no requirement coverage*, counted regardless of whether the document acknowledges them.
+
+   *(Added 2026-07-20 after the first scored run. Without this rule the dimension does not measure: on the same express document, one panelist scored **1** and another **5**, the latter justifying it as "the doc explicitly states thin scope" — i.e. scoring the disclosure rather than the coverage. Both readings were defensible against the earlier text, which makes it a specification defect. Dimensions 1 and 6 must not be satisfiable by the same sentence.)*
 2. **Consistent** — Do any two requirements contradict? Is terminology stable (one concept never named two ways; one name never covering two concepts)?
 3. **Unambiguous** — Could two competent engineers implement different things from the same requirement? Flag vague quantifiers ("fast", "appropriate", "as needed", "properly") and undefined terms.
 4. **Verifiable** — Could a test be written that objectively passes or fails? A requirement nobody can check is not a requirement. Downstream QPB phases write real tests from these, so failures here degrade everything after Phase 2.

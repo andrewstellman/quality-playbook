@@ -2,7 +2,7 @@
 
 *Status: drafted 2026-06-06 with broad scope, revised 2026-06-07 to scope down to two focus items per operator direction, **revised 2026-06-09 to replace the proposed external scheduler with in-session `ScheduleWakeup` polling** — same primitive the v1.5.7 watcher (`ai_context/WATCHER_PROMPT.md`) has used reliably for weeks. Two earlier drafts proposed external mechanisms (Cowork's `mcp__scheduled-tasks` MCP, then a self-spawned Python sidecar daemon firing `claude --print`) and both failed against deployment constraints: the MCP is unavailable in build-agent sub-sessions and Cowork-locked anyway, the daemon's fire mechanism hit the June 15 `claude -p` deprecation. The daemon-architecture branch is preserved as `archive/1.5.9-daemon-architecture`. See `QPB_v1.5.9_Harness_Skill_Design.md` for the empirical rationale.*
 
-***Revised 2026-06-11 (operator decision): v1.5.9 is now entirely focused on the agent-based harness — implementation (Phase 1, complete as of this revision: 1A spike PASS, 1B.0 + 1B landed and Council-SHIP'd, item-11 E2E PASS) plus its STANDALONE DISTRIBUTION (Part 2 below: naming, extraction to its own repo, pip/npm packaging, Claude marketplace submissions for both plugins). The SKILL.md trim moved intact to `QPB_v1.5.10_Design.md`; the previously-in-scope ship-gate feature, B-1 through B-8 capabilities, and related design decisions (formerly numbered v1.5.10) move to `QPB_v1.5.11_Design.md`.*
+***Revised 2026-06-11 (operator decision): v1.5.9 is now entirely focused on the agent-based harness — implementation (Phase 1, complete as of this revision: 1A spike PASS, 1B.0 + 1B landed and Council-SHIP'd, item-11 E2E PASS) plus its STANDALONE DISTRIBUTION (Part 2 below: naming, extraction to its own repo, pip/npm packaging, Claude marketplace submissions for both plugins). The SKILL.md trim moved intact to `QPB_v1.5.10_Design.md`; the previously-in-scope ship-gate feature, B-1 through B-8 capabilities, and related design decisions (formerly numbered v1.5.10) move to `QPB_v1.7.0_Design.md` (renamed from `QPB_v1.5.11_Design.md` on 2026-07-20).*
 
 *Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule.*
 
@@ -16,7 +16,7 @@ v1.5.9 is **the harness release** — two sequential workstreams:
 
 2. **Standalone distribution** — extract the harness's generic core into its own downloadable artifact (own repo, own pip + npm packages) and submit both it and the Quality Playbook to the official Claude plugin directory (`anthropics/claude-plugins-official`). Rationale: the harness architecture (deterministic disk-truth state machine + idempotent tick script + prose orchestrator + `ScheduleWakeup`, no external infrastructure) is novel against the 2026 orchestration landscape and is article material — and articles need something readers can download and run. See Part 2 below.
 
-The SKILL.md trim that previously occupied workstream 2 moves intact to **v1.5.10** (`QPB_v1.5.10_Design.md`). Everything from the prior broad-scope draft — ship-gate feature, prompt-injection isolation, weak-assertion detection, bugspec emit, harness resume/iterate, combine-findings PR, adversarial review pass — moves to **v1.5.11** (`QPB_v1.5.11_Design.md`).
+The SKILL.md trim that previously occupied workstream 2 moves intact to **v1.5.10** (`QPB_v1.5.10_Design.md`). Everything from the prior broad-scope draft — ship-gate feature, prompt-injection isolation, weak-assertion detection, bugspec emit, harness resume/iterate, combine-findings PR, adversarial review pass — moves to **v1.5.11** (`QPB_v1.7.0_Design.md`, renamed from `QPB_v1.5.11_Design.md` on 2026-07-20).
 
 ---
 
@@ -110,8 +110,8 @@ Release tag follows the umbrella plan's Phase 3 after Part 2's ship gate. Counci
 To make the scoping unambiguous:
 
 - **No SKILL.md trim** — moved intact to `QPB_v1.5.10_Design.md` (2026-06-11 operator decision).
-- **No ship-gate feature work** (Part 1 of the original broad draft) — `quality_gate.py` extension for invariants, cross-artifact consistency invariants, semantic Council audit prompt, bootstrap-as-regression-test framing. All in `QPB_v1.5.11_Design.md`.
-- **No new capabilities B-1 through B-8** — prompt-injection isolation, phase-isolated security improvement loop, harness resume/iterate, bug-neighborhood iteration, adversarial fresh-context review, combine-findings PR, bugspec emit, weak-assertion detection (Marcono1234). All in `QPB_v1.5.11_Design.md`.
+- **No ship-gate feature work** (Part 1 of the original broad draft) — `quality_gate.py` extension for invariants, cross-artifact consistency invariants, semantic Council audit prompt, bootstrap-as-regression-test framing. All in `QPB_v1.7.0_Design.md` (renamed from `QPB_v1.5.11_Design.md` on 2026-07-20).
+- **No new capabilities B-1 through B-8** — prompt-injection isolation, phase-isolated security improvement loop, harness resume/iterate, bug-neighborhood iteration, adversarial fresh-context review, combine-findings PR, bugspec emit, weak-assertion detection (Marcono1234). All in `QPB_v1.7.0_Design.md` (renamed from `QPB_v1.5.11_Design.md` on 2026-07-20).
 - **No methodology lesson docs as deliverables** — carry-forward lessons from the v1.5.7/v1.5.8 arc absorbed into `ai_context/DEVELOPMENT_PROCESS.md` directly when surfaced. They don't need a separate Design.md section.
 
 ---
@@ -145,4 +145,4 @@ The three OPEN DECISIONS in Part 2 (name, repo model, first-release sequencing),
 
 ---
 
-*End of v1.5.9 Design. Umbrella implementation plan (Phase 0 + standalone distribution + release) in `QPB_v1.5.9_Implementation_Plan.md`. Harness skill detailed design in `QPB_v1.5.9_Harness_Skill_Design.md`, with its companion plan `QPB_v1.5.9_Harness_Skill_Implementation_Plan.md` (Phase 1). SKILL.md trim in `QPB_v1.5.10_Design.md`. Deferred broader scope in `QPB_v1.5.11_Design.md`.*
+*End of v1.5.9 Design. Umbrella implementation plan (Phase 0 + standalone distribution + release) in `QPB_v1.5.9_Implementation_Plan.md`. Harness skill detailed design in `QPB_v1.5.9_Harness_Skill_Design.md`, with its companion plan `QPB_v1.5.9_Harness_Skill_Implementation_Plan.md` (Phase 1). SKILL.md trim in `QPB_v1.5.10_Design.md`. Deferred broader scope in `QPB_v1.7.0_Design.md` (renamed from `QPB_v1.5.11_Design.md` on 2026-07-20).*

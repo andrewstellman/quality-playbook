@@ -1,6 +1,13 @@
-# Quality Playbook v1.7.0 — Implementation Plan
+# Quality Playbook v1.8.0 — Implementation Plan
 
-*Companion to: `QPB_v1.7.0_Design.md`*
+> **⚠ STALE — NEEDS A REWRITE BEFORE USE.** This document is out of date for two independent reasons and should not be used to plan or implement work as written:
+>
+> 1. **v1.6.0 scope has changed.** This doc describes v1.6 throughout as "the Requirements Review release" (see e.g. Phase 0's goal). v1.6.0 shipped (or is shipping) as the requirements-review release, but with a different, specific scope (Features A–D) than assumed here — see `QPB_v1.6.0_Design.md` for the actual v1.6.0 scope before relying on any v1.6-dependency claim in this document.
+> 2. **A stated dependency is unsatisfiable.** This doc's header declares a dependency on "v1.5.5" (orchestration infrastructure) and Phase 0 references "the v1.5.5 convention." **v1.5.5 was cancelled** — the 1.5.x line ended at v1.5.4 and the next release was v1.6.0. That dependency cannot be satisfied as written and needs to be re-derived against whatever actually shipped between v1.5.4 and v1.6.0.
+>
+> *(Renumbering note, added during the 2026-07-20 mechanical sweep: this document also still refers to itself as "v1.7" throughout its body text, references "v1.6.0" as its immediate predecessor branch point, and its own Phase 8 release steps reference a forward "1.8.0" branch that now collides with this document's own new v1.8.0 number — e.g. Phase 8's deliverable line still reads "main at v1.8.0; 1.8.0 branch open" after the mechanical title/companion-reference update below. That collision was left unresolved by the sweep, since untangling it requires deciding real content questions — e.g. whether this release still branches directly off v1.6.0, given the security work now occupies v1.7.0 in between, and what the correct next-branch number is — rather than a mechanical string replacement. Treat it as part of the reason for the rewrite above, not yet fixed.)*
+
+*Companion to: `QPB_v1.8.0_Design.md`*
 *Status: drafted 2026-05-03 alongside the v1.7 design. Implementation begins after v1.6.0 ships.*
 *Depends on: v1.5.5, v1.5.6, v1.6.0 all shipped; defect catalog maintained as new defects accumulate; ≥10 calibration cycles' worth of cell.json data on disk.*
 

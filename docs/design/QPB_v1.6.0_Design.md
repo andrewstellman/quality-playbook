@@ -2,7 +2,7 @@
 
 *Status: **canonical**, rewritten 2026-07-18; simplicity pass applied 2026-07-19 (Decision Record #4-6). Supersedes the 2026-05-24 "NFR discovery + FP-audit" framing of this file — which is **carried forward in full as Features A and B below**, not discarded — and closes the 2026-06-21 slot re-assessment (see Decision Record). Prior framings preserved in version-control history of this file and summarized in the Historical Appendix.*
 *Owner: Andrew Stellman. Authored: Cowork session 2026-07-18, from a two-agent dossier over the QPB repo, workspace Reviews, and chat archive, plus direct reads of the canonical docs and three generated specs.*
-*Depends on: the v1.5.10 close-out (in-flight as of this writing; last tag = v1.5.8). Companion: `QPB_v1.6.0_Implementation_Plan.md` (**stale as of this rewrite** — reflects the 2026-05-24 scope only; needs a rewrite before implementation starts).*
+*Depends on: the v1.5.10 close-out — **complete as of 2026-07-19**: `v1.5.10` tagged, merged to `main`, `1.6.0` branched from it. (v1.5.10 was deliberately **not** published to PyPI/npm; publishing resumes at 1.6.0.) Companion: `QPB_v1.6.0_Implementation_Plan.md` — **current**, rewritten 2026-07-19 and carrying 2026-07-20 corrections; read it alongside this document.*
 
 ---
 
@@ -10,7 +10,7 @@
 
 Three decisions taken by Andrew in the commissioning session for this rewrite:
 
-1. **The 2026-06-21 slot re-assessment is closed: v1.6.0 is the requirements release.** The security line stays in v1.5.11 (its design doc is written; the secmode/gen-003/gen-004 experiments are its substrate). The re-assessment banner this doc carried since 2026-06-21 is removed. `QPB_v1.6.x_Skill_Surface_Routing_Proposal.md` still carries its companion banner and should be updated to point here.
+1. **The 2026-06-21 slot re-assessment is closed: v1.6.0 is the requirements release.** The security line is **v1.7.0** (its design doc is written; the secmode/gen-003/gen-004 experiments are its substrate). *(Renumbered 2026-07-20 from v1.5.11 — operator decision; the 1.5.x line ended at 1.5.10, so a 1.5.11 point release no longer fits, and the security scope is feature-sized. SPC moved 1.7.0 → 1.8.0 to make room; see §9.)* The re-assessment banner this doc carried since 2026-06-21 is removed. `QPB_v1.6.x_Skill_Surface_Routing_Proposal.md` still carries its companion banner and should be updated to point here.
 2. **Full merge:** v1.6.0 covers NFR discovery + the FP-audit (the prior canonical scope, Features A/B) **plus** spec organization/coherence (Feature C) **plus** the requirements review/interview (Feature D). This explicitly reverses the 2026-05-24 repositioning of the Requirements Review out of v1.6.0. Rationale: the three empirical defect classes below all live in the requirements pipeline; shipping them together makes v1.6.0 one coherent story — *QPB's specs become precise, readable, and confirmed against operator intent*.
 3. **The coherence problem is grounded in operator observation across many runs** ("just read the specs, you can see they're not well organized — there are a lot in the repos/ folder"), now backed by the enumerated defects in §1.2, which were verified by direct reads of the 2026-06-19 chi/express/virtio specs.
 
@@ -63,7 +63,7 @@ Direct reads of the three 2026-06-19 benchmark runs (`repos/chi-1.5.8/quality/RE
 | ~~E~~ | ~~Curation & derivation fixes (B-4, B-5, B-6/B-7)~~ | — | **dropped 2026-07-19** (Decision Record #5) → point-release candidates, B-4 first | see §7 |
 | F | Coverage-and-gaps statement (slim) + operator-confirmed evidence | coverage/validation | this rewrite; F-1 slimmed and F-3 dropped 2026-07-19 | new, grounded |
 
-**Backlog-numbering disambiguation (required):** "B-4/B-5/B-6" in this doc always means the *v1.5.4 requirements backlog* (`Reviews/v1.5.4_backlog.md`). `QPB_v1.5.11_Design.md` independently uses B-4/B-5/B-6 for *security* work items. Any cross-doc citation must name the source doc.
+**Backlog-numbering disambiguation (required):** "B-4/B-5/B-6" in this doc always means the *v1.5.4 requirements backlog* (`Reviews/v1.5.4_backlog.md`). `QPB_v1.7.0_Design.md` (the security design; renumbered from v1.5.11 on 2026-07-20) independently uses B-4/B-5/B-6 for *security* work items. Any cross-doc citation must name the source doc.
 
 ---
 
@@ -123,10 +123,36 @@ Target shape — deliberately the shape of the Haiku benchmark (`Haiku QPB requi
 6. **Cross-cutting concerns** — Phase E.3, mandatory when >1 functional section.
 7. **Use cases** — unchanged content, cleaned render (no HTML comments — C-5).
 8. **Traceability appendix** — rendered reverse index UC→REQ, plus REQ→BUG links carrying final FP-audit dispositions. One-way REQ→UC in the manifest is unchanged; the appendix is render-time derivation, which `schemas.md` already sanctions.
+9. **Glossary / definitions** — *advisory, added 2026-07-20.* Terms of art used by the requirements, defined once. Modeled on IEEE 830 §1.3 (superseded by ISO/IEC/IEEE 29148; cited as lineage, **not** as a conformance claim), which carries a glossary because terminology drift is a top requirements-defect class — and terminology stability is exactly what the readability rubric's *Consistent* dimension scores. **WARN only, never a gate FAIL**, on the F-1 precedent: a missing glossary is a signal, not a failure.
+
+#### §5.2 ↔ enforcement traceability
+
+*Added 2026-07-20. Every part above maps to the mechanism that enforces it, or is marked judgment-only. **A part may not be added to §5.2 without adding a row here.*** This exists because prose-that-should-agree is not a binding: §5.3 enumerated six checks while §5.2 mandated eight parts, nothing connected them, and a structurally flat document passed three self-Council rounds. The glossary reproduced the drift within hours of the first fix — landing in the generation guide while this section still listed eight parts. This matrix is the same spec-versus-implementation control `QPB_v1.6.0_Requirements_Readability_Rubric.md` argues for, applied to §5.2↔§5.3.
+
+| §5.2 part | Enforced by | Severity |
+|---|---|---|
+| 1. Header / generator stamp | §5.3 check 6 (stamp == single version source) | FAIL |
+| 2. Overview | §5.3 check 3 (Overview present) | FAIL |
+| 2a. — F-1 coverage-and-gaps statement | F-1 check (non-empty gaps statement) | **WARN** (§8: never a gate FAIL) |
+| 3. Actors & roles | MP-1 (mandatory-part presence) | FAIL |
+| 4. Functional sections — singleton merge-or-justify; section intro prose | §5.3 check 3 | FAIL |
+| 4a. — requirements live inside functional sections | MP-2 | FAIL |
+| 4b. — **ordering user-facing → infrastructure** | **judgment-only** — rubric *Well-organized* | none |
+| 5. Non-functional sections | **not yet enforced** — Feature A (Track 2); render slot degrades gracefully until then | none |
+| 6. Cross-cutting concerns | §5.3 check 3 (cross-cutting present) | FAIL |
+| 7. Use cases | MP-1 | FAIL |
+| 8. Traceability appendix | MP-1 | FAIL |
+| 9. Glossary / definitions | glossary check | **WARN** (structurally incapable of FAIL; source-guarded + mutation-bitten) |
+
+Supporting checks not tied to a single part: §5.3 check 1 (REQ IDs sequential), check 2 (tool-contract split — no `quality/`-only REQ here, all in `RUN_CONTRACT.md`), check 4 (no HTML comments / derivation vocabulary), check 5 (title ≤120 chars, no terminal period), MP-3 (quoted headings are not structure).
+
+**Two rows are deliberately unenforced and should stay visible rather than be quietly closed:** 4b (section ordering) is judgment the rubric scores, and 5 (NFR sections) lands with Feature A. Anything else appearing without a mechanism is a defect in this matrix.
 
 *Why argue for user-facing→infrastructure rather than architectural layering:* the spec's first consumer is an operator deciding whether the derivation captured intent (Feature D); operators recognize user-visible behavior before internals. Architectural ordering optimizes for implementers, who read the References fields anyway. (Resolved 2026-07-19 — user-facing→infrastructure, no override flag; see §12.)
 
 ### 5.3 Render contract — mechanical checks in `quality_gate.py` (fixes C-2, C-5, C-7 and pins 5.1/5.2)
+
+> **This list is not the complete check set** *(clarified 2026-07-20)*. The six checks below cover C-2, C-5, C-7 and the 5.1/5.2 pins. They do **not** cover every mandatory part §5.2 requires: Actors & roles, Use cases, and the Traceability appendix have no check here. Implementing only this section leaves a structurally flat document passing the gate — which is exactly what happened during instruction 001, where a flat document survived three self-Council rounds before the omission was caught. The landed implementation therefore adds MP-1/MP-2/MP-3 (mandatory-part presence, requirements-live-inside-functional-sections, quoted-headings-are-not-structure) beyond the six. Treat §5.2 as the authority on *what must exist* and this section as a partial enumeration of *what is mechanically checked*. **The binding between them is the §5.2↔enforcement traceability matrix**, added 2026-07-20 — consult it rather than reconciling these two prose lists by eye, and add a row there whenever a part or a check changes.
 
 1. REQ IDs strictly sequential in document order (Phase E.6 renumber becomes enforced, not aspirational).
 2. No REQ whose References point exclusively into `quality/` (5.1).
@@ -141,7 +167,17 @@ Every check lands with the AUDIT-table invariant-test pattern (`DEVELOPMENT_PROC
 
 Phase B/C derivation and the render both enforce: a REQ states **intended behavior**; observed divergence text moves to the BUG record with a link from the traceability appendix. Mechanically, the renderer rejects conditions-of-satisfaction text matching divergence-report shapes only via Council rubric (this is judgment, not regex); the *pipeline* change is a prompt-level rule in Phase B/C plus a Phase 4 Council rubric item: "does any REQ narrate a defect rather than state a contract?"
 
-**Verification (Feature C overall).** (a) Unit: each render-contract check mutation-bitten. (b) **Regeneration fixture — the acceptance oracle:** re-render the chi, express, and virtio manifests through the new renderer; acceptance = C-1…C-7 all absent (mechanically: contract checks pass; judgment: focused Council on the three rendered docs). (c) No manifest semantic change: `requirements_manifest.json` for a fixed input is unchanged modulo the renumber map (proving Feature C is presentation-layer except where explicitly specified).
+**Verification (Feature C overall).** *(b) and (c) corrected 2026-07-20 — both previously over-claimed; see the notes.*
+
+(a) Unit: each render-contract check mutation-bitten.
+
+(b) **Coherence acceptance oracle.** Two halves, and **there is no deterministic regeneration regression test**: (i) mechanical — the render-contract checks pass on the chi, express, and virtio fixtures with C-1…C-7 absent; (ii) judgment — a scored cross-family readability Council per `QPB_v1.6.0_Requirements_Readability_Rubric.md`.
+
+> *Correction.* This previously read "re-render … through the new renderer," which presumed a deterministic renderer. **None exists and none is being built** — `REQUIREMENTS.md` is agent-authored prose following `references/`, which is QPB's premise, not a gap. The consequence must be stated rather than glossed: **the fixtures are golden files, so a regression in the reference-doc prose cannot fail the suite.** The rubric's drift-scoring is the compensating control — but it is **not yet functional as one**: it has exactly one scored run, in which one of six dimensions returned unusable scores (a four-point spread on a single cell) and had to be respecified. It needs a variance baseline before it can detect drift. Until then the honest claim is "mechanical checks pass and a Council read it," not "the coherence oracle passed."
+
+(c) **Manifest-change invariant.** For a fixed input, `requirements_manifest.json` changes **only** in the fields this Design mandates — `id` (E.6 renumber), `title` (§5.4 intent-form), `functional_section` (§5.2 merge), and `conditions_of_satisfaction` where a title rewrite displaces normative text into it. Record count, and each record's `references` list and its attachment to its own record, are preserved exactly, enforced field-by-field through a committed `renumber_map.json`.
+
+> *Correction.* This previously read "unchanged modulo the renumber map … proving Feature C is presentation-layer." That is **measurably false** — records identical modulo `id` are chi 11/16, virtio 8/17, **express 0/16** — and it contradicts §5.2 and §5.4, which mandate title and section rewrites. Feature C is presentation-layer **plus mandated title/section/CoS rewrites**; the earlier phrasing overstated the safety of the change. The formulation above is authoritative and matches the Implementation Plan Phase 1 and the enforcing test.
 
 **Dependencies.** None on A/B (render slots for NFR sections degrade gracefully to absent). Feature D consumes the new render. Touches `references/requirements_pipeline.md` (Phase E hardening), `references/phase2_generation_guide.md`, the renderer path, `quality_gate.py` — all via the diagnosis→Claude Code lane.
 
@@ -186,6 +222,24 @@ The B-4 (171-floor curation), B-5 (disposition-table degeneracy), and B-6/B-7 (r
 **Verification.** Gate validates the new evidence shape; a Feature D fixture correction round-trips into a citable record.
 **Dependencies.** Feature D; `schemas.md` extension.
 
+#### F-2a — Cross-run durability of operator confirmations *(added 2026-07-20)*
+
+**The hazard, stated plainly.** Interview corrections land in `requirements_manifest.json`. QPB re-derives that manifest on every run. With F-3 dropped, the only surviving obligation is that a re-derivation must not discard an `operator-confirmation`-backed REQ **within the same run** — across runs, nothing protects it. Concretely: an operator spends thirty minutes correcting a spec, re-runs QPB the following week, and the corrections are silently gone. That is a bad product outcome sitting inside the release's headline feature, and the Design should not ship it unremarked.
+
+**Decision (operator, 2026-07-20): persist without resolving identity.** Losing the operator's work and solving cross-run REQ identity are *different problems*, and only the first needs solving now.
+
+- **Artifact:** `quality/operator_confirmations.jsonl` — **append-only**. Derivation never rewrites it; a run that would delete or truncate it fails the gate.
+- **Each record carries** the REQ's *content* at time of confirmation (title + conditions of satisfaction, not merely an identifier), the operator's statement verbatim, an ISO date, and a citation into the preserved session transcript per F-2's transcript-as-citable-source machinery.
+- **Deliberately not keyed on REQ id.** Phase E.6 renumbers every run, so an id is meaningless across runs — this run's REQ-005 is not last run's REQ-005. Any later matching is content-based and **advisory**.
+- **Read path:** where a later run finalizes the manifest, it reads the file and reports — *"N operator-confirmed requirements from prior sessions; K appear absent from this derivation"* — quoting the operator's original words.
+- **Surface, never auto-merge.** Automatic re-application would require exactly the cross-run identity resolution this defers. The goal is to convert **silent data loss into a prompt**.
+
+**What this explicitly does not solve.** Cross-run REQ identity (RM-008's cardinality-loss problem) stays deferred with F-3, and needs its own design doc. This is the cheap 80%: the operator's work survives and is surfaced, but re-applying it is a human decision.
+
+**Verification.** A fixture run that confirms a REQ, then re-derives, must (a) still have the `.jsonl` intact and (b) report the prior confirmation. Mutation: a derivation path that truncates or overwrites the file fails the fixture.
+
+**Consequence for Feature D's build:** this changes *where the interview writes* — manifest **and** the append-only artifact — so it is in scope for the Feature D slice, not a later retrofit.
+
 ### F-3 — Re-run spec diff (**dropped from v1.6.0**, 2026-07-19)
 
 Dropped per the simplicity pass (resolves former OD-6). The problem is real — re-runs can silently drop operator-confirmed REQs — but REQ identity across runs is its own hard design problem (RM-008's cardinality-loss lesson applies) and serves neither organization nor validation directly. One narrow obligation survives into Feature D's scope: **a re-derivation must not silently discard an `operator-confirmation`-backed REQ within the same run** (the interview's write-back is durable for the run that produced it). Cross-run protection waits for its own design doc; sketch preserved in the 2026-07-18 revision (git history).
@@ -204,12 +258,14 @@ Dropped per the simplicity pass (resolves former OD-6). The problem is real — 
 - **Slice 3 — Precision core (Features A + B, core NFR classes + slice-1 rubric).** The OpenFGA re-run acceptance oracle, carried unchanged: BUG-003/006/009 cannot stand as confirmed HIGH; BUG-001/002/004 still surface.
 - **Slice 4 — Precision breadth (remaining NFR classes, full FP-audit rubric).**
 
-Post-v1.6.0 (unchanged from prior planning): interview Dimensions 2/5/8, QI-loop closure (needs calibration infra), Feature E's B-4 (first point-release candidate), mechanical F-1 hardening, cross-run spec diff, SPC (v1.7.0 — whose design docs are stale and need a rewrite; they still describe v1.6 as the Requirements Review release).
+Post-v1.6.0 (unchanged from prior planning): interview Dimensions 2/5/8, QI-loop closure (needs calibration infra), Feature E's B-4 (first point-release candidate), mechanical F-1 hardening, cross-run spec diff, SPC (**v1.8.0** — renumbered from v1.7.0 on 2026-07-20 to free that slot for the security line; its design docs are stale twice over and need a rewrite before use: they still describe v1.6 as the Requirements Review release, **and** they declare a dependency on "v1.5.5 orchestration infrastructure," a release that was cancelled — the 1.5.x line ended at 1.5.4 before jumping to 1.6.0).
+
+**Track-coupling note (Track 2 readers):** §9 calls Track 2 independent and parallelizable, which is true of its work items — but Feature A's NFR sections render into Feature C's document architecture (§5.2 item 5). Scheduling Slice 3 first is supported (the render slot is specified to degrade gracefully in both directions, Plan Phase 5), but the coupling is real and whichever track lands second runs the other's fixture suite before merging.
 
 ## 10. Success criteria
 
-1. **Coherence oracle:** chi/express/virtio manifests re-rendered through the new renderer exhibit none of C-1…C-7; all render-contract checks pass and are mutation-bitten; a focused Council on the three rendered documents returns Ship on readability.
-2. **Precision oracle (carried):** OpenFGA re-run — 003/006/009 demoted/reclassified, 001/002/004 surface, HIGH precision ≥ the bar (OD-5), advisory-only findings classified KNOWN-ISSUE.
+1. **Coherence oracle:** the chi/express/virtio fixtures exhibit none of C-1…C-7; all render-contract checks pass and are mutation-bitten; the cross-family readability Council returns Ship with no rubric dimension ≤2 on any document. *(Corrected 2026-07-20 — no deterministic re-render exists; see §5 Verification (b). This criterion is satisfied by mechanical checks plus scored judgment, not by a regression test.)*
+2. **Precision oracle (carried):** OpenFGA re-run — 003/006/009 demoted/reclassified, 001/002/004 surface, advisory-only findings classified KNOWN-ISSUE. *(Corrected 2026-07-20 — this previously read "HIGH precision ≥ the bar (OD-5)," which cannot be evaluated: OD-5's own rider states the ≥90% figure is a reporting/policy bar, not measurable at fixture sample size, where one false positive in six findings is 17%. The named-bug behavior above **is** the executable test.)*
 3. **Validation oracle:** the Feature D fixture session runs all three stages, round-trips confirm/correct/add into the manifest and a clean re-render; artifacts (defect log, transcript) gate-validated.
 4. NFR REQs derived with acceptance criteria + verification methods; gate rejects aspirational NFRs.
 5. F-1 coverage-and-gaps statement present in the Overview on every run, and exercised by interview Stage 1.

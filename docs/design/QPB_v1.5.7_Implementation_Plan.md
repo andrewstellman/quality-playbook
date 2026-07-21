@@ -38,7 +38,7 @@ Work items:
 - Read `ai_context/AI_ORCHESTRATION_PATTERNS.md` (the v1.5.6 deliverable) end-to-end. Confirm the worker-spin-up pattern that v1.5.7 will use is the canonical documented form.
 - **Resolve Design doc open questions.** Three questions in the Design's "Open questions" section need operator decisions: `<run-id>` naming format, `quality.gate-failed-<ts>/` location, cookbook file location. Operator confirms or overrides the Design's recommendations; update the Design doc with the decisions before Phase 2.
 - **Resolve Design doc conditional candidates.** Four items in the Design's "Conditional candidates from v1.5.6 close-out carry-forward" section need operator decisions: `--require-docs` opt-out, Windows path handling, Persona 19 deep work, adopter-grade orchestration-patterns doc. Operator decides which (if any) surfaced and should be committed to v1.5.7 as additional deliverables. If any commit, add new phase(s) to this Implementation Plan and renumber the integration phase.
-- **Read `docs/design/QPB_v1.7.0_Design.md` and `QPB_v1.7.0_Implementation_Plan.md` end-to-end.** Phase 4 (`metrics/` formalization) requires v1.5.7's directory tree to be consistent with v1.7's planned SPC machinery. If the v1.7 design implies a layout that conflicts with the v1.5.7 Design's `metrics/` formalization scope, fix the v1.5.7 Design doc before Phase 4 begins.
+- **Read `docs/design/QPB_v1.8.0_Design.md` (renamed from `QPB_v1.7.0_Design.md` on 2026-07-20) and `QPB_v1.8.0_Implementation_Plan.md` (renamed from `QPB_v1.7.0_Implementation_Plan.md` on 2026-07-20) end-to-end.** Phase 4 (`metrics/` formalization) requires v1.5.7's directory tree to be consistent with v1.7's planned SPC machinery. If the v1.7 design implies a layout that conflicts with the v1.5.7 Design's `metrics/` formalization scope, fix the v1.5.7 Design doc before Phase 4 begins.
 
 Deliverable: a Phase 1 confirmation note posted to chat with: SHAs verified, test suite green, working tree clean, `1.5.7` branch open, model-comparison sweep state captured (informational), `AI_ORCHESTRATION_PATTERNS.md` re-read and consistent with planned usage, open-question + conditional-candidate decisions captured, v1.7 design alignment confirmed.
 
@@ -179,7 +179,7 @@ Work items:
   2. **Missing-data handling:** include a cell roster with one corrupted `run_metadata.json`; assert reconstruction logs the corruption, skips that cell, and produces output for the others.
   3. **Backup-on-write:** run reconstruction against a directory with existing data; assert the original lands in `.backup-<ts>/`.
   4. **Sub-directory README presence:** assert each declared sub-directory has its README.
-  5. **v1.7 input shape:** parse a representative output file and assert the columns/fields match what `docs/design/QPB_v1.7.0_*.md` declares as the SPC machinery's input.
+  5. **v1.7 input shape:** parse a representative output file and assert the columns/fields match what `docs/design/QPB_v1.8.0_*.md` (renamed from `QPB_v1.7.0_*.md` on 2026-07-20) declares as the SPC machinery's input.
 - Run reconstruction against the actual cell roster (Q1 + Q2 historical data). Inspect outputs manually for sanity (counts, date ranges, recall trends).
 - Run tests; confirm pass on patched code and fail on unpatched code.
 - Worker commits in three logical commits:

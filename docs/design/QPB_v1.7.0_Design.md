@@ -1,6 +1,8 @@
-# Quality Playbook v1.5.11 — Design Document
+# Quality Playbook v1.7.0 — Design Document
 
-*Status: created 2026-06-07 as `QPB_v1.5.10_Design.md`; **renumbered to v1.5.11 on 2026-06-11** when the SKILL.md trim moved out of v1.5.9 (which refocused on the harness + its standalone distribution) into its own v1.5.10 release. Inherits the broader-scope work originally drafted as v1.5.9 (2026-06-06 Cowork session) and deferred when v1.5.9 was scoped down. The v1.5.11 work begins after v1.5.10 (SKILL.md trim) ships.*
+*Renumbered on 2026-07-20: this release (the security work) moved from v1.5.11 to v1.7.0, and the file was `git mv`'d from `QPB_v1.5.11_Design.md` accordingly (operator decision). Internal self-references below have been updated to v1.7.0; historical provenance mentions of prior names/numbers are left as-is.*
+
+*Status: created 2026-06-07 as `QPB_v1.5.10_Design.md`; **renumbered to v1.5.11 on 2026-06-11** when the SKILL.md trim moved out of v1.5.9 (which refocused on the harness + its standalone distribution) into its own v1.5.10 release. Inherits the broader-scope work originally drafted as v1.5.9 (2026-06-06 Cowork session) and deferred when v1.5.9 was scoped down. The v1.7.0 work begins after v1.5.10 (SKILL.md trim) ships.*
 
 *Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule.*
 
@@ -8,14 +10,14 @@
 
 ## Clean starting point inherited from v1.5.10 (2026-06-18)
 
-v1.5.10 was expanded (operator decision) from a SKILL.md trim into a **repo-hygiene release** specifically so that v1.5.11 — the security work — starts from a clean, sensibly-organized repo. By the time v1.5.11 begins, v1.5.10 has delivered:
+v1.5.10 was expanded (operator decision) from a SKILL.md trim into a **repo-hygiene release** specifically so that v1.7.0 — the security work — starts from a clean, sensibly-organized repo. By the time v1.7.0 begins, v1.5.10 has delivered:
 
 - A trimmed canonical `SKILL.md` (~12K tokens) with per-phase detail in lazy-loaded `references/*.md`, and a reference-resolves validator.
 - The canonical `SKILL.md` + `references/` **relocated to the repo root** (real file at root; in-tree skill locations are symlinks), with the install-location fallback contract, packaging, and tests rewired to match.
 - Committed run-output and orphaned partial copies (`quality/previous_runs/`, top-level `previous_runs/`, `spike/`, the orphaned `.github/skills/quality_gate/`) removed from tracking and gitignored.
 - An arunner regression run confirming the trimmed/relocated skill still works end-to-end.
 
-Security-relevant implication: the v1.5.11 prompt-injection-isolation work (B-1) and the phase-isolated security improvement loop (B-2) build on the relocated root layout and the cleaned `references/` tree. Any path assumptions in the B-items below that referenced `plugins/quality-playbook/skills/quality-playbook/SKILL.md` should be re-read against the v1.5.10 root layout before implementation. See `QPB_v1.5.10_Design.md`.
+Security-relevant implication: the v1.7.0 prompt-injection-isolation work (B-1) and the phase-isolated security improvement loop (B-2) build on the relocated root layout and the cleaned `references/` tree. Any path assumptions in the B-items below that referenced `plugins/quality-playbook/skills/quality-playbook/SKILL.md` should be re-read against the v1.5.10 root layout before implementation. See `QPB_v1.5.10_Design.md`.
 
 **Note on B-2 / B-5 vs. the 2026-06 security experiments (corrected 2026-06-20 against the gen-003 artifacts + the end-of-thread Council retraction).** The gen-003 experiments found the adversarial-LLM clearing pass (B-5 as originally drafted) **unreliable**. They did **NOT** establish that "the deterministic tool-belt approach is reliable" — that earlier summary overstated the evidence. What the artifacts actually support:
 
@@ -27,9 +29,9 @@ Security-relevant implication: the v1.5.11 prompt-injection-isolation work (B-1)
 
 ---
 
-## Where v1.5.11 sits in the arc
+## Where v1.7.0 sits in the arc
 
-v1.5.11 picks up everything that the original v1.5.9 broad-scope draft contained, minus the two items that v1.5.9 actually ships:
+v1.7.0 picks up everything that the original v1.5.9 broad-scope draft contained, minus the two items that v1.5.9 actually ships:
 
 - Ship-gate feature (skill validation invariants, cross-artifact consistency, semantic Council audit, bootstrap-as-regression-test)
 - B-1: Prompt-injection isolation for ingested `reference_docs/`
@@ -41,7 +43,7 @@ v1.5.11 picks up everything that the original v1.5.9 broad-scope draft contained
 - B-7: QPB Phase 7 emits bugspec-format YAML for each TDD-verified bug
 - B-8: Weak-assertion / "passes for the wrong reasons" detection on QPB-generated tests (from Marcono1234's PR #3035 feedback)
 
-These items are independent of each other; v1.5.11's implementation plan picks per-item priorities based on what's empirically most blocking after v1.5.9 ships.
+These items are independent of each other; v1.7.0's implementation plan picks per-item priorities based on what's empirically most blocking after v1.5.9 ships.
 
 ---
 
@@ -53,7 +55,7 @@ Mechanical validators that block release if a skill artifact fails. Three comple
 
 New invariants the gate enforces on every commit:
 
-- `references/X.md` references in `SKILL.md` resolve to existing files (carried forward from v1.5.9 Phase 2D — make sure v1.5.11 doesn't regress it)
+- `references/X.md` references in `SKILL.md` resolve to existing files (carried forward from v1.5.9 Phase 2D — make sure v1.7.0 doesn't regress it)
 - Version-string parity across `pyproject.toml`, `package.json`, `quality_playbook_cli/__init__.py`, and the version stamp inside `SKILL.md` frontmatter
 - No new-source-file additions outside expected directories (catches accidental `quality/` or `previous_runs/` commits)
 - No `print()` calls to stdout in `bin/` scripts that are consumed by JSON-parsing tools (carries the 203 prepack-stdout-pollution defect forward as a gate invariant)
@@ -99,7 +101,7 @@ Pick before implementing 1.1-1.3. Default recommendation: extend `quality_gate.p
 
 ### 2.1 B-1: Prompt-injection isolation for ingested `reference_docs/`
 
-When QPB ingests adopter-provided docs (issue trackers, Slack exports, etc.), those documents can carry adversarial content that would steer the agent's behavior. v1.5.11 adds:
+When QPB ingests adopter-provided docs (issue trackers, Slack exports, etc.), those documents can carry adversarial content that would steer the agent's behavior. v1.7.0 adds:
 
 - Phase 1 sanitization pass: strip executable markdown (code blocks that look like CLI invocations), explicit prompt-injection patterns ("ignore previous instructions"), and structured roleplay attempts
 - Reference doc isolation: any Tier 4 content is loaded into a clearly-labeled context block that the agent is instructed to treat as "data about what the codebase should do," not as instructions to follow
@@ -107,7 +109,7 @@ When QPB ingests adopter-provided docs (issue trackers, Slack exports, etc.), th
 
 ### 2.2 B-2: Phase-isolated improvement loop for security-bug targeting
 
-The current improvement loop adjusts whole-pipeline behavior. Security-bug-specific tuning often needs to adjust just one phase (e.g., Phase 3 review patterns for SQL injection) without touching Phase 4 audit weight. v1.5.11 adds:
+The current improvement loop adjusts whole-pipeline behavior. Security-bug-specific tuning often needs to adjust just one phase (e.g., Phase 3 review patterns for SQL injection) without touching Phase 4 audit weight. v1.7.0 adds:
 
 - `--phase-only N` flag to the improvement loop driver
 - Per-phase improvement artifacts stored in `quality/improvement/phase_N/`
@@ -115,21 +117,21 @@ The current improvement loop adjusts whole-pipeline behavior. Security-bug-speci
 
 ### 2.3 B-3: Harness — resume an aborted/blocked run, or iterate on a completed run
 
-Under v1.5.9's harness-as-skill substrate (tick-based on-disk state), resume is conceptually trivial — every tick is a resume. v1.5.11 formalizes:
+Under v1.5.9's harness-as-skill substrate (tick-based on-disk state), resume is conceptually trivial — every tick is a resume. v1.7.0 formalizes:
 
 - Explicit `qpb-harness resume <ts>` semantics for "pick up an aborted run" (not just "continue the next tick")
 - `qpb-harness iterate <ts> --strategy <name>` for "run a follow-up cycle against the same target with adjusted parameters" (e.g., re-run Phase 4 with different reviewer composition)
 
 ### 2.4 B-4: Bug-neighborhood iteration strategy
 
-When the first run finds a bug in `auth.go`, the iteration cycle should preferentially look for sibling bugs in `auth.go`'s neighborhood (same module, called-by chain, same pattern). v1.5.11 adds:
+When the first run finds a bug in `auth.go`, the iteration cycle should preferentially look for sibling bugs in `auth.go`'s neighborhood (same module, called-by chain, same pattern). v1.7.0 adds:
 
 - Neighborhood definition: same module, importing modules, modules with shared call-graph depth ≤ 2
 - Iteration cycle: a follow-up Phase 3 review constrained to the neighborhood of the previously-found bug, with Phase 4 audit weighted toward this neighborhood
 
 ### 2.5 B-5: Adversarial code review pass (independent fresh-context strategy)
 
-Current adversarial iteration runs in the same context as the original review. A fresh-context adversary that reads ONLY the BUGS.md candidates + spec — not the codebase or prior context — provides a different lens. v1.5.11 adds:
+Current adversarial iteration runs in the same context as the original review. A fresh-context adversary that reads ONLY the BUGS.md candidates + spec — not the codebase or prior context — provides a different lens. v1.7.0 adds:
 
 - New iteration strategy `adversarial-fresh`
 - Strategy spawns a fresh Claude/codex/copilot subagent with no exposure to the original review's reasoning
@@ -138,7 +140,7 @@ Current adversarial iteration runs in the same context as the original review. A
 
 ### 2.6 B-6: Combine related findings into a single coherent PR
 
-When QPB finds 5 bugs in `auth.go`, the operator wants ONE PR with all 5 fixes, not 5 separate PRs. v1.5.11 adds:
+When QPB finds 5 bugs in `auth.go`, the operator wants ONE PR with all 5 fixes, not 5 separate PRs. v1.7.0 adds:
 
 - Per-PR clustering: group bugs by file proximity + topic + fix locality
 - Coherent commit message generation that explains the cluster's theme
@@ -263,11 +265,11 @@ After Phase 3's TDD verification confirms red→green, before Phase 5's reconcil
 
 #### Connection to bugspec v0.3.3+
 
-Bugspec inherits this defect class (it ships TDD tests with reproducible bug fixes). v0.3.3+ should adopt Layer 1 + Layer 2 statically. Coordination with bugspec maintainers as part of v1.5.11 design discussion.
+Bugspec inherits this defect class (it ships TDD tests with reproducible bug fixes). v0.3.3+ should adopt Layer 1 + Layer 2 statically. Coordination with bugspec maintainers as part of v1.7.0 design discussion.
 
 #### Empirical validation already exists
 
-The gson #3035 issue is the canonical positive example: pre-203's test passed for the wrong reason; Marcono1234 caught it; we tightened the test. The v1.5.11 work is a permanent automated check for this defect class so the next QPB-generated test doesn't ship with the same shape.
+The gson #3035 issue is the canonical positive example: pre-203's test passed for the wrong reason; Marcono1234 caught it; we tightened the test. The v1.7.0 work is a permanent automated check for this defect class so the next QPB-generated test doesn't ship with the same shape.
 
 ---
 
@@ -348,7 +350,7 @@ When a bug writeup or fix description references mirroring, matching, or using t
 
 Run BOTH the reference pattern AND the patch on each input. Flag any disagreement with both behaviors named in the report.
 
-Level 3 is the strongest and most practical for v1.5.11. Levels 1 and 2 are weaker fallbacks for when boundary-input generation is infeasible.
+Level 3 is the strongest and most practical for v1.7.0. Levels 1 and 2 are weaker fallbacks for when boundary-input generation is infeasible.
 
 #### Empirical validation: BUG-005
 
@@ -386,7 +388,7 @@ The four capabilities (B-7 / B-8 / B-9 / B-10) form complementary gates before u
 #### Open questions for design phase
 
 1. **AST parsing infrastructure**: which languages does B-10 target initially? Java (gson is a primary QPB benchmark) and Python (most QPB targets) are highest-priority. Other languages added as benchmark targets demand.
-2. **Adversarial input generation strategy**: hand-curated boundary sets per type/operation, OR property-based generation (Hypothesis-style), OR LLM-driven adversarial generation. Different cost/effectiveness trade-offs; default for v1.5.11 implementation likely starts with hand-curated boundary sets for common types and grows.
+2. **Adversarial input generation strategy**: hand-curated boundary sets per type/operation, OR property-based generation (Hypothesis-style), OR LLM-driven adversarial generation. Different cost/effectiveness trade-offs; default for v1.7.0 implementation likely starts with hand-curated boundary sets for common types and grows.
 3. **Reference site detection**: how does B-10 know which sites the patch claims to mirror? Explicit `file:line` citations in the writeup are the cleanest; free-prose phrases like "mirrors X" need extraction. Force writeup-format to include explicit citations? OR LLM-extract the references? Both have failure modes.
 4. **What counts as "divergence"?**: should B-10 flag ALL behavioral differences, or only differences that would matter for the bug's input domain? The 2^53 case in BUG-005 might be intentional (operator wants stronger contract) — needs operator-decidable surface, not auto-reject.
 
@@ -396,21 +398,21 @@ The four capabilities (B-7 / B-8 / B-9 / B-10) form complementary gates before u
 - Not a proof of equivalence. B-10 surfaces detected divergence on specific boundary inputs. Cases where reference and patch agree on ALL chosen inputs but might still differ on un-tested inputs are possible. The boundary-input set is the protocol's contract.
 - Not a substitute for B-8 or B-9. A patch that passes B-10 (semantics match claim) can still fail B-8 (test passes for wrong reason) or B-9 (fix not worth shipping). All four gates apply independently.
 
-## Part 3 — Design decisions to make before v1.5.11 implementation
+## Part 3 — Design decisions to make before v1.7.0 implementation
 
 ### 3.1 Architectural choice for Part 1 (see §1.5 table)
 
 `quality_gate.py` extension vs `bin/skill_gate.py` separate module vs external validator. Pick before §1.1-1.3 implementation begins.
 
-### 3.2 Scope — which of Part 2 lands in v1.5.11 vs deferred further
+### 3.2 Scope — which of Part 2 lands in v1.7.0 vs deferred further
 
-10 capabilities (B-1 through B-10). Some are user-blocking (B-1 prompt-injection isolation is a security concern; B-8 weak-assertion blocks shipping flaky QPB tests; B-9 fix-worth-shipping evaluation prevents wasted upstream-maintainer review time; B-10 claim-vs-implementation consistency prevents semantically-wrong upstream submissions). Some are nice-to-have (B-4 bug-neighborhood iteration is a quality-of-life improvement). v1.5.11 implementation should pick a subset based on:
+10 capabilities (B-1 through B-10). Some are user-blocking (B-1 prompt-injection isolation is a security concern; B-8 weak-assertion blocks shipping flaky QPB tests; B-9 fix-worth-shipping evaluation prevents wasted upstream-maintainer review time; B-10 claim-vs-implementation consistency prevents semantically-wrong upstream submissions). Some are nice-to-have (B-4 bug-neighborhood iteration is a quality-of-life improvement). v1.7.0 implementation should pick a subset based on:
 
 - Empirical evidence from v1.5.9 release runs (what bit adopters?)
 - Coordination availability with external maintainers (B-8 ties to bugspec; B-7 ties to bug-PR automation downstream; B-9 ties into B-7's emit filter; B-10 ties into B-7/B-9 as a complementary gate)
 - Token-cost budget (adding 10 capabilities at once is a large context expansion in SKILL.md, which v1.5.9 just trimmed)
 
-Default recommendation: prioritize B-1 (security) + B-8 (test quality) + B-9 (fix-worth-shipping evaluation) + B-10 (claim-vs-implementation consistency) for v1.5.11. Defer B-2 / B-4 / B-5 to v1.5.11 unless surfacing demand. B-9 and B-10 are both new (added 2026-06-08 — B-9 after the gson PR #3036 closure; B-10 after the BUG-005 fix-claim review of gson run `20260604T220125Z`). All four default-set capabilities (B-1 / B-8 / B-9 / B-10) are complementary gates that share a B-7-emit-pipeline integration; they should land together for coherent v1.5.11 scope.
+Default recommendation: prioritize B-1 (security) + B-8 (test quality) + B-9 (fix-worth-shipping evaluation) + B-10 (claim-vs-implementation consistency) for v1.7.0. Defer B-2 / B-4 / B-5 to v1.7.0 unless surfacing demand. B-9 and B-10 are both new (added 2026-06-08 — B-9 after the gson PR #3036 closure; B-10 after the BUG-005 fix-claim review of gson run `20260604T220125Z`). All four default-set capabilities (B-1 / B-8 / B-9 / B-10) are complementary gates that share a B-7-emit-pipeline integration; they should land together for coherent v1.7.0 scope.
 
 ### 3.3 Voice / opinionation level for the §1.3 semantic Council prompt
 
@@ -418,7 +420,7 @@ The Council audit prompt has to declare what "coherent skill" means. Subjective 
 
 ### 3.4 Scope — QPB-only vs every-adopter-skill validator
 
-Part 1 ship-gate validators could remain QPB-specific (only `quality_gate.py` validates) OR become a reusable skill-validation library that other adopter skills can pull in. v1.5.11 should pick.
+Part 1 ship-gate validators could remain QPB-specific (only `quality_gate.py` validates) OR become a reusable skill-validation library that other adopter skills can pull in. v1.7.0 should pick.
 
 ---
 
@@ -426,14 +428,14 @@ Part 1 ship-gate validators could remain QPB-specific (only `quality_gate.py` va
 
 Lessons surfaced during v1.5.7 / v1.5.8 development that should be absorbed into `ai_context/DEVELOPMENT_PROCESS.md` before they fade:
 
-- **Defensive-sweep Council charter** (origin: 207) — absorbed during v1.5.8 close-out. No v1.5.11 action needed.
-- **Release close-out sequence** (origin: 2026-06-07) — absorbed during v1.5.8 close-out. No v1.5.11 action needed.
-- **Patch-authoring discipline** (origin: 2026-06-06 gson PR cascade) — verify it's documented in DEVELOPMENT_PROCESS.md; if not, file a v1.5.11 micro-instruction to add it.
+- **Defensive-sweep Council charter** (origin: 207) — absorbed during v1.5.8 close-out. No v1.7.0 action needed.
+- **Release close-out sequence** (origin: 2026-06-07) — absorbed during v1.5.8 close-out. No v1.7.0 action needed.
+- **Patch-authoring discipline** (origin: 2026-06-06 gson PR cascade) — verify it's documented in DEVELOPMENT_PROCESS.md; if not, file a v1.7.0 micro-instruction to add it.
 - **Multi-step shell discipline** (origin: 2026-06-06 gson recovery script failures) — same verification.
 - **Velocity-pressure self-imposed deadline pattern** (origin: 2026-06-06 cross-chat audit) — same verification.
 
-These are documentation actions, not feature work. v1.5.11 should sweep them early so the actual feature work isn't entangled with methodology corrections.
+These are documentation actions, not feature work. v1.7.0 should sweep them early so the actual feature work isn't entangled with methodology corrections.
 
 ---
 
-*End of v1.5.11 Design. Implementation plan in `QPB_v1.5.11_Implementation_Plan.md`. Predecessor scope in `QPB_v1.5.9_Design.md`.*
+*End of v1.7.0 Design. Implementation plan in `QPB_v1.7.0_Implementation_Plan.md`. Predecessor scope in `QPB_v1.5.9_Design.md`.*

@@ -1,6 +1,8 @@
-# Quality Playbook v1.5.11 — Implementation Plan
+# Quality Playbook v1.7.0 — Implementation Plan
 
-*Companion to: `QPB_v1.5.11_Design.md`*
+*Companion to: `QPB_v1.7.0_Design.md`*
+
+*Renumbered on 2026-07-20: this release (the security work) moved from v1.5.11 to v1.7.0, and the file was `git mv`'d from `QPB_v1.5.11_Implementation_Plan.md` accordingly (operator decision). Internal self-references below have been updated to v1.7.0; historical provenance mentions of prior names/numbers are left as-is.*
 
 *Status: created 2026-06-07 as `QPB_v1.5.10_Implementation_Plan.md`; **renumbered to v1.5.11 on 2026-06-11** (the SKILL.md trim became its own v1.5.10 release when v1.5.9 refocused on the harness + standalone distribution). Inherits the broader-scope phases originally drafted as v1.5.9, deferred when v1.5.9 was scoped down. Implementation begins after v1.5.10 ships.*
 
@@ -10,7 +12,7 @@
 
 ## Operating Principles
 
-- **v1.5.11 picks per-item priorities** at implementation start based on what's empirically most blocking after v1.5.9 ships. The design enumerates 1 ship-gate feature + 8 capabilities (B-1 through B-8); v1.5.11 likely won't implement all of them. Default subset: ship-gate Part 1 + B-1 + B-8.
+- **v1.7.0 picks per-item priorities** at implementation start based on what's empirically most blocking after v1.5.9 ships. The design enumerates 1 ship-gate feature + 8 capabilities (B-1 through B-8); v1.7.0 likely won't implement all of them. Default subset: ship-gate Part 1 + B-1 + B-8.
 - **Worker-lane edits** for all source changes. Cowork files instructions; worker implements; Council reviews.
 - **Per-capability sub-phasing.** Each B-N capability has its own implementation sub-phase + Council review. Skip-able if the capability is deferred.
 
@@ -18,7 +20,7 @@
 
 ## Phase 0 — v1.5.9 Stabilization Confirmation
 
-Before any v1.5.11 work begins, confirm v1.5.9 has fully shipped:
+Before any v1.7.0 work begins, confirm v1.5.9 has fully shipped:
 
 - `v1.5.9` tag on origin
 - `1.5.9` branch merged to `main`
@@ -26,7 +28,7 @@ Before any v1.5.11 work begins, confirm v1.5.9 has fully shipped:
 - Harness-as-skill MVP validated and `bin/harness/` Python code deleted (or marked for deletion)
 - SKILL.md trim complete; token-ceiling test ratcheted to the post-trim size
 
-**Worker instruction at start of v1.5.11:** `cd ~/Documents/QPB && git checkout main && git pull && git checkout -b 1.5.10 && git push -u origin 1.5.10`.
+**Worker instruction at start of v1.7.0:** `cd ~/Documents/QPB && git checkout main && git pull && git checkout -b 1.5.10 && git push -u origin 1.5.10`.
 
 ---
 
@@ -58,7 +60,7 @@ Implement the across-file invariants.
 
 ### Phase 2D — Semantic Council audit prompt (Design § 1.3)
 
-Author the audit prompt. Run it against the v1.5.11 trimmed SKILL.md as the first empirical test of the prompt's signal-to-noise.
+Author the audit prompt. Run it against the v1.7.0 trimmed SKILL.md as the first empirical test of the prompt's signal-to-noise.
 
 ### Phase 2E — Bootstrap-as-regression-test framing (Design § 1.4)
 
@@ -247,7 +249,7 @@ If B-10 doesn't surface this divergence with the BUG-005 patch, the boundary inp
 
 ## Phase 7 — Remaining B-N capabilities (deferrable)
 
-These are documented in Design § 2.1-2.7. Each has its own sub-phase if implemented, or moves to v1.5.11.
+These are documented in Design § 2.1-2.7. Each has its own sub-phase if implemented, or moves to v1.7.0.
 
 - B-2: Phase-isolated improvement loop for security-bug targeting (Design § 2.2)
 - B-3: Harness resume/iterate semantics (Design § 2.3)
@@ -258,7 +260,7 @@ These are documented in Design § 2.1-2.7. Each has its own sub-phase if impleme
   - **Target-project conformance** (Design § 2.7 sub-constraint): a 7-dimension conformance pipeline (A no-tool-promo content, B no-new-directories, C integrate-into-existing-test-class, D match-target-test-style, E match-naming, F match-license-header, G test-scope-mirrors-fix-scope). Each dimension is a separable stripper / detector / generator with its own regression test. Born from gson PR #3035's 7 cleanup categories.
   - **Mutation verification before SHIP-WORTHY classification** (Design § 2.7 sub-constraint): every TDD-verified test runs a revert→run→restore→run cycle in a temp worktree; tests that don't fail on the unfix'd target get demoted to LOCAL-FIX-WORTHY. Complementary to B-8 (which catches assertion-quality issues); this gate catches any reason a test would pass without the fix. Logged to `quality/mutation_verification.json`.
 
-Operator decides at Phase 7 entry which to land in v1.5.11. Default: defer all to v1.5.11 unless one becomes blocking.
+Operator decides at Phase 7 entry which to land in v1.7.0. Default: defer all to v1.7.0 unless one becomes blocking.
 
 ---
 
@@ -283,21 +285,21 @@ Phase 0 (v1.5.9 stabilization) ──→ Phase 1 (methodology absorption) ─┐
                                                                      ↓
 Phase 2 (ship-gate) ─────┐
 Phase 3 (B-1) ───────────┤
-Phase 4 (B-8) ───────────┼──→ Phase 8 (release ship) ──→ v1.5.11 tag
+Phase 4 (B-8) ───────────┼──→ Phase 8 (release ship) ──→ v1.7.0 tag
 Phase 5 (B-9) ───────────┤
 Phase 6 (B-10) ──────────┘
-(Phase 7 capabilities B-2..B-7 — operator's pick; may all defer to v1.5.11)
+(Phase 7 capabilities B-2..B-7 — operator's pick; may all defer to v1.7.0)
 ```
 
-Phases 2-6 are implementation-parallelizable. Runtime ordering at QPB execution time: B-8 → B-9 → B-10 → B-7 emit. Phase 5 (B-9) and Phase 6 (B-10) integrate with B-7's bugspec emit; if both land in v1.5.11, sequence Phases 5+6 before any Phase 7 work that depends on B-7.
+Phases 2-6 are implementation-parallelizable. Runtime ordering at QPB execution time: B-8 → B-9 → B-10 → B-7 emit. Phase 5 (B-9) and Phase 6 (B-10) integrate with B-7's bugspec emit; if both land in v1.7.0, sequence Phases 5+6 before any Phase 7 work that depends on B-7.
 
 ---
 
 ## Council coordination notes
 
 - Per-capability Council reviews use Self-Council Protocol 1
-- The §1.3 semantic Council audit prompt becomes a NEW Council variant; first empirical use is on v1.5.11's own work
-- Defensive-sweep charter from 207 applies to all content-fix sub-instructions during v1.5.11
+- The §1.3 semantic Council audit prompt becomes a NEW Council variant; first empirical use is on v1.7.0's own work
+- Defensive-sweep charter from 207 applies to all content-fix sub-instructions during v1.7.0
 
 ---
 
@@ -331,4 +333,4 @@ Phases 2-6 are implementation-parallelizable. Runtime ordering at QPB execution 
 
 ---
 
-*End of v1.5.11 Implementation Plan. Design in `QPB_v1.5.11_Design.md`. Predecessor scope in `QPB_v1.5.9_Design.md` + `QPB_v1.5.9_Implementation_Plan.md`.*
+*End of v1.7.0 Implementation Plan. Design in `QPB_v1.7.0_Design.md`. Predecessor scope in `QPB_v1.5.9_Design.md` + `QPB_v1.5.9_Implementation_Plan.md`.*

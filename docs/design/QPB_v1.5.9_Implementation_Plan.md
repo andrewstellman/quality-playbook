@@ -156,4 +156,4 @@ Phase 1 is complete (2026-06-11). Phase 2 is gated on the 2A operator decisions;
 
 ---
 
-*End of v1.5.9 umbrella Implementation Plan. Harness implementation detail in `QPB_v1.5.9_Harness_Skill_Implementation_Plan.md`. Design in `QPB_v1.5.9_Design.md`. Harness sub-design in `QPB_v1.5.9_Harness_Skill_Design.md`. SKILL.md trim in `QPB_v1.5.10_Design.md` + `QPB_v1.5.10_Implementation_Plan.md`. Deferred broader scope in `QPB_v1.5.11_Design.md` + `QPB_v1.5.11_Implementation_Plan.md`.*
+*End of v1.5.9 umbrella Implementation Plan. Harness implementation detail in `QPB_v1.5.9_Harness_Skill_Implementation_Plan.md`. Design in `QPB_v1.5.9_Design.md`. Harness sub-design in `QPB_v1.5.9_Harness_Skill_Design.md`. SKILL.md trim in `QPB_v1.5.10_Design.md` + `QPB_v1.5.10_Implementation_Plan.md`. Deferred broader scope in `QPB_v1.7.0_Design.md` + `QPB_v1.7.0_Implementation_Plan.md` (renamed from `QPB_v1.5.11_Design.md` + `QPB_v1.5.11_Implementation_Plan.md` on 2026-07-20).*
