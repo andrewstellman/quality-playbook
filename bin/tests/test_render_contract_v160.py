@@ -1123,7 +1123,12 @@ class GlossarySlotTests(RenderContractBase):
             encoding="utf-8", errors="replace"
         )
         start = source.index("# -- Glossary / definitions (advisory, WARN only)")
-        end = source.index("def check_repo(", start)
+        # End at the NEXT def after the glossary block, not at check_repo:
+        # other conditional checks (operator-confirmations, requirements-
+        # review) were later added between the glossary block and check_repo,
+        # and they legitimately have fail() paths. This test guards the
+        # glossary check alone.
+        end = source.index("\ndef ", start)
         # Strip comment lines before asserting: the block's own commentary
         # says it has "no fail() path", which would match the very pattern
         # this test forbids.

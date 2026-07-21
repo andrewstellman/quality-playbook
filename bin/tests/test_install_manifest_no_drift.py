@@ -97,8 +97,11 @@ class InstallClosureNoDriftTests(unittest.TestCase):
         # +references/phase7_guide.md, +references/phase5_reconciliation_guide.md,
         # +references/artifact_contract.md — sections extracted from SKILL.md to
         # lazy-loaded references; more may follow as the trim proceeds).
+        # v1.6.0 003 (Feature D supersession): 63 → 62 (−requirements_review.md,
+        # −requirements_refinement.md, +requirements_interview.md — the
+        # validation interview replaces the review/refinement walkthrough).
         from bin.qpb_validate import INSTALL_CLOSURE
-        self.assertEqual(len(INSTALL_CLOSURE), 63)
+        self.assertEqual(len(INSTALL_CLOSURE), 62)
         paths = [e["path"] for e in INSTALL_CLOSURE]
         self.assertEqual(len(paths), len(set(paths)),
                          "duplicate path in INSTALL_CLOSURE")

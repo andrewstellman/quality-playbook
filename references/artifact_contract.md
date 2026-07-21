@@ -17,6 +17,9 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 | Quality constitution | `quality/QUALITY.md` | Yes | Phase 2 |
 | Requirements (UC identifiers) | `quality/REQUIREMENTS.md` | Yes | Phase 2 |
 | Run contract (tool invariants) | `quality/RUN_CONTRACT.md` | If tool-contract REQs exist | Phase 2 |
+| Requirements review (defect log) | `quality/REQUIREMENTS_REVIEW.md` | If a validation interview ran | Feature D interview |
+| Operator confirmations (durability) | `quality/operator_confirmations.jsonl` | If a validation interview ran | Feature D interview |
+| Interview transcript | `quality/review_sessions/<TS>-<topic>.md` | If interview + operator save-gate | Feature D interview |
 | Behavioral contracts | `quality/CONTRACTS.md` | Yes | Phase 2 |
 | Functional tests | `quality/test_functional.*` | Yes | Phase 2 |
 | Regression tests | `quality/test_regression.*` | If bugs found | Phase 3 |

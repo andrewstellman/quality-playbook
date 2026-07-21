@@ -507,7 +507,7 @@ For each category, check whether the requirements contain specific conditions co
 
 **Carry-forward rule:** When a prior run's REQUIREMENTS.md exists in the quality directory, the pipeline must read it and check whether any conditions from the prior version were dropped. If conditions were dropped, the pipeline must either: (a) re-derive them with updated justification, or (b) document why the condition is no longer relevant. Silent drops are not permitted — they are a direct cause of regressions where previously learned requirements are lost between runs.
 
-**After the pipeline:** Phase 7 can generate `quality/REVIEW_REQUIREMENTS.md` (interactive review protocol) and `quality/REFINE_REQUIREMENTS.md` (refinement pass protocol). These are not Phase 2 artifacts — they support the Phase 7 interactive improvement paths. The user can review requirements interactively, run refinement passes with different models, and keep versioned backups of each iteration. See `references/requirements_pipeline.md` for the full versioning protocol and backup structure.
+**After the pipeline:** Phase 7 offers the requirements validation interview (`references/requirements_interview.md`) — not a Phase 2 artifact, and never auto-started. The user validates the requirements against their intent; corrections write to the manifest and re-render, confirmations persist in the append-only `quality/operator_confirmations.jsonl`, and the defect log lands in `quality/REQUIREMENTS_REVIEW.md`. (v1.6.0 superseded the separate `REVIEW_REQUIREMENTS.md` / `REFINE_REQUIREMENTS.md` walkthrough.)
 
 Record all requirements in a structured format. These feed directly into the code review protocol's verification and consistency passes.
 

@@ -1676,6 +1676,113 @@ def append_event(jsonl_path: Path, event_obj: dict) -> None:
         handle.write(line + "\n")
 
 
+# --- v1.6.0 Feature D / F-2a: operator_confirmations.jsonl -------------------
+#
+# The append-only durability log for the requirements validation interview.
+# Schema: schemas.md §9.5. Hazard/rationale: Design §8 F-2a. This is the ONLY
+# sanctioned writer, and it can ONLY append — there is deliberately no
+# truncate/rewrite path in this module, because the whole point of F-2a is that
+# a later run cannot destroy the operator's work. The gate enforces monotonic
+# growth against the archived prior state; this helper enforces framing.
+
+_CONFIRMATION_REQUIRED_FIELDS = (
+    "ts",
+    "move",
+    "req_title",
+    "conditions_of_satisfaction",
+    "operator_statement",
+    "session_id",
+)
+_CONFIRMATION_MOVES = ("confirm", "correct", "add", "drop", "defer")
+
+
+def append_confirmation(jsonl_path: Path, record: dict) -> None:
+    """Append one operator-confirmation record as a single JSON line.
+
+    Append-only by construction: this opens the file in ``"a"`` mode and
+    never truncates. Modelled on :func:`append_event`; validates the F-2a
+    record shape (schemas.md §9.5.1) and the one-object-per-line framing.
+
+    Raises:
+        ValueError: ``record`` is not a dict, is missing a required field,
+            carries a non-string required field, or has a ``move`` outside
+            the five interview moves.
+    """
+    if not isinstance(record, dict):
+        raise ValueError("record must be a dict")
+    for required in _CONFIRMATION_REQUIRED_FIELDS:
+        if required not in record:
+            raise ValueError(f"record missing required field {required!r}")
+        if not isinstance(record[required], str):
+            raise ValueError(f"record[{required!r}] must be a string")
+    if record["move"] not in _CONFIRMATION_MOVES:
+        raise ValueError(
+            f"record['move']={record['move']!r} is not one of "
+            f"{_CONFIRMATION_MOVES}"
+        )
+    line = json.dumps(record, sort_keys=False, separators=(",", ":"))
+    if "\n" in line:
+        raise ValueError(
+            "encoded confirmation line contains a literal newline; refusing "
+            "to corrupt JSONL framing"
+        )
+    jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+    with jsonl_path.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+
+
+def read_confirmations(jsonl_path: Path) -> list[dict]:
+    """Read ``operator_confirmations.jsonl`` and return records in file order.
+
+    Returns an empty list when the file is absent — an absent file is not an
+    error, it just means no interview has run. Blank lines are skipped
+    defensively; a malformed JSON line raises, because a corrupt durability
+    log is a real problem the operator should hear about.
+    """
+    if not jsonl_path.is_file():
+        return []
+    out: list[dict] = []
+    text = jsonl_path.read_text(encoding="utf-8", errors="replace")
+    for lineno, raw in enumerate(text.splitlines(), start=1):
+        if not raw.strip():
+            continue
+        try:
+            obj = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise ValueError(
+                f"Malformed JSON on line {lineno} of {jsonl_path}: {exc.msg}"
+            ) from exc
+        if not isinstance(obj, dict):
+            raise ValueError(
+                f"Line {lineno} of {jsonl_path} is not a JSON object"
+            )
+        out.append(obj)
+    return out
+
+
+def confirmations_append_only(prior_text: str, current_text: str) -> bool:
+    """Return True iff ``current_text`` is an append-only extension of ``prior_text``.
+
+    Append-only means the prior bytes are still present, in order, followed
+    by zero or more new lines — i.e. ``current_text`` has ``prior_text`` as a
+    prefix. This is the F-2a durability invariant reduced to one checkable
+    property: a truncation, an in-place rewrite, or a reordering all break the
+    prefix and return False, while a genuine append returns True.
+
+    A defensive tolerance: a prior file that ended without a trailing newline
+    still counts as a prefix of a current file that added one before the new
+    records, so the last prior line is normalized to end in a newline before
+    the comparison. Nothing else is normalized — content changes are exactly
+    what this must catch.
+    """
+    if not prior_text:
+        return True  # nothing to protect yet
+    normalized_prior = prior_text if prior_text.endswith("\n") else prior_text + "\n"
+    if current_text == prior_text:
+        return True
+    return current_text.startswith(normalized_prior)
+
+
 # --- v1.5.9 1B.0: phase-transition facade + heartbeat projection ------------
 #
 # run_state.jsonl is the CANONICAL run position; the ``::QPB::`` sentinel and

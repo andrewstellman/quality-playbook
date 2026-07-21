@@ -15,7 +15,7 @@ This document defines the five-phase requirements generation pipeline for Step 7
 | `quality/COVERAGE_MATRIX.md` | Contract-to-requirement traceability |
 | `quality/COMPLETENESS_REPORT.md` | Final completeness assessment with verdict |
 | `quality/VERSION_HISTORY.md` | Review log with version table and provenance |
-| `quality/REFINEMENT_HINTS.md` | Review progress and feedback (created during review) |
+| `quality/operator_confirmations.jsonl` | Append-only durable log of interview confirmations (Feature D / F-2a) |
 
 Versioned backups go in `quality/history/vX.Y/`.
 
@@ -38,7 +38,7 @@ If the user explicitly asks for full-project scope on a large codebase, honor th
 
 ### Scope breadth on the initial pass
 
-On the first pipeline run, favor breadth over depth. Cover all major subsystems and modules rather than going deep on a few. The goal is a broad baseline that the self-refinement loop and later review/refinement passes can deepen. If you focus on 3 modules and skip 8 others, the completeness check can't find gaps in modules it never saw.
+On the first pipeline run, favor breadth over depth. Cover all major subsystems and modules rather than going deep on a few. The goal is a broad baseline that the self-refinement loop and the later validation interview can deepen. If you focus on 3 modules and skip 8 others, the completeness check can't find gaps in modules it never saw.
 
 For projects with both a core library and supporting modules (middleware, plugins, adapters, extensions), include at least the core and the highest-risk supporting modules in Phase A. Note the scope in the CONTRACTS.md header so it's clear what was covered and what wasn't. Refinement passes can expand scope later, but the initial pass should cast the widest net the context window allows.
 
@@ -395,8 +395,8 @@ Maintain a version history file at `quality/VERSION_HISTORY.md`:
 | v1.0 | YYYY-MM-DD | [model] | Quality Playbook | N | Initial pipeline generation |
 | v1.1 | YYYY-MM-DD | [model] | [author] | N | [what changed] |
 
-## Pending review
-[status from REFINEMENT_HINTS.md if review is in progress]
+## Validation interview
+[status from quality/REQUIREMENTS_REVIEW.md if a validation interview has run]
 ```
 
 The **Author** column records provenance: "Quality Playbook" for automated pipeline runs, a person's name for manual edits, a model name for refinement passes.
@@ -444,23 +444,26 @@ Requirements document version: vX.Y
 
 ---
 
-## After the pipeline: review and refinement
+## After the pipeline: the requirements validation interview
 
-The pipeline produces a solid baseline, but AI isn't 100% reliable. The skill provides two standalone tools for iterative improvement:
+The pipeline produces a solid baseline, but AI derives requirements from the
+code and the docs — it cannot know whether it captured the operator's actual
+*intent*. That is what the validation interview is for.
 
-### Requirements review (`quality/REVIEW_REQUIREMENTS.md`)
+**One protocol, `references/requirements_interview.md`.** It walks the rendered
+document top-down — the narrative, then each section and its use cases, then
+individual requirements on demand — and at every step the operator can
+**confirm** (recorded as durable evidence), **correct**, or **add**. Corrections
+write straight to `quality/requirements_manifest.json` and re-render, so the spec
+absorbs the operator's intent coherently. Entry modes carry over from the
+superseded walkthrough: guided, self-guided, and cross-model.
 
-An interactive or guided review of requirements organized by use case. Three modes:
-- **Self-guided**: Pick use cases to drill into
-- **Fully guided**: Walk through use cases sequentially
-- **Cross-model audit**: A different model fact-checks the completeness report
+Confirmations survive re-derivation via the append-only
+`quality/operator_confirmations.jsonl` (Feature D / F-2a), and the defect log
+lands in `quality/REQUIREMENTS_REVIEW.md`, organized by the Wiegers attributes
+the readability rubric scores against.
 
-Progress and feedback are tracked in `quality/REFINEMENT_HINTS.md`. See the generated `quality/REVIEW_REQUIREMENTS.md` for the full protocol.
-
-### Requirements refinement (`quality/REFINE_REQUIREMENTS.md`)
-
-Reads `quality/REFINEMENT_HINTS.md` and updates `quality/REQUIREMENTS.md` to close identified gaps. Can be run with any model. Backs up the current version, bumps minor version, reports all changes. See the generated `quality/REFINE_REQUIREMENTS.md` for the full protocol.
-
-### Multi-model refinement
-
-Users can run refinement passes with different models to catch different blind spots. Each pass: backup → refine → version bump → log in VERSION_HISTORY.md. Run as many models as desired until diminishing returns.
+*Superseded (v1.6.0):* the `quality/REVIEW_REQUIREMENTS.md` /
+`quality/REFINE_REQUIREMENTS.md` / `quality/REFINEMENT_HINTS.md` review-then-refine
+cycle is gone — one interview that applies corrections as they are made, not a
+review pass that writes hints for a separate refinement pass to consume.

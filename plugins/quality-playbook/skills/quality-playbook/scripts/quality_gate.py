@@ -7735,6 +7735,174 @@ def check_render_contract(repo_dir, q, skill_version=None):
         pass_("glossary/definitions section present")
 
 
+# ---------------------------------------------------------------------------
+# v1.6.0 Feature D / F-2a — operator_confirmations.jsonl append-only durability.
+#
+# The interview's write-back is durable across runs only if the derivation
+# cannot destroy it. schemas.md §9.5.2: a run that deletes, truncates, or
+# shortens quality/operator_confirmations.jsonl FAILs the gate. "Append-only"
+# reduces to one checkable property — the current file has the prior file as a
+# byte prefix — enforced against a prior snapshot at
+# quality/operator_confirmations.prior.jsonl when a re-derivation left one.
+#
+# The gate re-declares this rather than importing run_state_lib, matching the
+# module's existing self-containment convention (see BUG_HEADING_PATTERN_STR).
+# ---------------------------------------------------------------------------
+
+_OPCONF_REQUIRED_FIELDS = (
+    "ts", "move", "req_title", "conditions_of_satisfaction",
+    "operator_statement", "session_id",
+)
+_OPCONF_MOVES = ("confirm", "correct", "add", "drop", "defer")
+
+
+def _opconf_is_append_only(prior_text, current_text):
+    """True iff current_text is an append-only extension of prior_text.
+
+    Mirror of run_state_lib.confirmations_append_only; kept inline so the
+    gate imports nothing. A truncation, rewrite, or reorder breaks the prefix.
+    """
+    if not prior_text:
+        return True
+    normalized = prior_text if prior_text.endswith("\n") else prior_text + "\n"
+    if current_text == prior_text:
+        return True
+    return current_text.startswith(normalized)
+
+
+@verdict_category(VERDICT_SUBSTANTIVE)
+def check_operator_confirmations_append_only(q):
+    """v1.6.0 F-2a — operator_confirmations.jsonl shape + append-only.
+
+    Conditional: silent when the file is absent (no interview has run). When
+    present, validates the §9.5.1 record shape, and — when a prior snapshot
+    exists — enforces the append-only invariant. A truncating re-derivation
+    is the failure mode this exists to catch, so it is substantive, not
+    record-keeping.
+    """
+    print("[Operator Confirmations]")
+    path = q / "operator_confirmations.jsonl"
+    if not path.is_file():
+        info("operator_confirmations.jsonl not present — no interview has run")
+        return
+
+    text = _read_text_safe(path)
+    records = 0
+    shape_ok = True
+    for lineno, raw in enumerate(text.splitlines(), start=1):
+        if not raw.strip():
+            continue
+        records += 1
+        try:
+            obj = json.loads(raw)
+        except (json.JSONDecodeError, ValueError):
+            fail(
+                "operator_confirmations.jsonl",
+                f"line {lineno} is not valid JSON — a durability log that "
+                "cannot be parsed cannot protect the operator's work "
+                "(schemas.md §9.5)",
+            )
+            shape_ok = False
+            continue
+        if not isinstance(obj, dict):
+            fail("operator_confirmations.jsonl",
+                 f"line {lineno} is not a JSON object (schemas.md §9.5.1)")
+            shape_ok = False
+            continue
+        missing = [f for f in _OPCONF_REQUIRED_FIELDS if f not in obj]
+        if missing:
+            fail("operator_confirmations.jsonl",
+                 f"line {lineno} missing required field(s) "
+                 f"{', '.join(missing)} (schemas.md §9.5.1)")
+            shape_ok = False
+        move = obj.get("move")
+        if move is not None and move not in _OPCONF_MOVES:
+            fail("operator_confirmations.jsonl",
+                 f"line {lineno} move={move!r} is not one of "
+                 f"{_OPCONF_MOVES} (schemas.md §9.5.1)")
+            shape_ok = False
+
+    # Append-only enforcement against a prior snapshot, when one exists. A
+    # re-derivation that intends to preserve the log copies it to
+    # .prior.jsonl before rewriting quality/; the gate then proves the live
+    # file still starts with everything that was there.
+    prior_path = q / "operator_confirmations.prior.jsonl"
+    if prior_path.is_file():
+        prior_text = _read_text_safe(prior_path)
+        if _opconf_is_append_only(prior_text, text):
+            pass_(
+                f"operator_confirmations.jsonl is append-only vs. its prior "
+                f"snapshot ({records} record(s))"
+            )
+        else:
+            fail(
+                "operator_confirmations.jsonl",
+                "is NOT an append-only extension of its prior snapshot — a "
+                "re-derivation truncated, overwrote, or reordered the "
+                "operator's confirmations (F-2a; schemas.md §9.5.2). The "
+                "operator's work must survive re-derivation.",
+            )
+    elif shape_ok:
+        pass_(
+            f"operator_confirmations.jsonl well-formed ({records} record(s); "
+            "no prior snapshot to diff against)"
+        )
+
+
+# The six Wiegers dimensions the interview defect log organizes by, plus the
+# dimension-6 addition. The log must speak this vocabulary — it is the same
+# one the readability rubric and the Council score against (one vocabulary,
+# three consumers).
+_REQ_REVIEW_DIMENSIONS = (
+    "complete", "consistent", "unambiguous", "verifiable",
+    "well-organized", "honest",
+)
+_REQ_REVIEW_MOVES = ("confirm", "correct", "add", "drop", "defer")
+
+
+@verdict_category(VERDICT_SUBSTANTIVE)
+def check_requirements_review(q):
+    """v1.6.0 Feature D — REQUIREMENTS_REVIEW.md shape, when present.
+
+    Conditional: the interview defect log exists only after an interview
+    runs, so absence is silent. When present it must be non-empty and speak
+    the shared Wiegers vocabulary (Design §6, the readability rubric) — a
+    defect log that invents its own dimension names defeats the "one
+    vocabulary, three consumers" design.
+    """
+    print("[Requirements Review]")
+    path = q / "REQUIREMENTS_REVIEW.md"
+    if not path.is_file():
+        info("REQUIREMENTS_REVIEW.md not present — no interview has run")
+        return
+    text = _read_text_safe(path)
+    if len(text.strip()) < 40:
+        fail(
+            "REQUIREMENTS_REVIEW.md",
+            "is empty or near-empty — an interview that ran should have "
+            "recorded its confirms/corrections/adds (Design §6)",
+        )
+        return
+    lowered = text.lower()
+    if not any(dim in lowered for dim in _REQ_REVIEW_DIMENSIONS):
+        fail(
+            "REQUIREMENTS_REVIEW.md",
+            "names none of the Wiegers dimensions "
+            f"({', '.join(_REQ_REVIEW_DIMENSIONS)}) — the defect log must "
+            "organize by Wiegers attribute, the same vocabulary the "
+            "readability rubric and Council use (Design §6)",
+        )
+        return
+    if not any(mv in lowered for mv in _REQ_REVIEW_MOVES):
+        warn(
+            "REQUIREMENTS_REVIEW.md records no interview move "
+            "(confirm/correct/add/drop/defer) — expected at least one "
+            "(Design §6; advisory)"
+        )
+        return
+    pass_("REQUIREMENTS_REVIEW.md present, organized by Wiegers attribute")
+
+
 def check_repo(repo_dir, version_arg, strictness, language=None):
     """Run all checks for one repo. Writes output via pass_/fail_/warn/info.
 
@@ -7784,6 +7952,10 @@ def check_repo(repo_dir, version_arg, strictness, language=None):
     # Runs after check_version_stamps because check 6 (C-7 generator
     # stamp) compares against the skill_version it detects.
     check_render_contract(repo_dir, q, skill_version)
+    # v1.6.0 Feature D: the interview's durability artifact and defect log,
+    # both conditional (silent unless an interview has run).
+    check_operator_confirmations_append_only(q)
+    check_requirements_review(q)
     check_cross_run_contamination(repo_dir, q, version_arg, skill_version)
     check_run_metadata(q)
     check_compensation_asymmetry_promotion(q)

@@ -185,9 +185,8 @@ instead of accreting a pile of patch notes the way the old REFINEMENT_HINTS.md
 did.
 
 Records touched in a session carry `source_type: operator-confirmation` with a
-citation into the preserved transcript (F-2; the §5.4 byte-citation machinery
-applies unchanged — the transcript is the citable source). See
-`schemas.md` for the record shape.
+citation into the preserved transcript (F-2; the byte-citation machinery applies
+unchanged — the transcript is the citable source).
 
 A surgical re-derivation of a corrected REQ — re-run derivation for *that* REQ
 with the operator's correction as new evidence — is in scope. Full
