@@ -32,5 +32,16 @@ The Council's "gating vs non-gating" framing was **corrected by the operator aft
 - Consequence: the "standing constraint" earlier framed as "non-gating is load-bearing for the split" dissolves — H never gates, so it never threatened the split; the split holds because H is a self-contained remediator.
 - v1.6.1's Feature B is the genuine *judge* (verdicts change finding dispositions) and carries its own accuracy ground truth (the OpenFGA labeled fixtures); it reuses H's harness/isolation/provenance but not any "calibration" (H had none).
 
+## Dogfood self-test + hardening (2026-07-22)
+Before implementing, we manually ran the to-be-built pipeline on the v1.6.0 design doc itself (perfect ground truth). A derivation agent produced a 33-REQ spec of the feature set (Feature G classification + Feature C organization by hand); then **three fresh-context personas** (domain / security / adopter) validated it. Results:
+- **Multi-persona value proven:** the three lenses barely overlapped; the **security** persona *grounded* the prompt-injection gap the **domain** persona could only file as a candidate — validating the anchored-security design. The **adopter** found a real Feature-G flaw (machine-readable contracts dead-ended by the source floor) and the auto-apply usability risks.
+- **The feature stayed grounded and did not hallucinate:** every grounded add cited verified design text; ungrounded expert expectations went to the candidate bucket. (Verified off disk.)
+
+**Design flaws the self-test found (all folded in 2026-07-22):**
+- Feature G: machine-readable contracts (OpenAPI/proto/JSON-Schema/`.d.ts`) are citable, and the operator sidecar may explicitly promote a code-shaped contract (the source floor targets implementation logic only); the classifier resists documents arguing for their own tier.
+- Feature H security: persona **injection resistance** (contents are data, not instructions); **least-privilege** isolation (no network/secrets/out-of-run reads, not just impl-tree denial); **provenance write-restriction** (a persona may write only `agent-validation`, never `operator-confirmation`); byte-verification is not an injection guard.
+- Feature H usability: **off-switch**, a **concrete revert** mechanism, a **stated FP-ceiling default**, downstream attributability, and disclosure of the readability rubric's not-yet-functional maturity.
+- Persona selection recast as **catalog-with-anchors** (domain + security always; additional lenses AI-selected per system), mirroring the organizing-principle "choose from a menu" pattern.
+
 ## What Andrew's original intent preserved
 The "have the persona update the requirements" behavior is kept — personas *do* write grounded add/correct moves to the manifest — but the updates are now **surfaced** (agent-validation provenance + operator-visible review summary) rather than silently auto-applied, and **grounded** (byte-verified citation + this-system justification) rather than hallucinable.
