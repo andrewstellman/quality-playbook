@@ -32,6 +32,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 import quality_gate  # noqa: E402
 import run_state_lib  # noqa: E402
+import requirements_render  # noqa: E402  (canonical E.6 renumber, instr 007→016)
 
 SKILL_VERSION = "1.6.0"
 SESSION_ID = "2026-07-21T150000Z-selfderiv"
@@ -91,19 +92,15 @@ def _render_requirements_md(manifest, renumber=True):
     """
     # Phase E.6: renumber to document order (section order, then within
     # section). The interview re-renders THROUGH Feature C, so this is part
-    # of the re-render, and the manifest ids are updated to match.
-    ordered = []
-    seen_sections = []
-    for r in manifest["records"]:
-        if r["functional_section"] not in seen_sections:
-            seen_sections.append(r["functional_section"])
-    for sec in seen_sections:
-        ordered += [r for r in manifest["records"] if r["functional_section"] == sec]
+    # of the re-render, and the manifest ids are updated to match. The renumber
+    # logic is the canonical requirements_render.renumber_to_document_order
+    # (instruction 016 extracted it so Feature H's merge reuses the same one);
+    # renumber=False models the DEFERRED-renumber bug (order but keep raw ids).
     if renumber:
-        for i, r in enumerate(ordered, start=1):
-            r["id"] = f"REQ-{i:03d}"
-    manifest["records"] = ordered
-    recs = ordered
+        requirements_render.renumber_to_document_order(manifest)
+    else:
+        manifest["records"] = requirements_render.document_order(manifest["records"])
+    recs = manifest["records"]
     lines = [
         "# Requirements — qpb-selfderiv",
         "",
