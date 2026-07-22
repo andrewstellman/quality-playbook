@@ -346,31 +346,67 @@ def _citation_excerpt(text: str, max_chars: int = 240) -> str:
     return ""
 
 
-def _build_record(rec: _FileRecord, schema_version: str, generated_at: str) -> dict:
-    digest = hashlib.sha256(rec.text.encode("utf-8")).hexdigest()
-    # v1.5.7 fix Q2: emit `role` per schemas.md §3.6 (formal_doc_role
-    # enum). All records from `reference_docs/cite/` are external
-    # plaintext specs uploaded by the operator — `external-spec` is
-    # the correct enum value. The other two enum values
-    # (`skill-self-spec`, `skill-reference`) only apply when the
-    # target IS a Skill/Hybrid project with its own SKILL.md /
-    # references/; those records are produced by Phase 1's skill-
-    # surface scanning code, not by this ingest module. Emitting
-    # `role` here promotes the manifest to v1.5.3-shaped (per
-    # schemas.md §3.10 field-presence detection), engaging the
-    # gate's strict-mode validation.
+def _build_record_from_text(
+    rel_path: str, text: str, tier: int, schema_version: str, generated_at: str
+) -> dict:
+    """Build a FORMAL_DOC record from raw ``(rel_path, text, tier)``.
+
+    v1.6.0 Feature G (instruction 011): the tier is supplied by the caller —
+    from the classification decision for a dumped doc, or from
+    ``_parse_tier_marker`` for a ``cite/`` doc — so a top-level dumped doc
+    classified Tier 1/2 becomes byte-citable exactly like a ``cite/`` doc.
+    The ``document_sha256`` is the same content key the classification manifest
+    uses, so the two manifests reconcile.
+    """
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     return {
         "doc_id": f"FORMAL-{digest[:12]}",
-        "source_path": rec.rel_path,
-        "tier": rec.tier,
-        "byte_count": len(rec.text.encode("utf-8")),
-        "line_count": len(rec.text.splitlines()),
-        "citation_excerpt": _citation_excerpt(rec.text),
+        "source_path": rel_path,
+        "tier": tier,
+        "byte_count": len(text.encode("utf-8")),
+        "line_count": len(text.splitlines()),
+        "citation_excerpt": _citation_excerpt(text),
         "document_sha256": digest,
         "ingested_at": generated_at,
         "schema_version": schema_version,
         "role": "external-spec",
     }
+
+
+def _formal_tier(decision: dict, text: str, is_cite: bool) -> Optional[int]:
+    """The FORMAL_DOC tier for a doc, or None if it is not byte-citable.
+
+    v1.6.0 Feature G (instruction 011): the classification ``decision`` is the
+    source of truth and already encodes the deterministic floor — a floored
+    doc carries ``promotable == False`` and can NEVER acquire a Tier-1/2
+    record here (advisory, implementation source not rescued, injection
+    self-promoter, background ledger). Tiers are read, never re-litigated.
+
+    - Floored (``promotable`` False) → None (Tier-4 context, no record).
+    - ``cite/`` (operator explicit pre-sort, floor already cleared it) → the
+      ``_parse_tier_marker`` Tier 1/2, unchanged from pre-Feature-G behavior.
+    - Top-level dumped doc → the classification tier iff it is 1/2.
+    """
+    if not decision.get("promotable", False):
+        return None
+    if is_cite:
+        return _parse_tier_marker(text)
+    return decision["tier"] if decision.get("tier") in (1, 2) else None
+
+
+def _build_record(rec: _FileRecord, schema_version: str, generated_at: str) -> dict:
+    return _build_record_from_text(
+        rec.rel_path, rec.text, rec.tier, schema_version, generated_at
+    )
+
+
+# NOTE (v1.5.7 fix Q2, preserved): every FORMAL_DOC record carries
+# `role: "external-spec"` (schemas.md §3.6) — an external plaintext/contract
+# spec supplied by the operator, whether via cite/ or dump-and-go. The other
+# enum values (skill-self-spec / skill-reference) apply only when the target IS
+# a Skill/Hybrid project; those records come from Phase 1's skill-surface
+# scanning, not this ingest module. Emitting `role` engages the gate's
+# strict-mode validation (schemas.md §3.10 field-presence detection).
 
 
 def collect_documents(target_repo: Path) -> List[_FileRecord]:
@@ -403,17 +439,30 @@ def load_tier4_context(target_repo: Path) -> List[Tuple[str, str]]:
         raise Tier4LoadError(str(exc)) from exc
 
 
-def ingest(target_repo: Path) -> dict:
+def ingest(target_repo: Path, *, llm_classifier=None) -> dict:
     """Walk ``reference_docs/`` and emit ``quality/formal_docs_manifest.json``.
 
     Returns the manifest as a dict for test inspection.
+
+    v1.6.0 Feature G (instruction 011): the FORMAL_DOC (byte-citable) surface is
+    now driven by the classification manifest — the source of truth for a
+    top-level dumped doc's tier. A dumped doc classified Tier 1/2 and
+    ``promotable`` becomes a FORMAL_DOC record exactly like a ``cite/`` doc
+    (including a machine-readable contract such as ``.proto``/OpenAPI); a floored
+    or background doc stays Tier-4 context with no record. ``cite/`` docs keep
+    their ``_parse_tier_marker`` tier. The floor is READ from the classification
+    decision (``promotable``), never re-litigated here, so this path can never
+    launder a floored doc to citable. ``llm_classifier`` is the derivation AI's
+    per-file tier callable (the acceptance oracle injects a stub); in a real run
+    the AI records tiers into the classification manifest, which is reused
+    content-keyed on the next ingest.
     """
     target_repo = Path(target_repo)
     if not target_repo.exists():
         raise IngestError(f"target repo does not exist: {target_repo}")
 
-    records = _collect(target_repo)
-    cite_records = [r for r in records if r.is_cite]
+    ref_dir = target_repo / REFERENCE_DIR_NAME
+    cite_dir = ref_dir / CITE_DIR_NAME
 
     # Prefer an installed SKILL.md under .github/skills or .claude/skills; fall
     # back to a root-level SKILL.md (used by the QPB self-audit bootstrap).
@@ -423,22 +472,50 @@ def ingest(target_repo: Path) -> dict:
     )
     generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
+    # Classification is the source of truth for top-level tiers (§8a). It also
+    # writes quality/classification_manifest.json (and reuses a prior one,
+    # content-keyed, re-running the absolute floor on every hit).
+    classification = classify_reference_docs(target_repo, llm_classifier=llm_classifier, write=True)
+    decisions = {r["source_path"]: r for r in classification.get("records", [])}
+
+    formal_records: List[dict] = []
+    for path in _iter_candidates(ref_dir):
+        name = path.name
+        # README is Tier-4 background (recorded in the classification manifest),
+        # never a FORMAL_DOC; dotfiles and the sidecar are control files.
+        if name.startswith(".") or name == SIDECAR_NAME or name in SKIPPED_FILENAMES:
+            continue
+        ext = path.suffix.lower()
+        if ext not in SUPPORTED_EXTENSIONS and not _classify_ext_ok(name):
+            # Genuinely binary / convert-first format — abort with a hint,
+            # unchanged from the plaintext-only era.
+            hint = REJECT_GUIDANCE.get(
+                ext, "Only .txt, .md, and .rst are ingested — convert to plaintext first."
+            )
+            raise IngestError(f"{_rel(path, target_repo)}: unsupported extension '{ext}'. {hint}")
+        rel_path = _rel(path, target_repo)
+        decision = decisions.get(rel_path)
+        if decision is None:
+            continue
+        text = _read_text(path)  # strict UTF-8; preserves the non-UTF-8 abort.
+        tier = _formal_tier(decision, text, _is_under_cite(path, cite_dir))
+        if tier is None:
+            continue
+        formal_records.append(
+            _build_record_from_text(rel_path, text, tier, schema_version, generated_at)
+        )
+
+    formal_records.sort(key=lambda r: r["source_path"])
     manifest = {
         "schema_version": schema_version,
         "generated_at": generated_at,
-        "records": [_build_record(r, schema_version, generated_at) for r in cite_records],
+        "records": formal_records,
     }
 
     quality_dir = target_repo / "quality"
     quality_dir.mkdir(parents=True, exist_ok=True)
     out = quality_dir / MANIFEST_NAME
     out.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-    # v1.6.0 Feature G (§8a): always emit the reviewable classification manifest
-    # so a dump-and-go run (no cite/ pre-sorting) produces the floor decisions
-    # the derivation AI reviews. The floor runs in Python; the AI assigns Tier
-    # 1/2 to floor-passed authoritative docs per the phase-1 guide.
-    classify_reference_docs(target_repo, write=True)
     return manifest
 
 

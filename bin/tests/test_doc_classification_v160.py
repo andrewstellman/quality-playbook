@@ -460,5 +460,171 @@ class IngestWiringTests(unittest.TestCase):
         self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
 
 
+# ---------------------------------------------------------------------------
+# Instruction 011 — classification → the byte-citable FORMAL_DOC surface.
+# ---------------------------------------------------------------------------
+class CitabilityWiringTests(unittest.TestCase):
+    """A top-level dumped doc classified Tier 1/2 must become a byte-citable
+    FORMAL_DOC record; a floored doc must never acquire one; cite/ unchanged.
+    """
+
+    def _tree(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        (root / "reference_docs" / "cite").mkdir(parents=True)
+        return root
+
+    def _formal(self, root, **kw):
+        man = rdi.ingest(root, **kw)
+        return {r["source_path"].split("/")[-1]: r for r in man["records"]}, man
+
+    def test_top_level_classified_tier1_becomes_formal_doc(self):
+        # BEFORE Feature G wiring a top-level doc was hardcoded tier=4 with no
+        # record; now a classified-Tier-1 dumped doc is a FORMAL_DOC record.
+        root = self._tree()
+        (root / "reference_docs" / "spec.md").write_text(
+            "# Router Spec\n\nA route MUST match the longest registered prefix.\n",
+            encoding="utf-8",
+        )
+        by_name, _ = self._formal(root, llm_classifier=_tier1_if("spec"))
+        self.assertIn("spec.md", by_name)
+        self.assertEqual(by_name["spec.md"]["tier"], 1)
+        self.assertEqual(by_name["spec.md"]["role"], "external-spec")
+        self.assertTrue(by_name["spec.md"]["citation_excerpt"])
+
+    def test_non_plaintext_contract_is_a_citable_formal_doc(self):
+        # Oracle 2: a dumped .proto / OpenAPI gets a FORMAL_DOC record with a
+        # byte-verified excerpt + document_sha256; a .py logic file does not.
+        import hashlib
+        root = self._tree()
+        (root / "reference_docs" / "api.proto").write_text(
+            ContractAndImplTests.PROTO, encoding="utf-8")
+        (root / "reference_docs" / "openapi.json").write_text(
+            ContractAndImplTests.OPENAPI, encoding="utf-8")
+        (root / "reference_docs" / "router.py").write_text(
+            ContractAndImplTests.PY_LOGIC, encoding="utf-8")
+        by_name, _ = self._formal(root)
+        self.assertIn("api.proto", by_name)
+        self.assertIn("openapi.json", by_name)
+        self.assertIn(by_name["api.proto"]["tier"], (1, 2))
+        # document_sha256 is the byte content key of the file on disk.
+        self.assertEqual(
+            by_name["api.proto"]["document_sha256"],
+            hashlib.sha256(ContractAndImplTests.PROTO.encode("utf-8")).hexdigest(),
+        )
+        self.assertTrue(by_name["api.proto"]["citation_excerpt"])
+        # Implementation source stays floored — no FORMAL_DOC record.
+        self.assertNotIn("router.py", by_name)
+
+    def test_floor_survives_the_citability_wiring_even_with_promote_all_llm(self):
+        # Oracle 3 (mutation): with the LLM stubbed to promote EVERYTHING, no
+        # floored doc gets a Tier-1/2 FORMAL_DOC record.
+        root = self._tree()
+        ref = root / "reference_docs"
+        ref.joinpath("cve.md").write_text(AdvisoryFloorTests.CVE_ADVISORY, encoding="utf-8")
+        ref.joinpath("renamed.proto").write_text(AdvisoryFloorTests.CVE_ADVISORY, encoding="utf-8")
+        ref.joinpath("harden.md").write_text(AdvisoryFloorTests.NORMATIVE_BULLETIN, encoding="utf-8")
+        ref.joinpath("inject.md").write_text(InjectionResistanceTests.SELF_AUTH, encoding="utf-8")
+        ref.joinpath("logic.py").write_text(ContractAndImplTests.PY_LOGIC, encoding="utf-8")
+        ref.joinpath("real_spec.md").write_text(
+            "# Spec\n\nThe API MUST return 404 on no match.\n", encoding="utf-8")
+        by_name, man = self._formal(root, llm_classifier=_promote_all)
+        floored = {"cve.md", "renamed.proto", "harden.md", "inject.md", "logic.py"}
+        citable_paths = {r["source_path"].split("/")[-1]
+                         for r in man["records"] if r["tier"] in (1, 2)}
+        self.assertEqual(
+            floored & citable_paths, set(),
+            f"a floored doc leaked into the citable set: {floored & citable_paths}",
+        )
+        # ...while a genuinely-authoritative doc IS citable (not a blanket block).
+        self.assertIn("real_spec.md", citable_paths)
+
+    def test_sidecar_cannot_make_an_advisory_a_citable_formal_doc(self):
+        # Oracle 4: the sidecar rescues the impl floor only, never advisory.
+        root = self._tree()
+        ref = root / "reference_docs"
+        ref.joinpath("cve.proto").write_text(AdvisoryFloorTests.CVE_ADVISORY, encoding="utf-8")
+        ref.joinpath(rdi.SIDECAR_NAME).write_text(
+            "reference_docs/cve.proto\n", encoding="utf-8")
+        by_name, man = self._formal(root, llm_classifier=_promote_all)
+        citable = {r["source_path"].split("/")[-1]
+                   for r in man["records"] if r["tier"] in (1, 2)}
+        self.assertNotIn("cve.proto", citable)
+
+    def test_reconciliation_formal_sha_equals_classification_key(self):
+        # Oracle 6: FORMAL_DOC.document_sha256 == classification content key;
+        # a re-run with unchanged docs reproduces the same citable set.
+        root = self._tree()
+        (root / "reference_docs" / "spec.md").write_text(
+            "# Spec\n\nThe router MUST dispatch on the longest prefix.\n",
+            encoding="utf-8")
+        man1 = rdi.ingest(root, llm_classifier=_tier1_if("spec"))
+        classification = json.loads(
+            (root / "quality" / rdi.CLASSIFICATION_MANIFEST_NAME).read_text(encoding="utf-8"))
+        cls = {r["source_path"]: r for r in classification["records"]}
+        for r in man1["records"]:
+            self.assertEqual(r["document_sha256"], cls[r["source_path"]]["document_sha256"])
+        man2 = rdi.ingest(root, llm_classifier=_tier1_if("spec"))
+        self.assertEqual(
+            [(r["source_path"], r["tier"]) for r in man1["records"]],
+            [(r["source_path"], r["tier"]) for r in man2["records"]],
+        )
+
+    def test_cite_plaintext_still_produces_tier1_record(self):
+        # Oracle 5: cite/ behavior unchanged — an explicit cite/ spec is Tier 1.
+        root = self._tree()
+        (root / "reference_docs" / "cite" / "spec.md").write_text(
+            "# Spec\n\nThe API contract.\n", encoding="utf-8")
+        by_name, _ = self._formal(root)
+        self.assertEqual(by_name["spec.md"]["tier"], 1)
+
+    def test_cite_advisory_is_not_laundered_to_citable(self):
+        # §8a: cite/ is sidecar-semantics — it rescues impl, never advisory.
+        root = self._tree()
+        (root / "reference_docs" / "cite" / "cve.md").write_text(
+            AdvisoryFloorTests.CVE_ADVISORY, encoding="utf-8")
+        by_name, man = self._formal(root)
+        citable = {r["source_path"].split("/")[-1]
+                   for r in man["records"] if r["tier"] in (1, 2)}
+        self.assertNotIn("cve.md", citable)
+
+
+class CorpusFormalDocCitabilityTests(unittest.TestCase):
+    """Oracle 1: the real chi/express corpora dumped into one folder now yield
+    Tier-1/2 FORMAL_DOC records (before this wiring: 0)."""
+
+    def _dump_tree(self, repo):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        ref = root / "reference_docs"
+        ref.mkdir(parents=True)
+        src = REPO_ROOT / "repos" / f"{repo}-t3" / "docs_gathered"
+        for f in sorted(src.glob("*.md")):
+            (ref / f.name).write_text(f.read_text(encoding="utf-8", errors="replace"),
+                                      encoding="utf-8")
+        return root
+
+    def _classifier(self):
+        def f(rel, text):
+            low = rel.lower()
+            return None if any(k in low for k in ("index", "sources", "readme", "manifest")) else 1
+        return f
+
+    def test_chi_and_express_yield_tier12_formal_docs(self):
+        for repo in ("chi", "express"):
+            root = self._dump_tree(repo)
+            man = rdi.ingest(root, llm_classifier=self._classifier())
+            t12 = [r for r in man["records"] if r["tier"] in (1, 2)]
+            self.assertGreater(len(t12), 0,
+                               f"{repo}: expected Tier-1/2 FORMAL_DOC records, got {len(t12)}")
+            # The advisories/security-genre docs must NOT be citable formal docs.
+            citable = {r["source_path"].split("/")[-1] for r in t12}
+            if repo == "express":
+                self.assertNotIn("14_Known_Vulnerabilities.md", citable)
+                self.assertNotIn("06_Security_Best_Practices.md", citable)
+
+
 if __name__ == "__main__":
     unittest.main()
