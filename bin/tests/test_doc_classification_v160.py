@@ -404,6 +404,34 @@ class IngestWiringTests(unittest.TestCase):
         promoted = {r["source_path"].split("/")[-1]: r for r in man2["records"]}
         self.assertEqual(promoted["grpc_iface.py"]["floor_rule"], dc.RULE_SIDECAR)
 
+    def test_ingest_end_to_end_does_not_abort_on_contract_or_code(self):
+        # Self-Council (Panelists B+C) FIX-REQUIRED: the production entry
+        # `ingest()` must NOT hard-stop on a dumped machine-readable contract
+        # or implementation source. Before the fix, _collect()'s plaintext-only
+        # extension gate raised IngestError before classification ran.
+        root, ref = self._tree()
+        (ref / "api2.proto").write_text(ContractAndImplTests.PROTO, encoding="utf-8")
+        (ref / "router.py").write_text(ContractAndImplTests.PY_LOGIC, encoding="utf-8")
+        (ref / "openapi.json").write_text(ContractAndImplTests.OPENAPI, encoding="utf-8")
+        # Must not raise:
+        rdi.ingest(root)
+        man = json.loads(
+            (root / "quality" / rdi.CLASSIFICATION_MANIFEST_NAME).read_text(encoding="utf-8")
+        )
+        by_name = {r["source_path"].split("/")[-1]: r for r in man["records"]}
+        self.assertIn(by_name["api2.proto"]["floor_rule"], (dc.RULE_CONTRACT,))
+        self.assertIn(by_name["openapi.json"]["floor_rule"], (dc.RULE_CONTRACT,))
+        self.assertEqual(by_name["router.py"]["floor_rule"], dc.RULE_IMPL)
+
+    def test_ingest_still_aborts_on_binary_convert_first_format(self):
+        # A genuinely binary / convert-first format (.pdf) still hard-stops with
+        # the conversion hint — the fix only exempts classification-eligible
+        # extensions, not everything.
+        root, ref = self._tree()
+        (ref / "spec.pdf").write_text("%PDF-1.4 binary-ish", encoding="utf-8")
+        with self.assertRaises(rdi.IngestError):
+            rdi.ingest(root)
+
     def test_sidecar_cannot_launder_an_advisory_through_ingest(self):
         root, ref = self._tree()
         (ref / "cve.proto").write_text(AdvisoryFloorTests.CVE_ADVISORY, encoding="utf-8")

@@ -301,6 +301,16 @@ def _collect(target_repo: Path) -> List[_FileRecord]:
             continue
         ext = path.suffix.lower()
         if ext not in SUPPORTED_EXTENSIONS:
+            # v1.6.0 Feature G (§8a): dump-and-go accepts machine-readable
+            # contracts (.proto/.json/.yaml/.d.ts/…) and implementation source
+            # (.py/.c/.go/…). Those are NOT plaintext formal-docs, so the
+            # plaintext-only formal-docs pass skips them here — the
+            # classification pass (classify_reference_docs) tiers them (a
+            # contract is citable, code is floored). Only genuinely binary /
+            # convert-first formats (.pdf/.docx/…) still abort with a hint, so
+            # a dumped .proto no longer hard-stops Phase 1 ingest.
+            if _classify_ext_ok(path.name):
+                continue
             hint = REJECT_GUIDANCE.get(
                 ext, "Only .txt, .md, and .rst are ingested — convert to plaintext first."
             )
