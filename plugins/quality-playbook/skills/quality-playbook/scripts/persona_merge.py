@@ -91,6 +91,26 @@ def _content(move: dict) -> str:
     return (move.get("conditions_of_satisfaction") or move.get("title") or "").strip()
 
 
+def _dedup_key(move: dict):
+    """Identity of a move for agreement-dedup: two personas independently
+    proposing the SAME move (same type, same target/section, same content) is
+    agreement — it must apply ONCE, not once per persona (self-Council C)."""
+    return (move.get("move"), _move_target(move) or "",
+            (move.get("section") or "").strip(), _content(move))
+
+
+def _dedup(moves: Sequence[dict]) -> List[dict]:
+    seen = set()
+    out: List[dict] = []
+    for m in moves:
+        key = _dedup_key(m)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(m)
+    return out
+
+
 def _group_conflict(moves: Sequence[dict]) -> Optional[str]:
     """Return a conflict reason if the moves on one target disagree, else None.
 
@@ -183,6 +203,11 @@ def merge_personas(grounded_by_persona: Sequence[dict], base_manifest: dict) -> 
             held_out.extend(moves)   # surface, do NOT resolve — hold all of them out
         else:
             to_apply.extend(moves)
+
+    # Collapse agreement — identical moves from different personas apply ONCE
+    # (two blind personas proposing the same missing REQ is agreement, not two
+    # duplicate REQ records — self-Council Panelist C).
+    to_apply = _dedup(to_apply)
 
     # Apply the non-conflicting moves to the base manifest.
     manifest = base_manifest

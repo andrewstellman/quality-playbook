@@ -55,7 +55,7 @@ class UnionTests(unittest.TestCase):
         self.assertEqual(r.conflicts, [])
         self.assertEqual(len(r.applied), 2)
 
-    def test_two_identical_corrects_are_agreement_not_conflict(self):
+    def test_two_identical_corrects_are_agreement_applied_once(self):
         grounded = [
             {"persona_id": "a", "moves": [
                 {"move": "correct", "req_id": "REQ-001",
@@ -66,6 +66,37 @@ class UnionTests(unittest.TestCase):
         ]
         r = pm.merge_personas(grounded, _base())
         self.assertEqual(r.conflicts, [])
+        self.assertEqual(len(r.applied), 1)  # agreement -> applied once
+
+    def test_two_identical_adds_from_blind_personas_apply_once(self):
+        # self-Council Panelist C: two blind personas independently proposing the
+        # SAME missing requirement is agreement — ONE record, not a duplicate.
+        add = {"move": "add", "section": "Routing", "title": "regexp params",
+               "conditions_of_satisfaction": "params support {name:pattern}",
+               "citation": _cit()}
+        grounded = [
+            {"persona_id": "domain-expert", "moves": [dict(add)]},
+            {"persona_id": "security-reviewer", "moves": [dict(add)]},
+        ]
+        r = pm.merge_personas(grounded, _base())
+        titles = [rec.get("title") for rec in r.manifest["records"]]
+        self.assertEqual(titles.count("regexp params"), 1, "identical add double-applied")
+        self.assertEqual(r.conflicts, [])
+        self.assertEqual(len(r.applied), 1)
+
+    def test_different_adds_to_same_section_both_land(self):
+        grounded = [
+            {"persona_id": "a", "moves": [
+                {"move": "add", "section": "Routing", "title": "one",
+                 "conditions_of_satisfaction": "x", "citation": _cit()}]},
+            {"persona_id": "b", "moves": [
+                {"move": "add", "section": "Routing", "title": "two",
+                 "conditions_of_satisfaction": "y", "citation": _cit()}]},
+        ]
+        r = pm.merge_personas(grounded, _base())
+        titles = [rec.get("title") for rec in r.manifest["records"]]
+        self.assertIn("one", titles)
+        self.assertIn("two", titles)
 
 
 class ConflictSurfacingTests(unittest.TestCase):
