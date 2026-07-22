@@ -1711,6 +1711,20 @@ def append_confirmation(jsonl_path: Path, record: dict) -> None:
     """
     if not isinstance(record, dict):
         raise ValueError("record must be a dict")
+    # v1.6.0 Feature H (instruction 012) guard 2 — write-restriction, security-
+    # critical. operator_confirmations.jsonl is the human-interview-only,
+    # append-only, highest-trust cross-run ledger (§9.5). A persona may write
+    # ONLY source_type=agent-validation and must NEVER launder an injected
+    # requirement into this durable class. Refuse any record that carries
+    # agent-validation provenance (schemas.md §3.7 write-restriction).
+    if record.get("source_type") == "agent-validation":
+        raise ValueError(
+            "refusing to append an agent-validation record to "
+            "operator_confirmations.jsonl: this ledger is human-interview-only "
+            "(Feature H guard 2 write-restriction, schemas.md §3.7). A persona "
+            "may write only source_type=agent-validation into the manifest, "
+            "never into the operator-confirmation ledger."
+        )
     for required in _CONFIRMATION_REQUIRED_FIELDS:
         if required not in record:
             raise ValueError(f"record missing required field {required!r}")

@@ -306,6 +306,7 @@ produced the REQ.
 | `docs-derived`         | v1.5.6+. REQ derived from operator-supplied informal documentation under the target repo's `reference_docs/` tree (Tier 4 context — AI chats, design notes, retrospectives — or Tier 1/2 citable material under `reference_docs/cite/`). Distinct from `reference-file`, which names QPB-shipped reference files; `docs-derived` names target-repo reference docs. |
 | `execution-observation`| REQ inferred from observed run-time behavior captured in archived runs (Phase 5; reserved for forward-compat). |
 | `operator-confirmation`| v1.6.0+ (Feature D). REQ confirmed, corrected, or added by the operator in a requirements validation interview. **Transcript-as-citable-source** (Design §0 Decision Record #7): the citable document is the preserved session transcript at `quality/review_sessions/<TIMESTAMP>-<topic>.md`, so `REQ.citation` points into that transcript and the §5.4 byte-citation machinery applies unchanged — no new evidence tier is invented. `skill_section` MUST be absent/null (invariant #21). See `references/requirements_interview.md` for the protocol and §9.5 for the companion append-only `operator_confirmations.jsonl` that makes these durable across runs. |
+| `agent-validation`     | v1.6.0+ (Feature H). REQ added or corrected by a fresh-context domain-expert **persona** running the Feature D interview as the operator. Parallel to `operator-confirmation` but **distinct in two ways** the downstream MUST respect: (1) **document-cited, not transcript-cited** — `REQ.citation` points at a **document** in `quality/formal_docs_manifest.json` (byte-verified by the §5.4 machinery exactly like any Tier-1/2 REQ), never at an interview transcript; (2) **regenerated per run, not persisted** — agent validation is reproducible (re-run the persona), so it has **no** durable ledger and is NOT written to `operator_confirmations.jsonl` (§9.5). **Write-restriction (Design §8b guard 2, security-critical):** a persona may write ONLY `agent-validation` — it may not create/tag/cite an `operator-confirmation` record and may not append to `operator_confirmations.jsonl` (human-interview-only). Downstream consumers counting "confirmed" evidence MUST NOT coalesce `agent-validation` with `operator-confirmation`; trust in an unreviewed `agent-validation` REQ never exceeds an operator-reviewed one. `skill_section` MUST be absent/null (invariant #21). See `references/requirements_interview.md` (the protocol a persona drives) and Design §8b. |
 
 ### 3.8 `bug_divergence_type` — kind of divergence a BUG records (v1.5.3+)
 
@@ -1018,6 +1019,14 @@ rationale: Design §8 F-2a.
 **One JSON object per line**, same framing discipline as `run_state.jsonl`
 (compact single-line JSON, no embedded newlines). Append with the
 `run_state_lib.append_confirmation` helper, which is the only sanctioned writer.
+
+**Human-interview-only (Feature H guard 2 write-restriction).** This ledger is
+written only by the human interview path. A Feature H **persona** may never
+append here — `append_confirmation` refuses any record carrying
+`source_type: agent-validation` (§3.7). Agent validation is document-cited and
+regenerated per run, so it needs no durable ledger; laundering an injected
+requirement into this append-only, highest-trust, cross-run class is exactly the
+attack the restriction blocks.
 
 ### 9.5.1 Record fields
 

@@ -4797,6 +4797,14 @@ _V153_VALID_SOURCE_TYPES = (
     # check_v1_5_3_skill_section_consistency already enforces for every
     # non-'skill-section' source_type.
     "operator-confirmation",
+    # v1.6.0 (Feature H, instruction 012): REQ added/corrected by a fresh-context
+    # domain-expert persona running the Feature D interview as the operator.
+    # Parallel to operator-confirmation but DOCUMENT-cited (REQ.citation points
+    # at a formal_docs_manifest doc, byte-verified like any Tier-1/2 REQ — NOT a
+    # transcript) and regenerated-not-persisted (never written to
+    # operator_confirmations.jsonl). Downstream must not coalesce it with
+    # operator-confirmation (schemas.md §3.7). skill_section stays absent/null.
+    "agent-validation",
 )
 _V153_VALID_DIVERGENCE_TYPES = (
     "code-spec",
