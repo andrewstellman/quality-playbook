@@ -84,6 +84,21 @@ actors & roles, and the section themes, then say, in the agent's own words:
 > "Here's what I think this system is, who it serves, and its major behavioral
 > areas: … Is that right?"
 
+**Also play back the organizing principle** the derivation chose (Design §5.2 /
+§6 Stage 1). The choice is a high-yield fitness-for-purpose question — a wrong
+lens makes every section feel slightly off, and it is cheapest to correct here,
+before Stage 2 descends into the sections:
+
+> "I organized these requirements **by *user journey*** because this is a
+> workflow system whose requirements cluster around the stages a user moves
+> through — is that the right lens, or would grouping by *stakeholder* (or by
+> *feature*, *mode*, …) fit how you think about this system?"
+
+A change of organizing principle here is a **`correct`** move: it triggers a
+re-group (reassign `functional_section`, rewrite the section overviews) and a
+re-render through the Phase E selection pass, not a per-REQ edit. Record it like
+any other correction so the new lens survives re-derivation.
+
 Then play back the **coverage-and-gaps statement** verbatim and ask the Stage-1
 gap question:
 
@@ -112,11 +127,15 @@ has just produced an **add** that no autonomous pass would have found.
 
 ### Stage 2 — validate sections and use cases (Consistent · Correct)
 
-Per functional/NFR section, in user-facing → infrastructure order, play back the
-section's **contract theme** and its use cases:
+Per requirement section, in the document's order (most-relevant-to-the-primary-
+reader first, under whatever organizing principle Stage 1 settled), read the
+section's **section overview** — the paragraph stating the theme that unifies its
+requirements under the chosen principle — and validate that theme *before*
+descending into the section's requirements and use cases:
 
-> "This section says the system guarantees X under Y. Is that what it's
-> *supposed* to do?"
+> "This section groups its requirements around X. Is that a real, coherent
+> grouping for this system — and is X what the system is *supposed* to
+> guarantee here?"
 
 **Stage-2 elicitation** — terminology, identity, and dependency questions (the
 worked-example classes and the self-encoding question):

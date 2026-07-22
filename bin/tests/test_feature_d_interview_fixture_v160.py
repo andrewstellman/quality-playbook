@@ -116,6 +116,12 @@ def _render_requirements_md(manifest):
         "**Manifest** — the machine-readable requirements source of truth.",
         "**Render contract** — the mechanical checks on REQUIREMENTS.md.",
         "",
+        "## Requirement organization",
+        "",
+        "These requirements are organized by system capability because QPB is",
+        "a capability-shaped tool whose requirements group around the checks",
+        "it provides; the sections follow that grouping.",
+        "",
     ]
     # Group by functional_section in first-seen order.
     sections = {}

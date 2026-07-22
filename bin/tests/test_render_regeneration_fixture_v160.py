@@ -67,6 +67,40 @@ TARGETS = ("chi", "express", "virtio")
 # compares against it.
 FIXTURE_SKILL_VERSION = "1.6.0"
 
+# FAIL messages the golden fixtures are KNOWN and EXPECTED to emit — a
+# recorded pre-regeneration gap, not a defect to fix by hand-editing the
+# snapshots (instruction 002/006 standing constraint). Parallel to
+# EXPECTED_FIXTURE_WARNS, but for a FAIL: row 4b (organizing principle named
+# + rationale) is a FAIL, not an advisory, and the three fixtures predate the
+# v1.6.0 instruction-006 selection pass, so each states no principle and
+# emits exactly this one FAIL. The resolution is a future regeneration
+# through the selection pass; recorded in
+# docs/process/QPB_v1.6.0_Regeneration_Expectations.md and surfaced as a
+# design finding (a mandatory FAIL check and the "golden fixtures pass"
+# acceptance oracle conflict until the fixtures are regenerated).
+EXPECTED_FIXTURE_FAILS = {
+    "no organizing principle stated",
+}
+
+
+def _render_fail_lines(out):
+    """Extract the render-contract FAIL lines from captured output.
+
+    fail() prints `  <path>[:<line>]: <reason>` with no FAIL: label; the
+    render contract fails only against REQUIREMENTS.md / RUN_CONTRACT.md.
+    """
+    return [
+        ln.strip() for ln in out.splitlines()
+        if re.match(r"^(REQUIREMENTS|RUN_CONTRACT)\.md(:\d+)?:\s", ln.strip())
+    ]
+
+
+def _unexpected_fail_lines(out):
+    return [
+        f for f in _render_fail_lines(out)
+        if not any(k in f for k in EXPECTED_FIXTURE_FAILS)
+    ]
+
 
 def _load(target, name):
     return (FIXTURE_ROOT / target / "quality" / name).read_text(
@@ -159,14 +193,51 @@ class RegenerationOracleTests(unittest.TestCase):
     """The acceptance oracle: C-1..C-7 absent from all three re-renders."""
 
     def test_regenerated_documents_pass_the_render_contract(self):
+        """The acceptance oracle, minus the recorded pre-regeneration gap.
+
+        The three fixtures predate the instruction-006 organizing-principle
+        selection pass, so each emits exactly the EXPECTED_FIXTURE_FAILS
+        organizing-principle FAIL. Asserting against the allowlist (rather
+        than fails == 0) keeps the oracle live: any OTHER render-contract
+        FAIL — a real C-1..C-7 regression — still fails this test, while the
+        known gap does not. This is the FAIL-side analogue of the glossary
+        WARN allowlist; both resolve by regeneration, never a fixture edit.
+        """
+        for target in TARGETS:
+            with self.subTest(target=target):
+                _fails, _warns, out = _run_render_contract(target)
+                unexpected = _unexpected_fail_lines(out)
+                self.assertEqual(
+                    unexpected, [],
+                    f"{target}: regenerated REQUIREMENTS.md violates the "
+                    f"render contract with a FAIL that is NOT the recorded "
+                    f"organizing-principle gap — the Feature C acceptance "
+                    f"oracle (Design §5, §10 criterion 1) is not satisfied:\n"
+                    f"{out}",
+                )
+
+    def test_the_only_fixture_fail_is_the_recorded_principle_gap(self):
+        """Every fixture emits exactly the expected organizing-principle FAIL.
+
+        Pins the allowlist to what actually fires: if a fixture stops
+        emitting the organizing-principle FAIL (e.g. it was regenerated with
+        a stated principle), this test fails so EXPECTED_FIXTURE_FAILS is
+        pruned rather than left as blanket permission — the same anti-stale
+        discipline as test_the_expected_warn_allowlist_is_not_stale.
+        """
         for target in TARGETS:
             with self.subTest(target=target):
                 fails, _warns, out = _run_render_contract(target)
+                lines = _render_fail_lines(out)
                 self.assertEqual(
-                    fails, 0,
-                    f"{target}: regenerated REQUIREMENTS.md violates the "
-                    f"render contract — the Feature C acceptance oracle "
-                    f"(Design §5, §10 criterion 1) is not satisfied:\n{out}",
+                    len(lines), fails,
+                    f"{target}: FAIL counter disagrees with parsed lines:\n{out}",
+                )
+                self.assertTrue(
+                    any("no organizing principle stated" in ln for ln in lines),
+                    f"{target}: expected the recorded organizing-principle "
+                    f"FAIL but none fired — prune EXPECTED_FIXTURE_FAILS if "
+                    f"the fixture was regenerated with a principle:\n{out}",
                 )
 
     # Advisory WARNs the fixtures are known and expected to emit. Each entry
@@ -792,9 +863,18 @@ class BeforeAfterDeltaTests(unittest.TestCase):
         for target in TARGETS:
             with self.subTest(target=target):
                 before_fails, _bw, _bo = _run_render_contract_on_before(target)
-                after_fails, _aw, _ao = _run_render_contract(target)
+                after_fails, _aw, after_out = _run_render_contract(target)
                 self.assertGreater(before_fails, after_fails)
-                self.assertEqual(after_fails, 0)
+                # The after (regenerated) document carries only the recorded
+                # pre-regeneration organizing-principle gap — no C-1..C-7
+                # defect survives. (Was `== 0`; the instruction-006 MP-4
+                # check adds the one allowlisted FAIL until the fixtures are
+                # regenerated through the selection pass.)
+                self.assertEqual(
+                    _unexpected_fail_lines(after_out), [],
+                    f"{target}: after-document carries an unexpected FAIL "
+                    f"beyond the recorded organizing-principle gap:\n{after_out}",
+                )
 
     def test_fixture_files_are_not_mutated_by_the_test_run(self):
         """Guard: the before/after comparison must stage into a temp tree.

@@ -251,3 +251,35 @@ Recorded for the same future run, though not disjunctive-acceptance defects:
 - **express REQ-008** should be retagged from `architectural-guidance` to
   `specific` and given a use case.
 - **virtio REQ-008** needs a non-x86 verification strategy.
+
+## Organizing principle (v1.6.0 instruction 006)
+
+Design §5.2 item 4 (revised 2026-07-21) requires every requirements document to
+**name its organizing principle with a rationale** at the top of the section
+list, enforced by the render contract as a FAIL (matrix row 4b). The three
+golden regeneration fixtures (`chi`, `express`, `virtio`) are pre-006 pipeline
+snapshots and state no principle, so each now emits exactly one render-contract
+FAIL: `no organizing principle stated`.
+
+This is a **recorded expectation for a future regenerated run**, not a fixture
+edit — the snapshots must not be hand-polished (the standing 002/006
+constraint). The test harness allowlists this one FAIL per fixture
+(`EXPECTED_FIXTURE_FAILS` in `bin/tests/test_render_regeneration_fixture_v160.py`)
+while every *other* render-contract FAIL still fails the acceptance oracle, and
+a staleness guard removes the allowance the moment a fixture is regenerated with
+a stated principle.
+
+When these fixtures are regenerated through the instruction-006 selection pass,
+each should gain a stated principle + rationale at the top of its section list
+(and a section overview per section, which the existing intro-prose the fixtures
+already carry largely satisfies). At that point `EXPECTED_FIXTURE_FAILS` empties
+and the oracle returns to a strict zero-FAIL assertion.
+
+**Design finding (surfaced in the instruction-006 output):** row 4b is a
+*mandatory FAIL*, but the §5 / §10-criterion-1 acceptance oracle asserts the
+golden fixtures *pass* the contract. Those two cannot both hold for pre-006
+snapshots — a new mandatory check necessarily makes an un-regenerated golden
+fixture fail. The allowlist reconciles them without weakening the oracle against
+real regressions, but the underlying tension is the design's to resolve
+(regenerate the fixtures, or state that row-4b compliance is only expected of
+post-006 renders).

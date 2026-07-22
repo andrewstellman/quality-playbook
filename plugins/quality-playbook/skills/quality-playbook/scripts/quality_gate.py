@@ -7242,6 +7242,49 @@ def _render_named_section_body(text, level2, heading_pattern):
     return None
 
 
+# v1.6.0 instruction 006 (Design §5.2 item 4): the requirements are grouped
+# by an organizing principle the derivation *chooses* per system (IEEE 830
+# §5.3 menu), not a fixed "functional" mandate. The render contract checks
+# only that a principle is NAMED with a RATIONALE (presence, not whether the
+# choice is optimal — that is Feature D Stage 1 + the Well-organized rubric,
+# matrix row 4c). These patterns detect the stated choice at the top of the
+# section list.
+_RENDER_PRINCIPLE_RE = re.compile(
+    r"organiz(?:ed|ing)\s+(?:these\s+|the\s+|its\s+)?(?:requirements?\s+)?"
+    r"(?:by|around|according to)\b"
+    r"|grouped\s+(?:these\s+|the\s+)?(?:requirements?\s+)?by\b"
+    r"|organizing\s+principle\b"
+    r"|sections?\s+are\s+organized\b",
+    re.IGNORECASE,
+)
+_RENDER_PRINCIPLE_RATIONALE_RE = re.compile(
+    r"\bbecause\b|\bsince\b|\bas this\b|\bas it\b|\bto reflect\b|"
+    r"\breflect(?:s|ing)\b|\bso that\b|\bwhich lets\b|\bgiven that\b",
+    re.IGNORECASE,
+)
+
+
+def _render_organizing_principle_stated(text, first_section_offset):
+    """Detect the stated organizing principle (Design §5.2 item 4, row 4b).
+
+    Looks in the zone before the first requirement section (the "top of the
+    section list") for a paragraph that *names* an organizing principle and
+    carries a *rationale*. Returns (named: bool, rationale: bool). Rationale
+    is checked only within the paragraph that names the principle, so a
+    "because" elsewhere in the Overview cannot satisfy it.
+    """
+    zone = text[:first_section_offset] if first_section_offset is not None else text
+    named = False
+    rationale = False
+    for para in re.split(r"\n\s*\n", zone):
+        if _RENDER_PRINCIPLE_RE.search(para):
+            named = True
+            if _RENDER_PRINCIPLE_RATIONALE_RE.search(para):
+                rationale = True
+                break
+    return named, rationale
+
+
 def _render_classify_sections(text, level2):
     """Split level-2 headings into (structural, functional).
 
@@ -7588,19 +7631,52 @@ def check_render_contract(repo_dir, q, skill_version=None):
 
     functional = _render_classify_sections(structure_text, level2)
 
-    # A document that HAS requirements but no functional section at all has
+    # A document that HAS requirements but no requirement section at all has
     # opted out of the entire section discipline below. That is a FAIL in
     # its own right, not a reason to skip the checks silently.
     if not functional:
         fail(
             "REQUIREMENTS.md",
-            f"{len(headings)} REQ heading(s) but no functional section — "
+            f"{len(headings)} REQ heading(s) but no requirement section — "
             "every requirement sits outside the section structure, so "
-            "section discipline (intro prose, singleton merge, cross-cutting "
-            "concerns) cannot apply. Group the requirements into functional "
-            "sections ordered user-facing to infrastructure "
+            "section discipline (section overview, singleton merge, "
+            "cross-cutting concerns) cannot apply. Group the requirements "
+            "into sections under the chosen organizing principle "
             "(v1.6.0 Design §5.2 item 4).",
         )
+
+    # -- §5.2 item 4 / matrix row 4b: the organizing principle must be
+    # NAMED with a rationale at the top of the section list. The derivation
+    # chooses the principle (IEEE 830 §5.3 menu); the contract checks only
+    # that a choice is stated, not whether it is optimal (that is Feature D
+    # Stage 1 + the Well-organized rubric — matrix row 4c, judgment-only).
+    if functional:
+        first_section_offset = min(off for _h, off in functional)
+        named, rationale = _render_organizing_principle_stated(
+            structure_text, first_section_offset)
+        if not named:
+            fail(
+                "REQUIREMENTS.md",
+                "no organizing principle stated at the top of the section "
+                "list. The derivation must name the principle it grouped the "
+                "requirements by (feature, use case, user class, mode, object, "
+                "interface, functional hierarchy, or a justified combination) "
+                "and give a one-paragraph rationale — e.g. 'Organized by user "
+                "journey because this is a workflow system.' (v1.6.0 Design "
+                "§5.2 item 4; references/requirements_pipeline.md § E — "
+                "Choosing the organizing principle).",
+            )
+        elif not rationale:
+            fail(
+                "REQUIREMENTS.md",
+                "an organizing principle is named but carries no rationale. "
+                "State in the same paragraph *why* this principle fits this "
+                "system (a 'because'/'since' clause) — the choice and its "
+                "reason are what the operator validates in the Feature D "
+                "interview (v1.6.0 Design §5.2 item 4).",
+            )
+        else:
+            pass_("organizing principle named with a rationale")
     # Count REQs per functional section by document offset.
     bounds = [off for _h, off in level2] + [len(structure_text)]
     section_req_counts = {}
@@ -7625,14 +7701,15 @@ def check_render_contract(repo_dir, q, skill_version=None):
         if no_intro:
             fail(
                 "REQUIREMENTS.md",
-                f"{len(no_intro)} functional section(s) lack intro prose "
-                f"stating the section's contract theme: "
+                f"{len(no_intro)} requirement section(s) lack a section "
+                f"overview stating the theme that unifies their requirements "
+                f"under the chosen organizing principle: "
                 f"{', '.join(repr(h) for h in no_intro[:5])}"
                 f"{'...' if len(no_intro) > 5 else ''} "
                 "(v1.6.0 Design §5.2 item 4).",
             )
         else:
-            pass_(f"all {len(functional)} functional section(s) carry intro prose")
+            pass_(f"all {len(functional)} requirement section(s) carry a section overview")
 
         singletons = sorted(h for h, c in section_req_counts.items() if c == 1)
         if singletons:
@@ -7660,7 +7737,7 @@ def check_render_contract(repo_dir, q, skill_version=None):
             if unjustified:
                 fail(
                     "REQUIREMENTS.md",
-                    f"{len(unjustified)} functional section(s) hold exactly "
+                    f"{len(unjustified)} requirement section(s) hold exactly "
                     f"one REQ with no justification for standing alone: "
                     f"{', '.join(repr(h) for h in unjustified[:6])}"
                     f"{'...' if len(unjustified) > 6 else ''}. "
@@ -7671,7 +7748,7 @@ def check_render_contract(repo_dir, q, skill_version=None):
             else:
                 pass_(f"{len(singletons)} singleton section(s) carry justifications")
         else:
-            pass_("no degenerate singleton functional sections")
+            pass_("no degenerate singleton requirement sections")
 
         if len(functional) > 1:
             has_cc = any(
@@ -7683,7 +7760,7 @@ def check_render_contract(repo_dir, q, skill_version=None):
                 fail(
                     "REQUIREMENTS.md",
                     f"no Cross-cutting concerns section, but the document has "
-                    f"{len(functional)} functional sections — mandatory at >1 "
+                    f"{len(functional)} requirement sections — mandatory at >1 "
                     "(v1.6.0 Design §5.2 item 6; references/"
                     "requirements_pipeline.md § E.3).",
                 )

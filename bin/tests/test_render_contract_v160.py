@@ -77,9 +77,15 @@ RENDER_CONTRACT_AUDIT = [
     ("MP-1", "§5.2 items 3/7/8", "Actors, Use cases and Traceability are mandatory",
      "makes it mandatory on every run"),
     ("MP-2", "§5.2 item 4", "requirements must live inside functional sections",
-     "no functional section"),
+     "no requirement section"),
     ("MP-3", "§5.2", "quoted headings inside code fences are not structure",
-     "no functional section"),
+     "no requirement section"),
+    # v1.6.0 instruction 006 (§5.2 item 4 / matrix row 4b): the organizing
+    # principle must be NAMED with a rationale at the top of the section list.
+    # Presence-only — the contract does not judge whether the choice is
+    # optimal (that is Feature D Stage 1 + the Well-organized rubric, row 4c).
+    ("MP-4", "§5.2 item 4 / row 4b", "organizing principle named with a rationale",
+     "no organizing principle stated"),
 ]
 
 
@@ -115,11 +121,17 @@ Application developers mount routers; operators deploy behind proxies.
 
 **Mount** — attaching a sub-router beneath a path prefix.
 
+## Requirement organization
+
+These requirements are organized by system capability because testproj is a
+routing library whose behavior clusters around the capabilities it exposes to
+the developer; the sections are ordered most-relevant-to-the-primary-reader
+first (the developer mounting a sub-router), infrastructure last.
+
 ## Request routing
 
-Sections are ordered user-facing first, infrastructure last. This section
-covers the contract between a mounted sub-router and the canonical path the
-router dispatches on.
+This section covers the contract between a mounted sub-router and the canonical
+path the router dispatches on.
 
 ### REQ-001: Path middleware operates on the canonical mounted path
 
@@ -265,7 +277,8 @@ class RenderContractCleanDocumentTests(RenderContractBase):
             "sequential in document order",
             "no tool-contract REQs",
             "Overview section present",
-            "intro prose",
+            "organizing principle named",
+            "section overview",
             "singleton",
             "Cross-cutting concerns section present",
             "no derivation internals",
@@ -381,7 +394,7 @@ class C3SingletonSectionTests(RenderContractBase):
         fails, _w, out = self.run_check()
         self.assertGreaterEqual(fails, 1)
         # Not bare "intro prose": that matches the PASS line too.
-        self.assertIn("lack intro prose", out)
+        self.assertIn("lack a section overview", out)
 
 
 class C4NarrativeConsistencyTests(RenderContractBase):
@@ -862,7 +875,7 @@ UC-01 → REQ-001, REQ-002
             "a flat '## Requirements' heading must not opt the document out "
             f"of section discipline:\n{out}",
         )
-        self.assertIn("no functional section", out)
+        self.assertIn("no requirement section", out)
 
     def test_mp3_fenced_code_block_headings_do_not_synthesize_structure(self):
         """A `##` line inside a code fence is quoted material, not a heading.
@@ -886,7 +899,7 @@ UC-01 → REQ-001, REQ-002
         (self.q / "RUN_CONTRACT.md").unlink()
         fails, _w, out = self.run_check()
         self.assertGreaterEqual(fails, 1, out)
-        self.assertIn("no functional section", out)
+        self.assertIn("no requirement section", out)
         # Must be the FAIL, not the PASS line: a bare "Actors & roles"
         # substring matches "PASS: Actors & roles section present" and
         # would leave this test green with fence-blanking removed.
@@ -941,7 +954,7 @@ UC-01 → REQ-001, REQ-002
                     run_contract.unlink()
                 fails, _w, out = self.run_check()
                 self.assertGreaterEqual(fails, 1, out)
-                self.assertIn("no functional section", out)
+                self.assertIn("no requirement section", out)
                 self.assertIn("no Actors & roles section", out)
 
     def test_mp3_every_fence_shape_permits_quoted_content(self):
@@ -997,7 +1010,7 @@ UC-01 → REQ-001, REQ-002
                     run_contract.unlink()
                 fails, _w, out = self.run_check()
                 self.assertGreaterEqual(fails, 1, out)
-                self.assertIn("no functional section", out)
+                self.assertIn("no requirement section", out)
 
     def test_mp3_html_blocks_permit_quoted_content(self):
         for name, (opener, closer) in self._HTML_BLOCKS.items():
@@ -1116,12 +1129,16 @@ class MandatoryPartTests(RenderContractBase):
     def test_mp2_reqs_outside_any_functional_section_fires(self):
         """The `functional == []` guard, isolated from the part checks."""
         text = _clean_requirements_md()
-        for heading in ("## Request routing", "## Error handling"):
+        for heading in (
+            "## Requirement organization",
+            "## Request routing",
+            "## Error handling",
+        ):
             text = text.replace(heading + "\n", "")
         self.write_requirements(text)
         fails, _w, out = self.run_check()
         self.assertGreaterEqual(fails, 1)
-        self.assertIn("no functional section", out)
+        self.assertIn("no requirement section", out)
 
 
 class RenderContractRunContractArtifactTests(RenderContractBase):
@@ -1247,7 +1264,7 @@ class GlossarySlotTests(RenderContractBase):
         """
         _f, _w, out = self.run_check()
         self.assertNotIn("Glossary", out.split("glossary/definitions")[0])
-        self.assertIn("all 2 functional section(s) carry intro prose", out)
+        self.assertIn("all 2 requirement section(s) carry a section overview", out)
 
     def test_the_check_has_no_fail_path_in_source(self):
         """Structural guard: WARN-never-FAIL by construction, not by luck.
@@ -1280,6 +1297,164 @@ class GlossarySlotTests(RenderContractBase):
             "exactly as F-1 is (Design §8). Adding a FAIL here would break "
             "the three regeneration fixtures, which carry no glossary.",
         )
+
+
+def _use_case_organized_md():
+    """A document organized by USE CASE / user journey, not by function.
+
+    The regression that proves the render contract is principle-agnostic
+    (v1.6.0 instruction 006): a correctly-organized non-functional grouping
+    must PASS every check. Reuses REQ-001..005 so the base manifest applies.
+    """
+    return f"""# Requirements — testproj
+
+> Generated by [Quality Playbook](https://github.com/andrewstellman/quality-playbook) v{SKILL_VERSION} — Andrew Stellman
+> Date: 2026-07-19 · Project: testproj
+
+## Overview
+
+testproj is a request-routing library used through a small number of developer
+workflows. Requirements were derived from the source tree and reference docs.
+
+Coverage and known gaps: covered the routing and error surfaces; the
+template-rendering subsystem was skimmed and produced no requirements.
+
+## Actors and roles
+
+Application developers mount routers; operators deploy behind proxies.
+
+## Requirement organization
+
+These requirements are organized by user journey because testproj is a
+workflow-shaped library whose requirements cluster around the stages a
+developer moves through; the sections follow that journey, mounting first.
+
+## Mounting a sub-router
+
+This section groups the requirements a developer meets while wiring a
+sub-router into a parent — the first stage of the journey.
+
+### REQ-001: Path middleware operates on the canonical mounted path
+
+- References: middleware/rewrite.go
+
+### REQ-002: Route lookup mirrors live routing context effects
+
+- References: mux.go
+
+### REQ-003: Mount registration rejects overlapping wildcard patterns
+
+- References: mux.go
+
+## Handling a failing request
+
+This section groups the requirements that govern what a developer's users see
+when a request goes wrong — the later stage of the journey.
+
+### REQ-004: Handler panics convert to 500 responses without leaking traces
+
+- References: recover.go
+
+### REQ-005: Malformed routes fail at mount time rather than request time
+
+- References: mux.go
+
+## Cross-cutting concerns
+
+Path canonicalization spans REQ-001 and REQ-002; failure surfacing spans
+REQ-003 and REQ-004.
+
+## Glossary
+
+**Route** — a pattern registered on a router, matched against a request path.
+
+## Use cases
+
+### UC-01: Developer mounts a sub-router
+
+### UC-02: Client triggers a handler panic
+
+## Traceability appendix
+
+UC-01 → REQ-001, REQ-002, REQ-003
+UC-02 → REQ-004, REQ-005
+"""
+
+
+class OrganizingPrincipleTests(RenderContractBase):
+    """MP-4 (§5.2 item 4, instruction 006): the organizing principle must be
+    named with a rationale, and the contract must accept ANY well-formed
+    grouping — not only a functional one.
+    """
+
+    def test_mp4_fires_when_no_principle_is_stated(self):
+        # Strip the "## Requirement organization" principle statement.
+        doc = _clean_requirements_md()
+        doc = doc.replace(
+            "## Requirement organization\n\n"
+            "These requirements are organized by system capability because "
+            "testproj is a\n"
+            "routing library whose behavior clusters around the capabilities "
+            "it exposes to\n"
+            "the developer; the sections are ordered "
+            "most-relevant-to-the-primary-reader\n"
+            "first (the developer mounting a sub-router), infrastructure "
+            "last.\n\n",
+            "",
+        )
+        self.assertNotIn("organized by", doc, "principle statement not removed")
+        self.write_requirements(doc)
+        fails, _w, out = self.run_check()
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("no organizing principle stated", out)
+
+    def test_mp4_fires_when_principle_named_without_rationale(self):
+        doc = _clean_requirements_md().replace(
+            "These requirements are organized by system capability because "
+            "testproj is a\n"
+            "routing library whose behavior clusters around the capabilities "
+            "it exposes to\n"
+            "the developer; the sections are ordered "
+            "most-relevant-to-the-primary-reader\n"
+            "first (the developer mounting a sub-router), infrastructure "
+            "last.",
+            "These requirements are organized by system capability. The "
+            "sections are ordered\nwith the mounting surface first.",
+        )
+        self.write_requirements(doc)
+        fails, _w, out = self.run_check()
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("no rationale", out)
+
+    def test_clean_document_states_its_principle(self):
+        # The updated clean fixture must satisfy MP-4 (0 fails overall).
+        fails, _w, out = self.run_check()
+        self.assertEqual(fails, 0, out)
+        self.assertIn("organizing principle named with a rationale", out)
+
+    def test_non_functional_grouping_is_accepted(self):
+        # The headline regression: a use-case-organized document PASSES.
+        self.write_requirements(_use_case_organized_md())
+        fails, warns, out = self.run_check()
+        self.assertEqual(
+            fails, 0,
+            f"a correctly use-case-organized document must pass the "
+            f"principle-agnostic render contract:\n{out}",
+        )
+        self.assertIn("organizing principle named with a rationale", out)
+
+    def test_section_overview_missing_still_fails_for_non_functional(self):
+        # Section-overview (row 4b) is enforced regardless of principle.
+        doc = _use_case_organized_md().replace(
+            "This section groups the requirements a developer meets while "
+            "wiring a\nsub-router into a parent — the first stage of the "
+            "journey.\n\n",
+            "",
+        )
+        self.write_requirements(doc)
+        fails, _w, out = self.run_check()
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("section overview", out)
 
 
 class RenderContractAuditSweepTests(unittest.TestCase):
@@ -1327,13 +1502,14 @@ class RenderContractAuditSweepTests(unittest.TestCase):
 
     def test_audit_table_size_matches_known_defect_classes(self):
         self.assertEqual(
-            len(RENDER_CONTRACT_AUDIT), 10,
+            len(RENDER_CONTRACT_AUDIT), 11,
             "AUDIT table size changed. The render contract pins the seven "
             "defect classes C-1..C-7 enumerated in QPB_v1.6.0_Design.md "
-            "§1.2, plus the three §5.2 structural rows (MP-1..MP-3). If you "
-            "added a render-contract check, add its row and update this "
-            "expected size — a check with no AUDIT row and no bite can be "
-            "deleted with the suite still green (self-Council round 3).",
+            "§1.2, plus the §5.2 structural rows (MP-1..MP-3) and the "
+            "organizing-principle row MP-4 (§5.2 item 4, instruction 006). "
+            "If you added a render-contract check, add its row and update "
+            "this expected size — a check with no AUDIT row and no bite can "
+            "be deleted with the suite still green (self-Council round 3).",
         )
 
 
