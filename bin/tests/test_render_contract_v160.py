@@ -708,6 +708,50 @@ class RenderContractVersionGatingTests(RenderContractBase):
         self.assertIn("v1.6.0+ obligation", out)
 
 
+class RenderContractShippedVersionActivatesTests(unittest.TestCase):
+    """The version the skill actually ships MUST activate its own render
+    contract. Every other test in this file pins ``skill_version`` explicitly,
+    so none of them would catch a regression that stamps the shipped SKILL.md
+    below the contract floor and silently turns Feature C off on every run —
+    exactly the inert-contract state instruction 005 exists to end. This guard
+    reads the real repo-root SKILL.md and asserts the shipped version clears
+    the floor. Robust to future bumps (any version >= the floor activates);
+    fails the moment someone regresses the frontmatter below it.
+    """
+
+    def _shipped_version(self):
+        text = (REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")
+        block = text[: text.find("\n---", 3)] if text.startswith("---") else text
+        for line in block.splitlines():
+            s = line.strip()
+            if s.startswith("version:"):
+                return s.split(":", 1)[1].strip()
+        self.fail("no frontmatter version in the shipped SKILL.md")
+
+    def test_shipped_skill_version_activates_the_render_contract(self):
+        version = self._shipped_version()
+        tup = quality_gate._render_version_tuple(version)
+        self.assertIsNotNone(tup, f"unparseable shipped version {version!r}")
+        self.assertGreaterEqual(
+            tup, quality_gate._RENDER_CONTRACT_MIN_VERSION,
+            f"shipped SKILL.md version {version} is below the render-contract "
+            f"floor {quality_gate._RENDER_CONTRACT_MIN_VERSION} — Feature C "
+            f"would be inert on every run",
+        )
+        # And the version gate agrees: a run at the shipped version, with no
+        # PROGRESS override, is NOT treated as predating the contract.
+        with tempfile.TemporaryDirectory() as tmp:
+            q = Path(tmp) / "quality"
+            q.mkdir(parents=True)
+            predates, _detected = quality_gate._render_run_predates_contract(
+                q, version)
+            self.assertFalse(
+                predates,
+                f"the shipped version {version} must activate the render "
+                f"contract, but the version gate skips it",
+            )
+
+
 class RenderContractFalsePositiveTests(RenderContractBase):
     """Documents that are legitimate but unusual must not be failed.
 
