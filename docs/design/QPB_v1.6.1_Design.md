@@ -46,11 +46,17 @@ The 2026-05-23 OpenFGA Mode-A dogfood (v1.5.7, real 548-file Go repo, doc-enrich
 
 **Dependencies.** `schemas.md` REQ record extension; categorization-tier state must be confirmed in code before extending (the Lever-6 withdraw/return history — carried open question). Backlog B-13 (per-bug categorization tagging, v1.5.4 backlog) is partially subsumed by `nfr_class` — reconcile during implementation, per the 2026-05-24 doc's note.
 
+**Builds on v1.6.0 Feature G (dump-and-go ingest, added 2026-07-22).** An NFR's mandatory `acceptance_criterion` is only as authoritative as the spec it is grounded in — a security NFR derived from a Tier-1 spec (e.g. an RFC's MUST) is a real requirement; one inferred from code is Tier 3 and weaker evidence for the grounding rule. Feature G's AI-classified tiering means a security spec dumped into the docs folder is recognized as citable without the operator pre-sorting it, so more NFRs derive at Tier 1/2 with byte-verified acceptance criteria. Feature A should assume Feature G's classification is available; the "advisory is not a contract" rule Feature G enforces is the *same* rule that keeps a CVE advisory from becoming a derived NFR here.
+
 ## 3. Feature B — Fresh-context, requirements-grounded false-positive audit
 
 *Carried forward; substance unchanged, restated compactly.*
 
 **Problem.** Findings confirmed by the producing context inherit its confirmation bias and advisory priming (§1.1); the failure mode is class-agnostic, not security-specific.
+
+**Reuses v1.6.0 Feature H's infrastructure (added 2026-07-22).** Feature B and v1.6.0's Feature H are the *same architecture pointed at different targets*: a fresh-context sub-agent, given a **target-specific** constrained input set and a compact rubric, producing graded verdicts with honest provenance and multi-seat independence — Feature H validates *requirements against intent* (input: gathered docs + rendered spec + rubric), Feature B audits *findings against requirements* (input: finding + cited source + REQ + rubric — the *more restrictive* isolation). v1.6.0 builds the harness **target-agnostic** (a named Feature-H acceptance item): context provisioning is a per-target parameter, while the orchestration, the independence/isolation discipline, and the `agent-validation` provenance shape are shared. Feature B is therefore mostly **a new rubric + target binding**, not new plumbing — it inherits the orchestration and independence machinery and supplies the FP-audit rubric and the findings target.
+
+**One thing Feature B does NOT inherit — the calibration/gating harness.** v1.6.0 ships Feature H **non-gating** and explicitly defers the accuracy-calibration (precision/recall against a labeled corpus, not run-to-run variance) to post-v1.6.0. So if Feature B needs to *gate* (block a finding's disposition on its verdict), it must build or share that accuracy-calibration itself — it cannot inherit a harness v1.6.0 didn't build. **Implementation note:** confirm which parts of H actually shipped before building B; the orchestration + isolation are inheritable, the gating-calibration is not (it is post-v1.6.0 for both releases). Feature B's OpenFGA acceptance oracle (§4) is a fixed, labeled fixture set, so B has its *own* accuracy ground truth for the specific bugs — that is the calibration B needs, and it is B-local, not inherited from H.
 
 **Design.**
 - A fresh-context sub-agent pass over each *confirmed* finding, post Phase 3/4 triage, at/before Phase 5 finalization — the productionized 090i Council shape. **Independence is load-bearing:** the auditor receives only finding + cited source + relevant derived REQ + compact rubric; never the running skill, phase prompts, or writeup reasoning.
@@ -88,6 +94,15 @@ Criteria 2 and 4 moved here from `QPB_v1.6.0_Design.md` §10, renumbered; criter
 Track 2's work items are independent of Track 1's, but **Feature A's NFR sections render into Feature C's document architecture** (`QPB_v1.6.0_Design.md` §5.2 item 5). Feature C shipped the render slot specified to degrade gracefully in both directions, and it is already in the tree — `references/phase2_generation_guide.md` carries "Non-functional sections — NFR REQs grouped by `nfr_class`, after the functional sections. Absent until NFR derivation ships; the slot degrades gracefully."
 
 Because Track 1 now lands first by construction, the rule from `QPB_v1.6.0_Design.md` §9 applies in one direction only: **this release runs v1.6.0's fixture suite before merging.**
+
+**Second coupling, added 2026-07-22 (the 2026-07-21 split predates it):** v1.6.0 grew two features — **G (dump-and-go ingest)** and **H (agent-driven persona validation)** — that this release now depends on, not just coexists with:
+
+- **Feature A ← Feature G.** NFR acceptance criteria derive at Tier 1/2 (byte-verified) when the security spec is recognized as citable; Feature G's ingest-time classification supplies that without operator pre-sorting (§2 dependency note).
+- **Feature B ← Feature H.** Feature B is a rubric + target binding on top of the *target-agnostic* fresh-context sub-agent-review infrastructure Feature H builds; it should not reimplement the orchestration, independence/isolation discipline, or `agent-validation` provenance (§3 reuse note). **It does not inherit gating-calibration** — v1.6.0 ships H non-gating, so B supplies its own accuracy ground truth (its OpenFGA labeled fixture set, §4) for any gating it does.
+
+Consequence: if v1.6.0 ships G and H, this release is materially smaller than the 2026-05-24 scope assumed — Feature A is mostly the `nfr_class` schema + derivation rules, and Feature B is mostly the FP-audit rubric + findings binding. Re-estimate this release's size once v1.6.0's H infrastructure boundary is known.
+
+**Coupling-vs-split honesty (Council-flagged 2026-07-22).** Decision Record #8 split Track 2 out partly because "Track 1 has a complete acceptance story of its own." These two new couplings mean v1.6.0 is again partly a *substrate* for v1.6.1 — but the coupling is **passive/inheritable**, not a runtime dependency: v1.6.0 still tests and ships on its own oracles (G's tiering fixtures, H's non-gating persona oracle), and v1.6.1 *reuses* H's harness rather than v1.6.0 depending on v1.6.1. The split's core rationale (v1.6.0 delivers and tests independently) holds; what changed is that v1.6.1 got cheaper, which sharpens **OD-VERSION** (§5) toward a point release.
 
 A second consequence of the split, recorded because the release notes depend on it: with Feature B absent from v1.6.0, the retained 090j triage (OD-8) is that release's **only** precision guard rather than a mechanical floor beneath a judgment layer. When this release lands, 090j resumes the role OD-8 describes.
 
