@@ -106,6 +106,22 @@ class LeastPrivilegePreventionTests(unittest.TestCase):
                 Path(tmp.name),
             )
 
+    def test_traversal_named_input_is_flattened_not_escaped(self):
+        # Self-Council Panelist A: a staged input with a traversal name must be
+        # flattened into the staging dir, never escape it. Pins the security-
+        # load-bearing Path(item.name).name flatten in stage_persona_inputs.
+        tmp = tempfile.TemporaryDirectory(); self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        outside_marker = root / "passwd"  # what an escape would clobber
+        staging = po.stage_persona_inputs(
+            "p", [po.StagedInput("../../passwd", "STAGED-CONTENT")], root / "_staging")
+        # The file landed flattened INSIDE the staging dir...
+        self.assertTrue((staging / "passwd").is_file())
+        self.assertEqual((staging / "passwd").read_text(encoding="utf-8"), "STAGED-CONTENT")
+        # ...and did NOT escape to root/passwd.
+        self.assertFalse(outside_marker.exists())
+        po.assert_isolation(staging)
+
     def test_assert_isolation_rejects_a_symlink_escape(self):
         # A symlink into the impl tree would defeat prevention-by-absence.
         tmp = tempfile.TemporaryDirectory()

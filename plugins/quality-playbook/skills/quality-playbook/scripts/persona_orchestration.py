@@ -43,7 +43,7 @@ import re
 import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence
+from typing import Callable, List, Optional, Sequence
 
 # The five interview moves; `defer` is an operator-only punt, never a persona
 # move (§8b guard 3), so it is not in the persona move set.
