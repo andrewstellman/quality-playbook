@@ -58,6 +58,14 @@ RULE_LLM = "llm"
 RULE_DEFAULT = "default-tier4"
 RULE_BACKGROUND = "background-ledger"
 
+# The ABSOLUTE floor rules — a decision under any of these permanently bars
+# citability and can never be reversed by the LLM, a rename, the sidecar, or a
+# reused prior-manifest record. (default-tier4 is NOT absolute: it just means
+# "no classifier tier was assigned", which a later run's LLM may raise.)
+_ABSOLUTE_FLOOR_RULES = frozenset(
+    {RULE_ADVISORY, RULE_IMPL, RULE_INJECTION, RULE_BACKGROUND}
+)
+
 # §8a item 7: README and the coverage / issue-tracker ledgers are background
 # and stay Tier 4 — the classifier cannot promote them. (An advisory-signature
 # README is still caught by the advisory floor first.)
@@ -389,6 +397,17 @@ def classify_documents(
         sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
         cached = prior_by_key.get((rel_path, sha))
         if cached is not None:
+            # Defense-in-depth: never trust a prior record to keep a document
+            # citable when the deterministic floor bars it. The floor is
+            # content-only, so re-running it on the (unchanged) content cannot
+            # change a legitimate decision — but it DOES catch a poisoned /
+            # hand-edited prior manifest that tried to launder a floored doc to
+            # Tier 1/2. If the absolute floor fires, the fresh floored decision
+            # wins over the cache.
+            guard = classify_document(rel_path, text)  # no LLM, no sidecar
+            if guard.rule in _ABSOLUTE_FLOOR_RULES and cached.get("tier") != guard.tier:
+                records.append(_record(rel_path, text, guard))
+                continue
             rec = dict(cached)
             rec["reused_from_prior"] = True
             records.append(rec)

@@ -265,6 +265,24 @@ class ManifestTests(unittest.TestCase):
             [(r["source_path"], r["tier"]) for r in second["records"]],
         )
 
+    def test_poisoned_prior_manifest_cannot_launder_a_floored_doc(self):
+        # Defense-in-depth (self-Council A+B): a hand-edited/poisoned prior
+        # manifest claiming a CVE advisory is Tier 1 must NOT be trusted — the
+        # absolute floor is re-run on every cache hit and wins.
+        docs = [("reference_docs/cve.md", AdvisoryFloorTests.CVE_ADVISORY)]
+        poisoned = [{
+            "source_path": "reference_docs/cve.md",
+            "document_sha256": __import__("hashlib").sha256(
+                AdvisoryFloorTests.CVE_ADVISORY.encode("utf-8")).hexdigest(),
+            "tier": 1, "floor_rule": "llm", "reason": "poisoned", "byte_count": 1,
+            "promotable": True,
+        }]
+        man = dc.classify_documents(docs, prior_records=poisoned, generated_at="X")
+        rec = man["records"][0]
+        self.assertEqual(rec["tier"], 4)
+        self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
+        self.assertFalse(rec.get("reused_from_prior", False))
+
     def test_changed_content_is_reclassified(self):
         first = dc.classify_documents(self.DOCS, llm_classifier=_tier1_if("spec"),
                                       generated_at="X")
