@@ -7279,7 +7279,7 @@ _RENDER_RATIONALE_MIN_WORDS = 4
 # on this list alone (instruction 009 work item 1).
 _RENDER_RATIONALE_CONNECTOR_RE = re.compile(
     r"\bbecause\b|\bsince\b|\bso that\b|\bso\b|\bthus\b|\bhence\b|"
-    r"\bin order to\b|\bas this\b|\bas it\b|\bgiven that\b|"
+    r"\btherefore\b|\bin order to\b|\bas this\b|\bas it\b|\bgiven that\b|"
     r"\bto reflect\b|\bwhich lets\b|\brationale\b|\bchosen\b|"
     r"\brejected\b|\bmatches how\b|\bmatches both\b|\bmatches the\b|"
     r"\bthis matches\b|\bthis fits\b|\bmaps cleanly\b|\bmaps onto\b|"

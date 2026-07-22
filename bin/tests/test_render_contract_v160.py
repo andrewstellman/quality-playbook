@@ -1512,6 +1512,10 @@ class OrganizingPrincipleTests(RenderContractBase):
             # express — single-sentence "because" clause.
             ("The requirements are organized by object because the public "
              "API maps to those objects one to one.", True),
+            # "therefore" — same connector family as thus/hence (instr 009
+            # work item 1's enumerated set); a single-sentence rationale.
+            ("The requirements are organized by module; therefore each "
+             "contract sits beside the code that governs it.", True),
             # name only, no reason — must FAIL.
             ("Organized by feature.", False),
             # name + a lone section-ordering note is NOT a rationale.
