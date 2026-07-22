@@ -1,6 +1,6 @@
 # Quality Playbook
 
-**Version:** 1.5.10 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
+**Version:** 1.6.0 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
 
 **Find the bugs that code review misses**
 

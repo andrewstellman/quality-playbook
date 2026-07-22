@@ -5,6 +5,32 @@ All notable changes to the Quality Playbook will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] — in progress (unreleased)
+
+The Requirements-Review release. QPB has always verified that code conforms to the derived requirements; 1.6.0 adds the missing half — making the requirements document itself coherent, and letting the operator validate that it captures the right intent before the rest of the run builds on it. Three features ship under this version: **C** (spec organization & coherence — the mechanical render contract), **D** (the requirements validation interview), and **F** (operator-confirmation evidence + its cross-run durability). Publishing is deferred; this entry tracks what has landed on the `1.6.0` branch.
+
+### Feature C — spec organization & coherence (the render contract)
+
+- **Product spec split from the tool contract** — REQs whose references point exclusively into `quality/` are QPB's own run-layout invariants, not requirements of the audited system; they render to `quality/RUN_CONTRACT.md`, leaving `REQUIREMENTS.md` a clean product spec (C-1).
+- **Canonical document architecture** — an ordered, mandatory-part document (Overview with a coverage-and-gaps statement, Actors & roles, Glossary (advisory), functional sections ordered user-facing → infrastructure with ≥2 REQs or an explicit singleton justification, cross-cutting concerns, use cases, traceability appendix), enforced by mechanical render-contract checks in `quality_gate.py` — sequential REQ IDs in document order, no tool-contract leakage, section-intro prose, no derivation internals in the render, title discipline, and a generator-stamp regression pin (C-2…C-7, plus mandatory-part presence).
+- **Requirement heading format made discoverable and bound** — the canonical `### REQ-NNN: Title` marker (with a worked example) now lives in the doc the Phase 2 generator is routed to, not only in the pipeline reference, and the three sites that state or enforce it cross-reference each other so the rule can't drift.
+- **Fail-closed render contract** — a run whose manifest carries product REQs but whose `REQUIREMENTS.md` has zero `### REQ-NNN:` headings now FAILs (the requirements were rendered in the wrong shape) instead of silently skipping; a genuinely empty or tool-contract-only manifest still skips, and pre-v1.6.0 runs remain version-gated off.
+- **Intent-form requirements** — a REQ states intended behavior; observed divergence moves to the BUG record. One required behavior per requirement — no disjunctive "X, or document not-X" acceptance.
+
+### Feature D — the requirements validation interview
+
+- **Fitness-for-purpose interview** — a skill-protocol chat (no new Python surface) that plays the derivation back and walks the spec top-down: a narrative stage, then sections and use cases, then per-REQ drill-down on demand, inheriting the Wiegers readability vocabulary. At each step the operator can **confirm**, **correct**, **add**, **drop**, or **defer**; corrections land in the manifest and re-render. Guided / self-guided / cross-model entry modes.
+- **Offered at the Phase 2 → Phase 3 boundary** — validation is a fitness-for-purpose gate on the spec, and a spec is validated before you build on it; the interview is offered when the requirements are complete and before Phases 3–6 consume them, opt-in and never auto-started, with one playbook-end reminder if declined. Supersedes the v1.5.7 review/refinement walkthrough (no shim; the old artifacts are no longer generated).
+
+### Feature F — operator-confirmation evidence + durability
+
+- **`operator-confirmation` source type (F-2)** — an operator's confirmation of a requirement is first-class, citable evidence, backed by the preserved interview transcript.
+- **Cross-run durability (F-2a)** — confirmations persist in an append-only `quality/operator_confirmations.jsonl`; a re-derivation that would drop the confirmed REQs while leaving no durable backing FAILs the gate, so an operator's validation survives future runs (surfaced, never silently re-applied).
+
+### Activation
+
+- Skill version bumped `1.5.10` → `1.6.0` in the single canonical source (`SKILL.md` frontmatter); every derived surface (CLI, benchmark release string, run-start banner) reads from it. The render contract is gated to v1.6.0+, so this bump is what activates Feature C on every run.
+
 ## [1.5.10] — 2026-06-22
 
 Repo-hygiene + multi-language correctness release. The canonical `SKILL.md` and `references/` move back to the repo root as the single source of truth (in-tree skill locations become symlinks), `SKILL.md` is trimmed with per-phase detail lazy-loaded from `references/*.md`, and committed run-output + orphaned partial copies are removed from tracking. On top of the hygiene base: the quality gate now detects Clojure (and any dominant language) correctly, multi-language repos are disclosed with an opt-in `--language` override, the skill version is consolidated to one source and shown in the run banner, and a CI/CD trusted-publishing pipeline is staged. A clean base for the upcoming security work.

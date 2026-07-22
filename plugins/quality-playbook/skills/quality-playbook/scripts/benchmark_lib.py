@@ -188,7 +188,7 @@ def detect_skill_version(qpb_dir: Optional[Path] = None) -> str:
 # canonical reader returns "unknown" (never expected in a real clone).
 RELEASE_VERSION = detect_skill_version()
 if RELEASE_VERSION == "unknown":  # pragma: no cover - defensive
-    RELEASE_VERSION = "1.5.10"
+    RELEASE_VERSION = "1.6.0"
 
 
 def skill_version() -> Optional[str]:
