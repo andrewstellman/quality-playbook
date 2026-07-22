@@ -380,7 +380,13 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # v1.6.0 instruction 004 (Design §6): phase2.md gained the
         # primary requirements-validation-interview offer at the Phase 2 →
         # Phase 3 boundary. phase2: 12289 → 12810 codepoints. Recomputed.
-        "phase2":                (12810, "6a94888bf0102e4bfad95e845797cabbb530cc98d4e194749f68a8d59e8d4091"),
+        # v1.6.0 instruction 006 (Design §5.2 item 4): the render-contract
+        # summary in phase2.md was made organizing-principle-agnostic — the
+        # "functional sections ordered user-facing→infrastructure" phrasing
+        # (a self-Council-found leftover) → "requirement sections organized
+        # by the principle you chose", + glossary added to the part list.
+        # phase2: 12810 → 13004 codepoints. Recomputed.
+        "phase2":                (13004, "7281b61c64b36a63156d6cd2b7d66cc3115fae35af940b14d9722930a252a2c6"),
         # v1.5.7 090j: phase3.md + phase4.md gained the triage
         # precision-guardrail pointers (D1 reachability_analysis on
         # HIGH/MED bugs + D2 KNOWN-ISSUE classification for advisory-
