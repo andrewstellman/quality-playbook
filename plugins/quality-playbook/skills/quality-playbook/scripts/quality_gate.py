@@ -7250,9 +7250,9 @@ def _render_named_section_body(text, level2, heading_pattern):
 # matrix row 4c). These patterns detect the stated choice at the top of the
 # section list.
 _RENDER_PRINCIPLE_RE = re.compile(
-    r"organiz(?:ed|ing)\s+(?:these\s+|the\s+|its\s+)?(?:requirements?\s+)?"
+    r"organiz(?:e|es|ed|ing)\s+(?:these\s+|the\s+|its\s+)?(?:requirements?\s+)?"
     r"(?:by|around|according to)\b"
-    r"|grouped\s+(?:these\s+|the\s+)?(?:requirements?\s+)?by\b"
+    r"|group(?:ed|s|ing)?\s+(?:these\s+|the\s+)?(?:requirements?\s+)?by\b"
     r"|organizing\s+principle\b"
     r"|sections?\s+are\s+organized\b",
     re.IGNORECASE,

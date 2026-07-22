@@ -164,13 +164,13 @@ Define the domain terms the requirements actually use — the ones a competent r
 
 **Advisory, never a gate FAIL.** The gate WARNs when the glossary is missing or empty, exactly as it does for the F-1 coverage-and-gaps statement (Design §8), and for the same reason: this is a quality signal to the operator, not a contract the derivation can always satisfy. A target whose vocabulary is genuinely unambiguous does not need one, and a run that produced good requirements should not be failed for omitting it.
 
-*Why user-facing → infrastructure rather than architectural layering:* the spec's first consumer is an operator deciding whether the derivation captured intent. Operators recognize user-visible behavior before internals. Implementers, who prefer architectural ordering, read the `References` fields anyway.
+*Why most-relevant-to-the-primary-reader first rather than architectural layering:* the spec's first consumer is an operator deciding whether the derivation captured intent. They recognize what matters to them before internals. Implementers, who prefer architectural ordering, read the `References` fields anyway. (For a *functional* grouping this reduces to the older "user-facing → infrastructure" rule; the ordering generalizes with the organizing principle — Design §5.2 item 4.)
 
 *Why ≥2 REQs per section:* six single-REQ sections (the 2026-06-19 express shape) mean the grouping conveys nothing — the section headings are noise between requirements.
 
 #### REQ identifiers and ordering (contract item 1)
 
-REQ IDs are **strictly sequential in document order**: the first REQ that appears in the rendered document is REQ-001, the next REQ-002, with no gaps and no backtracking. Order sections first (user-facing → infrastructure), then assign identifiers to match. Renumbering is not a cosmetic afterthought — it is the last step of rendering, and the gate checks it.
+REQ IDs are **strictly sequential in document order**: the first REQ that appears in the rendered document is REQ-001, the next REQ-002, with no gaps and no backtracking. Order sections first (most-relevant-to-the-primary-reader first, under the chosen organizing principle — item 4 above), then assign identifiers to match. Renumbering is not a cosmetic afterthought — it is the last step of rendering, and the gate checks it.
 
 **This supersedes the pre-v1.6.0 "ordered by REQ id" convention.** Those two rules contradicted each other: grouping by `functional_section` while numbering in derivation order guarantees scrambled identifiers (chi rendered REQ-001/004/005, then 002, then 003/006 — the reader cannot tell whether a gap means a dropped requirement). Document order now drives the numbers.
 

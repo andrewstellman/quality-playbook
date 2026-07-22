@@ -1443,6 +1443,22 @@ class OrganizingPrincipleTests(RenderContractBase):
         )
         self.assertIn("organizing principle named with a rationale", out)
 
+    def test_principle_detector_accepts_bare_present_tense(self):
+        # Council P2 (Panelist A): the detector must accept "organize/group by"
+        # (bare present), not only "organized/grouped/organizing by".
+        for phrase, named, rationale in [
+            ("We organize the requirements by risk tier because tiers drive review.",
+             True, True),
+            ("These requirements group by stakeholder since each owns a slice.",
+             True, True),
+            # No trigger phrase — must NOT false-positive.
+            ("The requirements cluster naturally by mode of operation.", False, False),
+        ]:
+            with self.subTest(phrase=phrase):
+                got_named, got_rat = quality_gate._render_organizing_principle_stated(
+                    phrase, None)
+                self.assertEqual((got_named, got_rat), (named, rationale))
+
     def test_section_overview_missing_still_fails_for_non_functional(self):
         # Section-overview (row 4b) is enforced regardless of principle.
         doc = _use_case_organized_md().replace(
