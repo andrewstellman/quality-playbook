@@ -121,7 +121,8 @@ explicit.
 
 Every JSON manifest produced by the playbook (`formal_docs_manifest.json`,
 `requirements_manifest.json`, `use_cases_manifest.json`,
-`bugs_manifest.json`, `citation_semantic_check.json`) is a JSON object
+`bugs_manifest.json`, `citation_semantic_check.json`,
+`classification_manifest.json`) is a JSON object
 whose top-level shape is fixed by this wrapper schema:
 
 | Field            | Type            | Required | Notes                                                                           |
@@ -1056,6 +1057,51 @@ operator's work.
 
 ```json
 {"ts":"2026-07-21T15:04:00Z","move":"correct","req_title":"res.jsonp sanitizes callback names","conditions_of_satisfaction":"res.jsonp removes every character outside [A-Za-z0-9_$.[]] and emits the sanitized name; it does not reject.","operator_statement":"The guard sanitizes, it doesn't reject — say so.","transcript_citation":"quality/review_sessions/2026-07-21T150000Z-jsonp.md:42-58","session_id":"2026-07-21T150000Z-jsonp"}
+```
+
+---
+
+## 9.6. `classification_manifest.json` (v1.6.0 Feature G / §8a)
+
+`quality/classification_manifest.json` is the **reviewable, content-keyed**
+record of the dump-and-go documentation classification (Design §8a). It records,
+per ingested reference doc, the tier the ingest assigned and *why* — so the
+operator can eyeball or override, and so a re-run with unchanged content
+reproduces the same tiering. Written by
+`bin/reference_docs_ingest.classify_reference_docs`; the deterministic floor
+lives in `bin/doc_classification.py`. Uses the standard `{schema_version,
+generated_at, records[]}` wrapper (§1.6); `records` is sorted by `source_path`.
+
+The manifest is a **review surface, not the citation authority**: the byte-
+verification gate (§5, `citation_verifier`) still independently checks every
+Tier-1/2 citation. Classification decides *which* docs are citable; verification
+checks the *text*. They are different guards (a verbatim advisory restatement
+byte-verifies perfectly — §8a).
+
+### 9.6.1 Record fields
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `source_path` | string | yes | Target-relative path of the classified document (e.g. `reference_docs/spec.md`). |
+| `document_sha256` | string | yes | SHA-256 of the file's UTF-8 content. The **content key**: a re-run reuses the prior decision when this matches (reproducibility). |
+| `tier` | integer | yes | Assigned tier `1`/`2` (citable) or `4` (background). The floor can only override the LLM classifier *downward*. |
+| `floor_rule` | string | yes | Which rule decided the tier: `advisory-floor`, `impl-floor`, `sidecar-promotion`, `injection-floor`, `contract`, `background-ledger`, `llm`, or `default-tier4`. |
+| `reason` | string | yes | One-line human-readable justification (Authoring guidance, not gate-enforced). |
+| `byte_count` | integer | yes | Length of the file's UTF-8 content in bytes. |
+| `promotable` | boolean | yes | `false` when a floor permanently bars citability (advisory/impl/injection/background); `true` otherwise. A floored-`false` record can never be promoted — not by the LLM, a rename, or the operator sidecar. |
+| `reused_from_prior` | boolean | no | Present and `true` when this record was carried over from a prior manifest (unchanged content) rather than re-classified. |
+
+**The advisory floor is absolute.** A record with `floor_rule == "advisory-floor"`
+(CVE/GHSA identifier, advisory URL/header, or security-genre title) is always
+`tier: 4`, `promotable: false`. The advisory floor runs on **content before any
+extension carve-out**, so a CVE advisory renamed `api.proto` is still floored;
+and the operator sidecar rescues the **implementation** floor only, never the
+advisory floor.
+
+### 9.6.2 Example record
+
+```json
+{"source_path":"reference_docs/14_Known_Vulnerabilities.md","document_sha256":"9f2b…","tier":4,"floor_rule":"advisory-floor","reason":"advisory/security-genre: advisory identifier 'CVE-2024-43796'","byte_count":8421,"promotable":false}
 ```
 
 ---
