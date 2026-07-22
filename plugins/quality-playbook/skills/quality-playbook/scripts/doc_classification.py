@@ -58,12 +58,22 @@ RULE_LLM = "llm"
 RULE_DEFAULT = "default-tier4"
 RULE_BACKGROUND = "background-ledger"
 
-# The ABSOLUTE floor rules — a decision under any of these permanently bars
-# citability and can never be reversed by the LLM, a rename, the sidecar, or a
-# reused prior-manifest record. (default-tier4 is NOT absolute: it just means
-# "no classifier tier was assigned", which a later run's LLM may raise.)
+# The ABSOLUTE floor rules — a decision under any of these bars citability.
+# (default-tier4 is NOT absolute: it just means "no classifier tier was
+# assigned", which a later run's LLM may raise.)
 _ABSOLUTE_FLOOR_RULES = frozenset(
     {RULE_ADVISORY, RULE_IMPL, RULE_INJECTION, RULE_BACKGROUND}
+)
+# The UNRESCUABLE floor rules — a subset that NOTHING reverses: not the LLM, a
+# rename, the operator sidecar, or a reused prior-manifest record. The
+# implementation floor is deliberately EXCLUDED because it is legitimately
+# rescued by the operator sidecar / cite/ placement; advisory, injection, and
+# background are absolute regardless of any override. On a cache hit these are
+# re-decided from content and the fresh floored decision always wins, so a
+# poisoned prior manifest cannot keep an unrescuable-floored doc citable OR
+# promotable (instruction 011 self-Council Panelist A).
+_UNRESCUABLE_FLOOR_RULES = frozenset(
+    {RULE_ADVISORY, RULE_INJECTION, RULE_BACKGROUND}
 )
 
 # §8a item 7: README and the coverage / issue-tracker ledgers are background
@@ -398,14 +408,17 @@ def classify_documents(
         cached = prior_by_key.get((rel_path, sha))
         if cached is not None:
             # Defense-in-depth: never trust a prior record to keep a document
-            # citable when the deterministic floor bars it. The floor is
-            # content-only, so re-running it on the (unchanged) content cannot
-            # change a legitimate decision — but it DOES catch a poisoned /
-            # hand-edited prior manifest that tried to launder a floored doc to
-            # Tier 1/2. If the absolute floor fires, the fresh floored decision
-            # wins over the cache.
+            # citable OR promotable when an UNRESCUABLE floor bars it. The floor
+            # is content-only, so re-running it on the (unchanged) content cannot
+            # change a legitimate decision — but it DOES defeat a poisoned /
+            # hand-edited prior manifest. A poison that keeps tier==4 while
+            # flipping `promotable` to true would slip past a tier-only guard and
+            # then be laundered by _formal_tier's cite/ branch, so the guard
+            # discards the cache entirely (both tier AND promotable) whenever an
+            # unrescuable floor fires — advisory/injection/background, never the
+            # sidecar-rescuable implementation floor (instruction 011 Panelist A).
             guard = classify_document(rel_path, text)  # no LLM, no sidecar
-            if guard.rule in _ABSOLUTE_FLOOR_RULES and cached.get("tier") != guard.tier:
+            if guard.rule in _UNRESCUABLE_FLOOR_RULES:
                 records.append(_record(rel_path, text, guard))
                 continue
             rec = dict(cached)

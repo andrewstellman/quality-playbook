@@ -258,8 +258,14 @@ class ManifestTests(unittest.TestCase):
             self.DOCS, llm_classifier=contrary,
             prior_records=first["records"], generated_at="Y",
         )
+        # Floor-passed docs (spec, contract) reuse the prior decision; an
+        # unrescuable-floored doc (the CVE advisory) is always re-decided from
+        # content, never blindly reused (instr 011 Panelist A), but its tier is
+        # unchanged. Either way the tiering reproduces.
         for r in second["records"]:
-            self.assertTrue(r.get("reused_from_prior"))
+            if r["floor_rule"] not in (dc.RULE_ADVISORY, dc.RULE_INJECTION,
+                                       dc.RULE_BACKGROUND):
+                self.assertTrue(r.get("reused_from_prior"), r["source_path"])
         self.assertEqual(
             [(r["source_path"], r["tier"]) for r in first["records"]],
             [(r["source_path"], r["tier"]) for r in second["records"]],
@@ -282,6 +288,25 @@ class ManifestTests(unittest.TestCase):
         self.assertEqual(rec["tier"], 4)
         self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
         self.assertFalse(rec.get("reused_from_prior", False))
+
+    def test_poison_flipping_only_promotable_is_also_defeated(self):
+        # instr 011 Panelist A: a poison that keeps tier==4 but flips
+        # `promotable` to true slipped past the tier-only guard and was then
+        # laundered by _formal_tier's cite/ branch. The guard now discards the
+        # cache whenever an unrescuable floor fires.
+        text = AdvisoryFloorTests.CVE_ADVISORY
+        sha = __import__("hashlib").sha256(text.encode("utf-8")).hexdigest()
+        poisoned = [{
+            "source_path": "reference_docs/cve.md", "document_sha256": sha,
+            "tier": 4, "floor_rule": "advisory-floor", "reason": "x",
+            "byte_count": 1, "promotable": True,  # <-- the flip
+        }]
+        man = dc.classify_documents(
+            [("reference_docs/cve.md", text)], prior_records=poisoned, generated_at="X")
+        rec = man["records"][0]
+        self.assertEqual(rec["tier"], 4)
+        self.assertFalse(rec["promotable"])
+        self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
 
     def test_changed_content_is_reclassified(self):
         first = dc.classify_documents(self.DOCS, llm_classifier=_tier1_if("spec"),
@@ -585,6 +610,29 @@ class CitabilityWiringTests(unittest.TestCase):
         (root / "reference_docs" / "cite" / "cve.md").write_text(
             AdvisoryFloorTests.CVE_ADVISORY, encoding="utf-8")
         by_name, man = self._formal(root)
+        citable = {r["source_path"].split("/")[-1]
+                   for r in man["records"] if r["tier"] in (1, 2)}
+        self.assertNotIn("cve.md", citable)
+
+    def test_poisoned_classification_manifest_cannot_launder_cite_advisory_end_to_end(self):
+        # instr 011 Panelist A bypass, end-to-end: a cite/ CVE advisory + a
+        # hand-edited quality/classification_manifest.json flipping it to
+        # promotable must NOT produce a Tier-1/2 FORMAL_DOC record.
+        import hashlib
+        root = self._tree()
+        (root / "reference_docs" / "cite" / "cve.md").write_text(
+            AdvisoryFloorTests.CVE_ADVISORY, encoding="utf-8")
+        (root / "quality").mkdir(exist_ok=True)
+        sha = hashlib.sha256(AdvisoryFloorTests.CVE_ADVISORY.encode("utf-8")).hexdigest()
+        (root / "quality" / rdi.CLASSIFICATION_MANIFEST_NAME).write_text(json.dumps({
+            "schema_version": "1.6.0", "generated_at": "X",
+            "records": [{
+                "source_path": "reference_docs/cite/cve.md", "document_sha256": sha,
+                "tier": 4, "floor_rule": "advisory-floor", "reason": "poison",
+                "byte_count": 1, "promotable": True,
+            }],
+        }), encoding="utf-8")
+        man = rdi.ingest(root)
         citable = {r["source_path"].split("/")[-1]
                    for r in man["records"] if r["tier"] in (1, 2)}
         self.assertNotIn("cve.md", citable)
