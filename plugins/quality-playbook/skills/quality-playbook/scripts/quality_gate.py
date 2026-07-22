@@ -7257,32 +7257,118 @@ _RENDER_PRINCIPLE_RE = re.compile(
     r"|sections?\s+are\s+organized\b",
     re.IGNORECASE,
 )
-_RENDER_PRINCIPLE_RATIONALE_RE = re.compile(
-    r"\bbecause\b|\bsince\b|\bas this\b|\bas it\b|\bto reflect\b|"
-    r"\breflect(?:s|ing)\b|\bso that\b|\bwhich lets\b|\bgiven that\b",
+# v1.6.0 instruction 009: detect a rationale STRUCTURALLY (is there
+# substantive explanatory content beyond merely naming the principle?),
+# not by matching a fixed connector list. Detecting "is a reason given" with
+# a keyword list is brittle — every widening misses the next valid phrasing.
+# The original list recognized "because" but not chi's bare "so" nor virtio's
+# explicit "Rationale:" label, so it false-FAILed two well-formed documents.
+# The connector set below is ONE signal, used only for the single-sentence
+# case where nothing structural can separate a reason from a name list; the
+# load-bearing test is _render_rationale_present's "content beyond naming".
+# Rationale *quality* stays a Feature D / Council-rubric judgment (matrix row
+# 4c); this check confirms only that a rationale is *present*.
+_RENDER_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+_RENDER_RATIONALE_MIN_WORDS = 4
+# Justificatory connectives / labels — reason clauses, an explicit
+# "Rationale:" label, and targeted "this principle matches/maps/mirrors the
+# system" relationships. Broadened well past the original because/since list
+# (which false-FAILed chi's bare "so" and virtio's "Rationale:"), but used
+# only as ONE signal: the connector-free multi-sentence case is carried by
+# the structural arm in _render_rationale_present, so the check does not lean
+# on this list alone (instruction 009 work item 1).
+_RENDER_RATIONALE_CONNECTOR_RE = re.compile(
+    r"\bbecause\b|\bsince\b|\bso that\b|\bso\b|\bthus\b|\bhence\b|"
+    r"\bin order to\b|\bas this\b|\bas it\b|\bgiven that\b|"
+    r"\bto reflect\b|\bwhich lets\b|\brationale\b|\bchosen\b|"
+    r"\brejected\b|\bmatches how\b|\bmatches both\b|\bmatches the\b|"
+    r"\bthis matches\b|\bthis fits\b|\bmaps cleanly\b|\bmaps onto\b|"
+    r"\bmirrors the\b|\breflects the\b|\breflects how\b|\baligns with\b",
     re.IGNORECASE,
 )
+# A labelled `## Organizing principle` heading is prominent by construction,
+# so it is honored wherever it sits in the document.
+_RENDER_PRINCIPLE_LABEL_RE = re.compile(r"organizing\s+principle\b", re.IGNORECASE)
 
 
-def _render_organizing_principle_stated(text, first_section_offset):
+def _render_rationale_present(para):
+    """Structural rationale test — is there content beyond merely naming?
+
+    A rationale is present when the naming paragraph carries substantive
+    explanatory content beyond the clause that *names* the principle, via
+    either arm:
+
+    (a) STRUCTURAL — the naming sentence is followed by *two or more*
+        substantive explanatory sentences, a genuinely elaborated
+        justification (chi's "A router library is consumed …" + "Sections are
+        ordered …"; virtio's "Rationale: …" + "A kernel maintainer …"). This
+        arm needs no connective at all, so it does not break on the next
+        unseen phrasing — the core robustness ask. A *single* trailing note
+        (e.g. a lone remark about section ordering) is deliberately not
+        enough, so a named-but-unjustified principle still FAILs.
+
+    (b) CONNECTIVE — a justificatory connector / "Rationale:" label anywhere
+        in the naming paragraph (bare "so", "because", "matches how", …).
+        This one signal catches the terse single-sentence rationale
+        ("organized by object because …") that arm (a) cannot, since nothing
+        structural separates a reason clause from a name list inside one
+        sentence.
+
+    A bare "Organized by feature." — name only, no elaboration and no
+    connective — satisfies neither arm and returns False.
+    """
+    sentences = [
+        s.strip() for s in _RENDER_SENTENCE_SPLIT_RE.split(para) if s.strip()
+    ]
+    naming = [s for s in sentences if _RENDER_PRINCIPLE_RE.search(s)]
+    if not naming:
+        return False
+    non_naming = [
+        s for s in sentences
+        if not _RENDER_PRINCIPLE_RE.search(s)
+        and len(s.split()) >= _RENDER_RATIONALE_MIN_WORDS
+    ]
+    # (a) An elaborated, multi-sentence explanation — connector-free robust.
+    if len(non_naming) >= 2:
+        return True
+    # (b) A justificatory connective / label (single-sentence rationales).
+    if _RENDER_RATIONALE_CONNECTOR_RE.search(para):
+        return True
+    return False
+
+
+def _render_organizing_principle_stated(text, zone_end, level2=None):
     """Detect the stated organizing principle (Design §5.2 item 4, row 4b).
 
-    Looks in the zone before the first requirement section (the "top of the
-    section list") for a paragraph that *names* an organizing principle and
-    carries a *rationale*. Returns (named: bool, rationale: bool). Rationale
-    is checked only within the paragraph that names the principle, so a
-    "because" elsewhere in the Overview cannot satisfy it.
+    Searches the zone where a principle is *legitimately* placed and returns
+    (named: bool, rationale: bool). The zone spans the top of the document
+    through the intro of the first requirement section (``zone_end`` is that
+    section's first REQ heading), covering all three valid placements: a
+    standalone paragraph after Actors & roles (chi/virtio), a labelled
+    `## Organizing principle` section up top (virtio), and a principle stated
+    at the very top of the first requirement section before its first REQ
+    (express's blockquote). A labelled `## Organizing principle` H2 anywhere
+    is also honored (prominent by construction). A principle buried below the
+    first REQ of a mid-document section is NOT accepted — "prominent, near the
+    section list" is the intent (instruction 009 work item 2). Rationale is
+    judged only within the paragraph that names the principle, so a "because"
+    elsewhere cannot satisfy it; detection is structural
+    (_render_rationale_present).
     """
-    zone = text[:first_section_offset] if first_section_offset is not None else text
+    zones = [text[:zone_end] if zone_end is not None else text]
+    if level2:
+        for idx, (heading, off) in enumerate(level2):
+            if _RENDER_PRINCIPLE_LABEL_RE.match(heading):
+                end = level2[idx + 1][1] if idx + 1 < len(level2) else len(text)
+                zones.append(text[off:end])
     named = False
-    rationale = False
-    for para in re.split(r"\n\s*\n", zone):
-        if _RENDER_PRINCIPLE_RE.search(para):
-            named = True
-            if _RENDER_PRINCIPLE_RATIONALE_RE.search(para):
-                rationale = True
-                break
-    return named, rationale
+    for zone in zones:
+        for para in re.split(r"\n\s*\n", zone):
+            if _RENDER_PRINCIPLE_RE.search(para):
+                named = True
+                if _render_rationale_present(para):
+                    return True, True
+    return named, False
 
 
 def _render_classify_sections(text, level2):
@@ -7712,8 +7798,24 @@ def check_render_contract(repo_dir, q, skill_version=None):
     # Stage 1 + the Well-organized rubric — matrix row 4c, judgment-only).
     if functional:
         first_section_offset = min(off for _h, off in functional)
+        # Extend the search zone through the intro of the first requirement
+        # section (top-of-first-section placement — express's blockquote),
+        # stopping at that section's first REQ heading so a principle buried
+        # below the first REQ is not accepted (instruction 009 work item 2).
+        _l2_offsets = [o for _x, o in level2]
+        _fs_idx = _l2_offsets.index(first_section_offset)
+        _fs_end = (
+            _l2_offsets[_fs_idx + 1] if _fs_idx + 1 < len(_l2_offsets)
+            else len(structure_text)
+        )
+        _fs_body = structure_text[first_section_offset:_fs_end]
+        _fs_first_req = _RENDER_REQ_HEADING_RE.search(_fs_body)
+        zone_end = (
+            first_section_offset + _fs_first_req.start() if _fs_first_req
+            else _fs_end
+        )
         named, rationale = _render_organizing_principle_stated(
-            structure_text, first_section_offset)
+            structure_text, zone_end, level2)
         if not named:
             fail(
                 "REQUIREMENTS.md",

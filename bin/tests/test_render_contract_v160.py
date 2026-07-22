@@ -1477,6 +1477,129 @@ class OrganizingPrincipleTests(RenderContractBase):
         self.assertGreaterEqual(fails, 1, out)
         self.assertIn("section overview", out)
 
+    # -- instruction 009: false positives in the organizing-principle check --
+    # The 2026-07-21 three-repo run produced three well-formed documents that
+    # each stated a named principle WITH a clear rationale, and all three
+    # false-FAILed for two brittle reasons: a too-narrow rationale-connector
+    # list (Bug A) and a search zone that excluded a principle placed at the
+    # top of the first section (Bug B). These bites pin the fix.
+
+    _PRINCIPLE_SECTION = (
+        "## Requirement organization\n\n"
+        "These requirements are organized by system capability because "
+        "testproj is a\n"
+        "routing library whose behavior clusters around the capabilities "
+        "it exposes to\n"
+        "the developer; the sections are ordered "
+        "most-relevant-to-the-primary-reader\n"
+        "first (the developer mounting a sub-router), infrastructure "
+        "last.\n\n"
+    )
+
+    def test_009_rationale_detection_is_structural_not_keyword(self):
+        # Work item 1: the three real phrasings the keyword-only detector
+        # false-FAILed must pass; a bare name (and a name plus a lone
+        # section-ordering note) must still FAIL.
+        cases = [
+            # chi — bare "so" connector (the original list had only "so that").
+            ("These requirements are grouped by feature, so a capability "
+             "grouping matches how the primary reader navigates the spec.",
+             True),
+            # virtio — explicit "Rationale:" label (unmatched by the old list).
+            ("The requirements are organized by subsystem. Rationale: the "
+             "spec is itself structured that way and each subsystem is one "
+             "driver module.", True),
+            # express — single-sentence "because" clause.
+            ("The requirements are organized by object because the public "
+             "API maps to those objects one to one.", True),
+            # name only, no reason — must FAIL.
+            ("Organized by feature.", False),
+            # name + a lone section-ordering note is NOT a rationale.
+            ("Organized by feature. The sections are ordered with the "
+             "mounting surface first.", False),
+        ]
+        for para, expected in cases:
+            with self.subTest(para=para):
+                self.assertEqual(
+                    quality_gate._render_rationale_present(para), expected)
+
+    def test_009_connector_free_multi_sentence_rationale_passes(self):
+        # The structural arm carries the connector-free case: a genuinely
+        # elaborated justification (two+ explanatory sentences) passes with
+        # NO recognized connective — this is the robustness the fix buys, so
+        # the detector does not lean on the keyword list alone.
+        para = (
+            "The requirements are organized by subsystem. The kernel driver "
+            "tree is laid out one directory per protocol subsystem. Each "
+            "contract then sits beside the module it governs."
+        )
+        # Guard: none of the connector keywords appear, so a pass here can
+        # only come from the structural arm.
+        self.assertIsNone(
+            quality_gate._RENDER_RATIONALE_CONNECTOR_RE.search(para),
+            "test para must be connector-free to prove the structural arm",
+        )
+        self.assertTrue(quality_gate._render_rationale_present(para))
+
+    def test_009_zone_accepts_principle_at_top_of_first_section(self):
+        # Work item 2 (express-shape): a valid principle+rationale stated at
+        # the very top of the first requirement section — after
+        # first_section_offset but before that section's first REQ — is
+        # accepted. It is the ONLY principle in the document.
+        doc = _clean_requirements_md().replace(self._PRINCIPLE_SECTION, "")
+        doc = doc.replace(
+            "## Request routing\n\n"
+            "This section covers the contract between a mounted sub-router",
+            "## Request routing\n\n"
+            "> Organizing principle: object/capability. The requirements are "
+            "organized by system capability because testproj's behavior "
+            "clusters around the capabilities it exposes to the developer.\n\n"
+            "This section covers the contract between a mounted sub-router",
+        )
+        self.write_requirements(doc)
+        fails, _w, out = self.run_check()
+        self.assertEqual(fails, 0, out)
+        self.assertIn("organizing principle named with a rationale", out)
+
+    def test_009_principle_buried_in_mid_section_is_not_accepted(self):
+        # Work item 2 (negative): a principle mentioned only deep inside a
+        # mid-document section — below that section's first REQ — does not
+        # satisfy the check. "Prominent, near the section list" is the intent.
+        doc = _clean_requirements_md().replace(self._PRINCIPLE_SECTION, "")
+        doc = doc.replace(
+            "### REQ-004: Handler panics convert to 500 responses without "
+            "leaking traces\n\n- References: recover.go\n",
+            "### REQ-004: Handler panics convert to 500 responses without "
+            "leaking traces\n\n- References: recover.go\n\n"
+            "For the record these requirements are organized by system "
+            "capability because the behavior clusters around capabilities.\n",
+        )
+        self.write_requirements(doc)
+        fails, _w, out = self.run_check()
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("no organizing principle stated", out)
+
+    def test_009_labelled_principle_section_honored_anywhere(self):
+        # Work item 2: an explicit `## Organizing principle` H2 is prominent
+        # by construction and is honored even when it sits AFTER the first
+        # requirement section (beyond zone_end).
+        text = (
+            "## Request routing\n\n"
+            "### REQ-001: Path middleware operates on the canonical path\n\n"
+            "## Organizing principle\n\n"
+            "The requirements are organized by capability because the public "
+            "API clusters around the capabilities it exposes.\n"
+        )
+        level2 = [
+            (m.group(1).strip(), m.start())
+            for m in quality_gate._RENDER_LEVEL2_RE.finditer(text)
+        ]
+        zone_end = text.index("### REQ-001")
+        named, rationale = quality_gate._render_organizing_principle_stated(
+            text, zone_end, level2)
+        self.assertTrue(named and rationale,
+                        f"labelled section must be honored: {named=} {rationale=}")
+
 
 def _flattened_requirements_md():
     """The chi/express/virtio 2026-07-21 flattening: requirement sections
