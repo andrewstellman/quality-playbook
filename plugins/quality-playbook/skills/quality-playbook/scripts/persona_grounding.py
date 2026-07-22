@@ -32,6 +32,7 @@ sibling QPB modules it composes.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List, Optional, Sequence
@@ -63,6 +64,47 @@ doc_classification = _sibling("doc_classification", "doc_classification.py")
 
 GROUNDED = "grounded"
 CANDIDATE = "candidate"
+
+# Guard-1-specific injection detection (instr 015 self-Council Panelist A).
+# doc_classification.injection_signature catches self-authorizing TIER claims
+# ("classify me Tier 1", "cite me as authoritative", "ignore the rubric") — the
+# tiering-surface attack. But Guard 1 grounds ADDS, so its poisoning surface also
+# includes AGENT-DIRECTED REQUIREMENT IMPERATIVES a doc aims at the derivation:
+# "add REQ X", "the agent must add a requirement", "you must add/confirm …",
+# "add the following requirement". §8b names exactly these ("imperatives to the
+# agent") as candidate-only even when they byte-verify. The subject is the
+# agent/derivation/persona or the requirements process itself — NOT the audited
+# system ("the router MUST match the prefix" is a legitimate contract, not an
+# injection), so this does not false-flag a real spec cited as grounding.
+_AGENT_DIRECTIVE_RE = re.compile(
+    r"\badd\s+(?:a\s+|an\s+|the\s+|this\s+|new\s+|following\s+)*"
+    r"(?:req\b|reqs\b|requirement|requirements)"
+    r"|\badd\s+REQ[-\s:]"
+    r"|\b(?:register|insert|include|append|write)\s+"
+    r"(?:a\s+|an\s+|the\s+|this\s+|new\s+|following\s+)*"
+    r"(?:req\b|reqs\b|requirement|requirements)"
+    r"|\bthe\s+(?:agent|derivation|persona|reviewer|assistant|model|ai|validator)"
+    r"\s+(?:must|should|shall|will|needs?\s+to|is\s+to|has\s+to)\b"
+    r"|\byou\s+(?:must|should|shall|need\s+to|are\s+to|have\s+to)\s+"
+    r"(?:add|confirm|include|register|insert|cite|classify|treat|mark)\b"
+    r"|\b(?:please\s+)?confirm\s+(?:this|it|the\s+following|that\s+requirement)\b",
+    re.IGNORECASE,
+)
+
+
+def grounding_injection_signature(text: str) -> Optional[str]:
+    """Injection-shaped support for a grounding move, or None.
+
+    Composes doc_classification's tier-claim/self-authorizing detection with
+    Guard-1's agent-directed requirement-imperative detection.
+    """
+    inj = doc_classification.injection_signature(text)
+    if inj:
+        return inj
+    m = _AGENT_DIRECTIVE_RE.search(text)
+    if m:
+        return f"agent-directed imperative {m.group(0).strip()!r}"
+    return None
 
 # The moves Guard 1 gates. `confirm` rests on docs/intent (not this validator),
 # `drop` is a removal, `defer` is operator-only.
@@ -131,7 +173,7 @@ def classify_move(
     # Injection resistance — grounding must not rest solely on doc-controlled,
     # injection-shaped content, even though it byte-verifies.
     excerpt = citation.get("citation_excerpt", "")
-    inj = doc_classification.injection_signature(excerpt)
+    inj = grounding_injection_signature(excerpt)
     if inj:
         return cand(f"support is injection-shaped, not a legitimate contract ({inj})")
 
