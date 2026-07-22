@@ -7383,6 +7383,37 @@ def _render_product_req_count(q):
     return n
 
 
+def _render_product_section_count(q):
+    """Distinct `functional_section` values among **product** REQ records.
+
+    This is how many requirement sections the manifest says the render
+    should carry (tool-contract REQs render to RUN_CONTRACT.md, so their
+    sections are excluded). Compared against the number of parseable H2
+    requirement sections to catch a flattened render (v1.6.0 instruction 007:
+    section headers dropped to the `### REQ-NNN:` level, so the whole
+    document collapses into one parseable section and the per-section checks
+    go vacuous). Returns None when no manifest is available.
+    """
+    data = _v150_manifest(q, "requirements_manifest.json")
+    if not data:
+        return None
+    records = data.get("records")
+    if not isinstance(records, list):
+        return None
+    tool_ids = _render_tool_contract_ids(q) or set()
+    sections = set()
+    for rec in records:
+        if not isinstance(rec, dict):
+            continue
+        rid = rec.get("id")
+        if not rid or str(rid) in tool_ids:
+            continue
+        fs = rec.get("functional_section")
+        if isinstance(fs, str) and fs.strip():
+            sections.add(fs.strip())
+    return len(sections)
+
+
 @verdict_category(VERDICT_SUBSTANTIVE)
 def check_render_contract(repo_dir, q, skill_version=None):
     """v1.6.0 Feature C — the mechanical render-contract checks.
@@ -7645,6 +7676,35 @@ def check_render_contract(repo_dir, q, skill_version=None):
             "(v1.6.0 Design §5.2 item 4).",
         )
 
+    # -- §5.3 fail-closed at the section level (instruction 007): a render
+    # whose requirement sections were dropped to the `### REQ-NNN:` heading
+    # level (H3) instead of one level up (H2) collapses into a single
+    # parseable `##` container, and the per-section checks below run
+    # vacuously on that one container — "all 1 requirement section(s) carry a
+    # section overview" for a document that really has many. Detect it: if
+    # the manifest says the product requirements span >=2 sections but the
+    # render exposes only one parseable section, the section structure is not
+    # readable. Refuse to certify rather than pass the per-section checks
+    # vacuously (the same principle as the marker-format fail-closed).
+    manifest_sections = _render_product_section_count(q)
+    flattened = bool(
+        manifest_sections and manifest_sections >= 2 and len(functional) == 1
+    )
+    if flattened:
+        fail(
+            "REQUIREMENTS.md",
+            f"requirements_manifest.json groups the product requirements into "
+            f"{manifest_sections} sections, but REQUIREMENTS.md exposes only 1 "
+            "parseable requirement section — the section headers were most "
+            "likely rendered at the '### REQ-NNN:' heading level (H3) instead "
+            "of one level up ('## Section Name', H2), so sections and "
+            "requirements are siblings and the per-section checks cannot see "
+            "the real structure. Render requirement sections as '## Section "
+            "Name' with their '### REQ-NNN:' requirements nested beneath "
+            "(references/phase2_generation_guide.md § 'Canonical document "
+            "architecture' — the section/requirement heading hierarchy).",
+        )
+
     # -- §5.2 item 4 / matrix row 4b: the organizing principle must be
     # NAMED with a rationale at the top of the section list. The derivation
     # chooses the principle (IEEE 830 §5.3 menu); the contract checks only
@@ -7696,7 +7756,11 @@ def check_render_contract(repo_dir, q, skill_version=None):
         ).strip()
         section_intro_ok[h] = len(intro) >= 40
 
-    if functional:
+    # Skip the per-section checks when the document is flattened: they would
+    # run vacuously on the single parseable container and print a misleading
+    # "all 1 requirement section(s) …" PASS alongside the MP-5 FAIL. The
+    # MP-5 failure above already surfaces the structural problem.
+    if functional and not flattened:
         no_intro = sorted(h for h in section_intro_ok if not section_intro_ok[h])
         if no_intro:
             fail(

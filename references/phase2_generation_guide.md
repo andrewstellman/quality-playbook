@@ -156,6 +156,37 @@ The next two are still wrong, but for a different reason — the parser *does* r
 
 *This rule is one leg of a three-way binding:* the same format is authored in `references/requirements_pipeline.md` § "Requirement heading format" and enforced by `_RENDER_REQ_HEADING_RE` in `plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py`. The canonical marker is `### REQ-NNN:`; kept in sync with those two — an edit to one is incomplete without the others.
 
+#### Section / requirement heading hierarchy — sections at `##`, requirements at `###`
+
+**The heading *levels* are load-bearing, not cosmetic.** A requirement section is a level-2 (`##`) heading; its requirements are level-3 (`### REQ-NNN:`) headings **nested beneath it**. This is what makes a section and a requirement structurally distinct rather than siblings. Every top-level part (Overview, Actors & roles, Use cases, …) is also `##`; a `##` heading is recognized as a *requirement section* specifically because it **contains `### REQ-NNN:` headings**.
+
+Worked example — two sections, correctly nested:
+
+```
+## Request routing
+
+This section covers the contract between a mounted sub-router and the
+canonical path the router dispatches on. (← the section overview)
+
+### REQ-001: Path middleware operates on the canonical mounted path
+
+- References: middleware/rewrite.go
+
+### REQ-002: Route lookup mirrors live routing context effects
+
+- References: mux.go
+
+## Error handling
+
+This section covers how failures surface to the caller.
+
+### REQ-003: Handler panics convert to 500 responses without leaking traces
+
+- References: recover.go
+```
+
+**Do NOT drop the section headers to `###`** (the same level as the requirements). A 2026-07-21 test rendered sections as `### Route Registration` — siblings of `### REQ-NNN:` — which collapses the whole document into a single parseable `##` container. The render contract then sees **one** section for a seven-section document, and the per-section checks (section overview, ≥2 REQs, singleton justification) run **vacuously** and pass on a document they never really inspected. The contract now **FAILs** this: if the manifest groups the product requirements into ≥2 sections but the render exposes only one parseable section, it names the likely cause (section headers rendered at the REQ level instead of one level up). Render sections at `##`, requirements at `###`.
+
 #### Glossary / definitions (advisory)
 
 IEEE 830 §1.3 gives definitions their own slot because terminology drift is a top requirements defect class — and terminology stability is exactly what the readability rubric's **Consistent** dimension scores. A requirements document that uses "route", "pattern" and "handler" in shifting senses is unverifiable no matter how well organized it is.

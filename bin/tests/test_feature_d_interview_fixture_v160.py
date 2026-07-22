@@ -75,12 +75,19 @@ def _base_manifest():
     }
 
 
-def _render_requirements_md(manifest):
+def _render_requirements_md(manifest, renumber=True):
     """Minimal Feature-C-conforming render of the fixture manifest.
 
     Not the production renderer (there isn't one — the agent renders); just
     enough to exercise check_render_contract, which is what the acceptance
     criterion requires ("re-render passes the Feature C render contract").
+
+    ``renumber`` models the interview's terminal E.6 step (instruction 007):
+    with renumber=True the IDs are reassigned to document order (the correct
+    terminal-renumber behaviour); renumber=False models the DEFERRED-renumber
+    bug all three 2026-07-21 runs exhibited — the records are ordered by
+    section but keep their raw IDs, so an add's high temp ID appears early and
+    the document ships out of ascending order.
     """
     # Phase E.6: renumber to document order (section order, then within
     # section). The interview re-renders THROUGH Feature C, so this is part
@@ -92,8 +99,9 @@ def _render_requirements_md(manifest):
             seen_sections.append(r["functional_section"])
     for sec in seen_sections:
         ordered += [r for r in manifest["records"] if r["functional_section"] == sec]
-    for i, r in enumerate(ordered, start=1):
-        r["id"] = f"REQ-{i:03d}"
+    if renumber:
+        for i, r in enumerate(ordered, start=1):
+            r["id"] = f"REQ-{i:03d}"
     manifest["records"] = ordered
     recs = ordered
     lines = [
@@ -548,6 +556,83 @@ class F2aDurabilityOracleTests(unittest.TestCase):
             fails, _w, out = _gate(
                 quality_gate.check_operator_confirmations_append_only, q)
             self.assertEqual(fails, 0, out)
+
+
+class TerminalRenumberTests(unittest.TestCase):
+    """Instruction 007 work item 4 / Design §6: the interview runs the E.6
+    renumber ONCE as the terminal step after all moves, so an add into an
+    early section ships sequential document-order IDs, and the content-keyed
+    confirmations still resolve. A deferred renumber (out-of-order IDs
+    surviving to the final render) must fail the render contract.
+    """
+
+    ADDED_TITLE = "The gate rejects an unknown top-level wrapper key"
+
+    def _session_with_early_add(self, quality):
+        (quality / "review_sessions").mkdir(parents=True, exist_ok=True)
+        (quality / f"review_sessions/{SESSION_ID}.md").write_text(
+            "# Interview transcript\n\nL10: add the unknown-key rejection\n",
+            encoding="utf-8")
+        manifest = _base_manifest()
+        first_section = manifest["records"][0]["functional_section"]
+        _apply_move(quality, manifest, {
+            "move": "add", "line": 10, "dimension": "Complete",
+            "title": self.ADDED_TITLE,
+            "functional_section": first_section,   # an EARLY section
+            "cos": "A manifest whose top-level key is neither known nor 'records' is rejected.",
+            "references": ["scripts/quality_gate.py"],
+            "operator_statement": "You missed the unknown-key rejection — add it.",
+        })
+        return manifest
+
+    def _write_and_gate(self, tmp, manifest, renumber):
+        q = Path(tmp) / "quality"
+        (q / "requirements_manifest.json").write_text(
+            json.dumps(manifest, indent=2), encoding="utf-8")
+        (q / "REQUIREMENTS.md").write_text(
+            _render_requirements_md(manifest, renumber=renumber), encoding="utf-8")
+        return _gate(quality_gate.check_render_contract, Path(tmp), q, SKILL_VERSION)
+
+    def test_terminal_renumber_ships_sequential_ids(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            q = Path(tmp) / "quality"
+            q.mkdir(parents=True)
+            manifest = self._session_with_early_add(q)
+            fails, _w, out = self._write_and_gate(tmp, manifest, renumber=True)
+            self.assertEqual(fails, 0, out)
+            self.assertIn("sequential in document order", out)
+            # IDs are 001..N with no gaps and ascending.
+            ids = [r["id"] for r in manifest["records"]]
+            self.assertEqual(
+                ids, [f"REQ-{i:03d}" for i in range(1, len(ids) + 1)])
+
+    def test_added_confirmation_resolves_by_content_after_renumber(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            q = Path(tmp) / "quality"
+            q.mkdir(parents=True)
+            manifest = self._session_with_early_add(q)
+            _render_requirements_md(manifest, renumber=True)
+            # The confirmation is content-keyed (F-2a): it carries no req_id,
+            # so the renumber leaves it untouched and it still resolves to the
+            # added REQ by title. Prove the added REQ survived and its
+            # confirmation matches by content.
+            recs = run_state_lib.read_confirmations(q / "operator_confirmations.jsonl")
+            conf = next(r for r in recs if r["req_title"] == self.ADDED_TITLE)
+            self.assertNotIn("req_id", conf, "confirmations are content-keyed, not id-keyed")
+            match = [r for r in manifest["records"] if r["title"] == self.ADDED_TITLE]
+            self.assertEqual(len(match), 1, "the added REQ resolves by content post-renumber")
+
+    def test_deferred_renumber_ships_out_of_order_and_fails(self):
+        # The bug all three 2026-07-21 runs exhibited: skip the terminal
+        # renumber, the add's high temp ID appears in its early section, the
+        # document ships out of ascending order.
+        with tempfile.TemporaryDirectory() as tmp:
+            q = Path(tmp) / "quality"
+            q.mkdir(parents=True)
+            manifest = self._session_with_early_add(q)
+            fails, _w, out = self._write_and_gate(tmp, manifest, renumber=False)
+            self.assertGreaterEqual(fails, 1, out)
+            self.assertIn("not sequential in document order", out)
 
 
 class Fixture_RunStateLibHelpersTests(unittest.TestCase):

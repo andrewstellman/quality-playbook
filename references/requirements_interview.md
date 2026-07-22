@@ -218,6 +218,26 @@ A surgical re-derivation of a corrected REQ — re-run derivation for *that* REQ
 with the operator's correction as new evidence — is in scope. Full
 iterate-until-clean loop tooling is not; that waits.
 
+**Renumber is the interview's terminal step, not a deferral** *(Design §6, added
+2026-07-21).* An `add` (or a section move) inserts a REQ into the document
+before its neighbours, so the raw IDs are momentarily out of document order.
+**Do not ship that.** Run the Phase E.6 sequential renumber **once, as the final
+step after all operator moves**, so the delivered `REQUIREMENTS.md` is REQ-001…N
+in strict document order — the render contract FAILs a document whose IDs are
+not ascending in document order (2026-07-21: chi/express/virtio all deferred the
+renumber and shipped out-of-order IDs). The renumber updates **every id-carrying
+cross-reference atomically** in the same pass: REQ records' `use_cases[]`, UC
+records' `requirements[]`, BUG records' `requirement`, and `COVERAGE_MATRIX.md`
+(the standard E.6 write-back).
+
+*What the renumber does NOT need to touch:* `quality/operator_confirmations.jsonl`.
+Those records are **content-keyed** (`req_title` + `conditions_of_satisfaction`),
+deliberately **not** keyed on REQ id, precisely because E.6 renumbers every run
+(F-2a below) — and the log is **append-only**, so its records are never rewritten
+anyway. A confirmation resolves to its REQ by content after the renumber, not by
+a stored id. So the renumber leaves the confirmations log untouched and every
+confirmation still resolves.
+
 **Durability across runs is F-2a**, and it is not optional. Every confirm /
 correct / add also appends a record to `quality/operator_confirmations.jsonl`
 (append-only; see F-2a below). The manifest is re-derived on every run; the
