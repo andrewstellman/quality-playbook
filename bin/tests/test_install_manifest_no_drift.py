@@ -100,8 +100,11 @@ class InstallClosureNoDriftTests(unittest.TestCase):
         # v1.6.0 003 (Feature D supersession): 63 → 62 (−requirements_review.md,
         # −requirements_refinement.md, +requirements_interview.md — the
         # validation interview replaces the review/refinement walkthrough).
+        # v1.6.0 010 (Feature G): 62 → 63 (+bin/doc_classification.py — the §8a
+        # dump-and-go classification floor, a new mandatory bundled module that
+        # reference_docs_ingest.py imports at load).
         from bin.qpb_validate import INSTALL_CLOSURE
-        self.assertEqual(len(INSTALL_CLOSURE), 62)
+        self.assertEqual(len(INSTALL_CLOSURE), 63)
         paths = [e["path"] for e in INSTALL_CLOSURE]
         self.assertEqual(len(paths), len(set(paths)),
                          "duplicate path in INSTALL_CLOSURE")

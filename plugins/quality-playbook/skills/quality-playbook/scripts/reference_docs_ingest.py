@@ -98,6 +98,31 @@ SKIPPED_FILENAMES = frozenset({"README.md"})
 REFERENCE_DIR_NAME = "reference_docs"
 CITE_DIR_NAME = "cite"
 MANIFEST_NAME = "formal_docs_manifest.json"
+# v1.6.0 Feature G (§8a): the reviewable, content-keyed classification manifest.
+CLASSIFICATION_MANIFEST_NAME = "classification_manifest.json"
+# v1.6.0 Feature G: the operator-authored sidecar — one relative path per line,
+# each a file the operator promotes past the IMPLEMENTATION floor (never the
+# advisory floor). Operator-authored config; ingest only reads it.
+SIDECAR_NAME = "qpb_promote.txt"
+
+# v1.6.0 Feature G: doc_classification is a sibling stdlib-only module; path-load
+# it so `-m bin.reference_docs_ingest` and bundled layouts both resolve it.
+try:
+    from bin import doc_classification  # type: ignore
+except ImportError:
+    import importlib.util as _dc_ilu
+    _dc_path = Path(__file__).resolve().parent / "doc_classification.py"
+    _dc_spec = _dc_ilu.spec_from_file_location(
+        "_qpb_doc_classification_via_reference_docs_ingest", _dc_path,
+    )
+    if _dc_spec is None or _dc_spec.loader is None:
+        raise ImportError(
+            f"reference_docs_ingest: cannot resolve doc_classification — "
+            f"path-load target {_dc_path} is missing."
+        )
+    doc_classification = _dc_ilu.module_from_spec(_dc_spec)  # type: ignore[no-redef]
+    sys.modules[_dc_spec.name] = doc_classification
+    _dc_spec.loader.exec_module(doc_classification)
 
 _TIER_MARKER_RE = re.compile(
     r"^\s*(?:<!--\s*qpb-tier:\s*([12])\s*-->|#\s*qpb-tier:\s*([12]))\s*$"
@@ -398,6 +423,129 @@ def ingest(target_repo: Path) -> dict:
     quality_dir.mkdir(parents=True, exist_ok=True)
     out = quality_dir / MANIFEST_NAME
     out.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    # v1.6.0 Feature G (§8a): always emit the reviewable classification manifest
+    # so a dump-and-go run (no cite/ pre-sorting) produces the floor decisions
+    # the derivation AI reviews. The floor runs in Python; the AI assigns Tier
+    # 1/2 to floor-passed authoritative docs per the phase-1 guide.
+    classify_reference_docs(target_repo, write=True)
+    return manifest
+
+
+def _load_sidecar(ref_dir: Path) -> List[str]:
+    """Read the operator sidecar (``reference_docs/qpb_promote.txt``).
+
+    Each non-blank, non-``#`` line is a target-relative path the operator
+    promotes past the implementation floor. Missing file → empty list.
+    """
+    sidecar_path = ref_dir / SIDECAR_NAME
+    if not sidecar_path.is_file():
+        return []
+    entries: List[str] = []
+    for line in _read_text(sidecar_path).splitlines():
+        s = line.strip()
+        if s and not s.startswith("#"):
+            entries.append(s)
+    return entries
+
+
+# v1.6.0 Feature G: classification enumerates a broader set than the plaintext
+# formal-docs path — a dumped corpus can include machine-readable contracts
+# (.proto/.json/.yaml/.d.ts/…) that are citable and implementation source
+# (.py/.c/.go/…) that the floor demotes. All are read as text (errors replaced);
+# genuinely binary files are excluded by extension.
+_CLASSIFY_EXTENSIONS = (
+    SUPPORTED_EXTENSIONS
+    | doc_classification._CONTRACT_EXTS
+    | doc_classification._IMPL_EXTS
+    | {".json", ".yaml", ".yml"}
+)
+
+
+def _classify_ext_ok(name: str) -> bool:
+    low = name.lower()
+    if low.endswith(".d.ts"):
+        return True
+    return Path(low).suffix in _CLASSIFY_EXTENSIONS
+
+
+def _classification_candidates(ref_dir: Path, target_repo: Path) -> List[Tuple[str, str]]:
+    """All ingestible docs (top-level + ``cite/``) as ``(rel_path, text)``.
+
+    Dump-and-go: every top-level file is a classification candidate, not just
+    those under ``cite/``. Reserved control files, dotfiles and README are
+    excluded; binary-extension files are skipped.
+    """
+    docs: List[Tuple[str, str]] = []
+    for path in _iter_candidates(ref_dir):
+        # README is NOT skipped here (unlike the formal-docs path): §8a item 7
+        # requires it be recorded as Tier-4 background, not silently dropped —
+        # the background-ledger floor rule tiers it.
+        if path.name.startswith(".") or path.name == SIDECAR_NAME:
+            continue
+        if not _classify_ext_ok(path.name):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        docs.append((_rel(path, target_repo), text))
+    return docs
+
+
+def classify_reference_docs(
+    target_repo: Path,
+    *,
+    llm_classifier=None,
+    write: bool = True,
+) -> dict:
+    """Feature G (§8a): classify all reference docs over the deterministic floor.
+
+    ``cite/`` placement is honored as an explicit operator pre-classification
+    (it promotes past the implementation floor, exactly like the sidecar — but
+    never past the advisory floor). ``llm_classifier`` is the derivation AI's
+    per-file tier callable; when None, the floor still runs and floor-passed
+    docs default to Tier 4 (dump-and-go stays safe without the AI in Python).
+    Reuses a prior manifest for content-keyed reproducibility. Writes
+    ``quality/classification_manifest.json`` when ``write`` is True.
+    """
+    target_repo = Path(target_repo)
+    ref_dir = target_repo / REFERENCE_DIR_NAME
+    cite_dir = ref_dir / CITE_DIR_NAME
+
+    docs = _classification_candidates(ref_dir, target_repo)
+    # cite/ files + the operator sidecar both promote past the implementation
+    # floor. The advisory floor still binds either way.
+    sidecar = set(_load_sidecar(ref_dir))
+    for path in _iter_candidates(ref_dir):
+        if _is_under_cite(path, cite_dir) and _classify_ext_ok(path.name):
+            sidecar.add(_rel(path, target_repo))
+
+    prior: Optional[List[dict]] = None
+    out = target_repo / "quality" / CLASSIFICATION_MANIFEST_NAME
+    if out.is_file():
+        try:
+            prior = json.loads(out.read_text(encoding="utf-8")).get("records")
+        except (ValueError, OSError):
+            prior = None
+
+    schema_version = (
+        benchmark_lib.detect_repo_skill_version(target_repo)
+        or benchmark_lib.detect_skill_version(target_repo)
+        or "1.6.0"
+    )
+    manifest = doc_classification.classify_documents(
+        docs,
+        llm_classifier=llm_classifier,
+        sidecar=sorted(sidecar),
+        prior_records=prior,
+        schema_version=schema_version,
+    )
+    if write:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
     return manifest
 
 

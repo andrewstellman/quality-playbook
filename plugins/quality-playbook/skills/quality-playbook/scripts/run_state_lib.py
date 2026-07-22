@@ -1189,6 +1189,7 @@ _FLAT_LAYOUT_BUNDLED_BIN_FILES = frozenset({
     "qpb_validate.py",              # v1.5.7 090k
     "quality_playbook.py",
     "reference_docs_ingest.py",
+    "doc_classification.py",
     "role_map.py",
     "run_state_lib.py",             # v1.5.7 086 A-26
     "validate_phase_artifacts.py",  # v1.5.7 086 A-26

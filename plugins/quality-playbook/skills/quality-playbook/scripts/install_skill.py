@@ -203,6 +203,7 @@ def _bundle_files_soft(
             "citation_verifier.py",
             "_purpose.py",
             "reference_docs_ingest.py",
+            "doc_classification.py",
             "benchmark_lib.py",
             "__init__.py",
             "quality_playbook.py",
@@ -463,6 +464,14 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     files.append((
         _require_bundle_file(source_root / scripts_dir / "reference_docs_ingest.py"),
         Path("bin") / "reference_docs_ingest.py",
+    ))
+    # v1.6.0 Feature G (instruction 010): bundle bin/doc_classification.py —
+    # reference_docs_ingest.py imports it at module load for §8a dump-and-go
+    # classification. Mandatory (ImportError at Phase 1 ingest if missing);
+    # stdlib-only, so the bundle closure terminates here.
+    files.append((
+        _require_bundle_file(source_root / scripts_dir / "doc_classification.py"),
+        Path("bin") / "doc_classification.py",
     ))
     # v1.5.7 fix F-1 (transitive): bundle bin/benchmark_lib.py because
     # reference_docs_ingest.py imports it at module load. benchmark_lib

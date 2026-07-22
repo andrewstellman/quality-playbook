@@ -282,6 +282,9 @@ for short in "${REPOS[@]}"; do
     # Phase 2 gate then aborts on missing EXPLORATION.md). This was the
     # root cause of the May 14/15 codex CLI virtio Phase-1 failures.
     cp "${QPB_SKILL_SRC}/scripts/reference_docs_ingest.py" "${dst}/bin/reference_docs_ingest.py" 2>/dev/null || true
+    # v1.6.0 Feature G (instruction 010): reference_docs_ingest.py imports
+    # doc_classification at module load for §8a dump-and-go classification.
+    cp "${QPB_SKILL_SRC}/scripts/doc_classification.py" "${dst}/bin/doc_classification.py" 2>/dev/null || true
     # reference_docs_ingest.py imports `from bin import benchmark_lib`
     # at module load (version detection); benchmark_lib is stdlib-only
     # (no internal bin/ deps) so the closure is exactly these two.
