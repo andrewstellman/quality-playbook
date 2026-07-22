@@ -237,9 +237,26 @@ If alternatives really are both acceptable, the requirement states the **decisio
 
 #### Coverage-and-gaps statement (F-1)
 
-The Overview carries an honest prose statement of what the derivation covered and what it did **not**: areas explored but not turned into REQs, files skimmed, surfaces out of reach, and why. Written by the pass that knows.
+**Mandatory content of the Overview on every run, regardless of target size** (Design §5.2 item 2). The Overview carries an honest prose statement of what the derivation covered and what it did **not**: areas explored but not turned into REQs, files skimmed, surfaces out of reach, and why. Written by the pass that knows. A small target is exactly when the reader needs it — do not omit it because the codebase looked simple.
 
-This is **advisory** — the gate WARNs when it is missing or empty, and never FAILs on it. Its purpose is to make "skimpy" visible: a run that yields 8 REQs for an entire web framework currently passes every check with no signal to the operator that coverage was thin. It is also the opening move of the requirements validation interview, which plays it back as "here's what I believe I did not cover — was that intentional?"
+Worked example — the shape of a good coverage-and-gaps statement, inside the Overview:
+
+```
+## Overview
+
+testproj is a request-routing library … [what the system is, scope, evidence base] …
+
+Coverage and known gaps: this derivation covered the routing and middleware
+surfaces (mux.go, middleware/, the mount-composition path) from the source tree
+and the gathered reference docs. It did NOT turn the template-rendering
+subsystem into requirements — it was skimmed but its contracts were out of
+scope for this pass; the WebSocket upgrade path was not reached at all. Roughly
+40 source files under vendor/ were treated as dependencies and not read.
+```
+
+The value is in the honesty: name the areas you explored but did not turn into REQs, the files you skimmed, the surfaces you could not reach, and why. **"Fully covered" or an omitted statement is exactly the failure this exists to prevent** — a false clean bill is worse than an honest "I did not get to X", because the operator can act on the honest one. A run that yields 8 REQs for an entire web framework and claims full coverage tells the operator nothing; the same run with an honest gaps paragraph tells them precisely where to look.
+
+This is **advisory** — the gate WARNs when it is missing or empty, and never FAILs on it (Design §8; the same posture as the glossary). It is the opening move of the requirements validation interview (Feature D Stage 1), which plays it back verbatim as "here's what I believe I did not cover — was that intentional?" A missing statement costs the interview its cheapest, highest-yield completeness probe, which is why the guide makes it prominent even though the gate keeps it advisory.
 
 #### RUN_CONTRACT.md render contract
 
