@@ -25,8 +25,12 @@ Council review of the two design additions (Feature G — dump-and-go ingest; Fe
 2. Source-file-shaped docs floored to Tier 4 / non-citable (mechanical).
 3. **Non-gating ≠ non-altering** — persona changes update the manifest but the merge emits an **operator-visible agent-validation review summary** (surface, don't silently apply — modeled on G's citable-promotion). Conflict-surfacing covers the full five-move set.
 
-## Standing constraint (carry into the release)
-**Non-gating is load-bearing for the v1.6.0/v1.6.1 split rationale.** v1.6.0 stays a "complete acceptance story of its own" only because H does not gate and v1.6.1 merely *reuses* H's harness. If H is ever promoted to gating inside v1.6.0, that claim breaks. The operator decision the Council surfaced (is H a "finish" or its own release?) is resolved in-doc by the non-gating cap; keeping H non-gating in v1.6.0 is the invariant that keeps the split honest.
+## Operator reframe after the Council (2026-07-22) — H is a remediator, not a gate
+The Council's "gating vs non-gating" framing was **corrected by the operator after review**: Feature H is not a judge that renders a pass/fail verdict — it is a **requirements remediator** whose job is to find problems and *fix* them, leaving `REQUIREMENTS.md` in the best shape it can. There is no "gate," no "release" for it to block, and therefore no accuracy-calibration precondition (that was machinery for a gating role H does not have). The design was updated to strip the gating framing:
+- Guard 4 recast: "A remediator, not a gate." Grounded add/correct/drop moves are **auto-applied** (operator decision: auto-apply, shown in a review list) with an operator-visible `agent-validation` review summary as the backstop.
+- The safety that remains is exactly what the Council validated for quality: **grounding** (cite + this-system justification), the **false-positive ceiling** (improves, does not degrade), input **isolation** (never reads the code), and the **review summary** (every change visible + revertible).
+- Consequence: the "standing constraint" earlier framed as "non-gating is load-bearing for the split" dissolves — H never gates, so it never threatened the split; the split holds because H is a self-contained remediator.
+- v1.6.1's Feature B is the genuine *judge* (verdicts change finding dispositions) and carries its own accuracy ground truth (the OpenFGA labeled fixtures); it reuses H's harness/isolation/provenance but not any "calibration" (H had none).
 
 ## What Andrew's original intent preserved
 The "have the persona update the requirements" behavior is kept — personas *do* write grounded add/correct moves to the manifest — but the updates are now **surfaced** (agent-validation provenance + operator-visible review summary) rather than silently auto-applied, and **grounded** (byte-verified citation + this-system justification) rather than hallucinable.
