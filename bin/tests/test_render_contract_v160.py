@@ -84,7 +84,7 @@ RENDER_CONTRACT_AUDIT = [
     # principle must be NAMED with a rationale at the top of the section list.
     # Presence-only — the contract does not judge whether the choice is
     # optimal (that is Feature D Stage 1 + the Well-organized rubric, row 4c).
-    ("MP-4", "§5.2 item 4 / row 4b", "organizing principle named with a rationale",
+    ("MP-4", "§5.2 item 4 / row 4b", "organizing-principle slot present (name + rationale)",
      "no organizing principle stated"),
     # v1.6.0 instruction 007: fail-closed at the section level. A manifest
     # spanning >=2 product sections rendered flat (sections at H3, one
@@ -128,10 +128,10 @@ Application developers mount routers; operators deploy behind proxies.
 
 ## Requirement organization
 
-These requirements are organized by system capability because testproj is a
-routing library whose behavior clusters around the capabilities it exposes to
-the developer; the sections are ordered most-relevant-to-the-primary-reader
-first (the developer mounting a sub-router), infrastructure last.
+Organizing principle: system capability — Rationale: testproj is a routing
+library whose behavior clusters around the capabilities it exposes to the
+developer; the sections are ordered most-relevant-to-the-primary-reader first
+(the developer mounting a sub-router), infrastructure last.
 
 ## Request routing
 
@@ -282,7 +282,7 @@ class RenderContractCleanDocumentTests(RenderContractBase):
             "sequential in document order",
             "no tool-contract REQs",
             "Overview section present",
-            "organizing principle named",
+            "organizing-principle slot present",
             "section overview",
             "singleton",
             "Cross-cutting concerns section present",
@@ -374,15 +374,17 @@ class C3SingletonSectionTests(RenderContractBase):
         self.write_requirements(text)
         fails, _w, out = self.run_check()
         self.assertGreaterEqual(fails, 1)
-        self.assertIn("no justification for standing alone", out)
+        self.assertIn("no 'Standalone rationale:' slot", out)
         self.assertIn("Error handling", out)
 
     def test_c3_accepts_justified_singleton(self):
+        # instr 027: a singleton carries a labeled 'Standalone rationale:' slot
+        # (presence, not content — the old keyword scan is deleted).
         text = _clean_requirements_md().replace(self._DROP_LAST_REQ, "\n").replace(
             "This section covers the contract for how failures surface to"
             " the caller.",
             "This section covers the contract for how failures surface to"
-            " the caller. It deliberately stands alone: failure surfacing"
+            " the caller. Standalone rationale: failure surfacing"
             " shares no contract theme with request routing.",
         )
         self.write_requirements(text)
@@ -1330,9 +1332,9 @@ Application developers mount routers; operators deploy behind proxies.
 
 ## Requirement organization
 
-These requirements are organized by user journey because testproj is a
-workflow-shaped library whose requirements cluster around the stages a
-developer moves through; the sections follow that journey, mounting first.
+Organizing principle: user journey — Rationale: testproj is a workflow-shaped
+library whose requirements cluster around the stages a developer moves through;
+the sections follow that journey, mounting first.
 
 ## Mounting a sub-router
 
@@ -1392,50 +1394,35 @@ class OrganizingPrincipleTests(RenderContractBase):
     grouping — not only a functional one.
     """
 
-    def test_mp4_fires_when_no_principle_is_stated(self):
-        # Strip the "## Requirement organization" principle statement.
-        doc = _clean_requirements_md()
-        doc = doc.replace(
-            "## Requirement organization\n\n"
-            "These requirements are organized by system capability because "
-            "testproj is a\n"
-            "routing library whose behavior clusters around the capabilities "
-            "it exposes to\n"
-            "the developer; the sections are ordered "
-            "most-relevant-to-the-primary-reader\n"
-            "first (the developer mounting a sub-router), infrastructure "
-            "last.\n\n",
-            "",
-        )
-        self.assertNotIn("organized by", doc, "principle statement not removed")
+    def test_mp4_fires_when_no_slot_is_present(self):
+        # instr 027: strip the whole organizing-principle slot section.
+        doc = _clean_requirements_md().replace(self._PRINCIPLE_SECTION, "")
+        self.assertNotIn("Organizing principle:", doc, "slot not removed")
         self.write_requirements(doc)
         fails, _w, out = self.run_check()
         self.assertGreaterEqual(fails, 1, out)
-        self.assertIn("no organizing principle stated", out)
+        self.assertIn("no organizing-principle slot", out)
 
-    def test_mp4_fires_when_principle_named_without_rationale(self):
+    def test_mp4_fires_when_slot_has_no_rationale(self):
+        # instr 027: the label + name are present but the '— Rationale: <text>'
+        # half of the slot is missing -> FAIL on the empty rationale (structural,
+        # not a phrasing judgment).
         doc = _clean_requirements_md().replace(
-            "These requirements are organized by system capability because "
-            "testproj is a\n"
-            "routing library whose behavior clusters around the capabilities "
-            "it exposes to\n"
-            "the developer; the sections are ordered "
-            "most-relevant-to-the-primary-reader\n"
-            "first (the developer mounting a sub-router), infrastructure "
-            "last.",
-            "These requirements are organized by system capability. The "
-            "sections are ordered\nwith the mounting surface first.",
+            self._PRINCIPLE_SECTION,
+            "## Requirement organization\n\n"
+            "Organizing principle: system capability. The sections are ordered\n"
+            "with the mounting surface first.\n\n",
         )
         self.write_requirements(doc)
         fails, _w, out = self.run_check()
         self.assertGreaterEqual(fails, 1, out)
-        self.assertIn("no rationale", out)
+        self.assertIn("missing its rationale", out)
 
     def test_clean_document_states_its_principle(self):
         # The updated clean fixture must satisfy MP-4 (0 fails overall).
         fails, _w, out = self.run_check()
         self.assertEqual(fails, 0, out)
-        self.assertIn("organizing principle named with a rationale", out)
+        self.assertIn("organizing-principle slot present (name + rationale)", out)
 
     def test_non_functional_grouping_is_accepted(self):
         # The headline regression: a use-case-organized document PASSES.
@@ -1446,17 +1433,21 @@ class OrganizingPrincipleTests(RenderContractBase):
             f"a correctly use-case-organized document must pass the "
             f"principle-agnostic render contract:\n{out}",
         )
-        self.assertIn("organizing principle named with a rationale", out)
+        self.assertIn("organizing-principle slot present (name + rationale)", out)
 
-    def test_principle_detector_accepts_bare_present_tense(self):
-        # Council P2 (Panelist A): the detector must accept "organize/group by"
-        # (bare present), not only "organized/grouped/organizing by".
+    def test_principle_slot_detection(self):
+        # REVERSAL (instr 027; was test_principle_detector_accepts_bare_present_
+        # tense): detection is now the labeled SLOT, not a phrasing/tense
+        # judgment. A full slot -> (named, rationale); a bare label with no
+        # '— Rationale:' half -> (named, not rationale); no label -> not named.
         for phrase, named, rationale in [
-            ("We organize the requirements by risk tier because tiers drive review.",
+            ("Organizing principle: risk tier — Rationale: tiers drive review.",
              True, True),
-            ("These requirements group by stakeholder since each owns a slice.",
+            ("Organizing principle: stakeholder — Rationale: each owns a slice.",
              True, True),
-            # No trigger phrase — must NOT false-positive.
+            # label present, no rationale half.
+            ("Organizing principle: mode of operation.", True, False),
+            # no label at all -> not named.
             ("The requirements cluster naturally by mode of operation.", False, False),
         ]:
             with self.subTest(phrase=phrase):
@@ -1484,66 +1475,48 @@ class OrganizingPrincipleTests(RenderContractBase):
     # list (Bug A) and a search zone that excluded a principle placed at the
     # top of the first section (Bug B). These bites pin the fix.
 
+    # Must match _clean_requirements_md()'s slot text byte-for-byte (the 009
+    # tests strip it to test the absent/relocated cases).
     _PRINCIPLE_SECTION = (
         "## Requirement organization\n\n"
-        "These requirements are organized by system capability because "
-        "testproj is a\n"
-        "routing library whose behavior clusters around the capabilities "
-        "it exposes to\n"
-        "the developer; the sections are ordered "
-        "most-relevant-to-the-primary-reader\n"
-        "first (the developer mounting a sub-router), infrastructure "
-        "last.\n\n"
+        "Organizing principle: system capability — Rationale: testproj is a routing\n"
+        "library whose behavior clusters around the capabilities it exposes to the\n"
+        "developer; the sections are ordered most-relevant-to-the-primary-reader first\n"
+        "(the developer mounting a sub-router), infrastructure last.\n\n"
     )
 
-    def test_009_rationale_detection_is_structural_not_keyword(self):
-        # Work item 1: the three real phrasings the keyword-only detector
-        # false-FAILed must pass; a bare name (and a name plus a lone
-        # section-ordering note) must still FAIL.
+    def test_027_rationale_text_is_not_phrasing_judged(self):
+        # REVERSAL (instr 027; was test_009_rationale_detection_is_structural_
+        # not_keyword): the connector/keyword detection is DELETED. The slot's
+        # rationale is ANY non-empty text after '— Rationale:'. The real cases
+        # the old keyword detector false-FAILed (chi's bare "so", virtio's
+        # "Rationale:" label, express's "because") all pass as slot text; a slot
+        # with no rationale half fails. No phrasing judgment remains.
         cases = [
-            # chi — bare "so" connector (the original list had only "so that").
-            ("These requirements are grouped by feature, so a capability "
-             "grouping matches how the primary reader navigates the spec.",
-             True),
-            # virtio — explicit "Rationale:" label (unmatched by the old list).
-            ("The requirements are organized by subsystem. Rationale: the "
-             "spec is itself structured that way and each subsystem is one "
-             "driver module.", True),
-            # express — single-sentence "because" clause.
-            ("The requirements are organized by object because the public "
-             "API maps to those objects one to one.", True),
-            # "therefore" — same connector family as thus/hence (instr 009
-            # work item 1's enumerated set); a single-sentence rationale.
-            ("The requirements are organized by module; therefore each "
-             "contract sits beside the code that governs it.", True),
-            # name only, no reason — must FAIL.
-            ("Organized by feature.", False),
-            # name + a lone section-ordering note is NOT a rationale.
-            ("Organized by feature. The sections are ordered with the "
-             "mounting surface first.", False),
+            ("Organizing principle: feature — Rationale: so the reader navigates.", True, True),
+            ("Organizing principle: subsystem — Rationale: one driver module each.", True, True),
+            ("Organizing principle: object — Rationale: the API maps one to one.", True, True),
+            ("Organizing principle: module — Rationale: each contract sits by its code.", True, True),
+            ("Organizing principle: feature.", True, False),   # no rationale half
         ]
-        for para, expected in cases:
+        for para, named, rat in cases:
             with self.subTest(para=para):
                 self.assertEqual(
-                    quality_gate._render_rationale_present(para), expected)
+                    quality_gate._render_organizing_principle_stated(para, None),
+                    (named, rat))
 
-    def test_009_connector_free_multi_sentence_rationale_passes(self):
-        # The structural arm carries the connector-free case: a genuinely
-        # elaborated justification (two+ explanatory sentences) passes with
-        # NO recognized connective — this is the robustness the fix buys, so
-        # the detector does not lean on the keyword list alone.
-        para = (
-            "The requirements are organized by subsystem. The kernel driver "
-            "tree is laid out one directory per protocol subsystem. Each "
-            "contract then sits beside the module it governs."
-        )
-        # Guard: none of the connector keywords appear, so a pass here can
-        # only come from the structural arm.
-        self.assertIsNone(
-            quality_gate._RENDER_RATIONALE_CONNECTOR_RE.search(para),
-            "test para must be connector-free to prove the structural arm",
-        )
-        self.assertTrue(quality_gate._render_rationale_present(para))
+    def test_027_connector_regex_and_phrasing_helpers_deleted(self):
+        # REVERSAL (instr 027): the 27-alternation connector regex, the
+        # sentence-count arithmetic, the phrasing-name regex, and
+        # _render_rationale_present are DELETED — the gate no longer judges
+        # rationale phrasing. A terse connector-free slot passes on presence.
+        for gone in ("_RENDER_RATIONALE_CONNECTOR_RE", "_render_rationale_present",
+                     "_RENDER_PRINCIPLE_RE", "_RENDER_SENTENCE_SPLIT_RE"):
+            self.assertFalse(hasattr(quality_gate, gone), gone)
+        named, rat = quality_gate._render_organizing_principle_stated(
+            "Organizing principle: subsystem — Rationale: one directory per subsystem.",
+            None)
+        self.assertTrue(named and rat)
 
     def test_009_zone_accepts_principle_at_top_of_first_section(self):
         # Work item 2 (express-shape): a valid principle+rationale stated at
@@ -1555,15 +1528,15 @@ class OrganizingPrincipleTests(RenderContractBase):
             "## Request routing\n\n"
             "This section covers the contract between a mounted sub-router",
             "## Request routing\n\n"
-            "> Organizing principle: object/capability. The requirements are "
-            "organized by system capability because testproj's behavior "
-            "clusters around the capabilities it exposes to the developer.\n\n"
+            "> Organizing principle: object/capability — Rationale: testproj's "
+            "behavior clusters around the capabilities it exposes to the "
+            "developer.\n\n"
             "This section covers the contract between a mounted sub-router",
         )
         self.write_requirements(doc)
         fails, _w, out = self.run_check()
         self.assertEqual(fails, 0, out)
-        self.assertIn("organizing principle named with a rationale", out)
+        self.assertIn("organizing-principle slot present (name + rationale)", out)
 
     def test_009_principle_buried_in_mid_section_is_not_accepted(self):
         # Work item 2 (negative): a principle mentioned only deep inside a
@@ -1575,13 +1548,15 @@ class OrganizingPrincipleTests(RenderContractBase):
             "leaking traces\n\n- References: recover.go\n",
             "### REQ-004: Handler panics convert to 500 responses without "
             "leaking traces\n\n- References: recover.go\n\n"
-            "For the record these requirements are organized by system "
-            "capability because the behavior clusters around capabilities.\n",
+            "For the record — Organizing principle: system capability — "
+            "Rationale: the behavior clusters around capabilities.\n",
         )
         self.write_requirements(doc)
         fails, _w, out = self.run_check()
         self.assertGreaterEqual(fails, 1, out)
-        self.assertIn("no organizing principle stated", out)
+        # A real slot buried below the first REQ of a mid-section is out of the
+        # prominent zone and not accepted (instr 027 keeps the zone discipline).
+        self.assertIn("no organizing-principle slot", out)
 
     def test_009_labelled_principle_section_honored_anywhere(self):
         # Work item 2: an explicit `## Organizing principle` H2 is prominent
@@ -1591,8 +1566,8 @@ class OrganizingPrincipleTests(RenderContractBase):
             "## Request routing\n\n"
             "### REQ-001: Path middleware operates on the canonical path\n\n"
             "## Organizing principle\n\n"
-            "The requirements are organized by capability because the public "
-            "API clusters around the capabilities it exposes.\n"
+            "Organizing principle: capability — Rationale: the public API "
+            "clusters around the capabilities it exposes.\n"
         )
         level2 = [
             (m.group(1).strip(), m.start())
@@ -1603,6 +1578,61 @@ class OrganizingPrincipleTests(RenderContractBase):
             text, zone_end, level2)
         self.assertTrue(named and rationale,
                         f"labelled section must be honored: {named=} {rationale=}")
+
+
+class LabeledSlot027Tests(RenderContractBase):
+    """instruction 027 — labeled-slot format contracts: a slot's PRESENCE FAILs
+    structurally; phrasing/length/quality is no longer judged by the gate."""
+
+    _ROUTING_OVERVIEW = (
+        "This section covers the contract between a mounted sub-router and the "
+        "canonical\npath the router dispatches on."
+    )
+
+    def test_terse_slot_passes_end_to_end(self):
+        # Acceptance 1: a terse present slot passes (no connector-word / sentence
+        # gymnastics) — the chi "so" / virtio "Rationale:" false-FAILs are gone.
+        doc = _clean_requirements_md().replace(
+            OrganizingPrincipleTests._PRINCIPLE_SECTION,
+            "## Requirement organization\n\n"
+            "Organizing principle: subsystem — Rationale: each section owns one "
+            "driver.\n\n",
+        )
+        self.write_requirements(doc)
+        fails, _w, out = self.run_check()
+        self.assertEqual(fails, 0, out)
+
+    def test_short_overview_passes_threshold_deleted(self):
+        # Acceptance 3: the `len(intro) >= 40` magic threshold is gone — a short
+        # but non-empty section overview passes (quality -> rubric/interview).
+        doc = _clean_requirements_md().replace(self._ROUTING_OVERVIEW, "Routing rules.")
+        self.write_requirements(doc)
+        fails, _w, out = self.run_check()
+        self.assertEqual(fails, 0, out)
+
+    def test_empty_overview_still_fails_teeth(self):
+        # Acceptance 2: an absent/empty section overview still FAILs (structural
+        # teeth — stronger than a WARN a generator could skip silently).
+        doc = _clean_requirements_md().replace(
+            "## Request routing\n\n" + self._ROUTING_OVERVIEW + "\n",
+            "## Request routing\n\n",
+        )
+        self.write_requirements(doc)
+        fails, _w, out = self.run_check()
+        self.assertGreaterEqual(fails, 1, out)
+        self.assertIn("section overview", out)
+
+    def test_present_but_weak_rationale_is_not_a_quality_fail(self):
+        # Acceptance 3: a present-but-arguably-weak rationale passes the gate —
+        # adequacy is the interview's/rubric's job, never a gate FAIL.
+        doc = _clean_requirements_md().replace(
+            OrganizingPrincipleTests._PRINCIPLE_SECTION,
+            "## Requirement organization\n\n"
+            "Organizing principle: feature — Rationale: it seemed reasonable.\n\n",
+        )
+        self.write_requirements(doc)
+        fails, _w, out = self.run_check()
+        self.assertEqual(fails, 0, out)
 
 
 def _flattened_requirements_md():
@@ -1626,8 +1656,9 @@ Application developers mount routers; operators deploy behind proxies.
 
 ## Requirement organization
 
-Organized by system capability because testproj is a routing library whose
-behavior clusters around the capabilities it exposes to the developer.
+Organizing principle: system capability — Rationale: testproj is a routing
+library whose behavior clusters around the capabilities it exposes to the
+developer.
 
 ## Router capabilities
 
@@ -1747,7 +1778,7 @@ Developers use it.
 
 ## Requirement organization
 
-Organized by feature because there is a single coherent capability here.
+Organizing principle: feature — Rationale: there is a single coherent capability here.
 
 ## Only section
 

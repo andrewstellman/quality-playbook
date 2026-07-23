@@ -123,8 +123,8 @@ def _render_requirements_md(manifest, renumber=True):
         "",
         "## Requirement organization",
         "",
-        "These requirements are organized by system capability because QPB is",
-        "a capability-shaped tool whose requirements group around the checks",
+        "Organizing principle: system capability — Rationale: QPB is a",
+        "capability-shaped tool whose requirements group around the checks",
         "it provides; the sections follow that grouping.",
         "",
     ]

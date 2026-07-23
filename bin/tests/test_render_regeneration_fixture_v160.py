@@ -79,7 +79,11 @@ FIXTURE_SKILL_VERSION = "1.6.0"
 # design finding (a mandatory FAIL check and the "golden fixtures pass"
 # acceptance oracle conflict until the fixtures are regenerated).
 EXPECTED_FIXTURE_FAILS = {
-    "no organizing principle stated",
+    # instruction 027 reworded this FAIL to the labeled-slot format contract
+    # ("Organizing principle: <name> — Rationale: <text>"). The fixtures still
+    # predate the selection pass so they state no slot and emit exactly this
+    # recorded gap; the resolution is the future regeneration run.
+    "no organizing-principle slot",
 }
 
 
@@ -234,7 +238,7 @@ class RegenerationOracleTests(unittest.TestCase):
                     f"{target}: FAIL counter disagrees with parsed lines:\n{out}",
                 )
                 self.assertTrue(
-                    any("no organizing principle stated" in ln for ln in lines),
+                    any("no organizing-principle slot" in ln for ln in lines),
                     f"{target}: expected the recorded organizing-principle "
                     f"FAIL but none fired — prune EXPECTED_FIXTURE_FAILS if "
                     f"the fixture was regenerated with a principle:\n{out}",

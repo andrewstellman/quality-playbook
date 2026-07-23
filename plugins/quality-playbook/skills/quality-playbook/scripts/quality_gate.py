@@ -7257,111 +7257,49 @@ def _render_named_section_body(text, level2, heading_pattern):
 # choice is optimal — that is Feature D Stage 1 + the Well-organized rubric,
 # matrix row 4c). These patterns detect the stated choice at the top of the
 # section list.
-_RENDER_PRINCIPLE_RE = re.compile(
-    r"organiz(?:e|es|ed|ing)\s+(?:these\s+|the\s+|its\s+)?(?:requirements?\s+)?"
-    r"(?:by|around|according to)\b"
-    r"|group(?:ed|s|ing)?\s+(?:these\s+|the\s+)?(?:requirements?\s+)?by\b"
-    r"|organizing\s+principle\b"
-    r"|sections?\s+are\s+organized\b",
-    re.IGNORECASE,
-)
-# v1.6.0 instruction 009: detect a rationale STRUCTURALLY (is there
-# substantive explanatory content beyond merely naming the principle?),
-# not by matching a fixed connector list. Detecting "is a reason given" with
-# a keyword list is brittle — every widening misses the next valid phrasing.
-# The original list recognized "because" but not chi's bare "so" nor virtio's
-# explicit "Rationale:" label, so it false-FAILed two well-formed documents.
-# The connector set below is ONE signal, used only for the single-sentence
-# case where nothing structural can separate a reason from a name list; the
-# load-bearing test is _render_rationale_present's "content beyond naming".
-# Rationale *quality* stays a Feature D / Council-rubric judgment (matrix row
-# 4c); this check confirms only that a rationale is *present*.
-_RENDER_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
-_RENDER_RATIONALE_MIN_WORDS = 4
-# Justificatory connectives / labels — reason clauses, an explicit
-# "Rationale:" label, and targeted "this principle matches/maps/mirrors the
-# system" relationships. Broadened well past the original because/since list
-# (which false-FAILed chi's bare "so" and virtio's "Rationale:"), but used
-# only as ONE signal: the connector-free multi-sentence case is carried by
-# the structural arm in _render_rationale_present, so the check does not lean
-# on this list alone (instruction 009 work item 1).
-_RENDER_RATIONALE_CONNECTOR_RE = re.compile(
-    r"\bbecause\b|\bsince\b|\bso that\b|\bso\b|\bthus\b|\bhence\b|"
-    r"\btherefore\b|\bin order to\b|\bas this\b|\bas it\b|\bgiven that\b|"
-    r"\bto reflect\b|\bwhich lets\b|\brationale\b|\bchosen\b|"
-    r"\brejected\b|\bmatches how\b|\bmatches both\b|\bmatches the\b|"
-    r"\bthis matches\b|\bthis fits\b|\bmaps cleanly\b|\bmaps onto\b|"
-    r"\bmirrors the\b|\breflects the\b|\breflects how\b|\baligns with\b",
-    re.IGNORECASE,
-)
-# A labelled `## Organizing principle` heading is prominent by construction,
-# so it is honored wherever it sits in the document.
+# v1.6.0 instruction 027 — LABELED-SLOT format contract (Fable Q4). The render
+# contract no longer mechanizes rationale *phrasing*: the old 27-alternation
+# connector list false-FAILed chi's bare "so" and virtio's "Rationale:" label,
+# and its own comment admitted "every widening misses the next valid phrasing".
+# Instead the generation guide requires a literal slot
+#   ``Organizing principle: <name> — Rationale: <text>``
+# and the gate FAILs only on the STRUCTURAL facts — the label absent, the name
+# empty, or the rationale text empty. A label is a literal string and a slot's
+# presence is a format contract, not a genre judgment; the rationale's *adequacy*
+# (is the reason good?) is a Feature D interview + Well-organized-rubric judgment
+# (matrix row 4c), not a gate FAIL. A labelled ``## Organizing principle`` H2 is
+# honored wherever it sits (prominent by construction).
 _RENDER_PRINCIPLE_LABEL_RE = re.compile(r"organizing\s+principle\b", re.IGNORECASE)
-
-
-def _render_rationale_present(para):
-    """Structural rationale test — is there content beyond merely naming?
-
-    A rationale is present when the naming paragraph carries substantive
-    explanatory content beyond the clause that *names* the principle, via
-    either arm:
-
-    (a) STRUCTURAL — the naming sentence is followed by *two or more*
-        substantive explanatory sentences, a genuinely elaborated
-        justification (chi's "A router library is consumed …" + "Sections are
-        ordered …"; virtio's "Rationale: …" + "A kernel maintainer …"). This
-        arm needs no connective at all, so it does not break on the next
-        unseen phrasing — the core robustness ask. A *single* trailing note
-        (e.g. a lone remark about section ordering) is deliberately not
-        enough, so a named-but-unjustified principle still FAILs.
-
-    (b) CONNECTIVE — a justificatory connector / "Rationale:" label anywhere
-        in the naming paragraph (bare "so", "because", "matches how", …).
-        This one signal catches the terse single-sentence rationale
-        ("organized by object because …") that arm (a) cannot, since nothing
-        structural separates a reason clause from a name list inside one
-        sentence.
-
-    A bare "Organized by feature." — name only, no elaboration and no
-    connective — satisfies neither arm and returns False.
-    """
-    sentences = [
-        s.strip() for s in _RENDER_SENTENCE_SPLIT_RE.split(para) if s.strip()
-    ]
-    naming = [s for s in sentences if _RENDER_PRINCIPLE_RE.search(s)]
-    if not naming:
-        return False
-    non_naming = [
-        s for s in sentences
-        if not _RENDER_PRINCIPLE_RE.search(s)
-        and len(s.split()) >= _RENDER_RATIONALE_MIN_WORDS
-    ]
-    # (a) An elaborated, multi-sentence explanation — connector-free robust.
-    if len(non_naming) >= 2:
-        return True
-    # (b) A justificatory connective / label (single-sentence rationales).
-    if _RENDER_RATIONALE_CONNECTOR_RE.search(para):
-        return True
-    return False
+_RENDER_PRINCIPLE_SLOT_RE = re.compile(
+    r"organizing\s+principle\s*:\s*(?P<name>\S.*?)\s*[—–-]\s*"
+    r"rationale\s*:\s*(?P<rationale>\S.*)",
+    re.IGNORECASE,
+)
+# A one-REQ section carries a literal ``Standalone rationale: <why>`` slot; the
+# gate FAILs on its ABSENCE only (presence is structural). This replaces the old
+# keyword scan ("singleton|stands alone|only requirement|…") that judged the
+# justification's *content* (instruction 027).
+_RENDER_SINGLETON_LABEL_RE = re.compile(
+    r"standalone\s+rationale\s*:\s*\S", re.IGNORECASE)
 
 
 def _render_organizing_principle_stated(text, zone_end, level2=None):
-    """Detect the stated organizing principle (Design §5.2 item 4, row 4b).
+    """Detect the labeled organizing-principle SLOT (Design §5.2 item 4, row 4b;
+    instruction 027 — a format contract, not a phrasing judgment).
 
-    Searches the zone where a principle is *legitimately* placed and returns
-    (named: bool, rationale: bool). The zone spans the top of the document
-    through the intro of the first requirement section (``zone_end`` is that
-    section's first REQ heading), covering all three valid placements: a
-    standalone paragraph after Actors & roles (chi/virtio), a labelled
-    `## Organizing principle` section up top (virtio), and a principle stated
-    at the very top of the first requirement section before its first REQ
-    (express's blockquote). A labelled `## Organizing principle` H2 anywhere
-    is also honored (prominent by construction). A principle buried below the
-    first REQ of a mid-document section is NOT accepted — "prominent, near the
-    section list" is the intent (instruction 009 work item 2). Rationale is
-    judged only within the paragraph that names the principle, so a "because"
-    elsewhere cannot satisfy it; detection is structural
-    (_render_rationale_present).
+    Searches the zone where a principle is legitimately placed — the top of the
+    document through the first requirement section's first REQ (``zone_end``),
+    plus a labelled ``## Organizing principle`` H2 anywhere — and returns
+    (named: bool, rationale: bool):
+
+    * ``named`` iff an ``Organizing principle`` label appears in the zone.
+    * ``rationale`` iff the slot ``Organizing principle: <name> — Rationale:
+      <text>`` is present in the zone with a NON-EMPTY name AND a non-empty
+      rationale text.
+
+    Both are structural string checks. The rationale's *quality* (is the reason
+    good?) is judged by the Feature D interview + the Well-organized rubric
+    (matrix row 4c), never a gate FAIL — a terse-but-present rationale passes.
     """
     zones = [text[:zone_end] if zone_end is not None else text]
     if level2:
@@ -7371,11 +7309,11 @@ def _render_organizing_principle_stated(text, zone_end, level2=None):
                 zones.append(text[off:end])
     named = False
     for zone in zones:
-        for para in re.split(r"\n\s*\n", zone):
-            if _RENDER_PRINCIPLE_RE.search(para):
-                named = True
-                if _render_rationale_present(para):
-                    return True, True
+        if _RENDER_PRINCIPLE_LABEL_RE.search(zone):
+            named = True
+            m = _RENDER_PRINCIPLE_SLOT_RE.search(zone)
+            if m and m.group("name").strip() and m.group("rationale").strip():
+                return True, True
     return named, False
 
 
@@ -7827,26 +7765,29 @@ def check_render_contract(repo_dir, q, skill_version=None):
         if not named:
             fail(
                 "REQUIREMENTS.md",
-                "no organizing principle stated at the top of the section "
-                "list. The derivation must name the principle it grouped the "
-                "requirements by (feature, use case, user class, mode, object, "
+                "no organizing-principle slot at the top of the section list. "
+                "Emit the literal labeled slot 'Organizing principle: <name> — "
+                "Rationale: <text>' (name = the principle you grouped the "
+                "requirements by — feature, use case, user class, mode, object, "
                 "interface, functional hierarchy, or a justified combination) "
-                "and give a one-paragraph rationale — e.g. 'Organized by user "
-                "journey because this is a workflow system.' (v1.6.0 Design "
-                "§5.2 item 4; references/requirements_pipeline.md § E — "
-                "Choosing the organizing principle).",
+                "before the first requirement section — e.g. 'Organizing "
+                "principle: user journey — Rationale: this is a workflow "
+                "system.' (v1.6.0 Design §5.2 item 4; instruction 027 "
+                "labeled-slot format contract).",
             )
         elif not rationale:
             fail(
                 "REQUIREMENTS.md",
-                "an organizing principle is named but carries no rationale. "
-                "State in the same paragraph *why* this principle fits this "
-                "system (a 'because'/'since' clause) — the choice and its "
-                "reason are what the operator validates in the Feature D "
-                "interview (v1.6.0 Design §5.2 item 4).",
+                "the organizing-principle slot is missing its rationale text. "
+                "Complete the labeled slot 'Organizing principle: <name> — "
+                "Rationale: <text>' with a non-empty name AND a non-empty "
+                "rationale (the gate checks the slot is filled, not the "
+                "wording — the reason's adequacy is judged by the Feature D "
+                "interview + the Well-organized rubric). (v1.6.0 Design §5.2 "
+                "item 4; instruction 027).",
             )
         else:
-            pass_("organizing principle named with a rationale")
+            pass_("organizing-principle slot present (name + rationale)")
     # Count REQs per functional section by document offset.
     bounds = [off for _h, off in level2] + [len(structure_text)]
     section_req_counts = {}
@@ -7864,7 +7805,11 @@ def check_render_contract(repo_dir, q, skill_version=None):
         intro = "\n".join(
             ln for ln in head_zone.splitlines() if ln.strip() and not ln.lstrip().startswith("#")
         ).strip()
-        section_intro_ok[h] = len(intro) >= 40
+        # instruction 027: PRESENCE, not length — the section must carry
+        # non-empty intro prose (its overview). The old `len(intro) >= 40`
+        # magic threshold judged verbosity; overview *adequacy* is a
+        # rubric/interview judgment, not a gate FAIL.
+        section_intro_ok[h] = bool(intro)
 
     # Skip the per-section checks when the document is flattened: they would
     # run vacuously on the single parseable container and print a misleading
@@ -7887,8 +7832,11 @@ def check_render_contract(repo_dir, q, skill_version=None):
 
         singletons = sorted(h for h, c in section_req_counts.items() if c == 1)
         if singletons:
-            # A singleton is admissible with an explicit one-line
-            # justification; look for it in the section's intro zone.
+            # A singleton is admissible with a labeled ``Standalone rationale:
+            # <why>`` slot (instruction 027 — presence, not content). The gate
+            # FAILs on the slot's ABSENCE only; the old keyword scan
+            # ("singleton|stands alone|only requirement|…") judged the
+            # justification's content and was deleted.
             unjustified = []
             for h in singletons:
                 idx = [x for x, _o in level2].index(h)
@@ -7896,28 +7844,24 @@ def check_render_contract(repo_dir, q, skill_version=None):
                 body = structure_text[off: bounds[idx + 1]]
                 # Search only the intro zone (heading -> first REQ), not the
                 # whole section: otherwise a REQ title or condition of
-                # satisfaction containing "only requirement" silently
-                # satisfies the escape hatch. The justification is a
-                # statement the section makes about itself.
+                # satisfaction containing the label silently satisfies the
+                # escape hatch. The justification is a statement the section
+                # makes about itself.
                 first_req = _RENDER_REQ_HEADING_RE.search(body)
                 intro_zone = body[: first_req.start()] if first_req else body
-                if not re.search(
-                    r"singleton|stands? alone|standing alone|single[- ]REQ|"
-                    r"only requirement|deliberately (its own|separate)",
-                    intro_zone,
-                    re.IGNORECASE,
-                ):
+                if not _RENDER_SINGLETON_LABEL_RE.search(intro_zone):
                     unjustified.append(h)
             if unjustified:
                 fail(
                     "REQUIREMENTS.md",
                     f"{len(unjustified)} requirement section(s) hold exactly "
-                    f"one REQ with no justification for standing alone: "
+                    f"one REQ with no 'Standalone rationale:' slot: "
                     f"{', '.join(repr(h) for h in unjustified[:6])}"
                     f"{'...' if len(unjustified) > 6 else ''}. "
-                    "Merge into a related section or carry a one-line "
-                    "justification (v1.6.0 Design §5.2 item 4 — the "
-                    "express six-singleton shape).",
+                    "Merge into a related section or carry a labeled "
+                    "'Standalone rationale: <why it stands alone>' line in the "
+                    "section overview (v1.6.0 Design §5.2 item 4; instruction "
+                    "027 — the express six-singleton shape).",
                 )
             else:
                 pass_(f"{len(singletons)} singleton section(s) carry justifications")
