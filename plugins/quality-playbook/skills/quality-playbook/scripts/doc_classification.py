@@ -4,30 +4,41 @@ The operator dumps *any* documentation into one folder; ingest classifies each
 file **by content** into citable (Tier 1/2) vs background (Tier 4) — no required
 ``cite/`` pre-sorting. Classification is an AI judgment (the derivation agent is
 the classifier), but it runs **over a deterministic mechanical floor** that the
-LLM cannot override upward. The floor is the security-critical part:
+LLM cannot override upward. The floor is the security-critical part, and it
+enforces **only hard, unambiguous, structural facts** — fuzzy genre/intent
+judgments belong to the LLM (instruction 023 / Fable simplification review). The
+cardinal rule the review sharpened: **nothing becomes citable on content-sniffing
+alone** — promotion is the integrity-affecting direction, so a doc reaches
+citable only via an extension-class hard signal or (disclosed) LLM classification.
 
-* **Advisory floor (mechanical, first, content-keyed).** A CVE/GHSA identifier,
-  an advisory URL/header, or a security-genre marker (hardening-guide /
-  best-practices / benchmark title, high MUST/SHALL-density "how to harden"
-  prose) forces **Tier 4**. Nothing promotes a floored advisory — not the LLM,
-  not an extension carve-out, not the operator sidecar. Runs *before* the
-  contract carve-out, so a CVE advisory renamed ``api.proto`` is still floored
-  by its content.
-* **Implementation-source floor.** A document that is predominantly
-  *implementation* code (function bodies) is floored to Tier 4 — code is what
-  the system *does*, not what it is *supposed to do*.
-* **Machine-readable-contract carve-out.** An OpenAPI/Swagger, ``.proto``, JSON
-  Schema, IDL, ``.d.ts``, or WSDL file *is* an authoritative contract and is
-  citable without override; the implementation floor targets logic, not
-  interface definitions.
+* **Advisory floor (mechanical, first, content-keyed) — HARD signals only.** A
+  CVE/GHSA identifier or an advisory URL forces **Tier 4**, matched anywhere in
+  content. Nothing promotes a floored advisory — not the LLM, not an extension
+  carve-out, not the operator sidecar. Runs *before* the contract carve-out, so a
+  CVE advisory renamed ``api.proto`` is still floored by its content. Fuzzy
+  genre signals — a hardening/best-practices/advisory TITLE, or high MUST/SHALL
+  normative density — are **no longer floors**: a title is a hard string but
+  title→genre is a judgment, and a formal spec is normative-dense *by
+  definition*, so a density floor floors specifications as a class. They are
+  recorded as **advisory hints** on the record and fed to the LLM classifier as
+  demotion inputs (``advisory_genre_hints``); they inform, they do not decide.
+* **Implementation-source floor — extension only.** A code *extension*
+  (``.c``/``.py``/``.go``/…) whose content confirms logic is floored to Tier 4 —
+  code is what the system *does*, not what it is *supposed to do*. Code pasted
+  into a ``.md``/``.txt`` is **not** floored (its risk direction is upward:
+  implementation treated as citable → circular requirements); it carries a
+  ``code_heavy`` advisory hint fed to the LLM/manifest instead.
+* **Machine-readable-contract carve-out.** An OpenAPI/Swagger, ``.proto``, IDL,
+  ``.d.ts``, or WSDL file *is* an authoritative contract and is citable without
+  override. Content signatures are **anchored and unambiguous only** (``syntax =
+  "proto3"``, ``openapi: 3…``, ``swagger: "2…``, ``asyncapi:``, WSDL namespace);
+  a bare ``"$schema"`` key or a generic brace block does NOT promote — that is
+  the dangerous upward direction, closed here.
 * **Operator sidecar.** For the fuzzy case where the implementation floor caught
   a code-shaped contract, the operator sidecar may explicitly promote *that
   file* past the **implementation floor only** — never past the advisory floor.
   The sidecar is operator-authored configuration; the classifier can never add
   to it.
-* **Injection resistance.** The classifier treats content as data: a document
-  arguing for its own authority (self-classifying tier language, imperatives to
-  the classifier) is a signal *toward* Tier 4, not away.
 
 On genuine ambiguity the classifier defaults to Tier 4 (a missed grounding is
 Tier 3 instead of Tier 1 — recoverable; a false authoritative source poisons the
@@ -62,25 +73,32 @@ RULE_BACKGROUND = "background-ledger"
 # (default-tier4 is NOT absolute: it just means "no classifier tier was
 # assigned", which a later run's LLM may raise.)
 _ABSOLUTE_FLOOR_RULES = frozenset(
-    {RULE_ADVISORY, RULE_IMPL, RULE_INJECTION, RULE_BACKGROUND}
+    {RULE_ADVISORY, RULE_IMPL, RULE_BACKGROUND}
 )
 # The UNRESCUABLE floor rules — a subset that NOTHING reverses: not the LLM, a
 # rename, the operator sidecar, or a reused prior-manifest record. The
 # implementation floor is deliberately EXCLUDED because it is legitimately
-# rescued by the operator sidecar / cite/ placement; advisory, injection, and
-# background are absolute regardless of any override. On a cache hit these are
-# re-decided from content and the fresh floored decision always wins, so a
-# poisoned prior manifest cannot keep an unrescuable-floored doc citable OR
-# promotable (instruction 011 self-Council Panelist A).
+# rescued by the operator sidecar / cite/ placement; advisory and background are
+# absolute regardless of any override. On a cache hit these are re-decided from
+# content and the fresh floored decision always wins, so a poisoned prior
+# manifest cannot keep an unrescuable-floored doc citable OR promotable
+# (instruction 011 self-Council Panelist A). (The injection floor was removed in
+# instruction 023 — the LLM owns the self-authorizing-tier judgment, and the
+# grounding-layer directive check + Tier-1/2 guard are the load-bearing backstop
+# on the auto-apply path; RULE_INJECTION is no longer produced.)
 _UNRESCUABLE_FLOOR_RULES = frozenset(
-    {RULE_ADVISORY, RULE_INJECTION, RULE_BACKGROUND}
+    {RULE_ADVISORY, RULE_BACKGROUND}
 )
 
 # §8a item 7: README and the coverage / issue-tracker ledgers are background
 # and stay Tier 4 — the classifier cannot promote them. (An advisory-signature
-# README is still caught by the advisory floor first.)
+# README is still caught by the advisory floor first.) The coverage arm is
+# EXACT stems (``coverage`` / ``coverage_report``), not the old free-floating
+# ``*coverage*`` substring, so a real spec whose name merely contains "coverage"
+# (e.g. ``test-coverage-requirements.md``) is not floored as background
+# (instruction 023).
 _BACKGROUND_NAME_RE = re.compile(
-    r"^(?:readme|[^/]*coverage[^/]*|issue[_-]?tracker[^/]*)\.(?:md|txt|rst)$",
+    r"^(?:readme|coverage(?:[_-]report)?|issue[_-]?tracker[^/]*)\.(?:md|txt|rst)$",
     re.IGNORECASE,
 )
 
@@ -102,11 +120,11 @@ _ADVISORY_URL_RE = re.compile(
     re.IGNORECASE,
 )
 # Header / genre markers are ambiguous English words (a routing guide can have a
-# "Best Practices" subsection, a spec a "Security Considerations" one). They floor
-# only when they describe the WHOLE DOCUMENT'S GENRE — i.e. they appear in the
-# TITLE ZONE (filename + first H1 + first non-blank line), not in body prose or a
-# subsection heading. Unambiguous signals (CVE/GHSA ids, advisory URLs) match
-# anywhere; these do not.
+# "Best Practices" subsection, a spec a "Security Considerations" one). A
+# title-zone match is a genre JUDGMENT, so it is recorded as an advisory HINT
+# (advisory_genre_hints), NOT a floor (instruction 023): it demotes/informs the
+# LLM classifier and is surfaced in the manifest, but never hard-floors a doc.
+# Only the hard signals (CVE/GHSA ids, advisory URLs) floor.
 _ADVISORY_HEADER_RE = re.compile(
     r"security\s+advisory|known\s+failure\s+modes|known\s+vulnerabilit"
     r"|\badvisor(?:y|ies)\b",
@@ -145,26 +163,18 @@ def _title_zone(text: str, filename: str) -> str:
     if first_nonblank:
         parts.append(first_nonblank)
     return "\n".join(parts)
-# RFC-2119 normative keywords — high density is a *contract* signal on its own,
-# so it floors only in combination with hardening/config subject matter.
-_NORMATIVE_RE = re.compile(
-    r"\b(?:MUST(?:\s+NOT)?|SHALL(?:\s+NOT)?|SHOULD(?:\s+NOT)?|REQUIRED)\b"
-)
-_HARDENING_SUBJECT_RE = re.compile(
-    r"\b(?:harden|hardening|configure|configuration|disable|enable|"
-    r"restrict|permission|least\s+privilege|secure\s+default)\b",
-    re.IGNORECASE,
-)
 
 
 def advisory_floor(text: str, filename: str = "") -> Optional[str]:
-    """Return a reason string if *text* is advisory/security-genre, else None.
+    """Return a reason string if *text* carries a HARD advisory signal, else None.
 
-    Unambiguous signals (CVE/GHSA ids, advisory URLs) are matched anywhere in
-    content — keyed on content so a renamed advisory cannot escape. Ambiguous
-    English markers (advisory/vulnerability headers, hardening/best-practices
-    genre) are matched only in the title zone, so a passing mention or a
-    "Best Practices" subsection in a normal guide does not floor it.
+    HARD signals only (instruction 023 / Fable Q1): a CVE/GHSA identifier or an
+    advisory URL, matched anywhere in content — keyed on content so a renamed
+    advisory cannot escape. Fuzzy genre signals (advisory/hardening/best-practices
+    TITLE, high MUST/SHALL normative density) are NO LONGER floors — a formal spec
+    is normative-dense by definition, so a density floor floors specifications as a
+    class. They are advisory HINTS instead (see ``advisory_genre_hints``), fed to
+    the LLM classifier and recorded in the manifest.
     """
     m = _ADVISORY_ID_RE.search(text)
     if m:
@@ -172,23 +182,28 @@ def advisory_floor(text: str, filename: str = "") -> Optional[str]:
     m = _ADVISORY_URL_RE.search(text)
     if m:
         return f"advisory URL {m.group(0)!r}"
+    return None
+
+
+def advisory_genre_hints(text: str, filename: str = "") -> List[str]:
+    """Fuzzy security-genre TITLE signals — advisory demotion HINTS, not floors.
+
+    A title-zone match on an advisory/vulnerability header or a hardening /
+    best-practices / benchmark genre title is a genre judgment the LLM should own:
+    it is recorded on the record and fed to the classifier as a demotion input,
+    but it never hard-floors a doc and never promotes one. Matched only in the
+    title zone (filename + first H1 + first non-blank line), so a passing mention
+    or a "Best Practices" subsection in a normal guide does not flag it.
+    """
     title = _title_zone(text, filename)
+    hints: List[str] = []
     m = _ADVISORY_HEADER_RE.search(title)
     if m:
-        return f"advisory-genre title {m.group(0)!r}"
+        hints.append(f"advisory-genre title {m.group(0).strip()!r}")
     m = _SECURITY_GENRE_RE.search(title)
     if m:
-        return f"security-genre title {m.group(0)!r}"
-    # High normative density + hardening subject = a how-to-harden guide.
-    words = max(1, len(text.split()))
-    normative = len(_NORMATIVE_RE.findall(text))
-    density = normative / words
-    if normative >= 5 and density >= 0.004 and _HARDENING_SUBJECT_RE.search(text):
-        return (
-            f"high normative density ({normative} MUST/SHALL over ~{words} "
-            "words) with hardening/configuration subject"
-        )
-    return None
+        hints.append(f"security-genre title {m.group(0).strip()!r}")
+    return hints
 
 
 # ---------------------------------------------------------------------------
@@ -197,14 +212,18 @@ def advisory_floor(text: str, filename: str = "") -> Optional[str]:
 _CONTRACT_EXTS = frozenset(
     {".proto", ".wsdl", ".graphql", ".graphqls", ".raml", ".thrift", ".idl"}
 )
+# ANCHORED, unambiguous signatures ONLY (instruction 023 / Fable Q7 — the best
+# single cut). A bare ``"$schema"`` key promotes arbitrary JSON configs, and a
+# generic ``type Query {`` / ``schema {`` brace-block promotes arbitrary brace
+# text — both the dangerous UPWARD (integrity) direction, so both are deleted.
+# openapi/swagger require their version anchor. Nothing becomes citable on
+# content-sniffing alone beyond these hard, self-identifying format markers.
 _CONTRACT_CONTENT_RE = re.compile(
-    r'syntax\s*=\s*"proto[23]?"'          # protobuf
-    r'|"openapi"\s*:|openapi\s*:\s*["\']?3'  # OpenAPI 3
-    r'|"swagger"\s*:|swagger\s*:\s*["\']?2'  # Swagger 2
-    r'|"asyncapi"\s*:|asyncapi\s*:'          # AsyncAPI
-    r'|"\$schema"\s*:'                        # JSON Schema
-    r"|<wsdl:|<definitions[^>]*wsdl"          # WSDL
-    r"|^\s*type\s+Query\s*\{|^\s*schema\s*\{",  # GraphQL SDL
+    r'syntax\s*=\s*"proto[23]?"'                        # protobuf
+    r'|"openapi"\s*:\s*["\']?3|openapi\s*:\s*["\']?3'   # OpenAPI 3 (version-anchored)
+    r'|"swagger"\s*:\s*["\']?2|swagger\s*:\s*["\']?2'   # Swagger 2 (version-anchored)
+    r'|"asyncapi"\s*:|asyncapi\s*:'                      # AsyncAPI
+    r"|<wsdl:|<definitions[^>]*wsdl",                    # WSDL
     re.IGNORECASE | re.MULTILINE,
 )
 
@@ -241,29 +260,64 @@ _CODE_LINE_RE = re.compile(
 )
 
 
-def implementation_source(text: str, filename: str) -> Optional[str]:
-    """Return a reason if *text* is predominantly implementation code.
-
-    A code extension is a strong signal; content is confirmed by a high ratio
-    of code-shaped lines so a ``.md`` walkthrough that merely *quotes* code is
-    not floored while an actual ``.py`` module is.
-    """
-    lower = filename.lower()
+def _code_ratio(text: str) -> Optional[float]:
     lines = [ln for ln in text.splitlines() if ln.strip()]
     if not lines:
         return None
-    code_lines = sum(1 for ln in lines if _CODE_LINE_RE.search(ln))
-    ratio = code_lines / len(lines)
+    return sum(1 for ln in lines if _CODE_LINE_RE.search(ln)) / len(lines)
+
+
+def implementation_source(text: str, filename: str) -> Optional[str]:
+    """Return a reason if *filename* is a code EXTENSION whose content confirms
+    implementation, else None.
+
+    The extension floor is a HARD, structural signal (a ``.py``/``.c``/``.go`` is
+    implementation), confirmed by a high ratio of code-shaped lines. The old
+    non-extension ``>=50% code-shaped lines`` CONTENT path no longer floors
+    (instruction 023 / Fable Q5): code pasted into a ``.md``/``.txt`` is common
+    and its risk direction is upward, so it becomes a ``code_heavy_hint`` fed to
+    the LLM/manifest rather than a silent floor.
+    """
+    lower = filename.lower()
     ext = "." + lower.rsplit(".", 1)[-1] if "." in lower else ""
-    if ext in _IMPL_EXTS and ratio >= 0.25:
+    if ext not in _IMPL_EXTS:
+        return None
+    ratio = _code_ratio(text)
+    if ratio is not None and ratio >= 0.25:
         return f"code extension {ext} with {ratio:.0%} code-shaped lines"
-    if ratio >= 0.5:
-        return f"{ratio:.0%} code-shaped lines (predominantly implementation)"
+    return None
+
+
+def code_heavy_hint(text: str, filename: str) -> Optional[str]:
+    """A non-code-extension doc that is mostly code-shaped lines — an advisory
+    'looks code-heavy' HINT, not a floor.
+
+    Risk direction is UPWARD (implementation prose treated as a citable contract →
+    circular requirements), so the signal is kept — but as a flag fed to the LLM
+    classifier and recorded in the manifest, never a silent floor or promotion. A
+    real code *extension* is the hard impl floor, not a hint, so it is excluded
+    here.
+    """
+    lower = filename.lower()
+    ext = "." + lower.rsplit(".", 1)[-1] if "." in lower else ""
+    if ext in _IMPL_EXTS:
+        return None
+    ratio = _code_ratio(text)
+    if ratio is not None and ratio >= 0.5:
+        return f"{ratio:.0%} code-shaped lines (looks code-heavy)"
     return None
 
 
 # ---------------------------------------------------------------------------
-# 4. Injection resistance — content arguing for its own authority.
+# Self-authorizing-tier detection — NO LONGER a classifier floor (instruction
+# 023 removed the injection floor: the LLM owns the self-authorizing-tier
+# judgment). This detector is RETAINED because it is composed by
+# ``persona_grounding.grounding_injection_signature`` (Guard 1) — a DIFFERENT,
+# load-bearing control on the auto-apply path that the instruction explicitly
+# keeps and does not touch. It is a pure detection helper here, invoked by no
+# floor in this module; deleting it would break that Guard-1 reuse and redden the
+# suite. (The eventual removal of this reuse belongs to the later Feature-H
+# directive-narrowing instruction, not here.)
 # ---------------------------------------------------------------------------
 _INJECTION_RE = re.compile(
     r"classify\s+(?:me|this|the\s+following)\s+(?:as\s+)?tier"
@@ -296,8 +350,12 @@ class Decision:
     rule: str
     reason: str
     # True when this file COULD be citable (floor did not permanently bar it);
-    # a floored advisory/impl/injection doc is promotable=False.
+    # a floored advisory/impl doc is promotable=False.
     promotable: bool
+    # Advisory HINTS recorded on the record and fed to the LLM classifier as
+    # demotion inputs — they inform, never floor and never promote (instr 023).
+    advisory_hints: List[str] = field(default_factory=list)  # genre-title signals
+    code_heavy: Optional[str] = None                          # non-ext code-heavy flag
 
 
 def classify_document(
@@ -312,12 +370,31 @@ def classify_document(
       (floor-passed) documents; the floor may override it only downward.
     * ``sidecar_promote`` — True when the operator sidecar names this file;
       rescues it from the **implementation** floor only, never the advisory floor.
+
+    Advisory genre-title hints and the code-heavy hint are attached to the
+    returned Decision (they inform the LLM/manifest; they never floor or promote).
     """
-    # 1. Advisory floor FIRST — content-keyed, before any extension carve-out
-    #    or sidecar. An advisory can never reach citable by any path.
+    decision = _classify(
+        rel_path, text, llm_tier=llm_tier, sidecar_promote=sidecar_promote
+    )
+    decision.advisory_hints = advisory_genre_hints(text, rel_path)
+    decision.code_heavy = code_heavy_hint(text, rel_path)
+    return decision
+
+
+def _classify(
+    rel_path: str,
+    text: str,
+    *,
+    llm_tier: Optional[int] = None,
+    sidecar_promote: bool = False,
+) -> Decision:
+    # 1. Advisory floor FIRST — HARD signals only (CVE/GHSA id, advisory URL),
+    #    content-keyed, before any extension carve-out or sidecar. An advisory can
+    #    never reach citable by any path.
     adv = advisory_floor(text, rel_path)
     if adv:
-        return Decision(4, RULE_ADVISORY, f"advisory/security-genre: {adv}", False)
+        return Decision(4, RULE_ADVISORY, f"advisory (hard signal): {adv}", False)
 
     # README / coverage / issue-tracker ledgers are background — pinned Tier 4
     # (§8a item 7); the classifier cannot promote them.
@@ -327,7 +404,8 @@ def classify_document(
     contract = machine_readable_contract(text, rel_path)
     impl = implementation_source(text, rel_path)
 
-    # 2. Implementation floor (a machine-readable contract is exempt).
+    # 2. Implementation floor — the code-EXTENSION floor only (a machine-readable
+    #    contract is exempt). The old non-extension content sniff is now a hint.
     if impl and not contract:
         if sidecar_promote:
             tier = llm_tier if llm_tier in (1, 2) else 1
@@ -338,21 +416,15 @@ def classify_document(
             )
         return Decision(4, RULE_IMPL, f"implementation-source floor: {impl}", False)
 
-    # 3. Injection resistance — a floor-passed doc arguing for its own tier
-    #    is a signal toward Tier 4, not away.
-    inj = injection_signature(text)
-    if inj:
-        return Decision(
-            4, RULE_INJECTION,
-            f"not promoted on self-assertion: {inj}", False,
-        )
-
-    # 4. Machine-readable contract — citable without override.
+    # 3. Machine-readable contract — citable without override.
     if contract:
         tier = llm_tier if llm_tier in (1, 2) else 1
         return Decision(tier, RULE_CONTRACT, f"machine-readable contract: {contract}", True)
 
-    # 5. Floor-passed background/authoritative — the LLM classifier decides.
+    # 4. Floor-passed background/authoritative — the LLM classifier decides.
+    #    (The classifier owns the self-authorizing-tier judgment: the injection
+    #    floor was removed in instruction 023. Its advisory genre-title hint, if
+    #    any, is surfaced on the record as a demotion input to the LLM.)
     if llm_tier is None:
         return Decision(
             4, RULE_DEFAULT,
@@ -364,7 +436,7 @@ def classify_document(
 
 
 def _record(rel_path: str, text: str, decision: Decision) -> dict:
-    return {
+    rec = {
         "source_path": rel_path,
         "document_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
         "tier": decision.tier,
@@ -373,6 +445,14 @@ def _record(rel_path: str, text: str, decision: Decision) -> dict:
         "byte_count": len(text.encode("utf-8")),
         "promotable": decision.promotable,
     }
+    # Advisory HINTS (instr 023): fed to the LLM classifier + surfaced in the
+    # manifest for operator review. Emitted only when present, so untouched
+    # records stay byte-identical for the reproducibility/content-key contract.
+    if decision.advisory_hints:
+        rec["advisory_hints"] = list(decision.advisory_hints)
+    if decision.code_heavy:
+        rec["code_heavy"] = decision.code_heavy
+    return rec
 
 
 def classify_documents(

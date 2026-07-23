@@ -65,16 +65,28 @@ class AdvisoryFloorTests(unittest.TestCase):
         self.assertEqual(d.rule, dc.RULE_ADVISORY)
         self.assertFalse(d.promotable)
 
-    def test_must_shall_bulletin_floored_even_when_llm_promotes(self):
+    def test_hardening_bulletin_is_no_longer_floored_genre_is_a_hint(self):
+        # REVERSAL (instr 023): "# Server Hardening Guide" with high MUST/SHALL
+        # density but NO CVE/URL is no longer advisory-floored — genre-title and
+        # normative-density are HINTS, not floors (a formal spec is normative-dense
+        # by definition). It flows to the LLM and carries the genre-title hint.
+        self.assertIsNone(dc.advisory_floor(self.NORMATIVE_BULLETIN, "hardening.md"))
         d = dc.classify_document("hardening.md", self.NORMATIVE_BULLETIN, llm_tier=1)
-        self.assertEqual(d.tier, 4, d.reason)
-        self.assertEqual(d.rule, dc.RULE_ADVISORY)
+        self.assertEqual(d.tier, 1, d.reason)
+        self.assertNotEqual(d.rule, dc.RULE_ADVISORY)
+        self.assertTrue(d.advisory_hints, "the genre-title hint must be recorded")
 
-    def test_floor_holds_through_the_corpus_classifier(self):
-        # The LLM stub tries to promote BOTH; the floor holds without it.
+    def test_hard_floor_holds_through_the_corpus_classifier(self):
+        # The LLM stub tries to promote both; the CVE HARD-floor holds without it,
+        # while the hardening bulletin (no hard signal) is now the LLM's call
+        # (instr 023 — genre/density are hints, not floors).
         docs = [("cve.md", self.CVE_ADVISORY), ("harden.md", self.NORMATIVE_BULLETIN)]
         man = dc.classify_documents(docs, llm_classifier=_promote_all, generated_at="X")
-        self.assertTrue(all(r["tier"] == 4 for r in man["records"]), man)
+        by = {r["source_path"]: r for r in man["records"]}
+        self.assertEqual(by["cve.md"]["tier"], 4)
+        self.assertEqual(by["cve.md"]["floor_rule"], dc.RULE_ADVISORY)
+        self.assertEqual(by["harden.md"]["tier"], 1)   # LLM's call now, not floored
+        self.assertIn("advisory_hints", by["harden.md"])
 
     def test_mutation_a_real_spec_with_normative_language_is_not_floored(self):
         # Bite-check the OTHER direction: an ordinary spec is dense with MUST/
@@ -126,10 +138,16 @@ class ContractAndImplTests(unittest.TestCase):
         self.assertEqual(d.tier, 1)
         self.assertEqual(d.rule, dc.RULE_CONTRACT)
 
-    def test_json_schema_is_citable(self):
-        d = dc.classify_document("route.schema.json", self.JSON_SCHEMA, llm_tier=1)
-        self.assertEqual(d.tier, 1)
-        self.assertEqual(d.rule, dc.RULE_CONTRACT)
+    def test_json_schema_config_is_not_a_content_contract(self):
+        # REVERSAL (instr 023 / Fable Q7 — the best single cut): a bare "$schema"
+        # key no longer content-promotes to a citable contract (the dangerous
+        # UPWARD/integrity direction). With no LLM it defaults to Tier 4; the LLM
+        # may still classify it, but content-sniffing alone never makes it citable.
+        self.assertIsNone(
+            dc.machine_readable_contract(self.JSON_SCHEMA, "route.schema.json"))
+        d = dc.classify_document("route.schema.json", self.JSON_SCHEMA)  # no llm_tier
+        self.assertNotEqual(d.rule, dc.RULE_CONTRACT)
+        self.assertEqual(d.tier, 4)
 
     def test_python_logic_is_floored(self):
         d = dc.classify_document("router.py", self.PY_LOGIC, llm_tier=1)
@@ -170,13 +188,16 @@ class SidecarCannotLaunderAdvisoryTests(unittest.TestCase):
         self.assertEqual(d.tier, 4, d.reason)
         self.assertEqual(d.rule, dc.RULE_ADVISORY)
 
-    def test_normative_bulletin_renamed_proto_still_floored(self):
+    def test_hardening_genre_renamed_proto_is_now_a_contract(self):
+        # REVERSAL (instr 023): the hardening-genre bulletin's Tier-4 came ONLY
+        # from the genre-title/density floor, now removed. A ".proto" is an
+        # unambiguous contract EXTENSION, so the renamed file is a contract. (A
+        # HARD-signal advisory — a CVE — renamed .proto STILL floors: see
+        # test_advisory_renamed_with_contract_extension_still_floored above.)
         d = dc.classify_document(
-            "hardening.proto", AdvisoryFloorTests.NORMATIVE_BULLETIN,
-            llm_tier=1, sidecar_promote=True,
+            "hardening.proto", AdvisoryFloorTests.NORMATIVE_BULLETIN, llm_tier=1,
         )
-        self.assertEqual(d.tier, 4, d.reason)
-        self.assertEqual(d.rule, dc.RULE_ADVISORY)
+        self.assertEqual(d.rule, dc.RULE_CONTRACT)
 
 
 # ---------------------------------------------------------------------------
@@ -190,13 +211,23 @@ class InjectionResistanceTests(unittest.TestCase):
         "The router dispatches on the longest prefix.\n"
     )
 
-    def test_self_authorizing_doc_not_promoted(self):
+    def test_self_authorizing_doc_no_longer_floored_by_classifier(self):
+        # REVERSAL (instr 023 / Fable Q3): the classifier no longer hard-floors a
+        # self-authorizing-tier doc — the LLM owns that judgment. The load-bearing
+        # backstop moved downstream (persona_grounding's directive check + the
+        # Tier-1/2 grounded-citation guard on the auto-apply path). With the LLM
+        # promoting it is Tier 1 here; nothing in THIS module floors it.
         d = dc.classify_document("notes.md", self.SELF_AUTH, llm_tier=1)
-        self.assertEqual(d.tier, 4)
-        self.assertEqual(d.rule, dc.RULE_INJECTION)
-        self.assertFalse(d.promotable)
+        self.assertNotEqual(d.rule, dc.RULE_INJECTION)
+        self.assertEqual(d.tier, 1)
+        # With no classifier it simply DEFAULTS to Tier 4 (ambiguity), not floored.
+        d2 = dc.classify_document("notes.md", self.SELF_AUTH)
+        self.assertEqual(d2.rule, dc.RULE_DEFAULT)
 
     def test_injection_signature_detected(self):
+        # The DETECTION helper is retained (instr 023 kept the function — it is
+        # composed by persona_grounding's Guard-1 control — while removing the
+        # classifier FLOOR that used it).
         self.assertIsNotNone(dc.injection_signature(self.SELF_AUTH))
         # A normal doc that happens to use the word "authoritative" in prose
         # about ITS SUBJECT is not injection.
@@ -555,12 +586,18 @@ class CitabilityWiringTests(unittest.TestCase):
         ref.joinpath("real_spec.md").write_text(
             "# Spec\n\nThe API MUST return 404 on no match.\n", encoding="utf-8")
         by_name, man = self._formal(root, llm_classifier=_promote_all)
-        floored = {"cve.md", "renamed.proto", "harden.md", "inject.md", "logic.py"}
+        # instr 023: harden.md (hardening-genre, no hard signal) and inject.md
+        # (self-authorizing) are NO LONGER hard-floored — the LLM owns those
+        # judgments now, so under a promote-all LLM they are legitimately citable
+        # here; the backstop is downstream (grounding directive check + Tier-1/2
+        # guard). The HARD floors (CVE content, impl extension) still survive a
+        # promote-all LLM, which is what this mutation-bite pins.
+        floored = {"cve.md", "renamed.proto", "logic.py"}
         citable_paths = {r["source_path"].split("/")[-1]
                          for r in man["records"] if r["tier"] in (1, 2)}
         self.assertEqual(
             floored & citable_paths, set(),
-            f"a floored doc leaked into the citable set: {floored & citable_paths}",
+            f"a HARD-floored doc leaked into the citable set: {floored & citable_paths}",
         )
         # ...while a genuinely-authoritative doc IS citable (not a blanket block).
         self.assertIn("real_spec.md", citable_paths)
@@ -672,6 +709,127 @@ class CorpusFormalDocCitabilityTests(unittest.TestCase):
             if repo == "express":
                 self.assertNotIn("14_Known_Vulnerabilities.md", citable)
                 self.assertNotIn("06_Security_Best_Practices.md", citable)
+
+
+# ---------------------------------------------------------------------------
+# Instruction 023 — floor simplification to hard signals (acceptance oracle).
+# ---------------------------------------------------------------------------
+class FloorSimplification023Tests(unittest.TestCase):
+    """The floor enforces only HARD structural facts; fuzzy genre/code-density
+    signals became advisory HINTS; nothing becomes citable on content alone."""
+
+    # Faithful to the real virtio incident: the OASIS behavioral-contracts spec —
+    # neutral spec title, dense MUST/SHALL, hardening-subject words (configure/
+    # disable/enable), and ZERO CVE/URL/security-title. The DELETED density
+    # predicate floored exactly this shape; the new floor must not.
+    VIRTIO_SPEC = (
+        "# virtio Specification - Behavioral Contracts and Edge Cases\n\n"
+        "Extracted from the OASIS Virtual I/O Device specifications. This document "
+        "focuses on MUST/SHOULD requirements an auditor should check against code.\n\n"
+        "A driver MUST NOT use a device before setting the DRIVER_OK status bit.\n"
+        "The device MUST present the feature bits it supports and SHALL reset when "
+        "the driver writes 0 to the status register.\n"
+        "A driver SHOULD configure the virtqueue before enabling it and MUST disable "
+        "the queue before re-negotiating features.\n"
+        "The device MUST NOT access a descriptor after the driver marks it used.\n"
+        "Drivers MUST restrict DMA to the buffers they published and SHALL enable "
+        "the notification suppression flag when configured to do so.\n"
+        "The device SHALL preserve the available ring order and MUST signal used "
+        "buffers in the order the specification requires.\n"
+    )
+
+    def test_virtio_spec_is_not_advisory_floored(self):
+        # Acceptance 1: 8+ MUST/SHALL + config words, no CVE/URL/security-title ->
+        # NOT floored; flows to the LLM/default path, promotable.
+        self.assertIsNone(dc.advisory_floor(self.VIRTIO_SPEC, "virtio-spec.md"))
+        self.assertEqual(dc.advisory_genre_hints(self.VIRTIO_SPEC, "virtio-spec.md"), [])
+        with_llm = dc.classify_document("virtio-spec.md", self.VIRTIO_SPEC, llm_tier=1)
+        self.assertEqual(with_llm.tier, 1)
+        self.assertTrue(with_llm.promotable)
+        no_llm = dc.classify_document("virtio-spec.md", self.VIRTIO_SPEC)
+        self.assertEqual(no_llm.rule, dc.RULE_DEFAULT)
+        self.assertTrue(no_llm.promotable)   # promotable — a later LLM run may raise it
+
+    def test_retained_hard_floors_still_hold_under_promote_all(self):
+        # Acceptance 2 (mutation-bitten): CVE id and advisory URL still hard-floor
+        # even with the LLM stubbed to promote everything.
+        cve = "# Notes\n\nSee CVE-2024-43796 for the open-redirect fix.\n"
+        url = "# Notes\n\nDetails at https://nvd.nist.gov/vuln/detail/x and snyk.io/y.\n"
+        for name, text in (("cve.md", cve), ("url.md", url)):
+            man = dc.classify_documents([(name, text)], llm_classifier=_promote_all,
+                                        generated_at="X")
+            rec = man["records"][0]
+            self.assertEqual(rec["tier"], 4, name)
+            self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY, name)
+            self.assertFalse(rec["promotable"], name)
+
+    def test_dollar_schema_config_not_promoted_but_anchored_openapi_is(self):
+        # Acceptance 3: a plain JSON config with "$schema" is NOT a content
+        # contract; an anchored OpenAPI 3 doc still is.
+        cfg = '{\n  "$schema": "http://x/schema",\n  "port": 8080,\n  "debug": true\n}\n'
+        self.assertIsNone(dc.machine_readable_contract(cfg, "config.json"))
+        self.assertEqual(dc.classify_document("config.json", cfg).rule, dc.RULE_DEFAULT)
+        self.assertIsNotNone(
+            dc.machine_readable_contract(ContractAndImplTests.OPENAPI, "api.json"))
+        self.assertEqual(
+            dc.classify_document("api.json", ContractAndImplTests.OPENAPI, llm_tier=2).rule,
+            dc.RULE_CONTRACT)
+        # A generic GraphQL brace block no longer content-promotes either.
+        self.assertIsNone(
+            dc.machine_readable_contract("type Query {\n  hi: String\n}\n", "q.txt"))
+
+    def test_genre_title_is_a_hint_not_a_floor(self):
+        # Acceptance 4: "Security Best Practices" with no CVE/URL is NOT floored;
+        # it carries the advisory genre-title hint and flows to the classifier.
+        doc = "# Security Best Practices\n\nUse strong defaults. Validate input.\n"
+        self.assertIsNone(dc.advisory_floor(doc, "bp.md"))
+        self.assertTrue(dc.advisory_genre_hints(doc, "bp.md"))
+        d = dc.classify_document("bp.md", doc, llm_tier=1)
+        self.assertNotEqual(d.rule, dc.RULE_ADVISORY)
+        self.assertTrue(d.advisory_hints)
+
+    def test_code_heavy_md_is_a_hint_not_a_floor_but_py_still_floors(self):
+        # Acceptance 5: a .md that is mostly pasted code carries the code_heavy
+        # hint but is NOT floored; a .py with the same content floors by extension.
+        code_md = ContractAndImplTests.PY_LOGIC   # def/return/for/if lines
+        self.assertIsNone(dc.implementation_source(code_md, "walkthrough.md"))
+        self.assertIsNotNone(dc.code_heavy_hint(code_md, "walkthrough.md"))
+        d_md = dc.classify_document("walkthrough.md", code_md, llm_tier=1)
+        self.assertNotEqual(d_md.rule, dc.RULE_IMPL)
+        self.assertEqual(d_md.code_heavy is not None, True)
+        d_py = dc.classify_document("walkthrough.py", code_md, llm_tier=1)
+        self.assertEqual(d_py.rule, dc.RULE_IMPL)
+        self.assertIsNone(d_py.code_heavy)   # a code extension is the floor, not a hint
+
+    def test_manifest_records_the_hint_fields(self):
+        # Acceptance 6: the manifest surfaces advisory_hints / code_heavy, and a
+        # doc with no hints stays byte-clean (no empty keys).
+        docs = [
+            ("reference_docs/bp.md", "# Hardening Guide\n\nHarden the defaults.\n"),
+            ("reference_docs/code.md", ContractAndImplTests.PY_LOGIC),
+            ("reference_docs/plain.md", "# Spec\n\nThe API returns 404 on no match.\n"),
+        ]
+        man = dc.classify_documents(docs, llm_classifier=_tier1_if("spec"),
+                                    generated_at="X")
+        by = {r["source_path"].split("/")[-1]: r for r in man["records"]}
+        self.assertIn("advisory_hints", by["bp.md"])
+        self.assertIn("code_heavy", by["code.md"])
+        self.assertNotIn("advisory_hints", by["plain.md"])
+        self.assertNotIn("code_heavy", by["plain.md"])
+
+    def test_coverage_narrowed_to_exact_stems(self):
+        # Edit 6: exact coverage stems still floor as background; a real spec whose
+        # NAME merely contains "coverage" is not floored by name.
+        for name in ("coverage.md", "coverage_report.md"):
+            self.assertEqual(
+                dc.classify_document(name, "# X\n\nWhat was searched.\n").rule,
+                dc.RULE_BACKGROUND, name)
+        d = dc.classify_document(
+            "test-coverage-requirements.md",
+            "# Coverage Requirements\n\nThe suite MUST cover every public API.\n",
+            llm_tier=1)
+        self.assertNotEqual(d.rule, dc.RULE_BACKGROUND)
+        self.assertEqual(d.tier, 1)
 
 
 if __name__ == "__main__":
