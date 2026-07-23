@@ -239,6 +239,8 @@ If alternatives really are both acceptable, the requirement states the **decisio
 
 **Mandatory content of the Overview on every run, regardless of target size** (Design §5.2 item 2). The Overview carries an honest prose statement of what the derivation covered and what it did **not**: areas explored but not turned into REQs, files skimmed, surfaces out of reach, and why. Written by the pass that knows. A small target is exactly when the reader needs it — do not omit it because the codebase looked simple.
 
+**Classification disclosure (v1.6.0 Feature G, instruction 024).** When the reference-doc classification was degraded or empty, the Overview must say so *beside* the coverage-and-gaps statement — a degraded classification is a disclosed event, never a quiet fallback. Read `quality/classification_manifest.json`: if `classifier_status` is not `wired-ok` (the classifier was never wired, or failed — non-floored docs defaulted to Tier 4), disclose that the citable grounding may be understated; if `zero_citable` is true, disclose plainly that **all requirements will be code-derived because no authoritative contract (Tier 1/2) was found in the gathered docs** — and that a missing or mis-tiered spec produces the same signature, so it warrants confirmation. This is the same virtio-collapse signature the quality gate WARNs on and the interview plays back; the Overview is where the human reading the spec first meets it.
+
 Worked example — the shape of a good coverage-and-gaps statement, inside the Overview:
 
 ```

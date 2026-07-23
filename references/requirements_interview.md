@@ -109,6 +109,22 @@ This is where the F-1 statement earns its place: it converts silent thinness int
 a prompt. An operator who says "no, the auth subsystem matters and you skipped it"
 has just produced an **add** that no autonomous pass would have found.
 
+**Classification playback (v1.6.0 Feature G, instruction 024).** Also play back the
+reference-doc classification from `quality/classification_manifest.json`, so the
+"reviewable under-block" the dump-and-go classifier promises actually gets reviewed
+by a human. List which docs became **citable** (Tier 1/2), which were **floored**
+(advisory/impl/background — with the `floor_rule` reason), and which merely
+**defaulted to Tier 4** because no classifier tier was assigned — the last group is
+the under-block risk. If `classifier_status` is not `wired-ok` or `zero_citable` is
+true, say so plainly and ask the Stage-1 grounding question:
+
+> "No gathered document was classified as an authoritative contract, so every
+> requirement here is code-derived. Is there a spec, RFC, or API reference I should
+> have treated as citable — or is code-derived genuinely the right basis?"
+
+A missing or mis-tiered spec has the same signature as a correct code-only run;
+only the operator can tell them apart, and this is the surface where they do.
+
 **Stage-1 elicitation** — the artifact-category and artifact-shape questions
 (highest-yield, drawn from `Requirements_Miss_Archeology.md`):
 

@@ -8098,6 +8098,40 @@ def _opconf_is_append_only(prior_text, current_text):
     return current_text.startswith(normalized)
 
 
+@verdict_category(VERDICT_SUBSTANTIVE)
+def check_classification_manifest(q):
+    """v1.6.0 Feature G (instruction 024) — make a degraded reference-doc
+    classification LOUD, never a silent Tier-4 collapse.
+
+    Advisory (WARN, never FAIL) and inert when Feature G ingest did not run (no
+    ``classification_manifest.json``). Fires when the LLM classifier was not wired
+    or failed (``classifier_status`` != ``"wired-ok"``) or when the whole corpus
+    yielded no citable Tier-1/2 doc (``zero_citable``) — the exact virtio-run
+    signature where every doc silently defaulted to Tier 4. QPB's house rule is
+    that a degraded-capability path that silently continues is the failure mode;
+    this makes it impossible to miss.
+    """
+    manifest = load_json(q / "classification_manifest.json")
+    if manifest is None:
+        return  # Feature G ingest didn't run — nothing to disclose
+    # "wired-ok" is doc_classification.CLASSIFIER_WIRED_OK, read here as a
+    # serialized manifest value (the gate does not import the classifier module).
+    status = get_str(manifest, "classifier_status")
+    if status and status != "wired-ok":
+        warn(
+            "classification_manifest.json: classifier_status="
+            f"{status!r} — reference-doc classification is degraded; non-floored "
+            "docs defaulted to Tier 4 and citable grounding may be understated "
+            "(v1.6.0 Feature G; advisory)"
+        )
+    if manifest.get("zero_citable") is True:
+        warn(
+            "classification_manifest.json: zero_citable — no reference doc was "
+            "classified citable (Tier 1/2); all requirements will be code-derived "
+            "with no authoritative contract to cite (v1.6.0 Feature G; advisory)"
+        )
+
+
 def _operator_confirmed_req_ids(q):
     """REQ ids in the manifest whose source_type is operator-confirmation.
 
@@ -8347,6 +8381,9 @@ def check_repo(repo_dir, version_arg, strictness, language=None):
     # both conditional (silent unless an interview has run).
     check_operator_confirmations_append_only(q)
     check_requirements_review(q)
+    # v1.6.0 Feature G (instruction 024): disclose a degraded / zero-citable
+    # reference-doc classification (advisory; inert when ingest didn't run).
+    check_classification_manifest(q)
     check_cross_run_contamination(repo_dir, q, version_arg, skill_version)
     check_run_metadata(q)
     check_compensation_asymmetry_promotion(q)

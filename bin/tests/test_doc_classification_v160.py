@@ -258,7 +258,12 @@ class ManifestTests(unittest.TestCase):
         man = dc.classify_documents(
             self.DOCS, llm_classifier=_tier1_if("spec"), generated_at="X"
         )
-        self.assertEqual(set(man), {"schema_version", "generated_at", "records"})
+        # instr 024 added top-level classifier_status/citable_count/zero_citable
+        # (+ optional classifier_error); the base three keys are still present.
+        self.assertTrue(
+            set(man) >= {"schema_version", "generated_at", "records",
+                         "classifier_status", "citable_count", "zero_citable"},
+            set(man))
         for r in man["records"]:
             self.assertEqual(
                 set(r) >= {"source_path", "document_sha256", "tier", "floor_rule",
@@ -504,6 +509,28 @@ class IngestWiringTests(unittest.TestCase):
         self.assertIn(by_name["api2.proto"]["floor_rule"], (dc.RULE_CONTRACT,))
         self.assertIn(by_name["openapi.json"]["floor_rule"], (dc.RULE_CONTRACT,))
         self.assertEqual(by_name["router.py"]["floor_rule"], dc.RULE_IMPL)
+
+    def test_ingest_writes_loud_classification_fields_when_wired(self):
+        # Instr 024: the on-disk classification manifest carries classifier_status
+        # / zero_citable / citable_count end-to-end; a wired classifier is wired-ok.
+        root, _ref = self._tree()
+        rdi.classify_reference_docs(
+            root, llm_classifier=_tier1_if("router", "spec"), write=True)
+        man = json.loads(
+            (root / "quality" / rdi.CLASSIFICATION_MANIFEST_NAME).read_text(encoding="utf-8"))
+        self.assertEqual(man["classifier_status"], dc.CLASSIFIER_WIRED_OK)
+        self.assertIn("zero_citable", man)
+        self.assertIn("citable_count", man)
+        self.assertFalse(man["zero_citable"])   # the cite/ proto is citable
+
+    def test_ingest_unwired_marks_status_unwired(self):
+        # No classifier + a floor-only top level -> classifier_status=unwired (the
+        # loud degraded state), even though the cite/ proto is citable by extension.
+        root, _ref = self._tree()
+        man = rdi.classify_reference_docs(root, write=True)  # no llm_classifier
+        self.assertEqual(man["classifier_status"], dc.CLASSIFIER_UNWIRED)
+        by = {r["source_path"].split("/")[-1]: r for r in man["records"]}
+        self.assertEqual(by["spec.md"]["floor_rule"], dc.RULE_DEFAULT)
 
     def test_ingest_still_aborts_on_binary_convert_first_format(self):
         # A genuinely binary / convert-first format (.pdf) still hard-stops with
@@ -838,6 +865,121 @@ class FloorSimplification023Tests(unittest.TestCase):
             llm_tier=1)
         self.assertNotEqual(d.rule, dc.RULE_BACKGROUND)
         self.assertEqual(d.tier, 1)
+
+
+# ---------------------------------------------------------------------------
+# Instruction 024 — wire the LLM classifier + loud failures (manifest-level).
+# ---------------------------------------------------------------------------
+class WireClassifier024Tests(unittest.TestCase):
+    SPEC = "# Router Spec\n\nThe router MUST match the longest prefix.\n"
+    BG = "# Notes\n\nSome background prose about the project history.\n"
+
+    def test_wired_classifier_promotes_authoritative_doc(self):
+        # Acceptance 1: a stubbed classifier lands the authoritative doc Tier 1/2
+        # (not RULE_DEFAULT) and the manifest reports wired-ok.
+        man = dc.classify_documents(
+            [("spec.md", self.SPEC), ("notes.md", self.BG)],
+            llm_classifier=_tier1_if("router"), generated_at="X")
+        by = {r["source_path"]: r for r in man["records"]}
+        self.assertEqual(by["spec.md"]["tier"], 1)
+        self.assertNotEqual(by["spec.md"]["floor_rule"], dc.RULE_DEFAULT)
+        self.assertEqual(man["classifier_status"], dc.CLASSIFIER_WIRED_OK)
+        self.assertIsNone(dc.classification_disclosure(man))
+
+    def test_unwired_is_loud_not_silent(self):
+        # Acceptance 2 (manifest half): no classifier -> status=unwired + a loud
+        # disclosure, NOT a quiet Tier-4 default.
+        man = dc.classify_documents([("spec.md", self.SPEC)], generated_at="X")
+        self.assertEqual(man["classifier_status"], dc.CLASSIFIER_UNWIRED)
+        self.assertEqual(man["records"][0]["floor_rule"], dc.RULE_DEFAULT)
+        self.assertIn("did not run", dc.classification_disclosure(man))
+
+    def test_failed_classifier_is_loud(self):
+        # Acceptance 2: a raising classifier -> status=error + classifier_error +
+        # disclosure; affected doc defaults Tier 4 (not a crash, not silent).
+        def boom(rel, text):
+            raise RuntimeError("model timeout")
+        man = dc.classify_documents([("spec.md", self.SPEC)],
+                                    llm_classifier=boom, generated_at="X")
+        self.assertEqual(man["classifier_status"], dc.CLASSIFIER_ERROR)
+        self.assertIn("model timeout", man["classifier_error"])
+        self.assertIn("FAILED", dc.classification_disclosure(man))
+        self.assertEqual(man["records"][0]["tier"], 4)
+
+    def test_zero_citable_tripwire(self):
+        # Acceptance 3: a corpus with no Tier-1/2 doc -> zero_citable + disclosure;
+        # a corpus with >=1 citable doc -> not.
+        none_citable = dc.classify_documents(
+            [("a.md", self.BG)], llm_classifier=lambda r, t: None, generated_at="X")
+        self.assertTrue(none_citable["zero_citable"])
+        self.assertIn("no authoritative contract",
+                      dc.classification_disclosure(none_citable).lower())
+        has_citable = dc.classify_documents(
+            [("spec.md", self.SPEC)], llm_classifier=_tier1_if("router"),
+            generated_at="X")
+        self.assertFalse(has_citable["zero_citable"])
+        self.assertIsNone(dc.classification_disclosure(has_citable))
+
+    def test_hints_are_passed_to_a_hint_aware_classifier(self):
+        # Acceptance 4: a hint-aware (3-arg) classifier receives advisory_hints/
+        # code_heavy and may demote; a hint alone doesn't force it; a legacy
+        # 2-arg classifier still works.
+        seen = {}
+        def hint_aware(rel, text, hints):
+            seen[rel] = hints
+            # demote a genre-hinted doc; keep others as the LLM's call
+            return 4 if hints["advisory_hints"] else 1
+        docs = [("bp.md", "# Security Best Practices\n\nUse strong defaults.\n"),
+                ("spec.md", self.SPEC)]
+        man = dc.classify_documents(docs, llm_classifier=hint_aware, generated_at="X")
+        by = {r["source_path"]: r for r in man["records"]}
+        self.assertTrue(seen["bp.md"]["advisory_hints"])   # hint delivered
+        self.assertEqual(by["bp.md"]["tier"], 4)           # LLM demoted on the hint
+        self.assertEqual(by["spec.md"]["tier"], 1)         # no hint -> the LLM's call
+        # A hint alone does NOT force demotion: a classifier that ignores hints
+        # can still promote a genre-hinted doc.
+        man2 = dc.classify_documents(docs, llm_classifier=lambda r, t: 1,
+                                     generated_at="X")
+        self.assertEqual(
+            {r["source_path"]: r["tier"] for r in man2["records"]}["bp.md"], 1)
+
+    def test_agent_refined_manifest_reads_as_classified(self):
+        # Skill flow: the agent classifies by REFINING the manifest (RULE_LLM
+        # tiers), reused content-keyed on the next ingest with NO Python callback
+        # -> the run reads "wired-ok" (classified), not spuriously "unwired".
+        import hashlib
+        text = self.SPEC
+        prior = [{"source_path": "spec.md",
+                  "document_sha256": hashlib.sha256(text.encode()).hexdigest(),
+                  "tier": 1, "floor_rule": dc.RULE_LLM, "reason": "agent",
+                  "byte_count": len(text.encode()), "promotable": True}]
+        man = dc.classify_documents([("spec.md", text)], prior_records=prior,
+                                    generated_at="X")
+        self.assertEqual(man["classifier_status"], dc.CLASSIFIER_WIRED_OK)
+        self.assertIsNone(dc.classification_disclosure(man))
+
+    def test_floor_precedence_intact_downward_only(self):
+        # Acceptance 5: a floored doc (CVE) stays Tier 4 even with a promote-all
+        # classifier — the classifier may only tier the remainder, downward-only.
+        man = dc.classify_documents(
+            [("cve.md", AdvisoryFloorTests.CVE_ADVISORY), ("spec.md", self.SPEC)],
+            llm_classifier=_promote_all, generated_at="X")
+        by = {r["source_path"]: r for r in man["records"]}
+        self.assertEqual(by["cve.md"]["tier"], 4)
+        self.assertEqual(by["cve.md"]["floor_rule"], dc.RULE_ADVISORY)
+
+    def test_playback_lists_citable_floored_and_defaulted(self):
+        # Acceptance 6: the interview Stage-1 playback classifies each doc as
+        # citable / floored-tier4 / defaulted-tier4 with its reason.
+        docs = [("spec.md", self.SPEC), ("cve.md", AdvisoryFloorTests.CVE_ADVISORY),
+                ("bg.md", self.BG)]
+        man = dc.classify_documents(docs, llm_classifier=_tier1_if("router"),
+                                    generated_at="X")
+        pb = {p["source_path"]: p for p in dc.classification_playback(man)}
+        self.assertEqual(pb["spec.md"]["status"], "citable")
+        self.assertEqual(pb["cve.md"]["status"], "floored-tier4")
+        self.assertEqual(pb["bg.md"]["status"], "defaulted-tier4")
+        self.assertTrue(all(p["reason"] for p in pb.values()))
 
 
 if __name__ == "__main__":

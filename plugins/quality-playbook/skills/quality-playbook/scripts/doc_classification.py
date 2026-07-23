@@ -52,10 +52,19 @@ bundle-portable and unit-testable without the rest of the harness.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
+
+# ---------------------------------------------------------------------------
+# Classifier status (instruction 024) — a degraded classification is a DISCLOSED
+# event, never a silent Tier-4 fallback. Written at the manifest top level.
+# ---------------------------------------------------------------------------
+CLASSIFIER_WIRED_OK = "wired-ok"   # the LLM classifier was supplied and did not error
+CLASSIFIER_UNWIRED = "unwired"     # no classifier was supplied — floor-only defaults
+CLASSIFIER_ERROR = "error"         # the classifier was supplied but raised
 
 # ---------------------------------------------------------------------------
 # Floor rule identifiers (stable strings written into the manifest).
@@ -455,10 +464,25 @@ def _record(rel_path: str, text: str, decision: Decision) -> dict:
     return rec
 
 
+def _accepts_hints(fn) -> bool:
+    """True if the classifier callable accepts a third (hints) positional arg.
+
+    Lets a hint-aware classifier receive the floor's advisory_hints/code_heavy as
+    a demotion input, while a legacy ``(rel_path, text)`` callable still works.
+    """
+    try:
+        params = list(inspect.signature(fn).parameters.values())
+    except (TypeError, ValueError):
+        return False
+    positional = [p for p in params
+                  if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
+    return len(positional) >= 3 or any(p.kind == p.VAR_POSITIONAL for p in params)
+
+
 def classify_documents(
     docs: Sequence[Tuple[str, str]],
     *,
-    llm_classifier: Optional[Callable[[str, str], Optional[int]]] = None,
+    llm_classifier: Optional[Callable] = None,
     sidecar: Optional[Sequence[str]] = None,
     prior_records: Optional[Sequence[dict]] = None,
     schema_version: str = "1.6.0",
@@ -467,7 +491,22 @@ def classify_documents(
     """Classify a corpus into a reviewable, content-keyed classification manifest.
 
     ``docs`` is a sequence of ``(rel_path, text)``. Returns a manifest dict
-    ``{schema_version, generated_at, records[]}`` sorted by ``source_path``.
+    ``{schema_version, generated_at, classifier_status, citable_count,
+    zero_citable, records[]}`` (+ ``classifier_error`` on failure), sorted by
+    ``source_path``.
+
+    ``llm_classifier`` is the derivation AI's per-file tier callable. It is called
+    ``llm_classifier(rel_path, text)`` — or ``llm_classifier(rel_path, text,
+    hints)`` when it accepts a third argument, where ``hints`` is
+    ``{"advisory_hints": [...], "code_heavy": <str|None>}`` from the floor (a
+    demotion input; the AI owns the genre judgment the floor no longer attempts).
+
+    LOUD, not silent (instruction 024 / Fable Q6): the manifest records a
+    ``classifier_status`` — ``unwired`` when no classifier is supplied, ``error``
+    when the classifier raises (with ``classifier_error``), else ``wired-ok`` — so
+    a whole-corpus Tier-4 collapse is never a quiet fallback. ``zero_citable`` is a
+    structural tripwire: True when no record is Tier 1/2 after floors +
+    classification.
 
     Reproducibility: when ``prior_records`` is supplied, a document whose
     content sha256 matches a prior record for the same path reuses that prior
@@ -481,6 +520,10 @@ def classify_documents(
     }
     if generated_at is None:
         generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+    wants_hints = _accepts_hints(llm_classifier) if llm_classifier is not None else False
+    classifier_status = CLASSIFIER_UNWIRED if llm_classifier is None else CLASSIFIER_WIRED_OK
+    classifier_error: Optional[str] = None
 
     records: List[dict] = []
     for rel_path, text in docs:
@@ -505,20 +548,109 @@ def classify_documents(
             rec["reused_from_prior"] = True
             records.append(rec)
             continue
-        llm_tier = llm_classifier(rel_path, text) if llm_classifier else None
+        llm_tier = None
+        if llm_classifier is not None:
+            try:
+                if wants_hints:
+                    hints = {
+                        "advisory_hints": advisory_genre_hints(text, rel_path),
+                        "code_heavy": code_heavy_hint(text, rel_path),
+                    }
+                    llm_tier = llm_classifier(rel_path, text, hints)
+                else:
+                    llm_tier = llm_classifier(rel_path, text)
+            except Exception as exc:   # a FAILED classifier is loud, not silent
+                classifier_status = CLASSIFIER_ERROR
+                if classifier_error is None:
+                    classifier_error = f"{type(exc).__name__}: {exc}"
+                llm_tier = None
         decision = classify_document(
             rel_path, text, llm_tier=llm_tier, sidecar_promote=rel_path in sidecar_set
         )
         records.append(_record(rel_path, text, decision))
 
     records.sort(key=lambda r: r["source_path"])
-    return {
+    if llm_classifier is None and classifier_status == CLASSIFIER_UNWIRED:
+        # No Python callback this pass. In the skill flow the derivation agent
+        # classifies by REFINING the manifest (assigning Tier 1/2 + marking the
+        # record RULE_LLM), reused content-keyed on the next ingest. So the corpus
+        # IS classified when any record carries a classifier/agent-assigned tier;
+        # only a purely floor-only corpus (no non-floor judgment anywhere) is
+        # genuinely unwired and loud (instruction 024). Requires re-running ingest
+        # after refinement so this reflects the agent's tiers.
+        if any(r.get("floor_rule") == RULE_LLM for r in records):
+            classifier_status = CLASSIFIER_WIRED_OK
+    citable = [r for r in records if r.get("tier") in (1, 2)]
+    manifest = {
         "schema_version": schema_version,
         "generated_at": generated_at,
+        "classifier_status": classifier_status,
+        "citable_count": len(citable),
+        "zero_citable": len(citable) == 0,
         "records": records,
     }
+    if classifier_error is not None:
+        manifest["classifier_error"] = classifier_error
+    return manifest
 
 
 def citable_records(manifest: dict) -> List[dict]:
     """The Tier-1/2 records — the citable subset the formal-doc manifest is built from."""
     return [r for r in manifest.get("records", []) if r.get("tier") in (1, 2)]
+
+
+def classification_disclosure(manifest: dict) -> Optional[str]:
+    """A LOUD one-paragraph disclosure when classification was degraded (unwired /
+    failed classifier) OR the corpus yielded no citable doc — else None.
+
+    The single source of the wording that instruction 024 renders into the spec
+    Overview (beside the F-1 coverage-and-gaps statement), raises as a gate WARN,
+    and plays back at interview Stage 1. A degraded classification is a disclosed
+    event, never a quiet fallback.
+    """
+    status = manifest.get("classifier_status")
+    parts: List[str] = []
+    if status == CLASSIFIER_UNWIRED:
+        parts.append(
+            "The document classifier did not run this pass — every non-floored "
+            "document defaulted to Tier 4 (background), so citable grounding may be "
+            "understated. Wire the classifier and re-run to tier the corpus."
+        )
+    elif status == CLASSIFIER_ERROR:
+        parts.append(
+            "The document classifier FAILED this pass ({}) — affected documents "
+            "defaulted to Tier 4 (background); classification is degraded.".format(
+                manifest.get("classifier_error", "error"))
+        )
+    if manifest.get("zero_citable"):
+        parts.append(
+            "No authoritative contract (Tier 1/2) was found in the gathered docs: "
+            "all requirements will be code-derived. Confirm this is expected — a "
+            "missing or mis-tiered spec produces the same signature."
+        )
+    return " ".join(parts) if parts else None
+
+
+def classification_playback(manifest: dict) -> List[dict]:
+    """Interview Stage-1 playback: each classified doc with a human-readable
+    status (citable / defaulted-tier4 / floored-tier4) + its reason, so the
+    "reviewable under-block" the simplification promises actually gets reviewed.
+    """
+    out: List[dict] = []
+    for r in manifest.get("records", []):
+        tier = r.get("tier")
+        if tier in (1, 2):
+            status = "citable"
+        elif r.get("floor_rule") == RULE_DEFAULT:
+            status = "defaulted-tier4"     # no classifier tier — under-block risk
+        else:
+            status = "floored-tier4"       # a floor barred it (advisory/impl/…)
+        out.append({
+            "source_path": r.get("source_path"),
+            "tier": tier,
+            "status": status,
+            "reason": r.get("reason"),
+            "advisory_hints": r.get("advisory_hints", []),
+            "code_heavy": r.get("code_heavy"),
+        })
+    return out
