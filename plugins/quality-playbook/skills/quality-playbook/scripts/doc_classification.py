@@ -365,6 +365,11 @@ class Decision:
     # demotion inputs — they inform, never floor and never promote (instr 023).
     advisory_hints: List[str] = field(default_factory=list)  # genre-title signals
     code_heavy: Optional[str] = None                          # non-ext code-heavy flag
+    # Operator advisory-floor rescue (instr 025): the human lifted the advisory
+    # floor past this specific content. `rescued_reason` is the advisory signal
+    # that was overridden — recorded for the disclosure, never fabricates Tier 1.
+    advisory_rescued: bool = False
+    rescued_reason: Optional[str] = None
 
 
 def classify_document(
@@ -372,6 +377,7 @@ def classify_document(
     text: str,
     llm_tier: Optional[int] = None,
     sidecar_promote: bool = False,
+    advisory_rescue: bool = False,
 ) -> Decision:
     """Classify one document to a Decision, enforcing the floor in priority order.
 
@@ -379,15 +385,29 @@ def classify_document(
       (floor-passed) documents; the floor may override it only downward.
     * ``sidecar_promote`` — True when the operator sidecar names this file;
       rescues it from the **implementation** floor only, never the advisory floor.
+    * ``advisory_rescue`` — True when an operator-authored, content-keyed rescue
+      lifts this specific document past the **advisory** floor (instr 025). It
+      un-floors — it does NOT force Tier 1; the classifier tiers it normally. Only
+      the human can set this (via the operator-authored rescue file, never the
+      classifier / a persona / document content), so a poisoned doc cannot rescue
+      itself. The overridden advisory signal is recorded for the disclosure.
 
     Advisory genre-title hints and the code-heavy hint are attached to the
     returned Decision (they inform the LLM/manifest; they never floor or promote).
     """
     decision = _classify(
-        rel_path, text, llm_tier=llm_tier, sidecar_promote=sidecar_promote
+        rel_path, text, llm_tier=llm_tier, sidecar_promote=sidecar_promote,
+        advisory_rescue=advisory_rescue,
     )
     decision.advisory_hints = advisory_genre_hints(text, rel_path)
     decision.code_heavy = code_heavy_hint(text, rel_path)
+    if advisory_rescue:
+        # Record the override only when there was actually an advisory floor to
+        # lift (a rescue on a non-advisory doc is a harmless no-op, not disclosed).
+        adv = advisory_floor(text, rel_path)
+        if adv:
+            decision.advisory_rescued = True
+            decision.rescued_reason = adv
     return decision
 
 
@@ -397,12 +417,14 @@ def _classify(
     *,
     llm_tier: Optional[int] = None,
     sidecar_promote: bool = False,
+    advisory_rescue: bool = False,
 ) -> Decision:
     # 1. Advisory floor FIRST — HARD signals only (CVE/GHSA id, advisory URL),
-    #    content-keyed, before any extension carve-out or sidecar. An advisory can
-    #    never reach citable by any path.
+    #    content-keyed, before any extension carve-out or sidecar. An advisory
+    #    reaches classification ONLY via an operator-authored, content-keyed rescue
+    #    (advisory_rescue, instr 025) — never by the classifier or document content.
     adv = advisory_floor(text, rel_path)
-    if adv:
+    if adv and not advisory_rescue:
         return Decision(4, RULE_ADVISORY, f"advisory (hard signal): {adv}", False)
 
     # README / coverage / issue-tracker ledgers are background — pinned Tier 4
@@ -461,6 +483,11 @@ def _record(rel_path: str, text: str, decision: Decision) -> dict:
         rec["advisory_hints"] = list(decision.advisory_hints)
     if decision.code_heavy:
         rec["code_heavy"] = decision.code_heavy
+    # Operator advisory-floor rescue (instr 025): surfaced so the override is
+    # visible + auditable, never silent. Emitted only when a rescue actually fired.
+    if decision.advisory_rescued:
+        rec["advisory_rescued"] = True
+        rec["rescued_reason"] = decision.rescued_reason
     return rec
 
 
@@ -484,6 +511,7 @@ def classify_documents(
     *,
     llm_classifier: Optional[Callable] = None,
     sidecar: Optional[Sequence[str]] = None,
+    advisory_rescues: Optional[Sequence[Tuple[str, str]]] = None,
     prior_records: Optional[Sequence[dict]] = None,
     schema_version: str = "1.6.0",
     generated_at: Optional[str] = None,
@@ -515,6 +543,10 @@ def classify_documents(
     on content, so classification is stable regardless.
     """
     sidecar_set = set(sidecar or ())
+    # Operator advisory-floor rescues (instr 025), content-keyed by (path, sha256).
+    # An advisory doc is lifted past the advisory floor ONLY when its (path, its
+    # own content hash) is in this operator-authored set — never by content.
+    rescue_set = set(advisory_rescues or ())
     prior_by_key: Dict[Tuple[str, str], dict] = {
         (r["source_path"], r["document_sha256"]): r for r in (prior_records or [])
     }
@@ -528,6 +560,7 @@ def classify_documents(
     records: List[dict] = []
     for rel_path, text in docs:
         sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        rescued = (rel_path, sha) in rescue_set
         cached = prior_by_key.get((rel_path, sha))
         if cached is not None:
             # Defense-in-depth: never trust a prior record to keep a document
@@ -540,7 +573,13 @@ def classify_documents(
             # discards the cache entirely (both tier AND promotable) whenever an
             # unrescuable floor fires — advisory/injection/background, never the
             # sidecar-rescuable implementation floor (instruction 011 Panelist A).
-            guard = classify_document(rel_path, text)  # no LLM, no sidecar
+            # The operator advisory rescue (instr 025) is applied here too, so a
+            # LEGITIMATELY-rescued advisory doc re-decides as un-floored (not
+            # RULE_ADVISORY) and its cache is honored — while a NON-rescued advisory
+            # doc still trips RULE_ADVISORY and its poisoned cache is discarded. A
+            # poisoned prior manifest cannot forge a rescue: the rescue comes only
+            # from the operator-authored file, never from the (untrusted) cache.
+            guard = classify_document(rel_path, text, advisory_rescue=rescued)  # no LLM, no sidecar
             if guard.rule in _UNRESCUABLE_FLOOR_RULES:
                 records.append(_record(rel_path, text, guard))
                 continue
@@ -565,7 +604,8 @@ def classify_documents(
                     classifier_error = f"{type(exc).__name__}: {exc}"
                 llm_tier = None
         decision = classify_document(
-            rel_path, text, llm_tier=llm_tier, sidecar_promote=rel_path in sidecar_set
+            rel_path, text, llm_tier=llm_tier,
+            sidecar_promote=rel_path in sidecar_set, advisory_rescue=rescued,
         )
         records.append(_record(rel_path, text, decision))
 
@@ -633,24 +673,32 @@ def classification_disclosure(manifest: dict) -> Optional[str]:
 
 def classification_playback(manifest: dict) -> List[dict]:
     """Interview Stage-1 playback: each classified doc with a human-readable
-    status (citable / defaulted-tier4 / floored-tier4) + its reason, so the
-    "reviewable under-block" the simplification promises actually gets reviewed.
+    status (citable / defaulted-tier4 / floored-tier4 / advisory-rescued) + its
+    reason, so the "reviewable under-block" the simplification promises actually
+    gets reviewed — including every operator advisory-floor rescue (instr 025).
     """
     out: List[dict] = []
     for r in manifest.get("records", []):
         tier = r.get("tier")
-        if tier in (1, 2):
+        if r.get("advisory_rescued"):
+            # An operator lifted the advisory floor on this doc — always surfaced,
+            # regardless of the tier the classifier then assigned it.
+            status = "advisory-rescued"
+        elif tier in (1, 2):
             status = "citable"
         elif r.get("floor_rule") == RULE_DEFAULT:
             status = "defaulted-tier4"     # no classifier tier — under-block risk
         else:
             status = "floored-tier4"       # a floor barred it (advisory/impl/…)
-        out.append({
+        entry = {
             "source_path": r.get("source_path"),
             "tier": tier,
             "status": status,
             "reason": r.get("reason"),
             "advisory_hints": r.get("advisory_hints", []),
             "code_heavy": r.get("code_heavy"),
-        })
+        }
+        if r.get("advisory_rescued"):
+            entry["rescued_reason"] = r.get("rescued_reason")
+        out.append(entry)
     return out

@@ -105,6 +105,14 @@ CLASSIFICATION_MANIFEST_NAME = "classification_manifest.json"
 # advisory floor). Operator-authored config; ingest only reads it.
 SIDECAR_NAME = "qpb_promote.txt"
 
+# v1.6.0 Feature G (instruction 025): the operator-authored ADVISORY-floor rescue.
+# Each entry is content-keyed (`<target-relative-path>  <document_sha256>  <reason
+# being overridden>`) so it lifts exactly one document's exact bytes past the
+# advisory floor — a swapped-in advisory can't inherit a rescue. Operator-authored
+# only (ingest reads it, never writes it; the classifier / a persona / document
+# content can never add to it), so a poisoned doc cannot rescue itself.
+ADVISORY_RESCUE_NAME = "qpb_advisory_rescue.txt"
+
 # v1.6.0 Feature G: doc_classification is a sibling stdlib-only module; path-load
 # it so `-m bin.reference_docs_ingest` and bundled layouts both resolve it.
 try:
@@ -483,7 +491,8 @@ def ingest(target_repo: Path, *, llm_classifier=None) -> dict:
         name = path.name
         # README is Tier-4 background (recorded in the classification manifest),
         # never a FORMAL_DOC; dotfiles and the sidecar are control files.
-        if name.startswith(".") or name == SIDECAR_NAME or name in SKIPPED_FILENAMES:
+        if (name.startswith(".") or name == SIDECAR_NAME
+                or name == ADVISORY_RESCUE_NAME or name in SKIPPED_FILENAMES):
             continue
         ext = path.suffix.lower()
         if ext not in SUPPORTED_EXTENSIONS and not _classify_ext_ok(name):
@@ -536,6 +545,32 @@ def _load_sidecar(ref_dir: Path) -> List[str]:
     return entries
 
 
+def _load_advisory_rescues(ref_dir: Path) -> List[Tuple[str, str]]:
+    """Read the operator-authored advisory-floor rescue file
+    (``reference_docs/qpb_advisory_rescue.txt``), instruction 025.
+
+    Each honored line is ``<target-relative-path>  <document_sha256>  <reason>`` —
+    content-keyed and reason-acknowledging. Returns a list of ``(rel_path,
+    sha256)`` keys; a line missing the path, the sha, or the acknowledgment reason
+    is NOT honored (all three are required — the reason enforces that the operator
+    read and acknowledged the specific floor signal). Missing file → empty list.
+    Operator-authored only: ingest reads it, never writes it.
+    """
+    rescue_path = ref_dir / ADVISORY_RESCUE_NAME
+    if not rescue_path.is_file():
+        return []
+    keys: List[Tuple[str, str]] = []
+    for line in _read_text(rescue_path).splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        parts = s.split(None, 2)   # path, sha256, reason (remainder)
+        if len(parts) < 3 or not parts[2].strip():
+            continue               # incomplete / no acknowledgment reason — not honored
+        keys.append((parts[0], parts[1].lower()))
+    return keys
+
+
 # v1.6.0 Feature G: classification enumerates a broader set than the plaintext
 # formal-docs path — a dumped corpus can include machine-readable contracts
 # (.proto/.json/.yaml/.d.ts/…) that are citable and implementation source
@@ -568,7 +603,8 @@ def _classification_candidates(ref_dir: Path, target_repo: Path) -> List[Tuple[s
         # README is NOT skipped here (unlike the formal-docs path): §8a item 7
         # requires it be recorded as Tier-4 background, not silently dropped —
         # the background-ledger floor rule tiers it.
-        if path.name.startswith(".") or path.name == SIDECAR_NAME:
+        if (path.name.startswith(".") or path.name == SIDECAR_NAME
+                or path.name == ADVISORY_RESCUE_NAME):
             continue
         if not _classify_ext_ok(path.name):
             continue
@@ -608,6 +644,10 @@ def classify_reference_docs(
         if _is_under_cite(path, cite_dir) and _classify_ext_ok(path.name):
             sidecar.add(_rel(path, target_repo))
 
+    # Operator advisory-floor rescues (instr 025) — content-keyed (path, sha256),
+    # operator-authored only. cite/ and the sidecar never rescue the advisory floor.
+    advisory_rescues = _load_advisory_rescues(ref_dir)
+
     prior: Optional[List[dict]] = None
     out = target_repo / "quality" / CLASSIFICATION_MANIFEST_NAME
     if out.is_file():
@@ -625,6 +665,7 @@ def classify_reference_docs(
         docs,
         llm_classifier=llm_classifier,
         sidecar=sorted(sidecar),
+        advisory_rescues=advisory_rescues,
         prior_records=prior,
         schema_version=schema_version,
     )

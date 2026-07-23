@@ -115,7 +115,12 @@ reference-doc classification from `quality/classification_manifest.json`, so the
 by a human. List which docs became **citable** (Tier 1/2), which were **floored**
 (advisory/impl/background — with the `floor_rule` reason), and which merely
 **defaulted to Tier 4** because no classifier tier was assigned — the last group is
-the under-block risk. If `classifier_status` is not `wired-ok` or `zero_citable` is
+the under-block risk. **Also surface every operator advisory-floor rescue
+(instruction 025):** for each record with `advisory_rescued: true`, play back
+*"advisory floor on `<doc>` overridden by operator; reason: `<rescued_reason>`"* and
+confirm the override still reflects the operator's intent — an advisory the operator
+deliberately lifted past the floor is a decision that must stay visible, not a
+silent promotion. If `classifier_status` is not `wired-ok` or `zero_citable` is
 true, say so plainly and ask the Stage-1 grounding question:
 
 > "No gathered document was classified as an authoritative contract, so every
