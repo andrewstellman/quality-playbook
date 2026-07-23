@@ -316,7 +316,12 @@ def run_feature_h(
     runs = persona_orchestration.run_personas(
         selected, provision, spawn_persona, Path(staging_root))
 
-    # 3. Ground each raw diff-set (guard 1): grounded vs candidate.
+    # 3. Ground each raw diff-set (guard 1): grounded vs candidate. Forward the
+    #    grounded add/correct moves AND the ungated pass-through moves
+    #    (confirm/drop) to the merge — a drop is applied (guard 4) and a
+    #    confirm/drop participates in the guard-3 conflict check. Forwarding only
+    #    `grounded` here would silently drop every confirm/drop at the seam
+    #    (instruction-022 umbrella-Council fix).
     grounded_by_persona: List[dict] = []
     grounding_results = []
     for run in runs:
@@ -324,7 +329,7 @@ def run_feature_h(
         grounding_results.append(gr)
         grounded_by_persona.append({
             "persona_id": run.persona_id,
-            "moves": [c.move for c in gr.grounded],
+            "moves": [c.move for c in gr.grounded] + list(gr.passthrough),
         })
     candidates = persona_grounding.candidate_bucket(grounding_results)
 

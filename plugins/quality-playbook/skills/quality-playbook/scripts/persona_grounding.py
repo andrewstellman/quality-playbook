@@ -109,6 +109,16 @@ def grounding_injection_signature(text: str) -> Optional[str]:
 # The moves Guard 1 gates. `confirm` rests on docs/intent (not this validator),
 # `drop` is a removal, `defer` is operator-only.
 GATED_MOVES = ("add", "correct")
+# Persona moves Guard 1 does NOT gate — there is no citation to "ground" a
+# removal or an affirmation — but that STILL flow to the merge: a `drop` is
+# applied (Design §8b guard 4 lists add/correct/**drop** as applied) and both
+# `confirm` and `drop` participate in the guard-3 conflict check ("a confirm
+# against another's drop", "an add vs a drop"). `defer` is operator-only and is
+# never a persona move, so it is excluded here and dropped at the merge. The
+# composed pipeline MUST forward these to the merge; keeping the taxonomy in one
+# place (here, beside GATED_MOVES) is what closes the instruction-022 seam where
+# the composition assumed `grounded` was the complete forward-able set.
+PASS_THROUGH_MOVES = ("confirm", "drop")
 
 
 @dataclass
@@ -192,6 +202,10 @@ def classify_move(
 class GroundingResult:
     grounded: List[Classification] = field(default_factory=list)
     candidates: List[Classification] = field(default_factory=list)
+    # Ungated persona moves (confirm/drop) — not classified by Guard 1, but they
+    # still flow to the merge (guard 3 conflict check + guard 4 drop-apply). Raw
+    # move dicts, not Classifications. See PASS_THROUGH_MOVES.
+    passthrough: List[dict] = field(default_factory=list)
 
     @property
     def grounded_add_count(self) -> int:
@@ -207,14 +221,22 @@ def classify_diff_set(
 
     Grounded moves retain their `agent-validation` provenance + byte-verified
     citation (ready for slices 4-5); candidates go to the human-attention bucket
-    carrying the persona, the move, and WHY they fell short. `confirm`/`drop`
-    moves are not gated here and are not classified.
+    carrying the persona, the move, and WHY they fell short. `confirm`/`drop` are
+    not gated by Guard 1 (there is no citation to ground a removal/affirmation),
+    but they are collected into ``passthrough`` so the composed pipeline can still
+    forward them to the merge (guard 3 conflict detection + guard 4 drop-apply) —
+    without them the merge never sees a drop or a confirm-vs-drop conflict.
+    `defer` is operator-only and is not collected.
     """
     persona_id = diff_set.get("persona_id")
     result = GroundingResult()
     for move in diff_set.get("moves", []):
         c = classify_move(move, formal_docs, root, persona_id=persona_id)
         if c is None:
+            # Not gated by Guard 1. Ungated PERSONA moves (confirm/drop) still
+            # flow to the merge; defer/unknown do not.
+            if move.get("move") in PASS_THROUGH_MOVES:
+                result.passthrough.append(move)
             continue
         (result.grounded if c.is_grounded else result.candidates).append(c)
     return result

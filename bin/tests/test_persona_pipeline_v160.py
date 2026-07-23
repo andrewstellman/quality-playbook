@@ -165,5 +165,81 @@ class OffSwitchThroughCompositionTests(PipelineBase):
         self.assertTrue(sig.parameters["enabled"].default)
 
 
+class ConfirmDropSeamTests(PipelineBase):
+    """Instruction-022 umbrella-Council regression. `confirm`/`drop` are NOT gated
+    by Guard 1 (no citation grounds a removal/affirmation), but they must still
+    FLOW to the merge through the composed pipeline: a drop is applied (guard 4)
+    and confirm/drop participate in the guard-3 conflict check. Before the fix,
+    run_feature_h forwarded only `gr.grounded`, so every confirm/drop was silently
+    lost at the grounding->merge seam — a persona drop never applied and a
+    contested REQ was silently resolved (the 'silent pick' §8b guard 3 forbids)."""
+
+    def _base_two(self):
+        return {"records": [
+            {"id": "REQ-001", "functional_section": "Routing", "title": "named params",
+             "conditions_of_satisfaction": "x", "source_type": "code-derived"},
+            {"id": "REQ-002", "functional_section": "Routing", "title": "legacy glob",
+             "conditions_of_satisfaction": "y", "source_type": "code-derived"},
+        ]}
+
+    def _dispatch_spawn(self, moves_by_persona):
+        def spawn(persona, staging_dir, tool_config):
+            return {"persona_id": persona["id"],
+                    "moves": list(moves_by_persona.get(persona["id"], []))}
+        return spawn
+
+    def test_drop_applies_through_the_composition(self):
+        base = self._base_two()
+        spawn = self._dispatch_spawn({
+            "domain-expert": [{"move": "drop", "req_id": "REQ-002"}],
+            "security-reviewer": [],   # anchor spawns but touches nothing
+        })
+        result = pa.run_feature_h(
+            self.root, base_manifest=base,
+            proposed_personas=[{"id": "domain-expert", "justification": "r"}],
+            provision=self._provision, spawn_persona=spawn,
+            formal_docs=self.formal_docs, staging_root=self.root / "_staging")
+        titles = [r.get("title") for r in result.manifest["records"]]
+        self.assertNotIn("legacy glob", titles)          # the drop was APPLIED
+        self.assertTrue(any(a["move"] == "drop" for a in result.review_summary["applied"]))
+
+    def test_drop_vs_correct_surfaces_conflict_not_silent_pick(self):
+        base = self._base_two()
+        spawn = self._dispatch_spawn({
+            "domain-expert": [{"move": "drop", "req_id": "REQ-002"}],
+            "security-reviewer": [{"move": "correct", "req_id": "REQ-002",
+                "conditions_of_satisfaction": "harden glob",
+                "system_justification": "security needs a strict glob contract",
+                "citation": self._grounded_citation()}],
+        })
+        result = pa.run_feature_h(
+            self.root, base_manifest=base,
+            proposed_personas=[{"id": "domain-expert", "justification": "r"}],
+            provision=self._provision, spawn_persona=spawn,
+            formal_docs=self.formal_docs, staging_root=self.root / "_staging")
+        # Conflict SURFACED, not silently resolved: neither move applied, REQ intact.
+        self.assertGreaterEqual(result.review_summary["conflict_count"], 1)
+        req2 = next(r for r in result.manifest["records"] if r.get("title") == "legacy glob")
+        self.assertEqual(req2["source_type"], "code-derived")   # the correct did NOT apply
+        # and the drop did NOT apply (the record is still present).
+        self.assertTrue(any(r.get("title") == "legacy glob" for r in result.manifest["records"]))
+
+    def test_confirm_reaches_the_merge_and_is_surfaced(self):
+        base = self._base_two()
+        spawn = self._dispatch_spawn({
+            "domain-expert": [{"move": "confirm", "req_id": "REQ-001",
+                               "reason": "matches documented intent"}],
+            "security-reviewer": [],
+        })
+        result = pa.run_feature_h(
+            self.root, base_manifest=base,
+            proposed_personas=[{"id": "domain-expert", "justification": "r"}],
+            provision=self._provision, spawn_persona=spawn,
+            formal_docs=self.formal_docs, staging_root=self.root / "_staging")
+        # The confirm flowed to the merge (before the fix it was lost at the seam).
+        self.assertTrue(any(a["move"] == "confirm" and a["req_id"] == "REQ-001"
+                            for a in result.review_summary["applied"]))
+
+
 if __name__ == "__main__":
     unittest.main()

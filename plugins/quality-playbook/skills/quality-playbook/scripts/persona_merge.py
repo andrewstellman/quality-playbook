@@ -163,8 +163,10 @@ def merge_personas(grounded_by_persona: Sequence[dict], base_manifest: dict) -> 
     """Merge each persona's grounded moves into one manifest.
 
     ``grounded_by_persona`` is a sequence of ``{"persona_id", "moves": [...]}``
-    where every move is already GROUNDED (slice 3) — candidate moves are not
-    passed here; they stay in the candidate bucket. Returns a MergeResult with
+    where every add/correct is already GROUNDED (slice 3) and confirm/drop are
+    the ungated pass-through moves (guard 1 does not gate a removal/affirmation) —
+    candidate moves are NOT passed here; they stay in the candidate bucket.
+    Returns a MergeResult with
     the merged manifest (renumbered ONCE), the surfaced conflict set, the applied
     and held-out moves, the id remap, and the renumber call count (must be 1).
     """
