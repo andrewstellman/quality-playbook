@@ -241,5 +241,58 @@ class ConfirmDropSeamTests(PipelineBase):
                             for a in result.review_summary["applied"]))
 
 
+class AcceptanceRunFixes028Tests(PipelineBase):
+    """instruction 028 acceptance fixes 2-4 (Feature H persona apply path)."""
+
+    def test_fix2_grounded_add_backfills_the_cited_docs_tier(self):
+        # Acceptance 2: a grounded add's synthesized REQ carries the tier of its
+        # cited FORMAL_DOC (spec.txt is Tier 1 in the base fixture).
+        result = pa.run_feature_h(
+            self.root, base_manifest=self.base,
+            proposed_personas=[{"id": "domain-expert", "justification": "r"}],
+            provision=self._provision, spawn_persona=self._spawn(),
+            formal_docs=self.formal_docs, staging_root=self.root / "_staging")
+        added = next(r for r in result.manifest["records"]
+                     if r.get("title") == "regexp params")
+        self.assertEqual(added["tier"], 1)
+
+    def test_fix3_persists_the_updated_requirements_manifest(self):
+        # Acceptance 3: run_feature_h writes the updated requirements_manifest.json
+        # (source of truth) so the agent can re-render REQUIREMENTS.md from it; the
+        # persisted manifest contains the applied agent-validation add.
+        pa.run_feature_h(
+            self.root, base_manifest=self.base,
+            proposed_personas=[{"id": "domain-expert", "justification": "r"}],
+            provision=self._provision, spawn_persona=self._spawn(),
+            formal_docs=self.formal_docs, staging_root=self.root / "_staging",
+            write=True)
+        man_path = self.root / "quality" / pa.REQUIREMENTS_MANIFEST_NAME
+        self.assertTrue(man_path.is_file())
+        on_disk = json.loads(man_path.read_text(encoding="utf-8"))
+        add = next(r for r in on_disk["records"] if r.get("title") == "regexp params")
+        self.assertEqual(add["source_type"], "agent-validation")
+        self.assertEqual(add["tier"], 1)   # fix 2 tier survives to disk
+
+    def test_fix4_confirm_req_id_is_post_renumber_in_the_review_summary(self):
+        # Acceptance 4: a persona add in section A shifts section B's REQ under the
+        # terminal renumber; a confirm move on that REQ must reference the
+        # POST-renumber id in persona_review_summary.json.
+        base = {"records": [
+            {"id": "REQ-001", "functional_section": "A", "title": "a",
+             "conditions_of_satisfaction": "x", "source_type": "code-derived"},
+            {"id": "REQ-002", "functional_section": "B", "title": "b",
+             "conditions_of_satisfaction": "y", "source_type": "code-derived"},
+        ]}
+        grounded = [{"persona_id": "p", "moves": [
+            {"move": "add", "section": "A", "title": "newA",
+             "conditions_of_satisfaction": "z", "tier": 1, "citation": {}},
+            {"move": "confirm", "req_id": "REQ-002", "reason": "ok"},
+        ]}]
+        res = pa.run_persona_pass(base, grounded, None)
+        self.assertEqual(res.remap.get("REQ-002"), "REQ-003")   # renumber shifted it
+        confirm = next(a for a in res.review_summary["applied"] if a["move"] == "confirm")
+        self.assertEqual(confirm["req_id"], "REQ-003")           # post-renumber, not stale REQ-002
+
+
 if __name__ == "__main__":
     unittest.main()

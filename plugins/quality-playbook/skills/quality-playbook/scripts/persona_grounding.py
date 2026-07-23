@@ -210,9 +210,13 @@ def classify_move(
     if not (move.get("system_justification") or "").strip():
         return cand("no fit-for-this-system justification (why THIS system needs it)")
 
+    # instruction 028 fix 2: stamp the cited FORMAL_DOC's tier onto the grounded
+    # move so the apply path can backfill a `tier` onto the synthesized REQ record
+    # (the grounding already resolved + tier-checked `doc`).
+    grounded = {**move, "tier": doc.get("tier")}
     return Classification(
         GROUNDED, "cited + byte-verified + fit-for-this-system",
-        persona_id, move, source_type="agent-validation",
+        persona_id, grounded, source_type="agent-validation",
     )
 
 

@@ -142,6 +142,10 @@ def _apply_move(manifest: dict, move: dict) -> None:
             "title": move.get("title", ""),
             "conditions_of_satisfaction": move.get("conditions_of_satisfaction", ""),
             "source_type": "agent-validation",   # provenance preserved (guard 2)
+            # instruction 028 fix 2: backfill the cited FORMAL_DOC's tier (stamped
+            # onto the grounded move by classify_move) so the synthesized REQ is
+            # tier-complete like a derivation-produced REQ.
+            "tier": move.get("tier"),
             "citation": move.get("citation"),
         })
     elif mv == "correct":

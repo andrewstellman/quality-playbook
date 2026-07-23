@@ -130,11 +130,21 @@ def build_review_summary(merge_result, candidate_bucket: Optional[Sequence[dict]
     """Operator-visible: every applied agent-validation change with grounding,
     plus the surfaced conflicts and the candidate bucket. Nothing applied is
     omitted."""
+    # instruction 028 fix 4: the terminal renumber remaps REQ ids, but the moves
+    # recorded in the review summary still carry PRE-renumber `req_id`s (a confirm
+    # move points at a stale id after persona adds shift the numbering). Apply the
+    # SAME remap already used for BUG cross-refs so every summary entry references
+    # post-renumber ids.
+    remap = getattr(merge_result, "remap", None) or {}
+
+    def _rid(v):
+        return remap.get(v, v) if v is not None else v
+
     applied = [
         {
             "persona_id": m.get("persona_id"),
             "move": m.get("move"),
-            "req_id": m.get("req_id"),
+            "req_id": _rid(m.get("req_id")),
             "section": m.get("section"),
             "title": m.get("title"),
             "reason": m.get("reason"),
@@ -149,7 +159,9 @@ def build_review_summary(merge_result, candidate_bucket: Optional[Sequence[dict]
         for m in merge_result.applied
     ]
     conflicts = [
-        {"target": c.target, "reason": c.reason, "personas": c.personas, "moves": c.moves}
+        {"target": _rid(c.target), "reason": c.reason, "personas": c.personas,
+         "moves": [{**mv, "req_id": _rid(mv.get("req_id"))} if mv.get("req_id") is not None
+                   else mv for mv in c.moves]}
         for c in merge_result.conflicts
     ]
     candidates = list(candidate_bucket or [])
@@ -260,6 +272,7 @@ def revert(pass_result: PersonaPass, bugs_manifest: Optional[dict] = None, *, wh
 # The composed Feature H pipeline step (instruction 021).
 # ---------------------------------------------------------------------------
 REVIEW_SUMMARY_NAME = "persona_review_summary.json"
+REQUIREMENTS_MANIFEST_NAME = "requirements_manifest.json"
 
 
 def run_feature_h(
@@ -339,11 +352,25 @@ def run_feature_h(
         base_manifest, grounded_by_persona, bugs_manifest,
         candidate_bucket=candidates, enabled=True)
 
-    # 6. Write the operator-visible review summary as a run artifact.
+    # 6. Persist the updated requirements manifest (the source of truth) + write
+    #    the operator-visible review summary as run artifacts.
     if write and result.review_summary is not None:
-        out = target_repo / "quality" / REVIEW_SUMMARY_NAME
-        out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(
+        quality_dir = target_repo / "quality"
+        quality_dir.mkdir(parents=True, exist_ok=True)
+        # instruction 028 fix 3 (persist-manifest + prose re-render): the persona
+        # pass mutated the manifest (adds/corrects/drops + the terminal renumber),
+        # so write it back to quality/requirements_manifest.json — the source of
+        # truth. REQUIREMENTS.md itself is AI-authored (the "Feature C renderer"
+        # is the agent, requirements_interview.md § Write-back), so the running
+        # agent re-renders it from this updated manifest after the pass, exactly
+        # as the human interview write-back does (prose in requirements_interview
+        # § persona playback + requirements_pipeline § E.9). There is no Python
+        # markdown renderer to call here — persisting the manifest is the Python
+        # half; the re-render is the same AI step the human interview uses.
+        (quality_dir / REQUIREMENTS_MANIFEST_NAME).write_text(
+            json.dumps(result.manifest, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8")
+        (quality_dir / REVIEW_SUMMARY_NAME).write_text(
             json.dumps(result.review_summary, indent=2, sort_keys=True) + "\n",
             encoding="utf-8")
     return result
