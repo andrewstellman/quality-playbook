@@ -30,6 +30,7 @@ QPB modules it composes.
 from __future__ import annotations
 
 import copy
+import json
 import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Sequence
@@ -57,6 +58,9 @@ def _sibling(mod_name: str, file_name: str):
 
 persona_merge = _sibling("persona_merge", "persona_merge.py")
 requirements_render = _sibling("requirements_render", "requirements_render.py")
+persona_catalog = _sibling("persona_catalog", "persona_catalog.py")
+persona_orchestration = _sibling("persona_orchestration", "persona_orchestration.py")
+persona_grounding = _sibling("persona_grounding", "persona_grounding.py")
 
 AGENT_VALIDATION = "agent-validation"
 _COVER_RE = re.compile(r"^(REQ-\d+)(/.*)?$")
@@ -250,3 +254,91 @@ def revert(pass_result: PersonaPass, bugs_manifest: Optional[dict] = None, *, wh
     if bugs_manifest is not None:
         apply_remap_to_bugs(remap, bugs_manifest)
     return manifest, bugs_manifest
+
+
+# ---------------------------------------------------------------------------
+# The composed Feature H pipeline step (instruction 021).
+# ---------------------------------------------------------------------------
+REVIEW_SUMMARY_NAME = "persona_review_summary.json"
+
+
+def run_feature_h(
+    target_repo,
+    *,
+    base_manifest: dict,
+    proposed_personas: Sequence[dict],
+    provision,
+    spawn_persona,
+    formal_docs: Sequence[dict],
+    staging_root,
+    bugs_manifest: Optional[dict] = None,
+    domain_specialization: Optional[str] = None,
+    enabled: bool = True,
+    write: bool = True,
+) -> "PersonaPass":
+    """The single composed Feature H pipeline step (Design §8b guard 4, §6
+    post-Phase-2 placement). Runs the full persona pass by REUSING the six
+    modules — it reimplements no guard:
+
+      select personas (catalog + anchors)            [persona_catalog]
+        -> stage isolated inputs + spawn tool-restricted persona sub-agents
+                                                       [persona_orchestration]
+        -> classify each raw diff-set grounded/candidate (guard 1)
+                                                       [persona_grounding]
+        -> merge grounded moves, surface conflicts, one renumber (guard 3)
+                                                       [persona_merge, via run_persona_pass]
+        -> apply + emit the operator-visible review summary (guard 4)
+                                                       [run_persona_pass, this module]
+
+    ``spawn_persona(persona, staging_dir, tool_config) -> raw_diff_set`` is the
+    runtime persona sub-agent spawn (the instruction-019 pattern — the running
+    agent's Task tool, tool-restricted per slice 2); tests inject a canned stub.
+    ``provision(persona) -> [StagedInput]`` is the per-target context (Feature H:
+    gathered docs + rendered spec + rubric). Honors the **off-switch**: with
+    ``enabled=False`` NOTHING runs — no personas spawned, no agent-validation
+    changes, the base manifest is returned unchanged. Writes the review summary
+    to ``quality/persona_review_summary.json`` when ``write`` is True. Returns a
+    PersonaPass carrying the applied manifest + review summary.
+
+    Call this AFTER Phase-2 requirements finalize and BEFORE Phases 3-6.
+    """
+    target_repo = Path(target_repo)
+    if not enabled:
+        return PersonaPass(enabled=False, manifest=base_manifest, review_summary=None)
+
+    # 1. Select — catalog + mechanical anchors (domain + security always present).
+    selected = persona_catalog.select_personas(
+        proposed_personas, domain_specialization=domain_specialization)
+
+    # 2. Stage isolated inputs + spawn the tool-restricted persona sub-agents.
+    #    run_personas enforces prevention-by-absence staging + Read-rooted config
+    #    and returns each persona's RAW candidate diff-set.
+    runs = persona_orchestration.run_personas(
+        selected, provision, spawn_persona, Path(staging_root))
+
+    # 3. Ground each raw diff-set (guard 1): grounded vs candidate.
+    grounded_by_persona: List[dict] = []
+    grounding_results = []
+    for run in runs:
+        gr = persona_grounding.classify_diff_set(run.diff_set, formal_docs, target_repo)
+        grounding_results.append(gr)
+        grounded_by_persona.append({
+            "persona_id": run.persona_id,
+            "moves": [c.move for c in gr.grounded],
+        })
+    candidates = persona_grounding.candidate_bucket(grounding_results)
+
+    # 4-5. Merge (guard 3) + apply + review summary (guard 4). run_persona_pass
+    #      snapshots for revert and honors provenance.
+    result = run_persona_pass(
+        base_manifest, grounded_by_persona, bugs_manifest,
+        candidate_bucket=candidates, enabled=True)
+
+    # 6. Write the operator-visible review summary as a run artifact.
+    if write and result.review_summary is not None:
+        out = target_repo / "quality" / REVIEW_SUMMARY_NAME
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            json.dumps(result.review_summary, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8")
+    return result

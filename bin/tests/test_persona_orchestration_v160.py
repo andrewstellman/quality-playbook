@@ -166,6 +166,16 @@ class FabricationTellTests(unittest.TestCase):
         ]}
         self.assertEqual(po.detect_fabrication(diff, [DOCS.text, SPEC.text, RUBRIC.text]), [])
 
+    def test_dict_citation_is_handled(self):
+        # instr 021 seam: the structured citation dict the grounding layer uses
+        # is checked by its excerpt (composed pipeline shares one move shape).
+        clean = {"moves": [{"move": "add",
+                            "citation": {"citation_excerpt": "router.Get(pattern, handler)"}}]}
+        self.assertEqual(po.detect_fabrication(clean, [DOCS.text]), [])
+        tell = {"moves": [{"move": "add",
+                           "citation": {"citation_excerpt": "func Get(){ /* impl */ }"}}]}
+        self.assertEqual(len(po.detect_fabrication(tell, [DOCS.text])), 1)
+
 
 class IndependenceAndRunTests(unittest.TestCase):
     def _selected(self):

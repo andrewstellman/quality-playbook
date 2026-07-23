@@ -386,7 +386,11 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # (a self-Council-found leftover) → "requirement sections organized
         # by the principle you chose", + glossary added to the part list.
         # phase2: 12810 → 13004 codepoints. Recomputed.
-        "phase2":                (13004, "7281b61c64b36a63156d6cd2b7d66cc3115fae35af940b14d9722930a252a2c6"),
+        # v1.6.0 021 (Feature H): phase2.md gained the "run the Feature H persona
+        # validation pass here — automatically, opt-out" paragraph after the
+        # human-interview offer (§8b / requirements_pipeline § E.9). 13004 → 14199
+        # codepoints. Recomputed.
+        "phase2":                (14199, "c20623281ac2bbc10ce9b2bebde859725cd6bb0497b46412b08b2d1735c24f92"),
         # v1.5.7 090j: phase3.md + phase4.md gained the triage
         # precision-guardrail pointers (D1 reachability_analysis on
         # HIGH/MED bugs + D2 KNOWN-ISSUE classification for advisory-

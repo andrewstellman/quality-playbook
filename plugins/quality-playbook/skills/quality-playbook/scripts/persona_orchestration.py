@@ -168,15 +168,22 @@ def detect_fabrication(diff_set: dict, staged_texts: Sequence[str]) -> List[str]
     present in the persona's staged inputs — i.e. content it could only have
     obtained by reading source it was not given.
 
-    Returns a list of human-readable flags (empty when clean). A move carries an
-    optional ``citation`` (a quote/excerpt) and/or ``source`` (a filename); a
-    citation that is not a substring of any staged text, or a source not among
-    the staged names, is a fabrication tell.
+    Returns a list of human-readable flags (empty when clean). A move's
+    ``citation`` is a quote/excerpt — either a bare string, or the structured
+    citation dict the grounding layer uses (``{"citation_excerpt": ..., ...}``);
+    a cited excerpt that is not a substring of any staged text is a fabrication
+    tell. (Accepting both shapes is what lets the raw-diff-set fabrication-tell
+    and the downstream structured-citation grounding share one move shape when
+    the pipeline is composed — instruction 021.)
     """
     corpus = "\n".join(staged_texts)
     flags: List[str] = []
     for i, move in enumerate(diff_set.get("moves", [])):
-        cite = (move.get("citation") or "").strip()
+        citation = move.get("citation")
+        if isinstance(citation, dict):
+            cite = (citation.get("citation_excerpt") or "").strip()
+        else:
+            cite = (citation or "").strip()
         if cite and cite not in corpus:
             flags.append(
                 f"move[{i}] ({move.get('move')}) cites text absent from staged "
