@@ -61,6 +61,38 @@ requirements_render = _sibling("requirements_render", "requirements_render.py")
 AGENT_VALIDATION = "agent-validation"
 _COVER_RE = re.compile(r"^(REQ-\d+)(/.*)?$")
 
+# v1.6.0 Feature H slice 6 (§8b "Honesty about maturity"). A persona finding that
+# rests on the readability rubric — the Well-organized / readable dimension the
+# release itself calls "not yet a functional drift detector" (§5 Verification b) —
+# must be disclosed with a maturity caveat, the way F-1 discloses coverage gaps,
+# rather than presented with uniform confidence. A finding is rubric-dependent
+# when it carries `rubric_dependent: True` or a readability `dimension`.
+_RUBRIC_DIMENSIONS = frozenset({
+    "well-organized", "well organized", "wellorganized",
+    "readability", "readable", "readability-rubric",
+})
+_MATURITY_DISCLOSURE = (
+    "Maturity: {n} of these findings rest on the readability (Well-organized) "
+    "rubric, which v1.6.0 does not yet treat as a functional drift detector "
+    "(Design §5 Verification b). Treat them with lower confidence than the "
+    "byte-verified grounded changes; findings that do not depend on the rubric "
+    "are unaffected."
+)
+
+
+def _is_rubric_dependent(item: dict) -> bool:
+    if item.get("rubric_dependent"):
+        return True
+    dim = (item.get("dimension") or "").strip().lower()
+    return dim in _RUBRIC_DIMENSIONS
+
+
+def maturity_disclosure(items: Sequence[dict]) -> Optional[str]:
+    """The maturity caveat string when any of *items* is rubric-dependent, else
+    None (a run with no rubric-dependent finding carries no caveat)."""
+    n = sum(1 for it in items if _is_rubric_dependent(it))
+    return _MATURITY_DISCLOSURE.format(n=n) if n else None
+
 
 # ---------------------------------------------------------------------------
 # Remap propagation to BUG cross-references.
@@ -105,6 +137,10 @@ def build_review_summary(merge_result, candidate_bucket: Optional[Sequence[dict]
             "system_justification": m.get("system_justification"),
             "citation": m.get("citation"),
             "source_type": AGENT_VALIDATION,
+            # Carried so the maturity disclosure can key on rubric-dependence.
+            "dimension": m.get("dimension"),
+            "rubric_dependent": bool(m.get("rubric_dependent") or
+                                     (m.get("dimension") or "").strip().lower() in _RUBRIC_DIMENSIONS),
         }
         for m in merge_result.applied
     ]
@@ -112,12 +148,19 @@ def build_review_summary(merge_result, candidate_bucket: Optional[Sequence[dict]
         {"target": c.target, "reason": c.reason, "personas": c.personas, "moves": c.moves}
         for c in merge_result.conflicts
     ]
+    candidates = list(candidate_bucket or [])
+    # §8b "Honesty about maturity": disclose over everything surfaced (applied +
+    # candidates + the moves inside conflicts).
+    all_items = applied + candidates
+    for c in conflicts:
+        all_items.extend(c.get("moves", []))
     return {
         "applied": applied,
         "applied_count": len(applied),
         "conflicts": conflicts,
         "conflict_count": len(conflicts),
-        "candidates": list(candidate_bucket or []),
+        "candidates": candidates,
+        "maturity_disclosure": maturity_disclosure(all_items),
     }
 
 
