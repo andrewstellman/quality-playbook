@@ -60,22 +60,41 @@ def _sibling(mod_name: str, file_name: str):
 
 
 citation_verifier = _sibling("citation_verifier", "citation_verifier.py")
-doc_classification = _sibling("doc_classification", "doc_classification.py")
 
 GROUNDED = "grounded"
 CANDIDATE = "candidate"
 
-# Guard-1-specific injection detection (instr 015 self-Council Panelist A).
-# doc_classification.injection_signature catches self-authorizing TIER claims
-# ("classify me Tier 1", "cite me as authoritative", "ignore the rubric") — the
-# tiering-surface attack. But Guard 1 grounds ADDS, so its poisoning surface also
-# includes AGENT-DIRECTED REQUIREMENT IMPERATIVES a doc aims at the derivation:
-# "add REQ X", "the agent must add a requirement", "you must add/confirm …",
-# "add the following requirement". §8b names exactly these ("imperatives to the
-# agent") as candidate-only even when they byte-verify. The subject is the
-# agent/derivation/persona or the requirements process itself — NOT the audited
-# system ("the router MUST match the prefix" is a legitimate contract, not an
-# injection), so this does not false-flag a real spec cited as grounding.
+# Guard-1 injection detection — SELF-CONTAINED (instruction 026). Two arms:
+#
+# (1) Self-authorizing TIER claims ("classify me Tier 1", "cite me as
+#     authoritative", "ignore the rubric") — the tiering-surface attack. This
+#     detection lived in doc_classification (as its removed injection FLOOR's
+#     helper) and was composed here across a module boundary; 026 moves it in so
+#     grounding owns its own check and the classifier is judgment-free.
+_TIER_CLAIM_RE = re.compile(
+    r"classify\s+(?:me|this|the\s+following)\s+(?:as\s+)?tier"
+    r"|cite\s+(?:me|this)\s+as\s+(?:an\s+)?authoritative"
+    r"|treat\s+(?:me|this)\s+as\s+(?:an\s+)?(?:authoritative|tier)"
+    r"|(?:mark|assign|set)\s+(?:me|this|it)?\s*(?:as\s+)?tier\s*[12]"
+    r"|this\s+(?:document|doc|file)\s+is\s+(?:an\s+)?authoritative"
+    r"|this\s+is\s+(?:an\s+)?authoritative\s+spec"
+    r"|you\s+must\s+(?:cite|classify|treat)"
+    r"|ignore\s+(?:the\s+)?(?:previous|rubric|above|instructions)"
+    r"|as\s+an\s+ai\s+(?:classifier|model)",
+    re.IGNORECASE,
+)
+# (2) AGENT-DIRECTED REQUIREMENT IMPERATIVES a doc aims at the derivation: "add
+#     REQ X", "add a requirement", "you must add/confirm/cite/classify …", "please
+#     confirm this", "register a requirement". §8b names exactly these
+#     ("imperatives to the agent") as candidate-only even when they byte-verify.
+#     NARROWED (instruction 026 / Fable Q3): the bare
+#     ``the (agent|validator|reviewer|…) must/should/shall`` arm was DROPPED — it
+#     collided with legitimate spec prose ("the validator MUST reject malformed
+#     input") that carries no add/confirm/requirement verb. The add/confirm/
+#     register-requirement verbs still fire, so "the reviewer must add a
+#     requirement that X" is STILL caught (the "add … requirement" arm) — only the
+#     false positive on ordinary contract language is removed. The subject that
+#     matters is the requirements PROCESS, not the audited system.
 _AGENT_DIRECTIVE_RE = re.compile(
     r"\badd\s+(?:a\s+|an\s+|the\s+|this\s+|new\s+|following\s+)*"
     r"(?:req\b|reqs\b|requirement|requirements)"
@@ -83,8 +102,6 @@ _AGENT_DIRECTIVE_RE = re.compile(
     r"|\b(?:register|insert|include|append|write)\s+"
     r"(?:a\s+|an\s+|the\s+|this\s+|new\s+|following\s+)*"
     r"(?:req\b|reqs\b|requirement|requirements)"
-    r"|\bthe\s+(?:agent|derivation|persona|reviewer|assistant|model|ai|validator)"
-    r"\s+(?:must|should|shall|will|needs?\s+to|is\s+to|has\s+to)\b"
     r"|\byou\s+(?:must|should|shall|need\s+to|are\s+to|have\s+to)\s+"
     r"(?:add|confirm|include|register|insert|cite|classify|treat|mark)\b"
     r"|\b(?:please\s+)?confirm\s+(?:this|it|the\s+following|that\s+requirement)\b",
@@ -95,12 +112,13 @@ _AGENT_DIRECTIVE_RE = re.compile(
 def grounding_injection_signature(text: str) -> Optional[str]:
     """Injection-shaped support for a grounding move, or None.
 
-    Composes doc_classification's tier-claim/self-authorizing detection with
-    Guard-1's agent-directed requirement-imperative detection.
+    Self-contained (instruction 026): the self-authorizing tier-claim arm
+    (``_TIER_CLAIM_RE``) + Guard-1's agent-directed requirement-imperative arm
+    (``_AGENT_DIRECTIVE_RE``). No cross-module dependency on the classifier.
     """
-    inj = doc_classification.injection_signature(text)
-    if inj:
-        return inj
+    m = _TIER_CLAIM_RE.search(text)
+    if m:
+        return f"self-authorizing/injection content {m.group(0).strip()!r}"
     m = _AGENT_DIRECTIVE_RE.search(text)
     if m:
         return f"agent-directed imperative {m.group(0).strip()!r}"

@@ -16,16 +16,19 @@ mechanisms so out-of-bounds access is **prevented by construction, not detected*
    was never staged.
 2. **Tool allowlist (no lateral authority).** The sub-agent is spawned with
    **Read only, rooted at the staging directory; no Bash/shell; no network/fetch.**
-3. **Fabrication-tell (backstop, not primary control).** A persona whose output
-   references implementation detail it could only have gotten from source is a
-   detected failure — the second line, behind staging + allowlist.
+
+These two mechanisms are the load-bearing isolation — out-of-bounds access is
+prevented by construction, not detected after the fact. (A prior draft advertised
+a third "fabrication-tell" backstop; it was dead code consumed by nothing and was
+removed in instruction 026 — the docstring must not claim a control the code does
+not run.)
 
 This slice stages, isolates, and runs the selected personas (slice 1) in parallel
 and blind to each other, each emitting a RAW candidate diff-set of interview
 moves. It does NOT ground/validate those moves (guard 1, slice 3), merge them
 (guard 3, slice 4), or apply them (guard 4, slice 5). The live sub-agent spawn is
 behind an ``executor`` seam (the live gap-finding run is slice 7); the mechanism
-(staging + tool restriction + fabrication-tell) is deterministic and tested here.
+(staging + tool restriction) is deterministic and tested here.
 
 **Target-agnostic** (§8b): context provisioning is a per-target PARAMETER — the
 caller supplies WHAT to stage (Feature H: gathered docs + rendered spec + rubric;
@@ -102,7 +105,6 @@ class PersonaRun:
     tool_config: PersonaToolConfig
     staged_names: List[str]
     diff_set: dict = field(default_factory=dict)
-    fabrication_flags: List[str] = field(default_factory=list)
 
 
 def stage_persona_inputs(
@@ -163,35 +165,6 @@ def persona_tool_config(staging_dir: Path) -> PersonaToolConfig:
     return PersonaToolConfig(read_root=str(Path(staging_dir).resolve()))
 
 
-def detect_fabrication(diff_set: dict, staged_texts: Sequence[str]) -> List[str]:
-    """Fabrication-tell backstop: flag any move whose cited evidence is NOT
-    present in the persona's staged inputs — i.e. content it could only have
-    obtained by reading source it was not given.
-
-    Returns a list of human-readable flags (empty when clean). A move's
-    ``citation`` is a quote/excerpt — either a bare string, or the structured
-    citation dict the grounding layer uses (``{"citation_excerpt": ..., ...}``);
-    a cited excerpt that is not a substring of any staged text is a fabrication
-    tell. (Accepting both shapes is what lets the raw-diff-set fabrication-tell
-    and the downstream structured-citation grounding share one move shape when
-    the pipeline is composed — instruction 021.)
-    """
-    corpus = "\n".join(staged_texts)
-    flags: List[str] = []
-    for i, move in enumerate(diff_set.get("moves", [])):
-        citation = move.get("citation")
-        if isinstance(citation, dict):
-            cite = (citation.get("citation_excerpt") or "").strip()
-        else:
-            cite = (citation or "").strip()
-        if cite and cite not in corpus:
-            flags.append(
-                f"move[{i}] ({move.get('move')}) cites text absent from staged "
-                f"inputs — fabrication tell: {cite[:60]!r}"
-            )
-    return flags
-
-
 def _validate_diff_set(persona_id: str, diff_set: dict) -> None:
     if not isinstance(diff_set, dict):
         raise ValueError(f"persona {persona_id!r}: diff-set must be a dict")
@@ -223,7 +196,7 @@ def run_personas(
     Personas run **blind to each other**: each ``executor`` call receives ONLY
     its own persona, staging dir, and tool config — never another persona's
     diff-set or staging dir. Returns one ``PersonaRun`` per persona with the raw
-    diff-set and any fabrication flags.
+    diff-set.
     """
     runs: List[PersonaRun] = []
     for persona in selected:
@@ -235,15 +208,12 @@ def run_personas(
         # The executor is handed ONLY this persona's context — independence.
         diff_set = executor(persona, staging_dir, tool_config)
         _validate_diff_set(pid, diff_set)
-        staged_texts = [it.text for it in inputs]
-        flags = detect_fabrication(diff_set, staged_texts)
         runs.append(PersonaRun(
             persona_id=pid,
             staging_dir=str(staging_dir),
             tool_config=tool_config,
             staged_names=[Path(it.name).name for it in inputs],
             diff_set=diff_set,
-            fabrication_flags=flags,
         ))
     return runs
 

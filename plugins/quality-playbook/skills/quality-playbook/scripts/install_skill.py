@@ -482,9 +482,11 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
     # v1.6.0 Feature H (instruction 020): bundle the six persona-validation
     # modules so an adopter install actually ships Feature H. Mandatory —
     # without them the persona pass cannot run at the adopter install root.
-    # Dependency-closed: persona_grounding imports doc_classification +
-    # citation_verifier (bundled above); persona_merge/apply import
+    # Dependency-closed: persona_grounding imports citation_verifier (bundled
+    # above; its doc_classification import was removed in instruction 026 —
+    # grounding is now self-contained); persona_merge/apply import
     # requirements_render (bundled here); all six are stdlib-only otherwise.
+    # (doc_classification is still bundled above for Feature G / reference_docs_ingest.)
     for _persona_mod in (
         "persona_catalog.py",
         "persona_orchestration.py",

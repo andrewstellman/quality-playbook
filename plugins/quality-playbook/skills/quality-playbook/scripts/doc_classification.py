@@ -317,37 +317,10 @@ def code_heavy_hint(text: str, filename: str) -> Optional[str]:
     return None
 
 
-# ---------------------------------------------------------------------------
-# Self-authorizing-tier detection — NO LONGER a classifier floor (instruction
-# 023 removed the injection floor: the LLM owns the self-authorizing-tier
-# judgment). This detector is RETAINED because it is composed by
-# ``persona_grounding.grounding_injection_signature`` (Guard 1) — a DIFFERENT,
-# load-bearing control on the auto-apply path that the instruction explicitly
-# keeps and does not touch. It is a pure detection helper here, invoked by no
-# floor in this module; deleting it would break that Guard-1 reuse and redden the
-# suite. (The eventual removal of this reuse belongs to the later Feature-H
-# directive-narrowing instruction, not here.)
-# ---------------------------------------------------------------------------
-_INJECTION_RE = re.compile(
-    r"classify\s+(?:me|this|the\s+following)\s+(?:as\s+)?tier"
-    r"|cite\s+(?:me|this)\s+as\s+(?:an\s+)?authoritative"
-    r"|treat\s+(?:me|this)\s+as\s+(?:an\s+)?(?:authoritative|tier)"
-    r"|(?:mark|assign|set)\s+(?:me|this|it)?\s*(?:as\s+)?tier\s*[12]"
-    r"|this\s+(?:document|doc|file)\s+is\s+(?:an\s+)?authoritative"
-    r"|this\s+is\s+(?:an\s+)?authoritative\s+spec"
-    r"|you\s+must\s+(?:cite|classify|treat)"
-    r"|ignore\s+(?:the\s+)?(?:previous|rubric|above|instructions)"
-    r"|as\s+an\s+ai\s+(?:classifier|model)",
-    re.IGNORECASE,
-)
-
-
-def injection_signature(text: str) -> Optional[str]:
-    """Return a reason if *text* argues for its own tier / addresses the classifier."""
-    m = _INJECTION_RE.search(text)
-    if m:
-        return f"self-authorizing/injection content {m.group(0).strip()!r}"
-    return None
+# (The self-authorizing-tier injection detector that briefly lived here — a
+# leftover helper after instruction 023 removed the injection floor — was moved
+# into persona_grounding (its only consumer) as `_TIER_CLAIM_RE` in instruction
+# 026, so the classifier is now judgment-free with no injection coupling.)
 
 
 # ---------------------------------------------------------------------------

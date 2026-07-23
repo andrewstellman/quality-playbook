@@ -3,8 +3,10 @@
 THE SECURITY oracle (§8b Verification 3). Isolation is PREVENTION by
 construction: the impl tree / secrets / operator_confirmations.jsonl are never
 staged, and the spawn tool config has no shell and no network, so a persona
-cannot reach them — proven here, not merely detected after the fact. The
-fabrication-tell is exercised as an independent backstop.
+cannot reach them — proven here, not merely detected after the fact. These two
+mechanisms (staging + tool allowlist) are the load-bearing isolation; the
+`detect_fabrication` backstop was dead code (consumed by nothing) and was removed
+in instruction 026.
 """
 
 import sys
@@ -149,32 +151,13 @@ class LeastPrivilegePreventionTests(unittest.TestCase):
         self.assertTrue(cfg.denies("fetch"))         # (b) no network
 
 
-class FabricationTellTests(unittest.TestCase):
-    def test_move_citing_unstaged_content_is_flagged(self):
-        # A persona output referencing impl detail NOT in its staged inputs.
-        diff = {"moves": [
-            {"move": "add", "reason": "read the source",
-             "citation": "func Get(){ /* impl */ }"},  # not in staged docs
-        ]}
-        flags = po.detect_fabrication(diff, [DOCS.text, SPEC.text, RUBRIC.text])
-        self.assertEqual(len(flags), 1)
-        self.assertIn("fabrication", flags[0].lower())
-
-    def test_grounded_move_citing_staged_content_is_clean(self):
-        diff = {"moves": [
-            {"move": "add", "citation": "router.Get(pattern, handler)"},  # in DOCS
-        ]}
-        self.assertEqual(po.detect_fabrication(diff, [DOCS.text, SPEC.text, RUBRIC.text]), [])
-
-    def test_dict_citation_is_handled(self):
-        # instr 021 seam: the structured citation dict the grounding layer uses
-        # is checked by its excerpt (composed pipeline shares one move shape).
-        clean = {"moves": [{"move": "add",
-                            "citation": {"citation_excerpt": "router.Get(pattern, handler)"}}]}
-        self.assertEqual(po.detect_fabrication(clean, [DOCS.text]), [])
-        tell = {"moves": [{"move": "add",
-                           "citation": {"citation_excerpt": "func Get(){ /* impl */ }"}}]}
-        self.assertEqual(len(po.detect_fabrication(tell, [DOCS.text])), 1)
+# REVERSAL (instruction 026): the FabricationTellTests class was removed. Its
+# subject, persona_orchestration.detect_fabrication, was verified dead code
+# (fabrication_flags was consumed by nothing — persona_apply reads only diff_set /
+# persona_id), so the function + field were deleted. The load-bearing isolation is
+# staging + the tool allowlist (tested above); the injection-on-grounding defense
+# is persona_grounding.grounding_injection_signature (tested in
+# test_persona_grounding_v160.py), not this removed backstop.
 
 
 class IndependenceAndRunTests(unittest.TestCase):
@@ -212,11 +195,13 @@ class IndependenceAndRunTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             po.run_personas([{"id": "domain-expert"}], _h_provision, bad_executor, Path(tmp.name))
 
-    def test_run_carries_diff_set_and_fabrication_flags(self):
+    def test_run_carries_diff_set(self):
+        # instr 026: PersonaRun no longer carries fabrication_flags (dead field
+        # removed with detect_fabrication); it carries the raw diff-set.
         tmp = tempfile.TemporaryDirectory(); self.addCleanup(tmp.cleanup)
         runs = po.run_personas([{"id": "domain-expert"}], _h_provision, _stub_executor, Path(tmp.name))
         self.assertEqual(runs[0].diff_set["moves"][0]["move"], "add")
-        self.assertEqual(runs[0].fabrication_flags, [])  # cites staged content
+        self.assertFalse(hasattr(runs[0], "fabrication_flags"))
 
     def test_raw_diff_set_shape_no_grounding_or_apply(self):
         # This slice emits RAW candidates only — no grounded/candidate bucket,
