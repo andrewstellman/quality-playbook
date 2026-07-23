@@ -285,6 +285,14 @@ for short in "${REPOS[@]}"; do
     # v1.6.0 Feature G (instruction 010): reference_docs_ingest.py imports
     # doc_classification at module load for §8a dump-and-go classification.
     cp "${QPB_SKILL_SRC}/scripts/doc_classification.py" "${dst}/bin/doc_classification.py" 2>/dev/null || true
+    # v1.6.0 Feature H (instruction 020): the six persona-validation modules so
+    # an adopter install actually ships Feature H.
+    cp "${QPB_SKILL_SRC}/scripts/persona_catalog.py" "${dst}/bin/persona_catalog.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/persona_orchestration.py" "${dst}/bin/persona_orchestration.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/persona_grounding.py" "${dst}/bin/persona_grounding.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/persona_merge.py" "${dst}/bin/persona_merge.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/persona_apply.py" "${dst}/bin/persona_apply.py" 2>/dev/null || true
+    cp "${QPB_SKILL_SRC}/scripts/requirements_render.py" "${dst}/bin/requirements_render.py" 2>/dev/null || true
     # reference_docs_ingest.py imports `from bin import benchmark_lib`
     # at module load (version detection); benchmark_lib is stdlib-only
     # (no internal bin/ deps) so the closure is exactly these two.

@@ -204,6 +204,12 @@ def _bundle_files_soft(
             "_purpose.py",
             "reference_docs_ingest.py",
             "doc_classification.py",
+            "persona_catalog.py",
+            "persona_orchestration.py",
+            "persona_grounding.py",
+            "persona_merge.py",
+            "persona_apply.py",
+            "requirements_render.py",
             "benchmark_lib.py",
             "__init__.py",
             "quality_playbook.py",
@@ -473,6 +479,24 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
         _require_bundle_file(source_root / scripts_dir / "doc_classification.py"),
         Path("bin") / "doc_classification.py",
     ))
+    # v1.6.0 Feature H (instruction 020): bundle the six persona-validation
+    # modules so an adopter install actually ships Feature H. Mandatory —
+    # without them the persona pass cannot run at the adopter install root.
+    # Dependency-closed: persona_grounding imports doc_classification +
+    # citation_verifier (bundled above); persona_merge/apply import
+    # requirements_render (bundled here); all six are stdlib-only otherwise.
+    for _persona_mod in (
+        "persona_catalog.py",
+        "persona_orchestration.py",
+        "persona_grounding.py",
+        "persona_merge.py",
+        "persona_apply.py",
+        "requirements_render.py",
+    ):
+        files.append((
+            _require_bundle_file(source_root / scripts_dir / _persona_mod),
+            Path("bin") / _persona_mod,
+        ))
     # v1.5.7 fix F-1 (transitive): bundle bin/benchmark_lib.py because
     # reference_docs_ingest.py imports it at module load. benchmark_lib
     # has no internal bin/ dependencies (stdlib-only) so the bundle

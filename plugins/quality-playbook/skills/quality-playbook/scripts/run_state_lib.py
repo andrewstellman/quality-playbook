@@ -1190,6 +1190,12 @@ _FLAT_LAYOUT_BUNDLED_BIN_FILES = frozenset({
     "quality_playbook.py",
     "reference_docs_ingest.py",
     "doc_classification.py",
+    "persona_catalog.py",
+    "persona_orchestration.py",
+    "persona_grounding.py",
+    "persona_merge.py",
+    "persona_apply.py",
+    "requirements_render.py",
     "role_map.py",
     "run_state_lib.py",             # v1.5.7 086 A-26
     "validate_phase_artifacts.py",  # v1.5.7 086 A-26
