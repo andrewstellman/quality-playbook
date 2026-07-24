@@ -65,6 +65,12 @@ persona_grounding = _sibling("persona_grounding", "persona_grounding.py")
 AGENT_VALIDATION = "agent-validation"
 _COVER_RE = re.compile(r"^(REQ-\d+)(/.*)?$")
 
+# The two run artifacts this module writes under the target's ``quality/``. They
+# live up here because the operator-facing disclosure (instruction 031 fix 2)
+# points the operator at the review summary by path.
+REVIEW_SUMMARY_NAME = "persona_review_summary.json"
+REQUIREMENTS_MANIFEST_NAME = "requirements_manifest.json"
+
 # v1.6.0 Feature H slice 6 (§8b "Honesty about maturity"). A persona finding that
 # rests on the readability rubric — the Well-organized / readable dimension the
 # release itself calls "not yet a functional drift detector" (§5 Verification b) —
@@ -181,6 +187,119 @@ def build_review_summary(merge_result, candidate_bucket: Optional[Sequence[dict]
 
 
 # ---------------------------------------------------------------------------
+# The operator-facing disclosure (instruction 031 fix 2).
+#
+# The pass AUTO-APPLIES changes to the operator's requirements, so the standard
+# end-of-Phase-2 message has to say so. Before this, the only trace was
+# ``quality/persona_review_summary.json`` — an operator reading the normal
+# message never learned their spec had been changed unless they opened that file
+# on their own. That is the "surface, don't silently apply" principle failing at
+# the surface that actually reaches the operator.
+#
+# Plain language is a hard contract here, exactly as it is for the end-of-Phase-1
+# classification show (instruction 030): NO internal label reaches the operator —
+# no "Feature H", no "persona", no "sub-agent", no "agent-validation", no
+# "grounded", no "manifest". Per the v1.6.0 plain-language key: persona ->
+# "expert reviewer", sub-agent -> "separate helper agent", grounded/cited +
+# byte-verified -> "backed by your documentation". The one place the internal
+# word survives is the literal artifact PATH, which the operator has to be able
+# to type to open the file.
+# ---------------------------------------------------------------------------
+REVIEW_SUMMARY_PATH = f"quality/{REVIEW_SUMMARY_NAME}"
+
+
+def _plural(n: int, singular: str, plural: str) -> str:
+    return f"{n} {singular if n == 1 else plural}"
+
+
+def persona_review_disclosure(review_summary: Optional[dict]) -> Optional[str]:
+    """The plain-language end-of-Phase-2 disclosure that the expert-reviewer pass
+    ran and what it did — or ``None`` when it did not run.
+
+    ``review_summary`` is ``PersonaPass.review_summary`` (equivalently the loaded
+    ``quality/persona_review_summary.json``). It is ``None`` whenever the pass did
+    not run — disabled for the run, or no operator/harness ran it — and then this
+    returns ``None`` and the end-of-Phase-2 message gains nothing: a run that had
+    no expert review must not claim one.
+
+    Returns Markdown ready to print in chat, carrying no internal labels.
+    """
+    if not review_summary:
+        return None
+
+    applied = list(review_summary.get("applied") or [])
+    moves = [str(m.get("move") or "").lower() for m in applied]
+    added = moves.count("add")
+    reworded = moves.count("correct")
+    removed = moves.count("drop")
+    confirmed = moves.count("confirm")
+    set_aside = len(review_summary.get("candidates") or [])
+    disagreements = len(review_summary.get("conflicts") or [])
+    changed = added + reworded + removed
+
+    lines: List[str] = ["### I had expert reviewers check your requirements", ""]
+    lines.append(
+        "Before moving on, I brought in expert reviewers — one who knows this kind "
+        "of system and one who reviews for security — to read your requirements "
+        "against the documents you gave me. They only add or change a requirement "
+        "when they can point to the documentation that backs it up."
+    )
+    lines.append("")
+
+    if not (changed or confirmed or set_aside or disagreements):
+        lines.append(
+            "They read through your requirements and did not change anything. "
+            f"Their notes are in `{REVIEW_SUMMARY_PATH}` if you want to see them."
+        )
+        return "\n".join(lines)
+
+    lines.append("Here's what they did:")
+    if added:
+        lines.append(f"- Added {_plural(added, 'requirement', 'requirements')} "
+                     "your documentation calls for but the list was missing.")
+    if reworded:
+        lines.append(f"- Rewrote {_plural(reworded, 'requirement', 'requirements')} "
+                     "to match what your documentation actually says.")
+    if removed:
+        lines.append(f"- Removed {_plural(removed, 'requirement', 'requirements')} "
+                     "your documentation does not support.")
+    if confirmed:
+        lines.append(f"- Read {_plural(confirmed, 'requirement', 'requirements')} "
+                     f"and agreed with {'it' if confirmed == 1 else 'them'} as "
+                     "written — nothing changed there.")
+    if set_aside:
+        lines.append(
+            f"- Set aside {_plural(set_aside, 'suggestion', 'suggestions')} they "
+            f"could not back up with your documents. **I did not act on "
+            f"{'it' if set_aside == 1 else 'those'}** — "
+            f"{'it is' if set_aside == 1 else 'they are'} listed for you to judge."
+        )
+    if disagreements:
+        lines.append(
+            f"- Hit {_plural(disagreements, 'place', 'places')} where the reviewers "
+            f"wanted different things. **I left {'it' if disagreements == 1 else 'those'} "
+            f"alone** for you to settle."
+        )
+
+    lines.append("")
+    if changed:
+        lines.append(
+            f"**Your requirements were changed by this — {_plural(changed, 'change', 'changes')} "
+            f"in all.** Every one of them is listed in `{REVIEW_SUMMARY_PATH}` with "
+            "what it is based on, so you can check the reasoning. If you would "
+            "rather not keep them, say **undo the expert review changes** and I "
+            "will put your requirements back exactly as they were before this "
+            "step — all of it, or just the added ones you name."
+        )
+    else:
+        lines.append(
+            "**Nothing was changed in your requirements.** What they raised is "
+            f"listed in `{REVIEW_SUMMARY_PATH}` for you to look over."
+        )
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # The persona pass (off-switch + snapshot for revert).
 # ---------------------------------------------------------------------------
 @dataclass
@@ -271,8 +390,8 @@ def revert(pass_result: PersonaPass, bugs_manifest: Optional[dict] = None, *, wh
 # ---------------------------------------------------------------------------
 # The composed Feature H pipeline step (instruction 021).
 # ---------------------------------------------------------------------------
-REVIEW_SUMMARY_NAME = "persona_review_summary.json"
-REQUIREMENTS_MANIFEST_NAME = "requirements_manifest.json"
+# (REVIEW_SUMMARY_NAME / REQUIREMENTS_MANIFEST_NAME are defined at the top of the
+# module — the disclosure renderer above needs them.)
 
 
 def run_feature_h(

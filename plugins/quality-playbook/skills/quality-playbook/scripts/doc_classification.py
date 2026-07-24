@@ -951,6 +951,49 @@ _UNSAFE_PATH_CHARS_RE = re.compile(
 )
 _MAX_SHOWN_PATH = 160
 
+# Instruction 031 fix 1 — the worked example must never confidently name a
+# document that is not plausibly a specification. Size is not that signal: on the
+# real virtio corpus the largest promotable background document is
+# ``linux-coding-style.rst`` (a 45 KB style guide) while the actual spec,
+# ``virtio-spec-behavioral-contracts.md``, is 7.8 KB — so the feature built to
+# help the operator recover a mis-classified spec was suggesting they promote a
+# STYLE GUIDE as their specification. A name signal is the honest one available
+# here: the show is rendered from the classification manifest, whose records
+# carry the path, the tier and the floor decision — no title and no content — so
+# "the doc self-identifies as a spec" is not observable at this surface. When no
+# candidate carries the signal the example uses a NEUTRAL PLACEHOLDER instead of
+# naming a real, wrong file.
+_SPEC_NAME_TOKENS = frozenset({
+    "spec", "specs", "specification", "specifications",
+    "contract", "contracts",
+    "reference", "references",
+    "protocol", "protocols",
+    "api", "apis",
+    "rfc", "rfcs",
+    "standard", "standards",
+})
+# Tokens are ALPHABETIC runs, so digits split too (``rfc793`` -> ``rfc``), and
+# matching is whole-token — a substring match would read "spec" out of
+# "inspector" and "api" out of "capital".
+_NAME_TOKEN_SPLIT_RE = re.compile(r"[^a-z]+")
+# The example phrasing with no file named. Deliberately not a real path: the
+# operator substitutes their own, which is exactly the instruction the sentence
+# is illustrating.
+_NEUTRAL_EXAMPLE = "<the-file>"
+
+
+def _spec_like_name(source_path: Optional[str]) -> bool:
+    """Whether this document's *filename* plausibly identifies a specification.
+
+    Matched on the basename with its extension stripped, whole-token, so a
+    directory called ``reference_docs/`` (which every gathered document sits
+    under) is not itself the signal.
+    """
+    base = str(source_path or "").rsplit("/", 1)[-1]
+    base = re.sub(r"\.[^.]+$", "", base)
+    return any(tok in _SPEC_NAME_TOKENS
+               for tok in _NAME_TOKEN_SPLIT_RE.split(base.lower()) if tok)
+
 
 def _safe_path(path: Optional[str]) -> str:
     """A document path, rendered inert for the operator-facing show.
@@ -1104,11 +1147,14 @@ def classification_review(
     # example is a suggestion that is guaranteed to no-op (instr 030 self-Council,
     # Panelists B + C). When there is no promotable background document, ask the
     # open question instead of naming a file.
-    # Among the promotable ones, name the SUBSTANTIVE document rather than
-    # whatever sorts first: on the real virtio corpus the alphabetical pick was a
-    # 125-byte toctree stub while the actual spec sat further down the list
-    # (instr 030 self-Council, Panelist B). Size is a crude but honest proxy, and
-    # the example is only ever an illustration of the phrasing.
+    # Among the promotable ones, name a document that plausibly IS a
+    # specification — never one whose only qualification is being the largest
+    # (instruction 031 fix 1). Size ordering alone picked the 45 KB
+    # `linux-coding-style.rst` over the 7.8 KB `virtio-spec-behavioral-contracts.md`
+    # on the real virtio corpus, i.e. it told the operator to promote a style
+    # guide as their specification. Size survives only as the tie-break BETWEEN
+    # spec-like candidates, where it still answers the instr-030 Panelist-B
+    # finding (the alphabetical pick was a 125-byte toctree stub).
     # "Could the operator promote this one at this step?" stated directly: every
     # background document EXCEPT the two absolutely-floored classes. The earlier
     # allow-list of rules was both under-inclusive (it excluded implementation-
@@ -1125,7 +1171,19 @@ def classification_review(
     promotable_bg.sort(key=lambda e: (e.get("floor_rule") == RULE_IMPL,
                                       -(e.get("byte_count") or 0),
                                       str(e.get("source_path") or "")))
-    example = _safe_path(promotable_bg[0]["source_path"]) if promotable_bg else None
+    spec_like = [e for e in promotable_bg if _spec_like_name(e.get("source_path"))]
+    if spec_like:
+        example = _safe_path(spec_like[0]["source_path"])
+    elif promotable_bg:
+        # There IS something the operator could promote, but nothing here looks
+        # like a specification — so illustrate the phrasing without asserting
+        # which of their documents is the spec. Naming the biggest one is the
+        # 031 defect: a confident wrong answer is worse than an honest blank.
+        example = _NEUTRAL_EXAMPLE
+    else:
+        # Nothing is promotable at this step at all — ask the open question
+        # rather than offer a suggestion guaranteed to no-op (instr 030).
+        example = None
     if offer:
         if example:
             lines.append(

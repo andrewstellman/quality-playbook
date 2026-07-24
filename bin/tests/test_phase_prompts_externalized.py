@@ -400,7 +400,13 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # validation pass here — automatically, opt-out" paragraph after the
         # human-interview offer (§8b / requirements_pipeline § E.9). 13004 → 14199
         # codepoints. Recomputed.
-        "phase2":                (14199, "c20623281ac2bbc10ce9b2bebde859725cd6bb0497b46412b08b2d1735c24f92"),
+        # v1.6.0 031 fix 2 (operator visibility): the persona pass auto-applies
+        # changes to the operator's requirements, so phase2.md now orders the
+        # pass BEFORE the end-of-phase message and requires that message to
+        # carry `persona_review_disclosure(...)` — reviewers ran, what they
+        # changed, where to read it, that it can be undone. 14199 → 15025
+        # codepoints. Recomputed.
+        "phase2":                (15025, "63d2ea3c993bc1cf88e7af148c42f5cfa73f95863fce972cc5bf9cddc4bdd335"),
         # v1.5.7 090j: phase3.md + phase4.md gained the triage
         # precision-guardrail pointers (D1 reachability_analysis on
         # HIGH/MED bugs + D2 KNOWN-ISSUE classification for advisory-

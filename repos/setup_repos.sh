@@ -392,6 +392,66 @@ for short in "${REPOS[@]}"; do
         log "  reference_docs: ${ref_count} files (mirrored from docs_gathered/)"
     fi
 
+    # v1.6.0 instruction 031 fix 3: finish the install. Everything above copies
+    # the skill's FILES; a real adopter install (install_skill.py) also stages
+    # the two scaffolding documents and the target's .gitignore, and without
+    # them the Phase 0 validator reports three findings on every freshly
+    # set-up benchmark repo — `skill-template.gitignore` missing (closure),
+    # `ai_context/TOOLKIT.md` missing (closure), `.gitignore` absent or without
+    # the `quality/` sentinel (scaffolding) — so every benchmark run starts
+    # blocked. The validator is right and stays untouched; the benchmark
+    # install is what was incomplete.
+    #
+    # Destination note: these two live under the INSTALL ROOT, which in this
+    # lane is the FLAT `.github/skills/` layout (SKILL.md sits there, `bin/` at
+    # the target root — qpb_validate._resolve_install_layout).
+    #
+    # Every branch is guarded on its source existing and says so out loud when
+    # it isn't: this script runs under `set -euo pipefail` (an unguarded `cat`
+    # of a missing template aborts the whole setup), a version-pinned
+    # QPB_SKILL_DIR from an older release may genuinely not ship these files,
+    # and a SILENT skip is how this gap survived in the first place.
+    if [ -f "${QPB_SKILL_SRC}/skill-template.gitignore" ]; then
+        cp "${QPB_SKILL_SRC}/skill-template.gitignore" \
+           "${dst}/.github/skills/skill-template.gitignore"
+        # The target .gitignore — the same `cat skill-template.gitignore >>
+        # .gitignore` step AGENTS.md documents for adopters. Idempotent: keyed
+        # on the template's own header, so a target that already carries the
+        # block never gets a second copy.
+        if ! grep -q "Quality Playbook — suggested .gitignore additions" \
+                "${dst}/.gitignore" 2>/dev/null; then
+            cat "${QPB_SKILL_SRC}/skill-template.gitignore" >> "${dst}/.gitignore"
+        fi
+    else
+        echo "  *** WARNING: no skill-template.gitignore at ${QPB_SKILL_SRC} ***"
+        echo "  Phase 0 will report install_partial + scaffolding_missing_gitignore."
+    fi
+    if [ -f "${QPB_SKILL_SRC}/ai_context/TOOLKIT.md" ]; then
+        mkdir -p "${dst}/.github/skills/ai_context"
+        # `cp` (not `cp -a`): ai_context/TOOLKIT.md is a symlink in the plugin
+        # tree and the target needs the real file.
+        cp "${QPB_SKILL_SRC}/ai_context/TOOLKIT.md" \
+           "${dst}/.github/skills/ai_context/TOOLKIT.md"
+    else
+        echo "  *** WARNING: no ai_context/TOOLKIT.md at ${QPB_SKILL_SRC} ***"
+        echo "  Phase 0 will report install_partial for ai_context/TOOLKIT.md."
+    fi
+    # The negation rule the block just added (`!quality/RUN_INDEX.md`) makes
+    # run_playbook's pre-flight require that file to exist — install_skill.py
+    # creates it for the same reason (`_ensure_sentinel_files`), so this lane
+    # must too, or completing the install would trade three Phase 0 findings
+    # for a "Required sentinel files missing" abort. qpb_validate's stale-
+    # quality/ check excludes RUN_INDEX.md, so a freshly-created one does not
+    # read as a prior run.
+    mkdir -p "${dst}/quality"
+    if [ ! -s "${dst}/quality/RUN_INDEX.md" ]; then
+        printf '%s\n' \
+            "# Run Index" \
+            "" \
+            "This directory holds Quality Playbook run artifacts. See <https://github.com/andrewstellman/quality-playbook> for details." \
+            > "${dst}/quality/RUN_INDEX.md"
+    fi
+
     log "  ✓ ${short}-${VERSION} ready"
     echo ""
 done

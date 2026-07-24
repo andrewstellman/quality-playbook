@@ -145,6 +145,8 @@ understood the system to be, then walk the spec with you — you **confirm** wha
 (recorded as durable evidence), **correct** what's wrong (it lands in the requirements and
 re-renders), or **add** what I missed. It's opt-in and I will not start it unless you ask.
 
+<the expert-review disclosure — see below; included whenever the expert-review pass ran>
+
 ### What to do next
 
 - **To validate the requirements first (recommended):** say `run the requirements interview`.
@@ -152,6 +154,38 @@ re-renders), or **add** what I missed. It's opt-in and I will not start it unles
   `keep going` or `run phase 3`. (Validation stays available; you'll get one reminder at
   the end of the run.)
 ```
+
+**The expert-review disclosure is part of State P2 whenever the pass ran** *(v1.6.0
+Feature H, instruction 031)*. The Feature H persona validation pass runs at this boundary
+and **auto-applies** grounded changes to the operator's requirements. Before instruction
+031 the standard end-of-Phase-2 message said nothing about it, so an operator reading the
+message never learned their spec had been changed unless they separately opened
+`quality/persona_review_summary.json` — "surface, don't silently apply" failing at the one
+surface the operator actually reads.
+
+**Order matters: run the pass FIRST, then emit this block.** The block is the last visible
+content of the phase, and it cannot report a pass that has not happened yet. So at this
+boundary: finish the requirements → run the persona validation pass (`references/
+requirements_pipeline.md` § E.9) → re-render `quality/REQUIREMENTS.md` from the updated
+manifest → *then* emit State P2 with the disclosure in it.
+
+Render it with `bin.persona_apply.persona_review_disclosure(review_summary)`, where
+`review_summary` is the pass's `PersonaPass.review_summary` (equivalently the loaded
+`quality/persona_review_summary.json`), and print the output verbatim. It says, in the
+operator's language, that expert reviewers read the requirements against their
+documentation, what they did (added / rewrote / removed / agreed-with, plus what they
+raised that was *not* acted on), that the requirements were changed, where to read every
+change with its backing, and that the whole thing can be undone.
+
+**When the pass did NOT run, nothing is added.** The renderer returns `None` for a run with
+no review summary — Feature H disabled for the run, or no pass performed — and the State P2
+block is emitted exactly as it was before. A run that had no expert review must never claim
+one.
+
+As with the State P1 documentation review, the output is written in the operator's language
+and carries no internal labels — do NOT paraphrase it with internal vocabulary ("persona",
+"Feature H", "agent-validation", "grounded", "sub-agent"); say *expert reviewers* and
+*backed by your documentation* (the v1.6.0 plain-language key).
 
 ### State P3 — Phase 3 just completed
 

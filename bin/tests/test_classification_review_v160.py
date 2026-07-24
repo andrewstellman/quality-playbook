@@ -228,28 +228,39 @@ class ShowTests(unittest.TestCase):
         # of rules that excluded implementation-floored documents — which this
         # step's decision CAN lift. Under-inclusive is the safe direction, but it
         # hides the one case where the operator most needs the affordance.
+        #
+        # Instruction 031 fix 1 narrowed WHICH of the eligible documents gets
+        # named: eligibility is still the implementation floor's to lift, but the
+        # example only names a document that plausibly IS a specification. So the
+        # eligible file here carries a spec-shaped name (a code-shaped contract —
+        # exactly the sidecar's own use case); a plain `iface.py` is eligible but
+        # unnamed, which the placeholder case in test_virtio_run_fixes_031 pins.
         man = dc.classify_documents(
-            [("reference_docs/iface.py", PY_LOGIC),
+            [("reference_docs/iface-protocol.py", PY_LOGIC),
              ("reference_docs/README.md", "# Readme\n\nbg\n")],
             generated_at="X")
         self.assertEqual(
             {r["source_path"]: r["floor_rule"] for r in man["records"]}
-            ["reference_docs/iface.py"], dc.RULE_IMPL)
-        self.assertIn("treat `reference_docs/iface.py` as my specification",
+            ["reference_docs/iface-protocol.py"], dc.RULE_IMPL)
+        self.assertIn("treat `reference_docs/iface-protocol.py` as my specification",
                       dc.classification_review(man))
 
     def test_worked_example_prefers_a_document_over_source_code(self):
         # Self-Council round 3 (Panelist B): source files are eligible now, and
         # are often the largest thing in the corpus — so size alone would
         # routinely illustrate "treat X as my specification" with a .c file.
+        # (Instruction 031 fix 1: both candidates now carry the spec name signal,
+        # so this still tests the documentation-over-source ORDERING rather than
+        # the newer "is it plausibly a spec at all?" filter.)
         man = dc.classify_documents(
-            [("reference_docs/engine.c", "int main(void) {\n  return 0;\n}\n" * 80),
-             ("reference_docs/notes.md", "# Notes\n\nShort design notes.\n")],
+            [("reference_docs/engine-protocol.c",
+              "int main(void) {\n  return 0;\n}\n" * 80),
+             ("reference_docs/protocol-notes.md", "# Notes\n\nShort design notes.\n")],
             generated_at="X")
         by = {r["source_path"]: r["floor_rule"] for r in man["records"]}
-        self.assertEqual(by["reference_docs/engine.c"], dc.RULE_IMPL)
+        self.assertEqual(by["reference_docs/engine-protocol.c"], dc.RULE_IMPL)
         out = dc.classification_review(man)
-        self.assertIn("treat `reference_docs/notes.md` as my specification", out)
+        self.assertIn("treat `reference_docs/protocol-notes.md` as my specification", out)
 
     def test_path_sanitizer_covers_line_separators_bidi_and_length(self):
         # Self-Council round 2 (Panelist A NITs): U+2028/U+2029/U+0085 are line
