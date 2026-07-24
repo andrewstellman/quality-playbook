@@ -251,6 +251,29 @@ class SpecNameSignalTests(unittest.TestCase):
                      "reference_docs/CHANGELOG.md"):
             self.assertFalse(dc._spec_like_name(path), path)
 
+    def test_the_practice_domain_class_is_closed_not_just_one_filename(self):
+        # 031 self-Council round 3 (Panelist A, P1): round 2 closed
+        # `linux-coding-standards.rst` but not the CLASS it stood for — the same
+        # document wearing different words. "How the team works" is not "what
+        # the software must do", whatever spec word sits beside it.
+        for path in ("reference_docs/documentation-standards.md",
+                     "reference_docs/naming-standards.md",
+                     "reference_docs/formatting-standards.md",
+                     "reference_docs/engineering-standards.md",
+                     "reference_docs/commit-message-contract.md",
+                     "reference_docs/code-review-reference.md",
+                     "reference_docs/contributing-standards.md",
+                     "reference_docs/workflow-protocol.md"):
+            self.assertFalse(dc._spec_like_name(path), path)
+
+    def test_the_stub_genre_stays_vetoed(self):
+        # 031 self-Council round 3 (Panelist A, NIT): `index`/`toc` are the
+        # instr-030 toctree-stub genre, not version words, so the round-2 trim
+        # took them off the veto by the wrong rule.
+        for path in ("reference_docs/spec-index.md", "reference_docs/api-toc.md",
+                     "reference_docs/protocol-contents.md"):
+            self.assertFalse(dc._spec_like_name(path), path)
+
     def test_a_genre_token_vetoes_the_spec_token(self):
         for path in ("reference_docs/linux-coding-standards.rst",
                      "reference_docs/api-migration-guide.md",
@@ -572,6 +595,40 @@ class ReviewDisclosureTests(unittest.TestCase):
         self.assertIn("BUG records", str(ctx.exception))
         # ...and it changed nothing on the way out.
         self.assertTrue((self.root / "quality" / pa.REVIEW_SUMMARY_NAME).is_file())
+
+    def test_an_empty_bug_manifest_still_permits_the_boundary_undo(self):
+        # 031 self-Council round 3 (Panelist B): `bugs_manifest.json` is a
+        # REQUIRED Phase 2 artifact, so at the 2→3 boundary it always exists with
+        # `records: []`. A guard keyed on the file's presence rather than its
+        # contents would block every undo — including the one the disclosure
+        # offers — and no test caught that mutation.
+        self._run_pass()
+        (self.root / "quality" / "bugs_manifest.json").write_text(
+            json.dumps({"records": []}), encoding="utf-8")
+        restored = pa.revert_from_disk(self.root)
+        self.assertEqual(len(restored["records"]), 1)
+
+    def test_a_second_undo_says_it_is_already_undone(self):
+        # 031 self-Council round 3 (Panelist B, NIT): the second undo fell into
+        # "the pass did not run here" with the undone record sitting right there.
+        self._run_pass()
+        pa.revert_from_disk(self.root)
+        with self.assertRaises(FileNotFoundError) as ctx:
+            pa.revert_from_disk(self.root)
+        self.assertIn("already been undone", str(ctx.exception))
+
+    def test_a_malformed_bug_manifest_refuses_by_message_not_traceback(self):
+        # 031 self-Council round 3 (Panelist B, NIT): a JSON list / null escaped
+        # the fail-safe as an AttributeError.
+        for body in ("[]", "null", '{"records": [{"id": "BUG-001"}]}', "not json"):
+            with self.subTest(body=body):
+                self._run_pass()
+                (self.root / "quality" / "bugs_manifest.json").write_text(
+                    body, encoding="utf-8")
+                with self.assertRaises(ValueError) as ctx:
+                    pa.revert_from_disk(self.root)
+                self.assertIn("BUG records", str(ctx.exception))
+                (self.root / "quality" / "bugs_manifest.json").unlink()
 
     def test_the_documentary_claim_does_not_cover_removals(self):
         # 031 self-Council round 2 (Panelist B, NIT): "they only add or CHANGE a

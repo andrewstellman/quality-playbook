@@ -593,6 +593,7 @@ def revert_from_disk(target_repo, *, write: bool = True) -> dict:
     quality_dir = Path(target_repo) / "quality"
     snapshot = quality_dir / PRE_REVIEW_MANIFEST_NAME
     summary = quality_dir / REVIEW_SUMMARY_NAME
+    undone = quality_dir / UNDONE_REVIEW_SUMMARY_NAME
     if not snapshot.is_file():
         if summary.is_file():
             raise FileNotFoundError(
@@ -601,6 +602,15 @@ def revert_from_disk(target_repo, *, write: bool = True) -> dict:
                 f"automatically. The requirements WERE changed: every change is "
                 f"listed in {summary} and can be undone by hand."
             )
+        if undone.is_file():
+            # A SECOND undo. Saying "the pass did not run here" would be
+            # confusing with the undone record sitting right there (instr 031
+            # self-Council round 3, Panelist B).
+            raise FileNotFoundError(
+                f"the expert review here has already been undone — the "
+                f"requirements are back to their pre-review state and the "
+                f"reviewers' notes are kept at {undone}."
+            )
         raise FileNotFoundError(
             f"no pre-review snapshot at {snapshot} and no review summary — the "
             f"expert-review pass did not run here. There is nothing to undo."
@@ -608,7 +618,12 @@ def revert_from_disk(target_repo, *, write: bool = True) -> dict:
     bugs = quality_dir / "bugs_manifest.json"
     if bugs.is_file():
         try:
-            has_bugs = bool(json.loads(bugs.read_text(encoding="utf-8")).get("records"))
+            data = json.loads(bugs.read_text(encoding="utf-8"))
+            # A list / null / anything not a mapping is not a shape we can read;
+            # `.get` on it would escape this handler as an AttributeError and
+            # refuse by traceback rather than by the designed message (instr 031
+            # self-Council round 3, Panelist B).
+            has_bugs = bool(data.get("records")) if isinstance(data, dict) else True
         except (OSError, ValueError):
             has_bugs = True          # unreadable: assume the risk is real
         if has_bugs:

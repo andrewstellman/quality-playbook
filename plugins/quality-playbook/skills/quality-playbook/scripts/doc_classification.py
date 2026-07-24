@@ -984,22 +984,43 @@ _SPEC_NAME_TOKENS = frozenset({
 # over a genuine spec, since size still breaks ties among spec-like candidates
 # (instr 031 self-Council, Panelist A). A vetoed name falls through to the
 # placeholder, which is the honest direction for exactly this class.
+# Two classes, both naming what a document IS rather than what it is about:
+#
+# 1. GENRE words — the document's kind is not "specification": a guide, a
+#    tutorial, an FAQ, a changelog, a set of examples, a table of contents.
+# 2. PRACTICE-DOMAIN words — the subject is how the TEAM works (their coding,
+#    documentation, naming, review or commit practice), so "standards" /
+#    "reference" / "contract" beside one of these describes house style, not the
+#    software's contract. This is the class `linux-coding-style.rst` belongs to,
+#    and it is why closing it one filename at a time does not work:
+#    `documentation-standards.md`, `naming-standards.md` and
+#    `engineering-standards.md` are the same document wearing different words
+#    (instr 031 self-Council round 3, Panelist A — who caught that round 2 had
+#    closed only the one filename, not the class).
 _NON_SPEC_NAME_TOKENS = frozenset({
-    "style", "styles", "styleguide", "coding",
+    # genre
+    "style", "styles", "styleguide",
     "guide", "guides", "guideline", "guidelines",
     "tutorial", "tutorials", "howto", "walkthrough", "walkthroughs",
     "faq", "faqs", "cheatsheet", "quickstart", "checklist", "checklists",
     "changelog", "notes", "note",
     "migration", "migrations", "migrating", "upgrade", "upgrading", "roadmap",
     "example", "examples", "sample", "samples", "card", "cards",
-    "practices", "glossary", "readme",
+    "practices", "glossary", "readme", "index", "toc", "contents",
+    # practice domain — "how we work", not "what the software must do"
+    "coding", "documentation", "naming", "formatting", "engineering",
+    "commit", "commits", "branching", "review", "reviews", "contributing",
+    "onboarding", "process", "workflow", "workflows",
 })
 # Deliberately NOT vetoed: version-adjacent words (`release`, `changes`,
-# `history`, `index`). A veto is a demotion, and demoting `virtio-spec-release-1.2.md`
+# `history`). A veto is a demotion, and demoting `virtio-spec-release-1.2.md`
 # hands the example to whatever else is spec-like — in the worst case a 7-byte
 # `api-contract-stub.md`, which re-opens the instr-030 substantive-over-stub
-# finding one door over (instr 031 self-Council round 2, Panelist A). The genre
-# words above name a document's KIND; a version word only dates it.
+# finding one door over (instr 031 self-Council round 2, Panelist A). A version
+# word only dates a document; it does not say what kind of document it is.
+# (`index`/`toc` went back onto the veto in round 3: they are the instr-030
+# toctree-stub genre, not version words — the rule above is what decides, and it
+# puts them on the genre side.)
 # Tokens are ALPHABETIC runs, so digits split too (``rfc793`` -> ``rfc``), and
 # matching is whole-token — a substring match would read "spec" out of
 # "inspector" and "api" out of "capital".
@@ -1207,9 +1228,16 @@ def classification_review(
     # the rule, NOT on `promotable`: RULE_IMPL also carries `promotable=False`,
     # and filtering on that would silently re-close the code-shaped-contract
     # affordance instr 030 opened.
+    # ``RULE_OPERATOR_AUTHORITATIVE``/``RULE_CONTRACT`` ride along for the same
+    # reason: with a stale ``formal_records`` an already-authoritative document
+    # can appear on the background side, and inviting the operator to promote
+    # what they already promoted reads as the system not listening (instr 031
+    # self-Council round 3, Panelist A — low reachability, free to close).
     promotable_bg = [e for e in background
                      if e.get("floor_rule") not in (RULE_ADVISORY, RULE_BACKGROUND,
-                                                    RULE_OPERATOR_BACKGROUND)]
+                                                    RULE_OPERATOR_BACKGROUND,
+                                                    RULE_OPERATOR_AUTHORITATIVE,
+                                                    RULE_CONTRACT)]
     # Prefer a documentation-shaped candidate over an implementation-floored one:
     # source files are eligible (the operator CAN promote one) but are often the
     # largest thing in the corpus, so size alone would routinely illustrate
