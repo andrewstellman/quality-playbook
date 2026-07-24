@@ -863,7 +863,7 @@ Re-read `quality/PROGRESS.md`. Update:
 
 Re-read `quality/PROGRESS.md` and `quality/REQUIREMENTS.md` before starting Phase 3. The requirements are the target list for the code review — every requirement is a potential bug if the code doesn't satisfy its conditions.
 
-**End-of-phase message (mandatory — print this after Phase 2 completes, then STOP):**
+**End-of-phase message (mandatory — print this after Phase 2 completes, then STOP).** *(v1.6.0 instruction 031: "after Phase 2 completes" means after the Feature H persona validation pass at this boundary has run and `REQUIREMENTS.md` has been re-rendered — see the two paragraphs below this message. This message summarizes the artifacts; the `## What just happened` State P2 block is what carries the expert-review disclosure and the interview offer, and it is the last visible content of the phase.)*
 
 ```
 # Phase 2 Complete — Quality Artifacts Generated

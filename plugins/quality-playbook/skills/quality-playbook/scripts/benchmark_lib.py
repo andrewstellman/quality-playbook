@@ -366,7 +366,17 @@ PROTECTED_PREFIXES = (
     "previous_runs/",
     "docs_gathered/",
 )
-PROTECTED_EXACT = ("AGENTS.md",)
+# v1.6.0 031: `.gitignore` joins AGENTS.md. The install appends the QPB
+# gitignore block to the target (`setup_repos.sh`; the same `cat
+# skill-template.gitignore >> .gitignore` step AGENTS.md documents for
+# adopters), and on a target that is itself a git checkout — casbin, keycloak,
+# nats-server under repos/clean/ — that is a TRACKED modification, which this
+# function would revert on its first tidy: the install would silently un-do
+# itself and Phase 0 would go back to reporting `scaffolding_missing_gitignore`
+# (instr 031 self-Council, Panelist C — observed: "Tidied 1 tracked file(s) in
+# casbin: .gitignore"). Install scaffolding is a run output here, not an
+# incidental agent edit.
+PROTECTED_EXACT = ("AGENTS.md", ".gitignore")
 
 
 def _parse_porcelain_path(line: str) -> Optional[str]:

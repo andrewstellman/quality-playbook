@@ -64,7 +64,7 @@ Rules 1, 2, 6, 7, and 9 are the load-bearing branches for adopter UX:
 
 ## Decision tree — what the block says when
 
-For each run state, use the template prose and adapt the phrasing to the actual artifact counts and timestamps from disk. **Do not invent counts.** If a number isn't in PROGRESS.md / BUGS.md / the run-state log / recheck-results.json, omit it.
+For each run state, use the template prose and adapt the phrasing to the actual artifact counts and timestamps from disk. **Do not invent counts.** If a number isn't in PROGRESS.md / BUGS.md / the run-state log / recheck-results.json / persona_review_summary.json (the State P2 expert-review counts, v1.6.0 instruction 031), omit it.
 
 ### State P1 — Phase 1 only completed (Mode A multi-pass)
 
@@ -164,10 +164,29 @@ message never learned their spec had been changed unless they separately opened
 surface the operator actually reads.
 
 **Order matters: run the pass FIRST, then emit this block.** The block is the last visible
-content of the phase, and it cannot report a pass that has not happened yet. So at this
-boundary: finish the requirements → run the persona validation pass (`references/
-requirements_pipeline.md` § E.9) → re-render `quality/REQUIREMENTS.md` from the updated
-manifest → *then* emit State P2 with the disclosure in it.
+content of the phase, and it cannot report a pass that has not happened yet. The boundary
+runs in exactly this order:
+
+1. Finish the requirements (Phase 2's artifacts are complete).
+2. Run the persona validation pass (`references/requirements_pipeline.md` § E.9).
+3. Re-render `quality/REQUIREMENTS.md` from the updated manifest.
+4. Emit State P2 — carrying **both** the requirements-interview offer and this disclosure.
+
+**The interview offer travels inside this block, so it now comes after the pass** — and
+that is the right order, not an accident of layout: the operator is being invited to walk
+the requirements *as they now stand*, including anything the reviewers changed. Reviewing a
+spec that is about to be rewritten under them would be the worse sequence. (Before
+instruction 031 the offer preceded the pass; the three surfaces — this file, `phase2.md`,
+§ E.9 — now agree on one order.)
+
+**If the operator says `undo the expert review changes`** (or anything that means it), call
+`bin.persona_apply.revert_from_disk(<target_repo>)`: it restores
+`quality/requirements_manifest.json` from the pre-pass snapshot
+`quality/requirements_manifest.pre_review.json` — exact for added, rewritten AND removed
+requirements, because it is the whole prior manifest, not a replay — and clears the review
+artifacts. Then **re-render `quality/REQUIREMENTS.md`** from the restored manifest, the same
+write-back step the pass itself uses. It raises `FileNotFoundError` when no snapshot exists;
+that means there is nothing to undo — say so rather than improvising a hand-edit.
 
 Render it with `bin.persona_apply.persona_review_disclosure(review_summary)`, where
 `review_summary` is the pass's `PersonaPass.review_summary` (equivalently the loaded

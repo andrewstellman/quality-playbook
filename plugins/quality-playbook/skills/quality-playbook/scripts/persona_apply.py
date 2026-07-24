@@ -70,6 +70,16 @@ _COVER_RE = re.compile(r"^(REQ-\d+)(/.*)?$")
 # points the operator at the review summary by path.
 REVIEW_SUMMARY_NAME = "persona_review_summary.json"
 REQUIREMENTS_MANIFEST_NAME = "requirements_manifest.json"
+# The pre-pass snapshot (instruction 031 fix 2). The revert has always restored
+# from ``PersonaPass._pre_requirements`` — an IN-MEMORY field. The agent runs the
+# pass in a scripted Python invocation that exits before the operator ever reads
+# the end-of-Phase-2 message, so by the time they can say "undo" the snapshot is
+# gone, and a dropped requirement's text and a corrected requirement's original
+# wording exist nowhere on disk (instr 031 self-Council, Panelist B: reproduced —
+# a rebuilt pass raised ``TypeError`` on revert). Disclosing "I can put your
+# requirements back exactly as they were" REQUIRES that to be true, so the pass
+# now persists the pre-pass manifest beside the two artifacts it already writes.
+PRE_REVIEW_MANIFEST_NAME = "requirements_manifest.pre_review.json"
 
 # v1.6.0 Feature H slice 6 (§8b "Honesty about maturity"). A persona finding that
 # rests on the readability rubric — the Well-organized / readable dimension the
@@ -228,6 +238,27 @@ def persona_review_disclosure(review_summary: Optional[dict]) -> Optional[str]:
         return None
 
     applied = list(review_summary.get("applied") or [])
+    stated = review_summary.get("applied_count")
+    if isinstance(stated, int) and stated != len(applied):
+        # A LOSSY summary — the count and the list disagree (a truncated or
+        # hand-built `persona_review_summary.json`, an older shape, anything
+        # passed through an intermediate). Saying "did not change anything" on
+        # evidence that says otherwise is a positive false claim, which is worse
+        # than the silence this feature replaced (instr 031 self-Council,
+        # Panelist B). Say only what is certain: the review ran, the record is
+        # over there, and it can be undone.
+        return "\n".join([
+            "### I had expert reviewers check your requirements", "",
+            "Before moving on, I brought in expert reviewers — one who knows this "
+            "kind of system and one who reviews for security — to read your "
+            "requirements against the documents you gave me.", "",
+            "**The record of what they did is incomplete here, so I won't "
+            f"summarize it.** Open `{REVIEW_SUMMARY_PATH}` to see what they "
+            "changed. If you would rather not keep their changes, say **undo the "
+            "expert review changes** and I will put your requirements back "
+            "exactly as they were before this step.",
+        ])
+
     moves = [str(m.get("move") or "").lower() for m in applied]
     added = moves.count("add")
     reworded = moves.count("correct")
@@ -261,8 +292,15 @@ def persona_review_disclosure(review_summary: Optional[dict]) -> Optional[str]:
         lines.append(f"- Rewrote {_plural(reworded, 'requirement', 'requirements')} "
                      "to match what your documentation actually says.")
     if removed:
+        # NOT "…your documentation does not support": a removal is a
+        # pass-through move — the grounding guard checks additions and rewrites
+        # against your documents, never a removal — so claiming documentary
+        # support for it asserts a check the pipeline does not perform, for the
+        # most destructive move there is (instr 031 self-Council, Panelist B).
         lines.append(f"- Removed {_plural(removed, 'requirement', 'requirements')} "
-                     "your documentation does not support.")
+                     f"they judged {'does' if removed == 1 else 'do'} not belong. "
+                     "(A removal isn't checked against your documents the way an "
+                     "addition is — worth a look.)")
     if confirmed:
         lines.append(f"- Read {_plural(confirmed, 'requirement', 'requirements')} "
                      f"and agreed with {'it' if confirmed == 1 else 'them'} as "
@@ -286,10 +324,11 @@ def persona_review_disclosure(review_summary: Optional[dict]) -> Optional[str]:
         lines.append(
             f"**Your requirements were changed by this — {_plural(changed, 'change', 'changes')} "
             f"in all.** Every one of them is listed in `{REVIEW_SUMMARY_PATH}` with "
-            "what it is based on, so you can check the reasoning. If you would "
-            "rather not keep them, say **undo the expert review changes** and I "
-            "will put your requirements back exactly as they were before this "
-            "step — all of it, or just the added ones you name."
+            "what it is based on, so you can check the reasoning. Requirement "
+            "numbers were put back in order afterwards, so some of them shifted. "
+            "If you would rather not keep any of this, say **undo the expert "
+            "review changes** and I will put your requirements back exactly as "
+            "they were before this step."
         )
     else:
         lines.append(
@@ -362,6 +401,14 @@ def revert(pass_result: PersonaPass, bugs_manifest: Optional[dict] = None, *, wh
     remap to BUG — the design's "filter by source_type == agent-validation, drop
     the selected records" operation. Returns ``(requirements_manifest,
     bugs_manifest)``; both are new/mutated to the reverted state.
+
+    **Known limitation of the selective path** (instr 031 self-Council, Panelist
+    B — the behavior predates instruction 031, which no longer invites it): a
+    ``correct`` move RETAGS the operator's own record ``agent-validation``, so
+    naming that id here DELETES their requirement instead of restoring its
+    pre-correction wording. Until that is fixed, the operator-facing undo offers
+    the whole-pass restore only (``which="all"`` in-process, ``revert_from_disk``
+    afterwards), which is exact for adds, corrects and drops alike.
     """
     if which == "all":
         restored = copy.deepcopy(pass_result._pre_requirements)
@@ -492,4 +539,49 @@ def run_feature_h(
         (quality_dir / REVIEW_SUMMARY_NAME).write_text(
             json.dumps(result.review_summary, indent=2, sort_keys=True) + "\n",
             encoding="utf-8")
+        # instruction 031 fix 2: the PRE-pass manifest, so the undo the operator
+        # is told about survives the process that ran the pass. Written last and
+        # only when the pass actually applied itself — an absent snapshot is the
+        # honest signal that there is nothing to undo.
+        if result._pre_requirements is not None:
+            (quality_dir / PRE_REVIEW_MANIFEST_NAME).write_text(
+                json.dumps(result._pre_requirements, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8")
     return result
+
+
+def revert_from_disk(target_repo, *, write: bool = True) -> dict:
+    """Undo the whole pass in a LATER process, from the artifacts on disk.
+
+    This is what the end-of-Phase-2 disclosure's *"say **undo the expert review
+    changes**"* resolves to. It restores ``quality/requirements_manifest.json``
+    from the pre-pass snapshot ``quality/requirements_manifest.pre_review.json``
+    — which restores adds, corrects AND drops exactly, because it is the whole
+    prior manifest rather than a replay — and returns the restored manifest. The
+    caller (the running agent) then RE-RENDERS ``quality/REQUIREMENTS.md`` from
+    it, the same write-back step the pass itself and the human interview use.
+
+    Raises ``FileNotFoundError`` when there is no snapshot: no pass ran, or it
+    ran before this was persisted. Never guesses.
+
+    Scope: the Phase 2→3 boundary, where no BUG records exist yet, so there are
+    no BUG→REQ cross-references to re-map. In-process, ``revert()`` remains the
+    full-fidelity path (it restores the BUG manifest too).
+    """
+    quality_dir = Path(target_repo) / "quality"
+    snapshot = quality_dir / PRE_REVIEW_MANIFEST_NAME
+    if not snapshot.is_file():
+        raise FileNotFoundError(
+            f"no pre-review snapshot at {snapshot} — nothing to undo "
+            f"(the expert-review pass did not run, or ran before v1.6.0 "
+            f"instruction 031 persisted the snapshot)"
+        )
+    restored = json.loads(snapshot.read_text(encoding="utf-8"))
+    if write:
+        (quality_dir / REQUIREMENTS_MANIFEST_NAME).write_text(
+            json.dumps(restored, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        # The summary and the snapshot describe a pass that no longer applies;
+        # leaving them would let a later render re-disclose an undone review.
+        for name in (REVIEW_SUMMARY_NAME, PRE_REVIEW_MANIFEST_NAME):
+            (quality_dir / name).unlink(missing_ok=True)
+    return restored

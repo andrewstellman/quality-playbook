@@ -405,8 +405,12 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # pass BEFORE the end-of-phase message and requires that message to
         # carry `persona_review_disclosure(...)` — reviewers ran, what they
         # changed, where to read it, that it can be undone. 14199 → 15025
-        # codepoints. Recomputed.
-        "phase2":                (15025, "63d2ea3c993bc1cf88e7af148c42f5cfa73f95863fce972cc5bf9cddc4bdd335"),
+        # codepoints. Recomputed. Then the 031 self-Council (Panelist B) found
+        # the ordering circular — the interview offer rides INSIDE the post-pass
+        # block while ¶68 ordered the pass after the offer — so phase2.md now
+        # states the one boundary order (finalize → pass → re-render → block
+        # carrying offer + disclosure) and the undo procedure. 15025 → 15747.
+        "phase2":                (15747, "1cb34a17d673744a91367f02fb277ec2aad9d7e309b038e5d5348e76e90b23df"),
         # v1.5.7 090j: phase3.md + phase4.md gained the triage
         # precision-guardrail pointers (D1 reachability_analysis on
         # HIGH/MED bugs + D2 KNOWN-ISSUE classification for advisory-

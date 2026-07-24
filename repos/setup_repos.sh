@@ -420,6 +420,16 @@ for short in "${REPOS[@]}"; do
         # block never gets a second copy.
         if ! grep -q "Quality Playbook — suggested .gitignore additions" \
                 "${dst}/.gitignore" 2>/dev/null; then
+            # A target .gitignore that does not end in a newline would otherwise
+            # have its LAST RULE glued to the template's first line and
+            # destroyed — six repos under repos/clean/ are in exactly that
+            # state, and on agentscope this produced
+            # `uv.lock# Quality Playbook — …`, silently un-ignoring uv.lock in
+            # the repo under audit (instr 031 self-Council, Panelist C).
+            if [ -s "${dst}/.gitignore" ] && \
+               [ -n "$(tail -c 1 "${dst}/.gitignore")" ]; then
+                printf '\n' >> "${dst}/.gitignore"
+            fi
             cat "${QPB_SKILL_SRC}/skill-template.gitignore" >> "${dst}/.gitignore"
         fi
     else
@@ -436,13 +446,18 @@ for short in "${REPOS[@]}"; do
         echo "  *** WARNING: no ai_context/TOOLKIT.md at ${QPB_SKILL_SRC} ***"
         echo "  Phase 0 will report install_partial for ai_context/TOOLKIT.md."
     fi
-    # The negation rule the block just added (`!quality/RUN_INDEX.md`) makes
-    # run_playbook's pre-flight require that file to exist — install_skill.py
-    # creates it for the same reason (`_ensure_sentinel_files`), so this lane
-    # must too, or completing the install would trade three Phase 0 findings
-    # for a "Required sentinel files missing" abort. qpb_validate's stale-
-    # quality/ check excludes RUN_INDEX.md, so a freshly-created one does not
-    # read as a prior run.
+    # The negation rule the block just added (`!quality/RUN_INDEX.md`) is turned
+    # into a HARD pre-flight requirement by run_playbook's `_verify_sentinels`
+    # (it derives its sentinel list from the target's own .gitignore `!`-rules),
+    # so completing the install would otherwise trade three Phase 0 findings for
+    # a "Required sentinel files missing" abort. install_skill.py creates the
+    # same file, though only on the NESTED layout — `_ensure_sentinel_files`
+    # emits `non_nested_target` for the FLAT `.github/skills/` layout this lane
+    # installs, so the justification here is the negation rule, not adopter
+    # parity (instr 031 self-Council, Panelist C). qpb_validate's stale-quality/
+    # check excludes RUN_INDEX.md by name, and run_playbook's
+    # `archive_previous_run` now treats it as non-live, so a freshly-created one
+    # does not read as a prior run in either surface.
     mkdir -p "${dst}/quality"
     if [ ! -s "${dst}/quality/RUN_INDEX.md" ]; then
         printf '%s\n' \

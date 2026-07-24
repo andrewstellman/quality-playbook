@@ -249,18 +249,21 @@ class ShowTests(unittest.TestCase):
         # Self-Council round 3 (Panelist B): source files are eligible now, and
         # are often the largest thing in the corpus — so size alone would
         # routinely illustrate "treat X as my specification" with a .c file.
-        # (Instruction 031 fix 1: both candidates now carry the spec name signal,
-        # so this still tests the documentation-over-source ORDERING rather than
-        # the newer "is it plausibly a spec at all?" filter.)
+        # (Instruction 031 fix 1: the document side must also carry the spec name
+        # signal to be NAMED at all, so the fixture says `wire-protocol.md`. The
+        # ordering itself is now structural — documents are a separate stratum
+        # and a source file is only reachable when there is no promotable
+        # document — and the case where the document carries no signal is pinned
+        # in test_virtio_run_fixes_031 as the placeholder.)
         man = dc.classify_documents(
             [("reference_docs/engine-protocol.c",
               "int main(void) {\n  return 0;\n}\n" * 80),
-             ("reference_docs/protocol-notes.md", "# Notes\n\nShort design notes.\n")],
+             ("reference_docs/wire-protocol.md", "# Wire protocol\n\nShort notes.\n")],
             generated_at="X")
         by = {r["source_path"]: r["floor_rule"] for r in man["records"]}
         self.assertEqual(by["reference_docs/engine-protocol.c"], dc.RULE_IMPL)
         out = dc.classification_review(man)
-        self.assertIn("treat `reference_docs/protocol-notes.md` as my specification", out)
+        self.assertIn("treat `reference_docs/wire-protocol.md` as my specification", out)
 
     def test_path_sanitizer_covers_line_separators_bidi_and_length(self):
         # Self-Council round 2 (Panelist A NITs): U+2028/U+2029/U+0085 are line

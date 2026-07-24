@@ -150,6 +150,54 @@ class WorkedExampleTests(unittest.TestCase):
         self.assertEqual(_example_in(dc.classification_review(man)),
                          "reference_docs/protocol-reference.md")
 
+    def test_a_source_file_is_never_named_over_a_document(self):
+        # 031 self-Council round 1 (Panelist A, P1): sweeping the name signal
+        # across documents AND source files together inverted the rule above —
+        # a spec-NAMED `.c` beat an ordinary document, so the show said "treat
+        # `engine-protocol.c` as my specification" one line after saying that
+        # file "shows what the software already does, not what it's supposed to
+        # do". Documents are their own stratum: when one exists and none of them
+        # looks like a spec, the answer is the placeholder, not the source file.
+        man = _manifest([
+            ("reference_docs/engine-protocol.c", "int main(void) { return 0; }\n" * 80),
+            ("reference_docs/design-notes.md", "# Notes\n\nShort design notes.\n"),
+        ])
+        out = dc.classification_review(man)
+        self.assertEqual(_example_in(out), "<the-file>")
+        self.assertNotIn("engine-protocol.c` as my", out)
+
+    def test_a_source_file_is_still_nameable_when_no_document_is_promotable(self):
+        # ...but the instr-030 affordance survives: a code-shaped contract is
+        # exactly what the operator promotion exists for, so when there is no
+        # promotable document at all the source file is named.
+        man = _manifest([
+            ("reference_docs/iface-protocol.py", "import os\n\ndef f():\n    return 1\n"),
+            ("reference_docs/README.md", "# Readme\n\nbg\n"),
+        ])
+        self.assertEqual(_example_in(dc.classification_review(man)),
+                         "reference_docs/iface-protocol.py")
+
+    def test_a_genre_word_vetoes_a_spec_word(self):
+        # 031 self-Council round 1 (Panelist A, P1): `linux-coding-standards.rst`
+        # is ONE RENAME from the file that caused this instruction, and it
+        # matches `standards` — with size still breaking ties, it would have been
+        # named over the real 7.8 KB spec. The genre veto is what stops the fix
+        # from being a rename away from useless.
+        man = _manifest([
+            ("reference_docs/linux-coding-standards.rst", STYLE_GUIDE),
+            ("reference_docs/virtio-spec-behavioral-contracts.md", VIRTIO_SPEC),
+        ])
+        self.assertEqual(_example_in(dc.classification_review(man)),
+                         "reference_docs/virtio-spec-behavioral-contracts.md")
+
+    def test_genre_documents_fall_through_to_the_placeholder(self):
+        for name in ("linux-coding-standards.rst", "api-migration-guide.md",
+                     "quick-reference-card.md", "protocol-tutorial.md",
+                     "api-changelog.md", "spec-release-notes.md"):
+            man = _manifest([("reference_docs/" + name, "# doc\n\nbody\n" * 20)])
+            out = dc.classification_review(man)
+            self.assertEqual(_example_in(out), "<the-file>", name)
+
 
 class SpecNameSignalTests(unittest.TestCase):
     """The name signal itself: whole-token, on the filename only."""
@@ -172,6 +220,29 @@ class SpecNameSignalTests(unittest.TestCase):
                      "reference_docs/release-notes.md",
                      "reference_docs/CHANGELOG.md"):
             self.assertFalse(dc._spec_like_name(path), path)
+
+    def test_a_genre_token_vetoes_the_spec_token(self):
+        for path in ("reference_docs/linux-coding-standards.rst",
+                     "reference_docs/api-migration-guide.md",
+                     "reference_docs/quick-reference-card.md",
+                     "reference_docs/protocol-tutorial.md",
+                     "reference_docs/spec-changelog.md",
+                     "reference_docs/api-examples.md",
+                     "reference_docs/spec-release-notes.md",
+                     "reference_docs/protocol-faq.md"):
+            self.assertFalse(dc._spec_like_name(path), path)
+
+    def test_a_backslash_path_does_not_make_the_directory_the_signal(self):
+        # 031 self-Council round 1 (Panelist A, NIT): splitting on "/" alone left
+        # a backslash path as one basename, so `reference_docs` became the
+        # signal — the exact no-op the directory rule exists to prevent.
+        self.assertFalse(dc._spec_like_name(r"reference_docs\notes.md"))
+        self.assertTrue(dc._spec_like_name(r"docs\wire-protocol.md"))
+
+    def test_a_dotfile_keeps_its_name(self):
+        # `.spec` is all name and no extension; stripping the "extension" left
+        # nothing to match (031 self-Council round 1, Panelist A, NIT).
+        self.assertTrue(dc._spec_like_name("reference_docs/.spec"))
 
     def test_the_signal_is_whole_token_not_substring(self):
         # "inspector" contains "spec"; "capital" contains "api". A substring
@@ -366,6 +437,103 @@ class ReviewDisclosureTests(unittest.TestCase):
         self.assertIn(pa.REVIEW_SUMMARY_PATH, out)
         _scan_for_jargon(self, out)
 
+    def test_the_undo_the_message_promises_survives_the_process(self):
+        # 031 self-Council round 1 (Panelist B, P0): `revert(which="all")`
+        # restores from an IN-MEMORY field on the PersonaPass. The agent runs the
+        # pass in a scripted invocation that exits before the operator can read
+        # the message, so the promise "I will put your requirements back exactly
+        # as they were" was unkeepable — and a dropped requirement's text existed
+        # NOWHERE on disk. The pass now persists the pre-pass manifest.
+        base = {"records": [
+            {"id": "REQ-001", "functional_section": "Routing",
+             "title": "named params",
+             "conditions_of_satisfaction": "THE OPERATOR'S ORIGINAL WORDING",
+             "source_type": "code-derived"},
+            {"id": "REQ-002", "functional_section": "Routing", "title": "doomed",
+             "conditions_of_satisfaction": "THE TEXT THE REVIEWERS REMOVED",
+             "source_type": "code-derived"},
+        ]}
+
+        def spawn(persona, staging_dir, tool_config):
+            return {"persona_id": persona["id"], "moves": [
+                {"move": "add", "section": "Routing", "title": "regexp params",
+                 "conditions_of_satisfaction": "params support {name:pattern}",
+                 "reason": "documented contract",
+                 "system_justification": "this router documents regexp params",
+                 "citation": self._citation()},
+                {"move": "correct", "req_id": "REQ-001",
+                 "conditions_of_satisfaction": "REWRITTEN BY THE REVIEWERS",
+                 "reason": "documented contract",
+                 "system_justification": "matches the documented contract",
+                 "citation": self._citation()},
+                {"move": "drop", "req_id": "REQ-002", "reason": "not documented"},
+            ]}
+
+        pa.run_feature_h(
+            self.root, base_manifest=base, proposed_personas=[],
+            provision=self._provision, spawn_persona=spawn,
+            formal_docs=self.formal_docs, staging_root=self.root / "staging",
+            domain_specialization="web routing", enabled=True, write=True)
+
+        post = json.loads((self.root / "quality" /
+                           pa.REQUIREMENTS_MANIFEST_NAME).read_text(encoding="utf-8"))
+        bodies = [r.get("conditions_of_satisfaction") for r in post["records"]]
+        self.assertNotIn("THE TEXT THE REVIEWERS REMOVED", bodies)   # really gone
+        self.assertNotIn("THE OPERATOR'S ORIGINAL WORDING", bodies)  # really rewritten
+
+        # The undo, in a later process: nothing but the files on disk.
+        restored = pa.revert_from_disk(self.root)
+        back = [r.get("conditions_of_satisfaction") for r in restored["records"]]
+        self.assertIn("THE TEXT THE REVIEWERS REMOVED", back)
+        self.assertIn("THE OPERATOR'S ORIGINAL WORDING", back)
+        self.assertEqual(len(restored["records"]), 2)   # the persona's add is gone
+        on_disk = json.loads((self.root / "quality" /
+                              pa.REQUIREMENTS_MANIFEST_NAME).read_text(encoding="utf-8"))
+        self.assertEqual(on_disk, restored)
+        # An undone review must not be re-disclosed on the next render.
+        self.assertFalse((self.root / "quality" / pa.REVIEW_SUMMARY_NAME).is_file())
+
+    def test_undo_without_a_pass_refuses_rather_than_guesses(self):
+        (self.root / "quality").mkdir(exist_ok=True)
+        with self.assertRaises(FileNotFoundError):
+            pa.revert_from_disk(self.root)
+
+    def test_a_disabled_pass_leaves_no_snapshot(self):
+        self._run_pass(enabled=False)
+        self.assertFalse((self.root / "quality" /
+                          pa.PRE_REVIEW_MANIFEST_NAME).is_file())
+
+    def test_a_lossy_summary_never_claims_nothing_changed(self):
+        # 031 self-Council round 1 (Panelist B, P1): `{"applied_count": 3}` with
+        # no `applied` list rendered "did not change anything" — a positive false
+        # claim, strictly worse than the silence this feature replaced.
+        out = pa.persona_review_disclosure({"applied_count": 3})
+        self.assertNotIn("did not change anything", out)
+        self.assertIn("incomplete", out)
+        self.assertIn(pa.REVIEW_SUMMARY_PATH, out)
+        self.assertIn("undo the expert review changes", out)
+        _scan_for_jargon(self, out)
+
+    def test_removals_do_not_claim_a_check_the_pipeline_never_ran(self):
+        # 031 self-Council round 1 (Panelist B, P1): a `drop` is a pass-through
+        # move — the grounding guard gates only add/correct — so "Removed N
+        # requirements your documentation does not support" asserted documentary
+        # support for the most destructive move type.
+        out = pa.persona_review_disclosure({"applied": [{"move": "drop"}]})
+        self.assertNotIn("your documentation does not support", out)
+        self.assertIn("isn't checked against your documents", out)
+
+    def test_the_message_does_not_invite_the_destructive_selective_undo(self):
+        # 031 self-Council round 1 (Panelist B, P0): naming a REWRITTEN id in the
+        # selective revert deletes the operator's own requirement instead of
+        # restoring its wording (a `correct` retags it agent-validation). The
+        # operator-facing undo offers the whole-pass restore only.
+        out = pa.persona_review_disclosure(
+            {"applied": [{"move": "add"}, {"move": "correct"}]})
+        self.assertIn("undo the expert review changes", out)
+        self.assertNotIn("the ones you name", out)
+        self.assertNotIn("added ones you name", out)
+
     def test_surfaced_but_unapplied_findings_are_not_reported_as_changes(self):
         # Candidates and conflicts are surfaced, never applied. Saying the
         # requirements changed because of them would be a false disclosure.
@@ -390,6 +558,34 @@ class DisclosureProseContractTests(unittest.TestCase):
         self.assertIn("run the pass FIRST", p2)
         # ...and no disclosure at all when the pass did not run.
         self.assertIn("When the pass did NOT run, nothing is added", p2)
+        # The interview offer lives in this block, so the ordering rule has to
+        # say where the offer lands (031 self-Council round 1, Panelist B: the
+        # three surfaces described a cycle no order could satisfy).
+        self.assertIn("The interview offer travels inside this block", p2)
+        # ...and the undo the disclosure promises has a documented procedure.
+        self.assertIn("revert_from_disk", p2)
+
+    def test_every_surface_states_the_same_boundary_order(self):
+        phase2 = (SKILL_ROOT / "phase_prompts" / "phase2.md").read_text(encoding="utf-8")
+        pipeline = (REPO_ROOT / "references" / "requirements_pipeline.md").read_text(
+            encoding="utf-8")
+        guide = (REPO_ROOT / "references" / "phase2_generation_guide.md").read_text(
+            encoding="utf-8")
+        for text, name in ((phase2, "phase2.md"), (pipeline, "requirements_pipeline.md")):
+            self.assertIn("The one order for this boundary is", text, name)
+        # phase2.md must no longer order the pass AFTER the interview offer while
+        # the offer itself rides in the post-pass block.
+        self.assertNotIn("(and after the human-interview offer)", phase2)
+        # The guide's own mandatory end-of-phase message is ordered too — it was
+        # a second operator-facing message still firing before the pass.
+        self.assertIn("means after the Feature H persona validation pass", guide)
+
+    def test_the_undo_procedure_is_documented_where_the_agent_reads_it(self):
+        for path in (SKILL_ROOT / "phase_prompts" / "phase2.md",
+                     REPO_ROOT / "references" / "requirements_pipeline.md",
+                     REPO_ROOT / "references" / "what_just_happened.md"):
+            self.assertIn("revert_from_disk", path.read_text(encoding="utf-8"),
+                          str(path))
 
     def test_phase2_prompt_orders_the_pass_before_the_message(self):
         text = (SKILL_ROOT / "phase_prompts" / "phase2.md").read_text(encoding="utf-8")
@@ -461,20 +657,93 @@ class BenchmarkInstallTests(unittest.TestCase):
             from bin.run_playbook import _verify_sentinels   # noqa: E402
             self.assertEqual(_verify_sentinels(dst), [])
 
-    @unittest.skipUnless(CLEAN.is_dir(), "repos/clean/virtio not present")
+    # ---- the `--from-prior` lane: the one path that re-runs the install over a
+    # target that already carries the block, and the only place the idempotence
+    # guard is reachable. It needs no `repos/clean/` entry, so unlike the two
+    # tests above it does not skip on a fresh clone (031 self-Council round 1,
+    # Panelist C: the previous idempotence test was a tautology — `--replace`
+    # `rm -rf`s the destination, so the guard was never reached, and the test
+    # passed with the guard deleted).
+    PRIOR_SHORT = "qpbtest031"
+
+    def _prior_target(self, gitignore_body):
+        """A synthetic prior-version target under repos/ for the from-prior lane."""
+        import shutil
+        prior = REPO_ROOT / "repos" / f"{self.PRIOR_SHORT}-99.0.0"
+        shutil.rmtree(prior, ignore_errors=True)
+        (prior / "src").mkdir(parents=True)
+        (prior / "src" / "main.py").write_text("print('hi')\n", encoding="utf-8")
+        (prior / ".gitignore").write_text(gitignore_body, encoding="utf-8")
+        self.addCleanup(shutil.rmtree, prior, ignore_errors=True)
+        return prior
+
+    def _run_from_prior(self, dst):
+        proc = subprocess.run(
+            [str(self.SETUP), "--from-prior", "--target-folder", str(dst),
+             "--replace", self.PRIOR_SHORT],
+            cwd=str(REPO_ROOT / "repos"), capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=600)
+        self.assertEqual(proc.returncode, 0, proc.stderr[-2000:])
+        return proc
+
     def test_an_existing_gitignore_block_is_not_duplicated(self):
+        template = (SKILL_ROOT / "skill-template.gitignore").read_text(encoding="utf-8")
+        self._prior_target("build/\n" + template)
         with tempfile.TemporaryDirectory() as tmp:
-            dst = Path(tmp) / "virtio-target"
-            for _ in range(2):
-                proc = subprocess.run(
-                    [str(self.SETUP), "--target-folder", str(dst), "--replace",
-                     "virtio"],
-                    cwd=str(REPO_ROOT / "repos"), capture_output=True, text=True,
-                    encoding="utf-8", errors="replace", timeout=600)
-                self.assertEqual(proc.returncode, 0, proc.stderr[-2000:])
+            dst = Path(tmp) / "target"
+            self._run_from_prior(dst)
             body = (dst / ".gitignore").read_text(encoding="utf-8")
             self.assertEqual(
                 body.count("Quality Playbook — suggested .gitignore additions"), 1)
+            self.assertIn("build/", body)
+
+    def test_appending_never_destroys_the_last_existing_rule(self):
+        # 031 self-Council round 1 (Panelist C, P1): six repos under
+        # repos/clean/ have a `.gitignore` with NO trailing newline. `cat >>`
+        # glued the template's first line onto the last rule — on agentscope it
+        # produced `uv.lock# Quality Playbook — …`, silently un-ignoring uv.lock
+        # in the repo under audit.
+        self._prior_target("build/\nuv.lock")          # deliberately unterminated
+        with tempfile.TemporaryDirectory() as tmp:
+            dst = Path(tmp) / "target"
+            self._run_from_prior(dst)
+            lines = (dst / ".gitignore").read_text(encoding="utf-8").splitlines()
+            self.assertIn("uv.lock", lines)
+            self.assertTrue(any(l.startswith("# Quality Playbook") for l in lines))
+
+    def test_the_install_sentinel_is_not_read_as_a_prior_run(self):
+        # 031 self-Council round 1 (Panelist C, P1): the new quality/RUN_INDEX.md
+        # made `archive_previous_run` archive a `partial` prior run on a target
+        # that had never been run — a phantom previous_runs/ cell that
+        # metrics_reconstruction and skill_derivation read as a real
+        # observation, plus a fabricated row in the append-only run index.
+        sys.path.insert(0, str(REPO_ROOT))
+        from bin import run_playbook   # noqa: E402
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "target"
+            (target / "quality").mkdir(parents=True)
+            (target / "quality" / "RUN_INDEX.md").write_text(
+                "# Run Index\n", encoding="utf-8")
+            run_playbook.archive_previous_run(target, "20260101T000000Z")
+            self.assertEqual(
+                sorted(p.name for p in (target / "quality").iterdir()),
+                ["RUN_INDEX.md"])
+            # ...and a real prior run still archives.
+            (target / "quality" / "BUGS.md").write_text("### BUG-001\n", encoding="utf-8")
+            run_playbook.archive_previous_run(target, "20260101T000001Z")
+            self.assertTrue(any(p.name != "RUN_INDEX.md" and p.is_dir()
+                                for p in (target / "quality").iterdir()))
+
+    def test_the_installed_gitignore_is_protected_from_the_tidy(self):
+        # 031 self-Council round 1 (Panelist C, P1): on the three git-carrying
+        # clean repos the appended `.gitignore` is a TRACKED modification, and
+        # `cleanup_repo` reverted it — the install silently un-did itself and
+        # Phase 0 went back to reporting scaffolding_missing_gitignore.
+        sys.path.insert(0, str(REPO_ROOT))
+        from bin import benchmark_lib   # noqa: E402
+        self.assertIn(".gitignore", benchmark_lib.PROTECTED_EXACT)
+        self.assertTrue(benchmark_lib._is_protected(".gitignore"))
+        self.assertFalse(benchmark_lib._is_protected("src/main.py"))
 
 
 if __name__ == "__main__":

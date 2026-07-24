@@ -957,12 +957,16 @@ _MAX_SHOWN_PATH = 160
 # ``linux-coding-style.rst`` (a 45 KB style guide) while the actual spec,
 # ``virtio-spec-behavioral-contracts.md``, is 7.8 KB — so the feature built to
 # help the operator recover a mis-classified spec was suggesting they promote a
-# STYLE GUIDE as their specification. A name signal is the honest one available
-# here: the show is rendered from the classification manifest, whose records
-# carry the path, the tier and the floor decision — no title and no content — so
-# "the doc self-identifies as a spec" is not observable at this surface. When no
-# candidate carries the signal the example uses a NEUTRAL PLACEHOLDER instead of
-# naming a real, wrong file.
+# STYLE GUIDE as their specification.
+#
+# The signal is the document's NAME. The show is rendered from the classification
+# manifest, whose records carry the path, the tier, the floor decision and the
+# byte count — a title/self-identification signal would have to be derived at
+# classify time and persisted as a new record field, which changes the manifest
+# schema the content-keyed reproducibility contract is written against. That is a
+# schema decision, not a rendering one, so the renderer uses what is already
+# there and falls back to a NEUTRAL PLACEHOLDER whenever the name says nothing —
+# an honest blank instead of a confident wrong answer.
 _SPEC_NAME_TOKENS = frozenset({
     "spec", "specs", "specification", "specifications",
     "contract", "contracts",
@@ -971,6 +975,24 @@ _SPEC_NAME_TOKENS = frozenset({
     "api", "apis",
     "rfc", "rfcs",
     "standard", "standards",
+})
+# ...and the genres that carry one of those words while being the opposite of a
+# specification. A veto, evaluated first, because the failure it prevents is the
+# reported defect itself: ``linux-coding-standards.rst`` (one rename away from
+# the real virtio file) matches ``standards``, and ``api-migration-guide.md`` /
+# ``quick-reference-card.md`` match ``api`` / ``reference`` — each would be named
+# over a genuine spec, since size still breaks ties among spec-like candidates
+# (instr 031 self-Council, Panelist A). A vetoed name falls through to the
+# placeholder, which is the honest direction for exactly this class.
+_NON_SPEC_NAME_TOKENS = frozenset({
+    "style", "styles", "styleguide", "coding",
+    "guide", "guides", "guideline", "guidelines",
+    "tutorial", "tutorials", "howto", "walkthrough", "walkthroughs",
+    "faq", "faqs", "cheatsheet", "quickstart", "checklist", "checklists",
+    "changelog", "changes", "history", "notes", "note", "release", "releases",
+    "migration", "migrations", "migrating", "upgrade", "upgrading", "roadmap",
+    "example", "examples", "sample", "samples", "card", "cards",
+    "practices", "glossary", "readme", "index", "toc",
 })
 # Tokens are ALPHABETIC runs, so digits split too (``rfc793`` -> ``rfc``), and
 # matching is whole-token — a substring match would read "spec" out of
@@ -987,12 +1009,21 @@ def _spec_like_name(source_path: Optional[str]) -> bool:
 
     Matched on the basename with its extension stripped, whole-token, so a
     directory called ``reference_docs/`` (which every gathered document sits
-    under) is not itself the signal.
+    under) is not itself the signal. A genre veto beats a spec word: a
+    ``coding-standards`` guide is a guide.
     """
-    base = str(source_path or "").rsplit("/", 1)[-1]
-    base = re.sub(r"\.[^.]+$", "", base)
-    return any(tok in _SPEC_NAME_TOKENS
-               for tok in _NAME_TOKEN_SPLIT_RE.split(base.lower()) if tok)
+    # Split on both separators: the pipeline normalizes to ``/``, but a
+    # backslash path would otherwise leave the whole thing as one "basename" and
+    # make the ``reference_docs`` directory itself the signal — inverting the
+    # rule above (instr 031 self-Council, Panelist A).
+    base = re.split(r"[\\/]", str(source_path or ""))[-1]
+    stem = re.sub(r"\.[^.]+$", "", base)
+    if not stem:
+        stem = base           # a dotfile (``.spec``) is all name, no extension
+    tokens = [tok for tok in _NAME_TOKEN_SPLIT_RE.split(stem.lower()) if tok]
+    if any(tok in _NON_SPEC_NAME_TOKENS for tok in tokens):
+        return False
+    return any(tok in _SPEC_NAME_TOKENS for tok in tokens)
 
 
 def _safe_path(path: Optional[str]) -> str:
@@ -1171,10 +1202,21 @@ def classification_review(
     promotable_bg.sort(key=lambda e: (e.get("floor_rule") == RULE_IMPL,
                                       -(e.get("byte_count") or 0),
                                       str(e.get("source_path") or "")))
-    spec_like = [e for e in promotable_bg if _spec_like_name(e.get("source_path"))]
+    # Documentation and source code are separate strata, not one list ordered by
+    # a tiebreak. Sweeping for the name signal across BOTH inverted the
+    # instr-030 doc-over-source rule: a spec-NAMED `.c` file beat an ordinary
+    # document, so the show told the operator to treat source code as their
+    # specification one line after telling them that file "shows what the
+    # software already does, not what it's supposed to do" (instr 031
+    # self-Council, Panelist A). A source file is named only when there is no
+    # promotable document at all — the operator CAN promote a code-shaped
+    # contract, and that is the case instr 030 opened the eligibility for.
+    docs = [e for e in promotable_bg if e.get("floor_rule") != RULE_IMPL]
+    pool = docs or promotable_bg
+    spec_like = [e for e in pool if _spec_like_name(e.get("source_path"))]
     if spec_like:
         example = _safe_path(spec_like[0]["source_path"])
-    elif promotable_bg:
+    elif pool:
         # There IS something the operator could promote, but nothing here looks
         # like a specification — so illustrate the phrasing without asserting
         # which of their documents is the spec. Naming the biggest one is the
