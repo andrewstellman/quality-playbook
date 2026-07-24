@@ -92,11 +92,11 @@ in-memory field on a `PersonaPass`, and the agent runs the pass in a scripted in
 that exits before the operator can answer. The pass now persists
 `quality/requirements_manifest.pre_review.json`, and `revert_from_disk()` restores the
 whole prior manifest — exact for adds, rewrites **and** removals — renames the summary to
-`persona_review_summary.undone.json` (never clobbering an earlier one), and refuses in four
+`persona_review_summary.undone.json` (never clobbering an earlier one), and refuses in five
 distinguishable states rather than guessing: the pass never ran; a pass ran but predates
 the snapshot (*the requirements were changed* — point at the summary); already undone; BUG
-records exist (a late undo would orphan BUG→REQ links); plus an unreadable bug manifest,
-which says so instead of claiming BUG records exist.
+records exist (a late undo would orphan BUG→REQ links); and a bug manifest it cannot read,
+which says exactly that instead of claiming BUG records exist.
 
 **Ordering.** The block is emitted **after** the pass — it cannot report a pass that has
 not happened. Because the requirements-interview offer lives inside that block, one order
@@ -168,7 +168,7 @@ the appended `.gitignore`, silently un-installing the fix.
 - `0175947` — fix-up 3: round-3 findings.
 - `82de5a6` — fix-up 4: round-4 NITs.
 - `fc2bbdd` — tracked synthesis + the post-close NIT.
-- `<output commit>` — runner: output for instruction 031.
+- `c0f098d` — runner: output for instruction 031.
 
 The orchestrator's uncommitted `docs/design/QPB_v1.6.0_Design.md` edit was left untouched
 throughout; no commit here touches that file.
