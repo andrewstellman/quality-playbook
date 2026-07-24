@@ -196,6 +196,34 @@ class WorkedExampleTests(unittest.TestCase):
         self.assertNotEqual(_example_in(out), spec_path)
         self.assertNotIn("virtio-spec-behavioral-contracts.md` as my specification", out)
 
+    def test_an_already_authoritative_document_is_never_the_example(self):
+        # 031 self-Council round 3 (Panelist A, NIT) + round 4 (unpinned): with a
+        # stale `formal_records` an already-authoritative document can appear on
+        # the background side, and inviting the operator to promote what they
+        # already promoted reads as the system not listening. Round 4 found the
+        # guard had no test at all.
+        spec_path = "reference_docs/virtio-spec-behavioral-contracts.md"
+        sha = hashlib.sha256(VIRTIO_SPEC.encode("utf-8")).hexdigest()
+        promoted = dc.classify_documents(
+            [(spec_path, VIRTIO_SPEC),
+             ("reference_docs/system-overview.md", "# Overview\n\nbig\n" * 400)],
+            llm_classifier=_all_tier4,
+            operator_decisions=[(spec_path, sha, dc.OPERATOR_AUTHORITATIVE)],
+            generated_at="X")
+        # A STALE ground truth: the pipeline's formal records predate the
+        # promotion, so the show puts the promoted document on the background
+        # side. It must still not be offered up for promotion.
+        out = dc.classification_review(promoted, formal_records=[])
+        self.assertNotEqual(_example_in(out), spec_path)
+        # Same for a machine-readable contract, which is citable without any
+        # operator action.
+        contract = dc.classify_documents(
+            [("reference_docs/api.proto", 'syntax = "proto3";\n\nmessage M {}\n'),
+             ("reference_docs/system-overview.md", "# Overview\n\nbig\n" * 400)],
+            llm_classifier=_all_tier4, generated_at="X")
+        out = dc.classification_review(contract, formal_records=[])
+        self.assertNotEqual(_example_in(out), "reference_docs/api.proto")
+
     def test_a_version_word_does_not_demote_a_real_spec(self):
         # 031 self-Council round 2 (Panelist A, NIT): a veto is a demotion, so
         # vetoing `release` handed the example to a tiny stub instead — the
@@ -629,6 +657,39 @@ class ReviewDisclosureTests(unittest.TestCase):
                     pa.revert_from_disk(self.root)
                 self.assertIn("BUG records", str(ctx.exception))
                 (self.root / "quality" / "bugs_manifest.json").unlink()
+
+    def test_a_wrong_key_bug_manifest_is_not_read_as_no_bugs(self):
+        # 031 self-Council round 4 (Panelist B): a manifest keyed `bugs` instead
+        # of `records` is the documented 2026-05-16 express defect
+        # (phase_prompts/phase2.md) — it read as "no bugs" and let a late undo
+        # orphan real BUG→REQ links.
+        for body in ('{"bugs": [{"id": "BUG-001"}]}', '{}'):
+            with self.subTest(body=body):
+                self._run_pass()
+                (self.root / "quality" / "bugs_manifest.json").write_text(
+                    body, encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    pa.revert_from_disk(self.root)
+                (self.root / "quality" / "bugs_manifest.json").unlink()
+
+    def test_a_second_undo_does_not_clobber_the_first_ones_notes(self):
+        # 031 self-Council round 4 (Panelist B): pass → undo → pass → undo
+        # overwrote the first review's record — the very loss the rename exists
+        # to prevent.
+        self._run_pass()
+        first = self.root / "quality" / pa.REVIEW_SUMMARY_NAME
+        marker = json.loads(first.read_text(encoding="utf-8"))
+        marker["marker"] = "THE FIRST REVIEW"
+        first.write_text(json.dumps(marker), encoding="utf-8")
+        pa.revert_from_disk(self.root)
+        self._run_pass()
+        pa.revert_from_disk(self.root)
+        kept = sorted(p.name for p in (self.root / "quality").iterdir()
+                      if ".undone" in p.name)
+        self.assertEqual(len(kept), 2, kept)
+        bodies = [json.loads((self.root / "quality" / n).read_text(encoding="utf-8"))
+                  for n in kept]
+        self.assertIn("THE FIRST REVIEW", [b.get("marker") for b in bodies])
 
     def test_the_documentary_claim_does_not_cover_removals(self):
         # 031 self-Council round 2 (Panelist B, NIT): "they only add or CHANGE a

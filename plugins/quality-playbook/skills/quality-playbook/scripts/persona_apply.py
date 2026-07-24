@@ -619,11 +619,16 @@ def revert_from_disk(target_repo, *, write: bool = True) -> dict:
     if bugs.is_file():
         try:
             data = json.loads(bugs.read_text(encoding="utf-8"))
-            # A list / null / anything not a mapping is not a shape we can read;
-            # `.get` on it would escape this handler as an AttributeError and
-            # refuse by traceback rather than by the designed message (instr 031
-            # self-Council round 3, Panelist B).
-            has_bugs = bool(data.get("records")) if isinstance(data, dict) else True
+            # Only a mapping that actually HAS `records` is a shape we can read.
+            # A list / null / anything else would escape this handler as an
+            # AttributeError and refuse by traceback rather than by the designed
+            # message; and a dict keyed `bugs` instead of `records` — the
+            # documented 2026-05-16 express defect (`phase_prompts/phase2.md`) —
+            # would read as "no bugs" and let a late undo orphan real BUG→REQ
+            # links (instr 031 self-Council rounds 3 + 4, Panelist B). Unreadable
+            # means assume the risk is real, in every direction.
+            has_bugs = (bool(data["records"])
+                        if isinstance(data, dict) and "records" in data else True)
         except (OSError, ValueError):
             has_bugs = True          # unreadable: assume the risk is real
         if has_bugs:
@@ -638,6 +643,16 @@ def revert_from_disk(target_repo, *, write: bool = True) -> dict:
         (quality_dir / REQUIREMENTS_MANIFEST_NAME).write_text(
             json.dumps(restored, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         if summary.is_file():
-            summary.replace(quality_dir / UNDONE_REVIEW_SUMMARY_NAME)
+            # Never clobber an earlier undone record: a second pass + undo would
+            # otherwise erase the first review's set-aside findings, which is the
+            # very loss the rename exists to prevent (instr 031 self-Council
+            # round 4, Panelist B).
+            dest = quality_dir / UNDONE_REVIEW_SUMMARY_NAME
+            n = 2
+            while dest.exists():
+                dest = quality_dir / UNDONE_REVIEW_SUMMARY_NAME.replace(
+                    ".undone.json", f".undone.{n}.json")
+                n += 1
+            summary.replace(dest)
         snapshot.unlink(missing_ok=True)
     return restored
