@@ -238,6 +238,19 @@ class ShowTests(unittest.TestCase):
         self.assertIn("treat `reference_docs/iface.py` as my specification",
                       dc.classification_review(man))
 
+    def test_worked_example_prefers_a_document_over_source_code(self):
+        # Self-Council round 3 (Panelist B): source files are eligible now, and
+        # are often the largest thing in the corpus — so size alone would
+        # routinely illustrate "treat X as my specification" with a .c file.
+        man = dc.classify_documents(
+            [("reference_docs/engine.c", "int main(void) {\n  return 0;\n}\n" * 80),
+             ("reference_docs/notes.md", "# Notes\n\nShort design notes.\n")],
+            generated_at="X")
+        by = {r["source_path"]: r["floor_rule"] for r in man["records"]}
+        self.assertEqual(by["reference_docs/engine.c"], dc.RULE_IMPL)
+        out = dc.classification_review(man)
+        self.assertIn("treat `reference_docs/notes.md` as my specification", out)
+
     def test_path_sanitizer_covers_line_separators_bidi_and_length(self):
         # Self-Council round 2 (Panelist A NITs): U+2028/U+2029/U+0085 are line
         # breaks to some renderers and a bidi override can make a path read as a
@@ -661,6 +674,101 @@ class OperatorAuthorityTests(unittest.TestCase):
         rec = man["records"][0]
         self.assertEqual(rec["floor_rule"], dc.RULE_SIDECAR)
         self.assertIn(rec["tier"], (1, 2))
+
+    def test_a_new_sidecar_line_applies_over_an_existing_cache(self):
+        # Self-Council round 3 (Panelist C): the cache bypass existed for
+        # qpb_authoritative.txt ALONE. A sidecar line added AFTER a first ingest
+        # was reused-from-cache and became a permanent silent no-op — the
+        # operator saw no error and the show still said "background".
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        ref = root / "reference_docs"
+        ref.mkdir(parents=True)
+        (ref / "iface.py").write_text(PY_LOGIC, encoding="utf-8")
+        rel = "reference_docs/iface.py"
+
+        self.assertEqual(rdi.ingest(root)["records"], [])          # cache now exists
+        (ref / rdi.SIDECAR_NAME).write_text(rel + "\n", encoding="utf-8")
+        after = rdi.ingest(root)
+        self.assertIn(rel, {r["source_path"] for r in after["records"]})
+        man = json.loads((root / "quality" / rdi.CLASSIFICATION_MANIFEST_NAME)
+                         .read_text(encoding="utf-8"))
+        rec = {r["source_path"]: r for r in man["records"]}[rel]
+        self.assertEqual(rec["floor_rule"], dc.RULE_SIDECAR)
+        self.assertNotIn("reused_from_prior", rec)
+
+    def test_a_new_advisory_rescue_applies_over_an_existing_cache(self):
+        # Self-Council round 3 (Panelist C): the same no-op for the instr-025
+        # rescue — and there it is the DOCUMENTED workflow, since the operator is
+        # told to copy the sha and reason out of the manifest a prior ingest
+        # wrote. The rescue could therefore never be authored before the cache
+        # existed, so as shipped it could never take effect.
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        ref = root / "reference_docs"
+        ref.mkdir(parents=True)
+        spec = (VIRTIO_SPEC + "Security considerations: see CVE-2024-43796.\n")
+        (ref / "spec.md").write_text(spec, encoding="utf-8")
+        rel = "reference_docs/spec.md"
+
+        first = rdi.classify_reference_docs(root, write=True)
+        self.assertEqual({r["source_path"]: r for r in first["records"]}
+                         [rel]["floor_rule"], dc.RULE_ADVISORY)
+        (ref / rdi.ADVISORY_RESCUE_NAME).write_text(
+            f"{rel}  {_sha(spec)}  advisory identifier 'CVE-2024-43796'\n",
+            encoding="utf-8")
+        after = rdi.classify_reference_docs(root, write=True)
+        rec = {r["source_path"]: r for r in after["records"]}[rel]
+        self.assertNotEqual(rec["floor_rule"], dc.RULE_ADVISORY)   # un-floored
+        self.assertTrue(rec["advisory_rescued"])
+        self.assertNotIn("reused_from_prior", rec)
+
+    def test_a_settled_rescue_keeps_its_tier_across_re_ingests(self):
+        # Self-Council round 3 (Panelist A): the naive fix — bypassing the cache
+        # whenever a rescue is live — DESTROYS a legitimate rescue. A rescue only
+        # un-floors; it does not force a tier. Once the agent has tiered a
+        # rescued document, re-deriving it with no classifier drops it to Tier 4
+        # and its FORMAL_DOC disappears. A rescue the record already reflects
+        # must keep its cache.
+        spec = (VIRTIO_SPEC + "Security considerations: see CVE-2024-43796.\n")
+        sha = _sha(spec)
+        settled = [{"source_path": "spec.md", "document_sha256": sha, "tier": 1,
+                    "floor_rule": dc.RULE_LLM, "reason": "agent tiered it",
+                    "byte_count": len(spec.encode()), "promotable": True,
+                    "advisory_rescued": True, "rescued_reason": "CVE-2024-43796"}]
+        man = dc.classify_documents(
+            [("spec.md", spec)], prior_records=settled,
+            advisory_rescues=[("spec.md", sha)], generated_at="X")
+        rec = man["records"][0]
+        self.assertEqual(rec["tier"], 1)
+        self.assertTrue(rec.get("reused_from_prior"))
+
+    def test_a_forged_advisory_rescue_cannot_manufacture_consent(self):
+        # Self-Council round 3 (Panelist A, the round-3 FIX-REQUIRED):
+        # `advisory_rescued` is an operator-voice surface that is not a floor
+        # rule, so _OPERATOR_RULES did not cover it. A prior manifest forged with
+        # `advisory_rescued: true` on a document with NO advisory signal at all
+        # survived, became byte-citable, and made the show say "you confirmed
+        # this is your real specification..." about a document the operator never
+        # saw. The writer of that field is the derivation agent refining the
+        # manifest — exactly the party that must not speak for the operator.
+        text = "# Notes\n\nOrdinary background prose, no advisory signal.\n"
+        forged = [{"source_path": "n.md", "document_sha256": _sha(text),
+                   "tier": 1, "floor_rule": dc.RULE_LLM, "reason": "forged",
+                   "byte_count": len(text.encode()), "promotable": True,
+                   "advisory_rescued": True, "rescued_reason": "invented"}]
+        man = dc.classify_documents(
+            [("n.md", text)], prior_records=forged,
+            advisory_rescues=[],                     # no operator-authored rescue
+            generated_at="X")
+        rec = man["records"][0]
+        self.assertEqual(rec["tier"], 4)
+        self.assertNotIn("advisory_rescued", rec)
+        self.assertNotIn("reused_from_prior", rec)
+        self.assertNotIn("you confirmed this is your real specification",
+                         dc.classification_review(man))
 
     def test_a_live_decision_still_reaches_a_cached_document(self):
         # The revocation guard must not break the normal case: an unrelated cached

@@ -570,6 +570,38 @@ def _accepts_hints(fn) -> bool:
     return len(positional) >= 3 or any(p.kind == p.VAR_POSITIONAL for p in params)
 
 
+def _newly_overridden(
+    cached: dict, operator_decision: Optional[str], rescued: bool,
+    in_sidecar: bool,
+) -> bool:
+    """Whether a live operator-authored override is NOT yet reflected in *cached*.
+
+    True means the prior record predates the operator's instruction and must be
+    thrown away rather than reused; False means the record already embodies it
+    (or there is no override) and the content-keyed cache stands.
+
+    Each of the three operator files gets the clause its semantics need:
+
+    * ``qpb_authoritative.txt`` — always new when a decision is live. The decision
+      forces a specific outcome, so re-deriving reproduces it exactly; there is
+      nothing a cached record could hold that the re-derive would lose.
+    * ``qpb_promote.txt`` — same: the sidecar branch forces Tier 1/2, so a
+      re-derive is lossless. (A settled sidecar record is discarded by the
+      withdrawal guard anyway, since ``RULE_SIDECAR`` is an operator rule.)
+    * ``qpb_advisory_rescue.txt`` — new **only** while the cached record does not
+      already carry ``advisory_rescued``. A rescue merely un-floors; it does not
+      force a tier. Once the agent has tiered a rescued document and that record
+      is cached, re-deriving it with no classifier in play would drop it to
+      Tier 4 and destroy its ``FORMAL_DOC`` — so a rescue the record already
+      reflects must keep its cache.
+    """
+    if operator_decision is not None:
+        return True
+    if in_sidecar and cached.get("floor_rule") != RULE_SIDECAR:
+        return True
+    return bool(rescued and not cached.get("advisory_rescued"))
+
+
 def classify_documents(
     docs: Sequence[Tuple[str, str]],
     *,
@@ -647,11 +679,27 @@ def classify_documents(
         sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
         rescued = (rel_path, sha) in rescue_set
         operator_decision = operator_by_key.get((rel_path, sha))
-        # An operator correction from the classification review (instr 030) must
-        # take effect on the very next ingest, so it BYPASSES the content-keyed
-        # cache — otherwise the prior record (the tiering the operator just
-        # corrected) would be reused and the correction would silently no-op.
-        cached = None if operator_decision else prior_by_key.get((rel_path, sha))
+        cached = prior_by_key.get((rel_path, sha))
+        if cached is not None and _newly_overridden(
+                cached, operator_decision, rescued, rel_path in sidecar_set):
+            # APPLICATION side of the operator-override contract (instr 030
+            # self-Council, Panelists A + C). A NEW operator-authored override
+            # must take effect on the very next ingest, so it bypasses the
+            # content-keyed cache — otherwise the prior record (the very tiering
+            # the operator just corrected) is reused and the override is a
+            # permanent silent no-op. This is not hypothetical for any of the
+            # three files: every one of them is authored AFTER a first ingest,
+            # and the instr-025 rescue's documented workflow literally requires
+            # copying the sha and reason out of the manifest a prior ingest
+            # wrote — so the cache always exists by the time the operator writes
+            # the file. Panelist C reproduced both no-ops.
+            #
+            # "NEW" is load-bearing: a rescue that the cached record ALREADY
+            # reflects must keep its cache, because a rescue only un-floors and
+            # does not force a tier — re-deriving a settled, agent-tiered rescued
+            # document with no classifier in play would drop it back to Tier 4 and
+            # destroy its FORMAL_DOC (Panelist A caught this in the naive fix).
+            cached = None
         if cached is not None:
             # Defense-in-depth: never trust a prior record to keep a document
             # citable OR promotable when an UNRESCUABLE floor bars it. The floor
@@ -674,7 +722,21 @@ def classify_documents(
                 records.append(_record(rel_path, text, guard))
                 continue
             if (cached.get("operator_decision")
-                    or cached.get("floor_rule") in _OPERATOR_RULES):
+                    or cached.get("floor_rule") in _OPERATOR_RULES
+                    or (cached.get("advisory_rescued") and not rescued)):
+                # WITHDRAWAL / FORGERY side of the same contract.
+                # `advisory_rescued` is an operator-voice surface that is not a
+                # floor rule and so was not covered by _OPERATOR_RULES: a prior
+                # manifest forged with `advisory_rescued: true` on a document
+                # carrying no advisory signal at all sailed through, became
+                # byte-citable, and made the review say "you confirmed this is
+                # your real specification even though it mentions security
+                # advisories" about a document the operator never saw. The
+                # writer of that field is the derivation agent refining the
+                # manifest — precisely the party that must never manufacture the
+                # operator's consent (instr 030 self-Council, Panelist A). Keyed
+                # to `not rescued` so a LIVE rescue still keeps its cache.
+                #
                 # An operator classification-review decision in the PRIOR manifest
                 # with no live operator-authored backing (instr 030 self-Council,
                 # Panelist A). Two cases, same answer: the operator WITHDREW the
@@ -1045,7 +1107,13 @@ def classification_review(
     # Panelists B + C).
     promotable_bg = [e for e in background
                      if e.get("floor_rule") not in (RULE_ADVISORY, RULE_BACKGROUND)]
-    promotable_bg.sort(key=lambda e: (-(e.get("byte_count") or 0),
+    # Prefer a documentation-shaped candidate over an implementation-floored one:
+    # source files are eligible (the operator CAN promote one) but are often the
+    # largest thing in the corpus, so size alone would routinely illustrate
+    # "treat X as my specification" with a .c file (instr 030 self-Council,
+    # Panelist B round 3).
+    promotable_bg.sort(key=lambda e: (e.get("floor_rule") == RULE_IMPL,
+                                      -(e.get("byte_count") or 0),
                                       str(e.get("source_path") or "")))
     example = _safe_path(promotable_bg[0]["source_path"]) if promotable_bg else None
     if offer:
