@@ -110,12 +110,23 @@ _ABSOLUTE_FLOOR_RULES = frozenset(
 _UNRESCUABLE_FLOOR_RULES = frozenset(
     {RULE_ADVISORY, RULE_BACKGROUND}
 )
-# The rules produced ONLY by a live operator-authored decision (instr 030). A
-# cached record carrying one of these — or an `operator_decision` field — is
-# never honored from the prior manifest: see the cache guard in
-# ``classify_documents``. The operator's consent has to still be on file.
+# The rules that exist ONLY because a live operator-authored file says so — the
+# instr-030 classification-review decisions (``qpb_authoritative.txt``) and the
+# instr-025-era sidecar promotion (``qpb_promote.txt``). A cached record carrying
+# one of these — or an ``operator_decision`` field — is never honored from the
+# prior manifest: see the cache guard in ``classify_documents``. The operator's
+# consent has to still be on file, or the decision is not revocable and a forged
+# prior manifest can manufacture consent that was never given.
+#
+# ``RULE_SIDECAR`` belongs here for exactly the same reason as the instr-030
+# rules, and its omission was an instr-030 self-Council Panelist A finding: the
+# review renders it as *"you told me to use this one…"*, so a stale or forged
+# sidecar record makes the show speak in the operator's voice with no operator
+# file behind it. ``RULE_LLM``/``RULE_CONTRACT`` are deliberately NOT here — they
+# attribute the judgment to the agent or to the document's own format, which is
+# what the show says, so caching them claims nothing on the operator's behalf.
 _OPERATOR_RULES = frozenset(
-    {RULE_OPERATOR_AUTHORITATIVE, RULE_OPERATOR_BACKGROUND}
+    {RULE_OPERATOR_AUTHORITATIVE, RULE_OPERATOR_BACKGROUND, RULE_SIDECAR}
 )
 
 # §8a item 7: README and the coverage / issue-tracker ledgers are background
@@ -859,12 +870,28 @@ _CITE_FOLDER_REASON = (
 # *filename* is attacker-influenced surface just like its content. A newline in a
 # filename would otherwise let a document forge its own "Authoritative sources"
 # heading in the show (instr 030 self-Council, Panelist A).
-_UNSAFE_PATH_CHARS_RE = re.compile(r"[\x00-\x1f\x7f`]")
+# Covers the C0/C1 control ranges plus the Unicode line/paragraph separators and
+# the bidi overrides — U+2028/U+2029/U+0085 are line breaks to some renderers, and
+# a bidi override can visually reorder a path so it reads as a different file
+# (instr 030 self-Council, Panelist A). The backtick closes the code span.
+_UNSAFE_PATH_CHARS_RE = re.compile(
+    "[\x00-\x1f\x7f-\x9f`  ‎‏‪-‮⁦-⁩]"
+)
+_MAX_SHOWN_PATH = 160
 
 
 def _safe_path(path: Optional[str]) -> str:
-    """A document path, rendered inert for the operator-facing show."""
-    return _UNSAFE_PATH_CHARS_RE.sub("?", str(path or ""))
+    """A document path, rendered inert for the operator-facing show.
+
+    A document's *filename* is attacker-influenced surface exactly like its
+    content, so it is neutralized before it reaches the operator: nothing in it
+    can close its code span, start a new line, reorder itself visually, or run
+    long enough to bury the rest of the block.
+    """
+    safe = _UNSAFE_PATH_CHARS_RE.sub("?", str(path or ""))
+    if len(safe) > _MAX_SHOWN_PATH:
+        safe = safe[:_MAX_SHOWN_PATH - 1] + "…"
+    return safe
 
 
 def _is_cite_placed(source_path: Optional[str]) -> bool:
@@ -889,7 +916,11 @@ def _is_authoritative(rec: dict) -> bool:
     classifier read as background is quoted anyway, and a Tier-1 record the floor
     barred (``promotable: false``) is not.
     """
-    if rec.get("promotable") is False:
+    # `.get("promotable", False)`, NOT `is False` — an absent key must read as
+    # not-citable, exactly as `_formal_tier` reads it. With `is False` a record
+    # missing the key rendered as an authoritative source while the pipeline
+    # produced no FORMAL_DOC for it (instr 030 self-Council, Panelists B + C).
+    if not rec.get("promotable", False):
         return False
     return _is_cite_placed(rec.get("source_path")) or rec.get("tier") in (1, 2)
 
@@ -1006,10 +1037,14 @@ def classification_review(
     # 125-byte toctree stub while the actual spec sat further down the list
     # (instr 030 self-Council, Panelist B). Size is a crude but honest proxy, and
     # the example is only ever an illustration of the phrasing.
+    # "Could the operator promote this one at this step?" stated directly: every
+    # background document EXCEPT the two absolutely-floored classes. The earlier
+    # allow-list of rules was both under-inclusive (it excluded implementation-
+    # floored documents, which this step's decision CAN lift — the same power the
+    # path-keyed sidecar grants) and carried a dead entry (instr 030 self-Council,
+    # Panelists B + C).
     promotable_bg = [e for e in background
-                     if e.get("promotable") is not False
-                     and e.get("floor_rule") in (RULE_DEFAULT, RULE_LLM,
-                                                 RULE_OPERATOR_BACKGROUND)]
+                     if e.get("floor_rule") not in (RULE_ADVISORY, RULE_BACKGROUND)]
     promotable_bg.sort(key=lambda e: (-(e.get("byte_count") or 0),
                                       str(e.get("source_path") or "")))
     example = _safe_path(promotable_bg[0]["source_path"]) if promotable_bg else None

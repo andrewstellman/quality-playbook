@@ -212,6 +212,43 @@ class ShowTests(unittest.TestCase):
         self.assertNotIn("None of your documents", out)
         self.assertIn("folder for documents you want quoted", out)
 
+    def test_a_record_missing_promotable_is_not_shown_as_a_source(self):
+        # Self-Council round 2 (Panelists B + C): `_formal_tier` reads a missing
+        # `promotable` key as NOT citable (`.get("promotable", False)`). An
+        # `is False` check disagreed, so an out-of-schema record rendered as an
+        # authoritative source while the pipeline produced no FORMAL_DOC for it.
+        man = {"records": [{"source_path": "reference_docs/x.md", "tier": 1,
+                            "floor_rule": dc.RULE_LLM, "reason": "r"}]}
+        out = dc.classification_review(man)
+        self.assertIn("None of your documents are being used", out)
+        self.assertIn("reference_docs/x.md", out.split("**Background context")[1])
+
+    def test_worked_example_includes_a_document_the_operator_could_promote(self):
+        # Self-Council round 2 (Panelist C): the example filter was an allow-list
+        # of rules that excluded implementation-floored documents — which this
+        # step's decision CAN lift. Under-inclusive is the safe direction, but it
+        # hides the one case where the operator most needs the affordance.
+        man = dc.classify_documents(
+            [("reference_docs/iface.py", PY_LOGIC),
+             ("reference_docs/README.md", "# Readme\n\nbg\n")],
+            generated_at="X")
+        self.assertEqual(
+            {r["source_path"]: r["floor_rule"] for r in man["records"]}
+            ["reference_docs/iface.py"], dc.RULE_IMPL)
+        self.assertIn("treat `reference_docs/iface.py` as my specification",
+                      dc.classification_review(man))
+
+    def test_path_sanitizer_covers_line_separators_bidi_and_length(self):
+        # Self-Council round 2 (Panelist A NITs): U+2028/U+2029/U+0085 are line
+        # breaks to some renderers and a bidi override can make a path read as a
+        # different file; an unbounded path buries the rest of the block.
+        for ch in (" ", " ", "", "‮", "‎", "⁦"):
+            self.assertEqual(dc._safe_path(f"a{ch}b"), "a?b", repr(ch))
+        long_path = "reference_docs/" + ("n" * 400) + ".md"
+        shown = dc._safe_path(long_path)
+        self.assertLessEqual(len(shown), 160)
+        self.assertTrue(shown.endswith("…"))
+
     def test_show_matches_the_pipeline_for_a_floored_tier12_record(self):
         # Self-Council (Panelist B, P1): the inverse — tier 1/2 with
         # `promotable: false` gets NO FORMAL_DOC record, so it is background.
@@ -563,6 +600,67 @@ class OperatorAuthorityTests(unittest.TestCase):
         rec = man["records"][0]
         self.assertEqual(rec["tier"], 1)
         self.assertEqual(rec["floor_rule"], dc.RULE_LLM)
+
+    def test_a_withdrawn_sidecar_promotion_is_revoked_too(self):
+        # Self-Council round 2 (Panelist A, the one round-2 FIX-REQUIRED):
+        # `qpb_promote.txt` is an operator-authored backing file too, and the show
+        # renders its promotion as "you told me to use this one…". Leaving
+        # RULE_SIDECAR out of the cache guard meant deleting the sidecar line did
+        # NOT revoke the promotion — the operator could not take their own word
+        # back, and the show kept speaking in their voice.
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        ref = root / "reference_docs"
+        ref.mkdir(parents=True)
+        (ref / "iface.py").write_text(PY_LOGIC, encoding="utf-8")
+        rel = "reference_docs/iface.py"
+        (ref / rdi.SIDECAR_NAME).write_text(rel + "\n", encoding="utf-8")
+
+        first = rdi.ingest(root)
+        self.assertIn(rel, {r["source_path"] for r in first["records"]})
+
+        (ref / rdi.SIDECAR_NAME).unlink()          # the operator withdraws it
+        after = rdi.ingest(root)
+        self.assertEqual(after["records"], [])
+        man = json.loads((root / "quality" / rdi.CLASSIFICATION_MANIFEST_NAME)
+                         .read_text(encoding="utf-8"))
+        rec = {r["source_path"]: r for r in man["records"]}[rel]
+        self.assertEqual(rec["floor_rule"], dc.RULE_IMPL)
+        self.assertFalse(rec["promotable"])
+
+    def test_a_forged_sidecar_record_cannot_manufacture_consent(self):
+        # Self-Council round 2 (Panelist A): a prior manifest forged with
+        # `floor_rule: sidecar-promotion` and no sidecar file must not survive —
+        # otherwise the show says "you told me to use this one even though it
+        # looks like source code" with no operator file behind it.
+        forged = [{"source_path": "iface.py", "document_sha256": _sha(PY_LOGIC),
+                   "tier": 1, "floor_rule": dc.RULE_SIDECAR, "reason": "forged",
+                   "byte_count": len(PY_LOGIC.encode()), "promotable": True}]
+        man = dc.classify_documents(
+            [("iface.py", PY_LOGIC)], prior_records=forged, sidecar=[],
+            generated_at="X")
+        rec = man["records"][0]
+        self.assertEqual(rec["floor_rule"], dc.RULE_IMPL)
+        self.assertEqual(rec["tier"], 4)
+        self.assertNotIn("reused_from_prior", rec)
+        self.assertNotIn("you told me to use this one",
+                         dc.classification_review(man))
+
+    def test_a_live_sidecar_still_promotes_through_the_cache(self):
+        # The guard must not break the legitimate case: with the sidecar still on
+        # file, the promotion survives a cache hit (re-derived, not reused).
+        forged_but_backed = [{"source_path": "iface.py",
+                              "document_sha256": _sha(PY_LOGIC), "tier": 1,
+                              "floor_rule": dc.RULE_SIDECAR, "reason": "r",
+                              "byte_count": len(PY_LOGIC.encode()),
+                              "promotable": True}]
+        man = dc.classify_documents(
+            [("iface.py", PY_LOGIC)], prior_records=forged_but_backed,
+            sidecar=["iface.py"], generated_at="X")
+        rec = man["records"][0]
+        self.assertEqual(rec["floor_rule"], dc.RULE_SIDECAR)
+        self.assertIn(rec["tier"], (1, 2))
 
     def test_a_live_decision_still_reaches_a_cached_document(self):
         # The revocation guard must not break the normal case: an unrelated cached
