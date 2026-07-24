@@ -648,14 +648,25 @@ class ReviewDisclosureTests(unittest.TestCase):
     def test_a_malformed_bug_manifest_refuses_by_message_not_traceback(self):
         # 031 self-Council round 3 (Panelist B, NIT): a JSON list / null escaped
         # the fail-safe as an AttributeError.
-        for body in ("[]", "null", '{"records": [{"id": "BUG-001"}]}', "not json"):
+        # 031 self-Council round 5 (Panelist B, NIT): both situations refused
+        # under one message, and "BUG records already exist" is established only
+        # for a manifest we could actually read — while State P2 tells the agent
+        # to report the refusal it got.
+        for body, established in (("[]", False), ("null", False),
+                                  ('{"records": [{"id": "BUG-001"}]}', True),
+                                  ("not json", False), ('{"bugs": []}', False)):
             with self.subTest(body=body):
                 self._run_pass()
                 (self.root / "quality" / "bugs_manifest.json").write_text(
                     body, encoding="utf-8")
                 with self.assertRaises(ValueError) as ctx:
                     pa.revert_from_disk(self.root)
-                self.assertIn("BUG records", str(ctx.exception))
+                msg = str(ctx.exception)
+                if established:
+                    self.assertIn("BUG records already exist", msg)
+                else:
+                    self.assertIn("cannot read the bug manifest", msg)
+                    self.assertNotIn("BUG records already exist", msg)
                 (self.root / "quality" / "bugs_manifest.json").unlink()
 
     def test_a_wrong_key_bug_manifest_is_not_read_as_no_bugs(self):

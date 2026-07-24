@@ -627,16 +627,27 @@ def revert_from_disk(target_repo, *, write: bool = True) -> dict:
             # would read as "no bugs" and let a late undo orphan real BUG→REQ
             # links (instr 031 self-Council rounds 3 + 4, Panelist B). Unreadable
             # means assume the risk is real, in every direction.
-            has_bugs = (bool(data["records"])
-                        if isinstance(data, dict) and "records" in data else True)
+            readable = isinstance(data, dict) and "records" in data
+            has_bugs = bool(data["records"]) if readable else True
         except (OSError, ValueError):
-            has_bugs = True          # unreadable: assume the risk is real
+            readable, has_bugs = False, True   # unreadable: assume risk is real
         if has_bugs:
+            # Say which of the two it is. Refusing is right either way, but
+            # "BUG records already exist" is only ESTABLISHED in the first case,
+            # and State P2 tells the agent to report the refusal it got (instr
+            # 031 self-Council round 5, Panelist B).
+            if readable:
+                raise ValueError(
+                    f"BUG records already exist ({bugs}); they cross-reference "
+                    f"REQ ids that restoring the pre-review requirements would "
+                    f"orphan. Undo the expert review at the Phase 2 -> 3 "
+                    f"boundary, before Phase 3 builds on the requirements."
+                )
             raise ValueError(
-                f"BUG records already exist ({bugs}); they cross-reference REQ "
-                f"ids that restoring the pre-review requirements would orphan. "
-                f"Undo the expert review at the Phase 2 -> 3 boundary, before "
-                f"Phase 3 builds on the requirements."
+                f"cannot read the bug manifest at {bugs}, so whether BUG records "
+                f"cross-reference the requirements is unknown — assuming the risk "
+                f"is real rather than orphaning them. Fix or remove that file, or "
+                f"undo the expert review at the Phase 2 -> 3 boundary."
             )
     restored = json.loads(snapshot.read_text(encoding="utf-8"))
     if write:
