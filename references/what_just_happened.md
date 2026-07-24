@@ -183,10 +183,21 @@ instruction 031 the offer preceded the pass; the three surfaces — this file, `
 `bin.persona_apply.revert_from_disk(<target_repo>)`: it restores
 `quality/requirements_manifest.json` from the pre-pass snapshot
 `quality/requirements_manifest.pre_review.json` — exact for added, rewritten AND removed
-requirements, because it is the whole prior manifest, not a replay — and clears the review
-artifacts. Then **re-render `quality/REQUIREMENTS.md`** from the restored manifest, the same
-write-back step the pass itself uses. It raises `FileNotFoundError` when no snapshot exists;
-that means there is nothing to undo — say so rather than improvising a hand-edit.
+requirements, because it is the whole prior manifest, not a replay — and renames the review
+summary to `persona_review_summary.undone.json` (the set-aside suggestions it lists were
+never applied, so undoing does not destroy them). Then **re-render
+`quality/REQUIREMENTS.md`** from the restored manifest, the same write-back step the pass
+itself uses. It refuses rather than guessing, and the three refusals mean different things —
+report the one you got, don't collapse them:
+
+- `FileNotFoundError` naming *"the pass did not run here"* — nothing was changed, nothing to undo.
+- `FileNotFoundError` naming *"its pre-pass snapshot was not kept"* — a pass **did** run and
+  the requirements **were** changed; it just predates the snapshot. Point the operator at
+  `quality/persona_review_summary.json`, which lists every change, rather than telling them
+  nothing happened.
+- `ValueError` naming BUG records — Phase 3+ has run and BUG records cross-reference REQ ids
+  that this restore would orphan. The undo belongs at this boundary, before Phase 3 builds on
+  the requirements.
 
 Render it with `bin.persona_apply.persona_review_disclosure(review_summary)`, where
 `review_summary` is the pass's `PersonaPass.review_summary` (equivalently the loaded

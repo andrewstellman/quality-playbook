@@ -456,8 +456,11 @@ for short in "${REPOS[@]}"; do
     # installs, so the justification here is the negation rule, not adopter
     # parity (instr 031 self-Council, Panelist C). qpb_validate's stale-quality/
     # check excludes RUN_INDEX.md by name, and run_playbook's
-    # `archive_previous_run` now treats it as non-live, so a freshly-created one
-    # does not read as a prior run in either surface.
+    # `archive_previous_run` now treats it as non-live, so THIS file does not
+    # read as a prior run. (Not a blanket claim: `archive_previous_run` still
+    # lacks the dotfile exclusion `check_stale_quality_dir` has, so the
+    # validator's own `.qpb_validation_*` witness can still trigger a phantom
+    # archive — pre-existing, reproduced on the parent commit, carried forward.)
     mkdir -p "${dst}/quality"
     if [ ! -s "${dst}/quality/RUN_INDEX.md" ]; then
         printf '%s\n' \

@@ -80,6 +80,11 @@ REQUIREMENTS_MANIFEST_NAME = "requirements_manifest.json"
 # requirements back exactly as they were" REQUIRES that to be true, so the pass
 # now persists the pre-pass manifest beside the two artifacts it already writes.
 PRE_REVIEW_MANIFEST_NAME = "requirements_manifest.pre_review.json"
+# Where the review summary goes when the operator undoes the pass. Renamed, not
+# deleted: the candidate findings it lists were never applied, and the operator
+# was told they are "listed for you to judge" (instr 031 self-Council round 2,
+# Panelist B).
+UNDONE_REVIEW_SUMMARY_NAME = "persona_review_summary.undone.json"
 
 # v1.6.0 Feature H slice 6 (§8b "Honesty about maturity"). A persona finding that
 # rests on the readability rubric — the Well-organized / readable dimension the
@@ -272,8 +277,8 @@ def persona_review_disclosure(review_summary: Optional[dict]) -> Optional[str]:
     lines.append(
         "Before moving on, I brought in expert reviewers — one who knows this kind "
         "of system and one who reviews for security — to read your requirements "
-        "against the documents you gave me. They only add or change a requirement "
-        "when they can point to the documentation that backs it up."
+        "against the documents you gave me. They only add or rewrite a "
+        "requirement when they can point to the documentation that backs it up."
     )
     lines.append("")
 
@@ -561,27 +566,63 @@ def revert_from_disk(target_repo, *, write: bool = True) -> dict:
     caller (the running agent) then RE-RENDERS ``quality/REQUIREMENTS.md`` from
     it, the same write-back step the pass itself and the human interview use.
 
-    Raises ``FileNotFoundError`` when there is no snapshot: no pass ran, or it
-    ran before this was persisted. Never guesses.
+    Refuses rather than guessing, in three distinguishable states (instr 031
+    self-Council round 2, Panelist B):
 
-    Scope: the Phase 2→3 boundary, where no BUG records exist yet, so there are
-    no BUG→REQ cross-references to re-map. In-process, ``revert()`` remains the
-    full-fidelity path (it restores the BUG manifest too).
+    * **No snapshot and no review summary** — no pass ran. ``FileNotFoundError``
+      saying exactly that: there is nothing to undo.
+    * **No snapshot but a review summary IS present** — a pass ran and its
+      pre-pass state was not kept (it predates this snapshot). That is NOT
+      "nothing to undo": the requirements *were* changed. ``FileNotFoundError``
+      says so and points at the summary, which lists every change, for a manual
+      restore. Telling the operator "nothing happened" here would be a lie about
+      a state where something did.
+    * **BUG records already exist** — Phases 3+ have run and BUG records
+      cross-reference REQ ids. Restoring the manifest underneath them would
+      orphan those links (the in-process ``revert`` re-maps them via
+      ``apply_remap_to_bugs``; from disk the remap is gone). ``ValueError``,
+      because a silent orphaning is worse than a refusal.
+
+    Otherwise: the whole prior manifest is restored — exact for adds, corrects
+    AND drops, because it is the prior state rather than a replay. The review
+    summary is RENAMED (``…undone.json``), not deleted: the candidates it lists
+    were never applied, the disclosure told the operator they are "listed for you
+    to judge", and undoing the applied changes is no reason to destroy them. The
+    canonical name is freed so a later render cannot re-disclose an undone pass.
     """
     quality_dir = Path(target_repo) / "quality"
     snapshot = quality_dir / PRE_REVIEW_MANIFEST_NAME
+    summary = quality_dir / REVIEW_SUMMARY_NAME
     if not snapshot.is_file():
+        if summary.is_file():
+            raise FileNotFoundError(
+                f"an expert-review pass ran here but its pre-pass snapshot was "
+                f"not kept ({snapshot} is absent), so this cannot restore it "
+                f"automatically. The requirements WERE changed: every change is "
+                f"listed in {summary} and can be undone by hand."
+            )
         raise FileNotFoundError(
-            f"no pre-review snapshot at {snapshot} — nothing to undo "
-            f"(the expert-review pass did not run, or ran before v1.6.0 "
-            f"instruction 031 persisted the snapshot)"
+            f"no pre-review snapshot at {snapshot} and no review summary — the "
+            f"expert-review pass did not run here. There is nothing to undo."
         )
+    bugs = quality_dir / "bugs_manifest.json"
+    if bugs.is_file():
+        try:
+            has_bugs = bool(json.loads(bugs.read_text(encoding="utf-8")).get("records"))
+        except (OSError, ValueError):
+            has_bugs = True          # unreadable: assume the risk is real
+        if has_bugs:
+            raise ValueError(
+                f"BUG records already exist ({bugs}); they cross-reference REQ "
+                f"ids that restoring the pre-review requirements would orphan. "
+                f"Undo the expert review at the Phase 2 -> 3 boundary, before "
+                f"Phase 3 builds on the requirements."
+            )
     restored = json.loads(snapshot.read_text(encoding="utf-8"))
     if write:
         (quality_dir / REQUIREMENTS_MANIFEST_NAME).write_text(
             json.dumps(restored, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        # The summary and the snapshot describe a pass that no longer applies;
-        # leaving them would let a later render re-disclose an undone review.
-        for name in (REVIEW_SUMMARY_NAME, PRE_REVIEW_MANIFEST_NAME):
-            (quality_dir / name).unlink(missing_ok=True)
+        if summary.is_file():
+            summary.replace(quality_dir / UNDONE_REVIEW_SUMMARY_NAME)
+        snapshot.unlink(missing_ok=True)
     return restored

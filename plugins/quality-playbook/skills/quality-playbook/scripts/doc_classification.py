@@ -989,11 +989,17 @@ _NON_SPEC_NAME_TOKENS = frozenset({
     "guide", "guides", "guideline", "guidelines",
     "tutorial", "tutorials", "howto", "walkthrough", "walkthroughs",
     "faq", "faqs", "cheatsheet", "quickstart", "checklist", "checklists",
-    "changelog", "changes", "history", "notes", "note", "release", "releases",
+    "changelog", "notes", "note",
     "migration", "migrations", "migrating", "upgrade", "upgrading", "roadmap",
     "example", "examples", "sample", "samples", "card", "cards",
-    "practices", "glossary", "readme", "index", "toc",
+    "practices", "glossary", "readme",
 })
+# Deliberately NOT vetoed: version-adjacent words (`release`, `changes`,
+# `history`, `index`). A veto is a demotion, and demoting `virtio-spec-release-1.2.md`
+# hands the example to whatever else is spec-like — in the worst case a 7-byte
+# `api-contract-stub.md`, which re-opens the instr-030 substantive-over-stub
+# finding one door over (instr 031 self-Council round 2, Panelist A). The genre
+# words above name a document's KIND; a version word only dates it.
 # Tokens are ALPHABETIC runs, so digits split too (``rfc793`` -> ``rfc``), and
 # matching is whole-token — a substring match would read "spec" out of
 # "inspector" and "api" out of "capital".
@@ -1192,8 +1198,18 @@ def classification_review(
     # floored documents, which this step's decision CAN lift — the same power the
     # path-keyed sidecar grants) and carried a dead entry (instr 030 self-Council,
     # Panelists B + C).
+    # ...and never a document the OPERATOR themself put here. An instr-030
+    # demotion ("that one is just background") is exactly the case the new name
+    # signal seeks out — operators demote the files that LOOK spec-shaped — so
+    # without this the block contradicts itself four lines apart: "you told me to
+    # treat this one as background only" … "treat `virtio-spec-contracts.md` as
+    # my specification" (instr 031 self-Council round 2, Panelist A). Keyed on
+    # the rule, NOT on `promotable`: RULE_IMPL also carries `promotable=False`,
+    # and filtering on that would silently re-close the code-shaped-contract
+    # affordance instr 030 opened.
     promotable_bg = [e for e in background
-                     if e.get("floor_rule") not in (RULE_ADVISORY, RULE_BACKGROUND)]
+                     if e.get("floor_rule") not in (RULE_ADVISORY, RULE_BACKGROUND,
+                                                    RULE_OPERATOR_BACKGROUND)]
     # Prefer a documentation-shaped candidate over an implementation-floored one:
     # source files are eligible (the operator CAN promote one) but are often the
     # largest thing in the corpus, so size alone would routinely illustrate

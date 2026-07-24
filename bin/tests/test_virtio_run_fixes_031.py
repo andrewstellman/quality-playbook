@@ -177,6 +177,36 @@ class WorkedExampleTests(unittest.TestCase):
         self.assertEqual(_example_in(dc.classification_review(man)),
                          "reference_docs/iface-protocol.py")
 
+    def test_a_document_the_operator_demoted_is_never_the_example(self):
+        # 031 self-Council round 2 (Panelist A, P1): an operator's own instr-030
+        # demotion ("that one is just background") landed back in the candidate
+        # pool — and since operators demote precisely the files that LOOK
+        # spec-shaped, the name signal sought it out. The block then contradicted
+        # itself four lines apart.
+        spec_path = "reference_docs/virtio-spec-behavioral-contracts.md"
+        sha = hashlib.sha256(VIRTIO_SPEC.encode("utf-8")).hexdigest()
+        man = dc.classify_documents(
+            [(spec_path, VIRTIO_SPEC),
+             ("reference_docs/system-overview.md", "# Overview\n\nbig\n" * 400)],
+            llm_classifier=_all_tier4,
+            operator_decisions=[(spec_path, sha, dc.OPERATOR_BACKGROUND)],
+            generated_at="X")
+        out = dc.classification_review(man)
+        self.assertIn("you told me to treat this one as background only", out)
+        self.assertNotEqual(_example_in(out), spec_path)
+        self.assertNotIn("virtio-spec-behavioral-contracts.md` as my specification", out)
+
+    def test_a_version_word_does_not_demote_a_real_spec(self):
+        # 031 self-Council round 2 (Panelist A, NIT): a veto is a demotion, so
+        # vetoing `release` handed the example to a tiny stub instead — the
+        # instr-030 substantive-over-stub finding, one door over.
+        man = _manifest([
+            ("reference_docs/virtio-spec-release-1.2.md", VIRTIO_SPEC * 30),
+            ("reference_docs/api-contract-stub.md", "# stub\n"),
+        ])
+        self.assertEqual(_example_in(dc.classification_review(man)),
+                         "reference_docs/virtio-spec-release-1.2.md")
+
     def test_a_genre_word_vetoes_a_spec_word(self):
         # 031 self-Council round 1 (Panelist A, P1): `linux-coding-standards.rst`
         # is ONE RENAME from the file that caused this instruction, and it
@@ -236,7 +266,11 @@ class SpecNameSignalTests(unittest.TestCase):
         # 031 self-Council round 1 (Panelist A, NIT): splitting on "/" alone left
         # a backslash path as one basename, so `reference_docs` became the
         # signal — the exact no-op the directory rule exists to prevent.
-        self.assertFalse(dc._spec_like_name(r"reference_docs\notes.md"))
+        # The fixture must be a name the veto does NOT already reject, or the
+        # test passes with the split reverted (031 self-Council round 2, Panelist
+        # A: the first fixture used `notes.md`, which the genre veto killed
+        # before the split mattered — a tautology).
+        self.assertFalse(dc._spec_like_name(r"reference_docs\design.md"))
         self.assertTrue(dc._spec_like_name(r"docs\wire-protocol.md"))
 
     def test_a_dotfile_keeps_its_name(self):
@@ -495,8 +529,57 @@ class ReviewDisclosureTests(unittest.TestCase):
 
     def test_undo_without_a_pass_refuses_rather_than_guesses(self):
         (self.root / "quality").mkdir(exist_ok=True)
-        with self.assertRaises(FileNotFoundError):
+        with self.assertRaises(FileNotFoundError) as ctx:
             pa.revert_from_disk(self.root)
+        self.assertIn("did not run here", str(ctx.exception))
+
+    def test_the_undo_keeps_the_findings_it_told_the_operator_to_judge(self):
+        # 031 self-Council round 2 (Panelist B, P1): the same paragraph says the
+        # set-aside suggestions "are listed for you to judge" AND offers the
+        # undo — and the undo deleted the list. The candidates were never
+        # applied, so undoing the applied changes is no reason to destroy them.
+        self._run_pass()
+        pa.revert_from_disk(self.root)
+        quality = self.root / "quality"
+        self.assertFalse((quality / pa.REVIEW_SUMMARY_NAME).is_file())
+        undone = quality / pa.UNDONE_REVIEW_SUMMARY_NAME
+        self.assertTrue(undone.is_file())
+        self.assertIn("applied", json.loads(undone.read_text(encoding="utf-8")))
+
+    def test_a_pass_that_predates_the_snapshot_is_not_called_nothing_to_undo(self):
+        # 031 self-Council round 2 (Panelist B, P1): "there is nothing to undo"
+        # was also the answer for a tree whose pass ran BEFORE the snapshot
+        # existed — where the requirements really were changed.
+        self._run_pass()
+        (self.root / "quality" / pa.PRE_REVIEW_MANIFEST_NAME).unlink()
+        with self.assertRaises(FileNotFoundError) as ctx:
+            pa.revert_from_disk(self.root)
+        msg = str(ctx.exception)
+        self.assertIn("ran here", msg)
+        self.assertNotIn("nothing to undo", msg)
+        self.assertIn(pa.REVIEW_SUMMARY_NAME, msg)
+
+    def test_a_late_undo_refuses_rather_than_orphaning_bug_links(self):
+        # 031 self-Council round 2 (Panelist B, P1): in-process `revert` re-maps
+        # BUG→REQ cross-references (`apply_remap_to_bugs`); from disk the remap
+        # is gone, and the offer carried no time bound.
+        self._run_pass()
+        (self.root / "quality" / "bugs_manifest.json").write_text(
+            json.dumps({"records": [{"id": "BUG-001", "req_id": "REQ-002"}]}),
+            encoding="utf-8")
+        with self.assertRaises(ValueError) as ctx:
+            pa.revert_from_disk(self.root)
+        self.assertIn("BUG records", str(ctx.exception))
+        # ...and it changed nothing on the way out.
+        self.assertTrue((self.root / "quality" / pa.REVIEW_SUMMARY_NAME).is_file())
+
+    def test_the_documentary_claim_does_not_cover_removals(self):
+        # 031 self-Council round 2 (Panelist B, NIT): "they only add or CHANGE a
+        # requirement when they can point to the documentation" still covered
+        # removals, which are not checked that way.
+        out = pa.persona_review_disclosure({"applied": [{"move": "drop"}]})
+        self.assertIn("only add or rewrite a requirement", out)
+        self.assertNotIn("only add or change a requirement", out)
 
     def test_a_disabled_pass_leaves_no_snapshot(self):
         self._run_pass(enabled=False)
@@ -608,6 +691,13 @@ class BenchmarkInstallTests(unittest.TestCase):
 
     SETUP = REPO_ROOT / "repos" / "setup_repos.sh"
     CLEAN = REPO_ROOT / "repos" / "clean" / "virtio"
+    # `setup_repos.sh` is force-tracked, but the `_benchmark_lib.sh` it sources
+    # is not (all of `repos/` is gitignored), so on a fresh clone the script
+    # aborts with "No such file or directory" — every script-executing test
+    # below FAILED rather than skipping, contradicting this file's
+    # degrade-to-skip convention (031 self-Council round 2, Panelist C,
+    # reproduced from a `git archive` extraction).
+    BENCH_LIB = REPO_ROOT / "repos" / "_benchmark_lib.sh"
 
     def test_the_validator_is_not_weakened(self):
         # The fix completes the INSTALL; it must not relax what Phase 0 requires.
@@ -632,6 +722,7 @@ class BenchmarkInstallTests(unittest.TestCase):
         self.assertIn("quality/RUN_INDEX.md", text)
 
     @unittest.skipUnless(CLEAN.is_dir(), "repos/clean/virtio not present")
+    @unittest.skipUnless(BENCH_LIB.is_file(), "repos/_benchmark_lib.sh not present")
     def test_a_freshly_set_up_target_validates_phase_0_clean(self):
         with tempfile.TemporaryDirectory() as tmp:
             dst = Path(tmp) / "virtio-target"
@@ -686,6 +777,7 @@ class BenchmarkInstallTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr[-2000:])
         return proc
 
+    @unittest.skipUnless(BENCH_LIB.is_file(), "repos/_benchmark_lib.sh not present")
     def test_an_existing_gitignore_block_is_not_duplicated(self):
         template = (SKILL_ROOT / "skill-template.gitignore").read_text(encoding="utf-8")
         self._prior_target("build/\n" + template)
@@ -697,6 +789,7 @@ class BenchmarkInstallTests(unittest.TestCase):
                 body.count("Quality Playbook — suggested .gitignore additions"), 1)
             self.assertIn("build/", body)
 
+    @unittest.skipUnless(BENCH_LIB.is_file(), "repos/_benchmark_lib.sh not present")
     def test_appending_never_destroys_the_last_existing_rule(self):
         # 031 self-Council round 1 (Panelist C, P1): six repos under
         # repos/clean/ have a `.gitignore` with NO trailing newline. `cat >>`

@@ -20,6 +20,8 @@ The quality gate (`quality_gate.py`) validates these artifacts. If the gate chec
 | Requirements review (defect log) | `quality/REQUIREMENTS_REVIEW.md` | If a validation interview ran | Feature D interview |
 | Operator confirmations (durability) | `quality/operator_confirmations.jsonl` | If a validation interview ran | Feature D interview |
 | Interview transcript | `quality/review_sessions/<TS>-<topic>.md` | If interview + operator save-gate | Feature D interview |
+| Expert-review (persona pass) summary | `quality/persona_review_summary.json` | If the Feature H pass ran | Phase 2→3 boundary (`persona_apply.run_feature_h`) |
+| Expert-review pre-pass snapshot | `quality/requirements_manifest.pre_review.json` | If the Feature H pass ran | Phase 2→3 boundary — the operator's undo (`persona_apply.revert_from_disk`); persists until the undo consumes it (v1.6.0 instruction 031) |
 | Behavioral contracts | `quality/CONTRACTS.md` | Yes | Phase 2 |
 | Functional tests | `quality/test_functional.*` | Yes | Phase 2 |
 | Regression tests | `quality/test_regression.*` | If bugs found | Phase 3 |
