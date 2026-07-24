@@ -84,10 +84,14 @@ Continue with Phase 2 by saying `keep going` or `run phase 2`.
 
 **The documentation review is part of State P1 and is not optional** *(v1.6.0 Feature G,
 instruction 030)*. Whenever `quality/classification_manifest.json` exists, render
-`bin.doc_classification.classification_review(manifest)` into the State P1 block — it shows
-the operator, in plain language, which of the documents they gathered are being used as
-**authoritative sources their requirements can cite** and which are **background context**,
-one plain reason each. Print its output as-is; it is written in the operator's language and
+`bin.doc_classification.classification_review(manifest, formal_records=...)` into the State
+P1 block — it shows the operator, in plain language, which of the documents they gathered
+are being used as **authoritative sources their requirements can cite** and which are
+**background context**, one plain reason each. Pass `formal_records` from
+`quality/formal_docs_manifest.json` whenever it exists: that manifest is the ground truth
+for what the pipeline will actually quote, so supplying it makes the show correct by
+construction (a `cite/`-placed document is quoted even when the classifier read it as
+background). Print its output as-is; it is written in the operator's language and
 deliberately carries no internal labels. When nothing is authoritative it says so
 prominently — the virtio signature, where every requirement ends up code-derived because a
 real spec was read as background.
@@ -98,14 +102,25 @@ authoritative), then Phase 2 derives against the confirmed set; **end of Phase 2
 the requirements**. A correction here costs one re-run of the ingest; the same correction
 discovered after Phase 2 costs a whole re-derivation.
 
-The confirm step follows the interview's opt-out shape:
+**The show prints in every mode; only the *pause* varies** — and the pause is the exception,
+not the default, because the Mode A default is the full six-phase pipeline that does not
+stop at phase boundaries (`AGENTS.md`; `references/phase1_exploration_guide.md`; v1.5.7
+089b F11):
 
-- **Default (the operator drives each phase).** Call it with `offer=True` (the default) so
-  the block ends with the invitation to correct it, and pause for the answer before Phase 2.
-- **The operator earlier said "run everything", "run all phases", "run straight through", or
-  "don't stop between phases".** Call it with `offer=False` and continue — **the show still
-  prints**. Disclosure is not skippable; only the pause is. The `offer=False` wording tells
-  the operator they can still hand over a correction at any point.
+- **`offer=True` (pause) only when an operator is stepping this run and waiting on you** —
+  they invoked this phase alone (`Run quality playbook phase 1.`), are going phase by
+  phase, or asked to be consulted at boundaries. Ask, then wait for the answer.
+- **`offer=False` (no pause) in every continuous or unattended run** — the full-pipeline
+  default, an explicit "run everything" / "run all phases" / "run straight through" /
+  "don't stop between phases", the single-pass prompt, and any runner-driven (Mode B) or
+  headless invocation where **no operator is present to answer**. The show still prints,
+  and its `offer=False` wording tells the operator they can hand over a correction at any
+  later point.
+
+Do **not** decide this by matching the operator's exact words — the question is only *"is
+someone stepping this run and waiting on me right now?"* If you cannot tell, use
+`offer=False`: a blocked unattended run is a worse failure than a missed pause, and the
+disclosure has been made either way.
 
 If the operator names a document to treat as authoritative (or the reverse), record it
 through the operator-authored path and re-run the ingest before Phase 2 — see

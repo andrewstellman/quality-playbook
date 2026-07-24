@@ -54,13 +54,18 @@ The classification runs **over a deterministic mechanical floor you cannot overr
 
 **End-of-Phase-1 documentation review — show the classification, then let the operator confirm or correct it (v1.6.0 Feature G, instruction 030).** Classification is a judgment, and it varies: the same `virtio-spec-behavioral-contracts.md` came out as an authoritative source in one run and as background in another. The operator gathered these documents, so the operator is the one who can say *"that IS my spec"* — and the cheapest moment to ask is **at the end of Phase 1, before Phase 2 derives a single requirement against the classification.** This is the mirror image of the requirements interview: end of Phase 1 confirms *which documents are authoritative*; end of Phase 2 confirms *the requirements*.
 
-1. **Show it — always, in the operator's language.** After the ingest (and after you have refined the tiers and re-run it), render the review and print it in your end-of-Phase-1 message:
+1. **Show it — always, in the operator's language.** After the ingest (and after you have refined the tiers and re-run it), render the review and print it in your end-of-Phase-1 message. Pass **both** manifests — the formal-docs manifest is the ground truth for what the pipeline will actually quote, so supplying it makes the show correct by construction rather than by agreement (a `cite/`-placed document is quoted even when the classifier read it as background):
 
-       PYTHONPATH=<install_root> python3 -c "import json,sys; from bin.doc_classification import classification_review; print(classification_review(json.load(open('quality/classification_manifest.json'))))"
+       PYTHONPATH=<install_root> python3 -c "import json,pathlib; from bin.doc_classification import classification_review; f=pathlib.Path('quality/formal_docs_manifest.json'); print(classification_review(json.load(open('quality/classification_manifest.json')), formal_records=(json.loads(f.read_text())['records'] if f.is_file() else None)))"
 
    It presents each gathered document as either **an authoritative source your requirements can cite** or **background context (not quoted)**, with a one-line plain reason, and — when nothing is authoritative — says so prominently: *"none of your documents are being used as authoritative sources this run; every requirement will be drawn from the code."* Print its output as-is. **Do not paraphrase it with internal labels** — no "Tier N", no "citable", no "floored", no "manifest" reaches the operator (`QPB_v1.6.0_UX_Language_Draft.md`). The show is **not skippable**, in any mode.
 
-2. **Confirm or correct — the operator step.** With the default `offer=True` the block ends with the invitation to correct it; pause there and let the operator answer before Phase 2. If the operator earlier said **"run everything" / "run all phases" / "run straight through" / "don't stop between phases"**, pass `offer=False` and continue without pausing — but still print the show. Only the *pause* is skippable.
+2. **Confirm or correct — the operator step, with the *pause* keyed to how the run was invoked.** The Mode A default is the full six-phase pipeline that does **not** stop at phase boundaries (`AGENTS.md`: *"do NOT stop at any phase boundary"*; the end-of-phase message below; v1.5.7 089b F11), so the pause is the **exception**, not the default:
+
+   - **Pause (`offer=True`, the default argument) only when the run is operator-driven per phase** — the operator invoked this phase alone (`Run quality playbook phase 1.`), or is stepping phase by phase, or asked to be consulted at boundaries. There is a human waiting; ask them and wait for the answer before Phase 2.
+   - **Do not pause (`offer=False`) in any continuous or unattended run** — the full-pipeline default, an explicit *"run everything" / "run all phases" / "run straight through" / "don't stop between phases"*, the `single_pass` prompt, and every runner-driven (Mode B) or headless invocation where **no operator is present to answer**. Print the show and continue.
+
+   **Do not decide this by matching the operator's exact words.** The question is only ever *"is there an operator stepping this run who is waiting on me right now?"* If you cannot tell, or nobody is there to answer, use `offer=False` — a blocked headless run is a worse failure than a missed pause, and the disclosure has already been made either way. **The show prints in every one of these cases; only the pause varies.**
 
 3. **A correction is operator-authored, and it re-derives citability.** When the operator names a document to treat as authoritative (or the reverse), record it through the operator-authored file `reference_docs/qpb_authoritative.txt`, then **re-run the ingest** so the promoted document acquires a byte-citable `FORMAL_DOC` record Phase 2 can actually cite:
 
@@ -743,12 +748,19 @@ Do not begin Phase 2 until all twelve checks pass AND the `## Gate Self-Check` s
 I've finished exploring the codebase and written my findings to `quality/EXPLORATION.md`.
 [Summarize: how many candidate bugs, which subsystems explored, key risks identified.]
 
+[The documentation review — the verbatim output of classification_review(...), whenever
+quality/classification_manifest.json exists. MANDATORY in every mode; see
+"End-of-Phase-1 documentation review" above. Use offer=True only when an operator is
+stepping this run phase by phase; otherwise offer=False and continue.]
+
 To continue to Phase 2 (Generate quality artifacts), say:
 
     Run quality playbook phase 2.
 
 Or say "keep going" to continue automatically.
 ```
+
+**The documentation review block above is not optional and is not gated on the pause.** A continuous run prints it and continues; only the *pause for confirmation* is skipped when nobody is stepping the run. Omitting the show is the failure this closes: the operator learns their spec was read as background only after Phase 2 has already derived requirements without it.
 
 **After printing this message, continue automatically to Phase 2 unless the operator invoked you for the current phase only (e.g., they typed `Run quality playbook phase 1.` for a single-phase run). The Mode A default per AGENTS.md is the full six-phase pipeline; per-phase STOP applies only to incremental operator-driven invocations (v1.5.7 089b F11).**
 

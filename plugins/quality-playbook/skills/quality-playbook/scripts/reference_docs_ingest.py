@@ -125,6 +125,16 @@ ADVISORY_RESCUE_NAME = "qpb_advisory_rescue.txt"
 # running agent is relaying an explicit operator instruction at this step.)
 OPERATOR_DECISION_NAME = "qpb_authoritative.txt"
 
+# The three operator-authored control files. They configure ingest; they are not
+# documentation, so no path that enumerates the corpus may hand them to the agent
+# or classify them. (Instruction 030 self-Council, Panelist C defensive sweep:
+# `qpb_promote.txt` and `qpb_advisory_rescue.txt` were already leaking into
+# `load_tier4_context` / `_collect` as Tier-4 "documentation" before this set
+# existed.)
+CONTROL_FILENAMES = frozenset(
+    {SIDECAR_NAME, ADVISORY_RESCUE_NAME, OPERATOR_DECISION_NAME}
+)
+
 # v1.6.0 Feature G: doc_classification is a sibling stdlib-only module; path-load
 # it so `-m bin.reference_docs_ingest` and bundled layouts both resolve it.
 try:
@@ -308,7 +318,7 @@ def _collect(target_repo: Path) -> List[_FileRecord]:
     records: List[_FileRecord] = []
 
     for path in _iter_candidates(ref_dir):
-        if path.name in SKIPPED_FILENAMES:
+        if path.name in SKIPPED_FILENAMES or path.name in CONTROL_FILENAMES:
             continue
         # Phase 3.9.1 BUG 2 (surfaced during the 2026-04-30 empirical
         # bootstrap test): skip dotfiles (.gitkeep, .DS_Store, etc.)
@@ -449,7 +459,8 @@ def load_tier4_context(target_repo: Path) -> List[Tuple[str, str]]:
         for path in sorted(ref_dir.iterdir()):
             if not path.is_file():
                 continue
-            if path.name.startswith(".") or path.name in SKIPPED_FILENAMES:
+            if (path.name.startswith(".") or path.name in SKIPPED_FILENAMES
+                    or path.name in CONTROL_FILENAMES):
                 continue
             if path.suffix.lower() not in SUPPORTED_EXTENSIONS:
                 continue
@@ -503,8 +514,7 @@ def ingest(target_repo: Path, *, llm_classifier=None) -> dict:
         name = path.name
         # README is Tier-4 background (recorded in the classification manifest),
         # never a FORMAL_DOC; dotfiles and the sidecar are control files.
-        if (name.startswith(".") or name == SIDECAR_NAME
-                or name == ADVISORY_RESCUE_NAME or name == OPERATOR_DECISION_NAME
+        if (name.startswith(".") or name in CONTROL_FILENAMES
                 or name in SKIPPED_FILENAMES):
             continue
         ext = path.suffix.lower()
@@ -647,6 +657,20 @@ def record_operator_decision(
             "an operator classification-review decision must carry a reason "
             "(the acknowledgment that makes the decision reviewable)"
         )
+    # The file format is whitespace-delimited and positional (the instr-025
+    # rescue's shape), so a path containing whitespace would be written happily
+    # and then parse back as a DIFFERENT path — the decision would silently
+    # no-op, and the show would keep saying "background" while the operator
+    # believes they promoted it. Refuse loudly instead (instr 030 self-Council,
+    # Panelist A).
+    if rel_path != rel_path.strip() or any(c.isspace() for c in rel_path):
+        raise IngestError(
+            f"cannot record a decision for {rel_path!r}: the operator decision "
+            f"file ({OPERATOR_DECISION_NAME}) is whitespace-delimited, so a "
+            f"document path containing whitespace cannot be expressed in it. "
+            f"Rename the document (or place it under reference_docs/cite/ to "
+            f"mark it a source) and re-run the ingest."
+        )
     doc = target_repo / rel_path
     if not doc.is_file():
         raise IngestError(f"no such document to decide on: {rel_path}")
@@ -708,9 +732,7 @@ def _classification_candidates(ref_dir: Path, target_repo: Path) -> List[Tuple[s
         # README is NOT skipped here (unlike the formal-docs path): §8a item 7
         # requires it be recorded as Tier-4 background, not silently dropped —
         # the background-ledger floor rule tiers it.
-        if (path.name.startswith(".") or path.name == SIDECAR_NAME
-                or path.name == ADVISORY_RESCUE_NAME
-                or path.name == OPERATOR_DECISION_NAME):
+        if path.name.startswith(".") or path.name in CONTROL_FILENAMES:
             continue
         if not _classify_ext_ok(path.name):
             continue

@@ -110,6 +110,13 @@ _ABSOLUTE_FLOOR_RULES = frozenset(
 _UNRESCUABLE_FLOOR_RULES = frozenset(
     {RULE_ADVISORY, RULE_BACKGROUND}
 )
+# The rules produced ONLY by a live operator-authored decision (instr 030). A
+# cached record carrying one of these — or an `operator_decision` field — is
+# never honored from the prior manifest: see the cache guard in
+# ``classify_documents``. The operator's consent has to still be on file.
+_OPERATOR_RULES = frozenset(
+    {RULE_OPERATOR_AUTHORITATIVE, RULE_OPERATOR_BACKGROUND}
+)
 
 # §8a item 7: README and the coverage / issue-tracker ledgers are background
 # and stay Tier 4 — the classifier cannot promote them. (An advisory-signature
@@ -655,10 +662,25 @@ def classify_documents(
             if guard.rule in _UNRESCUABLE_FLOOR_RULES:
                 records.append(_record(rel_path, text, guard))
                 continue
-            rec = dict(cached)
-            rec["reused_from_prior"] = True
-            records.append(rec)
-            continue
+            if (cached.get("operator_decision")
+                    or cached.get("floor_rule") in _OPERATOR_RULES):
+                # An operator classification-review decision in the PRIOR manifest
+                # with no live operator-authored backing (instr 030 self-Council,
+                # Panelist A). Two cases, same answer: the operator WITHDREW the
+                # line from qpb_authoritative.txt — a decision they can no longer
+                # revoke is not a decision — or the prior manifest was
+                # hand-edited/poisoned to forge consent the operator never gave.
+                # Either way the cache is discarded and the document re-decided
+                # from scratch below; the operator's consent has to still be on
+                # file, exactly as the instr-025 rescue requires. Without this the
+                # show would also FABRICATE the operator's own words back at them
+                # ("you told me this one is a source I should use").
+                cached = None
+            else:
+                rec = dict(cached)
+                rec["reused_from_prior"] = True
+                records.append(rec)
+                continue
         llm_tier = None
         if llm_classifier is not None:
             try:
@@ -829,6 +851,47 @@ _BACKGROUND_REASONS = {
 _FALLBACK_BACKGROUND_REASON = (
     "I'm reading it for context rather than quoting it as a source."
 )
+_CITE_FOLDER_REASON = (
+    "you put it in the folder for documents you want quoted as sources."
+)
+
+# A path is interpolated straight into operator-facing Markdown, and a document's
+# *filename* is attacker-influenced surface just like its content. A newline in a
+# filename would otherwise let a document forge its own "Authoritative sources"
+# heading in the show (instr 030 self-Council, Panelist A).
+_UNSAFE_PATH_CHARS_RE = re.compile(r"[\x00-\x1f\x7f`]")
+
+
+def _safe_path(path: Optional[str]) -> str:
+    """A document path, rendered inert for the operator-facing show."""
+    return _UNSAFE_PATH_CHARS_RE.sub("?", str(path or ""))
+
+
+def _is_cite_placed(source_path: Optional[str]) -> bool:
+    """True when the document sits directly in ``reference_docs/cite/``.
+
+    ``cite/`` placement is the operator's explicit pre-classification, and
+    ``reference_docs_ingest._formal_tier`` honors it over the classifier's tier —
+    so the show has to honor it too, or it tells the operator a document is
+    background while the pipeline quotes it (instr 030 self-Council, Panelist B).
+    """
+    parts = str(source_path or "").split("/")
+    return len(parts) >= 2 and parts[-2] == "cite"
+
+
+def _is_authoritative(rec: dict) -> bool:
+    """Whether the pipeline will actually treat this document as a citable source.
+
+    This mirrors ``reference_docs_ingest._formal_tier`` exactly — citable iff the
+    floor left it ``promotable`` AND (it is ``cite/``-placed, whose in-file marker
+    always resolves to Tier 1/2, OR its classified tier is 1/2). Splitting the
+    show on tier alone got both directions wrong: a ``cite/`` document the
+    classifier read as background is quoted anyway, and a Tier-1 record the floor
+    barred (``promotable: false``) is not.
+    """
+    if rec.get("promotable") is False:
+        return False
+    return _is_cite_placed(rec.get("source_path")) or rec.get("tier") in (1, 2)
 
 
 def _review_reason(entry: dict, authoritative: bool) -> str:
@@ -838,6 +901,8 @@ def _review_reason(entry: dict, authoritative: bool) -> str:
         if entry.get("status") == "advisory-rescued":
             return ("you confirmed this is your real specification even though it "
                     "mentions security advisories.")
+        if entry.get("tier") not in (1, 2) and _is_cite_placed(entry.get("source_path")):
+            return _CITE_FOLDER_REASON
         return _AUTHORITATIVE_REASONS.get(
             rule, "I read it as a statement of what this software is supposed to do.")
     if entry.get("status") == "advisory-rescued":
@@ -846,22 +911,39 @@ def _review_reason(entry: dict, authoritative: bool) -> str:
     return _BACKGROUND_REASONS.get(rule, _FALLBACK_BACKGROUND_REASON)
 
 
-def classification_review(manifest: dict, *, offer: bool = True) -> str:
+def classification_review(
+    manifest: dict, *, offer: bool = True,
+    formal_records: Optional[Sequence[dict]] = None,
+) -> str:
     """The end-of-Phase-1 show: how each gathered document is being used, in the
     operator's language, plus the invitation to correct it (instruction 030).
 
     Always rendered — the disclosure is not skippable. ``offer=False`` is the
-    straight-through case ("run everything without stopping"): the show is
-    identical, only the *pause* is dropped, so a continuous run still discloses
-    the classification it is about to derive requirements against.
+    continuous-run case: the show is identical, only the *pause* is dropped, so a
+    run that never stops at a phase boundary still discloses the classification it
+    is about to derive requirements against.
+
+    ``formal_records`` is ``quality/formal_docs_manifest.json``'s ``records`` when
+    the caller has it (the ingest writes it in the same pass). It is the **ground
+    truth** for what the pipeline will actually quote, so supplying it makes the
+    show correct by construction rather than by agreement. Without it the show
+    reproduces the same rule ``_formal_tier`` applies (see ``_is_authoritative``).
 
     Returns Markdown ready to print in chat. Contains no internal labels.
     """
+    formal_paths = (None if formal_records is None
+                    else {r.get("source_path") for r in formal_records})
     entries = []
     for entry, rec in zip(classification_playback(manifest),
                           manifest.get("records", [])):
         merged = dict(entry)
         merged["floor_rule"] = rec.get("floor_rule")
+        merged["promotable"] = rec.get("promotable")
+        merged["byte_count"] = rec.get("byte_count")
+        merged["_authoritative"] = (
+            rec.get("source_path") in formal_paths if formal_paths is not None
+            else _is_authoritative(rec)
+        )
         entries.append(merged)
 
     lines: List[str] = ["### The documents you gave me"]
@@ -874,8 +956,8 @@ def classification_review(manifest: dict, *, offer: bool = True) -> str:
         )
         return "\n".join(lines)
 
-    authoritative = [e for e in entries if e.get("tier") in (1, 2)]
-    background = [e for e in entries if e.get("tier") not in (1, 2)]
+    authoritative = [e for e in entries if e["_authoritative"]]
+    background = [e for e in entries if not e["_authoritative"]]
 
     lines.append("")
     lines.append(
@@ -897,7 +979,7 @@ def classification_review(manifest: dict, *, offer: bool = True) -> str:
         lines.append("")
         lines.append("**Authoritative sources your requirements can cite**")
         for e in authoritative:
-            lines.append(f"- `{e['source_path']}` — {_review_reason(e, True)}")
+            lines.append(f"- `{_safe_path(e['source_path'])}` — {_review_reason(e, True)}")
 
     if background:
         lines.append("")
@@ -910,27 +992,55 @@ def classification_review(manifest: dict, *, offer: bool = True) -> str:
                 # plainly instead of dropping it silently.
                 note += (" You asked me to use this one as a source; I'm not, for "
                          "the reason above.")
-            lines.append(f"- `{e['source_path']}` — {note}")
+            lines.append(f"- `{_safe_path(e['source_path'])}` — {note}")
 
     lines.append("")
     # Name a document the operator could actually promote — one the classifier
-    # merely read as background, not one an absolute rule pinned there (a README
-    # or an advisory can't be promoted here, so offering it as the example would
-    # be a broken suggestion).
+    # merely read as background, not one an absolute rule pinned there. A README
+    # or an advisory CANNOT be promoted at this step, so naming one as the worked
+    # example is a suggestion that is guaranteed to no-op (instr 030 self-Council,
+    # Panelists B + C). When there is no promotable background document, ask the
+    # open question instead of naming a file.
+    # Among the promotable ones, name the SUBSTANTIVE document rather than
+    # whatever sorts first: on the real virtio corpus the alphabetical pick was a
+    # 125-byte toctree stub while the actual spec sat further down the list
+    # (instr 030 self-Council, Panelist B). Size is a crude but honest proxy, and
+    # the example is only ever an illustration of the phrasing.
     promotable_bg = [e for e in background
-                     if e.get("floor_rule") in (RULE_DEFAULT, RULE_LLM)]
-    example = (promotable_bg or background or entries)[0]["source_path"]
+                     if e.get("promotable") is not False
+                     and e.get("floor_rule") in (RULE_DEFAULT, RULE_LLM,
+                                                 RULE_OPERATOR_BACKGROUND)]
+    promotable_bg.sort(key=lambda e: (-(e.get("byte_count") or 0),
+                                      str(e.get("source_path") or "")))
+    example = _safe_path(promotable_bg[0]["source_path"]) if promotable_bg else None
     if offer:
-        lines.append(
-            "**Is that right?** You gathered these, so you're the one who knows. If "
-            f"I've got one wrong, say so — for example *\"treat `{example}` as my "
-            "specification\"* or *\"that one is just background\"* — and I'll redo "
-            "this before deriving anything. Otherwise say **keep going**."
-        )
+        if example:
+            lines.append(
+                "**Is that right?** You gathered these, so you're the one who knows. "
+                "If I've got one wrong, just say which one and how — the wording I "
+                f"understand looks like *\"treat `{example}` as my specification\"* "
+                "or *\"that one is just background\"*. I'll redo this before "
+                "deriving anything. Otherwise say **keep going**."
+            )
+        else:
+            lines.append(
+                "**Is that right?** You gathered these, so you're the one who knows. "
+                "If one of them should be used differently, tell me which and how — "
+                "and I'll redo this before deriving anything. Otherwise say "
+                "**keep going**."
+            )
     else:
-        lines.append(
-            "You asked me to run straight through, so I'm continuing with this as it "
-            f"stands. Say *\"treat `{example}` as my specification\"* at any point if "
-            "one of these should be used as a source and I'll redo it."
-        )
+        if example:
+            lines.append(
+                "I'm continuing without stopping, so this is what I'll derive the "
+                "requirements against. If one of these should be used as a source, "
+                "tell me at any point — the wording I understand looks like "
+                f"*\"treat `{example}` as my specification\"* — and I'll redo it."
+            )
+        else:
+            lines.append(
+                "I'm continuing without stopping, so this is what I'll derive the "
+                "requirements against. Tell me at any point if one of these should "
+                "be used differently and I'll redo it."
+            )
     return "\n".join(lines)

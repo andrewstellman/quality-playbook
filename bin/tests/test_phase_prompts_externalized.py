@@ -313,8 +313,12 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # plain language) and can confirm or correct it before Phase 2
         # derives anything against it. Hashes recomputed; this baseline
         # update IS the sanctioned change-acknowledgement signal.
-        "phase1_no_seeds_True":  (28843, "3736ad12192adcc6a1a1089a338318f875a767289f025d3ea4e1fe979fe8a516"),
-        "phase1_no_seeds_False": (28646, "4ece9bcf8211e5fccbece1eca33705cca73d06e60a23bfce9bf933613964df31"),
+        # (Rebaselined again in the same instruction after the self-Council: the
+        # pause is now keyed to whether an operator is actually waiting, not to
+        # four literal phrases, and the review is rendered against the
+        # formal-docs manifest.)
+        "phase1_no_seeds_True":  (29574, "74874de9e028e5d68d5ecb2b0419634c9e3e2c33611c0e4c2bc9207db0929091"),
+        "phase1_no_seeds_False": (29377, "1d58268f4ffd5a4b14acdf96d6baab29bab4c852ad6e35753928883a818c11fe"),
         # v1.5.7 instruction 073 Item-4 (A-19): phase2.md gained the
         # httpx-2026-05-17 missing-manifests warning (validator now
         # FAILs on ABSENT manifests, not just wrong-shape; agent must
