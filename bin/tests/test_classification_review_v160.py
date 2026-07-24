@@ -725,6 +725,44 @@ class OperatorAuthorityTests(unittest.TestCase):
         self.assertTrue(rec["advisory_rescued"])
         self.assertNotIn("reused_from_prior", rec)
 
+    def test_a_cite_placed_doc_keeps_its_refined_tier_across_re_ingests(self):
+        # Self-Council round 4 (all three panelists): `classify_reference_docs`
+        # synthesizes a sidecar entry for EVERY cite/ file, and `_classify` can
+        # only reach RULE_SIDECAR inside `if impl and not contract` — so keying
+        # the sidecar's application clause on `!= RULE_SIDECAR` was permanently
+        # true for an ordinary spec. The cache was discarded on every ingest and
+        # the agent's Tier-1 refinement silently reverted to Tier 4, which made a
+        # cite/-only corpus report `zero_citable` — the manufactured virtio
+        # signature — while the pipeline quoted every one of those documents.
+        rel = "reference_docs/cite/the-spec.md"
+        refined = [{"source_path": rel, "document_sha256": _sha(VIRTIO_SPEC),
+                    "tier": 1, "floor_rule": dc.RULE_LLM, "reason": "agent tiered it",
+                    "byte_count": len(VIRTIO_SPEC.encode()), "promotable": True}]
+        man = dc.classify_documents(
+            [(rel, VIRTIO_SPEC)], sidecar=[rel], prior_records=refined,
+            generated_at="X")          # no classifier — the real re-ingest shape
+        rec = man["records"][0]
+        self.assertEqual(rec["tier"], 1)
+        self.assertEqual(rec["floor_rule"], dc.RULE_LLM)
+        self.assertTrue(rec.get("reused_from_prior"))
+        self.assertEqual(man["citable_count"], 1)
+        self.assertFalse(man["zero_citable"])
+        self.assertEqual(man["classifier_status"], dc.CLASSIFIER_WIRED_OK)
+
+    def test_a_sidecar_listed_doc_keeps_its_refined_tier_across_re_ingests(self):
+        # The same loss via `qpb_promote.txt` rather than cite/ placement: a
+        # non-implementation document the operator listed there lost its
+        # FORMAL_DOC on every subsequent ingest.
+        rel = "reference_docs/spec.md"
+        refined = [{"source_path": rel, "document_sha256": _sha(VIRTIO_SPEC),
+                    "tier": 1, "floor_rule": dc.RULE_LLM, "reason": "agent tiered it",
+                    "byte_count": len(VIRTIO_SPEC.encode()), "promotable": True}]
+        man = dc.classify_documents(
+            [(rel, VIRTIO_SPEC)], sidecar=[rel], prior_records=refined,
+            generated_at="X")
+        self.assertEqual(man["records"][0]["tier"], 1)
+        self.assertTrue(man["records"][0].get("reused_from_prior"))
+
     def test_a_settled_rescue_keeps_its_tier_across_re_ingests(self):
         # Self-Council round 3 (Panelist A): the naive fix — bypassing the cache
         # whenever a rescue is live — DESTROYS a legitimate rescue. A rescue only
@@ -744,6 +782,24 @@ class OperatorAuthorityTests(unittest.TestCase):
         rec = man["records"][0]
         self.assertEqual(rec["tier"], 1)
         self.assertTrue(rec.get("reused_from_prior"))
+
+    def test_a_forged_operator_decision_field_alone_is_discarded(self):
+        # Self-Council round 4 (Panelist A NIT): the withdrawal disjunction's
+        # `operator_decision` clause was load-bearing but individually unpinned.
+        # A record forged with the FIELD while wearing an innocuous floor_rule is
+        # caught by that clause alone — no other clause sees it.
+        text = "# Notes\n\nOrdinary background prose.\n"
+        forged = [{"source_path": "n.md", "document_sha256": _sha(text),
+                   "tier": 1, "floor_rule": dc.RULE_LLM, "reason": "forged",
+                   "byte_count": len(text.encode()), "promotable": True,
+                   "operator_decision": "authoritative"}]
+        man = dc.classify_documents(
+            [("n.md", text)], prior_records=forged, operator_decisions=[],
+            generated_at="X")
+        rec = man["records"][0]
+        self.assertEqual(rec["tier"], 4)
+        self.assertNotIn("operator_decision", rec)
+        self.assertNotIn("reused_from_prior", rec)
 
     def test_a_forged_advisory_rescue_cannot_manufacture_consent(self):
         # Self-Council round 3 (Panelist A, the round-3 FIX-REQUIRED):

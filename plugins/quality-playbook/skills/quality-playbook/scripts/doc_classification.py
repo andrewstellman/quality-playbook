@@ -585,9 +585,19 @@ def _newly_overridden(
     * ``qpb_authoritative.txt`` — always new when a decision is live. The decision
       forces a specific outcome, so re-deriving reproduces it exactly; there is
       nothing a cached record could hold that the re-derive would lose.
-    * ``qpb_promote.txt`` — same: the sidecar branch forces Tier 1/2, so a
-      re-derive is lossless. (A settled sidecar record is discarded by the
-      withdrawal guard anyway, since ``RULE_SIDECAR`` is an operator rule.)
+    * ``qpb_promote.txt`` — new only while the cached record shows the floor the
+      sidecar *lifts*. The sidecar's sole power is rescuing the implementation
+      floor, so against any other cached rule it changes nothing and the cache
+      must stand. Keying on ``!= RULE_SIDECAR`` instead was permanently true for
+      every non-implementation file — ``_classify`` reaches its sidecar branch
+      only inside ``if impl and not contract``, so an ordinary spec can never
+      settle at ``RULE_SIDECAR`` — which discarded the cache on every ingest and
+      silently reverted the agent's tier refinement to Tier 4. That is severe for
+      ``cite/``, whose every file is synthesized into the sidecar set: a
+      ``cite/``-only corpus began reporting ``zero_citable`` — the manufactured
+      virtio signature this instruction exists to surface — while the pipeline
+      quoted every one of those documents (instr 030 self-Council round 4, all
+      three panelists).
     * ``qpb_advisory_rescue.txt`` — new **only** while the cached record does not
       already carry ``advisory_rescued``. A rescue merely un-floors; it does not
       force a tier. Once the agent has tiered a rescued document and that record
@@ -597,7 +607,7 @@ def _newly_overridden(
     """
     if operator_decision is not None:
         return True
-    if in_sidecar and cached.get("floor_rule") != RULE_SIDECAR:
+    if in_sidecar and cached.get("floor_rule") == RULE_IMPL:
         return True
     return bool(rescued and not cached.get("advisory_rescued"))
 
