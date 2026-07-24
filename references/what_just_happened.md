@@ -75,10 +75,41 @@ Phase 1 (Explore) is done. The agent read your codebase, ingested `reference_doc
 present, and produced candidate findings in `quality/EXPLORATION.md`. No bugs are confirmed
 yet — confirmation happens in Phase 3 (code review).
 
+<the documentation review — see below; always included when reference_docs/ was ingested>
+
 ### What to do next
 
 Continue with Phase 2 by saying `keep going` or `run phase 2`.
 ```
+
+**The documentation review is part of State P1 and is not optional** *(v1.6.0 Feature G,
+instruction 030)*. Whenever `quality/classification_manifest.json` exists, render
+`bin.doc_classification.classification_review(manifest)` into the State P1 block — it shows
+the operator, in plain language, which of the documents they gathered are being used as
+**authoritative sources their requirements can cite** and which are **background context**,
+one plain reason each. Print its output as-is; it is written in the operator's language and
+deliberately carries no internal labels. When nothing is authoritative it says so
+prominently — the virtio signature, where every requirement ends up code-derived because a
+real spec was read as background.
+
+This is the mirror image of the requirements interview at State P2, at the boundary where
+it is cheapest to fix: **end of Phase 1 → confirm the classification** (which documents are
+authoritative), then Phase 2 derives against the confirmed set; **end of Phase 2 → confirm
+the requirements**. A correction here costs one re-run of the ingest; the same correction
+discovered after Phase 2 costs a whole re-derivation.
+
+The confirm step follows the interview's opt-out shape:
+
+- **Default (the operator drives each phase).** Call it with `offer=True` (the default) so
+  the block ends with the invitation to correct it, and pause for the answer before Phase 2.
+- **The operator earlier said "run everything", "run all phases", "run straight through", or
+  "don't stop between phases".** Call it with `offer=False` and continue — **the show still
+  prints**. Disclosure is not skippable; only the pause is. The `offer=False` wording tells
+  the operator they can still hand over a correction at any point.
+
+If the operator names a document to treat as authoritative (or the reverse), record it
+through the operator-authored path and re-run the ingest before Phase 2 — see
+`references/phase1_exploration_guide.md`, "End-of-Phase-1 documentation review".
 
 ### State P2 — Phase 2 just completed
 

@@ -1094,11 +1094,19 @@ byte-verifies perfectly — §8a).
 | `source_path` | string | yes | Target-relative path of the classified document (e.g. `reference_docs/spec.md`). |
 | `document_sha256` | string | yes | SHA-256 of the file's UTF-8 content. The **content key**: a re-run reuses the prior decision when this matches (reproducibility). |
 | `tier` | integer | yes | Assigned tier `1`/`2` (citable) or `4` (background). The floor can only override the LLM classifier *downward*. |
-| `floor_rule` | string | yes | Which rule decided the tier: `advisory-floor`, `impl-floor`, `sidecar-promotion`, `injection-floor`, `contract`, `background-ledger`, `llm`, or `default-tier4`. |
+| `floor_rule` | string | yes | Which rule decided the tier: `advisory-floor`, `impl-floor`, `sidecar-promotion`, `injection-floor`, `contract`, `background-ledger`, `llm`, `default-tier4`, or (v1.6.0 instruction 030) `operator-authoritative` / `operator-background` — the operator's decision at the end-of-Phase-1 classification review. |
 | `reason` | string | yes | One-line human-readable justification (Authoring guidance, not gate-enforced). |
 | `byte_count` | integer | yes | Length of the file's UTF-8 content in bytes. |
 | `promotable` | boolean | yes | `false` when a floor permanently bars citability (advisory/impl/injection/background); `true` otherwise. A floored-`false` record can never be promoted — not by the LLM, a rename, or the operator sidecar. |
 | `reused_from_prior` | boolean | no | Present and `true` when this record was carried over from a prior manifest (unchanged content) rather than re-classified. |
+| `operator_decision` | string | no | `"authoritative"` or `"background"` — the operator's decision for this exact content at the end-of-Phase-1 classification review (v1.6.0 instruction 030), read from the operator-authored, content-keyed `reference_docs/qpb_authoritative.txt`. Present even when an absolute floor **refused** the promotion, so a refused decision is visible rather than silently dropped; `floor_rule` is what says whether it took effect. Only the human operator can produce one — never document content, the classifier, or a persona. A document carrying a decision bypasses the content-keyed reuse cache, so the correction takes effect on the next ingest. |
+
+Records also carry the optional advisory-hint / rescue fields the floor records
+(`advisory_hints`, `code_heavy` — instruction 023; `advisory_rescued`,
+`rescued_reason` — instruction 025), and the manifest wrapper carries the loud
+classification-status fields (`classifier_status`, `citable_count`,
+`zero_citable`, and `classifier_error` on failure — instruction 024). Their
+authoritative descriptions live in `bin/doc_classification.py`.
 
 **The advisory floor is absolute.** A record with `floor_rule == "advisory-floor"`
 (CVE/GHSA identifier, advisory URL/header, or security-genre title) is always

@@ -77,6 +77,18 @@ RULE_CONTRACT = "contract"
 RULE_LLM = "llm"
 RULE_DEFAULT = "default-tier4"
 RULE_BACKGROUND = "background-ledger"
+# v1.6.0 instruction 030 — the end-of-Phase-1 classification review. The operator
+# looked at how each gathered document was being used and said "that one IS my
+# spec" (or "that one is only background"). Operator-authored and content-keyed,
+# exactly like the instr-025 advisory rescue: document content, the classifier,
+# and a persona can NEVER produce one of these.
+RULE_OPERATOR_AUTHORITATIVE = "operator-authoritative"
+RULE_OPERATOR_BACKGROUND = "operator-background"
+
+# The two decisions an operator may record at the end-of-Phase-1 review.
+OPERATOR_AUTHORITATIVE = "authoritative"
+OPERATOR_BACKGROUND = "background"
+_OPERATOR_DECISIONS = frozenset({OPERATOR_AUTHORITATIVE, OPERATOR_BACKGROUND})
 
 # The ABSOLUTE floor rules — a decision under any of these bars citability.
 # (default-tier4 is NOT absolute: it just means "no classifier tier was
@@ -343,6 +355,10 @@ class Decision:
     # that was overridden — recorded for the disclosure, never fabricates Tier 1.
     advisory_rescued: bool = False
     rescued_reason: Optional[str] = None
+    # Operator decision from the end-of-Phase-1 classification review (instr 030):
+    # "authoritative" (use this as a source my requirements can cite) or
+    # "background" (read it, don't quote it). Human-only, content-keyed.
+    operator_decision: Optional[str] = None
 
 
 def classify_document(
@@ -351,6 +367,7 @@ def classify_document(
     llm_tier: Optional[int] = None,
     sidecar_promote: bool = False,
     advisory_rescue: bool = False,
+    operator_decision: Optional[str] = None,
 ) -> Decision:
     """Classify one document to a Decision, enforcing the floor in priority order.
 
@@ -364,14 +381,30 @@ def classify_document(
       the human can set this (via the operator-authored rescue file, never the
       classifier / a persona / document content), so a poisoned doc cannot rescue
       itself. The overridden advisory signal is recorded for the disclosure.
+    * ``operator_decision`` — the end-of-Phase-1 review correction (instr 030):
+      ``"authoritative"`` (the operator says this document IS a source their
+      requirements may cite) or ``"background"`` (the reverse). Operator-authored
+      and content-keyed like the advisory rescue; the classifier, a persona, and
+      document content can never produce one. Its **upward** power stops exactly
+      where the sidecar's does: it may lift the *implementation* floor (the same
+      operator power ``qpb_promote.txt`` already grants, keyed on content rather
+      than path) but it may **never** lift the advisory floor (that needs the
+      instr-025 rescue, which acknowledges the specific signal being overridden)
+      or the background-ledger floor. The downward direction is unconditional.
 
     Advisory genre-title hints and the code-heavy hint are attached to the
     returned Decision (they inform the LLM/manifest; they never floor or promote).
     """
+    if operator_decision is not None and operator_decision not in _OPERATOR_DECISIONS:
+        raise ValueError(
+            f"operator_decision must be one of {sorted(_OPERATOR_DECISIONS)} or None, "
+            f"got {operator_decision!r}"
+        )
     decision = _classify(
         rel_path, text, llm_tier=llm_tier, sidecar_promote=sidecar_promote,
-        advisory_rescue=advisory_rescue,
+        advisory_rescue=advisory_rescue, operator_decision=operator_decision,
     )
+    decision.operator_decision = operator_decision
     decision.advisory_hints = advisory_genre_hints(text, rel_path)
     decision.code_heavy = code_heavy_hint(text, rel_path)
     if advisory_rescue:
@@ -391,6 +424,7 @@ def _classify(
     llm_tier: Optional[int] = None,
     sidecar_promote: bool = False,
     advisory_rescue: bool = False,
+    operator_decision: Optional[str] = None,
 ) -> Decision:
     # 1. Advisory floor FIRST — HARD signals only (CVE/GHSA id, advisory URL),
     #    content-keyed, before any extension carve-out or sidecar. An advisory
@@ -405,14 +439,37 @@ def _classify(
     if _is_background_ledger(rel_path):
         return Decision(4, RULE_BACKGROUND, "README/coverage/ledger stays Tier 4 background", False)
 
+    # 1b. Operator DEMOTION (instr 030) — the human looked at the end-of-Phase-1
+    #     review and said "that one is background, don't quote it." Downward only,
+    #     so it needs no guard; it runs before the promoting branches so it wins
+    #     over the contract carve-out and the classifier alike.
+    if operator_decision == OPERATOR_BACKGROUND:
+        return Decision(
+            4, RULE_OPERATOR_BACKGROUND,
+            "operator marked this document background at the classification review",
+            False,
+        )
+
     contract = machine_readable_contract(text, rel_path)
     impl = implementation_source(text, rel_path)
+    operator_authoritative = operator_decision == OPERATOR_AUTHORITATIVE
 
     # 2. Implementation floor — the code-EXTENSION floor only (a machine-readable
     #    contract is exempt). The old non-extension content sniff is now a hint.
+    #    The operator's classification-review promotion (instr 030) rescues this
+    #    floor exactly as the path-keyed sidecar does — the same operator power,
+    #    keyed on content instead of on path. It does NOT reach the advisory or
+    #    background-ledger floors above, which already returned.
     if impl and not contract:
-        if sidecar_promote:
+        if sidecar_promote or operator_authoritative:
             tier = llm_tier if llm_tier in (1, 2) else 1
+            if operator_authoritative:
+                return Decision(
+                    tier, RULE_OPERATOR_AUTHORITATIVE,
+                    "operator named this document authoritative at the "
+                    f"classification review, past the implementation floor ({impl})",
+                    True,
+                )
             return Decision(
                 tier, RULE_SIDECAR,
                 f"operator-sidecar promotion past implementation floor ({impl})",
@@ -424,6 +481,17 @@ def _classify(
     if contract:
         tier = llm_tier if llm_tier in (1, 2) else 1
         return Decision(tier, RULE_CONTRACT, f"machine-readable contract: {contract}", True)
+
+    # 3b. Operator PROMOTION on a floor-passed document (instr 030) — the virtio
+    #     case: a genuine spec the classifier read as background. The operator is
+    #     the one who gathered the docs and is the authority on which is the spec.
+    if operator_authoritative:
+        tier = llm_tier if llm_tier in (1, 2) else 1
+        return Decision(
+            tier, RULE_OPERATOR_AUTHORITATIVE,
+            "operator named this document authoritative at the classification review",
+            True,
+        )
 
     # 4. Floor-passed background/authoritative — the LLM classifier decides.
     #    (The classifier owns the self-authorizing-tier judgment: the injection
@@ -461,6 +529,11 @@ def _record(rel_path: str, text: str, decision: Decision) -> dict:
     if decision.advisory_rescued:
         rec["advisory_rescued"] = True
         rec["rescued_reason"] = decision.rescued_reason
+    # Operator classification-review decision (instr 030): recorded whenever the
+    # operator made one — INCLUDING when an absolute floor refused it — so a
+    # refused promotion is visible in the review rather than silently dropped.
+    if decision.operator_decision:
+        rec["operator_decision"] = decision.operator_decision
     return rec
 
 
@@ -485,6 +558,7 @@ def classify_documents(
     llm_classifier: Optional[Callable] = None,
     sidecar: Optional[Sequence[str]] = None,
     advisory_rescues: Optional[Sequence[Tuple[str, str]]] = None,
+    operator_decisions: Optional[Sequence[Tuple[str, str, str]]] = None,
     prior_records: Optional[Sequence[dict]] = None,
     schema_version: str = "1.6.0",
     generated_at: Optional[str] = None,
@@ -509,6 +583,15 @@ def classify_documents(
     structural tripwire: True when no record is Tier 1/2 after floors +
     classification.
 
+    ``operator_decisions`` is the end-of-Phase-1 classification review's
+    corrections (instr 030) as ``(rel_path, sha256, "authoritative"|"background")``
+    triples, content-keyed exactly like ``advisory_rescues`` and read from the
+    same kind of operator-authored file. A document carrying a decision **bypasses
+    the prior-record cache**, so a correction made after the first ingest actually
+    takes effect on the re-run (that re-run is what turns a promoted doc into a
+    byte-citable ``FORMAL_DOC``). Later triples win over earlier ones for the same
+    key.
+
     Reproducibility: when ``prior_records`` is supplied, a document whose
     content sha256 matches a prior record for the same path reuses that prior
     decision instead of re-invoking the classifier — so a re-run with unchanged
@@ -520,6 +603,17 @@ def classify_documents(
     # An advisory doc is lifted past the advisory floor ONLY when its (path, its
     # own content hash) is in this operator-authored set — never by content.
     rescue_set = set(advisory_rescues or ())
+    # Operator classification-review decisions (instr 030), content-keyed the same
+    # way. Built in order so a later line supersedes an earlier one for a key.
+    operator_by_key: Dict[Tuple[str, str], str] = {}
+    for entry in (operator_decisions or ()):
+        op_path, op_sha, op_decision = entry
+        if op_decision not in _OPERATOR_DECISIONS:
+            raise ValueError(
+                f"operator decision must be one of {sorted(_OPERATOR_DECISIONS)}, "
+                f"got {op_decision!r} for {op_path!r}"
+            )
+        operator_by_key[(op_path, op_sha.lower())] = op_decision
     prior_by_key: Dict[Tuple[str, str], dict] = {
         (r["source_path"], r["document_sha256"]): r for r in (prior_records or [])
     }
@@ -534,7 +628,12 @@ def classify_documents(
     for rel_path, text in docs:
         sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
         rescued = (rel_path, sha) in rescue_set
-        cached = prior_by_key.get((rel_path, sha))
+        operator_decision = operator_by_key.get((rel_path, sha))
+        # An operator correction from the classification review (instr 030) must
+        # take effect on the very next ingest, so it BYPASSES the content-keyed
+        # cache — otherwise the prior record (the tiering the operator just
+        # corrected) would be reused and the correction would silently no-op.
+        cached = None if operator_decision else prior_by_key.get((rel_path, sha))
         if cached is not None:
             # Defense-in-depth: never trust a prior record to keep a document
             # citable OR promotable when an UNRESCUABLE floor bars it. The floor
@@ -579,6 +678,7 @@ def classify_documents(
         decision = classify_document(
             rel_path, text, llm_tier=llm_tier,
             sidecar_promote=rel_path in sidecar_set, advisory_rescue=rescued,
+            operator_decision=operator_decision,
         )
         records.append(_record(rel_path, text, decision))
 
@@ -657,6 +757,10 @@ def classification_playback(manifest: dict) -> List[dict]:
             # An operator lifted the advisory floor on this doc — always surfaced,
             # regardless of the tier the classifier then assigned it.
             status = "advisory-rescued"
+        elif r.get("floor_rule") == RULE_OPERATOR_AUTHORITATIVE:
+            status = "operator-authoritative"   # the operator said "this IS my spec"
+        elif r.get("floor_rule") == RULE_OPERATOR_BACKGROUND:
+            status = "operator-background"      # the operator said "background only"
         elif tier in (1, 2):
             status = "citable"
         elif r.get("floor_rule") == RULE_DEFAULT:
@@ -673,5 +777,160 @@ def classification_playback(manifest: dict) -> List[dict]:
         }
         if r.get("advisory_rescued"):
             entry["rescued_reason"] = r.get("rescued_reason")
+        if r.get("operator_decision"):
+            entry["operator_decision"] = r.get("operator_decision")
         out.append(entry)
     return out
+
+
+# ---------------------------------------------------------------------------
+# The end-of-Phase-1 classification review (instruction 030) — the SHOW.
+#
+# The operator gathered the documents, so the operator is the right person to say
+# "that one IS my spec." This renders the classification in the operator's own
+# language before Phase 2 derives anything against it. The plain-language standard
+# (QPB_v1.6.0_UX_Language_Draft.md) is a hard contract here: NO internal label —
+# no "Tier N", no "citable", no "floored", no "manifest", no "Feature G" — reaches
+# the operator. Every reason below is GENERATED from the decision, never passed
+# through from a record's internal ``reason`` string (which is dev-facing and
+# does carry those labels).
+# ---------------------------------------------------------------------------
+
+# Plain-language reason per decision rule, split by which side of the line the
+# document landed on. Keyed by floor_rule; the tier picks the sub-map.
+_AUTHORITATIVE_REASONS = {
+    RULE_OPERATOR_AUTHORITATIVE: "you told me this one is a source I should use.",
+    RULE_SIDECAR: "you told me to use this one even though it looks like source code.",
+    RULE_CONTRACT: (
+        "it's a machine-readable interface definition, which is a direct statement "
+        "of what this software is supposed to do."
+    ),
+    RULE_LLM: "I read it as a statement of what this software is supposed to do.",
+}
+_BACKGROUND_REASONS = {
+    RULE_ADVISORY: (
+        "it's a security advisory — it describes known problems, not what your "
+        "software is supposed to do."
+    ),
+    RULE_IMPL: (
+        "it's source code — it shows what the software already does, not what it's "
+        "supposed to do."
+    ),
+    RULE_BACKGROUND: "it's a README or a coverage / issue-tracker listing.",
+    RULE_OPERATOR_BACKGROUND: "you told me to treat this one as background only.",
+    RULE_DEFAULT: (
+        "nothing identified it as a statement of what this software is supposed to do."
+    ),
+    RULE_LLM: (
+        "I read it as explaining or describing the software rather than stating what "
+        "it must do."
+    ),
+}
+_FALLBACK_BACKGROUND_REASON = (
+    "I'm reading it for context rather than quoting it as a source."
+)
+
+
+def _review_reason(entry: dict, authoritative: bool) -> str:
+    """The one-line plain reason for one document in the review."""
+    rule = entry.get("floor_rule")
+    if authoritative:
+        if entry.get("status") == "advisory-rescued":
+            return ("you confirmed this is your real specification even though it "
+                    "mentions security advisories.")
+        return _AUTHORITATIVE_REASONS.get(
+            rule, "I read it as a statement of what this software is supposed to do.")
+    if entry.get("status") == "advisory-rescued":
+        return ("you cleared this one for use, but I still read it as background "
+                "rather than a specification.")
+    return _BACKGROUND_REASONS.get(rule, _FALLBACK_BACKGROUND_REASON)
+
+
+def classification_review(manifest: dict, *, offer: bool = True) -> str:
+    """The end-of-Phase-1 show: how each gathered document is being used, in the
+    operator's language, plus the invitation to correct it (instruction 030).
+
+    Always rendered — the disclosure is not skippable. ``offer=False`` is the
+    straight-through case ("run everything without stopping"): the show is
+    identical, only the *pause* is dropped, so a continuous run still discloses
+    the classification it is about to derive requirements against.
+
+    Returns Markdown ready to print in chat. Contains no internal labels.
+    """
+    entries = []
+    for entry, rec in zip(classification_playback(manifest),
+                          manifest.get("records", [])):
+        merged = dict(entry)
+        merged["floor_rule"] = rec.get("floor_rule")
+        entries.append(merged)
+
+    lines: List[str] = ["### The documents you gave me"]
+    if not entries:
+        lines.append("")
+        lines.append(
+            "I didn't find any documentation to read this run, so every requirement "
+            "will be drawn from the code itself. If you have a specification, an "
+            "RFC, or an API reference, add it and I can use it as a source."
+        )
+        return "\n".join(lines)
+
+    authoritative = [e for e in entries if e.get("tier") in (1, 2)]
+    background = [e for e in entries if e.get("tier") not in (1, 2)]
+
+    lines.append("")
+    lines.append(
+        f"I read {len(entries)} document{'' if len(entries) == 1 else 's'} and decided "
+        "how to use each one. Here's what I settled on, before I turn any of it into "
+        "requirements."
+    )
+
+    if not authoritative:
+        lines.append("")
+        lines.append(
+            "**None of your documents are being used as authoritative sources this "
+            "run — every requirement will be drawn from the code.** If one of these "
+            "*is* your specification — the document that says what this software is "
+            "supposed to do — tell me which one and I'll use it that way."
+        )
+
+    if authoritative:
+        lines.append("")
+        lines.append("**Authoritative sources your requirements can cite**")
+        for e in authoritative:
+            lines.append(f"- `{e['source_path']}` — {_review_reason(e, True)}")
+
+    if background:
+        lines.append("")
+        lines.append("**Background context — I read these, but I won't quote them**")
+        for e in background:
+            note = _review_reason(e, False)
+            if (e.get("operator_decision") == OPERATOR_AUTHORITATIVE
+                    and e.get("floor_rule") != RULE_OPERATOR_AUTHORITATIVE):
+                # An operator promotion the advisory / README rule refused — say so
+                # plainly instead of dropping it silently.
+                note += (" You asked me to use this one as a source; I'm not, for "
+                         "the reason above.")
+            lines.append(f"- `{e['source_path']}` — {note}")
+
+    lines.append("")
+    # Name a document the operator could actually promote — one the classifier
+    # merely read as background, not one an absolute rule pinned there (a README
+    # or an advisory can't be promoted here, so offering it as the example would
+    # be a broken suggestion).
+    promotable_bg = [e for e in background
+                     if e.get("floor_rule") in (RULE_DEFAULT, RULE_LLM)]
+    example = (promotable_bg or background or entries)[0]["source_path"]
+    if offer:
+        lines.append(
+            "**Is that right?** You gathered these, so you're the one who knows. If "
+            f"I've got one wrong, say so — for example *\"treat `{example}` as my "
+            "specification\"* or *\"that one is just background\"* — and I'll redo "
+            "this before deriving anything. Otherwise say **keep going**."
+        )
+    else:
+        lines.append(
+            "You asked me to run straight through, so I'm continuing with this as it "
+            f"stands. Say *\"treat `{example}` as my specification\"* at any point if "
+            "one of these should be used as a source and I'll redo it."
+        )
+    return "\n".join(lines)

@@ -307,8 +307,14 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # AGENTS.md were the wrong place all along. With the
         # directive removed, the hashes return to their pre-090k
         # baseline (27026 no_seeds_True, 26829 no_seeds_False).
-        "phase1_no_seeds_True":  (27026, "42010af537fa2d1bde614f791e2bd5a2b82b506a4d43cfa1b69f04268533d605"),
-        "phase1_no_seeds_False": (26829, "daf228a20f85f5a65ef6efaaa3b8acc7457d27313bff5c555d3a85cbc70de1eb"),
+        # v1.6.0 instruction 030: phase1.md gained the MANDATORY
+        # END-OF-PHASE-1 DOCUMENTATION REVIEW block — the operator is
+        # shown how each gathered document was classified (always, in
+        # plain language) and can confirm or correct it before Phase 2
+        # derives anything against it. Hashes recomputed; this baseline
+        # update IS the sanctioned change-acknowledgement signal.
+        "phase1_no_seeds_True":  (28843, "3736ad12192adcc6a1a1089a338318f875a767289f025d3ea4e1fe979fe8a516"),
+        "phase1_no_seeds_False": (28646, "4ece9bcf8211e5fccbece1eca33705cca73d06e60a23bfce9bf933613964df31"),
         # v1.5.7 instruction 073 Item-4 (A-19): phase2.md gained the
         # httpx-2026-05-17 missing-manifests warning (validator now
         # FAILs on ABSENT manifests, not just wrong-shape; agent must

@@ -113,6 +113,18 @@ SIDECAR_NAME = "qpb_promote.txt"
 # content can never add to it), so a poisoned doc cannot rescue itself.
 ADVISORY_RESCUE_NAME = "qpb_advisory_rescue.txt"
 
+# v1.6.0 Feature G (instruction 030): the operator's end-of-Phase-1 classification
+# review decisions. After exploration the operator is shown how each gathered
+# document is being used and can correct it — "that one IS my spec", or the
+# reverse. Each honored line is
+# ``<authoritative|background>  <target-relative-path>  <document_sha256>  <reason>``
+# — content-keyed like the advisory rescue, so a decision binds to exactly the
+# bytes the operator reviewed. Operator-authored ONLY: ingest reads it, never
+# writes it from classification, and neither document content, the classifier, nor
+# a persona can add to it. (`record_operator_decision` writes a line only when the
+# running agent is relaying an explicit operator instruction at this step.)
+OPERATOR_DECISION_NAME = "qpb_authoritative.txt"
+
 # v1.6.0 Feature G: doc_classification is a sibling stdlib-only module; path-load
 # it so `-m bin.reference_docs_ingest` and bundled layouts both resolve it.
 try:
@@ -492,7 +504,8 @@ def ingest(target_repo: Path, *, llm_classifier=None) -> dict:
         # README is Tier-4 background (recorded in the classification manifest),
         # never a FORMAL_DOC; dotfiles and the sidecar are control files.
         if (name.startswith(".") or name == SIDECAR_NAME
-                or name == ADVISORY_RESCUE_NAME or name in SKIPPED_FILENAMES):
+                or name == ADVISORY_RESCUE_NAME or name == OPERATOR_DECISION_NAME
+                or name in SKIPPED_FILENAMES):
             continue
         ext = path.suffix.lower()
         if ext not in SUPPORTED_EXTENSIONS and not _classify_ext_ok(name):
@@ -571,6 +584,98 @@ def _load_advisory_rescues(ref_dir: Path) -> List[Tuple[str, str]]:
     return keys
 
 
+def _load_operator_decisions(ref_dir: Path) -> List[Tuple[str, str, str]]:
+    """Read the operator's classification-review decisions
+    (``reference_docs/qpb_authoritative.txt``), instruction 030.
+
+    Each honored line is ``<authoritative|background>  <target-relative-path>
+    <document_sha256>  <reason>`` — the decision verb, then the same content key +
+    acknowledgment the instr-025 rescue requires, so the decision binds to exactly
+    the bytes the operator reviewed and a swapped-in document cannot inherit it. A
+    line missing the verb, the path, the sha, or the reason is NOT honored; an
+    unrecognized verb is ignored rather than guessed at. Returns ``(rel_path,
+    sha256, decision)`` triples in file order (a later line supersedes an earlier
+    one for the same key). Missing file → empty list. Operator-authored only.
+    """
+    decision_path = ref_dir / OPERATOR_DECISION_NAME
+    if not decision_path.is_file():
+        return []
+    out: List[Tuple[str, str, str]] = []
+    for line in _read_text(decision_path).splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        parts = s.split(None, 3)   # decision, path, sha256, reason (remainder)
+        if len(parts) < 4 or not parts[3].strip():
+            continue               # incomplete / no acknowledgment reason
+        decision = parts[0].lower()
+        if decision not in doc_classification._OPERATOR_DECISIONS:
+            continue               # unrecognized verb — never guessed at
+        out.append((parts[1], parts[2].lower(), decision))
+    return out
+
+
+def record_operator_decision(
+    target_repo: Path, rel_path: str, decision: str, reason: str
+) -> str:
+    """Append one operator classification-review decision, content-keyed.
+
+    Instruction 030: the mechanical form of "the operator said *treat that one as
+    my specification*" (or the reverse). The caller is the running agent relaying
+    an **explicit operator instruction at the end-of-Phase-1 review** — this is the
+    only sanctioned writer, exactly as the agent authors ``qpb_advisory_rescue.txt``
+    when the operator rescues an advisory. It grants no new authority: the file it
+    writes is the operator-authored input ingest reads, and nothing about a
+    *document's content* can reach this function.
+
+    The sha is computed from the file on disk with the same decode the classifier
+    uses, so the written key matches the record the operator was shown. Idempotent:
+    re-recording the same decision for the same bytes does not duplicate the line.
+    Re-run ``ingest()`` afterwards for the decision to reach
+    ``formal_docs_manifest.json``. Returns the line (with trailing newline).
+    """
+    target_repo = Path(target_repo)
+    decision = (decision or "").strip().lower()
+    if decision not in doc_classification._OPERATOR_DECISIONS:
+        raise IngestError(
+            f"operator decision must be one of "
+            f"{sorted(doc_classification._OPERATOR_DECISIONS)}, got {decision!r}"
+        )
+    reason = " ".join((reason or "").split())
+    if not reason:
+        raise IngestError(
+            "an operator classification-review decision must carry a reason "
+            "(the acknowledgment that makes the decision reviewable)"
+        )
+    doc = target_repo / rel_path
+    if not doc.is_file():
+        raise IngestError(f"no such document to decide on: {rel_path}")
+    text = doc.read_text(encoding="utf-8", errors="replace")
+    sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    line = f"{decision}  {rel_path}  {sha}  {reason}\n"
+
+    ref_dir = target_repo / REFERENCE_DIR_NAME
+    ref_dir.mkdir(parents=True, exist_ok=True)
+    out = ref_dir / OPERATOR_DECISION_NAME
+    if out.is_file():
+        existing = _read_text(out)
+        if any(l.strip() == line.strip() for l in existing.splitlines()):
+            return line            # already recorded — idempotent
+        if existing and not existing.endswith("\n"):
+            existing += "\n"
+        out.write_text(existing + line, encoding="utf-8")
+    else:
+        header = (
+            "# Operator decisions from the end-of-Phase-1 documentation review.\n"
+            "# Written only on an explicit operator instruction; ingest reads this\n"
+            "# file and never writes it from classification. Document content, the\n"
+            "# classifier, and personas can NEVER add a line here.\n"
+            "# Format: <authoritative|background>  <path>  <document_sha256>  <reason>\n"
+        )
+        out.write_text(header + line, encoding="utf-8")
+    return line
+
+
 # v1.6.0 Feature G: classification enumerates a broader set than the plaintext
 # formal-docs path — a dumped corpus can include machine-readable contracts
 # (.proto/.json/.yaml/.d.ts/…) that are citable and implementation source
@@ -604,7 +709,8 @@ def _classification_candidates(ref_dir: Path, target_repo: Path) -> List[Tuple[s
         # requires it be recorded as Tier-4 background, not silently dropped —
         # the background-ledger floor rule tiers it.
         if (path.name.startswith(".") or path.name == SIDECAR_NAME
-                or path.name == ADVISORY_RESCUE_NAME):
+                or path.name == ADVISORY_RESCUE_NAME
+                or path.name == OPERATOR_DECISION_NAME):
             continue
         if not _classify_ext_ok(path.name):
             continue
@@ -648,6 +754,11 @@ def classify_reference_docs(
     # operator-authored only. cite/ and the sidecar never rescue the advisory floor.
     advisory_rescues = _load_advisory_rescues(ref_dir)
 
+    # Operator classification-review decisions (instr 030) — content-keyed,
+    # operator-authored only. Bounded exactly like every other operator override:
+    # the promotion direction never reaches the advisory or background floors.
+    operator_decisions = _load_operator_decisions(ref_dir)
+
     prior: Optional[List[dict]] = None
     out = target_repo / "quality" / CLASSIFICATION_MANIFEST_NAME
     if out.is_file():
@@ -666,6 +777,7 @@ def classify_reference_docs(
         llm_classifier=llm_classifier,
         sidecar=sorted(sidecar),
         advisory_rescues=advisory_rescues,
+        operator_decisions=operator_decisions,
         prior_records=prior,
         schema_version=schema_version,
     )
