@@ -390,11 +390,21 @@ class AnchorsAreLoadBearingTests(unittest.TestCase):
         self.assertIsNone(dc._wsdl_root_element(bpmn))
         self.assertIsNone(dc.contract_content_validation(bpmn, "flow.xml"))
         self.assertIsNotNone(dc._wsdl_root_element(GENUINE_WSDL))
-        # WSDL 2.0's namespace is accepted too, so the check is a namespace
-        # ALLOW-LIST rather than a hardcoded 1.1 assumption.
-        wsdl2 = ('<definitions xmlns="http://www.w3.org/ns/wsdl">'
-                 "<interface/></definitions>")
-        self.assertIsNotNone(dc._wsdl_root_element(wsdl2))
+        # WSDL 2.0 is accepted too — but its root element is `<description>`, not
+        # `<definitions>`. This assertion used to pass a `<definitions>` root under
+        # the 2.0 namespace, which no WSDL 2.0 document has: the test pinned a
+        # combination that cannot occur, so the 2.0 entry read as coverage while
+        # covering nothing. Panelist B (033 fix-up 6, B-2). The namespace now
+        # selects which root name is correct.
+        wsdl2 = ('<description xmlns="http://www.w3.org/ns/wsdl">'
+                 "<interface/></description>")
+        self.assertEqual(dc._wsdl_root_element(wsdl2),
+                         "WSDL root element <description>")
+        # ...and the two versions' root names are NOT interchangeable.
+        self.assertIsNone(dc._wsdl_root_element(
+            '<definitions xmlns="http://www.w3.org/ns/wsdl"><interface/></definitions>'))
+        self.assertIsNone(dc._wsdl_root_element(
+            '<description xmlns="http://schemas.xmlsoap.org/wsdl/"/>'))
         # The other half of the same hole (round 2): the WSDL namespace is
         # mandatory in both 1.1 and 2.0, so a bare `<definitions>` root belongs to
         # some other vocabulary. MUTATION BITE: restore `if namespace and ...`.
@@ -657,6 +667,30 @@ class QuietFalseNegativesInThePublishGateTests(unittest.TestCase):
             with self.subTest(shape=name):
                 self.assertIsNotNone(
                     dc.contract_content_validation("\ufeff" + text, name))
+
+    def test_single_quoted_proto_syntax_validates(self):
+        # Panelist B (B-3): `syntax = 'proto3';` is legal protobuf grammar and an
+        # ordinary thing to find in a real file, and it failed Lane A silently.
+        # MUTATION BITE: put the double-quote-only pattern back.
+        single = "syntax = 'proto3';\n\nmessage Order { string id = 1; }\n"
+        self.assertIsNotNone(dc.contract_content_validation(single, "a.proto"))
+        self.assertIsNotNone(dc.contract_content_validation(GENUINE_PROTO, "a.proto"))
+        # Mixed quotes are not a thing; the grammar wants a matched pair.
+        self.assertIsNone(dc.contract_content_validation(
+            "syntax = \"proto3';\n\nmessage O { string i = 1; }\n", "a.proto"))
+
+    def test_the_two_unvalidated_proto_residuals_are_documented(self):
+        # Accepted residuals, asserted so they stay DELIBERATE rather than becoming
+        # a surprise later: a proto2 file may omit the `syntax` line, and the 2023
+        # `edition = "..."` form replaces it. Both fail closed — for Lane A that
+        # means the operator is asked, not that the document is cited.
+        for label, text in (
+                ("proto2 without a syntax line",
+                 "package a;\n\nmessage O { required string i = 1; }\n"),
+                ("edition 2023",
+                 'edition = "2023";\n\nmessage O { string i = 1; }\n')):
+            with self.subTest(case=label):
+                self.assertIsNone(dc.contract_content_validation(text, "a.proto"))
 
     def test_an_enum_only_proto_validates(self):
         # MUTATION BITE: drop `|enum` from `_PROTO_BLOCK_RE`.

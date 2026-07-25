@@ -8074,6 +8074,43 @@ def check_classification_manifest(q):
             "classified citable (Tier 1/2); all requirements will be code-derived "
             "with no authoritative contract to cite (v1.6.0 Feature G; advisory)"
         )
+    # v1.6.0 instruction 033 — the three-lane disclosures. Step 2 requires the
+    # `unconfirmed` provenance to flow manifest -> show -> gate WARN -> Stage-1
+    # playback; it reached the show and stopped there, so a headless run whose
+    # entire grounding rested on the model's own unconfirmed read passed this gate
+    # silently. That is the same shape as the virtio Tier-4 collapse this check was
+    # written for: not a wrong answer, an unstated one.
+    unconfirmed = manifest.get("unconfirmed_citable_count")
+    if isinstance(unconfirmed, int) and unconfirmed > 0:
+        warn(
+            f"classification_manifest.json: unconfirmed_citable_count={unconfirmed} "
+            "— that many documents are being cited on the model's own read alone, "
+            "not on a content check or the operator's word; the operator has not "
+            "confirmed them (v1.6.0 instruction 033 Lane B; advisory)"
+        )
+    awaiting = manifest.get("awaiting_confirmation_count")
+    if isinstance(awaiting, int) and awaiting > 0:
+        warn(
+            f"classification_manifest.json: awaiting_confirmation_count={awaiting} "
+            "— that many documents are held back pending the operator's word and "
+            "are NOT being quoted; grounding may be understated until they are "
+            "answered (v1.6.0 instruction 033 Lane C; advisory)"
+        )
+    refused = manifest.get("refused_promotions")
+    if isinstance(refused, list) and refused:
+        warn(
+            "classification_manifest.json: refused_promotions="
+            f"{sorted(refused)!r} — an operator promotion was NOT honored because "
+            "its reason did not name the signal being overridden (v1.6.0 "
+            "instruction 033 named-signal confirmation; advisory)"
+        )
+    note = manifest.get("conversion_note")
+    if isinstance(note, str) and note.strip():
+        warn(
+            "classification_manifest.json: a superseded operator-decision control "
+            "file is present and is NOT being applied — "
+            f"{note.strip()} (v1.6.0 instruction 033; advisory)"
+        )
 
 
 def _operator_confirmed_req_ids(q):

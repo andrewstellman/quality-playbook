@@ -288,7 +288,13 @@ _ANCHORED_CONTRACT_EXTS = frozenset({".proto", ".wsdl", ".raml"})
 # body unstripped. A real `.proto` puts `syntax` and its top-level `message` /
 # `service` declarations at column 0; nested messages indent, but the enclosing one
 # does not, so nothing genuine is lost.
-_PROTO_SYNTAX_RE = re.compile(r'^syntax\s*=\s*"proto[23]"\s*;', re.MULTILINE)
+# Either quote character — the protobuf grammar allows both, and `syntax =
+# 'proto3';` is an ordinary thing to find in a real file. (Two residuals stay
+# unvalidated and are accepted as such: a proto2 file may omit the `syntax` line
+# entirely, and the 2023 `edition = "..."` form replaces it. Both fail closed, which
+# for Lane A means the operator is asked rather than the document being cited.)
+_PROTO_SYNTAX_RE = re.compile(
+    r"""^syntax\s*=\s*(?P<q>["'])proto[23](?P=q)\s*;""", re.MULTILINE)
 _PROTO_BLOCK_RE = re.compile(
     r"^(?:message|service|enum)\s+\w+\s*\{", re.MULTILINE)
 # A top-level YAML key sits at column 0. `^` + no leading whitespace is the whole
@@ -311,10 +317,17 @@ _API_VERSION_RE = re.compile(r"^\d[\w.\-]*$")
 # The WSDL namespaces. A root element merely NAMED `definitions` is not enough:
 # BPMN 2.0's root is `<definitions>` too, as are several build and workflow
 # formats, and none of them is a service contract to derive requirements from.
-_WSDL_NAMESPACES = frozenset({
-    "http://schemas.xmlsoap.org/wsdl/",       # WSDL 1.1
-    "http://www.w3.org/ns/wsdl",              # WSDL 2.0
-})
+# Namespace -> the root element name that version actually uses. WSDL 2.0 renamed
+# the root from `definitions` to `description`, so listing its namespace while
+# requiring a `definitions` root made that entry unreachable: the check looked like
+# it covered 2.0 and covered nothing. A dead allow-list entry is worse than an
+# absent one, because it reads as coverage.
+_WSDL_ROOTS = {
+    "http://schemas.xmlsoap.org/wsdl/": "definitions",   # WSDL 1.1
+    "http://www.w3.org/ns/wsdl": "description",          # WSDL 2.0
+}
+# An un-namespaced document is not a WSDL: the namespace is mandatory in both.
+_WSDL_NAMESPACES = frozenset(_WSDL_ROOTS)
 _API_KEYS = ("openapi", "swagger", "asyncapi")
 
 
@@ -379,14 +392,11 @@ def _wsdl_root_element(text: str) -> Optional[str]:
         return None
     tag = root.tag
     local = tag.rsplit("}", 1)[-1] if "}" in tag else tag
-    if local.lower() != "definitions":
-        return None
     namespace = tag[1:].rsplit("}", 1)[0] if tag.startswith("{") else ""
-    if namespace not in _WSDL_NAMESPACES:
-        # Namespaced as something else entirely (BPMN, most often) — or carrying no
-        # namespace at all, which is the other half of the same hole: the WSDL
-        # namespace is mandatory in both 1.1 and 2.0, so a bare `<definitions>` root
-        # is some other vocabulary's document, not a service contract.
+    # The namespace decides which root name is correct. Anything else — BPMN, whose
+    # root is `<definitions>` too, or no namespace at all — is some other
+    # vocabulary's document, not a service contract.
+    if _WSDL_ROOTS.get(namespace) != local.lower():
         return None
     return f"WSDL root element <{local}>"
 

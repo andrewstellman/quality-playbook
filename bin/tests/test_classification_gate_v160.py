@@ -95,6 +95,69 @@ class ClassificationGateTests(unittest.TestCase):
             fails, _w, _o = self._run()
             self.assertEqual(fails, 0, payload)
 
+    # --- v1.6.0 instruction 033: the three-lane disclosures reach the gate ----
+    # Panelist B (B-4): step 2 requires the `unconfirmed` provenance to flow
+    # manifest -> show -> gate WARN -> Stage-1 playback. It reached the show and
+    # stopped, so a headless run grounded entirely on the model's own unconfirmed
+    # read passed this gate in silence — the same shape as the virtio Tier-4
+    # collapse this check exists for: not a wrong answer, an unstated one.
+
+    def _clean(self, **extra):
+        payload = {"classifier_status": "wired-ok", "zero_citable": False,
+                   "citable_count": 1, "records": []}
+        payload.update(extra)
+        self._write(payload)
+
+    def test_unconfirmed_citations_warn(self):
+        self._clean(unconfirmed_citable_count=2)
+        fails, warns, out = self._run()
+        self.assertEqual((fails, warns), (0, 1))
+        self.assertIn("unconfirmed_citable_count=2", out)
+        self.assertIn("model's own read alone", out)
+
+    def test_documents_awaiting_the_operator_warn(self):
+        self._clean(awaiting_confirmation_count=3)
+        fails, warns, out = self._run()
+        self.assertEqual((fails, warns), (0, 1))
+        self.assertIn("awaiting_confirmation_count=3", out)
+
+    def test_a_refused_promotion_warns(self):
+        self._clean(refused_promotions=["reference_docs/cve_spec.md"])
+        fails, warns, out = self._run()
+        self.assertEqual((fails, warns), (0, 1))
+        self.assertIn("cve_spec.md", out)
+        self.assertIn("name the signal", out)
+
+    def test_a_superseded_control_file_warns(self):
+        self._clean(conversion_note="reference_docs/qpb_promote.txt is not applied")
+        fails, warns, out = self._run()
+        self.assertEqual((fails, warns), (0, 1))
+        self.assertIn("qpb_promote.txt", out)
+
+    def test_a_clean_manifest_is_silent(self):
+        # The control: none of the four new WARNs fires on a healthy run, so they
+        # stay signal rather than noise.
+        self._clean()
+        fails, warns, _out = self._run()
+        self.assertEqual((fails, warns), (0, 0))
+
+    def test_zero_and_absent_are_both_silent(self):
+        # An absent key (a pre-033 manifest) and an explicit zero must behave the
+        # same — "no unconfirmed citations" is not a finding.
+        for extra in ({}, {"unconfirmed_citable_count": 0,
+                           "awaiting_confirmation_count": 0,
+                           "refused_promotions": [], "conversion_note": ""}):
+            self._clean(**extra)
+            fails, warns, _o = self._run()
+            self.assertEqual((fails, warns), (0, 0), extra)
+
+    def test_the_new_warns_never_fail(self):
+        self._clean(unconfirmed_citable_count=5, awaiting_confirmation_count=5,
+                    refused_promotions=["a.md"], conversion_note="x")
+        fails, warns, _o = self._run()
+        self.assertEqual(fails, 0)
+        self.assertEqual(warns, 4)
+
     def test_carries_a_verdict_category(self):
         # Every check_* must carry a verdict category (the gate's test suite
         # asserts this; pin it for the new check too).
