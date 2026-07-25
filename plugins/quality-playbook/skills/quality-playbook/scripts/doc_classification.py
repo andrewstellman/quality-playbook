@@ -706,9 +706,24 @@ def _classify(
     _ADVISORY_KINDS = (BACKSTOP_ADVISORY_ID, BACKSTOP_ADVISORY_URL)
 
     def _acknowledged(kind: str) -> bool:
+        # instruction 033 step 3: acknowledgment is expressed by the CALLER, and
+        # the two channels stay separate. `advisory_rescue` acknowledges an
+        # advisory signal; `sidecar_promote` acknowledges an implementation-source
+        # one. A plain `operator_decision == authoritative` acknowledges NEITHER.
+        #
+        # That last clause is the step-3 refinement of step 2. §8a says an operator
+        # promotion lifts the implementation floor, and in step 2 the bare decision
+        # did it directly — but step 3 requires a promotion of any BACKSTOP-FLAGGED
+        # document to NAME the signal, and this is where "named" is enforced:
+        # `reference_docs_ingest` sets `sidecar_promote` only when the operator's
+        # reason actually names the evidence. Leaving the bare decision able to
+        # clear the signal made an unnamed promotion sail through — caught by
+        # `test_sidecar_file_promotes_a_code_shaped_contract`, which asserts the
+        # refusal end to end. A non-flagged document is unaffected: it never
+        # reaches this predicate and the operator's word promotes it as before.
         if kind in _ADVISORY_KINDS:
             return advisory_rescue
-        return sidecar_promote or operator_authoritative
+        return sidecar_promote
 
     unacknowledged = [(k, d) for k, d in backstop if not _acknowledged(k)]
     if unacknowledged:
@@ -1293,6 +1308,22 @@ def classification_disclosure(manifest: dict) -> Optional[str]:
                 n=unconfirmed, s="" if unconfirmed == 1 else "s",
                 v="s" if unconfirmed == 1 else "", is_="is" if unconfirmed == 1 else "are")
         )
+    # instruction 033 step 3: a corpus still carrying a superseded control file has
+    # operator decisions that are NOT being applied. That is exactly the class of
+    # thing this disclosure exists for, so it rides the same channel as a degraded
+    # classification rather than living only in the manifest.
+    note = manifest.get("conversion_note")
+    if note:
+        parts.append(note)
+    refused = manifest.get("refused_promotions") or []
+    if refused:
+        parts.append(
+            "{n} operator promotion{s} {was} REFUSED for want of a named signal "
+            "({paths}) — the document carries a hard signal and the reason did not "
+            "name it, so it is not being quoted.".format(
+                n=len(refused), s="" if len(refused) == 1 else "s",
+                was="was" if len(refused) == 1 else "were",
+                paths=", ".join(refused)))
     awaiting = manifest.get("awaiting_confirmation_count") or 0
     if awaiting:
         parts.append(

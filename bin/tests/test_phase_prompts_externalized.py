@@ -324,8 +324,8 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # backstop-flagged document is neither quoted nor dismissed. 29574 ->
         # 31335. Recomputed via the sanctioned `run_playbook.phase1_prompt()`
         # recapture, not by hand.
-        "phase1_no_seeds_True":  (31335, "1bb8e2605f20cc249222c2654e4113814faa8cf4081fbcff2ee2e42adadbb2d7"),
-        "phase1_no_seeds_False": (31138, "d12a0319cc1d76536f5182e8020e7c91de4877441414c0969ad9dfac4fb2a955"),
+        "phase1_no_seeds_True":   (32174, "819e47b1c00e1c7581029e80fef98edde0852f6aa78167c137daf2352941b892"),
+        "phase1_no_seeds_False":   (31977, "db7015c1af47c9a1752aa1525cd9311d1a28c52ef6f3f932e83530181cf628af"),
         # v1.5.7 instruction 073 Item-4 (A-19): phase2.md gained the
         # httpx-2026-05-17 missing-manifests warning (validator now
         # FAILs on ABSENT manifests, not just wrong-shape; agent must

@@ -506,18 +506,21 @@ class PromotionRoundTripTests(unittest.TestCase):
             "authoritative", "it is the spec")
         man = rdi.classify_reference_docs(root, write=False)
         paths = {r["source_path"] for r in man["records"]}
-        self.assertNotIn(f"reference_docs/{rdi.OPERATOR_DECISION_NAME}", paths)
+        self.assertNotIn(f"reference_docs/{rdi.DECISIONS_NAME}", paths)
 
     def test_writer_is_idempotent_and_content_keyed(self):
         root, ref = self._tree()
         spec_rel = "reference_docs/virtio-spec-behavioral-contracts.md"
         rdi.record_operator_decision(root, spec_rel, "authoritative", "the spec")
         rdi.record_operator_decision(root, spec_rel, "authoritative", "the spec")
-        body = (ref / rdi.OPERATOR_DECISION_NAME).read_text(encoding="utf-8")
+        body = (ref / rdi.DECISIONS_NAME).read_text(encoding="utf-8")
         self.assertEqual(body.count(spec_rel), 1)
         self.assertIn(_sha(VIRTIO_SPEC), body)
-        self.assertEqual(rdi._load_operator_decisions(ref),
-                         [(spec_rel, _sha(VIRTIO_SPEC), "authoritative")])
+        # instruction 033 step 3: the one channel carries the REASON as a fourth
+        # field, because the reason is where the named-signal acknowledgment is
+        # recorded — it is the artifact, not a comment on it.
+        self.assertEqual(rdi._load_decisions(ref),
+                         [(spec_rel, _sha(VIRTIO_SPEC), "authoritative", "the spec")])
 
     def test_writer_rejects_a_bad_decision_or_a_missing_reason(self):
         root, _ref = self._tree()
@@ -546,7 +549,7 @@ class PromotionRoundTripTests(unittest.TestCase):
         root, ref = self._tree()
         spec_rel = "reference_docs/virtio-spec-behavioral-contracts.md"
         sha = _sha(VIRTIO_SPEC)
-        (ref / rdi.OPERATOR_DECISION_NAME).write_text(
+        (ref / rdi.DECISIONS_NAME).write_text(
             "# a comment\n"
             f"{spec_rel}  {sha}  no decision verb\n"           # missing the verb
             f"authoritative  {spec_rel}  {sha}\n"              # missing the reason
@@ -554,7 +557,7 @@ class PromotionRoundTripTests(unittest.TestCase):
             f"promote  {spec_rel}  {sha}  unrecognized verb\n"  # unknown verb
             "\n",
             encoding="utf-8")
-        self.assertEqual(rdi._load_operator_decisions(ref), [])
+        self.assertEqual(rdi._load_decisions(ref), [])
         man = rdi.classify_reference_docs(root, write=False)
         rec = {r["source_path"]: r for r in man["records"]}[spec_rel]
         self.assertEqual(rec["tier"], 4)
@@ -606,7 +609,7 @@ class OperatorAuthorityTests(unittest.TestCase):
         (ref / "evil.md").write_text(self.POISON, encoding="utf-8")
         man = rdi.ingest(root)
         self.assertEqual(man["records"], [])
-        self.assertFalse((ref / rdi.OPERATOR_DECISION_NAME).exists(),
+        self.assertFalse((ref / rdi.DECISIONS_NAME).exists(),
                          "ingest must never author the operator decision file")
 
     def test_a_decision_for_one_document_cannot_promote_another(self):
@@ -650,11 +653,25 @@ class OperatorAuthorityTests(unittest.TestCase):
     def test_operator_promotion_does_lift_the_implementation_floor(self):
         # Bounded parity with the path-keyed sidecar the operator already has —
         # the same power, keyed on content instead.
-        d = dc.classify_document("iface.py", PY_LOGIC,
-                                 operator_decision=dc.OPERATOR_AUTHORITATIVE)
-        self.assertEqual(d.rule, dc.RULE_OPERATOR_AUTHORITATIVE)
-        self.assertIn(d.tier, (1, 2))
-        # ...and without the operator's word it stays background.
+        # instruction 033 step 3 REFINED this. §8a says the operator's promotion
+        # lifts the implementation floor, and it still does — but a promotion of a
+        # BACKSTOP-FLAGGED document must NAME the signal, and at this layer
+        # "named" is expressed by the caller passing the acknowledgment.
+        # `reference_docs_ingest` sets it only when the operator's reason actually
+        # names the evidence, so a bare decision no longer clears the signal.
+        acked = dc.classify_document("iface.py", PY_LOGIC, sidecar_promote=True,
+                                     operator_decision=dc.OPERATOR_AUTHORITATIVE)
+        self.assertEqual(acked.rule, dc.RULE_OPERATOR_AUTHORITATIVE)
+        self.assertIn(acked.tier, (1, 2))
+        # An UNACKNOWLEDGED promotion does not lift it — the operator is asked
+        # again rather than quietly obeyed. (End-to-end, including the refusal
+        # surfaced on the manifest, in
+        # test_doc_classification_v160.test_sidecar_file_promotes_a_code_shaped_contract.)
+        unacked = dc.classify_document("iface.py", PY_LOGIC,
+                                       operator_decision=dc.OPERATOR_AUTHORITATIVE)
+        self.assertEqual(unacked.rule, dc.RULE_CONFIRM_REQUIRED)
+        self.assertFalse(unacked.promotable)
+        # ...and without the operator's word at all it stays held back.
         self.assertEqual(dc.classify_document("iface.py", PY_LOGIC).rule, dc.RULE_CONFIRM_REQUIRED)
 
     def test_operator_demotion_beats_every_promoting_rule(self):
@@ -705,7 +722,7 @@ class OperatorAuthorityTests(unittest.TestCase):
         first = rdi.ingest(root)
         self.assertIn(rel, {r["source_path"] for r in first["records"]})
 
-        (ref / rdi.OPERATOR_DECISION_NAME).unlink()      # the operator withdraws it
+        (ref / rdi.DECISIONS_NAME).unlink()      # the operator withdraws it
         after = rdi.ingest(root)
         self.assertEqual(after["records"], [])
         man = json.loads((root / "quality" / rdi.CLASSIFICATION_MANIFEST_NAME)
@@ -744,12 +761,16 @@ class OperatorAuthorityTests(unittest.TestCase):
         ref.mkdir(parents=True)
         (ref / "iface.py").write_text(PY_LOGIC, encoding="utf-8")
         rel = "reference_docs/iface.py"
-        (ref / rdi.SIDECAR_NAME).write_text(rel + "\n", encoding="utf-8")
+        (ref / rdi.DECISIONS_NAME).write_text(
+            f"authoritative  {rel}  {_sha(PY_LOGIC)}  a code-shaped contract; the "
+            f"code extension .py is acknowledged\n", encoding="utf-8")
 
         first = rdi.ingest(root)
         self.assertIn(rel, {r["source_path"] for r in first["records"]})
 
-        (ref / rdi.SIDECAR_NAME).unlink()          # the operator withdraws it
+        # instruction 033 step 3: the channel is re-read every run, so deleting the
+        # line is how the operator takes their own word back.
+        (ref / rdi.DECISIONS_NAME).unlink()        # the operator withdraws it
         after = rdi.ingest(root)
         self.assertEqual(after["records"], [])
         man = json.loads((root / "quality" / rdi.CLASSIFICATION_MANIFEST_NAME)
@@ -804,14 +825,18 @@ class OperatorAuthorityTests(unittest.TestCase):
         (ref / "iface.py").write_text(PY_LOGIC, encoding="utf-8")
         rel = "reference_docs/iface.py"
 
+        # instruction 033 step 3: one channel. A code-shaped file is
+        # backstop-flagged, so its promotion must NAME the signal (the extension).
         self.assertEqual(rdi.ingest(root)["records"], [])          # cache now exists
-        (ref / rdi.SIDECAR_NAME).write_text(rel + "\n", encoding="utf-8")
+        (ref / rdi.DECISIONS_NAME).write_text(
+            f"authoritative  {rel}  {_sha(PY_LOGIC)}  a code-shaped contract; the "
+            f"code extension .py is acknowledged\n", encoding="utf-8")
         after = rdi.ingest(root)
         self.assertIn(rel, {r["source_path"] for r in after["records"]})
         man = json.loads((root / "quality" / rdi.CLASSIFICATION_MANIFEST_NAME)
                          .read_text(encoding="utf-8"))
         rec = {r["source_path"]: r for r in man["records"]}[rel]
-        self.assertEqual(rec["floor_rule"], dc.RULE_SIDECAR)
+        self.assertEqual(rec["floor_rule"], dc.RULE_OPERATOR_AUTHORITATIVE)
         self.assertNotIn("reused_from_prior", rec)
 
     def test_a_new_advisory_rescue_applies_over_an_existing_cache(self):
@@ -832,8 +857,11 @@ class OperatorAuthorityTests(unittest.TestCase):
         first = rdi.classify_reference_docs(root, write=True)
         self.assertEqual({r["source_path"]: r for r in first["records"]}
                          [rel]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
-        (ref / rdi.ADVISORY_RESCUE_NAME).write_text(
-            f"{rel}  {_sha(spec)}  advisory identifier 'CVE-2024-43796'\n",
+        # instruction 033 step 3: the instr-025 rescue is now a promotion in the
+        # ONE channel whose reason NAMES the signal — same speed-bump, one file.
+        (ref / rdi.DECISIONS_NAME).write_text(
+            f"authoritative  {rel}  {_sha(spec)}  I read it; it is the genuine "
+            f"spec despite CVE-2024-43796 in its security section\n",
             encoding="utf-8")
         after = rdi.classify_reference_docs(root, write=True)
         rec = {r["source_path"]: r for r in after["records"]}[rel]
@@ -973,7 +1001,7 @@ class OperatorAuthorityTests(unittest.TestCase):
             rdi.record_operator_decision(root, "reference_docs/virtio spec.md",
                                          "authoritative", "the spec")
         self.assertIn("whitespace", str(ctx.exception))
-        self.assertFalse((ref / rdi.OPERATOR_DECISION_NAME).exists())
+        self.assertFalse((ref / rdi.DECISIONS_NAME).exists())
 
     def test_control_files_are_never_offered_as_documentation(self):
         # Self-Council (Panelist C defensive sweep): the operator-authored control
@@ -986,14 +1014,14 @@ class OperatorAuthorityTests(unittest.TestCase):
         ref.mkdir(parents=True)
         (ref / "spec.md").write_text(VIRTIO_SPEC, encoding="utf-8")
         for name in (rdi.SIDECAR_NAME, rdi.ADVISORY_RESCUE_NAME,
-                     rdi.OPERATOR_DECISION_NAME):
+                     rdi.DECISIONS_NAME):
             (ref / name).write_text("# operator control file\n", encoding="utf-8")
         tier4 = {p for p, _ in rdi.load_tier4_context(root)}
         collected = {r.rel_path for r in rdi.collect_documents(root)}
         classified = {r["source_path"]
                       for r in rdi.classify_reference_docs(root, write=False)["records"]}
         for name in (rdi.SIDECAR_NAME, rdi.ADVISORY_RESCUE_NAME,
-                     rdi.OPERATOR_DECISION_NAME):
+                     rdi.DECISIONS_NAME):
             rel = f"reference_docs/{name}"
             self.assertNotIn(rel, tier4)
             self.assertNotIn(rel, collected)

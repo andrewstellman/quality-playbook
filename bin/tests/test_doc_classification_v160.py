@@ -537,11 +537,28 @@ class IngestWiringTests(unittest.TestCase):
         man = rdi.classify_reference_docs(root, write=False)
         floored = {r["source_path"].split("/")[-1]: r for r in man["records"]}
         self.assertEqual(floored["grpc_iface.py"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
-        # ...until the operator names it in the sidecar.
-        (ref / rdi.SIDECAR_NAME).write_text("reference_docs/grpc_iface.py\n", encoding="utf-8")
+        # ...until the operator promotes it in THE channel (instruction 033 step
+        # 3), naming the signal being overridden — here the code extension. The
+        # four channels collapsed into one; the acknowledgment survived.
+        import hashlib as _h
+        _sha_py = _h.sha256(ContractAndImplTests.PY_LOGIC.encode("utf-8")).hexdigest()
+        (ref / rdi.DECISIONS_NAME).write_text(
+            f"authoritative  reference_docs/grpc_iface.py  {_sha_py}  a gRPC "
+            f"interface contract; the .py code extension is acknowledged\n",
+            encoding="utf-8")
         man2 = rdi.classify_reference_docs(root, write=False)
         promoted = {r["source_path"].split("/")[-1]: r for r in man2["records"]}
-        self.assertEqual(promoted["grpc_iface.py"]["floor_rule"], dc.RULE_SIDECAR)
+        self.assertEqual(promoted["grpc_iface.py"]["floor_rule"],
+                         dc.RULE_OPERATOR_AUTHORITATIVE)
+        # ...and a promotion that does NOT name the signal is refused.
+        (ref / rdi.DECISIONS_NAME).write_text(
+            f"authoritative  reference_docs/grpc_iface.py  {_sha_py}  please use it\n",
+            encoding="utf-8")
+        man3 = rdi.classify_reference_docs(root, write=False)
+        refused = {r["source_path"].split("/")[-1]: r for r in man3["records"]}
+        self.assertEqual(refused["grpc_iface.py"]["floor_rule"],
+                         dc.RULE_CONFIRM_REQUIRED)
+        self.assertIn("reference_docs/grpc_iface.py", man3["refused_promotions"])
 
     def test_ingest_end_to_end_does_not_abort_on_contract_or_code(self):
         # Self-Council (Panelists B+C) FIX-REQUIRED: the production entry
@@ -597,16 +614,19 @@ class IngestWiringTests(unittest.TestCase):
         man0 = rdi.classify_reference_docs(root, write=False)
         by0 = {r["source_path"].split("/")[-1]: r for r in man0["records"]}
         self.assertEqual(by0["cve_spec.md"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
-        # Operator authors the content-keyed rescue with an acknowledgment reason.
-        (ref / rdi.ADVISORY_RESCUE_NAME).write_text(
-            f"reference_docs/cve_spec.md  {sha}  CVE-2024-43796 in a security section; reviewed, real spec\n",
+        # instruction 033 step 3: the operator authors the promotion in THE one
+        # channel, and the reason still has to NAME the signal — the instr-025
+        # acknowledgment, preserved in kind rather than in a separate file.
+        (ref / rdi.DECISIONS_NAME).write_text(
+            f"authoritative  reference_docs/cve_spec.md  {sha}  CVE-2024-43796 in a "
+            f"security section; reviewed, real spec\n",
             encoding="utf-8")
         man1 = rdi.classify_reference_docs(root, llm_classifier=_tier1_if("router"), write=False)
         by1 = {r["source_path"].split("/")[-1]: r for r in man1["records"]}
         self.assertNotEqual(by1["cve_spec.md"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         self.assertTrue(by1["cve_spec.md"]["advisory_rescued"])
-        # The rescue file itself is NOT classified as a doc.
-        self.assertNotIn(rdi.ADVISORY_RESCUE_NAME,
+        # The channel file itself is NOT classified as a doc.
+        self.assertNotIn(rdi.DECISIONS_NAME,
                          {r["source_path"].split("/")[-1] for r in man1["records"]})
 
     def test_advisory_rescue_requires_reason_acknowledgment(self):

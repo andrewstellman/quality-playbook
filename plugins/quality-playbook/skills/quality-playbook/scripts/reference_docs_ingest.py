@@ -125,14 +125,52 @@ ADVISORY_RESCUE_NAME = "qpb_advisory_rescue.txt"
 # running agent is relaying an explicit operator instruction at this step.)
 OPERATOR_DECISION_NAME = "qpb_authoritative.txt"
 
-# The three operator-authored control files. They configure ingest; they are not
-# documentation, so no path that enumerates the corpus may hand them to the agent
-# or classify them. (Instruction 030 self-Council, Panelist C defensive sweep:
-# `qpb_promote.txt` and `qpb_advisory_rescue.txt` were already leaking into
-# `load_tier4_context` / `_collect` as Tier-4 "documentation" before this set
-# existed.)
-CONTROL_FILENAMES = frozenset(
+# v1.6.0 instruction 033 step 3 — THE ONE OPERATOR-OVERRIDE CHANNEL.
+#
+# `qpb_promote.txt` (promote past the implementation floor), `qpb_advisory_rescue.txt`
+# (lift the advisory floor, content-keyed, reason-acknowledging) and
+# `qpb_authoritative.txt` (the end-of-Phase-1 decision) were three files asking the
+# operator the same question in three formats, plus `cite/` placement asking it a
+# fourth way with a folder. They collapse to one:
+#
+#     <authoritative|background>  <target-relative-path>  <document_sha256>  <reason>
+#
+# Content-keyed, so a decision binds to exactly the bytes the operator reviewed and
+# a swapped-in document cannot inherit it. Operator-authored ONLY: ingest reads it
+# and never writes it from classification; document content, the classifier and a
+# persona can never add a line. It is re-read every run, so DELETING a line revokes
+# the decision — consent has to still be on file, or it is not consent.
+#
+# NAMED-SIGNAL CONFIRMATION (operator decision 2026-07-25). Promoting a
+# BACKSTOP-FLAGGED document (a CVE/GHSA identifier, an advisory URL, an
+# implementation-source file) requires the reason to NAME the specific signal being
+# overridden — the instruction-025 speed-bump preserved in kind. The reason is the
+# record: naming it is what gets written down. A promotion whose reason does not
+# name the signal is REFUSED, and the show says so rather than dropping it.
+DECISIONS_NAME = "qpb_decisions.txt"
+
+# The label a `cite/`-seeded entry carries. Deliberately explicit: an operator
+# reading the channel has to be able to tell which entries THEY wrote and which
+# the migration shim inferred from folder placement, and a seeded entry is
+# overridable by writing a later line for the same document.
+CITE_MIGRATION_REASON = "migrated from cite/ placement (revocable; folder retires next release)"
+
+# The superseded control files. Instruction 033 takes a DOCUMENTED BREAK on these:
+# they are no longer honored, and ingest emits a one-shot conversion note when it
+# finds one so an existing corpus fails loudly instead of silently losing an
+# operator's decisions.
+LEGACY_CONTROL_FILENAMES = frozenset(
     {SIDECAR_NAME, ADVISORY_RESCUE_NAME, OPERATOR_DECISION_NAME}
+)
+
+# Control files configure ingest; they are not documentation, so no path that
+# enumerates the corpus may hand them to the agent or classify them. (Instruction
+# 030 self-Council, Panelist C defensive sweep: `qpb_promote.txt` and
+# `qpb_advisory_rescue.txt` were already leaking into `load_tier4_context` /
+# `_collect` as Tier-4 "documentation" before this set existed.) The legacy names
+# stay in the set so a corpus mid-migration does not start classifying them.
+CONTROL_FILENAMES = frozenset(
+    {DECISIONS_NAME, SIDECAR_NAME, ADVISORY_RESCUE_NAME, OPERATOR_DECISION_NAME}
 )
 
 # v1.6.0 Feature G: doc_classification is a sibling stdlib-only module; path-load
@@ -559,78 +597,114 @@ def ingest(target_repo: Path, *, llm_classifier=None) -> dict:
     return manifest
 
 
-def _load_sidecar(ref_dir: Path) -> List[str]:
-    """Read the operator sidecar (``reference_docs/qpb_promote.txt``).
+# instruction 033 step 3: `_load_sidecar`, `_load_advisory_rescues` and
+# `_load_operator_decisions` are DELETED. They read the three superseded control
+# files; `_load_decisions` reads the one channel that replaced them. Charter (c):
+# gone, not renamed.
+def _load_decisions(ref_dir: Path) -> List[Tuple[str, str, str, str]]:
+    """Read THE operator-override channel (``reference_docs/qpb_decisions.txt``).
 
-    Each non-blank, non-``#`` line is a target-relative path the operator
-    promotes past the implementation floor. Missing file → empty list.
+    Instruction 033 step 3. One format for every override the operator can make:
+
+        <authoritative|background>  <path>  <document_sha256>  <reason>
+
+    Returns ``(rel_path, sha256, decision, reason)`` in file order — a later line
+    supersedes an earlier one for the same key. A line missing the verb, the path,
+    the sha or the reason is NOT honored, and an unrecognized verb is ignored
+    rather than guessed at. Missing file → empty list, which is how deleting a
+    line revokes it: the file is re-read every run and nothing is remembered.
+
+    Operator-authored ONLY. Ingest reads this and never writes it from
+    classification.
     """
-    sidecar_path = ref_dir / SIDECAR_NAME
-    if not sidecar_path.is_file():
+    path = ref_dir / DECISIONS_NAME
+    if not path.is_file():
         return []
-    entries: List[str] = []
-    for line in _read_text(sidecar_path).splitlines():
-        s = line.strip()
-        if s and not s.startswith("#"):
-            entries.append(s)
-    return entries
-
-
-def _load_advisory_rescues(ref_dir: Path) -> List[Tuple[str, str]]:
-    """Read the operator-authored advisory-floor rescue file
-    (``reference_docs/qpb_advisory_rescue.txt``), instruction 025.
-
-    Each honored line is ``<target-relative-path>  <document_sha256>  <reason>`` —
-    content-keyed and reason-acknowledging. Returns a list of ``(rel_path,
-    sha256)`` keys; a line missing the path, the sha, or the acknowledgment reason
-    is NOT honored (all three are required — the reason enforces that the operator
-    read and acknowledged the specific floor signal). Missing file → empty list.
-    Operator-authored only: ingest reads it, never writes it.
-    """
-    rescue_path = ref_dir / ADVISORY_RESCUE_NAME
-    if not rescue_path.is_file():
-        return []
-    keys: List[Tuple[str, str]] = []
-    for line in _read_text(rescue_path).splitlines():
+    out: List[Tuple[str, str, str, str]] = []
+    for line in _read_text(path).splitlines():
         s = line.strip()
         if not s or s.startswith("#"):
             continue
-        parts = s.split(None, 2)   # path, sha256, reason (remainder)
-        if len(parts) < 3 or not parts[2].strip():
-            continue               # incomplete / no acknowledgment reason — not honored
-        keys.append((parts[0], parts[1].lower()))
-    return keys
-
-
-def _load_operator_decisions(ref_dir: Path) -> List[Tuple[str, str, str]]:
-    """Read the operator's classification-review decisions
-    (``reference_docs/qpb_authoritative.txt``), instruction 030.
-
-    Each honored line is ``<authoritative|background>  <target-relative-path>
-    <document_sha256>  <reason>`` — the decision verb, then the same content key +
-    acknowledgment the instr-025 rescue requires, so the decision binds to exactly
-    the bytes the operator reviewed and a swapped-in document cannot inherit it. A
-    line missing the verb, the path, the sha, or the reason is NOT honored; an
-    unrecognized verb is ignored rather than guessed at. Returns ``(rel_path,
-    sha256, decision)`` triples in file order (a later line supersedes an earlier
-    one for the same key). Missing file → empty list. Operator-authored only.
-    """
-    decision_path = ref_dir / OPERATOR_DECISION_NAME
-    if not decision_path.is_file():
-        return []
-    out: List[Tuple[str, str, str]] = []
-    for line in _read_text(decision_path).splitlines():
-        s = line.strip()
-        if not s or s.startswith("#"):
-            continue
-        parts = s.split(None, 3)   # decision, path, sha256, reason (remainder)
+        parts = s.split(None, 3)   # verb, path, sha256, reason (remainder)
         if len(parts) < 4 or not parts[3].strip():
             continue               # incomplete / no acknowledgment reason
         decision = parts[0].lower()
         if decision not in doc_classification._OPERATOR_DECISIONS:
             continue               # unrecognized verb — never guessed at
-        out.append((parts[1], parts[2].lower(), decision))
+        out.append((parts[1], parts[2].lower(), decision, parts[3].strip()))
     return out
+
+
+_SIGNAL_TOKEN_RE = re.compile(r"'([^']+)'")
+
+
+def signal_tokens(signals: Sequence[Tuple[str, str]]) -> List[str]:
+    """The specific evidence an operator must name to promote a flagged document.
+
+    ``backstop_signals`` details read like ``advisory identifier 'CVE-2024-43796'``
+    or ``advisory URL 'nvd.nist.gov'`` — the quoted part is the evidence itself, and
+    that is what has to appear in the reason. For a signal with no quoted token (the
+    implementation-source detail names an extension and a ratio) the extension is
+    the token.
+    """
+    tokens: List[str] = []
+    for _kind, detail in signals:
+        quoted = _SIGNAL_TOKEN_RE.findall(detail or "")
+        if quoted:
+            tokens.extend(quoted)
+            continue
+        m = re.search(r"(\.[A-Za-z0-9_]+)", detail or "")
+        if m:
+            tokens.append(m.group(1))
+    return tokens
+
+
+def names_every_signal(reason: str, signals: Sequence[Tuple[str, str]]) -> bool:
+    """Whether *reason* acknowledges EVERY backstop signal by name.
+
+    The named-signal confirmation (instruction 033 step 3), and the reason it is
+    "by name" rather than a checkbox: a promotion that says only *"yes, use it"*
+    proves nothing about whether the operator saw the CVE identifier sitting in the
+    document. Requiring the evidence to appear in their own words is the
+    instruction-025 speed-bump carried forward — 025 made them copy the sha and the
+    reason out of the manifest for exactly this reason.
+
+    Every signal must be named: acknowledging the advisory URL while ignoring the
+    CVE identifier in the same document is a partial acknowledgment, and partial is
+    the shape that lets one slip through.
+    """
+    if not signals:
+        return True
+    low = (reason or "").lower()
+    return all(tok.lower() in low for tok in signal_tokens(signals))
+
+
+def legacy_control_files(ref_dir: Path) -> List[str]:
+    """Superseded control files still present — the documented-break signal.
+
+    Instruction 033 step 3 collapses four channels into one and takes a documented
+    break on the three ``qpb_*.txt`` predecessors. They are no longer read, so a
+    corpus carrying one would silently lose the operator's decisions. Ingest
+    surfaces them instead; the caller turns this into the one-shot conversion note.
+    """
+    return sorted(name for name in LEGACY_CONTROL_FILENAMES
+                  if (ref_dir / name).is_file())
+
+
+def conversion_note(names: Sequence[str]) -> Optional[str]:
+    """The one-shot conversion note for a corpus with superseded control files."""
+    if not names:
+        return None
+    return (
+        "These control files are no longer read: {}. v1.6.0 instruction 033 "
+        "collapsed the four override channels into one — {} — with the line "
+        "format `<authoritative|background>  <path>  <document_sha256>  <reason>`. "
+        "Convert each entry by hand (a promotion of a document carrying a CVE/GHSA "
+        "identifier, an advisory link or source code must NAME that signal in its "
+        "reason, which is the acknowledgment the old `qpb_advisory_rescue.txt` "
+        "required), then delete the superseded files. Until you do, those decisions "
+        "are NOT being applied."
+    ).format(", ".join(names), DECISIONS_NAME)
 
 
 def record_operator_decision(
@@ -645,6 +719,15 @@ def record_operator_decision(
     when the operator rescues an advisory. It grants no new authority: the file it
     writes is the operator-authored input ingest reads, and nothing about a
     *document's content* can reach this function.
+
+    Instruction 033 step 3: this writes THE one channel (``qpb_decisions.txt``),
+    and it enforces the NAMED-SIGNAL confirmation at write time. Promoting a
+    document the backstop flagged — a CVE/GHSA identifier, an advisory link, an
+    implementation-source file — requires the reason to name that evidence, so a
+    promotion that does not is refused HERE, with the signal quoted back, rather
+    than being written and then silently ignored at read time. Refusing at the
+    point of writing is the difference between the operator learning now and the
+    operator believing they promoted something that was never applied.
 
     The sha is computed from the file on disk with the same decode the classifier
     uses, so the written key matches the record the operator was shown. Idempotent:
@@ -674,7 +757,7 @@ def record_operator_decision(
     if rel_path != rel_path.strip() or any(c.isspace() for c in rel_path):
         raise IngestError(
             f"cannot record a decision for {rel_path!r}: the operator decision "
-            f"file ({OPERATOR_DECISION_NAME}) is whitespace-delimited, so a "
+            f"file ({DECISIONS_NAME}) is whitespace-delimited, so a "
             f"document path containing whitespace cannot be expressed in it. "
             f"Rename the document (or place it under reference_docs/cite/ to "
             f"mark it a source) and re-run the ingest."
@@ -684,11 +767,26 @@ def record_operator_decision(
         raise IngestError(f"no such document to decide on: {rel_path}")
     text = doc.read_text(encoding="utf-8", errors="replace")
     sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+    # The named-signal confirmation, enforced where the operator can still act on
+    # it. A promotion of a flagged document must name the evidence being overridden.
+    if decision == doc_classification.OPERATOR_AUTHORITATIVE:
+        signals = doc_classification.backstop_signals(text, rel_path)
+        if signals and not names_every_signal(reason, signals):
+            raise IngestError(
+                f"cannot record this promotion of {rel_path}: it carries "
+                f"{'; '.join(d for _k, d in signals)}, and promoting a document "
+                f"with that signal requires the reason to name it "
+                f"({', '.join(signal_tokens(signals))}). Confirm you have read the "
+                f"document and mean to quote it as a source despite that signal, "
+                f"and say so in the reason."
+            )
+
     line = f"{decision}  {rel_path}  {sha}  {reason}\n"
 
     ref_dir = target_repo / REFERENCE_DIR_NAME
     ref_dir.mkdir(parents=True, exist_ok=True)
-    out = ref_dir / OPERATOR_DECISION_NAME
+    out = ref_dir / DECISIONS_NAME
     if out.is_file():
         existing = _read_text(out)
         if any(l.strip() == line.strip() for l in existing.splitlines()):
@@ -698,10 +796,15 @@ def record_operator_decision(
         out.write_text(existing + line, encoding="utf-8")
     else:
         header = (
-            "# Operator decisions from the end-of-Phase-1 documentation review.\n"
+            "# Operator decisions about the documents you gathered. This is the ONE\n"
+            "# override channel (v1.6.0 instruction 033): it replaced qpb_promote.txt,\n"
+            "# qpb_advisory_rescue.txt, qpb_authoritative.txt and cite/ placement.\n"
             "# Written only on an explicit operator instruction; ingest reads this\n"
             "# file and never writes it from classification. Document content, the\n"
             "# classifier, and personas can NEVER add a line here.\n"
+            "# Deleting a line REVOKES that decision on the next run.\n"
+            "# Promoting a document that carries a CVE/GHSA identifier, an advisory\n"
+            "# link or source code requires the reason to NAME that signal.\n"
             "# Format: <authoritative|background>  <path>  <document_sha256>  <reason>\n"
         )
         out.write_text(header + line, encoding="utf-8")
@@ -778,21 +881,66 @@ def classify_reference_docs(
     cite_dir = ref_dir / CITE_DIR_NAME
 
     docs = _classification_candidates(ref_dir, target_repo)
-    # cite/ files + the operator sidecar both promote past the implementation
-    # floor. The advisory floor still binds either way.
-    sidecar = set(_load_sidecar(ref_dir))
+    text_by_path = dict(docs)
+
+    # --- THE ONE CHANNEL (instruction 033 step 3) ----------------------------
+    # `qpb_decisions.txt`: operator-authored, content-keyed, re-read every run so
+    # deleting a line revokes it. Everything the operator can say about a document
+    # is said here, in one format.
+    decisions = _load_decisions(ref_dir)
+
+    # `cite/` MIGRATION SHIM (one release). A `cite/`-placed document pre-seeds the
+    # channel as a clearly-labelled, REVOCABLE entry, so an existing corpus keeps
+    # working while the folder is retired next release. It is revocable in the
+    # honest sense: the operator can override it by writing a `background` line for
+    # the same document, because a later line supersedes an earlier one and these
+    # are seeded FIRST.
+    seeded: List[Tuple[str, str, str, str]] = []
     for path in _iter_candidates(ref_dir):
         if _is_under_cite(path, cite_dir) and _classify_ext_ok(path.name):
-            sidecar.add(_rel(path, target_repo))
+            rel = _rel(path, target_repo)
+            text = text_by_path.get(rel)
+            if text is None:
+                continue
+            seeded.append((
+                rel, hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                doc_classification.OPERATOR_AUTHORITATIVE,
+                CITE_MIGRATION_REASON,
+            ))
+    decisions = seeded + decisions
 
-    # Operator advisory-floor rescues (instr 025) — content-keyed (path, sha256),
-    # operator-authored only. cite/ and the sidecar never rescue the advisory floor.
-    advisory_rescues = _load_advisory_rescues(ref_dir)
-
-    # Operator classification-review decisions (instr 030) — content-keyed,
-    # operator-authored only. Bounded exactly like every other operator override:
-    # the promotion direction never reaches the advisory or background floors.
-    operator_decisions = _load_operator_decisions(ref_dir)
+    # --- NAMED-SIGNAL CONFIRMATION -------------------------------------------
+    # A promotion of a BACKSTOP-FLAGGED document is honored only when its reason
+    # NAMES the specific signal being overridden. One that does not is REFUSED —
+    # and refused visibly: the decision is still passed through as the operator's
+    # `authoritative` so the record carries it and the show says "you asked me to
+    # use this one as a source; I'm not", rather than dropping it silently.
+    operator_decisions: List[Tuple[str, str, str]] = []
+    advisory_rescues: List[Tuple[str, str]] = []
+    sidecar: set = set()
+    refused: List[str] = []
+    for rel, sha, decision, reason in decisions:
+        operator_decisions.append((rel, sha, decision))
+        if decision != doc_classification.OPERATOR_AUTHORITATIVE:
+            continue
+        text = text_by_path.get(rel)
+        if text is None:
+            continue
+        signals = doc_classification.backstop_signals(text, rel)
+        if not signals:
+            continue
+        if names_every_signal(reason, signals):
+            # Acknowledged by name -> route to the channel that clears that class
+            # of signal. The two are NOT interchangeable (§8a's hard bounds), so
+            # an advisory acknowledgment does not also clear implementation source.
+            kinds = {k for k, _d in signals}
+            if kinds & {doc_classification.BACKSTOP_ADVISORY_ID,
+                        doc_classification.BACKSTOP_ADVISORY_URL}:
+                advisory_rescues.append((rel, sha))
+            if doc_classification.BACKSTOP_IMPL_SOURCE in kinds:
+                sidecar.add(rel)
+        else:
+            refused.append(rel)
 
     prior: Optional[List[dict]] = None
     out = target_repo / "quality" / CLASSIFICATION_MANIFEST_NAME
@@ -816,6 +964,19 @@ def classify_reference_docs(
         prior_records=prior,
         schema_version=schema_version,
     )
+    # instruction 033 step 3 — the documented break, SURFACED. A conversion note
+    # nobody sees is not a documented break, it is silent data loss: the operator's
+    # decisions in a superseded file simply stop applying. Carried on the manifest
+    # so the gate, the show and any caller can raise it.
+    legacy = legacy_control_files(ref_dir)
+    if legacy:
+        manifest["legacy_control_files"] = legacy
+        manifest["conversion_note"] = conversion_note(legacy)
+    if refused:
+        # Promotions the operator asked for that were refused for want of a named
+        # signal. On the manifest so the refusal is auditable, not only rendered.
+        manifest["refused_promotions"] = sorted(refused)
+
     if write:
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(
