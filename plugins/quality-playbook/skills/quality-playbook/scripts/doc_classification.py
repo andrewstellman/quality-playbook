@@ -14,11 +14,11 @@ say-so. In order:
 0. **Operator demotion** — downward only, so it needs no gate and outranks
    everything.
 1. **The hard-signal backstop.** A CVE/GHSA identifier, an advisory URL, or an
-   implementation-source file. It assigns no GENRE — the record's ``category``
-   stays empty and the show gives these their own section rather than calling them
-   background — and it never demotes anything the model judged; the record it
-   produces is tier 4 and not promotable, which is a refusal to cite rather than a
-   classification. It answers one question — *may this be cited without asking the operator?* — and
+   implementation-source file. It assigns no GENRE — it never writes ``category``,
+   so whatever the model read the document to be survives on the record — and it
+   makes no classification: it WITHHOLDS CITATION, producing a tier-4,
+   non-promotable record in its own queue regardless of the tier the model
+   assigned. It answers one question — *may this be cited without asking the operator?* — and
    its only answer is no. Runs FIRST, so an advisory renamed ``api.proto`` cannot
    ride the contract path.
 2. **Lane A — content-validated contract.** The document PARSES as protobuf,

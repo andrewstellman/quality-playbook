@@ -216,6 +216,25 @@ class ClassificationGateTests(unittest.TestCase):
                     (dc.classification_disclosure(payload) or "").strip(),
                     f"disclosure is silent about {label} while the gate warns")
 
+        # N-1 (panelist C, round 3): the enumeration above is HAND-MAINTAINED, so
+        # a future fact wired into the gate and omitted from this list would pass
+        # silently — which is the exact shape this guard exists to prevent. C
+        # proved it: a `stale_read_count` WARN added to the gate alone left this
+        # test at 18 passing. So the list is checked against the gate's own source
+        # rather than trusted. A guard whose coverage is a literal is a guard that
+        # decays; deriving it is the only version that cannot.
+        import inspect
+        import re as _re
+        source = inspect.getsource(quality_gate.check_classification_manifest)
+        read = set(_re.findall(r'manifest\.get\(\s*"([^"]+)"', source))
+        read |= set(_re.findall(r'get_str\(\s*manifest\s*,\s*"([^"]+)"', source))
+        enumerated = {label for label, _extra in facts}
+        self.assertLessEqual(
+            read, enumerated,
+            "the gate reads manifest keys this parity test does not exercise: "
+            f"{sorted(read - enumerated)}. Add each to `facts` above AND teach "
+            "doc_classification.classification_disclosure to speak to it.")
+
         # ...and both stay silent on a healthy run, so the parity is not vacuous.
         clean = {"classifier_status": "wired-ok", "zero_citable": False,
                  "citable_count": 1, "unconfirmed_citable_count": 0,

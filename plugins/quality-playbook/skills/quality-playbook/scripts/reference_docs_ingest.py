@@ -992,7 +992,7 @@ def classify_reference_docs(
     llm_classifier=None,
     write: bool = True,
 ) -> dict:
-    """Feature G (§8a): classify all reference docs over the deterministic floor.
+    """Feature G (§8a): classify all reference docs over the hard-signal backstop.
 
     ``cite/`` placement is honored as an explicit operator pre-classification, via
     the one-release migration shim: it seeds a clearly-labelled, revocable
@@ -1001,9 +1001,12 @@ def classify_reference_docs(
     identifier, an advisory URL, or source code — is REFUSED and listed in
     ``refused_promotions``, not promoted. (This paragraph used to say placement
     "promotes past the implementation floor, exactly like the sidecar"; both halves
-    are now false — the sidecar is gone and the backstop is not a floor.) ``llm_classifier`` is the derivation AI's
-    per-file tier callable; when None, the floor still runs and floor-passed
-    docs default to Tier 4 (dump-and-go stays safe without the AI in Python).
+    are now false — the sidecar is gone and the backstop is not a floor.)
+
+    ``llm_classifier`` is the derivation AI's
+    per-file tier callable; when None, the backstop still runs and
+    everything it does not flag defaults to Tier 4, so dump-and-go stays safe with
+    no read at all.
     No prior manifest is read: the classification manifest is an OUTPUT,
     regenerated every run. What carries a read between runs is the agent's
     ``quality/classification_reads.json``. Writes
