@@ -8,8 +8,16 @@ LLM cannot override upward. The floor is the security-critical part, and it
 enforces **only hard, unambiguous, structural facts** — fuzzy genre/intent
 judgments belong to the LLM (instruction 023 / Fable simplification review). The
 cardinal rule the review sharpened: **nothing becomes citable on content-sniffing
-alone** — promotion is the integrity-affecting direction, so a doc reaches
-citable only via an extension-class hard signal or (disclosed) LLM classification.
+alone** — promotion is the integrity-affecting direction, so a doc reaches citable
+only via an extension-class or anchored-signature hard signal, (disclosed) LLM
+classification, or an **operator-authored file** (the ``qpb_promote.txt`` sidecar,
+the instr-025 advisory rescue, the instr-030 classification-review decision).
+*(That last clause was missing until instruction 032: this rule predated instr 025
+and 030 and still named only two routes, and it is the source both self-Council
+panelists traced three separate wrong "how does a doc become citable" lists back
+to. The security claim is unchanged — every route is either a hard mechanical
+signal, the disclosed classifier, or a human on file; document content is none of
+them.)*
 
 * **Advisory floor (mechanical, first, content-keyed) — HARD signals only.** A
   CVE/GHSA identifier or an advisory URL forces **Tier 4**, matched anywhere in
@@ -970,10 +978,18 @@ _AUTHORITATIVE_REASONS = {
     # Tier 1 on an extension is a CARVE-OUT question, not a wording one; tiers
     # are out of scope here and it is carried forward in the output.)
     # (Round 2, Panelist B: "its format is…" still claims the BYTES when only the
-    # suffix was read — `notes.thrift` is prose. Name the extension.)
+    # suffix was read — `notes.thrift` is prose. Round 3, Panelist B: naming the
+    # EXTENSION alone then over-corrected, because the carve-out has two arms and
+    # the other one is the content-verified, canonical OpenAPI case —
+    # `openapi.yaml` matches `openapi: "3` INSIDE the file and `.yaml` is not a
+    # contract extension at all. Describing the safe arm with the unsafe arm's
+    # mechanism also creates a false-DEMOTION path for the audit instruction in
+    # `phase1_exploration_guide.md`: an agent checks `.yaml`, finds no contract
+    # extension, and demotes a real spec. Name both arms.)
     RULE_CONTRACT: (
-        "its file extension marks it as an interface or contract definition — the "
-        "kind of file that states directly what this software is supposed to do."
+        "its file extension, or an interface-definition signature inside it, marks "
+        "it as a contract definition — the kind of file that states directly what "
+        "this software is supposed to do."
     ),
     RULE_LLM: "I read it as a statement of what this software is supposed to do.",
 }
@@ -1025,6 +1041,23 @@ _BACKGROUND_REASONS = {
 }
 _FALLBACK_BACKGROUND_REASON = (
     "I'm reading it for context rather than quoting it as a source."
+)
+# The two advisory-RESCUE arms of `_review_reason`. Module-level constants rather
+# than inline literals because inline literals cannot be pinned: instruction 032
+# self-Council round 3, Panelist B, went looking for a way to reintroduce the
+# false genre claim fix 2 deleted and found it here — appending "It is a security
+# advisory and it describes known problems, not what your software is supposed to
+# do." to the arm below left ALL 159 tests green, because the pins reach only the
+# two reason MAPS and `grep -rn "cleared this one for use" bin/tests/` returned
+# nothing. It renders to the one operator who has most earned an accurate
+# sentence: the one who authored the 025 rescue themselves.
+_RESCUED_AUTHORITATIVE_REASON = (
+    "you confirmed this is your real specification even though it mentions "
+    "security advisories."
+)
+_RESCUED_BACKGROUND_REASON = (
+    "you cleared this one for use, but I still read it as background rather than "
+    "a specification."
 )
 _CITE_FOLDER_REASON = (
     "you put it in the folder for documents you want quoted as sources."
@@ -1195,15 +1228,13 @@ def _review_reason(entry: dict, authoritative: bool) -> str:
     rule = entry.get("floor_rule")
     if authoritative:
         if entry.get("status") == "advisory-rescued":
-            return ("you confirmed this is your real specification even though it "
-                    "mentions security advisories.")
+            return _RESCUED_AUTHORITATIVE_REASON
         if entry.get("tier") not in (1, 2) and _is_cite_placed(entry.get("source_path")):
             return _CITE_FOLDER_REASON
         return _AUTHORITATIVE_REASONS.get(
             rule, "I read it as a statement of what this software is supposed to do.")
     if entry.get("status") == "advisory-rescued":
-        return ("you cleared this one for use, but I still read it as background "
-                "rather than a specification.")
+        return _RESCUED_BACKGROUND_REASON
     return _BACKGROUND_REASONS.get(rule, _FALLBACK_BACKGROUND_REASON)
 
 

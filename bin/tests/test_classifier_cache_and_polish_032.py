@@ -263,6 +263,7 @@ class ReproducibilityPreservedTests(unittest.TestCase):
         rec = _rec(out, "reference_docs/ring-reset-spec.md")
         self.assertEqual(rec["tier"], 2)
         self.assertNotIn("reused_from_prior", rec)
+
     def test_a_settled_tier_4_llm_vote_is_reused_not_re_derived(self):
         # instr 032 self-Council, Panelist A (NIT 10): the predicate is keyed on
         # `floor_rule`, and it MUST be — a mutant keyed on `tier == 4` instead
@@ -293,8 +294,6 @@ class ReproducibilityPreservedTests(unittest.TestCase):
         self.assertEqual(rec2["floor_rule"], dc.RULE_LLM)
         self.assertTrue(rec2.get("reused_from_prior"))
         self.assertTrue(second["zero_citable"])
-
-
 
 
 class FloorsStillHoldTests(unittest.TestCase):
@@ -447,20 +446,43 @@ class AdvisoryReasonAccuracyTests(unittest.TestCase):
             "what it's supposed to do.")
         self.assertEqual(
             dc._AUTHORITATIVE_REASONS[dc.RULE_CONTRACT],
-            "its file extension marks it as an interface or contract definition — "
-            "the kind of file that states directly what this software is supposed "
-            "to do.")
+            "its file extension, or an interface-definition signature inside it, "
+            "marks it as a contract definition — the kind of file that states "
+            "directly what this software is supposed to do.")
+        # Round 3, Panelist B (R3-N1) — bite H: the two advisory-RESCUE arms of
+        # `_review_reason` were inline literals, pinned by NOTHING in either
+        # direction, so appending "It is a security advisory and it describes known
+        # problems, not what your software is supposed to do." to the authoritative
+        # arm restored the exact claim fix 2 deleted with all 159 tests green. They
+        # are module constants now, and pinned here.
+        self.assertEqual(
+            dc._RESCUED_AUTHORITATIVE_REASON,
+            "you confirmed this is your real specification even though it mentions "
+            "security advisories.")
+        self.assertEqual(
+            dc._RESCUED_BACKGROUND_REASON,
+            "you cleared this one for use, but I still read it as background rather "
+            "than a specification.")
         # ...and the genre claims each reword removed must not come back under any
-        # phrasing. Kept as a substring check IN ADDITION to equality above: it is
-        # what catches a reword that changes the string legitimately but smuggles
-        # the claim back in.
+        # phrasing, ANYWHERE on the operator-facing reason surface — the maps AND
+        # the rescue arms AND the fallbacks. A substring check IN ADDITION to the
+        # equality pins above: it is what catches a reword that changes a string
+        # legitimately but smuggles the claim back in, and the surface it scans is
+        # what bite H escaped.
+        joined = " ".join(list(dc._BACKGROUND_REASONS.values())
+                          + list(dc._AUTHORITATIVE_REASONS.values())
+                          + [dc._RESCUED_AUTHORITATIVE_REASON,
+                             dc._RESCUED_BACKGROUND_REASON,
+                             dc._FALLBACK_BACKGROUND_REASON,
+                             dc._CITE_FOLDER_REASON])
         for forbidden in ("it's a README or a coverage", "is a README or a coverage",
                           "ledger of open issues",
                           "it's a machine-readable interface definition",
                           "is a machine-readable interface definition",
-                          "it shows what the software already does"):
-            joined = " ".join(list(dc._BACKGROUND_REASONS.values())
-                              + list(dc._AUTHORITATIVE_REASONS.values()))
+                          "it shows what the software already does",
+                          "it's a security advisory", "is a security advisory",
+                          "describes known problems", "vulnerability bulletin",
+                          "catalogues flaws"):
             self.assertNotIn(forbidden, joined)
 
     def test_advisory_reason_string_is_pinned_exactly(self):
@@ -512,9 +534,29 @@ class AdvisoryReasonAccuracyTests(unittest.TestCase):
         self.assertEqual(_rec(man2, "reference_docs/notes.thrift")["floor_rule"],
                          dc.RULE_CONTRACT)                     # tier unchanged
         out2 = dc.classification_review(man2)
-        self.assertIn("its file extension marks it as an interface or contract "
-                      "definition", out2)
+        self.assertIn("its file extension, or an interface-definition signature "
+                      "inside it, marks it as a contract definition", out2)
         self.assertNotIn("it's a machine-readable interface definition", out2)
+
+    def test_contract_reason_is_true_of_the_content_signature_arm_too(self):
+        # Round 3, Panelist B (R3-2): naming only the EXTENSION was false for the
+        # carve-out's OTHER arm — `openapi.yaml` is matched on `openapi: "3` INSIDE
+        # the file and `.yaml` is not a contract extension at all. That is the
+        # canonical OpenAPI case AND the content-verified (safe) arm, and
+        # describing it with the extension arm's mechanism also told the
+        # audit instruction in phase1_exploration_guide.md to demote a real spec.
+        openapi = ('openapi: "3.0.3"\n'
+                   'info:\n  title: Orders API\n  version: 1.0.0\n'
+                   'paths:\n  /orders:\n    get:\n'
+                   '      responses:\n        "200":\n'
+                   '          description: the order list\n')
+        man = dc.classify_documents([("reference_docs/openapi.yaml", openapi)],
+                                    generated_at="X")
+        rec = _rec(man, "reference_docs/openapi.yaml")
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONTRACT)
+        self.assertIn("signature", rec["reason"])      # the content arm fired
+        out = dc.classification_review(man)
+        self.assertIn("or an interface-definition signature inside it", out)
 
     def test_impl_reason_holds_for_declaration_only_code(self):
         # Panelist B: "it shows what the software already does" is false of a
@@ -692,9 +734,11 @@ class JargonFreeArtifactNameTests(unittest.TestCase):
         # BOTH the `references/` and the `plugins/` entries are load-bearing —
         # `Path.rglob` does NOT descend the `plugins/.../references` symlink
         # (Panelist C round 2 proved it walks 0 files there), so `references/` is
-        # covered ONLY by its own entry. It holds five of this rename's live
-        # sites; pruning it as "redundant, plugins/ covers the skill tree" would
-        # silently blind this sweep to all of them.
+        # covered ONLY by its own entry — and it holds more of this rename's live
+        # sites than any other tree, so pruning it as "redundant, plugins/ covers
+        # the skill tree" would silently blind this sweep to most of the rename.
+        # (Measured, not remembered: a "five sites" figure in the round-2 write-up
+        # was wrong and got copied into this comment before being caught.)
         # instr 032 self-Council, Panelist C (NIT 2): the first version filtered
         # on a suffix allow-list, which silently skipped
         # `plugins/.../skill-template.gitignore` — an ADOPTER-facing file, and
