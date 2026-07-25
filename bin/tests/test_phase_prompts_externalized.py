@@ -317,8 +317,15 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # pause is now keyed to whether an operator is actually waiting, not to
         # four literal phrases, and the review is rendered against the
         # formal-docs manifest.)
-        "phase1_no_seeds_True":  (29574, "74874de9e028e5d68d5ecb2b0419634c9e3e2c33611c0e4c2bc9207db0929091"),
-        "phase1_no_seeds_False": (29377, "1d58268f4ffd5a4b14acdf96d6baab29bab4c852ad6e35753928883a818c11fe"),
+        # v1.6.0 033 step 2b (read-and-judge): phase1.md gained the READ
+        # instruction — read ~100 lines per document, more if unsure, assign a
+        # category + one-sentence reason, judged per-document-isolated — and the
+        # show paragraph now describes THREE sections instead of two, because a
+        # backstop-flagged document is neither quoted nor dismissed. 29574 ->
+        # 31335. Recomputed via the sanctioned `run_playbook.phase1_prompt()`
+        # recapture, not by hand.
+        "phase1_no_seeds_True":  (31335, "1bb8e2605f20cc249222c2654e4113814faa8cf4081fbcff2ee2e42adadbb2d7"),
+        "phase1_no_seeds_False": (31138, "d12a0319cc1d76536f5182e8020e7c91de4877441414c0969ad9dfac4fb2a955"),
         # v1.5.7 instruction 073 Item-4 (A-19): phase2.md gained the
         # httpx-2026-05-17 missing-manifests warning (validator now
         # FAILs on ABSENT manifests, not just wrong-shape; agent must

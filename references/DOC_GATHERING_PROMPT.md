@@ -99,7 +99,7 @@ user is working inside an actual target repo, write into that repo's reference_d
 TIERING is now an OPTIMIZATION, not a requirement (v1.6.0 Feature G). Dump-and-go works: you may
 place everything at the top level of reference_docs/ and let the playbook's ingest classify each
 file by content at ingest time, over a deterministic advisory floor it cannot override (CVE/GHSA
-ids, advisory URLs/headers, and security-genre titles are forced to Tier 4 mechanically). Sorting
+ids and advisory URLs mark a document as one the operator must confirm before it is quoted; genre and title heuristics were removed in v1.6.0 instruction 033 — the ingest READS each document and judges it, so what you name a file no longer decides how it is used). Sorting
 into cite/ yourself is still useful — it is honored as an explicit operator pre-classification that
 promotes a file past the implementation-source floor — but it is no longer necessary for the code's
 own spec to come out citable, and it can NEVER promote an advisory. So the guidance below is a

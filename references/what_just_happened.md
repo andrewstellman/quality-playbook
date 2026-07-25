@@ -86,8 +86,16 @@ Continue with Phase 2 by saying `keep going` or `run phase 2`.
 instruction 030)*. Whenever `quality/classification_manifest.json` exists, render
 `bin.doc_classification.classification_review(manifest, formal_records=...)` into the State
 P1 block — it shows the operator, in plain language, which of the documents they gathered
-are being used as **authoritative sources their requirements can cite** and which are
-**background context**, one plain reason each. Pass `formal_records` from
+are being used as **authoritative sources their requirements can cite**, which ones the run
+**needs their word on before quoting**, and which are **background context**, one plain
+reason each. *(The middle section is v1.6.0 instruction 033: a document is listed there when
+something hard was found in it — a CVE/GHSA identifier, a link to a vulnerability database,
+a source-code file, or a contract-format extension whose content does not parse as that
+format — or when it asks to be treated as authoritative. It is neither quoted nor dismissed;
+the show names the specific evidence beside it, because promoting one requires the operator
+to acknowledge that signal. A citation that rests on the run's own read carries "That was my
+own call — tell me if I've got it wrong.": it IS cited, including on an unattended run, but
+it is never presented as settled.)* Pass `formal_records` from
 `quality/formal_docs_manifest.json` whenever it exists: that manifest is the ground truth
 for what the pipeline will actually quote, so supplying it makes the show correct by
 construction (a `cite/`-placed document is quoted even when the classifier read it as
