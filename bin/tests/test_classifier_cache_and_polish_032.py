@@ -826,8 +826,18 @@ def _golden_cases():
         # Every render arm, at both pause settings.
         "main_offer": dc.classification_review(main, offer=True),
         "main_no_offer": dc.classification_review(main, offer=False),
-        # The virtio signature.
+        # The virtio signature, at BOTH pause settings. Round 7, Panelist B
+        # (R7-2): `offer=False` AND `example is None` was the one render variant
+        # with neither a golden nor a denylist pass — the sweep renders the main
+        # corpus (which HAS an example) at both settings, and the banner test
+        # rendered the zero corpus only at the default `offer=True`. B planted a
+        # genre claim in exactly that gap: 41/41 green, rendering inside the
+        # virtio signature during a HEADLESS run, which is the Mode A default
+        # `phase_prompts/phase1.md` mandates. B then line-diffed every prose line
+        # the renderer can emit against the union of the goldens and confirmed
+        # this was the entire residual.
         "zero_authoritative": dc.classification_review(zero, offer=True),
+        "zero_authoritative_no_offer": dc.classification_review(zero, offer=False),
         # No documentation at all.
         "empty": dc.classification_review(empty, offer=True),
         # The `formal_records` call form phase1.md mandates — reaches the fallback.
@@ -852,11 +862,28 @@ class GoldenRenderTests(unittest.TestCase):
                     f"is intended, regenerate and REVIEW the diff:\n"
                     f"  python3 bin/tests/{Path(__file__).name} --regenerate-goldens")
 
-    def test_goldens_have_no_untracked_extras(self):
-        # A golden left behind for a case that no longer exists would rot silently.
-        on_disk = {p.stem for p in GOLDEN_DIR.glob("*.md")}
-        self.assertEqual(on_disk, set(_golden_cases()),
-                         "golden files and render cases have diverged")
+    # Round 7, Panelist B (R7-3): the expected set is written out LITERALLY rather
+    # than derived from `_golden_cases()`. Symmetric set equality between two
+    # things that both come from the code under test cannot detect a LOSS: B's
+    # bite W deleted "zero_authoritative" from `_golden_cases()` AND unlinked its
+    # fixture and stayed 41/41 green, silently un-pinning the virtio signature.
+    # This is the same shape as the dead `hasattr` guard and as
+    # `RenderedReasonSweepTests`' `known` set — an expectation that moves with the
+    # thing it is meant to constrain. Adding a render case means adding it here.
+    EXPECTED_CASES = frozenset({
+        "main_offer", "main_no_offer",
+        "zero_authoritative", "zero_authoritative_no_offer",
+        "empty", "formal_records_fallback",
+    })
+
+    def test_the_golden_case_set_is_exactly_what_is_expected(self):
+        self.assertEqual(set(_golden_cases()), set(self.EXPECTED_CASES),
+                         "a render case was added or REMOVED; a removal silently "
+                         "un-pins that render, so update EXPECTED_CASES "
+                         "deliberately")
+        self.assertEqual({p.stem for p in GOLDEN_DIR.glob("*.md")},
+                         set(self.EXPECTED_CASES),
+                         "golden files on disk do not match the expected case set")
 
 
 def _regenerate_goldens():
