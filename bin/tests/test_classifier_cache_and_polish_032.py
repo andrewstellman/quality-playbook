@@ -683,9 +683,14 @@ class EveryOperatorFacingStringIsPinnedTests(unittest.TestCase):
             dc._RESCUED_BACKGROUND_REASON,
             "you cleared this one for use, but I still read it as background rather "
             "than a specification.")
+        # 033 fix-up 2 (self-Council A, cite/ shim NIT): §8a calls these entries
+        # "clearly-labelled, revocable" and the string said neither. It now names
+        # both the way out and the retirement.
         self.assertEqual(
             dc._CITE_FOLDER_REASON,
-            "you put it in the folder for documents you want quoted as sources.")
+            "you put it in the folder for documents you want quoted as sources. "
+            "Move it out of that folder if that's not right — and that folder is "
+            "going away next release, so it's worth telling me directly instead.")
         self.assertEqual(
             dc._FALLBACK_BACKGROUND_REASON,
             "I'm reading it for context rather than quoting it as a source.")

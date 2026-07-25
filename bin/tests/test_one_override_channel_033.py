@@ -306,6 +306,28 @@ class MigrationTests(ChannelTestCase):
         self.assertIn("revocable", rdi.CITE_MIGRATION_REASON)
         self.assertIn("cite/", rdi.CITE_MIGRATION_REASON)
 
+    def test_the_SHOW_says_it_is_placement_not_a_decision_you_made(self):
+        """033 fix-up 2, self-Council A round 2 (cite/ shim NIT).
+
+        §8a calls the seeded entries "clearly-labelled, revocable". They were
+        revocable but not labelled: the shim seeds an `authoritative` decision, so a
+        prose file the operator merely dropped in `cite/` came out Tier 1 and the
+        show said *"you told me this one is a source I should use"* — word for word
+        what a decision the operator actually made says, with no hint that the
+        folder is retiring. Placement is the weaker claim and now says so.
+
+        MUTATION BITE: restore the `tier not in (1, 2)` guard on the `cite/` arm of
+        `_review_reason` and this fails.
+        """
+        root, _ref = self._tree({"cite/placed.md": SPEC})
+        man = rdi.classify_reference_docs(root, write=False)
+        rec = self._rec(root, "reference_docs/cite/placed.md")[0]
+        self.assertIn(rec["tier"], (1, 2), "precondition: the shim promoted it")
+        show = dc.classification_review(man, offer=False)
+        self.assertIn("you put it in the folder", show)
+        self.assertIn("going away next release", show)
+        self.assertNotIn("you told me this one is a source", show)
+
     def test_a_superseded_control_file_is_surfaced_loudly(self):
         root, ref = self._tree({"spec.md": SPEC})
         (ref / rdi.OPERATOR_DECISION_NAME).write_text("authoritative x y z\n",

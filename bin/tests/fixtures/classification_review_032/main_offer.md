@@ -3,7 +3,7 @@
 I read 15 documents and decided how to use each one. Here's what I settled on, before I turn any of it into requirements.
 
 **Authoritative sources your requirements can cite**
-- `reference_docs/cite/placed.md` — you put it in the folder for documents you want quoted as sources.
+- `reference_docs/cite/placed.md` — you put it in the folder for documents you want quoted as sources. Move it out of that folder if that's not right — and that folder is going away next release, so it's worth telling me directly instead.
 - `reference_docs/coverage.md` — you told me this one is a source I should use.
 - `reference_docs/op-auth.md` — you told me this one is a source I should use.
 - `reference_docs/openapi.yaml` — I recognised an interface-definition format inside it — the kind of file that states directly what this software is supposed to do.

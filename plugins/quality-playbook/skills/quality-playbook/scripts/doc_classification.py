@@ -1372,8 +1372,16 @@ _ZERO_AUTHORITATIVE_BANNER = (
 _REFUSED_PROMOTION_NOTE = (
     " You asked me to use this one as a source; I'm not, for the reason above."
 )
+# The `cite/` shim's promise, kept in the operator's own words. §8a Revision calls
+# these entries "clearly-labelled, revocable", and until fix-up 2 they were neither
+# in the show: a `cite/`-placed document rendered as "you told me this one is a
+# source", indistinguishable from a decision the operator had actually made and
+# with no hint that the folder is going away. Placement is a WEAKER claim than a
+# confirmation — it is where a file happens to sit — so it says which it is.
 _CITE_FOLDER_REASON = (
-    "you put it in the folder for documents you want quoted as sources."
+    "you put it in the folder for documents you want quoted as sources. "
+    "Move it out of that folder if that's not right — and that folder is going "
+    "away next release, so it's worth telling me directly instead."
 )
 # instruction 033 step 2 — the operator-language form of a Lane-B `unconfirmed`
 # citation. The word "unconfirmed" is itself internal jargon (invariant 8), so the
@@ -1471,7 +1479,12 @@ def _review_reason(entry: dict, authoritative: bool) -> str:
     if authoritative:
         if entry.get("status") == "advisory-rescued":
             return _RESCUED_AUTHORITATIVE_REASON
-        if entry.get("tier") not in (1, 2) and _is_cite_placed(entry.get("source_path")):
+        # Placement explains the citation whatever the tier. The `tier not in
+        # (1, 2)` guard used to stand here, which meant the shim announced itself
+        # ONLY for a document the classifier had also read as background — so the
+        # one case it was built for, a prose file the operator dropped in `cite/`
+        # and thereby promoted, rendered as an ordinary confirmed decision.
+        if _is_cite_placed(entry.get("source_path")):
             return _CITE_FOLDER_REASON
         base = _AUTHORITATIVE_REASONS.get(
             rule, "I read it as a statement of what this software is supposed to do.")
