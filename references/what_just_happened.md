@@ -64,7 +64,7 @@ Rules 1, 2, 6, 7, and 9 are the load-bearing branches for adopter UX:
 
 ## Decision tree — what the block says when
 
-For each run state, use the template prose and adapt the phrasing to the actual artifact counts and timestamps from disk. **Do not invent counts.** If a number isn't in PROGRESS.md / BUGS.md / the run-state log / recheck-results.json / persona_review_summary.json (the State P2 expert-review counts, v1.6.0 instruction 031), omit it.
+For each run state, use the template prose and adapt the phrasing to the actual artifact counts and timestamps from disk. **Do not invent counts.** If a number isn't in PROGRESS.md / BUGS.md / the run-state log / recheck-results.json / expert_review_summary.json (the State P2 expert-review counts, v1.6.0 instruction 031), omit it.
 
 ### State P1 — Phase 1 only completed (Mode A multi-pass)
 
@@ -160,7 +160,7 @@ Feature H, instruction 031)*. The Feature H persona validation pass runs at this
 and **auto-applies** grounded changes to the operator's requirements. Before instruction
 031 the standard end-of-Phase-2 message said nothing about it, so an operator reading the
 message never learned their spec had been changed unless they separately opened
-`quality/persona_review_summary.json` — "surface, don't silently apply" failing at the one
+`quality/expert_review_summary.json` — "surface, don't silently apply" failing at the one
 surface the operator actually reads.
 
 **Order matters: run the pass FIRST, then emit this block.** The block is the last visible
@@ -184,7 +184,7 @@ instruction 031 the offer preceded the pass; the three surfaces — this file, `
 `quality/requirements_manifest.json` from the pre-pass snapshot
 `quality/requirements_manifest.pre_review.json` — exact for added, rewritten AND removed
 requirements, because it is the whole prior manifest, not a replay — and renames the review
-summary to `persona_review_summary.undone.json` (the set-aside suggestions it lists were
+summary to `expert_review_summary.undone.json` (the set-aside suggestions it lists were
 never applied, so undoing does not destroy them). Then **re-render
 `quality/REQUIREMENTS.md`** from the restored manifest, the same write-back step the pass
 itself uses. It refuses rather than guessing, and the three refusals mean different things —
@@ -193,7 +193,7 @@ report the one you got, don't collapse them:
 - `FileNotFoundError` naming *"the pass did not run here"* — nothing was changed, nothing to undo.
 - `FileNotFoundError` naming *"its pre-pass snapshot was not kept"* — a pass **did** run and
   the requirements **were** changed; it just predates the snapshot. Point the operator at
-  `quality/persona_review_summary.json`, which lists every change, rather than telling them
+  `quality/expert_review_summary.json`, which lists every change, rather than telling them
   nothing happened.
 - `ValueError` naming BUG records — Phase 3+ has run and BUG records cross-reference REQ ids
   that this restore would orphan. The undo belongs at this boundary, before Phase 3 builds on
@@ -201,7 +201,7 @@ report the one you got, don't collapse them:
 
 Render it with `bin.persona_apply.persona_review_disclosure(review_summary)`, where
 `review_summary` is the pass's `PersonaPass.review_summary` (equivalently the loaded
-`quality/persona_review_summary.json`), and print the output verbatim. It says, in the
+`quality/expert_review_summary.json`), and print the output verbatim. It says, in the
 operator's language, that expert reviewers read the requirements against their
 documentation, what they did (added / rewrote / removed / agreed-with, plus what they
 raised that was *not* acted on), that the requirements were changed, where to read every

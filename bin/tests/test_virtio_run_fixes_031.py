@@ -382,7 +382,7 @@ _SPEC_TXT = (
 
 # Every internal label the v1.6.0 plain-language key forbids in operator-facing
 # text (the instruction-030 list). The artifact PATH is exempt — the operator has
-# to be able to type `quality/persona_review_summary.json` to open the file — so
+# to be able to type `quality/expert_review_summary.json` to open the file — so
 # the scan runs with that one literal removed.
 JARGON = (
     "tier", "citable", "floor", "manifest", "promotable", "persona",

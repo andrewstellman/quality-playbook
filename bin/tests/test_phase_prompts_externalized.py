@@ -410,7 +410,13 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # block while ¶68 ordered the pass after the offer — so phase2.md now
         # states the one boundary order (finalize → pass → re-render → block
         # carrying offer + disclosure) and the undo procedure. 15025 → 15747.
-        "phase2":                (15747, "1cb34a17d673744a91367f02fb277ec2aad9d7e309b038e5d5348e76e90b23df"),
+        # v1.6.0 032 fix 3 (jargon-free artifact name): the review summary the
+        # disclosure asks the operator to open is now
+        # `quality/expert_review_summary.json` — "persona" was the last internal
+        # word reaching an operator, and it reached them in a path they have to
+        # type. Pure rename, one codepoint shorter: 15747 → 15746. Recomputed via
+        # the sanctioned recapture (`run_playbook.phase2_prompt()`), not by hand.
+        "phase2":                (15746, "a1ced84820a0a80065205025b0b741a86822de72d70d1b903c8c3f4c328053e8"),
         # v1.5.7 090j: phase3.md + phase4.md gained the triage
         # precision-guardrail pointers (D1 reachability_analysis on
         # HIGH/MED bugs + D2 KNOWN-ISSUE classification for advisory-

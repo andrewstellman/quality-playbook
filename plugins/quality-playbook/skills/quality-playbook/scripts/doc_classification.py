@@ -612,6 +612,43 @@ def _newly_overridden(
     return bool(rescued and not cached.get("advisory_rescued"))
 
 
+def _cache_hides_live_classifier(cached: dict, has_classifier: bool) -> bool:
+    """Whether reusing *cached* would silently SWALLOW a live classifier.
+
+    ``RULE_DEFAULT`` is the one rule that records no judgment at all — it records
+    the ABSENCE of one (*"no classifier tier assigned; Tier 4 on ambiguity"*),
+    which is what **every** record of a bare unwired ingest carries. So when a
+    classifier IS available this pass, reusing such a record is not
+    reproducibility: it is discarding the classifier's vote in favour of a
+    placeholder that stands for "nobody has voted yet".
+
+    That was a live footgun, reproduced independently on chi and on a fresh
+    virtio baseline (instruction 032 fix 1). The documented dump-and-go flow is
+    "run the bare ingest, then refine tiers"; an agent that instead re-runs
+    ``classify_documents`` *passing a live classifier* had it silently ignored —
+    the first unwired pass froze every doc at ``default-tier4``, the content-keyed
+    cache matched each doc by sha on the second pass, and the corpus stayed
+    all-Tier-4. The visible outcome is a silent ``zero_citable`` run: the exact
+    virtio failure mode Feature G exists to prevent.
+
+    Deliberately narrow — it re-opens ONLY the unclassified default:
+
+    * A genuinely-classified cached record (``RULE_LLM``, ``RULE_CONTRACT``, an
+      operator rule, any real floor) is reused unchanged, so reproducibility for
+      already-tiered unchanged content is intact (Design §8a).
+    * With ``llm_classifier is None`` this cannot fire, so the documented
+      edit-the-manifest-then-re-ingest-unwired flow still stands: a hand-tiered
+      ``default-tier4`` -> ``llm`` record is honored, and a record left at the
+      default keeps its cache.
+    * No floor is weakened. Discarding the cache re-derives the document from
+      content through the full floor stack, so an advisory / background /
+      implementation floor decides again exactly as it did — and re-deriving a
+      ``RULE_DEFAULT`` record can only reach the classifier branch, because that
+      rule is returned only when every floor above it declined.
+    """
+    return has_classifier and cached.get("floor_rule") == RULE_DEFAULT
+
+
 def classify_documents(
     docs: Sequence[Tuple[str, str]],
     *,
@@ -657,6 +694,15 @@ def classify_documents(
     decision instead of re-invoking the classifier — so a re-run with unchanged
     content reproduces the same tiering (§8a). The floor itself is deterministic
     on content, so classification is stable regardless.
+
+    The cache reuses **decisions**, and a ``default-tier4`` record is not one: it
+    means no classifier tier was ever assigned. So when a live ``llm_classifier``
+    is supplied, a cached bare default is discarded and the document re-derived,
+    letting the classifier actually run (instruction 032 fix 1 — otherwise an
+    unwired first ingest froze the whole corpus at Tier 4 and every later wired
+    re-run was a silent no-op, i.e. a silent ``zero_citable``). Genuinely-classified
+    records are still reused unchanged, and with no classifier supplied nothing
+    changes at all — see ``_cache_hides_live_classifier``.
     """
     sidecar_set = set(sidecar or ())
     # Operator advisory-floor rescues (instr 025), content-keyed by (path, sha256).
@@ -690,8 +736,13 @@ def classify_documents(
         rescued = (rel_path, sha) in rescue_set
         operator_decision = operator_by_key.get((rel_path, sha))
         cached = prior_by_key.get((rel_path, sha))
-        if cached is not None and _newly_overridden(
-                cached, operator_decision, rescued, rel_path in sidecar_set):
+        if cached is not None and (
+            _newly_overridden(
+                cached, operator_decision, rescued, rel_path in sidecar_set)
+            # instruction 032 fix 1 — a live classifier must not be swallowed by a
+            # cached record that only ever meant "nobody classified this yet".
+            or _cache_hides_live_classifier(cached, llm_classifier is not None)
+        ):
             # APPLICATION side of the operator-override contract (instr 030
             # self-Council, Panelists A + C). A NEW operator-authored override
             # must take effect on the very next ingest, so it bypasses the
@@ -913,9 +964,19 @@ _AUTHORITATIVE_REASONS = {
     RULE_LLM: "I read it as a statement of what this software is supposed to do.",
 }
 _BACKGROUND_REASONS = {
+    # instruction 032 fix 2 — say what was DETECTED, never what the document IS.
+    # The advisory floor fires on a CVE/GHSA identifier or an advisory-site URL
+    # found ANYWHERE in the content, so it also (correctly) demotes a
+    # bibliography / sources list / index that merely *cites* those sources. The
+    # old wording — "it's a security advisory — it describes known problems" —
+    # was a flat falsehood about `sources.md` / `INDEX.md` /
+    # `COLLECTION_SUMMARY.txt`, which are meta-documents about the doc set. This
+    # wording is true of a real advisory AND of a document that only points at
+    # one; the demotion it explains is the same in both cases.
     RULE_ADVISORY: (
-        "it's a security advisory — it describes known problems, not what your "
-        "software is supposed to do."
+        "it carries security-advisory material — a CVE-style identifier, or a link "
+        "to a vulnerability database — so I'm reading it as background rather than "
+        "a statement of what your software is supposed to do."
     ),
     RULE_IMPL: (
         "it's source code — it shows what the software already does, not what it's "

@@ -276,7 +276,7 @@ class AcceptanceRunFixes028Tests(PipelineBase):
     def test_fix4_confirm_req_id_is_post_renumber_in_the_review_summary(self):
         # Acceptance 4: a persona add in section A shifts section B's REQ under the
         # terminal renumber; a confirm move on that REQ must reference the
-        # POST-renumber id in persona_review_summary.json.
+        # POST-renumber id in expert_review_summary.json.
         base = {"records": [
             {"id": "REQ-001", "functional_section": "A", "title": "a",
              "conditions_of_satisfaction": "x", "source_type": "code-derived"},

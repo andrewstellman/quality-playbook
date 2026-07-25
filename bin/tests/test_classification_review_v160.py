@@ -126,7 +126,13 @@ class ShowTests(unittest.TestCase):
         # Oracle 1: a one-line plain reason per doc, generated per decision.
         man = self._manifest()
         out = dc.classification_review(man)
-        self.assertIn("it's a security advisory", out)
+        # instruction 032 fix 2: the advisory reason states what was DETECTED
+        # ("carries security-advisory material"), never that the document IS an
+        # advisory — the URL signal also fires on a bibliography that merely
+        # cites one. See AdvisoryReasonAccuracyTests in
+        # test_classifier_cache_and_polish_032.py.
+        self.assertIn("it carries security-advisory material", out)
+        self.assertNotIn("it's a security advisory", out)
         self.assertIn("it's a README", out)
 
     def test_straight_through_keeps_the_show_and_drops_the_pause(self):

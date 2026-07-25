@@ -68,7 +68,14 @@ _COVER_RE = re.compile(r"^(REQ-\d+)(/.*)?$")
 # The two run artifacts this module writes under the target's ``quality/``. They
 # live up here because the operator-facing disclosure (instruction 031 fix 2)
 # points the operator at the review summary by path.
-REVIEW_SUMMARY_NAME = "persona_review_summary.json"
+#
+# The name is deliberately JARGON-FREE (instruction 032 fix 3). Every other
+# operator-facing surface of this pass says "expert reviewers"; the filename was
+# the last place the internal word "persona" reached an operator — and it reached
+# them in the disclosure, which asks them to open the file by name. The internal
+# vocabulary stays in the code (this module, its symbols, the design docs); the
+# artifact an operator types is in their language.
+REVIEW_SUMMARY_NAME = "expert_review_summary.json"
 REQUIREMENTS_MANIFEST_NAME = "requirements_manifest.json"
 # The pre-pass snapshot (instruction 031 fix 2). The revert has always restored
 # from ``PersonaPass._pre_requirements`` — an IN-MEMORY field. The agent runs the
@@ -84,7 +91,7 @@ PRE_REVIEW_MANIFEST_NAME = "requirements_manifest.pre_review.json"
 # deleted: the candidate findings it lists were never applied, and the operator
 # was told they are "listed for you to judge" (instr 031 self-Council round 2,
 # Panelist B).
-UNDONE_REVIEW_SUMMARY_NAME = "persona_review_summary.undone.json"
+UNDONE_REVIEW_SUMMARY_NAME = "expert_review_summary.undone.json"
 
 # v1.6.0 Feature H slice 6 (§8b "Honesty about maturity"). A persona finding that
 # rests on the readability rubric — the Well-organized / readable dimension the
@@ -205,20 +212,21 @@ def build_review_summary(merge_result, candidate_bucket: Optional[Sequence[dict]
 # The operator-facing disclosure (instruction 031 fix 2).
 #
 # The pass AUTO-APPLIES changes to the operator's requirements, so the standard
-# end-of-Phase-2 message has to say so. Before this, the only trace was
-# ``quality/persona_review_summary.json`` — an operator reading the normal
-# message never learned their spec had been changed unless they opened that file
-# on their own. That is the "surface, don't silently apply" principle failing at
-# the surface that actually reaches the operator.
+# end-of-Phase-2 message has to say so. Before this, the only trace was the
+# review-summary artifact — an operator reading the normal message never learned
+# their spec had been changed unless they opened that file on their own. That is
+# the "surface, don't silently apply" principle failing at the surface that
+# actually reaches the operator.
 #
 # Plain language is a hard contract here, exactly as it is for the end-of-Phase-1
 # classification show (instruction 030): NO internal label reaches the operator —
 # no "Feature H", no "persona", no "sub-agent", no "agent-validation", no
 # "grounded", no "manifest". Per the v1.6.0 plain-language key: persona ->
 # "expert reviewer", sub-agent -> "separate helper agent", grounded/cited +
-# byte-verified -> "backed by your documentation". The one place the internal
-# word survives is the literal artifact PATH, which the operator has to be able
-# to type to open the file.
+# byte-verified -> "backed by your documentation". That now holds for the literal
+# artifact PATH too — the operator has to type it to open the file, so it is an
+# operator-facing string like any other and was renamed to match (instruction 032
+# fix 3); the internal vocabulary lives in the code, not in their file tree.
 # ---------------------------------------------------------------------------
 REVIEW_SUMMARY_PATH = f"quality/{REVIEW_SUMMARY_NAME}"
 
@@ -232,7 +240,7 @@ def persona_review_disclosure(review_summary: Optional[dict]) -> Optional[str]:
     ran and what it did — or ``None`` when it did not run.
 
     ``review_summary`` is ``PersonaPass.review_summary`` (equivalently the loaded
-    ``quality/persona_review_summary.json``). It is ``None`` whenever the pass did
+    ``quality/expert_review_summary.json``). It is ``None`` whenever the pass did
     not run — disabled for the run, or no operator/harness ran it — and then this
     returns ``None`` and the end-of-Phase-2 message gains nothing: a run that had
     no expert review must not claim one.
@@ -246,7 +254,7 @@ def persona_review_disclosure(review_summary: Optional[dict]) -> Optional[str]:
     stated = review_summary.get("applied_count")
     if isinstance(stated, int) and stated != len(applied):
         # A LOSSY summary — the count and the list disagree (a truncated or
-        # hand-built `persona_review_summary.json`, an older shape, anything
+        # hand-built `expert_review_summary.json`, an older shape, anything
         # passed through an intermediate). Saying "did not change anything" on
         # evidence that says otherwise is a positive false claim, which is worse
         # than the silence this feature replaced (instr 031 self-Council,
@@ -481,7 +489,7 @@ def run_feature_h(
     gathered docs + rendered spec + rubric). Honors the **off-switch**: with
     ``enabled=False`` NOTHING runs — no personas spawned, no agent-validation
     changes, the base manifest is returned unchanged. Writes the review summary
-    to ``quality/persona_review_summary.json`` when ``write`` is True. Returns a
+    to ``quality/expert_review_summary.json`` when ``write`` is True. Returns a
     PersonaPass carrying the applied manifest + review summary.
 
     Call this AFTER Phase-2 requirements finalize and BEFORE Phases 3-6.
