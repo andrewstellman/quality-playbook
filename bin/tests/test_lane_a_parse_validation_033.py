@@ -176,8 +176,13 @@ class PerFormatBothDirectionsTests(unittest.TestCase):
         ("svc.wsdl", GENUINE_WSDL, "WSDL root"),
         ("openapi.yaml", GENUINE_OPENAPI_YAML, "top-level openapi"),
         ("openapi.json", GENUINE_OPENAPI_JSON, "top-level JSON key"),
-        ("swagger.yaml", 'swagger: "2.0"\ninfo:\n  title: O\n', "top-level swagger"),
-        ("events.yaml", "asyncapi: 2.6.0\ninfo:\n  title: E\n", "top-level asyncapi"),
+        # 033 fix-up 3: the YAML arm requires the version key, the `info` block AND
+        # a body section — all three mandatory in every one of these
+        # specifications. Two column-0 hits over prose was still reachable.
+        ("swagger.yaml", 'swagger: "2.0"\ninfo:\n  title: O\npaths: {}\n',
+         "top-level swagger"),
+        ("events.yaml", "asyncapi: 2.6.0\ninfo:\n  title: E\nchannels: {}\n",
+         "top-level asyncapi"),
     )
     # The same formats, with content that does NOT validate.
     ANCHORED_FAKE = (
@@ -361,8 +366,17 @@ class AnchorsAreLoadBearingTests(unittest.TestCase):
         for bad in ('{"asyncapi": null}', '{"openapi": {}}', '{"swagger": ""}',
                     '{"openapi": true}', '{"openapi": ["3.0.3"]}'):
             self.assertIsNone(dc.contract_content_validation(bad, "a.json"), bad)
-        for good in ('{"openapi": "3.0.3", "paths": {}}', '{"swagger": 2}',
-                     '{"asyncapi": "2.6.0"}'):
+        # 033 fix-up 3: and the `info` block, for the same reason the YAML arm
+        # demands it. The panelist's objection to my "prose cannot reach the JSON
+        # arm" defence was right — "prose cannot reach it" is not "only a contract
+        # can reach it", and a version-pinning stub like `{"swagger": 2}` is not
+        # prose. `info` is mandatory in all three specs, so it costs nothing.
+        for bad in ('{"openapi": "3.0.3", "paths": {}}', '{"swagger": 2}',
+                    '{"asyncapi": "2.6.0"}', '{"openapi": "3.0.3", "info": "x"}'):
+            self.assertIsNone(dc.contract_content_validation(bad, "a.json"), bad)
+        for good in ('{"openapi": "3.0.3", "info": {"title": "O"}, "paths": {}}',
+                     '{"swagger": 2, "info": {"title": "O"}}',
+                     '{"asyncapi": "2.6.0", "info": {"title": "E"}}'):
             self.assertIsNotNone(dc.contract_content_validation(good, "a.json"), good)
 
     def test_a_definitions_root_in_a_FOREIGN_namespace_is_not_a_wsdl(self):
@@ -518,6 +532,104 @@ class TheAnchorMustBeTheDocumentsOwnTests(unittest.TestCase):
                         "  description: |\n    Example:\n\n    ```json\n"
                         '    {"id": 1}\n    ```\npaths: {}\n')
         self.assertIsNotNone(dc.contract_content_validation(with_example, "c.yaml"))
+
+
+class ScrubbingMustNotDESTROYAContractTests(unittest.TestCase):
+    """033 fix-up 3 — self-Council panelist A round 3, FIX-REQUIRED R3-1.
+
+    A regression I introduced in fix-up 2, and the mirror image of the bug it was
+    fixing. "Unterminated fence" is indistinguishable from "one line that happens to
+    start with three backticks", so the `|\Z` alternative blanked everything after
+    a stray marker — and a stray marker is perfectly ordinary INSIDE a contract: a
+    ``` in a `/* */` proto comment, in a WSDL `<documentation>`, in a JSON string.
+    All three validated before fix-up 2. A mechanical rule silently discarding a
+    valid contract is worse than the exploit it was closing, because a corpus with
+    no authority just looks like a corpus that has none.
+
+    The narrowing: fenced code blocks are a lightweight-prose-markup construct, so
+    scrub where that markup applies. Contract formats keep their literal text and
+    are defended by the column-0 anchors, which need no scrub. The default is to
+    scrub, so renaming a tutorial cannot switch it off.
+    """
+
+    PROTO_WITH_FENCE_IN_COMMENT = (
+        'syntax = "proto3";\n\n/* Example usage:\n```\nOrder o = ...;\n*/\n\n'
+        "message Order { string id = 1; }\n")
+    WSDL_WITH_FENCE_IN_DOC = (
+        '<definitions xmlns="http://schemas.xmlsoap.org/wsdl/">\n'
+        "<documentation>\n```\nsample\n</documentation>\n<portType/>\n"
+        "</definitions>\n")
+    YAML_WITH_UNPAIRED_FENCE = (
+        'openapi: "3.0.3"\ndescription: |\n  Example:\n\n  ```\n'
+        "info:\n  title: Orders\npaths: {}\n")
+
+    def test_a_stray_fence_marker_does_not_destroy_a_contract(self):
+        # MUTATION BITE: remove the `_LITERAL_FENCE_EXTS` early return and each of
+        # these goes None.
+        for text, name in ((self.PROTO_WITH_FENCE_IN_COMMENT, "orders.proto"),
+                           (self.WSDL_WITH_FENCE_IN_DOC, "orders.wsdl"),
+                           (self.YAML_WITH_UNPAIRED_FENCE, "openapi.yaml")):
+            with self.subTest(shape=name):
+                self.assertIsNotNone(dc.contract_content_validation(text, name))
+
+    def test_the_four_prose_bypasses_are_STILL_closed(self):
+        # The narrowing must not reopen what fix-up 2 closed. Prose extensions —
+        # and unknown ones — still scrub.
+        fenced = ('# Tutorial\n\n```proto\nsyntax = "proto3";\n\n'
+                  "message Order { string id = 1; }\n```\n")
+        unclosed = '# Notes\n\n```proto\nsyntax = "proto3";\n\nmessage O { string i = 1; }\n'
+        mismatched = unclosed + "~~~\n\nDone.\n"
+        for label, text in (("fenced", fenced), ("unclosed", unclosed),
+                            ("mismatched", mismatched)):
+            for name in ("guide.md", "guide.rst", "guide.txt", "guide.notes",
+                         "guide"):
+                with self.subTest(case=label, name=name):
+                    self.assertIsNone(dc.contract_content_validation(text, name))
+
+    def test_scrubbing_is_off_only_where_a_fence_is_literal_content(self):
+        self.assertIn(".proto", dc._LITERAL_FENCE_EXTS)
+        self.assertIn(".wsdl", dc._LITERAL_FENCE_EXTS)
+        self.assertIn(".json", dc._LITERAL_FENCE_EXTS)
+        for prose in (".md", ".rst", ".txt"):
+            self.assertNotIn(prose, dc._LITERAL_FENCE_EXTS)
+
+
+class QuietFalseNegativesInThePublishGateTests(unittest.TestCase):
+    """033 fix-up 3 — panelist A's round-3 NITs, both pre-existing.
+
+    A publish gate's false negatives are quieter than its false positives: a spec
+    that silently fails to validate looks exactly like a corpus that never had one.
+    """
+
+    def test_a_BOM_does_not_hide_a_contract_from_any_arm(self):
+        # The BOM was stripped for the RAML first-line arm alone, so a
+        # Windows-authored .proto / openapi.yaml / openapi.json failed Lane A and
+        # was never cited. MUTATION BITE: remove the `lstrip("\ufeff")`.
+        for text, name in ((GENUINE_PROTO, "a.proto"),
+                           (GENUINE_RAML, "a.raml"),
+                           (GENUINE_OPENAPI_YAML, "a.yaml"),
+                           (GENUINE_OPENAPI_JSON, "a.json")):
+            with self.subTest(shape=name):
+                self.assertIsNotNone(
+                    dc.contract_content_validation("\ufeff" + text, name))
+
+    def test_an_enum_only_proto_validates(self):
+        # MUTATION BITE: drop `|enum` from `_PROTO_BLOCK_RE`.
+        enum_only = ('syntax = "proto3";\n\n'
+                     "enum Status { OK = 0; FAILED = 1; }\n")
+        self.assertIsNotNone(dc.contract_content_validation(enum_only, "s.proto"))
+
+    def test_two_column0_keys_in_prose_are_still_not_a_document(self):
+        # The one input A could still get through: a changelog naming a version AND
+        # carrying an `info:` line. All three specs also mandate a body section.
+        # MUTATION BITE: drop the `_YAML_BODY_KEY_RE` requirement.
+        changelog = ("# Changelog\n\n## 2.4.0\n\n"
+                     "openapi: 3.1.0 is now accepted by the validator.\n\n"
+                     "info: we also fixed the header parsing.\n")
+        self.assertIsNone(dc.contract_content_validation(changelog, "notes.md"))
+        rec, man = _one("reference_docs/notes.md", changelog)
+        self.assertNotEqual(rec["floor_rule"], dc.RULE_CONTRACT)
+        self.assertTrue(man["zero_citable"])
 
 
 class DemotionIsFreeInEveryLaneTests(unittest.TestCase):

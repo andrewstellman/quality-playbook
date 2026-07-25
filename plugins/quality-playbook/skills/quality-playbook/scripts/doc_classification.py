@@ -290,7 +290,7 @@ _ANCHORED_CONTRACT_EXTS = frozenset({".proto", ".wsdl", ".raml"})
 # does not, so nothing genuine is lost.
 _PROTO_SYNTAX_RE = re.compile(r'^syntax\s*=\s*"proto[23]"\s*;', re.MULTILINE)
 _PROTO_BLOCK_RE = re.compile(
-    r"^(?:message|service)\s+\w+\s*\{", re.MULTILINE)
+    r"^(?:message|service|enum)\s+\w+\s*\{", re.MULTILINE)
 # A top-level YAML key sits at column 0. `^` + no leading whitespace is the whole
 # point: an `openapi: 3.1` inside a prose sentence, a list item, or a nested
 # mapping is not a document key.
@@ -299,6 +299,13 @@ _TOP_LEVEL_API_KEY_RE = re.compile(
 _RAML_FIRST_LINE_RE = re.compile(r"^#%RAML\s")
 # `info` is REQUIRED by OpenAPI 2/3 and by AsyncAPI alike.
 _YAML_INFO_KEY_RE = re.compile(r"^info\s*:", re.MULTILINE)
+# ...and every one of the three also requires a body section: `paths` (OpenAPI 2
+# and 3), `channels` (AsyncAPI), or — in OpenAPI 3.1, where `paths` became optional
+# — `webhooks` or `components`. Three column-0 keys is a document; the panelist got
+# through two by writing a changelog that mentioned a version AND an `info:` line,
+# which is contrived but no longer possible.
+_YAML_BODY_KEY_RE = re.compile(
+    r"^(?:paths|channels|webhooks|components)\s*:", re.MULTILINE)
 _API_VERSION_RE = re.compile(r"^\d[\w.\-]*$")
 # The WSDL namespaces. A root element merely NAMED `definitions` is not enough:
 # BPMN 2.0's root is `<definitions>` too, as are several build and workflow
@@ -327,10 +334,17 @@ def _json_top_level_api_key(text: str) -> Optional[str]:
         # arms disagreed: YAML required `\d[\w.\-]*` while JSON accepted the key's
         # mere presence, so `{"asyncapi": null}` — or `{"openapi": {}}` — validated
         # as a machine-readable contract. Same key, same document format, same bar.
-        if isinstance(value, str) and _API_VERSION_RE.match(value):
-            return f"top-level JSON key {key!r} = {value!r}"
-        if isinstance(value, (int, float)) and not isinstance(value, bool):
-            return f"top-level JSON key {key!r} = {value!r}"
+        versioned = ((isinstance(value, str) and _API_VERSION_RE.match(value))
+                     or (isinstance(value, (int, float))
+                         and not isinstance(value, bool)))
+        # `info` is mandatory in all three specifications, so requiring it here
+        # costs no genuine document and makes both arms of this anchor ask the same
+        # question. I had argued the parse alone was enough because prose cannot
+        # reach it; the panelist's reply was the better one — "prose cannot reach
+        # it" is not "only a contract can reach it", and a version-pinning stub is
+        # not prose.
+        if versioned and isinstance(doc.get("info"), dict):
+            return f"top-level JSON key {key!r} = {value!r} + info block"
     return None
 
 
@@ -363,7 +377,17 @@ _FENCED_BLOCK_RE = re.compile(
     re.MULTILINE | re.DOTALL)
 
 
-def _without_fenced_blocks(text: str) -> str:
+# Formats in which a line of three backticks is literal CONTENT, not markup: a
+# `/* ``` */` comment in a .proto, a `<documentation>` block in a .wsdl, a string in
+# a .json. Fenced code blocks are a lightweight-prose-markup construct, so the
+# scrub applies where that markup applies — everywhere else, including unknown and
+# missing extensions, so renaming a tutorial cannot switch the scrub off.
+_LITERAL_FENCE_EXTS = frozenset({
+    ".proto", ".wsdl", ".raml", ".json", ".yaml", ".yml", ".xml",
+})
+
+
+def _without_fenced_blocks(text: str, filename: str = "") -> str:
     """*text* with Markdown/reST fenced code blocks blanked out.
 
     A contract QUOTED inside a fence is a quotation, not the document's format. A
@@ -376,6 +400,18 @@ def _without_fenced_blocks(text: str) -> str:
     """
     def blank(m: "re.Match") -> str:
         return "\n" * m.group(0).count("\n")
+
+    lower = filename.lower()
+    ext = "." + lower.rsplit(".", 1)[-1] if "." in lower else ""
+    if ext in _LITERAL_FENCE_EXTS:
+        # Scrubbing here DESTROYS contracts rather than protecting anything: an
+        # unterminated fence is indistinguishable from one stray ``` line, and the
+        # `|\Z` alternative then blanks the rest of the document. A .proto with a
+        # ``` inside a /* */ comment lost its `message` block; a .wsdl whose
+        # <documentation> held one was truncated into an XML ParseError. Both
+        # validated before fix-up 2 — that was a regression, not a tightening. The
+        # column-0 anchors are what defend these formats, and they need no scrub.
+        return text
     return _FENCED_BLOCK_RE.sub(blank, text)
 
 
@@ -390,7 +426,12 @@ def contract_content_validation(text: str, filename: str = "") -> Optional[str]:
     "Validates" means the DOCUMENT is that format, so fenced code blocks are
     excluded first (see ``_without_fenced_blocks``).
     """
-    text = _without_fenced_blocks(text)
+    # One BOM strip for EVERY arm. It used to be applied to the RAML first line
+    # alone, so a Windows-authored .proto / openapi.yaml / openapi.json silently
+    # failed Lane A and was never cited — the quietest possible failure in a
+    # publish gate, since a missing authority just looks like a corpus without one.
+    text = text.lstrip("\ufeff")
+    text = _without_fenced_blocks(text, filename)
     # protobuf: the syntax declaration AND a message/service block. The bare
     # `syntax=` string pasted in prose no longer suffices.
     if _PROTO_SYNTAX_RE.search(text) and _PROTO_BLOCK_RE.search(text):
@@ -413,9 +454,9 @@ def contract_content_validation(text: str, filename: str = "") -> Optional[str]:
     # the point rather than an oversight: it parses the WHOLE document and demands a
     # top-level version value, so prose cannot reach it at all. This arm is a regex
     # over one line of anything.
-    if _YAML_INFO_KEY_RE.search(text):
+    if _YAML_INFO_KEY_RE.search(text) and _YAML_BODY_KEY_RE.search(text):
         for m in _TOP_LEVEL_API_KEY_RE.finditer(text):
-            return f"top-level {m.group(1)} key = {m.group(2)!r} + info block"
+            return f"top-level {m.group(1)} key = {m.group(2)!r} + info + body"
     # WSDL: the ROOT element, not any `<wsdl:` substring.
     wsdl = _wsdl_root_element(text)
     if wsdl:
