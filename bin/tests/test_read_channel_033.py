@@ -272,6 +272,12 @@ class NotTheCacheAgainTests(ReadChannelTestCase):
         # The disclosure speaks to the one document, not to both.
         disclosure = dc.classification_disclosure(man) or ""
         self.assertIn("1 gathered document was never read", disclosure)
+        # Panelist B (B4-1): the trailing clause was a LITERAL "they" in a sentence
+        # that pluralises everything else, so the singular branch read "...so it is
+        # background ... and anything they ground is missing."
+        # MUTATION BITE: revert the `{them}` substitution.
+        self.assertIn("anything grounded in it is missing", disclosure)
+        self.assertNotIn("they", disclosure.split("never read", 1)[1])
 
     def test_an_explicit_callable_still_wins(self):
         # The artifact is a shape for the callable, not a replacement for it.

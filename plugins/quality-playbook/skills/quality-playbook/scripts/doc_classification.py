@@ -1321,11 +1321,12 @@ def classification_disclosure(manifest: dict) -> Optional[str]:
     if unread and manifest.get("classifier_status") == CLASSIFIER_WIRED_OK:
         parts.append(
             "{n} gathered document{s} {was} never read, so {they} {are} background "
-            "by default rather than by judgment and anything they ground is "
+            "by default rather than by judgment and anything grounded in {them} is "
             "missing.".format(
                 n=unread, s="" if unread == 1 else "s",
                 was="was" if unread == 1 else "were",
                 they="it" if unread == 1 else "they",
+                them="it" if unread == 1 else "them",
                 are="is" if unread == 1 else "are")
         )
     awaiting = manifest.get("awaiting_confirmation_count") or 0
