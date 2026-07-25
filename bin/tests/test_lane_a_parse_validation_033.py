@@ -91,8 +91,13 @@ class ExtensionSideDoorTests(unittest.TestCase):
         # background and names what needs confirming.
         rec, _ = _one("reference_docs/upstream_notes.thrift", EXPLOIT_PROSE)
         self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
-        self.assertNotEqual(rec["floor_rule"], dc.RULE_BACKGROUND)
-        self.assertNotEqual(rec["floor_rule"], dc.RULE_IMPL)
+        # instruction 033 step 4 deleted `RULE_BACKGROUND` / `RULE_IMPL` outright,
+        # so "not silently background" is now structural rather than a comparison
+        # against rules that no longer exist: the document is held back, and the
+        # only background outcomes left are the model's read and the operator's own
+        # demotion.
+        self.assertNotIn(rec["floor_rule"], (dc.RULE_LLM, dc.RULE_DEFAULT,
+                                             dc.RULE_OPERATOR_BACKGROUND))
         self.assertIn(".thrift", rec["reason"])
 
     def test_a_live_classifier_cannot_promote_it_either(self):
@@ -228,8 +233,8 @@ class PerFormatBothDirectionsTests(unittest.TestCase):
             with self.subTest(fmt=name):
                 rec, _ = _one(f"reference_docs/{name}", genuine)
                 self.assertNotIn(rec["floor_rule"],
-                                 (dc.RULE_BACKGROUND, dc.RULE_IMPL,
-                                  dc.RULE_DEFAULT))
+                                 (dc.RULE_LLM, dc.RULE_DEFAULT,
+                                  dc.RULE_OPERATOR_BACKGROUND))
 
     def test_extension_hint_covers_exactly_the_anchorless_set(self):
         for ext in dc._HINT_ONLY_CONTRACT_EXTS:

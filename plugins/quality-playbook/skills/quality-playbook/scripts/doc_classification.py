@@ -79,19 +79,21 @@ CLASSIFIER_ERROR = "error"         # the classifier was supplied but raised
 # ---------------------------------------------------------------------------
 # Floor rule identifiers (stable strings written into the manifest).
 # ---------------------------------------------------------------------------
-RULE_ADVISORY = "advisory-floor"
-RULE_IMPL = "impl-floor"
 RULE_SIDECAR = "sidecar-promotion"
-RULE_INJECTION = "injection-floor"
 RULE_CONTRACT = "contract"
 RULE_LLM = "llm"
 RULE_DEFAULT = "default-tier4"
-RULE_BACKGROUND = "background-ledger"
 # v1.6.0 instruction 030 — the end-of-Phase-1 classification review. The operator
 # looked at how each gathered document was being used and said "that one IS my
 # spec" (or "that one is only background"). Operator-authored and content-keyed,
 # exactly like the instr-025 advisory rescue: document content, the classifier,
 # and a persona can NEVER produce one of these.
+# instruction 033 step 4 — `RULE_ADVISORY`, `RULE_IMPL`, `RULE_BACKGROUND` and
+# `RULE_INJECTION` are DELETED, along with `_ABSOLUTE_FLOOR_RULES` and
+# `_UNRESCUABLE_FLOOR_RULES`. Step 2 stopped `_classify` producing them (the floors
+# became the Lane-C backstop and the name rule was dropped); the two frozensets
+# survived only to let the prior-manifest cache re-check a stale record, and step 4
+# removes the cache. Charter (c): gone, not renamed.
 RULE_OPERATOR_AUTHORITATIVE = "operator-authoritative"
 RULE_OPERATOR_BACKGROUND = "operator-background"
 # v1.6.0 instruction 033 step 1 (§8a Revision rule 2, Lane C). A document the
@@ -118,34 +120,6 @@ OPERATOR_AUTHORITATIVE = "authoritative"
 OPERATOR_BACKGROUND = "background"
 _OPERATOR_DECISIONS = frozenset({OPERATOR_AUTHORITATIVE, OPERATOR_BACKGROUND})
 
-# The ABSOLUTE floor rules — a decision under any of these bars citability.
-# (default-tier4 is NOT absolute: it just means "no classifier tier was
-# assigned", which a later run's LLM may raise.)
-_ABSOLUTE_FLOOR_RULES = frozenset(
-    {RULE_ADVISORY, RULE_IMPL, RULE_BACKGROUND}
-)
-# The UNRESCUABLE floor rules — a subset that NOTHING reverses: not the LLM, a
-# rename, the operator sidecar, or a reused prior-manifest record. The
-# implementation floor is deliberately EXCLUDED because it is legitimately
-# rescued by the operator sidecar / cite/ placement; advisory and background are
-# absolute regardless of any override. On a cache hit these are re-decided from
-# content and the fresh floored decision always wins, so a poisoned prior
-# manifest cannot keep an unrescuable-floored doc citable OR promotable
-# (instruction 011 self-Council Panelist A). (The injection floor was removed in
-# instruction 023 — the LLM owns the self-authorizing-tier judgment, and the
-# grounding-layer directive check + Tier-1/2 guard are the load-bearing backstop
-# on the auto-apply path; RULE_INJECTION is no longer produced.)
-_UNRESCUABLE_FLOOR_RULES = frozenset(
-    # instruction 033 step 2 — `RULE_CONFIRM_REQUIRED` MUST be in this set. The
-    # poisoned-prior-manifest defence re-decides a cached record from content and
-    # discards the cache when the fresh decision lands on one of these rules. Step
-    # 2 moved the advisory/implementation floors to Lane C, so without this entry
-    # the set no longer contained the rule that actually fires and a FORGED prior
-    # manifest could launder a Lane-C document straight into citable — a live hole
-    # for as long as the cache exists. (Step 4 deletes the cache and this set with
-    # it; until then the invariant has to hold continuously, not eventually.)
-    {RULE_ADVISORY, RULE_BACKGROUND, RULE_CONFIRM_REQUIRED}
-)
 # The rules that exist ONLY because a live operator-authored file says so — the
 # instr-030 classification-review decisions (``qpb_authoritative.txt``) and the
 # instr-025-era sidecar promotion (``qpb_promote.txt``). A cached record carrying
@@ -893,96 +867,6 @@ def _parse_read(result) -> Tuple[Optional[int], Dict[str, object]]:
         f"classifier must return a tier, None, or a read mapping; got {type(result).__name__}")
 
 
-def _newly_overridden(
-    cached: dict, operator_decision: Optional[str], rescued: bool,
-    in_sidecar: bool,
-) -> bool:
-    """Whether a live operator-authored override is NOT yet reflected in *cached*.
-
-    True means the prior record predates the operator's instruction and must be
-    thrown away rather than reused; False means the record already embodies it
-    (or there is no override) and the content-keyed cache stands.
-
-    Each of the three operator files gets the clause its semantics need:
-
-    * ``qpb_authoritative.txt`` — always new when a decision is live. The decision
-      forces a specific outcome, so re-deriving reproduces it exactly; there is
-      nothing a cached record could hold that the re-derive would lose.
-    * ``qpb_promote.txt`` — new only while the cached record shows the floor the
-      sidecar *lifts*. The sidecar's sole power is rescuing the implementation
-      floor, so against any other cached rule it changes nothing and the cache
-      must stand. Keying on ``!= RULE_SIDECAR`` instead was permanently true for
-      every non-implementation file — ``_classify`` reaches its sidecar branch
-      only inside ``if impl and not contract``, so an ordinary spec can never
-      settle at ``RULE_SIDECAR`` — which discarded the cache on every ingest and
-      silently reverted the agent's tier refinement to Tier 4. That is severe for
-      ``cite/``, whose every file is synthesized into the sidecar set: a
-      ``cite/``-only corpus began reporting ``zero_citable`` — the manufactured
-      virtio signature this instruction exists to surface — while the pipeline
-      quoted every one of those documents (instr 030 self-Council round 4, all
-      three panelists).
-    * ``qpb_advisory_rescue.txt`` — new **only** while the cached record does not
-      already carry ``advisory_rescued``. A rescue merely un-floors; it does not
-      force a tier. Once the agent has tiered a rescued document and that record
-      is cached, re-deriving it with no classifier in play would drop it to
-      Tier 4 and destroy its ``FORMAL_DOC`` — so a rescue the record already
-      reflects must keep its cache.
-    """
-    if operator_decision is not None:
-        return True
-    if in_sidecar and cached.get("floor_rule") in (RULE_IMPL, RULE_CONFIRM_REQUIRED):
-        # instruction 033 step 2: the rule the sidecar LIFTS is now
-        # `RULE_CONFIRM_REQUIRED` (the implementation-source signal routes to Lane C
-        # instead of an impl floor). Keying only on the old `RULE_IMPL` meant a
-        # sidecar line added AFTER a first ingest was reused from cache and became
-        # a permanent silent no-op again — the exact defect instruction 030's
-        # self-Council round 3 found and this clause exists to prevent. `RULE_IMPL`
-        # stays in the tuple only because a pre-033 manifest can still carry it;
-        # step 4 removes the cache and this whole function.
-        return True
-    return bool(rescued and not cached.get("advisory_rescued"))
-
-
-def _cache_hides_live_classifier(cached: dict, has_classifier: bool) -> bool:
-    """Whether reusing *cached* would silently SWALLOW a live classifier.
-
-    ``RULE_DEFAULT`` is the one rule that records no judgment at all — it records
-    the ABSENCE of one (*"no classifier tier assigned; Tier 4 on ambiguity"*),
-    which is what **every** record of a bare unwired ingest carries. So when a
-    classifier IS available this pass, reusing such a record is not
-    reproducibility: it is discarding the classifier's vote in favour of a
-    placeholder that stands for "nobody has voted yet".
-
-    That was a live footgun, reproduced independently on chi and on a fresh
-    virtio baseline (instruction 032 fix 1). The documented dump-and-go flow is
-    "run the bare ingest, then refine tiers"; an agent that instead re-runs
-    ``classify_documents`` *passing a live classifier* had it silently ignored —
-    the first unwired pass froze every doc at ``default-tier4``, the content-keyed
-    cache matched each doc by sha on the second pass, and the corpus stayed
-    all-Tier-4. The visible outcome is a silent ``zero_citable`` run: the exact
-    virtio failure mode Feature G exists to prevent.
-
-    Deliberately narrow — it re-opens ONLY the unclassified default:
-
-    * A genuinely-classified cached record (``RULE_LLM``, ``RULE_CONTRACT``, an
-      operator rule, any real floor) is reused unchanged, so reproducibility for
-      already-tiered unchanged content is intact (Design §8a).
-    * With ``llm_classifier is None`` this cannot fire, so the documented
-      edit-the-manifest-then-re-ingest-unwired flow still stands: a hand-tiered
-      ``default-tier4`` -> ``llm`` record is honored, and a record left at the
-      default keeps its cache.
-    * No floor is weakened. Discarding the cache re-derives the document from
-      content through the full floor stack, so an advisory / background /
-      implementation floor decides again exactly as it did. The re-derive is
-      byte-identical to a cold first-ever classify of the same inputs — which is
-      the actual guarantee, and it is stronger than "it can only reach the
-      classifier branch": a live operator decision or sidecar entry reaches its
-      own branch, exactly as it would on a first ingest (instr 032 self-Council,
-      Panelist A).
-    """
-    return has_classifier and cached.get("floor_rule") == RULE_DEFAULT
-
-
 def classify_documents(
     docs: Sequence[Tuple[str, str]],
     *,
@@ -990,7 +874,6 @@ def classify_documents(
     sidecar: Optional[Sequence[str]] = None,
     advisory_rescues: Optional[Sequence[Tuple[str, str]]] = None,
     operator_decisions: Optional[Sequence[Tuple[str, str, str]]] = None,
-    prior_records: Optional[Sequence[dict]] = None,
     schema_version: str = "1.6.0",
     generated_at: Optional[str] = None,
 ) -> dict:
@@ -1023,20 +906,15 @@ def classify_documents(
     byte-citable ``FORMAL_DOC``). Later triples win over earlier ones for the same
     key.
 
-    Reproducibility: when ``prior_records`` is supplied, a document whose
-    content sha256 matches a prior record for the same path reuses that prior
-    decision instead of re-invoking the classifier — so a re-run with unchanged
-    content reproduces the same tiering (§8a). The floor itself is deterministic
-    on content, so classification is stable regardless.
-
-    The cache reuses **decisions**, and a ``default-tier4`` record is not one: it
-    means no classifier tier was ever assigned. So when a live ``llm_classifier``
-    is supplied, a cached bare default is discarded and the document re-derived,
-    letting the classifier actually run (instruction 032 fix 1 — otherwise an
-    unwired first ingest froze the whole corpus at Tier 4 and every later wired
-    re-run was a silent no-op, i.e. a silent ``zero_citable``). Genuinely-classified
-    records are still reused unchanged, and with no classifier supplied nothing
-    changes at all — see ``_cache_hides_live_classifier``.
+    No cache (instruction 033 step 4). Every run RE-READS and re-derives. The
+    content-keyed `prior_records` reuse is gone: the determinism it promised was
+    half-fiction — the model's read varied run to run, which is why the
+    end-of-Phase-1 confirmation exists — and it was the direct cause of the
+    instruction-032 fix-1 footgun, where a cached `default-tier4` swallowed a live
+    classifier and produced a silent `zero_citable` run. Re-reading 6-20 documents
+    is cheap. What persists between runs is the operator's CONFIRMED DECISIONS
+    (``reference_docs/qpb_decisions.txt``), which is a record of consent rather
+    than a record of the machine's guesses.
     """
     sidecar_set = set(sidecar or ())
     # Operator advisory-floor rescues (instr 025), content-keyed by (path, sha256).
@@ -1054,9 +932,6 @@ def classify_documents(
                 f"got {op_decision!r} for {op_path!r}"
             )
         operator_by_key[(op_path, op_sha.lower())] = op_decision
-    prior_by_key: Dict[Tuple[str, str], dict] = {
-        (r["source_path"], r["document_sha256"]): r for r in (prior_records or [])
-    }
     if generated_at is None:
         generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
@@ -1069,101 +944,6 @@ def classify_documents(
         sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
         rescued = (rel_path, sha) in rescue_set
         operator_decision = operator_by_key.get((rel_path, sha))
-        cached = prior_by_key.get((rel_path, sha))
-        if cached is not None and (
-            _newly_overridden(
-                cached, operator_decision, rescued, rel_path in sidecar_set)
-            # instruction 032 fix 1 — a live classifier must not be swallowed by a
-            # cached record that only ever meant "nobody classified this yet".
-            or _cache_hides_live_classifier(cached, llm_classifier is not None)
-        ):
-            # APPLICATION side of the operator-override contract (instr 030
-            # self-Council, Panelists A + C). A NEW operator-authored override
-            # must take effect on the very next ingest, so it bypasses the
-            # content-keyed cache — otherwise the prior record (the very tiering
-            # the operator just corrected) is reused and the override is a
-            # permanent silent no-op. This is not hypothetical for any of the
-            # three files: every one of them is authored AFTER a first ingest,
-            # and the instr-025 rescue's documented workflow literally requires
-            # copying the sha and reason out of the manifest a prior ingest
-            # wrote — so the cache always exists by the time the operator writes
-            # the file. Panelist C reproduced both no-ops.
-            #
-            # "NEW" is load-bearing: a rescue that the cached record ALREADY
-            # reflects must keep its cache, because a rescue only un-floors and
-            # does not force a tier — re-deriving a settled, agent-tiered rescued
-            # document with no classifier in play would drop it back to Tier 4 and
-            # destroy its FORMAL_DOC (Panelist A caught this in the naive fix).
-            cached = None
-        if cached is not None:
-            # Defense-in-depth: never trust a prior record to keep a document
-            # citable OR promotable when an UNRESCUABLE floor bars it. The floor
-            # is content-only, so re-running it on the (unchanged) content cannot
-            # change a legitimate decision — but it DOES defeat a poisoned /
-            # hand-edited prior manifest. A poison that keeps tier==4 while
-            # flipping `promotable` to true would slip past a tier-only guard and
-            # then be laundered by _formal_tier's cite/ branch, so the guard
-            # discards the cache entirely (both tier AND promotable) whenever an
-            # unrescuable floor fires — advisory/injection/background, never the
-            # sidecar-rescuable implementation floor (instruction 011 Panelist A).
-            # The operator advisory rescue (instr 025) is applied here too, so a
-            # LEGITIMATELY-rescued advisory doc re-decides as un-floored (not
-            # RULE_ADVISORY) and its cache is honored — while a NON-rescued advisory
-            # doc still trips RULE_ADVISORY and its poisoned cache is discarded. A
-            # poisoned prior manifest cannot forge a rescue: the rescue comes only
-            # from the operator-authored file, never from the (untrusted) cache.
-            # The guard re-decides from CONTENT with no model tier, so a poisoned
-            # prior manifest cannot keep a barred document citable. It must,
-            # however, see the operator's LIVE inputs — the sidecar set and any
-            # decision read from the operator-authored file THIS run — or it
-            # substitutes its own no-consent verdict for the real one and destroys
-            # a legitimate promotion. That regression appeared the moment
-            # `RULE_CONFIRM_REQUIRED` joined `_UNRESCUABLE_FLOOR_RULES`, because
-            # Lane C is by design rescuable BY THE OPERATOR: with the sidecar still
-            # on file, `test_a_live_sidecar_still_promotes_through_the_cache` went
-            # red. Consent stays live-file (removing the line still revokes it);
-            # what changed is that the guard now asks the same question the real
-            # decision asks (instruction 033 step 2).
-            guard = classify_document(
-                rel_path, text, advisory_rescue=rescued,
-                sidecar_promote=rel_path in sidecar_set,
-                operator_decision=operator_decision)   # no model tier
-            if guard.rule in _UNRESCUABLE_FLOOR_RULES:
-                records.append(_record(rel_path, text, guard))
-                continue
-            if (cached.get("operator_decision")
-                    or cached.get("floor_rule") in _OPERATOR_RULES
-                    or (cached.get("advisory_rescued") and not rescued)):
-                # WITHDRAWAL / FORGERY side of the same contract.
-                # `advisory_rescued` is an operator-voice surface that is not a
-                # floor rule and so was not covered by _OPERATOR_RULES: a prior
-                # manifest forged with `advisory_rescued: true` on a document
-                # carrying no advisory signal at all sailed through, became
-                # byte-citable, and made the review say "you confirmed this is
-                # your real specification even though it mentions security
-                # advisories" about a document the operator never saw. The
-                # writer of that field is the derivation agent refining the
-                # manifest — precisely the party that must never manufacture the
-                # operator's consent (instr 030 self-Council, Panelist A). Keyed
-                # to `not rescued` so a LIVE rescue still keeps its cache.
-                #
-                # An operator classification-review decision in the PRIOR manifest
-                # with no live operator-authored backing (instr 030 self-Council,
-                # Panelist A). Two cases, same answer: the operator WITHDREW the
-                # line from qpb_authoritative.txt — a decision they can no longer
-                # revoke is not a decision — or the prior manifest was
-                # hand-edited/poisoned to forge consent the operator never gave.
-                # Either way the cache is discarded and the document re-decided
-                # from scratch below; the operator's consent has to still be on
-                # file, exactly as the instr-025 rescue requires. Without this the
-                # show would also FABRICATE the operator's own words back at them
-                # ("you told me this one is a source I should use").
-                cached = None
-            else:
-                rec = dict(cached)
-                rec["reused_from_prior"] = True
-                records.append(rec)
-                continue
         llm_tier = None
         read: Dict[str, object] = {}
         if llm_classifier is not None:
@@ -1432,42 +1212,10 @@ _AUTHORITATIVE_REASONS = {
     RULE_LLM: "I read it as a statement of what this software is supposed to do.",
 }
 _BACKGROUND_REASONS = {
-    # instruction 032 fix 2 — say what was DETECTED, never what the document IS.
-    # The advisory floor fires on a CVE/GHSA identifier or an advisory-site URL
-    # found ANYWHERE in the content, so it also (correctly) demotes a
-    # bibliography / sources list / index that merely *cites* those sources. The
-    # old wording — "it's a security advisory — it describes known problems" —
-    # was a flat falsehood about `sources.md` / `INDEX.md` /
-    # `COLLECTION_SUMMARY.txt`, which are meta-documents about the doc set. This
-    # wording is true of a real advisory AND of a document that only points at
-    # one; the demotion it explains is the same in both cases.
-    RULE_ADVISORY: (
-        "it carries security-advisory material — a CVE-style identifier, or a link "
-        "to a vulnerability database — so I'm reading it as background rather than "
-        "a statement of what your software is supposed to do."
-    ),
-    # instruction 032 self-Council, Panelist B (defensive sweep): the floor needs
-    # a code EXTENSION plus code-shaped content, and it fires on
-    # declaration-only files too (a `virtio_ring.h` of pure declarations, an
-    # interface-only `.ts`) — of which "it shows what the software already does"
-    # is not true. The extension is the signal; say that.
-    RULE_IMPL: (
-        "it's a code file — code is how the software works, not a statement of what "
-        "it's supposed to do."
-    ),
-    # instruction 032 self-Council, Panelist B (defensive sweep, same class as
-    # fix 2): this fires on the FILENAME alone, and the issue-tracker arm of
-    # `_BACKGROUND_NAME_RE` is a PREFIX match — so `issue_tracker_api_spec.md`,
-    # a genuine specification by content, was told "it's a README or a coverage /
-    # issue-tracker listing". Say what was detected (the name) instead of
-    # asserting the genre. NOTE the tier is deliberately NOT touched here: this
-    # floor is absolute and unrescuable-by-the-operator, which is a floor
-    # question and out of scope for a reason-accuracy fix (instruction 032
-    # "tiers are unchanged"). It is carried forward in the output instead.
-    RULE_BACKGROUND: (
-        "its name marks it as a README, a coverage report or an issue-tracker "
-        "listing — documents that describe a project rather than specify it."
-    ),
+    # (instruction 033 step 4: the `advisory-floor`, `impl-floor` and
+    # `background-ledger` entries are DELETED with their rules. Step 2 stopped
+    # producing them and they survived only for a cached pre-033 record; step 4
+    # removed the cache, so nothing can render them.)
     RULE_OPERATOR_BACKGROUND: "you told me to treat this one as background only.",
     # instruction 033 step 2 — Lane C. NOT background: the document is held back
     # from being quoted until the operator answers, and the show has to read as a

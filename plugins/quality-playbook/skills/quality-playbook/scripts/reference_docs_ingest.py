@@ -942,13 +942,10 @@ def classify_reference_docs(
         else:
             refused.append(rel)
 
-    prior: Optional[List[dict]] = None
+    # instruction 033 step 4: no prior-manifest reuse. Every run re-reads and
+    # re-derives; the artifact that persists between runs is the operator's
+    # confirmed decisions, not the machine's guesses.
     out = target_repo / "quality" / CLASSIFICATION_MANIFEST_NAME
-    if out.is_file():
-        try:
-            prior = json.loads(out.read_text(encoding="utf-8")).get("records")
-        except (ValueError, OSError):
-            prior = None
 
     schema_version = (
         benchmark_lib.detect_repo_skill_version(target_repo)
@@ -961,7 +958,6 @@ def classify_reference_docs(
         sidecar=sorted(sidecar),
         advisory_rescues=advisory_rescues,
         operator_decisions=operator_decisions,
-        prior_records=prior,
         schema_version=schema_version,
     )
     # instruction 033 step 3 — the documented break, SURFACED. A conversion note

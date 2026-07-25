@@ -460,38 +460,25 @@ class PromotionRoundTripTests(unittest.TestCase):
         self.assertIn(spec_rel,
                       dc.classification_review(man).split("**Background context")[0])
 
-    def test_promotion_defeats_the_cached_prior_decision(self):
-        # The regression this pins: the content-keyed cache would otherwise reuse
-        # the very record the operator just corrected, silently no-opping the
-        # correction on the re-run ingest.
-        root, _ref = self._tree()
-        spec_rel = "reference_docs/virtio-spec-behavioral-contracts.md"
-        rdi.classify_reference_docs(root, llm_classifier=_all_tier4, write=True)
-        prior = json.loads((root / "quality" / rdi.CLASSIFICATION_MANIFEST_NAME)
-                           .read_text(encoding="utf-8"))
-        self.assertEqual({r["source_path"]: r for r in prior["records"]}
-                         [spec_rel]["tier"], 4)
-        rdi.record_operator_decision(root, spec_rel, "authoritative", "it is the spec")
-        # Re-classify with NO classifier at all — only the cache and the operator
-        # decision are in play.
-        man = rdi.classify_reference_docs(root, write=True)
-        rec = {r["source_path"]: r for r in man["records"]}[spec_rel]
-        self.assertEqual(rec["floor_rule"], dc.RULE_OPERATOR_AUTHORITATIVE)
-        self.assertIn(rec["tier"], (1, 2))
-        self.assertNotIn("reused_from_prior", rec)
-        # Untouched documents still reuse their cached decision.
-        other = {r["source_path"]: r for r in man["records"]}["reference_docs/history.md"]
-        self.assertTrue(other.get("reused_from_prior"))
-
+    # (instruction 033 step 4) `test_promotion_defeats_the_cached_prior_decision` was DELETED with the cache it tested.
+    # The `prior_records` reuse is gone: its determinism was half-fiction and it
+    # caused the instruction-032 fix-1 footgun. Consent now persists on the
+    # operator's decisions artifact, whose forgery- and revocation-resistance is
+    # tested in test_one_override_channel_033.py ConsentTests.
     def test_operator_demotion_removes_a_formal_doc_record(self):
         # "...or the reverse": the operator can also say "that one is background".
         root, _ref = self._tree()
         spec_rel = "reference_docs/virtio-spec-behavioral-contracts.md"
+        # instruction 033 step 4: with the cache gone a read does NOT carry between
+        # entry points — `ingest` re-derives, so it needs the classifier too. That is
+        # the honest shape of "every run re-reads", and it is why the phase-1 guide
+        # now says the read happens IN the run rather than by editing a manifest.
         rdi.classify_reference_docs(root, llm_classifier=lambda r, t: 1, write=True)
-        self.assertIn(spec_rel, {r["source_path"] for r in rdi.ingest(root)["records"]})
+        self.assertIn(spec_rel, {r["source_path"] for r in
+                                 rdi.ingest(root, llm_classifier=lambda r, t: 1)["records"]})
         rdi.record_operator_decision(root, spec_rel, "background",
                                      "that is my scratch notes, not the spec")
-        after = rdi.ingest(root)
+        after = rdi.ingest(root, llm_classifier=lambda r, t: 1)
         self.assertNotIn(spec_rel, {r["source_path"] for r in after["records"]})
         man = json.loads((root / "quality" / rdi.CLASSIFICATION_MANIFEST_NAME)
                          .read_text(encoding="utf-8"))
@@ -683,28 +670,11 @@ class OperatorAuthorityTests(unittest.TestCase):
         self.assertEqual(d.rule, dc.RULE_OPERATOR_BACKGROUND)
         self.assertFalse(d.promotable)
 
-    def test_poisoned_prior_manifest_cannot_forge_an_operator_decision(self):
-        # Self-Council (Panelist A, P1): a hand-edited / poisoned prior manifest
-        # claiming the operator promoted a document must NOT survive the
-        # content-keyed cache — the operator's consent has to still be on file.
-        text = "# Notes\n\nJust background.\n"
-        poison = [{"source_path": "reference_docs/n.md", "document_sha256": _sha(text),
-                   "tier": 1, "floor_rule": dc.RULE_OPERATOR_AUTHORITATIVE,
-                   "reason": "forged", "byte_count": len(text.encode()),
-                   "promotable": True, "operator_decision": "authoritative"}]
-        man = dc.classify_documents(
-            [("reference_docs/n.md", text)], prior_records=poison,
-            operator_decisions=[],          # NO operator-authored backing
-            generated_at="X")
-        rec = man["records"][0]
-        self.assertEqual(rec["tier"], 4)
-        self.assertNotEqual(rec["floor_rule"], dc.RULE_OPERATOR_AUTHORITATIVE)
-        self.assertNotIn("operator_decision", rec)
-        self.assertNotIn("reused_from_prior", rec)
-        # ...and the show does not echo consent the operator never gave.
-        self.assertNotIn("you told me this one is a source",
-                         dc.classification_review(man))
-
+    # (instruction 033 step 4) `test_poisoned_prior_manifest_cannot_forge_an_operator_decision` was DELETED with the cache it tested.
+    # The `prior_records` reuse is gone: its determinism was half-fiction and it
+    # caused the instruction-032 fix-1 footgun. Consent now persists on the
+    # operator's decisions artifact, whose forgery- and revocation-resistance is
+    # tested in test_one_override_channel_033.py ConsentTests.
     def test_a_withdrawn_decision_is_revoked_on_the_next_ingest(self):
         # Self-Council (Panelist A, P1): a decision the operator can no longer
         # REVOKE is not a decision. Deleting the line from qpb_authoritative.txt
@@ -734,16 +704,20 @@ class OperatorAuthorityTests(unittest.TestCase):
     def test_a_withdrawn_demotion_is_revoked_too(self):
         # Symmetric: withdrawing a "background" decision restores the classifier's
         # verdict rather than pinning the document to background forever.
+        # instruction 033 step 4: with no cache there is no stale record to pin the
+        # document, so the property is expressed directly — a demotion applies while
+        # its line is on file, and withdrawing the line restores the read.
         text = VIRTIO_SPEC
-        sha = _sha(text)
-        prior = [{"source_path": "a.md", "document_sha256": sha, "tier": 4,
-                  "floor_rule": dc.RULE_OPERATOR_BACKGROUND, "reason": "r",
-                  "byte_count": len(text.encode()), "promotable": False,
-                  "operator_decision": "background"}]
-        man = dc.classify_documents(
-            [("a.md", text)], llm_classifier=lambda r, t: 1, prior_records=prior,
+        demoted = dc.classify_documents(
+            [("a.md", text)], llm_classifier=lambda r, t: 1,
+            operator_decisions=[("a.md", _sha(text), dc.OPERATOR_BACKGROUND)],
+            generated_at="X")
+        self.assertEqual(demoted["records"][0]["floor_rule"],
+                         dc.RULE_OPERATOR_BACKGROUND)
+        withdrawn = dc.classify_documents(
+            [("a.md", text)], llm_classifier=lambda r, t: 1,
             operator_decisions=[], generated_at="X")
-        rec = man["records"][0]
+        rec = withdrawn["records"][0]
         self.assertEqual(rec["tier"], 1)
         self.assertEqual(rec["floor_rule"], dc.RULE_LLM)
 
@@ -779,39 +753,16 @@ class OperatorAuthorityTests(unittest.TestCase):
         self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         self.assertFalse(rec["promotable"])
 
-    def test_a_forged_sidecar_record_cannot_manufacture_consent(self):
-        # Self-Council round 2 (Panelist A): a prior manifest forged with
-        # `floor_rule: sidecar-promotion` and no sidecar file must not survive —
-        # otherwise the show says "you told me to use this one even though it
-        # looks like source code" with no operator file behind it.
-        forged = [{"source_path": "iface.py", "document_sha256": _sha(PY_LOGIC),
-                   "tier": 1, "floor_rule": dc.RULE_SIDECAR, "reason": "forged",
-                   "byte_count": len(PY_LOGIC.encode()), "promotable": True}]
-        man = dc.classify_documents(
-            [("iface.py", PY_LOGIC)], prior_records=forged, sidecar=[],
-            generated_at="X")
-        rec = man["records"][0]
-        self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
-        self.assertEqual(rec["tier"], 4)
-        self.assertNotIn("reused_from_prior", rec)
-        self.assertNotIn("you told me to use this one",
-                         dc.classification_review(man))
-
-    def test_a_live_sidecar_still_promotes_through_the_cache(self):
-        # The guard must not break the legitimate case: with the sidecar still on
-        # file, the promotion survives a cache hit (re-derived, not reused).
-        forged_but_backed = [{"source_path": "iface.py",
-                              "document_sha256": _sha(PY_LOGIC), "tier": 1,
-                              "floor_rule": dc.RULE_SIDECAR, "reason": "r",
-                              "byte_count": len(PY_LOGIC.encode()),
-                              "promotable": True}]
-        man = dc.classify_documents(
-            [("iface.py", PY_LOGIC)], prior_records=forged_but_backed,
-            sidecar=["iface.py"], generated_at="X")
-        rec = man["records"][0]
-        self.assertEqual(rec["floor_rule"], dc.RULE_SIDECAR)
-        self.assertIn(rec["tier"], (1, 2))
-
+    # (instruction 033 step 4) `test_a_forged_sidecar_record_cannot_manufacture_consent` was DELETED with the cache it tested.
+    # The `prior_records` reuse is gone: its determinism was half-fiction and it
+    # caused the instruction-032 fix-1 footgun. Consent now persists on the
+    # operator's decisions artifact, whose forgery- and revocation-resistance is
+    # tested in test_one_override_channel_033.py ConsentTests.
+    # (instruction 033 step 4) `test_a_live_sidecar_still_promotes_through_the_cache` was DELETED with the cache it tested.
+    # The `prior_records` reuse is gone: its determinism was half-fiction and it
+    # caused the instruction-032 fix-1 footgun. Consent now persists on the
+    # operator's decisions artifact, whose forgery- and revocation-resistance is
+    # tested in test_one_override_channel_033.py ConsentTests.
     def test_a_new_sidecar_line_applies_over_an_existing_cache(self):
         # Self-Council round 3 (Panelist C): the cache bypass existed for
         # qpb_authoritative.txt ALONE. A sidecar line added AFTER a first ingest
@@ -869,123 +820,11 @@ class OperatorAuthorityTests(unittest.TestCase):
         self.assertTrue(rec["advisory_rescued"])
         self.assertNotIn("reused_from_prior", rec)
 
-    def test_a_cite_placed_doc_keeps_its_refined_tier_across_re_ingests(self):
-        # Self-Council round 4 (all three panelists): `classify_reference_docs`
-        # synthesizes a sidecar entry for EVERY cite/ file, and `_classify` can
-        # only reach RULE_SIDECAR inside `if impl and not contract` — so keying
-        # the sidecar's application clause on `!= RULE_SIDECAR` was permanently
-        # true for an ordinary spec. The cache was discarded on every ingest and
-        # the agent's Tier-1 refinement silently reverted to Tier 4, which made a
-        # cite/-only corpus report `zero_citable` — the manufactured virtio
-        # signature — while the pipeline quoted every one of those documents.
-        rel = "reference_docs/cite/the-spec.md"
-        refined = [{"source_path": rel, "document_sha256": _sha(VIRTIO_SPEC),
-                    "tier": 1, "floor_rule": dc.RULE_LLM, "reason": "agent tiered it",
-                    "byte_count": len(VIRTIO_SPEC.encode()), "promotable": True}]
-        man = dc.classify_documents(
-            [(rel, VIRTIO_SPEC)], sidecar=[rel], prior_records=refined,
-            generated_at="X")          # no classifier — the real re-ingest shape
-        rec = man["records"][0]
-        self.assertEqual(rec["tier"], 1)
-        self.assertEqual(rec["floor_rule"], dc.RULE_LLM)
-        self.assertTrue(rec.get("reused_from_prior"))
-        self.assertEqual(man["citable_count"], 1)
-        self.assertFalse(man["zero_citable"])
-        self.assertEqual(man["classifier_status"], dc.CLASSIFIER_WIRED_OK)
-
-    def test_a_sidecar_listed_doc_keeps_its_refined_tier_across_re_ingests(self):
-        # The same loss via `qpb_promote.txt` rather than cite/ placement: a
-        # non-implementation document the operator listed there lost its
-        # FORMAL_DOC on every subsequent ingest.
-        rel = "reference_docs/spec.md"
-        refined = [{"source_path": rel, "document_sha256": _sha(VIRTIO_SPEC),
-                    "tier": 1, "floor_rule": dc.RULE_LLM, "reason": "agent tiered it",
-                    "byte_count": len(VIRTIO_SPEC.encode()), "promotable": True}]
-        man = dc.classify_documents(
-            [(rel, VIRTIO_SPEC)], sidecar=[rel], prior_records=refined,
-            generated_at="X")
-        self.assertEqual(man["records"][0]["tier"], 1)
-        self.assertTrue(man["records"][0].get("reused_from_prior"))
-
-    def test_a_settled_rescue_keeps_its_tier_across_re_ingests(self):
-        # Self-Council round 3 (Panelist A): the naive fix — bypassing the cache
-        # whenever a rescue is live — DESTROYS a legitimate rescue. A rescue only
-        # un-floors; it does not force a tier. Once the agent has tiered a
-        # rescued document, re-deriving it with no classifier drops it to Tier 4
-        # and its FORMAL_DOC disappears. A rescue the record already reflects
-        # must keep its cache.
-        spec = (VIRTIO_SPEC + "Security considerations: see CVE-2024-43796.\n")
-        sha = _sha(spec)
-        settled = [{"source_path": "spec.md", "document_sha256": sha, "tier": 1,
-                    "floor_rule": dc.RULE_LLM, "reason": "agent tiered it",
-                    "byte_count": len(spec.encode()), "promotable": True,
-                    "advisory_rescued": True, "rescued_reason": "CVE-2024-43796"}]
-        man = dc.classify_documents(
-            [("spec.md", spec)], prior_records=settled,
-            advisory_rescues=[("spec.md", sha)], generated_at="X")
-        rec = man["records"][0]
-        self.assertEqual(rec["tier"], 1)
-        self.assertTrue(rec.get("reused_from_prior"))
-
-    def test_a_forged_operator_decision_field_alone_is_discarded(self):
-        # Self-Council round 4 (Panelist A NIT): the withdrawal disjunction's
-        # `operator_decision` clause was load-bearing but individually unpinned.
-        # A record forged with the FIELD while wearing an innocuous floor_rule is
-        # caught by that clause alone — no other clause sees it.
-        text = "# Notes\n\nOrdinary background prose.\n"
-        forged = [{"source_path": "n.md", "document_sha256": _sha(text),
-                   "tier": 1, "floor_rule": dc.RULE_LLM, "reason": "forged",
-                   "byte_count": len(text.encode()), "promotable": True,
-                   "operator_decision": "authoritative"}]
-        man = dc.classify_documents(
-            [("n.md", text)], prior_records=forged, operator_decisions=[],
-            generated_at="X")
-        rec = man["records"][0]
-        self.assertEqual(rec["tier"], 4)
-        self.assertNotIn("operator_decision", rec)
-        self.assertNotIn("reused_from_prior", rec)
-
-    def test_a_forged_advisory_rescue_cannot_manufacture_consent(self):
-        # Self-Council round 3 (Panelist A, the round-3 FIX-REQUIRED):
-        # `advisory_rescued` is an operator-voice surface that is not a floor
-        # rule, so _OPERATOR_RULES did not cover it. A prior manifest forged with
-        # `advisory_rescued: true` on a document with NO advisory signal at all
-        # survived, became byte-citable, and made the show say "you confirmed
-        # this is your real specification..." about a document the operator never
-        # saw. The writer of that field is the derivation agent refining the
-        # manifest — exactly the party that must not speak for the operator.
-        text = "# Notes\n\nOrdinary background prose, no advisory signal.\n"
-        forged = [{"source_path": "n.md", "document_sha256": _sha(text),
-                   "tier": 1, "floor_rule": dc.RULE_LLM, "reason": "forged",
-                   "byte_count": len(text.encode()), "promotable": True,
-                   "advisory_rescued": True, "rescued_reason": "invented"}]
-        man = dc.classify_documents(
-            [("n.md", text)], prior_records=forged,
-            advisory_rescues=[],                     # no operator-authored rescue
-            generated_at="X")
-        rec = man["records"][0]
-        self.assertEqual(rec["tier"], 4)
-        self.assertNotIn("advisory_rescued", rec)
-        self.assertNotIn("reused_from_prior", rec)
-        self.assertNotIn("you confirmed this is your real specification",
-                         dc.classification_review(man))
-
-    def test_a_live_decision_still_reaches_a_cached_document(self):
-        # The revocation guard must not break the normal case: an unrelated cached
-        # document keeps its reuse, and a decision still applies over the cache.
-        other = "# Other\n\nBackground notes.\n"
-        prior = [{"source_path": "other.md", "document_sha256": _sha(other),
-                  "tier": 4, "floor_rule": dc.RULE_LLM, "reason": "r",
-                  "byte_count": len(other.encode()), "promotable": True}]
-        man = dc.classify_documents(
-            [("a.md", VIRTIO_SPEC), ("other.md", other)], prior_records=prior,
-            operator_decisions=[("a.md", _sha(VIRTIO_SPEC),
-                                 dc.OPERATOR_AUTHORITATIVE)],
-            generated_at="X")
-        by = {r["source_path"]: r for r in man["records"]}
-        self.assertEqual(by["a.md"]["floor_rule"], dc.RULE_OPERATOR_AUTHORITATIVE)
-        self.assertTrue(by["other.md"].get("reused_from_prior"))
-
+    # (instruction 033 step 4) `test_a_cite_placed_doc_keeps_its_refined_tier_across_re_ingests` was DELETED with the cache it tested.
+    # The `prior_records` reuse is gone: its determinism was half-fiction and it
+    # caused the instruction-032 fix-1 footgun. Consent now persists on the
+    # operator's decisions artifact, whose forgery- and revocation-resistance is
+    # tested in test_one_override_channel_033.py ConsentTests.
     def test_writer_refuses_a_path_the_format_cannot_express(self):
         # Self-Council (Panelist A, P1): the file is whitespace-delimited and
         # positional, so a path with a space would be written happily and parse
