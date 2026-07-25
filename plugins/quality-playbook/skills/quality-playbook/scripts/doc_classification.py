@@ -642,9 +642,12 @@ def _cache_hides_live_classifier(cached: dict, has_classifier: bool) -> bool:
       default keeps its cache.
     * No floor is weakened. Discarding the cache re-derives the document from
       content through the full floor stack, so an advisory / background /
-      implementation floor decides again exactly as it did — and re-deriving a
-      ``RULE_DEFAULT`` record can only reach the classifier branch, because that
-      rule is returned only when every floor above it declined.
+      implementation floor decides again exactly as it did. The re-derive is
+      byte-identical to a cold first-ever classify of the same inputs — which is
+      the actual guarantee, and it is stronger than "it can only reach the
+      classifier branch": a live operator decision or sidecar entry reaches its
+      own branch, exactly as it would on a first ingest (instr 032 self-Council,
+      Panelist A).
     """
     return has_classifier and cached.get("floor_rule") == RULE_DEFAULT
 
@@ -957,9 +960,18 @@ def classification_playback(manifest: dict) -> List[dict]:
 _AUTHORITATIVE_REASONS = {
     RULE_OPERATOR_AUTHORITATIVE: "you told me this one is a source I should use.",
     RULE_SIDECAR: "you told me to use this one even though it looks like source code.",
+    # instruction 032 self-Council, Panelist B (defensive sweep, same class as
+    # fix 2): the carve-out can fire on the EXTENSION alone, so `notes.thrift`
+    # holding meeting notes was presented as "it's a machine-readable interface
+    # definition… a direct statement of what this software is supposed to do."
+    # Naming the FORMAT as the signal is both true and the thing that lets an
+    # operator catch it — this is the authoritative side of the show, and their
+    # demotion at this step is unconditional. (That a non-contract can reach
+    # Tier 1 on an extension is a CARVE-OUT question, not a wording one; tiers
+    # are out of scope here and it is carried forward in the output.)
     RULE_CONTRACT: (
-        "it's a machine-readable interface definition, which is a direct statement "
-        "of what this software is supposed to do."
+        "its format is an interface or contract definition — the kind of file that "
+        "states directly what this software is supposed to do."
     ),
     RULE_LLM: "I read it as a statement of what this software is supposed to do.",
 }
@@ -978,11 +990,28 @@ _BACKGROUND_REASONS = {
         "to a vulnerability database — so I'm reading it as background rather than "
         "a statement of what your software is supposed to do."
     ),
+    # instruction 032 self-Council, Panelist B (defensive sweep): the floor needs
+    # a code EXTENSION plus code-shaped content, and it fires on
+    # declaration-only files too (a `virtio_ring.h` of pure declarations, an
+    # interface-only `.ts`) — of which "it shows what the software already does"
+    # is not true. The extension is the signal; say that.
     RULE_IMPL: (
-        "it's source code — it shows what the software already does, not what it's "
-        "supposed to do."
+        "it's a code file — code is how the software works, not a statement of what "
+        "it's supposed to do."
     ),
-    RULE_BACKGROUND: "it's a README or a coverage / issue-tracker listing.",
+    # instruction 032 self-Council, Panelist B (defensive sweep, same class as
+    # fix 2): this fires on the FILENAME alone, and the issue-tracker arm of
+    # `_BACKGROUND_NAME_RE` is a PREFIX match — so `issue_tracker_api_spec.md`,
+    # a genuine specification by content, was told "it's a README or a coverage /
+    # issue-tracker listing". Say what was detected (the name) instead of
+    # asserting the genre. NOTE the tier is deliberately NOT touched here: this
+    # floor is absolute and unrescuable-by-the-operator, which is a floor
+    # question and out of scope for a reason-accuracy fix (instruction 032
+    # "tiers are unchanged"). It is carried forward in the output instead.
+    RULE_BACKGROUND: (
+        "its name marks it as a README, a coverage report or an issue-tracker "
+        "listing — documents that describe a project rather than specify it."
+    ),
     RULE_OPERATOR_BACKGROUND: "you told me to treat this one as background only.",
     RULE_DEFAULT: (
         "nothing identified it as a statement of what this software is supposed to do."

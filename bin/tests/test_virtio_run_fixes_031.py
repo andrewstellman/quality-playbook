@@ -381,9 +381,15 @@ _SPEC_TXT = (
 )
 
 # Every internal label the v1.6.0 plain-language key forbids in operator-facing
-# text (the instruction-030 list). The artifact PATH is exempt — the operator has
-# to be able to type `quality/expert_review_summary.json` to open the file — so
-# the scan runs with that one literal removed.
+# text (the instruction-030 list).
+#
+# The artifact PATH used to be exempt from this scan — it carried "persona", and
+# the operator has to be able to type it to open the file. Instruction 032 fix 3
+# removed the reason for the exemption by renaming the artifact
+# (`quality/expert_review_summary.json`), so the carve-out is gone and the scan
+# now covers the path like any other operator-facing string. Keeping the strip
+# would have permanently blinded this test to whatever the path was named
+# (instr 032 self-Council, Panelist C).
 JARGON = (
     "tier", "citable", "floor", "manifest", "promotable", "persona",
     "feature g", "feature h", "sub-agent", "agent-validation", "grounded",
@@ -392,7 +398,7 @@ JARGON = (
 
 
 def _scan_for_jargon(case, text):
-    low = text.replace(pa.REVIEW_SUMMARY_PATH, "").lower()
+    low = text.lower()
     for word in JARGON:
         case.assertNotIn(word, low, f"internal label {word!r} leaked to the operator")
 

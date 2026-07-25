@@ -277,6 +277,11 @@ class FloorsStillHoldTests(unittest.TestCase):
         self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
         self.assertFalse(rec["promotable"])
         self.assertTrue(out["zero_citable"])
+        # instr 032 self-Council, Panelist A (NIT 9): assert the RULE too, not
+        # just the tier — a floored doc and an unclassified default are both
+        # Tier 4, so tier-only assertions pass with the fix fully reverted and
+        # pin nothing about which path decided.
+        self.assertNotEqual(rec["floor_rule"], dc.RULE_DEFAULT)
 
     def test_classifier_cannot_promote_a_cached_implementation_source(self):
         docs = [("reference_docs/resolve.py", PY_LOGIC)]
@@ -300,6 +305,37 @@ class FloorsStillHoldTests(unittest.TestCase):
         self.assertEqual(rec["tier"], 4)
         self.assertEqual(rec["floor_rule"], dc.RULE_BACKGROUND)
 
+    def test_a_settled_tier_4_llm_vote_is_reused_not_re_derived(self):
+        # instr 032 self-Council, Panelist A (NIT 10): the predicate is keyed on
+        # `floor_rule`, and it MUST be — a mutant keyed on `tier == 4` instead
+        # survived every other behavioral assertion in this file while promoting
+        # a settled Tier-4 classifier vote to Tier 1 on the next wired re-run.
+        # A Tier-4 `llm` record is a real decision ("I read this as background");
+        # re-deriving it lets a differently-minded classifier overturn the
+        # operator-visible tiering that reproducibility promises to hold.
+        docs = [("reference_docs/design-note.md",
+                 "# Design note\n\nWe considered three approaches.\n")]
+        first = dc.classify_documents(docs, llm_classifier=lambda r, t: 4,
+                                      generated_at="X")
+        rec = _rec(first, "reference_docs/design-note.md")
+        self.assertEqual((rec["tier"], rec["floor_rule"]), (4, dc.RULE_LLM))
+
+        calls = []
+
+        def promoter(rel_path, text):
+            calls.append(rel_path)
+            return 1
+
+        second = dc.classify_documents(docs, llm_classifier=promoter,
+                                       prior_records=first["records"],
+                                       generated_at="Y")
+        rec2 = _rec(second, "reference_docs/design-note.md")
+        self.assertEqual(calls, [], "a settled Tier-4 llm vote must not be re-derived")
+        self.assertEqual(rec2["tier"], 4)
+        self.assertEqual(rec2["floor_rule"], dc.RULE_LLM)
+        self.assertTrue(rec2.get("reused_from_prior"))
+        self.assertTrue(second["zero_citable"])
+
     def test_content_still_cannot_self_promote_through_the_reopened_default(self):
         # A document that argues for its own tier is data. The re-derive routes
         # through the same floor stack, and only the (operator-independent)
@@ -321,6 +357,19 @@ class FloorsStillHoldTests(unittest.TestCase):
         rec = _rec(out, "reference_docs/poison.md")
         self.assertEqual(rec["tier"], 4)
         self.assertTrue(out["zero_citable"])
+        # Sensitivity (Panelist A, NIT 9): the cache MUST have been discarded and
+        # the classifier consulted — otherwise this test passes with the fix
+        # reverted and proves nothing about the reopened path.
+        self.assertEqual(rec["floor_rule"], dc.RULE_LLM)
+        self.assertNotIn("reused_from_prior", rec)
+        # A forged prior record cannot launder itself through the reopened path:
+        # the discarded cache takes its tier/promotable claims with it.
+        forged = dict(bare["records"][0])
+        forged.update({"tier": 1, "promotable": True})
+        out2 = dc.classify_documents(
+            docs, llm_classifier=lambda r, t: 4,
+            prior_records=[forged], generated_at="Z")
+        self.assertEqual(_rec(out2, "reference_docs/poison.md")["tier"], 4)
 
     def test_a_live_operator_demotion_still_wins_over_the_reopened_default(self):
         # The two bypass reasons compose: the operator's background decision is
@@ -373,6 +422,78 @@ class AdvisoryReasonAccuracyTests(unittest.TestCase):
         self.assertNotIn("it's a security advisory", out)
         self.assertNotIn("describes known problems", out)
         self.assertIn("it carries security-advisory material", out)
+
+    def test_advisory_reason_string_is_pinned_exactly(self):
+        # instr 032 self-Council, Panelist B: the assertions above pin PHRASING,
+        # not the contract — B showed that APPENDING "This document is a
+        # vulnerability bulletin: it catalogues flaws, and it is not your
+        # specification." passes every one of them while reintroducing exactly
+        # the false genre claim fix 2 removed. Full-string equality is the pin
+        # that has teeth; any reword has to come through this test deliberately.
+        self.assertEqual(
+            dc._BACKGROUND_REASONS[dc.RULE_ADVISORY],
+            "it carries security-advisory material — a CVE-style identifier, or a "
+            "link to a vulnerability database — so I'm reading it as background "
+            "rather than a statement of what your software is supposed to do.")
+        # ...and the claim itself must be absent, however the sentence is phrased.
+        for forbidden in ("it's a security advisory", "is a security advisory",
+                          "describes known problems", "vulnerability bulletin",
+                          "catalogues flaws"):
+            self.assertNotIn(forbidden, dc._BACKGROUND_REASONS[dc.RULE_ADVISORY])
+
+    def test_background_and_contract_reasons_name_the_signal_not_the_genre(self):
+        # instr 032 self-Council, Panelist B, defensive sweep — the same defect
+        # class one entry over, both reproduced against real inputs:
+        #
+        #  * `issue_tracker_api_spec.md` is a genuine spec by content, but the
+        #    issue-tracker arm of `_BACKGROUND_NAME_RE` is a PREFIX match, so it
+        #    floors — and the operator was told "it's a README or a coverage /
+        #    issue-tracker listing".
+        #  * `notes.thrift` (meeting notes) reaches Tier 1 on the extension
+        #    alone, and was called "a machine-readable interface definition".
+        #
+        # The tiers are NOT changed here (out of scope, carried forward); the
+        # reasons now state the detected signal — the name, the format.
+        spec = ("# Issue Tracker API Specification\n\n"
+                "The API MUST return 404 for a missing issue.\n")
+        man = dc.classify_documents(
+            [("reference_docs/issue_tracker_api_spec.md", spec)],
+            llm_classifier=lambda r, t: 1, generated_at="X")
+        self.assertEqual(_rec(man, "reference_docs/issue_tracker_api_spec.md")
+                         ["floor_rule"], dc.RULE_BACKGROUND)   # tier unchanged
+        out = dc.classification_review(man)
+        self.assertIn("its name marks it as", out)
+        self.assertNotIn("it's a README or a coverage", out)
+
+        notes = "Meeting notes 2026-03-04\n\nWe discussed the roadmap.\n"
+        man2 = dc.classify_documents([("reference_docs/notes.thrift", notes)],
+                                     llm_classifier=lambda r, t: 4,
+                                     generated_at="X")
+        self.assertEqual(_rec(man2, "reference_docs/notes.thrift")["floor_rule"],
+                         dc.RULE_CONTRACT)                     # tier unchanged
+        out2 = dc.classification_review(man2)
+        self.assertIn("its format is an interface or contract definition", out2)
+        self.assertNotIn("it's a machine-readable interface definition", out2)
+
+    def test_impl_reason_holds_for_declaration_only_code(self):
+        # Panelist B: "it shows what the software already does" is false of a
+        # declaration-only header, which the floor still (correctly) catches.
+        header = (
+            "#ifndef VIRTIO_RING_H\n#define VIRTIO_RING_H\n"
+            "struct vring_desc { u64 addr; u32 len; u16 flags; u16 next; };\n"
+            "void vring_init(struct vring *vr, unsigned int num);\n"
+            "static inline int vring_size(unsigned int num) { return num * 16; }\n"
+            "#endif\n"
+        )
+        man = dc.classify_documents([("reference_docs/virtio_ring.h", header)],
+                                    llm_classifier=lambda r, t: 1,
+                                    generated_at="X")
+        rec = _rec(man, "reference_docs/virtio_ring.h")
+        if rec["floor_rule"] != dc.RULE_IMPL:
+            self.skipTest("this header does not trip the implementation floor")
+        out = dc.classification_review(man)
+        self.assertIn("it's a code file", out)
+        self.assertNotIn("it shows what the software already does", out)
 
     def test_reason_names_what_was_actually_detected(self):
         _man, out = self._review(self.CITING_DOCS)
@@ -522,14 +643,30 @@ class JargonFreeArtifactNameTests(unittest.TestCase):
         """
         old = "persona" + "_review_summary"      # not a literal, or this test hits itself
         targets = [REPO_ROOT / "SKILL.md", REPO_ROOT / "schemas.md",
+                   REPO_ROOT / "CHANGELOG.md", REPO_ROOT / "AGENTS.md",
+                   REPO_ROOT / "README.md",
                    REPO_ROOT / "references", REPO_ROOT / "bin",
-                   REPO_ROOT / "plugins"]
+                   REPO_ROOT / "plugins", REPO_ROOT / "docs" / "design",
+                   REPO_ROOT / "ai_context"]
+        # instr 032 self-Council, Panelist C (NIT 2): the first version filtered
+        # on a suffix allow-list, which silently skipped
+        # `plugins/.../skill-template.gitignore` — an ADOPTER-facing file, and
+        # the repo's only inventory of `quality/` paths — and left docs/design +
+        # CHANGELOG outside the swept trees entirely. C proved all three blind
+        # spots by injecting the old literal and watching this test stay green.
+        # Now: scan every TEXT file in the swept trees, excluding only binaries,
+        # caches, and the frozen historical records.
+        skip_suffixes = {".pyc", ".pyo", ".so", ".png", ".jpg", ".jpeg", ".gif",
+                         ".pdf", ".zip", ".gz", ".tar", ".whl", ".ico"}
         offenders = []
         for target in targets:
+            if not target.exists():
+                continue
             files = [target] if target.is_file() else sorted(
                 p for p in target.rglob("*")
-                if p.is_file() and p.suffix in (".py", ".md", ".txt", ".json", ".sh")
-                and "__pycache__" not in p.parts)
+                if p.is_file() and p.suffix not in skip_suffixes
+                and "__pycache__" not in p.parts
+                and ".git" not in p.parts)
             for path in files:
                 if path.resolve() == Path(__file__).resolve():
                     continue

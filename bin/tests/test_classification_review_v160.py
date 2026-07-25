@@ -133,7 +133,13 @@ class ShowTests(unittest.TestCase):
         # test_classifier_cache_and_polish_032.py.
         self.assertIn("it carries security-advisory material", out)
         self.assertNotIn("it's a security advisory", out)
-        self.assertIn("it's a README", out)
+        # The background-ledger reason moved the same way, and for the same
+        # reason (032 self-Council, Panelist B): it fires on the FILENAME, and the
+        # issue-tracker arm is a prefix match, so `issue_tracker_api_spec.md` — a
+        # genuine spec — was told "it's a README or a coverage / issue-tracker
+        # listing". It now states the name signal it actually has.
+        self.assertIn("its name marks it as a README", out)
+        self.assertNotIn("it's a README or a coverage", out)
 
     def test_straight_through_keeps_the_show_and_drops_the_pause(self):
         # Oracle 3: disclosure is not skippable; only the pause is.
