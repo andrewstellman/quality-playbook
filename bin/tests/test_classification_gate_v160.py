@@ -179,6 +179,52 @@ class ClassificationGateTests(unittest.TestCase):
         self.assertEqual(fails, 0)
         self.assertEqual(warns, 4)
 
+    def test_every_gate_WARNed_fact_also_reaches_the_disclosure(self):
+        """033 fix-up 12 — panelist C's recommended parity guard.
+
+        Two independent renderings of the same seven facts: this gate check, which
+        deliberately does NOT import the classifier (so it re-derives them from the
+        serialized manifest), and `doc_classification.classification_disclosure`.
+        There is no drift today — but instruction 033 added FIVE facts to both
+        copies by hand, and nothing anywhere would have noticed if it had added
+        them to only one. Panelist B found exactly that shape: the four counters
+        reached the show and no gate at all.
+
+        One test, zero shipped parts, and it fails the moment a future fact is
+        taught to one surface and not the other.
+        """
+        import doc_classification as dc                       # noqa: E402
+
+        facts = [
+            ("classifier_status", {"classifier_status": "unwired"}),
+            ("zero_citable", {"zero_citable": True, "citable_count": 0}),
+            ("unconfirmed_citable_count", {"unconfirmed_citable_count": 2}),
+            ("awaiting_confirmation_count", {"awaiting_confirmation_count": 2}),
+            ("unread_count", {"unread_count": 2}),
+            ("refused_promotions", {"refused_promotions": ["reference_docs/a.md"]}),
+            ("conversion_note", {"conversion_note": "qpb_promote.txt is not applied"}),
+        ]
+        for label, extra in facts:
+            with self.subTest(fact=label):
+                payload = {"classifier_status": "wired-ok", "zero_citable": False,
+                           "citable_count": 1, "records": []}
+                payload.update(extra)
+                self._write(payload)
+                _fails, warns, _out = self._run()
+                self.assertGreaterEqual(warns, 1, f"gate is silent about {label}")
+                self.assertTrue(
+                    (dc.classification_disclosure(payload) or "").strip(),
+                    f"disclosure is silent about {label} while the gate warns")
+
+        # ...and both stay silent on a healthy run, so the parity is not vacuous.
+        clean = {"classifier_status": "wired-ok", "zero_citable": False,
+                 "citable_count": 1, "unconfirmed_citable_count": 0,
+                 "awaiting_confirmation_count": 0, "unread_count": 0,
+                 "refused_promotions": [], "records": []}
+        self._write(clean)
+        self.assertEqual(self._run()[:2], (0, 0))
+        self.assertFalse((dc.classification_disclosure(clean) or "").strip())
+
     def test_carries_a_verdict_category(self):
         # Every check_* must carry a verdict category (the gate's test suite
         # asserts this; pin it for the new check too).

@@ -994,9 +994,14 @@ def classify_reference_docs(
 ) -> dict:
     """Feature G (§8a): classify all reference docs over the deterministic floor.
 
-    ``cite/`` placement is honored as an explicit operator pre-classification
-    (it promotes past the implementation floor, exactly like the sidecar — but
-    never past the advisory floor). ``llm_classifier`` is the derivation AI's
+    ``cite/`` placement is honored as an explicit operator pre-classification, via
+    the one-release migration shim: it seeds a clearly-labelled, revocable
+    ``authoritative`` decision. That decision's auto-generated reason names no
+    signal, so a ``cite/``-placed document the BACKSTOP flagged — a CVE/GHSA
+    identifier, an advisory URL, or source code — is REFUSED and listed in
+    ``refused_promotions``, not promoted. (This paragraph used to say placement
+    "promotes past the implementation floor, exactly like the sidecar"; both halves
+    are now false — the sidecar is gone and the backstop is not a floor.) ``llm_classifier`` is the derivation AI's
     per-file tier callable; when None, the floor still runs and floor-passed
     docs default to Tier 4 (dump-and-go stays safe without the AI in Python).
     No prior manifest is read: the classification manifest is an OUTPUT,

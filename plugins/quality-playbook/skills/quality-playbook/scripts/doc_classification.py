@@ -14,8 +14,11 @@ say-so. In order:
 0. **Operator demotion** — downward only, so it needs no gate and outranks
    everything.
 1. **The hard-signal backstop.** A CVE/GHSA identifier, an advisory URL, or an
-   implementation-source file. It assigns no genre and no tier and never demotes;
-   it answers one question — *may this be cited without asking the operator?* — and
+   implementation-source file. It assigns no GENRE — the record's ``category``
+   stays empty and the show gives these their own section rather than calling them
+   background — and it never demotes anything the model judged; the record it
+   produces is tier 4 and not promotable, which is a refusal to cite rather than a
+   classification. It answers one question — *may this be cited without asking the operator?* — and
    its only answer is no. Runs FIRST, so an advisory renamed ``api.proto`` cannot
    ride the contract path.
 2. **Lane A — content-validated contract.** The document PARSES as protobuf,
@@ -41,10 +44,19 @@ cache with its guards. A filename is not a genre; an extension is not a parse.
 
 WHAT PERSISTS BETWEEN RUNS: the operator's confirmed decisions
 (``reference_docs/qpb_decisions.txt``), and the agent's per-document reads
-(``quality/classification_reads.json``). Neither is written by a run — that is
-what keeps the second from being the cache again. This module writes
-``quality/classification_manifest.json``, which is an OUTPUT: it is regenerated
-every run and read back by nothing.
+(``quality/classification_reads.json``). NO CLASSIFICATION PATH WRITES EITHER —
+not ``classify_documents``, not ``classify_reference_docs``, not ``ingest``. Their
+only writers are ``record_operator_decision``, relaying an explicit operator
+instruction, and the agent recording what it read. That is what keeps the reads
+file from being the cache again, and it is the precise form of the claim: "nothing
+writes them" would be false, since both are created during a run, and would prove
+too much anyway.
+
+``quality/classification_manifest.json`` is an OUTPUT: ``reference_docs_ingest``
+writes it from what this module returns, every run, and reads it back nowhere.
+This module itself touches no filesystem at all — it is deliberately
+dependency-free (stdlib only, no ``pathlib``, no ``os``) so it stays trivially
+bundle-portable and unit-testable without the rest of the harness.
 """
 
 from __future__ import annotations
@@ -983,7 +995,7 @@ def _accepts_hints(fn) -> bool:
 
     Lets a hint-aware classifier receive the floor's advisory_hints/code_heavy as
     a demotion input, while a legacy ``(rel_path, text)`` callable still works.
-    
+
     STATED RESIDUAL (033 self-Council panelist C, C-4): the SHIPPED classifier does
     not accept hints. It is synthesized from `quality/classification_reads.json`
     and takes two arguments, so `advisory_genre_hints` / `code_heavy_hint` are
@@ -1248,7 +1260,7 @@ def classification_disclosure(manifest: dict) -> Optional[str]:
     Overview (beside the F-1 coverage-and-gaps statement), raises as a gate WARN,
     and plays back at interview Stage 1. A degraded classification is a disclosed
     event, never a quiet fallback.
-    
+
     NO PRODUCTION CALLER, and that is a STATED RESIDUAL rather than an oversight
     to trip over (033 self-Council panelist C, C-3). Invariant 8 names this as
     "the 024 gate WARN + Overview + Stage-1 playback". The gate leg is real but
