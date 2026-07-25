@@ -316,5 +316,156 @@ class BackstopPrecedenceTests(unittest.TestCase):
         self.assertFalse(man["zero_citable"])
 
 
+# ---------------------------------------------------------------------------
+# 033 fix-up 1 — self-Council panelist A. Two Lane-A anchors were MUTATION
+# SURVIVORS (A-5): deleting the proto message/service-block requirement, and
+# accepting a `<definitions>` DESCENDANT instead of the root, both left the whole
+# suite green. An unmutated anchor is an untested anchor. A-2 added a third
+# requirement — the anchor must be the DOCUMENT's, not a quoted snippet's.
+# ---------------------------------------------------------------------------
+class AnchorsAreLoadBearingTests(unittest.TestCase):
+
+    def test_the_proto_block_requirement_is_load_bearing(self):
+        # MUTATION BITE: drop `and _PROTO_BLOCK_RE.search(text)` from
+        # `contract_content_validation` and this fails. The syntax line ALONE is
+        # the weak substring instruction 033 step 1 exists to reject — prose that
+        # quotes `syntax = "proto3";` while explaining protobuf is not a contract.
+        # The syntax line at column 0 — so the FIRST anchor matches and only the
+        # block requirement is under test — but nothing is declared.
+        syntax_only = ('syntax = "proto3";\n\n'
+                       "// TODO: the messages go here once the API settles.\n")
+        self.assertIsNone(dc.contract_content_validation(syntax_only, "a.proto"))
+        with_block = syntax_only + "\nmessage Order { string id = 1; }\n"
+        self.assertIsNotNone(dc.contract_content_validation(with_block, "a.proto"))
+
+    def test_wsdl_must_be_the_ROOT_element_not_a_descendant(self):
+        # MUTATION BITE: relax `_wsdl_root_element` to search descendants (e.g.
+        # `root.iter()`) and this fails. A document that merely CONTAINS a
+        # `<definitions>` somewhere — an archive, a build manifest, an exported
+        # wrapper — is not a WSDL service contract.
+        nested = ('<project><docs><definitions name="Orders">'
+                  "<portType/></definitions></docs></project>")
+        self.assertIsNone(dc._wsdl_root_element(nested))
+        self.assertIsNone(dc.contract_content_validation(nested, "b.xml"))
+        rooted = '<definitions name="Orders"><portType/></definitions>'
+        self.assertEqual(dc._wsdl_root_element(rooted),
+                         "WSDL root element <definitions>")
+
+    def test_the_json_arm_demands_a_VERSION_like_the_yaml_arm(self):
+        # 033 fix-up 1, self-Council A NIT: the two arms of the SAME anchor
+        # disagreed. YAML required a version (`\d[\w.\-]*`); JSON accepted the
+        # key's mere presence, so a JSON document with a null/empty/object value
+        # under `openapi` validated as a machine-readable contract and was cited.
+        # MUTATION BITE: restore `if key in doc: return ...` and this fails.
+        for bad in ('{"asyncapi": null}', '{"openapi": {}}', '{"swagger": ""}',
+                    '{"openapi": true}', '{"openapi": ["3.0.3"]}'):
+            self.assertIsNone(dc.contract_content_validation(bad, "a.json"), bad)
+        for good in ('{"openapi": "3.0.3", "paths": {}}', '{"swagger": 2}',
+                     '{"asyncapi": "2.6.0"}'):
+            self.assertIsNotNone(dc.contract_content_validation(good, "a.json"), good)
+
+    def test_a_definitions_root_in_a_FOREIGN_namespace_is_not_a_wsdl(self):
+        # 033 fix-up 1, self-Council A NIT: `_wsdl_root_element` matched the local
+        # name only, and BPMN 2.0's root element is `<definitions>` as well — so a
+        # process diagram validated as a service contract.
+        # MUTATION BITE: delete the namespace check and this fails.
+        bpmn = ('<?xml version="1.0"?>\n<definitions '
+                'xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL">'
+                "<process id=\"p\"/></definitions>\n")
+        self.assertIsNone(dc._wsdl_root_element(bpmn))
+        self.assertIsNone(dc.contract_content_validation(bpmn, "flow.xml"))
+        self.assertIsNotNone(dc._wsdl_root_element(GENUINE_WSDL))
+        # WSDL 2.0's namespace is accepted too, so the check is a namespace
+        # ALLOW-LIST rather than a hardcoded 1.1 assumption.
+        wsdl2 = ('<definitions xmlns="http://www.w3.org/ns/wsdl">'
+                 "<interface/></definitions>")
+        self.assertIsNotNone(dc._wsdl_root_element(wsdl2))
+
+
+class AQuotedSnippetIsNotTheDocumentsFormatTests(unittest.TestCase):
+    """033 fix-up 1, self-Council A-2 — CONFIRMED end to end before the fix.
+
+    A hand-written `grpc-tutorial.md` whose ```proto fence carried a syntax line
+    and a message block validated as protobuf and was published as an authority.
+    Naming was never involved, so step 1's extension fix did not touch it: the
+    exploit is that a QUOTATION was read as the document's own format.
+    """
+
+    TUTORIAL = ("# gRPC tutorial\n\n"
+                "Here is what a service definition looks like:\n\n"
+                '```proto\nsyntax = "proto3";\n\n'
+                "service Orders { rpc Get (Req) returns (Res); }\n"
+                "message Req { string id = 1; }\n```\n\n"
+                "Copy that into `orders.proto` and compile it.\n")
+
+    def test_a_fenced_contract_does_not_validate(self):
+        # MUTATION BITE: remove the `_without_fenced_blocks` call and this fails.
+        self.assertIsNone(dc.contract_content_validation(
+            self.TUTORIAL, "reference_docs/grpc-tutorial.md"))
+
+    def test_the_same_bytes_unfenced_DO_validate(self):
+        # The control that makes the test above mean something: it is the FENCE
+        # that disqualifies it, not some incidental difference in the payload.
+        unfenced = self.TUTORIAL.replace("```proto\n", "").replace("```\n", "")
+        self.assertIsNotNone(dc.contract_content_validation(unfenced, "x.proto"))
+
+    def test_a_genuine_contract_is_unaffected(self):
+        for text, name in ((GENUINE_PROTO, "a.proto"), (GENUINE_OPENAPI_YAML, "a.yaml")):
+            self.assertIsNotNone(dc.contract_content_validation(text, name), name)
+
+    def test_end_to_end_the_tutorial_is_not_cited(self):
+        rec, man = _one("reference_docs/grpc-tutorial.md", self.TUTORIAL,
+                        llm_classifier=lambda p, t: 4)
+        self.assertNotEqual(rec["floor_rule"], dc.RULE_CONTRACT)
+        self.assertEqual(rec["tier"], 4)
+        self.assertTrue(man["zero_citable"], "the tutorial must not be cited")
+
+
+class DemotionIsFreeInEveryLaneTests(unittest.TestCase):
+    """033 fix-up 1, self-Council A-2 (second half).
+
+    §8a Revision rule 2: *"the model may mark any doc background on its own read,
+    no gate."* Rule 2 has no Lane A carve-out, but the implementation had one —
+    "cited in every mode, no override" was honoured literally, making Lane A the
+    single lane the model's own read could not correct. The risk direction settles
+    it: honouring a demotion can only ever under-cite, and refusing one publishes a
+    document the model has already judged unfit.
+    """
+
+    def test_a_model_demotion_lands_on_a_content_validated_contract(self):
+        # MUTATION BITE: restore `if contract:` (drop `and llm_tier not in (3, 4)`)
+        # and this fails.
+        rec, man = _one("reference_docs/a.proto", GENUINE_PROTO,
+                        llm_classifier=lambda p, t: 4)
+        self.assertNotEqual(rec["floor_rule"], dc.RULE_CONTRACT)
+        self.assertEqual(rec["tier"], 4)
+        self.assertTrue(man["zero_citable"])
+        # `promotable` stays True, and that is the point of honouring the demotion
+        # HERE rather than by flooring: the operator can still say "no, that IS my
+        # contract" — they just have to say it. The run no longer says it for them.
+        self.assertTrue(rec["promotable"])
+
+    def test_no_read_still_leaves_lane_A_citable(self):
+        # Demotion is free; ABSENCE of a read is not a demotion. The structural
+        # fact still stands on its own when nobody looked.
+        rec, _ = _one("reference_docs/a.proto", GENUINE_PROTO)
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONTRACT)
+        self.assertTrue(rec["promotable"])
+
+    def test_an_authoritative_read_keeps_lane_A(self):
+        # NB the classifier must take exactly two parameters: `classify_documents`
+        # inspects its arity and passes a third `hints` argument when it accepts
+        # one, so a `lambda p, t, _t=tier` silently receives the hints dict as
+        # `_t`. That cost a confusing red on the first run of this test.
+        def reading(tier):
+            return lambda p, t: tier
+
+        for tier in (1, 2):
+            rec, _ = _one("reference_docs/a.proto", GENUINE_PROTO,
+                          llm_classifier=reading(tier))
+            self.assertEqual(rec["floor_rule"], dc.RULE_CONTRACT)
+            self.assertEqual(rec["tier"], tier)
+
+
 if __name__ == "__main__":
     unittest.main()

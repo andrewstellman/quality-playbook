@@ -271,16 +271,24 @@ class BackstopIsNeverAutoCitedTests(unittest.TestCase):
 
     def test_the_channels_are_not_interchangeable(self):
         # §8a's two hard bounds. An advisory signal is cleared ONLY by the
-        # content-keyed rescue; the path-keyed sidecar clears only
-        # implementation-source; a plain "authoritative" clears neither advisory.
+        # advisory rescue; the sidecar clears only implementation-source; a plain
+        # "authoritative" clears neither advisory. BOTH channels are content-keyed
+        # `(path, sha256)` (033 fix-up 1, self-Council A-1) — the sidecar used to be
+        # path-keyed, so swapping an approved file's bytes inherited its promotion.
         adv, py = ("reference_docs/a.md", ADVISORY), ("reference_docs/c.go", IMPL)
         cases = [
-            ("advisory + sidecar", adv, {"sidecar": ["reference_docs/a.md"]}, False),
+            ("advisory + sidecar", adv, {"sidecar": [
+                ("reference_docs/a.md", _sha(ADVISORY))]}, False),
             ("advisory + operator", adv, {"operator_decisions": [
                 ("reference_docs/a.md", _sha(ADVISORY), dc.OPERATOR_AUTHORITATIVE)]}, False),
             ("advisory + rescue", adv, {"advisory_rescues": [
                 ("reference_docs/a.md", _sha(ADVISORY))]}, True),
-            ("impl + sidecar", py, {"sidecar": ["reference_docs/c.go"]}, True),
+            ("impl + sidecar", py, {"sidecar": [
+                ("reference_docs/c.go", _sha(IMPL))]}, True),
+            # The leak A-1 found: consent is for the BYTES, so the same path with a
+            # stale hash promotes nothing.
+            ("impl + sidecar for other bytes", py, {"sidecar": [
+                ("reference_docs/c.go", _sha(IMPL + "\n# swapped\n"))]}, False),
             ("impl + rescue", py, {"advisory_rescues": [
                 ("reference_docs/c.go", _sha(IMPL))]}, False),
         ]

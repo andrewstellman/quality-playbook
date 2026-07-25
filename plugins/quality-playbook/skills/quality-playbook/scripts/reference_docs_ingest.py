@@ -635,31 +635,24 @@ def _load_decisions(ref_dir: Path) -> List[Tuple[str, str, str, str]]:
     return out
 
 
-_SIGNAL_TOKEN_RE = re.compile(r"'([^']+)'")
-
-
-def signal_tokens(signals: Sequence[Tuple[str, str]]) -> List[str]:
+def signal_tokens(signals: Sequence[Tuple[str, str, str]]) -> List[str]:
     """The specific evidence an operator must name to promote a flagged document.
 
-    ``backstop_signals`` details read like ``advisory identifier 'CVE-2024-43796'``
-    or ``advisory URL 'nvd.nist.gov'`` — the quoted part is the evidence itself, and
-    that is what has to appear in the reason. For a signal with no quoted token (the
-    implementation-source detail names an extension and a ratio) the extension is
-    the token.
+    ``backstop_signals`` carries the evidence as its own field — the CVE/GHSA
+    identifier, the advisory URL, the code extension — so this is a projection,
+    not a parse.
+
+    It used to be a parse: the token was recovered by scanning the *rendered*
+    detail (``advisory identifier 'CVE-2024-43796'``) for a quoted substring. That
+    let the DOCUMENT decide what its operator had to say about it — a URL
+    containing apostrophes yielded a one-letter token that any prose satisfied.
+    Deriving a security gate's input from a display string is the mistake; the
+    field is the fix.
     """
-    tokens: List[str] = []
-    for _kind, detail in signals:
-        quoted = _SIGNAL_TOKEN_RE.findall(detail or "")
-        if quoted:
-            tokens.extend(quoted)
-            continue
-        m = re.search(r"(\.[A-Za-z0-9_]+)", detail or "")
-        if m:
-            tokens.append(m.group(1))
-    return tokens
+    return [token for _kind, _detail, token in signals]
 
 
-def names_every_signal(reason: str, signals: Sequence[Tuple[str, str]]) -> bool:
+def names_every_signal(reason: str, signals: Sequence[Tuple[str, str, str]]) -> bool:
     """Whether *reason* acknowledges EVERY backstop signal by name.
 
     The named-signal confirmation (instruction 033 step 3), and the reason it is
@@ -676,7 +669,10 @@ def names_every_signal(reason: str, signals: Sequence[Tuple[str, str]]) -> bool:
     if not signals:
         return True
     low = (reason or "").lower()
-    return all(tok.lower() in low for tok in signal_tokens(signals))
+    tokens = signal_tokens(signals)
+    # An empty token is UNNAMEABLE, so it refuses rather than passing vacuously:
+    # a signal nobody can acknowledge must not be one everybody has acknowledged.
+    return bool(tokens) and all(tok and tok.lower() in low for tok in tokens)
 
 
 def legacy_control_files(ref_dir: Path) -> List[str]:
@@ -775,7 +771,7 @@ def record_operator_decision(
         if signals and not names_every_signal(reason, signals):
             raise IngestError(
                 f"cannot record this promotion of {rel_path}: it carries "
-                f"{'; '.join(d for _k, d in signals)}, and promoting a document "
+                f"{'; '.join(d for _k, d, _t in signals)}, and promoting a document "
                 f"with that signal requires the reason to name it "
                 f"({', '.join(signal_tokens(signals))}). Confirm you have read the "
                 f"document and mean to quote it as a source despite that signal, "
@@ -917,7 +913,13 @@ def classify_reference_docs(
     # use this one as a source; I'm not", rather than dropping it silently.
     operator_decisions: List[Tuple[str, str, str]] = []
     advisory_rescues: List[Tuple[str, str]] = []
-    sidecar: set = set()
+    # CONTENT-keyed, exactly like `advisory_rescues`. This was a path-keyed `set()`
+    # of relative paths, and the asymmetry was a live consent leak: an operator who
+    # approved `contract.py` had approved the PATH, so replacing the file's bytes
+    # inherited the promotion and the swapped content shipped as Tier 1. The
+    # advisory arm one line up already refused that same attack; a guard that is
+    # right on one arm and absent on its sibling is the defect.
+    sidecar_promotions: List[Tuple[str, str]] = []
     refused: List[str] = []
     for rel, sha, decision, reason in decisions:
         operator_decisions.append((rel, sha, decision))
@@ -933,12 +935,12 @@ def classify_reference_docs(
             # Acknowledged by name -> route to the channel that clears that class
             # of signal. The two are NOT interchangeable (§8a's hard bounds), so
             # an advisory acknowledgment does not also clear implementation source.
-            kinds = {k for k, _d in signals}
+            kinds = {k for k, _d, _t in signals}
             if kinds & {doc_classification.BACKSTOP_ADVISORY_ID,
                         doc_classification.BACKSTOP_ADVISORY_URL}:
                 advisory_rescues.append((rel, sha))
             if doc_classification.BACKSTOP_IMPL_SOURCE in kinds:
-                sidecar.add(rel)
+                sidecar_promotions.append((rel, sha))
         else:
             refused.append(rel)
 
@@ -955,7 +957,7 @@ def classify_reference_docs(
     manifest = doc_classification.classify_documents(
         docs,
         llm_classifier=llm_classifier,
-        sidecar=sorted(sidecar),
+        sidecar=sorted(sidecar_promotions),
         advisory_rescues=advisory_rescues,
         operator_decisions=operator_decisions,
         schema_version=schema_version,

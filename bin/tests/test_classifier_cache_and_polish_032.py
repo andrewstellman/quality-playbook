@@ -754,6 +754,14 @@ def _sweep_corpus():
     ]
 
     def classifier(rel_path, text):
+        # 033 fix-up 1 (self-Council A-2): Lane A no longer overrides a model
+        # DEMOTION (§8a Revision rule 2 — "demotion is free"), so the two contract
+        # documents need a read that does not demote them or the `contract` render
+        # arm stops being exercised. A model reading a genuine OpenAPI/proto file
+        # would call it authoritative anyway; the old fall-through `4` was the
+        # unrealistic part.
+        if rel_path.endswith((".proto", ".yaml")):
+            return 1
         if "spec.md" in rel_path or "op-auth" in rel_path:
             return 1
         if "rescued-hi" in rel_path:
@@ -764,7 +772,10 @@ def _sweep_corpus():
 
     return dc.classify_documents(
         docs, llm_classifier=classifier,
-        sidecar=["reference_docs/promoted.py"],
+        # 033 fix-up 1 (self-Council A-1): the sidecar channel is CONTENT-keyed
+        # `(path, sha256)` like every other operator channel — a promotion is of the
+        # bytes the operator read, not of the path.
+        sidecar=[("reference_docs/promoted.py", _sha(PY_LOGIC + "\n# x\n"))],
         advisory_rescues=[
             ("reference_docs/rescued-hi.md",
              _sha(SW_ADVISORY + "\nThe transport MUST reset.\n")),

@@ -288,6 +288,14 @@ _PROTO_BLOCK_RE = re.compile(
 _TOP_LEVEL_API_KEY_RE = re.compile(
     r'^(openapi|swagger|asyncapi)\s*:\s*["\']?(\d[\w.\-]*)', re.MULTILINE)
 _RAML_FIRST_LINE_RE = re.compile(r"^#%RAML\s")
+_API_VERSION_RE = re.compile(r"^\d[\w.\-]*$")
+# The WSDL namespaces. A root element merely NAMED `definitions` is not enough:
+# BPMN 2.0's root is `<definitions>` too, as are several build and workflow
+# formats, and none of them is a service contract to derive requirements from.
+_WSDL_NAMESPACES = frozenset({
+    "http://schemas.xmlsoap.org/wsdl/",       # WSDL 1.1
+    "http://www.w3.org/ns/wsdl",              # WSDL 2.0
+})
 _API_KEYS = ("openapi", "swagger", "asyncapi")
 
 
@@ -303,8 +311,15 @@ def _json_top_level_api_key(text: str) -> Optional[str]:
     if not isinstance(doc, dict):
         return None
     for key in _API_KEYS:
-        if key in doc:
-            return f"top-level JSON key {key!r} = {doc[key]!r}"
+        value = doc.get(key)
+        # A VERSION, matching what the YAML arm demands of the same key. The two
+        # arms disagreed: YAML required `\d[\w.\-]*` while JSON accepted the key's
+        # mere presence, so `{"asyncapi": null}` — or `{"openapi": {}}` — validated
+        # as a machine-readable contract. Same key, same document format, same bar.
+        if isinstance(value, str) and _API_VERSION_RE.match(value):
+            return f"top-level JSON key {key!r} = {value!r}"
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return f"top-level JSON key {key!r} = {value!r}"
     return None
 
 
@@ -318,7 +333,31 @@ def _wsdl_root_element(text: str) -> Optional[str]:
     local = tag.rsplit("}", 1)[-1] if "}" in tag else tag
     if local.lower() != "definitions":
         return None
+    namespace = tag[1:].rsplit("}", 1)[0] if tag.startswith("{") else ""
+    if namespace and namespace not in _WSDL_NAMESPACES:
+        # Namespaced as something else entirely — BPMN, most often.
+        return None
     return f"WSDL root element <{local}>"
+
+
+_FENCED_BLOCK_RE = re.compile(r"^[ \t]*(`{3,}|~{3,}).*?^[ \t]*\1[ \t]*$",
+                              re.MULTILINE | re.DOTALL)
+
+
+def _without_fenced_blocks(text: str) -> str:
+    """*text* with Markdown/reST fenced code blocks blanked out.
+
+    A contract QUOTED inside a fence is a quotation, not the document's format. A
+    genuine ``.proto``/``.raml``/``.wsdl`` never contains a fence, so removing them
+    costs Lane A nothing and closes an exploit that had nothing to do with naming:
+    a hand-written ``grpc-tutorial.md`` whose ```` ```proto ```` block held a
+    ``syntax`` line and a ``message`` block validated as protobuf and was cited as
+    an authority. Line count is preserved so the RAML first-line anchor and the
+    column-0 YAML anchor still mean what they say.
+    """
+    def blank(m: "re.Match") -> str:
+        return "\n" * m.group(0).count("\n")
+    return _FENCED_BLOCK_RE.sub(blank, text)
 
 
 def contract_content_validation(text: str, filename: str = "") -> Optional[str]:
@@ -328,7 +367,11 @@ def contract_content_validation(text: str, filename: str = "") -> Optional[str]:
     (instruction 033 step 1). Returns None for every document that merely looks
     or is named like a contract; those route to Lane C via
     ``contract_extension_hint`` instead of being promoted or silently dropped.
+
+    "Validates" means the DOCUMENT is that format, so fenced code blocks are
+    excluded first (see ``_without_fenced_blocks``).
     """
+    text = _without_fenced_blocks(text)
     # protobuf: the syntax declaration AND a message/service block. The bare
     # `syntax=` string pasted in prose no longer suffices.
     if _PROTO_SYNTAX_RE.search(text) and _PROTO_BLOCK_RE.search(text):
@@ -472,24 +515,36 @@ BACKSTOP_ADVISORY_URL = "advisory-url"
 BACKSTOP_IMPL_SOURCE = "implementation-source"
 
 
-def backstop_signals(text: str, filename: str = "") -> List[Tuple[str, str]]:
-    """The hard signals that bar SILENT citing. ``[(kind, human_detail), ...]``.
+def backstop_signals(text: str, filename: str = "") -> List[Tuple[str, str, str]]:
+    """The hard signals that bar SILENT citing. ``[(kind, detail, token), ...]``.
 
     Empty means "nothing here blocks citing on its own" — NOT "this document is
-    authoritative", which is the model's call. Each entry's detail is the string
-    the operator must acknowledge by name to promote the document (instruction
-    033 step 3's named-signal confirmation), so it names the specific evidence.
+    authoritative", which is the model's call.
+
+    ``detail`` is the human sentence the show renders; ``token`` is the specific
+    evidence the operator must name to promote the document (instruction 033 step
+    3's named-signal confirmation). The two are returned SEPARATELY, and that is a
+    fix, not a convenience: the token used to be recovered by re-parsing
+    ``detail`` for a quoted substring, so a document containing an apostrophe in
+    its advisory URL (``.../acme/a'e'z/security/advisories/GHSA-x``) yielded the
+    token ``e`` — and the reason *"reviewed, it is fine"* then cleared the gate.
+    The document's own bytes must never influence what its operator has to say
+    about it, so the evidence travels as data instead of as rendered prose.
     """
-    found: List[Tuple[str, str]] = []
+    found: List[Tuple[str, str, str]] = []
     m = _ADVISORY_ID_RE.search(text)
     if m:
-        found.append((BACKSTOP_ADVISORY_ID, f"advisory identifier {m.group(0)!r}"))
+        found.append((BACKSTOP_ADVISORY_ID,
+                      f"advisory identifier {m.group(0)!r}", m.group(0)))
     m = _ADVISORY_URL_RE.search(text)
     if m:
-        found.append((BACKSTOP_ADVISORY_URL, f"advisory URL {m.group(0)!r}"))
+        found.append((BACKSTOP_ADVISORY_URL,
+                      f"advisory URL {m.group(0)!r}", m.group(0)))
     impl = implementation_source(text, filename)
     if impl:
-        found.append((BACKSTOP_IMPL_SOURCE, impl))
+        lower = filename.lower()
+        ext = "." + lower.rsplit(".", 1)[-1] if "." in lower else lower
+        found.append((BACKSTOP_IMPL_SOURCE, impl, ext))
     return found
 
 
@@ -531,7 +586,7 @@ class Decision:
     # Hard signals that bar silent citing (``backstop_signals`` above). Recorded
     # whether or not they fired the decision, because instruction 033 step 3's
     # named-signal confirmation has to quote them back to the operator.
-    backstop: List[Tuple[str, str]] = field(default_factory=list)
+    backstop: List[Tuple[str, str, str]] = field(default_factory=list)
     # The model's own genre label + one-sentence reason for this document (rule 1),
     # per-document-isolated. `category` also drives the show's most-authoritative
     # pick, which replaces the deleted filename-token tables.
@@ -699,7 +754,7 @@ def _classify(
             return advisory_rescue
         return sidecar_promote
 
-    unacknowledged = [(k, d) for k, d in backstop if not _acknowledged(k)]
+    unacknowledged = [(k, d) for k, d, _tok in backstop if not _acknowledged(k)]
     if unacknowledged:
         detail = "; ".join(d for _kind, d in unacknowledged)
         return _with(Decision(
@@ -707,8 +762,15 @@ def _classify(
             f"needs your confirmation, naming the signal: {detail}", False,
         ))
 
-    # 2. Lane A — content-validated contract. Cited in every mode, no override.
-    if contract:
+    # 2. Lane A — content-validated contract. Cited with no UPWARD override
+    #    needed... but a DEMOTION still lands, because §8a Revision rule 2 makes
+    #    demotion free: "the model may mark any doc background on its own read, no
+    #    gate." An earlier draft of this branch read "cited in every mode, no
+    #    override" and honored that literally, which made Lane A the one lane the
+    #    model could not correct — a document it had READ and called a tutorial was
+    #    still published as an authority. Rule 2 has no Lane A carve-out, and the
+    #    risk direction agrees: refusing a demotion can only ever over-cite.
+    if contract and llm_tier not in (3, 4):
         tier = llm_tier if llm_tier in (1, 2) else 1
         d = Decision(tier, RULE_CONTRACT,
                      f"machine-readable contract: {contract}", True)
@@ -744,7 +806,7 @@ def _classify(
                "review" if operator_authoritative
                else "operator override names this file")
         if backstop:
-            why += f" (acknowledged: {'; '.join(d for _k, d in backstop)})"
+            why += f" (acknowledged: {'; '.join(d for _k, d, _t in backstop)})"
         d = Decision(tier, rule, why, True)
         d.lane = LANE_OPERATOR
         d.confirmation = CONFIRMED
@@ -804,7 +866,8 @@ def _record(rel_path: str, text: str, decision: Decision) -> dict:
     if decision.backstop:
         # (kind, detail) pairs -> a list of dicts, so the artifact is readable and
         # step 3's named-signal confirmation can quote `detail` verbatim.
-        rec["backstop"] = [{"kind": k, "detail": d} for k, d in decision.backstop]
+        rec["backstop"] = [{"kind": k, "detail": d, "token": t}
+                           for k, d, t in decision.backstop]
     if decision.category:
         rec["category"] = decision.category
     if decision.model_reason:
@@ -871,7 +934,7 @@ def classify_documents(
     docs: Sequence[Tuple[str, str]],
     *,
     llm_classifier: Optional[Callable] = None,
-    sidecar: Optional[Sequence[str]] = None,
+    sidecar: Optional[Sequence[Tuple[str, str]]] = None,
     advisory_rescues: Optional[Sequence[Tuple[str, str]]] = None,
     operator_decisions: Optional[Sequence[Tuple[str, str, str]]] = None,
     schema_version: str = "1.6.0",
@@ -899,12 +962,11 @@ def classify_documents(
 
     ``operator_decisions`` is the end-of-Phase-1 classification review's
     corrections (instr 030) as ``(rel_path, sha256, "authoritative"|"background")``
-    triples, content-keyed exactly like ``advisory_rescues`` and read from the
-    same kind of operator-authored file. A document carrying a decision **bypasses
-    the prior-record cache**, so a correction made after the first ingest actually
-    takes effect on the re-run (that re-run is what turns a promoted doc into a
-    byte-citable ``FORMAL_DOC``). Later triples win over earlier ones for the same
-    key.
+    triples, content-keyed exactly like ``advisory_rescues`` and ``sidecar``, and
+    read from the same operator-authored file. A correction made after the first
+    ingest takes effect on the re-run, and that re-run is what turns a promoted doc
+    into a byte-citable ``FORMAL_DOC``. Later triples win over earlier ones for the
+    same key.
 
     No cache (instruction 033 step 4). Every run RE-READS and re-derives. The
     content-keyed `prior_records` reuse is gone: the determinism it promised was
@@ -916,7 +978,11 @@ def classify_documents(
     (``reference_docs/qpb_decisions.txt``), which is a record of consent rather
     than a record of the machine's guesses.
     """
-    sidecar_set = set(sidecar or ())
+    # CONTENT-keyed ``(path, sha256)`` pairs, like ``advisory_rescues`` — an
+    # operator acknowledges the BYTES they read, never the path. See the note in
+    # ``reference_docs_ingest``: while this was a set of bare paths, swapping a
+    # promoted file's contents inherited its promotion.
+    sidecar_set = {tuple(entry) for entry in (sidecar or ())}
     # Operator advisory-floor rescues (instr 025), content-keyed by (path, sha256).
     # An advisory doc is lifted past the advisory floor ONLY when its (path, its
     # own content hash) is in this operator-authored set — never by content.
@@ -964,7 +1030,8 @@ def classify_documents(
                 llm_tier, read = None, {}
         decision = classify_document(
             rel_path, text, llm_tier=llm_tier,
-            sidecar_promote=rel_path in sidecar_set, advisory_rescue=rescued,
+            sidecar_promote=(rel_path, sha) in sidecar_set,
+            advisory_rescue=rescued,
             operator_decision=operator_decision,
             self_classifying=bool(read.get("self_classifying")),
             category=read.get("category"),

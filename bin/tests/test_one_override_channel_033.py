@@ -194,6 +194,45 @@ class NamedSignalTests(ChannelTestCase):
         self.assertTrue(rec["promotable"])
         self.assertNotIn("refused_promotions", man)
 
+    def test_the_document_cannot_choose_its_own_acknowledgment_token(self):
+        """033 fix-up 1, self-Council A-3 — CONFIRMED before the fix.
+
+        The token an operator must name was recovered by re-parsing the RENDERED
+        detail (``advisory URL 'https://...'``) for a quoted substring. A document
+        whose advisory URL contains apostrophes therefore CHOSE its own token: the
+        URL below yielded ``e``, and the reason *"reviewed, it is fine"* contains an
+        `e`, so a generic promotion cleared a security gate. The evidence now
+        travels as a field, so the bytes have no say.
+
+        MUTATION BITE: restore the ``re.findall(r"'([^']+)'", detail)`` derivation
+        in ``signal_tokens`` and this fails.
+        """
+        doc = ("# Notes\n\nSee "
+               "https://github.com/acme/a'e'z/security/advisories/GHSA-xxxx-yyyy\n"
+               "for the details.\n")
+        signals = dc.backstop_signals(doc, "reference_docs/notes.md")
+        self.assertTrue(signals)
+        self.assertFalse(rdi.names_every_signal("reviewed, it is fine", signals),
+                         "a generic reason must not clear a named-signal gate")
+        # The real URL still works as the acknowledgment, which is what makes the
+        # gate usable rather than merely strict.
+        self.assertTrue(rdi.names_every_signal(
+            "reviewed the advisory at "
+            "https://github.com/acme/a'e'z/security/advisories/GHSA-xxxx-yyyy",
+            signals))
+
+    def test_every_signal_carries_a_nonempty_token(self):
+        # An unnameable signal would pass `names_every_signal` vacuously — the
+        # "expectation that cannot fail" shape. Both arms of the check are pinned:
+        # the tokens exist, and an empty token list refuses rather than passes.
+        for text, name in ((CVE_SPEC, "reference_docs/cve_spec.md"),
+                           (PY_LOGIC, "reference_docs/impl.py")):
+            for kind, detail, token in dc.backstop_signals(text, name):
+                self.assertTrue(token, f"{kind} has no acknowledgeable token")
+                self.assertTrue(detail)
+        self.assertFalse(rdi.names_every_signal("anything at all",
+                                                [("k", "detail", "")]))
+
     def test_a_promotion_that_does_not_name_it_is_refused_at_read_time(self):
         root, ref = self._tree({"cve_spec.md": CVE_SPEC})
         self._decide(ref, f"authoritative  reference_docs/cve_spec.md  "
