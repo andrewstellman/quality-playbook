@@ -812,6 +812,95 @@ if __name__ == "__main__":
 # genre claim appears anywhere in the rendered output.** A new inline literal in
 # the assembly path fails it whether or not it is in any table.
 # ---------------------------------------------------------------------------
+class EveryOperatorFacingStringIsPinnedTests(unittest.TestCase):
+    """Round 5, Panelist B (R5-3): ENUMERATE the arms; stop patching the last
+    escape shown.
+
+    `RenderedReasonSweepTests` asserts each rendered reason is one of the pinned
+    constants — but it builds its ``known`` set FROM those constants, so a mutated
+    constant cannot fail it. Only the forbidden-substring sweep and the explicit
+    equality pins can, and B found three arms with NEITHER: the
+    zero-authoritative banner (the virtio signature itself), `_CITE_FOLDER_REASON`
+    and `_FALLBACK_BACKGROUND_REASON`. Each was mutated into a false genre claim
+    that evaded all thirteen forbidden substrings with the file 35/35 green.
+
+    So this test pins the WHOLE surface by equality, as complete dicts rather than
+    key-by-key: a changed entry fails, and so does an ADDED or REMOVED one — a new
+    reason arm cannot ship unpinned, which is what let this class recur for four
+    rounds.
+    """
+
+    def test_background_reason_map_is_pinned_whole(self):
+        self.assertEqual(dc._BACKGROUND_REASONS, {
+            dc.RULE_ADVISORY:
+                "it carries security-advisory material — a CVE-style identifier, or "
+                "a link to a vulnerability database — so I'm reading it as background "
+                "rather than a statement of what your software is supposed to do.",
+            dc.RULE_IMPL:
+                "it's a code file — code is how the software works, not a statement "
+                "of what it's supposed to do.",
+            dc.RULE_BACKGROUND:
+                "its name marks it as a README, a coverage report or an issue-tracker "
+                "listing — documents that describe a project rather than specify it.",
+            dc.RULE_OPERATOR_BACKGROUND:
+                "you told me to treat this one as background only.",
+            dc.RULE_DEFAULT:
+                "nothing identified it as a statement of what this software is "
+                "supposed to do.",
+            dc.RULE_LLM:
+                "I read it as explaining or describing the software rather than "
+                "stating what it must do.",
+        })
+
+    def test_authoritative_reason_map_is_pinned_whole(self):
+        self.assertEqual(dc._AUTHORITATIVE_REASONS, {
+            dc.RULE_OPERATOR_AUTHORITATIVE:
+                "you told me this one is a source I should use.",
+            dc.RULE_SIDECAR:
+                "you told me to use this one even though it looks like source code.",
+            dc.RULE_CONTRACT:
+                "its file extension, or an interface-definition signature inside it, "
+                "marks it as a contract definition — the kind of file that states "
+                "directly what this software is supposed to do.",
+            dc.RULE_LLM:
+                "I read it as a statement of what this software is supposed to do.",
+        })
+
+    def test_standalone_operator_facing_strings_are_pinned(self):
+        # The arms B escaped through: rescue arms, cite-folder, fallback, and the
+        # renderer's own prose (now module constants so they CAN be pinned).
+        self.assertEqual(
+            dc._RESCUED_AUTHORITATIVE_REASON,
+            "you confirmed this is your real specification even though it mentions "
+            "security advisories.")
+        self.assertEqual(
+            dc._RESCUED_BACKGROUND_REASON,
+            "you cleared this one for use, but I still read it as background rather "
+            "than a specification.")
+        self.assertEqual(
+            dc._CITE_FOLDER_REASON,
+            "you put it in the folder for documents you want quoted as sources.")
+        self.assertEqual(
+            dc._FALLBACK_BACKGROUND_REASON,
+            "I'm reading it for context rather than quoting it as a source.")
+        self.assertEqual(
+            dc._REFUSED_PROMOTION_NOTE,
+            " You asked me to use this one as a source; I'm not, for the reason "
+            "above.")
+        # THE most consequential string in the module: the virtio signature.
+        self.assertEqual(
+            dc._ZERO_AUTHORITATIVE_BANNER,
+            "**None of your documents are being used as authoritative sources this "
+            "run — every requirement will be drawn from the code.** If one of these "
+            "*is* your specification — the document that says what this software is "
+            "supposed to do — tell me which one and I'll use it that way.")
+        self.assertEqual(
+            dc._NO_DOCUMENTS_MESSAGE,
+            "I didn't find any documentation to read this run, so every requirement "
+            "will be drawn from the code itself. If you have a specification, an "
+            "RFC, or an API reference, add it and I can use it as a source.")
+
+
 class RenderedReasonSweepTests(unittest.TestCase):
 
     # A claim is forbidden if it asserts what a document IS on the strength of a
@@ -855,6 +944,14 @@ class RenderedReasonSweepTests(unittest.TestCase):
              self.ADVISORY + "\nAssorted notes.\n"),                   # rescued, background
             ("reference_docs/refused.md",
              "# Readme\n\nledger\n"),                                  # promotion refused
+            # Round 5, Panelist B (bite N): `_CITE_FOLDER_REASON` was unpinned AND
+            # unreached. A `cite/`-placed doc the classifier read as background is
+            # quoted by the pipeline anyway, so the show honours the placement.
+            # (Named so the stub classifier below reads it as background — tier 4
+            # is the precondition for the cite/ arm: the pipeline quotes a
+            # cite/-placed doc anyway, so the show must honour the placement.)
+            ("reference_docs/cite/placed.md",
+             "# Placed\n\nThe service MUST echo the request id.\n"),
         ]
         # `refused.md` must hit the BACKGROUND-ledger rule for the refusal arm, so
         # give it a ledger name; keep it distinct from README.md.
@@ -939,12 +1036,56 @@ class RenderedReasonSweepTests(unittest.TestCase):
                      dc.RULE_SIDECAR, dc.RULE_OPERATOR_AUTHORITATIVE,
                      dc.RULE_OPERATOR_BACKGROUND):
             self.assertIn(rule, rules, f"corpus no longer exercises {rule}")
-        review = dc.classification_entries(man) if hasattr(
-            dc, "classification_entries") else None
-        if review is not None:
-            self.assertTrue(any(e.get("status") == "advisory-rescued"
-                                for e in review),
-                            "corpus no longer exercises the advisory-rescue arms")
+        # Round 5, Panelist B (R5-2): the previous version of this assertion was
+        # guarded by `hasattr(dc, "classification_entries")` — a function that does
+        # NOT EXIST (it is `classification_playback`), so the guard was always
+        # False and the whole advisory-rescue coverage check was dead code. B
+        # proved it by deleting both entries from `advisory_rescues=[...]`: the
+        # file stayed 35/35 green. A coverage assertion that no-ops on a typo is
+        # the same defect class as a mutation bite that "fires" for an unrelated
+        # reason — the trap that voided this instruction's own first six bites. No
+        # `hasattr` guard: call it directly, so a rename fails loudly.
+        playback = dc.classification_playback(man)
+        self.assertTrue(
+            any(e.get("status") == "advisory-rescued" for e in playback),
+            "corpus no longer exercises the advisory-rescue arms")
         out = dc.classification_review(man)
-        self.assertIn("You asked me to use this one as a source; I'm not",
-                      out, "corpus no longer exercises the refused-promotion note")
+        self.assertIn(dc._REFUSED_PROMOTION_NOTE.strip(), out,
+                      "corpus no longer exercises the refused-promotion note")
+        self.assertIn(dc._CITE_FOLDER_REASON, out,
+                      "corpus no longer exercises the cite/-folder arm")
+
+    def test_the_fallback_and_banner_arms_are_reached_and_clean(self):
+        # The two arms B escaped through that the main corpus cannot reach.
+        #
+        # `_FALLBACK_BACKGROUND_REASON`: reachable through the `formal_records`
+        # call form that `phase_prompts/phase1.md` MANDATES — a Tier-1 `contract`
+        # record absent from the formal manifest lands on the BACKGROUND side,
+        # where `_BACKGROUND_REASONS` has no `contract` entry.
+        man = dc.classify_documents(
+            [("reference_docs/orders.proto", self.PROTO)], generated_at="X")
+        self.assertEqual(_rec(man, "reference_docs/orders.proto")["floor_rule"],
+                         dc.RULE_CONTRACT)
+        out = dc.classification_review(man, formal_records=[])   # not in the manifest
+        self.assertIn(dc._FALLBACK_BACKGROUND_REASON, out,
+                      "the formal_records call form no longer reaches the fallback")
+        for phrase in self.FORBIDDEN:
+            self.assertNotIn(phrase.lower(), out.lower())
+
+        # `_ZERO_AUTHORITATIVE_BANNER`: the virtio signature. The main corpus has
+        # authoritative documents, so it never renders there.
+        zero = dc.classify_documents(
+            [("reference_docs/cve.md", self.ADVISORY),
+             ("reference_docs/README.md", "# Readme\n\nbackground\n")],
+            llm_classifier=lambda r, t: 4, generated_at="X")
+        self.assertTrue(zero["zero_citable"])
+        out2 = dc.classification_review(zero)
+        self.assertIn(dc._ZERO_AUTHORITATIVE_BANNER, out2,
+                      "the zero-authoritative banner no longer renders")
+        for phrase in self.FORBIDDEN:
+            self.assertNotIn(phrase.lower(), out2.lower())
+
+        # ...and the no-documents-at-all message.
+        empty = dc.classify_documents([], generated_at="X")
+        self.assertIn(dc._NO_DOCUMENTS_MESSAGE,
+                      dc.classification_review(empty))

@@ -1059,6 +1059,27 @@ _RESCUED_BACKGROUND_REASON = (
     "you cleared this one for use, but I still read it as background rather than "
     "a specification."
 )
+# The renderer's own operator-facing prose. Constants for the same reason the two
+# rescue arms are: an inline literal is pinnable by nothing, and instruction 032
+# self-Council round 5, Panelist B, mutated all three of these into false genre
+# claims that evaded every forbidden substring with the whole test file green.
+# ``_ZERO_AUTHORITATIVE_BANNER`` is the most consequential string in this module —
+# it IS the virtio signature, the message that tells an operator no document is
+# being used as a source.
+_NO_DOCUMENTS_MESSAGE = (
+    "I didn't find any documentation to read this run, so every requirement "
+    "will be drawn from the code itself. If you have a specification, an "
+    "RFC, or an API reference, add it and I can use it as a source."
+)
+_ZERO_AUTHORITATIVE_BANNER = (
+    "**None of your documents are being used as authoritative sources this "
+    "run — every requirement will be drawn from the code.** If one of these "
+    "*is* your specification — the document that says what this software is "
+    "supposed to do — tell me which one and I'll use it that way."
+)
+_REFUSED_PROMOTION_NOTE = (
+    " You asked me to use this one as a source; I'm not, for the reason above."
+)
 _CITE_FOLDER_REASON = (
     "you put it in the folder for documents you want quoted as sources."
 )
@@ -1276,11 +1297,7 @@ def classification_review(
     lines: List[str] = ["### The documents you gave me"]
     if not entries:
         lines.append("")
-        lines.append(
-            "I didn't find any documentation to read this run, so every requirement "
-            "will be drawn from the code itself. If you have a specification, an "
-            "RFC, or an API reference, add it and I can use it as a source."
-        )
+        lines.append(_NO_DOCUMENTS_MESSAGE)
         return "\n".join(lines)
 
     authoritative = [e for e in entries if e["_authoritative"]]
@@ -1295,12 +1312,7 @@ def classification_review(
 
     if not authoritative:
         lines.append("")
-        lines.append(
-            "**None of your documents are being used as authoritative sources this "
-            "run — every requirement will be drawn from the code.** If one of these "
-            "*is* your specification — the document that says what this software is "
-            "supposed to do — tell me which one and I'll use it that way."
-        )
+        lines.append(_ZERO_AUTHORITATIVE_BANNER)
 
     if authoritative:
         lines.append("")
@@ -1317,8 +1329,7 @@ def classification_review(
                     and e.get("floor_rule") != RULE_OPERATOR_AUTHORITATIVE):
                 # An operator promotion the advisory / README rule refused — say so
                 # plainly instead of dropping it silently.
-                note += (" You asked me to use this one as a source; I'm not, for "
-                         "the reason above.")
+                note += _REFUSED_PROMOTION_NOTE
             lines.append(f"- `{_safe_path(e['source_path'])}` — {note}")
 
     lines.append("")
