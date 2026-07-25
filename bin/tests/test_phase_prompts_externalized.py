@@ -324,8 +324,14 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # backstop-flagged document is neither quoted nor dismissed. 29574 ->
         # 31335. Recomputed via the sanctioned `run_playbook.phase1_prompt()`
         # recapture, not by hand.
-        "phase1_no_seeds_True":   (32174, "819e47b1c00e1c7581029e80fef98edde0852f6aa78167c137daf2352941b892"),
-        "phase1_no_seeds_False":   (31977, "db7015c1af47c9a1752aa1525cd9311d1a28c52ef6f3f932e83530181cf628af"),
+        # v1.6.0 instruction 033 fix-up 7 (self-Council panelist B, B-1):
+        # phase1.md now tells the agent WHERE ITS READ LIVES —
+        # `quality/classification_reads.json`, written BEFORE the ingest
+        # that consumes it. Until this, step 2 asked the agent to record
+        # its read with no channel to record it through, so Lane B could
+        # not reach a byte-citable FORMAL_DOC at all. Hashes recomputed.
+        "phase1_no_seeds_True":   (32967, "283794b0c06d15fd7d3f195678bdad8b6221acf290ec779195ca8ddcfe26eed0"),
+        "phase1_no_seeds_False":   (32770, "49aad27d89466da83bbbb0f488000d92c8be2fa1ae481eef17ece0f76bf9527d"),
         # v1.5.7 instruction 073 Item-4 (A-19): phase2.md gained the
         # httpx-2026-05-17 missing-manifests warning (validator now
         # FAILs on ABSENT manifests, not just wrong-shape; agent must

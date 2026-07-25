@@ -40,7 +40,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 # v1.5.7 instruction 077 (addendum §5.2 W3 entry-point audit): put the
 # QPB clone root on sys.path BEFORE the first `from bin import
@@ -100,6 +100,32 @@ CITE_DIR_NAME = "cite"
 MANIFEST_NAME = "formal_docs_manifest.json"
 # v1.6.0 Feature G (§8a): the reviewable, content-keyed classification manifest.
 CLASSIFICATION_MANIFEST_NAME = "classification_manifest.json"
+# v1.6.0 instruction 033 (self-Council panelist B, B-1) — WHERE THE READ LIVES.
+#
+# Step 2 makes classification the derivation model's read; step 4 removed the
+# `prior_records` cache. Between them the agent was left with no way to get its
+# read INTO a run at all: the only input was the Python callable `llm_classifier`,
+# and an agent acts through files and shell commands, not by passing closures. So
+# Lane B — the central mechanism of this instruction — could not produce a
+# byte-citable FORMAL_DOC in the shipped flow, and re-ingesting a real corpus took
+# chi from two Tier-1 records to zero with `zero_citable` true.
+#
+# This is the channel: an AGENT-AUTHORED, per-run artifact the agent writes before
+# the ingest that consumes it. It is emphatically NOT the cache step 4 deleted, and
+# three properties keep it from drifting back into one:
+#
+#   1. It is CONTENT-KEYED. A read applies only to the exact bytes it was made
+#      against; edit the document and the read no longer applies.
+#   2. A document with no matching entry is UNREAD, not defaulted-and-forgotten —
+#      it lands at `default-tier4` and the manifest says `classifier_status`
+#      unwired, which is the loud path the 032 footgun taught us to keep.
+#   3. Ingest never WRITES it. Nothing the machine decides is persisted here by
+#      the run itself; consent still lives only in `reference_docs/qpb_decisions.txt`.
+#
+# A read is a judgment, not a permission: an entry here is exactly as powerful as
+# the same judgment passed through `llm_classifier`, so it reaches Lane B and stops
+# there. It cannot clear a backstop signal, and a Lane-C document stays Lane C.
+READS_NAME = "classification_reads.json"
 # v1.6.0 Feature G: the operator-authored sidecar — one relative path per line,
 # each a file the operator promotes past the IMPLEMENTATION floor (never the
 # advisory floor). Operator-authored config; ingest only reads it.
@@ -856,6 +882,61 @@ def _classification_candidates(ref_dir: Path, target_repo: Path) -> List[Tuple[s
     return docs
 
 
+def _load_reads(target_repo: Path) -> Dict[Tuple[str, str], dict]:
+    """The agent's per-document reads, keyed by ``(source_path, sha256)``.
+
+    Malformed entries are SKIPPED rather than guessed at, exactly like the operator
+    decision channel: a read nobody can attribute to specific bytes is not a read.
+    A malformed FILE raises, because silently classifying a whole corpus as unread
+    because of a stray comma is the quiet failure this instruction exists to end.
+    """
+    path = Path(target_repo) / "quality" / READS_NAME
+    if not path.is_file():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError as exc:
+        raise IngestError(f"{READS_NAME} is not valid JSON: {exc}") from exc
+    if isinstance(payload, dict):
+        payload = payload.get("reads", [])
+    if not isinstance(payload, list):
+        raise IngestError(f"{READS_NAME} must be a list of reads (or {{'reads': [...]}})")
+    out: Dict[Tuple[str, str], dict] = {}
+    for entry in payload:
+        if not isinstance(entry, dict):
+            continue
+        rel = entry.get("source_path")
+        sha = entry.get("document_sha256")
+        if not isinstance(rel, str) or not isinstance(sha, str):
+            continue
+        out[(rel, sha.lower())] = entry
+    return out
+
+
+def _classifier_from_reads(reads: Dict[Tuple[str, str], dict]):
+    """Turn the read artifact into the `llm_classifier` callable.
+
+    The artifact IS the classifier — this is a shape change, not an authority
+    change, which is why a read entry can do nothing a live callable could not.
+    """
+    def classifier(rel_path: str, text: str):
+        sha = hashlib.sha256(text.encode("utf-8")).hexdigest()
+        entry = reads.get((rel_path, sha))
+        if entry is None:
+            # Either never read, or read against DIFFERENT bytes. Both mean the
+            # same thing and both must mean it loudly: nobody has read what is on
+            # disk now.
+            return None
+        return {
+            "tier": entry.get("tier"),
+            "category": entry.get("category"),
+            "reason": entry.get("reason"),
+            "self_classifying": bool(entry.get("self_classifying")),
+        }
+
+    return classifier
+
+
 def classify_reference_docs(
     target_repo: Path,
     *,
@@ -878,6 +959,14 @@ def classify_reference_docs(
 
     docs = _classification_candidates(ref_dir, target_repo)
     text_by_path = dict(docs)
+
+    # An explicitly-supplied callable always wins (the tests and any embedding
+    # caller); otherwise the agent's read artifact supplies it. When there is
+    # neither, classification stays unwired and says so.
+    if llm_classifier is None:
+        reads = _load_reads(target_repo)
+        if reads:
+            llm_classifier = _classifier_from_reads(reads)
 
     # --- THE ONE CHANNEL (instruction 033 step 3) ----------------------------
     # `qpb_decisions.txt`: operator-authored, content-keyed, re-read every run so
