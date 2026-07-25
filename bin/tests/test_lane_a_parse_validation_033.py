@@ -586,12 +586,57 @@ class ScrubbingMustNotDESTROYAContractTests(unittest.TestCase):
                 with self.subTest(case=label, name=name):
                     self.assertIsNone(dc.contract_content_validation(text, name))
 
-    def test_scrubbing_is_off_only_where_a_fence_is_literal_content(self):
-        self.assertIn(".proto", dc._LITERAL_FENCE_EXTS)
-        self.assertIn(".wsdl", dc._LITERAL_FENCE_EXTS)
-        self.assertIn(".json", dc._LITERAL_FENCE_EXTS)
-        for prose in (".md", ".rst", ".txt"):
-            self.assertNotIn(prose, dc._LITERAL_FENCE_EXTS)
+    def test_the_skip_is_PER_ARM_not_per_document(self):
+        """033 fix-up 4, self-Council A round 4 (R4-1) — CONFIRMED before the fix.
+
+        Fix-up 3 skipped the scrub per DOCUMENT, keyed on the extension, while the
+        anchors are per FORMAT — and the protobuf arm ignores the filename
+        entirely. So a deny-listed name switched the scrub off for every arm,
+        including ones with nothing to do with that extension: the round-1 gRPC
+        tutorial renamed `grpc-tutorial.yaml` or `.json` came back to
+        `tier=1 rule=contract`, and both extensions are ordinary corpus candidates.
+
+        The predecessor of this test asserted membership of a module-level
+        `_LITERAL_FENCE_EXTS` set. That set is gone — the skip is now decided inside
+        each arm — so this pins the PROPERTY it was standing in for, which is what
+        it should have pinned in the first place: a fenced quotation is only ever
+        read as the document's own format by the arm that owns the file.
+
+        MUTATION BITE: make any arm use the raw text unconditionally.
+        """
+        tutorial = AQuotedSnippetIsNotTheDocumentsFormatTests.TUTORIAL
+        for name in ("grpc-tutorial.yaml", "grpc-tutorial.yml",
+                     "grpc-tutorial.json", "grpc-tutorial.raml",
+                     "grpc-tutorial.wsdl", "grpc-tutorial.xml",
+                     "grpc-tutorial.md", "grpc-tutorial.notes", "grpc-tutorial"):
+            with self.subTest(name=name):
+                self.assertIsNone(dc.contract_content_validation(tutorial, name))
+                rec, man = _one(f"reference_docs/{name}", tutorial)
+                self.assertNotEqual(rec["floor_rule"], dc.RULE_CONTRACT, name)
+                self.assertTrue(man["zero_citable"], name)
+        # ...and the arm that DOES own the file still reads it raw: a `.proto`
+        # whose own body is fenced-looking is still a `.proto`.
+        self.assertIsNotNone(dc.contract_content_validation(
+            self.PROTO_WITH_FENCE_IN_COMMENT, "orders.proto"))
+
+    def test_the_yaml_arm_is_pinned_SEPARATELY_from_the_proto_arm(self):
+        # The bite log caught this: the per-arm test above quotes a PROTO snippet,
+        # so it only ever exercises the proto arm — mutating the yaml arm to read
+        # raw text ESCAPED. Every arm with an ownership carve-out needs a quotation
+        # in its OWN format. (The RAML arm has no carve-out: its anchor is line 1
+        # and the scrub preserves line numbering, so raw and scrubbed are the same
+        # document there — see `contract_content_validation`.)
+        # MUTATION BITE: `yaml_text = source(".yaml", ".yml")` -> `= text`.
+        tutorial = ("# Writing an OpenAPI file\n\nStart with this skeleton:\n\n"
+                    '```yaml\nopenapi: "3.0.3"\ninfo:\n  title: Orders\n'
+                    "paths: {}\n```\n\nThen fill in your routes.\n")
+        for name in ("openapi-guide.md", "openapi-guide.rst", "openapi-guide.txt",
+                     "openapi-guide.notes", "openapi-guide"):
+            with self.subTest(name=name):
+                self.assertIsNone(dc.contract_content_validation(tutorial, name))
+        # The owning arm still reads its own file raw.
+        self.assertIsNotNone(dc.contract_content_validation(
+            self.YAML_WITH_UNPAIRED_FENCE, "openapi.yaml"))
 
 
 class QuietFalseNegativesInThePublishGateTests(unittest.TestCase):
@@ -618,6 +663,41 @@ class QuietFalseNegativesInThePublishGateTests(unittest.TestCase):
         enum_only = ('syntax = "proto3";\n\n'
                      "enum Status { OK = 0; FAILED = 1; }\n")
         self.assertIsNotNone(dc.contract_content_validation(enum_only, "s.proto"))
+
+    def test_key_counting_is_not_an_arms_race(self):
+        """033 fix-up 4 — panelist A's R4-1 NIT, and the better fix.
+
+        Requiring more keys only raises the number of prose sentences an attacker
+        has to write: adding `components: were refactored.` got the changelog
+        through a third time. The root cause is that the version anchor captured
+        the number and then IGNORED the rest of the line, so
+        `openapi: 3.1.0 is now accepted by the validator` matched as if it read
+        `openapi: 3.1.0`. Anchoring the value to end-of-line settles the whole
+        family at once rather than the next member of it.
+
+        MUTATION BITE: drop the `\s*(?:#.*)?$` tail from `_TOP_LEVEL_API_KEY_RE`.
+        """
+        base = ("# Changelog\n\n## 2.4.0\n\n"
+                "openapi: 3.1.0 is now accepted by the validator.\n\n"
+                "info: we also fixed the header parsing.\n")
+        for label, text in (("two keys", base),
+                            ("three keys", base + "\ncomponents: were refactored.\n"),
+                            ("four keys", base + "\ncomponents: were refactored.\n"
+                                                 "paths: are unchanged.\n")):
+            with self.subTest(case=label):
+                self.assertIsNone(dc.contract_content_validation(text, "notes.md"))
+        # A genuine document is unaffected, including a trailing comment on the
+        # version line — the shape the end-of-line anchor most plausibly breaks.
+        commented = ('openapi: "3.0.3"   # generated, do not edit\n'
+                     "info:\n  title: Orders\npaths: {}\n")
+        self.assertIsNotNone(dc.contract_content_validation(commented, "a.yaml"))
+
+    def test_quoted_top_level_keys_still_validate(self):
+        # A's R4-2: a YAML contract with quoted top-level keys failed all three
+        # anchors together. Same class as the BOM — a false negative in a publish
+        # gate, which is its quietest failure mode.
+        quoted = ('"openapi": "3.0.3"\n"info":\n  title: Orders\n"paths": {}\n')
+        self.assertIsNotNone(dc.contract_content_validation(quoted, "a.yaml"))
 
     def test_two_column0_keys_in_prose_are_still_not_a_document(self):
         # The one input A could still get through: a changelog naming a version AND

@@ -295,17 +295,18 @@ _PROTO_BLOCK_RE = re.compile(
 # point: an `openapi: 3.1` inside a prose sentence, a list item, or a nested
 # mapping is not a document key.
 _TOP_LEVEL_API_KEY_RE = re.compile(
-    r'^(openapi|swagger|asyncapi)\s*:\s*["\']?(\d[\w.\-]*)', re.MULTILINE)
+    r'^["\']?(openapi|swagger|asyncapi)["\']?\s*:\s*'
+    r'["\']?(\d[\w.\-]*)["\']?\s*(?:#.*)?$', re.MULTILINE)
 _RAML_FIRST_LINE_RE = re.compile(r"^#%RAML\s")
 # `info` is REQUIRED by OpenAPI 2/3 and by AsyncAPI alike.
-_YAML_INFO_KEY_RE = re.compile(r"^info\s*:", re.MULTILINE)
+_YAML_INFO_KEY_RE = re.compile(r"""^["']?info["']?\s*:""", re.MULTILINE)
 # ...and every one of the three also requires a body section: `paths` (OpenAPI 2
 # and 3), `channels` (AsyncAPI), or — in OpenAPI 3.1, where `paths` became optional
 # — `webhooks` or `components`. Three column-0 keys is a document; the panelist got
 # through two by writing a changelog that mentioned a version AND an `info:` line,
 # which is contrived but no longer possible.
 _YAML_BODY_KEY_RE = re.compile(
-    r"^(?:paths|channels|webhooks|components)\s*:", re.MULTILINE)
+    r"""^["']?(?:paths|channels|webhooks|components)["']?\s*:""", re.MULTILINE)
 _API_VERSION_RE = re.compile(r"^\d[\w.\-]*$")
 # The WSDL namespaces. A root element merely NAMED `definitions` is not enough:
 # BPMN 2.0's root is `<definitions>` too, as are several build and workflow
@@ -377,17 +378,7 @@ _FENCED_BLOCK_RE = re.compile(
     re.MULTILINE | re.DOTALL)
 
 
-# Formats in which a line of three backticks is literal CONTENT, not markup: a
-# `/* ``` */` comment in a .proto, a `<documentation>` block in a .wsdl, a string in
-# a .json. Fenced code blocks are a lightweight-prose-markup construct, so the
-# scrub applies where that markup applies — everywhere else, including unknown and
-# missing extensions, so renaming a tutorial cannot switch the scrub off.
-_LITERAL_FENCE_EXTS = frozenset({
-    ".proto", ".wsdl", ".raml", ".json", ".yaml", ".yml", ".xml",
-})
-
-
-def _without_fenced_blocks(text: str, filename: str = "") -> str:
+def _without_fenced_blocks(text: str) -> str:
     """*text* with Markdown/reST fenced code blocks blanked out.
 
     A contract QUOTED inside a fence is a quotation, not the document's format. A
@@ -401,17 +392,6 @@ def _without_fenced_blocks(text: str, filename: str = "") -> str:
     def blank(m: "re.Match") -> str:
         return "\n" * m.group(0).count("\n")
 
-    lower = filename.lower()
-    ext = "." + lower.rsplit(".", 1)[-1] if "." in lower else ""
-    if ext in _LITERAL_FENCE_EXTS:
-        # Scrubbing here DESTROYS contracts rather than protecting anything: an
-        # unterminated fence is indistinguishable from one stray ``` line, and the
-        # `|\Z` alternative then blanks the rest of the document. A .proto with a
-        # ``` inside a /* */ comment lost its `message` block; a .wsdl whose
-        # <documentation> held one was truncated into an XML ParseError. Both
-        # validated before fix-up 2 — that was a regression, not a tightening. The
-        # column-0 anchors are what defend these formats, and they need no scrub.
-        return text
     return _FENCED_BLOCK_RE.sub(blank, text)
 
 
@@ -423,41 +403,70 @@ def contract_content_validation(text: str, filename: str = "") -> Optional[str]:
     or is named like a contract; those route to Lane C via
     ``contract_extension_hint`` instead of being promoted or silently dropped.
 
-    "Validates" means the DOCUMENT is that format, so fenced code blocks are
-    excluded first (see ``_without_fenced_blocks``).
+    "Validates" means the DOCUMENT is that format. Two things follow, and getting
+    the relationship between them wrong cost three review rounds:
+
+    * A contract QUOTED in prose is a quotation, so fenced code blocks are excluded
+      before the regex arms run.
+    * ...but a fence marker inside a real contract is literal CONTENT (a ``` in a
+      `/* */` proto comment, in a WSDL `<documentation>`), and scrubbing there
+      destroys the document. So the scrub is skipped for the format that owns the
+      file — and that skip is decided PER ARM, not per document.
+
+    Per arm is the whole point. The skip started life per document, keyed on the
+    extension, which quietly switched the scrub off for arms that had nothing to do
+    with that extension: the protobuf arm ignores the filename entirely, so
+    `grpc-tutorial.yaml` — the round-1 tutorial, renamed — had its fenced proto
+    block read as the document's own format and was published as an authority.
+    A guard with more than one arm fails in the DIFFERENCE between the arms.
     """
     # One BOM strip for EVERY arm. It used to be applied to the RAML first line
     # alone, so a Windows-authored .proto / openapi.yaml / openapi.json silently
     # failed Lane A and was never cited — the quietest possible failure in a
     # publish gate, since a missing authority just looks like a corpus without one.
     text = text.lstrip("\ufeff")
-    text = _without_fenced_blocks(text, filename)
-    # protobuf: the syntax declaration AND a message/service block. The bare
+    lower = filename.lower()
+    ext = "." + lower.rsplit(".", 1)[-1] if "." in lower else ""
+    scrubbed = _without_fenced_blocks(text)
+
+    def source(*owning_exts: str) -> str:
+        """Raw text only for the arm whose OWN format this file is."""
+        return text if ext in owning_exts else scrubbed
+
+    # protobuf: the syntax declaration AND a message/service/enum block. The bare
     # `syntax=` string pasted in prose no longer suffices.
-    if _PROTO_SYNTAX_RE.search(text) and _PROTO_BLOCK_RE.search(text):
+    proto = source(".proto")
+    if _PROTO_SYNTAX_RE.search(proto) and _PROTO_BLOCK_RE.search(proto):
         return "protobuf: syntax declaration + message/service block"
-    # RAML: the version comment must be the document's FIRST line.
-    first_line = text.lstrip("﻿").splitlines()[0] if text.strip() else ""
+    # RAML: the version comment must be the document's FIRST line — and that anchor
+    # needs no ownership carve-out, because the scrub preserves line numbering, so
+    # for this arm the two inputs are the same document. (A genuine `.raml` opens
+    # with `#%RAML`, which no fence can be wrapped around; a fenced quotation's
+    # first line is the fence marker, which fails the anchor raw or blanked.) The
+    # carve-out was there for symmetry with the other arms and no test could
+    # distinguish it, which is the only honest reason to delete it.
+    first_line = scrubbed.splitlines()[0] if scrubbed.strip() else ""
     if _RAML_FIRST_LINE_RE.match(first_line):
         return f"RAML first line {first_line.strip()!r}"
-    # OpenAPI / Swagger / AsyncAPI: a genuine top-level document key, in JSON...
+    # OpenAPI / Swagger / AsyncAPI: a genuine top-level document key, in JSON — the
+    # raw text, because this arm parses the WHOLE document and a scrub could only
+    # corrupt it. Prose cannot reach a top-level JSON key.
     json_key = _json_top_level_api_key(text)
     if json_key:
         return json_key
-    # ...or at column 0 in YAML, WITH the `info` block every one of the three
-    # specifications makes mandatory. One column-0 regex hit is not a document: a
-    # changelog line reading `openapi: 3.1.0 is now accepted by the validator` sat
-    # at column 0 and was published as a machine-readable contract. Two required
-    # top-level keys is the same two-anchor bar protobuf already has to clear.
-    #
-    # The JSON arm above deliberately does NOT require `info`, and the asymmetry is
-    # the point rather than an oversight: it parses the WHOLE document and demands a
-    # top-level version value, so prose cannot reach it at all. This arm is a regex
-    # over one line of anything.
-    if _YAML_INFO_KEY_RE.search(text) and _YAML_BODY_KEY_RE.search(text):
-        for m in _TOP_LEVEL_API_KEY_RE.finditer(text):
+    # ...or at column 0 in YAML, WITH the `info` block and the body section that
+    # every one of the three specifications makes mandatory. One column-0 regex hit
+    # is not a document: a changelog line reading `openapi: 3.1.0 is now accepted by
+    # the validator` sat at column 0 and was published as a machine-readable
+    # contract. Three required top-level keys is a document; and the version value
+    # is anchored to end-of-line, which is what stops this being an arms race
+    # against however many prose sentences happen to start with a key name.
+    yaml_text = source(".yaml", ".yml")
+    if _YAML_INFO_KEY_RE.search(yaml_text) and _YAML_BODY_KEY_RE.search(yaml_text):
+        for m in _TOP_LEVEL_API_KEY_RE.finditer(yaml_text):
             return f"top-level {m.group(1)} key = {m.group(2)!r} + info + body"
-    # WSDL: the ROOT element, not any `<wsdl:` substring.
+    # WSDL: the ROOT element, not any `<wsdl:` substring. Raw for the same reason as
+    # JSON — it parses the whole document.
     wsdl = _wsdl_root_element(text)
     if wsdl:
         return wsdl
