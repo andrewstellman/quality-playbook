@@ -444,6 +444,19 @@ class AdvisoryReasonAccuracyTests(unittest.TestCase):
             dc._BACKGROUND_REASONS[dc.RULE_IMPL],
             "it's a code file — code is how the software works, not a statement of "
             "what it's supposed to do.")
+        # Round 4, Panelist B (bite I): `RULE_DEFAULT` was the one unpinned entry,
+        # and it is the HIGHEST-VOLUME string in the module — rendered for every
+        # floor-passed document in every unwired or crashed run. A genre claim
+        # appended here escapes the render sweep too, because the rendered line
+        # still equals the (mutated) constant.
+        self.assertEqual(
+            dc._BACKGROUND_REASONS[dc.RULE_DEFAULT],
+            "nothing identified it as a statement of what this software is supposed "
+            "to do.")
+        self.assertEqual(
+            dc._BACKGROUND_REASONS[dc.RULE_LLM],
+            "I read it as explaining or describing the software rather than stating "
+            "what it must do.")
         self.assertEqual(
             dc._AUTHORITATIVE_REASONS[dc.RULE_CONTRACT],
             "its file extension, or an interface-definition signature inside it, "
@@ -772,3 +785,166 @@ class JargonFreeArtifactNameTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# Round 4, Panelist B (R4-F1) — the RENDER, not the table.
+#
+# Rounds 2, 3 and 4 each closed a way to reintroduce a false genre claim, and
+# each remedy was an extension of the same instrument: scan the reason TABLES.
+# B got past that instrument at the same altitude all three times, and in round 4
+# demonstrated three independent GREEN escapes with every table pin byte-intact:
+#
+#   bite K  append the claim inside `_review_reason`'s assembly path -> the
+#           operator is told `sources.md`, a bibliography, "It is an advisory
+#           listing known flaws, not your specification". 160 tests green.
+#   bite I  append a genre claim to `_BACKGROUND_REASONS[RULE_DEFAULT]` — the
+#           highest-volume string in the module, rendered for every floor-passed
+#           doc in every unwired or crashed run. 160 tests green.
+#   bite J  rewrite the inline refusal note inside `classification_review`,
+#           which no sweep covered, using "catalogs" and omitting "security" to
+#           dodge the forbidden-phrase list. 160 tests green.
+#
+# So the defect class fired three times, which by DEVELOPMENT_PROCESS.md
+# § "AUDIT-table invariant test pattern" earns an exhaustive-sweep invariant test
+# rather than a fourth patch. The contract asserted here: **every operator-facing
+# reason that REACHES THE RENDER is one of the pinned constants, verbatim, and no
+# genre claim appears anywhere in the rendered output.** A new inline literal in
+# the assembly path fails it whether or not it is in any table.
+# ---------------------------------------------------------------------------
+class RenderedReasonSweepTests(unittest.TestCase):
+
+    # A claim is forbidden if it asserts what a document IS on the strength of a
+    # signal that does not establish it. Includes B's escape phrasings.
+    FORBIDDEN = (
+        "it's a security advisory", "is a security advisory",
+        "describes known problems", "vulnerability bulletin",
+        "catalogues flaws", "catalogs flaws", "listing known flaws",
+        "it's a README or a coverage", "is a README or a coverage",
+        "ledger of open issues",
+        "it's a machine-readable interface definition",
+        "is a machine-readable interface definition",
+        "it shows what the software already does",
+    )
+
+    ADVISORY = "# Advisory\n\nCVE-2024-43796 affects the router.\n"
+    PLAIN = "# Ordering\n\nOrders are processed in arrival sequence.\n"
+    SPEC2 = "# Contracts\n\nThe device MUST NOT write beyond the used ring.\n"
+    PROTO = 'syntax = "proto3";\n\nmessage Order { string id = 1; }\n'
+    OPENAPI = ('openapi: "3.0.3"\ninfo:\n  title: Orders\n  version: 1.0.0\n'
+               'paths:\n  /o:\n    get:\n      responses:\n        "200":\n'
+               '          description: ok\n')
+
+    def _corpus(self):
+        """One document per render arm. Returns (manifest, expectations)."""
+        docs = [
+            ("reference_docs/cve.md", self.ADVISORY),                  # advisory floor
+            ("reference_docs/README.md", "# Readme\n\nbackground\n"),  # background ledger
+            ("reference_docs/resolve.py", PY_LOGIC),                   # impl floor
+            ("reference_docs/untiered.md", self.PLAIN),                # default (no tier)
+            ("reference_docs/orders.proto", self.PROTO),               # contract, both arms
+            ("reference_docs/openapi.yaml", self.OPENAPI),             # contract, signature
+            ("reference_docs/spec.md", self.SPEC2),                    # llm -> authoritative
+            ("reference_docs/notes.md", "# Notes\n\nWe met.\n"),       # llm -> background
+            ("reference_docs/promoted.py", PY_LOGIC + "\n# x\n"),      # sidecar promotion
+            ("reference_docs/op-auth.md", self.PLAIN + "\nExtra.\n"),  # operator authoritative
+            ("reference_docs/op-bg.md", self.PLAIN + "\nOther.\n"),    # operator background
+            ("reference_docs/rescued-hi.md",
+             self.ADVISORY + "\nThe transport MUST reset.\n"),         # rescued, authoritative
+            ("reference_docs/rescued-lo.md",
+             self.ADVISORY + "\nAssorted notes.\n"),                   # rescued, background
+            ("reference_docs/refused.md",
+             "# Readme\n\nledger\n"),                                  # promotion refused
+        ]
+        # `refused.md` must hit the BACKGROUND-ledger rule for the refusal arm, so
+        # give it a ledger name; keep it distinct from README.md.
+        docs[13] = ("reference_docs/coverage.md", "# Coverage\n\n80%\n")
+
+        def classifier(rel_path, text):
+            if "spec.md" in rel_path or "op-auth" in rel_path:
+                return 1
+            if "rescued-hi" in rel_path:
+                return 2
+            if "untiered" in rel_path:
+                return None          # declines -> RULE_DEFAULT
+            return 4
+
+        man = dc.classify_documents(
+            docs, llm_classifier=classifier,
+            sidecar=["reference_docs/promoted.py"],
+            advisory_rescues=[
+                ("reference_docs/rescued-hi.md",
+                 _sha(self.ADVISORY + "\nThe transport MUST reset.\n")),
+                ("reference_docs/rescued-lo.md",
+                 _sha(self.ADVISORY + "\nAssorted notes.\n")),
+            ],
+            operator_decisions=[
+                ("reference_docs/op-auth.md", _sha(self.PLAIN + "\nExtra.\n"),
+                 dc.OPERATOR_AUTHORITATIVE),
+                ("reference_docs/op-bg.md", _sha(self.PLAIN + "\nOther.\n"),
+                 dc.OPERATOR_BACKGROUND),
+                # An operator promotion the background rule REFUSES -> the inline
+                # refusal note, which is bite J's target.
+                ("reference_docs/coverage.md", _sha("# Coverage\n\n80%\n"),
+                 dc.OPERATOR_AUTHORITATIVE),
+            ],
+            generated_at="X")
+        return man
+
+    def test_every_rendered_reason_is_a_pinned_constant(self):
+        man = self._corpus()
+        out = dc.classification_review(man)
+        known = (set(dc._BACKGROUND_REASONS.values())
+                 | set(dc._AUTHORITATIVE_REASONS.values())
+                 | {dc._RESCUED_AUTHORITATIVE_REASON,
+                    dc._RESCUED_BACKGROUND_REASON,
+                    dc._FALLBACK_BACKGROUND_REASON,
+                    dc._CITE_FOLDER_REASON,
+                    "I read it as a statement of what this software is supposed to do."})
+        # The one composed line the renderer builds: a background reason PLUS the
+        # refused-promotion sentence. Pinned as a composition of two constants.
+        refusal_tail = (" You asked me to use this one as a source; I'm not, for "
+                        "the reason above.")
+        rendered = []
+        for line in out.splitlines():
+            if line.startswith("- `") and "` — " in line:
+                rendered.append(line.split("` — ", 1)[1])
+        self.assertGreaterEqual(len(rendered), 14,
+                                f"corpus under-rendered: {len(rendered)} lines")
+        for reason in rendered:
+            core = reason[:-len(refusal_tail)] if reason.endswith(refusal_tail) else reason
+            self.assertIn(
+                core, known,
+                "a rendered reason is not one of the pinned constants — an inline "
+                "literal in the assembly path is exactly the escape this test "
+                f"exists to catch: {core!r}")
+
+    def test_no_genre_claim_appears_anywhere_in_the_render(self):
+        # Covers prose OUTSIDE the per-document reasons too — banners, the
+        # zero-authoritative message, the refusal note, the worked example.
+        man = self._corpus()
+        for offer in (True, False):
+            out = dc.classification_review(man, offer=offer).lower()
+            for phrase in self.FORBIDDEN:
+                self.assertNotIn(phrase.lower(), out,
+                                 f"forbidden genre claim in the render (offer={offer})")
+
+    def test_the_corpus_actually_covers_every_rule(self):
+        # A sweep that silently stops covering an arm is worse than no sweep, so
+        # the coverage itself is asserted (DEVELOPMENT_PROCESS.md: no silent caps).
+        man = self._corpus()
+        rules = {r["floor_rule"] for r in man["records"]}
+        for rule in (dc.RULE_ADVISORY, dc.RULE_BACKGROUND, dc.RULE_IMPL,
+                     dc.RULE_DEFAULT, dc.RULE_CONTRACT, dc.RULE_LLM,
+                     dc.RULE_SIDECAR, dc.RULE_OPERATOR_AUTHORITATIVE,
+                     dc.RULE_OPERATOR_BACKGROUND):
+            self.assertIn(rule, rules, f"corpus no longer exercises {rule}")
+        review = dc.classification_entries(man) if hasattr(
+            dc, "classification_entries") else None
+        if review is not None:
+            self.assertTrue(any(e.get("status") == "advisory-rescued"
+                                for e in review),
+                            "corpus no longer exercises the advisory-rescue arms")
+        out = dc.classification_review(man)
+        self.assertIn("You asked me to use this one as a source; I'm not",
+                      out, "corpus no longer exercises the refused-promotion note")
