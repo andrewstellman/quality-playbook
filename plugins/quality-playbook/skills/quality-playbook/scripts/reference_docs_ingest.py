@@ -910,12 +910,24 @@ def _load_reads(target_repo: Path) -> Dict[Tuple[str, str], dict]:
         raise IngestError(f"{READS_NAME} must be a list of reads (or {{'reads': [...]}})")
     out: Dict[Tuple[str, str], dict] = {}
     for entry in payload:
+        # EVERY malformed entry is refused, by name. Skipping one was the exact
+        # failure the tier check below prevents, arrived at from the other side: a
+        # dropped entry turns a document the agent DID read into one reported as
+        # never read, and a genuine spec quietly loses its promotion. The file is
+        # authored by the agent moments before the run that consumes it, so a typo
+        # is worth one diagnosed re-run of a cheap idempotent step.
         if not isinstance(entry, dict):
-            continue
+            raise IngestError(
+                f"{READS_NAME}: every entry must be an object, got {entry!r}")
         rel = entry.get("source_path")
         sha = entry.get("document_sha256")
-        if not isinstance(rel, str) or not isinstance(sha, str):
-            continue
+        if not isinstance(rel, str) or not rel:
+            raise IngestError(
+                f"{READS_NAME}: an entry has no usable source_path ({rel!r})")
+        if not isinstance(sha, str) or not sha:
+            raise IngestError(
+                f"{READS_NAME}: {rel} has no usable document_sha256 ({sha!r}); it "
+                "must be the sha256 hex digest of the bytes you read")
         # An out-of-range INTEGER tier used to escape as a bare `ValueError` from
         # `classify_document`, which runs outside the classifier's try/except: not
         # an `IngestError`, so `main()` printed a traceback instead of its
@@ -926,8 +938,14 @@ def _load_reads(target_repo: Path) -> Dict[Tuple[str, str], dict]:
         # — the same agent typo, two paths, and the worse one is the one an
         # off-by-one takes. `tier: 5` is especially easy to write, since the
         # pipeline's own evidence vocabulary runs to "Tier 5".
+        # `isinstance`, not `in` — `tier not in (1, 2, 3, 4)` is an equality test,
+        # so `true` and `1.0` sailed through a guard whose message says they may
+        # not. Benign in effect, but a check that admits what it claims to refuse
+        # is a check nobody can rely on.
         tier = entry.get("tier")
-        if tier is not None and tier not in (1, 2, 3, 4):
+        if tier is not None and (
+                isinstance(tier, bool) or not isinstance(tier, int)
+                or tier not in (1, 2, 3, 4)):
             raise IngestError(
                 f"{READS_NAME}: {rel} has tier {tier!r}; a read must be 1, 2, 3, 4 "
                 "or absent (1/2 authoritative, 3/4 background)"

@@ -239,6 +239,40 @@ class NotTheCacheAgainTests(ReadChannelTestCase):
         self.assertEqual(
             rdi.classify_reference_docs(root, write=True)["unread_count"], 0)
 
+    def test_a_document_read_but_UNDECIDED_is_not_counted_as_unread(self):
+        """033 fix-up 9, panelist B round 3 (B3-1).
+
+        The counter measured `floor_rule == default-tier4`, which is UNTIERED, not
+        unread — and the guide produces the difference on purpose: *"if it could be
+        the spec but you cannot tell, `candidate-spec` says exactly that."* An agent
+        that follows it writes a category and a reason and no tier, and was counted
+        as never having looked. The gate then said "never read ... background by
+        default rather than by judgment" about a record whose own reason reads "I
+        read all of it and still cannot tell" — false in every clause, and it aims
+        the operator at the wrong remedy: that document needs their call at the
+        confirmation step, not somebody to go and read it.
+
+        MUTATION BITE: drop the category/model_reason clause and this reports 2.
+        """
+        root, _ref = self._tree({"tiered.md": SPEC, "candidate.md": SPEC + "c\n",
+                                 "never.md": SPEC + "n\n"})
+        self._write_reads(root, [
+            self._read("reference_docs/tiered.md", SPEC),
+            {"source_path": "reference_docs/candidate.md",
+             "document_sha256": _sha(SPEC + "c\n"),
+             "category": "candidate-spec",
+             "reason": "I read all of it and still cannot tell."},
+        ])
+        man = rdi.classify_reference_docs(root, write=True)
+        self.assertEqual(man["unread_count"], 1, "only never.md was never read")
+        candidate = next(r for r in man["records"]
+                         if r["source_path"].endswith("candidate.md"))
+        self.assertEqual(candidate["floor_rule"], dc.RULE_DEFAULT)
+        self.assertEqual(candidate.get("category"), "candidate-spec")
+        # The disclosure speaks to the one document, not to both.
+        disclosure = dc.classification_disclosure(man) or ""
+        self.assertIn("1 gathered document was never read", disclosure)
+
     def test_an_explicit_callable_still_wins(self):
         # The artifact is a shape for the callable, not a replacement for it.
         root, _ref = self._tree()
@@ -307,17 +341,31 @@ class MalformedInputTests(ReadChannelTestCase):
         with self.assertRaises(rdi.IngestError):
             rdi.classify_reference_docs(root, write=False)
 
-    def test_incomplete_entries_are_skipped_not_guessed_at(self):
+    def test_every_malformed_entry_is_refused_by_name(self):
+        """033 fix-up 9, panelist B round 3 (B3-3).
+
+        This test used to assert the opposite — that an incomplete entry is
+        SKIPPED. That contract was wrong, and wrong in the direction that costs
+        grounding: a dropped entry turns a document the agent DID read into one
+        reported as never read, and a genuine spec loses its Lane-B promotion
+        silently. It is the same failure the tier check prevents, arrived at from
+        the other side, so the two now behave the same way. The file is authored by
+        the agent moments before the run consumes it, so the cost of refusing is one
+        diagnosed re-run of a cheap idempotent step.
+        """
         root, _ref = self._tree()
         rel = "reference_docs/spec.md"
-        self._write_reads(root, [
-            {"source_path": rel},                       # no sha
-            {"document_sha256": _sha(SPEC)},            # no path
-            "not an object",
-            self._read(rel, SPEC),                      # the good one
-        ])
-        rec, _man = self._rec(root, rel)
-        self.assertEqual(rec["tier"], 1)
+        for label, bad in (
+                ("no sha", {"source_path": rel}),
+                ("no path", {"document_sha256": _sha(SPEC)}),
+                ("non-string sha", {"source_path": rel, "document_sha256": 12345}),
+                ("empty sha", {"source_path": rel, "document_sha256": ""}),
+                ("empty path", {"source_path": "", "document_sha256": _sha(SPEC)}),
+                ("not an object", "not an object")):
+            with self.subTest(case=label):
+                self._write_reads(root, [bad, self._read(rel, SPEC)])
+                with self.assertRaises(rdi.IngestError):
+                    rdi.classify_reference_docs(root, write=False)
 
     def test_an_out_of_range_tier_is_a_DIAGNOSED_refusal(self):
         """033 fix-up 8, panelist B round 2 (B2-1) — CONFIRMED before the fix.
@@ -346,6 +394,20 @@ class MalformedInputTests(ReadChannelTestCase):
                 self.assertIn(rel, message, "must name the document")
                 self.assertIn(repr(bad), message, "must name the bad value")
 
+    def test_a_bool_or_float_tier_is_refused_too(self):
+        # Panelist B (B3-4): `tier not in (1, 2, 3, 4)` is an EQUALITY test, so
+        # `True == 1` and `1.0 == 1` passed a guard whose message says they may
+        # not. Benign in effect — but a check that admits what it claims to refuse
+        # is a check nobody can rely on.
+        # MUTATION BITE: drop the isinstance clauses.
+        root, _ref = self._tree()
+        rel = "reference_docs/spec.md"
+        for bad in (True, False, 1.0, 4.0):
+            with self.subTest(tier=bad):
+                self._write_reads(root, [self._read(rel, SPEC, tier=bad)])
+                with self.assertRaises(rdi.IngestError):
+                    rdi.classify_reference_docs(root, write=False)
+
     def test_a_valid_tier_range_is_accepted_including_absent(self):
         # The control: the refusal above must not have narrowed the channel.
         root, _ref = self._tree()
@@ -355,19 +417,38 @@ class MalformedInputTests(ReadChannelTestCase):
                 self._write_reads(root, [self._read(rel, SPEC, tier=good)])
                 rdi.classify_reference_docs(root, write=False)
 
-    def test_the_stale_manifest_no_longer_survives_a_bad_read(self):
-        # The consequence that made B2-1 a FIX-REQUIRED rather than a message NIT:
-        # the run aborted, and the last good run's byte-citable record stayed on
-        # disk looking current.
+    def test_a_bad_read_aborts_BEFORE_anything_is_classified_or_written(self):
+        """033 fix-up 9, panelist B round 3 (B3-2) — this test used to LIE.
+
+        It was named `test_the_stale_manifest_no_longer_survives_a_bad_read` and
+        asserted only that an `IngestError` is raised; it never looked at the
+        manifest. It does not survive — after a refused run the previous run's
+        byte-citable record is still on disk with `generated_at` unchanged.
+
+        STATED RESIDUAL: that staleness is inherent to every `IngestError` path and
+        predates this instruction — ingest writes no manifest when it refuses, so
+        the last good one remains. What the refusal DOES guarantee is that nothing
+        is half-written and no bad read is ever classified, which is what this now
+        pins. Closing the staleness would mean the ingest clearing or invalidating
+        its outputs on refusal, which is a broader change than this instruction.
+
+        Third test name in this Council to assert a property its body did not check
+        (two of them mine). A test name is a claim like any other.
+        """
         root, _ref = self._tree()
         rel = "reference_docs/spec.md"
         self._write_reads(root, [self._read(rel, SPEC)])
         rdi.ingest(root)
         formal = root / "quality" / "formal_docs_manifest.json"
-        self.assertEqual(len(json.loads(formal.read_text())["records"]), 1)
+        good = json.loads(formal.read_text())
+        self.assertEqual(len(good["records"]), 1)
         self._write_reads(root, [self._read(rel, SPEC, tier=7)])
         with self.assertRaises(rdi.IngestError):
             rdi.ingest(root)
+        # The refusal happens in `_load_reads`, before classification: nothing was
+        # rewritten, so the manifest is byte-for-byte the LAST GOOD one rather than
+        # a half-finished one.
+        self.assertEqual(json.loads(formal.read_text()), good)
 
     def test_an_uppercase_digest_still_matches(self):
         # Panelist B's escaped bite (B2-5): dropping `.lower()` makes an

@@ -1181,7 +1181,19 @@ def classify_documents(
     unconfirmed = [r for r in citable if r.get("confirmation") == UNCONFIRMED]
     awaiting = [r for r in records
                 if r.get("floor_rule") == RULE_CONFIRM_REQUIRED]
-    unread = [r for r in records if r.get("floor_rule") == RULE_DEFAULT]
+    # UNREAD means nobody looked — not merely "carries no tier". The two come
+    # apart because the guide tells the agent to leave a tier off on purpose: "if
+    # it could be the spec but you cannot tell, `candidate-spec` says exactly
+    # that." A document read end to end and honestly reported as undecidable lands
+    # at `default-tier4` like one nobody opened, and counting it as unread makes
+    # the gate say "never read ... background by default rather than by judgment"
+    # about a record whose own reason reads "I read all of it and still cannot
+    # tell" — false in every clause, and it points the operator at the wrong
+    # remedy. The evidence of a read is already on the record; this uses it.
+    unread = [r for r in records
+              if r.get("floor_rule") == RULE_DEFAULT
+              and not (r.get("category") or r.get("model_reason")
+                       or r.get("self_classifying"))]
     manifest = {
         "schema_version": schema_version,
         "generated_at": generated_at,
@@ -1194,12 +1206,14 @@ def classify_documents(
         # Documents the backstop or a Lane-C signal routed to the operator. They
         # are NOT cited; this is the queue the confirmation step works through.
         "awaiting_confirmation_count": len(awaiting),
-        # Documents NOBODY READ — the classifier ran but returned nothing for
-        # them. Per-record this was already visible as `default-tier4`; the count
-        # is what makes it visible for the CORPUS, which is where the 032 footgun
-        # lived. A run that read 3 of 10 documents otherwise reports `wired-ok`
-        # and `zero_citable: false` with nothing anywhere saying seven were never
-        # looked at.
+        # Documents NOBODY READ — no tier, and no trace of a read either. A
+        # document the agent read and could not decide about is NOT counted here;
+        # it carries a category and a reason and belongs to the operator's queue,
+        # not to a "go and read these" list. Per-record this was already visible as
+        # `default-tier4`; the count is what makes it visible for the CORPUS, which
+        # is where the 032 footgun lived. A run that read 3 of 10 documents
+        # otherwise reports `wired-ok` and `zero_citable: false` with nothing
+        # anywhere saying seven were never looked at.
         "unread_count": len(unread),
         "most_authoritative": _most_authoritative(records),
         "records": records,
@@ -1303,6 +1317,17 @@ def classification_disclosure(manifest: dict) -> Optional[str]:
                 n=len(refused), s="" if len(refused) == 1 else "s",
                 was="was" if len(refused) == 1 else "were",
                 paths=", ".join(refused)))
+    unread = manifest.get("unread_count") or 0
+    if unread and manifest.get("classifier_status") == CLASSIFIER_WIRED_OK:
+        parts.append(
+            "{n} gathered document{s} {was} never read, so {they} {are} background "
+            "by default rather than by judgment and anything they ground is "
+            "missing.".format(
+                n=unread, s="" if unread == 1 else "s",
+                was="was" if unread == 1 else "were",
+                they="it" if unread == 1 else "they",
+                are="is" if unread == 1 else "are")
+        )
     awaiting = manifest.get("awaiting_confirmation_count") or 0
     if awaiting:
         parts.append(
