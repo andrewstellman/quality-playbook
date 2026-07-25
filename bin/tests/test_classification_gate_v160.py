@@ -121,6 +121,25 @@ class ClassificationGateTests(unittest.TestCase):
         self.assertEqual((fails, warns), (0, 1))
         self.assertIn("awaiting_confirmation_count=3", out)
 
+    def test_unread_documents_warn_once_the_classifier_is_wired(self):
+        # Panelist B (B2-3). The corpus-level sibling of the four counters above.
+        self._clean(unread_count=7)
+        fails, warns, out = self._run()
+        self.assertEqual((fails, warns), (0, 1))
+        self.assertIn("unread_count=7", out)
+        self.assertIn("never read", out)
+
+    def test_unread_does_not_double_alarm_an_unwired_run(self):
+        # When the classifier is not wired, `classifier_status` already says
+        # nothing was read; repeating it as `unread_count` would be the same alarm
+        # twice and would train the reader to skip both.
+        self._write({"classifier_status": "unwired", "zero_citable": True,
+                     "citable_count": 0, "unread_count": 7, "records": []})
+        fails, warns, out = self._run()
+        self.assertEqual(fails, 0)
+        self.assertEqual(warns, 2, "classifier_status + zero_citable, not three")
+        self.assertNotIn("unread_count=7", out)
+
     def test_a_refused_promotion_warns(self):
         self._clean(refused_promotions=["reference_docs/cve_spec.md"])
         fails, warns, out = self._run()
@@ -150,6 +169,8 @@ class ClassificationGateTests(unittest.TestCase):
             self._clean(**extra)
             fails, warns, _o = self._run()
             self.assertEqual((fails, warns), (0, 0), extra)
+        self._clean(unread_count=0)
+        self.assertEqual(self._run()[:2], (0, 0))
 
     def test_the_new_warns_never_fail(self):
         self._clean(unconfirmed_citable_count=5, awaiting_confirmation_count=5,

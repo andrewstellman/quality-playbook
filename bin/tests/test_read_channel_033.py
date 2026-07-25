@@ -196,6 +196,49 @@ class NotTheCacheAgainTests(ReadChannelTestCase):
         rdi.classify_reference_docs(root, write=True)
         self.assertFalse((root / "quality" / rdi.READS_NAME).exists())
 
+    def test_a_SECOND_run_reuses_the_artifact_deliberately(self):
+        """Panelist B (B2-2): cross-run reuse was untested, so it was incidental.
+
+        It is intended — the artifact is the agent's read of bytes that have not
+        changed, and re-reading an unchanged corpus to reach the same answer is the
+        cost step 4 declined to pay in the other direction. What makes it safe is
+        not content-keying (the DELETED CACHE was content-keyed too — that was its
+        defining feature) but that ingest never writes this file: no run persists
+        its own verdict here, so nothing the machine guessed can stand in for
+        reading. Pinned so the behaviour is chosen rather than merely observed.
+        """
+        root, _ref = self._tree()
+        rel = "reference_docs/spec.md"
+        self._write_reads(root, [self._read(rel, SPEC)])
+        for run in range(3):
+            rec, man = self._rec(root, rel)
+            self.assertEqual(rec["floor_rule"], dc.RULE_LLM, f"run {run}")
+            self.assertEqual(man["classifier_status"], dc.CLASSIFIER_WIRED_OK)
+        # ...and the artifact is still the agent's, untouched by any of them.
+        self.assertEqual(
+            json.loads((root / "quality" / rdi.READS_NAME).read_text()),
+            [self._read(rel, SPEC)])
+
+    def test_the_corpus_says_how_many_documents_nobody_read(self):
+        # Panelist B (B2-3): property 2 held per-record but nothing aggregated it,
+        # so a run that read 3 of 10 reported `wired-ok` / `zero_citable: false`
+        # with no surface anywhere saying seven were never looked at — the closest
+        # of all these gaps to the 032 footgun's actual shape.
+        root, _ref = self._tree({"spec.md": SPEC, "a.md": SPEC + "a\n",
+                                 "b.md": SPEC + "b\n"})
+        self._write_reads(root, [self._read("reference_docs/spec.md", SPEC)])
+        man = rdi.classify_reference_docs(root, write=True)
+        self.assertEqual(man["unread_count"], 2)
+        self.assertEqual(man["classifier_status"], dc.CLASSIFIER_WIRED_OK)
+        self.assertFalse(man["zero_citable"])
+        # A fully-read corpus reports zero, so the number is signal not noise.
+        self._write_reads(root, [
+            self._read("reference_docs/spec.md", SPEC),
+            self._read("reference_docs/a.md", SPEC + "a\n", tier=4),
+            self._read("reference_docs/b.md", SPEC + "b\n", tier=4)])
+        self.assertEqual(
+            rdi.classify_reference_docs(root, write=True)["unread_count"], 0)
+
     def test_an_explicit_callable_still_wins(self):
         # The artifact is a shape for the callable, not a replacement for it.
         root, _ref = self._tree()
@@ -275,6 +318,88 @@ class MalformedInputTests(ReadChannelTestCase):
         ])
         rec, _man = self._rec(root, rel)
         self.assertEqual(rec["tier"], 1)
+
+    def test_an_out_of_range_tier_is_a_DIAGNOSED_refusal(self):
+        """033 fix-up 8, panelist B round 2 (B2-1) — CONFIRMED before the fix.
+
+        `tier: 7` escaped as a bare `ValueError` from `classify_document`, which
+        runs outside the classifier's try/except. Three consequences, all verified:
+        it was not an `IngestError`, so `main()` printed a traceback rather than its
+        exit-1 diagnostic; the message named neither this file nor the document;
+        and both manifests kept the PREVIOUS run's contents — a stale byte-citable
+        FORMAL_DOC record surviving on disk with `generated_at` unchanged while the
+        run appeared to fail.
+
+        A non-integer tier (`"1"`, `1.0`) took the graceful `classifier_status:
+        error` path instead: the same agent typo, two paths, and the worse one is
+        the one an off-by-one takes.
+        """
+        root, _ref = self._tree()
+        rel = "reference_docs/spec.md"
+        for bad in (7, 0, -1, 5):
+            with self.subTest(tier=bad):
+                self._write_reads(root, [self._read(rel, SPEC, tier=bad)])
+                with self.assertRaises(rdi.IngestError) as caught:
+                    rdi.classify_reference_docs(root, write=False)
+                message = str(caught.exception)
+                self.assertIn(rdi.READS_NAME, message, "must name the file")
+                self.assertIn(rel, message, "must name the document")
+                self.assertIn(repr(bad), message, "must name the bad value")
+
+    def test_a_valid_tier_range_is_accepted_including_absent(self):
+        # The control: the refusal above must not have narrowed the channel.
+        root, _ref = self._tree()
+        rel = "reference_docs/spec.md"
+        for good in (1, 2, 3, 4, None):
+            with self.subTest(tier=good):
+                self._write_reads(root, [self._read(rel, SPEC, tier=good)])
+                rdi.classify_reference_docs(root, write=False)
+
+    def test_the_stale_manifest_no_longer_survives_a_bad_read(self):
+        # The consequence that made B2-1 a FIX-REQUIRED rather than a message NIT:
+        # the run aborted, and the last good run's byte-citable record stayed on
+        # disk looking current.
+        root, _ref = self._tree()
+        rel = "reference_docs/spec.md"
+        self._write_reads(root, [self._read(rel, SPEC)])
+        rdi.ingest(root)
+        formal = root / "quality" / "formal_docs_manifest.json"
+        self.assertEqual(len(json.loads(formal.read_text())["records"]), 1)
+        self._write_reads(root, [self._read(rel, SPEC, tier=7)])
+        with self.assertRaises(rdi.IngestError):
+            rdi.ingest(root)
+
+    def test_an_uppercase_digest_still_matches(self):
+        # Panelist B's escaped bite (B2-5): dropping `.lower()` makes an
+        # uppercase-digest read silently stop applying — grounding lost, suite
+        # green. sha256 hex is case-insensitive and an agent that wrote it in caps
+        # still read the document.
+        # MUTATION BITE: `out[(rel, sha.lower())]` -> `out[(rel, sha)]`.
+        root, _ref = self._tree()
+        rel = "reference_docs/spec.md"
+        entry = self._read(rel, SPEC)
+        entry["document_sha256"] = entry["document_sha256"].upper()
+        self._write_reads(root, [entry])
+        rec, _man = self._rec(root, rel)
+        self.assertEqual(rec["floor_rule"], dc.RULE_LLM)
+        self.assertEqual(rec["tier"], 1)
+
+    def test_duplicate_entries_for_the_same_bytes_take_the_LAST(self):
+        # Panelist B (B2-4): the rule was real but undocumented and unpinned, and
+        # the order flips the outcome. Last-wins matches the operator decision
+        # channel, so a correction appended to the file supersedes what precedes it.
+        root, _ref = self._tree()
+        rel = "reference_docs/spec.md"
+        self._write_reads(root, [self._read(rel, SPEC, tier=1),
+                                 self._read(rel, SPEC, tier=4)])
+        rec, man = self._rec(root, rel)
+        self.assertEqual(rec["tier"], 4)
+        self.assertTrue(man["zero_citable"])
+        self._write_reads(root, [self._read(rel, SPEC, tier=4),
+                                 self._read(rel, SPEC, tier=1)])
+        rec2, man2 = self._rec(root, rel)
+        self.assertEqual(rec2["tier"], 1)
+        self.assertFalse(man2["zero_citable"])
 
     def test_the_wrapped_object_form_is_accepted(self):
         root, _ref = self._tree()

@@ -1181,6 +1181,7 @@ def classify_documents(
     unconfirmed = [r for r in citable if r.get("confirmation") == UNCONFIRMED]
     awaiting = [r for r in records
                 if r.get("floor_rule") == RULE_CONFIRM_REQUIRED]
+    unread = [r for r in records if r.get("floor_rule") == RULE_DEFAULT]
     manifest = {
         "schema_version": schema_version,
         "generated_at": generated_at,
@@ -1193,6 +1194,13 @@ def classify_documents(
         # Documents the backstop or a Lane-C signal routed to the operator. They
         # are NOT cited; this is the queue the confirmation step works through.
         "awaiting_confirmation_count": len(awaiting),
+        # Documents NOBODY READ — the classifier ran but returned nothing for
+        # them. Per-record this was already visible as `default-tier4`; the count
+        # is what makes it visible for the CORPUS, which is where the 032 footgun
+        # lived. A run that read 3 of 10 documents otherwise reports `wired-ok`
+        # and `zero_citable: false` with nothing anywhere saying seven were never
+        # looked at.
+        "unread_count": len(unread),
         "most_authoritative": _most_authoritative(records),
         "records": records,
     }

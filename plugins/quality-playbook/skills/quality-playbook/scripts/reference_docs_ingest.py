@@ -111,16 +111,23 @@ CLASSIFICATION_MANIFEST_NAME = "classification_manifest.json"
 # chi from two Tier-1 records to zero with `zero_citable` true.
 #
 # This is the channel: an AGENT-AUTHORED, per-run artifact the agent writes before
-# the ingest that consumes it. It is emphatically NOT the cache step 4 deleted, and
-# three properties keep it from drifting back into one:
+# the ingest that consumes it. It is emphatically NOT the cache step 4 deleted:
 #
-#   1. It is CONTENT-KEYED. A read applies only to the exact bytes it was made
-#      against; edit the document and the read no longer applies.
-#   2. A document with no matching entry is UNREAD, not defaulted-and-forgotten —
-#      it lands at `default-tier4` and the manifest says `classifier_status`
-#      unwired, which is the loud path the 032 footgun taught us to keep.
-#   3. Ingest never WRITES it. Nothing the machine decides is persisted here by
-#      the run itself; consent still lives only in `reference_docs/qpb_decisions.txt`.
+#   1. INGEST NEVER WRITES IT. This is the distinguisher, and it is first because
+#      the obvious answer — "but it is content-keyed" — is wrong: the deleted cache
+#      was content-keyed too, that was its defining feature. What made it a cache
+#      was that a run PERSISTED ITS OWN VERDICT and a later run consumed it, so the
+#      machine's guess about an unread document could silently stand in for reading
+#      it. Nothing here is written by the run. Every entry is authored by an agent
+#      that read the document, and consent still lives only in
+#      `reference_docs/qpb_decisions.txt`.
+#   2. A document with no matching entry is UNREAD, not defaulted-and-forgotten. It
+#      lands at `default-tier4` — distinguishable in the manifest from `llm` at
+#      tier 4, which means "I read it and it is context" — and the corpus-level
+#      `unread_count` says how many nobody looked at. That is the loud path the 032
+#      footgun taught us to keep.
+#   3. It is CONTENT-KEYED, so a read applies only to the exact bytes it was made
+#      against. Necessary, but on its own it would not distinguish anything.
 #
 # A read is a judgment, not a permission: an entry here is exactly as powerful as
 # the same judgment passed through `llm_classifier`, so it reaches Lane B and stops
@@ -909,6 +916,29 @@ def _load_reads(target_repo: Path) -> Dict[Tuple[str, str], dict]:
         sha = entry.get("document_sha256")
         if not isinstance(rel, str) or not isinstance(sha, str):
             continue
+        # An out-of-range INTEGER tier used to escape as a bare `ValueError` from
+        # `classify_document`, which runs outside the classifier's try/except: not
+        # an `IngestError`, so `main()` printed a traceback instead of its
+        # diagnostic; it named neither this file nor the document; and both
+        # manifests kept the PREVIOUS run's contents, leaving a stale byte-citable
+        # record on disk while the run appeared to fail. A non-integer tier
+        # (`"1"`, `1.0`) took the graceful `classifier_status: error` path instead
+        # — the same agent typo, two paths, and the worse one is the one an
+        # off-by-one takes. `tier: 5` is especially easy to write, since the
+        # pipeline's own evidence vocabulary runs to "Tier 5".
+        tier = entry.get("tier")
+        if tier is not None and tier not in (1, 2, 3, 4):
+            raise IngestError(
+                f"{READS_NAME}: {rel} has tier {tier!r}; a read must be 1, 2, 3, 4 "
+                "or absent (1/2 authoritative, 3/4 background)"
+            )
+        # sha256 hex-digests are case-insensitive, and an agent writing one in
+        # upper case has still read the document. Normalising here rather than at
+        # the lookup keeps the two ends from disagreeing.
+        #
+        # Two entries for the same document and bytes: LAST WINS, the same rule the
+        # operator decision channel uses, so a correction appended to the end of the
+        # file supersedes what came before it rather than being ignored.
         out[(rel, sha.lower())] = entry
     return out
 

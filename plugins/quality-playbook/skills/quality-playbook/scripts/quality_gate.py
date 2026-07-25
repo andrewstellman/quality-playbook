@@ -8096,6 +8096,17 @@ def check_classification_manifest(q):
             "are NOT being quoted; grounding may be understated until they are "
             "answered (v1.6.0 instruction 033 Lane C; advisory)"
         )
+    # A PARTIALLY read corpus. Only meaningful once the classifier is wired: when
+    # it is not, `classifier_status` above already says nothing was read, and this
+    # would be the same alarm twice.
+    unread = manifest.get("unread_count")
+    if (status == "wired-ok" and isinstance(unread, int) and unread > 0):
+        warn(
+            f"classification_manifest.json: unread_count={unread} — that many "
+            "gathered documents were never read, so they are background by "
+            "default rather than by judgment and any grounding in them is missing "
+            "(v1.6.0 instruction 033; advisory)"
+        )
     refused = manifest.get("refused_promotions")
     if isinstance(refused, list) and refused:
         warn(
