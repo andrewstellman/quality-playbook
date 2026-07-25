@@ -692,6 +692,58 @@ class QuietFalseNegativesInThePublishGateTests(unittest.TestCase):
                      "info:\n  title: Orders\npaths: {}\n")
         self.assertIsNotNone(dc.contract_content_validation(commented, "a.yaml"))
 
+    def test_the_json_arms_verdict_is_final_for_a_json_document(self):
+        """033 fix-up 5, self-Council A round 5 (R5-1) — CONFIRMED before the fix.
+
+        `_json_top_level_api_key` returned the same `None` for "not my format" and
+        "my format, and I rejected it", so the YAML arm ran over the leftovers of
+        the second and validated what the JSON arm had just refused. A `.json` whose
+        `info` is a string rather than an object, with its column-0 keys in the
+        right order, reached a Tier-1 FORMAL_DOC end to end.
+
+        The fourth finding of this Council's recurring shape — but it had MOVED:
+        not a difference between two arms, a difference between "no" and "not mine"
+        in the handoff from one arm to the next.
+
+        MUTATION BITE: restore `json_key = _json_top_level_api_key(text)` /
+        `if json_key: return json_key` and this fails.
+        """
+        leak = '{\n"info": "not a dict",\n"paths": {},\n"openapi": "3.0.3"\n}\n'
+        self.assertIsNone(dc._json_top_level_api_key(leak))
+        self.assertIsNone(dc.contract_content_validation(leak, "api.json"))
+        rec, man = _one("reference_docs/api.json", leak)
+        self.assertNotEqual(rec["floor_rule"], dc.RULE_CONTRACT)
+        self.assertTrue(man["zero_citable"])
+        # A genuine JSON contract is untouched, and a NON-JSON document still
+        # reaches the YAML arm — the early return must not swallow that.
+        self.assertIsNotNone(
+            dc.contract_content_validation(GENUINE_OPENAPI_JSON, "a.json"))
+        self.assertIsNotNone(
+            dc.contract_content_validation(GENUINE_OPENAPI_YAML, "a.yaml"))
+
+    def test_the_json_arm_reads_raw_so_a_scrub_cannot_MANUFACTURE_a_parse(self):
+        """033 fix-up 5, self-Council A round 5 (R5-2) — an unpinned branch.
+
+        The panelist mutated the JSON arm to read scrubbed text and all 3002 tests
+        stayed green. Worse, my comment justifying `raw` gave the wrong reason: on
+        VALID JSON the scrub is provably the identity, since a fence marker can
+        never start a line inside a JSON string. The real hazard runs the other way
+        — on INVALID JSON the scrub DELETES the offending text and can manufacture a
+        parse, so a prose file that merely contains a contract would be read as one.
+
+        MUTATION BITE: `_json_object(text)` -> `_json_object(scrubbed)`.
+        """
+        fabricated = (GENUINE_OPENAPI_JSON.rstrip("\n")
+                      + "\n```\nand here is why we chose it\n```\n")
+        import json as _json
+        with self.assertRaises(ValueError):
+            _json.loads(fabricated)
+        _json.loads(dc._without_fenced_blocks(fabricated))   # the scrub fabricates it
+        self.assertIsNone(dc.contract_content_validation(fabricated, "notes.json"))
+        rec, man = _one("reference_docs/notes.json", fabricated)
+        self.assertNotEqual(rec["floor_rule"], dc.RULE_CONTRACT)
+        self.assertTrue(man["zero_citable"])
+
     def test_quoted_top_level_keys_still_validate(self):
         # A's R4-2: a YAML contract with quoted top-level keys failed all three
         # anchors together. Same class as the BOM — a false negative in a publish

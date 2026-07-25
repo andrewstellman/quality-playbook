@@ -318,17 +318,39 @@ _WSDL_NAMESPACES = frozenset({
 _API_KEYS = ("openapi", "swagger", "asyncapi")
 
 
-def _json_top_level_api_key(text: str) -> Optional[str]:
-    """An OpenAPI/Swagger/AsyncAPI version key as a genuine TOP-LEVEL JSON key."""
-    stripped = text.lstrip()
-    if not stripped.startswith("{"):
+def _json_object(text: str) -> Optional[dict]:
+    """The document parsed as a JSON object, or None if it is not one.
+
+    Separate from the verdict below so a caller can tell "this is not JSON" from
+    "this is JSON and it did not validate" — the two used to be the same ``None``,
+    and the YAML arm ran on the leftovers of the second. See
+    ``contract_content_validation``.
+    """
+    if not text.lstrip().startswith("{"):
         return None
     try:
         doc = json.loads(text)
     except (ValueError, RecursionError):
         return None
-    if not isinstance(doc, dict):
-        return None
+    return doc if isinstance(doc, dict) else None
+
+
+def _json_top_level_api_key(text: str) -> Optional[str]:
+    """An OpenAPI/Swagger/AsyncAPI version key as a genuine TOP-LEVEL JSON key."""
+    doc = _json_object(text)
+    return None if doc is None else _api_key_of(doc)
+
+
+def _api_key_of(doc: dict) -> Optional[str]:
+    """The verdict for an ALREADY-PARSED JSON object.
+
+    Split out so the arm parses exactly once and then judges what it parsed.
+    While the arm re-derived the object from the raw text after deciding whether
+    the document was JSON, the two could disagree — and a mutation swapping the
+    detection to scrubbed text left every test green, because the verdict simply
+    re-parsed raw and returned the same answer. An unobservable branch is an
+    untested branch.
+    """
     for key in _API_KEYS:
         value = doc.get(key)
         # A VERSION, matching what the YAML arm demands of the same key. The two
@@ -448,12 +470,25 @@ def contract_content_validation(text: str, filename: str = "") -> Optional[str]:
     first_line = scrubbed.splitlines()[0] if scrubbed.strip() else ""
     if _RAML_FIRST_LINE_RE.match(first_line):
         return f"RAML first line {first_line.strip()!r}"
-    # OpenAPI / Swagger / AsyncAPI: a genuine top-level document key, in JSON — the
-    # raw text, because this arm parses the WHOLE document and a scrub could only
-    # corrupt it. Prose cannot reach a top-level JSON key.
-    json_key = _json_top_level_api_key(text)
-    if json_key:
-        return json_key
+    # OpenAPI / Swagger / AsyncAPI: a genuine top-level document key, in JSON.
+    #
+    # RAW text, and the reason is not the obvious one. On VALID JSON the scrub is
+    # provably the identity — a fence marker can never start a line, because JSON
+    # strings cannot contain raw newlines — so "a scrub could only corrupt it",
+    # which is what this comment used to say, is the half that does not matter. The
+    # half that does: on INVALID JSON a scrub can MANUFACTURE a parse by deleting
+    # the offending text. A valid object on line 1 followed by a fenced prose block
+    # fails `json.loads` raw and succeeds scrubbed — so scrubbing here would let a
+    # prose file that merely CONTAINS a contract be parsed as one.
+    #
+    # And when the document IS a JSON object, this arm's verdict is FINAL. It used
+    # to return the same `None` for "not my format" and "my format, rejected", and
+    # the YAML arm then ran over the same bytes and validated what this arm had just
+    # refused: a `.json` with `"info": "not a dict"` and its column-0 keys in the
+    # right order was rejected here and cited from there.
+    json_doc = _json_object(text)
+    if json_doc is not None:
+        return _api_key_of(json_doc)
     # ...or at column 0 in YAML, WITH the `info` block and the body section that
     # every one of the three specifications makes mandatory. One column-0 regex hit
     # is not a document: a changelog line reading `openapi: 3.1.0 is now accepted by
