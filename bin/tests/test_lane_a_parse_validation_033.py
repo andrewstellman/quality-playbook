@@ -253,20 +253,62 @@ class PerFormatBothDirectionsTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 class BackstopPrecedenceTests(unittest.TestCase):
 
-    def test_advisory_renamed_proto_is_still_floored(self):
+    def test_advisory_renamed_proto_never_reaches_lane_a(self):
+        # Oracle 4. Step 2 changed the MECHANISM — the advisory floor became the
+        # hard-signal backstop, so this document is now routed to the operator
+        # (Lane C) rather than pinned by an absolute tier-4 floor — but the
+        # property the oracle names is unchanged and is asserted here: content
+        # that validates as a contract STILL cannot carry an advisory into Lane A,
+        # because the backstop is evaluated first.
         adv = ('syntax = "proto3";\nmessage M {}\n'
                "// CVE-2024-43796 — see https://nvd.nist.gov/vuln/detail/CVE-2024-43796\n")
         rec, man = _one("reference_docs/cve-2024-x.proto", adv)
-        self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
+        self.assertNotEqual(rec["floor_rule"], dc.RULE_CONTRACT)
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         self.assertFalse(rec["promotable"])
         self.assertTrue(man["zero_citable"])
+        # ...and the specific signal is recorded, because the operator has to be
+        # able to acknowledge it by name to promote the document.
+        kinds = {b["kind"] for b in rec.get("backstop", [])}
+        self.assertIn(dc.BACKSTOP_ADVISORY_ID, kinds)
+        # The content really does validate — so Lane A was reachable and the
+        # backstop is what stopped it, not a parse failure.
+        self.assertIsNotNone(dc.contract_content_validation(adv, "cve-2024-x.proto"))
 
-    def test_advisory_renamed_thrift_is_floored_not_merely_routed(self):
-        # The backstop outranks Lane C too — an advisory is not a "confirm this?"
-        # question, it is a floor.
+    def test_advisory_renamed_thrift_is_barred_by_the_backstop(self):
+        # A `.thrift` reaches Lane C by two independent routes now (no content
+        # anchor, AND the backstop). Either way it is never auto-cited; assert the
+        # backstop is what fired, so the reason names the advisory signal the
+        # operator must acknowledge rather than the milder "no format inside".
         adv = "CVE-2024-43796 affects the router.\nhttps://nvd.nist.gov/vuln\n"
-        rec, _ = _one("reference_docs/cve.thrift", adv)
-        self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
+        rec, man = _one("reference_docs/cve.thrift", adv)
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
+        self.assertFalse(rec["promotable"])
+        self.assertTrue(man["zero_citable"])
+        self.assertIn("advisory", rec["reason"])
+        kinds = {b["kind"] for b in rec.get("backstop", [])}
+        self.assertIn(dc.BACKSTOP_ADVISORY_ID, kinds)
+        self.assertIn(dc.BACKSTOP_ADVISORY_URL, kinds)
+
+    def test_an_acknowledged_advisory_can_still_be_promoted(self):
+        # The 025 speed-bump, preserved in kind: a PLAIN "authoritative" does not
+        # lift a backstop finding, but an acknowledged one does. This is the
+        # property step 3's named-signal confirmation formalises.
+        adv = ("# Behaviour under CVE-2024-43796\n\n"
+               "The router MUST reject the malformed header.\n"
+               "See https://nvd.nist.gov/vuln/detail/CVE-2024-43796\n")
+        path = "reference_docs/cve-behaviour.md"
+        plain, _ = _one(path, adv, llm_classifier=lambda p, t: 1,
+                        operator_decisions=[(path, _sha(adv),
+                                             dc.OPERATOR_AUTHORITATIVE)])
+        self.assertEqual(plain["floor_rule"], dc.RULE_CONFIRM_REQUIRED,
+                         "a plain authoritative must NOT lift a backstop signal")
+        self.assertFalse(plain["promotable"])
+        acked, man = _one(path, adv, llm_classifier=lambda p, t: 1,
+                          advisory_rescues=[(path, _sha(adv))])
+        self.assertTrue(acked["promotable"])
+        self.assertIn(acked["tier"], (1, 2))
+        self.assertFalse(man["zero_citable"])
 
 
 if __name__ == "__main__":

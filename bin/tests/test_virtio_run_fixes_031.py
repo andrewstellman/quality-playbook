@@ -58,6 +58,29 @@ def _manifest(docs, classifier=_all_tier4):
     return dc.classify_documents(docs, llm_classifier=classifier, generated_at="X")
 
 
+def _reads_as_candidate(*paths):
+    """A read stub: the named documents are candidate specs, everything else is a
+    guide.
+
+    instruction 033 step 2 — the worked example's signal is the model's CATEGORY,
+    not the filename (`_spec_like_name` and its token tables are deleted). So a
+    test that used to rely on a spec-shaped NAME now states its premise outright:
+    *this* is the document the model read as a possible specification. The 031
+    properties are unchanged and still asserted — the show must name that document
+    rather than the biggest one, and must fall back to the placeholder when the
+    read offers no candidate at all.
+    """
+    wanted = set(paths)
+
+    def _read(rel, text):
+        if rel in wanted:
+            return {"tier": 4, "category": "candidate-spec",
+                    "reason": "Reads like a specification."}
+        return {"tier": 4, "category": "guide", "reason": "Reads like a guide."}
+
+    return _read
+
+
 def _example_in(out):
     """The document the show's worked example names, or None when it names none."""
     if "treat `" not in out:
@@ -78,7 +101,8 @@ class WorkedExampleTests(unittest.TestCase):
         man = _manifest([
             ("reference_docs/linux-coding-style.rst", STYLE_GUIDE),
             ("reference_docs/virtio-spec-behavioral-contracts.md", VIRTIO_SPEC),
-        ])
+        ], classifier=_reads_as_candidate(
+            "reference_docs/virtio-spec-behavioral-contracts.md"))
         # The fixture really does have the defect's shape: the wrong file is the
         # biggest one, so a size-only pick would name it.
         by_size = sorted(man["records"], key=lambda r: -r["byte_count"])
@@ -118,10 +142,14 @@ class WorkedExampleTests(unittest.TestCase):
         # barred (advisory / README), there is nothing to promote at this step,
         # so the show asks the open question rather than offering an example —
         # placeholder included. 031 must not turn that into a suggestion.
+        # instruction 033 step 2: a README is no longer barred (the NAME floor is
+        # deleted), so "nothing promotable" now means every document is
+        # backstop-flagged — which is the shape this test is really about.
         man = _manifest([
-            ("reference_docs/README.md", "# Readme\n\nbg\n"),
             ("reference_docs/advisory.md",
              "# Advisory\n\nCVE-2024-43796 affects the router.\n"),
+            ("reference_docs/other-advisory.md",
+             "# Advisory\n\nGHSA-aaaa-bbbb-cccc affects it.\n"),
         ])
         for out in (dc.classification_review(man),
                     dc.classification_review(man, offer=False)):
@@ -132,10 +160,15 @@ class WorkedExampleTests(unittest.TestCase):
         # instr 030 Panelist B's finding survives: among SPEC-LIKE candidates the
         # bigger one wins, so a 40-byte stub named `spec.md` does not beat the
         # real specification.
+        # instruction 033 step 2: with the token tables gone, "spec-like" is the
+        # model's category. Ties among candidates break on PATH, never on size —
+        # size is what named the style guide in the first place — so this asserts
+        # the deterministic pick rather than the bigger one.
         man = _manifest([
             ("reference_docs/api-spec.md", "# API spec\n"),
             ("reference_docs/virtio-spec-behavioral-contracts.md", VIRTIO_SPEC * 40),
-        ])
+        ], classifier=_reads_as_candidate(
+            "reference_docs/virtio-spec-behavioral-contracts.md"))
         self.assertEqual(_example_in(dc.classification_review(man)),
                          "reference_docs/virtio-spec-behavioral-contracts.md")
 
@@ -143,10 +176,14 @@ class WorkedExampleTests(unittest.TestCase):
         # instr 030 Panelist B round 3: source files are promotable but are often
         # the biggest thing in the corpus. A spec-like .md outranks a spec-like
         # .py even when the .py is larger.
+        # instruction 033 step 2: the source file is backstop-flagged, so it is
+        # structurally ineligible to be named — the document wins with no size or
+        # stratum tiebreak at all. The 031 property still holds: the 200x-larger
+        # source file is not named.
         man = _manifest([
             ("reference_docs/protocol.py", "def handshake():\n    return 1\n" * 200),
             ("reference_docs/protocol-reference.md", "# Protocol reference\n"),
-        ])
+        ], classifier=_reads_as_candidate("reference_docs/protocol-reference.md"))
         self.assertEqual(_example_in(dc.classification_review(man)),
                          "reference_docs/protocol-reference.md")
 
@@ -170,12 +207,19 @@ class WorkedExampleTests(unittest.TestCase):
         # ...but the instr-030 affordance survives: a code-shaped contract is
         # exactly what the operator promotion exists for, so when there is no
         # promotable document at all the source file is named.
+        # instruction 033 step 2 moved this affordance somewhere better. A
+        # code-shaped contract is backstop-flagged, so it is no longer offered as a
+        # worked EXAMPLE — the operator is asked about it BY NAME in the Lane-C
+        # section, which is a direct question rather than an illustration. The
+        # instr-030 property (the operator must be shown this case, because it is
+        # exactly what their promotion power exists for) is asserted that way.
         man = _manifest([
             ("reference_docs/iface-protocol.py", "import os\n\ndef f():\n    return 1\n"),
             ("reference_docs/README.md", "# Readme\n\nbg\n"),
         ])
-        self.assertEqual(_example_in(dc.classification_review(man)),
-                         "reference_docs/iface-protocol.py")
+        out = dc.classification_review(man)
+        awaiting = out.split("**I need your word on these")[1]
+        self.assertIn("reference_docs/iface-protocol.py", awaiting)
 
     def test_a_document_the_operator_demoted_is_never_the_example(self):
         # 031 self-Council round 2 (Panelist A, P1): an operator's own instr-030
@@ -228,10 +272,15 @@ class WorkedExampleTests(unittest.TestCase):
         # 031 self-Council round 2 (Panelist A, NIT): a veto is a demotion, so
         # vetoing `release` handed the example to a tiny stub instead — the
         # instr-030 substantive-over-stub finding, one door over.
+        # instruction 033 step 2: there is no name VETO any more, so its collateral
+        # damage (a "release" in the name demoting a real spec) cannot recur by
+        # construction. What is asserted now is the general form: the NAME is
+        # irrelevant in both directions — the read decides, and a name containing a
+        # version word neither helps nor hurts.
         man = _manifest([
             ("reference_docs/virtio-spec-release-1.2.md", VIRTIO_SPEC * 30),
             ("reference_docs/api-contract-stub.md", "# stub\n"),
-        ])
+        ], classifier=_reads_as_candidate("reference_docs/virtio-spec-release-1.2.md"))
         self.assertEqual(_example_in(dc.classification_review(man)),
                          "reference_docs/virtio-spec-release-1.2.md")
 
@@ -241,12 +290,20 @@ class WorkedExampleTests(unittest.TestCase):
         # matches `standards` — with size still breaking ties, it would have been
         # named over the real 7.8 KB spec. The genre veto is what stops the fix
         # from being a rename away from useless.
+        # instruction 033 step 2: the genre VETO is deleted along with the token
+        # tables, and the property it defended is now stronger rather than weaker.
+        # The veto existed because a style guide RENAMED to `...standards.rst` would
+        # match a spec token; a read of the document's content cannot be fooled by
+        # a rename at all. The 45 KB style guide is still not named.
         man = _manifest([
             ("reference_docs/linux-coding-standards.rst", STYLE_GUIDE),
             ("reference_docs/virtio-spec-behavioral-contracts.md", VIRTIO_SPEC),
-        ])
+        ], classifier=_reads_as_candidate(
+            "reference_docs/virtio-spec-behavioral-contracts.md"))
         self.assertEqual(_example_in(dc.classification_review(man)),
                          "reference_docs/virtio-spec-behavioral-contracts.md")
+        self.assertNotIn("linux-coding-standards.rst` as my",
+                         dc.classification_review(man))
 
     def test_genre_documents_fall_through_to_the_placeholder(self):
         for name in ("linux-coding-standards.rst", "api-migration-guide.md",
@@ -257,97 +314,24 @@ class WorkedExampleTests(unittest.TestCase):
             self.assertEqual(_example_in(out), "<the-file>", name)
 
 
-class SpecNameSignalTests(unittest.TestCase):
-    """The name signal itself: whole-token, on the filename only."""
-
-    def test_spec_like_names(self):
-        for path in ("reference_docs/virtio-spec-behavioral-contracts.md",
-                     "reference_docs/api-reference.md",
-                     "reference_docs/rfc793.txt",
-                     "reference_docs/HTTP_PROTOCOL.md",
-                     "reference_docs/behavioral_contracts.rst",
-                     "reference_docs/posix.standard.md",
-                     "docs/specification.md"):
-            self.assertTrue(dc._spec_like_name(path), path)
-
-    def test_not_spec_like_names(self):
-        for path in ("reference_docs/linux-coding-style.rst",
-                     "reference_docs/index.rst",
-                     "reference_docs/writing_virtio_drivers.rst",
-                     "reference_docs/virtio-community-development-history.md",
-                     "reference_docs/release-notes.md",
-                     "reference_docs/CHANGELOG.md"):
-            self.assertFalse(dc._spec_like_name(path), path)
-
-    def test_the_practice_domain_class_is_closed_not_just_one_filename(self):
-        # 031 self-Council round 3 (Panelist A, P1): round 2 closed
-        # `linux-coding-standards.rst` but not the CLASS it stood for — the same
-        # document wearing different words. "How the team works" is not "what
-        # the software must do", whatever spec word sits beside it.
-        for path in ("reference_docs/documentation-standards.md",
-                     "reference_docs/naming-standards.md",
-                     "reference_docs/formatting-standards.md",
-                     "reference_docs/engineering-standards.md",
-                     "reference_docs/commit-message-contract.md",
-                     "reference_docs/code-review-reference.md",
-                     "reference_docs/contributing-standards.md",
-                     "reference_docs/workflow-protocol.md"):
-            self.assertFalse(dc._spec_like_name(path), path)
-
-    def test_the_stub_genre_stays_vetoed(self):
-        # 031 self-Council round 3 (Panelist A, NIT): `index`/`toc` are the
-        # instr-030 toctree-stub genre, not version words, so the round-2 trim
-        # took them off the veto by the wrong rule.
-        for path in ("reference_docs/spec-index.md", "reference_docs/api-toc.md",
-                     "reference_docs/protocol-contents.md"):
-            self.assertFalse(dc._spec_like_name(path), path)
-
-    def test_a_genre_token_vetoes_the_spec_token(self):
-        for path in ("reference_docs/linux-coding-standards.rst",
-                     "reference_docs/api-migration-guide.md",
-                     "reference_docs/quick-reference-card.md",
-                     "reference_docs/protocol-tutorial.md",
-                     "reference_docs/spec-changelog.md",
-                     "reference_docs/api-examples.md",
-                     "reference_docs/spec-release-notes.md",
-                     "reference_docs/protocol-faq.md"):
-            self.assertFalse(dc._spec_like_name(path), path)
-
-    def test_a_backslash_path_does_not_make_the_directory_the_signal(self):
-        # 031 self-Council round 1 (Panelist A, NIT): splitting on "/" alone left
-        # a backslash path as one basename, so `reference_docs` became the
-        # signal — the exact no-op the directory rule exists to prevent.
-        # The fixture must be a name the veto does NOT already reject, or the
-        # test passes with the split reverted (031 self-Council round 2, Panelist
-        # A: the first fixture used `notes.md`, which the genre veto killed
-        # before the split mattered — a tautology).
-        self.assertFalse(dc._spec_like_name(r"reference_docs\design.md"))
-        self.assertTrue(dc._spec_like_name(r"docs\wire-protocol.md"))
-
-    def test_a_dotfile_keeps_its_name(self):
-        # `.spec` is all name and no extension; stripping the "extension" left
-        # nothing to match (031 self-Council round 1, Panelist A, NIT).
-        self.assertTrue(dc._spec_like_name("reference_docs/.spec"))
-
-    def test_the_signal_is_whole_token_not_substring(self):
-        # "inspector" contains "spec"; "capital" contains "api". A substring
-        # match would call both of these specifications.
-        for path in ("reference_docs/inspector-notes.md",
-                     "reference_docs/capital-planning.md",
-                     "reference_docs/unspecified.md",
-                     "reference_docs/standardization-history.md"):
-            self.assertFalse(dc._spec_like_name(path), path)
-
-    def test_the_reference_docs_directory_is_not_the_signal(self):
-        # Every gathered document lives under `reference_docs/`. If the match ran
-        # on the whole path, "reference" would make the entire corpus spec-like
-        # and the fix would be a no-op.
-        self.assertFalse(dc._spec_like_name("reference_docs/notes.md"))
-        self.assertTrue(dc._spec_like_name("notes/reference.md"))
-
-    def test_empty_and_missing_paths_are_not_spec_like(self):
-        for path in (None, "", "reference_docs/"):
-            self.assertFalse(dc._spec_like_name(path), repr(path))
+# ---------------------------------------------------------------------------
+# `SpecNameSignalTests` was DELETED by instruction 033 step 2, not rewritten.
+#
+# It tested `dc._spec_like_name` — the filename-token signal instruction 031
+# introduced so the worked example would never name a style guide. That helper
+# and its `_SPEC_NAME_TOKENS` / `_NON_SPEC_NAME_TOKENS` tables no longer exist:
+# §8a Revision rule 1 replaced them with the model's own read, on the grounds
+# that the tables were the mechanical layer approximating a read from filenames,
+# badly. Ten tests of whole-token matching, genre vetoes, dotfiles, backslash
+# paths and directory names went with the helper, because a test of deleted
+# machinery is not a property — it is an artifact.
+#
+# The PROPERTY those tests protected survives and is still enforced, one level
+# up, by `WorkedExampleTests` above: the worked example never names a style
+# guide, never uses size as the signal, and falls back to the neutral
+# placeholder rather than asserting a confident wrong answer. The signal behind
+# it is now the model's `category` instead of the filename.
+# ---------------------------------------------------------------------------
 
 
 class VirtioCorpusTests(unittest.TestCase):
@@ -364,7 +348,12 @@ class VirtioCorpusTests(unittest.TestCase):
                 docs.append(("reference_docs/" + p.name,
                              p.read_text(encoding="utf-8", errors="replace")))
         self.assertTrue(any(d[0].endswith("linux-coding-style.rst") for d in docs))
-        man = _manifest(docs)
+        # instruction 033 step 2: on the REAL corpus the read is what separates the
+        # 7.8 KB spec from the 45 KB style guide — the filename tables that used to
+        # do it are deleted. The acceptance property is unchanged: the show names
+        # the spec, never the style guide.
+        man = _manifest(docs, classifier=_reads_as_candidate(
+            "reference_docs/virtio-spec-behavioral-contracts.md"))
         example = _example_in(dc.classification_review(man))
         self.assertEqual(example,
                          "reference_docs/virtio-spec-behavioral-contracts.md")

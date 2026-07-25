@@ -14,6 +14,23 @@ Oracle map (§8a Verification / instruction 010 acceptance oracle):
   5  classifier injection not promoted                        -> Injection*
   6  manifest produced, content-keyed, reproducible           -> Manifest*
   7  byte-verification fixtures unchanged                      -> (test_reference_docs_ingest.py)
+
+INSTRUCTION 033 STEP 2 — WHAT CHANGED UNDER THESE TESTS. The advisory and
+implementation-source FLOORS became the hard-signal BACKSTOP, and the
+README/coverage/issue-tracker NAME floor was deleted outright. So the assertions
+below moved from ``RULE_ADVISORY`` / ``RULE_IMPL`` to ``RULE_CONFIRM_REQUIRED``:
+a flagged document is now **routed to the operator (Lane C)** instead of being
+pinned by an absolute tier-4 floor.
+
+The security property these tests exist for is UNCHANGED and is still asserted
+here: such a document is **never auto-cited in any mode**, a live classifier
+voting Tier 1 cannot promote it, and the channels that can acknowledge a signal
+are not interchangeable — the content-keyed advisory rescue clears an advisory
+signal, the path-keyed sidecar clears only the implementation-source signal, and
+a plain "authoritative" clears neither. (That last bound is not theoretical: an
+early draft of the step-2 branch let any channel clear any signal, which let the
+sidecar launder a CVE advisory into Tier 1. ``test_sidecar_cannot_promote_a_cve_advisory``
+and ``test_advisory_renamed_with_contract_extension_still_floored`` caught it.)
 """
 
 import sys
@@ -62,7 +79,7 @@ class AdvisoryFloorTests(unittest.TestCase):
     def test_cve_advisory_floored_even_when_llm_promotes(self):
         d = dc.classify_document("cve.md", self.CVE_ADVISORY, llm_tier=1)
         self.assertEqual(d.tier, 4)
-        self.assertEqual(d.rule, dc.RULE_ADVISORY)
+        self.assertEqual(d.rule, dc.RULE_CONFIRM_REQUIRED)
         self.assertFalse(d.promotable)
 
     def test_hardening_bulletin_is_no_longer_floored_genre_is_a_hint(self):
@@ -73,7 +90,7 @@ class AdvisoryFloorTests(unittest.TestCase):
         self.assertIsNone(dc.advisory_floor(self.NORMATIVE_BULLETIN, "hardening.md"))
         d = dc.classify_document("hardening.md", self.NORMATIVE_BULLETIN, llm_tier=1)
         self.assertEqual(d.tier, 1, d.reason)
-        self.assertNotEqual(d.rule, dc.RULE_ADVISORY)
+        self.assertNotEqual(d.rule, dc.RULE_CONFIRM_REQUIRED)
         self.assertTrue(d.advisory_hints, "the genre-title hint must be recorded")
 
     def test_hard_floor_holds_through_the_corpus_classifier(self):
@@ -84,7 +101,7 @@ class AdvisoryFloorTests(unittest.TestCase):
         man = dc.classify_documents(docs, llm_classifier=_promote_all, generated_at="X")
         by = {r["source_path"]: r for r in man["records"]}
         self.assertEqual(by["cve.md"]["tier"], 4)
-        self.assertEqual(by["cve.md"]["floor_rule"], dc.RULE_ADVISORY)
+        self.assertEqual(by["cve.md"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         self.assertEqual(by["harden.md"]["tier"], 1)   # LLM's call now, not floored
         self.assertIn("advisory_hints", by["harden.md"])
 
@@ -152,7 +169,7 @@ class ContractAndImplTests(unittest.TestCase):
     def test_python_logic_is_floored(self):
         d = dc.classify_document("router.py", self.PY_LOGIC, llm_tier=1)
         self.assertEqual(d.tier, 4)
-        self.assertEqual(d.rule, dc.RULE_IMPL)
+        self.assertEqual(d.rule, dc.RULE_CONFIRM_REQUIRED)
 
     def test_impl_floor_holds_when_llm_promotes(self):
         d = dc.classify_document("router.py", self.PY_LOGIC, llm_tier=1)
@@ -177,7 +194,7 @@ class SidecarCannotLaunderAdvisoryTests(unittest.TestCase):
             llm_tier=1, sidecar_promote=True,
         )
         self.assertEqual(d.tier, 4)
-        self.assertEqual(d.rule, dc.RULE_ADVISORY)
+        self.assertEqual(d.rule, dc.RULE_CONFIRM_REQUIRED)
 
     def test_advisory_renamed_with_contract_extension_still_floored(self):
         # cve-2024-x.proto: the content-floor runs BEFORE the contract carve-out.
@@ -186,7 +203,7 @@ class SidecarCannotLaunderAdvisoryTests(unittest.TestCase):
             "cve-2024-43796.proto", renamed, llm_tier=1, sidecar_promote=True
         )
         self.assertEqual(d.tier, 4, d.reason)
-        self.assertEqual(d.rule, dc.RULE_ADVISORY)
+        self.assertEqual(d.rule, dc.RULE_CONFIRM_REQUIRED)
 
     def test_hardening_genre_renamed_proto_is_not_a_contract(self):
         # RE-REVERSED (instr 033 step 1 — the publish gate). Instruction 023 made
@@ -309,7 +326,7 @@ class ManifestTests(unittest.TestCase):
         # content, never blindly reused (instr 011 Panelist A), but its tier is
         # unchanged. Either way the tiering reproduces.
         for r in second["records"]:
-            if r["floor_rule"] not in (dc.RULE_ADVISORY, dc.RULE_INJECTION,
+            if r["floor_rule"] not in (dc.RULE_CONFIRM_REQUIRED, dc.RULE_INJECTION,
                                        dc.RULE_BACKGROUND):
                 self.assertTrue(r.get("reused_from_prior"), r["source_path"])
         self.assertEqual(
@@ -332,7 +349,7 @@ class ManifestTests(unittest.TestCase):
         man = dc.classify_documents(docs, prior_records=poisoned, generated_at="X")
         rec = man["records"][0]
         self.assertEqual(rec["tier"], 4)
-        self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         self.assertFalse(rec.get("reused_from_prior", False))
 
     def test_poison_flipping_only_promotable_is_also_defeated(self):
@@ -352,7 +369,7 @@ class ManifestTests(unittest.TestCase):
         rec = man["records"][0]
         self.assertEqual(rec["tier"], 4)
         self.assertFalse(rec["promotable"])
-        self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
 
     def test_changed_content_is_reclassified(self):
         first = dc.classify_documents(self.DOCS, llm_classifier=_tier1_if("spec"),
@@ -408,10 +425,10 @@ class CorpusTierDistributionTests(unittest.TestCase):
         # The security-genre + CVE docs floor to Tier 4 regardless of the LLM.
         self.assertEqual(by_name["06_Security_Best_Practices.md"]["tier"], 4)
         self.assertEqual(by_name["06_Security_Best_Practices.md"]["floor_rule"],
-                         dc.RULE_ADVISORY)
+                         dc.RULE_CONFIRM_REQUIRED)
         self.assertEqual(by_name["14_Known_Vulnerabilities.md"]["tier"], 4)
         self.assertEqual(by_name["14_Known_Vulnerabilities.md"]["floor_rule"],
-                         dc.RULE_ADVISORY)
+                         dc.RULE_CONFIRM_REQUIRED)
 
     def test_not_all_tier3_or_4(self):
         # The headline regression: authoritative docs no longer come out uniformly
@@ -426,18 +443,49 @@ class CorpusTierDistributionTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # Background-ledger pin (§8a item 7).
 # ---------------------------------------------------------------------------
-class BackgroundLedgerTests(unittest.TestCase):
-    def test_readme_pinned_tier4_even_when_llm_promotes(self):
-        d = dc.classify_document("README.md", "# Project\n\nOverview.\n", llm_tier=1)
-        self.assertEqual(d.tier, 4)
-        self.assertEqual(d.rule, dc.RULE_BACKGROUND)
+class BackgroundByTheReadNotByTheNameTests(unittest.TestCase):
+    """instruction 033 step 2 — the README / coverage / issue-tracker NAME floor is
+    DELETED. A filename is not a genre.
 
-    def test_coverage_ledger_pinned_tier4(self):
-        d = dc.classify_document(
-            "issue_tracker_coverage.md", "# Coverage\n\nWhat was searched.\n", llm_tier=1
-        )
+    The floor's failure mode was concrete: its issue-tracker arm was a PREFIX
+    match, so ``issue_tracker_api_spec.md`` — a genuine specification by content —
+    was pinned to background the operator could not even override, and the show
+    told them "it's a README or a coverage / issue-tracker listing" (instruction
+    032 self-Council, Panelist B). The replacement is the model's read, which is
+    the safe direction anyway: a README reads as background on its own.
+    """
+
+    def test_a_readme_is_background_when_the_read_says_so(self):
+        d = dc.classify_document("README.md", "# Project\n\nOverview.\n",
+                                 llm_tier=4, category="readme")
         self.assertEqual(d.tier, 4)
-        self.assertEqual(d.rule, dc.RULE_BACKGROUND)
+        self.assertIsNone(d.lane)          # not cited
+        self.assertEqual(d.category, "readme")
+
+    def test_no_name_floor_pins_a_readme_against_the_read(self):
+        # The DELIBERATE change: the name no longer overrides the read. This is
+        # what makes the `issue_tracker_api_spec.md` class recoverable.
+        d = dc.classify_document("README.md", "# Project\n\nThe API MUST echo.\n",
+                                 llm_tier=1, category="api-reference")
+        self.assertEqual(d.tier, 1)
+        self.assertEqual(d.rule, dc.RULE_LLM)
+        self.assertEqual(d.lane, dc.LANE_MODEL_READ)
+        self.assertEqual(d.confirmation, dc.UNCONFIRMED)
+
+    def test_a_spec_whose_name_starts_with_issue_tracker_is_no_longer_pinned(self):
+        # The exact document instruction 032's Panelist B found. It used to be
+        # unrescuable background; now the read governs and the operator can act.
+        d = dc.classify_document(
+            "issue_tracker_api_spec.md",
+            "# Issue Tracker API Specification\n\nThe API MUST return 404.\n",
+            llm_tier=1, category="api-reference")
+        self.assertEqual(d.tier, 1)
+        self.assertTrue(d.promotable)
+
+    def test_the_name_floor_helper_is_gone(self):
+        # Charter (c): deleted, not renamed.
+        self.assertFalse(hasattr(dc, "_is_background_ledger"))
+        self.assertFalse(hasattr(dc, "_BACKGROUND_NAME_RE"))
 
 
 # ---------------------------------------------------------------------------
@@ -475,8 +523,10 @@ class IngestWiringTests(unittest.TestCase):
         self.assertEqual(on_disk["records"], man["records"])
         by_name = {r["source_path"].split("/")[-1]: r for r in man["records"]}
         # The advisory floors, the README pins background, the proto is citable.
-        self.assertEqual(by_name["advisory.md"]["floor_rule"], dc.RULE_ADVISORY)
-        self.assertEqual(by_name["README.md"]["floor_rule"], dc.RULE_BACKGROUND)
+        self.assertEqual(by_name["advisory.md"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
+        # instruction 033 step 2: no NAME floor pins a README any more — with no
+        # read supplied it simply arrives untiered for the agent to judge.
+        self.assertEqual(by_name["README.md"]["floor_rule"], dc.RULE_DEFAULT)
         self.assertIn(by_name["api.proto"]["floor_rule"], (dc.RULE_CONTRACT,))
         self.assertIn(by_name["api.proto"]["tier"], (1, 2))
 
@@ -486,7 +536,7 @@ class IngestWiringTests(unittest.TestCase):
         (ref / "grpc_iface.py").write_text(ContractAndImplTests.PY_LOGIC, encoding="utf-8")
         man = rdi.classify_reference_docs(root, write=False)
         floored = {r["source_path"].split("/")[-1]: r for r in man["records"]}
-        self.assertEqual(floored["grpc_iface.py"]["floor_rule"], dc.RULE_IMPL)
+        self.assertEqual(floored["grpc_iface.py"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         # ...until the operator names it in the sidecar.
         (ref / rdi.SIDECAR_NAME).write_text("reference_docs/grpc_iface.py\n", encoding="utf-8")
         man2 = rdi.classify_reference_docs(root, write=False)
@@ -510,7 +560,7 @@ class IngestWiringTests(unittest.TestCase):
         by_name = {r["source_path"].split("/")[-1]: r for r in man["records"]}
         self.assertIn(by_name["api2.proto"]["floor_rule"], (dc.RULE_CONTRACT,))
         self.assertIn(by_name["openapi.json"]["floor_rule"], (dc.RULE_CONTRACT,))
-        self.assertEqual(by_name["router.py"]["floor_rule"], dc.RULE_IMPL)
+        self.assertEqual(by_name["router.py"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
 
     def test_ingest_writes_loud_classification_fields_when_wired(self):
         # Instr 024: the on-disk classification manifest carries classifier_status
@@ -546,14 +596,14 @@ class IngestWiringTests(unittest.TestCase):
         # Without the rescue file: floored.
         man0 = rdi.classify_reference_docs(root, write=False)
         by0 = {r["source_path"].split("/")[-1]: r for r in man0["records"]}
-        self.assertEqual(by0["cve_spec.md"]["floor_rule"], dc.RULE_ADVISORY)
+        self.assertEqual(by0["cve_spec.md"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         # Operator authors the content-keyed rescue with an acknowledgment reason.
         (ref / rdi.ADVISORY_RESCUE_NAME).write_text(
             f"reference_docs/cve_spec.md  {sha}  CVE-2024-43796 in a security section; reviewed, real spec\n",
             encoding="utf-8")
         man1 = rdi.classify_reference_docs(root, llm_classifier=_tier1_if("router"), write=False)
         by1 = {r["source_path"].split("/")[-1]: r for r in man1["records"]}
-        self.assertNotEqual(by1["cve_spec.md"]["floor_rule"], dc.RULE_ADVISORY)
+        self.assertNotEqual(by1["cve_spec.md"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         self.assertTrue(by1["cve_spec.md"]["advisory_rescued"])
         # The rescue file itself is NOT classified as a doc.
         self.assertNotIn(rdi.ADVISORY_RESCUE_NAME,
@@ -570,7 +620,7 @@ class IngestWiringTests(unittest.TestCase):
             f"reference_docs/s.md  {sha}\n", encoding="utf-8")   # no reason
         man = rdi.classify_reference_docs(root, llm_classifier=_promote_all, write=False)
         by = {r["source_path"].split("/")[-1]: r for r in man["records"]}
-        self.assertEqual(by["s.md"]["floor_rule"], dc.RULE_ADVISORY)   # not honored
+        self.assertEqual(by["s.md"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)   # not honored
 
     def test_ingest_still_aborts_on_binary_convert_first_format(self):
         # A genuinely binary / convert-first format (.pdf) still hard-stops with
@@ -588,7 +638,7 @@ class IngestWiringTests(unittest.TestCase):
         man = rdi.classify_reference_docs(root, write=False)
         rec = {r["source_path"].split("/")[-1]: r for r in man["records"]}["cve.proto"]
         self.assertEqual(rec["tier"], 4)
-        self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
 
 
 # ---------------------------------------------------------------------------
@@ -835,7 +885,7 @@ class FloorSimplification023Tests(unittest.TestCase):
                                         generated_at="X")
             rec = man["records"][0]
             self.assertEqual(rec["tier"], 4, name)
-            self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY, name)
+            self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED, name)
             self.assertFalse(rec["promotable"], name)
 
     def test_dollar_schema_config_not_promoted_but_anchored_openapi_is(self):
@@ -860,7 +910,7 @@ class FloorSimplification023Tests(unittest.TestCase):
         self.assertIsNone(dc.advisory_floor(doc, "bp.md"))
         self.assertTrue(dc.advisory_genre_hints(doc, "bp.md"))
         d = dc.classify_document("bp.md", doc, llm_tier=1)
-        self.assertNotEqual(d.rule, dc.RULE_ADVISORY)
+        self.assertNotEqual(d.rule, dc.RULE_CONFIRM_REQUIRED)
         self.assertTrue(d.advisory_hints)
 
     def test_code_heavy_md_is_a_hint_not_a_floor_but_py_still_floors(self):
@@ -870,10 +920,10 @@ class FloorSimplification023Tests(unittest.TestCase):
         self.assertIsNone(dc.implementation_source(code_md, "walkthrough.md"))
         self.assertIsNotNone(dc.code_heavy_hint(code_md, "walkthrough.md"))
         d_md = dc.classify_document("walkthrough.md", code_md, llm_tier=1)
-        self.assertNotEqual(d_md.rule, dc.RULE_IMPL)
+        self.assertNotEqual(d_md.rule, dc.RULE_CONFIRM_REQUIRED)
         self.assertEqual(d_md.code_heavy is not None, True)
         d_py = dc.classify_document("walkthrough.py", code_md, llm_tier=1)
-        self.assertEqual(d_py.rule, dc.RULE_IMPL)
+        self.assertEqual(d_py.rule, dc.RULE_CONFIRM_REQUIRED)
         self.assertIsNone(d_py.code_heavy)   # a code extension is the floor, not a hint
 
     def test_manifest_records_the_hint_fields(self):
@@ -892,20 +942,12 @@ class FloorSimplification023Tests(unittest.TestCase):
         self.assertNotIn("advisory_hints", by["plain.md"])
         self.assertNotIn("code_heavy", by["plain.md"])
 
-    def test_coverage_narrowed_to_exact_stems(self):
-        # Edit 6: exact coverage stems still floor as background; a real spec whose
-        # NAME merely contains "coverage" is not floored by name.
-        for name in ("coverage.md", "coverage_report.md"):
-            self.assertEqual(
-                dc.classify_document(name, "# X\n\nWhat was searched.\n").rule,
-                dc.RULE_BACKGROUND, name)
-        d = dc.classify_document(
-            "test-coverage-requirements.md",
-            "# Coverage Requirements\n\nThe suite MUST cover every public API.\n",
-            llm_tier=1)
-        self.assertNotEqual(d.rule, dc.RULE_BACKGROUND)
-        self.assertEqual(d.tier, 1)
-
+    # (instruction 033 step 2) `test_coverage_narrowed_to_exact_stems` was
+    # DELETED, not rewritten: it tested `_BACKGROUND_NAME_RE`'s exact-stem
+    # narrowing, and that regex no longer exists. The property it protected — a
+    # real spec whose name merely contains "coverage" is not demoted for its name —
+    # now holds by construction, because no name rule can demote anything. See
+    # BackgroundByTheReadNotByTheNameTests.
 
 # ---------------------------------------------------------------------------
 # Instruction 024 — wire the LLM classifier + loud failures (manifest-level).
@@ -924,7 +966,16 @@ class WireClassifier024Tests(unittest.TestCase):
         self.assertEqual(by["spec.md"]["tier"], 1)
         self.assertNotEqual(by["spec.md"]["floor_rule"], dc.RULE_DEFAULT)
         self.assertEqual(man["classifier_status"], dc.CLASSIFIER_WIRED_OK)
-        self.assertIsNone(dc.classification_disclosure(man))
+        # instruction 033 step 2: the classification is NOT degraded, but the
+        # citation rests on the model's read alone, and §8a Revision routes that
+        # status to the gate WARN as well as the show — so there IS something to
+        # disclose, and it must say WHICH thing rather than merely that something
+        # is off.
+        _disc = dc.classification_disclosure(man)
+        self.assertIsNotNone(_disc)
+        self.assertIn("UNCONFIRMED", _disc)
+        self.assertNotIn("did not run", _disc)
+        self.assertNotIn("FAILED", _disc)
 
     def test_unwired_is_loud_not_silent(self):
         # Acceptance 2 (manifest half): no classifier -> status=unwired + a loud
@@ -958,7 +1009,16 @@ class WireClassifier024Tests(unittest.TestCase):
             [("spec.md", self.SPEC)], llm_classifier=_tier1_if("router"),
             generated_at="X")
         self.assertFalse(has_citable["zero_citable"])
-        self.assertIsNone(dc.classification_disclosure(has_citable))
+        # instruction 033 step 2: the classification is NOT degraded, but the
+        # citation rests on the model's read alone, and §8a Revision routes that
+        # status to the gate WARN as well as the show — so there IS something to
+        # disclose, and it must say WHICH thing rather than merely that something
+        # is off.
+        _disc = dc.classification_disclosure(has_citable)
+        self.assertIsNotNone(_disc)
+        self.assertIn("UNCONFIRMED", _disc)
+        self.assertNotIn("did not run", _disc)
+        self.assertNotIn("FAILED", _disc)
 
     def test_hints_are_passed_to_a_hint_aware_classifier(self):
         # Acceptance 4: a hint-aware (3-arg) classifier receives advisory_hints/
@@ -1006,7 +1066,7 @@ class WireClassifier024Tests(unittest.TestCase):
             llm_classifier=_promote_all, generated_at="X")
         by = {r["source_path"]: r for r in man["records"]}
         self.assertEqual(by["cve.md"]["tier"], 4)
-        self.assertEqual(by["cve.md"]["floor_rule"], dc.RULE_ADVISORY)
+        self.assertEqual(by["cve.md"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
 
     def test_playback_lists_citable_floored_and_defaulted(self):
         # Acceptance 6: the interview Stage-1 playback classifies each doc as
@@ -1016,8 +1076,12 @@ class WireClassifier024Tests(unittest.TestCase):
         man = dc.classify_documents(docs, llm_classifier=_tier1_if("router"),
                                     generated_at="X")
         pb = {p["source_path"]: p for p in dc.classification_playback(man)}
-        self.assertEqual(pb["spec.md"]["status"], "citable")
-        self.assertEqual(pb["cve.md"]["status"], "floored-tier4")
+        # instruction 033 step 2: a citation resting on the model's read alone is
+        # `cited-unconfirmed`, and a backstop-flagged document is
+        # `awaiting-confirmation` — routed to the operator, not floored.
+        self.assertEqual(pb["spec.md"]["status"], "cited-unconfirmed")
+        self.assertEqual(pb["spec.md"]["confirmation"], dc.UNCONFIRMED)
+        self.assertEqual(pb["cve.md"]["status"], "awaiting-confirmation")
         self.assertEqual(pb["bg.md"]["status"], "defaulted-tier4")
         self.assertTrue(all(p["reason"] for p in pb.values()))
 
@@ -1043,7 +1107,7 @@ class AdvisoryRescue025Tests(unittest.TestCase):
         # Acceptance 1: a rescue lifts a CVE-bearing legit spec past the advisory
         # floor; the classifier then tiers it (citable at Tier 1).
         d = dc.classify_document("spec.md", self.CVE_SPEC, llm_tier=1, advisory_rescue=True)
-        self.assertNotEqual(d.rule, dc.RULE_ADVISORY)
+        self.assertNotEqual(d.rule, dc.RULE_CONFIRM_REQUIRED)
         self.assertEqual(d.tier, 1)
         self.assertTrue(d.advisory_rescued)
         self.assertIn("CVE-2024-43796", d.rescued_reason)
@@ -1061,7 +1125,7 @@ class AdvisoryRescue025Tests(unittest.TestCase):
         # Acceptance 4: absent a rescue a CVE doc still floors (023/024 behavior).
         d = dc.classify_document("spec.md", self.CVE_SPEC, llm_tier=1)
         self.assertEqual(d.tier, 4)
-        self.assertEqual(d.rule, dc.RULE_ADVISORY)
+        self.assertEqual(d.rule, dc.RULE_CONFIRM_REQUIRED)
 
     def test_content_keyed_wrong_sha_does_not_rescue(self):
         # Acceptance 3: a rescue keyed to the wrong sha does not lift the doc.
@@ -1069,7 +1133,7 @@ class AdvisoryRescue025Tests(unittest.TestCase):
             [("spec.md", self.CVE_SPEC)], llm_classifier=_promote_all,
             advisory_rescues=[("spec.md", "not-the-right-sha")], generated_at="X")
         self.assertEqual(man["records"][0]["tier"], 4)
-        self.assertEqual(man["records"][0]["floor_rule"], dc.RULE_ADVISORY)
+        self.assertEqual(man["records"][0]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
 
     def test_rescue_for_A_does_not_promote_B(self):
         # Acceptance 3: a rescue for doc A cannot promote a different doc B.
@@ -1078,8 +1142,8 @@ class AdvisoryRescue025Tests(unittest.TestCase):
             [("a.md", self.CVE_SPEC), ("b.md", cve_b)], llm_classifier=_promote_all,
             advisory_rescues=[("a.md", self._sha(self.CVE_SPEC))], generated_at="X")
         by = {r["source_path"]: r for r in man["records"]}
-        self.assertNotEqual(by["a.md"]["floor_rule"], dc.RULE_ADVISORY)   # A rescued
-        self.assertEqual(by["b.md"]["floor_rule"], dc.RULE_ADVISORY)      # B still floored
+        self.assertNotEqual(by["a.md"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)   # A rescued
+        self.assertEqual(by["b.md"]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)      # B still floored
 
     def test_poisoned_self_rescue_via_content_fails(self):
         # Acceptance 2: a doc whose CONTENT asks to be promoted/rescued is NOT
@@ -1089,7 +1153,7 @@ class AdvisoryRescue025Tests(unittest.TestCase):
         man = dc.classify_documents(
             [("evil.md", poison)], llm_classifier=_promote_all,
             advisory_rescues=[], generated_at="X")   # NO operator rescue
-        self.assertEqual(man["records"][0]["floor_rule"], dc.RULE_ADVISORY)
+        self.assertEqual(man["records"][0]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         self.assertEqual(man["records"][0]["tier"], 4)
 
     def test_poisoned_prior_manifest_cannot_forge_a_rescue(self):
@@ -1105,7 +1169,7 @@ class AdvisoryRescue025Tests(unittest.TestCase):
             advisory_rescues=[], generated_at="X")   # NO operator rescue
         rec = man["records"][0]
         self.assertEqual(rec["tier"], 4)
-        self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         self.assertNotIn("advisory_rescued", rec)    # the forged flag did not survive
 
     def test_disclosed_in_manifest_and_playback(self):
@@ -1130,7 +1194,7 @@ class AdvisoryRescue025Tests(unittest.TestCase):
         self.assertEqual(d.tier, 1)
         d2 = dc.classify_document("router.py", ContractAndImplTests.PY_LOGIC,
                                   llm_tier=1, advisory_rescue=True)
-        self.assertEqual(d2.rule, dc.RULE_IMPL)   # advisory rescue is orthogonal
+        self.assertEqual(d2.rule, dc.RULE_CONFIRM_REQUIRED)   # advisory rescue is orthogonal
 
 
 if __name__ == "__main__":

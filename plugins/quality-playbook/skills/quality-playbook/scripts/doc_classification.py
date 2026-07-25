@@ -101,6 +101,18 @@ RULE_OPERATOR_BACKGROUND = "operator-background"
 # routed to the operator, and it becomes citable only on their confirmation.
 RULE_CONFIRM_REQUIRED = "operator-confirmation-required"
 
+# v1.6.0 instruction 033 step 2 — the three lanes to a CITED document
+# (§8a Revision rule 2). Written onto the record as `lane`, so every citation
+# carries its own provenance and the show/gate/playback can speak to it.
+LANE_CONTENT_VALIDATED = "content-validated"   # A: a real parse said so
+LANE_MODEL_READ = "model-read"                 # B: the model's genre read said so
+LANE_OPERATOR = "operator-confirmed"           # the human said so
+# The provenance status of a Lane-B citation. This pair is what makes reworded
+# invariant 1 honest: a model-read promotion is cited at headless, but it is
+# always DISCLOSED as unconfirmed until a human confirms it.
+UNCONFIRMED = "unconfirmed"
+CONFIRMED = "confirmed"
+
 # The two decisions an operator may record at the end-of-Phase-1 review.
 OPERATOR_AUTHORITATIVE = "authoritative"
 OPERATOR_BACKGROUND = "background"
@@ -124,7 +136,15 @@ _ABSOLUTE_FLOOR_RULES = frozenset(
 # grounding-layer directive check + Tier-1/2 guard are the load-bearing backstop
 # on the auto-apply path; RULE_INJECTION is no longer produced.)
 _UNRESCUABLE_FLOOR_RULES = frozenset(
-    {RULE_ADVISORY, RULE_BACKGROUND}
+    # instruction 033 step 2 — `RULE_CONFIRM_REQUIRED` MUST be in this set. The
+    # poisoned-prior-manifest defence re-decides a cached record from content and
+    # discards the cache when the fresh decision lands on one of these rules. Step
+    # 2 moved the advisory/implementation floors to Lane C, so without this entry
+    # the set no longer contained the rule that actually fires and a FORGED prior
+    # manifest could launder a Lane-C document straight into citable — a live hole
+    # for as long as the cache exists. (Step 4 deletes the cache and this set with
+    # it; until then the invariant has to hold continuously, not eventually.)
+    {RULE_ADVISORY, RULE_BACKGROUND, RULE_CONFIRM_REQUIRED}
 )
 # The rules that exist ONLY because a live operator-authored file says so — the
 # instr-030 classification-review decisions (``qpb_authoritative.txt``) and the
@@ -145,22 +165,13 @@ _OPERATOR_RULES = frozenset(
     {RULE_OPERATOR_AUTHORITATIVE, RULE_OPERATOR_BACKGROUND, RULE_SIDECAR}
 )
 
-# §8a item 7: README and the coverage / issue-tracker ledgers are background
-# and stay Tier 4 — the classifier cannot promote them. (An advisory-signature
-# README is still caught by the advisory floor first.) The coverage arm is
-# EXACT stems (``coverage`` / ``coverage_report``), not the old free-floating
-# ``*coverage*`` substring, so a real spec whose name merely contains "coverage"
-# (e.g. ``test-coverage-requirements.md``) is not floored as background
-# (instruction 023).
-_BACKGROUND_NAME_RE = re.compile(
-    r"^(?:readme|coverage(?:[_-]report)?|issue[_-]?tracker[^/]*)\.(?:md|txt|rst)$",
-    re.IGNORECASE,
-)
-
-
-def _is_background_ledger(rel_path: str) -> bool:
-    return bool(_BACKGROUND_NAME_RE.match(rel_path.rsplit("/", 1)[-1]))
-
+# instruction 033 step 2 — the README / coverage / issue-tracker NAME floor is
+# DELETED (`_BACKGROUND_NAME_RE`, `_is_background_ledger`). A filename is not a
+# genre: the arm was a prefix match, so `issue_tracker_api_spec.md` — a genuine
+# specification by content — was pinned to unrescuable background and the operator
+# was told "it's a README or a coverage / issue-tracker listing" (instruction 032
+# self-Council, Panelist B). The model reads a README as background on its own,
+# which is the safe direction and needs no floor.
 # ---------------------------------------------------------------------------
 # 1. Advisory / security-genre floor — mechanical, runs FIRST, keyed on content.
 # ---------------------------------------------------------------------------
@@ -463,6 +474,52 @@ def code_heavy_hint(text: str, filename: str) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
+# The minimal hard-signal BACKSTOP (v1.6.0 instruction 033 step 2; §8a Revision
+# rule 2 Lane C + "What is kept").
+#
+# This is what survives of the advisory and implementation-source floors, and the
+# distinction is the whole point of the revision: **it does not classify.** It
+# answers exactly one question — *may this document be cited without asking the
+# operator?* — and its only answer is "no". It never assigns a genre, never sets a
+# tier, and never demotes: a document it flags is routed to the operator, who may
+# confirm it. Genre is the model's read (rule 1).
+#
+# Three signals, any one of which flags (§8a Revision Lane C):
+#   * a present CVE/GHSA identifier          (`_ADVISORY_ID_RE`)
+#   * an advisory-site URL                   (`_ADVISORY_URL_RE`)
+#   * an implementation-source file          (code extension + >=0.25 code ratio)
+#
+# What is NOT here, deliberately: the genre-title/density heuristics (a title is
+# not a genre — instruction 023), the README/coverage/issue-tracker NAME rule (a
+# filename is not a genre — this instruction), and any self-classification regex
+# (a model judgment, not a pattern — rule 3).
+BACKSTOP_ADVISORY_ID = "advisory-identifier"
+BACKSTOP_ADVISORY_URL = "advisory-url"
+BACKSTOP_IMPL_SOURCE = "implementation-source"
+
+
+def backstop_signals(text: str, filename: str = "") -> List[Tuple[str, str]]:
+    """The hard signals that bar SILENT citing. ``[(kind, human_detail), ...]``.
+
+    Empty means "nothing here blocks citing on its own" — NOT "this document is
+    authoritative", which is the model's call. Each entry's detail is the string
+    the operator must acknowledge by name to promote the document (instruction
+    033 step 3's named-signal confirmation), so it names the specific evidence.
+    """
+    found: List[Tuple[str, str]] = []
+    m = _ADVISORY_ID_RE.search(text)
+    if m:
+        found.append((BACKSTOP_ADVISORY_ID, f"advisory identifier {m.group(0)!r}"))
+    m = _ADVISORY_URL_RE.search(text)
+    if m:
+        found.append((BACKSTOP_ADVISORY_URL, f"advisory URL {m.group(0)!r}"))
+    impl = implementation_source(text, filename)
+    if impl:
+        found.append((BACKSTOP_IMPL_SOURCE, impl))
+    return found
+
+
+# ---------------------------------------------------------------------------
 # Orchestration.
 # ---------------------------------------------------------------------------
 @dataclass
@@ -486,6 +543,30 @@ class Decision:
     # "authoritative" (use this as a source my requirements can cite) or
     # "background" (read it, don't quote it). Human-only, content-keyed.
     operator_decision: Optional[str] = None
+    # --- v1.6.0 instruction 033 step 2: the three-lane provenance -------------
+    # Which lane produced a CITED document (§8a Revision rule 2). ``None`` for
+    # background. "A" = content validated as a contract format (a structural
+    # fact, cited in every mode). "B" = the model's own read said authoritative
+    # (cited at headless, disclosed `unconfirmed` until the operator confirms).
+    # "operator" = the operator said so.
+    lane: Optional[str] = None
+    # The provenance status that rides with a Lane-B citation, and the reason
+    # invariant 1 is honest: a model-read promotion is ALWAYS disclosed
+    # unconfirmed until a human confirms it.
+    confirmation: Optional[str] = None
+    # Hard signals that bar silent citing (``backstop_signals`` above). Recorded
+    # whether or not they fired the decision, because instruction 033 step 3's
+    # named-signal confirmation has to quote them back to the operator.
+    backstop: List[Tuple[str, str]] = field(default_factory=list)
+    # The model's own genre label + one-sentence reason for this document (rule 1),
+    # per-document-isolated. `category` also drives the show's most-authoritative
+    # pick, which replaces the deleted filename-token tables.
+    category: Optional[str] = None
+    model_reason: Optional[str] = None
+    # The model noticed the document asking to be treated as authoritative
+    # (rule 3 / Lane C). Surfaced to the operator, never obeyed and never
+    # suppressed — and a model judgment, not a regex.
+    self_classifying: bool = False
 
 
 def classify_document(
@@ -495,8 +576,11 @@ def classify_document(
     sidecar_promote: bool = False,
     advisory_rescue: bool = False,
     operator_decision: Optional[str] = None,
+    self_classifying: bool = False,
+    category: Optional[str] = None,
+    model_reason: Optional[str] = None,
 ) -> Decision:
-    """Classify one document to a Decision, enforcing the floor in priority order.
+    """Classify one document to a Decision, in the priority order of ``_classify``.
 
     * ``llm_tier`` — the tier the LLM classifier assigned to the *remaining*
       (floor-passed) documents; the floor may override it only downward.
@@ -511,16 +595,20 @@ def classify_document(
     * ``operator_decision`` — the end-of-Phase-1 review correction (instr 030):
       ``"authoritative"`` (the operator says this document IS a source their
       requirements may cite) or ``"background"`` (the reverse). Operator-authored
-      and content-keyed like the advisory rescue; the classifier, a persona, and
-      document content can never produce one. Its **upward** power stops exactly
-      where the sidecar's does: it may lift the *implementation* floor (the same
-      operator power ``qpb_promote.txt`` already grants, keyed on content rather
-      than path) but it may **never** lift the advisory floor (that needs the
-      instr-025 rescue, which acknowledges the specific signal being overridden)
-      or the background-ledger floor. The downward direction is unconditional.
+      and content-keyed; the classifier, a persona, and document content can never
+      produce one. Downward is unconditional. Upward it promotes — but a document
+      the BACKSTOP flagged still needs the signal acknowledged by name, so
+      ``authoritative`` alone does not lift a CVE/GHSA or implementation-source
+      finding (instruction 033: the instr-025 speed-bump, preserved in kind).
+    * ``self_classifying`` / ``category`` / ``model_reason`` — the model's read of
+      this document (instruction 033 step 2, §8a Revision rule 1). ``category`` +
+      ``model_reason`` are its genre judgment and one-sentence why;
+      ``self_classifying`` is its observation that the document asks to be treated
+      as authoritative, which routes to Lane C. All three are per-document: the
+      read is isolated, so nothing in another file can move this decision.
 
     Advisory genre-title hints and the code-heavy hint are attached to the
-    returned Decision (they inform the LLM/manifest; they never floor or promote).
+    returned Decision (they inform the model/manifest; they never floor or promote).
     """
     if operator_decision is not None and operator_decision not in _OPERATOR_DECISIONS:
         raise ValueError(
@@ -530,8 +618,13 @@ def classify_document(
     decision = _classify(
         rel_path, text, llm_tier=llm_tier, sidecar_promote=sidecar_promote,
         advisory_rescue=advisory_rescue, operator_decision=operator_decision,
+        self_classifying=self_classifying,
     )
     decision.operator_decision = operator_decision
+    decision.category = category
+    decision.model_reason = model_reason
+    if self_classifying:
+        decision.self_classifying = True
     decision.advisory_hints = advisory_genre_hints(text, rel_path)
     decision.code_heavy = code_heavy_hint(text, rel_path)
     if advisory_rescue:
@@ -552,112 +645,138 @@ def _classify(
     sidecar_promote: bool = False,
     advisory_rescue: bool = False,
     operator_decision: Optional[str] = None,
+    self_classifying: bool = False,
 ) -> Decision:
-    # 1. Advisory floor FIRST — HARD signals only (CVE/GHSA id, advisory URL),
-    #    content-keyed, before any extension carve-out or sidecar. An advisory
-    #    reaches classification ONLY via an operator-authored, content-keyed rescue
-    #    (advisory_rescue, instr 025) — never by the classifier or document content.
-    adv = advisory_floor(text, rel_path)
-    if adv and not advisory_rescue:
-        return Decision(4, RULE_ADVISORY, f"advisory (hard signal): {adv}", False)
+    """Priority order after instruction 033 step 2 (§8a Revision rule 2).
 
-    # README / coverage / issue-tracker ledgers are background — pinned Tier 4
-    # (§8a item 7); the classifier cannot promote them.
-    if _is_background_ledger(rel_path):
-        return Decision(4, RULE_BACKGROUND, "README/coverage/ledger stays Tier 4 background", False)
+    The order below IS the three-lane contract, and each step is here for a
+    reason a previous release paid for:
 
-    # 1b. Operator DEMOTION (instr 030) — the human looked at the end-of-Phase-1
-    #     review and said "that one is background, don't quote it." Downward only,
-    #     so it needs no guard; it runs before the promoting branches so it wins
-    #     over the contract carve-out and the classifier alike.
+      0. operator DEMOTION — free and unconditional (rule 2: "demotion is free").
+      1. the hard-signal BACKSTOP — before Lane A, so an advisory renamed
+         `api.proto` cannot ride the contract path (the instr-025/023 lesson).
+      2. Lane A — the content VALIDATES as a contract format. A structural fact.
+      3. Lane C — a contract-format extension with no content anchor, or a
+         document the model saw asking to be authoritative. Routed, never obeyed.
+      4. operator PROMOTION — the human said "cite this".
+      5. Lane B — the model's own read says authoritative: cited, and disclosed
+         `unconfirmed` until a human confirms.
+      6. the model's read says background — or there was no read at all.
+    """
+    backstop = backstop_signals(text, rel_path)
+    ext_hint = contract_extension_hint(rel_path)
+    contract = contract_content_validation(text, rel_path)
+    operator_authoritative = operator_decision == OPERATOR_AUTHORITATIVE
+
+    def _with(decision: Decision) -> Decision:
+        # Every record carries the backstop findings, whether or not they decided
+        # anything: step 3's named-signal confirmation quotes them back.
+        decision.backstop = list(backstop)
+        return decision
+
+    # 0. Operator DEMOTION — downward only, so it needs no guard and outranks
+    #    everything, including Lane A.
     if operator_decision == OPERATOR_BACKGROUND:
-        return Decision(
+        return _with(Decision(
             4, RULE_OPERATOR_BACKGROUND,
             "operator marked this document background at the classification review",
             False,
-        )
+        ))
 
-    contract = machine_readable_contract(text, rel_path)
-    impl = implementation_source(text, rel_path)
-    operator_authoritative = operator_decision == OPERATOR_AUTHORITATIVE
-    # Lane C hint (instruction 033 step 1): a contract-format extension with no
-    # content anchor. Evaluated here so it can be consulted by the branches below;
-    # it never promotes on its own.
-    ext_hint = contract_extension_hint(rel_path)
+    # 1. The hard-signal BACKSTOP. It does not classify — it bars SILENT citing.
+    #    An operator may still promote a flagged document, but only by
+    #    acknowledging the SPECIFIC signal, and the channels are NOT
+    #    interchangeable (§8a, the two hard bounds on sidecar promotion):
+    #
+    #      * an ADVISORY signal (CVE/GHSA identifier, advisory URL) is acknowledged
+    #        only by the content-keyed advisory rescue, which names the signal.
+    #        Neither the path-keyed sidecar nor a plain "authoritative" lifts it —
+    #        "the sidecar may rescue a file from the implementation floor only; it
+    #        may NEVER override an advisory-signature floor match."
+    #      * an IMPLEMENTATION-SOURCE signal is the fuzzy case the sidecar exists
+    #        for (a code-shaped contract), so the sidecar or an operator
+    #        authoritative decision acknowledges that one.
+    #
+    #    A plain "authoritative" is deliberately not enough for an advisory: that
+    #    would drop the instruction-025 speed-bump on the one class of document
+    #    that most needs it. (An earlier draft of this branch let ANY of the three
+    #    channels clear ANY signal, which let the sidecar launder a CVE advisory
+    #    into Tier 1 — caught by `test_sidecar_cannot_promote_a_cve_advisory` and
+    #    `test_advisory_renamed_with_contract_extension_still_floored`.)
+    _ADVISORY_KINDS = (BACKSTOP_ADVISORY_ID, BACKSTOP_ADVISORY_URL)
 
-    # 2. Implementation floor — the code-EXTENSION floor only (a machine-readable
-    #    contract is exempt). The old non-extension content sniff is now a hint.
-    #    The operator's classification-review promotion (instr 030) rescues this
-    #    floor exactly as the path-keyed sidecar does — the same operator power,
-    #    keyed on content instead of on path. It does NOT reach the advisory or
-    #    background-ledger floors above, which already returned.
-    # `and not ext_hint`: a `.d.ts` ends with `.ts` and a GraphQL/IDL file can read
-    # as code-shaped, so without this the implementation floor would swallow the
-    # Lane-C formats into SILENT BACKGROUND — the exact orphaning §8a Revision
-    # Fable must-fix 2 forbids. They fall through to the Lane-C branch below.
-    if impl and not contract and not ext_hint:
-        if sidecar_promote or operator_authoritative:
-            tier = llm_tier if llm_tier in (1, 2) else 1
-            if operator_authoritative:
-                return Decision(
-                    tier, RULE_OPERATOR_AUTHORITATIVE,
-                    "operator named this document authoritative at the "
-                    f"classification review, past the implementation floor ({impl})",
-                    True,
-                )
-            return Decision(
-                tier, RULE_SIDECAR,
-                f"operator-sidecar promotion past implementation floor ({impl})",
-                True,
-            )
-        return Decision(4, RULE_IMPL, f"implementation-source floor: {impl}", False)
+    def _acknowledged(kind: str) -> bool:
+        if kind in _ADVISORY_KINDS:
+            return advisory_rescue
+        return sidecar_promote or operator_authoritative
 
-    # 3. Lane A — the content VALIDATES as a contract format. A hard structural
-    #    fact, so it is citable in every mode with no override (§8a Revision
-    #    rule 2 Lane A). Since instruction 033 this can no longer be reached by a
-    #    filename or by a signature pasted into prose.
+    unacknowledged = [(k, d) for k, d in backstop if not _acknowledged(k)]
+    if unacknowledged:
+        detail = "; ".join(d for _kind, d in unacknowledged)
+        return _with(Decision(
+            4, RULE_CONFIRM_REQUIRED,
+            f"needs your confirmation, naming the signal: {detail}", False,
+        ))
+
+    # 2. Lane A — content-validated contract. Cited in every mode, no override.
     if contract:
         tier = llm_tier if llm_tier in (1, 2) else 1
-        return Decision(tier, RULE_CONTRACT, f"machine-readable contract: {contract}", True)
+        d = Decision(tier, RULE_CONTRACT,
+                     f"machine-readable contract: {contract}", True)
+        d.lane = LANE_CONTENT_VALIDATED
+        return _with(d)
 
+    # 3a. Lane C — a contract-format extension whose content does not validate.
+    #     Neither promoting it (the `upstream_notes.thrift` exploit) nor silently
+    #     calling it background (which orphans a genuine Thrift / GraphQL SDL /
+    #     `.idl` / `.d.ts` file) is honest, so it is routed to the operator.
+    if ext_hint and not operator_authoritative:
+        d = Decision(4, RULE_CONFIRM_REQUIRED,
+                     f"needs your confirmation: {ext_hint}", False)
+        return _with(d)
 
-    # 3b. Operator PROMOTION on a floor-passed document (instr 030) — the virtio
-    #     case: a genuine spec the classifier read as background. The operator is
-    #     the one who gathered the docs and is the authority on which is the spec.
-    if operator_authoritative:
+    # 3b. Lane C — the model noticed the document asking to be treated as
+    #     authoritative (rule 3). Surfaced as a REQUEST, never auto-honoured:
+    #     obeying it unprompted is literally content driving promotion.
+    if self_classifying and not operator_authoritative:
+        d = Decision(4, RULE_CONFIRM_REQUIRED,
+                     "this document asks to be treated as your specification; "
+                     "needs your confirmation", False)
+        d.self_classifying = True
+        return _with(d)
+
+    # 4. Operator PROMOTION — the human is the authority on which document is the
+    #    spec, and by here any backstop signal has been acknowledged by name.
+    if operator_authoritative or sidecar_promote:
         tier = llm_tier if llm_tier in (1, 2) else 1
-        return Decision(
-            tier, RULE_OPERATOR_AUTHORITATIVE,
-            "operator named this document authoritative at the classification review",
-            True,
-        )
+        rule = (RULE_OPERATOR_AUTHORITATIVE if operator_authoritative
+                else RULE_SIDECAR)
+        why = ("operator named this document authoritative at the classification "
+               "review" if operator_authoritative
+               else "operator override names this file")
+        if backstop:
+            why += f" (acknowledged: {'; '.join(d for _k, d in backstop)})"
+        d = Decision(tier, rule, why, True)
+        d.lane = LANE_OPERATOR
+        d.confirmation = CONFIRMED
+        return _with(d)
 
-    # 3c. Lane C — a contract-format extension whose content does NOT validate
-    #     (§8a Revision rule 2 Lane C / Fable must-fix 2). Neither promoting it
-    #     (the `upstream_notes.thrift` exploit) nor silently calling it background
-    #     (which orphans a genuine Thrift / GraphQL SDL / `.idl` / `.d.ts` file) is
-    #     honest, so it is routed to the operator. `promotable=False`, so nothing
-    #     downstream may cite it until a confirmation arrives. Placed AFTER the
-    #     operator-authoritative branch on purpose: a confirmation in hand wins,
-    #     which is how a genuine Thrift file becomes citable.
-    if ext_hint:
-        return Decision(
-            4, RULE_CONFIRM_REQUIRED,
-            f"needs your confirmation: {ext_hint}", False,
-        )
-
-    # 4. Floor-passed background/authoritative — the LLM classifier decides.
-    #    (The classifier owns the self-authorizing-tier judgment: the injection
-    #    floor was removed in instruction 023. Its advisory genre-title hint, if
-    #    any, is surfaced on the record as a demotion input to the LLM.)
+    # 5/6. The model's read. Tier 1/2 is Lane B — cited, and disclosed
+    #      `unconfirmed`, which is what makes invariant 1 true rather than
+    #      aspirational. Tier 3/4 is a free demotion. No read at all is the
+    #      unwired default, and it is LOUD via `classifier_status`.
     if llm_tier is None:
-        return Decision(
+        return _with(Decision(
             4, RULE_DEFAULT,
             "no classifier tier assigned; Tier 4 on ambiguity", True,
-        )
+        ))
     if llm_tier not in (1, 2, 3, 4):
         raise ValueError(f"llm_tier must be 1-4 or None, got {llm_tier!r}")
-    return Decision(llm_tier, RULE_LLM, f"LLM classifier assigned Tier {llm_tier}", True)
+    d = Decision(llm_tier, RULE_LLM, f"LLM classifier assigned Tier {llm_tier}", True)
+    if llm_tier in (1, 2):
+        d.lane = LANE_MODEL_READ
+        d.confirmation = UNCONFIRMED
+    return _with(d)
 
 
 def _record(rel_path: str, text: str, decision: Decision) -> dict:
@@ -683,10 +802,26 @@ def _record(rel_path: str, text: str, decision: Decision) -> dict:
         rec["advisory_rescued"] = True
         rec["rescued_reason"] = decision.rescued_reason
     # Operator classification-review decision (instr 030): recorded whenever the
-    # operator made one — INCLUDING when an absolute floor refused it — so a
-    # refused promotion is visible in the review rather than silently dropped.
+    # operator made one — INCLUDING when the backstop refused it — so a refused
+    # promotion is visible in the review rather than silently dropped.
     if decision.operator_decision:
         rec["operator_decision"] = decision.operator_decision
+    # --- instruction 033 step 2: the three-lane provenance --------------------
+    # Emitted only when set, so a background record stays byte-minimal.
+    if decision.lane:
+        rec["lane"] = decision.lane
+    if decision.confirmation:
+        rec["confirmation"] = decision.confirmation
+    if decision.backstop:
+        # (kind, detail) pairs -> a list of dicts, so the artifact is readable and
+        # step 3's named-signal confirmation can quote `detail` verbatim.
+        rec["backstop"] = [{"kind": k, "detail": d} for k, d in decision.backstop]
+    if decision.category:
+        rec["category"] = decision.category
+    if decision.model_reason:
+        rec["model_reason"] = decision.model_reason
+    if decision.self_classifying:
+        rec["self_classifying"] = True
     return rec
 
 
@@ -703,6 +838,44 @@ def _accepts_hints(fn) -> bool:
     positional = [p for p in params
                   if p.kind in (p.POSITIONAL_ONLY, p.POSITIONAL_OR_KEYWORD)]
     return len(positional) >= 3 or any(p.kind == p.VAR_POSITIONAL for p in params)
+
+
+def _parse_read(result) -> Tuple[Optional[int], Dict[str, object]]:
+    """Normalize a classifier result into ``(tier, read)``.
+
+    The callable contract after instruction 033 step 2 (§8a Revision rule 1). The
+    read is the model's, so it carries more than a number — but the simple form
+    stays valid, because most callers and every fixture only have a tier:
+
+    * ``None``            — the model declined to tier this document.
+    * ``4`` / ``1``       — a bare tier. Still supported, still the common case.
+    * ``{"tier": 1, "category": "api-reference",
+         "reason": "...", "self_classifying": False}``
+                          — the full read: genre label, one-sentence why, and
+                            whether the document asks to be treated as
+                            authoritative (rule 3, a model judgment not a regex).
+
+    Unknown keys are ignored rather than rejected: the prompt-side read is the
+    surface of record (`references/phase1_exploration_guide.md`), and a prompt
+    that grows a field must not break ingest.
+    """
+    if result is None:
+        return None, {}
+    if isinstance(result, bool):        # bool is an int subclass — reject early
+        raise ValueError(f"classifier returned a bool, expected a tier: {result!r}")
+    if isinstance(result, int):
+        return result, {}
+    if isinstance(result, dict):
+        tier = result.get("tier")
+        if tier is not None and not isinstance(tier, int) or isinstance(tier, bool):
+            raise ValueError(f"classifier read has a non-integer tier: {tier!r}")
+        return tier, {
+            "category": result.get("category"),
+            "reason": result.get("reason"),
+            "self_classifying": bool(result.get("self_classifying")),
+        }
+    raise ValueError(
+        f"classifier must return a tier, None, or a read mapping; got {type(result).__name__}")
 
 
 def _newly_overridden(
@@ -742,7 +915,15 @@ def _newly_overridden(
     """
     if operator_decision is not None:
         return True
-    if in_sidecar and cached.get("floor_rule") == RULE_IMPL:
+    if in_sidecar and cached.get("floor_rule") in (RULE_IMPL, RULE_CONFIRM_REQUIRED):
+        # instruction 033 step 2: the rule the sidecar LIFTS is now
+        # `RULE_CONFIRM_REQUIRED` (the implementation-source signal routes to Lane C
+        # instead of an impl floor). Keying only on the old `RULE_IMPL` meant a
+        # sidecar line added AFTER a first ingest was reused from cache and became
+        # a permanent silent no-op again — the exact defect instruction 030's
+        # self-Council round 3 found and this clause exists to prevent. `RULE_IMPL`
+        # stays in the tuple only because a pre-033 manifest can still carry it;
+        # step 4 removes the cache and this whole function.
         return True
     return bool(rescued and not cached.get("advisory_rescued"))
 
@@ -916,7 +1097,22 @@ def classify_documents(
             # doc still trips RULE_ADVISORY and its poisoned cache is discarded. A
             # poisoned prior manifest cannot forge a rescue: the rescue comes only
             # from the operator-authored file, never from the (untrusted) cache.
-            guard = classify_document(rel_path, text, advisory_rescue=rescued)  # no LLM, no sidecar
+            # The guard re-decides from CONTENT with no model tier, so a poisoned
+            # prior manifest cannot keep a barred document citable. It must,
+            # however, see the operator's LIVE inputs — the sidecar set and any
+            # decision read from the operator-authored file THIS run — or it
+            # substitutes its own no-consent verdict for the real one and destroys
+            # a legitimate promotion. That regression appeared the moment
+            # `RULE_CONFIRM_REQUIRED` joined `_UNRESCUABLE_FLOOR_RULES`, because
+            # Lane C is by design rescuable BY THE OPERATOR: with the sidecar still
+            # on file, `test_a_live_sidecar_still_promotes_through_the_cache` went
+            # red. Consent stays live-file (removing the line still revokes it);
+            # what changed is that the guard now asks the same question the real
+            # decision asks (instruction 033 step 2).
+            guard = classify_document(
+                rel_path, text, advisory_rescue=rescued,
+                sidecar_promote=rel_path in sidecar_set,
+                operator_decision=operator_decision)   # no model tier
             if guard.rule in _UNRESCUABLE_FLOOR_RULES:
                 records.append(_record(rel_path, text, guard))
                 continue
@@ -954,6 +1150,7 @@ def classify_documents(
                 records.append(rec)
                 continue
         llm_tier = None
+        read: Dict[str, object] = {}
         if llm_classifier is not None:
             try:
                 if wants_hints:
@@ -961,18 +1158,22 @@ def classify_documents(
                         "advisory_hints": advisory_genre_hints(text, rel_path),
                         "code_heavy": code_heavy_hint(text, rel_path),
                     }
-                    llm_tier = llm_classifier(rel_path, text, hints)
+                    result = llm_classifier(rel_path, text, hints)
                 else:
-                    llm_tier = llm_classifier(rel_path, text)
+                    result = llm_classifier(rel_path, text)
+                llm_tier, read = _parse_read(result)
             except Exception as exc:   # a FAILED classifier is loud, not silent
                 classifier_status = CLASSIFIER_ERROR
                 if classifier_error is None:
                     classifier_error = f"{type(exc).__name__}: {exc}"
-                llm_tier = None
+                llm_tier, read = None, {}
         decision = classify_document(
             rel_path, text, llm_tier=llm_tier,
             sidecar_promote=rel_path in sidecar_set, advisory_rescue=rescued,
             operator_decision=operator_decision,
+            self_classifying=bool(read.get("self_classifying")),
+            category=read.get("category"),
+            model_reason=read.get("reason"),
         )
         records.append(_record(rel_path, text, decision))
 
@@ -988,17 +1189,60 @@ def classify_documents(
         if any(r.get("floor_rule") == RULE_LLM for r in records):
             classifier_status = CLASSIFIER_WIRED_OK
     citable = [r for r in records if r.get("tier") in (1, 2)]
+    # instruction 033 step 2 — corpus-level provenance, all DERIVED from the
+    # per-document records (invariant 7: never a corpus-wide judgment a single
+    # document could influence).
+    unconfirmed = [r for r in citable if r.get("confirmation") == UNCONFIRMED]
+    awaiting = [r for r in records
+                if r.get("floor_rule") == RULE_CONFIRM_REQUIRED]
     manifest = {
         "schema_version": schema_version,
         "generated_at": generated_at,
         "classifier_status": classifier_status,
         "citable_count": len(citable),
         "zero_citable": len(citable) == 0,
+        # How many citations rest on the model's read alone and so are disclosed
+        # unconfirmed — the number the gate WARN and the show speak to.
+        "unconfirmed_citable_count": len(unconfirmed),
+        # Documents the backstop or a Lane-C signal routed to the operator. They
+        # are NOT cited; this is the queue the confirmation step works through.
+        "awaiting_confirmation_count": len(awaiting),
+        "most_authoritative": _most_authoritative(records),
         "records": records,
     }
     if classifier_error is not None:
         manifest["classifier_error"] = classifier_error
     return manifest
+
+
+def _most_authoritative(records: Sequence[dict]) -> Optional[str]:
+    """The single most authoritative document, or ``None`` if none looks like one.
+
+    §8a Revision rule 1 says the model "names its most-authoritative pick, or says
+    none looks like a spec" — and invariant 7 says that pick must be DERIVED from
+    the per-document categories rather than asked as a corpus-wide question, or it
+    becomes a cross-document injection surface the per-file floors never had.
+
+    So this is a pure function of the per-doc records, ordered by how much the
+    standing rests on evidence rather than judgment:
+
+      1. Lane A — the content validated as a contract format. A structural fact.
+      2. Lane operator — a human said so.
+      3. Lane B — the model's read, best (lowest) tier first.
+
+    Ties break on the path, never on size: size ordering is what named a 45 KB
+    style guide as the operator's specification in instruction 031.
+    """
+    def rank(rec):
+        lane = rec.get("lane")
+        band = {LANE_CONTENT_VALIDATED: 0, LANE_OPERATOR: 1,
+                LANE_MODEL_READ: 2}.get(lane)
+        if band is None or rec.get("tier") not in (1, 2):
+            return None
+        return (band, rec.get("tier") or 9, str(rec.get("source_path") or ""))
+
+    ranked = sorted((r for r in records if rank(r) is not None), key=rank)
+    return str(ranked[0].get("source_path")) if ranked else None
 
 
 def citable_records(manifest: dict) -> List[dict]:
@@ -1035,6 +1279,28 @@ def classification_disclosure(manifest: dict) -> Optional[str]:
             "all requirements will be code-derived. Confirm this is expected — a "
             "missing or mis-tiered spec produces the same signature."
         )
+    # instruction 033 step 2 — the two three-lane facts the gate has to raise.
+    # A Lane-B citation is real grounding, but it rests on the model's read alone,
+    # so a run that ships requirements citing one has to say so: that is what
+    # makes reworded invariant 1 ("always disclosed unconfirmed until the operator
+    # confirms") true at the gate and not only in the show.
+    unconfirmed = manifest.get("unconfirmed_citable_count") or 0
+    if unconfirmed:
+        parts.append(
+            "{n} cited document{s} rest{v} on the model's own genre read and "
+            "{is_} still UNCONFIRMED by the operator — grounding is real but "
+            "unreviewed; the end-of-Phase-1 confirmation upgrades it.".format(
+                n=unconfirmed, s="" if unconfirmed == 1 else "s",
+                v="s" if unconfirmed == 1 else "", is_="is" if unconfirmed == 1 else "are")
+        )
+    awaiting = manifest.get("awaiting_confirmation_count") or 0
+    if awaiting:
+        parts.append(
+            "{n} document{s} {is_} held back pending operator confirmation (a hard "
+            "signal barred silent citing) and {is_} NOT being quoted.".format(
+                n=awaiting, s="" if awaiting == 1 else "s",
+                is_="is" if awaiting == 1 else "are")
+        )
     return " ".join(parts) if parts else None
 
 
@@ -1055,6 +1321,13 @@ def classification_playback(manifest: dict) -> List[dict]:
             status = "operator-authoritative"   # the operator said "this IS my spec"
         elif r.get("floor_rule") == RULE_OPERATOR_BACKGROUND:
             status = "operator-background"      # the operator said "background only"
+        elif r.get("floor_rule") == RULE_CONFIRM_REQUIRED:
+            # instruction 033 step 2 — Lane C. Distinct from a floored document:
+            # nothing has been decided, the operator has been asked.
+            status = "awaiting-confirmation"
+        elif tier in (1, 2) and r.get("confirmation") == UNCONFIRMED:
+            # Lane B — cited, but on the model's read alone.
+            status = "cited-unconfirmed"
         elif tier in (1, 2):
             status = "citable"
         elif r.get("floor_rule") == RULE_DEFAULT:
@@ -1073,6 +1346,9 @@ def classification_playback(manifest: dict) -> List[dict]:
             entry["rescued_reason"] = r.get("rescued_reason")
         if r.get("operator_decision"):
             entry["operator_decision"] = r.get("operator_decision")
+        for key in ("lane", "confirmation", "category", "model_reason", "backstop"):
+            if r.get(key):
+                entry[key] = r.get(key)
         out.append(entry)
     return out
 
@@ -1113,10 +1389,14 @@ _AUTHORITATIVE_REASONS = {
     # mechanism also creates a false-DEMOTION path for the audit instruction in
     # `phase1_exploration_guide.md`: an agent checks `.yaml`, finds no contract
     # extension, and demotes a real spec. Name both arms.)
+    # instruction 033 step 1 deleted the EXTENSION arm, so naming it here became
+    # false: Lane A is now reached only by validating the format INSIDE the file.
+    # (The 032 Council spent four rounds on this string precisely because a reason
+    # that names a signal the code no longer uses is the same defect class as one
+    # that asserts a genre the signal does not establish.)
     RULE_CONTRACT: (
-        "its file extension, or an interface-definition signature inside it, marks "
-        "it as a contract definition — the kind of file that states directly what "
-        "this software is supposed to do."
+        "I recognised an interface-definition format inside it — the kind of file "
+        "that states directly what this software is supposed to do."
     ),
     RULE_LLM: "I read it as a statement of what this software is supposed to do.",
 }
@@ -1158,6 +1438,16 @@ _BACKGROUND_REASONS = {
         "listing — documents that describe a project rather than specify it."
     ),
     RULE_OPERATOR_BACKGROUND: "you told me to treat this one as background only.",
+    # instruction 033 step 2 — Lane C. NOT background: the document is held back
+    # from being quoted until the operator answers, and the show has to read as a
+    # question rather than a verdict. The specific signal (a CVE identifier, an
+    # advisory link, a contract extension with no readable format inside) is named
+    # separately by the confirmation step, which is where the operator has to
+    # acknowledge it by name.
+    RULE_CONFIRM_REQUIRED: (
+        "I can't tell from the file itself whether this is one of your sources, so "
+        "I'm not quoting it until you tell me."
+    ),
     RULE_DEFAULT: (
         "nothing identified it as a statement of what this software is supposed to do."
     ),
@@ -1210,6 +1500,12 @@ _REFUSED_PROMOTION_NOTE = (
 _CITE_FOLDER_REASON = (
     "you put it in the folder for documents you want quoted as sources."
 )
+# instruction 033 step 2 — the operator-language form of a Lane-B `unconfirmed`
+# citation. The word "unconfirmed" is itself internal jargon (invariant 8), so the
+# status reaches the operator as what it MEANS: I made this call, it is mine and
+# not yours, and you can overrule it. Appended to a Lane-B authoritative reason so
+# no citation on the model's read alone reads as settled.
+_UNCONFIRMED_NOTE = " That was my own call — tell me if I've got it wrong."
 
 # A path is interpolated straight into operator-facing Markdown, and a document's
 # *filename* is attacker-influenced surface just like its content. A newline in a
@@ -1225,106 +1521,29 @@ _UNSAFE_PATH_CHARS_RE = re.compile(
 _MAX_SHOWN_PATH = 160
 
 # Instruction 031 fix 1 — the worked example must never confidently name a
-# document that is not plausibly a specification. Size is not that signal: on the
-# real virtio corpus the largest promotable background document is
+# document that is not plausibly a specification, and must never use SIZE as the
+# signal: on the real virtio corpus the largest promotable background document is
 # ``linux-coding-style.rst`` (a 45 KB style guide) while the actual spec,
-# ``virtio-spec-behavioral-contracts.md``, is 7.8 KB — so the feature built to
-# help the operator recover a mis-classified spec was suggesting they promote a
-# STYLE GUIDE as their specification.
-#
-# The signal is the document's NAME. The show is rendered from the classification
-# manifest, whose records carry the path, the tier, the floor decision and the
-# byte count — a title/self-identification signal would have to be derived at
-# classify time and persisted as a new record field, which changes the manifest
-# schema the content-keyed reproducibility contract is written against. That is a
-# schema decision, not a rendering one, so the renderer uses what is already
-# there and falls back to a NEUTRAL PLACEHOLDER whenever the name says nothing —
-# an honest blank instead of a confident wrong answer.
-_SPEC_NAME_TOKENS = frozenset({
-    "spec", "specs", "specification", "specifications",
-    "contract", "contracts",
-    "reference", "references",
-    "protocol", "protocols",
-    "api", "apis",
-    "rfc", "rfcs",
-    "standard", "standards",
-})
-# ...and the genres that carry one of those words while being the opposite of a
-# specification. A veto, evaluated first, because the failure it prevents is the
-# reported defect itself: ``linux-coding-standards.rst`` (one rename away from
-# the real virtio file) matches ``standards``, and ``api-migration-guide.md`` /
-# ``quick-reference-card.md`` match ``api`` / ``reference`` — each would be named
-# over a genuine spec, since size still breaks ties among spec-like candidates
-# (instr 031 self-Council, Panelist A). A vetoed name falls through to the
-# placeholder, which is the honest direction for exactly this class.
-# Two classes, both naming what a document IS rather than what it is about:
-#
-# 1. GENRE words — the document's kind is not "specification": a guide, a
-#    tutorial, an FAQ, a changelog, a set of examples, a table of contents.
-# 2. PRACTICE-DOMAIN words — the subject is how the TEAM works (their coding,
-#    documentation, naming, review or commit practice), so "standards" /
-#    "reference" / "contract" beside one of these describes house style, not the
-#    software's contract. This is the class `linux-coding-style.rst` belongs to,
-#    and it is why closing it one filename at a time does not work:
-#    `documentation-standards.md`, `naming-standards.md` and
-#    `engineering-standards.md` are the same document wearing different words
-#    (instr 031 self-Council round 3, Panelist A — who caught that round 2 had
-#    closed only the one filename, not the class).
-_NON_SPEC_NAME_TOKENS = frozenset({
-    # genre
-    "style", "styles", "styleguide",
-    "guide", "guides", "guideline", "guidelines",
-    "tutorial", "tutorials", "howto", "walkthrough", "walkthroughs",
-    "faq", "faqs", "cheatsheet", "quickstart", "checklist", "checklists",
-    "changelog", "notes", "note",
-    "migration", "migrations", "migrating", "upgrade", "upgrading", "roadmap",
-    "example", "examples", "sample", "samples", "card", "cards",
-    "practices", "glossary", "readme", "index", "toc", "contents",
-    # practice domain — "how we work", not "what the software must do"
-    "coding", "documentation", "naming", "formatting", "engineering",
-    "commit", "commits", "branching", "review", "reviews", "contributing",
-    "onboarding", "process", "workflow", "workflows",
-})
-# Deliberately NOT vetoed: version-adjacent words (`release`, `changes`,
-# `history`). A veto is a demotion, and demoting `virtio-spec-release-1.2.md`
-# hands the example to whatever else is spec-like — in the worst case a 7-byte
-# `api-contract-stub.md`, which re-opens the instr-030 substantive-over-stub
-# finding one door over (instr 031 self-Council round 2, Panelist A). A version
-# word only dates a document; it does not say what kind of document it is.
-# (`index`/`toc` went back onto the veto in round 3: they are the instr-030
-# toctree-stub genre, not version words — the rule above is what decides, and it
-# puts them on the genre side.)
-# Tokens are ALPHABETIC runs, so digits split too (``rfc793`` -> ``rfc``), and
-# matching is whole-token — a substring match would read "spec" out of
-# "inspector" and "api" out of "capital".
-_NAME_TOKEN_SPLIT_RE = re.compile(r"[^a-z]+")
-# The example phrasing with no file named. Deliberately not a real path: the
-# operator substitutes their own, which is exactly the instruction the sentence
-# is illustrating.
+# ``virtio-spec-behavioral-contracts.md``, is 7.8 KB — so the feature built to help
+# the operator recover a mis-classified spec was suggesting they promote a STYLE
+# GUIDE as their specification. Instruction 031 answered that with a filename-token
+# signal; instruction 033 replaces the tokens with the model's own category, which
+# is the read those tokens were approximating. Size survives nowhere.
+# instruction 033 step 2 — the categories the model may use that make a document
+# a CANDIDATE for the operator to promote. This replaces the deleted
+# `_SPEC_NAME_TOKENS` / `_NON_SPEC_NAME_TOKENS` filename tables: the signal is now
+# what the model read the document to BE, not what it is called.
+# The honest blank: shown instead of a filename whenever nothing the operator
+# could promote reads as even a candidate specification. A confident wrong answer
+# is worse than no answer (instruction 031 fix 1).
 _NEUTRAL_EXAMPLE = "<the-file>"
 
-
-def _spec_like_name(source_path: Optional[str]) -> bool:
-    """Whether this document's *filename* plausibly identifies a specification.
-
-    Matched on the basename with its extension stripped, whole-token, so a
-    directory called ``reference_docs/`` (which every gathered document sits
-    under) is not itself the signal. A genre veto beats a spec word: a
-    ``coding-standards`` guide is a guide.
-    """
-    # Split on both separators: the pipeline normalizes to ``/``, but a
-    # backslash path would otherwise leave the whole thing as one "basename" and
-    # make the ``reference_docs`` directory itself the signal — inverting the
-    # rule above (instr 031 self-Council, Panelist A).
-    base = re.split(r"[\\/]", str(source_path or ""))[-1]
-    stem = re.sub(r"\.[^.]+$", "", base)
-    if not stem:
-        stem = base           # a dotfile (``.spec``) is all name, no extension
-    tokens = [tok for tok in _NAME_TOKEN_SPLIT_RE.split(stem.lower()) if tok]
-    if any(tok in _NON_SPEC_NAME_TOKENS for tok in tokens):
-        return False
-    return any(tok in _SPEC_NAME_TOKENS for tok in tokens)
-
+_SPEC_CANDIDATE_CATEGORIES = frozenset({
+    "authoritative-spec", "specification", "spec",
+    "api-reference", "reference",
+    "rfc", "standard", "protocol", "contract",
+    "candidate-spec",
+})
 
 def _safe_path(path: Optional[str]) -> str:
     """A document path, rendered inert for the operator-facing show.
@@ -1379,8 +1598,13 @@ def _review_reason(entry: dict, authoritative: bool) -> str:
             return _RESCUED_AUTHORITATIVE_REASON
         if entry.get("tier") not in (1, 2) and _is_cite_placed(entry.get("source_path")):
             return _CITE_FOLDER_REASON
-        return _AUTHORITATIVE_REASONS.get(
+        base = _AUTHORITATIVE_REASONS.get(
             rule, "I read it as a statement of what this software is supposed to do.")
+        # A Lane-B citation rests on the model's read alone, so it is never
+        # presented as settled (reworded invariant 1).
+        if entry.get("confirmation") == UNCONFIRMED:
+            base += _UNCONFIRMED_NOTE
+        return base
     if entry.get("status") == "advisory-rescued":
         return _RESCUED_BACKGROUND_REASON
     return _BACKGROUND_REASONS.get(rule, _FALLBACK_BACKGROUND_REASON)
@@ -1415,6 +1639,11 @@ def classification_review(
         merged["floor_rule"] = rec.get("floor_rule")
         merged["promotable"] = rec.get("promotable")
         merged["byte_count"] = rec.get("byte_count")
+        # instruction 033 step 2 — the three-lane provenance the show speaks to.
+        merged["lane"] = rec.get("lane")
+        merged["confirmation"] = rec.get("confirmation")
+        merged["category"] = rec.get("category")
+        merged["backstop"] = rec.get("backstop") or []
         merged["_authoritative"] = (
             rec.get("source_path") in formal_paths if formal_paths is not None
             else _is_authoritative(rec)
@@ -1428,7 +1657,16 @@ def classification_review(
         return "\n".join(lines)
 
     authoritative = [e for e in entries if e["_authoritative"]]
-    background = [e for e in entries if not e["_authoritative"]]
+    # instruction 033 step 2 — Lane C is its OWN section, not background. Listing a
+    # document the machine could not judge under "I read these, but I won't quote
+    # them" states a verdict where the honest surface is a question, and it is the
+    # silent-background half of what §8a Revision Fable must-fix 2 forbids.
+    awaiting = [e for e in entries
+                if not e["_authoritative"]
+                and e.get("floor_rule") == RULE_CONFIRM_REQUIRED]
+    background = [e for e in entries
+                  if not e["_authoritative"]
+                  and e.get("floor_rule") != RULE_CONFIRM_REQUIRED]
 
     lines.append("")
     lines.append(
@@ -1446,6 +1684,28 @@ def classification_review(
         lines.append("**Authoritative sources your requirements can cite**")
         for e in authoritative:
             lines.append(f"- `{_safe_path(e['source_path'])}` — {_review_reason(e, True)}")
+
+    if awaiting:
+        lines.append("")
+        lines.append("**I need your word on these before I quote them**")
+        for e in awaiting:
+            detail = "; ".join(b.get("detail", "") for b in (e.get("backstop") or [])
+                               if b.get("detail"))
+            line = f"- `{_safe_path(e['source_path'])}` — {_review_reason(e, False)}"
+            if detail:
+                # Name the specific evidence: step 3's confirmation requires the
+                # operator to acknowledge it, so they have to be shown it first.
+                line += f" What I found: {detail}."
+            if e.get("operator_decision") == OPERATOR_AUTHORITATIVE:
+                # instruction 031: a REFUSED promotion is stated, never dropped.
+                # The operator asked for this document and did not get it (they
+                # named it without acknowledging the signal), so the show has to
+                # say so — otherwise the system looks like it ignored them. This
+                # note lived only in the background loop until instruction 033
+                # step 2 moved these documents into their own section, which
+                # silently took the refusal notice with them.
+                line += _REFUSED_PROMOTION_NOTE
+            lines.append(line)
 
     if background:
         lines.append("")
@@ -1495,36 +1755,42 @@ def classification_review(
     # what they already promoted reads as the system not listening (instr 031
     # self-Council round 3, Panelist A — low reachability, free to close).
     promotable_bg = [e for e in background
-                     if e.get("floor_rule") not in (RULE_ADVISORY, RULE_BACKGROUND,
-                                                    RULE_OPERATOR_BACKGROUND,
+                     if e.get("floor_rule") not in (RULE_OPERATOR_BACKGROUND,
                                                     RULE_OPERATOR_AUTHORITATIVE,
-                                                    RULE_CONTRACT)]
-    # Prefer a documentation-shaped candidate over an implementation-floored one:
-    # source files are eligible (the operator CAN promote one) but are often the
-    # largest thing in the corpus, so size alone would routinely illustrate
-    # "treat X as my specification" with a .c file (instr 030 self-Council,
-    # Panelist B round 3).
-    promotable_bg.sort(key=lambda e: (e.get("floor_rule") == RULE_IMPL,
-                                      -(e.get("byte_count") or 0),
-                                      str(e.get("source_path") or "")))
-    # Documentation and source code are separate strata, not one list ordered by
-    # a tiebreak. Sweeping for the name signal across BOTH inverted the
-    # instr-030 doc-over-source rule: a spec-NAMED `.c` file beat an ordinary
-    # document, so the show told the operator to treat source code as their
-    # specification one line after telling them that file "shows what the
-    # software already does, not what it's supposed to do" (instr 031
-    # self-Council, Panelist A). A source file is named only when there is no
-    # promotable document at all — the operator CAN promote a code-shaped
-    # contract, and that is the case instr 030 opened the eligibility for.
-    docs = [e for e in promotable_bg if e.get("floor_rule") != RULE_IMPL]
-    pool = docs or promotable_bg
-    spec_like = [e for e in pool if _spec_like_name(e.get("source_path"))]
-    if spec_like:
-        example = _safe_path(spec_like[0]["source_path"])
-    elif pool:
-        # There IS something the operator could promote, but nothing here looks
-        # like a specification — so illustrate the phrasing without asserting
-        # which of their documents is the spec. Naming the biggest one is the
+                                                    RULE_CONTRACT)
+                     and e.get("promotable", False)]
+    # instruction 033 step 2: the pick comes from the MODEL'S CATEGORY, not from a
+    # filename-token table. `_SPEC_NAME_TOKENS` / `_NON_SPEC_NAME_TOKENS` are
+    # deleted — they were the mechanical layer approximating a read from filenames,
+    # badly, and they produced exactly the defect instruction 031 had to fix (a
+    # 45 KB style guide named as the operator's specification because size broke
+    # the tie among "spec-like" names).
+    #
+    # Per-document isolation (invariant 7) is why this is derived HERE rather than
+    # asked of the model as a corpus-wide question: each category came from that
+    # document's own content, so no document can influence another's standing —
+    # and a hostile line in one file cannot move the pick.
+    def _rank(entry):
+        cat = (entry.get("category") or "").strip().lower()
+        # A document the model called a candidate spec outranks one it had no
+        # opinion about; anything it positively categorized as background ranks
+        # last and is never named.
+        if cat in _SPEC_CANDIDATE_CATEGORIES:
+            band = 0
+        elif not cat:
+            band = 1
+        else:
+            band = 2
+        return (band, str(entry.get("source_path") or ""))
+
+    ranked = sorted(promotable_bg, key=_rank)
+    named = [e for e in ranked if _rank(e)[0] == 0]
+    if named:
+        example = _safe_path(named[0]["source_path"])
+    elif ranked:
+        # There IS something the operator could promote, but nothing the model read
+        # as even a candidate specification — so illustrate the phrasing without
+        # asserting which of their documents is the spec. Naming one anyway is the
         # 031 defect: a confident wrong answer is worse than an honest blank.
         example = _NEUTRAL_EXAMPLE
     else:

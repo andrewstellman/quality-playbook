@@ -143,8 +143,8 @@ class CacheVsLiveClassifierTests(unittest.TestCase):
             {"floor_rule": dc.RULE_DEFAULT}, True))
         self.assertFalse(dc._cache_hides_live_classifier(
             {"floor_rule": dc.RULE_DEFAULT}, False))
-        for rule in (dc.RULE_LLM, dc.RULE_CONTRACT, dc.RULE_ADVISORY,
-                     dc.RULE_IMPL, dc.RULE_BACKGROUND, dc.RULE_SIDECAR,
+        for rule in (dc.RULE_LLM, dc.RULE_CONTRACT, dc.RULE_CONFIRM_REQUIRED,
+                     dc.RULE_CONFIRM_REQUIRED, dc.RULE_BACKGROUND, dc.RULE_SIDECAR,
                      dc.RULE_OPERATOR_AUTHORITATIVE, dc.RULE_OPERATOR_BACKGROUND):
             self.assertFalse(
                 dc._cache_hides_live_classifier({"floor_rule": rule}, True),
@@ -303,13 +303,16 @@ class FloorsStillHoldTests(unittest.TestCase):
         docs = [("reference_docs/cve.md", REAL_ADVISORY)]
         bare = dc.classify_documents(docs, generated_at="X")
         self.assertEqual(_rec(bare, "reference_docs/cve.md")["floor_rule"],
-                         dc.RULE_ADVISORY)
+                         dc.RULE_CONFIRM_REQUIRED)
         out = dc.classify_documents(
             docs, llm_classifier=lambda r, t: 1,
             prior_records=bare["records"], generated_at="Y")
         rec = _rec(out, "reference_docs/cve.md")
         self.assertEqual(rec["tier"], 4)
-        self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
+        # instruction 033 step 2: the advisory floor became the backstop, so the
+        # rule is Lane C. The property is unchanged — a classifier voting Tier 1
+        # cannot promote it, on a cache hit or otherwise.
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         self.assertFalse(rec["promotable"])
         self.assertTrue(out["zero_citable"])
         # instr 032 self-Council, Panelist A (NIT 9): assert the RULE too, not
@@ -322,23 +325,36 @@ class FloorsStillHoldTests(unittest.TestCase):
         docs = [("reference_docs/resolve.py", PY_LOGIC)]
         bare = dc.classify_documents(docs, generated_at="X")
         self.assertEqual(_rec(bare, "reference_docs/resolve.py")["floor_rule"],
-                         dc.RULE_IMPL)
+                         dc.RULE_CONFIRM_REQUIRED)
         out = dc.classify_documents(
             docs, llm_classifier=lambda r, t: 1,
             prior_records=bare["records"], generated_at="Y")
         rec = _rec(out, "reference_docs/resolve.py")
         self.assertEqual(rec["tier"], 4)
-        self.assertEqual(rec["floor_rule"], dc.RULE_IMPL)
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
 
-    def test_background_ledger_stays_floored_on_the_rerun(self):
+    def test_a_readme_is_not_made_citable_by_its_name_on_the_rerun(self):
         docs = [("reference_docs/README.md", "# Readme\n\nbackground\n")]
         bare = dc.classify_documents(docs, generated_at="X")
         out = dc.classify_documents(
             docs, llm_classifier=lambda r, t: 1,
             prior_records=bare["records"], generated_at="Y")
+        # instruction 033 step 2: there is no README NAME floor any more, so this
+        # test's original premise ("the name pins it to Tier 4 forever") is gone by
+        # design. What replaces it is the property that actually matters: the READ
+        # governs, and it governs on a cache re-run too — so a README the model
+        # reads as authoritative becomes a Lane-B citation, disclosed unconfirmed,
+        # which is precisely what makes the `issue_tracker_api_spec.md` class
+        # recoverable instead of permanently barred.
         rec = _rec(out, "reference_docs/README.md")
-        self.assertEqual(rec["tier"], 4)
-        self.assertEqual(rec["floor_rule"], dc.RULE_BACKGROUND)
+        self.assertEqual(rec["tier"], 1)
+        self.assertEqual(rec["lane"], dc.LANE_MODEL_READ)
+        self.assertEqual(rec["confirmation"], dc.UNCONFIRMED)
+        # ...and the NAME contributed nothing: the same file with a background read
+        # stays background.
+        bg = dc.classify_documents(docs, llm_classifier=lambda r, t: 4,
+                                   generated_at="Z")
+        self.assertEqual(_rec(bg, "reference_docs/README.md")["tier"], 4)
 
     def test_content_still_cannot_self_promote_through_the_reopened_default(self):
         # A document that argues for its own tier is data. The re-derive routes
@@ -395,10 +411,24 @@ class FloorsStillHoldTests(unittest.TestCase):
 # Fix 2, oracle 2 — the operator-facing advisory reason.
 # ---------------------------------------------------------------------------
 class AdvisoryReasonAccuracyTests(unittest.TestCase):
-    """A document floored for CITING advisory sources must not be described as
-    BEING a security advisory."""
+    """instruction 032 fix 2's property, carried forward through instruction 033.
 
-    # The three express/chi meta-documents that triggered this.
+    Fix 2 existed because the advisory floor fires on a CVE identifier or an
+    advisory URL found ANYWHERE in the content, so a bibliography / sources list /
+    index that merely CITES those sources was demoted — correctly — and then told
+    *"it's a security advisory — it describes known problems"*, which is false
+    about a meta-document.
+
+    Instruction 033 step 2 answers the same concern more strongly. Such a document
+    is now backstop-flagged into **Lane C**, and the Lane-C sentence makes **no
+    genre claim at all** — it says the machine cannot tell and is asking. So the
+    reworded advisory sentence fix 2 shipped is no longer reachable from a fresh
+    classification (it survives only for a pre-033 cached record, and step 4
+    removes that path with the cache). What is asserted here is the property, not
+    the sentence: **the operator is never told what a document IS on the strength
+    of a signal that does not establish it**, and the document is never cited.
+    """
+
     CITING_DOCS = [
         ("reference_docs/sources.md", SOURCES_MD),
         ("reference_docs/INDEX.md",
@@ -407,231 +437,82 @@ class AdvisoryReasonAccuracyTests(unittest.TestCase):
          "Collected 14 documents.\nAdvisory links: https://nvd.nist.gov/vuln\n"),
     ]
 
-    def _review(self, docs):
-        man = dc.classify_documents(docs, llm_classifier=lambda r, t: 4,
-                                    generated_at="X")
+    def _review(self, docs, classifier=None):
+        man = dc.classify_documents(
+            docs, llm_classifier=classifier or (lambda r, t: 4), generated_at="X")
         return man, dc.classification_review(man)
 
-    def test_citing_document_floors_to_tier_4_unchanged(self):
-        # The floor is NOT relaxed — the demotion is correct and stays.
+    def test_a_citing_document_is_never_cited(self):
         man, _ = self._review(self.CITING_DOCS)
         for path, _text in self.CITING_DOCS:
             rec = _rec(man, path)
             self.assertEqual(rec["tier"], 4, path)
-            self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY, path)
             self.assertFalse(rec["promotable"], path)
+            self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED, path)
+        self.assertTrue(man["zero_citable"])
 
-    def test_reason_does_not_assert_the_document_is_an_advisory(self):
+    def test_the_operator_is_told_nothing_about_the_genre(self):
+        # The heart of fix 2, and now stronger: the sentence asserts nothing about
+        # what the document IS.
         _man, out = self._review(self.CITING_DOCS)
-        self.assertNotIn("it's a security advisory", out)
-        self.assertNotIn("describes known problems", out)
-        self.assertIn("it carries security-advisory material", out)
-
-    def test_all_four_reworded_reason_strings_are_pinned_exactly(self):
-        # Round 2, Panelist B (R2-N2): the equality pin below landed on 1 of the 4
-        # strings this instruction reworded, and B proved the gap with two bites
-        # that are FULLY GREEN against the round-2 test set — bite F appends "This
-        # one is a ledger of open issues, not a specification of anything." to
-        # RULE_BACKGROUND (reintroducing the F7 defect verbatim), and bite G does
-        # the same to RULE_CONTRACT while escaping its `assertNotIn` by writing
-        # "it is a" for "it's a". Every reworded string is pinned by full equality,
-        # so any future reword has to come through this test deliberately.
-        self.assertEqual(
-            dc._BACKGROUND_REASONS[dc.RULE_BACKGROUND],
-            "its name marks it as a README, a coverage report or an issue-tracker "
-            "listing — documents that describe a project rather than specify it.")
-        self.assertEqual(
-            dc._BACKGROUND_REASONS[dc.RULE_IMPL],
-            "it's a code file — code is how the software works, not a statement of "
-            "what it's supposed to do.")
-        # Round 4, Panelist B (bite I): `RULE_DEFAULT` was the one unpinned entry,
-        # and it is the HIGHEST-VOLUME string in the module — rendered for every
-        # floor-passed document in every unwired or crashed run. A genre claim
-        # appended here escapes the render sweep too, because the rendered line
-        # still equals the (mutated) constant.
-        self.assertEqual(
-            dc._BACKGROUND_REASONS[dc.RULE_DEFAULT],
-            "nothing identified it as a statement of what this software is supposed "
-            "to do.")
-        self.assertEqual(
-            dc._BACKGROUND_REASONS[dc.RULE_LLM],
-            "I read it as explaining or describing the software rather than stating "
-            "what it must do.")
-        self.assertEqual(
-            dc._AUTHORITATIVE_REASONS[dc.RULE_CONTRACT],
-            "its file extension, or an interface-definition signature inside it, "
-            "marks it as a contract definition — the kind of file that states "
-            "directly what this software is supposed to do.")
-        # Round 3, Panelist B (R3-N1) — bite H: the two advisory-RESCUE arms of
-        # `_review_reason` were inline literals, pinned by NOTHING in either
-        # direction, so appending "It is a security advisory and it describes known
-        # problems, not what your software is supposed to do." to the authoritative
-        # arm restored the exact claim fix 2 deleted with all 159 tests green. They
-        # are module constants now, and pinned here.
-        self.assertEqual(
-            dc._RESCUED_AUTHORITATIVE_REASON,
-            "you confirmed this is your real specification even though it mentions "
-            "security advisories.")
-        self.assertEqual(
-            dc._RESCUED_BACKGROUND_REASON,
-            "you cleared this one for use, but I still read it as background rather "
-            "than a specification.")
-        # ...and the genre claims each reword removed must not come back under any
-        # phrasing, ANYWHERE on the operator-facing reason surface — the maps AND
-        # the rescue arms AND the fallbacks. A substring check IN ADDITION to the
-        # equality pins above: it is what catches a reword that changes a string
-        # legitimately but smuggles the claim back in, and the surface it scans is
-        # what bite H escaped.
-        joined = " ".join(list(dc._BACKGROUND_REASONS.values())
-                          + list(dc._AUTHORITATIVE_REASONS.values())
-                          + [dc._RESCUED_AUTHORITATIVE_REASON,
-                             dc._RESCUED_BACKGROUND_REASON,
-                             dc._FALLBACK_BACKGROUND_REASON,
-                             dc._CITE_FOLDER_REASON])
-        for forbidden in ("it's a README or a coverage", "is a README or a coverage",
-                          "ledger of open issues",
-                          "it's a machine-readable interface definition",
-                          "is a machine-readable interface definition",
-                          "it shows what the software already does",
-                          "it's a security advisory", "is a security advisory",
-                          "describes known problems", "vulnerability bulletin",
-                          "catalogues flaws"):
-            self.assertNotIn(forbidden, joined)
-
-    def test_advisory_reason_string_is_pinned_exactly(self):
-        # instr 032 self-Council, Panelist B: the assertions above pin PHRASING,
-        # not the contract — B showed that APPENDING "This document is a
-        # vulnerability bulletin: it catalogues flaws, and it is not your
-        # specification." passes every one of them while reintroducing exactly
-        # the false genre claim fix 2 removed. Full-string equality is the pin
-        # that has teeth; any reword has to come through this test deliberately.
-        self.assertEqual(
-            dc._BACKGROUND_REASONS[dc.RULE_ADVISORY],
-            "it carries security-advisory material — a CVE-style identifier, or a "
-            "link to a vulnerability database — so I'm reading it as background "
-            "rather than a statement of what your software is supposed to do.")
-        # ...and the claim itself must be absent, however the sentence is phrased.
         for forbidden in ("it's a security advisory", "is a security advisory",
                           "describes known problems", "vulnerability bulletin",
-                          "catalogues flaws"):
-            self.assertNotIn(forbidden, dc._BACKGROUND_REASONS[dc.RULE_ADVISORY])
+                          "catalogues flaws", "listing known flaws"):
+            self.assertNotIn(forbidden, out)
+        self.assertIn("I can't tell from the file itself whether this is one of "
+                      "your sources", out)
 
-    def test_background_and_contract_reasons_name_the_signal_not_the_genre(self):
-        # instr 032 self-Council, Panelist B, defensive sweep — the same defect
-        # class one entry over, both reproduced against real inputs:
-        #
-        #  * `issue_tracker_api_spec.md` is a genuine spec by content, but the
-        #    issue-tracker arm of `_BACKGROUND_NAME_RE` is a PREFIX match, so it
-        #    floors — and the operator was told "it's a README or a coverage /
-        #    issue-tracker listing".
-        #  * `notes.thrift` (meeting notes) reaches Tier 1 on the extension
-        #    alone, and was called "a machine-readable interface definition".
-        #
-        # The tiers are NOT changed here (out of scope, carried forward); the
-        # reasons now state the detected signal — the name, the format.
-        spec = ("# Issue Tracker API Specification\n\n"
-                "The API MUST return 404 for a missing issue.\n")
-        man = dc.classify_documents(
-            [("reference_docs/issue_tracker_api_spec.md", spec)],
-            llm_classifier=lambda r, t: 1, generated_at="X")
-        self.assertEqual(_rec(man, "reference_docs/issue_tracker_api_spec.md")
-                         ["floor_rule"], dc.RULE_BACKGROUND)   # tier unchanged
-        out = dc.classification_review(man)
-        self.assertIn("its name marks it as", out)
-        self.assertNotIn("it's a README or a coverage", out)
+    def test_the_specific_signal_is_named_so_it_can_be_acknowledged(self):
+        # Step 3's named-signal confirmation requires the operator to acknowledge
+        # the evidence by name, so the show has to have shown it to them.
+        _man, out = self._review(self.CITING_DOCS)
+        self.assertIn("What I found:", out)
+        self.assertIn("advisory URL", out)
 
-        # instruction 033 step 1 CLOSED this case: `notes.thrift` no longer reaches
-        # `contract` at all. The extension arm is deleted, and `.thrift` has no
-        # content anchor, so the document routes to operator confirmation (Lane C)
-        # instead of being cited on its filename. The wording assertion moved to
-        # the Lane-A cases, which are the only ones that still render this reason.
-        notes = "Meeting notes 2026-03-04\n\nWe discussed the roadmap.\n"
-        man2 = dc.classify_documents([("reference_docs/notes.thrift", notes)],
-                                     llm_classifier=lambda r, t: 4,
-                                     generated_at="X")
-        rec2 = _rec(man2, "reference_docs/notes.thrift")
-        self.assertEqual(rec2["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
-        self.assertFalse(rec2["promotable"])
-        self.assertTrue(man2["zero_citable"])
+    def test_the_model_read_is_still_recorded_for_a_flagged_document(self):
+        # "now from the read" (step-2 oracle 3): the model's genre judgment is
+        # carried on the record even when the backstop is what held the document
+        # back, so the operator's answer is informed rather than blind.
+        man, _ = self._review(
+            [("reference_docs/sources.md", SOURCES_MD)],
+            classifier=lambda r, t: {"tier": 4, "category": "bibliography",
+                                     "reason": "A list of where the docs came from."})
+        rec = _rec(man, "reference_docs/sources.md")
+        self.assertEqual(rec["category"], "bibliography")
+        self.assertEqual(rec["model_reason"], "A list of where the docs came from.")
 
-    def test_contract_reason_is_true_of_the_content_signature_arm_too(self):
-        # Round 3, Panelist B (R3-2): naming only the EXTENSION was false for the
-        # carve-out's OTHER arm — `openapi.yaml` is matched on `openapi: "3` INSIDE
-        # the file and `.yaml` is not a contract extension at all. That is the
-        # canonical OpenAPI case AND the content-verified (safe) arm, and
-        # describing it with the extension arm's mechanism also told the
-        # audit instruction in phase1_exploration_guide.md to demote a real spec.
-        openapi = ('openapi: "3.0.3"\n'
-                   'info:\n  title: Orders API\n  version: 1.0.0\n'
-                   'paths:\n  /orders:\n    get:\n'
-                   '      responses:\n        "200":\n'
-                   '          description: the order list\n')
+    def test_a_real_advisory_is_handled_the_same_way(self):
+        # No special case: a genuine advisory is also flagged and also uncited.
+        man, out = self._review([("reference_docs/cve.md", REAL_ADVISORY)])
+        rec = _rec(man, "reference_docs/cve.md")
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
+        self.assertFalse(rec["promotable"])
+        self.assertNotIn("it's a security advisory", out)
+
+    def test_dev_facing_reason_names_the_signal(self):
+        # The dev-facing `reason` is not operator surface, so it may be explicit —
+        # and it must be, because it is what the confirmation quotes.
+        man, _ = self._review([("reference_docs/sources.md", SOURCES_MD)])
+        rec = _rec(man, "reference_docs/sources.md")
+        self.assertIn("advisory URL 'snyk.io'", rec["reason"])
+        self.assertEqual(
+            [b["kind"] for b in rec["backstop"]], [dc.BACKSTOP_ADVISORY_URL])
+
+    def test_contract_reason_is_true_of_the_content_signature_arm(self):
+        # instruction 033 step 1: `openapi.yaml` validates on a top-level key
+        # INSIDE the file and `.yaml` is not a contract extension at all, so the
+        # reason must not name an extension.
+        openapi = ('openapi: "3.0.3"\ninfo:\n  title: Orders\npaths: {}\n')
         man = dc.classify_documents([("reference_docs/openapi.yaml", openapi)],
                                     generated_at="X")
         rec = _rec(man, "reference_docs/openapi.yaml")
         self.assertEqual(rec["floor_rule"], dc.RULE_CONTRACT)
-        # instruction 033 step 1: the dev-facing reason now names the PARSE-LEVEL
-        # check that fired ("top-level openapi key = '3.0.3'") instead of a
-        # substring "signature", because a substring search was what the F1 bypass
-        # defeated. The document still reaches Lane A on its content.
         self.assertIn("top-level openapi key", rec["reason"])
         out = dc.classification_review(man)
-        self.assertIn("or an interface-definition signature inside it", out)
-
-    def test_impl_reason_holds_for_declaration_only_code(self):
-        # Panelist B: "it shows what the software already does" is false of a
-        # declaration-only header, which the floor still (correctly) catches.
-        header = (
-            "#ifndef VIRTIO_RING_H\n#define VIRTIO_RING_H\n"
-            "struct vring_desc { u64 addr; u32 len; u16 flags; u16 next; };\n"
-            "void vring_init(struct vring *vr, unsigned int num);\n"
-            "static inline int vring_size(unsigned int num) { return num * 16; }\n"
-            "#endif\n"
-        )
-        man = dc.classify_documents([("reference_docs/virtio_ring.h", header)],
-                                    llm_classifier=lambda r, t: 1,
-                                    generated_at="X")
-        rec = _rec(man, "reference_docs/virtio_ring.h")
-        if rec["floor_rule"] != dc.RULE_IMPL:
-            self.skipTest("this header does not trip the implementation floor")
-        out = dc.classification_review(man)
-        self.assertIn("it's a code file", out)
-        self.assertNotIn("it shows what the software already does", out)
-
-    def test_reason_names_what_was_actually_detected(self):
-        _man, out = self._review(self.CITING_DOCS)
-        # The two hard signals, in the operator's words.
-        self.assertIn("CVE-style identifier", out)
-        self.assertIn("vulnerability database", out)
-
-    def test_real_advisory_still_floors_and_reads_as_background(self):
-        man, out = self._review([("reference_docs/cve.md", REAL_ADVISORY)])
-        rec = _rec(man, "reference_docs/cve.md")
-        self.assertEqual(rec["tier"], 4)
-        self.assertEqual(rec["floor_rule"], dc.RULE_ADVISORY)
-        head, _, tail = out.partition("**Background context")
-        self.assertIn("reference_docs/cve.md", tail)
-        self.assertIn("it carries security-advisory material", tail)
-
-    def test_reason_carries_no_internal_labels(self):
-        # The plain-language contract still holds for the new wording.
-        _man, out = self._review(self.CITING_DOCS)
-        low = out.lower()
-        for word in ("tier", "citable", "floor", "manifest", "promotable",
-                     "classifier", "llm", "persona"):
-            self.assertNotIn(word, low, f"internal label {word!r} leaked")
-
-    def test_dev_facing_reason_string_is_unchanged(self):
-        # Only the OPERATOR-facing sentence moved; the record's dev-facing reason
-        # (and so the manifest schema) is untouched.
-        man, _ = self._review([("reference_docs/sources.md", SOURCES_MD)])
-        self.assertEqual(_rec(man, "reference_docs/sources.md")["reason"],
-                         "advisory (hard signal): advisory URL 'snyk.io'")
+        self.assertIn("I recognised an interface-definition format inside it", out)
+        self.assertNotIn("its file extension", out)
 
 
-# ---------------------------------------------------------------------------
-# Fix 3, oracle 3 — the jargon-free artifact name.
-# ---------------------------------------------------------------------------
 class JargonFreeArtifactNameTests(unittest.TestCase):
 
     def test_constants_carry_the_jargon_free_name(self):
@@ -958,18 +839,31 @@ class EveryOperatorFacingStringIsPinnedTests(unittest.TestCase):
 
     def test_background_reason_map_is_pinned_whole(self):
         self.assertEqual(dc._BACKGROUND_REASONS, {
+            # The advisory / impl / background-ledger entries are no longer
+            # PRODUCED by `_classify` (those floors became the backstop and the
+            # name rule was deleted). They remain only because the prior-record
+            # cache can still surface a pre-033 manifest; step 4 deletes them
+            # with the cache.
             dc.RULE_ADVISORY:
-                "it carries security-advisory material — a CVE-style identifier, or "
-                "a link to a vulnerability database — so I'm reading it as background "
-                "rather than a statement of what your software is supposed to do.",
+                "it carries security-advisory material — a CVE-style "
+                "identifier, or a link to a vulnerability database — so I'm "
+                "reading it as background rather than a statement of what your "
+                "software is supposed to do.",
             dc.RULE_IMPL:
-                "it's a code file — code is how the software works, not a statement "
-                "of what it's supposed to do.",
+                "it's a code file — code is how the software works, not a "
+                "statement of what it's supposed to do.",
             dc.RULE_BACKGROUND:
-                "its name marks it as a README, a coverage report or an issue-tracker "
-                "listing — documents that describe a project rather than specify it.",
+                "its name marks it as a README, a coverage report or an "
+                "issue-tracker listing — documents that describe a project "
+                "rather than specify it.",
             dc.RULE_OPERATOR_BACKGROUND:
                 "you told me to treat this one as background only.",
+            # instruction 033 step 2 — Lane C. NOT background: the document is
+            # held back until the operator answers, so this reads as a question
+            # and asserts nothing about what the document IS.
+            dc.RULE_CONFIRM_REQUIRED:
+                "I can't tell from the file itself whether this is one of your "
+                "sources, so I'm not quoting it until you tell me.",
             dc.RULE_DEFAULT:
                 "nothing identified it as a statement of what this software is "
                 "supposed to do.",
@@ -985,9 +879,8 @@ class EveryOperatorFacingStringIsPinnedTests(unittest.TestCase):
             dc.RULE_SIDECAR:
                 "you told me to use this one even though it looks like source code.",
             dc.RULE_CONTRACT:
-                "its file extension, or an interface-definition signature inside it, "
-                "marks it as a contract definition — the kind of file that states "
-                "directly what this software is supposed to do.",
+                "I recognised an interface-definition format inside it — the kind "
+                "of file that states directly what this software is supposed to do.",
             dc.RULE_LLM:
                 "I read it as a statement of what this software is supposed to do.",
         })
@@ -1009,6 +902,12 @@ class EveryOperatorFacingStringIsPinnedTests(unittest.TestCase):
         self.assertEqual(
             dc._FALLBACK_BACKGROUND_REASON,
             "I'm reading it for context rather than quoting it as a source.")
+        # instruction 033 step 2 — the operator-language form of a Lane-B
+        # `unconfirmed` citation. "unconfirmed" is itself internal jargon, so the
+        # status reaches the operator as what it MEANS.
+        self.assertEqual(
+            dc._UNCONFIRMED_NOTE,
+            " That was my own call — tell me if I've got it wrong.")
         self.assertEqual(
             dc._REFUSED_PROMOTION_NOTE,
             " You asked me to use this one as a source; I'm not, for the reason "
@@ -1092,6 +991,15 @@ def _sweep_corpus():
              dc.OPERATOR_BACKGROUND),
             ("reference_docs/coverage.md", _sha("# Coverage\n\n80%\n"),
              dc.OPERATOR_AUTHORITATIVE),
+            # instruction 033 step 2: the REFUSED-promotion path moved. The
+            # README/coverage name floor used to be what refused an operator
+            # promotion; it is deleted, so `coverage.md` is now simply promoted.
+            # What gets refused now is a promotion of a BACKSTOP-flagged document
+            # named without acknowledging the signal — so the corpus asks for the
+            # advisory, and the show must say it is not granting it (the group-A
+            # renderer gap this exercises).
+            ("reference_docs/cve.md", _sha(SW_ADVISORY),
+             dc.OPERATOR_AUTHORITATIVE),
         ],
         generated_at="X")
 
@@ -1144,7 +1052,20 @@ class RenderedReasonSweepTests(unittest.TestCase):
         rendered = []
         for line in out.splitlines():
             if line.startswith("- `") and "` — " in line:
-                rendered.append(line.split("` — ", 1)[1])
+                reason = line.split("` — ", 1)[1]
+                # instruction 033 step 2: a Lane-B citation carries the
+                # "my own call" note, and a Lane-C line names the evidence found
+                # (and may carry the refusal notice). Strip those decorations so
+                # the assertion still compares the REASON against the pinned
+                # constants — the point of the test — rather than trivially
+                # failing on an addition it already knows about.
+                if reason.endswith(dc._UNCONFIRMED_NOTE.strip()):
+                    reason = reason[:-len(dc._UNCONFIRMED_NOTE.strip())].rstrip()
+                if dc._REFUSED_PROMOTION_NOTE.strip() in reason:
+                    reason = reason.split(dc._REFUSED_PROMOTION_NOTE.strip())[0].rstrip()
+                if " What I found:" in reason:
+                    reason = reason.split(" What I found:")[0].rstrip()
+                rendered.append(reason)
         self.assertGreaterEqual(len(rendered), 14,
                                 f"corpus under-rendered: {len(rendered)} lines")
         for reason in rendered:
@@ -1170,7 +1091,13 @@ class RenderedReasonSweepTests(unittest.TestCase):
         # the coverage itself is asserted (DEVELOPMENT_PROCESS.md: no silent caps).
         man = self._corpus()
         rules = {r["floor_rule"] for r in man["records"]}
-        for rule in (dc.RULE_ADVISORY, dc.RULE_BACKGROUND, dc.RULE_IMPL,
+        # instruction 033 step 2: `RULE_ADVISORY` / `RULE_IMPL` / `RULE_BACKGROUND`
+        # are no longer PRODUCIBLE by any input, so requiring the corpus to
+        # exercise them would be requiring it to reach dead code. Lane C
+        # (`RULE_CONFIRM_REQUIRED`) is what those inputs produce now, and it is in
+        # the list. If a future change makes one producible again, the sweep must
+        # regain it deliberately — that is what this enumeration is for.
+        for rule in (dc.RULE_CONFIRM_REQUIRED,
                      dc.RULE_DEFAULT, dc.RULE_CONTRACT, dc.RULE_LLM,
                      dc.RULE_SIDECAR, dc.RULE_OPERATOR_AUTHORITATIVE,
                      dc.RULE_OPERATOR_BACKGROUND):

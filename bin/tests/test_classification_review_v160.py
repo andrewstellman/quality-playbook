@@ -14,6 +14,20 @@ Acceptance oracle map (instruction 030):
   3  straight-through skips the pause, keeps the show                    -> ShowTests
   4  security: document content cannot self-promote (mutation-bitten)    -> OperatorAuthorityTests
   5  symmetry with the interview's opt-out / continuous-run handling     -> ProseContractTests
+
+INSTRUCTION 033 STEP 2 — WHAT CHANGED UNDER THESE TESTS. The advisory and
+implementation-source floors became the hard-signal BACKSTOP and the
+README/coverage NAME floor was deleted, so ``RULE_ADVISORY`` / ``RULE_IMPL``
+assertions became ``RULE_CONFIRM_REQUIRED``: a flagged document is routed to the
+operator (Lane C) rather than pinned by an absolute floor. The show grew a third
+section for that queue — **"I need your word on these before I quote them"** —
+so an assertion about *which section* a document appears in moved with it.
+
+The properties these tests exist for are unchanged and still asserted: such a
+document is never auto-cited in any mode; a refused operator promotion is stated
+rather than dropped; and the acknowledgment channels are not interchangeable (the
+content-keyed advisory rescue clears an advisory signal, the path-keyed sidecar
+clears only implementation-source, a plain "authoritative" clears neither).
 """
 
 import hashlib
@@ -103,11 +117,17 @@ class ShowTests(unittest.TestCase):
         for path in ("reference_docs/virtio-spec.md", "reference_docs/cve.md",
                      "reference_docs/README.md"):
             self.assertIn(path, out)
-        # The spec is on the authoritative side; the advisory and README are not.
-        head, _, tail = out.partition("**Background context")
+        # The spec is on the authoritative side. instruction 033 step 2: a
+        # backstop-flagged document is no longer listed as Background — it has its
+        # own section, because "I read this and won't quote it" is a verdict and
+        # the honest surface for a document the machine cannot judge is a question.
+        self.assertIn("I need your word on these before I quote them", out)
+        head, _, rest = out.partition("**I need your word on these")
         self.assertIn("reference_docs/virtio-spec.md", head)
-        self.assertIn("reference_docs/cve.md", tail)
-        self.assertIn("reference_docs/README.md", tail)
+        self.assertIn("reference_docs/cve.md", rest)
+        self.assertNotIn("reference_docs/cve.md", head)
+        _awaiting, _, background = rest.partition("**Background context")
+        self.assertIn("reference_docs/README.md", background)
 
     def test_zero_authoritative_says_so_prominently(self):
         # Oracle 1: when nothing is authoritative, say so — the virtio signature.
@@ -131,15 +151,25 @@ class ShowTests(unittest.TestCase):
         # advisory — the URL signal also fires on a bibliography that merely
         # cites one. See AdvisoryReasonAccuracyTests in
         # test_classifier_cache_and_polish_032.py.
-        self.assertIn("it carries security-advisory material", out)
+        # instruction 033 step 2: a backstop-flagged document is routed rather than
+        # genre-labelled, so it renders the Lane-C question. The advisory REASON
+        # string (032 fix 2) is still the wording for a document whose advisory
+        # signal the operator rescued — asserted in AdvisoryReasonAccuracyTests —
+        # but it is no longer what an unrescued CVE document shows.
+        self.assertIn("I can't tell from the file itself whether this is one of "
+                      "your sources", out)
         self.assertNotIn("it's a security advisory", out)
+        self.assertNotIn("describes known problems", out)
         # The background-ledger reason moved the same way, and for the same
         # reason (032 self-Council, Panelist B): it fires on the FILENAME, and the
         # issue-tracker arm is a prefix match, so `issue_tracker_api_spec.md` — a
         # genuine spec — was told "it's a README or a coverage / issue-tracker
         # listing". It now states the name signal it actually has.
-        self.assertIn("its name marks it as a README", out)
+        # instruction 033 step 2: there is no name-based reason any more, because
+        # there is no name rule. A README renders whatever the READ concluded.
+        self.assertNotIn("its name marks it as a README", out)
         self.assertNotIn("it's a README or a coverage", out)
+        self.assertIn("I read it as explaining or describing the software", out)
 
     def test_straight_through_keeps_the_show_and_drops_the_pause(self):
         # Oracle 3: disclosure is not skippable; only the pause is.
@@ -160,7 +190,13 @@ class ShowTests(unittest.TestCase):
     def test_correction_example_names_a_document_that_could_be_promoted(self):
         # A README / advisory can never be promoted here, so offering one as the
         # worked example would be a broken suggestion.
-        man = self._manifest()
+        # instruction 033 step 2: the named example comes from the model's
+        # CATEGORY. The advisory is backstop-flagged (never nameable) and the
+        # README is ordinary background, so the spec is the only candidate — but
+        # it has to be a candidate BY THE READ, not by its filename.
+        man = self._manifest(classifier=lambda rel, text: (
+            {"tier": 4, "category": "candidate-spec"} if "virtio" in rel
+            else {"tier": 4, "category": "readme"}))
         for out in (dc.classification_review(man),
                     dc.classification_review(man, offer=False)):
             example = out.split("treat `")[1].split("`")[0]
@@ -171,22 +207,41 @@ class ShowTests(unittest.TestCase):
         # pick was `index.rst`, a 125-byte toctree stub, while the actual spec
         # sat further down. Naming the stub as the worked example is useless
         # advice on exactly the run this feature exists for.
+        # instruction 033 step 2: the pick comes from the model's CATEGORY, not
+        # from the filename or from size. A 125-byte toctree stub and a real spec
+        # are indistinguishable by name — which is why the filename tables were
+        # deleted — so the read is what separates them.
+        def _read(rel, text):
+            if "virtio-spec" in rel:
+                return {"tier": 4, "category": "candidate-spec",
+                        "reason": "Reads like the behavioural contract."}
+            return {"tier": 4, "category": "guide", "reason": "A table of contents."}
+
         man = dc.classify_documents(
             [("reference_docs/index.rst", "# Index\n\n.. toctree::\n"),
              ("reference_docs/virtio-spec.md", VIRTIO_SPEC * 40)],
-            llm_classifier=_all_tier4, generated_at="X")
+            llm_classifier=_read, generated_at="X")
         out = dc.classification_review(man)
         self.assertIn("treat `reference_docs/virtio-spec.md` as my specification", out)
+        # ...and SIZE is still never the signal: the stub would win on neither
+        # size nor alphabetical order, but only the category decides.
+        self.assertEqual(man["most_authoritative"], None)
 
     def test_no_promotable_document_means_no_worked_example(self):
         # Self-Council (Panelists B + C): when EVERY background document is
         # absolutely barred (advisory / README), naming one as the example is a
         # suggestion guaranteed to no-op — the exact virtio-shaped case. Ask the
         # open question instead of naming a file.
+        # instruction 033 step 2: a README is no longer barred (no name floor), so
+        # "nothing is promotable" now means every document is backstop-flagged.
         man = dc.classify_documents(
             [("reference_docs/cve.md", CVE_ADVISORY),
-             ("reference_docs/README.md", "# Readme\n\nbg\n")],
+             ("reference_docs/other-cve.md",
+              "# Advisory\n\nGHSA-aaaa-bbbb-cccc affects it.\n"
+              "See https://nvd.nist.gov/vuln\n")],
             generated_at="X")
+        self.assertTrue(all(r["floor_rule"] == dc.RULE_CONFIRM_REQUIRED
+                            for r in man["records"]))
         for out in (dc.classification_review(man),
                     dc.classification_review(man, offer=False)):
             self.assertNotIn("treat `", out)
@@ -247,15 +302,26 @@ class ShowTests(unittest.TestCase):
         # eligible file here carries a spec-shaped name (a code-shaped contract —
         # exactly the sidecar's own use case); a plain `iface.py` is eligible but
         # unnamed, which the placeholder case in test_virtio_run_fixes_031 pins.
+        # instruction 033 step 2 changed HOW this affordance is surfaced, and for
+        # the better. A code-shaped contract is backstop-flagged, so it is not
+        # "promotable" and can no longer be the worked EXAMPLE — instead the
+        # operator is asked about it BY NAME in the Lane-C section, which is a
+        # direct question rather than an illustration. The property the test
+        # exists for (the operator must be shown the one case where they most need
+        # the affordance) is asserted that way now.
         man = dc.classify_documents(
             [("reference_docs/iface-protocol.py", PY_LOGIC),
              ("reference_docs/README.md", "# Readme\n\nbg\n")],
             generated_at="X")
         self.assertEqual(
             {r["source_path"]: r["floor_rule"] for r in man["records"]}
-            ["reference_docs/iface-protocol.py"], dc.RULE_IMPL)
-        self.assertIn("treat `reference_docs/iface-protocol.py` as my specification",
-                      dc.classification_review(man))
+            ["reference_docs/iface-protocol.py"], dc.RULE_CONFIRM_REQUIRED)
+        out = dc.classification_review(man)
+        awaiting = out.split("**I need your word on these")[1]
+        self.assertIn("reference_docs/iface-protocol.py", awaiting)
+        # ...and it is NOT silently dropped into background.
+        self.assertNotIn("reference_docs/iface-protocol.py",
+                         out.split("**I need your word on these")[0])
 
     def test_worked_example_prefers_a_document_over_source_code(self):
         # Self-Council round 3 (Panelist B): source files are eligible now, and
@@ -267,15 +333,23 @@ class ShowTests(unittest.TestCase):
         # and a source file is only reachable when there is no promotable
         # document — and the case where the document carries no signal is pinned
         # in test_virtio_run_fixes_031 as the placeholder.)
+        # instruction 033 step 2: the source file is backstop-flagged, so it is
+        # structurally ineligible to be named and the document wins without any
+        # size or stratum tiebreak at all. The 031 property still holds and is
+        # still worth asserting: the 80x-larger source file is NOT named.
         man = dc.classify_documents(
             [("reference_docs/engine-protocol.c",
               "int main(void) {\n  return 0;\n}\n" * 80),
              ("reference_docs/wire-protocol.md", "# Wire protocol\n\nShort notes.\n")],
+            llm_classifier=lambda rel, text: (
+                {"tier": 4, "category": "candidate-spec"} if rel.endswith(".md")
+                else {"tier": 4, "category": "implementation-code"}),
             generated_at="X")
         by = {r["source_path"]: r["floor_rule"] for r in man["records"]}
-        self.assertEqual(by["reference_docs/engine-protocol.c"], dc.RULE_IMPL)
+        self.assertEqual(by["reference_docs/engine-protocol.c"], dc.RULE_CONFIRM_REQUIRED)
         out = dc.classification_review(man)
         self.assertIn("treat `reference_docs/wire-protocol.md` as my specification", out)
+        self.assertNotIn("treat `reference_docs/engine-protocol.c`", out)
 
     def test_path_sanitizer_covers_line_separators_bidi_and_length(self):
         # Self-Council round 2 (Panelist A NITs): U+2028/U+2029/U+0085 are line
@@ -292,12 +366,18 @@ class ShowTests(unittest.TestCase):
         # Self-Council (Panelist B, P1): the inverse — tier 1/2 with
         # `promotable: false` gets NO FORMAL_DOC record, so it is background.
         man = {"records": [{"source_path": "reference_docs/x.md", "tier": 1,
-                            "floor_rule": dc.RULE_ADVISORY, "reason": "r",
+                            "floor_rule": dc.RULE_CONFIRM_REQUIRED, "reason": "r",
                             "promotable": False}]}
         out = dc.classification_review(man)
         self.assertIn("None of your documents are being used", out)
-        self.assertIn("reference_docs/x.md",
-                      out.split("**Background context")[1])
+        # instruction 033 step 2: a `RULE_CONFIRM_REQUIRED` record renders in the
+        # Lane-C section, so there is no Background section to split on at all —
+        # the old assertion raised IndexError rather than failing. Either way the
+        # property holds: the document is NOT on the authoritative side.
+        head, sep, awaiting = out.partition("**I need your word on these")
+        self.assertTrue(sep, "the Lane-C section must render")
+        self.assertIn("reference_docs/x.md", awaiting)
+        self.assertNotIn("reference_docs/x.md", head)
 
     def test_formal_records_are_the_ground_truth_when_supplied(self):
         man = dc.classify_documents(
@@ -549,13 +629,23 @@ class OperatorAuthorityTests(unittest.TestCase):
         d = dc.classify_document("cve.md", CVE_ADVISORY, llm_tier=1,
                                  operator_decision=dc.OPERATOR_AUTHORITATIVE)
         self.assertEqual(d.tier, 4)
-        self.assertEqual(d.rule, dc.RULE_ADVISORY)
+        self.assertEqual(d.rule, dc.RULE_CONFIRM_REQUIRED)
 
     def test_operator_promotion_cannot_lift_the_background_ledger_floor(self):
+        # instruction 033 step 2 REVERSED this: the README/coverage NAME floor is
+        # deleted, so there is no longer a name rule for an operator promotion to
+        # be unable to lift. That is the intended change — the floor's prefix arm
+        # had pinned `issue_tracker_api_spec.md`, a genuine spec, to background the
+        # operator could not override. The operator's word now governs, which is
+        # the whole point of asking them.
         d = dc.classify_document("README.md", "# Readme\n\nbg\n", llm_tier=1,
                                  operator_decision=dc.OPERATOR_AUTHORITATIVE)
-        self.assertEqual(d.tier, 4)
-        self.assertEqual(d.rule, dc.RULE_BACKGROUND)
+        self.assertEqual(d.rule, dc.RULE_OPERATOR_AUTHORITATIVE)
+        self.assertIn(d.tier, (1, 2))
+        # ...and with no operator word, a README is background by the READ, which
+        # is the safe direction and needs no floor.
+        plain = dc.classify_document("README.md", "# Readme\n\nbg\n", llm_tier=4)
+        self.assertEqual(plain.tier, 4)
 
     def test_operator_promotion_does_lift_the_implementation_floor(self):
         # Bounded parity with the path-keyed sidecar the operator already has —
@@ -565,7 +655,7 @@ class OperatorAuthorityTests(unittest.TestCase):
         self.assertEqual(d.rule, dc.RULE_OPERATOR_AUTHORITATIVE)
         self.assertIn(d.tier, (1, 2))
         # ...and without the operator's word it stays background.
-        self.assertEqual(dc.classify_document("iface.py", PY_LOGIC).rule, dc.RULE_IMPL)
+        self.assertEqual(dc.classify_document("iface.py", PY_LOGIC).rule, dc.RULE_CONFIRM_REQUIRED)
 
     def test_operator_demotion_beats_every_promoting_rule(self):
         # Downward is unconditional: even a machine-readable contract demotes.
@@ -665,7 +755,7 @@ class OperatorAuthorityTests(unittest.TestCase):
         man = json.loads((root / "quality" / rdi.CLASSIFICATION_MANIFEST_NAME)
                          .read_text(encoding="utf-8"))
         rec = {r["source_path"]: r for r in man["records"]}[rel]
-        self.assertEqual(rec["floor_rule"], dc.RULE_IMPL)
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         self.assertFalse(rec["promotable"])
 
     def test_a_forged_sidecar_record_cannot_manufacture_consent(self):
@@ -680,7 +770,7 @@ class OperatorAuthorityTests(unittest.TestCase):
             [("iface.py", PY_LOGIC)], prior_records=forged, sidecar=[],
             generated_at="X")
         rec = man["records"][0]
-        self.assertEqual(rec["floor_rule"], dc.RULE_IMPL)
+        self.assertEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         self.assertEqual(rec["tier"], 4)
         self.assertNotIn("reused_from_prior", rec)
         self.assertNotIn("you told me to use this one",
@@ -741,13 +831,13 @@ class OperatorAuthorityTests(unittest.TestCase):
 
         first = rdi.classify_reference_docs(root, write=True)
         self.assertEqual({r["source_path"]: r for r in first["records"]}
-                         [rel]["floor_rule"], dc.RULE_ADVISORY)
+                         [rel]["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
         (ref / rdi.ADVISORY_RESCUE_NAME).write_text(
             f"{rel}  {_sha(spec)}  advisory identifier 'CVE-2024-43796'\n",
             encoding="utf-8")
         after = rdi.classify_reference_docs(root, write=True)
         rec = {r["source_path"]: r for r in after["records"]}[rel]
-        self.assertNotEqual(rec["floor_rule"], dc.RULE_ADVISORY)   # un-floored
+        self.assertNotEqual(rec["floor_rule"], dc.RULE_CONFIRM_REQUIRED)   # un-floored
         self.assertTrue(rec["advisory_rescued"])
         self.assertNotIn("reused_from_prior", rec)
 

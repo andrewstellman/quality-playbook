@@ -407,10 +407,18 @@ def _formal_tier(decision: dict, text: str, is_cite: bool) -> Optional[int]:
     """The FORMAL_DOC tier for a doc, or None if it is not byte-citable.
 
     v1.6.0 Feature G (instruction 011): the classification ``decision`` is the
-    source of truth and already encodes the deterministic floor — a floored
-    doc carries ``promotable == False`` and can NEVER acquire a Tier-1/2
-    record here (advisory, implementation source not rescued, injection
-    self-promoter, background ledger). Tiers are read, never re-litigated.
+    source of truth and already encodes the promotion decision — a document the
+    classification held back carries ``promotable == False`` and can NEVER acquire
+    a Tier-1/2 record here. Tiers are read, never re-litigated.
+
+    After instruction 033 the held-back set is the **Lane-C** queue
+    (``RULE_CONFIRM_REQUIRED``): a backstop-flagged document (CVE/GHSA identifier,
+    advisory URL, implementation source), a contract-format extension whose content
+    does not validate, or one the model saw asking to be treated as authoritative.
+    Verified: Lane A and Lane B both yield a record; both Lane-C shapes yield none.
+    A Lane-B record is real byte-citable grounding that rests on the model's read
+    alone — its ``confirmation: unconfirmed`` status rides on the classification
+    record and is disclosed by the show, the gate WARN and the Stage-1 playback.
 
     - Floored (``promotable`` False) → None (Tier-4 context, no record).
     - ``cite/`` (operator explicit pre-sort, floor already cleared it) → the
