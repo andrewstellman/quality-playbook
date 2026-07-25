@@ -25,8 +25,12 @@ Acceptance oracle map (instruction 033 step 2):
 """
 
 import hashlib
+import io
+import json
 import sys
+import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -166,9 +170,27 @@ class UnconfirmedProvenanceTests(unittest.TestCase):
         out = dc.classification_review(man)
         self.assertIn("That was my own call — tell me if I've got it wrong.", out)
         self.assertNotIn("unconfirmed", out.lower())
-        # the gate WARN / Overview disclosure, which is dev-facing and may be blunt
-        disc = dc.classification_disclosure(man)
-        self.assertIn("UNCONFIRMED", disc)
+        # The GATE leg, asserted against the gate. Panelist C (C-7): this used to
+        # assert on `classification_disclosure`, which no gate calls — the leg was
+        # named for a consumer it did not exercise, so the gate could have stopped
+        # warning entirely and this test would still have passed. It nearly did:
+        # the four counters reached no gate at all until panelist B found it.
+        import quality_gate                                  # noqa: E402
+        quality_gate.FAIL = quality_gate.WARN = 0
+        quality_gate._FAIL_RECORDS = []
+        with tempfile.TemporaryDirectory() as tmp:
+            q = Path(tmp) / "quality"
+            q.mkdir(parents=True)
+            (q / "classification_manifest.json").write_text(json.dumps(man),
+                                                            encoding="utf-8")
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                quality_gate.check_classification_manifest(q)
+        self.assertEqual(quality_gate.FAIL, 0, "the check is advisory, never a FAIL")
+        self.assertIn("unconfirmed_citable_count=1", buf.getvalue())
+        # ...and the dev-facing renderer still says it too (no production caller —
+        # see its docstring; the fact reaches the operator via the gate and show).
+        self.assertIn("UNCONFIRMED", dc.classification_disclosure(man))
         # interview Stage-1 playback
         pb = {e["source_path"]: e for e in dc.classification_playback(man)}
         self.assertEqual(pb["reference_docs/router-api.md"]["status"],

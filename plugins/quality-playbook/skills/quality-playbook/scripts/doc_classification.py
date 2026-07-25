@@ -1,60 +1,50 @@
-"""v1.6.0 Feature G (Design §8a) — dump-and-go documentation classification.
+"""Reference-doc classification: three lanes to "this may be cited".
 
-The operator dumps *any* documentation into one folder; ingest classifies each
-file **by content** into citable (Tier 1/2) vs background (Tier 4) — no required
-``cite/`` pre-sorting. Classification is an AI judgment (the derivation agent is
-the classifier), but it runs **over a deterministic mechanical floor** that the
-LLM cannot override upward. The floor is the security-critical part, and it
-enforces **only hard, unambiguous, structural facts** — fuzzy genre/intent
-judgments belong to the LLM (instruction 023 / Fable simplification review). The
-cardinal rule the review sharpened: **nothing becomes citable on content-sniffing
-alone** — promotion is the integrity-affecting direction, so a doc reaches citable
-only via an extension-class or anchored-signature hard signal, (disclosed) LLM
-classification, or an **operator-authored file** (the ``qpb_promote.txt`` sidecar,
-the instr-025 advisory rescue, the instr-030 classification-review decision).
-*(That last clause was missing until instruction 032: this rule predated instr 025
-and 030 and still named only two routes, and it is the source both self-Council
-panelists traced three separate wrong "how does a doc become citable" lists back
-to. The security claim is unchanged — every route is either a hard mechanical
-signal, the disclosed classifier, or a human on file; document content is none of
-them.)*
+Rewritten for v1.6.0 instruction 033. The previous version of this docstring
+survived all four steps and ten Council fix-up rounds unchanged, and by the end it
+described a module that no longer existed — it advertised an extension carve-out
+making ``.d.ts``/IDL files auto-citable (the exploit step 1 closed), an operator
+``qpb_promote.txt`` sidecar (one of three channels step 3 deleted) and a
+content-keyed manifest reuse (the cache step 4 removed). A front-door description
+that has drifted is worse than none: it is the first thing a reader trusts.
 
-* **Advisory floor (mechanical, first, content-keyed) — HARD signals only.** A
-  CVE/GHSA identifier or an advisory URL forces **Tier 4**, matched anywhere in
-  content. Nothing promotes a floored advisory — not the LLM, not an extension
-  carve-out, not the operator sidecar. Runs *before* the contract carve-out, so a
-  CVE advisory renamed ``api.proto`` is still floored by its content. Fuzzy
-  genre signals — a hardening/best-practices/advisory TITLE, or high MUST/SHALL
-  normative density — are **no longer floors**: a title is a hard string but
-  title→genre is a judgment, and a formal spec is normative-dense *by
-  definition*, so a density floor floors specifications as a class. They are
-  recorded as **advisory hints** on the record and fed to the LLM classifier as
-  demotion inputs (``advisory_genre_hints``); they inform, they do not decide.
-* **Implementation-source floor — extension only.** A code *extension*
-  (``.c``/``.py``/``.go``/…) whose content confirms logic is floored to Tier 4 —
-  code is what the system *does*, not what it is *supposed to do*. Code pasted
-  into a ``.md``/``.txt`` is **not** floored (its risk direction is upward:
-  implementation treated as citable → circular requirements); it carries a
-  ``code_heavy`` advisory hint fed to the LLM/manifest instead.
-* **Machine-readable-contract carve-out.** An OpenAPI/Swagger, ``.proto``, IDL,
-  ``.d.ts``, or WSDL file *is* an authoritative contract and is citable without
-  override. Content signatures are **anchored and unambiguous only** (``syntax =
-  "proto3"``, ``openapi: 3…``, ``swagger: "2…``, ``asyncapi:``, WSDL namespace);
-  a bare ``"$schema"`` key or a generic brace block does NOT promote — that is
-  the dangerous upward direction, closed here.
-* **Operator sidecar.** For the fuzzy case where the implementation floor caught
-  a code-shaped contract, the operator sidecar may explicitly promote *that
-  file* past the **implementation floor only** — never past the advisory floor.
-  The sidecar is operator-authored configuration; the classifier can never add
-  to it.
+WHAT DECIDES CITABILITY. Not a filename, not an extension, not a document's own
+say-so. In order:
 
-On genuine ambiguity the classifier defaults to Tier 4 (a missed grounding is
-Tier 3 instead of Tier 1 — recoverable; a false authoritative source poisons the
-derivation). The classification manifest is content-keyed for reproducibility:
-a re-run with unchanged content reuses the prior decision.
+0. **Operator demotion** — downward only, so it needs no gate and outranks
+   everything.
+1. **The hard-signal backstop.** A CVE/GHSA identifier, an advisory URL, or an
+   implementation-source file. It assigns no genre and no tier and never demotes;
+   it answers one question — *may this be cited without asking the operator?* — and
+   its only answer is no. Runs FIRST, so an advisory renamed ``api.proto`` cannot
+   ride the contract path.
+2. **Lane A — content-validated contract.** The document PARSES as protobuf,
+   RAML, OpenAPI/Swagger/AsyncAPI or WSDL. A structural fact, checked per format
+   against the document's own text. Cited without asking — but a model read of
+   tier 3/4 still demotes it, because demotion is free (§8a Revision rule 2).
+3. **Lane C — routed to the operator, never silently cited.** A contract-format
+   extension whose content does not validate, a backstop-flagged document, or one
+   the model saw asking to be treated as authoritative.
+4. **Operator promotion.** The human said "cite this", in the one content-keyed,
+   operator-authored channel. Promoting a backstop-flagged document requires their
+   reason to NAME the signal.
+5. **Lane B — the model's read.** Cited, and disclosed ``unconfirmed`` until a
+   human confirms it. This is the ordinary path for prose specs.
+6. Otherwise background — the model read it as context, or nobody read it. The
+   manifest distinguishes those two.
 
-This module is deliberately dependency-free (stdlib only) so it is trivially
-bundle-portable and unit-testable without the rest of the harness.
+WHAT IS DELETED, and is not hiding under another name: the advisory /
+implementation / background-name GENRE floors, the ``_SPEC_NAME_TOKENS`` and
+``_NON_SPEC_NAME_TOKENS`` filename tables, the extension arm of the contract
+carve-out, the three superseded operator channels, and the ``prior_records``
+cache with its guards. A filename is not a genre; an extension is not a parse.
+
+WHAT PERSISTS BETWEEN RUNS: the operator's confirmed decisions
+(``reference_docs/qpb_decisions.txt``), and the agent's per-document reads
+(``quality/classification_reads.json``). Neither is written by a run — that is
+what keeps the second from being the cache again. This module writes
+``quality/classification_manifest.json``, which is an OUTPUT: it is regenerated
+every run and read back by nothing.
 """
 
 from __future__ import annotations
@@ -120,24 +110,12 @@ OPERATOR_AUTHORITATIVE = "authoritative"
 OPERATOR_BACKGROUND = "background"
 _OPERATOR_DECISIONS = frozenset({OPERATOR_AUTHORITATIVE, OPERATOR_BACKGROUND})
 
-# The rules that exist ONLY because a live operator-authored file says so — the
-# instr-030 classification-review decisions (``qpb_authoritative.txt``) and the
-# instr-025-era sidecar promotion (``qpb_promote.txt``). A cached record carrying
-# one of these — or an ``operator_decision`` field — is never honored from the
-# prior manifest: see the cache guard in ``classify_documents``. The operator's
-# consent has to still be on file, or the decision is not revocable and a forged
-# prior manifest can manufacture consent that was never given.
-#
-# ``RULE_SIDECAR`` belongs here for exactly the same reason as the instr-030
-# rules, and its omission was an instr-030 self-Council Panelist A finding: the
-# review renders it as *"you told me to use this one…"*, so a stale or forged
-# sidecar record makes the show speak in the operator's voice with no operator
-# file behind it. ``RULE_LLM``/``RULE_CONTRACT`` are deliberately NOT here — they
-# attribute the judgment to the agent or to the document's own format, which is
-# what the show says, so caching them claims nothing on the operator's behalf.
-_OPERATOR_RULES = frozenset(
-    {RULE_OPERATOR_AUTHORITATIVE, RULE_OPERATOR_BACKGROUND, RULE_SIDECAR}
-)
+# (Deleted here: `_OPERATOR_RULES`, the set of floor rules whose CACHED records
+# required live operator consent before being reused. It existed to stop a
+# forged prior manifest manufacturing consent — a real concern while records
+# were reused, and moot once step 4 removed the reuse. Nothing has read it
+# since; the property it protected now lives on the decisions artifact, which
+# is re-read every run so deleting a line revokes it.)
 
 # instruction 033 step 2 — the README / coverage / issue-tracker NAME floor is
 # DELETED (`_BACKGROUND_NAME_RE`, `_is_background_ledger`). A filename is not a
@@ -326,8 +304,6 @@ _WSDL_ROOTS = {
     "http://schemas.xmlsoap.org/wsdl/": "definitions",   # WSDL 1.1
     "http://www.w3.org/ns/wsdl": "description",          # WSDL 2.0
 }
-# An un-namespaced document is not a WSDL: the namespace is mandatory in both.
-_WSDL_NAMESPACES = frozenset(_WSDL_ROOTS)
 _API_KEYS = ("openapi", "swagger", "asyncapi")
 
 
@@ -966,7 +942,8 @@ def _record(rel_path: str, text: str, decision: Decision) -> dict:
     }
     # Advisory HINTS (instr 023): fed to the LLM classifier + surfaced in the
     # manifest for operator review. Emitted only when present, so untouched
-    # records stay byte-identical for the reproducibility/content-key contract.
+    # records stay byte-identical for a given input, which is what makes a diff
+    # between two runs mean something.
     if decision.advisory_hints:
         rec["advisory_hints"] = list(decision.advisory_hints)
     if decision.code_heavy:
@@ -1006,6 +983,15 @@ def _accepts_hints(fn) -> bool:
 
     Lets a hint-aware classifier receive the floor's advisory_hints/code_heavy as
     a demotion input, while a legacy ``(rel_path, text)`` callable still works.
+    
+    STATED RESIDUAL (033 self-Council panelist C, C-4): the SHIPPED classifier does
+    not accept hints. It is synthesized from `quality/classification_reads.json`
+    and takes two arguments, so `advisory_genre_hints` / `code_heavy_hint` are
+    never delivered through this path — which is correct rather than broken, since
+    the agent read the document itself and needs no prompting about it. The hints
+    are kept for two reasons that are still live: an embedding caller may supply a
+    three-argument callable, and `code_heavy` lands on the record either way, where
+    the operator and the gate can see it. Kept deliberately, not overlooked.
     """
     try:
         params = list(inspect.signature(fn).parameters.values())
@@ -1164,16 +1150,12 @@ def classify_documents(
         records.append(_record(rel_path, text, decision))
 
     records.sort(key=lambda r: r["source_path"])
-    if llm_classifier is None and classifier_status == CLASSIFIER_UNWIRED:
-        # No Python callback this pass. In the skill flow the derivation agent
-        # classifies by REFINING the manifest (assigning Tier 1/2 + marking the
-        # record RULE_LLM), reused content-keyed on the next ingest. So the corpus
-        # IS classified when any record carries a classifier/agent-assigned tier;
-        # only a purely floor-only corpus (no non-floor judgment anywhere) is
-        # genuinely unwired and loud (instruction 024). Requires re-running ingest
-        # after refinement so this reflects the agent's tiers.
-        if any(r.get("floor_rule") == RULE_LLM for r in records):
-            classifier_status = CLASSIFIER_WIRED_OK
+    # (Deleted here: an `unwired -> wired-ok` upgrade that fired when any record
+    # carried RULE_LLM. It was reachable only while the cache existed — the agent
+    # refined the manifest and a later pass read those records back. With no
+    # classifier, `_classify` cannot emit RULE_LLM at all, so after step 4 the
+    # branch could never run. Step 4 orphaned it and nothing noticed, because an
+    # unreachable branch passes every test.)
     citable = [r for r in records if r.get("tier") in (1, 2)]
     # instruction 033 step 2 — corpus-level provenance, all DERIVED from the
     # per-document records (invariant 7: never a corpus-wide judgment a single
@@ -1266,6 +1248,18 @@ def classification_disclosure(manifest: dict) -> Optional[str]:
     Overview (beside the F-1 coverage-and-gaps statement), raises as a gate WARN,
     and plays back at interview Stage 1. A degraded classification is a disclosed
     event, never a quiet fallback.
+    
+    NO PRODUCTION CALLER, and that is a STATED RESIDUAL rather than an oversight
+    to trip over (033 self-Council panelist C, C-3). Invariant 8 names this as
+    "the 024 gate WARN + Overview + Stage-1 playback". The gate leg is real but
+    does not run through here: `quality_gate.check_classification_manifest`
+    re-derives the same facts independently and deliberately, because the gate
+    must not import this module. The Overview and Stage-1 playback legs were never
+    wired into the phase prompts — a gap that predates instruction 033, which is
+    why it is recorded here rather than closed under it. Every fact this function
+    renders does reach the operator today, through `classification_review` and
+    through the five gate WARNs; what is missing is their appearance in
+    `REQUIREMENTS.md` and the interview.
     """
     status = manifest.get("classifier_status")
     parts: List[str] = []
@@ -1613,6 +1607,17 @@ def _review_reason(entry: dict, authoritative: bool) -> str:
         # ONLY for a document the classifier had also read as background — so the
         # one case it was built for, a prose file the operator dropped in `cite/`
         # and thereby promoted, rendered as an ordinary confirmed decision.
+        #
+        # STATED RESIDUAL (033 self-Council panelist C, C-6): a `cite/`-placed
+        # document that the operator ALSO confirms explicitly still renders as
+        # placement, so the show invites a confirmation they have already given.
+        # Distinguishing the two would mean threading the decision's REASON through
+        # the classifier purely to change one sentence — the shim seeds its entry as
+        # `operator-authoritative`, so the two are identical at this point in the
+        # record. Declined deliberately: both readings tell the operator the same
+        # true thing, and this panelist's own charter is that the layer should stop
+        # growing parts. Revisit when `cite/` retires next release and the seed goes
+        # with it.
         if _is_cite_placed(entry.get("source_path")):
             return _CITE_FOLDER_REASON
         base = _AUTHORITATIVE_REASONS.get(

@@ -564,8 +564,9 @@ def ingest(target_repo: Path, *, llm_classifier=None) -> dict:
     decision (``promotable``), never re-litigated here, so this path can never
     launder a floored doc to citable. ``llm_classifier`` is the derivation AI's
     per-file tier callable (the acceptance oracle injects a stub); in a real run
-    the AI records tiers into the classification manifest, which is reused
-    content-keyed on the next ingest.
+    the agent writes ``quality/classification_reads.json`` before this call and it
+    is synthesized from there. It is NOT recorded into the classification
+    manifest, which this run overwrites.
     """
     target_repo = Path(target_repo)
     if not target_repo.exists():
@@ -998,7 +999,9 @@ def classify_reference_docs(
     never past the advisory floor). ``llm_classifier`` is the derivation AI's
     per-file tier callable; when None, the floor still runs and floor-passed
     docs default to Tier 4 (dump-and-go stays safe without the AI in Python).
-    Reuses a prior manifest for content-keyed reproducibility. Writes
+    No prior manifest is read: the classification manifest is an OUTPUT,
+    regenerated every run. What carries a read between runs is the agent's
+    ``quality/classification_reads.json``. Writes
     ``quality/classification_manifest.json`` when ``write`` is True.
     """
     target_repo = Path(target_repo)
