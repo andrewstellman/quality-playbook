@@ -849,7 +849,18 @@ def _golden_cases():
 class GoldenRenderTests(unittest.TestCase):
 
     def test_every_render_matches_its_golden(self):
-        for name, rendered in _golden_cases().items():
+        cases = _golden_cases()
+        # Round 4, Panelist C (R4-N1): without this line the whole assertion is
+        # VACUOUSLY GREEN on an empty `_golden_cases()` — C proved it by injecting
+        # `return {}`: this test passed and only the case-set test went red. The
+        # pair was load-bearing together, but a golden pin that passes when there
+        # are no goldens is the same shape as everything else this Council found —
+        # an expectation that vanishes with the thing it constrains. Each half now
+        # stands on its own.
+        self.assertEqual(len(cases), len(self.EXPECTED_CASES),
+                         "no render cases to compare — the golden pin would pass "
+                         "vacuously")
+        for name, rendered in cases.items():
             with self.subTest(case=name):
                 path = GOLDEN_DIR / f"{name}.md"
                 self.assertTrue(
