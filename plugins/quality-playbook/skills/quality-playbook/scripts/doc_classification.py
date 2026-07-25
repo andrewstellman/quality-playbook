@@ -969,9 +969,11 @@ _AUTHORITATIVE_REASONS = {
     # demotion at this step is unconditional. (That a non-contract can reach
     # Tier 1 on an extension is a CARVE-OUT question, not a wording one; tiers
     # are out of scope here and it is carried forward in the output.)
+    # (Round 2, Panelist B: "its format is…" still claims the BYTES when only the
+    # suffix was read — `notes.thrift` is prose. Name the extension.)
     RULE_CONTRACT: (
-        "its format is an interface or contract definition — the kind of file that "
-        "states directly what this software is supposed to do."
+        "its file extension marks it as an interface or contract definition — the "
+        "kind of file that states directly what this software is supposed to do."
     ),
     RULE_LLM: "I read it as a statement of what this software is supposed to do.",
 }

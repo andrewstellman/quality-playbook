@@ -161,6 +161,10 @@ class CacheVsLiveClassifierTests(unittest.TestCase):
         for r in again["records"]:
             self.assertEqual(r["floor_rule"], dc.RULE_DEFAULT)
             self.assertEqual(r["tier"], 4)
+            # Round 2, Panelist A (R2-5): without this the test passes with the
+            # fix fully reverted — the reused and the re-derived record differ
+            # ONLY by this key, so it is the whole behavioral difference.
+            self.assertNotIn("reused_from_prior", r)
         self.assertTrue(again["zero_citable"])
 
     def test_an_erroring_classifier_is_still_loud_on_a_cached_default(self):
@@ -259,6 +263,38 @@ class ReproducibilityPreservedTests(unittest.TestCase):
         rec = _rec(out, "reference_docs/ring-reset-spec.md")
         self.assertEqual(rec["tier"], 2)
         self.assertNotIn("reused_from_prior", rec)
+    def test_a_settled_tier_4_llm_vote_is_reused_not_re_derived(self):
+        # instr 032 self-Council, Panelist A (NIT 10): the predicate is keyed on
+        # `floor_rule`, and it MUST be — a mutant keyed on `tier == 4` instead
+        # survived every other behavioral assertion in this file while promoting
+        # a settled Tier-4 classifier vote to Tier 1 on the next wired re-run.
+        # A Tier-4 `llm` record is a real decision ("I read this as background");
+        # re-deriving it lets a differently-minded classifier overturn the
+        # operator-visible tiering that reproducibility promises to hold.
+        docs = [("reference_docs/design-note.md",
+                 "# Design note\n\nWe considered three approaches.\n")]
+        first = dc.classify_documents(docs, llm_classifier=lambda r, t: 4,
+                                      generated_at="X")
+        rec = _rec(first, "reference_docs/design-note.md")
+        self.assertEqual((rec["tier"], rec["floor_rule"]), (4, dc.RULE_LLM))
+
+        calls = []
+
+        def promoter(rel_path, text):
+            calls.append(rel_path)
+            return 1
+
+        second = dc.classify_documents(docs, llm_classifier=promoter,
+                                       prior_records=first["records"],
+                                       generated_at="Y")
+        rec2 = _rec(second, "reference_docs/design-note.md")
+        self.assertEqual(calls, [], "a settled Tier-4 llm vote must not be re-derived")
+        self.assertEqual(rec2["tier"], 4)
+        self.assertEqual(rec2["floor_rule"], dc.RULE_LLM)
+        self.assertTrue(rec2.get("reused_from_prior"))
+        self.assertTrue(second["zero_citable"])
+
+
 
 
 class FloorsStillHoldTests(unittest.TestCase):
@@ -304,37 +340,6 @@ class FloorsStillHoldTests(unittest.TestCase):
         rec = _rec(out, "reference_docs/README.md")
         self.assertEqual(rec["tier"], 4)
         self.assertEqual(rec["floor_rule"], dc.RULE_BACKGROUND)
-
-    def test_a_settled_tier_4_llm_vote_is_reused_not_re_derived(self):
-        # instr 032 self-Council, Panelist A (NIT 10): the predicate is keyed on
-        # `floor_rule`, and it MUST be — a mutant keyed on `tier == 4` instead
-        # survived every other behavioral assertion in this file while promoting
-        # a settled Tier-4 classifier vote to Tier 1 on the next wired re-run.
-        # A Tier-4 `llm` record is a real decision ("I read this as background");
-        # re-deriving it lets a differently-minded classifier overturn the
-        # operator-visible tiering that reproducibility promises to hold.
-        docs = [("reference_docs/design-note.md",
-                 "# Design note\n\nWe considered three approaches.\n")]
-        first = dc.classify_documents(docs, llm_classifier=lambda r, t: 4,
-                                      generated_at="X")
-        rec = _rec(first, "reference_docs/design-note.md")
-        self.assertEqual((rec["tier"], rec["floor_rule"]), (4, dc.RULE_LLM))
-
-        calls = []
-
-        def promoter(rel_path, text):
-            calls.append(rel_path)
-            return 1
-
-        second = dc.classify_documents(docs, llm_classifier=promoter,
-                                       prior_records=first["records"],
-                                       generated_at="Y")
-        rec2 = _rec(second, "reference_docs/design-note.md")
-        self.assertEqual(calls, [], "a settled Tier-4 llm vote must not be re-derived")
-        self.assertEqual(rec2["tier"], 4)
-        self.assertEqual(rec2["floor_rule"], dc.RULE_LLM)
-        self.assertTrue(rec2.get("reused_from_prior"))
-        self.assertTrue(second["zero_citable"])
 
     def test_content_still_cannot_self_promote_through_the_reopened_default(self):
         # A document that argues for its own tier is data. The re-derive routes
@@ -423,6 +428,41 @@ class AdvisoryReasonAccuracyTests(unittest.TestCase):
         self.assertNotIn("describes known problems", out)
         self.assertIn("it carries security-advisory material", out)
 
+    def test_all_four_reworded_reason_strings_are_pinned_exactly(self):
+        # Round 2, Panelist B (R2-N2): the equality pin below landed on 1 of the 4
+        # strings this instruction reworded, and B proved the gap with two bites
+        # that are FULLY GREEN against the round-2 test set — bite F appends "This
+        # one is a ledger of open issues, not a specification of anything." to
+        # RULE_BACKGROUND (reintroducing the F7 defect verbatim), and bite G does
+        # the same to RULE_CONTRACT while escaping its `assertNotIn` by writing
+        # "it is a" for "it's a". Every reworded string is pinned by full equality,
+        # so any future reword has to come through this test deliberately.
+        self.assertEqual(
+            dc._BACKGROUND_REASONS[dc.RULE_BACKGROUND],
+            "its name marks it as a README, a coverage report or an issue-tracker "
+            "listing — documents that describe a project rather than specify it.")
+        self.assertEqual(
+            dc._BACKGROUND_REASONS[dc.RULE_IMPL],
+            "it's a code file — code is how the software works, not a statement of "
+            "what it's supposed to do.")
+        self.assertEqual(
+            dc._AUTHORITATIVE_REASONS[dc.RULE_CONTRACT],
+            "its file extension marks it as an interface or contract definition — "
+            "the kind of file that states directly what this software is supposed "
+            "to do.")
+        # ...and the genre claims each reword removed must not come back under any
+        # phrasing. Kept as a substring check IN ADDITION to equality above: it is
+        # what catches a reword that changes the string legitimately but smuggles
+        # the claim back in.
+        for forbidden in ("it's a README or a coverage", "is a README or a coverage",
+                          "ledger of open issues",
+                          "it's a machine-readable interface definition",
+                          "is a machine-readable interface definition",
+                          "it shows what the software already does"):
+            joined = " ".join(list(dc._BACKGROUND_REASONS.values())
+                              + list(dc._AUTHORITATIVE_REASONS.values()))
+            self.assertNotIn(forbidden, joined)
+
     def test_advisory_reason_string_is_pinned_exactly(self):
         # instr 032 self-Council, Panelist B: the assertions above pin PHRASING,
         # not the contract — B showed that APPENDING "This document is a
@@ -472,7 +512,8 @@ class AdvisoryReasonAccuracyTests(unittest.TestCase):
         self.assertEqual(_rec(man2, "reference_docs/notes.thrift")["floor_rule"],
                          dc.RULE_CONTRACT)                     # tier unchanged
         out2 = dc.classification_review(man2)
-        self.assertIn("its format is an interface or contract definition", out2)
+        self.assertIn("its file extension marks it as an interface or contract "
+                      "definition", out2)
         self.assertNotIn("it's a machine-readable interface definition", out2)
 
     def test_impl_reason_holds_for_declaration_only_code(self):
@@ -648,6 +689,12 @@ class JargonFreeArtifactNameTests(unittest.TestCase):
                    REPO_ROOT / "references", REPO_ROOT / "bin",
                    REPO_ROOT / "plugins", REPO_ROOT / "docs" / "design",
                    REPO_ROOT / "ai_context"]
+        # BOTH the `references/` and the `plugins/` entries are load-bearing —
+        # `Path.rglob` does NOT descend the `plugins/.../references` symlink
+        # (Panelist C round 2 proved it walks 0 files there), so `references/` is
+        # covered ONLY by its own entry. It holds five of this rename's live
+        # sites; pruning it as "redundant, plugins/ covers the skill tree" would
+        # silently blind this sweep to all of them.
         # instr 032 self-Council, Panelist C (NIT 2): the first version filtered
         # on a suffix allow-list, which silently skipped
         # `plugins/.../skill-template.gitignore` — an ADOPTER-facing file, and
