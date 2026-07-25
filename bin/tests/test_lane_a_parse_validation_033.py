@@ -347,7 +347,8 @@ class AnchorsAreLoadBearingTests(unittest.TestCase):
                   "<portType/></definitions></docs></project>")
         self.assertIsNone(dc._wsdl_root_element(nested))
         self.assertIsNone(dc.contract_content_validation(nested, "b.xml"))
-        rooted = '<definitions name="Orders"><portType/></definitions>'
+        rooted = ('<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" '
+                  'name="Orders"><portType/></definitions>')
         self.assertEqual(dc._wsdl_root_element(rooted),
                          "WSDL root element <definitions>")
 
@@ -380,6 +381,11 @@ class AnchorsAreLoadBearingTests(unittest.TestCase):
         wsdl2 = ('<definitions xmlns="http://www.w3.org/ns/wsdl">'
                  "<interface/></definitions>")
         self.assertIsNotNone(dc._wsdl_root_element(wsdl2))
+        # The other half of the same hole (round 2): the WSDL namespace is
+        # mandatory in both 1.1 and 2.0, so a bare `<definitions>` root belongs to
+        # some other vocabulary. MUTATION BITE: restore `if namespace and ...`.
+        self.assertIsNone(dc._wsdl_root_element(
+            '<definitions name="Orders"><portType/></definitions>'))
 
 
 class AQuotedSnippetIsNotTheDocumentsFormatTests(unittest.TestCase):
@@ -419,6 +425,99 @@ class AQuotedSnippetIsNotTheDocumentsFormatTests(unittest.TestCase):
         self.assertNotEqual(rec["floor_rule"], dc.RULE_CONTRACT)
         self.assertEqual(rec["tier"], 4)
         self.assertTrue(man["zero_citable"], "the tutorial must not be cited")
+
+
+class TheAnchorMustBeTheDocumentsOwnTests(unittest.TestCase):
+    """033 fix-up 2 — self-Council panelist A round 2, FIX-REQUIRED R2-1.
+
+    Fix-up 1 stripped fenced blocks, which closed the ONE shape A demonstrated and
+    left the root cause — `^\s*` on both proto anchors — untouched. A came back with
+    five more inputs that still reached `tier=1 rule=contract` with no classifier
+    and no operator involved. All five reproduced.
+
+    The reStructuredText one is why the shape-level fix was never going to hold:
+    reST has no fenced blocks at all, so `_without_fenced_blocks` structurally
+    cannot help it however its docstring is worded — and `.rst` is the format of the
+    benchmark corpus this classifier is measured on. Quoting a code block in prose
+    means INDENTING it; matching an anchor at any indentation was the bug.
+    """
+
+    def _assert_not_a_contract(self, label, text):
+        with self.subTest(case=label):
+            self.assertIsNone(dc.contract_content_validation(text, "doc.md"), label)
+            rec, man = _one("reference_docs/doc.md", text)
+            self.assertNotEqual(rec["floor_rule"], dc.RULE_CONTRACT, label)
+            self.assertTrue(man["zero_citable"], label)
+
+    def test_an_indented_proto_block_is_a_quotation(self):
+        # MUTATION BITE: restore `^\s*` on either proto anchor and this fails.
+        self._assert_not_a_contract("markdown four-space indent",
+            "# Tutorial\n\nHere is the shape:\n\n"
+            '    syntax = "proto3";\n\n    message Order { string id = 1; }\n\n'
+            "Compile it.\n")
+
+    def test_each_proto_anchor_is_INDEPENDENTLY_at_column_zero(self):
+        # The bite log for fix-up 2 caught this: the five prose inputs above all
+        # indent BOTH anchors, so relaxing either one alone still left them None and
+        # both single-anchor mutations ESCAPED. Each anchor needs its own case where
+        # it is the only one indented.
+        # MUTATION BITE (syntax anchor): `^syntax` -> `^\s*syntax`.
+        self._assert_not_a_contract("only the syntax line is indented",
+            '# Doc\n\n    syntax = "proto3";\n\n'
+            "message Order { string id = 1; }\n")
+        # MUTATION BITE (block anchor): `^(?:message|service)` -> `^\s*(?:...)`.
+        self._assert_not_a_contract("only the block is indented",
+            '# Doc\n\nsyntax = "proto3";\n\n'
+            "    message Order { string id = 1; }\n")
+
+    def test_a_reST_code_block_is_a_quotation(self):
+        # reST's ONLY code-block form. No fence exists to strip.
+        self._assert_not_a_contract("reST .. code-block:: proto",
+            "gRPC guide\n==========\n\n.. code-block:: proto\n\n"
+            '   syntax = "proto3";\n\n   message Order { string id = 1; }\n\n'
+            "That is the shape.\n")
+
+    def test_an_unclosed_fence_runs_to_the_end_of_the_document(self):
+        # MUTATION BITE: drop the `|\Z` alternative from `_FENCED_BLOCK_RE`.
+        self._assert_not_a_contract("fence never closed",
+            '# Notes\n\n```proto\nsyntax = "proto3";\n\n'
+            "message Order { string id = 1; }\n")
+
+    def test_a_mismatched_closing_delimiter_does_not_close_the_fence(self):
+        self._assert_not_a_contract("```-opened, ~~~-closed",
+            '# Notes\n\n```proto\nsyntax = "proto3";\n\n'
+            "message Order { string id = 1; }\n~~~\n\nDone.\n")
+
+    def test_a_column0_version_line_in_prose_is_not_a_document(self):
+        # One column-0 regex hit is not a document. MUTATION BITE: drop the
+        # `_YAML_INFO_KEY_RE` requirement and this fails.
+        self._assert_not_a_contract("changelog line at column 0",
+            "# Changelog\n\n## 2.4.0\n\nAdded support for the following spec "
+            "versions:\n\nopenapi: 3.1.0 is now accepted by the validator.\n\n"
+            "That is all.\n")
+
+    def test_the_genuine_shapes_all_still_validate(self):
+        # The control. A fix to a publish gate that quietly stops publishing real
+        # contracts is not a fix, so every genuine shape is re-asserted here rather
+        # than trusted to the tests above.
+        for text, name in ((GENUINE_PROTO, "a.proto"),
+                           (GENUINE_RAML, "a.raml"),
+                           (GENUINE_WSDL, "a.wsdl"),
+                           (GENUINE_OPENAPI_YAML, "a.yaml"),
+                           (GENUINE_OPENAPI_JSON, "a.json")):
+            with self.subTest(shape=name):
+                self.assertIsNotNone(dc.contract_content_validation(text, name))
+        # ...including a `.proto` with NESTED (indented) messages: only the
+        # enclosing declaration has to sit at column 0.
+        nested = ('syntax = "proto3";\n\nmessage Order {\n'
+                  "  message Line { string sku = 1; }\n  Line line = 1;\n}\n")
+        self.assertIsNotNone(dc.contract_content_validation(nested, "b.proto"))
+        # ...and a genuine OpenAPI whose `description` contains a fenced example,
+        # which the scrubber must not swallow whole.
+        with_example = ('openapi: "3.0.3"\ninfo:\n  title: Orders\n'
+                        "  description: |\n    Example:\n\n    ```json\n"
+                        '    {"id": 1}\n    ```\npaths: {}\n')
+        self.assertIsNotNone(dc.contract_content_validation(with_example, "c.yaml"))
 
 
 class DemotionIsFreeInEveryLaneTests(unittest.TestCase):

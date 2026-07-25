@@ -279,15 +279,26 @@ _ANCHORED_CONTRACT_EXTS = frozenset({".proto", ".wsdl", ".raml"})
 # Lane A now requires a real parse or positional check that the content IS that
 # format. Every check below is anchored to document STRUCTURE, not to a substring:
 # top-level key, first line, root element, or a paired declaration.
-_PROTO_SYNTAX_RE = re.compile(r'^\s*syntax\s*=\s*"proto[23]"\s*;', re.MULTILINE)
+# COLUMN 0, like the YAML key below — `^\s*` was the root cause behind the
+# fenced-snippet exploit, and stripping fences only fixed one of its shapes. Every
+# way of quoting a code block in a prose document INDENTS it: reStructuredText has
+# no fenced blocks at all (`.. code-block:: proto` + an indented body is the only
+# form, and `.rst` is the benchmark corpus's own format), Markdown's original
+# four-space form predates fences, and an unclosed or mismatched fence leaves its
+# body unstripped. A real `.proto` puts `syntax` and its top-level `message` /
+# `service` declarations at column 0; nested messages indent, but the enclosing one
+# does not, so nothing genuine is lost.
+_PROTO_SYNTAX_RE = re.compile(r'^syntax\s*=\s*"proto[23]"\s*;', re.MULTILINE)
 _PROTO_BLOCK_RE = re.compile(
-    r"^\s*(?:message|service)\s+\w+\s*\{", re.MULTILINE)
+    r"^(?:message|service)\s+\w+\s*\{", re.MULTILINE)
 # A top-level YAML key sits at column 0. `^` + no leading whitespace is the whole
 # point: an `openapi: 3.1` inside a prose sentence, a list item, or a nested
 # mapping is not a document key.
 _TOP_LEVEL_API_KEY_RE = re.compile(
     r'^(openapi|swagger|asyncapi)\s*:\s*["\']?(\d[\w.\-]*)', re.MULTILINE)
 _RAML_FIRST_LINE_RE = re.compile(r"^#%RAML\s")
+# `info` is REQUIRED by OpenAPI 2/3 and by AsyncAPI alike.
+_YAML_INFO_KEY_RE = re.compile(r"^info\s*:", re.MULTILINE)
 _API_VERSION_RE = re.compile(r"^\d[\w.\-]*$")
 # The WSDL namespaces. A root element merely NAMED `definitions` is not enough:
 # BPMN 2.0's root is `<definitions>` too, as are several build and workflow
@@ -334,14 +345,22 @@ def _wsdl_root_element(text: str) -> Optional[str]:
     if local.lower() != "definitions":
         return None
     namespace = tag[1:].rsplit("}", 1)[0] if tag.startswith("{") else ""
-    if namespace and namespace not in _WSDL_NAMESPACES:
-        # Namespaced as something else entirely — BPMN, most often.
+    if namespace not in _WSDL_NAMESPACES:
+        # Namespaced as something else entirely (BPMN, most often) — or carrying no
+        # namespace at all, which is the other half of the same hole: the WSDL
+        # namespace is mandatory in both 1.1 and 2.0, so a bare `<definitions>` root
+        # is some other vocabulary's document, not a service contract.
         return None
     return f"WSDL root element <{local}>"
 
 
-_FENCED_BLOCK_RE = re.compile(r"^[ \t]*(`{3,}|~{3,}).*?^[ \t]*\1[ \t]*$",
-                              re.MULTILINE | re.DOTALL)
+# An unterminated fence extends to the END of the document, which is both what
+# CommonMark says and what closes two evasions: a fence that is simply never
+# closed, and one opened with ``` and "closed" with ~~~ (a different delimiter does
+# not close it, so it too runs to EOF).
+_FENCED_BLOCK_RE = re.compile(
+    r"^[ \t]*(`{3,}|~{3,}).*?(?:^[ \t]*\1[ \t]*$|\Z)",
+    re.MULTILINE | re.DOTALL)
 
 
 def _without_fenced_blocks(text: str) -> str:
@@ -384,9 +403,19 @@ def contract_content_validation(text: str, filename: str = "") -> Optional[str]:
     json_key = _json_top_level_api_key(text)
     if json_key:
         return json_key
-    # ...or at column 0 in YAML.
-    for m in _TOP_LEVEL_API_KEY_RE.finditer(text):
-        return f"top-level {m.group(1)} key = {m.group(2)!r}"
+    # ...or at column 0 in YAML, WITH the `info` block every one of the three
+    # specifications makes mandatory. One column-0 regex hit is not a document: a
+    # changelog line reading `openapi: 3.1.0 is now accepted by the validator` sat
+    # at column 0 and was published as a machine-readable contract. Two required
+    # top-level keys is the same two-anchor bar protobuf already has to clear.
+    #
+    # The JSON arm above deliberately does NOT require `info`, and the asymmetry is
+    # the point rather than an oversight: it parses the WHOLE document and demands a
+    # top-level version value, so prose cannot reach it at all. This arm is a regex
+    # over one line of anything.
+    if _YAML_INFO_KEY_RE.search(text):
+        for m in _TOP_LEVEL_API_KEY_RE.finditer(text):
+            return f"top-level {m.group(1)} key = {m.group(2)!r} + info block"
     # WSDL: the ROOT element, not any `<wsdl:` substring.
     wsdl = _wsdl_root_element(text)
     if wsdl:
