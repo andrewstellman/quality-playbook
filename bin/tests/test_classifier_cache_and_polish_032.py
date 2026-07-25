@@ -783,8 +783,89 @@ class JargonFreeArtifactNameTests(unittest.TestCase):
         self.assertEqual(offenders, [], f"stale artifact name in: {offenders}")
 
 
-if __name__ == "__main__":
-    unittest.main()
+# ---------------------------------------------------------------------------
+# Round 6, Panelist B (R6-2) — the golden render. THE terminal instrument.
+#
+# B escaped in every round it looked, and each time through a surface the previous
+# remedy did not cover:
+#
+#   round 2  a reword of an unpinned reason string
+#   round 3  the advisory-RESCUE arms (inline literals, pinned by nothing)
+#   round 4  the assembly path, RULE_DEFAULT, and an inline note in the renderer
+#   round 5  the zero-authoritative banner, the cite/ arm, the fallback
+#   round 6  brand-new narrative lines: bite R appended "Most of the above are
+#            advisories, code files and project listings — none of them is a
+#            specification." after the background list (39/39 GREEN, over a corpus
+#            containing a Tier-1 spec), and bite S put a genre claim inside the
+#            "Is that right?" block — the text that invites the correction.
+#
+# Every instrument so far shares one blind spot: they inspect strings the test
+# already knows about. Assertion 1 reads only `- `path` — reason` lines; the
+# forbidden sweep is a denylist and a denylist can always be rephrased around.
+# B's own conclusion, which I am taking: the only form it cannot see around is a
+# GOLDEN RENDER — pin the complete Markdown, so nothing new renders to an operator
+# without a test changing. Same instrument the repo already uses for phase-prompt
+# hashes, and the same reason: substring assertions cannot catch an ADDITION.
+#
+# Fixtures are GENERATED, never hand-typed (instruction 032 "Fixture discipline"):
+#     python3 bin/tests/test_classifier_cache_and_polish_032.py --regenerate-goldens
+# Review the diff before committing — that review IS the change-acknowledgement.
+# ---------------------------------------------------------------------------
+GOLDEN_DIR = Path(__file__).resolve().parent / "fixtures" / "classification_review_032"
+
+
+def _golden_cases():
+    """name -> the exact operator-facing Markdown. Deterministic: fixed
+    ``generated_at``, records sorted by path, stub classifier."""
+    main = _sweep_corpus()
+    zero = _zero_authoritative_corpus()
+    empty = dc.classify_documents([], generated_at="X")
+    proto_only = dc.classify_documents(
+        [("reference_docs/orders.proto", SW_PROTO)], generated_at="X")
+    return {
+        # Every render arm, at both pause settings.
+        "main_offer": dc.classification_review(main, offer=True),
+        "main_no_offer": dc.classification_review(main, offer=False),
+        # The virtio signature.
+        "zero_authoritative": dc.classification_review(zero, offer=True),
+        # No documentation at all.
+        "empty": dc.classification_review(empty, offer=True),
+        # The `formal_records` call form phase1.md mandates — reaches the fallback.
+        "formal_records_fallback": dc.classification_review(
+            proto_only, formal_records=[]),
+    }
+
+
+class GoldenRenderTests(unittest.TestCase):
+
+    def test_every_render_matches_its_golden(self):
+        for name, rendered in _golden_cases().items():
+            with self.subTest(case=name):
+                path = GOLDEN_DIR / f"{name}.md"
+                self.assertTrue(
+                    path.is_file(),
+                    f"missing golden {path}; regenerate with:\n"
+                    f"  python3 bin/tests/{Path(__file__).name} --regenerate-goldens")
+                self.assertEqual(
+                    rendered, path.read_text(encoding="utf-8"),
+                    f"the operator-facing render changed for {name!r}. If the change "
+                    f"is intended, regenerate and REVIEW the diff:\n"
+                    f"  python3 bin/tests/{Path(__file__).name} --regenerate-goldens")
+
+    def test_goldens_have_no_untracked_extras(self):
+        # A golden left behind for a case that no longer exists would rot silently.
+        on_disk = {p.stem for p in GOLDEN_DIR.glob("*.md")}
+        self.assertEqual(on_disk, set(_golden_cases()),
+                         "golden files and render cases have diverged")
+
+
+def _regenerate_goldens():
+    GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
+    for name, text in _golden_cases().items():
+        (GOLDEN_DIR / f"{name}.md").write_text(text, encoding="utf-8")
+        print(f"wrote {GOLDEN_DIR / (name + '.md')} ({len(text)} chars)")
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -901,6 +982,82 @@ class EveryOperatorFacingStringIsPinnedTests(unittest.TestCase):
             "RFC, or an API reference, add it and I can use it as a source.")
 
 
+# The sweep corpus lives at module level so the render-level sweep and the
+# golden-render pin use the IDENTICAL corpus — two instruments over one input.
+SW_ADVISORY = "# Advisory\n\nCVE-2024-43796 affects the router.\n"
+SW_PLAIN = "# Ordering\n\nOrders are processed in arrival sequence.\n"
+SW_SPEC2 = "# Contracts\n\nThe device MUST NOT write beyond the used ring.\n"
+SW_PROTO = 'syntax = "proto3";\n\nmessage Order { string id = 1; }\n'
+SW_OPENAPI = ('openapi: "3.0.3"\ninfo:\n  title: Orders\n  version: 1.0.0\n'
+              'paths:\n  /o:\n    get:\n      responses:\n        "200":\n'
+              '          description: ok\n')
+
+
+def _sweep_corpus():
+    """One document per render arm of ``classification_review``."""
+    docs = [
+        ("reference_docs/cve.md", SW_ADVISORY),                     # advisory floor
+        ("reference_docs/README.md", "# Readme\n\nbackground\n"),  # background ledger
+        ("reference_docs/resolve.py", PY_LOGIC),                    # impl floor
+        ("reference_docs/untiered.md", SW_PLAIN),                   # default (no tier)
+        ("reference_docs/orders.proto", SW_PROTO),                  # contract, both arms
+        ("reference_docs/openapi.yaml", SW_OPENAPI),                # contract, signature
+        ("reference_docs/spec.md", SW_SPEC2),                       # llm -> authoritative
+        ("reference_docs/notes.md", "# Notes\n\nWe met.\n"),       # llm -> background
+        ("reference_docs/promoted.py", PY_LOGIC + "\n# x\n"),       # sidecar promotion
+        ("reference_docs/op-auth.md", SW_PLAIN + "\nExtra.\n"),     # operator authoritative
+        ("reference_docs/op-bg.md", SW_PLAIN + "\nOther.\n"),       # operator background
+        ("reference_docs/rescued-hi.md",
+         SW_ADVISORY + "\nThe transport MUST reset.\n"),            # rescued, authoritative
+        ("reference_docs/rescued-lo.md",
+         SW_ADVISORY + "\nAssorted notes.\n"),                      # rescued, background
+        # A ledger name, so an operator promotion of it is REFUSED -> the inline
+        # refusal note (round-4 bite J's target).
+        ("reference_docs/coverage.md", "# Coverage\n\n80%\n"),
+        # Round 5, Panelist B (bite N): `_CITE_FOLDER_REASON` was unpinned AND
+        # unreached. Named so the stub classifier reads it as background — Tier 4
+        # is the precondition for the cite/ arm, and the pipeline quotes a
+        # cite/-placed doc anyway, so the show must honour the placement.
+        ("reference_docs/cite/placed.md",
+         "# Placed\n\nThe service MUST echo the request id.\n"),
+    ]
+
+    def classifier(rel_path, text):
+        if "spec.md" in rel_path or "op-auth" in rel_path:
+            return 1
+        if "rescued-hi" in rel_path:
+            return 2
+        if "untiered" in rel_path:
+            return None          # declines -> RULE_DEFAULT
+        return 4
+
+    return dc.classify_documents(
+        docs, llm_classifier=classifier,
+        sidecar=["reference_docs/promoted.py"],
+        advisory_rescues=[
+            ("reference_docs/rescued-hi.md",
+             _sha(SW_ADVISORY + "\nThe transport MUST reset.\n")),
+            ("reference_docs/rescued-lo.md",
+             _sha(SW_ADVISORY + "\nAssorted notes.\n")),
+        ],
+        operator_decisions=[
+            ("reference_docs/op-auth.md", _sha(SW_PLAIN + "\nExtra.\n"),
+             dc.OPERATOR_AUTHORITATIVE),
+            ("reference_docs/op-bg.md", _sha(SW_PLAIN + "\nOther.\n"),
+             dc.OPERATOR_BACKGROUND),
+            ("reference_docs/coverage.md", _sha("# Coverage\n\n80%\n"),
+             dc.OPERATOR_AUTHORITATIVE),
+        ],
+        generated_at="X")
+
+
+def _zero_authoritative_corpus():
+    return dc.classify_documents(
+        [("reference_docs/cve.md", SW_ADVISORY),
+         ("reference_docs/README.md", "# Readme\n\nbackground\n")],
+        llm_classifier=lambda r, t: 4, generated_at="X")
+
+
 class RenderedReasonSweepTests(unittest.TestCase):
 
     # A claim is forbidden if it asserts what a document IS on the strength of a
@@ -916,77 +1073,14 @@ class RenderedReasonSweepTests(unittest.TestCase):
         "it shows what the software already does",
     )
 
-    ADVISORY = "# Advisory\n\nCVE-2024-43796 affects the router.\n"
-    PLAIN = "# Ordering\n\nOrders are processed in arrival sequence.\n"
-    SPEC2 = "# Contracts\n\nThe device MUST NOT write beyond the used ring.\n"
-    PROTO = 'syntax = "proto3";\n\nmessage Order { string id = 1; }\n'
-    OPENAPI = ('openapi: "3.0.3"\ninfo:\n  title: Orders\n  version: 1.0.0\n'
-               'paths:\n  /o:\n    get:\n      responses:\n        "200":\n'
-               '          description: ok\n')
+    ADVISORY = SW_ADVISORY
+    PLAIN = SW_PLAIN
+    SPEC2 = SW_SPEC2
+    PROTO = SW_PROTO
+    OPENAPI = SW_OPENAPI
 
     def _corpus(self):
-        """One document per render arm. Returns (manifest, expectations)."""
-        docs = [
-            ("reference_docs/cve.md", self.ADVISORY),                  # advisory floor
-            ("reference_docs/README.md", "# Readme\n\nbackground\n"),  # background ledger
-            ("reference_docs/resolve.py", PY_LOGIC),                   # impl floor
-            ("reference_docs/untiered.md", self.PLAIN),                # default (no tier)
-            ("reference_docs/orders.proto", self.PROTO),               # contract, both arms
-            ("reference_docs/openapi.yaml", self.OPENAPI),             # contract, signature
-            ("reference_docs/spec.md", self.SPEC2),                    # llm -> authoritative
-            ("reference_docs/notes.md", "# Notes\n\nWe met.\n"),       # llm -> background
-            ("reference_docs/promoted.py", PY_LOGIC + "\n# x\n"),      # sidecar promotion
-            ("reference_docs/op-auth.md", self.PLAIN + "\nExtra.\n"),  # operator authoritative
-            ("reference_docs/op-bg.md", self.PLAIN + "\nOther.\n"),    # operator background
-            ("reference_docs/rescued-hi.md",
-             self.ADVISORY + "\nThe transport MUST reset.\n"),         # rescued, authoritative
-            ("reference_docs/rescued-lo.md",
-             self.ADVISORY + "\nAssorted notes.\n"),                   # rescued, background
-            ("reference_docs/refused.md",
-             "# Readme\n\nledger\n"),                                  # promotion refused
-            # Round 5, Panelist B (bite N): `_CITE_FOLDER_REASON` was unpinned AND
-            # unreached. A `cite/`-placed doc the classifier read as background is
-            # quoted by the pipeline anyway, so the show honours the placement.
-            # (Named so the stub classifier below reads it as background — tier 4
-            # is the precondition for the cite/ arm: the pipeline quotes a
-            # cite/-placed doc anyway, so the show must honour the placement.)
-            ("reference_docs/cite/placed.md",
-             "# Placed\n\nThe service MUST echo the request id.\n"),
-        ]
-        # `refused.md` must hit the BACKGROUND-ledger rule for the refusal arm, so
-        # give it a ledger name; keep it distinct from README.md.
-        docs[13] = ("reference_docs/coverage.md", "# Coverage\n\n80%\n")
-
-        def classifier(rel_path, text):
-            if "spec.md" in rel_path or "op-auth" in rel_path:
-                return 1
-            if "rescued-hi" in rel_path:
-                return 2
-            if "untiered" in rel_path:
-                return None          # declines -> RULE_DEFAULT
-            return 4
-
-        man = dc.classify_documents(
-            docs, llm_classifier=classifier,
-            sidecar=["reference_docs/promoted.py"],
-            advisory_rescues=[
-                ("reference_docs/rescued-hi.md",
-                 _sha(self.ADVISORY + "\nThe transport MUST reset.\n")),
-                ("reference_docs/rescued-lo.md",
-                 _sha(self.ADVISORY + "\nAssorted notes.\n")),
-            ],
-            operator_decisions=[
-                ("reference_docs/op-auth.md", _sha(self.PLAIN + "\nExtra.\n"),
-                 dc.OPERATOR_AUTHORITATIVE),
-                ("reference_docs/op-bg.md", _sha(self.PLAIN + "\nOther.\n"),
-                 dc.OPERATOR_BACKGROUND),
-                # An operator promotion the background rule REFUSES -> the inline
-                # refusal note, which is bite J's target.
-                ("reference_docs/coverage.md", _sha("# Coverage\n\n80%\n"),
-                 dc.OPERATOR_AUTHORITATIVE),
-            ],
-            generated_at="X")
-        return man
+        return _sweep_corpus()
 
     def test_every_rendered_reason_is_a_pinned_constant(self):
         man = self._corpus()
@@ -1089,3 +1183,10 @@ class RenderedReasonSweepTests(unittest.TestCase):
         empty = dc.classify_documents([], generated_at="X")
         self.assertIn(dc._NO_DOCUMENTS_MESSAGE,
                       dc.classification_review(empty))
+
+
+if __name__ == "__main__":
+    if "--regenerate-goldens" in sys.argv:
+        _regenerate_goldens()
+    else:
+        unittest.main()
