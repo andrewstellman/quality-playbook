@@ -188,16 +188,30 @@ class SidecarCannotLaunderAdvisoryTests(unittest.TestCase):
         self.assertEqual(d.tier, 4, d.reason)
         self.assertEqual(d.rule, dc.RULE_ADVISORY)
 
-    def test_hardening_genre_renamed_proto_is_now_a_contract(self):
-        # REVERSAL (instr 023): the hardening-genre bulletin's Tier-4 came ONLY
-        # from the genre-title/density floor, now removed. A ".proto" is an
-        # unambiguous contract EXTENSION, so the renamed file is a contract. (A
-        # HARD-signal advisory — a CVE — renamed .proto STILL floors: see
+    def test_hardening_genre_renamed_proto_is_not_a_contract(self):
+        # RE-REVERSED (instr 033 step 1 — the publish gate). Instruction 023 made
+        # this a `contract` because ".proto" was treated as an unambiguous contract
+        # EXTENSION. That is the side door: the extension says nothing about the
+        # content, and the same rule promoted a prose file named
+        # `upstream_notes.thrift` to Tier 1 citable. Lane A now requires the
+        # content to VALIDATE as protobuf (a `syntax = "proto3";` declaration AND a
+        # message/service block), which this prose bulletin does not, so the
+        # contract carve-out no longer fires and the genre judgment returns to the
+        # model's read. (A HARD-signal advisory renamed .proto still floors first:
         # test_advisory_renamed_with_contract_extension_still_floored above.)
         d = dc.classify_document(
             "hardening.proto", AdvisoryFloorTests.NORMATIVE_BULLETIN, llm_tier=1,
         )
-        self.assertEqual(d.rule, dc.RULE_CONTRACT)
+        self.assertNotEqual(d.rule, dc.RULE_CONTRACT)
+        self.assertIsNone(
+            dc.contract_content_validation(
+                AdvisoryFloorTests.NORMATIVE_BULLETIN, "hardening.proto"))
+        # ...and a GENUINE proto still reaches Lane A, so the fix is not a blanket
+        # demotion of the format.
+        real = dc.classify_document(
+            "orders.proto",
+            'syntax = "proto3";\n\nmessage Order { string id = 1; }\n', llm_tier=1)
+        self.assertEqual(real.rule, dc.RULE_CONTRACT)
 
 
 # ---------------------------------------------------------------------------

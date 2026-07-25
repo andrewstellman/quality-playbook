@@ -540,16 +540,19 @@ class AdvisoryReasonAccuracyTests(unittest.TestCase):
         self.assertIn("its name marks it as", out)
         self.assertNotIn("it's a README or a coverage", out)
 
+        # instruction 033 step 1 CLOSED this case: `notes.thrift` no longer reaches
+        # `contract` at all. The extension arm is deleted, and `.thrift` has no
+        # content anchor, so the document routes to operator confirmation (Lane C)
+        # instead of being cited on its filename. The wording assertion moved to
+        # the Lane-A cases, which are the only ones that still render this reason.
         notes = "Meeting notes 2026-03-04\n\nWe discussed the roadmap.\n"
         man2 = dc.classify_documents([("reference_docs/notes.thrift", notes)],
                                      llm_classifier=lambda r, t: 4,
                                      generated_at="X")
-        self.assertEqual(_rec(man2, "reference_docs/notes.thrift")["floor_rule"],
-                         dc.RULE_CONTRACT)                     # tier unchanged
-        out2 = dc.classification_review(man2)
-        self.assertIn("its file extension, or an interface-definition signature "
-                      "inside it, marks it as a contract definition", out2)
-        self.assertNotIn("it's a machine-readable interface definition", out2)
+        rec2 = _rec(man2, "reference_docs/notes.thrift")
+        self.assertEqual(rec2["floor_rule"], dc.RULE_CONFIRM_REQUIRED)
+        self.assertFalse(rec2["promotable"])
+        self.assertTrue(man2["zero_citable"])
 
     def test_contract_reason_is_true_of_the_content_signature_arm_too(self):
         # Round 3, Panelist B (R3-2): naming only the EXTENSION was false for the
@@ -567,7 +570,11 @@ class AdvisoryReasonAccuracyTests(unittest.TestCase):
                                     generated_at="X")
         rec = _rec(man, "reference_docs/openapi.yaml")
         self.assertEqual(rec["floor_rule"], dc.RULE_CONTRACT)
-        self.assertIn("signature", rec["reason"])      # the content arm fired
+        # instruction 033 step 1: the dev-facing reason now names the PARSE-LEVEL
+        # check that fired ("top-level openapi key = '3.0.3'") instead of a
+        # substring "signature", because a substring search was what the F1 bypass
+        # defeated. The document still reaches Lane A on its content.
+        self.assertIn("top-level openapi key", rec["reason"])
         out = dc.classification_review(man)
         self.assertIn("or an interface-definition signature inside it", out)
 

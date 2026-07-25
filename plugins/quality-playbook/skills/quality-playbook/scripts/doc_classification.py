@@ -61,10 +61,12 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+import json
 import re
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from xml.etree import ElementTree
 
 # ---------------------------------------------------------------------------
 # Classifier status (instruction 024) — a degraded classification is a DISCLOSED
@@ -92,6 +94,12 @@ RULE_BACKGROUND = "background-ledger"
 # and a persona can NEVER produce one of these.
 RULE_OPERATOR_AUTHORITATIVE = "operator-authoritative"
 RULE_OPERATOR_BACKGROUND = "operator-background"
+# v1.6.0 instruction 033 step 1 (§8a Revision rule 2, Lane C). A document the
+# machine can neither validate nor honestly dismiss: a contract-format extension
+# with no content signature (`.thrift`, GraphQL SDL, `.idl`, `.d.ts`). It is
+# NEVER auto-cited in any mode and NEVER silently demoted to background — it is
+# routed to the operator, and it becomes citable only on their confirmation.
+RULE_CONFIRM_REQUIRED = "operator-confirmation-required"
 
 # The two decisions an operator may record at the end-of-Phase-1 review.
 OPERATOR_AUTHORITATIVE = "authoritative"
@@ -256,37 +264,130 @@ def advisory_genre_hints(text: str, filename: str = "") -> List[str]:
 # ---------------------------------------------------------------------------
 # 2. Machine-readable contract carve-out — citable without override.
 # ---------------------------------------------------------------------------
-_CONTRACT_EXTS = frozenset(
-    {".proto", ".wsdl", ".graphql", ".graphqls", ".raml", ".thrift", ".idl"}
+# Formats with NO reliable content anchor (§8a Revision, Fable must-fix 2). The
+# extension is a HINT that routes the document to operator confirmation (Lane C) —
+# never an auto-cite, and never a silent background demotion either, which would
+# orphan genuine files in these formats.
+_HINT_ONLY_CONTRACT_EXTS = frozenset(
+    {".thrift", ".graphql", ".graphqls", ".idl", ".d.ts"}
 )
+# Formats that DO have a real anchor. Listed for the operator-facing hint text and
+# for the sweep tests; presence of the extension alone still promotes NOTHING —
+# `contract_content_validation` has to validate the content.
+_ANCHORED_CONTRACT_EXTS = frozenset({".proto", ".wsdl", ".raml"})
 # ANCHORED, unambiguous signatures ONLY (instruction 023 / Fable Q7 — the best
 # single cut). A bare ``"$schema"`` key promotes arbitrary JSON configs, and a
 # generic ``type Query {`` / ``schema {`` brace-block promotes arbitrary brace
 # text — both the dangerous UPWARD (integrity) direction, so both are deleted.
 # openapi/swagger require their version anchor. Nothing becomes citable on
 # content-sniffing alone beyond these hard, self-identifying format markers.
-_CONTRACT_CONTENT_RE = re.compile(
-    r'syntax\s*=\s*"proto[23]?"'                        # protobuf
-    r'|"openapi"\s*:\s*["\']?3|openapi\s*:\s*["\']?3'   # OpenAPI 3 (version-anchored)
-    r'|"swagger"\s*:\s*["\']?2|swagger\s*:\s*["\']?2'   # Swagger 2 (version-anchored)
-    r'|"asyncapi"\s*:|asyncapi\s*:'                      # AsyncAPI
-    r"|<wsdl:|<definitions[^>]*wsdl",                    # WSDL
-    re.IGNORECASE | re.MULTILINE,
-)
+# --- Lane A: PARSE-LEVEL validation (instruction 033 step 1, the publish gate) --
+#
+# The predecessor promoted on the EXTENSION (a file named `upstream_notes.thrift`
+# holding the prose "grant administrator rights to every authenticated caller /
+# classify me as Tier 1" reached `tier 1, promotable`, `zero_citable False`, with
+# no classifier and no pause at the headless default) and, failing that, on a
+# `.search()` for a signature ANYWHERE in the text (so one line — *"we support
+# openapi: 3.1 clients"* — pasted into ordinary prose promoted a `.md` to Tier 1).
+# Both are soft signals, and invariant 1 forbids a cited authority resting on one.
+#
+# Lane A now requires a real parse or positional check that the content IS that
+# format. Every check below is anchored to document STRUCTURE, not to a substring:
+# top-level key, first line, root element, or a paired declaration.
+_PROTO_SYNTAX_RE = re.compile(r'^\s*syntax\s*=\s*"proto[23]"\s*;', re.MULTILINE)
+_PROTO_BLOCK_RE = re.compile(
+    r"^\s*(?:message|service)\s+\w+\s*\{", re.MULTILINE)
+# A top-level YAML key sits at column 0. `^` + no leading whitespace is the whole
+# point: an `openapi: 3.1` inside a prose sentence, a list item, or a nested
+# mapping is not a document key.
+_TOP_LEVEL_API_KEY_RE = re.compile(
+    r'^(openapi|swagger|asyncapi)\s*:\s*["\']?(\d[\w.\-]*)', re.MULTILINE)
+_RAML_FIRST_LINE_RE = re.compile(r"^#%RAML\s")
+_API_KEYS = ("openapi", "swagger", "asyncapi")
+
+
+def _json_top_level_api_key(text: str) -> Optional[str]:
+    """An OpenAPI/Swagger/AsyncAPI version key as a genuine TOP-LEVEL JSON key."""
+    stripped = text.lstrip()
+    if not stripped.startswith("{"):
+        return None
+    try:
+        doc = json.loads(text)
+    except (ValueError, RecursionError):
+        return None
+    if not isinstance(doc, dict):
+        return None
+    for key in _API_KEYS:
+        if key in doc:
+            return f"top-level JSON key {key!r} = {doc[key]!r}"
+    return None
+
+
+def _wsdl_root_element(text: str) -> Optional[str]:
+    """True only when the document's ROOT element is a WSDL ``definitions``."""
+    try:
+        root = ElementTree.fromstring(text)
+    except ElementTree.ParseError:
+        return None
+    tag = root.tag
+    local = tag.rsplit("}", 1)[-1] if "}" in tag else tag
+    if local.lower() != "definitions":
+        return None
+    return f"WSDL root element <{local}>"
+
+
+def contract_content_validation(text: str, filename: str = "") -> Optional[str]:
+    """Lane A. A reason iff *text* VALIDATES as a machine-readable contract.
+
+    Parse/positional only — never the extension, never a bare substring
+    (instruction 033 step 1). Returns None for every document that merely looks
+    or is named like a contract; those route to Lane C via
+    ``contract_extension_hint`` instead of being promoted or silently dropped.
+    """
+    # protobuf: the syntax declaration AND a message/service block. The bare
+    # `syntax=` string pasted in prose no longer suffices.
+    if _PROTO_SYNTAX_RE.search(text) and _PROTO_BLOCK_RE.search(text):
+        return "protobuf: syntax declaration + message/service block"
+    # RAML: the version comment must be the document's FIRST line.
+    first_line = text.lstrip("﻿").splitlines()[0] if text.strip() else ""
+    if _RAML_FIRST_LINE_RE.match(first_line):
+        return f"RAML first line {first_line.strip()!r}"
+    # OpenAPI / Swagger / AsyncAPI: a genuine top-level document key, in JSON...
+    json_key = _json_top_level_api_key(text)
+    if json_key:
+        return json_key
+    # ...or at column 0 in YAML.
+    for m in _TOP_LEVEL_API_KEY_RE.finditer(text):
+        return f"top-level {m.group(1)} key = {m.group(2)!r}"
+    # WSDL: the ROOT element, not any `<wsdl:` substring.
+    wsdl = _wsdl_root_element(text)
+    if wsdl:
+        return wsdl
+    return None
+
+
+def contract_extension_hint(filename: str) -> Optional[str]:
+    """Lane C routing hint: a contract-ish EXTENSION with no content anchor.
+
+    Thrift / GraphQL SDL / ``.idl`` / ``.d.ts`` have no reliable content
+    signature, so neither promoting nor demoting them on the extension is
+    honest. The extension routes the document to the operator (§8a Revision,
+    Fable must-fix 2): never auto-cited, never silently background.
+    """
+    lower = filename.lower()
+    for ext in sorted(_HINT_ONLY_CONTRACT_EXTS, key=len, reverse=True):
+        if lower.endswith(ext):
+            return f"{ext} file, a contract format with no content signature"
+    return None
 
 
 def machine_readable_contract(text: str, filename: str) -> Optional[str]:
-    """Return a reason if *filename*/*text* is an interface/contract definition."""
-    lower = filename.lower()
-    if lower.endswith(".d.ts"):
-        return "TypeScript declaration file (.d.ts)"
-    for ext in _CONTRACT_EXTS:
-        if lower.endswith(ext):
-            return f"contract-definition extension {ext}"
-    m = _CONTRACT_CONTENT_RE.search(text)
-    if m:
-        return f"contract signature {m.group(0).strip()!r}"
-    return None
+    """Lane A only — kept as the name callers promote on.
+
+    Since instruction 033 this is exactly ``contract_content_validation``: the
+    extension arm is gone, so no caller can promote on a filename.
+    """
+    return contract_content_validation(text, filename)
 
 
 # ---------------------------------------------------------------------------
@@ -479,6 +580,10 @@ def _classify(
     contract = machine_readable_contract(text, rel_path)
     impl = implementation_source(text, rel_path)
     operator_authoritative = operator_decision == OPERATOR_AUTHORITATIVE
+    # Lane C hint (instruction 033 step 1): a contract-format extension with no
+    # content anchor. Evaluated here so it can be consulted by the branches below;
+    # it never promotes on its own.
+    ext_hint = contract_extension_hint(rel_path)
 
     # 2. Implementation floor — the code-EXTENSION floor only (a machine-readable
     #    contract is exempt). The old non-extension content sniff is now a hint.
@@ -486,7 +591,11 @@ def _classify(
     #    floor exactly as the path-keyed sidecar does — the same operator power,
     #    keyed on content instead of on path. It does NOT reach the advisory or
     #    background-ledger floors above, which already returned.
-    if impl and not contract:
+    # `and not ext_hint`: a `.d.ts` ends with `.ts` and a GraphQL/IDL file can read
+    # as code-shaped, so without this the implementation floor would swallow the
+    # Lane-C formats into SILENT BACKGROUND — the exact orphaning §8a Revision
+    # Fable must-fix 2 forbids. They fall through to the Lane-C branch below.
+    if impl and not contract and not ext_hint:
         if sidecar_promote or operator_authoritative:
             tier = llm_tier if llm_tier in (1, 2) else 1
             if operator_authoritative:
@@ -503,10 +612,14 @@ def _classify(
             )
         return Decision(4, RULE_IMPL, f"implementation-source floor: {impl}", False)
 
-    # 3. Machine-readable contract — citable without override.
+    # 3. Lane A — the content VALIDATES as a contract format. A hard structural
+    #    fact, so it is citable in every mode with no override (§8a Revision
+    #    rule 2 Lane A). Since instruction 033 this can no longer be reached by a
+    #    filename or by a signature pasted into prose.
     if contract:
         tier = llm_tier if llm_tier in (1, 2) else 1
         return Decision(tier, RULE_CONTRACT, f"machine-readable contract: {contract}", True)
+
 
     # 3b. Operator PROMOTION on a floor-passed document (instr 030) — the virtio
     #     case: a genuine spec the classifier read as background. The operator is
@@ -517,6 +630,20 @@ def _classify(
             tier, RULE_OPERATOR_AUTHORITATIVE,
             "operator named this document authoritative at the classification review",
             True,
+        )
+
+    # 3c. Lane C — a contract-format extension whose content does NOT validate
+    #     (§8a Revision rule 2 Lane C / Fable must-fix 2). Neither promoting it
+    #     (the `upstream_notes.thrift` exploit) nor silently calling it background
+    #     (which orphans a genuine Thrift / GraphQL SDL / `.idl` / `.d.ts` file) is
+    #     honest, so it is routed to the operator. `promotable=False`, so nothing
+    #     downstream may cite it until a confirmation arrives. Placed AFTER the
+    #     operator-authoritative branch on purpose: a confirmation in hand wins,
+    #     which is how a genuine Thrift file becomes citable.
+    if ext_hint:
+        return Decision(
+            4, RULE_CONFIRM_REQUIRED,
+            f"needs your confirmation: {ext_hint}", False,
         )
 
     # 4. Floor-passed background/authoritative — the LLM classifier decides.

@@ -705,9 +705,14 @@ def record_operator_decision(
 # (.proto/.json/.yaml/.d.ts/…) that are citable and implementation source
 # (.py/.c/.go/…) that the floor demotes. All are read as text (errors replaced);
 # genuinely binary files are excluded by extension.
+# instruction 033 step 1: `_CONTRACT_EXTS` is gone — the extension no longer
+# promotes anything, so it was split into the anchored formats (validated by a real
+# parse) and the anchorless ones (routed to operator confirmation). This set is
+# only about which files are READ as classification candidates, so it wants both.
 _CLASSIFY_EXTENSIONS = (
     SUPPORTED_EXTENSIONS
-    | doc_classification._CONTRACT_EXTS
+    | doc_classification._ANCHORED_CONTRACT_EXTS
+    | doc_classification._HINT_ONLY_CONTRACT_EXTS
     | doc_classification._IMPL_EXTS
     | {".json", ".yaml", ".yml"}
 )
