@@ -426,6 +426,33 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         self.assertIn("who compiled it", window)
         self.assertIn("lane b `unconfirmed`", window)
 
+    def test_the_bar_guidance_renders_as_prose_not_a_code_block(self):
+        """Panelist B, B-11 — four characters, and mine.
+
+        I inserted the B-7 paragraph with four leading spaces, which in Markdown is
+        an indented code block. It was the only indented prose line in the file —
+        the other three 4-space blocks are the reads-JSON sample, the decisions-file
+        format and a shell command — so the indent reads, in this file's own
+        vocabulary, as "this is a sample, not an instruction". Round 2 had merged
+        the back-door and provenance clauses into that same paragraph, so THREE of
+        034's core claims were rendering as monospace with literal asterisks.
+
+        Rendering-only (the classifier reads raw bytes), but the guide is read by
+        humans too, and a rule that looks like sample output is not a rule.
+        """
+        lines = self.text.split("\n")
+        for phrase in ("name the contract section in your `reason`",
+                       "the genre call is not a back door",
+                       "Who compiled a document is **never** a reason to demote it",
+                       "The bar is content-authority, not authorship provenance",
+                       "when the body is genuinely both"):
+            hits = [ln for ln in lines if phrase in ln]
+            self.assertTrue(hits, f"claim vanished: {phrase}")
+            for ln in hits:
+                indent = len(ln) - len(ln.lstrip(" "))
+                self.assertEqual(indent, 0,
+                                 f"claim renders as a code block (indent={indent}): {phrase}")
+
     def test_lane_C_guidance_is_untouched(self):
         """No regression: all THREE backstop signals, inside the Lane C bullet.
 
