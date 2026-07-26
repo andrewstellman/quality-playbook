@@ -244,7 +244,62 @@ class TheGuidanceSaysItTests(unittest.TestCase):
                       self.lower)
 
     def test_it_says_a_spotted_inaccuracy_does_not_demote(self):
-        self.assertIn("a spotted inaccuracy does not demote", self.lower)
+        self.assertIn("inaccuracy does not demote an authoritative-genre document",
+                      self.lower)
+        # ...and carries §8a's limiter, so this is not read as "accuracy never
+        # matters": a pervasively-wrong document, or one describing a DIFFERENT
+        # project, is background because of what it IS. (Panelist A, N1.)
+        # Both places the limiter lives, pinned independently. A bare "*minor*"
+        # substring matched either one, so dropping it from the RULE still passed
+        # while the explanation below carried it — an assertion that cannot fail for
+        # the thing it names.
+        self.assertIn("a spotted *minor* inaccuracy does not demote", self.lower)
+        self.assertIn("the limit is *minor*", self.lower)
+        self.assertIn("different project", self.lower)
+
+    def test_it_requires_BOTH_genre_and_content(self):
+        # Panelist A, F1 — the over-correction guard. The operative one-liner
+        # originally stated the bar as content-shape ALONE, with the genre conjunct
+        # in a following paragraph that opens "So:" and parses as a consequence. A
+        # model reading only the headline could route a tutorial with precise code
+        # samples to Lane B, and express's own manifest shows content-shape already
+        # overriding a background genre in a live run.
+        self.assertIn("both halves have to hold", self.lower)
+        self.assertIn("a tutorial with precise code samples is still a tutorial",
+                      self.lower)
+        self.assertIn("does not replace the *genre*", self.lower)
+
+    def test_it_closes_the_genre_relabelling_back_door(self):
+        # Panelist A, N6: nothing stopped reaching the same tier 4 by re-labelling
+        # an api-reference as `guide`, which makes the whole rule optional.
+        window = self.lower.split("both halves have to hold", 1)[1][:900]
+        self.assertIn("not a back door", window)
+        self.assertIn("the lane is still b", window)
+
+    def test_it_says_to_SURFACE_and_where(self):
+        # Panelist A's escaped mutation bite (N2): the "surface" half was unpinned —
+        # deleting "*and* surface it" left all 14 tests green — and operationally
+        # unspecified, since the guide never told the model where the note goes.
+        self.assertIn("cite it *and* surface it", self.lower)
+        self.assertIn("`reason`", self.text)
+
+    def test_depth_is_not_reusable_as_a_citation_bar(self):
+        # Panelist A, F3: Step 1b's Deep/Moderate/Shallow ladder ties depth to
+        # "deriving requirements", a second bar on the same axis 160 lines away. The
+        # failing run cited it by name — "read as Deep per Step 1b, but ... not
+        # chi's own published spec" — and borrowed its words ("API catalog",
+        # "marketing-style") in two more demotion reasons.
+        self.assertIn("depth is a scoping judgment, not a citation judgment",
+                      self.lower)
+        self.assertIn("can be a perfectly good lane b cite", self.lower)
+
+    def test_the_citable_definition_drops_the_word_published(self):
+        # Panelist A, F2: line 43 defined the citable set as "spec, RFC, PUBLISHED
+        # API reference" — the exact adjective two chi demotions reached for ("not
+        # chi's own published reference"). The trigger word sat twelve lines above
+        # the paragraph written to kill that reading.
+        self.assertIn("(spec, RFC, API reference,", self.text)
+        self.assertNotIn("published API reference", self.text)
 
     def test_the_ambiguity_rule_is_scoped_to_GENRE(self):
         self.assertIn("on genuine ambiguity of genre, background", self.lower)
