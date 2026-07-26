@@ -1,0 +1,12 @@
+{"ts":"2026-06-19T22:15:19Z","task_id":"chi-integration-regression","schema_version":"2","label":"phase3","status":"STARTING"}
+{"ts":"2026-06-19T22:15:38Z","task_id":"chi-integration-regression","schema_version":"2","label":"reading review_protocols + source","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:15:51Z","task_id":"chi-integration-regression","schema_version":"2","label":"confirming candidate bugs in source","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:16:53Z","task_id":"chi-integration-regression","schema_version":"2","label":"writing 3-pass code review","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:18:44Z","task_id":"chi-integration-regression","schema_version":"2","label":"writing regression tests","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:26:08Z","task_id":"chi-integration-regression","schema_version":"2","label":"generating patches + GREEN verify","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:28:59Z","task_id":"chi-integration-regression","schema_version":"2","label":"regenerating fix patches via diff -u","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:33:21Z","task_id":"chi-integration-regression","schema_version":"2","label":"writing BUGS.md + writeups + manifests","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:34:53Z","task_id":"chi-integration-regression","schema_version":"2","label":"compensation grid for pattern-tagged REQs","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T23:44:12Z","task_id":"chi-integration-regression","schema_version":"2","label":"phase3","status":"STARTING"}
+{"ts":"2026-06-19T23:45:10Z","task_id":"chi-integration-regression","schema_version":"2","label":"validating phase3 artifacts + grid self-check","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T23:51:39Z","task_id":"chi-integration-regression","schema_version":"2","status":"COMPLETED","result_file":"/Users/andrewstellman/Documents/QPB/repos/chi-1.5.8/quality/INDEX.md","summary":"phase3 complete"}

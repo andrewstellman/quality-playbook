@@ -1,0 +1,6 @@
+=== RUN   TestBUG004_RealIP_TrimsLeftmostXFF
+    qpb_regression_test.go:118: realIP should trim and parse the padded leftmost XFF element; want "203.0.113.7" got ""
+--- FAIL: TestBUG004_RealIP_TrimsLeftmostXFF (0.00s)
+FAIL
+FAIL	github.com/go-chi/chi/v5/middleware	0.267s
+FAIL

@@ -1,0 +1,9 @@
+{"event": "phase_start", "phase": 1, "ts": "2026-06-19T21:46:56Z"}
+{"event": "pattern_walked", "phase": 1, "pattern": 3, "findings_count": 4, "ts": "2026-06-19T21:46:56Z"}
+{"event": "pattern_walked", "phase": 1, "pattern": 2, "findings_count": 2, "ts": "2026-06-19T21:46:56Z"}
+{"event": "pattern_walked", "phase": 1, "pattern": 4, "findings_count": 4, "ts": "2026-06-19T21:46:56Z"}
+{"event": "phase_end", "phase": 1, "ts": "2026-06-19T21:46:56Z"}
+{"event": "phase_start", "phase": 2, "ts": "2026-06-19T22:09:45Z"}
+{"event": "phase_end", "phase": 2, "ts": "2026-06-19T22:09:45Z"}
+phase_start phase=3
+phase_end phase=3

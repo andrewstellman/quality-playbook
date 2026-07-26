@@ -1,0 +1,104 @@
+{
+  "schema_version": "1.5.2",
+  "reqs": {
+    "REQ-001": {
+      "pattern": "parity",
+      "items": ["CANONICAL_ROUTEPATH"],
+      "sites": ["SUPRESSNOTFOUND", "PAGEROUTE", "PATHREWRITE"],
+      "cells": [
+        {"cell_id": "REQ-001/cell-CANONICAL_ROUTEPATH-SUPRESSNOTFOUND", "item": "CANONICAL_ROUTEPATH", "site": "SUPRESSNOTFOUND", "present": false, "evidence": "middleware/supress_notfound.go:19 reads r.URL.Path and passes the live rctx into Match"},
+        {"cell_id": "REQ-001/cell-CANONICAL_ROUTEPATH-PAGEROUTE", "item": "CANONICAL_ROUTEPATH", "site": "PAGEROUTE", "present": false, "evidence": "middleware/page_route.go:13 compares r.URL.Path, not rctx.RoutePath"},
+        {"cell_id": "REQ-001/cell-CANONICAL_ROUTEPATH-PATHREWRITE", "item": "CANONICAL_ROUTEPATH", "site": "PATHREWRITE", "present": false, "evidence": "middleware/path_rewrite.go:12 rewrites only r.URL.Path, not rctx.RoutePath"}
+      ]
+    },
+    "REQ-002": {
+      "pattern": "parity",
+      "items": ["RFC_GRAMMAR_PARSE"],
+      "sites": ["ACCEPT_ENCODING", "X_FORWARDED_FOR", "CONTENT_CHARSET"],
+      "cells": [
+        {"cell_id": "REQ-002/cell-RFC_GRAMMAR_PARSE-ACCEPT_ENCODING", "item": "RFC_GRAMMAR_PARSE", "site": "ACCEPT_ENCODING", "present": false, "evidence": "middleware/compress.go:240-246 substring match; no token/q-value parse"},
+        {"cell_id": "REQ-002/cell-RFC_GRAMMAR_PARSE-X_FORWARDED_FOR", "item": "RFC_GRAMMAR_PARSE", "site": "X_FORWARDED_FOR", "present": false, "evidence": "middleware/realip.go:50,52 no TrimSpace before net.ParseIP"},
+        {"cell_id": "REQ-002/cell-RFC_GRAMMAR_PARSE-CONTENT_CHARSET", "item": "RFC_GRAMMAR_PARSE", "site": "CONTENT_CHARSET", "present": false, "evidence": "middleware/content_charset.go:29-34 no quoted-value handling"}
+      ]
+    },
+    "REQ-003": {
+      "pattern": "whitelist",
+      "items": ["CONNECT", "DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT", "TRACE"],
+      "sites": ["METHODMAP", "REVERSEMETHODMAP", "MALL"],
+      "cells": [
+        {"cell_id": "REQ-003/cell-CONNECT-METHODMAP", "item": "CONNECT", "site": "METHODMAP", "present": true, "evidence": "tree.go:36; quality/mechanical/verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-CONNECT-REVERSEMETHODMAP", "item": "CONNECT", "site": "REVERSEMETHODMAP", "present": true, "evidence": "tree.go:48; verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-CONNECT-MALL", "item": "CONNECT", "site": "MALL", "present": true, "evidence": "tree.go:32-33; verify_receipt.txt: mALL ORs every methodMap bit"},
+        {"cell_id": "REQ-003/cell-DELETE-METHODMAP", "item": "DELETE", "site": "METHODMAP", "present": true, "evidence": "verify_receipt.txt PASS (all 9 methods, all 3 structures)"},
+        {"cell_id": "REQ-003/cell-DELETE-REVERSEMETHODMAP", "item": "DELETE", "site": "REVERSEMETHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-DELETE-MALL", "item": "DELETE", "site": "MALL", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-GET-METHODMAP", "item": "GET", "site": "METHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-GET-REVERSEMETHODMAP", "item": "GET", "site": "REVERSEMETHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-GET-MALL", "item": "GET", "site": "MALL", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-HEAD-METHODMAP", "item": "HEAD", "site": "METHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-HEAD-REVERSEMETHODMAP", "item": "HEAD", "site": "REVERSEMETHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-HEAD-MALL", "item": "HEAD", "site": "MALL", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-OPTIONS-METHODMAP", "item": "OPTIONS", "site": "METHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-OPTIONS-REVERSEMETHODMAP", "item": "OPTIONS", "site": "REVERSEMETHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-OPTIONS-MALL", "item": "OPTIONS", "site": "MALL", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-PATCH-METHODMAP", "item": "PATCH", "site": "METHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-PATCH-REVERSEMETHODMAP", "item": "PATCH", "site": "REVERSEMETHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-PATCH-MALL", "item": "PATCH", "site": "MALL", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-POST-METHODMAP", "item": "POST", "site": "METHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-POST-REVERSEMETHODMAP", "item": "POST", "site": "REVERSEMETHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-POST-MALL", "item": "POST", "site": "MALL", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-PUT-METHODMAP", "item": "PUT", "site": "METHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-PUT-REVERSEMETHODMAP", "item": "PUT", "site": "REVERSEMETHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-PUT-MALL", "item": "PUT", "site": "MALL", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-TRACE-METHODMAP", "item": "TRACE", "site": "METHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-TRACE-REVERSEMETHODMAP", "item": "TRACE", "site": "REVERSEMETHODMAP", "present": true, "evidence": "verify_receipt.txt PASS"},
+        {"cell_id": "REQ-003/cell-TRACE-MALL", "item": "TRACE", "site": "MALL", "present": true, "evidence": "verify_receipt.txt PASS"}
+      ]
+    },
+    "REQ-004": {
+      "pattern": "parity",
+      "items": ["MOUNT_CONTEXT_EFFECTS"],
+      "sites": ["LIVE_CLOSURE", "FIND"],
+      "cells": [
+        {"cell_id": "REQ-004/cell-MOUNT_CONTEXT_EFFECTS-LIVE_CLOSURE", "item": "MOUNT_CONTEXT_EFFECTS", "site": "LIVE_CLOSURE", "present": true, "evidence": "mux.go:313 RoutePath shift + mux.go:316-319 wildcard-URLParam reset"},
+        {"cell_id": "REQ-004/cell-MOUNT_CONTEXT_EFFECTS-FIND", "item": "MOUNT_CONTEXT_EFFECTS", "site": "FIND", "present": false, "evidence": "mux.go:383 RoutePath shift only; wildcard-URLParam reset absent"}
+      ]
+    },
+    "REQ-005": {
+      "pattern": "parity",
+      "items": ["PRESERVE_LITERAL_WILDCARD"],
+      "sites": ["REPLACEWILDCARDS", "WALK_COLLAPSE"],
+      "cells": [
+        {"cell_id": "REQ-005/cell-PRESERVE_LITERAL_WILDCARD-REPLACEWILDCARDS", "item": "PRESERVE_LITERAL_WILDCARD", "site": "REPLACEWILDCARDS", "present": false, "evidence": "context.go:139-144 textual /*/->/ collapse erases literal interior *"},
+        {"cell_id": "REQ-005/cell-PRESERVE_LITERAL_WILDCARD-WALK_COLLAPSE", "item": "PRESERVE_LITERAL_WILDCARD", "site": "WALK_COLLAPSE", "present": false, "evidence": "tree.go:862 same collapse on full routes"}
+      ]
+    },
+    "REQ-006": {
+      "pattern": "whitelist",
+      "items": ["TEXT_HTML", "TEXT_CSS", "TEXT_PLAIN", "TEXT_JAVASCRIPT", "APPLICATION_JAVASCRIPT", "APPLICATION_X_JAVASCRIPT", "APPLICATION_JSON", "APPLICATION_ATOM_XML", "APPLICATION_RSS_XML", "IMAGE_SVG_XML"],
+      "sites": ["DEFAULTCOMPRESSIBLECONTENTTYPES", "ISCOMPRESSIBLE"],
+      "cells": [
+        {"cell_id": "REQ-006/cell-TEXT_HTML-DEFAULTCOMPRESSIBLECONTENTTYPES", "item": "TEXT_HTML", "site": "DEFAULTCOMPRESSIBLECONTENTTYPES", "present": true, "evidence": "middleware/compress.go:16-27"},
+        {"cell_id": "REQ-006/cell-TEXT_HTML-ISCOMPRESSIBLE", "item": "TEXT_HTML", "site": "ISCOMPRESSIBLE", "present": true, "evidence": "middleware/compress.go:274-288 exact membership after ;-strip"},
+        {"cell_id": "REQ-006/cell-TEXT_CSS-DEFAULTCOMPRESSIBLECONTENTTYPES", "item": "TEXT_CSS", "site": "DEFAULTCOMPRESSIBLECONTENTTYPES", "present": true, "evidence": "compress.go:16-27"},
+        {"cell_id": "REQ-006/cell-TEXT_CSS-ISCOMPRESSIBLE", "item": "TEXT_CSS", "site": "ISCOMPRESSIBLE", "present": true, "evidence": "compress.go:274-288"},
+        {"cell_id": "REQ-006/cell-TEXT_PLAIN-DEFAULTCOMPRESSIBLECONTENTTYPES", "item": "TEXT_PLAIN", "site": "DEFAULTCOMPRESSIBLECONTENTTYPES", "present": true, "evidence": "compress.go:16-27"},
+        {"cell_id": "REQ-006/cell-TEXT_PLAIN-ISCOMPRESSIBLE", "item": "TEXT_PLAIN", "site": "ISCOMPRESSIBLE", "present": true, "evidence": "compress.go:274-288"},
+        {"cell_id": "REQ-006/cell-TEXT_JAVASCRIPT-DEFAULTCOMPRESSIBLECONTENTTYPES", "item": "TEXT_JAVASCRIPT", "site": "DEFAULTCOMPRESSIBLECONTENTTYPES", "present": true, "evidence": "compress.go:16-27"},
+        {"cell_id": "REQ-006/cell-TEXT_JAVASCRIPT-ISCOMPRESSIBLE", "item": "TEXT_JAVASCRIPT", "site": "ISCOMPRESSIBLE", "present": true, "evidence": "compress.go:274-288"},
+        {"cell_id": "REQ-006/cell-APPLICATION_JAVASCRIPT-DEFAULTCOMPRESSIBLECONTENTTYPES", "item": "APPLICATION_JAVASCRIPT", "site": "DEFAULTCOMPRESSIBLECONTENTTYPES", "present": true, "evidence": "compress.go:16-27"},
+        {"cell_id": "REQ-006/cell-APPLICATION_JAVASCRIPT-ISCOMPRESSIBLE", "item": "APPLICATION_JAVASCRIPT", "site": "ISCOMPRESSIBLE", "present": true, "evidence": "compress.go:274-288"},
+        {"cell_id": "REQ-006/cell-APPLICATION_X_JAVASCRIPT-DEFAULTCOMPRESSIBLECONTENTTYPES", "item": "APPLICATION_X_JAVASCRIPT", "site": "DEFAULTCOMPRESSIBLECONTENTTYPES", "present": true, "evidence": "compress.go:16-27"},
+        {"cell_id": "REQ-006/cell-APPLICATION_X_JAVASCRIPT-ISCOMPRESSIBLE", "item": "APPLICATION_X_JAVASCRIPT", "site": "ISCOMPRESSIBLE", "present": true, "evidence": "compress.go:274-288"},
+        {"cell_id": "REQ-006/cell-APPLICATION_JSON-DEFAULTCOMPRESSIBLECONTENTTYPES", "item": "APPLICATION_JSON", "site": "DEFAULTCOMPRESSIBLECONTENTTYPES", "present": true, "evidence": "compress.go:16-27"},
+        {"cell_id": "REQ-006/cell-APPLICATION_JSON-ISCOMPRESSIBLE", "item": "APPLICATION_JSON", "site": "ISCOMPRESSIBLE", "present": true, "evidence": "compress.go:274-288"},
+        {"cell_id": "REQ-006/cell-APPLICATION_ATOM_XML-DEFAULTCOMPRESSIBLECONTENTTYPES", "item": "APPLICATION_ATOM_XML", "site": "DEFAULTCOMPRESSIBLECONTENTTYPES", "present": true, "evidence": "compress.go:16-27"},
+        {"cell_id": "REQ-006/cell-APPLICATION_ATOM_XML-ISCOMPRESSIBLE", "item": "APPLICATION_ATOM_XML", "site": "ISCOMPRESSIBLE", "present": true, "evidence": "compress.go:274-288"},
+        {"cell_id": "REQ-006/cell-APPLICATION_RSS_XML-DEFAULTCOMPRESSIBLECONTENTTYPES", "item": "APPLICATION_RSS_XML", "site": "DEFAULTCOMPRESSIBLECONTENTTYPES", "present": true, "evidence": "compress.go:16-27"},
+        {"cell_id": "REQ-006/cell-APPLICATION_RSS_XML-ISCOMPRESSIBLE", "item": "APPLICATION_RSS_XML", "site": "ISCOMPRESSIBLE", "present": true, "evidence": "compress.go:274-288"},
+        {"cell_id": "REQ-006/cell-IMAGE_SVG_XML-DEFAULTCOMPRESSIBLECONTENTTYPES", "item": "IMAGE_SVG_XML", "site": "DEFAULTCOMPRESSIBLECONTENTTYPES", "present": true, "evidence": "compress.go:16-27"},
+        {"cell_id": "REQ-006/cell-IMAGE_SVG_XML-ISCOMPRESSIBLE", "item": "IMAGE_SVG_XML", "site": "ISCOMPRESSIBLE", "present": true, "evidence": "compress.go:274-288"}
+      ]
+    }
+  }
+}

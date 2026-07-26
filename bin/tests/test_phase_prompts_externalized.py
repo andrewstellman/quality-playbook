@@ -307,8 +307,31 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # AGENTS.md were the wrong place all along. With the
         # directive removed, the hashes return to their pre-090k
         # baseline (27026 no_seeds_True, 26829 no_seeds_False).
-        "phase1_no_seeds_True":  (27026, "42010af537fa2d1bde614f791e2bd5a2b82b506a4d43cfa1b69f04268533d605"),
-        "phase1_no_seeds_False": (26829, "daf228a20f85f5a65ef6efaaa3b8acc7457d27313bff5c555d3a85cbc70de1eb"),
+        # v1.6.0 instruction 030: phase1.md gained the MANDATORY
+        # END-OF-PHASE-1 DOCUMENTATION REVIEW block — the operator is
+        # shown how each gathered document was classified (always, in
+        # plain language) and can confirm or correct it before Phase 2
+        # derives anything against it. Hashes recomputed; this baseline
+        # update IS the sanctioned change-acknowledgement signal.
+        # (Rebaselined again in the same instruction after the self-Council: the
+        # pause is now keyed to whether an operator is actually waiting, not to
+        # four literal phrases, and the review is rendered against the
+        # formal-docs manifest.)
+        # v1.6.0 033 step 2b (read-and-judge): phase1.md gained the READ
+        # instruction — read ~100 lines per document, more if unsure, assign a
+        # category + one-sentence reason, judged per-document-isolated — and the
+        # show paragraph now describes THREE sections instead of two, because a
+        # backstop-flagged document is neither quoted nor dismissed. 29574 ->
+        # 31335. Recomputed via the sanctioned `run_playbook.phase1_prompt()`
+        # recapture, not by hand.
+        # v1.6.0 instruction 033 fix-up 7 (self-Council panelist B, B-1):
+        # phase1.md now tells the agent WHERE ITS READ LIVES —
+        # `quality/classification_reads.json`, written BEFORE the ingest
+        # that consumes it. Until this, step 2 asked the agent to record
+        # its read with no channel to record it through, so Lane B could
+        # not reach a byte-citable FORMAL_DOC at all. Hashes recomputed.
+        "phase1_no_seeds_True":   (32967, "283794b0c06d15fd7d3f195678bdad8b6221acf290ec779195ca8ddcfe26eed0"),
+        "phase1_no_seeds_False":   (32770, "49aad27d89466da83bbbb0f488000d92c8be2fa1ae481eef17ece0f76bf9527d"),
         # v1.5.7 instruction 073 Item-4 (A-19): phase2.md gained the
         # httpx-2026-05-17 missing-manifests warning (validator now
         # FAILs on ABSENT manifests, not just wrong-shape; agent must
@@ -369,7 +392,44 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # run; honor LANGUAGE OVERRIDE). Length 10114 → 10395. Hash
         # recomputed — this baseline update IS the sanctioned
         # change-acknowledgement signal.
-        "phase2":                (10395, "b0ae1736140b369723d35e1e55a495c90cc840263d3eda882d2aea003ba0dbbd"),
+        # v1.6.0 Feature C (instruction 001): phase2.md carries the
+        # render-contract handoff. The eight canonical artifact-location
+        # REQs now render to quality/RUN_CONTRACT.md instead of
+        # quality/REQUIREMENTS.md (C-1: in the 2026-06-19 express run they
+        # were half the product spec), RUN_CONTRACT.md joins the Phase 2
+        # generate list, and a new paragraph points at the eight-part
+        # document architecture in references/phase2_generation_guide.md.
+        # Hashes recomputed.
+        # v1.6.0 instruction 004 (Design §6): phase2.md gained the
+        # primary requirements-validation-interview offer at the Phase 2 →
+        # Phase 3 boundary. phase2: 12289 → 12810 codepoints. Recomputed.
+        # v1.6.0 instruction 006 (Design §5.2 item 4): the render-contract
+        # summary in phase2.md was made organizing-principle-agnostic — the
+        # "functional sections ordered user-facing→infrastructure" phrasing
+        # (a self-Council-found leftover) → "requirement sections organized
+        # by the principle you chose", + glossary added to the part list.
+        # phase2: 12810 → 13004 codepoints. Recomputed.
+        # v1.6.0 021 (Feature H): phase2.md gained the "run the Feature H persona
+        # validation pass here — automatically, opt-out" paragraph after the
+        # human-interview offer (§8b / requirements_pipeline § E.9). 13004 → 14199
+        # codepoints. Recomputed.
+        # v1.6.0 031 fix 2 (operator visibility): the persona pass auto-applies
+        # changes to the operator's requirements, so phase2.md now orders the
+        # pass BEFORE the end-of-phase message and requires that message to
+        # carry `persona_review_disclosure(...)` — reviewers ran, what they
+        # changed, where to read it, that it can be undone. 14199 → 15025
+        # codepoints. Recomputed. Then the 031 self-Council (Panelist B) found
+        # the ordering circular — the interview offer rides INSIDE the post-pass
+        # block while ¶68 ordered the pass after the offer — so phase2.md now
+        # states the one boundary order (finalize → pass → re-render → block
+        # carrying offer + disclosure) and the undo procedure. 15025 → 15747.
+        # v1.6.0 032 fix 3 (jargon-free artifact name): the review summary the
+        # disclosure asks the operator to open is now
+        # `quality/expert_review_summary.json` — "persona" was the last internal
+        # word reaching an operator, and it reached them in a path they have to
+        # type. Pure rename, one codepoint shorter: 15747 → 15746. Recomputed via
+        # the sanctioned recapture (`run_playbook.phase2_prompt()`), not by hand.
+        "phase2":                (15746, "a1ced84820a0a80065205025b0b741a86822de72d70d1b903c8c3f4c328053e8"),
         # v1.5.7 090j: phase3.md + phase4.md gained the triage
         # precision-guardrail pointers (D1 reachability_analysis on
         # HIGH/MED bugs + D2 KNOWN-ISSUE classification for advisory-
@@ -377,7 +437,10 @@ class PhasePromptByteEqualityTests(unittest.TestCase):
         # phase3: 10969 → 12167 codepoints; phase4: 3911 → 4398.
         # Hashes recomputed.
         # v1.5.7 191 FINDING-50: schemas.md prose citations stripped/rewritten.
-        "phase3":                (12047, "5d06b2ff3f5d5b602b79f4cec7afb0853723e641a03efb7d8583edc68cb718ce"),
+        # v1.6.0 instruction 004 (Design §6): phase3.md gained the note that
+        # the interview was offered at the end of Phase 2 (do not re-offer as
+        # a blocking step). phase3: 12047 → 12434 codepoints. Recomputed.
+        "phase3":                (12434, "604cd2f515129cdb8cfe5cff5dc8ce6884e300797718de637ff00917e0e152ed"),
         "phase4":                ( 4475, "b4c4dd6a103cbfe71d5f136b1a2bc5ebdf136125ec276e8a9c84129620b9c289"),
         # v1.5.7 090g: phase5.md gained the explicit apply→run→
         # revert green-cycle block. v1.5.7 090o: phase5.md gained

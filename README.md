@@ -1,6 +1,6 @@
 # Quality Playbook
 
-**Version:** 1.5.10 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
+**Version:** 1.6.0 | **Author:** [Andrew Stellman](https://github.com/andrewstellman) | **License:** Apache 2.0
 
 **Find the bugs that code review misses**
 
@@ -301,6 +301,7 @@ If `TOOLKIT.md` doesn't answer your question, file an issue at https://github.co
 
 Per-release detail lives in [`CHANGELOG.md`](CHANGELOG.md). Highlights:
 
+- **v1.6.0** — Requirements-Review + Grounding release. **Dump-and-go documentation classification (Feature G):** drop any docs in `reference_docs/` and the model reads and judges each one — citing authoritative references (disclosed `unconfirmed` until you confirm), routing CVE/advisory/source-code to you, and never demoting a real reference just because the project's maintainers didn't write it. **Agent-persona requirements validation (Feature H):** fresh-context domain-expert + security personas independently validate the derived requirements and remediate, grounded and revertable. Plus a coherent, mechanically-checked requirements document architecture (C), an opt-in operator validation interview (D), and durable operator-confirmation evidence (F).
 - **v1.5.10** — Repo-hygiene release. Canonical `SKILL.md` + `references/` moved back to the repo root as the single source of truth (in-tree skill locations are symlinks); `SKILL.md` trimmed, with per-phase detail lazy-loaded from `references/*.md`; committed run-output and orphaned partial copies removed from tracking. A clean base for the upcoming security work.
 - **v1.5.8** — Distribution channels: published to pip (PyPI), npm, and the Claude Code plugin marketplace. Publish scripts with affirmation gates (`--dry-run` / `--publish`, `--otp` for 2FA, automated awesome-copilot submission). Repository restructured to Claude Code's standard self-hosted plugin marketplace layout (`plugins/quality-playbook/`).
 - **v1.5.7** — Channel scaffolding (pip / uvx / pipx / npx). Phase-aware bundling. Council-of-Three review protocol formalized as load-bearing methodology. Worker self-Council pattern (parallel sub-agent reviewers via `Task` tool).

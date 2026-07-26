@@ -1,0 +1,35 @@
+{
+  "job_id": "job-00001",
+  "task_id": "chi-integration-regression",
+  "terminal_status": "COMPLETED",
+  "result_file": null,
+  "summary": "all 3 step(s) completed",
+  "reaped_ts": "2026-06-19T23:52:03Z",
+  "synthesized": true,
+  "steps": [
+    {
+      "step": "step-01",
+      "step_index": 0,
+      "terminal_status": "COMPLETED",
+      "result_file": "/Users/andrewstellman/Documents/QPB/repos/chi-1.5.8/quality/INDEX.md",
+      "summary": "phase1 complete",
+      "reaped_ts": "2026-06-19T21:55:04Z"
+    },
+    {
+      "step": "step-02",
+      "step_index": 1,
+      "terminal_status": "COMPLETED",
+      "result_file": "/Users/andrewstellman/Documents/QPB/repos/chi-1.5.8/quality/INDEX.md",
+      "summary": "phase2 complete",
+      "reaped_ts": "2026-06-19T22:14:04Z"
+    },
+    {
+      "step": "step-03",
+      "step_index": 2,
+      "terminal_status": "COMPLETED",
+      "result_file": "/Users/andrewstellman/Documents/QPB/repos/chi-1.5.8/quality/INDEX.md",
+      "summary": "phase3 complete",
+      "reaped_ts": "2026-06-19T23:52:03Z"
+    }
+  ]
+}

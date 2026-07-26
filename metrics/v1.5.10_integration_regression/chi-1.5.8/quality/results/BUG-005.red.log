@@ -1,0 +1,6 @@
+=== RUN   TestBUG005_ContentCharset_QuotedCharset
+    qpb_regression_test.go:128: Content-Type "text/plain; charset=\"utf-8\"" should match charset utf-8 (RFC 2046 quoted param value)
+--- FAIL: TestBUG005_ContentCharset_QuotedCharset (0.00s)
+FAIL
+FAIL	github.com/go-chi/chi/v5/middleware	0.266s
+FAIL

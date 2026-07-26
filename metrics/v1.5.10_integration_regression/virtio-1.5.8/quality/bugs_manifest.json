@@ -1,0 +1,64 @@
+{
+  "schema_version": "1.5.8",
+  "generated_at": "2026-06-19T22:40:00Z",
+  "records": [
+    {
+      "id": "BUG-001",
+      "title": "NOTIF_CONFIG_DATA(39) stripped on PCI-modern despite validator + notify-data path",
+      "classification": "bug",
+      "severity": "MEDIUM",
+      "divergence_type": "cross-source",
+      "primary_requirement": "REQ-001",
+      "covers": ["REQ-001/cell-NOTIF_CONFIG_DATA-PCI", "REQ-002/cell-NOTIF_CONFIG_DATA-RING"],
+      "file_lines": [
+        "drivers/virtio/virtio_pci_modern.c:367-381",
+        "drivers/virtio/virtio_ring.c:3511-3529",
+        "drivers/virtio/virtio_pci_modern.c:407",
+        "drivers/virtio/virtio_pci_modern.c:676-702"
+      ],
+      "reachability_analysis": "no guard; defect path reached unconditionally. vring_transport_features (virtio_ring.c:3505-3532) has no case label for VIRTIO_F_NOTIF_CONFIG_DATA(39); every finalize hits default at 3527-3529 and clears bit 39. vp_transport_features (367-381) re-adds SR_IOV/RING_RESET/ADMIN_VQ but not bit 39 (full-body search). So after vp_finalize_features the bit is always 0 on modern PCI even though vp_check_common_size (:407) validated the common-cfg queue_notify_data field. Mechanical receipt vring_transport_features_cases.txt confirms 8 case labels, bit 39 absent.",
+      "source": "Code Review",
+      "regression_test": "quality/test_regression.py::TestRegressionConfirmedBugs::test_bug001_pci_compensator_readds_notif_config_data",
+      "regression_patch": "quality/patches/BUG-001-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-001-fix.patch"
+    },
+    {
+      "id": "BUG-002",
+      "title": "vp_interrupt returns IRQ_NONE for a config-change-only interrupt",
+      "classification": "bug",
+      "severity": "MEDIUM",
+      "divergence_type": "code-spec",
+      "primary_requirement": "REQ-004",
+      "covers": ["REQ-004/cell-CONFIG_IRQ_HANDLED-PCI"],
+      "file_lines": [
+        "drivers/virtio/virtio_pci_common.c:106-124",
+        "drivers/virtio/virtio_pci_common.c:120-121",
+        "drivers/virtio/virtio_pci_common.c:72-81",
+        "drivers/virtio/virtio_pci_common.c:82-101"
+      ],
+      "reachability_analysis": "no guard; defect path reached unconditionally. In vp_interrupt (virtio_pci_common.c:111-124) isr is non-zero for a config interrupt (VIRTIO_PCI_ISR_CONFIG=0x2), so the `if (!isr) return IRQ_NONE` at :116-117 is not taken. At :120-121 vp_config_changed's IRQ_HANDLED return is discarded; the function returns vp_vring_interrupt (:123), which is IRQ_NONE when no vq is serviced. For a config-only interrupt with no concurrent vring activity vp_interrupt reports IRQ_NONE. Reachable on shared-vector (single MSI-X / INTx) configs; no upstream guard.",
+      "source": "Code Review",
+      "regression_test": "quality/test_regression.py::TestRegressionConfirmedBugs::test_bug002_vp_interrupt_returns_handled_on_config",
+      "regression_patch": "quality/patches/BUG-002-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-002-fix.patch"
+    },
+    {
+      "id": "BUG-003",
+      "title": "vm_reset omits the spec section 5 wait-for-status-zero poll",
+      "classification": "bug",
+      "severity": "MEDIUM",
+      "divergence_type": "code-spec",
+      "primary_requirement": "REQ-003",
+      "covers": ["REQ-003/cell-RESET_WAIT_FOR_ZERO-MMIO"],
+      "file_lines": [
+        "drivers/virtio/virtio_mmio.c:251-257",
+        "drivers/virtio/virtio_pci_modern.c:546-565"
+      ],
+      "reachability_analysis": "no guard; defect path reached unconditionally. vm_reset (virtio_mmio.c:251-257) writes 0 to VIRTIO_MMIO_STATUS and returns immediately -- two statements, no readback loop. The reset contract is satisfied inside each transport's .reset op (vp_reset and vp_legacy implement the readback); there is no caller-side compensating poll. So spec section 5 (write 0, then read device_status until 0) is unmet for every MMIO reset.",
+      "source": "Code Review",
+      "regression_test": "quality/test_regression.py::TestRegressionConfirmedBugs::test_bug003_vm_reset_polls_for_status_zero",
+      "regression_patch": "quality/patches/BUG-003-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-003-fix.patch"
+    }
+  ]
+}

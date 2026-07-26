@@ -330,7 +330,7 @@ Ship `bin/metrics_reconstruction.py`:
 
 **No schema changes to `run_state.jsonl`.** Reconstruction reads the existing schema; it does not modify the writers.
 
-**Council review focus.** Whether the formalized layout is consistent with v1.7's planned SPC machinery (read `docs/design/QPB_v1.7.0_Design.md` and `QPB_v1.7.0_Implementation_Plan.md` end-to-end before this deliverable's Council review). If the v1.7 design implies a layout that conflicts with the v1.5.7 formalization, fix the v1.5.7 design before shipping rather than ship a layout v1.7 will need to migrate away from.
+**Council review focus.** Whether the formalized layout is consistent with v1.7's planned SPC machinery (read `docs/design/QPB_v1.8.0_Design.md` (renamed from `QPB_v1.7.0_Design.md` on 2026-07-20) and `QPB_v1.8.0_Implementation_Plan.md` (renamed from `QPB_v1.7.0_Implementation_Plan.md` on 2026-07-20) end-to-end before this deliverable's Council review). If the v1.7 design implies a layout that conflicts with the v1.5.7 formalization, fix the v1.5.7 design before shipping rather than ship a layout v1.7 will need to migrate away from.
 
 ### Deliverable 5 — Trim `SKILL.md` by moving phase-specific content to `references/`
 

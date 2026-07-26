@@ -1,0 +1,36 @@
+--- /dev/null
++++ b/middleware/qpb_bug006_regression_test.go
+@@ -0,0 +1,33 @@
++// Regression test for BUG-006 (Quality Playbook v1.5.8). Place in middleware/ to run.
++package middleware
++
++import (
++	"net/http"
++	"testing"
++
++	"github.com/go-chi/chi/v5"
++)
++
++// BUG-006: Mux.Find performs the RoutePath shift but omits the wildcard-URLParam reset the live
++// mount closure does, so Find against a mounted route leaves a stale "*" URLParam.
++// Desired: after Find on a mounted route, the connecting "*" URLParam is cleared (as the live
++// walk leaves it).
++func TestBUG006_Find_MountedWildcardURLParamReset(t *testing.T) {
++	t.Skip("BUG-006: Find omits wildcard-URLParam reset — unskip after applying quality/patches/BUG-006-fix.patch")
++
++	child := chi.NewRouter()
++	child.Get("/ping", func(w http.ResponseWriter, r *http.Request) {})
++	root := chi.NewRouter()
++	root.Mount("/api", child)
++
++	rctx := chi.NewRouteContext()
++	pattern := root.Find(rctx, "GET", "/api/ping")
++	if pattern == "" {
++		t.Fatalf("Find should locate /api/ping")
++	}
++	// The live walk zeroes the connecting "*" URLParam (mux.go:316-319). Find must agree:
++	// the residual "*" URLParam must be empty, not the leftover mount-relative remainder.
++	if star := rctx.URLParam("*"); star != "" {
++		t.Errorf("Find on a mounted route must clear the connecting \"*\" URLParam (live walk does); got %q", star)
++	}
++}

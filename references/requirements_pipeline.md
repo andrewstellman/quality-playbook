@@ -15,7 +15,7 @@ This document defines the five-phase requirements generation pipeline for Step 7
 | `quality/COVERAGE_MATRIX.md` | Contract-to-requirement traceability |
 | `quality/COMPLETENESS_REPORT.md` | Final completeness assessment with verdict |
 | `quality/VERSION_HISTORY.md` | Review log with version table and provenance |
-| `quality/REFINEMENT_HINTS.md` | Review progress and feedback (created during review) |
+| `quality/operator_confirmations.jsonl` | Append-only durable log of interview confirmations (Feature D / F-2a) |
 
 Versioned backups go in `quality/history/vX.Y/`.
 
@@ -38,7 +38,7 @@ If the user explicitly asks for full-project scope on a large codebase, honor th
 
 ### Scope breadth on the initial pass
 
-On the first pipeline run, favor breadth over depth. Cover all major subsystems and modules rather than going deep on a few. The goal is a broad baseline that the self-refinement loop and later review/refinement passes can deepen. If you focus on 3 modules and skip 8 others, the completeness check can't find gaps in modules it never saw.
+On the first pipeline run, favor breadth over depth. Cover all major subsystems and modules rather than going deep on a few. The goal is a broad baseline that the self-refinement loop and the later validation interview can deepen. If you focus on 3 modules and skip 8 others, the completeness check can't find gaps in modules it never saw.
 
 For projects with both a core library and supporting modules (middleware, plugins, adapters, extensions), include at least the core and the highest-risk supporting modules in Phase A. Note the scope in the CONTRACTS.md header so it's clear what was covered and what wasn't. Refinement passes can expand scope later, but the initial pass should cast the widest net the context window allows.
 
@@ -91,6 +91,8 @@ Total contracts extracted: N
 
 All requirements in REQUIREMENTS.md must use the format `### REQ-NNN: Title` where NNN is a zero-padded three-digit number and Title is a short descriptive name. Do not use alternative formats like `### REQ-NNN — Title`, `### REQ-NNN. Title`, `**REQ-NNN**: Title`, or freeform headings without a number. Consistent formatting enables automated tooling to parse and cross-reference requirements.
 
+*This rule is one leg of a three-way binding:* the same format, with a worked example, is authored in `references/phase2_generation_guide.md` § "Requirement heading format" (the doc the Phase 2 generator is routed to) and enforced by `_RENDER_REQ_HEADING_RE` in `plugins/quality-playbook/skills/quality-playbook/scripts/quality_gate.py` — where, per Design §5.3, a populated manifest whose render carries zero `### REQ-NNN:` headings now FAILs rather than skipping. The canonical marker is `### REQ-NNN:`; kept in sync with those two — an edit to one is incomplete without the others.
+
 ---
 
 ## Phase B: Derive requirements from contracts
@@ -105,6 +107,8 @@ All requirements in REQUIREMENTS.md must use the format `### REQ-NNN: Title` whe
 **B.2 — Enrich with intent.** For each group, find the user story from documentation: GitHub issues state what users expect, the user guide states intended behavior, troubleshooting docs reveal known edge cases, design docs explain design goals. The "so that" clause must come from understanding who cares and why.
 
 **B.3 — Write requirements.** Use the 7-field template from SKILL.md Step 7. Conditions of satisfaction come from the individual contracts in the group — each contract becomes a condition of satisfaction.
+
+**One required behavior per requirement — no disjunctive acceptance.** A requirement, and each of its conditions of satisfaction, states **one** required behavior. It does not offer the implementer a choice, and it does not accept documentation in place of behavior. Reject: "X, or document that not-X"; "rejects **or** clamps"; "acceptable only if documented" without naming where that documentation lives and what it must say; "…or the divergence must be explicitly specified." If genuine alternatives are acceptable, state the decision procedure that selects between them — which is again one required behavior. If the source is itself undecided about which branch is intended, that is a finding for the operator (the coverage-and-gaps statement or the validation interview), not a requirement; a requirement that encodes the derivation's uncertainty transfers it to every downstream test author and reviewer. *(v1.6.0 instruction 002/003: this rule lives on every surface that authors requirement text — `references/phase2_generation_guide.md`, both `bin/skill_derivation/prompts/pass_a_*.md`, and here. The distinction is semantic, not syntactic, so it is a prompt rule with no mechanical gate check: "returns 400 or 422 depending on which validator rejected the payload" is a good requirement and "rejects or clamps" is not, and no regex separates them.)*
 
 **B.4 — Check for orphan contracts.** After writing all requirements, verify every contract in CONTRACTS.md is covered. Uncovered contracts become new requirements or get added to existing requirements' conditions of satisfaction.
 
@@ -303,9 +307,19 @@ After the loop completes (or short-circuits), proceed to Phase E.
 
 This phase transforms the specification into a guide. Add explanatory tissue so a new team member, code reviewer, or AI agent can read the document top-to-bottom and understand the software.
 
-### E.1 — Project overview (new, top of document)
+**Phase E is mandatory and unconditional (v1.6.0 Feature C).** It is not a polish pass to run when the target is large enough or time allows. Every step below runs on every run, at every target size. The rendered structure Phase E produces is the contract `references/phase2_generation_guide.md` specifies and the Phase 6 gate mechanically enforces — skipping E now FAILs the gate rather than shipping a flat list.
+
+*Why this is now unconditional:* across the three 2026-06-19 benchmark runs, Phase E fired unpredictably — virtio rendered a project overview and cross-cutting concerns; chi and express rendered neither, from the same pipeline and the same skill version. Nothing detected the difference, because the gate validated the manifest and never looked at the rendered document. Unqualified imperatives with no enforcement are how that happens.
+
+**Read `references/phase2_generation_guide.md` § "REQUIREMENTS.md render contract" before starting.** It carries the canonical eight-part document architecture; the steps below are how you get there.
+
+### E.1 — Project overview (mandatory, top of document)
 
 Write 400–600 words of connected prose explaining: what the software is, who uses it and why (primary personas and goals), how data flows through the major components, and the design philosophy (key architectural decisions and why they were made).
+
+Mandatory on every run regardless of target size — a small target is exactly when the reader most needs to know what the derivation understood the system to be. Follow the overview with an **actors & roles** part naming who the requirements serve.
+
+Close the overview with the **coverage-and-gaps statement**: what this derivation covered, and what it knowingly did not — areas explored but not turned into REQs, files skimmed, surfaces out of reach, and why. Be honest rather than flattering; the statement's value is that it makes thin coverage visible. It is advisory (WARN, never FAIL) and it is the opening move of the requirements validation interview.
 
 ### E.2 — Use cases (new, after overview)
 
@@ -321,28 +335,78 @@ Write 6–8 use cases in the style of Applied Software Project Management (Stell
 
 Cover the major usage patterns. The use cases are the bridge between "what the software does" and "what the requirements specify."
 
-### E.3 — Cross-cutting concerns (new, after use cases)
+### E.3 — Cross-cutting concerns (mandatory whenever there is more than one functional section)
 
 Document architectural invariants that span multiple categories: threading model, null contract, error philosophy, backward compatibility strategy, configuration composition. Each references specific REQ-NNN numbers. Write as prose paragraphs.
+
+Omit this part only when the document has exactly one functional section — with nothing to cut across, the part is meaningless. At two or more sections it is required, and the gate checks for it.
 
 ### E.4 — Category narratives (augment existing)
 
 For each requirement category, add 2–4 sentences before the first requirement explaining what the category covers, how it relates to other categories, and what a reviewer should keep in mind.
 
-### E.5 — Reorder for top-down flow
+### E.5 — Choose the organizing principle and order the sections (enforced)
 
-Reorder categories from user-facing (entry points, configuration) to infrastructure (error handling, backward compatibility). Fold any catch-all sections into proper categories.
+*Revised v1.6.0 (instruction 006, Design §5.2 item 4 "Choosing the organizing principle").* The sections are **not** required to be "functional." There is no single right grouping — IEEE 830 §5.3 lists a menu of organizing principles and holds that the best one is system-dependent. A single mandated principle makes the derivation *slot* requirements into a fixed scheme rather than *decide* how this system's requirements should be organized (a 2026-07-21 `bus-tracker` smoke test mixed four grouping axes because of exactly this). So the derivation chooses the principle, states it, and lets the operator validate the choice in the Feature D interview. Run these six steps, ahead of the E.6 renumber:
 
-### E.6 — Renumber sequentially
+1. **Assess the system.** What kind of thing is it? A workflow (favours use-case/journey grouping), a multi-actor system (user-class/stakeholder), a protocol or API surface (stimulus-response/interface), a capability library (feature), a stateful device (mode/state), a domain model (object/entity).
+2. **Choose one organizing principle** from the IEEE 830 §5.3 menu: **feature/capability · use case/journey · user class/stakeholder · mode/state · object/entity · stimulus-response/interface · functional hierarchy · a justified combination.** Default to **feature** *only* when no principle clearly fits — the choice, and its rationale, must be stated even then.
+3. **Regroup the requirement records** under that principle. Records do not change shape — only their `functional_section` assignment and the section grouping change. This is the same manifest write-back the E.6 renumber performs; extend it to the regrouping. **Propagate every section rename or merge to all records that name a section.** `functional_section` is carried on REQ records and — depending on the producing pipeline — on UC records too (the 2026-06-19 virtio run carried it on all 11 UCs; chi and express on none). A merge that updates only the REQ records leaves UC records naming a section that no longer exists; sweep both manifests for the old name.
+4. **Write a section overview per section** (the E.4 category narrative): one short paragraph naming the theme that unifies that section's requirements under the chosen principle — *not* a restatement of its REQ titles. This is what Feature D Stage 2 validates section by section, and the render contract FAILs a section that lacks it.
+5. **State the choice** at the top of the section list as a **labeled slot** (v1.6.0 instruction 027): a literal line *`Organizing principle: <name> — Rationale: <text>`* — e.g. *`Organizing principle: user journey — Rationale: this is a workflow system whose requirements cluster around the stages a user moves through.`* The render contract FAILs (structurally) if the slot is absent or its name/rationale is empty (Design §5.2 matrix row 4b); it checks the slot is *present and filled*, not the wording. It does **not** judge whether the choice is *optimal* — that is the Feature D interview (Stage 1) and the Phase 4 *Well-organized* rubric (row 4c).
+6. **Order the sections most-relevant-to-the-primary-reader first** (the generalization of the old user-facing → infrastructure rule; for a functional grouping the two coincide), then hand off to E.6's sequential renumber.
 
-After reordering, renumber all requirements REQ-001 through REQ-NNN following document order. Update all internal cross-references.
+Fold **singleton sections** while regrouping: a section holding one REQ either merges into a related section or carries a one-line justification for standing alone. Six single-REQ sections (the 2026-06-19 express shape) mean the grouping conveys nothing.
+
+### E.6 — Renumber sequentially (enforced)
+
+After reordering, renumber all requirements REQ-001 through REQ-NNN following **document order** — the first REQ appearing in the rendered document is REQ-001, with no gaps and no backtracking. Update all internal cross-references.
+
+**Renumber the manifest in the same pass.** `requirements_manifest.json` and the rendered document must agree on every identifier; this is the one sanctioned case where the narrative pass writes back to the manifest. Update every cross-reference that carries a REQ id — REQ records' `use_cases[]`, UC records' `requirements[]`, BUG records' `requirement`, and COVERAGE_MATRIX.md — in the same pass, or the renumber corrupts traceability.
+
+This step was already specified before v1.6.0 and demonstrably did not fire: chi rendered REQ-001/004/005, then 002, then 003/006. It contradicted the older "ordered by REQ id" rendering convention, so an agent following that convention produced scrambled identifiers *by doing what it was told*. That contradiction is now resolved in favor of document order, and the gate checks the result.
+
+### E.7 — Split the tool contract out of the product spec (enforced)
+
+Render every REQ whose `references[]` point exclusively into `quality/` to `quality/RUN_CONTRACT.md`, not to `quality/REQUIREMENTS.md`. These are QPB's own run-layout invariants, not requirements of the audited system. The records stay in the manifest unchanged — only the rendering destination differs. See `references/phase2_generation_guide.md` § "Split the product spec from the tool contract".
+
+### E.8 — Select validation personas (Feature H, v1.6.0 instruction 013)
+
+*Added v1.6.0 (Design §8b "Persona selection — chosen from a catalog, with anchors"). Structurally the E.5 pattern applied to validation lenses: a **menu with per-lens criteria**, a **recorded choice + justification**, and the operator validates the choice. Selection happens here, after the rendered spec exists and ahead of the persona runs (later Feature H slices spawn and merge the personas).* The chosen lenses each run the Feature D interview as a fresh-context domain-expert; before any run, select which lenses fit *this* system and record the choice:
+
+1. **The menu.** `bin/persona_catalog.py` (`catalog()`) is the data-first catalog — a lens id, a `select_when` criterion, and whether it is anchored. The selectable lenses: **API/consumer-integrator** (a library / public API), **operator/SRE** (a deployed service), **data-privacy/compliance** (regulated data), **accessibility** (user-facing UI), **performance** (a hot path), **reliability/failure-mode** (distributed / must survive partial failure), **adopter/end-user** (users whose abandonment risks matter). Adding a lens is a data edit to the catalog.
+2. **Two lenses are anchored — always selected, never skippable:** a **domain expert** (specialized per system from the Phase 1 domain + gathered docs, e.g. *"expert in Go HTTP routing and net/http"*) and a **security reviewer**. The anchor is **mechanical, not a prompt suggestion** — a system's own author under-weights security (the 3-persona self-test: the domain lens filed prompt-injection as a mere *candidate* while the anchored security lens *grounded* it). `persona_catalog.select_personas(proposed)` forces both anchors into the selected set regardless of what the derivation proposes, and drops any hallucinated (off-catalog) lens.
+3. **Choose the additional lenses** that fit this system from the menu and **state why** each fits — exactly like stating the organizing-principle rationale. Default to no additional lens only when none clearly fits; the anchors are always present.
+4. **Record the choice.** `persona_catalog.build_selection_manifest(selected)` produces a reviewable, content-keyed record (chosen lenses + justification + the domain specialization) so an operator can see which experts will validate the spec and why — the same "surface the choice" discipline as the organizing-principle statement and Feature G's classification manifest.
+
+### E.9 — Run the persona validation pass (Feature H, v1.6.0 instruction 021)
+
+*Added v1.6.0 (Design §8b guard 4 + Operator controls; §6 post-Phase-2 placement).* After the requirements finalize (this narrative pass is done) and **before Phases 3–6 build on them**, the pipeline runs the Feature H persona validation pass **automatically** — the same position as Feature D's human interview, except this runs by default (the human interview is opt-in; the agent persona pass is **opt-out**). It is a **remediator, not a gate**: it applies grounded fixes and surfaces them for review; it renders no verdict and blocks nothing.
+
+**Off-switch (default enabled).** A run may disable Feature H entirely (parallel to the human interview being opt-in). When disabled, no personas are spawned, no `agent-validation` changes are written, and the pipeline proceeds on the base manifest.
+
+**The composed step.** `bin/persona_apply.py` `run_feature_h(...)` composes the six modules into one pipeline step — it reimplements no guard:
+1. **Select** (E.8): `persona_catalog.select_personas` — the anchored domain + security lenses plus any AI-selected lens.
+2. **Stage + spawn (isolated).** `persona_orchestration.run_personas` stages each persona's declared inputs (the classified gathered docs + the rendered `REQUIREMENTS.md` + the rubric) into an isolated per-persona directory (prevention by absence — no impl tree, no secrets, no `operator_confirmations.jsonl`) and the **running agent spawns each persona as a fresh-context, tool-restricted sub-agent** via its Task/Agent tool (Read confined to the staging dir, no shell, no network — the instruction-019 pattern). Each persona descends the Feature D interview and emits a raw candidate diff-set.
+3. **Ground** (guard 1): `persona_grounding.classify_diff_set` splits each move into grounded (cited + byte-verified through the citation gate + fit-for-this-system) vs candidate (surfaced, never applied; injection-shaped support is candidate-only even when it byte-verifies).
+4. **Merge** (guard 3): union the grounded moves, surface conflicts (never auto-resolve), one terminal E.6 renumber.
+5. **Apply + review summary** (guard 4): grounded moves are applied tagged `source_type: agent-validation` (each add carries the **`tier`** of its cited FORMAL_DOC — instruction 028) and flow into Phases 3–6; the **operator-visible review summary** is written to `quality/expert_review_summary.json` — every applied change with its grounding (its `req_id`s are **post-renumber**, instruction 028), plus the conflicts, the candidate bucket, and the maturity disclosure. The change is revertible (`persona_apply.revert`) and every `agent-validation` REQ stays distinguishable from an operator-confirmation downstream (guard 2).
+
+6. **Disclose it to the operator** (instruction 031): the pass changed the operator's requirements, so the end-of-Phase-2 message has to say so. `persona_apply.persona_review_disclosure(review_summary)` renders the plain-language disclosure — expert reviewers ran, what they added / rewrote / removed / agreed with, what they raised that was NOT acted on, where every change and its backing is recorded, and that it can all be undone — for the State P2 block (`references/what_just_happened.md`). It returns `None` when the pass did not run, so a run with no expert review claims none. **The one order for this boundary is: requirements finalize → this pass → re-render `REQUIREMENTS.md` → emit the State P2 block, which carries the requirements-interview offer AND this disclosure together.** The interview offer therefore reaches the operator after the pass, deliberately: they walk the requirements as they now stand.
+7. **Make the undo real** (instruction 031). The disclosure tells the operator they can undo the whole thing, so the pass persists the pre-pass manifest to `quality/requirements_manifest.pre_review.json` alongside the two artifacts above. On the operator's request, `persona_apply.revert_from_disk(<target_repo>)` restores `quality/requirements_manifest.json` from that snapshot (exact for adds, corrects and drops, because it is the whole prior manifest rather than a replay) and renames the review summary to `expert_review_summary.undone.json` — the candidate findings it lists were never applied, so the undo must not destroy them; **re-render `quality/REQUIREMENTS.md` from the restored manifest**, exactly as after the pass itself. It refuses in three distinguishable states rather than guessing: no pass ran (nothing to undo); a pass ran but predates the snapshot (the requirements *were* changed — point at the summary, never say nothing happened); BUG records already exist (Phase 3+ has run and the restore would orphan BUG→REQ links, which the in-process `revert` re-maps and this cannot). Without the snapshot the promise was unkeepable: `revert()` restores from an in-memory field on a `PersonaPass` object that dies with the process that ran the pass, and a dropped requirement's text existed nowhere on disk. The in-process `revert(which=<ids>)` selective path has a known limitation (a `correct` retags the operator's own record, so naming that id deletes it rather than restoring its wording) — which is why the operator-facing undo offers the whole-pass restore only.
+
+**Re-render after the pass (instruction 028).** `run_feature_h` writes the updated `quality/requirements_manifest.json` (the source of truth — the pass applied moves + the terminal E.6 renumber). Because `REQUIREMENTS.md` is AI-authored (the "Feature C renderer" is the agent — `requirements_interview.md` § Write-back), **re-render `quality/REQUIREMENTS.md` from the updated manifest after the persona pass**, exactly as the human-interview write-back does — otherwise the rendered spec silently lags the manifest and the applied agent-validation adds are invisible to a human reader.
+
+The live sub-agent spawn is performed by the running agent (the harness substrate); `run_feature_h` orchestrates the composition. **Spawning these personas is a sanctioned exception to the no-sub-agent guardrail (v1.6.0 instruction 029; SKILL.md Mode A "EXCEPTION: the Feature H persona validation pass may spawn its personas", sibling to the Phase 6 verification exception).** The general no-sub-agent rule still holds for Phases 1–5, but this bounded, operator-visible validation pass — mandatory `expert_review_summary.json`, `agent-validation`-tagged + revertible, opt-out — is not a delegated phase and does not reopen the guardrail's failure modes. A faithful agent at this boundary runs the pass here; it does **not** disable Feature H over a perceived guardrail conflict. This step's guards are all mechanically verified; the empirical acceptance (personas re-surface real gaps under isolation) is instruction 019.
 
 ### Rules
 
-- **Do not delete, merge, or weaken any existing requirement.**
+- **Do not delete, merge, or weaken any existing requirement.** (Merging *sections* per E.5 is expected; merging requirements is not.)
 - **Do not add new requirements in this pass.**
 - **Write the overview and use cases from the user's perspective.**
 - **Use cases must cite specific REQ numbers.**
+- **Do not emit derivation internals into the rendered document** — no HTML comments, no `Asymmetry-promotion:` provenance lines, no cluster annotations, no internal pass vocabulary. That metadata belongs in the manifest.
+- **Renumbering is the last step.** Anything that reorders content invalidates the numbers assigned before it.
 
 ---
 
@@ -367,8 +431,8 @@ Maintain a version history file at `quality/VERSION_HISTORY.md`:
 | v1.0 | YYYY-MM-DD | [model] | Quality Playbook | N | Initial pipeline generation |
 | v1.1 | YYYY-MM-DD | [model] | [author] | N | [what changed] |
 
-## Pending review
-[status from REFINEMENT_HINTS.md if review is in progress]
+## Validation interview
+[status from quality/REQUIREMENTS_REVIEW.md if a validation interview has run]
 ```
 
 The **Author** column records provenance: "Quality Playbook" for automated pipeline runs, a person's name for manual edits, a model name for refinement passes.
@@ -394,34 +458,48 @@ Each version folder is a complete snapshot. Users can diff any two versions.
 
 ### Version stamping
 
-The REQUIREMENTS.md header includes the current version:
+Two different version concepts land in the REQUIREMENTS.md header; do not conflate them.
+
+1. **The skill version** — which QPB release produced this artifact. This is the mandatory attribution stamp specified in `references/phase2_generation_guide.md` § "Version stamp", read from SKILL.md `metadata.version`. The Phase 6 gate checks it. Every generated Markdown file carries it.
+2. **The requirements-document version** (`vX.Y` above) — this document's own refinement generation, incremented by the minor-bump scheme described earlier in this section. It tracks how many refinement passes the *spec* has been through, and is unrelated to the QPB release.
+
+Render the skill-version attribution stamp first (it is the gate-checked one), then the document-version metadata:
 
 ```markdown
 # Behavioral Requirements — [Project Name]
-Version: vX.Y
-Generated: [date]
-Pipeline: contract-extraction v2 with narrative pass
+
+> Generated by [Quality Playbook](https://github.com/andrewstellman/quality-playbook) v<SKILL_VERSION> — Andrew Stellman
+> Date: YYYY-MM-DD · Project: [Project Name]
+
+Requirements document version: vX.Y
 ```
+
+`<SKILL_VERSION>` is a placeholder — substitute SKILL.md `metadata.version`, never a literal copied from this file.
+
+**Do not name the pipeline or its passes in the rendered header.** The pre-v1.6.0 template emitted `Pipeline: contract-extraction v2 with narrative pass`; "contract-extraction v2" and "narrative pass" are QPB's internal names for its own derivation stages and mean nothing to the adopter reading the spec. They are derivation internals, and the render contract's C-5 check now rejects them (`references/phase2_generation_guide.md` § "Keep derivation internals out of the render").
 
 ---
 
-## After the pipeline: review and refinement
+## After the pipeline: the requirements validation interview
 
-The pipeline produces a solid baseline, but AI isn't 100% reliable. The skill provides two standalone tools for iterative improvement:
+The pipeline produces a solid baseline, but AI derives requirements from the
+code and the docs — it cannot know whether it captured the operator's actual
+*intent*. That is what the validation interview is for.
 
-### Requirements review (`quality/REVIEW_REQUIREMENTS.md`)
+**One protocol, `references/requirements_interview.md`.** It walks the rendered
+document top-down — the narrative, then each section and its use cases, then
+individual requirements on demand — and at every step the operator can
+**confirm** (recorded as durable evidence), **correct**, or **add**. Corrections
+write straight to `quality/requirements_manifest.json` and re-render, so the spec
+absorbs the operator's intent coherently. Entry modes carry over from the
+superseded walkthrough: guided, self-guided, and cross-model.
 
-An interactive or guided review of requirements organized by use case. Three modes:
-- **Self-guided**: Pick use cases to drill into
-- **Fully guided**: Walk through use cases sequentially
-- **Cross-model audit**: A different model fact-checks the completeness report
+Confirmations survive re-derivation via the append-only
+`quality/operator_confirmations.jsonl` (Feature D / F-2a), and the defect log
+lands in `quality/REQUIREMENTS_REVIEW.md`, organized by the Wiegers attributes
+the readability rubric scores against.
 
-Progress and feedback are tracked in `quality/REFINEMENT_HINTS.md`. See the generated `quality/REVIEW_REQUIREMENTS.md` for the full protocol.
-
-### Requirements refinement (`quality/REFINE_REQUIREMENTS.md`)
-
-Reads `quality/REFINEMENT_HINTS.md` and updates `quality/REQUIREMENTS.md` to close identified gaps. Can be run with any model. Backs up the current version, bumps minor version, reports all changes. See the generated `quality/REFINE_REQUIREMENTS.md` for the full protocol.
-
-### Multi-model refinement
-
-Users can run refinement passes with different models to catch different blind spots. Each pass: backup → refine → version bump → log in VERSION_HISTORY.md. Run as many models as desired until diminishing returns.
+*Superseded (v1.6.0):* the `quality/REVIEW_REQUIREMENTS.md` /
+`quality/REFINE_REQUIREMENTS.md` / `quality/REFINEMENT_HINTS.md` review-then-refine
+cycle is gone — one interview that applies corrections as they are made, not a
+review pass that writes hints for a separate refinement pass to consume.

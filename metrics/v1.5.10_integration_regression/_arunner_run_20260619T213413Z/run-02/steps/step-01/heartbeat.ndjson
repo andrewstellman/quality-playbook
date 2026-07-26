@@ -1,0 +1,5 @@
+{"ts":"2026-06-19T21:38:32Z","task_id":"virtio-integration-regression","schema_version":"2","label":"phase1","status":"STARTING"}
+{"ts":"2026-06-19T21:39:28Z","task_id":"virtio-integration-regression","schema_version":"2","label":"reference_docs_ingest","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T21:42:02Z","task_id":"virtio-integration-regression","schema_version":"2","label":"core-source-trace","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T21:43:43Z","task_id":"virtio-integration-regression","schema_version":"2","label":"writing EXPLORATION.md","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T21:48:39Z","task_id":"virtio-integration-regression","schema_version":"2","status":"COMPLETED","result_file":"/Users/andrewstellman/Documents/QPB/repos/virtio-1.5.8/quality/EXPLORATION.md","summary":"phase1 complete: 4 transport-consistency bug hypotheses, role map + EXPLORATION.md + PROGRESS.md, both validators PASS"}

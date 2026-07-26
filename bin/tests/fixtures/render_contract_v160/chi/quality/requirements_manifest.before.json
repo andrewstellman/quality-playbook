@@ -1,0 +1,118 @@
+{
+  "schema_version": "1.5.8",
+  "generated_at": "2026-06-19T21:59:26Z",
+  "records": [
+    {
+      "id": "REQ-001",
+      "functional_section": "Composition and Mount-Context Awareness",
+      "text": "Path-manipulation middleware must operate on chi's canonical mounted path (rctx.RoutePath), not raw r.URL.Path, so behavior is correct under Mount().",
+      "references": ["middleware/supress_notfound.go", "middleware/page_route.go", "middleware/path_rewrite.go"],
+      "pattern": "parity",
+      "use_cases": ["UC-1.a", "UC-1.b", "UC-1.c"]
+    },
+    {
+      "id": "REQ-002",
+      "functional_section": "Spec-Structured Request-Header Parsing",
+      "text": "RFC-defined request-header parsing must follow the grammar (tokenize on the list separator, honor q=0, trim whitespace, parse parameters, match exact coding names), not substring/Cut shortcuts.",
+      "references": ["middleware/compress.go", "middleware/content_charset.go", "middleware/realip.go"],
+      "pattern": "parity",
+      "use_cases": ["UC-2"]
+    },
+    {
+      "id": "REQ-003",
+      "functional_section": "Enumeration and Representation Completeness",
+      "text": "The HTTP-method closed set must stay consistent across all three structures (methodMap, reverseMethodMap, mALL) and every consumer.",
+      "references": ["tree.go", "mux.go"],
+      "pattern": "whitelist",
+      "use_cases": ["UC-3"]
+    },
+    {
+      "id": "REQ-004",
+      "functional_section": "Composition and Mount-Context Awareness",
+      "text": "Mux.Find/Mux.Match must mirror live routing's observable context effects (including the mount wildcard-URLParam reset) when traversing mounted routes.",
+      "references": ["mux.go"],
+      "pattern": "parity",
+      "use_cases": ["UC-4.a", "UC-4.b"]
+    },
+    {
+      "id": "REQ-005",
+      "functional_section": "Composition and Mount-Context Awareness",
+      "text": "RoutePattern() reconstruction must not corrupt patterns that contain a literal interior wildcard segment.",
+      "references": ["context.go", "tree.go"],
+      "pattern": "parity",
+      "use_cases": ["UC-5.a", "UC-5.b"]
+    },
+    {
+      "id": "REQ-006",
+      "functional_section": "Enumeration and Representation Completeness",
+      "text": "The compressible content-type whitelist must gate compression consistently with its membership check, and its closed set must be the single source of truth for eligibility.",
+      "references": ["middleware/compress.go"],
+      "pattern": "whitelist",
+      "use_cases": ["UC-6"]
+    },
+    {
+      "id": "REQ-007",
+      "functional_section": "Compression Header/State Coupling",
+      "text": "compressResponseWriter must not declare Content-Encoding for a body it does not actually compress.",
+      "references": ["middleware/compress.go"],
+      "pattern": "parity",
+      "use_cases": ["UC-7"]
+    },
+    {
+      "id": "REQ-008",
+      "functional_section": "Routing Param Backtracking Integrity",
+      "text": "findRoute param backtracking must keep routeParams.Keys and routeParams.Values length-consistent across both unwind sites, so URLParam index reads never misalign.",
+      "references": ["tree.go", "context.go"],
+      "pattern": "parity",
+      "use_cases": ["UC-8"]
+    },
+    {
+      "id": "REQ-009",
+      "functional_section": "Canonical Artifact Locations",
+      "text": "Per-bug writeups are placed at quality/writeups/BUG-<id>.md.",
+      "references": ["quality/writeups/"]
+    },
+    {
+      "id": "REQ-010",
+      "functional_section": "Canonical Artifact Locations",
+      "text": "Fix patches are placed at quality/patches/BUG-<id>-fix.patch.",
+      "references": ["quality/patches/"]
+    },
+    {
+      "id": "REQ-011",
+      "functional_section": "Canonical Artifact Locations",
+      "text": "Regression-test patches are placed at quality/patches/BUG-<id>-regression-test.patch.",
+      "references": ["quality/patches/"]
+    },
+    {
+      "id": "REQ-012",
+      "functional_section": "Canonical Artifact Locations",
+      "text": "Code review output is placed at quality/code_reviews/.",
+      "references": ["quality/code_reviews/"]
+    },
+    {
+      "id": "REQ-013",
+      "functional_section": "Canonical Artifact Locations",
+      "text": "Spec audit outputs (auditor reports + triage) are placed at quality/spec_audits/.",
+      "references": ["quality/spec_audits/"]
+    },
+    {
+      "id": "REQ-014",
+      "functional_section": "Canonical Artifact Locations",
+      "text": "Sidecar JSON results (tdd-results.json, integration-results.json, recheck-results.json) are placed at quality/results/.",
+      "references": ["quality/results/"]
+    },
+    {
+      "id": "REQ-015",
+      "functional_section": "Canonical Artifact Locations",
+      "text": "Mechanical-verification artifacts (verify.py + *_cases.txt) are placed at quality/mechanical/.",
+      "references": ["quality/mechanical/"]
+    },
+    {
+      "id": "REQ-016",
+      "functional_section": "Canonical Artifact Locations",
+      "text": "quality/workspace/<name>/ is forbidden — top-level quality/<name>/ is the only canonical layout. Phase 6 gate check_no_workspace_dir fails any run with a quality/workspace/ tree present (populated OR empty).",
+      "references": ["quality/"]
+    }
+  ]
+}

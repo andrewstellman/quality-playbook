@@ -121,7 +121,8 @@ explicit.
 
 Every JSON manifest produced by the playbook (`formal_docs_manifest.json`,
 `requirements_manifest.json`, `use_cases_manifest.json`,
-`bugs_manifest.json`, `citation_semantic_check.json`) is a JSON object
+`bugs_manifest.json`, `citation_semantic_check.json`,
+`classification_manifest.json`) is a JSON object
 whose top-level shape is fixed by this wrapper schema:
 
 | Field            | Type            | Required | Notes                                                                           |
@@ -304,6 +305,8 @@ produced the REQ.
 | `reference-file`       | REQ derived from a QPB-shipped reference file (i.e., a file under `references/` such as `references/exploration_patterns.md`). |
 | `docs-derived`         | v1.5.6+. REQ derived from operator-supplied informal documentation under the target repo's `reference_docs/` tree (Tier 4 context — AI chats, design notes, retrospectives — or Tier 1/2 citable material under `reference_docs/cite/`). Distinct from `reference-file`, which names QPB-shipped reference files; `docs-derived` names target-repo reference docs. |
 | `execution-observation`| REQ inferred from observed run-time behavior captured in archived runs (Phase 5; reserved for forward-compat). |
+| `operator-confirmation`| v1.6.0+ (Feature D). REQ confirmed, corrected, or added by the operator in a requirements validation interview. **Transcript-as-citable-source** (Design §0 Decision Record #7): the citable document is the preserved session transcript at `quality/review_sessions/<TIMESTAMP>-<topic>.md`, so `REQ.citation` points into that transcript and the §5.4 byte-citation machinery applies unchanged — no new evidence tier is invented. `skill_section` MUST be absent/null (invariant #21). See `references/requirements_interview.md` for the protocol and §9.5 for the companion append-only `operator_confirmations.jsonl` that makes these durable across runs. |
+| `agent-validation`     | v1.6.0+ (Feature H). REQ added or corrected by a fresh-context domain-expert **persona** running the Feature D interview as the operator. Parallel to `operator-confirmation` but **distinct in two ways** the downstream MUST respect: (1) **document-cited, not transcript-cited** — `REQ.citation` points at a **document** in `quality/formal_docs_manifest.json` (byte-verified by the §5.4 machinery exactly like any Tier-1/2 REQ), never at an interview transcript; (2) **regenerated per run, not persisted** — agent validation is reproducible (re-run the persona), so it has **no** durable ledger and is NOT written to `operator_confirmations.jsonl` (§9.5). **Write-restriction (Design §8b guard 2, security-critical):** a persona may write ONLY `agent-validation` — it may not create/tag/cite an `operator-confirmation` record and may not append to `operator_confirmations.jsonl` (human-interview-only). Downstream consumers counting "confirmed" evidence MUST NOT coalesce `agent-validation` with `operator-confirmation`; trust in an unreviewed `agent-validation` REQ never exceeds an operator-reviewed one. `skill_section` MUST be absent/null (invariant #21). See `references/requirements_interview.md` (the protocol a persona drives) and Design §8b. |
 
 ### 3.8 `bug_divergence_type` — kind of divergence a BUG records (v1.5.3+)
 
@@ -1001,6 +1004,122 @@ instead of `records`:
   same council member across all of their reviews in the file — the
   majority computation in §10 invariant #17 is performed by grouping on
   `reviewer`.
+
+---
+
+## 9.5. `operator_confirmations.jsonl` (v1.6.0 Feature D / F-2a)
+
+`quality/operator_confirmations.jsonl` is the **append-only** durability log for
+the requirements validation interview. It is the one artifact that survives a
+re-derivation: the manifest is rebuilt on every run, but this file is never
+rewritten, so it is the only record that an operator already vouched for a
+requirement. Protocol: `references/requirements_interview.md`. Hazard and
+rationale: Design §8 F-2a.
+
+**One JSON object per line**, same framing discipline as `run_state.jsonl`
+(compact single-line JSON, no embedded newlines). Append with the
+`run_state_lib.append_confirmation` helper, which is the only sanctioned writer.
+
+**Human-interview-only (Feature H guard 2 write-restriction).** This ledger is
+written only by the human interview path. A Feature H **persona** may never
+append here — `append_confirmation` refuses any record carrying
+`source_type: agent-validation` (§3.7). Agent validation is document-cited and
+regenerated per run, so it needs no durable ledger; laundering an injected
+requirement into this append-only, highest-trust, cross-run class is exactly the
+attack the restriction blocks.
+
+### 9.5.1 Record fields
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `ts` | string | yes | ISO-8601 timestamp of the confirmation. |
+| `move` | string | yes | One of `confirm` / `correct` / `add` / `drop` / `defer` — the interview move that produced this record. |
+| `req_title` | string | yes | The REQ's title **at time of confirmation**. Content, not identity — see the not-keyed-on-id note below. |
+| `conditions_of_satisfaction` | string | yes | The REQ's conditions of satisfaction at time of confirmation. Together with `req_title` this is the durable *content* an advisory cross-run match keys on. |
+| `operator_statement` | string | yes | The operator's own words, verbatim. Never paraphrased. |
+| `transcript_citation` | string | conditional | A `path:line-range` citation into `quality/review_sessions/<TIMESTAMP>-<topic>.md`, per F-2's transcript-as-citable-source. Present when the operator saved the transcript (the save-gate); absent when they declined, in which case the confirmation is recorded but not citable. |
+| `session_id` | string | yes | Identifies the interview session, so records from one session group. |
+
+**Deliberately NOT keyed on REQ id.** Phase E.6 renumbers every run, so this
+run's `REQ-005` is not last run's `REQ-005`; an id would be meaningless across
+runs. Any later matching is content-based (`req_title` +
+`conditions_of_satisfaction`) and **advisory** — the read path surfaces prior
+confirmations for the operator to act on, it never auto-merges. Solving cross-run
+REQ identity is deferred with F-3 and needs its own design.
+
+### 9.5.2 Append-only invariant
+
+A derivation that **deletes, truncates, or shortens** `operator_confirmations.jsonl`
+fails the gate (`check_operator_confirmations_append_only`), which enforces
+durability two ways. **Manifest-consistency:** if `requirements_manifest.json`
+carries `operator-confirmation` REQs, this log must be present and non-empty —
+so deleting or emptying it while the confirmed REQs remain FAILs, with no prior
+snapshot required. **Append-only prefix:** a re-derivation copies the log to
+`operator_confirmations.prior.jsonl` before rewriting `quality/`, and the gate
+proves the live file still has that snapshot as a **byte prefix** (stricter than
+a line count — a same-length in-place rewrite is caught too). The append helper
+enforces one-object-per-line framing; the gate enforces the byte-prefix
+invariant. This is the load-bearing guarantee — a later run cannot destroy the
+operator's work.
+
+### 9.5.3 Example record
+
+```json
+{"ts":"2026-07-21T15:04:00Z","move":"correct","req_title":"res.jsonp sanitizes callback names","conditions_of_satisfaction":"res.jsonp removes every character outside [A-Za-z0-9_$.[]] and emits the sanitized name; it does not reject.","operator_statement":"The guard sanitizes, it doesn't reject — say so.","transcript_citation":"quality/review_sessions/2026-07-21T150000Z-jsonp.md:42-58","session_id":"2026-07-21T150000Z-jsonp"}
+```
+
+---
+
+## 9.6. `classification_manifest.json` (v1.6.0 Feature G / §8a)
+
+`quality/classification_manifest.json` is the **reviewable, content-keyed**
+record of the dump-and-go documentation classification (Design §8a). It records,
+per ingested reference doc, the tier the ingest assigned and *why* — so the
+operator can eyeball or override, and so a re-run with unchanged content
+reproduces the same tiering. Written by
+`bin/reference_docs_ingest.classify_reference_docs`; the deterministic floor
+lives in `bin/doc_classification.py`. Uses the standard `{schema_version,
+generated_at, records[]}` wrapper (§1.6); `records` is sorted by `source_path`.
+
+The manifest is a **review surface, not the citation authority**: the byte-
+verification gate (§5, `citation_verifier`) still independently checks every
+Tier-1/2 citation. Classification decides *which* docs are citable; verification
+checks the *text*. They are different guards (a verbatim advisory restatement
+byte-verifies perfectly — §8a).
+
+### 9.6.1 Record fields
+
+| Field | Type | Required | Meaning |
+|---|---|---|---|
+| `source_path` | string | yes | Target-relative path of the classified document (e.g. `reference_docs/spec.md`). |
+| `document_sha256` | string | yes | SHA-256 of the file's UTF-8 content. The **content key**: a re-run reuses the prior decision when this matches (reproducibility). |
+| `tier` | integer | yes | Assigned tier `1`/`2` (citable) or `4` (background). The floor can only override the LLM classifier *downward*. |
+| `floor_rule` | string | yes | Which rule decided the tier: `advisory-floor`, `impl-floor`, `sidecar-promotion`, `injection-floor`, `contract`, `background-ledger`, `llm`, `default-tier4`, or (v1.6.0 instruction 030) `operator-authoritative` / `operator-background` — the operator's decision at the end-of-Phase-1 classification review. |
+| `reason` | string | yes | One-line human-readable justification (Authoring guidance, not gate-enforced). |
+| `byte_count` | integer | yes | Length of the file's UTF-8 content in bytes. |
+| `promotable` | boolean | yes | `false` when a floor permanently bars citability (advisory/impl/injection/background); `true` otherwise. A floored-`false` record can never be promoted — not by the LLM, a rename, or the operator sidecar. |
+| `reused_from_prior` | boolean | no | Present and `true` when this record was carried over from a prior manifest (unchanged content) rather than re-classified. |
+| `operator_decision` | string | no | `"authoritative"` or `"background"` — the operator's decision for this exact content at the end-of-Phase-1 classification review (v1.6.0 instruction 030), read from the operator-authored, content-keyed `reference_docs/qpb_authoritative.txt`. Present even when an absolute floor **refused** the promotion, so a refused decision is visible rather than silently dropped; `floor_rule` is what says whether it took effect. Only the human operator can produce one — never document content, the classifier, or a persona. A document carrying a decision bypasses the content-keyed reuse cache, so the correction takes effect on the next ingest. |
+
+Records also carry the optional advisory-hint / rescue fields the floor records
+(`advisory_hints`, `code_heavy` — instruction 023; `advisory_rescued`,
+`rescued_reason` — instruction 025), and the manifest wrapper carries the loud
+classification-status fields (`classifier_status`, `citable_count`,
+`zero_citable`, and `classifier_error` on failure — instruction 024). Their
+authoritative descriptions live in `bin/doc_classification.py`.
+
+**The advisory floor is absolute.** A record with `floor_rule == "advisory-floor"`
+(CVE/GHSA identifier, advisory URL/header, or security-genre title) is always
+`tier: 4`, `promotable: false`. The advisory floor runs on **content before any
+extension carve-out**, so a CVE advisory renamed `api.proto` is still floored;
+and the operator sidecar rescues the **implementation** floor only, never the
+advisory floor.
+
+### 9.6.2 Example record
+
+```json
+{"source_path":"reference_docs/14_Known_Vulnerabilities.md","document_sha256":"9f2b…","tier":4,"floor_rule":"advisory-floor","reason":"advisory/security-genre: advisory identifier 'CVE-2024-43796'","byte_count":8421,"promotable":false}
+```
 
 ---
 

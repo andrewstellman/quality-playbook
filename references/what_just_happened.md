@@ -64,7 +64,7 @@ Rules 1, 2, 6, 7, and 9 are the load-bearing branches for adopter UX:
 
 ## Decision tree — what the block says when
 
-For each run state, use the template prose and adapt the phrasing to the actual artifact counts and timestamps from disk. **Do not invent counts.** If a number isn't in PROGRESS.md / BUGS.md / the run-state log / recheck-results.json, omit it.
+For each run state, use the template prose and adapt the phrasing to the actual artifact counts and timestamps from disk. **Do not invent counts.** If a number isn't in PROGRESS.md / BUGS.md / the run-state log / recheck-results.json / expert_review_summary.json (the State P2 expert-review counts, v1.6.0 instruction 031), omit it.
 
 ### State P1 — Phase 1 only completed (Mode A multi-pass)
 
@@ -75,10 +75,64 @@ Phase 1 (Explore) is done. The agent read your codebase, ingested `reference_doc
 present, and produced candidate findings in `quality/EXPLORATION.md`. No bugs are confirmed
 yet — confirmation happens in Phase 3 (code review).
 
+<the documentation review — see below; always included when reference_docs/ was ingested>
+
 ### What to do next
 
 Continue with Phase 2 by saying `keep going` or `run phase 2`.
 ```
+
+**The documentation review is part of State P1 and is not optional** *(v1.6.0 Feature G,
+instruction 030)*. Whenever `quality/classification_manifest.json` exists, render
+`bin.doc_classification.classification_review(manifest, formal_records=...)` into the State
+P1 block — it shows the operator, in plain language, which of the documents they gathered
+are being used as **authoritative sources their requirements can cite**, which ones the run
+**needs their word on before quoting**, and which are **background context**, one plain
+reason each. *(The middle section is v1.6.0 instruction 033: a document is listed there when
+something hard was found in it — a CVE/GHSA identifier, a link to a vulnerability database,
+a source-code file, or a contract-format extension whose content does not parse as that
+format — or when it asks to be treated as authoritative. It is neither quoted nor dismissed;
+the show names the specific evidence beside it, because promoting one requires the operator
+to acknowledge that signal. A citation that rests on the run's own read carries "That was my
+own call — tell me if I've got it wrong.": it IS cited, including on an unattended run, but
+it is never presented as settled.)* Pass `formal_records` from
+`quality/formal_docs_manifest.json` whenever it exists: that manifest is the ground truth
+for what the pipeline will actually quote, so supplying it makes the show correct by
+construction (a `cite/`-placed document is quoted even when the classifier read it as
+background). Print its output as-is; it is written in the operator's language and
+deliberately carries no internal labels. When nothing is authoritative it says so
+prominently — the virtio signature, where every requirement ends up code-derived because a
+real spec was read as background.
+
+This is the mirror image of the requirements interview at State P2, at the boundary where
+it is cheapest to fix: **end of Phase 1 → confirm the classification** (which documents are
+authoritative), then Phase 2 derives against the confirmed set; **end of Phase 2 → confirm
+the requirements**. A correction here costs one re-run of the ingest; the same correction
+discovered after Phase 2 costs a whole re-derivation.
+
+**The show prints in every mode; only the *pause* varies** — and the pause is the exception,
+not the default, because the Mode A default is the full six-phase pipeline that does not
+stop at phase boundaries (`AGENTS.md`; `references/phase1_exploration_guide.md`; v1.5.7
+089b F11):
+
+- **`offer=True` (pause) only when an operator is stepping this run and waiting on you** —
+  they invoked this phase alone (`Run quality playbook phase 1.`), are going phase by
+  phase, or asked to be consulted at boundaries. Ask, then wait for the answer.
+- **`offer=False` (no pause) in every continuous or unattended run** — the full-pipeline
+  default, an explicit "run everything" / "run all phases" / "run straight through" /
+  "don't stop between phases", the single-pass prompt, and any runner-driven (Mode B) or
+  headless invocation where **no operator is present to answer**. The show still prints,
+  and its `offer=False` wording tells the operator they can hand over a correction at any
+  later point.
+
+Do **not** decide this by matching the operator's exact words — the question is only *"is
+someone stepping this run and waiting on me right now?"* If you cannot tell, use
+`offer=False`: a blocked unattended run is a worse failure than a missed pause, and the
+disclosure has been made either way.
+
+If the operator names a document to treat as authoritative (or the reverse), record it
+through the operator-authored path and re-run the ingest before Phase 2 — see
+`references/phase1_exploration_guide.md`, "End-of-Phase-1 documentation review".
 
 ### State P2 — Phase 2 just completed
 
@@ -90,10 +144,86 @@ COVERAGE_MATRIX.md, the four `RUN_*.md` review-protocol files, and the functiona
 harness under `quality/`. Still no confirmed bugs — Phase 3 is the first phase that
 emits BUG-NNN records.
 
+**Your requirements are complete — this is the moment to validate them.** Phases 3–6
+(code review, integration tests, spec audit, TDD) all *build on* these requirements, so
+a correction made now propagates into everything downstream; a correction made at the end
+leaves every artifact built on the un-corrected spec. You can run the **requirements
+validation interview** (`references/requirements_interview.md`): I play back what I
+understood the system to be, then walk the spec with you — you **confirm** what's right
+(recorded as durable evidence), **correct** what's wrong (it lands in the requirements and
+re-renders), or **add** what I missed. It's opt-in and I will not start it unless you ask.
+
+<the expert-review disclosure — see below; included whenever the expert-review pass ran>
+
 ### What to do next
 
-Continue with Phase 3 (Code Review) by saying `keep going` or `run phase 3`.
+- **To validate the requirements first (recommended):** say `run the requirements interview`.
+- **To proceed straight to the review:** continue with Phase 3 (Code Review) by saying
+  `keep going` or `run phase 3`. (Validation stays available; you'll get one reminder at
+  the end of the run.)
 ```
+
+**The expert-review disclosure is part of State P2 whenever the pass ran** *(v1.6.0
+Feature H, instruction 031)*. The Feature H persona validation pass runs at this boundary
+and **auto-applies** grounded changes to the operator's requirements. Before instruction
+031 the standard end-of-Phase-2 message said nothing about it, so an operator reading the
+message never learned their spec had been changed unless they separately opened
+`quality/expert_review_summary.json` — "surface, don't silently apply" failing at the one
+surface the operator actually reads.
+
+**Order matters: run the pass FIRST, then emit this block.** The block is the last visible
+content of the phase, and it cannot report a pass that has not happened yet. The boundary
+runs in exactly this order:
+
+1. Finish the requirements (Phase 2's artifacts are complete).
+2. Run the persona validation pass (`references/requirements_pipeline.md` § E.9).
+3. Re-render `quality/REQUIREMENTS.md` from the updated manifest.
+4. Emit State P2 — carrying **both** the requirements-interview offer and this disclosure.
+
+**The interview offer travels inside this block, so it now comes after the pass** — and
+that is the right order, not an accident of layout: the operator is being invited to walk
+the requirements *as they now stand*, including anything the reviewers changed. Reviewing a
+spec that is about to be rewritten under them would be the worse sequence. (Before
+instruction 031 the offer preceded the pass; the three surfaces — this file, `phase2.md`,
+§ E.9 — now agree on one order.)
+
+**If the operator says `undo the expert review changes`** (or anything that means it), call
+`bin.persona_apply.revert_from_disk(<target_repo>)`: it restores
+`quality/requirements_manifest.json` from the pre-pass snapshot
+`quality/requirements_manifest.pre_review.json` — exact for added, rewritten AND removed
+requirements, because it is the whole prior manifest, not a replay — and renames the review
+summary to `expert_review_summary.undone.json` (the set-aside suggestions it lists were
+never applied, so undoing does not destroy them). Then **re-render
+`quality/REQUIREMENTS.md`** from the restored manifest, the same write-back step the pass
+itself uses. It refuses rather than guessing, and the three refusals mean different things —
+report the one you got, don't collapse them:
+
+- `FileNotFoundError` naming *"the pass did not run here"* — nothing was changed, nothing to undo.
+- `FileNotFoundError` naming *"its pre-pass snapshot was not kept"* — a pass **did** run and
+  the requirements **were** changed; it just predates the snapshot. Point the operator at
+  `quality/expert_review_summary.json`, which lists every change, rather than telling them
+  nothing happened.
+- `ValueError` naming BUG records — Phase 3+ has run and BUG records cross-reference REQ ids
+  that this restore would orphan. The undo belongs at this boundary, before Phase 3 builds on
+  the requirements.
+
+Render it with `bin.persona_apply.persona_review_disclosure(review_summary)`, where
+`review_summary` is the pass's `PersonaPass.review_summary` (equivalently the loaded
+`quality/expert_review_summary.json`), and print the output verbatim. It says, in the
+operator's language, that expert reviewers read the requirements against their
+documentation, what they did (added / rewrote / removed / agreed-with, plus what they
+raised that was *not* acted on), that the requirements were changed, where to read every
+change with its backing, and that the whole thing can be undone.
+
+**When the pass did NOT run, nothing is added.** The renderer returns `None` for a run with
+no review summary — Feature H disabled for the run, or no pass performed — and the State P2
+block is emitted exactly as it was before. A run that had no expert review must never claim
+one.
+
+As with the State P1 documentation review, the output is written in the operator's language
+and carries no internal labels — do NOT paraphrase it with internal vocabulary ("persona",
+"Feature H", "agent-validation", "grounded", "sub-agent"); say *expert reviewers* and
+*backed by your documentation* (the v1.6.0 plain-language key).
 
 ### State P3 — Phase 3 just completed
 

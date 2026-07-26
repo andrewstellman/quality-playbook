@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.1",
+  "generated_at": "2026-06-19T22:30:00Z",
+  "results": [
+    {
+      "bug_id": "BUG-001",
+      "test": "TestBUG001_AcceptEncoding_qZero_and_bogusToken",
+      "red_phase": "fail",
+      "green_phase": "pass",
+      "verdict": "fixed",
+      "red_log": "quality/results/BUG-001.red.log",
+      "green_log": "quality/results/BUG-001.green.log",
+      "writeup_path": "quality/writeups/BUG-001.md"
+    },
+    {
+      "bug_id": "BUG-002",
+      "test": "TestBUG002_SupressNotFound_LiveContextMutation",
+      "red_phase": "fail",
+      "green_phase": "pass",
+      "verdict": "fixed",
+      "red_log": "quality/results/BUG-002.red.log",
+      "green_log": "quality/results/BUG-002.green.log",
+      "writeup_path": "quality/writeups/BUG-002.md"
+    },
+    {
+      "bug_id": "BUG-003",
+      "test": "TestBUG003_PageRoute_PathRewrite_UnderMount",
+      "red_phase": "fail",
+      "green_phase": "pass",
+      "verdict": "fixed",
+      "red_log": "quality/results/BUG-003.red.log",
+      "green_log": "quality/results/BUG-003.green.log",
+      "writeup_path": "quality/writeups/BUG-003.md"
+    },
+    {
+      "bug_id": "BUG-004",
+      "test": "TestBUG004_RealIP_TrimsLeftmostXFF",
+      "red_phase": "fail",
+      "green_phase": "pass",
+      "verdict": "fixed",
+      "red_log": "quality/results/BUG-004.red.log",
+      "green_log": "quality/results/BUG-004.green.log",
+      "writeup_path": "quality/writeups/BUG-004.md"
+    },
+    {
+      "bug_id": "BUG-005",
+      "test": "TestBUG005_ContentCharset_QuotedCharset",
+      "red_phase": "fail",
+      "green_phase": "pass",
+      "verdict": "fixed",
+      "red_log": "quality/results/BUG-005.red.log",
+      "green_log": "quality/results/BUG-005.green.log",
+      "writeup_path": "quality/writeups/BUG-005.md"
+    },
+    {
+      "bug_id": "BUG-006",
+      "test": "TestBUG006_Find_MountedWildcardURLParamReset",
+      "red_phase": "fail",
+      "green_phase": "pass",
+      "verdict": "fixed",
+      "red_log": "quality/results/BUG-006.red.log",
+      "green_log": "quality/results/BUG-006.green.log",
+      "writeup_path": "quality/writeups/BUG-006.md"
+    },
+    {
+      "bug_id": "BUG-007",
+      "test": "TestBUG007_RoutePattern_LiteralInteriorWildcard",
+      "red_phase": "fail",
+      "green_phase": "skipped",
+      "verdict": "confirmed open",
+      "red_log": "quality/results/BUG-007.red.log",
+      "green_log": null,
+      "writeup_path": "quality/writeups/BUG-007.md"
+    }
+  ]
+}

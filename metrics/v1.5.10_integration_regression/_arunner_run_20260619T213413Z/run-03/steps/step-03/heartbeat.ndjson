@@ -1,0 +1,6 @@
+{"ts":"2026-06-19T22:16:56Z","task_id":"express-integration-regression","schema_version":"2","label":"phase3","status":"STARTING"}
+{"ts":"2026-06-19T22:17:17Z","task_id":"express-integration-regression","schema_version":"2","label":"reading context: EXPLORATION, CONTRACTS, SKILL","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:17:41Z","task_id":"express-integration-regression","schema_version":"2","label":"reading lib/ source for review","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:18:33Z","task_id":"express-integration-regression","schema_version":"2","label":"triaging candidates; jsonp reachability","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:25:21Z","task_id":"express-integration-regression","schema_version":"2","label":"writing per-bug writeups","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:27:57Z","task_id":"express-integration-regression","schema_version":"2","status":"COMPLETED","result_file":"/Users/andrewstellman/Documents/QPB/repos/express-1.5.8/quality/INDEX.md","summary":"phase3 complete: 6 bugs confirmed (2 HIGH, 4 MEDIUM), 1 demoted; 12 patches apply clean"}

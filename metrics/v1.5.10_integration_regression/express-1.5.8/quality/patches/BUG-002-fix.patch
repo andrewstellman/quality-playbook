@@ -1,0 +1,15 @@
+--- a/lib/response.js
++++ b/lib/response.js
+@@ -761,7 +761,11 @@
+ 
+     if (!isNaN(maxAge)) {
+       opts.expires = new Date(Date.now() + maxAge)
+-      opts.maxAge = Math.floor(maxAge / 1000)
++      // Round up to whole seconds: a sub-second positive maxAge must not
++      // serialize Max-Age=0 (immediate delete) alongside a future Expires.
++      opts.maxAge = maxAge > 0
++        ? Math.max(1, Math.round(maxAge / 1000))
++        : Math.floor(maxAge / 1000)
+     }
+   }
+ 

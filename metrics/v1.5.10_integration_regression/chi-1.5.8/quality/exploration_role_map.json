@@ -1,0 +1,610 @@
+{
+  "breakdown": {
+    "files_by_role": {
+      "code": 34,
+      "config": 9,
+      "docs": 28,
+      "fixture": 2,
+      "test": 21
+    },
+    "percentages": {
+      "code_share": 0.31300374922718277,
+      "other_share": 0.6869962507728172,
+      "skill_share": 0.0,
+      "tool_share": 0.0
+    },
+    "size_by_role": {
+      "code": 110367,
+      "config": 3426,
+      "docs": 96243,
+      "fixture": 2776,
+      "test": 139794
+    }
+  },
+  "files": [
+    {
+      "path": ".clean_checkout",
+      "rationale": "Build/module/config metadata or license; not executable library surface.",
+      "role": "config",
+      "size_bytes": 172
+    },
+    {
+      "path": ".gitignore",
+      "rationale": "Build/module/config metadata or license; not executable library surface.",
+      "role": "config",
+      "size_bytes": 20
+    },
+    {
+      "path": "CHANGELOG.md",
+      "rationale": "Markdown documentation describing the library, its API, changes, or examples.",
+      "role": "docs",
+      "size_bytes": 15854
+    },
+    {
+      "path": "CONTRIBUTING.md",
+      "rationale": "Markdown documentation describing the library, its API, changes, or examples.",
+      "role": "docs",
+      "size_bytes": 1187
+    },
+    {
+      "path": "LICENSE",
+      "rationale": "Build/module/config metadata or license; not executable library surface.",
+      "role": "config",
+      "size_bytes": 1123
+    },
+    {
+      "path": "Makefile",
+      "rationale": "Build/module/config metadata or license; not executable library surface.",
+      "role": "config",
+      "size_bytes": 490
+    },
+    {
+      "path": "README.md",
+      "rationale": "Markdown documentation describing the library, its API, changes, or examples.",
+      "role": "docs",
+      "size_bytes": 23313
+    },
+    {
+      "path": "SECURITY.md",
+      "rationale": "Markdown documentation describing the library, its API, changes, or examples.",
+      "role": "docs",
+      "size_bytes": 313
+    },
+    {
+      "path": "_examples/README.md",
+      "rationale": "Markdown documentation describing the library, its API, changes, or examples.",
+      "role": "docs",
+      "size_bytes": 1899
+    },
+    {
+      "path": "_examples/chi.svg",
+      "rationale": "Supporting asset/data for an example program (documentation-by-example).",
+      "role": "docs",
+      "size_bytes": 2650
+    },
+    {
+      "path": "_examples/custom-handler/main.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 625
+    },
+    {
+      "path": "_examples/custom-method/main.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 853
+    },
+    {
+      "path": "_examples/fileserver/data/notes.txt",
+      "rationale": "Supporting asset/data for an example program (documentation-by-example).",
+      "role": "docs",
+      "size_bytes": 11
+    },
+    {
+      "path": "_examples/fileserver/main.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 1521
+    },
+    {
+      "path": "_examples/graceful/main.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 1707
+    },
+    {
+      "path": "_examples/hello-world/main.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 359
+    },
+    {
+      "path": "_examples/limits/main.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 2181
+    },
+    {
+      "path": "_examples/logging/main.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 272
+    },
+    {
+      "path": "_examples/pathvalue/main.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 550
+    },
+    {
+      "path": "_examples/rest/go.mod",
+      "rationale": "Build/module/config metadata or license; not executable library surface.",
+      "role": "config",
+      "size_bytes": 141
+    },
+    {
+      "path": "_examples/rest/go.sum",
+      "rationale": "Build/module/config metadata or license; not executable library surface.",
+      "role": "config",
+      "size_bytes": 688
+    },
+    {
+      "path": "_examples/rest/main.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 15501
+    },
+    {
+      "path": "_examples/rest/routes.json",
+      "rationale": "Supporting asset/data for an example program (documentation-by-example).",
+      "role": "docs",
+      "size_bytes": 11317
+    },
+    {
+      "path": "_examples/rest/routes.md",
+      "rationale": "Markdown documentation describing the library, its API, changes, or examples.",
+      "role": "docs",
+      "size_bytes": 4665
+    },
+    {
+      "path": "_examples/router-walk/main.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 913
+    },
+    {
+      "path": "_examples/todos-resource/main.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 748
+    },
+    {
+      "path": "_examples/todos-resource/todos.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 1453
+    },
+    {
+      "path": "_examples/todos-resource/users.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 1323
+    },
+    {
+      "path": "_examples/versions/data/article.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 388
+    },
+    {
+      "path": "_examples/versions/data/errors.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 542
+    },
+    {
+      "path": "_examples/versions/go.mod",
+      "rationale": "Build/module/config metadata or license; not executable library surface.",
+      "role": "config",
+      "size_bytes": 152
+    },
+    {
+      "path": "_examples/versions/go.sum",
+      "rationale": "Build/module/config metadata or license; not executable library surface.",
+      "role": "config",
+      "size_bytes": 491
+    },
+    {
+      "path": "_examples/versions/main.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 4072
+    },
+    {
+      "path": "_examples/versions/presenter/v1/article.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 399
+    },
+    {
+      "path": "_examples/versions/presenter/v2/article.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 625
+    },
+    {
+      "path": "_examples/versions/presenter/v3/article.go",
+      "rationale": "Example program demonstrating chi usage; documentation-by-example, not library surface.",
+      "role": "docs",
+      "size_bytes": 1002
+    },
+    {
+      "path": "chain.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 1517
+    },
+    {
+      "path": "chi.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 4713
+    },
+    {
+      "path": "context.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 4892
+    },
+    {
+      "path": "context_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 2824
+    },
+    {
+      "path": "go.mod",
+      "rationale": "Build/module/config metadata or license; not executable library surface.",
+      "role": "config",
+      "size_bytes": 149
+    },
+    {
+      "path": "middleware/basic_auth.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 852
+    },
+    {
+      "path": "middleware/clean_path.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 658
+    },
+    {
+      "path": "middleware/compress.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 11488
+    },
+    {
+      "path": "middleware/compress_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 5328
+    },
+    {
+      "path": "middleware/content_charset.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 1205
+    },
+    {
+      "path": "middleware/content_charset_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 2960
+    },
+    {
+      "path": "middleware/content_encoding.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 1087
+    },
+    {
+      "path": "middleware/content_encoding_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 1929
+    },
+    {
+      "path": "middleware/content_type.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 1265
+    },
+    {
+      "path": "middleware/content_type_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 2095
+    },
+    {
+      "path": "middleware/get_head.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 977
+    },
+    {
+      "path": "middleware/get_head_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 1941
+    },
+    {
+      "path": "middleware/heartbeat.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 755
+    },
+    {
+      "path": "middleware/logger.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 4978
+    },
+    {
+      "path": "middleware/logger_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 1116
+    },
+    {
+      "path": "middleware/maybe.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 636
+    },
+    {
+      "path": "middleware/middleware.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 684
+    },
+    {
+      "path": "middleware/middleware_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 3359
+    },
+    {
+      "path": "middleware/nocache.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 1430
+    },
+    {
+      "path": "middleware/page_route.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 519
+    },
+    {
+      "path": "middleware/path_rewrite.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 422
+    },
+    {
+      "path": "middleware/profiler.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 1325
+    },
+    {
+      "path": "middleware/realip.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 1826
+    },
+    {
+      "path": "middleware/realip_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 2311
+    },
+    {
+      "path": "middleware/recoverer.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 4858
+    },
+    {
+      "path": "middleware/recoverer_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 1456
+    },
+    {
+      "path": "middleware/request_id.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 2943
+    },
+    {
+      "path": "middleware/request_id_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 1402
+    },
+    {
+      "path": "middleware/request_size.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 454
+    },
+    {
+      "path": "middleware/route_headers.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 4167
+    },
+    {
+      "path": "middleware/route_headers_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 5766
+    },
+    {
+      "path": "middleware/strip.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 2199
+    },
+    {
+      "path": "middleware/strip_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 9524
+    },
+    {
+      "path": "middleware/sunset.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 700
+    },
+    {
+      "path": "middleware/sunset_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 2459
+    },
+    {
+      "path": "middleware/supress_notfound.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 852
+    },
+    {
+      "path": "middleware/terminal.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 1885
+    },
+    {
+      "path": "middleware/throttle.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 4199
+    },
+    {
+      "path": "middleware/throttle_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 7136
+    },
+    {
+      "path": "middleware/timeout.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 1222
+    },
+    {
+      "path": "middleware/url_format.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 1814
+    },
+    {
+      "path": "middleware/url_format_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 1653
+    },
+    {
+      "path": "middleware/value.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 436
+    },
+    {
+      "path": "middleware/wrap_writer.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 6080
+    },
+    {
+      "path": "middleware/wrap_writer_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 2454
+    },
+    {
+      "path": "mux.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 16755
+    },
+    {
+      "path": "mux_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 57188
+    },
+    {
+      "path": "path_value_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 1746
+    },
+    {
+      "path": "pattern_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 1186
+    },
+    {
+      "path": "testdata/cert.pem",
+      "rationale": "Test fixture data (TLS cert/key) consumed by the test suite.",
+      "role": "fixture",
+      "size_bytes": 1098
+    },
+    {
+      "path": "testdata/key.pem",
+      "rationale": "Test fixture data (TLS cert/key) consumed by the test suite.",
+      "role": "fixture",
+      "size_bytes": 1678
+    },
+    {
+      "path": "tree.go",
+      "rationale": "Independent Go library/middleware source carrying its own behavior contract; not subordinate to any SKILL.md prose.",
+      "role": "code",
+      "size_bytes": 20574
+    },
+    {
+      "path": "tree_test.go",
+      "rationale": "Go test file (table-driven tests for the corresponding source unit).",
+      "role": "test",
+      "size_bytes": 23961
+    }
+  ],
+  "provenance": "filesystem-walk-with-skips",
+  "schema_version": "1.0",
+  "summary": {
+    "file_count": 94,
+    "percentages": {
+      "code_share": 0.31300374922718277,
+      "other_share": 0.6869962507728172,
+      "skill_share": 0.0,
+      "tool_share": 0.0
+    },
+    "provenance": "filesystem-walk-with-skips",
+    "role_breakdown": {
+      "code": 34,
+      "config": 9,
+      "docs": 28,
+      "fixture": 2,
+      "test": 21
+    }
+  },
+  "timestamp_start": "2026-06-19T21:41:46Z"
+}

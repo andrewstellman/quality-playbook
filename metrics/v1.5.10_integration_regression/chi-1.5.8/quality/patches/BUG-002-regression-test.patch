@@ -1,0 +1,43 @@
+--- /dev/null
++++ b/middleware/qpb_bug002_regression_test.go
+@@ -0,0 +1,40 @@
++// Regression test for BUG-002 (Quality Playbook v1.5.8). Place in middleware/ to run.
++package middleware
++
++import (
++	"net/http"
++	"net/http/httptest"
++	"testing"
++
++	"github.com/go-chi/chi/v5"
++)
++
++// BUG-002: SupressNotFound passes the LIVE rctx into rctx.Routes.Match (mux.go documents that
++// Match mutates the *Context — "make a NewRouteContext()"). The probe walk appends to the live
++// rctx.RoutePatterns, so the subsequently-served handler observes a CORRUPTED (doubled)
++// RoutePattern(). Desired: SupressNotFound uses a throwaway context, leaving the live rctx clean
++// so RoutePattern() reports the real pattern exactly once.
++func TestBUG002_SupressNotFound_LiveContextMutation(t *testing.T) {
++	t.Skip("BUG-002: SupressNotFound mutates live routing context — unskip after applying quality/patches/BUG-002-fix.patch")
++
++	r := chi.NewRouter()
++	r.Use(SupressNotFound(r))
++	var seenPattern string
++	r.Get("/users/{id}", func(w http.ResponseWriter, req *http.Request) {
++		seenPattern = chi.RouteContext(req.Context()).RoutePattern()
++		w.WriteHeader(200)
++	})
++
++	req := httptest.NewRequest("GET", "/users/42", nil)
++	rec := httptest.NewRecorder()
++	r.ServeHTTP(rec, req)
++
++	if rec.Code != 200 {
++		t.Fatalf("GET /users/42 should be served; got %d", rec.Code)
++	}
++	// The probe Match must not pollute the live context: RoutePattern() must be the single,
++	// correct pattern, NOT a doubled "/users/{id}/users/{id}".
++	if seenPattern != "/users/{id}" {
++		t.Errorf("SupressNotFound must not corrupt the live RoutePattern via the probe Match; want %q got %q", "/users/{id}", seenPattern)
++	}
++}

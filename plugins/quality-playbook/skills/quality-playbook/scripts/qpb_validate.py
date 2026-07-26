@@ -167,6 +167,13 @@ INSTALL_CLOSURE = [
     {"path": "bin/qpb_validate.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/quality_playbook.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/reference_docs_ingest.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/doc_classification.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/persona_catalog.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/persona_orchestration.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/persona_grounding.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/persona_merge.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/persona_apply.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "bin/requirements_render.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/role_map.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/run_state_lib.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "bin/validate_phase_artifacts.py", "kind": "bundled_module", "min_version": None, "expected_sha256": None, "source_glob": None},
@@ -207,8 +214,7 @@ INSTALL_CLOSURE = [
     {"path": "references/qpb_validate_event_schema.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/recheck_mode.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/requirements_pipeline.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
-    {"path": "references/requirements_refinement.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
-    {"path": "references/requirements_review.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
+    {"path": "references/requirements_interview.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/review_protocols.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/role_map_queries.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
     {"path": "references/run_state_schema.md", "kind": "reference_file", "min_version": None, "expected_sha256": None, "source_glob": None},
@@ -1100,9 +1106,45 @@ def _version_tuple(v: str) -> "tuple[int, ...]":
     return tuple(out)
 
 
-def check_closure(install_root: Path) -> "list[dict]":
+def _resolve_install_layout(target: Path, marker: "str | None") -> "tuple[Path, Path]":
+    """Return ``(skill_root, bin_root)`` for the install, accepting BOTH layouts
+    (instruction 028). NESTED — ``<marker>/skills/quality-playbook/`` — is
+    install_skill.py's default: everything (including ``bin/``) under one root.
+    FLAT — ``<marker>/skills/`` with ``SKILL.md`` there and ``bin/`` at the target
+    root — is the setup_repos.sh / instruction-020 ``.github`` form (a real
+    adopter layout). Prefers whichever layout's ``SKILL.md`` actually exists;
+    defaults to nested so a GENUINELY-MISSING skill is still reported
+    ``install_absent`` by check_closure (no over-loosening)."""
+    if marker:
+        nested = target / MARKER_TO_INSTALL_REL[marker]
+    else:
+        nested = target / ".claude" / "skills" / "quality-playbook"
+    if (nested / "SKILL.md").is_file():
+        return nested, nested                 # nested: single root
+    flat = nested.parent                       # <marker>/skills
+    if (flat / "SKILL.md").is_file():
+        return flat, target                    # flat: skill files at flat, bin/ at target root
+    return nested, nested                      # missing -> nested default (install_absent)
+
+
+def _skill_installed(target: Path, marker: "str | None") -> bool:
+    """True iff a SKILL.md is present at the nested OR flat layout for `marker`."""
+    skill_root, _ = _resolve_install_layout(target, marker)
+    return (skill_root / "SKILL.md").is_file()
+
+
+def check_closure(install_root: Path, bin_root: "Path | None" = None) -> "list[dict]":
     """Apply each INSTALL_CLOSURE entry's kind-specific check. Returns
-    a list of finding dicts: {code, kind, path, detail}."""
+    a list of finding dicts: {code, kind, path, detail}.
+
+    ``bin_root`` resolves ``bin/*`` bundled-module entries (instruction 028): the
+    NESTED layout keeps everything (including ``bin/``) under one root, so
+    ``bin_root`` defaults to ``install_root``; the FLAT ``.github/skills/`` layout
+    (setup_repos.sh / instruction-020) puts the skill files under
+    ``.github/skills/`` and ``bin/`` at the TARGET ROOT, so the caller passes the
+    target as ``bin_root`` and the skill root as ``install_root``."""
+    if bin_root is None:
+        bin_root = install_root
     findings: "list[dict]" = []
     if not install_root.exists():
         findings.append({
@@ -1112,7 +1154,8 @@ def check_closure(install_root: Path) -> "list[dict]":
         })
         return findings
     for entry in INSTALL_CLOSURE:
-        p = install_root / entry["path"]
+        root = bin_root if entry["path"].startswith("bin/") else install_root
+        p = root / entry["path"]
         kind = entry["kind"]
         if not p.is_file():
             findings.append({"code": "install_partial", "kind": kind,
@@ -1503,7 +1546,8 @@ def main(argv: "list[str] | None" = None) -> int:
     # install_wrong_ai_tool: requested tool's path absent while a
     # different marker's install is present.
     if args.ai_tool and marker and len(markers) >= 1 and marker not in markers:
-        present = [m for m in markers if (target / MARKER_TO_INSTALL_REL[m]).exists()]
+        # instruction 028: recognize BOTH the nested and flat layouts as "present".
+        present = [m for m in markers if _skill_installed(target, m)]
         if present:
             findings.append({
                 "code": "install_wrong_ai_tool", "kind": "skill_doc",
@@ -1511,11 +1555,10 @@ def main(argv: "list[str] | None" = None) -> int:
                 "detail": f"requested {args.ai_tool} but install present at {present}",
             })
 
-    if marker:
-        install_root = target / MARKER_TO_INSTALL_REL[marker]
-    else:
-        install_root = target / ".claude" / "skills" / "quality-playbook"
-    closure_findings = check_closure(install_root)
+    # instruction 028: resolve the actual layout (nested OR flat) so a flat
+    # .github/skills/SKILL.md install is not false-flagged install_absent.
+    install_root, bin_root = _resolve_install_layout(target, marker)
+    closure_findings = check_closure(install_root, bin_root)
     for f in closure_findings:
         em.emit("closure_check", path=f["path"], kind=f["kind"],
                 status="fail", detail=f["detail"])

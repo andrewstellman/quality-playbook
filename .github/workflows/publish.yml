@@ -67,7 +67,9 @@ jobs:
           python -m pip install --upgrade build
           python -m build --outdir pip-dist .
       - name: Build npm tarball
-        run: npm pack --pack-destination npm-dist
+        run: |
+          mkdir -p npm-dist
+          npm pack --pack-destination npm-dist
       - name: Verify the wheel contains the bundle
         run: |
           set -euo pipefail
@@ -103,13 +105,13 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { name: npm-dist, path: npm-dist }
       - uses: actions/setup-node@v4
-        with: { node-version: '20', registry-url: 'https://registry.npmjs.org' }
+        with: { node-version: '22', registry-url: 'https://registry.npmjs.org' }
       - run: npm install -g npm@latest
       - name: Publish (idempotent on duplicate)
         run: |
           set -euo pipefail
           TARBALL=$(ls npm-dist/*.tgz)
-          if ! npm publish "$TARBALL" --access public --provenance > out.log 2>&1; then
+          if ! npm publish "./$TARBALL" --access public --provenance > out.log 2>&1; then
             if grep -qiE 'cannot publish over|previously published|E403' out.log; then
               echo "npm: already published — treating as success."; cat out.log; exit 0
             fi

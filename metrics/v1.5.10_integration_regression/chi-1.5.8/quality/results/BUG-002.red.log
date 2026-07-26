@@ -1,0 +1,6 @@
+=== RUN   TestBUG002_SupressNotFound_LiveContextMutation
+    qpb_regression_test.go:77: SupressNotFound must not corrupt the live RoutePattern via the probe Match; want "/users/{id}" got "/users/{id}/users/{id}"
+--- FAIL: TestBUG002_SupressNotFound_LiveContextMutation (0.00s)
+FAIL
+FAIL	github.com/go-chi/chi/v5/middleware	0.272s
+FAIL

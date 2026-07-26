@@ -1,0 +1,38 @@
+--- /dev/null
++++ b/test/regression_bug_001.test.js
+@@ -0,0 +1,35 @@
++'use strict'
++
++/*
++ * Regression test for BUG-001 (Express v5.2.1 Phase 3 code review).
++ * See quality/BUGS.md. Asserts desired-correct behavior; skipped until
++ * quality/patches/BUG-001-fix.patch lands. This file lives in test/, so express
++ * is required as '..'.
++ */
++
++var assert = require('node:assert')
++var express = require('..')
++var request = require('supertest')
++
++describe('regression: BUG-001', function () {
++  it.skip("BUG-001: req.protocol ignores an empty leading X-Forwarded-Proto element — unskip after applying quality/patches/BUG-001-fix.patch", function (done) {
++    var app = express()
++    app.enable('trust proxy')
++    app.use(function (req, res) {
++      res.json({ protocol: req.protocol, secure: req.secure })
++    })
++    request(app)
++      .get('/')
++      .set('X-Forwarded-Proto', ', https')
++      .expect(200)
++      .end(function (err, res) {
++        if (err) return done(err)
++        // Desired: the first NON-EMPTY token wins → https, secure true.
++        assert.strictEqual(res.body.protocol, 'https')
++        assert.strictEqual(res.body.secure, true)
++        done()
++      })
++  })
++
++})
++

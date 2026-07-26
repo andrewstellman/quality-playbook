@@ -1,0 +1,26 @@
+--- a/lib/response.js
++++ b/lib/response.js
+@@ -835,16 +835,20 @@
+   // Set location header
+   address = this.location(address).get('Location');
+ 
++  // Human-readable reason phrase; fall back to the numeric status when the
++  // code has no statuses.message entry so the body never says "undefined".
++  var message = statuses.message[status] || String(status)
++
+   // Support text/{plain,html} by default
+   this.format({
+     text: function(){
+-      body = statuses.message[status] + '. Redirecting to ' + address
++      body = message + '. Redirecting to ' + address
+     },
+ 
+     html: function(){
+       var u = escapeHtml(address);
+-      body = '<!DOCTYPE html><head><title>' + statuses.message[status] + '</title></head>'
+-       + '<body><p>' + statuses.message[status] + '. Redirecting to ' + u + '</p></body>'
++      body = '<!DOCTYPE html><head><title>' + message + '</title></head>'
++       + '<body><p>' + message + '. Redirecting to ' + u + '</p></body>'
+     },
+ 
+     default: function(){

@@ -3258,7 +3258,17 @@ def archive_previous_run(repo_dir: Path, current_run_timestamp: str) -> None:
     # tree holding only it (e.g. right after archive-on-switch cleared the
     # live run) counts as empty, so the switch + this pre-run auto-archive
     # don't double-archive a near-empty quality/.
-    non_live = set(archive_dirs) | {_LANGUAGE_SENTINEL}
+    # v1.6.0 031: RUN_INDEX.md is install scaffolding, not live content —
+    # install_skill.py creates it (nested layout) and setup_repos.sh creates it
+    # (benchmark lane) so the gitignore template's `!quality/RUN_INDEX.md`
+    # negation has its file. Without it in this set, a freshly-INSTALLED target
+    # whose quality/ holds nothing else is archived as a `partial` prior run
+    # before Phase 1 writes a byte: a phantom `previous_runs/<ts>/` cell that
+    # metrics_reconstruction and skill_derivation read as a real observation, a
+    # fabricated row in the append-only run index, and a subsequent
+    # `stale_quality_dir` Phase 0 block (instr 031 self-Council, Panelist C —
+    # reproduced end to end). Same class as the `_LANGUAGE_SENTINEL` entry above.
+    non_live = set(archive_dirs) | {_LANGUAGE_SENTINEL, "RUN_INDEX.md"}
     if not any(child.name not in non_live for child in quality_dir.iterdir()):
         return
 

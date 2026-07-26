@@ -99,6 +99,13 @@ cp "$QPB_SKILL_SRC"/scripts/phase_identity.py                    .github/skills/
 cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                        .github/skills/bin/qpb_config.py
 cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py                  .github/skills/bin/quality_playbook.py
 cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py             .github/skills/bin/reference_docs_ingest.py
+cp "$QPB_SKILL_SRC"/scripts/doc_classification.py                .github/skills/bin/doc_classification.py
+cp "$QPB_SKILL_SRC"/scripts/persona_catalog.py                   .github/skills/bin/persona_catalog.py
+cp "$QPB_SKILL_SRC"/scripts/persona_orchestration.py             .github/skills/bin/persona_orchestration.py
+cp "$QPB_SKILL_SRC"/scripts/persona_grounding.py                 .github/skills/bin/persona_grounding.py
+cp "$QPB_SKILL_SRC"/scripts/persona_merge.py                     .github/skills/bin/persona_merge.py
+cp "$QPB_SKILL_SRC"/scripts/persona_apply.py                     .github/skills/bin/persona_apply.py
+cp "$QPB_SKILL_SRC"/scripts/requirements_render.py               .github/skills/bin/requirements_render.py
 cp "$QPB_SKILL_SRC"/scripts/role_map.py                          .github/skills/bin/role_map.py
 cp "$QPB_SKILL_SRC"/scripts/run_state_lib.py                     .github/skills/bin/run_state_lib.py
 cp "$QPB_SKILL_SRC"/scripts/validate_phase_artifacts.py          .github/skills/bin/validate_phase_artifacts.py
@@ -155,6 +162,13 @@ cp "$QPB_SKILL_SRC"/scripts/qpb_heartbeat.py            .claude/skills/quality-p
 cp "$QPB_SKILL_SRC"/scripts/qpb_config.py                .claude/skills/quality-playbook/bin/qpb_config.py
 cp "$QPB_SKILL_SRC"/scripts/quality_playbook.py          .claude/skills/quality-playbook/bin/quality_playbook.py
 cp "$QPB_SKILL_SRC"/scripts/reference_docs_ingest.py     .claude/skills/quality-playbook/bin/reference_docs_ingest.py
+cp "$QPB_SKILL_SRC"/scripts/doc_classification.py        .claude/skills/quality-playbook/bin/doc_classification.py
+cp "$QPB_SKILL_SRC"/scripts/persona_catalog.py           .claude/skills/quality-playbook/bin/persona_catalog.py
+cp "$QPB_SKILL_SRC"/scripts/persona_orchestration.py     .claude/skills/quality-playbook/bin/persona_orchestration.py
+cp "$QPB_SKILL_SRC"/scripts/persona_grounding.py         .claude/skills/quality-playbook/bin/persona_grounding.py
+cp "$QPB_SKILL_SRC"/scripts/persona_merge.py             .claude/skills/quality-playbook/bin/persona_merge.py
+cp "$QPB_SKILL_SRC"/scripts/persona_apply.py             .claude/skills/quality-playbook/bin/persona_apply.py
+cp "$QPB_SKILL_SRC"/scripts/requirements_render.py       .claude/skills/quality-playbook/bin/requirements_render.py
 cp "$QPB_SKILL_SRC"/scripts/role_map.py                  .claude/skills/quality-playbook/bin/role_map.py
 cp "$QPB_SKILL_SRC"/scripts/run_state_lib.py             .claude/skills/quality-playbook/bin/run_state_lib.py
 cp "$QPB_SKILL_SRC"/scripts/validate_phase_artifacts.py  .claude/skills/quality-playbook/bin/validate_phase_artifacts.py

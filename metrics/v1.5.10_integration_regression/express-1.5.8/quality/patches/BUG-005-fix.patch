@@ -1,0 +1,72 @@
+--- a/lib/utils.js
++++ b/lib/utils.js
+@@ -96,19 +96,25 @@
+     var splitIndex = str.indexOf('=', index);
+     if (splitIndex === -1) break;
+ 
+-    var colonIndex = str.indexOf(';', index);
+-    var endIndex = colonIndex === -1 ? length : colonIndex;
++    // Find the end of this parameter at the next ';' that is NOT inside a
++    // quoted string (RFC 7231 quoted-string values may contain ';').
++    var endIndex = indexOfUnquoted(str, ';', splitIndex + 1);
++    if (endIndex === -1) endIndex = length;
+ 
+-    if (splitIndex > endIndex) {
+-      index = str.lastIndexOf(';', splitIndex - 1) + 1;
++    var colonIndex = indexOfUnquoted(str, ';', index);
++    if (colonIndex !== -1 && colonIndex < splitIndex) {
++      // No '=' before the next param boundary: skip the malformed segment.
++      index = colonIndex + 1;
+       continue;
+     }
+ 
+     var key = str.slice(index, splitIndex).trim();
+-    var value = str.slice(splitIndex + 1, endIndex).trim();
++    var value = unquote(str.slice(splitIndex + 1, endIndex).trim());
+ 
+     if (key === 'q') {
+-      ret.quality = parseFloat(value);
++      // Clamp quality to [0,1] per RFC 7231 5.3.1.
++      var q = parseFloat(value);
++      ret.quality = isNaN(q) ? 1 : Math.min(1, Math.max(0, q));
+     } else {
+       ret.params[key] = value;
+     }
+@@ -117,9 +123,37 @@
+   }
+ 
+   return ret;
++}
++
++/**
++ * Index of the first occurrence of `ch` in `str` at or after `from` that is
++ * not inside a double-quoted string (honoring backslash escapes).
++ * @api private
++ */
++function indexOfUnquoted (str, ch, from) {
++  var inQuotes = false;
++  for (var i = from; i < str.length; i++) {
++    var c = str[i];
++    if (c === '\\' && inQuotes) { i++; continue; }
++    if (c === '"') { inQuotes = !inQuotes; continue; }
++    if (c === ch && !inQuotes) return i;
++  }
++  return -1;
+ }
+ 
+ /**
++ * Strip surrounding double quotes from a quoted-string value, unescaping
++ * backslash escapes. Returns the input unchanged when it is not quoted.
++ * @api private
++ */
++function unquote (value) {
++  if (value.length >= 2 && value[0] === '"' && value[value.length - 1] === '"') {
++    return value.slice(1, -1).replace(/\\(.)/g, '$1');
++  }
++  return value;
++}
++
++/**
+  * Compile "etag" value to function.
+  *
+  * @param  {Boolean|String|Function} val

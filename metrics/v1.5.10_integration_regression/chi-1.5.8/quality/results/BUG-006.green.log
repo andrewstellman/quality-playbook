@@ -1,0 +1,4 @@
+=== RUN   TestBUG006_Find_MountedWildcardURLParamReset
+--- PASS: TestBUG006_Find_MountedWildcardURLParamReset (0.00s)
+PASS
+ok  	github.com/go-chi/chi/v5/middleware	0.263s

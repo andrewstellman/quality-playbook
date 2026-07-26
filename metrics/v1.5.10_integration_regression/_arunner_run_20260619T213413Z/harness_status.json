@@ -1,0 +1,61 @@
+{
+  "cycle": 5,
+  "pool_size": 3,
+  "counts": {
+    "queued": 0,
+    "claimed": 0,
+    "running": 0,
+    "stalled": 0,
+    "completed": 3,
+    "failed": 0,
+    "auth_or_launch_failed": 0,
+    "abandoned": 0
+  },
+  "done": true,
+  "runs": {
+    "run-01": {
+      "task_id": "chi-integration-regression",
+      "job_id": "job-00001",
+      "target_repo": "/Users/andrewstellman/Documents/QPB/repos/chi-1.5.8",
+      "state": "completed",
+      "last_hb_status": "COMPLETED",
+      "claimed_at": 1781907244.6125052,
+      "step_index": 2,
+      "step_count": 3,
+      "started": true,
+      "dispatch_mode": "subagent"
+    },
+    "run-02": {
+      "task_id": "virtio-integration-regression",
+      "job_id": "job-00002",
+      "target_repo": "/Users/andrewstellman/Documents/QPB/repos/virtio-1.5.8",
+      "state": "completed",
+      "last_hb_status": "COMPLETED",
+      "claimed_at": 1781907244.6125052,
+      "step_index": 2,
+      "step_count": 3,
+      "started": true,
+      "dispatch_mode": "subagent"
+    },
+    "run-03": {
+      "task_id": "express-integration-regression",
+      "job_id": "job-00003",
+      "target_repo": "/Users/andrewstellman/Documents/QPB/repos/express-1.5.8",
+      "state": "completed",
+      "last_hb_status": "COMPLETED",
+      "claimed_at": 1781907244.6125052,
+      "step_index": 2,
+      "step_count": 3,
+      "started": true,
+      "dispatch_mode": "subagent"
+    }
+  },
+  "last_tick_wall": 1781913123.6501608,
+  "next_tick_minutes": 10,
+  "continuation": {
+    "monitoring_paused": false,
+    "next_tick_due": 1781913724,
+    "verdict": "HALT",
+    "reason": "done"
+  }
+}

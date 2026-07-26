@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/test/regression_bug_002.test.js
+@@ -0,0 +1,34 @@
++'use strict'
++
++/*
++ * Regression test for BUG-002 (Express v5.2.1 Phase 3 code review).
++ * See quality/BUGS.md. Asserts desired-correct behavior; skipped until
++ * quality/patches/BUG-002-fix.patch lands. This file lives in test/, so express
++ * is required as '..'.
++ */
++
++var assert = require('node:assert')
++var express = require('..')
++var request = require('supertest')
++
++describe('regression: BUG-002', function () {
++  it.skip("BUG-002: res.cookie sub-second maxAge serializes Max-Age=0 — unskip after applying quality/patches/BUG-002-fix.patch", function (done) {
++    var app = express()
++    app.use(function (req, res) {
++      res.cookie('flash', '1', { maxAge: 500 }).end()
++    })
++    request(app)
++      .get('/')
++      .expect(200)
++      .end(function (err, res) {
++        if (err) return done(err)
++        var setCookie = String(res.headers['set-cookie'])
++        // Desired: a future-Expires cookie must not also carry Max-Age=0.
++        assert.ok(!/Max-Age=0(\b|;|$)/.test(setCookie),
++          'Set-Cookie must not contain Max-Age=0 for a future Expires: ' + setCookie)
++        done()
++      })
++  })
++
++})
++

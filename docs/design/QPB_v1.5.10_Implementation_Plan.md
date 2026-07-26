@@ -178,4 +178,4 @@ Cleanup first (lowest risk, shrinks the surface), then the trim (mechanical, pat
 
 ---
 
-*End of v1.5.10 Implementation Plan. Design in `QPB_v1.5.10_Design.md`. Successor backlog (security) in `QPB_v1.5.11_Design.md` + `QPB_v1.5.11_Implementation_Plan.md`.*
+*End of v1.5.10 Implementation Plan. Design in `QPB_v1.5.10_Design.md`. Successor backlog (security) in `QPB_v1.7.0_Design.md` + `QPB_v1.7.0_Implementation_Plan.md` (renamed from `QPB_v1.5.11_Design.md` + `QPB_v1.5.11_Implementation_Plan.md` on 2026-07-20).*

@@ -98,6 +98,8 @@ The user wants to run the quality playbook on a codebase. Here's what to do:
    or community documentation, place them in a `reference_docs/` directory at the
    top of the target repo:
 
+   **As of v1.6.0 (dump-and-go, Feature G), you no longer have to pre-sort documentation.** Drop any docs at the top level of `reference_docs/` and the playbook **reads and judges each one** at Phase 1 — deciding what to cite as an authoritative reference and what to treat as background, disclosing every model-read citation as `unconfirmed` until the operator confirms it, and routing anything carrying a hard signal (a CVE/GHSA identifier, an advisory URL, an implementation-source file) to the operator rather than citing it silently. The `cite/` subfolder below still works — it forces citability and is honored for one more release — but is **no longer required**; the model's read is the primary path. The buckets below remain useful when you want to *force* a classification instead of letting the model judge:
+
    - **Tier 4 context (AI chats, design notes, retrospectives)** → `reference_docs/`
      at the top level. No special treatment — these are read as background.
 

@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.5.8",
+  "generated_at": "2026-06-19T22:02:07Z",
+  "records": [
+    {
+      "id": "UC-1.a",
+      "name": "Transport-bit preservation on PCI-modern",
+      "actor": "virtio_pci_modern driver, device backend",
+      "functional_section": "Feature negotiation",
+      "formal_doc_refs": [],
+      "cluster": null
+    },
+    {
+      "id": "UC-1.b",
+      "name": "Transport-bit preservation on MMIO",
+      "actor": "virtio_mmio driver, device backend",
+      "functional_section": "Feature negotiation",
+      "formal_doc_refs": [],
+      "cluster": null
+    },
+    {
+      "id": "UC-1.c",
+      "name": "Transport-bit preservation on vDPA",
+      "actor": "virtio_vdpa driver, vDPA backend",
+      "functional_section": "Feature negotiation",
+      "formal_doc_refs": [],
+      "cluster": null
+    },
+    {
+      "id": "UC-2",
+      "name": "Transport feature-bit whitelist completeness",
+      "actor": "virtio_ring core, all transports",
+      "functional_section": "Feature negotiation",
+      "formal_doc_refs": [],
+      "cluster": "heterogeneous"
+    },
+    {
+      "id": "UC-3.a",
+      "name": "Reset wait-for-zero on PCI-modern",
+      "actor": "virtio_pci_modern driver, device",
+      "functional_section": "Device reset",
+      "formal_doc_refs": [],
+      "cluster": null
+    },
+    {
+      "id": "UC-3.b",
+      "name": "Reset wait-for-zero on MMIO",
+      "actor": "virtio_mmio driver, device",
+      "functional_section": "Device reset",
+      "formal_doc_refs": [],
+      "cluster": null
+    },
+    {
+      "id": "UC-3.c",
+      "name": "Reset wait-for-zero on PCI-legacy",
+      "actor": "virtio_pci_legacy driver, pre-1.0 device",
+      "functional_section": "Device reset",
+      "formal_doc_refs": [],
+      "cluster": null
+    },
+    {
+      "id": "UC-4.a",
+      "name": "Config-interrupt return value on PCI",
+      "actor": "virtio_pci interrupt handler, kernel IRQ core",
+      "functional_section": "Interrupt dispatch",
+      "formal_doc_refs": [],
+      "cluster": null
+    },
+    {
+      "id": "UC-4.b",
+      "name": "Config-interrupt return value on MMIO",
+      "actor": "virtio_mmio interrupt handler, kernel IRQ core",
+      "functional_section": "Interrupt dispatch",
+      "formal_doc_refs": [],
+      "cluster": null
+    },
+    {
+      "id": "UC-4.c",
+      "name": "Config-interrupt return value on vDPA",
+      "actor": "virtio_vdpa interrupt path, kernel IRQ core",
+      "functional_section": "Interrupt dispatch",
+      "formal_doc_refs": [],
+      "cluster": null
+    },
+    {
+      "id": "UC-5",
+      "name": "NOTIF_CONFIG_DATA survival on PCI-modern",
+      "actor": "virtio_pci_modern driver, modern device with queue_notify_data",
+      "functional_section": "Feature negotiation",
+      "formal_doc_refs": [],
+      "cluster": null
+    }
+  ]
+}

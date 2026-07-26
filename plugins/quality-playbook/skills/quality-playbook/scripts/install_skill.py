@@ -203,6 +203,13 @@ def _bundle_files_soft(
             "citation_verifier.py",
             "_purpose.py",
             "reference_docs_ingest.py",
+            "doc_classification.py",
+            "persona_catalog.py",
+            "persona_orchestration.py",
+            "persona_grounding.py",
+            "persona_merge.py",
+            "persona_apply.py",
+            "requirements_render.py",
             "benchmark_lib.py",
             "__init__.py",
             "quality_playbook.py",
@@ -464,6 +471,34 @@ def _bundle_files(source_root: Path) -> list[tuple[Path, Path]]:
         _require_bundle_file(source_root / scripts_dir / "reference_docs_ingest.py"),
         Path("bin") / "reference_docs_ingest.py",
     ))
+    # v1.6.0 Feature G (instruction 010): bundle bin/doc_classification.py —
+    # reference_docs_ingest.py imports it at module load for §8a dump-and-go
+    # classification. Mandatory (ImportError at Phase 1 ingest if missing);
+    # stdlib-only, so the bundle closure terminates here.
+    files.append((
+        _require_bundle_file(source_root / scripts_dir / "doc_classification.py"),
+        Path("bin") / "doc_classification.py",
+    ))
+    # v1.6.0 Feature H (instruction 020): bundle the six persona-validation
+    # modules so an adopter install actually ships Feature H. Mandatory —
+    # without them the persona pass cannot run at the adopter install root.
+    # Dependency-closed: persona_grounding imports citation_verifier (bundled
+    # above; its doc_classification import was removed in instruction 026 —
+    # grounding is now self-contained); persona_merge/apply import
+    # requirements_render (bundled here); all six are stdlib-only otherwise.
+    # (doc_classification is still bundled above for Feature G / reference_docs_ingest.)
+    for _persona_mod in (
+        "persona_catalog.py",
+        "persona_orchestration.py",
+        "persona_grounding.py",
+        "persona_merge.py",
+        "persona_apply.py",
+        "requirements_render.py",
+    ):
+        files.append((
+            _require_bundle_file(source_root / scripts_dir / _persona_mod),
+            Path("bin") / _persona_mod,
+        ))
     # v1.5.7 fix F-1 (transitive): bundle bin/benchmark_lib.py because
     # reference_docs_ingest.py imports it at module load. benchmark_lib
     # has no internal bin/ dependencies (stdlib-only) so the bundle

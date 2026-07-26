@@ -1,0 +1,8 @@
+{"ts":"2026-06-19T22:16:07Z","task_id":"virtio-integration-regression","schema_version":"2","label":"phase3","status":"STARTING"}
+{"ts":"2026-06-19T22:16:46Z","task_id":"virtio-integration-regression","schema_version":"2","label":"reading source for candidate bug verification","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:17:31Z","task_id":"virtio-integration-regression","schema_version":"2","label":"verifying queue-size + barrier candidates","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:18:26Z","task_id":"virtio-integration-regression","schema_version":"2","label":"building compensation grid + writing bugs","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:23:18Z","task_id":"virtio-integration-regression","schema_version":"2","label":"validating patches in worktree","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:23:47Z","task_id":"virtio-integration-regression","schema_version":"2","label":"RED-GREEN worktree validation","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:26:20Z","task_id":"virtio-integration-regression","schema_version":"2","label":"running GREEN tests","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:28:46Z","task_id":"virtio-integration-regression","schema_version":"2","status":"COMPLETED","result_file":"/Users/andrewstellman/Documents/QPB/repos/virtio-1.5.8/quality/INDEX.md","summary":"phase3 complete: 3 MEDIUM bugs confirmed (BUG-001/002/003), 3 candidates rejected, 6 patches validated RED->GREEN"}

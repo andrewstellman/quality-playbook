@@ -1,0 +1,39 @@
+--- /dev/null
++++ b/middleware/qpb_bug003_regression_test.go
+@@ -0,0 +1,36 @@
++// Regression test for BUG-003 (Quality Playbook v1.5.8). Place in middleware/ to run.
++package middleware
++
++import (
++	"net/http"
++	"net/http/httptest"
++	"testing"
++
++	"github.com/go-chi/chi/v5"
++)
++
++// BUG-003: PageRoute (and PathRewrite) compare/rewrite r.URL.Path, never matching the canonical
++// mounted path. Desired: PageRoute("/status") fires for /admin/status when mounted at /admin.
++func TestBUG003_PageRoute_PathRewrite_UnderMount(t *testing.T) {
++	t.Skip("BUG-003: PageRoute/PathRewrite raw-path under Mount — unskip after applying quality/patches/BUG-003-fix.patch")
++
++	child := chi.NewRouter()
++	fired := false
++	child.Use(PageRoute("/status", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		fired = true
++		w.WriteHeader(200)
++	})))
++	// A fallback route so the request is otherwise routable.
++	child.Get("/other", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(204) })
++
++	root := chi.NewRouter()
++	root.Mount("/admin", child)
++
++	req := httptest.NewRequest("GET", "/admin/status", nil)
++	rec := httptest.NewRecorder()
++	root.ServeHTTP(rec, req)
++
++	if !fired || rec.Code != 200 {
++		t.Errorf("PageRoute(\"/status\") under Mount(\"/admin\") should fire for /admin/status; got fired=%v status=%d", fired, rec.Code)
++	}
++}

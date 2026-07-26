@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.5.2",
+  "reqs": {
+    "REQ-006": {
+      "pattern": "parity",
+      "items": ["CHARSET_INJECTION"],
+      "sites": ["STRING_SEND", "BUFFER_SEND", "RES_SET"],
+      "note": "Authoritative item set = the documented v5 charset rule (History.md:15: force/normalize charset on res.send string responses). Sites = the three charset-handling surfaces named in REQ-006 References. 'present' = surface applies the documented force-utf-8 normalization consistently.",
+      "cells": [
+        {"cell_id": "REQ-006/cell-CHARSET_INJECTION-STRING_SEND", "item": "CHARSET_INJECTION", "site": "STRING_SEND", "present": true,  "evidence": "lib/response.js:137-143 setCharset(type,'utf-8') overwrites charset to utf-8"},
+        {"cell_id": "REQ-006/cell-CHARSET_INJECTION-BUFFER_SEND", "item": "CHARSET_INJECTION", "site": "BUFFER_SEND", "present": false, "evidence": "lib/response.js:150-153 ArrayBuffer.isView branch only sets default 'bin' when no Content-Type; preserves caller charset, does NOT normalize"},
+        {"cell_id": "REQ-006/cell-CHARSET_INJECTION-RES_SET", "item": "CHARSET_INJECTION", "site": "RES_SET", "present": false, "evidence": "lib/response.js:664-686 mime.contentType only adds charset when absent; never overwrites a pre-set non-utf-8 charset, so disagrees with STRING_SEND's overwrite"}
+      ]
+    },
+    "REQ-007": {
+      "pattern": "parity",
+      "items": ["LEADING_COMMA_AUTHORITY"],
+      "sites": ["HOST", "HOSTNAME", "SUBDOMAINS"],
+      "note": "Authoritative item = a syntactically-present authority in a trusted X-Forwarded-Host value that begins with a comma (',a.com'). Sites = the three host getters named in REQ-007 References. 'present' = the getter resolves the present authority (never undefined/[]).",
+      "cells": [
+        {"cell_id": "REQ-007/cell-LEADING_COMMA_AUTHORITY-HOST", "item": "LEADING_COMMA_AUTHORITY", "site": "HOST", "present": false, "evidence": "lib/request.js:424-427 substring(0, indexOf(',')) === '' for ',a.com'; :430 returns undefined"},
+        {"cell_id": "REQ-007/cell-LEADING_COMMA_AUTHORITY-HOSTNAME", "item": "LEADING_COMMA_AUTHORITY", "site": "HOSTNAME", "present": false, "evidence": "lib/request.js:444-458 'if (!host) return;' yields undefined when host is undefined (downstream of HOST)"},
+        {"cell_id": "REQ-007/cell-LEADING_COMMA_AUTHORITY-SUBDOMAINS", "item": "LEADING_COMMA_AUTHORITY", "site": "SUBDOMAINS", "present": false, "evidence": "lib/request.js:383-394 'if (!hostname) return [];' yields [] when hostname is undefined (downstream of HOSTNAME)"}
+      ]
+    }
+  }
+}

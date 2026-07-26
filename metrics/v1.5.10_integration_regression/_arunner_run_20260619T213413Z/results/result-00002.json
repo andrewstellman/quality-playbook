@@ -1,0 +1,35 @@
+{
+  "job_id": "job-00002",
+  "task_id": "virtio-integration-regression",
+  "terminal_status": "COMPLETED",
+  "result_file": null,
+  "summary": "all 3 step(s) completed",
+  "reaped_ts": "2026-06-19T23:36:14Z",
+  "synthesized": true,
+  "steps": [
+    {
+      "step": "step-01",
+      "step_index": 0,
+      "terminal_status": "COMPLETED",
+      "result_file": "/Users/andrewstellman/Documents/QPB/repos/virtio-1.5.8/quality/EXPLORATION.md",
+      "summary": "phase1 complete: 4 transport-consistency bug hypotheses, role map + EXPLORATION.md + PROGRESS.md, both validators PASS",
+      "reaped_ts": "2026-06-19T21:55:04Z"
+    },
+    {
+      "step": "step-02",
+      "step_index": 1,
+      "terminal_status": "COMPLETED",
+      "result_file": "/Users/andrewstellman/Documents/QPB/repos/virtio-1.5.8/quality/REQUIREMENTS.md",
+      "summary": "phase2 complete: 17 REQs, 11 UCs, 23 functional tests, mechanical receipt, 4 protocols; validator PASSED",
+      "reaped_ts": "2026-06-19T22:14:04Z"
+    },
+    {
+      "step": "step-03",
+      "step_index": 2,
+      "terminal_status": "COMPLETED",
+      "result_file": "/Users/andrewstellman/Documents/QPB/repos/virtio-1.5.8/quality/INDEX.md",
+      "summary": "phase3 complete: 3 MEDIUM bugs confirmed (BUG-001/002/003), 3 candidates rejected, 6 patches validated RED->GREEN",
+      "reaped_ts": "2026-06-19T23:36:14Z"
+    }
+  ]
+}

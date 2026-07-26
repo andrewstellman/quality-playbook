@@ -1,0 +1,17 @@
+--- a/lib/response.js
++++ b/lib/response.js
+@@ -148,8 +148,13 @@
+       if (chunk === null) {
+         chunk = '';
+       } else if (ArrayBuffer.isView(chunk)) {
+-        if (!this.get('Content-Type')) {
++        const bufType = this.get('Content-Type');
++        if (!bufType) {
+           this.type('bin');
++        } else if (typeof bufType === 'string') {
++          // Parity with the string branch: normalize the charset uniformly
++          // so the same handler advertises the same charset for both body types.
++          this.set('Content-Type', setCharset(bufType, 'utf-8'));
+         }
+       } else {
+         return this.json(chunk);

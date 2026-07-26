@@ -197,6 +197,17 @@ def check_version_parity(repo_root: Path) -> Tuple[bool, str]:
         repo_root / "quality_playbook_cli" / "__init__.py",
         _VERSION_RE_PY,
     )
+    if init is None:
+        # quality_playbook_cli/__init__.py derives __version__ from SKILL.md
+        # (single source, v1.5.10 instruction 057) and no longer carries a
+        # literal; fall back to the canonical SKILL.md frontmatter version.
+        _skill = repo_root / "SKILL.md"
+        if _skill.is_file():
+            for _line in _skill.read_text(encoding="utf-8").splitlines():
+                _st = _line.strip()
+                if _st.startswith("version:"):
+                    init = _st.split(":", 1)[1].strip() or None
+                    break
     report = (
         f"  pyproject.toml:                          {py}\n"
         f"  package.json:                            {pkg}\n"

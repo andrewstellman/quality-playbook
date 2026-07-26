@@ -1,0 +1,47 @@
+# Design-review Council — v1.6.0 Features G & H (2026-07-22)
+
+Council review of the two design additions (Feature G — dump-and-go ingest; Feature H — agent-driven persona validation) and the v1.6.1 couplings. Three adversarial panelists (architecture / safety / scope-implementability), run to convergence. **Final verdict: SHIP.**
+
+## Verdict progression
+| Round | Architecture | Safety | Scope/Impl |
+|---|---|---|---|
+| 1 | SHIP-WITH-FIXES | FIX-REQUIRED | FIX-REQUIRED |
+| 2 | SHIP | SHIP-WITH-FIXES | SHIP |
+| Confirm | — | **SHIP** | — |
+
+## Blocking findings (round 1) and how they were resolved
+
+**Feature G**
+- *No deterministic floor against advisory-poisoning* — a MUST/SHALL security bulletin reads like a contract and could be promoted to citable (the OpenFGA 0/3 failure). Byte-verification was wrongly listed as a safety (BUG-009 byte-matches). → **Deterministic advisory floor** (CVE/GHSA/URL/header + security-genre markers) the LLM cannot override; byte-verification de-listed as a mis-tiering guard; content-keyed manifest for reproducibility.
+
+**Feature H**
+- *No input isolation → circular validation.* A persona could read the code and `confirm` against it — validating requirements against implementation, the ground-truth rule's forbidden case. → **Input isolation**: persona receives only docs + rendered spec + rubric, denied the implementation tree; code-reading is a fabrication tell; covers all five moves. Plus a Feature-G source-not-citable rule to close the "code dumped into the docs folder" side door.
+- *"Calibration" measured variance (reliability), not accuracy (validity)* — a consistently-wrong persona passes and gates. → Gating **deferred**; H ships **non-gating**; gating requires an accuracy baseline (precision/recall vs. labeled corpus), named post-v1.6.0.
+- *Criterion 8 declared victory on the fallback (vacuous).* → Non-gating reframed as a **documented scope of the deliverable**, criterion carries testable sub-claims, release notes must state H shipped un-calibrated for gating.
+- *Not implementable:* persona derivation, verdict combination, `agent-validation` schema, false-positive ceiling all unspecified. → Fixed default **3-lens set** (domain / security / API-consumer); defined **merge** (parallel + blind → union grounded moves → surface conflicts → single terminal renumber, reconciled with §6); **`agent-validation` schema** (doc-cited, byte-verified, regenerated-not-persisted, non-coalescing); **false-positive ceiling** in the oracle.
+
+## Non-blocking residuals (round 2), all addressed
+1. Advisory floor broadened to security-genre markers + non-signature residual explicitly accepted (bounded blast radius: manifest-visible, non-gating, reviewable).
+2. Source-file-shaped docs floored to Tier 4 / non-citable (mechanical).
+3. **Non-gating ≠ non-altering** — persona changes update the manifest but the merge emits an **operator-visible agent-validation review summary** (surface, don't silently apply — modeled on G's citable-promotion). Conflict-surfacing covers the full five-move set.
+
+## Operator reframe after the Council (2026-07-22) — H is a remediator, not a gate
+The Council's "gating vs non-gating" framing was **corrected by the operator after review**: Feature H is not a judge that renders a pass/fail verdict — it is a **requirements remediator** whose job is to find problems and *fix* them, leaving `REQUIREMENTS.md` in the best shape it can. There is no "gate," no "release" for it to block, and therefore no accuracy-calibration precondition (that was machinery for a gating role H does not have). The design was updated to strip the gating framing:
+- Guard 4 recast: "A remediator, not a gate." Grounded add/correct/drop moves are **auto-applied** (operator decision: auto-apply, shown in a review list) with an operator-visible `agent-validation` review summary as the backstop.
+- The safety that remains is exactly what the Council validated for quality: **grounding** (cite + this-system justification), the **false-positive ceiling** (improves, does not degrade), input **isolation** (never reads the code), and the **review summary** (every change visible + revertible).
+- Consequence: the "standing constraint" earlier framed as "non-gating is load-bearing for the split" dissolves — H never gates, so it never threatened the split; the split holds because H is a self-contained remediator.
+- v1.6.1's Feature B is the genuine *judge* (verdicts change finding dispositions) and carries its own accuracy ground truth (the OpenFGA labeled fixtures); it reuses H's harness/isolation/provenance but not any "calibration" (H had none).
+
+## Dogfood self-test + hardening (2026-07-22)
+Before implementing, we manually ran the to-be-built pipeline on the v1.6.0 design doc itself (perfect ground truth). A derivation agent produced a 33-REQ spec of the feature set (Feature G classification + Feature C organization by hand); then **three fresh-context personas** (domain / security / adopter) validated it. Results:
+- **Multi-persona value proven:** the three lenses barely overlapped; the **security** persona *grounded* the prompt-injection gap the **domain** persona could only file as a candidate — validating the anchored-security design. The **adopter** found a real Feature-G flaw (machine-readable contracts dead-ended by the source floor) and the auto-apply usability risks.
+- **The feature stayed grounded and did not hallucinate:** every grounded add cited verified design text; ungrounded expert expectations went to the candidate bucket. (Verified off disk.)
+
+**Design flaws the self-test found (all folded in 2026-07-22):**
+- Feature G: machine-readable contracts (OpenAPI/proto/JSON-Schema/`.d.ts`) are citable, and the operator sidecar may explicitly promote a code-shaped contract (the source floor targets implementation logic only); the classifier resists documents arguing for their own tier.
+- Feature H security: persona **injection resistance** (contents are data, not instructions); **least-privilege** isolation (no network/secrets/out-of-run reads, not just impl-tree denial); **provenance write-restriction** (a persona may write only `agent-validation`, never `operator-confirmation`); byte-verification is not an injection guard.
+- Feature H usability: **off-switch**, a **concrete revert** mechanism, a **stated FP-ceiling default**, downstream attributability, and disclosure of the readability rubric's not-yet-functional maturity.
+- Persona selection recast as **catalog-with-anchors** (domain + security always; additional lenses AI-selected per system), mirroring the organizing-principle "choose from a menu" pattern.
+
+## What Andrew's original intent preserved
+The "have the persona update the requirements" behavior is kept — personas *do* write grounded add/correct moves to the manifest — but the updates are now **surfaced** (agent-validation provenance + operator-visible review summary) rather than silently auto-applied, and **grounded** (byte-verified citation + this-system justification) rather than hallucinable.

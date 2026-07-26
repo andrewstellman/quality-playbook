@@ -1,0 +1,11 @@
+--- a/middleware/content_charset.go
++++ b/middleware/content_charset.go
+@@ -30,6 +30,8 @@
+ 	_, ce = split(strings.ToLower(ce), ";")
+ 	_, ce = split(ce, "charset=")
+ 	ce, _ = split(ce, ";")
++	// RFC 2046 permits a quoted parameter value, e.g. charset="utf-8".
++	ce = strings.Trim(ce, `"`)
+ 	return slices.Contains(charsets, ce)
+ }
+ 

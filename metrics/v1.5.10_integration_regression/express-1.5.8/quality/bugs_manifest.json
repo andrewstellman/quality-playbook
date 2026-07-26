@@ -1,0 +1,108 @@
+{
+  "schema_version": "1.5.8",
+  "generated_at": "2026-06-19T22:10:00Z",
+  "records": [
+    {
+      "bug_id": "BUG-001",
+      "source": "Code Review",
+      "primary_requirement": "REQ-001",
+      "file_line": "lib/request.js:309-314",
+      "description": "req.protocol returns '' (req.secure false) for a trusted X-Forwarded-Proto with an empty leading comma-separated element",
+      "severity": "HIGH",
+      "divergence_type": "code-spec",
+      "reachability_analysis": "no guard; the index!==-1 branch (request.js:312-313) is reached unconditionally once trust passes and the header contains a comma — no non-empty-token check or fallback-to-proto when the first element is empty. req.protocol is a public getter read by req.secure and HTTPS-gating middleware.",
+      "regression_test": "test_regression.js it.skip BUG-001",
+      "regression_test_patch": "quality/patches/BUG-001-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-001-fix.patch",
+      "writeup_path": "quality/writeups/BUG-001.md",
+      "closure_status": "open"
+    },
+    {
+      "bug_id": "BUG-002",
+      "source": "Code Review",
+      "primary_requirement": "REQ-002",
+      "file_line": "lib/response.js:759-766",
+      "description": "res.cookie with sub-second maxAge serializes Max-Age=0 alongside a future Expires, dropping the cookie on Max-Age-preferring UAs",
+      "severity": "HIGH",
+      "divergence_type": "code-spec",
+      "reachability_analysis": "no guard; Math.floor(maxAge/1000) (response.js:764) is reached unconditionally inside if(!isNaN(maxAge)) for any numeric maxAge; no minimum, round-up, or Max-Age/Expires reconciliation. Hit by any 0<maxAge<1000 (e.g. 500ms flash/CSRF cookie).",
+      "regression_test": "test_regression.js it.skip BUG-002",
+      "regression_test_patch": "quality/patches/BUG-002-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-002-fix.patch",
+      "writeup_path": "quality/writeups/BUG-002.md",
+      "closure_status": "open"
+    },
+    {
+      "bug_id": "BUG-003",
+      "source": "Code Review",
+      "primary_requirement": "REQ-003",
+      "file_line": "lib/response.js:841,846-847",
+      "description": "res.redirect emits the literal 'undefined' in body and <title> for an in-range status absent from statuses.message (e.g. 310)",
+      "severity": "MEDIUM",
+      "divergence_type": "cross-source",
+      "reachability_analysis": "no guard; res.status (response.js:70) admits any integer 100-999, a strictly larger set than statuses.message covers, and the redirect body builder (:841,:846-847) reads statuses.message[status] with no fallback. Reached for any in-range code the message map omits.",
+      "regression_test": "test_regression.js it.skip BUG-003",
+      "regression_test_patch": "quality/patches/BUG-003-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-003-fix.patch",
+      "writeup_path": "quality/writeups/BUG-003.md",
+      "closure_status": "open"
+    },
+    {
+      "bug_id": "BUG-004",
+      "source": "Code Review",
+      "primary_requirement": "REQ-006",
+      "covers": ["REQ-006/cell-CHARSET_INJECTION-STRING_SEND", "REQ-006/cell-CHARSET_INJECTION-BUFFER_SEND", "REQ-006/cell-CHARSET_INJECTION-RES_SET"],
+      "consolidation_rationale": "all three cells trace to one divergence — string-send overwrites charset to utf-8 via setCharset while Buffer-send and res.set only add a charset when absent (mime.contentType); a single uniform charset rule across the three surfaces closes all three cells.",
+      "file_line": "lib/response.js:137-143,150-153,664-686; lib/utils.js:225-238",
+      "description": "Charset asymmetry: res.send forces charset=utf-8 for string bodies but preserves the caller's charset for Buffer bodies and via res.set",
+      "severity": "MEDIUM",
+      "divergence_type": "internal-prose",
+      "reachability_analysis": "no guard; the string branch (response.js:140) and Buffer branch (:150-153) are mutually exclusive arms of the same switch(typeof chunk) and each is reached unconditionally for its body type whenever a Content-Type with a charset is pre-set; no reconciliation before headers flush.",
+      "regression_test": "test_regression.js it.skip BUG-004",
+      "regression_test_patch": "quality/patches/BUG-004-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-004-fix.patch",
+      "writeup_path": "quality/writeups/BUG-004.md",
+      "closure_status": "open"
+    },
+    {
+      "bug_id": "BUG-005",
+      "source": "Code Review",
+      "primary_requirement": "REQ-005",
+      "file_line": "lib/utils.js:89-120",
+      "description": "acceptParams splits quoted parameter values on an inner ';' and does not clamp q to [0,1]",
+      "severity": "MEDIUM",
+      "divergence_type": "code-spec",
+      "reachability_analysis": "no guard; the boundary scan (utils.js:96-108) uses str.indexOf('='/';' ) with zero quoted-string awareness and :111 assigns parseFloat(value) with no clamp; reached unconditionally via normalizeType (utils.js:61-64) for any Accept/res.format/res.type media-type string with a quoted ';' or out-of-range q. Executable RED->GREEN confirmed in isolation: buggy params.x='\"a', q=5; fixed params.x='a;b', q=1.",
+      "regression_test": "test_regression.js it.skip BUG-005",
+      "regression_test_patch": "quality/patches/BUG-005-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-005-fix.patch",
+      "writeup_path": "quality/writeups/BUG-005.md",
+      "closure_status": "open"
+    },
+    {
+      "bug_id": "BUG-006",
+      "source": "Code Review",
+      "primary_requirement": "REQ-007",
+      "covers": ["REQ-007/cell-LEADING_COMMA_AUTHORITY-HOST", "REQ-007/cell-LEADING_COMMA_AUTHORITY-HOSTNAME", "REQ-007/cell-LEADING_COMMA_AUTHORITY-SUBDOMAINS"],
+      "consolidation_rationale": "all three cells trace to one root defect at host — substring(0, indexOf(',')) selects the empty leading element. hostname and subdomains are strict downstream consumers, so a single fix at the host getter closes all three cells.",
+      "file_line": "lib/request.js:424-427,444-458,383-394",
+      "description": "req.host/req.hostname/req.subdomains resolve to undefined/[] for a trusted X-Forwarded-Host with a leading comma",
+      "severity": "MEDIUM",
+      "divergence_type": "code-spec",
+      "reachability_analysis": "no guard; the trusted-branch split (request.js:424-427) is reached unconditionally when trust passes and XFH contains a comma, and always takes substring(0, firstComma) — '' when the first comma is at index 0. No non-empty-authority selection. Reached for any trusted comma-led XFH value.",
+      "regression_test": "test_regression.js it.skip BUG-006",
+      "regression_test_patch": "quality/patches/BUG-006-regression-test.patch",
+      "fix_patch": "quality/patches/BUG-006-fix.patch",
+      "writeup_path": "quality/writeups/BUG-006.md",
+      "closure_status": "open"
+    }
+  ],
+  "demoted": [
+    {
+      "candidate": "jsonp member-access whitelist (response.js:286)",
+      "classification": "false-positive",
+      "reachability_analysis": "compensating mechanism: the /[^\\[\\]\\w$.]/g filter strips every statement-breaking character ( ( ) ' ; space / ), confining the survivor to the fixed /**/ typeof CB === 'function' && CB(BODY); template; nosniff + the typeof guard close the residual surface. No injection path reachable.",
+      "excluded_from_bug_count": true
+    }
+  ]
+}

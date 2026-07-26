@@ -1,0 +1,32 @@
+--- /dev/null
++++ b/middleware/qpb_bug001_regression_test.go
+@@ -0,0 +1,29 @@
++// Regression test for BUG-001 (Quality Playbook v1.5.8). Place in middleware/ to run.
++package middleware
++
++import (
++	"strings"
++	"testing"
++)
++
++// BUG-001: matchAcceptEncoding substring-matches, so `gzip;q=0` (explicit rejection) and a bogus
++// `xgzip` token both falsely select gzip. Desired: exact comma-token match with non-zero q-value.
++func TestBUG001_AcceptEncoding_qZero_and_bogusToken(t *testing.T) {
++	t.Skip("BUG-001: matchAcceptEncoding substring match — unskip after applying quality/patches/BUG-001-fix.patch")
++
++	// gzip;q=0 must NOT select gzip (RFC 7231 §5.3.4: q=0 is rejection).
++	if matchAcceptEncoding(strings.Split(strings.ToLower("gzip;q=0"), ","), "gzip") {
++		t.Errorf("Accept-Encoding %q must NOT select gzip (q=0 is an explicit rejection)", "gzip;q=0")
++	}
++	// A bogus token that merely contains the coding name must NOT match.
++	if matchAcceptEncoding(strings.Split(strings.ToLower("xgzip"), ","), "gzip") {
++		t.Errorf("Accept-Encoding %q must NOT select gzip (not a registered coding token)", "xgzip")
++	}
++	if matchAcceptEncoding(strings.Split(strings.ToLower("notgzip, deflate"), ","), "gzip") {
++		t.Errorf("Accept-Encoding %q must NOT select gzip (substring false-positive)", "notgzip, deflate")
++	}
++	// Sanity: a real, well-formed token still matches (must remain true after the fix).
++	if !matchAcceptEncoding(strings.Split(strings.ToLower("gzip, deflate"), ","), "gzip") {
++		t.Errorf("Accept-Encoding %q must select gzip", "gzip, deflate")
++	}
++}

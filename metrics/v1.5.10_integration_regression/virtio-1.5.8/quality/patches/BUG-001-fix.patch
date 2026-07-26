@@ -1,0 +1,24 @@
+From: Quality Playbook v1.5.8 <quality-playbook>
+Subject: [PATCH] BUG-001: re-add VIRTIO_F_NOTIF_CONFIG_DATA in vp_transport_features
+
+vring_transport_features() clears every transport bit it does not enumerate
+(default: __virtio_clear_bit), including VIRTIO_F_NOTIF_CONFIG_DATA(39). The
+PCI-modern compensator vp_transport_features() re-adds SR_IOV/RING_RESET/ADMIN_VQ
+but not bit 39 -- even though vp_check_common_size() validates the common-cfg
+queue_notify_data field for it and vp_notify_with_data() can consume it. As a
+result the device-offered feature is always cleared and the validated path is dead.
+
+Re-add the bit in the compensator, mirroring the other three.
+
+--- a/drivers/virtio/virtio_pci_modern.c
++++ b/drivers/virtio/virtio_pci_modern.c
+@@ -376,6 +376,9 @@ static void vp_transport_features(struct virtio_device *vdev, u64 features)
+ 	if (features & BIT_ULL(VIRTIO_F_RING_RESET))
+ 		__virtio_set_bit(vdev, VIRTIO_F_RING_RESET);
+
++	if (features & BIT_ULL(VIRTIO_F_NOTIF_CONFIG_DATA))
++		__virtio_set_bit(vdev, VIRTIO_F_NOTIF_CONFIG_DATA);
++
+ 	if (features & BIT_ULL(VIRTIO_F_ADMIN_VQ))
+ 		__virtio_set_bit(vdev, VIRTIO_F_ADMIN_VQ);
+ }

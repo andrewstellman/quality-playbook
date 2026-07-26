@@ -1,0 +1,24 @@
+--- /dev/null
++++ b/middleware/qpb_bug005_regression_test.go
+@@ -0,0 +1,21 @@
++// Regression test for BUG-005 (Quality Playbook v1.5.8). Place in middleware/ to run.
++package middleware
++
++import (
++	"testing"
++)
++
++// BUG-005: contentEncoding does not strip quotes from a quoted charset, so charset="utf-8"
++// (RFC 2046 quoted parameter value) fails to match the allow-list entry utf-8.
++// Desired: a quoted charset matches.
++func TestBUG005_ContentCharset_QuotedCharset(t *testing.T) {
++	t.Skip("BUG-005: contentEncoding quoted charset — unskip after applying quality/patches/BUG-005-fix.patch")
++
++	if !contentEncoding(`text/plain; charset="utf-8"`, "utf-8") {
++		t.Errorf(`Content-Type %q should match charset utf-8 (RFC 2046 quoted param value)`, `text/plain; charset="utf-8"`)
++	}
++	// Sanity: the unquoted form must still match after the fix.
++	if !contentEncoding(`text/plain; charset=utf-8`, "utf-8") {
++		t.Errorf(`Content-Type %q should match charset utf-8`, `text/plain; charset=utf-8`)
++	}
++}

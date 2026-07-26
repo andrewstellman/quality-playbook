@@ -1,0 +1,37 @@
+--- /dev/null
++++ b/test/regression_bug_003.test.js
+@@ -0,0 +1,34 @@
++'use strict'
++
++/*
++ * Regression test for BUG-003 (Express v5.2.1 Phase 3 code review).
++ * See quality/BUGS.md. Asserts desired-correct behavior; skipped until
++ * quality/patches/BUG-003-fix.patch lands. This file lives in test/, so express
++ * is required as '..'.
++ */
++
++var assert = require('node:assert')
++var express = require('..')
++var request = require('supertest')
++
++describe('regression: BUG-003', function () {
++  it.skip("BUG-003: res.redirect emits literal 'undefined' for an unassigned in-range status — unskip after applying quality/patches/BUG-003-fix.patch", function (done) {
++    var app = express()
++    app.use(function (req, res) {
++      res.redirect(310, '/destination')
++    })
++    request(app)
++      .get('/')
++      .set('Accept', 'text/plain')
++      .expect(310)
++      .end(function (err, res) {
++        if (err) return done(err)
++        // Desired: body is human-readable, never the literal "undefined".
++        assert.ok(!/undefined/.test(res.text),
++          'redirect body must not contain the literal "undefined": ' + res.text)
++        done()
++      })
++  })
++
++})
++

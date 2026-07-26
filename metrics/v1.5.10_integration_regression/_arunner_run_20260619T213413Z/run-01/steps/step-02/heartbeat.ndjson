@@ -1,0 +1,6 @@
+{"ts":"2026-06-19T21:56:10Z","task_id":"chi-integration-regression","schema_version":"2","label":"phase2","status":"STARTING"}
+{"ts":"2026-06-19T21:56:31Z","task_id":"chi-integration-regression","schema_version":"2","label":"reading references + source","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:00:27Z","task_id":"chi-integration-regression","schema_version":"2","label":"writing CONTRACTS/COVERAGE/QUALITY","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:03:17Z","task_id":"chi-integration-regression","schema_version":"2","label":"writing functional tests","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:06:31Z","task_id":"chi-integration-regression","schema_version":"2","label":"writing RUN_* protocols","status":"IN_PROGRESS"}
+{"ts":"2026-06-19T22:11:23Z","task_id":"chi-integration-regression","schema_version":"2","status":"COMPLETED","result_file":"/Users/andrewstellman/Documents/QPB/repos/chi-1.5.8/quality/INDEX.md","summary":"phase2 complete"}

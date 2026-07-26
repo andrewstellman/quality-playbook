@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import io
 import re
+import shutil
 import subprocess
 import sys
 import unittest
@@ -230,6 +231,66 @@ class ValidatorFindingTests(unittest.TestCase):
         self.assertEqual(proc.returncode, 2, proc.stdout + proc.stderr)
         self.assertIn("finding=validator_invoked_from_clone", proc.stdout)
         self.assertIn("status=blocked", proc.stdout)
+
+
+def _install_flat_github(target: Path) -> None:
+    """Produce the setup_repos.sh / instruction-020 FLAT `.github` layout: install
+    nested, then move the skill files up to `.github/skills/` and `bin/` to the
+    target root (instruction 028 — a real adopter/benchmark layout)."""
+    subprocess.run(
+        [sys.executable, str(_INSTALLER), "--into", str(target),
+         "--ai-tool", "github"], check=True, capture_output=True)
+    nested = target / ".github" / "skills" / "quality-playbook"
+    flat = target / ".github" / "skills"
+    shutil.move(str(nested / "bin"), str(target / "bin"))     # bin/ -> target root
+    for child in list(nested.iterdir()):                       # everything else -> flat
+        shutil.move(str(child), str(flat / child.name))
+    nested.rmdir()
+
+
+class FlatGithubLayout028Tests(unittest.TestCase):
+    """instruction 028 fix 1: the validator recognizes the FLAT `.github/skills/
+    SKILL.md` layout (bin/ at the target root) as valid alongside the nested one,
+    and still fails a genuinely-missing skill."""
+
+    def test_flat_github_layout_validates_clean(self):
+        # Acceptance 1: a flat-layout target validates clean — no install_absent
+        # false-flag and no install_partial (the full closure resolves: skill
+        # files under .github/skills/, bin/ under the target root).
+        with TemporaryDirectory() as td:
+            target = Path(td).resolve()
+            _install_flat_github(target)
+            self.assertTrue((target / ".github/skills/SKILL.md").is_file())   # flat
+            self.assertFalse((target / ".github/skills/quality-playbook").exists())
+            self.assertTrue((target / "bin" / "__init__.py").is_file())       # bin at root
+            with mock.patch.object(v, "check_environment", return_value=([], [])):
+                _rc, out = _run_main([str(target)])
+        self.assertNotIn("finding=install_absent", out, out)
+        self.assertNotIn("finding=install_partial", out, out)
+
+    def test_nested_github_layout_still_validates(self):
+        with TemporaryDirectory() as td:
+            target = Path(td).resolve()
+            subprocess.run(
+                [sys.executable, str(_INSTALLER), "--into", str(target),
+                 "--ai-tool", "github"], check=True, capture_output=True)
+            self.assertTrue(
+                (target / ".github/skills/quality-playbook/SKILL.md").is_file())
+            with mock.patch.object(v, "check_environment", return_value=([], [])):
+                _rc, out = _run_main([str(target)])
+        self.assertNotIn("finding=install_absent", out, out)
+        self.assertNotIn("finding=install_partial", out, out)
+
+    def test_flat_layout_missing_skill_still_fails(self):
+        # A `.github/skills/` dir that exists but holds NO SKILL.md (neither flat
+        # nor nested) must still fail install_absent — no over-loosening.
+        with TemporaryDirectory() as td:
+            target = Path(td).resolve()
+            (target / ".github" / "skills").mkdir(parents=True)
+            with mock.patch.object(v, "check_environment", return_value=([], [])):
+                rc, out = _run_main([str(target)])
+        self.assertNotEqual(rc, 0, out)
+        self.assertIn("finding=install_absent", out, out)
 
 
 class DetectInvocationContextTests(unittest.TestCase):

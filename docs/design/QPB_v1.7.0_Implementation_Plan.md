@@ -1,331 +1,336 @@
 # Quality Playbook v1.7.0 — Implementation Plan
 
 *Companion to: `QPB_v1.7.0_Design.md`*
-*Status: drafted 2026-05-03 alongside the v1.7 design. Implementation begins after v1.6.0 ships.*
-*Depends on: v1.5.5, v1.5.6, v1.6.0 all shipped; defect catalog maintained as new defects accumulate; ≥10 calibration cycles' worth of cell.json data on disk.*
+
+*Renumbered on 2026-07-20: this release (the security work) moved from v1.5.11 to v1.7.0, and the file was `git mv`'d from `QPB_v1.5.11_Implementation_Plan.md` accordingly (operator decision). Internal self-references below have been updated to v1.7.0; historical provenance mentions of prior names/numbers are left as-is.*
+
+*Status: created 2026-06-07 as `QPB_v1.5.10_Implementation_Plan.md`; **renumbered to v1.5.11 on 2026-06-11** (the SKILL.md trim became its own v1.5.10 release when v1.5.9 refocused on the harness + standalone distribution). Inherits the broader-scope phases originally drafted as v1.5.9, deferred when v1.5.9 was scoped down. Implementation begins after v1.5.10 ships.*
+
+*Authored under explicit operator carve-out from the default "QPB source files are propose-don't-edit" rule.*
 
 ---
 
 ## Operating Principles
 
-- **One AI session per implementation phase** (same model as v1.5.5 calibration cycles). State lives in the filesystem (`run_state.jsonl` + `PROGRESS.md`), not in any in-memory or external-process structure.
-- **Validate the framework against QPB's own data before declaring it ready.** v1.7 doesn't ship until the SPC framework has been run against the existing 61-defect baseline AND ≥10 cells of calibration-cycle data, with operator-reviewed control-chart output.
-- **Discipline on `SKILL.md`.** SPC is operator-facing analysis machinery; SKILL.md doesn't change. Orientation docs (`ai_context/STATISTICAL_CONTROL.md`, `ai_context/SDLC_CONTROL_PROTOCOL.md`) are new.
-- **Each phase has a Council review.** Sub-agent fan-out per CALIBRATION_PROTOCOL.md Mode 1; three flat lenses (statistical correctness, schema/data fidelity, dashboard usability).
-- **Backward compatibility on cell.json.** All schema additions are optional fields. Pre-v1.7 cell.json files remain readable.
-- **Honest framing on small-sample limits.** Every chart in the dashboard surfaces sample size and confidence-interval width. No chart is shipped with a misleadingly tight control limit on under-sampled data.
+- **v1.7.0 picks per-item priorities** at implementation start based on what's empirically most blocking after v1.5.9 ships. The design enumerates 1 ship-gate feature + 8 capabilities (B-1 through B-8); v1.7.0 likely won't implement all of them. Default subset: ship-gate Part 1 + B-1 + B-8.
+- **Worker-lane edits** for all source changes. Cowork files instructions; worker implements; Council reviews.
+- **Per-capability sub-phasing.** Each B-N capability has its own implementation sub-phase + Council review. Skip-able if the capability is deferred.
 
 ---
 
-## Phase 0 — v1.6.0 Stabilization Confirmation
+## Phase 0 — v1.5.9 Stabilization Confirmation
 
-Goal: confirm v1.6.0 is shipped, tagged, validated; the `1.7.0` branch is fresh from the v1.6.0 tag; `RELEASE_VERSION` bumped to `1.7.0-pre`. Confirm calibration-cycle data accumulation is sufficient to validate the framework.
+Before any v1.7.0 work begins, confirm v1.5.9 has fully shipped:
 
-Work items:
-- v1.6.0 tag exists on origin.
-- main fast-forwarded to v1.6.0.
-- 1.7.0 branch created from v1.6.0 tag.
-- `RELEASE_VERSION` bumped (only when tagging — kept at `1.6.0` during dev per the v1.5.5 convention).
-- `metrics/regression_replay/` contains ≥ 10 cycle directories.
-- `Quality Playbook/Reviews/QPB_Process_Defect_Baseline.md` is current as of v1.6 ship.
-- Any v1.6 self-audit findings dispositioned.
+- `v1.5.9` tag on origin
+- `1.5.9` branch merged to `main`
+- pip + npm + awesome-copilot (if applicable) channels published
+- Harness-as-skill MVP validated and `bin/harness/` Python code deleted (or marked for deletion)
+- SKILL.md trim complete; token-ceiling test ratcheted to the post-trim size
 
-Gate to Phase 1: all of the above confirmed; sufficient data for SPC framework validation.
+**Worker instruction at start of v1.7.0:** `cd ~/Documents/QPB && git checkout main && git pull && git checkout -b 1.5.10 && git push -u origin 1.5.10`.
 
 ---
 
-## Phase 1 — Defect Catalog Schema + Migration
+## Phase 1 — Methodology absorption sweep
 
-Goal: convert the prose-based defect catalog into structured machine-readable form so the SDLC dashboard reads canonical data rather than parsing markdown.
+Per Design § Part 4. Verify the following lessons are documented in `ai_context/DEVELOPMENT_PROCESS.md`; if any are missing, file a micro-instruction for each:
 
-Work items:
+- Patch-authoring discipline (2026-06-06 gson PR origin)
+- Multi-step shell discipline (2026-06-06 gson recovery origin)
+- Velocity-pressure self-imposed deadline pattern (2026-06-06 cross-chat audit origin)
 
-- **Create `metrics/sdlc_defects/SCHEMA.md`** defining:
-  - One JSON file per SDLC version (e.g., `phase-A.json`, `phase-B.json`, ..., `phase-D.json`).
-  - Each file contains an array of defect records.
-  - Required fields per record: `id` (e.g., `D-007`), `class` (e.g., `count-discipline`, `terminology-drift`, `verify-before-claim-violation`), `phase` (which SDLC phase introduced it), `date` (ISO 8601 date of introduction or detection), `severity` (low / medium / high), `recurrence_of_class` (string or null — if this defect is a recurrence of an older class, name the class).
-  - Optional fields: `triggering_event` (commit SHA, conversation timestamp, etc.), `triggered_change_ids` (array of change IDs like `C-026`), `prose_summary` (the markdown narrative preserved from the source catalog).
-  - Schema versioning: `_index` field at the top of each JSON file (matching v1.5.5 convention).
-
-- **Create `bin/migrate_defect_baseline.py`** (one-time migration utility):
-  - Parse `Quality Playbook/Reviews/QPB_Process_Defect_Baseline.md`.
-  - Extract each defect record's fields from the markdown table + prose.
-  - Group records by SDLC phase.
-  - Write `metrics/sdlc_defects/phase-<X>.json` files.
-  - Preserve the original markdown as `prose_summary` per record.
-  - Validate: count of records in JSON output matches count in input markdown; all 38 process changes are referenced from at least one defect's `triggered_change_ids`.
-
-- **Add unit tests** in `bin/tests/test_sdlc_defect_catalog.py`:
-  - Migration round-trip preserves record count.
-  - Schema-validator helper rejects malformed records.
-  - The 61-defect baseline and 38 process changes correctly migrate.
-
-- **Add `bin/sdlc_defect_lib.py`** with helpers for the dashboard: `read_defects(phase=None)`, `defect_class_distribution()`, `recurrence_rate(window_size)`, `defects_per_release()`, `change_event_timeline()`.
-
-Deliverable: schema documented; migration utility produces canonical JSON; unit tests pass.
-
-Council review (3 flat lenses):
-- Schema fidelity: does the structured form preserve everything the prose form had?
-- Migration correctness: does round-trip produce identical content?
-- Schema versioning: is forward compatibility preserved if future defect records add new fields?
-
-Gate to Phase 2: schema published; migration utility committed; unit tests pass; smoke test produces machine-readable defect data matching the prose baseline.
+This phase is cheap (one read of DEVELOPMENT_PROCESS.md + at most a few small instructions). Land it FIRST so feature work doesn't reintroduce the patterns these lessons protect against.
 
 ---
 
-## Phase 2 — `bin/spc_lib.py` Core SPC Library
+## Phase 2 — Ship-gate feature (Design § Part 1)
 
-Goal: implement the core SPC chart types and run rules.
+### Phase 2A — Architectural choice (Design § 1.5)
 
-Work items:
+Operator picks: extend `quality_gate.py` vs new `bin/skill_gate.py` vs external. Recommended default: extend `quality_gate.py` with a sub-module pattern.
 
-- **Create `bin/spc_lib.py`** with:
-  - **Chart types** (functions that take observations + config, return `ChartResult`):
-    - `xbar_r_chart(subgroups, subgroup_size)` — X-bar/R for measurements with subgroups.
-    - `p_chart(numerator, denominator, subgroup_sizes)` — proportion data.
-    - `c_chart(counts, sample_sizes)` — counts of defects per unit.
-    - `xmr_chart(observations)` — individuals + moving range, single-observation case.
-  - **`ChartResult` dataclass** with fields: `chart_type`, `centerline`, `upper_control_limit`, `lower_control_limit`, `data_points`, `sample_size`, `confidence_interval_width`, `out_of_control_points` (indices), `pattern_signals` (list of run-rule violations).
-  - **Run rules** (functions that take a `ChartResult`, return list of `RunRuleViolation`):
-    - Western Electric rules 1-4 (single point beyond 3σ; 2/3 beyond 2σ; 4/5 beyond 1σ; 8 in a row on one side).
-    - Nelson rules added selectively if false-signal rate is acceptable (defer to v1.7.x if so).
-  - **Control-limit recomputation policy:** initial limits from first 10-15 observations; recomputed every N observations thereafter (configurable).
-  - **Small-sample handling:** when sample size < 20, control limits are flagged as `provisional` in `ChartResult`; the dashboard renders them with a wide-CI band.
+### Phase 2B — Mechanical invariants (Design § 1.1)
 
-- **Add unit tests** in `bin/tests/test_spc_lib.py`:
-  - Each chart type with synthetic in-control data → no run-rule violations.
-  - Each chart type with synthetic out-of-control data (deliberate special cause) → expected violations detected.
-  - Edge cases: zero observations, single observation, all-identical observations.
-  - Sample-size flagging: < 20 observations correctly flagged as provisional.
+Implement the per-file invariants. Each invariant gets a regression test + AUDIT-table entry where applicable.
 
-- **Add `bin/tests/test_spc_lib_against_qpb_data.py`** as an integration test:
-  - Reads `metrics/regression_replay/*/cell.json` files.
-  - Computes X/MR chart on the recall-delta sequence.
-  - Asserts the chart's centerline and limits are computed without error.
-  - Doesn't assert specific values — those depend on accumulated data — just that the framework runs end-to-end on real data.
+### Phase 2C — Cross-artifact consistency invariants (Design § 1.2)
 
-Deliverable: `bin/spc_lib.py` published; unit tests pass; integration test confirms the framework operates on real cell.json data.
+Implement the across-file invariants.
 
-Council review (3 flat lenses):
-- Statistical correctness: are the control-limit formulas correct? Are the run rules implemented per the canonical definitions (Western Electric Handbook, Montgomery, etc.)?
-- API design: is the `ChartResult` dataclass the right shape for downstream dashboards?
-- Edge-case coverage: are zero-observation, single-observation, and all-identical-observation cases handled gracefully?
+### Phase 2D — Semantic Council audit prompt (Design § 1.3)
 
-Gate to Phase 3: SPC core library committed; unit + integration tests pass; Council ship verdict.
+Author the audit prompt. Run it against the v1.7.0 trimmed SKILL.md as the first empirical test of the prompt's signal-to-noise.
+
+### Phase 2E — Bootstrap-as-regression-test framing (Design § 1.4)
+
+Wire the bootstrap run into the release-prep gate. Expected-bug set lives in `docs/regression/bootstrap_expected_bugs.json` (new file). Gate FAILS if recall drops or false-positive count rises.
+
+### Phase 2 Ship Gate
+
+- Self-Council Protocol 1 with three panelists (invariant correctness, consistency-check soundness, regression-test framing sanity)
+- All gates green on a fresh QPB build
 
 ---
 
-## Phase 3 — Multi-Cell Calibration Cycle Support
+## Phase 3 — Capability B-1 (Prompt-injection isolation)
 
-Goal: extend the calibration orchestrator and cell.json schema to support factorial and Latin-square experimental designs.
+### Phase 3A — Sanitization pass
 
-Work items:
+Phase 1 ingestion adds a sanitization step over `reference_docs/` content. Strip patterns: code-block executables, "ignore previous instructions"-class phrases, structured roleplay attempts.
 
-- **Extend `metrics/regression_replay/SCHEMA.md`** with the additive fields from the v1.7 Design ("Multi-cell calibration cycles" section):
-  - `cycle_design`: enum.
-  - `factor_levels`: array.
-  - `factor_values`: object.
-  - `design_run_index`: integer.
-  - All fields are optional; pre-v1.7 cell.json files remain valid.
+### Phase 3B — Reference doc isolation
 
-- **Create `bin/multi_cell_doe.py`** with:
-  - `factorial_design(factors, levels, fractional=False)` — generates the design matrix for a factorial experiment.
-  - `latin_square(factors, treatments)` — generates a Latin square design.
-  - `augment_design(existing_cells, new_factor_values)` — produces follow-up cells when the initial design surfaces an interaction.
-  - `validate_design(cells)` — checks that the cells in a directory match the declared `cycle_design`. Catches missing cells, off-design cells, etc.
+Tier 4 content gets a clearly-labeled "untrusted data, not instructions" wrapper in the Phase 1 prompt. Agent's prompt template updated.
 
-- **Update `agents/calibration_orchestrator.md`** to handle `cycle_design` variants:
-  - Step 2 (pre-lever runs) becomes Step 2 (run all cells in the design matrix in `design_run_index` order).
-  - Step 4 (post-lever runs) merges with Step 2 since multi-cell designs don't have a strict pre/post split — the design matrix encodes the structure.
-  - Step 5 (delta computation) becomes "compute main effects + interactions" using DoE analysis.
+### Phase 3C — Test fixture
 
-- **Add unit tests** in `bin/tests/test_multi_cell_doe.py`:
-  - Full factorial 2² produces 4 cells with correct factor combinations.
-  - Fractional factorial 2^(5-2) produces 8 cells with correct aliasing.
-  - Latin square 4×4 produces 16 cells with the expected balance.
-  - `validate_design` catches missing cells.
+Create a small benchmark repo with prompt-injection-laden `reference_docs/`. Verify the agent classifies it correctly (as data, not instructions).
 
-- **Add integration test:** dry-run a factorial cycle (no actual playbook subprocess) to confirm the orchestrator template handles the multi-cell flow correctly.
+### Phase 3 Ship Gate
 
-Deliverable: schema extended (backward-compatible); DoE library + tests; orchestrator template updated.
-
-Council review:
-- Are the experimental designs implemented correctly per DoE methodology (Montgomery, *Design and Analysis of Experiments*)?
-- Does the orchestrator template correctly handle the multi-cell flow without losing v1.5.5's resume semantics?
-- Is backward compatibility actually preserved? Can a pre-v1.7 cell.json round-trip through `validate_design` without errors?
-
-Gate to Phase 4: multi-cell cycle support committed; tests pass; Council ship.
+- Self-Council Protocol 1
+- Empirical fixture run shows the agent did NOT follow the injection attempts
 
 ---
 
-## Phase 4 — Cross-Version Trend Tracking Pipeline
+## Phase 4 — Capability B-8 (Weak-assertion detection)
 
-Goal: produce per-benchmark recall trajectories across QPB releases, plus per-defect-class trajectories.
+### Phase 4A — Layer 1 static pattern detection (Design § 2.8 Layer 1)
 
-Work items:
+Implement scanner for known weak-assertion patterns (try/catch+assertTrue(true), empty assertThrows, generic exception in assertThrows, etc.). Block weak-test marking.
 
-- **Create `bin/cross_version_trends.py`**:
-  - Inputs: `repos/archive/<benchmark>/quality/previous_runs/<version>/quality/BUGS.md` for every benchmark × every version, plus current cycle outputs.
-  - Outputs: `metrics/cross_version_trends/<benchmark>.json` with per-benchmark recall trajectory, per-defect-class trajectory, version metadata (date, QPB version), and per-version replicate counts where available.
-  - Uses `bin/spc_lib.xmr_chart()` to compute control limits on the recall trajectory.
+### Phase 4B — Layer 2 adversarial test critique (Design § 2.8 Layer 2)
 
-- **Extend `bin/visualize_calibration.py`** with two new chart types:
-  - `cross_version_recall_trajectory(benchmarks)` — multi-line plot, X = QPB version chronological, Y = recall, one line per benchmark, control limits as bands.
-  - `cross_version_defect_class_trajectory(benchmark, classes)` — heatmap or stacked-area chart showing defect-class counts over versions.
+Add the adversarial critique sub-pass to Phase 3 verification. Test that "passes for the wrong reason" gets rejected.
 
-- **Add unit tests** in `bin/tests/test_cross_version_trends.py`:
-  - Reads a synthetic three-version archive and produces correct trajectory data.
-  - Handles missing versions gracefully (gaps in the chronological sequence).
-  - Replicate-aware: when a version has multiple BUGS.md (replicate runs), uses the mean and computes within-version variance.
+### Phase 4C — Layer 3 counterfactual mutation (optional, benchmark-mode only) (Design § 2.8 Layer 3)
 
-- **Run against real data**: validate the pipeline produces the multi-benchmark trend chart for chi-1.3.45/chi-1.5.1/virtio-1.5.1/express-1.3.50 across the v1.3.x → v1.5.x QPB release series.
+Implement only if benchmark validation budget supports it. Defer if expensive.
 
-Deliverable: pipeline runs end-to-end; charts render against real archive data.
+### Phase 4D — Bugspec coordination
 
-Council review:
-- Trajectory correctness: does the recall computation match prior cell.json values?
-- Chart design: do the trajectories communicate the trend clearly without misleading the operator about confidence?
-- Missing-data handling: does the pipeline handle the gaps in the historical archive gracefully?
+Surface this work to the bugspec maintainers (Andrew) for v0.3.3+ adoption.
 
-Gate to Phase 5: pipeline committed; charts validated against real data; Council ship.
+### Phase 4 Ship Gate
+
+- Self-Council Protocol 1
+- Mutation-verified pin tests: a known-weak test from past QPB runs (gson #3035 pre-203 pattern) gets correctly rejected by both Layer 1 and Layer 2
 
 ---
 
-## Phase 5 — SDLC Defect-Rate Dashboard
+## Phase 5 — Capability B-9 (Fix cost/benefit evaluation)
 
-Goal: render the structured defect catalog as actionable charts.
+**Per Design § 2.9.** Origin: 2026-06-08 closure of gson PR #3036 after Marcono1234's review surfaced that the fix's per-call overhead wasn't justified by the bug's rare incidence. The lesson: QPB Phase 6 verifies bug-exists + fix-correct; it doesn't evaluate fix-worth-shipping. B-9 closes that gap.
 
-Work items:
+### Phase 5A — Evaluation sub-pass scaffold
 
-- **Create `bin/sdlc_defect_dashboard.py`**:
-  - Reads `metrics/sdlc_defects/*.json` via `bin/sdlc_defect_lib.py`.
-  - Computes: defects-per-release rate (c-chart), defect-class proportions (p-chart per class), recurrence rate (p-chart over sliding window), days-between-defects (X/MR), process-change-to-defect ratio (X/MR).
-  - Renders charts via `bin/visualize_calibration.py` extensions.
-  - Produces a single multi-chart dashboard PNG plus a per-chart JSON summary.
-  - Annotates process-change events as vertical lines on each chart.
+Add a new sub-pass between Phase 5 (reconcile) and Phase 6 (verify) that evaluates each TDD-verified bug across the five dimensions enumerated in Design § 2.9: incidence, fix overhead distribution, security framing, architectural cost, symmetry-as-contract.
 
-- **Add unit tests** in `bin/tests/test_sdlc_defect_dashboard.py`:
-  - Dashboard renders against the migrated 61-defect catalog without errors.
-  - Recurrence-rate chart correctly identifies Phase D's elevated rate.
-  - Process-change events appear at correct X-axis positions.
+Output schema: a per-bug classification (SHIP-WORTHY / OPT-IN-WORTHY / LOCAL-FIX-WORTHY / DEFENSIVE-NOTE) plus a one-paragraph rationale per dimension. Lives at `quality/fix_evaluation.json` (new artifact).
 
-- **Validate against the cataloged data**: the dashboard's output should match the manual analysis in `Quality Playbook/Reviews/QPB_Process_Defect_Baseline.md` (defect-class distribution, defect-to-change ratios stable around 1.3-1.8, Phase D 55% recurrence rate). If the dashboard's numbers don't match the prose, one of them is wrong.
+### Phase 5B — Static analysis hooks for incidence + overhead
 
-Deliverable: dashboard runs; output validated against manual analysis.
+The evaluation needs measurable inputs. Build:
 
-Council review:
-- Chart appropriateness: is each metric using the right chart type per the v1.7 design?
-- Honest framing: does the dashboard correctly surface sample-size caveats and confidence-interval widths?
-- Operator usability: is the dashboard actionable, or is it pretty but not useful?
+- **Incidence estimator**: count trigger-condition occurrences in the target codebase via the existing role-map traversal. Cross-reference with QPB's existing benchmark corpus to calibrate "common case" thresholds empirically.
+- **Overhead estimator**: static analysis of the fix's locus — does it add work in the hot path (every map serialization) or only in the bug-trigger path (when a specific condition is met)?
+- **Security framing classifier**: cross-reference the bug's category (read-side parser input vs. write-side output emission vs. logic vs. state mutation) with known CVE patterns.
 
-Gate to Phase 6: dashboard committed; output validated; Council ship.
+### Phase 5C — Integration with B-7 (bugspec emit) and B-6 (combine PRs)
 
----
+Phase 7 bugspec emission becomes classification-aware: only SHIP-WORTHY bugs get emitted by default. OPT-IN-WORTHY emits to a separate `quality/config_flag_candidates.json` stream for operator triage.
 
-## Phase 6 — Orientation Docs + Operator Protocols
+B-6 (combine findings into PR) groups SHIP-WORTHY bugs into clusters. OPT-IN-WORTHY and LOCAL-FIX-WORTHY bugs don't enter the upstream-PR pipeline.
 
-Goal: make SPC operator-usable. Two new orientation docs.
+### Phase 5D — Operator override mechanism
 
-Work items:
+The evaluation is a recommendation, not a gate. Operator can force any classification to SHIP-WORTHY (or downgrade SHIP-WORTHY to LOCAL-FIX-WORTHY) via `quality/fix_evaluation_overrides.yaml`. Overrides are logged in BUGS.md with the rationale the operator provides.
 
-- **Create `ai_context/STATISTICAL_CONTROL.md`**:
-  - What SPC is, in plain SE/QE terms (no jargon).
-  - Which chart types QPB uses for which metrics.
-  - How to read a control chart (centerline, limits, run-rule violations).
-  - When to investigate a special-cause signal vs. accept it as known.
-  - The honest caveats: small-sample limits, structural-break handling, what SPC can and can't tell you.
-  - Pointer to `bin/spc_lib.py` and `bin/sdlc_defect_dashboard.py` for the implementation.
+### Phase 5E — Empirical validation against historical PRs
 
-- **Create `ai_context/SDLC_CONTROL_PROTOCOL.md`**:
-  - Procedure for adding a new defect to `metrics/sdlc_defects/<phase>.json`.
-  - Classification rules (what counts as `count-discipline` vs. `terminology-drift` vs. new class).
-  - Recurrence detection: how to determine `recurrence_of_class` correctly.
-  - Process-change protocol: when a special-cause signal merits a process change, how to draft it, where it lands in the catalog.
-  - Cross-reference to the existing `ai_context/CALIBRATION_PROTOCOL.md` (improvement-loop side) and `ai_context/DEVELOPMENT_PROCESS.md` (general SDLC rules).
+Run B-9 retrospectively against QPB's history of generated upstream PRs:
 
-- **Update `ai_context/IMPROVEMENT_LOOP.md`** with the v1.7 SPC additions:
-  - Replace "moving toward statistical control" with "under statistical control via the v1.7 framework."
-  - Add a "How to read the control charts" section pointing to `STATISTICAL_CONTROL.md`.
+- **PR #3035 (gson BUG-001)** — should classify SHIP-WORTHY. Real correctness consequence, tight fix, no per-call overhead.
+- **PR #3036 (gson BUG-002)** — should classify OPT-IN-WORTHY or LOCAL-FIX-WORTHY. Rare corner case, per-call overhead. Matches Marcono1234's review verdict.
+- Any other past PRs filed and accepted or rejected by upstream maintainers — verify the classification matches the empirical outcome.
 
-Deliverable: orientation docs published; cross-references consistent.
+If the retrospective classification doesn't match outcomes, recalibrate the dimensions before shipping.
 
-Council review:
-- Plain-language test: can a non-expert operator read these docs and understand the system?
-- Cross-reference consistency: do the new docs and the existing `CALIBRATION_PROTOCOL.md` / `DEVELOPMENT_PROCESS.md` agree?
-- Completeness: are there steps an operator would need but can't find?
+### Phase 5 Ship Gate
 
-Gate to Phase 7: orientation docs committed; Council ship.
+- Self-Council Protocol 1 — panelists cover: classification correctness on the historical PR corpus; static-analysis hook reliability; operator-override safety.
+- Empirical validation against the historical PR set — at least 5 past PRs classified with matching outcomes
+- Integration tested with B-7's bugspec emit filter
 
 ---
 
-## Phase 7 — Validation Against QPB's Own Data
+## Phase 6 — Capability B-10 (Claim-vs-implementation consistency check)
 
-Goal: prove the framework works by running it against QPB's existing data and validating the output.
+**Per Design § 2.10.** Origin: 2026-06-08 review of BUG-005 from gson run `20260604T220125Z` — QPB Phase 3's fix claimed to mirror `JsonReader.nextInt` but used different operators (`BigDecimal.intValueExact()` vs `(int) asDouble; compare`) producing different semantics at the 2^53 boundary. The lesson: TDD verification + cost/benefit + weak-assertion gates don't catch patches whose semantics diverge from the writeup's claimed mirror. B-10 closes that gap.
 
-Work items:
+### Phase 6A — Adversarial boundary input generator
 
-1. **Improvement-loop validation:** run `bin/spc_lib.xmr_chart()` against all `metrics/regression_replay/*/cell.json` files (≥ 10 cells expected by v1.7). Confirm the chart renders, control limits compute, run rules fire correctly on any out-of-control points. If a special-cause signal fires, run the investigation note workflow and add the disposition to the calibration log.
+Build the Level 3 boundary-input generation infrastructure (Design § 2.10 Level 3). Hand-curated boundary sets per type:
 
-2. **SDLC validation:** run the dashboard against the migrated 61-defect catalog. Confirm:
-   - Phase D's 55% recurrence rate appears as a special-cause signal on the recurrence-rate chart.
-   - Defect-class distribution matches the prose analysis.
-   - Defect-to-change ratio (1.3-1.8) appears stable across Phases B and C, then breaks during Phase D.
+- Integer types: `MIN_VALUE`, `MAX_VALUE`, `MIN_VALUE - 1`, `MAX_VALUE + 1` (as strings to bypass overflow), 0, ±1
+- Floating point: `MIN_VALUE`, `MAX_VALUE`, smallest subnormal, NaN, ±Infinity, ±0.0, 2^53, 2^53 + 1
+- Strings: empty, UTF-8 boundary characters (surrogate pair starts, high-bit-set), control characters
+- Booleans: trivial
+- Composite: empty collections, single-element, max-size at the type's documented limit
 
-3. **Multi-cell cycle validation:** run a 2×2 factorial cycle on Pattern 7 budget-cap × Pattern 7 ordering. Use `bin/multi_cell_doe.py` to generate the design, run the orchestrator, analyze with `bin/spc_lib.py`. The output should attribute variance to budget cap, ordering, and their interaction.
+The generator emits input candidates per detected type signature; subsequent phases run both reference and patch against each.
 
-4. **Cross-version validation:** run `bin/cross_version_trends.py` against the historical archive. Confirm the chi-1.3.45 / chi-1.5.1 / virtio-1.5.1 / express-1.3.50 trajectories render correctly with v1.5.4's Pattern 7 inflection point identifiable.
+### Phase 6B — Reference site detection + AST parsing
 
-5. **Operator readability check:** Andrew (or an AI proxy) reads `STATISTICAL_CONTROL.md` and the dashboard output cold. Can the framework be understood without context from the design doc?
+For each generated patch, detect what code locations the writeup claims to mirror:
 
-If any of these fail, fix or revise before tagging.
+1. Parse the writeup's frontmatter / structured citations for explicit `file:line` references (preferred — force into writeup format)
+2. Fall back to LLM extraction of prose claims like "mirrors X" / "same pattern as Y" → resolve to source file:line
 
-Deliverable: validation report at `Quality Playbook/Reviews/QPB_v1.7.0_Validation_Report.md` documenting all four validations + the operator readability check.
+For each claimed reference: parse the AST (Java via JavaParser-style tooling, Python via `ast`, etc.). Extract operators, types, control flow. Same for the patch's modified code.
 
-Council review (final pre-tag):
-- Are the validation results honest? Any cherry-picking of charts that look good while suppressing ones that don't?
-- Did any validation surface a framework defect not yet addressed?
-- Is the framework ready for adopters to use in v1.8+?
+### Phase 6C — Level 1 + Level 2 (structural) implementation
 
-Gate to Phase 8: validation report committed; framework demonstrably works; Council ship.
+- Level 1: raw AST diff. Flag operator-class divergence (cast vs method call, arithmetic vs comparison, etc.).
+- Level 2: equivalence-by-similarity. Same operator FAMILY on equivalent types? Use type lattice + operator categories.
+
+These are weaker pre-filters; output feeds into the Level 3 trigger.
+
+### Phase 6D — Level 3 (adversarial boundary) execution
+
+For each (reference, patch, generated-input) triple:
+
+1. Compile / load both reference and patch
+2. Execute reference with input → record result (return value, exception class, exception message)
+3. Execute patch with input → record result
+4. Compare. If different: flag with input + both behaviors
+
+The execution sandbox must isolate the reference and patch (separate classloaders for Java, separate modules for Python) to avoid state leak.
+
+### Phase 6E — Operator-decidable surface
+
+A B-10 failure doesn't auto-reject. The flag is presented to the operator with:
+
+- The boundary input that triggered the divergence
+- The reference's behavior on that input
+- The patch's behavior on that input
+- The writeup's claim verbatim
+- Two suggested resolutions: "update writeup to match patch's stronger contract" OR "update patch to literally mirror"
+
+Operator picks. Resolution gets logged to `quality/claim_implementation_resolutions.json`.
+
+### Phase 6F — Integration with B-7 + B-8 + B-9
+
+- After B-8 weak-assertion gate passes (test catches the bug)
+- After B-9 cost/benefit classification (SHIP-WORTHY, etc.)
+- B-10 runs as a gate before B-7's bugspec emit
+- A B-10 unresolved failure blocks bugspec YAML emission for that bug; operator must resolve before the bug ships
+
+### Phase 6G — Empirical validation against BUG-005
+
+Run B-10 retrospectively against the BUG-005 patch:
+
+- Reference: `JsonReader.nextInt`'s `(int) asDouble; compare` pattern at the cited file:line
+- Patch: `JsonTreeReader.nextInt`'s proposed `BigDecimal.intValueExact()` change
+- Generated input `"9007199254740993"` should trigger divergence
+- Expected output: reference returns `9007199254740992`, patch throws `ArithmeticException`
+- B-10 surfaces this with both behaviors named; operator resolves
+
+If B-10 doesn't surface this divergence with the BUG-005 patch, the boundary input generation needs recalibration before shipping.
+
+### Phase 6 Ship Gate
+
+- Self-Council Protocol 1 — three panelists: boundary-input generator coverage, AST extraction correctness, B-7/B-8/B-9 integration correctness
+- BUG-005 retrospective produces the expected flag with both behaviors named
+- At least 3 historical QPB-generated patches passed through B-10 retrospectively with predicted-vs-actual matching outcomes
 
 ---
 
-## Phase 8 — Mechanical Release
+## Phase 7 — Remaining B-N capabilities (deferrable)
 
-Goal: ship v1.7.0.
+These are documented in Design § 2.1-2.7. Each has its own sub-phase if implemented, or moves to v1.7.0.
 
-Work items:
-- Bump `RELEASE_VERSION` in `bin/benchmark_lib.py` from `1.6.0` to `1.7.0`.
-- Bump SKILL.md frontmatter, banner, JSON examples, generated-by templates (same pattern as v1.5.5 / v1.5.4 release prep).
-- Bump README version stamp.
-- Add "What's new in v1.7" section to README covering: SPC machinery for both improvement loop and SDLC, multi-cell calibration cycles, cross-version trend tracking, defect-catalog migration to structured form, two new orientation docs.
-- Update Roadmap section in README: move v1.7 from "future" to "shipped"; expand v1.8 description if v1.8 design has progressed in parallel.
-- Run final test suite — must pass.
-- Commit, tag `v1.7.0`, push branch, push tag.
-- Fast-forward main, push main.
-- Create `1.8.0` branch, push.
-- Verify origin via `git ls-remote`.
+- B-2: Phase-isolated improvement loop for security-bug targeting (Design § 2.2)
+- B-3: Harness resume/iterate semantics (Design § 2.3)
+- B-4: Bug-neighborhood iteration strategy (Design § 2.4)
+- B-5: Adversarial fresh-context review pass (Design § 2.5)
+- B-6: Combine related findings into single coherent PR (Design § 2.6)
+- B-7: Phase 7 bugspec-format emit (Design § 2.7) — includes two sub-constraints per Design § 2.7's subsections, both implementable independently of the rest of B-7:
+  - **Target-project conformance** (Design § 2.7 sub-constraint): a 7-dimension conformance pipeline (A no-tool-promo content, B no-new-directories, C integrate-into-existing-test-class, D match-target-test-style, E match-naming, F match-license-header, G test-scope-mirrors-fix-scope). Each dimension is a separable stripper / detector / generator with its own regression test. Born from gson PR #3035's 7 cleanup categories.
+  - **Mutation verification before SHIP-WORTHY classification** (Design § 2.7 sub-constraint): every TDD-verified test runs a revert→run→restore→run cycle in a temp worktree; tests that don't fail on the unfix'd target get demoted to LOCAL-FIX-WORTHY. Complementary to B-8 (which catches assertion-quality issues); this gate catches any reason a test would pass without the fix. Logged to `quality/mutation_verification.json`.
 
-Deliverable: v1.7.0 tagged on origin; main at v1.7.0; 1.8.0 branch open.
-
-Gate to v1.8.0: all of the above verified.
+Operator decides at Phase 7 entry which to land in v1.7.0. Default: defer all to v1.7.0 unless one becomes blocking.
 
 ---
 
-## Risks and Mitigations
+## Phase 8 — Release prep + ship
 
-- **Insufficient data for SPC validation.** If by v1.7 implementation start there aren't enough cells, the framework can be implemented but not validated. Mitigation: explicitly schedule additional calibration cycles between v1.6 and v1.7 to accumulate data. If still insufficient, ship v1.7 framework with a "validation deferred" note and revisit in v1.7.x.
+After all selected phases ship:
 
-- **Run rules produce too many false-positive signals.** If Western Electric rules fire constantly on QPB data, operators will start ignoring them. Mitigation: ship with a permissive default (rules 1 and 2 only); operator can enable rules 3 and 4 selectively.
-
-- **Defect catalog migration loses information.** Prose narrative includes context that's hard to capture in structured fields. Mitigation: preserve all narrative as `prose_summary`; treat the JSON as a queryable index over the prose, not a replacement for it.
-
-- **Multi-cell DoE adds operator complexity.** Factorial designs are unfamiliar to operators not trained in DoE. Mitigation: orientation doc includes a one-page "common designs and when to use them" section. Single-lever cycles remain the default.
-
-- **Cross-version trends are confounded by changes in the playbook itself.** When v1.5.4 changed the role-map architecture, the comparison to v1.5.3 isn't apples-to-apples. Mitigation: schema's `structural_break` flag; charts visually indicate breaks; operator interpretation is required.
+- Version stamps to `1.5.10`
+- README + TOOLKIT + DEVELOPMENT_CONTEXT updates for any user-visible changes
+- CHANGELOG entry
+- Council umbrella review
+- Tag + release close-out per `DEVELOPMENT_PROCESS.md` § Release close-out sequence
+- Merge to main
+- Branch next version off main
 
 ---
 
-## Out-of-band carry-forward to v1.8
+## Sequencing summary
 
-Anything that surfaces during v1.7 development pointing toward v1.8 (multi-operator workflow) goes into `docs/design/QPB_v1.8.0_Design.md`'s carry-forward section. Don't expand v1.7's scope to absorb v1.8 ideas.
+```
+Phase 0 (v1.5.9 stabilization) ──→ Phase 1 (methodology absorption) ─┐
+                                                                     ↓
+Phase 2 (ship-gate) ─────┐
+Phase 3 (B-1) ───────────┤
+Phase 4 (B-8) ───────────┼──→ Phase 8 (release ship) ──→ v1.7.0 tag
+Phase 5 (B-9) ───────────┤
+Phase 6 (B-10) ──────────┘
+(Phase 7 capabilities B-2..B-7 — operator's pick; may all defer to v1.7.0)
+```
+
+Phases 2-6 are implementation-parallelizable. Runtime ordering at QPB execution time: B-8 → B-9 → B-10 → B-7 emit. Phase 5 (B-9) and Phase 6 (B-10) integrate with B-7's bugspec emit; if both land in v1.7.0, sequence Phases 5+6 before any Phase 7 work that depends on B-7.
+
+---
+
+## Council coordination notes
+
+- Per-capability Council reviews use Self-Council Protocol 1
+- The §1.3 semantic Council audit prompt becomes a NEW Council variant; first empirical use is on v1.7.0's own work
+- Defensive-sweep charter from 207 applies to all content-fix sub-instructions during v1.7.0
+
+---
+
+## Open work-items tracker
+
+| # | Item | Phase | Status |
+|---|------|-------|--------|
+| 1 | Verify methodology absorptions in DEVELOPMENT_PROCESS.md | 1 | Pending — first concrete step |
+| 2 | Architectural choice for ship-gate (Design § 1.5) | 2A | Pending operator decision |
+| 3 | Mechanical invariants implementation | 2B | Pending 2A |
+| 4 | Cross-artifact consistency invariants | 2C | Pending 2A |
+| 5 | Semantic Council audit prompt | 2D | Pending 2A |
+| 6 | Bootstrap-as-regression-test | 2E | Pending 2A |
+| 7 | Prompt-injection sanitization (B-1) | 3 | Pending |
+| 8 | Weak-assertion Layer 1 static detection (B-8) | 4A | Pending |
+| 9 | Weak-assertion Layer 2 adversarial critique (B-8) | 4B | Pending |
+| 10 | Fix cost/benefit evaluation sub-pass scaffold (B-9) | 5A | Pending |
+| 11 | Static-analysis hooks for incidence + overhead (B-9) | 5B | Pending |
+| 12 | Integration with B-7 (bugspec emit) + B-6 (combine PRs) (B-9) | 5C | Pending |
+| 13 | Operator override mechanism (B-9) | 5D | Pending |
+| 14 | Empirical validation against historical PRs incl. gson #3035 / #3036 (B-9) | 5E | Pending |
+| 15 | Adversarial boundary input generator (B-10) | 6A | Pending |
+| 16 | Reference site detection + AST parsing (B-10) | 6B | Pending |
+| 17 | Level 1+2 structural diff (B-10) | 6C | Pending |
+| 18 | Level 3 adversarial boundary execution (B-10) | 6D | Pending |
+| 19 | Operator-decidable surface (B-10) | 6E | Pending |
+| 20 | Integration with B-7+B-8+B-9 (B-10) | 6F | Pending |
+| 21 | Empirical validation against BUG-005 (B-10) | 6G | Pending |
+| 22 | B-2..B-7 capability scoping decision | 7 | Pending operator decision at Phase 7 entry |
+| 23 | Release ship steps 1-8 | 8 | Pending Phase 2 + Phase 3 + Phase 4 + Phase 5 + Phase 6 ship gates |
+
+---
+
+*End of v1.7.0 Implementation Plan. Design in `QPB_v1.7.0_Design.md`. Predecessor scope in `QPB_v1.5.9_Design.md` + `QPB_v1.5.9_Implementation_Plan.md`.*

@@ -1,0 +1,35 @@
+{
+  "job_id": "job-00003",
+  "task_id": "express-integration-regression",
+  "terminal_status": "COMPLETED",
+  "result_file": null,
+  "summary": "all 3 step(s) completed",
+  "reaped_ts": "2026-06-19T23:36:14Z",
+  "synthesized": true,
+  "steps": [
+    {
+      "step": "step-01",
+      "step_index": 0,
+      "terminal_status": "COMPLETED",
+      "result_file": "/Users/andrewstellman/Documents/QPB/repos/express-1.5.8/quality/EXPLORATION.md",
+      "summary": "phase1 complete: 7 candidate bugs, 8 REQs, role map (315 files), both Phase 1 gates PASS",
+      "reaped_ts": "2026-06-19T21:55:04Z"
+    },
+    {
+      "step": "step-02",
+      "step_index": 1,
+      "terminal_status": "COMPLETED",
+      "result_file": "/Users/andrewstellman/Documents/QPB/repos/express-1.5.8/quality/REQUIREMENTS.md",
+      "summary": "phase2 complete \u2014 10 core artifacts + 4 manifests generated, validator PASSED",
+      "reaped_ts": "2026-06-19T22:14:04Z"
+    },
+    {
+      "step": "step-03",
+      "step_index": 2,
+      "terminal_status": "COMPLETED",
+      "result_file": "/Users/andrewstellman/Documents/QPB/repos/express-1.5.8/quality/INDEX.md",
+      "summary": "phase3 complete: 6 bugs confirmed (2 HIGH, 4 MEDIUM), 1 demoted; 12 patches apply clean",
+      "reaped_ts": "2026-06-19T23:36:14Z"
+    }
+  ]
+}

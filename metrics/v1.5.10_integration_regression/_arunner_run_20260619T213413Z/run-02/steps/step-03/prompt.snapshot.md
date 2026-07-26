@@ -1,0 +1,204 @@
+HEARTBEAT_PATH={HEARTBEAT_PATH}
+TASK_ID={TASK_ID}
+RUN_DIR={RUN_DIR}
+TARGET_REPO={TARGET_REPO}
+HARNESS_BIN={HARNESS_BIN}
+
+You are an arunner subagent executing ONE Quality Playbook phase (phase3) against the repository at TARGET_REPO (above). The QPB skill is installed in that repo.
+
+FIRST -- emit a STARTING heartbeat (FR-61 liveness; before any other work):
+  python3 {HARNESS_BIN}/heartbeat.py emit --task-id {TASK_ID} --heartbeat-path {HEARTBEAT_PATH} --label "phase3" --status STARTING
+
+THEN -- perform the phase below, operating ONLY on TARGET_REPO. For long stretches emit IN_PROGRESS pings:
+  python3 {HARNESS_BIN}/heartbeat.py emit --task-id {TASK_ID} --heartbeat-path {HEARTBEAT_PATH} --label "<activity>" --status IN_PROGRESS
+
+FINALLY -- emit a terminal heartbeat (COMPLETED, or FAILED if it could not finish):
+  python3 {HARNESS_BIN}/heartbeat.py terminal --task-id {TASK_ID} --heartbeat-path {HEARTBEAT_PATH} --status COMPLETED --result-file {TARGET_REPO}/quality/INDEX.md --summary "phase3 complete"
+
+============ QUALITY PLAYBOOK PHASE phase3 (operate on TARGET_REPO) ============
+
+Read the quality playbook skill using the documented install-location fallback list: SKILL.md, .claude/skills/quality-playbook/SKILL.md, .github/skills/SKILL.md, .cursor/skills/quality-playbook/SKILL.md, .continue/skills/quality-playbook/SKILL.md, .github/skills/quality-playbook/SKILL.md, .codex/skills/quality-playbook/SKILL.md, .windsurf/skills/quality-playbook/SKILL.md, .cline/skills/quality-playbook/SKILL.md, .aider/skills/quality-playbook/SKILL.md. Resolve reference files using the same documented fallback order.
+
+You are a quality engineer continuing a phase-by-phase quality playbook run. Phases 1-2 are complete.
+
+Read these files to get context:
+1. quality/PROGRESS.md - run metadata, phase status, artifact inventory
+2. quality/EXPLORATION.md - Phase 1 findings (especially the "Candidate Bugs for Phase 2" section)
+3. quality/REQUIREMENTS.md - derived requirements and use cases
+4. quality/CONTRACTS.md - behavioral contracts
+5. SKILL.md - read the Phase 3 section ("Phase 3: Code Review and Regression Tests"). Also read references/review_protocols.md. Resolve SKILL.md and the references/ directory via the documented fallback list above; do NOT assume any single install layout.
+
+Execute Phase 3: Code Review + Regression Tests.
+Run the 3-pass code review per quality/RUN_CODE_REVIEW.md. For every confirmed bug:
+- Add to quality/BUGS.md with ### BUG-NNN heading format
+- Write the BUG record with `severity` exactly uppercase: `HIGH` / `MEDIUM` / `LOW` (v1.5.7 fix Q3 mandate — Phase 6 gate WARN on case drift). Write `divergence_type` (v1.5.7 fix Q2 mandate): `code-spec` / `internal-prose` / `cross-source`.
+- **MANDATORY reachability analysis** (v1.5.7 090j D1, see references/challenge_gate.md "Precision guardrails"): before confirming any HIGH or MEDIUM bug, search the cited code path for upstream guards, filters, early-returns, or compensating mechanisms that would make the defect unreachable. Record the result on the manifest as the field `reachability_analysis` — either quote the guard found (and then DEMOTE the candidate, do NOT confirm) or state plainly "no guard; <defect path> reached unconditionally." The Phase 6 gate FAILs any HIGH/MEDIUM bug without this field; LOW severity gets a WARN.
+- **If the finding cites a CVE** (v1.5.7 090j D2/D3): set `cve_reference: "<CVE-id>"` AND `cve_version_applies: true | false` (boolean — `true` iff the audited version is within the CVE's affected range). If the audited version is OUTSIDE the CVE's affected range, downgrade severity to MEDIUM or below — HIGH on a CVE basis requires applicability. If the finding's sole basis is the advisory with no in-tree code defect located, set `classification: known-issue` — the record is surfaced to operators but is excluded from the bug count and precision metrics.
+- Write a regression test (xfail-marked)
+- Generate quality/patches/BUG-NNN-regression-test.patch (MANDATORY for every confirmed bug)
+- Generate quality/patches/BUG-NNN-fix.patch (strongly encouraged)
+- Write code review reports to quality/code_reviews/
+- Update PROGRESS.md BUG tracker
+
+**Recommended: disposable git worktree for executable RED→GREEN verification.**
+When your regression-test patch and fix patch need to compile or
+execute to validate (Go, TypeScript, Rust — languages where `git apply
+--check` alone doesn't catch semantic regressions), use an ephemeral
+`git worktree` so the source tree is never mutated even transiently:
+
+```
+git worktree add /tmp/qpb-validate-<bug-id> HEAD
+cd /tmp/qpb-validate-<bug-id>
+git apply <path-to-regression-test>.patch
+<run the project's test command>   # expect FAIL (RED)
+git apply <path-to-fix>.patch
+<run the project's test command>   # expect ok (GREEN)
+cd <original target dir>
+git worktree remove /tmp/qpb-validate-<bug-id>
+```
+
+This is OPTIONAL — `git apply --check` is sufficient for mechanical
+patch validation per the existing source-unchanged invariant. The
+worktree pattern is preferred when patches need execution because:
+- The source tree is never modified, not even transiently
+- Multiple bugs can be validated in parallel worktrees
+- Discard is one command (`git worktree remove`)
+- 2026-05-18 Claude Code Opus 4.7 used this pattern on cobra to
+  validate 5 bugs RED→GREEN without ever touching the source tree
+
+### MANDATORY GRID STEP (Lever 2, v1.5.2) — pattern-tagged REQs only
+
+For every REQ in quality/REQUIREMENTS.md that has a `Pattern:` field (`whitelist`, `parity`, or `compensation`), you MUST produce a compensation grid BEFORE writing any BUG entries for that REQ.
+
+**Step 1. Enumerate the authoritative item set.** Mechanical extraction from source — uapi header, spec section, documented constants. Do NOT invent. Example: for VIRTIO_F_RING_RESET-family, grep `include/uapi/linux/virtio_config.h` for `VIRTIO_F_*` and list the bits the REQ covers.
+
+**Step 2. Enumerate the sites.** From the REQ's per-site UCs (UC-N.a, UC-N.b, …). If the REQ has a single umbrella UC but is pattern-tagged, the grid is 1-dimensional over items.
+
+**Step 3. Produce the grid.** Write `quality/compensation_grid.json` with one entry per REQ:
+
+```json
+{
+  "schema_version": "1.5.2",
+  "reqs": {
+    "REQ-010": {
+      "pattern": "whitelist",
+      "items": ["RING_RESET", "ADMIN_VQ", "NOTIF_CONFIG_DATA", "SR_IOV"],
+      "sites": ["PCI", "MMIO", "vDPA"],
+      "cells": [
+        {"cell_id": "REQ-010/cell-RING_RESET-PCI", "item": "RING_RESET", "site": "PCI", "present": true,  "evidence": "drivers/virtio/virtio_pci_modern.c:XXX-YYY"},
+        {"cell_id": "REQ-010/cell-RING_RESET-MMIO", "item": "RING_RESET", "site": "MMIO", "present": false, "evidence": "drivers/virtio/virtio_mmio.c: no match for RING_RESET"}
+      ]
+    }
+  }
+}
+```
+
+Cell IDs are mechanical: `REQ-<N>/cell-<item>-<site>`. No whitespace, uppercase item/site identifiers where natural.
+
+**Step 4. Apply the BUG-default rule.** For every cell where:
+- the item is defined in authoritative source AND
+- the item is absent from any shared filter AND
+- the item is absent from the site's compensation path
+
+→ the cell DEFAULTS to BUG. Emit one `### BUG-NNN` entry with the cell's file:line citation, spec basis, and expected-vs-actual behavior. Include a `- Covers: [REQ-N/cell-<item>-<site>]` line.
+
+**Step 5. Downgrade to QUESTION requires a structured JSON record.** Append one record per downgraded cell to `quality/compensation_grid_downgrades.json`:
+
+```json
+{
+  "schema_version": "1.5.2",
+  "downgrades": [
+    {
+      "cell_id": "REQ-010/cell-RING_RESET-MMIO",
+      "authority_ref": "include/uapi/linux/virtio_config.h:116",
+      "site_citation": "drivers/virtio/virtio_mmio.c:109-131",
+      "reason_class": "intentionally-partial",
+      "falsifiable_claim": "MMIO does not support RING_RESET because the MMIO transport predates the feature bit and kernel docs at Documentation/virtio/virtio_mmio.rst:42-55 state the transport is frozen at its v1.0 feature set; falsifiable by showing MMIO re-sets bit 40 under any kernel release."
+    }
+  ]
+}
+```
+
+- `reason_class` enum: `out-of-scope | deprecated | platform-gated | handled-upstream | intentionally-partial`.
+- `authority_ref`, `site_citation`, `falsifiable_claim` are required and non-empty.
+- `falsifiable_claim` must state an observable condition that would make the claim wrong.
+- Missing any required field, or `reason_class` outside the enum, or zero-length `falsifiable_claim` → cell REVERTS to BUG at Phase 5 gate time. There is no re-prompt loop.
+
+**Step 6. Self-check.** Before finalizing BUGS.md for this REQ, verify that every cell in the grid appears in either:
+- some BUG's `- Covers: [...]` list, OR
+- a downgrade record in `quality/compensation_grid_downgrades.json`.
+
+Any cell missing from both will fail the Phase 5 cardinality gate. This self-check is advisory in Phase 3; the blocking gate runs in Phase 5.
+
+### Worked example — RING_RESET grid (virtio)
+
+REQ-010 pattern: whitelist. Items: {RING_RESET, ADMIN_VQ, NOTIF_CONFIG_DATA, SR_IOV}. Sites: {PCI, MMIO, vDPA}. Grid: 4 × 3 = 12 cells.
+
+Code inspection reveals PCI implements all four; MMIO implements none of the four (frozen at v1.0 feature set); vDPA implements NOTIF_CONFIG_DATA but not the other three.
+
+Grid (present=T, absent=F):
+
+|                       | PCI | MMIO | vDPA |
+|-----------------------|-----|------|------|
+| RING_RESET            |  T  |  F   |  F   |
+| ADMIN_VQ              |  T  |  F   |  F   |
+| NOTIF_CONFIG_DATA     |  T  |  F   |  T   |
+| SR_IOV                |  T  |  F   |  F   |
+
+BUG-default applies to every F cell (8 total). Possible consolidation:
+
+### BUG-001: MMIO ignores VIRTIO_F_RING_RESET
+- Primary requirement: REQ-010
+- Covers: [REQ-010/cell-RING_RESET-MMIO]
+
+### BUG-002: vDPA ignores VIRTIO_F_RING_RESET
+- Primary requirement: REQ-010
+- Covers: [REQ-010/cell-RING_RESET-vDPA]
+
+### BUG-003: vDPA missing ADMIN_VQ hookup
+- Primary requirement: REQ-010
+- Covers: [REQ-010/cell-ADMIN_VQ-vDPA]
+
+### BUG-004: MMIO ignores NOTIF_CONFIG_DATA negotiation (common filter gap)
+- Primary requirement: REQ-010
+- Covers: [REQ-010/cell-NOTIF_CONFIG_DATA-MMIO]
+
+### BUG-005: MMIO + vDPA both miss SR_IOV propagation
+- Primary requirement: REQ-010
+- Covers: [REQ-010/cell-SR_IOV-MMIO, REQ-010/cell-SR_IOV-vDPA]
+- Consolidation rationale: shared fix path in both transports goes through the same feature-bit filter; single patch on the shared helper closes both cells.
+
+If the reviewer concluded MMIO ADMIN_VQ is intentionally out-of-scope because ADMIN_VQ is a PCI-only spec feature, the downgrade record would be:
+
+```json
+{
+  "cell_id": "REQ-010/cell-ADMIN_VQ-MMIO",
+  "authority_ref": "include/uapi/linux/virtio_pci.h:NN",
+  "site_citation": "drivers/virtio/virtio_mmio.c: no admin virtqueue implementation",
+  "reason_class": "out-of-scope",
+  "falsifiable_claim": "ADMIN_VQ is MMIO-scoped — falsifiable by citing any virtio-spec normative text requiring ADMIN_VQ on non-PCI transports."
+}
+```
+
+Union check: 8 BUG-covered cells + 1 downgrade cell = 9. Grid has 12 cells; 4 present cells don't need coverage. Total: 8 F cells covered via BUGs + 1 via downgrade = all 9 absent cells accounted for. Grid → clean.
+
+### ITERATION mode addendum (MANDATORY INCREMENTAL WRITE, Phase 8)
+
+When running in iteration mode (gap / unfiltered / parity / adversarial), write candidate BUG stubs to disk immediately on identification, not at end-of-review. Path: `quality/code_reviews/<iteration>-candidates.md`. One `### CANDIDATE-NNN` heading per candidate, with at least a file:line citation. Reviewer upgrades candidates to confirmed BUGs in BUGS.md only after full triage.
+
+### CONFIRMATION CHECKLIST (Lever 2, v1.5.2)
+
+Before writing the Phase 3 completion checkpoint to PROGRESS.md, confirm each item explicitly in your Phase 3 summary:
+
+1. For every pattern-tagged REQ, I produced a compensation grid in `quality/compensation_grid.json`.
+2. For every grid, I applied the BUG-default rule mechanically.
+3. Every BUG emitted for a pattern-tagged REQ has a `- Covers: [...]` field with valid cell IDs.
+4. Every BUG whose Covers list has ≥2 entries has a non-empty `- Consolidation rationale: ...` field.
+5. For every downgraded cell, I wrote a complete structured record in `quality/compensation_grid_downgrades.json` with all five required fields and a valid `reason_class`.
+6. For every pattern-tagged REQ, the union of Covers lists + downgrade cells equals the grid's cell set.
+
+Mark Phase 3 (Code review + regression tests) complete in PROGRESS.md (use the checkbox format `- [x] Phase 3 - Code Review` — do NOT switch to a table).
+
+IMPORTANT: Do NOT proceed to Phase 4 (spec audit). The next phase will run the spec audit with a fresh context window.
+
+After completing this phase, emit `## What just happened` + `### What to do next` as the LAST visible output in chat per the decision tree at `references/what_just_happened.md`. Use the State P3 template (Phase 3 just completed; next is Phase 4) — the reference file's classifier handles edge cases like stubbed reviews (State S applies later, once Phases 3-5 collectively pass with zero `### BUG-` headings).

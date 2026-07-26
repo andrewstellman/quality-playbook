@@ -1,0 +1,4 @@
+=== RUN   TestBUG002_SupressNotFound_LiveContextMutation
+--- PASS: TestBUG002_SupressNotFound_LiveContextMutation (0.00s)
+PASS
+ok  	github.com/go-chi/chi/v5/middleware	0.273s

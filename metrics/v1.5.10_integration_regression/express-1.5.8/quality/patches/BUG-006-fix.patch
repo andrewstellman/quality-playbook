@@ -1,0 +1,21 @@
+--- a/lib/request.js
++++ b/lib/request.js
+@@ -424,7 +424,17 @@
+   } else if (val.indexOf(',') !== -1) {
+     // Note: X-Forwarded-Host is normally only ever a
+     //       single value, but this is to be safe.
+-    val = val.substring(0, val.indexOf(',')).trimRight()
++    // Select the first NON-EMPTY authority; a leading empty element
++    // (e.g. ",a.com") must not collapse the host to ''.
++    var parts = val.split(',')
++    val = ''
++    for (var i = 0; i < parts.length; i++) {
++      var part = parts[i].trim()
++      if (part) {
++        val = part
++        break
++      }
++    }
+   }
+ 
+   return val || undefined;

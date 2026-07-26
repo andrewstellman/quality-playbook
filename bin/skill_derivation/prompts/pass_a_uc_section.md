@@ -74,6 +74,30 @@ UC schema (one JSON object per line):
   be direct or close-paraphrase quotes from the section text so Pass
   B's mechanical search has something concrete to match against.
 
+## One required behavior per acceptance clause — no disjunction
+
+Applies to **both** `acceptance_criteria` on REQs and `acceptance` on UCs.
+An acceptance clause names one outcome that decides success. Never:
+
+- "X, or document that not-X" — both branches pass, so nothing decides it.
+- "rejects **or** clamps" — two implementations do opposite things and each
+  claims conformance.
+- "acceptable only if documented" without naming where that documentation
+  lives and what it must say.
+- "…or the divergence must be explicitly specified" — the same escape hatch
+  wearing a specification-shaped coat.
+
+If the section genuinely permits alternatives, state the **condition that
+selects between them**, which is again one required behavior. If the source
+text is itself undecided, capture the behavior it *does* state and leave the
+ambiguity to Pass D's coverage audit — do not launder it into an acceptance
+clause.
+
+*This appears in both Pass A prompts because both author acceptance text.
+The defect was observed in a UC clause, not only in REQs: express UC-06.b
+read "must follow the same documented rule, or the divergence must be
+explicitly specified."*
+
 ## Begin
 
 Emit JSONL output below this line and nothing else.

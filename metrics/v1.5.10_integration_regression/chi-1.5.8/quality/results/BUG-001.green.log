@@ -1,0 +1,4 @@
+=== RUN   TestBUG001_AcceptEncoding_qZero_and_bogusToken
+--- PASS: TestBUG001_AcceptEncoding_qZero_and_bogusToken (0.00s)
+PASS
+ok  	github.com/go-chi/chi/v5/middleware	0.390s

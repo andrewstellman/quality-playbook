@@ -96,11 +96,22 @@ they gave you, and look for additional relevant resources beyond that list — c
 find and can reach.
 Default OUTPUT_DIR: a reference_docs/ folder in the current directory (create it if needed). If the
 user is working inside an actual target repo, write into that repo's reference_docs/ instead.
-TIERING (important): reserve reference_docs/cite/ for AUTHORITATIVE specs/contracts the code is
-expected to conform to — the official model/API spec, the security model, the project's own spec,
-cited standards. Put CVE/advisory and issue-tracker/discussion material in the TOP-LEVEL
+TIERING is now an OPTIMIZATION, not a requirement (v1.6.0 Feature G). Dump-and-go works: you may
+place everything at the top level of reference_docs/ and let the playbook's ingest classify each
+file by content at ingest time, over a deterministic advisory floor it cannot override (CVE/GHSA
+ids and advisory URLs mark a document as one the operator must confirm before it is quoted; genre and title heuristics were removed in v1.6.0 instruction 033 — the ingest READS each document and judges it, so what you name a file no longer decides how it is used). Sorting
+into cite/ yourself is still useful — it is honored as an explicit operator pre-classification that
+promotes a file past the implementation-source floor — but it is no longer necessary for the code's
+own spec to come out citable, and it can NEVER promote an advisory. So the guidance below is a
+helpful pre-sort, not a gate.
+
+TIERING (recommended pre-sort): reserve reference_docs/cite/ for AUTHORITATIVE specs/contracts the
+code is expected to conform to — the official model/API spec, the security model, the project's own
+spec, cited standards. Put CVE/advisory and issue-tracker/discussion material in the TOP-LEVEL
 reference_docs/ (NOT cite/): it is background context, not an authoritative contract, and must not
-be citable as one — treating an advisory as authoritative is a known false-positive trap.
+be citable as one — treating an advisory as authoritative is a known false-positive trap. (The
+ingest floor enforces this mechanically now, but pre-sorting keeps the classification manifest
+tidy.)
 
 STEP 3 — GATHER AND WRITE.
 Crawl deeply and write one Markdown file per theme into OUTPUT_DIR. Be EXHAUSTIVE, not

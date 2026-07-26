@@ -1,0 +1,6 @@
+=== RUN   TestBUG006_Find_MountedWildcardURLParamReset
+    qpb_regression_test.go:155: Find on a mounted route must clear the connecting "*" URLParam (live walk does); got "ping"
+--- FAIL: TestBUG006_Find_MountedWildcardURLParamReset (0.00s)
+FAIL
+FAIL	github.com/go-chi/chi/v5/middleware	0.267s
+FAIL

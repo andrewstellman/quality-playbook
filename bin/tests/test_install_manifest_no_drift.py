@@ -97,8 +97,18 @@ class InstallClosureNoDriftTests(unittest.TestCase):
         # +references/phase7_guide.md, +references/phase5_reconciliation_guide.md,
         # +references/artifact_contract.md — sections extracted from SKILL.md to
         # lazy-loaded references; more may follow as the trim proceeds).
+        # v1.6.0 003 (Feature D supersession): 63 → 62 (−requirements_review.md,
+        # −requirements_refinement.md, +requirements_interview.md — the
+        # validation interview replaces the review/refinement walkthrough).
+        # v1.6.0 010 (Feature G): 62 → 63 (+bin/doc_classification.py — the §8a
+        # dump-and-go classification floor, a new mandatory bundled module that
+        # reference_docs_ingest.py imports at load).
+        # v1.6.0 020 (Feature H): 63 → 69 (+6 persona-validation modules —
+        # persona_catalog/orchestration/grounding/merge/apply + requirements_render;
+        # genuine bundle growth so an adopter install actually ships Feature H, not
+        # a fixture dodge).
         from bin.qpb_validate import INSTALL_CLOSURE
-        self.assertEqual(len(INSTALL_CLOSURE), 63)
+        self.assertEqual(len(INSTALL_CLOSURE), 69)
         paths = [e["path"] for e in INSTALL_CLOSURE]
         self.assertEqual(len(paths), len(set(paths)),
                          "duplicate path in INSTALL_CLOSURE")

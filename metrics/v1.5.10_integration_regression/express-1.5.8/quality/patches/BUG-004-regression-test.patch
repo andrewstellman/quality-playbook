@@ -1,0 +1,58 @@
+--- /dev/null
++++ b/test/regression_bug_004.test.js
+@@ -0,0 +1,55 @@
++'use strict'
++
++/*
++ * Regression test for BUG-004 (Express v5.2.1 Phase 3 code review).
++ * See quality/BUGS.md. Asserts desired-correct behavior; skipped until
++ * quality/patches/BUG-004-fix.patch lands. This file lives in test/, so express
++ * is required as '..'.
++ */
++
++var assert = require('node:assert')
++var express = require('..')
++var request = require('supertest')
++
++describe('regression: BUG-004', function () {
++  it.skip("BUG-004: res.send charset differs between string and Buffer bodies — unskip after applying quality/patches/BUG-004-fix.patch", function (done) {
++    var stringType
++    var bufferType
++
++    var appString = express()
++    appString.use(function (req, res) {
++      res.set('Content-Type', 'text/plain; charset=iso-8859-1')
++      res.send('plain string body')
++    })
++
++    request(appString)
++      .get('/')
++      .expect(200)
++      .end(function (err, res) {
++        if (err) return done(err)
++        stringType = res.headers['content-type']
++
++        var appBuffer = express()
++        appBuffer.use(function (req, res) {
++          res.set('Content-Type', 'text/plain; charset=iso-8859-1')
++          res.send(Buffer.from('plain buffer body'))
++        })
++
++        request(appBuffer)
++          .get('/')
++          .expect(200)
++          .end(function (err2, res2) {
++            if (err2) return done(err2)
++            bufferType = res2.headers['content-type']
++            // Desired: string-body and Buffer-body responses advertise the same
++            // charset for the identical pre-set Content-Type.
++            assert.strictEqual(stringType, bufferType,
++              'string vs Buffer send must advertise the same charset: ' +
++              stringType + ' !== ' + bufferType)
++            done()
++          })
++      })
++  })
++
++})
++

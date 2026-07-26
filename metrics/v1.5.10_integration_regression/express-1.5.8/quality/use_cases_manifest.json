@@ -1,0 +1,95 @@
+{
+  "schema_version": "1.5.8",
+  "generated_at": "2026-06-19T21:55:00Z",
+  "records": [
+    {
+      "id": "UC-01",
+      "title": "Reverse-proxy operator relies on req.protocol/req.secure",
+      "actor": "backend developer behind a TLS-terminating proxy",
+      "trigger": "a request arrives with X-Forwarded-Proto",
+      "expected_outcome": "req.secure correctly reflects HTTPS so HTTPS-only middleware behaves.",
+      "cluster": "heterogeneous",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-02",
+      "title": "Developer sets a short-lived cookie",
+      "actor": "app developer setting a flash/CSRF cookie with maxAge",
+      "trigger": "res.cookie(name, val, {maxAge})",
+      "expected_outcome": "the cookie lives for the requested duration, not expiring instantly.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-03",
+      "title": "API returns a redirect with a custom status",
+      "actor": "API author issuing res.redirect(status, url)",
+      "trigger": "a 3xx status outside the common set",
+      "expected_outcome": "a clean, human-readable redirect body — never the literal undefined.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-04",
+      "title": "Client consumes a JSONP endpoint",
+      "actor": "legacy browser client passing ?callback=",
+      "trigger": "res.jsonp(obj)",
+      "expected_outcome": "a safe text/javascript payload invoking only a validly-named callback.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-05",
+      "title": "Client negotiates content with quality params",
+      "actor": "HTTP client sending Accept with q= and media-type params",
+      "trigger": "req.accepts / res.format",
+      "expected_outcome": "parameters (including quoted values) parsed per RFC 7231.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-06.a",
+      "title": "String body with a pre-set charset",
+      "actor": "developer calling res.set('Content-Type', 'text/plain; charset=iso-8859-1').send('é')",
+      "trigger": "res.send(string) with a pre-set non-utf-8 charset",
+      "expected_outcome": "documented, consistent charset behavior for string bodies.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-06.b",
+      "title": "Buffer body with a pre-set charset",
+      "actor": "developer sending Buffer.from('é','latin1') with a latin1 Content-Type",
+      "trigger": "res.send(Buffer) with a pre-set non-utf-8 charset",
+      "expected_outcome": "charset behavior consistent with the string-body rule, or explicitly specified divergence.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-06.c",
+      "title": "Charset set via res.set/res.type then send",
+      "actor": "developer setting the type via res.type('html') then res.send",
+      "trigger": "res.type(...) then res.send(...)",
+      "expected_outcome": "mime.contentType injection and setCharset injection agree.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-07.a",
+      "title": "Trusted X-Forwarded-Host with a normal authority",
+      "actor": "app behind a trusted proxy",
+      "trigger": "X-Forwarded-Host: a.com",
+      "expected_outcome": "req.hostname/req.subdomains resolve correctly.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-07.b",
+      "title": "Trusted X-Forwarded-Host with a leading/trailing comma",
+      "actor": "app behind a proxy that concatenates forwarded hosts",
+      "trigger": "X-Forwarded-Host: ,real.example.com",
+      "expected_outcome": "hostname resolution never silently returns undefined for a present host.",
+      "formal_doc_refs": []
+    },
+    {
+      "id": "UC-07.c",
+      "title": "X-Forwarded-Host carrying a port or IPv6 literal",
+      "actor": "app behind a proxy forwarding host:port or [::1]:port",
+      "trigger": "X-Forwarded-Host: a.com:8080 or [::1]:8080",
+      "expected_outcome": "the port is stripped to a clean hostname.",
+      "formal_doc_refs": []
+    }
+  ]
+}

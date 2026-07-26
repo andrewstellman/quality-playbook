@@ -1,17 +1,17 @@
 # Quality Playbook v1.6.0 — Implementation Plan
 
 *Companion to: `QPB_v1.6.0_Design.md` (canonical, rewritten 2026-07-18, simplicity pass + pre-handoff decisions 2026-07-19).*
-*Status: rewritten **2026-07-19** to match the current design. Supersedes the 2026-05-24 plan (NFR+FP-audit-only scope, old slice order — preserved in git history) and the original lever-pull plan before it.*
-*All open decisions that gate implementation are resolved (Design §0 Decision Record #7); the two remaining ODs (OD-5 precision bar, OD-8 090j disposition) are release-time and marked at their phase gates below.*
+*Scope reduced **2026-07-21**: Track 1 only; Track 2 split to `QPB_v1.6.1_Implementation_Plan.md`. Status: rewritten **2026-07-19** to match the current design. Supersedes the 2026-05-24 plan (NFR+FP-audit-only scope, old slice order — preserved in git history) and the original lever-pull plan before it.*
+*All open decisions that gate implementation are resolved. OD-5 moved to `QPB_v1.6.1_Design.md` with Track 2 (2026-07-21); OD-8 is resolved and its framing corrected for the split — 090j is now this release's only precision guard.*
 
 ---
 
 ## Operating Principles
 
 - **The design doc is the spec.** This plan sequences and gates; it does not pre-decompose. The implementing AI (Claude Code / Opus-class worker) reads `QPB_v1.6.0_Design.md` end-to-end and decomposes during execution, per `ai_context/DEVELOPMENT_PROCESS.md` (no per-phase briefs).
-- **Two independent tracks.** Track 1 (Phases 1-4: coherence → validation) is the release's goal and is strictly ordered by dependency. Track 2 (Phases 5-7: precision, Features A+B) is independent and may run in parallel with Track 1 or after it. Phase 8 (release) requires both.
+- **One track, as of 2026-07-21.** Track 1 (Phases 1-4: coherence → validation) is the release, strictly ordered by dependency. Track 2 (Phases 5-7, Features A+B) split out to `QPB_v1.6.1_Implementation_Plan.md`; Phase 8 now requires Track 1 only.
 - **The manifest stays the source of truth.** Feature C is presentation-layer except where explicitly specified; Phase 1 carries a manifest-unchanged invariant. The FP-audit consumes the manifest, never the rendered document.
-- **Three acceptance oracles, all fixture-grounded:** the chi/express/virtio regeneration fixture (coherence, Design §5), the scripted interview fixture + re-run 2026-05-02 worked example (validation, Design §6), the OpenFGA re-run (precision, Design §4 — carried unchanged).
+- **Two acceptance oracles, both fixture-grounded:** the chi/express/virtio regeneration fixture (coherence, Design §5) and the scripted interview fixture + re-run 2026-05-02 worked example (validation, Design §6). The OpenFGA precision oracle moved out with Track 2.
 - **Independence is load-bearing for the FP-audit** (carried): the audit sub-agent gets finding + cited source + relevant derived REQ + rubric — never the running skill, phase prompts, or writeup reasoning.
 - **Source edits go through the diagnosis→Claude Code lane** per workspace CLAUDE.md; this plan and the design doc are the Cowork-editable planning surface.
 - **Branch + ship discipline carries over:** fresh `1.6.0` branch, base SHA recorded; never push from a sandbox; verify every remote claim with `git ls-remote`; no wall-clock estimates anywhere.
@@ -22,7 +22,7 @@
 
 Goal: a clean, explicit base for the `1.6.0` branch.
 
-- The current release line is closed out to Andrew's satisfaction: as of 2026-07-19 the last tag on origin is `v1.5.8`, with 1.5.10 in-flight (untagged) and 1.5.11 (security) design-only. **Whether 1.5.10/1.5.11 ship before 1.6.0 starts is Andrew's sequencing call — this plan takes no position**; it requires only that the base is a deliberately chosen, tagged-or-named commit.
+- **Satisfied 2026-07-19.** The prior release line is closed out: `v1.5.10` is tagged (`4cb6781`), merged to `main` (`646b703`), and `1.6.0` is branched from it — all verified on origin. v1.5.10 was deliberately **not** published to PyPI/npm (the GitHub↔registry trusted-publisher interop was never wired); publishing resumes at 1.6.0, gated on the P1–P12 carry-forwards in `~/Documents/AI-Driven Development/Quality Playbook/QPB_Carry_Forward_To_1.6.0.md`. The security line is design-only and renumbered **v1.7.0** (from v1.5.11, 2026-07-20); SPC moved to v1.8.0.
 - `1.6.0` branch cut from that base; base SHA recorded in the branch's first commit message.
 - The three coherence fixture inputs preserved read-only: the `repos/{chi,express,virtio}-1.5.8/quality/` manifests + rendered REQUIREMENTS.md (the C-1…C-7 evidence). The OpenFGA run fixtures per the 2026-05-24 plan remain the precision oracle inputs.
 
@@ -42,7 +42,7 @@ Work items (worker decomposes; Design §5 is the spec):
 - **Document architecture (Design §5.2):** the eight-part canonical shape (header with accurate stamp / Overview incl. F-1 gaps statement / actors & roles / functional sections user-facing→infrastructure, ≥2 REQs or justified / NFR sections slot (degrades gracefully until Track 2 lands) / cross-cutting concerns / use cases / traceability appendix). Phase E of `references/requirements_pipeline.md` becomes unconditional; E.5 ordering and E.6 renumber become enforced. `references/phase2_generation_guide.md` updated to carry the architecture.
 - **Render contract in `quality_gate.py` (Design §5.3):** the six mechanical checks, each landed with the AUDIT-table invariant-test pattern and mutation-bitten. Plus the F-1 check: Overview contains a non-empty coverage-and-gaps statement.
 - **Intent-form rule (Design §5.4):** prompt-level rule in the derivation passes + Phase 4 Council rubric item; no new mechanical check (judgment, not regex).
-- **Manifest-unchanged invariant:** for a fixed input, `requirements_manifest.json` is unchanged modulo the renumber map. Test pins it.
+- **Manifest-change invariant** *(corrected 2026-07-20 — the original wording said "unchanged modulo the renumber map", which Design §5.2 and §5.4 directly contradict by mandating title and section rewrites; measured, records identical modulo `id` are chi 11/16, virtio 8/17, **express 0/16**)*: for a fixed input, `requirements_manifest.json` changes **only** in the fields the Design mandates — `id` (E.6 renumber), `title` (§5.4 intent-form), `functional_section` (§5.2 merge), and `conditions_of_satisfaction` where a title rewrite displaces normative text into it. Record count, and each record's `references` list and their attachment to their own record, are preserved exactly. Enforced field-by-field through a committed `renumber_map.json`, never by a set comparison (a set check survives both gutting every record and rotating `references` onto the wrong records). Test pins it.
 
 Tests: mutation-bite every render-contract check (re-introduce each defect class; gate must FAIL); manifest-unchanged test; fixture re-render smoke test.
 
@@ -50,10 +50,29 @@ Gate to Phase 2: all checks land dual-env green; SKILL.md token ceiling respecte
 
 ## Phase 2 — Slice 1 acceptance + Council
 
-- **Regeneration fixture (the coherence oracle):** re-render the chi, express, and virtio manifests through the new renderer. Acceptance: C-1…C-7 all absent — mechanically (contract checks pass on all three) and by judgment (focused readability review of the three rendered docs).
-- **Worker self-Council** (3 panelists, per Design §13): render-contract correctness incl. mutation coverage; regeneration-fixture fidelity against C-1…C-7; regression safety on manifest semantics. FIX-REQUIRED iterates in-branch before the review-request files.
+- **Regeneration fixture (the coherence oracle):** re-render the chi, express, and virtio manifests. Acceptance: C-1…C-7 all absent — mechanically (contract checks pass on all three) and by judgment (the readability Council below).
 
-Gate to Phase 3: oracle satisfied; self-Council synthesis SHIP; readability review clean.
+  *Note (2026-07-20): "through the new renderer" presumed a deterministic renderer that does not exist and is not being built. `REQUIREMENTS.md` is agent-authored prose following `references/` — that is QPB's premise, not a gap. Consequence, recorded: the fixtures are golden files, so a regression in the reference-doc prose cannot fail the suite. Mitigation is the readability Council plus prevention at source in the generation guide — landed via **runner instruction 002** (render-contract hardening), not Phase 3 and not a renderer. **The Council is not yet a functional drift detector:** one scored run exists, one of its six dimensions returned unusable scores and was respecified, and a variance baseline is required before scores can gate. Until that baseline exists, the honest claim is "checks pass and a Council read it."*
+- **Worker self-Council** (3 panelists, per Design §13): render-contract correctness incl. mutation coverage; regeneration-fixture fidelity against C-1…C-7; regression safety on manifest semantics. FIX-REQUIRED iterates in-branch before the review-request files.
+- **Readability Council — the judgment half of the oracle** *(specified 2026-07-20; the Design required it but never defined it)*. Scored against **Wiegers requirements quality attributes**, not an ad-hoc scale, so Phase 4's `REQUIREMENTS_REVIEW.md` defect log and Feature D's interview inherit one vocabulary: **complete / consistent / unambiguous / verifiable / well-organized**, plus **honest-about-gaps** (F-1 statement accuracy; a gaps statement that misdescribes scope is worse than none, per the virtio "outside the checkout entirely" finding). Each dimension scored 1–5 with behavioral anchors and a `REQ-NNN` citation per cell. Rubric: `docs/design/QPB_v1.6.0_Requirements_Readability_Rubric.md`.
+
+  **Ground truth is the project's documentation, never its implementation.** Judging requirements against code is circular — every bug becomes a requirement and coverage is perfect by construction, which defeats the tool's purpose. Source may be read to check whether a requirement is *stated verifiably*, never to decide whether it is *correct*.
+
+  **Cross-family reviewers required.** The fixtures are agent-authored; a judge from the generating model family inflates scores (documented self-enhancement bias). Run the external three-terminal Council (`gpt-5.4`, `gpt-5.3-codex`, `claude-sonnet-4.6`), not worker sub-agents.
+
+Gate to Phase 3: oracle satisfied; self-Council synthesis SHIP; readability Council returns Ship, with no dimension ≤2 on any document.
+
+> **Gate disposition, 2026-07-20 — closed by documented waiver, not by satisfaction. Recorded here because it was decided in conversation and not written down, which is the drift this release exists to eliminate.**
+>
+> The Council ran (9 perspectives, cross-family, nesting held): **6/9 SHIP-WITH-FIXES, 3/9 FIX-REQUIRED, 0/9 unconditional Ship.** All three FIX-REQUIRED verdicts came from the `gpt-5.4` outer run, which scored *Complete* as low as **1**. Read mechanically, the "no dimension ≤2" condition **failed**.
+>
+> **The criterion was waived on the ground that the dimension producing those scores was not measuring.** The same express document scored **1** from one panelist and **5** from another — a four-point spread on a five-point scale — because *Complete* and *Honest about gaps* could be satisfied by the same sentence, so a document admitting its own thinness could score either way. That is a specification defect in the rubric, since fixed (see the rubric's "declared scope is not mitigation"). Gating on an invalid measurement is the hazard the rubric's own threshold section warns about.
+>
+> **The distinction that makes this a waiver and not a dodge:** had the scores been narrow *and* low, the gate would stand. An invalid measurement cannot gate; a valid unfavourable one must.
+>
+> **What was genuinely found, and its disposition:** (i) *Well-organized* scored **5 on 24 of 27 cells** — Feature C's actual objective, unanimously met; (ii) all nine panelists flagged **disjunctive acceptance clauses** in five requirements — fixed at source by instruction 002's generation-guide rule, with the instances recorded in `docs/process/QPB_v1.6.0_Regeneration_Expectations.md` for a future regenerated run rather than hand-patched into the fixtures; (iii) the documents are **thin**, which is F-1/Feature-E territory (§1.3), not a Feature C defect, and should not be re-litigated as one.
+>
+> **Still owed before release:** the rubric has one scored run and no variance baseline, so it cannot yet detect drift. Re-scoring *Complete* against the corrected rubric is the first datapoint toward that baseline.
 
 ## Phase 3 — Slice 2: the validation interview (Feature D + F-2)
 
@@ -80,38 +99,19 @@ Gate: walkthrough produces stage-appropriate questions and durable corrections; 
 
 ---
 
-# Track 2 — Precision (independent; parallelizable with Track 1)
+# Track 2 — Precision — **MOVED OUT 2026-07-21**
 
-## Phase 5 — Slice 3: NFR discovery + FP-audit core (Features A + B)
+Phases 5, 6 and 7 (Features A + B) are now `QPB_v1.6.1_Implementation_Plan.md`. Phase numbers 5-7 are not reused here, so landed commits and cross-references stay unambiguous.
 
-Carried from the 2026-05-24 plan in substance; Design §3-§4 are the spec.
-
-- **Feature A:** `nfr_class` + mandatory `acceptance_criterion`/`verification_method` in `schemas.md` + manifests (backward-compatible; functional REQs unchanged); derivation of core classes (security, reliability, performance) with evidence tracing; the grounding rule (advisory/CVE with no derived-NFR violation → `KNOWN-ISSUE`); categorization-tier state confirmed in code before extending (incl. the B-13 reconcile note); gate FAILs aspirational NFRs (mutation-bitten). NFR sections render into the Feature C architecture (or the pre-C render if Track 2 lands first — the render slot degrades gracefully in both directions).
-- **Feature B:** the fresh-context FP-audit pass post-triage / pre-finalization; core rubric (reachability, applicability incl. CVE version-range, source-of-truth, requirements-traceability); security highest-scrutiny; verdicts CONFIRMED / DEMOTED / RECLASSIFIED-KNOWN-ISSUE / UNCERTAIN with preserved transcript; independence sealed and verified; the `confirmed-open (integration-harness-required)` disposition admissible only on FP-audit CONFIRM; new dispositions narrated via the 090v verdict-explanation framework.
-
-Tests: gate tests for NFR fields; derivation fixture (OpenFGA contextual-tuple restriction → derived REQ-SEC with acceptance criterion); FP-audit fixtures (BUG-003 → DEMOTED, BUG-006 → DEMOTED/RECLASSIFIED, BUG-009 → RECLASSIFIED-KNOWN-ISSUE, BUG-001/002/004 → CONFIRMED); one non-security demotion fixture (generality).
-
-Gate to Phase 6: fixtures green; independence verified (auditor demonstrably lacks skill/writeup context).
-
-## Phase 6 — Slice 3 acceptance: the OpenFGA re-run
-
-- Re-run Mode-A against the preserved OpenFGA fixture tree with NFR discovery + FP-audit active. **⚠ Resolve OD-5 (the HIGH-precision bar) before this gate.**
-- Acceptance: BUG-003/006/009 cannot stand as confirmed HIGH; BUG-001/002/004 still surface; precision ≥ bar; no genuine finding suppressed. Run output + audit transcripts preserved as acceptance evidence.
-
-## Phase 7 — Slice 4 breadth + precision Council
-
-- Remaining NFR classes (usability, portability, maintainability, interop); full FP-audit rubric (design-intent, compensation, severity-justification); per-run precision metrics.
-- **Nested 3×3 Council** (per Design §13 item 4): NFR derivation testability, FP-audit independence (the fabrication-tell check), grounding rule, OpenFGA regression. Standard acceptance checks on responses (real source reads, three inner verdicts per outer file, convergence flags).
-
-Gate: Council Ship within 3 cycles or HALT + recalibrate. **Track 2 complete.**
+**Consequence for Phase 8 below:** it no longer requires both tracks, and the release framing loses its precision headlines.
 
 ---
 
-## Phase 8 — Release v1.6.0 (both tracks complete)
+## Phase 8 — Release v1.6.0 (Track 1 complete)
 
 - Version stamps from the single version source (SKILL.md frontmatter per v1.5.10 consolidation); channel package versions.
 - README + CHANGELOG: v1.6.0 framed as the requirements release — coherent contract-checked specs, the fitness-for-purpose validation interview, NFR grounding + FP-audit precision, with the regeneration + OpenFGA results as headlines.
-- **⚠ Resolve OD-8 (090j disposition)** and reflect it in the release notes.
+- **Reflect OD-8 in the release notes**, using the corrected framing: 090j is a retained mechanical guardrail and, with Feature B absent, this release's only precision guard. Do not describe it as a floor beneath a judgment layer that does not ship here.
 - Whole-surface umbrella Council; then the standard close-out sequence per `DEVELOPMENT_PROCESS.md` (Andrew tags; scripted publish gates; verify-before-claiming on every remote ref).
 
 ---
@@ -122,7 +122,7 @@ The code-path Phase A–E pipeline (`references/requirements_pipeline.md`) and t
 
 ## Out of scope (per Design §11)
 
-Interview Dimensions 2/5/8 + QI-loop closure; Feature E (B-4 first point-release candidate); mechanical F-1 enumerators; F-3 cross-run diff; SPC (v1.7.0 — docs stale, need rewrite); skill-surface routing; bug-report PR automation; Phase-6 structural enforcement.
+Interview Dimensions 2/5/8 + QI-loop closure; Feature E (B-4 first point-release candidate); mechanical F-1 enumerators; F-3 cross-run diff; SPC (**v1.8.0** — renumbered from v1.7.0 on 2026-07-20; docs stale on two counts and need a rewrite, see Design §9); skill-surface routing; bug-report PR automation; Phase-6 structural enforcement.
 
 ## Risks and mitigations
 
@@ -130,4 +130,4 @@ Interview Dimensions 2/5/8 + QI-loop closure; Feature E (B-4 first point-release
 - **Interview scope creep** (the protocol grows toward the full 8-dimension proposal mid-build). Mitigation: the MVP boundary is explicit in Design §6 ("Deferred from the proposal"); the self-Council's supersession/compliance charters check against it.
 - **Write-back corrupts the manifest** (an operator correction lands mis-shaped). Mitigation: gate validates all post-session records; the mutation fixture pins the write-back path; re-render must pass the render contract after every session.
 - **FP-audit too aggressive / not actually fresh-context / cost** — carried unchanged from the 2026-05-24 plan (acceptance oracle protects recall; independence is a phase-gate item; scope starts at HIGH/MED if cost bites).
-- **Tracks collide at the render slot** (Track 2's NFR sections vs Track 1's architecture landing in either order). Mitigation: the NFR render slot is specified to degrade gracefully in both directions (Phase 5 work item); whichever lands second runs the other's fixture suite before merging.
+- ~~Tracks collide at the render slot.~~ **Retired 2026-07-21 by the split:** Track 1 lands first by construction, so the render slot ships unused and v1.6.1 runs this release's fixture suite before merging.

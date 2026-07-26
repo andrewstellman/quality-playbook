@@ -1,0 +1,11 @@
+--- a/middleware/realip.go
++++ b/middleware/realip.go
+@@ -48,6 +48,8 @@
+ 		ip = xrip
+ 	} else if xff := r.Header.Get(xForwardedFor); xff != "" {
+ 		ip, _, _ = strings.Cut(xff, ",")
++		// Trim optional whitespace (RFC 7230 OWS) around the leftmost XFF element.
++		ip = strings.TrimSpace(ip)
+ 	}
+ 	if ip == "" || net.ParseIP(ip) == nil {
+ 		return ""

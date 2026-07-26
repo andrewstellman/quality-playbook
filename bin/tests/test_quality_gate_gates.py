@@ -34,6 +34,7 @@ outputs/032-final-report.md for the rationale and history.
 """
 
 import json
+import re
 import os
 import subprocess
 import sys
@@ -3965,6 +3966,28 @@ class TestV153SourceTypeValidation(V150FixtureBase):
         self.assertEqual(warns, 0, out)
         self.assertIn("v1.5.3 source_type validation complete", out)
 
+    def test_v153_shaped_with_operator_confirmation_source_type_passes(self):
+        # v1.6.0 Feature D: operator-confirmation is a valid source_type.
+        # skill_section stays absent (invariant #21 for non-skill-section).
+        self.write_manifest(
+            "requirements_manifest.json",
+            "records",
+            [
+                {
+                    "id": "REQ-001",
+                    "tier": 3,
+                    "functional_section": "Foo",
+                    "source_type": "operator-confirmation",
+                }
+            ],
+        )
+        fails, warns, out = _capture_all_output(
+            quality_gate.check_v1_5_3_source_type_validation, self.q
+        )
+        self.assertEqual(fails, 0, out)
+        self.assertEqual(warns, 0, out)
+        self.assertIn("v1.5.3 source_type validation complete", out)
+
     def test_v153_shaped_with_invalid_source_type_fails(self):
         # Triggers v1.5.3-shaped detection via the divergence_type field on
         # the *bugs* manifest -- not directly on this REQ -- to exercise
@@ -4949,6 +4972,87 @@ class TestV156SelfConsistencyDocsDerived(V150FixtureBase):
             fails, 0,
             f"docs-derived must pass invariant #21 source_type check; "
             f"output: {out}",
+        )
+        self.assertIn("source_type validation complete", out)
+
+
+class TestV160OperatorConfirmationSourceType(V150FixtureBase):
+    """v1.6.0 Feature D: operator-confirmation source_type.
+
+    Parallel to TestV156SelfConsistencyDocsDerived — the gate enum and the
+    schemas.md §3.7 table must agree, and a real REQ carrying the type must
+    pass invariant #21.
+    """
+
+    def test_operator_confirmation_in_allowlist(self):
+        self.assertIn(
+            "operator-confirmation",
+            quality_gate._V153_VALID_SOURCE_TYPES,
+            "operator-confirmation must be in the v1.5.3 source_type "
+            "allowlist (v1.6.0 Feature D; schemas.md §3.7).",
+        )
+
+    def test_schema_table_and_gate_enum_agree(self):
+        """Drift guard: the gate enum and the schemas.md §3.7 table agree
+        BOTH ways.
+
+        The enum and the schema table are two statements of one contract; a
+        value in one but not the other is a findable defect. Self-Council
+        Panelist A found the original guard was one-directional (gate ⊆
+        schema), so removing a value from the gate enum left it green. This
+        checks the §3.7 table rows against the enum in both directions.
+        """
+        schemas = (_REPO_ROOT / "schemas.md").read_text(
+            encoding="utf-8", errors="replace"
+        )
+        enum = set(quality_gate._V153_VALID_SOURCE_TYPES)
+        # Direction 1: every enum value has a §3.7 row.
+        for value in enum:
+            with self.subTest(direction="enum->schema", source_type=value):
+                self.assertIn(
+                    f"`{value}`", schemas,
+                    f"source_type {value!r} is in the gate enum but has no "
+                    "schemas.md §3.7 table row.",
+                )
+        # Direction 2: every §3.7 table row value is in the enum. Parse the
+        # §3.7 table's first-column code spans.
+        sec = schemas.split("### 3.7", 1)[1].split("### 3.8", 1)[0]
+        table_values = set(
+            re.findall(r"^\|\s*`([a-z-]+)`\s*\|", sec, re.MULTILINE)
+        )
+        self.assertTrue(table_values, "failed to parse the §3.7 table")
+        for value in table_values:
+            with self.subTest(direction="schema->enum", source_type=value):
+                self.assertIn(
+                    value, enum,
+                    f"source_type {value!r} has a schemas.md §3.7 row but is "
+                    "not in the gate enum _V153_VALID_SOURCE_TYPES — a "
+                    "manifest using it would be wrongly rejected.",
+                )
+
+    def test_operator_confirmation_req_passes_invariant_21(self):
+        self.write_manifest(
+            "requirements_manifest.json",
+            "records",
+            [
+                {
+                    "id": "REQ-001",
+                    "summary": "Code-derived requirement",
+                    "source_type": "code-derived",
+                },
+                {
+                    "id": "REQ-002",
+                    "summary": "Operator corrected this in an interview",
+                    "source_type": "operator-confirmation",
+                },
+            ],
+        )
+        fails, out = _capture_fail_output(
+            quality_gate.check_v1_5_3_source_type_validation, self.q
+        )
+        self.assertEqual(
+            fails, 0,
+            f"operator-confirmation must pass invariant #21; output: {out}",
         )
         self.assertIn("source_type validation complete", out)
 

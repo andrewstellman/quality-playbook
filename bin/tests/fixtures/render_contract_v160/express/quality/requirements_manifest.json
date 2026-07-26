@@ -1,0 +1,244 @@
+{
+  "schema_version": "1.6.0",
+  "generated_at": "2026-07-19T00:00:00Z",
+  "records": [
+    {
+      "id": "REQ-001",
+      "tier": 3,
+      "functional_section": "Response construction and serialization",
+      "title": "res.cookie Max-Age and Expires directives that agree",
+      "references": [
+        "lib/response.js:742-775",
+        "lib/response.js:759-766"
+      ],
+      "implementation": "maxAge (ms) is converted to expires and floored to seconds for Max-Age.",
+      "conditions_of_satisfaction": "res.cookie must not emit a Max-Age that contradicts a future Expires. A sub-second maxAge must not serialize Max-Age=0 alongside a future Expires; res.clearCookie (response.js:709-716) remains the only path that sets an immediate expiry.",
+      "specificity": "specific",
+      "use_cases": [
+        "UC-02"
+      ]
+    },
+    {
+      "id": "REQ-002",
+      "tier": 3,
+      "functional_section": "Response construction and serialization",
+      "title": "Well-formed res.redirect body for any accepted status code",
+      "references": [
+        "lib/response.js:812-864"
+      ],
+      "implementation": "The body is built from statuses.message[status] via res.format.",
+      "conditions_of_satisfaction": "res.redirect must produce a well-formed body for any accepted status code. For a status with no statuses.message entry, the body and HTML <title> must not contain the literal string undefined.",
+      "specificity": "specific",
+      "use_cases": [
+        "UC-03"
+      ]
+    },
+    {
+      "id": "REQ-003",
+      "tier": 3,
+      "functional_section": "Response construction and serialization",
+      "title": "Safe, well-defined grammar for res.jsonp callback names",
+      "references": [
+        "lib/response.js:260-304",
+        "lib/response.js:286"
+      ],
+      "implementation": "The callback is filtered by /[^\\[\\]\\w$.]/g then reflected into a text/javascript body guarded by typeof \u2026 === 'function'.",
+      "conditions_of_satisfaction": "res.jsonp callback names must be restricted to a safe, well-defined grammar. Only callback strings matching the intended grammar reach the body; member-access chains either are rejected or are proven safe by the guard. X-Content-Type-Options: nosniff is always set on jsonp responses (response.js:271,282).",
+      "specificity": "specific",
+      "use_cases": [
+        "UC-04"
+      ]
+    },
+    {
+      "id": "REQ-004",
+      "tier": 3,
+      "functional_section": "Content negotiation and charset consistency",
+      "title": "RFC 7231 \u00a73.1.1.1-conformant media-type parameter parsing in acceptParams",
+      "references": [
+        "lib/utils.js:89-120",
+        "lib/utils.js:61-77"
+      ],
+      "implementation": "Hand-rolled scan over ;/= boundaries extracting q and params.",
+      "conditions_of_satisfaction": "acceptParams must parse media-type parameters per RFC 7231 \u00a73.1.1.1. Quoted parameter values containing ; are not split mid-value; q is parsed and clamped to [0,1]; the splitIndex > endIndex recovery branch (utils.js:102-104) does not drop valid params.",
+      "specificity": "specific",
+      "use_cases": [
+        "UC-05"
+      ]
+    },
+    {
+      "id": "REQ-005",
+      "tier": 3,
+      "pattern": "parity",
+      "functional_section": "Content negotiation and charset consistency",
+      "title": "Consistent charset handling across res.send body types and the res.set/res.type/res.json/res.jsonp surfaces",
+      "references": [
+        "lib/response.js:137-143",
+        "lib/response.js:150-153",
+        "lib/response.js:664-686",
+        "lib/utils.js:225-238"
+      ],
+      "implementation": "String send rewrites charset to utf-8 via setCharset; Buffer send preserves it; res.set/res.type inject charset via mime.contentType.",
+      "conditions_of_satisfaction": "Charset handling must be consistent across res.send body types and res.set/res.type/res.json/res.jsonp surfaces. Per-site (Cartesian): UC-06.a a pre-set non-utf-8 charset sent as a string body must behave per the documented v5 rule (force utf-8) consistently; UC-06.b the same charset sent as a Buffer body must follow the same documented rule, or the divergence must be explicitly specified; UC-06.c res.set('Content-Type', \u2026) charset injection (via mime.contentType) must agree with res.send's setCharset injection for the same input.",
+      "specificity": "specific",
+      "use_cases": [
+        "UC-06.a",
+        "UC-06.b",
+        "UC-06.c"
+      ]
+    },
+    {
+      "id": "REQ-006",
+      "tier": 3,
+      "functional_section": "Trust-proxy derivation and settings compilation",
+      "title": "Non-empty, correct req.protocol scheme for every trusted X-Forwarded-Proto value",
+      "references": [
+        "lib/request.js:297-315",
+        "lib/request.js:326-328"
+      ],
+      "implementation": "req.protocol getter comma-splits and trims the forwarded header; req.secure derives from it.",
+      "conditions_of_satisfaction": "req.protocol must yield a non-empty, correct scheme for every trusted X-Forwarded-Proto value. For header values \"\", \",\", \", https\", \"https,\", \"http, https\" with trust proxy enabled, req.protocol \u2208 {http, https} and req.secure reflects the real scheme.",
+      "specificity": "specific",
+      "use_cases": [
+        "UC-01"
+      ]
+    },
+    {
+      "id": "REQ-007",
+      "tier": 3,
+      "pattern": "parity",
+      "functional_section": "Trust-proxy derivation and settings compilation",
+      "title": "Consistent req.host/req.hostname/req.subdomains resolution for all trusted X-Forwarded-Host shapes",
+      "references": [
+        "lib/request.js:418-431",
+        "lib/request.js:444-458",
+        "lib/request.js:383-394"
+      ],
+      "implementation": "host selects/trims XFH then Host; hostname strips the port; subdomains splits on '.'.",
+      "conditions_of_satisfaction": "req.host/req.hostname/req.subdomains must resolve consistently for all trusted X-Forwarded-Host shapes. Per-site (UC-07.a/b/c): for trusted XFH values \"a.com\", \",a.com\", \"a.com,\", \"a.com:8080\", \"[::1]:8080\", each of host/hostname/subdomains returns the value implied by the leading authority, never undefined for a syntactically present host.",
+      "specificity": "specific",
+      "use_cases": [
+        "UC-07.a",
+        "UC-07.b",
+        "UC-07.c"
+      ]
+    },
+    {
+      "id": "REQ-008",
+      "tier": 3,
+      "functional_section": "Trust-proxy derivation and settings compilation",
+      "title": "Fail-fast settings compilation on invalid configuration",
+      "references": [
+        "lib/application.js:363-380",
+        "lib/utils.js:130-214"
+      ],
+      "implementation": "compileETag/compileQueryParser/compileTrust throw TypeError on unknown values at app.set time.",
+      "conditions_of_satisfaction": "Settings compilation must fail fast on invalid configuration. Invalid values for etag/query parser/trust proxy settings throw a TypeError at app.set time, not at request time.",
+      "specificity": "architectural-guidance",
+      "use_cases": []
+    },
+    {
+      "id": "REQ-009",
+      "tier": 3,
+      "functional_section": "Artifact layout",
+      "title": "Per-bug writeup placement at quality/writeups/BUG-<id>.md",
+      "references": [
+        "quality/writeups/"
+      ],
+      "implementation": "Phase 5 TDD writeup generation writes one self-contained markdown writeup per confirmed bug.",
+      "conditions_of_satisfaction": "Per-bug writeups are placed at quality/writeups/BUG-<id>.md. Every confirmed BUG-<id> has a writeup at quality/writeups/BUG-<id>.md.",
+      "specificity": "architectural-guidance",
+      "use_cases": []
+    },
+    {
+      "id": "REQ-010",
+      "tier": 3,
+      "functional_section": "Artifact layout",
+      "title": "Fix-patch placement at quality/patches/BUG-<id>-fix.patch",
+      "references": [
+        "quality/patches/"
+      ],
+      "implementation": "Each confirmed bug with a fix carries a git-diff fix patch under quality/patches/.",
+      "conditions_of_satisfaction": "Fix patches are placed at quality/patches/BUG-<id>-fix.patch. Fix patches are named quality/patches/BUG-<id>-fix.patch.",
+      "specificity": "architectural-guidance",
+      "use_cases": []
+    },
+    {
+      "id": "REQ-011",
+      "tier": 3,
+      "functional_section": "Artifact layout",
+      "title": "Regression-test patch placement at quality/patches/BUG-<id>-regression-test.patch",
+      "references": [
+        "quality/patches/"
+      ],
+      "implementation": "Each confirmed bug carries a git-diff regression-test patch under quality/patches/.",
+      "conditions_of_satisfaction": "Regression-test patches are placed at quality/patches/BUG-<id>-regression-test.patch. Regression-test patches are named quality/patches/BUG-<id>-regression-test.patch.",
+      "specificity": "architectural-guidance",
+      "use_cases": []
+    },
+    {
+      "id": "REQ-012",
+      "tier": 3,
+      "functional_section": "Artifact layout",
+      "title": "Code-review output placement under quality/code_reviews/",
+      "references": [
+        "quality/code_reviews/"
+      ],
+      "implementation": "Phase 3 code-review pass outputs are written under quality/code_reviews/.",
+      "conditions_of_satisfaction": "Code review output is placed at quality/code_reviews/. Code review output files live under quality/code_reviews/.",
+      "specificity": "architectural-guidance",
+      "use_cases": []
+    },
+    {
+      "id": "REQ-013",
+      "tier": 3,
+      "functional_section": "Artifact layout",
+      "title": "Spec-audit output placement under quality/spec_audits/",
+      "references": [
+        "quality/spec_audits/"
+      ],
+      "implementation": "Phase 4 auditor reports and triage probes are written under quality/spec_audits/.",
+      "conditions_of_satisfaction": "Spec audit outputs (auditor reports + triage) are placed at quality/spec_audits/. Spec audit auditor reports and triage outputs live under quality/spec_audits/.",
+      "specificity": "architectural-guidance",
+      "use_cases": []
+    },
+    {
+      "id": "REQ-014",
+      "tier": 3,
+      "functional_section": "Artifact layout",
+      "title": "Sidecar JSON result placement under quality/results/",
+      "references": [
+        "quality/results/"
+      ],
+      "implementation": "Machine-readable phase results are written under quality/results/.",
+      "conditions_of_satisfaction": "Sidecar JSON results (tdd-results.json, integration-results.json, recheck-results.json) are placed at quality/results/. tdd-results.json, integration-results.json, and recheck-results.json live under quality/results/.",
+      "specificity": "architectural-guidance",
+      "use_cases": []
+    },
+    {
+      "id": "REQ-015",
+      "tier": 3,
+      "functional_section": "Artifact layout",
+      "title": "Mechanical-verification artifact placement under quality/mechanical/",
+      "references": [
+        "quality/mechanical/"
+      ],
+      "implementation": "When dispatch/enumeration contracts exist, the orchestrator + case witnesses live under quality/mechanical/.",
+      "conditions_of_satisfaction": "Mechanical-verification artifacts (verify.py + *_cases.txt) are placed at quality/mechanical/. verify.py and *_cases.txt artifacts live under quality/mechanical/ (NOT APPLICABLE this run \u2014 Express lib/ has no closed-constant dispatch tables).",
+      "specificity": "architectural-guidance",
+      "use_cases": []
+    },
+    {
+      "id": "REQ-016",
+      "tier": 3,
+      "functional_section": "Artifact layout",
+      "title": "Prohibition on quality/workspace/<name>/ in favor of top-level quality/<name>/",
+      "references": [
+        "quality/"
+      ],
+      "implementation": "The Phase 6 gate check_no_workspace_dir fails any run with a quality/workspace/ tree present (populated OR empty).",
+      "conditions_of_satisfaction": "quality/workspace/<name>/ is forbidden \u2014 top-level quality/<name>/ is the only canonical layout. No quality/workspace/ directory exists at any point in the run; all artifacts use top-level quality/<name>/ paths.",
+      "specificity": "architectural-guidance",
+      "use_cases": []
+    }
+  ]
+}
