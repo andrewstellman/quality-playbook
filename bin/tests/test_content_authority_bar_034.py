@@ -282,6 +282,18 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         self.assertIn("the genre is what a document is *for*", self.lower)
         self.assertIn("not what it is *titled*", self.lower)
         self.assertIn("read the body", self.lower)
+        # The two WORKED EXAMPLES, pinned separately (panelist A, N9 — its bite
+        # deleting the first of them left 21/21 green). Third instance in this
+        # review of one shape: the abstract rule pinned, the concrete case loose.
+        # The examples are the half that does the work — the first is literally the
+        # express artifact this finding came from, and the second works the rule in
+        # the promote-BLOCKING direction so it cannot be read as "titles never
+        # matter, promote freely".
+        self.assertIn("a file called a migration guide whose body states the exact "
+                      "current behavioral contracts is an `api-reference`",
+                      self.lower)
+        self.assertIn("a file called `spec.md` that walks you through building "
+                      "something is a tutorial", self.lower)
 
     def test_the_promote_side_example_reason_drops_published_too(self):
         # Panelist A, N8: "published" survived in the example `reason` string the
