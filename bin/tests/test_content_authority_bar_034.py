@@ -269,11 +269,37 @@ class TheGuidanceSaysItTests(unittest.TestCase):
                       self.lower)
         self.assertIn("does not replace the *genre*", self.lower)
 
+    def test_the_genre_is_judged_from_the_BODY_not_the_title(self):
+        # Panelist A, F4 — the other direction of the same over-correction. "A
+        # tutorial with precise code samples is still a tutorial" gives an
+        # affirmative reason to demote on FRAMING, and the back-door clause only
+        # covers provenance and accuracy doubt. Express's shipped manifest has
+        # 08_Migration_Guide_v4_to_v5.md — titled a migration guide, opening with an
+        # Overview and `npm install` — at tier 2 `api-reference` precisely because
+        # its body states current behavioral contracts. The guide says twice that a
+        # title is not a genre; making the genre label a hard gate without saying
+        # where the label comes from hands the title back its authority.
+        self.assertIn("the genre is what a document is *for*", self.lower)
+        self.assertIn("not what it is *titled*", self.lower)
+        self.assertIn("read the body", self.lower)
+
+    def test_the_promote_side_example_reason_drops_published_too(self):
+        # Panelist A, N8: "published" survived in the example `reason` string the
+        # model is invited to copy — the promote side of the same trigger word, and
+        # not caught by the line-43 assertion.
+        self.assertNotIn("published API the code", self.text)
+        # The word survives nowhere in a document-classification sense.
+        self.assertNotIn("published API reference", self.text)
+        self.assertNotIn("published API contract", self.text)
+
     def test_it_closes_the_genre_relabelling_back_door(self):
         # Panelist A, N6: nothing stopped reaching the same tier 4 by re-labelling
         # an api-reference as `guide`, which makes the whole rule optional.
-        window = self.lower.split("both halves have to hold", 1)[1][:900]
-        self.assertIn("not a back door", window)
+        # Anchored on the clause itself rather than a fixed-width window from a
+        # heading — inserting one sentence upstream silently pushed the second
+        # assertion out of a 900-char window and failed for the wrong reason.
+        self.assertIn("not a back door", self.lower)
+        window = self.lower.split("not a back door", 1)[1][:400]
         self.assertIn("the lane is still b", window)
 
     def test_it_says_to_SURFACE_and_where(self):
