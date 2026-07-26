@@ -111,7 +111,7 @@ jobs:
         run: |
           set -euo pipefail
           TARBALL=$(ls npm-dist/*.tgz)
-          if ! npm publish "$TARBALL" --access public --provenance > out.log 2>&1; then
+          if ! npm publish "./$TARBALL" --access public --provenance > out.log 2>&1; then
             if grep -qiE 'cannot publish over|previously published|E403' out.log; then
               echo "npm: already published — treating as success."; cat out.log; exit 0
             fi
