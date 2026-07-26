@@ -305,10 +305,17 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         # express artifact this finding came from, and the second works the rule in
         # the promote-BLOCKING direction so it cannot be read as "titles never
         # matter, promote freely".
-        self.assertIn(self._plainly("a file called a migration guide whose body states the exact "
-                      "current behavioral contracts is an `api-reference`"), self.plain)
-        self.assertIn(self._plainly("a file called `spec.md` that walks you through building "
-                      "something is a tutorial"), self.plain)
+        # Decomposed rather than pinned verbatim (panelist C): a semantics-
+        # preserving reword of a worked example should not fail a test about the
+        # RULE. What must survive is that each example is present and points the way
+        # it points — a migration guide reaching `api-reference`, a `SPEC.md`
+        # reaching tutorial.
+        migration = self.plain.split("migration guide whose body", 1)
+        self.assertEqual(len(migration), 2, "the migration-guide example is gone")
+        self.assertIn("api-reference", migration[1][:120])
+        spec_md = self.plain.split("`spec.md`", 1)
+        self.assertEqual(len(spec_md), 2, "the SPEC.md counter-example is gone")
+        self.assertIn("tutorial", spec_md[1][:120])
 
     def test_the_promote_side_example_reason_drops_published_too(self):
         # Panelist A, N8: "published" survived in the example `reason` string the
@@ -397,6 +404,16 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         self.assertIn(self._plainly("citability is recorded per file, not per section"), self.plain)
         self.assertIn(self._plainly("makes **the whole file** quotable"), self.plain)
         self.assertIn(self._plainly("name the contract section in your `reason`"), self.plain)
+        # Panelist C, C-8 — the THIRD false-mechanics claim in three rounds. The
+        # replacement for B-7 said the reason is "carried into the requirements
+        # interview"; `model_reason` is on the record and returned by
+        # `classification_playback()`, but `requirements_interview.md` mandates
+        # playing back `floor_rule`'s reason and `rescued_reason` only. Reachable,
+        # not routed.
+        self.assertIn(self._plainly("where the requirements interview and Phase 4 "
+                                    "can reach it"), self.plain)
+        self.assertNotIn(self._plainly("carried into the requirements interview"),
+                         self.plain)
         # ...and the false claim is gone.
         self.assertNotIn(self._plainly("you are not certifying the whole document"), self.plain)
 
@@ -412,6 +429,13 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         """
         self.assertIn(self._plainly("superseded version"), self.plain)
         self.assertIn(self._plainly("you do not have to check any claim"), self.plain)
+        # Panelist C, C-4 (revised): C proposed cutting this route, checked the
+        # unattended path — phase1.md says "The show prints in every mode. The pause
+        # does not", so on a headless run Lane B means CITED with nobody to object —
+        # and withdrew the cut. What survived was the contradiction with the
+        # per-document isolation rule nine paragraphs above, reconciled in place.
+        self.assertIn(self._plainly("the one comparison per-document isolation does "
+                                    "not forbid"), self.plain)
 
     def test_the_accuracy_carve_out_does_not_retire_the_content_half(self):
         # Panelist B, B-9: "only being *wrong* counts against it, and then only
@@ -477,7 +501,9 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         occurs 7 times). Scoped to the bullet so the assertions are about the rule
         rather than about the word appearing somewhere.
         """
-        bullet = self.plain.split("- lane c", 1)[1][:600]
+        raw = next(ln for ln in self.text.split("\n")
+                   if ln.lstrip().startswith("- **Lane C"))
+        bullet = self._plainly(raw)
         for signal in ("cve/ghsa identifier", "advisory-site url",
                        "implementation-source file", "operator-confirmation-required"):
             self.assertIn(signal, bullet, f"Lane C bullet lost: {signal}")
