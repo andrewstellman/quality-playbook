@@ -5,9 +5,9 @@ All notable changes to the Quality Playbook will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.6.0] — in progress (unreleased)
+## [1.6.0] — 2026-07-26
 
-The Requirements-Review release. QPB has always verified that code conforms to the derived requirements; 1.6.0 adds the missing half — making the requirements document itself coherent, and letting the operator validate that it captures the right intent before the rest of the run builds on it. Three features ship under this version: **C** (spec organization & coherence — the mechanical render contract), **D** (the requirements validation interview), and **F** (operator-confirmation evidence + its cross-run durability). Publishing is deferred; this entry tracks what has landed on the `1.6.0` branch.
+The Requirements-Review + Grounding release. QPB has always verified that code conforms to the derived requirements; 1.6.0 adds the missing half — making the requirements document itself coherent, letting the operator (or an automatic expert-persona panel) validate that it captures the right intent before the rest of the run builds on it, and grounding it in the gathered documentation the model actually reads and judges. Five features ship under this version: **C** (spec organization & coherence — the mechanical render contract), **D** (the requirements validation interview), **F** (operator-confirmation evidence + its cross-run durability), and — pulled in 2026-07-22 — **G** (dump-and-go documentation read-and-judge classification) and **H** (agent-persona requirements validation).
 
 ### Feature C — spec organization & coherence (the render contract)
 
@@ -26,6 +26,19 @@ The Requirements-Review release. QPB has always verified that code conforms to t
 
 - **`operator-confirmation` source type (F-2)** — an operator's confirmation of a requirement is first-class, citable evidence, backed by the preserved interview transcript.
 - **Cross-run durability (F-2a)** — confirmations persist in an append-only `quality/operator_confirmations.jsonl`; a re-derivation that would drop the confirmed REQs while leaving no durable backing FAILs the gate, so an operator's validation survives future runs (surfaced, never silently re-applied).
+
+### Feature G — dump-and-go documentation classification (read-and-judge)
+
+- **The model reads and judges the gathered docs; the mechanical genre floors are gone.** Drop any documentation at the top level of `reference_docs/` and the derivation model reads each file and classifies it *by content* — an authoritative contract the code must conform to is citable (Tier 1/2), background context is Tier 4. The filename/title/`_SPEC_NAME_TOKENS` genre floors that used to guess from names (and once pinned a real spec, `issue_tracker_api_spec.md`, to unrescuable background) are deleted; what remains is a minimal hard-signal backstop that assigns no genre and never demotes.
+- **Three lanes.** Lane A — content that *validates* as a contract format (a real parse: top-level OpenAPI/Swagger/AsyncAPI key, protobuf, `#%RAML`, WSDL) auto-cites in every mode. Lane B — the model's own read that a document is authoritative cites it, even on an unattended run, but records it `unconfirmed` and surfaces it as the model's call until the operator confirms. Lane C — a hard signal (a CVE/GHSA identifier, an advisory-site URL, an implementation-source file) or a self-classifying document routes to the operator and is never auto-cited.
+- **Loud on degrade.** A `zero_citable` tripwire and a `classifier_status` field surface an empty or unwired classification in the gate WARN, the `REQUIREMENTS.md` overview, and the interview playback — a whole-corpus Tier-4 collapse can no longer pass silently.
+- **One operator-override channel** — the content-keyed, operator-authored `reference_docs/qpb_decisions.txt` collapses the four prior override channels (`qpb_promote.txt` / `qpb_advisory_rescue.txt` / `qpb_authoritative.txt` / `cite/` placement) into one; promoting a backstop-flagged document requires the operator to name the specific signal.
+- **The bar is content-authority, not authorship provenance.** Gathered documentation is third-party-compiled by construction, so "not written by the project's maintainers" is never a reason to demote; an authoritative-genre document the model is merely unsure about is cited `unconfirmed` rather than buried as background, and a *minor* spotted inaccuracy in an otherwise-authoritative reference is carried as a doc-vs-code finding rather than grounds for demotion.
+
+### Feature H — agent-persona requirements validation
+
+- **Fresh-context expert personas validate the requirements automatically.** At the Phase 2 → 3 boundary — the automatic, opt-out counterpart to Feature D's opt-in human interview — a domain-expert persona and an anchored security-reviewer persona (plus any AI-selected lens) independently descend the validation interview against the derived requirements. Each runs as a fresh-context, tool-restricted sub-agent (Read confined to the classified docs + rendered spec + rubric; no shell, no network) so its judgment is fitness-for-purpose, not fitness-to-implementation.
+- **Grounded, disclosed, revertable.** Every persona `add`/`correct` must cite documentation, byte-verified, and be fit for *this* system — otherwise it is surfaced as a candidate rather than applied. Applied changes carry `source_type: agent-validation` provenance (never coalesced with human confirmation), are disclosed in `quality/expert_review_summary.json`, and can be reverted. It is a remediator, not a gate — it improves the requirements and shows its work; it never renders a verdict or blocks a run.
 
 ### Activation
 
