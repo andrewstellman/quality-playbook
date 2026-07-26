@@ -339,19 +339,62 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         self.assertIn("(spec, RFC, API reference,", self.text)
         self.assertNotIn("published API reference", self.text)
 
+    def test_the_conservative_direction_is_PRESERVED_not_just_narrowed(self):
+        # Panelist B's bite T2 deleted the whole conservative direction —
+        # `candidate-spec`, "call it background", and the recoverable/poisons
+        # rationale — and the fixture stayed 21/21 green. Task 2 says narrow it AND
+        # preserve it; the fixture pinned only the narrowing, so the half being
+        # preserved was unguarded.
+        self.assertIn("`candidate-spec`", self.text)
+        self.assertIn("call it background", self.lower)
+        self.assertIn("a missed grounding is recoverable, a false authoritative "
+                      "source poisons the derivation", self.lower)
+
+    def test_a_mixed_document_goes_UP_not_down(self):
+        # Panelist B, B-1: both worked examples cover a title/body MISMATCH; neither
+        # covers a body that is genuinely both. Express's 07_Static_Files_Serving.md
+        # is exactly that — walkthrough sections wrapped around an options-and-
+        # defaults section — and it is one of the three live Lane B citables
+        # acceptance criterion 4 protects.
+        self.assertIn("when the body is genuinely both, the contract content "
+                      "decides it — upward", self.lower)
+        self.assertIn("a section a requirement could be written against", self.lower)
+
+    def test_pervasively_wrong_has_an_evidentiary_floor(self):
+        # Panelist B, B-4/B-5: without a floor, chi's "one inaccuracy on the first
+        # page checked" fits through "pervasively wrong"; and chi 14's "matches
+        # source at a summary level" left §8a's own canonical Lane B example
+        # demotable on the content half.
+        self.assertIn("not that you checked one page and found one error",
+                      self.lower)
+        self.assertIn("is a reason to **cite** a reference, not to demote it",
+                      self.lower)
+
     def test_the_ambiguity_rule_is_scoped_to_GENRE(self):
         self.assertIn("on genuine ambiguity of genre, background", self.lower)
         # ...and explicitly disclaims the two readings that caused the defect.
-        window = self.lower.split("on genuine ambiguity of genre", 1)[1][:1200]
+        # Sized to the paragraph it is about (674 chars), not 1200 — an
+        # over-long window silently starts asserting about the NEXT paragraph,
+        # which is the inverse of the too-short window found earlier.
+        window = self.lower.split("on genuine ambiguity of genre", 1)[1][:700]
         self.assertIn("not** license to demote", window)
         self.assertIn("who compiled it", window)
         self.assertIn("lane b `unconfirmed`", window)
 
     def test_lane_C_guidance_is_untouched(self):
-        # No regression: the backstop's three signals still read as never-auto-cited.
-        self.assertIn("cve/ghsa identifier", self.lower)
-        self.assertIn("advisory-site url", self.lower)
-        self.assertIn("operator-confirmation-required", self.lower)
+        """No regression: all THREE backstop signals, inside the Lane C bullet.
+
+        Panelist B's bite T1 deleted the implementation-source signal from all three
+        places it appears and left 21/21 green — this test never asserted it, and
+        matched the other two anywhere in an 800-line file ("cve/ghsa identifier"
+        occurs 7 times). Scoped to the bullet so the assertions are about the rule
+        rather than about the word appearing somewhere.
+        """
+        bullet = self.lower.split("- **lane c", 1)[1].split("\n", 1)[0]
+        for signal in ("cve/ghsa identifier", "advisory-site url",
+                       "implementation-source file", "operator-confirmation-required"):
+            self.assertIn(signal, bullet, f"Lane C bullet lost: {signal}")
+        self.assertIn("never** cited until the operator says so", bullet)
 
 
 if __name__ == "__main__":
