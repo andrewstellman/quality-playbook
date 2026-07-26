@@ -220,15 +220,34 @@ class TheGuidanceSaysItTests(unittest.TestCase):
     cheapest available guard on text whose absence cost a whole acceptance run.
     """
 
+    # Panelist C, C-3: 14 of these assertions matched on Markdown EMPHASIS, so the
+    # sensitivity was inverted — changing `**bold**` to `*italic*` failed two tests
+    # while C's counter-bite, which wrote the provenance bar back INTO the guide by
+    # qualification and kept every pinned substring, passed 28/28. Matching is now
+    # emphasis-insensitive: the tests guard the RULE, not the typography.
+    #
+    # Stated limit, because it matters and no assertion closes it: substring tests
+    # detect DELETION, not CONTRADICTION. A future editor can satisfy every needle
+    # here and still reintroduce the defect by adding qualifying prose around it.
+    # That is what the Council is for; these pins only stop silent removal.
     @classmethod
     def setUpClass(cls):
         cls.text = GUIDE.read_text(encoding="utf-8")
         cls.lower = cls.text.lower()
+        cls.plain = cls._plainly(cls.text)
+
+    @staticmethod
+    def _plainly(needle):
+        """Emphasis-, dash- and whitespace-insensitive view of the guidance."""
+        out = needle.lower().replace("*", "").replace("_", "")
+        for dash in ("\u2014", "\u2013"):          # em dash, en dash
+            out = out.replace(dash, "-")
+        return " ".join(out.split())
 
     def test_it_says_provenance_is_not_the_bar(self):
-        self.assertIn("content-authority, not authorship provenance", self.lower)
-        self.assertIn("never** a reason to demote", self.text)
-        self.assertIn("third-party-compiled **by construction**", self.text)
+        self.assertIn(self._plainly("content-authority, not authorship provenance"), self.plain)
+        self.assertIn(self._plainly("never** a reason to demote"), self.plain)
+        self.assertIn(self._plainly("third-party-compiled **by construction**"), self.plain)
 
     def test_it_says_what_the_bar_IS(self):
         # Spelled out rather than matched loosely: the bar has to name the CONCRETE
@@ -236,16 +255,14 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         # got wrong. §8a's own wording, so the two cannot drift apart silently.
         for phrase in ("concrete signatures", "options, defaults",
                        "behavioral contracts"):
-            self.assertIn(phrase, self.lower, phrase)
+            self.assertIn(self._plainly(phrase), self.plain, phrase)
 
     def test_it_routes_authoritative_genre_but_uncertain_to_lane_B(self):
-        self.assertIn("lane b `unconfirmed`", self.lower)
-        self.assertIn("background is for documents that are background **in genre**",
-                      self.lower)
+        self.assertIn(self._plainly("lane b `unconfirmed`"), self.plain)
+        self.assertIn(self._plainly("background is for documents that are background **in genre**"), self.plain)
 
     def test_it_says_a_spotted_inaccuracy_does_not_demote(self):
-        self.assertIn("inaccuracy does not demote an authoritative-genre document",
-                      self.lower)
+        self.assertIn(self._plainly("inaccuracy does not demote an authoritative-genre document"), self.plain)
         # ...and carries §8a's limiter, so this is not read as "accuracy never
         # matters": a pervasively-wrong document, or one describing a DIFFERENT
         # project, is background because of what it IS. (Panelist A, N1.)
@@ -253,9 +270,9 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         # substring matched either one, so dropping it from the RULE still passed
         # while the explanation below carried it — an assertion that cannot fail for
         # the thing it names.
-        self.assertIn("a spotted *minor* inaccuracy does not demote", self.lower)
-        self.assertIn("the limit is *minor*", self.lower)
-        self.assertIn("different project", self.lower)
+        self.assertIn(self._plainly("a spotted *minor* inaccuracy does not demote"), self.plain)
+        self.assertIn(self._plainly("the limit is *minor*"), self.plain)
+        self.assertIn(self._plainly("different project"), self.plain)
 
     def test_it_requires_BOTH_genre_and_content(self):
         # Panelist A, F1 — the over-correction guard. The operative one-liner
@@ -264,10 +281,9 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         # model reading only the headline could route a tutorial with precise code
         # samples to Lane B, and express's own manifest shows content-shape already
         # overriding a background genre in a live run.
-        self.assertIn("both halves have to hold", self.lower)
-        self.assertIn("a tutorial with precise code samples is still a tutorial",
-                      self.lower)
-        self.assertIn("does not replace the *genre*", self.lower)
+        self.assertIn(self._plainly("both halves have to hold"), self.plain)
+        self.assertIn(self._plainly("a tutorial with precise code samples is still a tutorial"), self.plain)
+        self.assertIn(self._plainly("does not replace the *genre*"), self.plain)
 
     def test_the_genre_is_judged_from_the_BODY_not_the_title(self):
         # Panelist A, F4 — the other direction of the same over-correction. "A
@@ -279,9 +295,9 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         # its body states current behavioral contracts. The guide says twice that a
         # title is not a genre; making the genre label a hard gate without saying
         # where the label comes from hands the title back its authority.
-        self.assertIn("the genre is what a document is *for*", self.lower)
-        self.assertIn("not what it is *titled*", self.lower)
-        self.assertIn("read the body", self.lower)
+        self.assertIn(self._plainly("the genre is what a document is *for*"), self.plain)
+        self.assertIn(self._plainly("not what it is *titled*"), self.plain)
+        self.assertIn(self._plainly("read the body"), self.plain)
         # The two WORKED EXAMPLES, pinned separately (panelist A, N9 — its bite
         # deleting the first of them left 21/21 green). Third instance in this
         # review of one shape: the abstract rule pinned, the concrete case loose.
@@ -289,20 +305,19 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         # express artifact this finding came from, and the second works the rule in
         # the promote-BLOCKING direction so it cannot be read as "titles never
         # matter, promote freely".
-        self.assertIn("a file called a migration guide whose body states the exact "
-                      "current behavioral contracts is an `api-reference`",
-                      self.lower)
-        self.assertIn("a file called `spec.md` that walks you through building "
-                      "something is a tutorial", self.lower)
+        self.assertIn(self._plainly("a file called a migration guide whose body states the exact "
+                      "current behavioral contracts is an `api-reference`"), self.plain)
+        self.assertIn(self._plainly("a file called `spec.md` that walks you through building "
+                      "something is a tutorial"), self.plain)
 
     def test_the_promote_side_example_reason_drops_published_too(self):
         # Panelist A, N8: "published" survived in the example `reason` string the
         # model is invited to copy — the promote side of the same trigger word, and
         # not caught by the line-43 assertion.
-        self.assertNotIn("published API the code", self.text)
+        self.assertNotIn(self._plainly("published API the code"), self.plain)
         # The word survives nowhere in a document-classification sense.
-        self.assertNotIn("published API reference", self.text)
-        self.assertNotIn("published API contract", self.text)
+        self.assertNotIn(self._plainly("published API reference"), self.plain)
+        self.assertNotIn(self._plainly("published API contract"), self.plain)
 
     def test_it_closes_the_genre_relabelling_back_door(self):
         # Panelist A, N6: nothing stopped reaching the same tier 4 by re-labelling
@@ -310,16 +325,16 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         # Anchored on the clause itself rather than a fixed-width window from a
         # heading — inserting one sentence upstream silently pushed the second
         # assertion out of a 900-char window and failed for the wrong reason.
-        self.assertIn("not a back door", self.lower)
-        window = self.lower.split("not a back door", 1)[1][:400]
+        self.assertIn(self._plainly("not a back door"), self.plain)
+        window = self.plain.split("not a back door", 1)[1][:400]
         self.assertIn("the lane is still b", window)
 
     def test_it_says_to_SURFACE_and_where(self):
         # Panelist A's escaped mutation bite (N2): the "surface" half was unpinned —
         # deleting "*and* surface it" left all 14 tests green — and operationally
         # unspecified, since the guide never told the model where the note goes.
-        self.assertIn("cite it *and* surface it", self.lower)
-        self.assertIn("`reason`", self.text)
+        self.assertIn(self._plainly("cite it *and* surface it"), self.plain)
+        self.assertIn(self._plainly("`reason`"), self.plain)
 
     def test_depth_is_not_reusable_as_a_citation_bar(self):
         # Panelist A, F3: Step 1b's Deep/Moderate/Shallow ladder ties depth to
@@ -327,17 +342,16 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         # failing run cited it by name — "read as Deep per Step 1b, but ... not
         # chi's own published spec" — and borrowed its words ("API catalog",
         # "marketing-style") in two more demotion reasons.
-        self.assertIn("depth is a scoping judgment, not a citation judgment",
-                      self.lower)
-        self.assertIn("can be a perfectly good lane b cite", self.lower)
+        self.assertIn(self._plainly("depth is a scoping judgment, not a citation judgment"), self.plain)
+        self.assertIn(self._plainly("can be a perfectly good lane b cite"), self.plain)
 
     def test_the_citable_definition_drops_the_word_published(self):
         # Panelist A, F2: line 43 defined the citable set as "spec, RFC, PUBLISHED
         # API reference" — the exact adjective two chi demotions reached for ("not
         # chi's own published reference"). The trigger word sat twelve lines above
         # the paragraph written to kill that reading.
-        self.assertIn("(spec, RFC, API reference,", self.text)
-        self.assertNotIn("published API reference", self.text)
+        self.assertIn(self._plainly("(spec, RFC, API reference,"), self.plain)
+        self.assertNotIn(self._plainly("published API reference"), self.plain)
 
     def test_the_conservative_direction_is_PRESERVED_not_just_narrowed(self):
         # Panelist B's bite T2 deleted the whole conservative direction —
@@ -349,11 +363,11 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         # matches the category list ~60 lines up, so deleting it from THIS rule left
         # 24/24 green — the sixth instance in this review of an assertion whose
         # pass/fail was not tied to the clause it named.
-        window = self.lower.split("on genuine ambiguity of genre", 1)[1][:700]
+        window = self.plain.split("on genuine ambiguity of genre", 1)[1][:700]
         self.assertIn("`candidate-spec`", window)
         self.assertIn("call it background", window)
-        self.assertIn("a missed grounding is recoverable, a false authoritative "
-                      "source poisons the derivation", self.lower)
+        self.assertIn(self._plainly("a missed grounding is recoverable, a false authoritative "
+                      "source poisons the derivation"), self.plain)
 
     def test_a_mixed_document_goes_UP_not_down(self):
         # Panelist B, B-1: both worked examples cover a title/body MISMATCH; neither
@@ -361,9 +375,10 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         # is exactly that — walkthrough sections wrapped around an options-and-
         # defaults section — and it is one of the three live Lane B citables
         # acceptance criterion 4 protects.
-        self.assertIn("when the body is genuinely both, the contract content "
-                      "decides it — upward", self.lower)
-        self.assertIn("a section a requirement could be written against", self.lower)
+        self.assertIn(self._plainly("when the body is genuinely both"), self.plain)
+        self.assertIn(self._plainly("the contract content decides it"), self.plain)
+        self.assertIn("upward", self.plain)
+        self.assertIn(self._plainly("a section a requirement could be written against"), self.plain)
 
     def test_a_mixed_promotion_must_name_the_contract_section(self):
         """Panelist B, B-7 — the justification was FALSE about the mechanics.
@@ -379,11 +394,11 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         obligation instead: say which section carries the contract, in the one field
         the operator actually reads.
         """
-        self.assertIn("citability is recorded per file, not per section", self.lower)
-        self.assertIn("makes **the whole file** quotable", self.lower)
-        self.assertIn("name the contract section in your `reason`", self.lower)
+        self.assertIn(self._plainly("citability is recorded per file, not per section"), self.plain)
+        self.assertIn(self._plainly("makes **the whole file** quotable"), self.plain)
+        self.assertIn(self._plainly("name the contract section in your `reason`"), self.plain)
         # ...and the false claim is gone.
-        self.assertNotIn("you are not certifying the whole document", self.lower)
+        self.assertNotIn(self._plainly("you are not certifying the whole document"), self.plain)
 
     def test_a_superseded_version_has_a_route_to_background(self):
         """Panelist B, B-8 — the inverse of why express 08 earns Lane B.
@@ -395,34 +410,32 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         recognition is carved out of the evidence bar for exactly the two cases
         where recognition is sufficient.
         """
-        self.assertIn("superseded version", self.lower)
-        self.assertIn("you do not have to check any claim", self.lower)
+        self.assertIn(self._plainly("superseded version"), self.plain)
+        self.assertIn(self._plainly("you do not have to check any claim"), self.plain)
 
     def test_the_accuracy_carve_out_does_not_retire_the_content_half(self):
         # Panelist B, B-9: "only being *wrong* counts against it, and then only
         # pervasively" read as retiring the content half of "both halves have to
         # hold". Scoped to accuracy.
-        self.assertIn("counts against its **accuracy**", self.lower)
-        self.assertIn("the content half of the bar", self.lower)
+        self.assertIn(self._plainly("counts against its **accuracy**"), self.plain)
+        self.assertIn(self._plainly("the content half of the bar"), self.plain)
 
     def test_pervasively_wrong_has_an_evidentiary_floor(self):
         # Panelist B, B-4/B-5: without a floor, chi's "one inaccuracy on the first
         # page checked" fits through "pervasively wrong"; and chi 14's "matches
         # source at a summary level" left §8a's own canonical Lane B example
         # demotable on the content half.
-        self.assertIn("not that you checked one page and found one error",
-                      self.lower)
-        self.assertIn("is a reason to **cite** a reference, not to demote it",
-                      self.lower)
+        self.assertIn(self._plainly("not that you checked one page and found one error"), self.plain)
+        self.assertIn(self._plainly("is a reason to **cite** a reference, not to demote it"), self.plain)
 
     def test_the_ambiguity_rule_is_scoped_to_GENRE(self):
-        self.assertIn("on genuine ambiguity of genre, background", self.lower)
+        self.assertIn(self._plainly("on genuine ambiguity of genre, background"), self.plain)
         # ...and explicitly disclaims the two readings that caused the defect.
         # Sized to the paragraph it is about (674 chars), not 1200 — an
         # over-long window silently starts asserting about the NEXT paragraph,
         # which is the inverse of the too-short window found earlier.
-        window = self.lower.split("on genuine ambiguity of genre", 1)[1][:700]
-        self.assertIn("not** license to demote", window)
+        window = self.plain.split("on genuine ambiguity of genre", 1)[1][:700]
+        self.assertIn("not license to demote", window)
         self.assertIn("who compiled it", window)
         self.assertIn("lane b `unconfirmed`", window)
 
@@ -443,10 +456,12 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         lines = self.text.split("\n")
         for phrase in ("name the contract section in your `reason`",
                        "the genre call is not a back door",
-                       "Who compiled a document is **never** a reason to demote it",
-                       "The bar is content-authority, not authorship provenance",
+                       "who compiled a document is never a reason to demote it",
+                       "the bar is content-authority, not authorship provenance",
                        "when the body is genuinely both"):
-            hits = [ln for ln in lines if phrase in ln]
+            # Emphasis-insensitive: this test is about INDENTATION, so re-styling a
+            # claim must not fail it (panelist C, C-3).
+            hits = [ln for ln in lines if self._plainly(phrase) in self._plainly(ln)]
             self.assertTrue(hits, f"claim vanished: {phrase}")
             for ln in hits:
                 indent = len(ln) - len(ln.lstrip(" "))
@@ -462,11 +477,11 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         occurs 7 times). Scoped to the bullet so the assertions are about the rule
         rather than about the word appearing somewhere.
         """
-        bullet = self.lower.split("- **lane c", 1)[1].split("\n", 1)[0]
+        bullet = self.plain.split("- lane c", 1)[1][:600]
         for signal in ("cve/ghsa identifier", "advisory-site url",
                        "implementation-source file", "operator-confirmation-required"):
             self.assertIn(signal, bullet, f"Lane C bullet lost: {signal}")
-        self.assertIn("never** cited until the operator says so", bullet)
+        self.assertIn("never cited until the operator says so", bullet)
 
 
 if __name__ == "__main__":
