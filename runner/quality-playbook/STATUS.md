@@ -1,81 +1,84 @@
 # quality-playbook runner — STATUS
 
-**State:** instruction 033 (sources/classification simplification — read-and-judge,
-three-lane promotion, close the extension side door) COMPLETE — **unanimous SHIP**
-across a **12-round** 3-charter self-Council (A 5 rounds, B 4, C 3). All four steps
-landed; 22 Council findings fixed, each reproduced by execution before being
-accepted. The instruction's own premise was measured and **did not hold** — see
-"The finding the operator should carry forward" below.
-**Last instruction:** 033-sources-classification-simplification.md
-**Last output:** 033-sources-classification-simplification.md
-**Last update:** 2026-07-25
+**State:** instruction 034 (classifier bar — content-authority, not authorship
+provenance) COMPLETE — **unanimous SHIP** across a **9-round** 3-charter self-Council
+(A 3 rounds, B 3, C 3). Guidance-only fix: **zero lines of any script changed**.
+22 Council findings closed, each reproduced by execution before being accepted.
+**Last instruction:** 034-classifier-bar-content-authority.md
+**Last output:** 034-classifier-bar-content-authority.md
+**Last update:** 2026-07-26
 
 **Branch:** `1.6.0`. Python 3.14.6. Nothing pushed.
 
-**Test suite:** 3041 / 0 failures / 17 skipped (was 2947 at 032; +94). Three errors
-are environmental — `test_channel_install_e2e_090b` (×2) and
-`test_full_build_publish_path_090f`, venv / console-script install — verified failing
-at `f87c87f` in a clean detached worktree before being attributed elsewhere.
+**Test suite:** 3069 / 0 failures / 17 skipped (was 3055 at `ac30c60`; +14). Three
+errors are environmental — `test_channel_install_e2e_090b` (×2) and
+`test_full_build_publish_path_090f`, venv / console-script install — verified
+pre-existing at `f87c87f` in a clean detached worktree during 033.
 
-**Commits landed (local only), 21:**
-- `44c58a8` step 1 — Lane A becomes a parse, not an extension
-- `aba49ef` / `ea47b4a` step 2 — read-and-judge; three lanes wired
-- `094f9ac` step 3 — one override channel replaces four
-- `f87c87f` step 4 — the reproducibility cache removed
-- `17a4fcc` + `8cfe7f7` fix-up 1 — panelist A r1 (5 FIX-REQUIRED + 2 NITs)
-- `d84caac` + `7210ccb` fix-up 2 — A r2: the root cause, and the `cite/` label
-- `734b7be` fix-up 3 — A r3: a regression I introduced in fix-up 2
-- `225fa3a` fix-up 4 — A r4: the skip must be per ARM, not per document
-- `a6d10da` fix-up 5 — A r5 SHIP; both NITs taken anyway
-- `f387d1f` fix-up 6 — panelist B r1 (six of seven findings)
-- `895786e` + follow-up fix-up 7 — B-1: **where the read lives**
-- `3e73c74` fix-up 8 — B r2: B2-1 and four NITs
-- `77f970a` fix-up 9 — B r3: B3-1, B3-2 and three NITs
-- `268959e` fix-up 10 — B r4 SHIP
-- `55768d5` fix-up 11 — panelist C r1: C-2, C-3
-- `00713e2` fix-up 12 — C r2: D-1..D-5 + the gate/disclosure parity guard
-- `76c9d29` fix-up 13 — C r3 SHIP: N-1..N-3
-- `081ffbd` tracked synthesis + the three panelist verdicts
-- `ee0c167` runner output
+**Commits landed (local only), 11:**
+- `ac30c60` the guidance edit + the 034 fixture
+- `c6dc3d3` / `1b73cda` / `dd91453` fix-ups 1-3 — panelist A (F1-F4 + 9 NITs)
+- `e793fde` / `f3990e4` / `1963685` fix-ups 4-6 — panelist B (B-1..B-11)
+- `d7987d0` / `b23cfce` / `39bc78e` fix-ups 7-9 — panelist C (C-1..C-9)
+- `1707919` runner output
 
-**Scope executed (033).** Step 1: `contract_content_validation` parses instead of
-matching an extension — the `.thrift` prose exploit and the F1 signature-in-prose
-bypass are refused, and the five anchorless F2 formats route to the operator rather
-than being auto-cited or silently dropped. Step 2: the model's read replaces the
-advisory / implementation / background-name genre floors and the `_SPEC_NAME_TOKENS`
-tables; three lanes wired, with Lane B carrying `unconfirmed` from manifest to show
-to gate. Step 3: `qpb_promote.txt`, `qpb_advisory_rescue.txt`, `qpb_authoritative.txt`
-and `cite/` placement collapse into one content-keyed, operator-authored
-`reference_docs/qpb_decisions.txt`, with named-signal confirmation and live
-revocation. Step 4: the content-keyed `prior_records` cache is gone.
+**Scope executed (034).** The read-and-judge classifier was gating promotion on
+authorship provenance ("were these written by the project's maintainers?") instead of
+content authority. Fixed in `references/phase1_exploration_guide.md`: provenance is
+never a reason to demote (gathered docs are third-party-compiled by construction);
+the bar is content-authority with **both** halves required (authoritative genre AND
+contract-shaped content), and the genre is read from the body, not the title;
+authoritative-genre-but-uncertain is Lane B `unconfirmed`, cited *and* surfaced; a
+mixed document goes up, not down; a minor inaccuracy is Lane B, with a floor on
+"pervasively wrong" and routes for wrong-project and superseded-version documents;
+"on genuine ambiguity, background" scoped to ambiguity **of genre**; and Step 1b's
+depth ladder is explicitly not a citation bar. Tasks 3 and 4 both resolved as "no
+edit needed", with reasons recorded — `phase1.md` delegates and never restates the
+bar, and every operator-facing reason string is already about what a document
+*states* rather than who wrote it.
 
-**One operator decision was taken during the work.** Panelist B found that step 4 had
-removed the only channel by which the agent's read entered a run, leaving Lane B
-unable to produce a byte-citable record (chi went 2 FORMAL_DOC → 0 on a re-ingest).
-The instruction requires the read's location to be specified but does not legislate
-its form, and step 4 had legislated on what may persist — so the options went to the
-operator, who chose the per-run read artifact now at
-`quality/classification_reads.json`. chi 2→2, express 1→1, virtio 1→1, each carrying
-`lane=model-read` / `confirmation=unconfirmed`.
+**Evidence reproduced, not taken on faith.** chi's `classification_reads.json`: 18
+reads, all tier 4, `zero_citable`. Document 14 is the one that settles it — its own
+read records the content matches the source, so provenance was doing all the work.
+Document 13's `Use()` error is real (`chi.go:71`, `mux.go:100` return void;
+`mux.go:236` `With()` returns Router) but §8a makes that a Lane B cite. Express
+promoted three same-provenance `api-reference` docs to Lane B.
 
-**The finding the operator should carry forward.** The layer did not get smaller:
-**+24.1% code and +43.6% branches** against pre-033 (panelist C's measurement;
-independently re-measured at +24.9% / +39.3% with a different branch definition — the
-direction is not sensitive to the counting rule). Step 4 is the only negative row.
-What genuinely shrank is the operator's surface: three override files to one, ten
-floor rules to seven. The operator has accepted the trade as *bigger but more honest
-and more capable*. **Outstanding:** the design doc's §8a framing still says the tower
-is *replaced*; left uncorrected, the next instruction inherits a baseline that was
-never true. That is a design decision and was not actioned here.
+**Acceptance criteria: 4 PASS, 1 PASS WITH A STATED CAVEAT.** Criterion 5's gate leg:
+`quality_gate.py` runs clean and its classification checks fire, but all three
+benchmarks return `FAIL` for unverified bugs in their **own recorded runs** —
+byte-identical with and without this edit, and the gate never reads the guide.
+Reading criterion 5 as "the gate passes" would be false.
 
-**Other release items outstanding:** `classification_disclosure` has no production
-caller — the gate leg is real but deliberately re-implemented, while the Overview and
-Stage-1 playback legs invariant 8 names were never wired (a gap predating 033);
-`cite/` retires next release with its seeded-decision shim; six stated residuals are
-recorded in `docs/process/QPB_v1.6.0_Instruction_033_Self_Council/synthesis.md` §5.
+**Four patterns for the improvement loop**, all in the output:
+1. An assertion not tied to the clause it named — **six instances, all mine**, all in
+   the fixture's text half, nine bites over three rounds to work out.
+2. Each fix **appended** a clause to a load-bearing sentence and arrived with a defect
+   the old text could not have had: B-4 begat B-8, B-7 begat B-11, C-1 begat C-8.
+3. Panelist C's formulation: *in a guidance-only change, the assertions that need
+   executing are not the ones about the guidance — they are the ones the guidance
+   makes about the code.* Three false mechanics claims in three rounds.
+4. Inverted test sensitivity — Markdown emphasis had become a CI-enforced contract;
+   now emphasis/dash/whitespace-insensitive, verified on a 12-case matrix.
 
-**Council artifacts:** `runner/quality-playbook/reviews/033_self_council/` (local,
-gitignored) and the tracked copy at
-`docs/process/QPB_v1.6.0_Instruction_033_Self_Council/`.
+**Operational finding.** The first panelist-B attempt **stalled mid-bite and left the
+Lane C guard disabled** (`unacknowledged = []`) in the working tree. Detected by
+diffing every file a bite could touch, restored from the HEAD blob, 203 stale `.pyc`
+purged, guard re-verified as *enforcing*. Two rules came out of it and held for the
+rest of the Council: never hold a mutation across more than one command, and never
+run the full suite with a mutation live. Also: a bite whose anchor matches **zero**
+occurrences, or matches in the **wrong location**, proves nothing — both bit me.
 
-**Next:** polling. 33 instructions, 33 outputs — nothing unprocessed. No STOP file.
+**Flagged, not fixed (out of 034's scope):** N5 — the guide still calls a
+self-classifying doc "a signal toward background", superseded by §8a Revision rule 3.
+N7 — the coverage table and Step-7a gate key on "Deep", so a Shallow Lane B cite
+carries no obligation to produce a requirement; field trigger is a chi re-run
+yielding Lane B `13`/`14` with zero Tier-1/2 requirements tracing to them. And the
+pervasively-wrong / wrong-project / superseded-version demotion route has no
+counterpart in §8a's text and belongs there on its next revision.
+
+**Council artifacts:** `runner/quality-playbook/reviews/v034_self_council/` (local,
+gitignored — 034's instruction specified `reviews/` only, so unlike 033 no tracked
+copy was requested).
+
+**Next:** polling. 34 instructions, 34 outputs — nothing unprocessed. No STOP file.
