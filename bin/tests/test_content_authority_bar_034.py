@@ -345,8 +345,13 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         # rationale — and the fixture stayed 21/21 green. Task 2 says narrow it AND
         # preserve it; the fixture pinned only the narrowing, so the half being
         # preserved was unguarded.
-        self.assertIn("`candidate-spec`", self.text)
-        self.assertIn("call it background", self.lower)
+        # Scoped to the conservative rule itself. A bare "`candidate-spec`" also
+        # matches the category list ~60 lines up, so deleting it from THIS rule left
+        # 24/24 green — the sixth instance in this review of an assertion whose
+        # pass/fail was not tied to the clause it named.
+        window = self.lower.split("on genuine ambiguity of genre", 1)[1][:700]
+        self.assertIn("`candidate-spec`", window)
+        self.assertIn("call it background", window)
         self.assertIn("a missed grounding is recoverable, a false authoritative "
                       "source poisons the derivation", self.lower)
 
@@ -359,6 +364,46 @@ class TheGuidanceSaysItTests(unittest.TestCase):
         self.assertIn("when the body is genuinely both, the contract content "
                       "decides it — upward", self.lower)
         self.assertIn("a section a requirement could be written against", self.lower)
+
+    def test_a_mixed_promotion_must_name_the_contract_section(self):
+        """Panelist B, B-7 — the justification was FALSE about the mechanics.
+
+        The rule said "you are not certifying the whole document; you are saying it
+        contains something quotable". Driven through the real ingest, promoting a
+        mixed document yields a FORMAL_DOC record with `line_count: 269`,
+        `byte_count` equal to the whole file, NO line_start/line_end/section/scope
+        key of any kind, and `citation_excerpt` set to the document title. The whole
+        file becomes quotable at that tier. Citability is per FILE.
+
+        The guide cannot invent scoping mechanics, so the honest version became an
+        obligation instead: say which section carries the contract, in the one field
+        the operator actually reads.
+        """
+        self.assertIn("citability is recorded per file, not per section", self.lower)
+        self.assertIn("makes **the whole file** quotable", self.lower)
+        self.assertIn("name the contract section in your `reason`", self.lower)
+        # ...and the false claim is gone.
+        self.assertNotIn("you are not certifying the whole document", self.lower)
+
+    def test_a_superseded_version_has_a_route_to_background(self):
+        """Panelist B, B-8 — the inverse of why express 08 earns Lane B.
+
+        A v4 API reference in a v5 corpus cleared every clause: authoritative genre,
+        contract-shaped, same project, and the "pervasively wrong" floor was
+        unreachable because classification never verifies claims against code — a
+        model that merely RECOGNISES "these are the v4 docs" has checked zero. So
+        recognition is carved out of the evidence bar for exactly the two cases
+        where recognition is sufficient.
+        """
+        self.assertIn("superseded version", self.lower)
+        self.assertIn("you do not have to check any claim", self.lower)
+
+    def test_the_accuracy_carve_out_does_not_retire_the_content_half(self):
+        # Panelist B, B-9: "only being *wrong* counts against it, and then only
+        # pervasively" read as retiring the content half of "both halves have to
+        # hold". Scoped to accuracy.
+        self.assertIn("counts against its **accuracy**", self.lower)
+        self.assertIn("the content half of the bar", self.lower)
 
     def test_pervasively_wrong_has_an_evidentiary_floor(self):
         # Panelist B, B-4/B-5: without a floor, chi's "one inaccuracy on the first
