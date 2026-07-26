@@ -105,7 +105,7 @@ jobs:
       - uses: actions/download-artifact@v4
         with: { name: npm-dist, path: npm-dist }
       - uses: actions/setup-node@v4
-        with: { node-version: '20', registry-url: 'https://registry.npmjs.org' }
+        with: { node-version: '22', registry-url: 'https://registry.npmjs.org' }
       - run: npm install -g npm@latest
       - name: Publish (idempotent on duplicate)
         run: |
