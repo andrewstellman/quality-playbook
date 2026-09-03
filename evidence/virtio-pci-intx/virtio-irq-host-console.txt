@@ -1,0 +1,90 @@
+Welcome to Ubuntu 24.04.4 LTS (GNU/Linux 6.8.0-124-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+ System information as of Thu Sep  3 17:50:59 UTC 2026
+
+  System load:  0.01               Processes:             140
+  Usage of /:   5.9% of 153.94GB   Users logged in:       1
+  Memory usage: 8%                 IPv4 address for eth0: <DROPLET_IP>
+  Swap usage:   0%                 IPv4 address for eth0: <PRIVATE_IP>
+
+Expanded Security Maintenance for Applications is not enabled.
+
+136 updates can be applied immediately.
+117 of these updates are standard security updates.
+To see these additional updates run: apt list --upgradable
+
+Enable ESM Apps to receive additional future security updates.
+See https://ubuntu.com/esm or run: sudo pro status
+
+
+Last login: Thu Sep  3 17:10:01 2026 from <CLIENT_IP>
+root@ubuntu-s-4vcpu-8gb-nyc1:~# printf '\033]0;QEMU HOST CONTROL\007'
+export PS1='\[\e[1;35m\][HOST CONTROL]\[\e[0m\] \u@\h:\w# '
+[HOST CONTROL] root@ubuntu-s-4vcpu-8gb-nyc1:~# ls -l /tmp/qmp.sock
+srwxr-xr-x 1 root root 0 Sep  3 18:07 /tmp/qmp.sock
+[HOST CONTROL] root@ubuntu-s-4vcpu-8gb-nyc1:~# cat > /root/resize.py <<'EOF'
+import json
+import socket
+import time
+
+s = socket.socket(socket.AF_UNIX)
+s.connect("/tmp/qmp.sock")
+f = s.makefile("rw")
+
+print("QMP:", f.readline().strip())
+
+def cmd(obj):
+    f.write(json.dumps(obj) + "\n")
+    f.flush()
+    return f.readline().strip()
+
+print(cmd({"execute": "qmp_capabilities"}))
+
+size = 64 << 20
+
+for i in range(200):
+    size += 1 << 20
+    reply = cmd({
+        "execute": "block_resize",
+python3 /root/resize.pyply),
+QMP: {"QMP": {"version": {"qemu": {"micro": 2, "minor": 2, "major": 8}, "package": "Debian 1:8.2.2+ds-0ubuntu1.18"}, "capabilities": ["oob"]}}
+{"return": {}}
+1 {"return": {}}
+2 {"return": {}}
+3 {"return": {}}
+198 {"return": {}}
+199 {"return": {}}
+200 {"return": {}}
+done
+[HOST CONTROL] root@ubuntu-s-4vcpu-8gb-nyc1:~# printf '{"execute":"qmp_capabilities"}\n{"execute":"quit"}\n' | socat - UNIX-CONNECT:/tmp/qmp.sock
+{"QMP": {"version": {"qemu": {"micro": 2, "minor": 2, "major": 8}, "package": "Debian 1:8.2.2+ds-0ubuntu1.18"}, "capabilities": ["oob"]}}
+{"return": {}}
+{"timestamp": {"seconds": 1788459249, "microseconds": 833630}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"return": {}}
+[HOST CONTROL] root@ubuntu-s-4vcpu-8gb-nyc1:~# python3 /root/resize.py
+QMP: {"QMP": {"version": {"qemu": {"micro": 2, "minor": 2, "major": 8}, "package": "Debian 1:8.2.2+ds-0ubuntu1.18"}, "capabilities": ["oob"]}}
+{"return": {}}
+1 {"return": {}}
+2 {"return": {}}
+3 {"return": {}}
+198 {"return": {}}
+199 {"return": {}}
+200 {"return": {}}
+done
+[HOST CONTROL] root@ubuntu-s-4vcpu-8gb-nyc1:~# echo 0 > /sys/kernel/tracing/tracing_on
+cat /proc/irq/11/spurious
+grep 'irq_handler_exit' /sys/kernel/tracing/trace | tail -5 | sed 's/.*irq_handler_exit: //'
+count 0
+unhandled 0
+last_unhandled 0 ms
+[HOST CONTROL] root@ubuntu-s-4vcpu-8gb-nyc1:~# printf '{"execute":"qmp_capabilities"}\n{"execute":"quit"}\n' | socat - UNIX-CONNECT:/tmp/qmp.sock
+{"QMP": {"version": {"qemu": {"micro": 2, "minor": 2, "major": 8}, "package": "Debian 1:8.2.2+ds-0ubuntu1.18"}, "capabilities": ["oob"]}}
+{"return": {}}
+{"timestamp": {"seconds": 1788459585, "microseconds": 11153}, "event": "SHUTDOWN", "data": {"guest": false, "reason": "host-qmp-quit"}}
+{"return": {}}
+2026/09/03 18:19:45 socat[48767] E read(5, 0x5ef509aff000, 8192): Connection reset by peer
+[HOST CONTROL] root@ubuntu-s-4vcpu-8gb-nyc1:~# 
