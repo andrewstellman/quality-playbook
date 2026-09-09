@@ -19,7 +19,7 @@ It even catches bugs that a thorough adversarial code-review prompt with Claude 
 - contracts and a coverage matrix
 - the code-review, spec-audit, and TDD verification protocols themselves
 
-*This isn't theoretical. Three bugs the Quality Playbook found have been accepted and merged upstream: Google's [gson](https://github.com/google/gson/pull/3006), and the Linux kernel's [zram](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=2f529e73d72048743b6eaa241da6ac2bcb28099e) and [virtio](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=93fa09455fb1a9624b73d42ac1f83771f4818e80).*
+*This isn't theoretical. Bugs the Quality Playbook found have been [accepted and merged upstream](#merged-upstream) in Google's gson and the Linux kernel.*
 
 ## Quick start
 
@@ -296,6 +296,16 @@ Most adopter questions are answered by loading `TOOLKIT.md` into your AI tool an
 > *"Read TOOLKIT.md. What's the difference between GATE PASSED, GATE PASSED WITH CLEANUP NEEDED, and GATE FAILED?"*
 
 If `TOOLKIT.md` doesn't answer your question, file an issue at https://github.com/andrewstellman/quality-playbook/issues.
+
+## Merged upstream
+
+Bugs the Quality Playbook found in real projects, fixed and accepted by the maintainers. Newest first.
+
+| Project | The bug | Fix |
+|---|---|---|
+| Linux — `virtio-pci` | `vp_interrupt()` returned `IRQ_NONE` for a config-change interrupt with no vring work, even though reading the ISR had already consumed it — so the kernel counted them as spurious | [`93fa0945`](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=93fa09455fb1a9624b73d42ac1f83771f4818e80) |
+| Linux — `zram` | `recompress_store()` silently accepted an unrecognized `type=` value, leaving the pass with no slot filter so it recompressed every slot instead of the intended subset | [`2f529e73`](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=2f529e73d72048743b6eaa241da6ac2bcb28099e) |
+| Google — `gson` | Duplicate keys were silently accepted when the first value was `null` | [#3006](https://github.com/google/gson/pull/3006) |
 
 ## Recent releases
 
