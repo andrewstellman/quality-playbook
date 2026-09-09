@@ -19,7 +19,7 @@ It even catches bugs that a thorough adversarial code-review prompt with Claude 
 - contracts and a coverage matrix
 - the code-review, spec-audit, and TDD verification protocols themselves
 
-*This isn't theoretical. Bugs the Quality Playbook found have been accepted and merged upstream, in Google's [gson](https://github.com/google/gson/pull/3006) and the Linux kernel's [zram](https://github.com/torvalds/linux/commit/2f529e73d72048743b6eaa241da6ac2bcb28099e).*
+*This isn't theoretical. Three bugs the Quality Playbook found have been accepted and merged upstream: Google's [gson](https://github.com/google/gson/pull/3006), and the Linux kernel's [zram](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=2f529e73d72048743b6eaa241da6ac2bcb28099e) and [virtio](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=93fa09455fb1a9624b73d42ac1f83771f4818e80).*
 
 ## Quick start
 
