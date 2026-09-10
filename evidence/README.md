@@ -26,7 +26,7 @@ Four kinds of participant, named by role so the attribution is unambiguous:
 |---|---|---|---|
 | finder | Quality Playbook running on Claude (Opus 5 for the nvme-target run; earlier runs used the model recorded in each run's `REPORT.md`) | reads a subsystem against its spec and reports candidate bugs with code and spec citations | reproduce, patch, or send anything |
 | planner | Claude Fable 5.1 in the Cowork chat with the operator | picks which candidate to pursue, writes the reproducer scripts and the runbook, writes the review charters, synthesizes the reviews | run `git send-email`, `git push`, or post anywhere |
-| autopilot | Claude Code running Claude Opus 5 | follows a bug's `RUNBOOK.md`: builds kernels, runs the reproducers, traces the origin for `Fixes:`, packages a draft patch, writes `RUN-REPORT.md` | edit the patch or the scripts, add `Signed-off-by`, send |
+| autopilot | Claude Code, launched with `--model opus` (Claude Opus 5 at the time of these runs; the ANAGRPID and CRTO run reports do not record the model themselves; runbooks written after 2026-09-10 must require it in the environment table) | follows a bug's `RUNBOOK.md`: builds kernels, runs the reproducers, traces the origin for `Fixes:`, packages a draft patch, writes `RUN-REPORT.md` | edit the patch or the scripts, add `Signed-off-by`, send |
 | reviewers | three sub-agents (one Opus, two Sonnet) with fresh context | each reads the evidence folder against one charter and writes a verdict file | modify anything but their own file |
 | operator | Andrew Stellman | reads the evidence and the reviews, amends the commit with his `Signed-off-by`, sends, pushes the evidence, answers the list | delegate the send or the sign-off |
 
