@@ -1,0 +1,38 @@
+kernel: 6.8.0-138-generic
+initial ana_grpid = 1
+after writing 128, ana_grpid reads = 0
+created and removed ports/99/ana_groups/128 (counter for slot 128 is now wrapped if the bug is present)
+RED: 128 became 0 (reserved ANAGRPID) — bug present
+ln: failed to create symbolic link '/sys/kernel/config/nvmet/ports/1/subsystems/qpb-test-nqn': Invalid argument
+Failed to write to /dev/nvme-fabrics: Invalid argument
+could not add new controller: invalid arguments/configuration
+connect failed
+ln: failed to create symbolic link '/sys/kernel/config/nvmet/ports/1/subsystems/qpb-test-nqn': Invalid argument
+Failed to write to /dev/nvme-fabrics: Invalid argument
+could not add new controller: invalid arguments/configuration
+connect failed
+modprobe: FATAL: Module nvmet-tcp not found in directory /lib/modules/6.8.0-138-generic
+module nvmet-tcp not available on 6.8.0-138-generic
+modprobe: FATAL: Module nvmet-tcp not found in directory /lib/modules/6.8.0-138-generic
+module nvmet-tcp not available on 6.8.0-138-generic
+kernel: 6.8.0-138-generic   controller: /dev/nvme0
+Asymmetric Namespace Access Log for NVMe device: nvme0
+ANA LOG HEADER :-
+chgcnt	:	2
+ngrps	:	2
+ANA Log Desc :-
+grpid	:	1
+nnsids	:	1
+chgcnt	:	2
+state	:	optimized
+	nsid	:	1
+
+grpid	:	128
+nnsids	:	0
+chgcnt	:	2
+state	:	inaccessible
+RED: ANA log reports group 128 after it was removed — counter wrapped
+kernel: 6.8.0-138-generic   controller: /dev/nvme
+CAP  = 
+CRTO = 
+get-property failed (need nvme-cli with get-property support)

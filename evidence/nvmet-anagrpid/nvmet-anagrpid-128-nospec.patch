@@ -1,0 +1,20 @@
+--- a/drivers/nvme/target/configfs.c	2026-09-09 12:58:16.476024502 -0400
++++ b/drivers/nvme/target/configfs.c	2026-09-09 12:58:16.479024502 -0400
+@@ -698,7 +698,7 @@
+ 
+ 	down_write(&nvmet_ana_sem);
+ 	oldgrpid = ns->anagrpid;
+-	newgrpid = array_index_nospec(newgrpid, NVMET_MAX_ANAGRPS);
++	newgrpid = array_index_nospec(newgrpid, NVMET_MAX_ANAGRPS + 1);
+ 	nvmet_ana_group_enabled[newgrpid]++;
+ 	ns->anagrpid = newgrpid;
+ 	nvmet_ana_group_enabled[oldgrpid]--;
+@@ -1976,7 +1976,7 @@
+ 	grp->grpid = grpid;
+ 
+ 	down_write(&nvmet_ana_sem);
+-	grpid = array_index_nospec(grpid, NVMET_MAX_ANAGRPS);
++	grpid = array_index_nospec(grpid, NVMET_MAX_ANAGRPS + 1);
+ 	nvmet_ana_group_enabled[grpid]++;
+ 	up_write(&nvmet_ana_sem);
+ 
