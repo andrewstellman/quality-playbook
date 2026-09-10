@@ -34,3 +34,8 @@ Merged by Michael S. Tsirkin as commit
 - [Host/QMP console log](./virtio-irq-host-console.txt)
 
 Public and client IP addresses in the console logs have been redacted.
+
+## Method
+
+The first patch from this project; the mistakes in its submission and the pipeline built
+in response are documented in [../README.md](../README.md).

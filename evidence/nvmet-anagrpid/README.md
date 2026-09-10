@@ -196,8 +196,14 @@ present, as expected.
 Build procedure for all three kernels: [build-kernel.sh](./build-kernel.sh). The CRTO-only
 row is from [../nvmet-crto/green-crto-raw.txt](../nvmet-crto/green-crto-raw.txt).
 
-## Not yet done
+## Origin, for `Fixes:`
 
-`Fixes:` tag. Blame `configfs.c` lines 701 and 1979 at `4d7d9486c04d` in a full-history
-clone and confirm the blamed commit introduced the `array_index_nospec` call with this
-bound, rather than moving it.
+Both `array_index_nospec(..., NVMET_MAX_ANAGRPS)` sites (`configfs.c:701` and `:1979`
+at the snapshot) blame to `20dc66f2d76b` ("nvme: prevent potential spectre v1 gadget"),
+which introduced the calls and the `#include <linux/nospec.h>` in the same diff; the
+chain is in [RUN-REPORT.md](./RUN-REPORT.md) step 3 and was re-derived by reviewer C.
+
+## Method
+
+How the finding, the two reproductions, the review, and the send fit together, and who
+did which part, is documented once for all bugs in [../README.md](../README.md).

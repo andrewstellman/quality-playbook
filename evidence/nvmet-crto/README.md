@@ -3,6 +3,12 @@
 Bug found by Quality Playbook (Claude Opus 5) in the `nvme-target` run of 2026-09-06,
 recorded as `nvme-target/quality/BUGS.md` BUG-001. This file records the reproduction.
 
+## Status
+
+Manual red/green confirmed (below). Not yet sent. Next: the autopilot run from
+[RUNBOOK.md](./RUNBOOK.md), then the three-reviewer panel, then send. The method is
+documented in [../README.md](../README.md).
+
 ## The defect
 
 `drivers/nvme/target/fabrics-cmd.c`, `nvmet_get_property()`:
