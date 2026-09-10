@@ -171,11 +171,24 @@ the source does not support.
 
 ```
 cd ~/src/linux
-git status --short            # must be empty; if not, stop and report
+git status --short
+```
+
+The clone sits on a case-insensitive filesystem with `core.ignorecase=true`, and git
+tracks 13 pairs of paths that differ only in case, so `git status --short` always shows
+exactly these 13 as modified (`include/uapi/linux/netfilter/xt_CONNMARK.h`, `xt_DSCP.h`,
+`xt_MARK.h`, `xt_RATEEST.h`, `xt_TCPMSS.h`, `netfilter_ipv4/ipt_ECN.h`, `ipt_TTL.h`,
+`netfilter_ipv6/ip6t_HL.h`, `net/netfilter/xt_DSCP.c`, `xt_HL.c`, `xt_RATEEST.c`,
+`xt_TCPMSS.c`, `tools/memory-model/litmus-tests/Z6.0+pooncelock+poonceLock+pombonce.litmus`).
+Those are expected; paste the list into the report. Any other entry, or anything under
+`drivers/nvme/`, is a stop. Then:
+
+```
 git checkout -q -b qpb/nvmet-crto 4d7d9486c04d917265f64c55bd23b2cc4fe7749c
 git apply --check ~/Documents/QPB/evidence/nvmet-crto/nvmet-crto-from-cap.patch
 git apply ~/Documents/QPB/evidence/nvmet-crto/nvmet-crto-from-cap.patch
 git diff
+git add drivers/nvme/target/fabrics-cmd.c     # stage this file only; never -a
 ./scripts/get_maintainer.pl -f drivers/nvme/target/fabrics-cmd.c
 ```
 
@@ -208,7 +221,7 @@ nvmet_get_property() answers a Property Get of CRTO with
 NVME_CAP_TIMEOUT(ctrl->csts).  NVME_CAP_TIMEOUT() extracts bits 31:24,
 which is the TO field of CAP.  CSTS defines only bits 6:0 and nvmet
 writes only RDY, CFS and SHST into it, so the result is always 0.  The
-same controller sets CAP.TO to 15 in nvmet_init_ctrl().
+same controller sets CAP.TO to 15 in nvmet_init_cap().
 
 NVMe Base Specification 2.4, Figure 36 (CAP), says that when CC.CRIME
 is '0' the TO field "shall be set to: a) the value in the Controller
@@ -242,6 +255,14 @@ Assisted-by: Claude:claude-opus-5 [Quality Playbook]
 The `Fixes:` tag is the one thing in this message you cannot copy from anywhere; it
 comes from step 3 only. An earlier patch from this project shipped with a wrong one, so
 this is the line a reviewer will check hardest.
+
+### Resuming after a stop
+
+If `RUN-REPORT.md` already exists with `RESULT: stopped at step 4` and steps 0 through 3
+passed, do not rebuild or rerun anything. Take the `Fixes:` line, the release strings,
+and the claim-check outcomes from that report, do step 4 as written above, then append a
+section "Step 4, resumed" to the existing report with the new output, replace the
+`RESULT:` line, and commit as in step 5. The earlier stop stays in the report.
 
 ### Step 5: the report
 
