@@ -592,11 +592,240 @@ from this run is recorded above:
    `RESULT: stopped at step N` line is defined, and committing preserves this run's
    evidence. The runbook says this folder is where this run writes.
 
-## Result
+## Result of the first pass (stopped at step 4)
 
 Steps 0–3 passed. Red on `7.3.0-rc1-qpb-cc-crto-base+` (RED, RED, RED; CRTO `0`, CAP
 `8200f0003ff`). Green on `7.3.0-rc1-qpb-cc-crto+` (RED, RED, GREEN; CRTO `f`,
 `CAP.TO = 15   CRTO.CRWMT = 15`), with the ANAGRPID output identical line for line.
 `Fixes: 1e058089d28f ("nvmet: implement crto property")`. No draft patch was produced.
 
-RESULT: stopped at step 4: `git status --short` in `~/src/linux` is not empty (13 case-colliding files on the case-insensitive macOS filesystem, present before this run); red/green confirmed, no draft patch
+The first pass ended with this line, committed in `66fcfd7`. It is kept here as the record
+of the stop, and the resumed pass below replaces it:
+
+> RESULT: stopped at step 4: `git status --short` in `~/src/linux` is not empty (13 case-colliding files on the case-insensitive macOS filesystem, present before this run); red/green confirmed, no draft patch
+
+## Step 4, resumed
+
+After the stop, the operator updated the runbook (`583f386`, "evidence: CRTO runbook
+accepts the 13 known case-collision paths, stages one file, fixes nvmet_init_cap(), adds
+resume section"). I resumed under its "Resuming after a stop" section. Nothing was
+rebuilt or rerun in the guest; steps 0–3 stand as recorded above.
+
+Values taken from this report, as the resume section requires:
+
+| value | from | used |
+|---|---|---|
+| `Fixes:` | step 3 (`Fixes: 1e058089d28f ("nvmet: implement crto property")`) | verbatim |
+| release strings | step 1 and step 2 `uname -r` (`7.3.0-rc1-qpb-cc-crto-base+`, `7.3.0-rc1-qpb-cc-crto+`) | verbatim |
+| host paragraph | claim 3: supported | kept |
+| function name | claim 2: `nvmet_init_cap()` | the updated template already says `nvmet_init_cap()` |
+
+### Commands run (Mac, `~/src/linux`)
+
+```
+git status --short                         # compared against the runbook's 13 paths
+git config user.name; git config user.email; git branch --show-current
+git checkout -q -b qpb/nvmet-crto 4d7d9486c04d917265f64c55bd23b2cc4fe7749c
+git apply --check ~/Documents/QPB/evidence/nvmet-crto/nvmet-crto-from-cap.patch
+git apply ~/Documents/QPB/evidence/nvmet-crto/nvmet-crto-from-cap.patch
+git diff -- drivers/nvme/
+git add drivers/nvme/target/fabrics-cmd.c
+git diff --cached --stat
+./scripts/get_maintainer.pl -f drivers/nvme/target/fabrics-cmd.c
+git commit -F <message file>
+./scripts/checkpatch.pl --strict -g HEAD
+./scripts/checkpatch.pl --strict --no-signoff -g HEAD
+git format-patch -1 --base=4d7d9486c04d917265f64c55bd23b2cc4fe7749c -o ~/Documents/QPB/evidence/nvmet-crto/
+mv -n 0001-nvmet-derive-the-CRTO-property-from-CAP-not-CSTS.patch DRAFT-0001-nvmet-derive-the-CRTO-property-from-CAP-not-CSTS.patch
+```
+
+### Working-tree check
+
+```
+$ git status --short
+ M include/uapi/linux/netfilter/xt_CONNMARK.h
+ M include/uapi/linux/netfilter/xt_DSCP.h
+ M include/uapi/linux/netfilter/xt_MARK.h
+ M include/uapi/linux/netfilter/xt_RATEEST.h
+ M include/uapi/linux/netfilter/xt_TCPMSS.h
+ M include/uapi/linux/netfilter_ipv4/ipt_ECN.h
+ M include/uapi/linux/netfilter_ipv4/ipt_TTL.h
+ M include/uapi/linux/netfilter_ipv6/ip6t_HL.h
+ M net/netfilter/xt_DSCP.c
+ M net/netfilter/xt_HL.c
+ M net/netfilter/xt_RATEEST.c
+ M net/netfilter/xt_TCPMSS.c
+ M tools/memory-model/litmus-tests/Z6.0+pooncelock+poonceLock+pombonce.litmus
+[exit 0]
+matches the runbook's 13 expected paths exactly
+entries under drivers/nvme/: 0
+```
+
+The "matches" line comes from a `diff` of the status paths against the runbook's list,
+typed out path by path (exit 0). There are exactly the 13 expected entries and none under
+`drivers/nvme/`, so the check passes.
+
+`git config` in `~/src/linux` gave `Andrew Stellman` / `astellman@stellman-greene.com`,
+already correct, so nothing was set. The starting branch was `qpb/nvmet-anagrpid`. It
+was left as is (only switched away from), and its commit is untouched.
+
+### Branch, apply, diff, stage
+
+```
+$ git checkout -q -b qpb/nvmet-crto 4d7d9486c04d917265f64c55bd23b2cc4fe7749c
+[exit 0] branch: qpb/nvmet-crto HEAD: 4d7d9486c04d
+$ git apply --check /Users/andrewstellman/Documents/QPB/evidence/nvmet-crto/nvmet-crto-from-cap.patch
+[exit 0]
+$ git apply /Users/andrewstellman/Documents/QPB/evidence/nvmet-crto/nvmet-crto-from-cap.patch
+[exit 0]
+$ git diff -- drivers/nvme/
+diff --git a/drivers/nvme/target/fabrics-cmd.c b/drivers/nvme/target/fabrics-cmd.c
+index 42d1d1811671..3311b79e8f3b 100644
+--- a/drivers/nvme/target/fabrics-cmd.c
++++ b/drivers/nvme/target/fabrics-cmd.c
+@@ -65,7 +65,7 @@ static void nvmet_execute_prop_get(struct nvmet_req *req)
+ 			val = ctrl->csts;
+ 			break;
+ 		case NVME_REG_CRTO:
+-			val = NVME_CAP_TIMEOUT(ctrl->csts);
++			val = NVME_CAP_TIMEOUT(ctrl->cap);
+ 			break;
+ 		default:
+ 			status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
+$ git add drivers/nvme/target/fabrics-cmd.c
+[exit 0]
+$ git diff --cached --stat
+ drivers/nvme/target/fabrics-cmd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+```
+
+### get_maintainer
+
+```
+$ ./scripts/get_maintainer.pl -f drivers/nvme/target/fabrics-cmd.c
+Christoph Hellwig <hch@lst.de> (maintainer:NVM EXPRESS TARGET DRIVER)
+Sagi Grimberg <sagi@grimberg.me> (maintainer:NVM EXPRESS TARGET DRIVER)
+Chaitanya Kulkarni <kch@nvidia.com> (maintainer:NVM EXPRESS TARGET DRIVER)
+linux-nvme@lists.infradead.org (open list:NVM EXPRESS TARGET DRIVER)
+linux-kernel@vger.kernel.org (open list)
+[exit 0]
+```
+
+### Commit
+
+The message is the runbook's template with the brackets filled in, and nothing else
+changed except one reflow. The "Tested on" paragraph was rewrapped, because the full
+release strings are longer than the bracketed placeholders. No claim was added or
+dropped. No line is longer than 75 columns (checked with `awk`: "all lines <= 75 cols;
+longest 71"). There is no Signed-off-by, and `-s` was not used.
+
+```
+$ git commit -F <message file>
+[qpb/nvmet-crto 114455e4fd47] nvmet: derive the CRTO property from CAP, not CSTS
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+$ git log -1 --format='%H%n%an <%ae>%n%(trailers)'
+114455e4fd47f3c0b9f445db6cfbf1fbd7d8b06f
+Andrew Stellman <astellman@stellman-greene.com>
+Fixes: 1e058089d28f ("nvmet: implement crto property")
+Assisted-by: Claude:claude-opus-5 [Quality Playbook]
+```
+
+### checkpatch
+
+As the runbook specifies:
+
+```
+$ ./scripts/checkpatch.pl --strict -g HEAD
+ERROR: Missing Signed-off-by: line(s)
+
+total: 1 errors, 0 warnings, 0 checks, 8 lines checked
+
+NOTE: For some of the reported defects, checkpatch may be able to
+      mechanically convert to the typical style using --fix or --fix-inplace.
+
+Commit 114455e4fd47 ("nvmet: derive the CRTO property from CAP, not CSTS") has style problems, please review.
+
+NOTE: If any of the errors are false positives, please report
+      them to the maintainer, see CHECKPATCH in MAINTAINERS.
+[exit 1]
+```
+
+The one error is the missing Signed-off-by, and this is a conflict between two rules in
+the runbook. "checkpatch must be clean; if it warns, fix the message" cannot be met
+without adding a Signed-off-by, which the runbook forbids ("Do NOT add a Signed-off-by
+line", per `Documentation/process/coding-assistants.rst`). I followed the Signed-off-by
+rule. I did not add one, not even to a temporary copy. To confirm that nothing else is
+wrong, I re-ran checkpatch with only that check disabled:
+
+```
+$ ./scripts/checkpatch.pl --strict --no-signoff -g HEAD
+total: 0 errors, 0 warnings, 0 checks, 8 lines checked
+
+Commit 114455e4fd47 ("nvmet: derive the CRTO property from CAP, not CSTS") has no obvious style problems and is ready for submission.
+[checkpatch exit 0]
+```
+
+So once the operator adds their Signed-off-by when amending, the missing-signoff error
+goes away, and this run found nothing else. checkpatch should be run once more after that
+amend, because that exact state was not checked here.
+
+### Draft patch
+
+```
+$ git format-patch -1 --base=4d7d9486c04d917265f64c55bd23b2cc4fe7749c -o ~/Documents/QPB/evidence/nvmet-crto/
+/Users/andrewstellman/Documents/QPB/evidence/nvmet-crto/0001-nvmet-derive-the-CRTO-property-from-CAP-not-CSTS.patch
+renamed -> DRAFT-0001-nvmet-derive-the-CRTO-property-from-CAP-not-CSTS.patch
+```
+
+Draft (not sent):
+[DRAFT-0001-nvmet-derive-the-CRTO-property-from-CAP-not-CSTS.patch](./DRAFT-0001-nvmet-derive-the-CRTO-property-from-CAP-not-CSTS.patch).
+Readback:
+
+```
+2:From: Andrew Stellman <astellman@stellman-greene.com>
+4:Subject: [PATCH] nvmet: derive the CRTO property from CAP, not CSTS
+35:Fixes: 1e058089d28f ("nvmet: implement crto property")
+36:Assisted-by: Claude:claude-opus-5 [Quality Playbook]
+55:base-commit: 4d7d9486c04d917265f64c55bd23b2cc4fe7749c
+Signed-off-by lines: 0
+--- draft diff vs patch under test:
+changed lines identical
+```
+
+The draft's `-`/`+` lines are identical to those of `nvmet-crto-from-cap.patch`, the patch
+that was built and tested in step 2. The release strings in the message are the ones
+`uname -r` printed in steps 1 and 2. The before/after values (CAP `0x8200f0003ff`, CRTO `0`
+then `0xf`) match `cc-red-base.txt` and `cc-green-crto.txt`. The branch `qpb/nvmet-crto`
+in `~/src/linux` holds commit `114455e4fd47`; nothing was pushed or sent.
+
+### Deviations in the resumed pass
+
+1. `git diff` was limited to `-- drivers/nvme/`, as in the previous run. An unrestricted
+   `git diff` would also print the 13 case-collision files, which are not part of this
+   change. `git diff --cached --stat` confirms that only `fabrics-cmd.c` is staged.
+2. The extra `checkpatch --no-signoff` run, and the Signed-off-by conflict described
+   above.
+3. The "Tested on" paragraph was rewrapped to fit the real release strings, and the
+   message was checked for line length on its own before checkpatch.
+4. An extra check compared the draft's changed lines with the patch under test.
+
+### Environment fix in the resumed pass
+
+5. **Orphaned `~/Documents/QPB/.git/HEAD.lock`, again.** This is the same pattern as
+   environment fix 3. It was found before the commit, at 12:58:27 and again at 13:00:52:
+   - Both times: 0 bytes, inode 511337733, born `Sep 10 12:50:22 2026`.
+   - The latest reflog entry, both times, was `583f386 HEAD@{2026-09-10 12:50:22 -0400}:
+     commit: evidence: CRTO runbook accepts ...`, so it was created in the same second as
+     that completed commit. `.git/logs/HEAD` and `.git/refs/heads/1.6.1` were also
+     modified at 12:50:22.
+   - There was no `index.lock` and no `git` process. The only handle was a read-only one
+     (`*304r`) held by pid 64242, the Cowork VM that mounts this folder.
+
+   Unlike fix 4, nothing showed activity after the commit, and the file sat unchanged for
+   more than ten minutes. I removed it with `/bin/rm -f`, only after checking in the same
+   command that it was still inode 511337733 and still empty (`removed inode 511337733`).
+   Afterwards neither `HEAD.lock` nor `index.lock` was present.
+
+## Result
+
+RESULT: red/green confirmed, draft patch ready (checkpatch --strict: the only error is the missing Signed-off-by, which the runbook forbids adding and the operator adds; clean with --no-signoff)
