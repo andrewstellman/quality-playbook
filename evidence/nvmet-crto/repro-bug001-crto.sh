@@ -46,8 +46,14 @@ CTRL=$(ls /sys/class/nvme-fabrics/ctl/ 2>/dev/null | grep -E '^nvme[0-9]+$' | he
 echo "kernel: $(uname -r)   controller: /dev/$CTRL"
 
 # CAP at offset 0x00 (64-bit); CRTO at offset 0x68 (32-bit)
-CAP=$(nvme get-property /dev/$CTRL -o 0x00 2>/dev/null | grep -o '0x[0-9a-fA-F]*' | head -1)
-CRTO=$(nvme get-property /dev/$CTRL -o 0x68 2>/dev/null | grep -o '0x[0-9a-fA-F]*' | head -1)
+echo "nvme-cli: $(nvme version 2>&1 | head -1)"
+RAW_CAP=$(nvme get-property /dev/$CTRL --offset=0x00 2>&1)
+RAW_CRTO=$(nvme get-property /dev/$CTRL --offset=0x68 2>&1)
+echo "--- raw CAP:";  echo "$RAW_CAP"
+echo "--- raw CRTO:"; echo "$RAW_CRTO"
+# nvme-cli prints "property: 0x68 (...), value: <hex without 0x>"
+CAP=$(echo "$RAW_CAP"   | sed -n 's/.*value: *\([0-9a-fA-F]*\).*/0x\1/p' | head -1)
+CRTO=$(echo "$RAW_CRTO" | sed -n 's/.*value: *\([0-9a-fA-F]*\).*/0x\1/p' | head -1)
 echo "CAP  = $CAP"
 echo "CRTO = $CRTO"
 cleanup

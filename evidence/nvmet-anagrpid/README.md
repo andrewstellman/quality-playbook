@@ -49,7 +49,7 @@ Fix: `NVMET_MAX_ANAGRPS + 1` as the size argument at both sites
 | host | Apple Silicon Mac, QEMU 10.x via Homebrew, `-M virt -accel hvf` |
 | guest | Ubuntu 24.04.4 LTS arm64 cloud image |
 | guest kernel (red, stock) | `6.8.0-138-generic`, with `linux-modules-extra-6.8.0-138-generic` for `nvmet-tcp`/`nvme-tcp` |
-| transport | NVMe/TCP, target and host in the same guest, `127.0.0.1:4420` |
+| transport | NVMe/TCP, target and host in the same guest, `127.0.0.1:4420` (Ubuntu does not ship `nvme-loop`) |
 | nvme-cli | Ubuntu 24.04 package |
 | scripts | [repro-bug002-anagrpid.sh](./repro-bug002-anagrpid.sh), [repro-bug002-analog.sh](./repro-bug002-analog.sh) |
 
@@ -101,10 +101,37 @@ Group 128 no longer exists in configfs at the time of the log read, yet the targ
 reports `ngrps: 2` and a descriptor for group 128 with zero namespaces, state
 `inaccessible`. That is the wrapped counter in `nvmet_ana_group_enabled[128]`.
 
-## Red on the snapshot commit
+## Red on the snapshot commit (2026-09-10)
 
-Pending: same two scripts on an unpatched build of torvalds/linux `4d7d9486c04d`,
-recorded here when run.
+Kernel built inside the guest from torvalds/linux `4d7d9486c04d` (v7.3-rc1), unpatched,
+Ubuntu's config with debug info disabled and the nvmet target stack as modules; release
+string `7.3.0-rc1-qpb+`. Same two scripts. Raw capture:
+[red-4d7d9486-raw.txt](./red-4d7d9486-raw.txt).
+
+```
+kernel: 7.3.0-rc1-qpb+
+initial ana_grpid = 1
+after writing 128, ana_grpid reads = 0
+created and removed ports/99/ana_groups/128 (counter for slot 128 is now wrapped if the bug is present)
+RED: 128 became 0 (reserved ANAGRPID) — bug present
+kernel: 7.3.0-rc1-qpb+   controller: /dev/nvme0
+Asymmetric Namespace Access Log for NVMe device: nvme0
+ANA LOG HEADER :-
+chgcnt : 2
+ngrps : 2
+ANA Log Desc :-
+grpid : 1
+nnsids : 1
+chgcnt : 2
+state : optimized
+nsid : 1
+
+grpid : 128
+nnsids : 0
+chgcnt : 2
+state : inaccessible
+RED: ANA log reports group 128 after it was removed — counter wrapped
+```
 
 ## Green
 
