@@ -1,0 +1,59 @@
+From d0397318e3ee061d49357e1d09f50858a3427b47 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Thu, 10 Sep 2026 12:58:52 -0400
+Subject: [PATCH] nvmet: derive the CRTO property from CAP, not CSTS
+
+nvmet_execute_prop_get() answers a Property Get of CRTO with
+NVME_CAP_TIMEOUT(ctrl->csts).  NVME_CAP_TIMEOUT() extracts bits 31:24,
+which is the TO field of CAP.  CSTS defines only bits 6:0 and nvmet
+writes only RDY, CFS and SHST into it, so the result is always 0.  The
+same controller sets CAP.TO to 15 in nvmet_init_cap().
+
+NVMe Base Specification 2.4, Figure 36 (CAP), says that when CC.CRIME
+is '0' the TO field "shall be set to: a) the value in the Controller
+Ready With Media Timeout (CRTO.CRWMT) field; or b) FFh if the value in
+the CRTO.CRWMT field is greater than FFh."  nvmet reports 15 in CAP.TO
+and 0 in CRTO.CRWMT.
+
+Take the value from ctrl->cap, where the timeout is actually stored.
+
+The Linux host reads CRTO only when CAP.CRMS.CRWMS is set, which nvmet
+does not advertise, so Linux initiators have not seen the wrong value.
+A host that reads the property directly does, for example nvme-cli's
+get-property.  Advertising CRWMS is a separate change.
+
+Tested on 7.3.0-rc1-qpb-cc-crto-base+ (unpatched) and
+7.3.0-rc1-qpb-cc-crto+ (patched) in an arm64 QEMU guest with nvmet over
+NVMe/TCP to 127.0.0.1, reading the properties with nvme get-property.
+Before: CAP reads 0x8200f0003ff (TO = 15) and CRTO reads 0.  After: CAP
+is unchanged and CRTO reads 0xf, so CRWMT = 15 = CAP.TO.
+
+The issue was found by Claude Opus 5 running Quality Playbook, an
+LLM-driven code review tool:
+https://github.com/andrewstellman/quality-playbook
+
+Fixes: 1e058089d28f ("nvmet: implement crto property")
+Assisted-by: Claude:claude-opus-5 [Quality Playbook]
+Signed-off-by: Andrew Stellman <astellman@stellman-greene.com>
+---
+ drivers/nvme/target/fabrics-cmd.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/nvme/target/fabrics-cmd.c b/drivers/nvme/target/fabrics-cmd.c
+index 42d1d1811671..3311b79e8f3b 100644
+--- a/drivers/nvme/target/fabrics-cmd.c
++++ b/drivers/nvme/target/fabrics-cmd.c
+@@ -65,7 +65,7 @@ static void nvmet_execute_prop_get(struct nvmet_req *req)
+ 			val = ctrl->csts;
+ 			break;
+ 		case NVME_REG_CRTO:
+-			val = NVME_CAP_TIMEOUT(ctrl->csts);
++			val = NVME_CAP_TIMEOUT(ctrl->cap);
+ 			break;
+ 		default:
+ 			status = NVME_SC_INVALID_FIELD | NVME_STATUS_DNR;
+
+base-commit: 4d7d9486c04d917265f64c55bd23b2cc4fe7749c
+-- 
+2.53.0
+
