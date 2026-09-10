@@ -74,9 +74,14 @@ Checklist from the previous patch's post-mortem (virtio-pci INTx, merged as
   Verify the blame chain in `RUN-REPORT.md` step 3 yourself by reading it, and state
   whether the reasoning holds. Check the tag format: 12-character hash, subject in
   parentheses and double quotes.
-- `Assisted-by: LLM` is the form the previous maintainer merged; the sentence "The issue
-  was found during an LLM-assisted Quality Playbook review" is the precedent wording.
-  Confirm both are present and unchanged.
+- `Assisted-by:` form. Do not take the previous patch as the precedent. Survey what has
+  been merged: in a full clone, `git log origin/master --grep='^Assisted-by:' -40
+  --format='%h %s%n  %(trailers:key=Assisted-by,valueonly)'`, and the same restricted to
+  `-- drivers/nvme`. Merged practice as of 2026-09-10 is `<Agent>:<model>`, optionally
+  `[harness]` and analyzer names (e.g. `Claude:claude-opus-5 [Quality Playbook]`), and
+  an nvmet-tcp commit (`14cc5a7e7773`) carries `Claude:claude-opus-4-8`. The trailer must
+  match that form and name the actual model and agent. The body sentence naming the tool
+  and its URL stays.
 - The "Tested on" paragraph must match the raw captures: kernel release strings, the
   before values, the after values, the transport.
 - The spec quotation must match `nvme-base-2.4.txt` verbatim, and the section reference

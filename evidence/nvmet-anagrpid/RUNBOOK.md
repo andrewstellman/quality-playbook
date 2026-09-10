@@ -207,10 +207,11 @@ log after mkdir+rmdir of ana_groups/128 lists group 128 with nnsids 0,
 state inaccessible.  After: ana_grpid reads back 128 and the ANA log
 lists only group 1.
 
-The issue was found during an LLM-assisted Quality Playbook review.
+The issue was found by Claude Opus 5 running Quality Playbook, an
+LLM-driven code review tool (https://github.com/andrewstellman/quality-playbook).
 
 Fixes: [from step 3]
-Assisted-by: LLM
+Assisted-by: Claude:claude-opus-5 [Quality Playbook]
 ```
 
 (No Signed-off-by; the operator adds it.)
