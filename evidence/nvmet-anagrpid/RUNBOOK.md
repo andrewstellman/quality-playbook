@@ -155,12 +155,15 @@ git diff
 ```
 
 Commit with the message below, filling in the `Fixes:` line(s) from step 3 and the
-kernel release strings from your own runs. Author and Signed-off-by are
+kernel release strings from your own runs. Author is
 `Andrew Stellman <astellman@stellman-greene.com>`; check `git config user.name` and
-`user.email` in `~/src/linux` and set them for this repo only if they differ. Then:
+`user.email` in `~/src/linux` and set them for this repo only if they differ.
+Do NOT add a Signed-off-by line and do not use `git commit -s`:
+`Documentation/process/coding-assistants.rst` says AI agents must not add
+Signed-off-by; the operator adds it when amending before sending. Then:
 
 ```
-git commit -s -F <message file>
+git commit -F <message file>
 ./scripts/checkpatch.pl --strict -g HEAD
 git format-patch -1 --base=4d7d9486c04d917265f64c55bd23b2cc4fe7749c -o ~/Documents/QPB/evidence/nvmet-anagrpid/
 ```
@@ -208,8 +211,9 @@ The issue was found during an LLM-assisted Quality Playbook review.
 
 Fixes: [from step 3]
 Assisted-by: LLM
-Signed-off-by: Andrew Stellman <astellman@stellman-greene.com>
 ```
+
+(No Signed-off-by; the operator adds it.)
 
 The `Fixes:` tag is the one thing in this message you cannot copy from anywhere; it
 comes from step 3 only. The earlier virtio patch shipped with a wrong one, so this is

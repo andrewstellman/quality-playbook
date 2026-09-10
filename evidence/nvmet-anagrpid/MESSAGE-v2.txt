@@ -38,4 +38,3 @@ The issue was found during an LLM-assisted Quality Playbook review.
 
 Fixes: 20dc66f2d76b ("nvme: prevent potential spectre v1 gadget")
 Assisted-by: LLM
-Signed-off-by: Andrew Stellman <astellman@stellman-greene.com>
