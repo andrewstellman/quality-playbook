@@ -1,0 +1,27 @@
+kernel: 7.3.0-rc1-qpb-anagrpid+
+initial ana_grpid = 1
+after writing 128, ana_grpid reads = 128
+created and removed ports/99/ana_groups/128 (counter for slot 128 is now wrapped if the bug is present)
+GREEN: 128 preserved
+kernel: 7.3.0-rc1-qpb-anagrpid+   controller: /dev/nvme0
+Asymmetric Namespace Access Log for NVMe device: nvme0
+ANA LOG HEADER :-
+chgcnt	:	2
+ngrps	:	1
+ANA Log Desc :-
+grpid	:	1
+nnsids	:	1
+chgcnt	:	2
+state	:	optimized
+	nsid	:	1
+GREEN: group 128 absent from ANA log
+kernel: 7.3.0-rc1-qpb-anagrpid+   controller: /dev/nvme0
+nvme-cli: nvme version 2.8 (git 2.8)
+--- raw CAP:
+property: 0x00 (Controller Capabilities), value: 8200f0003ff
+--- raw CRTO:
+property: 0x68 (Unknown), value: 0
+CAP  = 0x8200f0003ff
+CRTO = 0x0
+CAP.TO = 15   CRTO.CRWMT = 0
+RED: CRTO reads 0 while CAP.TO = 15 — bug present

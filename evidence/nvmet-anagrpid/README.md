@@ -133,11 +133,49 @@ state : inaccessible
 RED: ANA log reports group 128 after it was removed — counter wrapped
 ```
 
-## Green
+## Green (2026-09-10)
 
-Pending: same two scripts on `4d7d9486c04d` with only
-`nvmet-anagrpid-128-nospec.patch` applied. Expected: `ana_grpid` reads back 128;
-ANA log shows `ngrps: 1` with no group 128.
+Same tree, same config, with only
+[nvmet-anagrpid-128-nospec.patch](./nvmet-anagrpid-128-nospec.patch) applied; release
+string `7.3.0-rc1-qpb-anagrpid+`. All three reproducers run on the same boot; the CRTO
+script is included as a cross-check that this patch changes nothing else. Raw capture:
+[green-anagrpid-raw.txt](./green-anagrpid-raw.txt).
+
+```
+kernel: 7.3.0-rc1-qpb-anagrpid+
+initial ana_grpid = 1
+after writing 128, ana_grpid reads = 128
+created and removed ports/99/ana_groups/128 (counter for slot 128 is now wrapped if the bug is present)
+GREEN: 128 preserved
+kernel: 7.3.0-rc1-qpb-anagrpid+   controller: /dev/nvme0
+Asymmetric Namespace Access Log for NVMe device: nvme0
+ANA LOG HEADER :-
+chgcnt : 2
+ngrps : 1
+ANA Log Desc :-
+grpid : 1
+nnsids : 1
+chgcnt : 2
+state : optimized
+nsid : 1
+GREEN: group 128 absent from ANA log
+kernel: 7.3.0-rc1-qpb-anagrpid+   controller: /dev/nvme0
+...
+CAP.TO = 15   CRTO.CRWMT = 0
+RED: CRTO reads 0 while CAP.TO = 15 — bug present
+```
+
+Result: `ana_grpid` round-trips 128; after create and remove of group 128 the ANA log
+reports `ngrps: 1` and no descriptor for group 128; the unrelated CRTO defect is still
+present, as expected.
+
+## Summary
+
+| kernel | ana_grpid write 128 | ANA log after rmdir 128 | CRTO (unrelated) |
+|---|---|---|---|
+| Ubuntu 6.8.0-138-generic (stock) | reads 0, RED | phantom group 128, RED | not captured cleanly |
+| 4d7d9486 unpatched (`-qpb+`) | reads 0, RED | phantom group 128, RED | RED |
+| 4d7d9486 + this patch (`-qpb-anagrpid+`) | reads 128, GREEN | absent, GREEN | RED |
 
 ## Not yet done
 
