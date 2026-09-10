@@ -16,7 +16,7 @@ what checks stood between a model's claim and a patch on a mailing list.
 |---|---|---|
 | [virtio-pci-intx](./virtio-pci-intx/) | `vp_interrupt()` returns `IRQ_NONE` for a config-change-only interrupt | merged, `93fa09455fb1`, 7.3-rc3 |
 | [nvmet-anagrpid](./nvmet-anagrpid/) | ANA group ID 128 clamped to 0 by `array_index_nospec()` | sent to linux-nvme 2026-09-10, awaiting review |
-| [nvmet-crto](./nvmet-crto/) | Property Get of CRTO computed from CSTS instead of CAP | red/green confirmed, not yet sent |
+| [nvmet-crto](./nvmet-crto/) | Property Get of CRTO computed from CSTS instead of CAP | sent to linux-nvme 2026-09-10, awaiting review |
 
 ## Who does what
 

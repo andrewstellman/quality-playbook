@@ -3,11 +3,28 @@
 Bug found by Quality Playbook (Claude Opus 5) in the `nvme-target` run of 2026-09-06,
 recorded as `nvme-target/quality/BUGS.md` BUG-001. This file records the reproduction.
 
-## Status
+## Upstream
 
-Manual red/green confirmed (below). Not yet sent. Next: the autopilot run from
-[RUNBOOK.md](./RUNBOOK.md), then the three-reviewer panel, then send. The method is
-documented in [../README.md](../README.md).
+Sent 2026-09-10 to linux-nvme as
+[0001-nvmet-derive-the-CRTO-property-from-CAP-not-CSTS.patch](./0001-nvmet-derive-the-CRTO-property-from-CAP-not-CSTS.patch),
+Message-ID `<20260910180056.81257-1-astellman@stellman-greene.com>`:
+https://lore.kernel.org/linux-nvme/20260910180056.81257-1-astellman@stellman-greene.com/
+
+To: Christoph Hellwig, Sagi Grimberg, Chaitanya Kulkarni; Cc: linux-nvme, linux-kernel.
+Status: awaiting review. Standalone patch; independent of the ANAGRPID patch sent
+earlier the same day.
+
+The evidence was produced in two passes: a manual run (this file's Red/Green sections)
+and an independent autopilot run by Claude Code from [RUNBOOK.md](./RUNBOOK.md), reported
+in [RUN-REPORT.md](./RUN-REPORT.md) (it stopped once, on a tree-cleanliness check the
+runbook had set too strictly, and resumed after the runbook was corrected; both are in
+the report). Three reviewers checked the evidence and the patch before sending; see
+[review/SYNTHESIS.md](./review/SYNTHESIS.md). The one change they required, a wrong
+function name in the message's first sentence, is recorded there and in
+[DRAFT-0001-nvmet-derive-the-CRTO-property-from-CAP-not-CSTS.patch](./DRAFT-0001-nvmet-derive-the-CRTO-property-from-CAP-not-CSTS.patch),
+the pre-review draft. The header comment of [repro-bug001-crto.sh](./repro-bug001-crto.sh)
+carries the same wrong name; the script is kept byte-identical to what ran in the guest,
+so it is not corrected here. The method is documented in [../README.md](../README.md).
 
 ## The defect
 
