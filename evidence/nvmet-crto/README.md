@@ -11,7 +11,7 @@ documented in [../README.md](../README.md).
 
 ## The defect
 
-`drivers/nvme/target/fabrics-cmd.c`, `nvmet_get_property()`:
+`drivers/nvme/target/fabrics-cmd.c`, `nvmet_execute_prop_get()`:
 
 ```c
 		case NVME_REG_CRTO:

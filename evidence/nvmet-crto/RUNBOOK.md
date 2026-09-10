@@ -11,7 +11,7 @@ file and the files it names. Read this whole file before running anything.
 
 ## The bug, in one paragraph
 
-`drivers/nvme/target/fabrics-cmd.c`, `nvmet_get_property()`, answers a Property Get of
+`drivers/nvme/target/fabrics-cmd.c`, `nvmet_execute_prop_get()`, answers a Property Get of
 the CRTO register (offset 0x68) with `NVME_CAP_TIMEOUT(ctrl->csts)`. That macro extracts
 bits 31:24, which is where the TO field lives in CAP, not in CSTS. CSTS defines only bits
 6:0 and nvmet only ever writes RDY, CFS and SHST into it, so the expression is always 0.
@@ -217,7 +217,7 @@ step 3 did not support it; do not add claims that are not in your logs:
 ```
 nvmet: derive the CRTO property from CAP, not CSTS
 
-nvmet_get_property() answers a Property Get of CRTO with
+nvmet_execute_prop_get() answers a Property Get of CRTO with
 NVME_CAP_TIMEOUT(ctrl->csts).  NVME_CAP_TIMEOUT() extracts bits 31:24,
 which is the TO field of CAP.  CSTS defines only bits 6:0 and nvmet
 writes only RDY, CFS and SHST into it, so the result is always 0.  The
