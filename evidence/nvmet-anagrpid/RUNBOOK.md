@@ -208,7 +208,8 @@ state inaccessible.  After: ana_grpid reads back 128 and the ANA log
 lists only group 1.
 
 The issue was found by Claude Opus 5 running Quality Playbook, an
-LLM-driven code review tool (https://github.com/andrewstellman/quality-playbook).
+LLM-driven code review tool:
+https://github.com/andrewstellman/quality-playbook
 
 Fixes: [from step 3]
 Assisted-by: Claude:claude-opus-5 [Quality Playbook]
