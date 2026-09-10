@@ -176,6 +176,10 @@ present, as expected.
 | Ubuntu 6.8.0-138-generic (stock) | reads 0, RED | phantom group 128, RED | not captured cleanly |
 | 4d7d9486 unpatched (`-qpb+`) | reads 0, RED | phantom group 128, RED | RED |
 | 4d7d9486 + this patch (`-qpb-anagrpid+`) | reads 128, GREEN | absent, GREEN | RED |
+| 4d7d9486 + CRTO patch only (`-qpb-crto+`) | reads 0, RED | phantom group 128, RED | GREEN |
+
+Build procedure for all three kernels: [build-kernel.sh](./build-kernel.sh). The CRTO-only
+row is from [../nvmet-crto/green-crto-raw.txt](../nvmet-crto/green-crto-raw.txt).
 
 ## Not yet done
 

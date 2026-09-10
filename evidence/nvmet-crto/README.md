@@ -67,7 +67,40 @@ RED: CRTO reads 0 while CAP.TO = 15 — bug present
 CAP `0x8200f0003ff`: bits 31:24 = `0x0f`, TO = 15 (7.5 s). Bits 60:59 (CRMS) = 00b,
 confirming nvmet does not advertise CRWMS. CRTO reads 0.
 
-## Green
+## Green (2026-09-10)
 
-Pending: `4d7d9486c04d` with only `nvmet-crto-from-cap.patch`. Expected:
-CRTO.CRWMT = CAP.TO = 15.
+Same tree, same config, with only [nvmet-crto-from-cap.patch](./nvmet-crto-from-cap.patch)
+applied; release string `7.3.0-rc1-qpb-crto+`. All three reproducers run on the same boot;
+the two ANAGRPID scripts are included as a cross-check that this patch changes nothing
+else. Raw capture: [green-crto-raw.txt](./green-crto-raw.txt).
+
+```
+kernel: 7.3.0-rc1-qpb-crto+
+...
+RED: 128 became 0 (reserved ANAGRPID) — bug present
+...
+RED: ANA log reports group 128 after it was removed — counter wrapped
+kernel: 7.3.0-rc1-qpb-crto+   controller: /dev/nvme0
+nvme-cli: nvme version 2.8 (git 2.8)
+--- raw CAP:
+property: 0x00 (Controller Capabilities), value: 8200f0003ff
+--- raw CRTO:
+property: 0x68 (Unknown), value: f
+CAP  = 0x8200f0003ff
+CRTO = 0xf
+CAP.TO = 15   CRTO.CRWMT = 15
+GREEN: CRTO.CRWMT matches CAP.TO
+```
+
+Result: CRTO reads `0xf`, CRWMT = 15 = CAP.TO; the unrelated ANAGRPID defect is still
+present, as expected.
+
+## Summary
+
+| kernel | CRTO.CRWMT vs CAP.TO | ANAGRPID (unrelated) |
+|---|---|---|
+| 4d7d9486 unpatched (`-qpb+`) | 0 vs 15, RED | RED |
+| 4d7d9486 + this patch (`-qpb-crto+`) | 15 vs 15, GREEN | RED |
+| 4d7d9486 + anagrpid patch only (`-qpb-anagrpid+`) | 0 vs 15, RED | GREEN |
+
+Build procedure for all three kernels: [build-kernel.sh](./build-kernel.sh).
