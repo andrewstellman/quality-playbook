@@ -1,0 +1,71 @@
+From ecb621da73cc62944cc37bbd28c5fe0427d3d509 Mon Sep 17 00:00:00 2001
+From: Andrew Stellman <astellman@stellman-greene.com>
+Date: Thu, 10 Sep 2026 10:51:07 -0400
+Subject: [PATCH] nvmet: accept ANA group ID NVMET_MAX_ANAGRPS in configfs
+
+nvmet_ns_ana_grpid_store() and nvmet_ana_groups_make_group() accept an
+ANA group ID in the closed range 1..NVMET_MAX_ANAGRPS, but then pass it
+through array_index_nospec() with NVMET_MAX_ANAGRPS as the size.  That
+helper treats the size as a half-open bound, so the maximum valid ID,
+128, is rewritten to 0.
+
+nvmet_ana_group_enabled[] is NVMET_MAX_ANAGRPS + 1 entries wide, so
+index 128 is a valid slot, and the controller advertises ANAGRPMAX =
+NVMET_MAX_ANAGRPS.  NVMe Base Specification 2.4, section 8.1.1
+(Asymmetric Namespace Access Reporting), "ANA Groups", defines a valid
+ANA Group Identifier as "a non-zero value that is less than or equal to
+ANAGRPMAX".
+
+Two visible effects.  Writing 128 to a namespace's ana_grpid succeeds
+but the namespace lands in the reserved group 0.  Creating and removing
+ports/N/ana_groups/128 increments slot 0 on create but decrements slot
+128 on release, leaving nvmet_ana_group_enabled[128] at 0xffffffff, so
+every subsequent ANA log page reports a group 128 with no namespaces in
+the Inaccessible state.
+
+Use NVMET_MAX_ANAGRPS + 1 as the array_index_nospec() bound at both
+sites, matching the array's actual size.
+
+Tested on 7.3.0-rc1-qpb-cc-base+ (unpatched) and 7.3.0-rc1-qpb-cc-anagrpid+
+(patched) in an arm64 QEMU guest with nvmet over NVMe/TCP to
+127.0.0.1.  Before: ana_grpid written as 128 reads back 0, and the ANA
+log after mkdir+rmdir of ana_groups/128 lists group 128 with nnsids 0,
+state inaccessible.  After: ana_grpid reads back 128 and the ANA log
+lists only group 1.
+
+The issue was found during an LLM-assisted Quality Playbook review.
+
+Fixes: 20dc66f2d76b ("nvme: prevent potential spectre v1 gadget")
+Assisted-by: LLM
+Signed-off-by: Andrew Stellman <astellman@stellman-greene.com>
+---
+ drivers/nvme/target/configfs.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/drivers/nvme/target/configfs.c b/drivers/nvme/target/configfs.c
+index 413ee2d16d29..0d4c69c4697a 100644
+--- a/drivers/nvme/target/configfs.c
++++ b/drivers/nvme/target/configfs.c
+@@ -698,7 +698,7 @@ static ssize_t nvmet_ns_ana_grpid_store(struct config_item *item,
+ 
+ 	down_write(&nvmet_ana_sem);
+ 	oldgrpid = ns->anagrpid;
+-	newgrpid = array_index_nospec(newgrpid, NVMET_MAX_ANAGRPS);
++	newgrpid = array_index_nospec(newgrpid, NVMET_MAX_ANAGRPS + 1);
+ 	nvmet_ana_group_enabled[newgrpid]++;
+ 	ns->anagrpid = newgrpid;
+ 	nvmet_ana_group_enabled[oldgrpid]--;
+@@ -1976,7 +1976,7 @@ static struct config_group *nvmet_ana_groups_make_group(
+ 	grp->grpid = grpid;
+ 
+ 	down_write(&nvmet_ana_sem);
+-	grpid = array_index_nospec(grpid, NVMET_MAX_ANAGRPS);
++	grpid = array_index_nospec(grpid, NVMET_MAX_ANAGRPS + 1);
+ 	nvmet_ana_group_enabled[grpid]++;
+ 	up_write(&nvmet_ana_sem);
+ 
+
+base-commit: 4d7d9486c04d917265f64c55bd23b2cc4fe7749c
+-- 
+2.53.0
+
