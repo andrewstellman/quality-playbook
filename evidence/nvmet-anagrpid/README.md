@@ -5,6 +5,21 @@ recorded as `nvme-target/quality/BUGS.md` BUG-002. This file records the reprodu
 Every log below was produced inside a QEMU guest and captured over ssh; nothing was
 edited. Raw capture: [red-stock-6.8.0-138-raw.txt](./red-stock-6.8.0-138-raw.txt). Working copies of the scripts live in the qemu-lab folder; the versions here are the ones that produced the logs.
 
+## Upstream
+
+Sent 2026-09-10 to linux-nvme as
+[0001-nvmet-accept-ANA-group-ID-NVMET_MAX_ANAGRPS-in-confi.patch](./0001-nvmet-accept-ANA-group-ID-NVMET_MAX_ANAGRPS-in-confi.patch),
+Message-ID `<20260910154849.66095-1-astellman@stellman-greene.com>`:
+https://lore.kernel.org/linux-nvme/20260910154849.66095-1-astellman@stellman-greene.com/
+
+To: Christoph Hellwig, Sagi Grimberg, Chaitanya Kulkarni; Cc: linux-nvme, linux-kernel.
+Status: awaiting review.
+
+The evidence was produced in two passes: a manual run (this file's Red/Green sections)
+and an independent autopilot run by Claude Code from [RUNBOOK.md](./RUNBOOK.md), reported
+in [RUN-REPORT.md](./RUN-REPORT.md). Three reviewers checked the evidence and the patch
+before sending; see [review/SYNTHESIS.md](./review/SYNTHESIS.md).
+
 ## The defect
 
 `drivers/nvme/target/configfs.c`, two sites:
